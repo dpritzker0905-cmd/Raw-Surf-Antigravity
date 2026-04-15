@@ -1,0 +1,100 @@
+{
+  "summary": "Iteration 91 - Quick Book feature testing completed. Fixed critical bug: ProfileResponse was missing on_demand_active field. All Quick Book UI features verified working correctly.",
+  "backend_issues": {
+    "critical": [
+      {
+        "endpoint": "POST /api/dispatch/request",
+        "issue": "Frontend sends different request format than backend expects. Frontend sends {surfer_id, photographer_id, duration_hours} in body, but backend expects requester_id as query param and CreateDispatchRequest schema (latitude, longitude, estimated_duration_hours, is_immediate)",
+        "priority": "HIGH"
+      }
+    ],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {
+        "flow": "On-Demand Quick Book Submit",
+        "issue": "handleQuickBookSubmit sends wrong request format to /api/dispatch/request. Sends {surfer_id, photographer_id, duration_hours, payment_method, resolution_preference} but backend expects requester_id as query param and {latitude, longitude, estimated_duration_hours, is_immediate} in body",
+        "affected_selectors": ["[data-testid='quick-book-submit-btn']"],
+        "priority": "HIGH"
+      }
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/routes/profiles.py"
+  ],
+  "action_items": [
+    "Fix Profile.js handleQuickBookSubmit to match backend dispatch API format: use requester_id query param and CreateDispatchRequest schema"
+  ],
+  "critical_code_review_comments": [
+    "FIXED: Added on_demand_active and on_demand_hourly_rate fields to ProfileResponse schema in profiles.py",
+    "FIXED: Updated profile_to_response function to map on_demand_available to on_demand_active for frontend compatibility",
+    "Quick Book buttons conditional logic working correctly: Quick Book Now (yellow) only shows when on_demand_active=true",
+    "Book a Session (cyan gradient) shows when photographer is NOT on-demand active",
+    "Schedule Later (outline cyan) shows alongside Quick Book Now when photographer IS on-demand active",
+    "Green 'Available Now for On-Demand' status badge correctly shows/hides based on on_demand_active",
+    "Live Price Calculator updates in real-time with formula: $rate/hr × hours = $total",
+    "NumericStepper works correctly with 0.5-8 hour range and 0.5 step increments"
+  ],
+  "updated_files": [
+    "/app/backend/routes/profiles.py"
+  ],
+  "success_rate": {
+    "backend": "100%",
+    "frontend": "95%"
+  },
+  "test_credentials": {
+    "surfer": {
+      "email": "surfer@surf.com",
+      "password": "test-shaka",
+      "id": "f3a7fb9f-08af-4d13-ade5-f73611d7030f"
+    },
+    "photographer": {
+      "email": "photographer@surf.com",
+      "password": "test-shaka",
+      "id": "04503c29-dc37-4f8c-a462-4177c4a54096"
+    }
+  },
+  "seed_data_creation": "Created surfer@surf.com account via /api/auth/signup",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Quick Book UI features all working. Backend fix applied to return on_demand_active field in profile responses. Main issue remaining: handleQuickBookSubmit in Profile.js sends wrong request format to dispatch API. The dispatch API expects requester_id as query param and CreateDispatchRequest schema in body.",
+  "features_verified": {
+    "quick_book_buttons": {
+      "on_demand_active_true": {
+        "quick_book_now_button": "VERIFIED - Yellow gradient, shows 'Quick Book Now'",
+        "schedule_later_button": "VERIFIED - Outline cyan, shows 'Schedule Later'",
+        "on_demand_status_badge": "VERIFIED - Green badge 'Available Now for On-Demand'"
+      },
+      "on_demand_active_false": {
+        "quick_book_now_button": "VERIFIED - NOT visible (correct)",
+        "book_a_session_button": "VERIFIED - Cyan gradient, shows 'Book a Session'",
+        "on_demand_status_badge": "VERIFIED - NOT visible (correct)"
+      }
+    },
+    "quick_book_modal": {
+      "on_demand_modal": {
+        "title": "VERIFIED - 'Quick Book - On-Demand' with Zap icon",
+        "photographer_info": "VERIFIED - Avatar, name, role, 'Available Now' status",
+        "price_calculator": "VERIFIED - Shows total with formula breakdown",
+        "numeric_stepper": "VERIFIED - 0.5-8 hour range, increment/decrement working",
+        "real_time_price_update": "VERIFIED - Price updates when duration changes",
+        "whats_included": "VERIFIED - Photos included, hours, immediate response",
+        "submit_button": "VERIFIED - 'Send Request - $X.XX' with yellow gradient"
+      },
+      "scheduled_modal": {
+        "title": "VERIFIED - 'Quick Book - Scheduled' with CalendarClock icon",
+        "price_calculator": "VERIFIED - Shows total with formula breakdown",
+        "numeric_stepper": "VERIFIED - Working correctly",
+        "info_note": "VERIFIED - Shows redirect to full booking page message",
+        "submit_button": "VERIFIED - 'Continue to Booking' with cyan gradient"
+      }
+    }
+  },
+  "mocked_apis": {
+    "has_mocked_apis": true,
+    "mocked_apis_list": ["Stripe payment webhooks"]
+  }
+}

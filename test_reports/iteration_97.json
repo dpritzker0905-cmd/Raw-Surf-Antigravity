@@ -1,0 +1,78 @@
+{
+  "summary": "Iteration 97 - Sprint Features Testing completed. All 8 backend tests passed. Frontend verification confirmed: 1) Bookings.js uses BookingCard component (line 19 import, lines 1165-1175 usage), 2) GalleryPage.js imports GalleryGrid component (line 14), 3) OnDemandSettingsPage has on-demand status toggle with data-testid='on-demand-status-toggle', 4) Toggle is disabled when no spots selected (has opacity-50 cursor-not-allowed classes), 5) Shows 'Select coverage spots below' when disabled, 6) Backend GET /api/photographer/{id}/on-demand-status returns is_available and spot_name fields.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_sprint_features_iter97.py",
+    "/app/test_reports/pytest/pytest_results_iter97.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Bookings.js VERIFIED: Line 19 imports BookingCard, lines 1165-1175 use <BookingCard> component with proper props (booking, user, theme, onInvite, onRefresh)",
+    "BookingCard.js VERIFIED: Exports BookingCard component with data-testid='booking-card-{id}'",
+    "GalleryPage.js VERIFIED: Line 14 imports GalleryGrid and GalleryGridItem from './GalleryGrid'",
+    "GalleryGrid.js VERIFIED: Exports GalleryGrid and GalleryGridItem components with data-testid='gallery-item-{id}'",
+    "OnDemandSettingsPage.js VERIFIED: Has on-demand status toggle (lines 297-352) with data-testid='on-demand-status-toggle'",
+    "Toggle disabled state VERIFIED: Line 323 has disabled={togglingStatus || (selectedSpots.length === 0 && !onDemandActive)} - toggle is disabled when no spots selected",
+    "Toggle shows 'Active at: [Spot Name]' when enabled (line 314) or 'Select coverage spots below' when disabled (line 317)",
+    "Backend GET /api/photographer/{id}/on-demand-status VERIFIED: Returns is_available, spot_id, spot_name fields (lines 1745-1781 in photographer.py)",
+    "Route is /photographer/on-demand-settings (not /on-demand-settings)"
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_sprint_features_iter97.py"
+  ],
+  "success_rate": {
+    "backend": "100%",
+    "frontend": "100%"
+  },
+  "test_credentials": {
+    "photographer": {
+      "email": "photographer@surf.com",
+      "password": "test-shaka",
+      "id": "12dc6786-124f-40b1-8698-a9409f99736f",
+      "role": "Approved Pro"
+    }
+  },
+  "seed_data_creation": "",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Sprint 97 features verified: 1) Bookings.js now uses BookingCard component instead of inline code (reduced from 1692 to 1612 lines), 2) GalleryPage.js imports GalleryGrid component, 3) OnDemandSettingsPage has status toggle that is disabled until spots are selected. Route for On-Demand Settings is /photographer/on-demand-settings. Toggle has data-testid='on-demand-status-toggle' and shows disabled styling (opacity-50 cursor-not-allowed) when no spots selected.",
+  "features_verified": {
+    "bookings_uses_booking_card": "VERIFIED - Line 19 import, lines 1165-1175 usage",
+    "gallery_imports_gallery_grid": "VERIFIED - Line 14 imports GalleryGrid, GalleryGridItem",
+    "on_demand_status_toggle": "VERIFIED - data-testid='on-demand-status-toggle' present",
+    "toggle_disabled_when_no_spots": "VERIFIED - Has opacity-50 cursor-not-allowed classes when selectedSpots.length === 0",
+    "toggle_shows_active_spot_name": "VERIFIED - Shows 'Active at: [Spot Name]' when enabled (line 314)",
+    "backend_on_demand_status_endpoint": "VERIFIED - Returns is_available, spot_id, spot_name fields"
+  },
+  "mocked_apis": {
+    "has_mocked_apis": true,
+    "mocked_apis_list": ["Stripe payment webhooks"]
+  },
+  "tests_executed": {
+    "total": 8,
+    "passed": 8,
+    "failed": 0,
+    "test_classes": [
+      "TestOnDemandStatusEndpoint (3 tests) - GET /api/photographer/{id}/on-demand-status verification",
+      "TestOnDemandToggleEndpoint (2 tests) - POST /api/photographer/{id}/on-demand-toggle verification",
+      "TestOnDemandSettingsEndpoint (2 tests) - GET/POST /api/photographer/{id}/on-demand-settings verification",
+      "TestHealthCheck (1 test) - /api/photographers/live endpoint"
+    ]
+  },
+  "ui_tests_executed": {
+    "login_flow": "PASS - Login with photographer credentials works",
+    "bookings_page": "PASS - data-testid='bookings-page' found",
+    "gallery_page": "PASS - data-testid='gallery-page' found",
+    "on_demand_settings_page": "PASS - data-testid='on-demand-settings-page' found",
+    "on_demand_status_toggle": "PASS - data-testid='on-demand-status-toggle' found with disabled styling",
+    "save_settings_button": "PASS - data-testid='save-settings-btn' found"
+  }
+}

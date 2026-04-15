@@ -1,0 +1,121 @@
+{
+  "theme": "dark",
+  "typography": {
+    "headings": {
+      "family": "Outfit, sans-serif",
+      "weight": "font-bold",
+      "tracking": "tracking-tight",
+      "usage": "Used for Drawer Title, Active Mode Status, and massive CTA text."
+    },
+    "body": {
+      "family": "Manrope, sans-serif",
+      "weight": "font-medium",
+      "tracking": "tracking-normal",
+      "usage": "Used for spot descriptions, stats labels, and minor UI text."
+    },
+    "mono": {
+      "family": "JetBrains Mono, monospace",
+      "usage": "Used for earnings numbers, distance metrics (e.g., '1.2 mi').",
+      "styling": "uppercase tracking-[0.1em] text-xs"
+    }
+  },
+  "colors": {
+    "background": {
+      "drawer": "bg-zinc-950/90 backdrop-blur-2xl",
+      "card": "bg-zinc-900",
+      "card_hover": "bg-zinc-800"
+    },
+    "borders": {
+      "default": "border-white/10",
+      "focus": "border-white/30"
+    },
+    "modes": {
+      "live": {
+        "primary": "bg-blue-500",
+        "text": "text-blue-400",
+        "border": "border-blue-500/50",
+        "glow": "shadow-[0_0_15px_rgba(59,130,246,0.5)]"
+      },
+      "on_demand": {
+        "primary": "bg-amber-500",
+        "text": "text-amber-400",
+        "border": "border-amber-500/50",
+        "glow": "shadow-[0_0_15px_rgba(245,158,11,0.5)]"
+      }
+    },
+    "text": {
+      "primary": "text-white",
+      "secondary": "text-zinc-400",
+      "disabled": "text-zinc-600"
+    }
+  },
+  "visual_enhancers": {
+    "surface_strategy": "Crystal Glass variant for the drawer to float elegantly above the map. Needs a 1px top border (border-white/10) to separate from the map background. Internal cards use Tactile Neumorphism with sharp 1px borders.",
+    "shadows": "Minimal ambient shadows, relying heavily on inner borders and glow states for active modes.",
+    "icons": "Use lucide-react (already installed). Phosphor Icons if new needed, but stick to Lucide for consistency."
+  },
+  "components": {
+    "DutyStationDrawer": {
+      "description": "The unified bottom sheet container.",
+      "layout": "Flex column, gap-6, p-6. Top drag handle.",
+      "state_rules": "Always mounted but translated off-screen when closed. When open, snaps to bottom."
+    },
+    "ModeSelector": {
+      "description": "Segmented control to switch between Live and On-Demand.",
+      "interaction": "Smooth sliding highlight background. Disables/hides On-Demand if user role is Hobbyist.",
+      "styling": "p-1 bg-zinc-900 rounded-full flex gap-1 border border-white/5."
+    },
+    "SpotSelector": {
+      "description": "GPS-based location picker.",
+      "layout": "Row flex, icon left, text center, distance mono right. Chevron to indicate dropdown/modal.",
+      "styling": "p-4 rounded-xl bg-zinc-900 border border-white/10 hover:border-white/20 transition-all."
+    },
+    "ActivationToggle": {
+      "description": "The massive 'Go Live' or 'Activate On-Demand' button.",
+      "styling": "w-full py-4 rounded-xl font-bold text-lg text-white transition-all transform active:scale-[0.98].",
+      "dynamic_styling": "If Live mode: Blue background with blue glow. If On-Demand mode: Amber background with amber glow."
+    },
+    "StatsPreview": {
+      "description": "Mini bento grid showing earnings or time online.",
+      "layout": "Grid cols-2 gap-4.",
+      "styling": "p-4 rounded-xl bg-zinc-900/50 border border-white/5 flex flex-col items-center justify-center."
+    }
+  },
+  "grids_and_layouts": {
+    "drawer_container": "fixed inset-x-0 bottom-0 z-50 rounded-t-3xl",
+    "inner_spacing": "px-6 pb-8 pt-4 flex flex-col gap-6"
+  },
+  "motion": {
+    "drawer": "Framer motion: initial { y: '100%' }, animate { y: 0 }, exit { y: '100%' }, transition { type: 'spring', damping: 25, stiffness: 200 }",
+    "toggle": "layoutId for the sliding segmented control background.",
+    "button": "whileTap={{ scale: 0.95 }}"
+  },
+  "accessibility": {
+    "contrast": "Text over vibrant buttons must remain white for legibility against Blue-500 or Amber-500.",
+    "focus": "focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:outline-none",
+    "motion": "Respect prefers-reduced-motion via Framer Motion's useReducedMotion hook if necessary."
+  },
+  "instructions_to_main_agent": [
+    "Create files as .js, NOT .tsx (e.g., DutyStationDrawer.js).",
+    "Implement Role-Based Access Control (RBAC) carefully: If user.role === 'Hobbyist', the ModeSelector should NOT render the On-Demand option, or the selector itself is hidden entirely and defaults to Live.",
+    "Modes are mutually exclusive. Ensure state clears or gracefully transitions when switching between Live and On-Demand.",
+    "Use Framer Motion for the drawer slide-up effect and the segmented control active state indicator.",
+    "DO NOT use standard HTML <select>. Use Shadcn UI DropdownMenu or a custom bottom-sheet modal for Spot Selection.",
+    "Every interactive element MUST have a `data-testid` attribute (e.g., data-testid='mode-live-button', data-testid='activate-duty-button')."
+  ],
+  "UNIVERSAL_GUIDELINES": [
+    "You tend to converge toward generic, 'on distribution' outputs. Avoid this: make creative, distinctive frontends that surprise and delight.",
+    "DO NOT use dark colors as gradients.",
+    "Don't make generic centered layouts. Use grid/flex creatively.",
+    "Create depth through layered design elements with z-index hierarchy.",
+    "Use glass-morphism effects with backdrop filters (12-24px blur). DO NOT use complete transparent backgrounds.",
+    "You MUST NOT apply universal transition (transition: all). Always add transitions for specific properties.",
+    "You MUST NOT center align the app container (.App { text-align: center; }).",
+    "Always use modern button styles like pill-shaped, or sharp button with interaction animations.",
+    "NEVER use AI assistant Emoji characters for icons.",
+    "Every interaction needs micro-animations - hover states, transitions.",
+    "Use 2-3x more spacing than feels comfortable.",
+    "Components MUST use named exports. Pages MUST use default exports.",
+    "All interactive and key informational elements MUST include a data-testid attribute."
+  ]
+}

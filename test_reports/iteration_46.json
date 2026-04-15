@@ -1,0 +1,89 @@
+{
+  "summary": "Frontend testing of Map Page UI Restructure - Merging 'Go Live' flow into Map Pin Drawers. All 9 key features verified successfully. The UnifiedSpotDrawer component works correctly with 3 snap points (PEEK=120px, HALF=540px, FULL=918px), proper content visibility at each level, and correct role-based button visibility.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "/api/uploads/feed/test-video.mp4", "issue": "404 Not Found - cosmetic only, video file missing"}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/test_reports/iteration_46.json"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "UnifiedSpotDrawer.js: Correctly implements 3 snap points (PEEK=120px, HALF=50vh, FULL=85vh)",
+    "UnifiedSpotDrawer.js line 151: isPhotographer conditional correctly hides 'Start Shooting' button for non-photographers",
+    "UnifiedSpotDrawer.js line 193: Surf Report only visible at HALF and FULL snap points",
+    "UnifiedSpotDrawer.js line 265: Session Settings only visible at FULL for photographers",
+    "MapPage.js: Global 'Go Live' button successfully removed from header (line 1129 comment confirms removal)",
+    "MapPage.js line 751: handleSpotClick properly clears previous drawer state before mounting new one",
+    "MapPage.js line 1418: UnifiedSpotDrawer integration with correct props (spot, isOpen, onClose, onStartShooting, etc.)",
+    "All data-testid attributes present: unified-spot-drawer, close-drawer-btn, start-shooting-btn, request-pro-btn"
+  ],
+  "updated_files": [],
+  "success_rate": {
+    "backend": "N/A (frontend-only testing)",
+    "frontend": "100% (9/9 tests passed)"
+  },
+  "test_credentials": {
+    "admin_user": {
+      "email": "kelly@surf.com",
+      "password": "test-shaka",
+      "role": "Pro Surfer",
+      "isPhotographer": false
+    }
+  },
+  "seed_data_creation": "None - used existing admin user",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Map Page UI restructure verified. Key changes: (1) Global 'Go Live' button removed from header, (2) UnifiedSpotDrawer opens on map pin click with spot name, 'Start Shooting' button (photographers only), surf report, active shooters, (3) 3 snap points work correctly, (4) Close button removes drawer completely, (5) Filter tabs (All, Surf Spots, Photographers) and 'Request a Pro' remain in header.",
+  "verified_features": {
+    "go_live_removed": {
+      "status": "PASS",
+      "description": "Global 'Go Live' button correctly REMOVED from map header - only filter tabs and Request a Pro remain"
+    },
+    "unified_drawer_opens_on_pin_click": {
+      "status": "PASS",
+      "description": "Clicking map pin opens UnifiedSpotDrawer with spot name 'Jacksonville Beach Pier' and region"
+    },
+    "drawer_snap_points": {
+      "status": "PASS",
+      "description": "3 snap points work: PEEK (120px), HALF (540px with surf report visible), FULL (918px with all content)"
+    },
+    "chevron_expand_collapse": {
+      "status": "PASS",
+      "description": "ChevronUp expands drawer through snap points, ChevronDown collapses back to PEEK"
+    },
+    "surf_report_at_half": {
+      "status": "PASS",
+      "description": "Surf Report visible at HALF height - shows wave height (2.6ft), swell (1.8ft), tides, conditions"
+    },
+    "session_settings_at_full": {
+      "status": "PASS",
+      "description": "Session Settings NOT visible at FULL for Pro Surfer (correct behavior - only for photographers)"
+    },
+    "close_button_works": {
+      "status": "PASS",
+      "description": "X button (close-drawer-btn) completely removes drawer from DOM when clicked"
+    },
+    "start_shooting_visibility": {
+      "status": "PASS",
+      "description": "'Start Shooting' button NOT visible for Pro Surfer kelly@surf.com (isPhotographer=false)"
+    },
+    "filter_tabs_present": {
+      "status": "PASS",
+      "description": "All filter tabs present: All (yellow), Surf Spots, Photographers, Request a Pro"
+    }
+  },
+  "ui_screenshots": {
+    "drawer_peek": "120px height showing spot name only",
+    "drawer_half": "540px height with Surf Report, Current Conditions, Today's Tides",
+    "drawer_full": "918px height with all content including Active Shooters section"
+  },
+  "note": "To test 'Start Shooting' button and Session Settings visibility, need a photographer user (role: Grom Parent, Hobbyist, Photographer, or Approved Pro)"
+}

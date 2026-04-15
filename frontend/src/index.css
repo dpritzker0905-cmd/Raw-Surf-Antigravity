@@ -1,0 +1,339 @@
+@import url('https://fonts.googleapis.com/css2?family=Oswald:wght@500;700&family=Inter:wght@400;500;600&display=swap');
+@import './styles/map-status.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+/* ============ HARDWARE-LEVEL FULL-BLEED THEME ============ */
+html {
+  height: 100%;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  background-color: hsl(var(--background));
+  color: hsl(var(--foreground));
+  /* Prevents white flashes when pulling past scroll limits */
+  overscroll-behavior: none;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  height: 100%;
+  width: 100%;
+  background-color: hsl(var(--background));
+  color: hsl(var(--foreground));
+  /* Prevents white flashes when pulling past scroll limits */
+  overscroll-behavior: none;
+  /* Position relative for safe area pseudo elements */
+  position: relative;
+}
+
+/* Extend background behind status bar at top */
+body::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: env(safe-area-inset-top, 0px);
+  background-color: hsl(var(--background));
+  z-index: 9999;
+}
+
+/* Extend background behind home indicator at bottom */
+body::after {
+  content: '';
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: env(safe-area-inset-bottom, 0px);
+  background-color: hsl(var(--background));
+  z-index: 9999;
+}
+
+#root {
+  min-height: 100%;
+  min-height: 100vh;
+  min-height: -webkit-fill-available;
+  background-color: hsl(var(--background));
+  color: hsl(var(--foreground));
+  display: flex;
+  flex-direction: column;
+  /* Account for safe areas */
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+code {
+    font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New', monospace;
+}
+
+/* Safe area for mobile devices with notches/home indicators */
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.safe-area-top {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+
+/* Go Live Modal - Full viewport coverage on mobile */
+.go-live-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: black;
+  /* Use dynamic viewport height for mobile browsers */
+  height: 100vh;
+  height: 100dvh;
+  width: 100vw;
+  overflow: hidden;
+}
+
+/* Go Live controls container - always visible above mobile nav */
+.go-live-controls {
+  position: fixed;
+  left: 0;
+  right: 0;
+  /* Position above typical mobile nav bar heights (56-80px) */
+  bottom: max(80px, calc(env(safe-area-inset-bottom, 0px) + 60px));
+  padding: 16px;
+  background: linear-gradient(to top, rgba(0,0,0,0.95), rgba(0,0,0,0.8), transparent);
+  z-index: 150;
+}
+
+/* ============ GLOBAL SCROLLBAR HIDING ============ */
+/* Hide all scrollbars throughout the app while keeping scroll functionality */
+* {
+  -ms-overflow-style: none !important;
+  scrollbar-width: none !important;
+}
+
+*::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+  background: transparent !important;
+}
+
+/* Restore scrollbar only for specific elements that need it (like code blocks, modals with long content) */
+.show-scrollbar {
+  -ms-overflow-style: auto !important;
+  scrollbar-width: thin !important;
+}
+.show-scrollbar::-webkit-scrollbar {
+  display: block !important;
+  width: 6px !important;
+}
+.show-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,0.2);
+  border-radius: 3px;
+}
+.show-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* Legacy hide-scrollbar class (kept for backwards compatibility) */
+.hide-scrollbar {
+  -ms-overflow-style: none !important;
+  scrollbar-width: none !important;
+}
+.hide-scrollbar::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+@layer base {
+    /* Light Mode */
+    :root, .light {
+        --background: 0 0% 100%;
+        --foreground: 0 0% 10%;
+        --card: 0 0% 100%;
+        --card-foreground: 0 0% 10%;
+        --popover: 0 0% 100%;
+        --popover-foreground: 0 0% 10%;
+        --primary: 80 80% 50%;
+        --primary-foreground: 0 0% 0%;
+        --secondary: 0 0% 96%;
+        --secondary-foreground: 0 0% 10%;
+        --muted: 0 0% 96%;
+        --muted-foreground: 0 0% 45%;
+        --accent: 0 0% 96%;
+        --accent-foreground: 0 0% 10%;
+        --destructive: 0 84% 60%;
+        --destructive-foreground: 0 0% 98%;
+        --border: 0 0% 90%;
+        --input: 0 0% 90%;
+        --ring: 80 80% 50%;
+        --radius: 0.5rem;
+        
+        /* Theme colors */
+        --sidebar-bg: 0 0% 100%;
+        --sidebar-text: 0 0% 20%;
+        --main-bg: 0 0% 100%;
+        --post-card-bg: 0 0% 100%;
+        --text-primary: 0 0% 10%;
+        --text-secondary: 0 0% 45%;
+        --home-highlight-from: 80 80% 50%;
+        --home-highlight-to: 45 100% 50%;
+    }
+    
+    /* Dark Mode */
+    .dark {
+        --background: 0 0% 8%;
+        --foreground: 0 0% 98%;
+        --card: 0 0% 12%;
+        --card-foreground: 0 0% 98%;
+        --popover: 0 0% 8%;
+        --popover-foreground: 0 0% 98%;
+        --primary: 45 100% 50%;
+        --primary-foreground: 0 0% 0%;
+        --secondary: 0 0% 15%;
+        --secondary-foreground: 0 0% 98%;
+        --muted: 0 0% 15%;
+        --muted-foreground: 0 0% 64%;
+        --accent: 0 0% 15%;
+        --accent-foreground: 0 0% 98%;
+        --destructive: 0 63% 31%;
+        --destructive-foreground: 0 0% 98%;
+        --border: 0 0% 20%;
+        --input: 0 0% 15%;
+        --ring: 45 100% 50%;
+        
+        /* Theme colors */
+        --sidebar-bg: 0 0% 8%;
+        --sidebar-text: 0 0% 90%;
+        --main-bg: 0 0% 8%;
+        --post-card-bg: 0 0% 12%;
+        --text-primary: 0 0% 100%;
+        --text-secondary: 0 0% 60%;
+        --home-highlight-from: 45 100% 50%;
+        --home-highlight-to: 30 100% 50%;
+    }
+    
+    /* Beach Mode - Deeper/darker black than dark mode with brighter fonts for beach visibility */
+    .beach-mode {
+        --background: 0 0% 0%;
+        --foreground: 0 0% 100%;
+        --card: 0 0% 5%;
+        --card-foreground: 0 0% 100%;
+        --popover: 0 0% 0%;
+        --popover-foreground: 0 0% 100%;
+        --primary: 80 80% 50%;
+        --primary-foreground: 0 0% 0%;
+        --secondary: 0 0% 8%;
+        --secondary-foreground: 0 0% 100%;
+        --muted: 0 0% 8%;
+        --muted-foreground: 0 0% 75%;
+        --accent: 0 0% 8%;
+        --accent-foreground: 0 0% 100%;
+        --destructive: 0 63% 31%;
+        --destructive-foreground: 0 0% 100%;
+        --border: 0 0% 15%;
+        --input: 0 0% 8%;
+        --ring: 80 80% 50%;
+        --radius: 0.5rem;
+        
+        /* Theme colors - pure black, darker than dark mode, brighter text */
+        --sidebar-bg: 0 0% 0%;
+        --sidebar-text: 0 0% 95%;
+        --main-bg: 0 0% 0%;
+        --post-card-bg: 0 0% 5%;
+        --text-primary: 0 0% 100%;
+        --text-secondary: 0 0% 80%;
+        --home-highlight-from: 80 80% 50%;
+        --home-highlight-to: 45 100% 50%;
+    }
+}
+
+@layer base {
+    * {
+        @apply border-border;
+        margin: 0;
+        padding: 0;
+    }
+    html {
+        height: 100%;
+        overflow-x: hidden;
+        @apply bg-background;
+    }
+    body {
+        @apply text-foreground bg-background;
+        height: 100%;
+        min-height: 100vh;
+        min-height: -webkit-fill-available;
+        margin: 0;
+        padding: 0;
+    }
+    #root {
+        @apply bg-background;
+        min-height: 100vh;
+        min-height: -webkit-fill-available;
+    }
+    h1, h2, h3, h4, h5, h6 {
+        font-family: 'Oswald', sans-serif;
+    }
+}
+
+@layer base {
+    [data-debug-wrapper="true"] {
+        display: contents !important;
+    }
+
+    [data-debug-wrapper="true"] > * {
+        margin-left: inherit;
+        margin-right: inherit;
+        margin-top: inherit;
+        margin-bottom: inherit;
+        padding-left: inherit;
+        padding-right: inherit;
+        padding-top: inherit;
+        padding-bottom: inherit;
+        column-gap: inherit;
+        row-gap: inherit;
+        gap: inherit;
+        border-left-width: inherit;
+        border-right-width: inherit;
+        border-top-width: inherit;
+        border-bottom-width: inherit;
+        border-left-style: inherit;
+        border-right-style: inherit;
+        border-top-style: inherit;
+        border-bottom-style: inherit;
+        border-left-color: inherit;
+        border-right-color: inherit;
+        border-top-color: inherit;
+        border-bottom-color: inherit;
+    }
+}
+
+
+/* ============ LEAFLET MAP FIXES FOR SAMSUNG/ANDROID ============ */
+/* Ensure map container has correct dimensions */
+.leaflet-container {
+  background: #1a1a2e !important;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+/* Ensure tiles are visible */
+.leaflet-tile-pane {
+  opacity: 1 !important;
+}
+
+.leaflet-tile {
+  visibility: visible !important;
+}

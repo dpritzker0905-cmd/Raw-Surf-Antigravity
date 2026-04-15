@@ -1,0 +1,81 @@
+{
+  "summary": "Tested Admin Console Users Tab Enhancement - Role and Subscription dropdown badges, credit balance view-only, OneSignal config, and Stripe checkout endpoints. All features working correctly.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/test_reports/iteration_137.json"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": [],
+  "success_rate": {
+    "backend": "100%",
+    "frontend": "100%"
+  },
+  "test_credentials": {
+    "admin_user": "dpritzker0905@gmail.com / AdminTest123!"
+  },
+  "seed_data_creation": "None - used existing test user 6f84fcbb-2fe1-4080-ab16-783a88c1b243 for testing, reverted changes after test",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Admin Console Users tab has working dropdown badges for role and subscription. Credit balance is view-only (no dropdown). OneSignal and Stripe are configured with real keys.",
+  "features_tested": {
+    "role_dropdown_badge": {
+      "status": "PASS",
+      "details": [
+        "Role badge is clickable and shows dropdown with 15 role options",
+        "Dropdown includes: Grom, Surfer, Comp Surfer, Pro, Grom Parent, Hobbyist, Photographer, Approved Pro, School, Coach, Resort, Wave Pool, Shop, Shaper, Destination",
+        "Clicking a role option updates the user via PATCH /api/admin/users/{user_id}",
+        "Toast notification shows 'Role updated to {role}'",
+        "Changes persist in database"
+      ]
+    },
+    "subscription_dropdown_badge": {
+      "status": "PASS",
+      "details": [
+        "Subscription badge is clickable and shows dropdown with 3 options: Free, Basic, Premium",
+        "Premium subscription shows yellow/gold styling",
+        "Clicking an option updates the user via PATCH /api/admin/users/{user_id}",
+        "Toast notification shows 'Subscription updated to {tier}'",
+        "Changes persist in database"
+      ]
+    },
+    "credit_balance_view_only": {
+      "status": "PASS",
+      "details": [
+        "Credit balance badge shows green styling ($X.XX format)",
+        "No dropdown chevron icon - badge is NOT clickable",
+        "Uses static Badge component instead of DropdownBadge"
+      ]
+    },
+    "onesignal_push_config": {
+      "status": "PASS",
+      "details": [
+        "GET /api/push/onesignal/config returns app_id and enabled=true",
+        "OneSignal App ID: 9c5a95a4-64c6-424d-97b3-4bfdabdb6d1f",
+        "REST API key configured in backend .env"
+      ]
+    },
+    "stripe_checkout": {
+      "status": "PASS",
+      "details": [
+        "GET /api/payments/packages returns 3 packages (1hr, 2hr, 3hr)",
+        "POST /api/payments/checkout creates Stripe checkout session",
+        "Test key configured: sk_test_...",
+        "Checkout URL returned successfully"
+      ]
+    }
+  },
+  "mocked_apis": {
+    "has_mocked_apis": false,
+    "mocked_apis_list": [],
+    "note": "Stripe uses test key (sk_test_...) which is real Stripe test mode, not mocked. OneSignal uses real keys."
+  }
+}

@@ -1,0 +1,82 @@
+{
+  "summary": "Verified MapPage.js hook integration refactoring (useMapState, useFriendsOnMap). All 5 features tested and passing: Map renders without errors, map tiles load properly (no black map), filter tabs work, surf spot markers appear, zoom controls work. No NaN/LatLng errors detected.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/test_reports/iteration_225.json"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "useMapState hook correctly manages UI state (selectedSpot, filter, drawers, modals, pulsingMarkers)",
+    "useFriendsOnMap hook correctly manages friends display with 30s polling interval",
+    "MapPage.js properly imports and uses both hooks at lines 55-56",
+    "ESLint warnings for missing dependencies in useCallback/useEffect are non-critical (intentional to prevent infinite loops)"
+  ],
+  "updated_files": [],
+  "success_rate": {
+    "backend": "N/A (frontend only test)",
+    "frontend": "100%"
+  },
+  "test_credentials": {
+    "surfer": "testuser_e1@test.com / TestPass123!"
+  },
+  "seed_data_creation": "",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "MapPage.js hook integration is complete and working. useMapState manages UI state, useFriendsOnMap manages friends display. The hooks useOnDemandRequests and useRequestPro were intentionally NOT integrated because they use wrong API endpoints (/on-demand/ instead of /dispatch/). L_DISABLE_3D=true in index.html prevents Samsung Black Map bug - DO NOT change this.",
+  "features_tested": {
+    "map_page_renders_without_errors": {
+      "status": "PASS",
+      "details": "Leaflet map container found, page loads successfully after login"
+    },
+    "map_tiles_load_properly": {
+      "status": "PASS",
+      "details": "40 map tiles loaded, dark theme visible, no black map issue"
+    },
+    "filter_tabs_work": {
+      "status": "PASS",
+      "details": "All, Surf Spots, Photographers tabs found and clickable"
+    },
+    "surf_spots_appear_as_markers": {
+      "status": "PASS",
+      "details": "27 Leaflet markers + 26 cluster markers visible with spot counts (97, 390, 156, etc.)"
+    },
+    "map_zoom_controls_work": {
+      "status": "PASS",
+      "details": "Zoom in/out buttons found and clicked successfully"
+    },
+    "no_nan_latlng_errors": {
+      "status": "PASS",
+      "details": "No Invalid LatLng or NaN errors detected in console"
+    }
+  },
+  "hooks_integration_verified": {
+    "useMapState": {
+      "location": "/app/frontend/src/hooks/useMapState.js",
+      "imported_at": "MapPage.js line 55",
+      "state_managed": ["selectedSpot", "selectedPhotographer", "bottomSheetOpen", "filter", "unifiedDrawerOpen", "showJumpInModal", "showGPSGuide", "showLocationPicker", "showIpBanner", "activeShootersAtSpot", "pulsingMarkers", "showFeaturedPanel"]
+    },
+    "useFriendsOnMap": {
+      "location": "/app/frontend/src/hooks/useFriendsOnMap.js",
+      "imported_at": "MapPage.js line 56",
+      "state_managed": ["friendsOnMap", "showFriendsOnMap", "friendMarkersRef"],
+      "features": ["fetchFriendsOnMap (30s polling)", "clearFriendMarkers", "toggleFriendsOnMap"]
+    }
+  },
+  "eslint_warnings": {
+    "count": 9,
+    "type": "react-hooks/exhaustive-deps",
+    "severity": "WARNING (non-blocking)",
+    "note": "These are intentional to prevent infinite re-render loops in useCallback/useEffect"
+  },
+  "mocked_apis": {
+    "Stripe Identity Verification": "MOCKED"
+  }
+}

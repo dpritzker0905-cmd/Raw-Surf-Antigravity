@@ -1,0 +1,218 @@
+/* ============================================================
+   LIVE STATUS BREATHING ANIMATIONS
+   Raw Surf OS - Map Pin Status Indicators
+   ============================================================ */
+
+/* Red Breathing - Shooting Live (actively capturing) */
+@keyframes breathe-red {
+  0%, 100% { 
+    opacity: 0.4;
+    transform: scale(1);
+  }
+  50% { 
+    opacity: 0.8;
+    transform: scale(1.1);
+  }
+}
+
+.status-shooting-live {
+  animation: breathe-red 2s ease-in-out infinite;
+}
+
+.status-shooting-live-ring {
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+  box-shadow: 0 0 20px rgba(239, 68, 68, 0.6);
+}
+
+.status-shooting-live-label {
+  background-color: #ef4444;
+  animation: breathe-red 2s ease-in-out infinite;
+}
+
+/* Green Breathing - On-Demand Available (ready for booking) */
+@keyframes breathe-green {
+  0%, 100% { 
+    opacity: 0.4;
+    transform: scale(1);
+  }
+  50% { 
+    opacity: 0.8;
+    transform: scale(1.1);
+  }
+}
+
+.status-on-demand {
+  animation: breathe-green 2s ease-in-out infinite;
+}
+
+.status-on-demand-ring {
+  background: linear-gradient(135deg, #22c55e, #16a34a);
+  box-shadow: 0 0 20px rgba(34, 197, 94, 0.6);
+}
+
+.status-on-demand-label {
+  background-color: #22c55e;
+  animation: breathe-green 2s ease-in-out infinite;
+}
+
+/* Purple Breathing - Both (shooting live AND on-demand available) */
+@keyframes breathe-purple {
+  0%, 100% { 
+    opacity: 0.4;
+    transform: scale(1);
+  }
+  50% { 
+    opacity: 0.9;
+    transform: scale(1.15);
+  }
+}
+
+.status-both {
+  animation: breathe-purple 1.5s ease-in-out infinite;
+}
+
+.status-both-ring {
+  background: linear-gradient(135deg, #a855f7, #7c3aed);
+  box-shadow: 0 0 25px rgba(168, 85, 247, 0.7);
+}
+
+.status-both-label {
+  background: linear-gradient(135deg, #a855f7, #7c3aed);
+  animation: breathe-purple 1.5s ease-in-out infinite;
+}
+
+/* ============================================================
+   PIN CONTAINER - Mobile Safe Bounding Box
+   ============================================================ */
+.photographer-pin-container {
+  position: relative;
+  width: 56px;
+  height: 64px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.photographer-pin-avatar {
+  position: relative;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  overflow: visible;
+}
+
+.photographer-pin-pulse {
+  position: absolute;
+  top: -4px;
+  left: -4px;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+}
+
+.photographer-pin-status-label {
+  position: absolute;
+  bottom: -4px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 8px;
+  font-weight: 700;
+  color: white;
+  white-space: nowrap;
+  max-width: 54px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: center;
+}
+
+/* ============================================================
+   SCROLLING DRAWER - Mobile Adaptive Height
+   ============================================================ */
+.booking-drawer-content {
+  max-height: 85vh;
+  max-height: 85dvh; /* Dynamic viewport height for mobile */
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+
+.booking-drawer-content::-webkit-scrollbar {
+  width: 4px;
+}
+
+.booking-drawer-content::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.1);
+}
+
+.booking-drawer-content::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+}
+
+/* Sticky footer for payment button */
+.booking-drawer-footer {
+  position: sticky;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 16px;
+  background: linear-gradient(to top, rgb(24 24 27) 80%, transparent);
+  z-index: 10;
+}
+
+/* Mobile-specific adjustments */
+@media (max-height: 700px) {
+  .booking-drawer-content {
+    max-height: 75vh;
+    max-height: 75dvh;
+  }
+}
+
+@media (max-width: 640px) {
+  .photographer-pin-container {
+    width: 48px;
+    height: 56px;
+  }
+  
+  .photographer-pin-avatar {
+    width: 40px;
+    height: 40px;
+  }
+  
+  .photographer-pin-pulse {
+    width: 48px;
+    height: 48px;
+    top: -4px;
+    left: -4px;
+  }
+  
+  .photographer-pin-status-label {
+    font-size: 7px;
+    padding: 1px 6px;
+    max-width: 46px;
+  }
+}
+
+/* ============================================================
+   CREW HUB DRAWER STYLES
+   ============================================================ */
+.crew-hub-drawer {
+  max-height: 90vh;
+  max-height: 90dvh;
+}
+
+.crew-hub-scroll-area {
+  max-height: calc(90vh - 120px);
+  max-height: calc(90dvh - 120px);
+  overflow-y: auto;
+  padding-bottom: 80px; /* Space for sticky button */
+}
+
+.crew-hub-sticky-button {
+  position: sticky;
+  bottom: 0;
+  background: linear-gradient(to top, rgb(24 24 27) 90%, transparent);
+  padding: 16px 0;
+}

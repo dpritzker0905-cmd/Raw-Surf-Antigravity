@@ -1,0 +1,73 @@
+{
+  "title": "Sessions & Bookings",
+  "tabs": {
+    "lineup": "The Lineup",
+    "liveSessions": "Live Sessions",
+    "onDemand": "On-Demand",
+    "findBuddies": "Find Buddies",
+    "scheduled": "Scheduled",
+    "past": "Past",
+    "liveNow": "Live Now"
+  },
+  
+  "goldPass": {
+    "title": "Gold Pass Bookings",
+    "active": "ACTIVE",
+    "locked": "LOCKED",
+    "earlyAccess": "Early Access",
+    "exclusiveSlots": "{{count}} exclusive slot available",
+    "exclusiveSlots_plural": "{{count}} exclusive slots available",
+    "upgradePrompt": "Upgrade to Premium for 2-hour early access to all slots",
+    "unlockSlots": "Unlock {{count}} exclusive slots",
+    "countdown": "Gold-Pass Early Access",
+    "timeRemaining": "{{time}} left",
+    "bookNow": "Book Now",
+    "lockedButton": "Locked",
+    "noSlots": "No exclusive slots available right now",
+    "checkBack": "Check back soon for early-access photographer bookings"
+  },
+  
+  "slot": {
+    "book": "Book",
+    "booked": "Booked",
+    "available": "Available",
+    "unavailable": "Unavailable",
+    "selectTime": "Select a time",
+    "selectDate": "Select a date",
+    "duration": "Duration",
+    "price": "Price"
+  },
+  
+  "confirmation": {
+    "title": "Confirm Booking",
+    "photographer": "Photographer",
+    "dateTime": "Date & Time",
+    "location": "Location",
+    "total": "Total",
+    "confirmButton": "Confirm Booking",
+    "success": "Booking confirmed!",
+    "goldPassSuccess": "Booked with Gold Pass early access!"
+  },
+  
+  "lineup": {
+    "title": "The Lineup",
+    "description": "Join open sessions or start your own",
+    "open": "Open",
+    "filling": "Filling Up",
+    "ready": "Ready!",
+    "locked": "Locked",
+    "join": "Join",
+    "leave": "Leave",
+    "manage": "Manage",
+    "crewSize": "{{current}}/{{max}} crew",
+    "closesIn": "Closes in {{time}}"
+  },
+  
+  "invite": {
+    "pending": "You have {{count}} pending invite",
+    "pending_plural": "You have {{count}} pending invites",
+    "accept": "Accept",
+    "decline": "Decline",
+    "invitedBy": "{{name}} invited you"
+  }
+}

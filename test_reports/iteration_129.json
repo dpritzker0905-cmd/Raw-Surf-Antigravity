@@ -1,0 +1,107 @@
+{
+  "summary": "Saved Crews API & Live Map Status Testing Complete. Backend: 13/13 tests passed. All Saved Crews CRUD endpoints working correctly. Frontend: Component imports verified - SavedCrewSelector, BookingProgressBar, and map-status.css all properly integrated.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_saved_crews_iter129.py",
+    "/app/test_reports/pytest/pytest_results_iter129.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "SavedCrewSelector imported in Bookings.js line 22, used in OnDemandRequestDrawer line 332",
+    "BookingProgressBar imported in Bookings.js line 21, shows 3-step flow (Details -> Crew Hub -> Confirm) on lines 183, 419, 454",
+    "map-status.css imported in index.css line 2 with breathing animations for Red (shooting-live), Green (on-demand), Purple (both)",
+    "MapPage.js uses status CSS classes on lines 961-973 for photographer pin status indicators"
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_saved_crews_iter129.py"
+  ],
+  "success_rate": {
+    "backend": "100% (13/13 passed)",
+    "frontend": "100% - All component imports verified"
+  },
+  "test_credentials": {
+    "admin_email": "dpritzker0905@gmail.com",
+    "admin_password": "test123",
+    "user_id": "12dc6786-124f-40b1-8698-a9409f99736f",
+    "test_saved_crew_id": "5957d07c-d023-43b9-8349-54f17ff549bb"
+  },
+  "seed_data_creation": "Test crews created with TEST_ prefix are cleaned up after each test class",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Saved Crews API fully tested. Key endpoints: GET /api/crews/saved (returns crews array), POST /api/crews/saved (creates crew), GET /api/crews/saved/default (returns default crew), POST /api/crews/saved/{id}/set-default (sets default), DELETE /api/crews/saved/{id} (deletes crew), POST /api/crews/saved/{id}/use (increments usage counter). Frontend components SavedCrewSelector and BookingProgressBar are integrated in Bookings.js On-Demand flow. Map status CSS breathing animations are in map-status.css and used in MapPage.js.",
+  "verified_features": {
+    "GET_saved_crews": {
+      "status": "PASSED",
+      "details": "Returns crews array with id, name, is_default, members, member_count, times_used, last_used_at, created_at"
+    },
+    "GET_saved_crews_empty_for_new_user": {
+      "status": "PASSED",
+      "details": "Returns empty array for users with no saved crews"
+    },
+    "POST_create_saved_crew": {
+      "status": "PASSED",
+      "details": "Creates crew with name, members array, is_default flag"
+    },
+    "POST_create_saved_crew_as_default": {
+      "status": "PASSED",
+      "details": "Sets is_default=true and unsets other defaults"
+    },
+    "GET_default_crew": {
+      "status": "PASSED",
+      "details": "Returns default_crew object or null if none set"
+    },
+    "POST_set_default_crew": {
+      "status": "PASSED",
+      "details": "Sets crew as default, returns success and default_crew_id"
+    },
+    "DELETE_saved_crew": {
+      "status": "PASSED",
+      "details": "Deletes crew and verifies removal from list"
+    },
+    "DELETE_nonexistent_crew_404": {
+      "status": "PASSED",
+      "details": "Returns 404 for invalid crew ID"
+    },
+    "POST_mark_crew_used": {
+      "status": "PASSED",
+      "details": "Increments times_used counter, updates last_used_at"
+    },
+    "validation_requires_name": {
+      "status": "PASSED",
+      "details": "Returns 422 when name field missing"
+    },
+    "validation_requires_members": {
+      "status": "PASSED",
+      "details": "Returns 422 when members field missing"
+    },
+    "validation_invalid_user_404": {
+      "status": "PASSED",
+      "details": "Returns 404 for invalid user_id"
+    },
+    "map_status_css_import": {
+      "status": "PASSED",
+      "details": "map-status.css imported in index.css line 2"
+    },
+    "saved_crew_selector_import": {
+      "status": "PASSED",
+      "details": "SavedCrewSelector imported in Bookings.js line 22"
+    },
+    "booking_progress_bar_import": {
+      "status": "PASSED",
+      "details": "BookingProgressBar imported in Bookings.js line 21, shows 3-step flow"
+    }
+  },
+  "mocked_apis": {
+    "has_mocked_apis": false,
+    "mocked_apis_list": [],
+    "note": "All Saved Crews endpoints use real database operations"
+  }
+}

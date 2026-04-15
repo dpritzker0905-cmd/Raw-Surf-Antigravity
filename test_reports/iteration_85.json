@@ -1,0 +1,97 @@
+{
+  "summary": "Iteration 85 - Smart-Sync Refinement Testing. Verified Photo Tools drawer features including On-Demand toggle redirect, geographic range badges, and menu items. Found hierarchy order issue: Go On-Demand toggle section renders BEFORE Start a Live Session instead of AFTER as per Final Hierarchy requirement.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {
+        "endpoint": "/api/photographer/{id}/stats",
+        "issue": "Returns 500 error - Failed to fetch stats",
+        "status": "NOTED - Non-blocking for current test scope"
+      },
+      {
+        "endpoint": "/api/photographer/{id}/bookings",
+        "issue": "Returns 404 - Failed to fetch bookings",
+        "status": "NOTED - Non-blocking for current test scope"
+      }
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "PhotoToolsDrawer.js",
+        "issue": "Menu hierarchy order incorrect: Go On-Demand toggle section renders BEFORE 'Start a Live Session' and 'Other Shooters Nearby'. Per Final Hierarchy requirement, order should be: 1. Start a Live Session, 2. Other Shooters Nearby, 3. Go On-Demand toggle, 4. My Gallery, 5. Bookings Manager, 6. Earnings Dashboard",
+        "selector": "[data-testid='on-demand-toggle-section']",
+        "priority": "MEDIUM",
+        "location": "Lines 333-408 render before menuItems at line 458"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "features_verified": {
+    "on_demand_toggle_redirect": {
+      "status": "PASS",
+      "details": "Go On-Demand toggle correctly redirects to /photographer/on-demand-settings?init=true when turning ON"
+    },
+    "on_demand_settings_init_banner": {
+      "status": "PASS",
+      "details": "On-Demand Settings page shows 'Go On-Demand' init flow banner with geographic range badge (30-50 mi for Pro)"
+    },
+    "geographic_range_pro": {
+      "status": "PASS",
+      "details": "Pro/Approved Pro users see 30-50 mile range. Coverage Range section shows 'Verified Pro' badge"
+    },
+    "other_shooters_nearby_navigation": {
+      "status": "PASS",
+      "details": "Other Shooters Nearby menu item correctly navigates to /map?filter=photographers"
+    },
+    "start_live_session_styling": {
+      "status": "PASS",
+      "details": "Start a Live Session has isPrimary styling with red color (text-red-400) and red background (bg-red-500/10)"
+    },
+    "bookings_manager_badge": {
+      "status": "PASS",
+      "details": "Bookings Manager shows NEW badge and 'Tiered pricing • Unlimited media packages' description"
+    },
+    "header_lockdown": {
+      "status": "PASS",
+      "details": "Header remains stationary during drawer scroll (position unchanged: top=185.6px before and after scroll)"
+    },
+    "menu_hierarchy_order": {
+      "status": "FAIL",
+      "details": "Go On-Demand toggle section renders BEFORE Start a Live Session. Should be: 1. Start a Live Session, 2. Other Shooters Nearby, 3. Go On-Demand, 4. My Gallery, 5. Bookings Manager, 6. Earnings Dashboard"
+    }
+  },
+  "test_report_links": [
+    "/app/test_reports/iteration_85.json"
+  ],
+  "action_items": [
+    "MEDIUM: Fix PhotoToolsDrawer.js menu hierarchy order - Move Go On-Demand toggle section (lines 333-408) to render AFTER 'Start a Live Session' and 'Other Shooters Nearby' menu items, but BEFORE 'My Gallery'"
+  ],
+  "critical_code_review_comments": [
+    "PhotoToolsDrawer.js line 333-408: Go On-Demand toggle section renders before menuItems. Per Final Hierarchy (lines 170-177 comments), it should be position 3, after Start a Live Session (1) and Other Shooters Nearby (2)",
+    "The menuItems array correctly defines the order (lines 179-250), but the JSX render order places the toggle section before the menu items loop",
+    "Geographic range logic correctly implemented: getGeographicRadius() returns {min:30, max:50} for Pro/Approved Pro, {min:10, max:20} for standard"
+  ],
+  "updated_files": [],
+  "success_rate": {
+    "backend": "N/A - Frontend-only testing",
+    "frontend": "87.5% - 7/8 features verified, 1 hierarchy order issue"
+  },
+  "test_credentials": {
+    "on_demand_pro": {
+      "email": "test_ondemand_pro@test.com",
+      "password": "test-shaka",
+      "role": "Approved Pro",
+      "id": "21e9ac18-72de-4bec-a85d-72f5c4687771"
+    }
+  },
+  "seed_data_creation": "None - used existing test_ondemand_pro user",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Photo Tools drawer hierarchy order needs fix. Go On-Demand toggle section should render AFTER Start a Live Session and Other Shooters Nearby, not before. All other features (toggle redirect, geographic range, navigation, styling) working correctly.",
+  "mocked_apis": {
+    "has_mocked_apis": true,
+    "mocked_apis_list": ["Stripe payment webhooks"]
+  }
+}

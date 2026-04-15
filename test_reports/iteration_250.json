@@ -1,0 +1,86 @@
+{
+  "summary": "Backend testing for new Admin Compliance Dashboard and Social Feed features (Iteration 250). All 19 tests passed. Fixed a bug in the bulk-review-appeals endpoint where parameters were not properly wrapped in a Pydantic model.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_new_features_iter250.py",
+    "/app/test_reports/pytest/pytest_results_iter250.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Fixed bug: POST /api/compliance/violations/bulk-review-appeals had violation_ids and approved as direct function parameters instead of wrapped in a Pydantic model, causing 422 validation errors",
+    "Added BulkReviewAppealsRequest Pydantic model to properly parse JSON body"
+  ],
+  "updated_files": [
+    "/app/backend/routes/compliance.py",
+    "/app/backend/tests/test_new_features_iter250.py"
+  ],
+  "success_rate": {
+    "backend": "100%",
+    "frontend": "N/A - backend only testing"
+  },
+  "test_credentials": {
+    "admin_email": "dpritzker0905@gmail.com",
+    "admin_password": "Test123!",
+    "admin_profile_id": "12dc6786-124f-40b1-8698-a9409f99736f"
+  },
+  "seed_data_creation": "None - used existing data",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "All new endpoints are working correctly. The bulk-review-appeals endpoint now properly accepts JSON body with violation_ids, approved, and notes fields.",
+  "tests_executed": {
+    "TestHealthCheck": {
+      "test_api_health": "PASSED"
+    },
+    "TestComplianceDashboardLocationFraudMap": {
+      "test_dashboard_returns_location_fraud_map_data": "PASSED - Returns location_fraud_map_data array with coordinates",
+      "test_dashboard_location_fraud_map_data_structure": "PASSED - Items have id, claimed, actual, distance_miles, severity, created_at",
+      "test_dashboard_requires_admin": "PASSED - Returns 403 for non-admin"
+    },
+    "TestBulkReviewAppeals": {
+      "test_bulk_review_appeals_endpoint_exists": "PASSED - Accepts empty array, returns processed=0",
+      "test_bulk_review_appeals_with_invalid_ids": "PASSED - Returns errors for non-existent IDs",
+      "test_bulk_review_appeals_requires_admin": "PASSED - Returns 403 for non-admin",
+      "test_bulk_review_appeals_response_structure": "PASSED - Returns processed, total, approved, errors"
+    },
+    "TestPostReactionsDetail": {
+      "test_reactions_detail_nonexistent_post": "PASSED - Returns 404",
+      "test_reactions_detail_with_existing_post": "PASSED - Returns post_id, total_reactions, total_likes, reactions_by_emoji, all_reactors, likers",
+      "test_reactions_detail_reactor_structure": "PASSED - Reactors have user_id, full_name, avatar_url, role, reacted_at, emoji"
+    },
+    "TestSearchMentions": {
+      "test_search_mentions_endpoint_exists": "PASSED - Returns list of users",
+      "test_search_mentions_requires_query": "PASSED - Returns 422 for missing q param",
+      "test_search_mentions_response_structure": "PASSED - Users have id, user_id, full_name, email, avatar_url, role",
+      "test_search_mentions_limit_parameter": "PASSED - Respects limit parameter",
+      "test_search_mentions_by_email": "PASSED - Finds users by email prefix"
+    },
+    "TestPostWithMentions": {
+      "test_create_post_with_mentions_schema": "PASSED - POST /api/posts accepts mentions array"
+    },
+    "TestIntegrationFlow": {
+      "test_full_compliance_dashboard_flow": "PASSED - All dashboard sections present",
+      "test_mention_search_to_post_flow": "PASSED - Search users and use for mentions"
+    }
+  },
+  "verified_features": [
+    "GET /api/compliance/dashboard - Returns location_fraud_map_data array with coordinate pairs for GPS fraud visualization",
+    "POST /api/compliance/violations/bulk-review-appeals - Processes multiple appeals at once with violation_ids array and approved boolean",
+    "GET /api/posts/{id}/reactions-detail - Returns detailed list of who reacted/liked with all_reactors and likers arrays",
+    "GET /api/users/search-mentions?q=test - Returns users for @mention autocomplete by full_name or email",
+    "POST /api/posts - Accepts mentions array and creates notifications for mentioned users"
+  ],
+  "bug_fixed": {
+    "issue": "POST /api/compliance/violations/bulk-review-appeals returned 422 validation error",
+    "location": "/app/backend/routes/compliance.py",
+    "fix": "Added BulkReviewAppealsRequest Pydantic model and updated endpoint to use data: BulkReviewAppealsRequest parameter",
+    "root_cause": "FastAPI requires List and bool parameters to be wrapped in a Pydantic model for proper JSON body parsing"
+  }
+}

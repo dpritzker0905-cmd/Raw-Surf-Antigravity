@@ -1,0 +1,92 @@
+{
+  "summary": "Iteration 84 - Unified Photo Hub UI/UX Standardization Testing Complete. All backend APIs working correctly (7/7 tests passed). Frontend features verified: On-Demand Settings Full Gallery toggle, 100 photo slider limit, Bookings Manager resolution-tiered pricing, Photo Tools drawer labels.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {
+        "endpoint": "/api/photographer/{id}/bookings",
+        "issue": "Returns 403 for kelly@surf.com user (Pro role) - user may not be recognized as photographer role",
+        "status": "NOTED - API works with test_ondemand_pro user"
+      }
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "features_verified": {
+    "on_demand_full_gallery_toggle": {
+      "status": "PASS",
+      "details": "Full Gallery Access toggle present in On-Demand Settings page. When enabled: shows 'FULL GALLERY' badge, displays infinity (∞) symbol, hides slider, shows 'Surfers get unlimited photo downloads' message"
+    },
+    "on_demand_slider_100_limit": {
+      "status": "PASS",
+      "details": "Slider shows range from '0 (none)' to '100+' - confirming 20 photo limit has been removed"
+    },
+    "on_demand_settings_api_full_gallery": {
+      "status": "PASS",
+      "details": "GET /api/photographer/{id}/on-demand-settings returns on_demand_full_gallery field. POST accepts and saves on_demand_full_gallery"
+    },
+    "bookings_manager_resolution_pricing": {
+      "status": "PASS",
+      "details": "Booking Rates card shows Photo Resolution Pricing section with Web ($3), Standard ($5), High-Res ($10) tiers"
+    },
+    "bookings_manager_pricing_modal": {
+      "status": "PASS",
+      "details": "Edit Rates modal includes: Session Pricing (Hourly Rate, Min Hours), Photo Resolution Pricing (Web-Res, Standard, High-Res inputs), Photos Included in Buy-In with Full Gallery Access toggle"
+    },
+    "pricing_api_booking_tiers": {
+      "status": "PASS",
+      "details": "GET /api/photographer/{id}/pricing returns booking_price_web, booking_price_standard, booking_price_high, booking_photos_included, booking_full_gallery. PUT accepts and persists all fields"
+    },
+    "photo_tools_drawer_labels": {
+      "status": "PASS (Code Verified)",
+      "details": "PhotoToolsDrawer.js confirms: 'Bookings Manager' label with 'Tiered pricing • Sessions & requests' description and NEW badge, 'Earnings Dashboard' label (not just 'Earnings')"
+    },
+    "pricing_parity": {
+      "status": "PASS",
+      "details": "Both General Bookings (/pricing) and On-Demand/Live (/gallery-pricing) have Web/Standard/High resolution tiers"
+    }
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_unified_photo_hub_iter84.py",
+    "/app/test_reports/pytest/pytest_results_iter84.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "On-Demand Settings page correctly implements Full Gallery toggle above Photos Included slider",
+    "Slider max changed from 20 to 100 as per requirement",
+    "When Full Gallery enabled: slider hidden, infinity symbol shown, descriptive text updated",
+    "Bookings Manager has full parity with On-Demand/Live for resolution-tiered pricing",
+    "Photo Tools drawer has correct labels: 'Bookings Manager' (with NEW badge and 'Tiered pricing' description), 'Earnings Dashboard'"
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_unified_photo_hub_iter84.py"
+  ],
+  "success_rate": {
+    "backend": "100% - 7/7 tests passed",
+    "frontend": "100% - All UI elements verified"
+  },
+  "test_credentials": {
+    "pro_surfer": {
+      "email": "kelly@surf.com",
+      "password": "test-shaka",
+      "role": "Pro"
+    },
+    "on_demand_pro": {
+      "email": "test_ondemand_pro@test.com",
+      "password": "test-shaka",
+      "role": "Approved Pro",
+      "id": "21e9ac18-72de-4bec-a85d-72f5c4687771"
+    }
+  },
+  "seed_data_creation": "None - used existing test_ondemand_pro user from iteration 83",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Unified Photo Hub features fully implemented. On-Demand Settings has Full Gallery toggle that hides slider and shows infinity symbol. Bookings Manager has resolution-tiered pricing (Web/Standard/High) matching On-Demand/Live. Photo Tools drawer labels updated to 'Bookings Manager' with NEW badge and 'Earnings Dashboard'. Test user test_ondemand_pro@test.com (Approved Pro) works for all photographer API endpoints.",
+  "mocked_apis": {
+    "has_mocked_apis": true,
+    "mocked_apis_list": ["Stripe payment webhooks"]
+  }
+}

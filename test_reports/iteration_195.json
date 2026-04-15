@@ -1,0 +1,60 @@
+{
+  "summary": "Tested Iteration 195 features: Surf Conditions API (Open-Meteo integration) and Instagram-style Post Menu. All 17 backend tests pass. Frontend PostMenu component works correctly with different options for own posts vs other users' posts.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "GET /api/posts/{post_id}", "issue": "Returns 405 Method Not Allowed - no single post GET endpoint exists. Not blocking but could be useful."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "PostMenu Dialog", "issues": ["Console warning: Missing `Description` or `aria-describedby={undefined}` for {DialogContent} - accessibility improvement needed"]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_surf_conditions_post_menu_iter195.py",
+    "/app/test_reports/pytest/pytest_results_iter195.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "PostMenu.js line 705-707: DialogHeader has sr-only class but DialogContent is missing aria-describedby - add DialogDescription for accessibility"
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_surf_conditions_post_menu_iter195.py"
+  ],
+  "success_rate": {
+    "backend": "100% (17/17 tests passed)",
+    "frontend": "100% (all features verified)"
+  },
+  "test_credentials": {
+    "test_user_email": "dpritzker0905@gmail.com",
+    "test_user_password": "TestPassword123!",
+    "test_user_id": "12dc6786-124f-40b1-8698-a9409f99736f"
+  },
+  "seed_data_creation": "Test posts created and cleaned up during testing",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Surf Conditions API and Post Menu features are fully functional. Surf conditions endpoint uses Open-Meteo Marine API (free, no API key). Post menu shows different options based on post ownership. Known spots include Pipeline, Mavericks, New Smyrna, etc.",
+  "features_verified": {
+    "surf_conditions_by_spot_name": "PASS - GET /api/surf-conditions?spot_name=new_smyrna returns wave data",
+    "surf_conditions_by_coordinates": "PASS - GET /api/surf-conditions?latitude=X&longitude=Y returns wave data",
+    "surf_conditions_known_spots": "PASS - GET /api/surf-conditions/known-spots returns 30 known spots",
+    "post_settings_hide_like_count": "PASS - PATCH /api/posts/{id}/settings toggles hide_like_count",
+    "post_settings_comments_disabled": "PASS - PATCH /api/posts/{id}/settings toggles comments_disabled",
+    "post_edit_caption": "PASS - PATCH /api/posts/{id} updates caption",
+    "post_delete": "PASS - DELETE /api/posts/{id} removes post",
+    "post_report": "PASS - POST /api/posts/{id}/report submits report",
+    "user_favorites_add": "PASS - POST /api/users/{id}/favorites adds post to favorites",
+    "user_favorites_remove": "PASS - DELETE /api/users/{id}/favorites/{post_id} removes from favorites",
+    "user_favorites_list": "PASS - GET /api/users/{id}/favorites returns favorites list",
+    "post_menu_own_post": "PASS - Shows Delete, Edit, Hide like count, Turn off commenting, Go to post, Share, Copy link, About this account",
+    "post_menu_other_user_post": "PASS - Shows Report, Add to favorites, I was there too, About this account, Go to post, Share, Copy link",
+    "post_menu_unfollow": "PASS - Unfollow option only shows when following the author (conditional rendering works)"
+  },
+  "console_errors_noted": [
+    "Failed to fetch bookings: AxiosError - 404 (not related to tested features)",
+    "Location access denied (expected in test environment)"
+  ]
+}

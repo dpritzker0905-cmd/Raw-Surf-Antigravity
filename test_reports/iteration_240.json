@@ -1,0 +1,83 @@
+{
+  "summary": "Backend testing for Service-to-Gallery tier system and watermark features completed. All 13 tests PASSED. Fixed a bug in the claim-queue endpoint where the GalleryItem.spot relationship was not being eagerly loaded, causing a MissingGreenlet error.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_watermark_gallery_tier.py",
+    "/app/test_reports/pytest/pytest_results_iter240.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Watermark service correctly generates 1080p max dimension images (verified: 1080x720)",
+    "Service-to-Gallery tier mapping works correctly: scheduled→PRO, on_demand/live_join→STANDARD",
+    "PRO tier items have max_photo_quality='high' and max_video_quality='4k'",
+    "STANDARD tier items have max_photo_quality='standard' and max_video_quality='1080p'",
+    "Unpaid items return watermarked JPEG directly (image/jpeg content-type)",
+    "Purchased items return JSON with preview_url and is_watermarked=false"
+  ],
+  "updated_files": [
+    "/app/backend/routes/surfer_gallery.py - Fixed claim-queue endpoint to eagerly load GalleryItem.spot relationship",
+    "/app/backend/tests/test_watermark_gallery_tier.py - Created comprehensive test suite"
+  ],
+  "success_rate": {
+    "backend": "100% (13/13 tests passed)",
+    "frontend": "N/A - backend only testing"
+  },
+  "test_credentials": {
+    "test_surfer": "seanstanhope@gmail.com / Test123! (ID: a8d52460-cdea-4977-b718-c8722c5c262d)",
+    "test_photographer": "dpritzker0905@gmail.com (ID: 12dc6786-124f-40b1-8698-a9409f99736f)"
+  },
+  "seed_data_creation": "Test data was seeded using /app/backend/scripts/seed_gallery_test_data.py - Sean Stanhope has 5 gallery items: 2 PRO tier (1 paid, 1 unpaid), 3 STANDARD tier (2 paid, 1 unpaid)",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Service-to-Gallery tier system fully tested. Key endpoints: /api/gallery/watermarked-preview/{item_id} returns watermarked JPEG for unpaid items, JSON for purchased. /api/surfer-gallery/my-gallery/{surfer_id} returns items with gallery_tier, is_paid, access_type fields. Claim queue endpoint fixed to properly load nested relationships.",
+  "verified_features": {
+    "watermarked_preview_endpoint": {
+      "status": "WORKING",
+      "tests_passed": [
+        "Returns image/jpeg for unpaid items",
+        "Returns JSON with preview_url for purchased items",
+        "Returns 404 for non-existent items"
+      ]
+    },
+    "surfer_gallery_endpoint": {
+      "status": "WORKING",
+      "tests_passed": [
+        "Returns items with correct tier info (gallery_tier, max_photo_quality, max_video_quality)",
+        "Visibility filter works (public/private)",
+        "Payment status tracking (is_paid, access_type)",
+        "Returns empty for non-existent user"
+      ]
+    },
+    "gallery_tier_logic": {
+      "status": "WORKING",
+      "tests_passed": [
+        "Scheduled bookings map to PRO tier",
+        "On-demand bookings map to STANDARD tier",
+        "Live join bookings map to STANDARD tier"
+      ]
+    },
+    "claim_queue_endpoint": {
+      "status": "WORKING (after fix)",
+      "fix_applied": "Added selectinload for GalleryItem.spot relationship to prevent MissingGreenlet error"
+    },
+    "watermark_dimensions": {
+      "status": "WORKING",
+      "verified": "Images are resized to max 1080px on longest edge (tested: 1080x720)"
+    }
+  },
+  "bug_fixed": {
+    "endpoint": "/api/surfer-gallery/claim-queue/{surfer_id}",
+    "issue": "MissingGreenlet error when accessing gi.spot.name without eager loading",
+    "root_cause": "The GalleryItem.spot relationship was not being eagerly loaded in the selectinload chain",
+    "fix": "Changed selectinload(SurferGalleryClaimQueue.gallery_item) to selectinload(SurferGalleryClaimQueue.gallery_item).selectinload(GalleryItem.spot)",
+    "file": "/app/backend/routes/surfer_gallery.py"
+  }
+}

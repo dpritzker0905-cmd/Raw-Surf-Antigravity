@@ -1,0 +1,81 @@
+{
+  "summary": "Tested Crew Leaderboard feature - Backend endpoints all working (10/10 tests pass). Fixed JSON query bug in crew-summary endpoint. Frontend component exists but NOT YET INTEGRATED into Profile/Stoked/TheInside pages.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {
+        "flow": "CrewLeaderboard display",
+        "issue": "CrewLeaderboard component is created but NOT INTEGRATED into Profile page, Stoked section, or The Inside hub as specified in requirements",
+        "affected_selectors": ["CrewLeaderboard component not imported/used anywhere"]
+      }
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_crew_leaderboard_iter192.py",
+    "/app/test_reports/pytest/pytest_results_iter192.xml"
+  ],
+  "action_items": [
+    "CRITICAL: Import and integrate CrewLeaderboard component into Profile page (variant='profile')",
+    "CRITICAL: Import and integrate CrewLeaderboard component into Stoked section (variant='full')",
+    "CRITICAL: Import and integrate CrewLeaderboard component into The Inside hub for competitive surfers",
+    "Add more data-testid attributes to CrewLeaderboard component for better testing (tabs, filter buttons, etc.)"
+  ],
+  "critical_code_review_comments": [
+    "FIXED: crew_leaderboard.py line 337 - JSON contains query was failing with PostgreSQL. Changed from .contains([user_id]) to raw SQL: member_ids::jsonb @> '\"user_id\"'::jsonb",
+    "CrewLeaderboard.js has only 1 data-testid (crew-card-{hash}). Should add data-testid to: tabs (my-crews, leaderboard, badges), metric filter buttons, badge cards",
+    "CrewLeaderboard component supports 3 variants: 'full', 'compact', 'profile' - all implemented correctly",
+    "Backend models CrewStats, CrewBadge, UserCrewStats exist in models.py (lines 2535-2632)",
+    "Backend routes registered in routes/__init__.py line 51 and 114",
+    "All 4 backend endpoints working: GET /api/crew/leaderboard, GET /api/users/{id}/crew-summary, PUT /api/crew/{hash}/settings, POST /api/crew/update-stats"
+  ],
+  "updated_files": [
+    "/app/backend/routes/crew_leaderboard.py - Fixed JSON query for PostgreSQL compatibility"
+  ],
+  "success_rate": {
+    "backend": "100% (10/10 tests passed, 1 skipped due to no test user)",
+    "frontend": "Component exists but not integrated - 0% integration"
+  },
+  "test_credentials": {
+    "note": "Login with dpritzker0905@gmail.com failed (Invalid password). Backend API testing used instead."
+  },
+  "seed_data_creation": "None - no crew stats data exists yet (leaderboard returns empty)",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Crew Leaderboard backend is fully working. Frontend component CrewLeaderboard.js exists with 3 variants but is NOT imported/used anywhere in the app. Main agent needs to integrate it into Profile.js, StokedDashboard.js, and TheInsideHub.js. The leaderboard is currently empty because no crew stats data exists - stats are created when bookings with multiple participants are completed.",
+  "backend_endpoints_verified": {
+    "GET /api/crew/leaderboard": {
+      "status": "WORKING",
+      "metrics_supported": ["total_sessions", "total_money_saved", "total_waves_caught", "current_streak"],
+      "params": ["metric", "limit", "min_crew_size"]
+    },
+    "GET /api/users/{id}/crew-summary": {
+      "status": "WORKING",
+      "returns": ["total_crew_sessions", "total_unique_buddies", "total_saved_via_splits", "badges", "favorite_buddy", "top_crews"]
+    },
+    "PUT /api/crew/{hash}/settings": {
+      "status": "WORKING",
+      "params": ["user_id", "name", "is_public"]
+    },
+    "POST /api/crew/update-stats": {
+      "status": "WORKING",
+      "params": ["booking_id"],
+      "note": "Called after booking completion to update crew stats"
+    },
+    "GET /api/crew/stats/{hash}": {
+      "status": "WORKING",
+      "returns": "Detailed crew stats with badges"
+    }
+  },
+  "bug_fixed": {
+    "issue": "GET /api/users/{id}/crew-summary returning 500 error",
+    "root_cause": "PostgreSQL JSON contains query using .contains([user_id]) doesn't work - operator does not exist: json ~~ text",
+    "fix": "Changed to raw SQL: member_ids::jsonb @> '\"user_id\"'::jsonb",
+    "file": "/app/backend/routes/crew_leaderboard.py",
+    "line": "337"
+  }
+}

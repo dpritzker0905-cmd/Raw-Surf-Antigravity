@@ -1,0 +1,71 @@
+{
+  "summary": "Iteration 120 - Safety Gate Bypass Tests & Pro-Zone Broadcast Restrictions. All tests PASSED. Verified: (1) Unauthenticated users accessing /map, /feed, /messages are correctly redirected to /auth, (2) Grom signup REQUIRES parent_email - blocks truly unlinked Groms, (3) Pro-Zone check endpoint exists and responds correctly, (4) Grom Parent with no nearby Pro returns can_go_live=true, (5) Hobbyist/Grom Parent are restricted by Pro-Zone, Surfer/Grom are NOT, (6) Haversine distance calculation is accurate (0.5 mile radius detection working).",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_safety_gate_prozone_iter120.py",
+    "/app/backend/tests/test_pro_zone_restrictions.py",
+    "/app/test_reports/pytest/pytest_results_iter120.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "auth.py (lines 110-111): Grom signup correctly requires parent_email or parent_username - blocks truly unlinked Groms",
+    "social_live.py (lines 190-257): Pro-Zone check endpoint correctly checks HOBBYIST and GROM_PARENT roles only",
+    "social_live.py (lines 260-334): start_social_live correctly blocks Hobbyist/Grom Parent within 0.5 miles of active Pro",
+    "App.js (lines 118-121): ProtectedRoute correctly redirects unauthenticated users to /auth with redirect param",
+    "App.js (lines 129-134): GromSafetyGate wrapper correctly applied to Grom users on non-allowed routes"
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_safety_gate_prozone_iter120.py"
+  ],
+  "success_rate": {
+    "backend": "100% (16/16 tests passed)",
+    "frontend": "100% (3/3 Safety Gate bypass tests passed)"
+  },
+  "test_credentials": {
+    "grom_parent": {
+      "email": "testgromparent@gmail.com",
+      "password": "test123",
+      "profile_id": "e57e7be6-e217-47f7-9978-b51c469c7bbf"
+    },
+    "linked_grom": {
+      "email": "testgrom4@gmail.com",
+      "password": "test123"
+    }
+  },
+  "seed_data_creation": "",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "All Safety Gate bypass and Pro-Zone tests verified. Key findings: (1) Unauthenticated access to /map, /feed, /messages correctly redirects to /auth with redirect param preserved, (2) Grom signup requires parent_email - returns 400 'Parent/Guardian email or username required for Grom accounts' if missing, (3) Pro-Zone check at /api/social-live/pro-zone-check works correctly - returns can_go_live=true when no active Pros nearby, (4) Only HOBBYIST and GROM_PARENT roles are affected by Pro-Zone restrictions, (5) Haversine distance calculation accurate - 0.5 mile radius detection working.",
+  "features_verified": {
+    "safety_gate_bypass_map": "VERIFIED - /map redirects to /auth?tab=signup&redirect=%2Fmap for unauthenticated users",
+    "safety_gate_bypass_feed": "VERIFIED - /feed redirects to /auth?tab=signup&redirect=%2Ffeed for unauthenticated users",
+    "safety_gate_bypass_messages": "VERIFIED - /messages redirects to /auth?tab=signup&redirect=%2Fmessages for unauthenticated users",
+    "grom_signup_requires_parent_email": "VERIFIED - Returns 400 error 'Parent/Guardian email or username required for Grom accounts'",
+    "grom_signup_with_parent_email": "VERIFIED - Succeeds with parent_email provided",
+    "pro_zone_check_endpoint": "VERIFIED - /api/social-live/pro-zone-check exists and responds correctly",
+    "grom_parent_no_nearby_pro": "VERIFIED - Returns can_go_live=true when no active Pros nearby",
+    "surfer_not_affected_by_pro_zone": "VERIFIED - Surfer role returns can_go_live=true regardless of Pro proximity",
+    "hobbyist_grom_parent_restricted": "VERIFIED - Only HOBBYIST and GROM_PARENT are in restricted roles list",
+    "haversine_distance_calculation": "VERIFIED - Same location=0, 1 degree lat=~69 miles, 0.5 mile detection working"
+  },
+  "pro_zone_logic": {
+    "restricted_roles": ["HOBBYIST", "GROM_PARENT"],
+    "unrestricted_roles": ["SURFER", "GROM", "PHOTOGRAPHER", "APPROVED_PRO"],
+    "radius_miles": 0.5,
+    "blocking_condition": "Active Pro (is_on_duty=true) within 0.5 miles",
+    "current_state": "No active Pros on duty - all roles can go live"
+  },
+  "mocked_apis": {
+    "has_mocked_apis": false,
+    "mocked_apis_list": [],
+    "note": "Stripe payments in test mode"
+  }
+}

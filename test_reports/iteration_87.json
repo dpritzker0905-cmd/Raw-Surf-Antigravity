@@ -1,0 +1,105 @@
+{
+  "summary": "Iteration 87 - UI/UX Unification Testing: Beach Mode Background & On-Demand Layout Repair. All requested features verified: Earnings Dashboard uses isBeach check for bg-black background in Beach Mode, On-Demand page matches Gallery structure (p-4 max-w-6xl mx-auto pb-24), NO sticky header, NO fixed footer, Save button in header row, uses Card components.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {
+        "endpoint": "/api/photographer/{id}/bookings",
+        "issue": "Returns 404 - Bookings endpoint not found",
+        "status": "NOTED - Non-blocking for UI testing"
+      },
+      {
+        "endpoint": "/api/photographer/{id}/earnings-breakdown",
+        "issue": "Returns 403 - Earnings endpoint access denied",
+        "status": "NOTED - Non-blocking for UI testing"
+      },
+      {
+        "endpoint": "/api/credits/{id}/balance",
+        "issue": "Returns 404 - Credits endpoint not found",
+        "status": "NOTED - Non-blocking for UI testing"
+      }
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "features_verified": {
+    "earnings_dashboard_beach_mode_background": {
+      "status": "PASS",
+      "details": "Earnings Dashboard background color is rgb(0, 0, 0) (BLACK) when Beach Mode is active. Code uses isBeach ? 'bg-black' : 'bg-zinc-900'"
+    },
+    "earnings_dashboard_isBeach_check": {
+      "status": "PASS",
+      "details": "EarningsDashboard.js Line 355-356: isBeach = theme === 'beach', mainBgClass = isLight ? 'bg-gray-50' : isBeach ? 'bg-black' : 'bg-zinc-900'"
+    },
+    "on_demand_container_structure": {
+      "status": "PASS",
+      "details": "Container has classes: p-4 max-w-6xl mx-auto pb-24 - matches Gallery structure exactly"
+    },
+    "on_demand_no_sticky_header": {
+      "status": "PASS",
+      "details": "0 sticky elements found on On-Demand Settings page"
+    },
+    "on_demand_no_fixed_footer": {
+      "status": "PASS",
+      "details": "No fixed bottom save bar - Save button is in header row at y=26"
+    },
+    "on_demand_save_button_in_header": {
+      "status": "PASS",
+      "details": "Save button found with data-testid='save-settings-btn' at position x=1462, y=26 (in header row, same line as title)"
+    },
+    "on_demand_card_components": {
+      "status": "PASS",
+      "details": "Found 11 Card-like components (rounded-xl) matching Gallery style"
+    },
+    "on_demand_pb24_bottom_padding": {
+      "status": "PASS",
+      "details": "Container has pb-24 class (not pb-32)"
+    },
+    "on_demand_loading_state": {
+      "status": "PASS",
+      "details": "Loading state uses h-64 spinner matching Gallery (Line 204)"
+    },
+    "gallery_page_structure_reference": {
+      "status": "PASS",
+      "details": "Gallery page classes: p-4 max-w-6xl mx-auto - On-Demand matches this structure"
+    },
+    "theme_classes_beach_mode": {
+      "status": "PASS",
+      "details": "OnDemandSettingsPage.js Lines 55-61: isBeach check implemented for cardBg, sectionBg with beach mode variants"
+    }
+  },
+  "test_report_links": [
+    "/app/test_reports/iteration_87.json"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "EarningsDashboard.js correctly implements isBeach check for Beach Mode background (bg-black)",
+    "OnDemandSettingsPage.js matches Gallery structure: p-4 max-w-6xl mx-auto pb-24",
+    "Save button correctly placed in header row (not fixed footer)",
+    "No sticky header or fixed footer elements on On-Demand page",
+    "Theme classes (textPrimary, textSecondary, cardBg) include beach mode variants"
+  ],
+  "updated_files": [],
+  "success_rate": {
+    "backend": "N/A - Frontend-only testing",
+    "frontend": "100% - All 11 features verified"
+  },
+  "test_credentials": {
+    "pro_user": {
+      "email": "kelly@surf.com",
+      "password": "test-shaka",
+      "role": "Pro"
+    }
+  },
+  "seed_data_creation": "None - used existing test user with God Mode",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "UI/UX Unification verified: Earnings Dashboard uses isBeach check for bg-black background, On-Demand page matches Gallery structure (p-4 max-w-6xl mx-auto pb-24), Save button in header row, no sticky/fixed elements. Beach Mode theme working correctly across pages.",
+  "mocked_apis": {
+    "has_mocked_apis": true,
+    "mocked_apis_list": ["Stripe payment webhooks"]
+  }
+}

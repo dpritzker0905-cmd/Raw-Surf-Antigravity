@@ -1,0 +1,54 @@
+{
+  "summary": "Verified bug fix for credits not showing as payment option in OnDemandRequestDrawer. All features working correctly: credits fetch on drawer open, Surf Credits option visible with correct balance, Credit/Debit Card option always visible.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/test_reports/iteration_285.json"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "OnDemandRequestDrawer.js lines 128-152: Credits fetch logic working correctly with console.log debugging",
+    "OnDemandRequestDrawer.js lines 155-159: creditsFetched state reset on drawer close prevents stale data",
+    "OnDemandRequestDrawer.js lines 1121-1165: Payment method UI in crew_payment step correctly shows both options",
+    "OnDemandRequestDrawer.js lines 1231-1280: Payment method UI in confirm step correctly shows both options",
+    "credits.py line 140-154: GET /api/credits/balance/{user_id} endpoint returns correct balance"
+  ],
+  "updated_files": [
+    "/app/backend/routes/profiles.py"
+  ],
+  "success_rate": {
+    "backend": "100%",
+    "frontend": "100%"
+  },
+  "test_credentials": {
+    "seanstanhope_email": "seanstanhope@gmail.com",
+    "seanstanhope_password": "Test123!",
+    "seanstanhope_id": "5ab9c957-2af1-4846-9023-47576df41454",
+    "seanstanhope_credits": "14.0625",
+    "davidsurf_id": "e9b9f4df-86b7-4934-b617-4f1883358dba",
+    "davidsurf_credits": "18.125"
+  },
+  "seed_data_creation": "Made Test Pro photographer on-demand active with location (28.3667, -80.6067) for testing",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Credits payment option bug is FIXED. Verified with seanstanhope (14.0625 credits) - OnDemandRequestDrawer correctly fetches credits on open, displays Surf Credits option with balance, and shows Credit/Debit Card as alternative. Console logs confirm: [OnDemandDrawer] Fetching credits, Credits response with balance, User has credits setting payment method to credits.",
+  "features_tested": {
+    "credits_balance_api": "PASS - GET /api/credits/balance/{user_id} returns correct balance (18.125 for davidsurf, 14.0625 for seanstanhope)",
+    "credits_fetch_on_drawer_open": "PASS - Console logs show [OnDemandDrawer] Fetching credits for user when drawer opens",
+    "surf_credits_option_visible": "PASS - Surf Credits option with Balance: $14.06 visible in both crew_payment and confirm steps",
+    "card_option_visible": "PASS - Credit/Debit Card option visible in both steps",
+    "credits_auto_selected": "PASS - When user has credits > 0, Surf Credits is auto-selected as payment method"
+  },
+  "verified_console_logs": [
+    "[OnDemandDrawer] Fetching credits for user: 5ab9c957-2af1-4846-9023-47576df41454",
+    "[OnDemandDrawer] Credits response: {user_id: ..., balance: 14.0625, currency: credits, note: 1 credit = $1 USD}",
+    "[OnDemandDrawer] User has credits, setting payment method to credits"
+  ]
+}

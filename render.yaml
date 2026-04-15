@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: raw-surf-backend
+    runtime: python
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn server:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: DATABASE_URL
+        value: postgresql://postgres.jnfbxcvcbtndtsvscppt:TahwPfXZyTt8L8Rr@aws-1-us-east-2.pooler.supabase.com:5432/postgres
+      - key: SUPABASE_URL
+        value: https://jnfbxcvcbtndtsvscppt.supabase.co
+      - key: SUPABASE_KEY
+        value: sb_publishable_JozrdGtw9LTs58w8BAiXKg_k06DoHww
+      - key: PYTHON_VERSION
+        value: 3.12.0

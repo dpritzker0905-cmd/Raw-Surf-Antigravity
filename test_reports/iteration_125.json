@@ -1,0 +1,123 @@
+{
+  "summary": "Gold-Pass, Stoked Credits, and Elite Groms Leaderboard testing complete. Backend: 20/20 tests passed. All P0 and P1 features verified working correctly.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_gold_pass_credits_elite_groms_iter125.py",
+    "/app/test_reports/pytest/pytest_results_iter125.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Gold-Pass availability logic correctly implemented in photographer.py lines 598-680",
+    "GOLD_PASS_BOOKING_WINDOW_HOURS = 2 defined in subscriptions.py line 328",
+    "Credit payment uses CREDIT_TO_USD_RATE = 100 (100 credits = $1) correctly",
+    "Elite Groms leaderboard filters by elite_tier='grom_rising' when elite_only=true",
+    "Grom HQ elite rankings correctly calculates percentile based on XP ranking"
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_gold_pass_credits_elite_groms_iter125.py"
+  ],
+  "success_rate": {
+    "backend": "100% (20/20 tests passed)",
+    "frontend": "N/A - backend only testing"
+  },
+  "test_credentials": {
+    "comp_surfer_id": "0e42ce7f-c289-4ed8-a407-9697c2ad4cb7",
+    "grom_parent_id": "fc495a58-ccfa-4cd3-8641-5d90e11619be",
+    "photographer_id": "7c2a4dc8-e406-48c7-8f5c-90cc37ad5548"
+  },
+  "seed_data_creation": "None - used existing test accounts",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Gold-Pass, Stoked Credits, and Elite Groms features fully tested. Key files: /app/backend/routes/photographer.py (Gold-Pass availability lines 598-680), /app/backend/routes/subscriptions.py (credit payment lines 710-920), /app/backend/routes/leaderboard.py (Elite Groms lines 418-560). Constants: GOLD_PASS_BOOKING_WINDOW_HOURS=2, CREDIT_TO_USD_RATE=100.",
+  "verified_features": {
+    "P0_gold_pass_availability_lock_fields": {
+      "status": "PASSED",
+      "details": "GET /api/photographer/{id}/availability returns is_locked, unlock_time, unlock_minutes_remaining for non-Gold users",
+      "test_evidence": "test_availability_endpoint_returns_gold_pass_fields, test_availability_with_non_gold_viewer_shows_lock_fields passed"
+    },
+    "P0_gold_pass_window_hours": {
+      "status": "PASSED",
+      "details": "gold_pass_window_hours=2 returned in availability response",
+      "test_evidence": "API returns gold_pass_window_hours: 2"
+    },
+    "P0_credit_payment_insufficient_balance": {
+      "status": "PASSED",
+      "details": "POST /api/subscriptions/pay-with-credits/{user_id} returns insufficient_credits=true when balance too low",
+      "test_evidence": "test_pay_with_credits_insufficient_balance passed - returns credits_required, current_balance, credits_needed, dollars_needed"
+    },
+    "P0_credit_payment_info_calculation": {
+      "status": "PASSED",
+      "details": "GET /api/subscriptions/credit-payment-info/{user_id} returns credits_required = price * 100",
+      "test_evidence": "test_credit_payment_info_returns_credits_required, test_credit_payment_info_tier_3_premium passed - tier_2 ($4.99) = 499 credits, tier_3 ($14.99) = 1499 credits"
+    },
+    "P0_elite_groms_leaderboard": {
+      "status": "PASSED",
+      "details": "GET /api/leaderboard/elite-groms returns Groms ranked by XP with correct structure",
+      "test_evidence": "test_elite_groms_endpoint_returns_leaderboard, test_elite_groms_leaderboard_entry_structure, test_elite_groms_ranked_by_xp passed"
+    },
+    "P0_elite_groms_filter": {
+      "status": "PASSED",
+      "details": "GET /api/leaderboard/elite-groms?elite_only=true filters to only grom_rising elite_tier",
+      "test_evidence": "test_elite_groms_elite_only_filter passed - 3 competitive Groms returned with elite_tier='grom_rising'"
+    },
+    "P1_grom_hq_elite_rankings": {
+      "status": "PASSED",
+      "details": "GET /api/leaderboard/grom-hq/{parent_id}/elite-rankings returns linked Grom rankings with percentile",
+      "test_evidence": "test_grom_hq_elite_rankings_endpoint, test_grom_hq_elite_rankings_entry_structure passed - returns current_rank, total_groms, percentile"
+    }
+  },
+  "api_response_samples": {
+    "availability_endpoint": {
+      "url": "/api/photographer/{id}/availability?viewer_id={surfer_id}",
+      "response": {
+        "slots": [],
+        "viewer_has_gold_pass": false,
+        "gold_pass_window_hours": 2
+      }
+    },
+    "credit_payment_info": {
+      "url": "/api/subscriptions/credit-payment-info/{user_id}?tier_id=tier_2",
+      "response": {
+        "tier_id": "tier_2",
+        "tier_name": "Basic",
+        "price_usd": 4.99,
+        "credits_required": 499,
+        "current_balance": 0,
+        "can_afford": false,
+        "credits_needed": 499,
+        "conversion_rate": "100 credits = $1.00"
+      }
+    },
+    "pay_with_credits_insufficient": {
+      "url": "/api/subscriptions/pay-with-credits/{user_id}",
+      "response": {
+        "success": false,
+        "insufficient_credits": true,
+        "credits_required": 1499,
+        "current_balance": 0,
+        "credits_needed": 1499,
+        "dollars_needed": 14.99,
+        "message": "Insufficient credits. You need 1499 more credits ($14.99) to upgrade."
+      }
+    },
+    "elite_groms_filtered": {
+      "url": "/api/leaderboard/elite-groms?elite_only=true",
+      "response_summary": "3 competitive Groms with elite_tier='grom_rising'"
+    },
+    "grom_hq_rankings": {
+      "url": "/api/leaderboard/grom-hq/{parent_id}/elite-rankings",
+      "response_summary": "1 linked Grom with current_rank=1, total_groms=13, percentile=92.3%"
+    }
+  },
+  "mocked_apis": {
+    "stripe": "Uses test mode keys"
+  }
+}

@@ -1,0 +1,107 @@
+{
+  "summary": "Tested Open/Close Booking Control & Lineup Notifications features. Fixed missing broadcast_to_user function in websocket_manager.py. All features working correctly.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_lineup_status.py"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": [
+    "/app/backend/websocket_manager.py"
+  ],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "test_credentials": {
+    "email": "testuser_e1@test.com",
+    "password": "TestPass123!"
+  },
+  "seed_data_creation": "",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "All new features tested and working: (1) LineupCard shows prominent Open/Close toggle with green switch when session is open, (2) Toggle label shows 'Open for Bookings' when open and 'Closed to New Surfers' when closed, (3) Helper text shows 'Surfers can discover & join this session' when open and 'Only existing crew can see this session' when closed, (4) Toggle click successfully calls POST /api/bookings/{id}/lineup/status endpoint, (5) Toast notifications appear on toggle ('Session opened for new surfers!' / 'Session closed to new bookings'), (6) Backend broadcasts WebSocket notifications to all participants via broadcast_lineup_update and broadcast_to_user functions, (7) LineupNotifications service handles toast and push notifications for session status changes, (8) PhotographerSessionManager has matching open/close toggle in Settings tab with Switch component, (9) All 6 pytest tests pass for the lineup status endpoint.",
+  "features_tested": {
+    "LineupCard_OpenClose_Toggle": {
+      "status": "PASS",
+      "details": [
+        "Toggle button visible directly on LineupCard (not hidden in drawer)",
+        "Green switch when session is open (bg-green-500)",
+        "Gray switch when session is closed",
+        "data-testid='toggle-session-status-{id}' attribute present",
+        "Toggle is clickable and triggers API call"
+      ]
+    },
+    "LineupCard_Labels_HelperText": {
+      "status": "PASS",
+      "details": [
+        "'Open for Bookings' label when session is open",
+        "'Closed to New Surfers' label when session is closed",
+        "'Surfers can discover & join this session' helper text when open",
+        "'Only existing crew can see this session' helper text when closed",
+        "Unlock icon when open, Lock icon when closed"
+      ]
+    },
+    "Backend_LineupStatus_Endpoint": {
+      "status": "PASS",
+      "details": [
+        "POST /api/bookings/{id}/lineup/status endpoint works correctly",
+        "Accepts body: {status: 'open'|'closed'}",
+        "Returns: {message, booking_id, lineup_status, allow_splitting}",
+        "Broadcasts WebSocket notifications to all participants",
+        "All 6 pytest tests pass"
+      ]
+    },
+    "LineupNotifications_Service": {
+      "status": "PASS",
+      "details": [
+        "LineupNotifications.js service exists with handleLineupNotification function",
+        "Supports session_opened, session_closed, session_locked notification types",
+        "Toast notifications via sonner library",
+        "Push notifications via browser Notification API",
+        "Sound alerts via Web Audio API"
+      ]
+    },
+    "WebSocket_Notifications": {
+      "status": "PASS",
+      "details": [
+        "broadcast_lineup_update function broadcasts to lineup room",
+        "broadcast_to_user function broadcasts to individual user rooms (FIXED - was missing)",
+        "useLineupWebSocket hook processes WebSocket events",
+        "useUserWebSocket hook receives personal notifications"
+      ]
+    },
+    "PhotographerSessionManager_Toggle": {
+      "status": "PASS",
+      "details": [
+        "SessionStatusControl component has matching open/close toggle",
+        "Switch component for toggling session status",
+        "'Session Open for Bookings' / 'Session Closed' labels",
+        "Helper text explaining current state",
+        "Lock & Finalize and Cancel & Refund buttons present"
+      ]
+    },
+    "Toast_Notifications": {
+      "status": "PASS",
+      "details": [
+        "'Session opened for new surfers!' toast on opening",
+        "'Session closed to new bookings' toast on closing",
+        "Toast appears via sonner library"
+      ]
+    }
+  },
+  "bug_fixed": {
+    "issue": "ImportError: cannot import name 'broadcast_to_user' from 'websocket_manager'",
+    "root_cause": "The broadcast_to_user function was referenced in bookings.py but not defined in websocket_manager.py",
+    "fix": "Added broadcast_to_user function to /app/backend/websocket_manager.py",
+    "verification": "Toggle now works correctly, backend returns 200 status"
+  },
+  "mocked_apis": {
+    "Stripe Identity Verification": "MOCKED"
+  }
+}

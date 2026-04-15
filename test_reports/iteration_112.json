@@ -1,0 +1,85 @@
+{
+  "summary": "Iteration 112 - Testing 4 features: (1) Boost Request for priority in queue, (2) Hide Gallery Pricing for Grom Parents, (3) Fix Verify Age button in Grom HQ, (4) Add Family Chat tab for Grom Parents. Backend: 15/15 tests passed. Fixed missing database columns (boost_priority, boost_expires_at, boost_credits_spent) via migration. Frontend: All features verified working.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "/api/dispatch/request/{id}/boost", "issue": "Database columns were missing - FIXED via migration", "priority": "RESOLVED"}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_raw_surf_features_iter112.py",
+    "/app/test_reports/pytest/pytest_results_iter112.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "GalleryPage.js correctly hides Pricing card for Grom Parents via isGromParent check (line 97-100)",
+    "MessagesPage.js correctly shows Family folder for Grom Parents and Groms (lines 70-100)",
+    "MapPage.js has Boost Request UI with tiered pricing (5/10/20 credits for 1/2/4 hours) at lines 1709-1759",
+    "dispatch.py boost_dispatch_request() correctly charges credits and sets boost_priority",
+    "grom_hq.py demo_verify_age() correctly sets parent_age_verified=true (MOCKED - bypasses Stripe Identity)",
+    "messages.py get_family_members_to_message() and get_family_conversations() correctly return linked family"
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_raw_surf_features_iter112.py"
+  ],
+  "success_rate": {
+    "backend": "100% (15/15 passed)",
+    "frontend": "100% (all features verified)"
+  },
+  "test_credentials": {
+    "grom_parent": {
+      "email": "testgromparent@gmail.com",
+      "password": "test123",
+      "profile_id": "e57e7be6-e217-47f7-9978-b51c469c7bbf",
+      "role": "Grom Parent"
+    },
+    "linked_grom": {
+      "profile_id": "8bde602b-4d89-4142-a078-d2a048dd4c65",
+      "name": "Junior Wave Rider",
+      "role": "Grom"
+    }
+  },
+  "seed_data_creation": "",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "All 4 features verified: (1) Boost Request - backend endpoints working, UI in MapPage Request Pro modal with tiered pricing. (2) Gallery Pricing hidden for Grom Parents - verified via code and UI. (3) Demo Verify Age - endpoint working (MOCKED - bypasses Stripe Identity). (4) Family Chat - Family folder visible in Messages, backend endpoints returning linked family members.",
+  "features_verified": {
+    "boost_request_backend": "VERIFIED - POST /api/dispatch/request/{id}/boost charges credits and sets boost_priority",
+    "boost_status_backend": "VERIFIED - GET /api/dispatch/request/{id}/boost-status returns boost info",
+    "pending_requests_boost_info": "VERIFIED - GET /api/dispatch/requests/pending returns is_boosted and boost_time_remaining_minutes",
+    "gallery_pricing_hidden": "VERIFIED - Pricing card hidden for Grom Parent users (isGromParent check)",
+    "demo_verify_age": "VERIFIED - POST /api/grom-hq/demo-verify-age/{parent_id} sets parent_age_verified=true (MOCKED)",
+    "family_members_endpoint": "VERIFIED - GET /api/messages/family/members/{user_id} returns linked family",
+    "family_conversations_endpoint": "VERIFIED - GET /api/messages/conversations/{user_id}/family returns family conversations",
+    "family_folder_ui": "VERIFIED - Family folder visible in MessagesPage for Grom Parents",
+    "boost_request_ui": "VERIFIED - Boost Request UI in MapPage Request Pro modal with tiered pricing (5/10/20 credits)"
+  },
+  "mocked_apis": {
+    "has_mocked_apis": true,
+    "mocked_apis_list": ["Stripe Identity for age verification (demo mode bypasses)"]
+  },
+  "database_migration_applied": {
+    "table": "dispatch_requests",
+    "columns_added": ["boost_priority INTEGER DEFAULT 0", "boost_expires_at TIMESTAMP WITH TIME ZONE", "boost_credits_spent FLOAT DEFAULT 0.0"]
+  },
+  "playwright_test_results": {
+    "grom_parent_login": true,
+    "gallery_page_no_pricing": true,
+    "grom_hq_linked_groms_visible": true,
+    "messages_family_folder_visible": true,
+    "map_page_loads": true,
+    "request_pro_button_visible": true
+  },
+  "pytest_results": {
+    "total_tests": 15,
+    "passed": 15,
+    "skipped": 0,
+    "failed": 0,
+    "test_file": "/app/backend/tests/test_raw_surf_features_iter112.py"
+  }
+}

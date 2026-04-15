@@ -1,0 +1,65 @@
+{
+  "title": "Profile",
+  "editProfile": "Edit Profile",
+  "viewProfile": "View Profile",
+  
+  "sections": {
+    "about": "About",
+    "stats": "Stats",
+    "gear": "Gear",
+    "gallery": "Gallery",
+    "bookings": "Bookings",
+    "reviews": "Reviews"
+  },
+  
+  "fields": {
+    "fullName": "Full Name",
+    "username": "Username",
+    "email": "Email",
+    "bio": "Bio",
+    "location": "Location",
+    "homeSpot": "Home Spot",
+    "website": "Website",
+    "instagram": "Instagram",
+    "stance": "Stance",
+    "level": "Level"
+  },
+  
+  "stance": {
+    "regular": "Regular",
+    "goofy": "Goofy"
+  },
+  
+  "level": {
+    "beginner": "Beginner",
+    "intermediate": "Intermediate",
+    "advanced": "Advanced",
+    "expert": "Expert",
+    "professional": "Professional"
+  },
+  
+  "stats": {
+    "sessions": "Sessions",
+    "waves": "Waves",
+    "photos": "Photos",
+    "following": "Following",
+    "followers": "Followers"
+  },
+  
+  "subscription": {
+    "title": "Subscription",
+    "free": "Free",
+    "basic": "Basic",
+    "premium": "Premium",
+    "currentPlan": "Current Plan",
+    "upgrade": "Upgrade",
+    "manage": "Manage Subscription"
+  },
+  
+  "verification": {
+    "verified": "Verified",
+    "unverified": "Not Verified",
+    "pending": "Verification Pending",
+    "getVerified": "Get Verified"
+  }
+}

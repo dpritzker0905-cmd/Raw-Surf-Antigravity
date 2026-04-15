@@ -1,0 +1,82 @@
+{
+  "summary": "Iteration 92 - Mobile TopNav Architecture testing completed. Fixed critical bugs: 1) OnDemandDutyIcon was using PUT instead of POST for toggle API, 2) Backend role check used wrong enum (PRO instead of PHOTOGRAPHER), 3) Backend stats API had invalid column reference. All TopNav features verified working.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_on_demand_topnav.py",
+    "/app/test_reports/pytest/pytest_results_iter92.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "FIXED: OnDemandDutyIcon.js was using axios.put to /on-demand-status but backend only has POST /on-demand-toggle - changed to axios.post",
+    "FIXED: Backend photographer.py on-demand role check used RoleEnum.PRO (surfer role) instead of RoleEnum.PHOTOGRAPHER - corrected to allow Photographer and Approved Pro roles",
+    "FIXED: Backend photographer.py get_photographer_stats used CreditTransaction.recipient_id which doesn't exist - changed to user_id with transaction_type filter",
+    "TopNav correctly shows 7 icons for Pro photographers: BlueLiveIcon, Map, OnDemandDutyIcon, Search, Messages, Notifications, Settings",
+    "TopNav correctly shows 6 icons for non-Pro users: Map, SurferSessionHub, Search, Messages, Notifications, Settings"
+  ],
+  "updated_files": [
+    "/app/frontend/src/components/OnDemandDutyIcon.js",
+    "/app/frontend/src/components/TopNav.js",
+    "/app/backend/routes/photographer.py"
+  ],
+  "success_rate": {
+    "backend": "100%",
+    "frontend": "100%"
+  },
+  "test_credentials": {
+    "photographer": {
+      "email": "photographer@surf.com",
+      "password": "test-shaka",
+      "id": "04503c29-dc37-4f8c-a462-4177c4a54096",
+      "role": "Photographer"
+    },
+    "approved_pro": {
+      "email": "dpritzker0905@gmail.com",
+      "id": "12dc6786-124f-40b1-8698-a9409f99736f",
+      "role": "Approved Pro"
+    }
+  },
+  "seed_data_creation": "",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "TopNav architecture fully tested. BlueLiveIcon has 4 drawer items (Start Live Session, Quick Start, Other Shooters Nearby, Live Session Tools). OnDemandDutyIcon has toggle switch, Other Shooters Nearby, On-Demand Settings. Toggle API now works correctly with POST to /on-demand-toggle. PhotoToolsDrawer in bottom nav has My Gallery, Bookings Manager, Live Sessions, Earnings Dashboard, On-Demand Settings.",
+  "features_verified": {
+    "topnav_imports_ondemandduticon": "VERIFIED - TopNav.js imports and renders OnDemandDutyIcon component",
+    "blueliveicon_4_items": "VERIFIED - BlueLiveIcon drawer has 4 items: Start Live Session, Quick Start, Other Shooters Nearby, Live Session Tools",
+    "ondemandduticon_breathing_animation": "VERIFIED - OnDemandDutyIcon has breathing yellow animation (animate-ping with 2s duration) when active",
+    "ondemandduticon_drawer_items": "VERIFIED - OnDemandDutyIcon drawer has On-Demand toggle switch, Other Shooters Nearby, On-Demand Settings",
+    "ondemandduticon_toggle_api": "VERIFIED - OnDemandDutyIcon toggle calls POST /api/photographer/{id}/on-demand-toggle (fixed from PUT)",
+    "phototoolsdrawer_items": "VERIFIED - PhotoToolsDrawer has My Gallery, Bookings Manager, Live Sessions, Earnings Dashboard, On-Demand Settings",
+    "profile_quick_book_off_duty_error": "VERIFIED - Profile Quick Book shows error toast when photographer is off-duty (dispatch API returns 400)",
+    "booking_model_crew_payment_fields": "VERIFIED - Booking model has crew_payment_required, crew_paid_count, host_notified_of_payment_issue fields in models.py",
+    "on_demand_status_api": "VERIFIED - GET /api/photographer/{id}/on-demand-status returns is_available boolean"
+  },
+  "bugs_fixed": [
+    {
+      "file": "/app/frontend/src/components/OnDemandDutyIcon.js",
+      "issue": "Used axios.put to /on-demand-status but backend only has POST /on-demand-toggle",
+      "fix": "Changed to axios.post with /on-demand-toggle endpoint and is_available field"
+    },
+    {
+      "file": "/app/backend/routes/photographer.py",
+      "issue": "On-demand role check used RoleEnum.PRO (surfer role) instead of RoleEnum.PHOTOGRAPHER",
+      "fix": "Changed to RoleEnum.PHOTOGRAPHER and RoleEnum.APPROVED_PRO for photographer roles"
+    },
+    {
+      "file": "/app/backend/routes/photographer.py",
+      "issue": "get_photographer_stats used CreditTransaction.recipient_id which doesn't exist",
+      "fix": "Changed to CreditTransaction.user_id with transaction_type filter for photographer earnings"
+    }
+  ],
+  "mocked_apis": {
+    "has_mocked_apis": true,
+    "mocked_apis_list": ["Stripe payment webhooks"]
+  }
+}

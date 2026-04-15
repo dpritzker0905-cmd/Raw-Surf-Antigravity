@@ -1,0 +1,38 @@
+{
+  "appName": "Raw Surf OS",
+  "welcome": "Bienvenido",
+  "loading": "Cargando...",
+  "error": "Algo salió mal",
+  "retry": "Intentar de nuevo",
+  "save": "Guardar",
+  "cancel": "Cancelar",
+  "confirm": "Confirmar",
+  "delete": "Eliminar",
+  "edit": "Editar",
+  "view": "Ver",
+  "close": "Cerrar",
+  "back": "Atrás",
+  "next": "Siguiente",
+  "submit": "Enviar",
+  "search": "Buscar",
+  "filter": "Filtrar",
+  "sort": "Ordenar",
+  "all": "Todo",
+  "none": "Ninguno",
+  "yes": "Sí",
+  "no": "No",
+  "or": "o",
+  "and": "y",
+  
+  "nav": {
+    "home": "Inicio",
+    "feed": "Feed",
+    "gallery": "Galería",
+    "bookings": "Reservas",
+    "profile": "Perfil",
+    "settings": "Configuración",
+    "admin": "Admin"
+  },
+  
+  "_note": "Spanish translations - expand as needed"
+}

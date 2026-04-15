@@ -1,0 +1,71 @@
+{
+  "summary": "Iteration 93 - Active Duty Navigation Bug Fixes testing completed. Fixed SurferSessionHub.js to use correct field name 'is_available' instead of 'on_demand_available' for on-demand toggle API. All features verified working: OnDemandDutyIcon navigates to /photographer/on-demand-settings, On-Demand toggle API works, Active Duty drawer shows correct structure.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {
+        "endpoint": "/api/photographer/{id}/on-demand-toggle",
+        "issue": "Duplicate endpoint definition at lines 1767 and 1812 in photographer.py - second definition is dead code",
+        "priority": "LOW"
+      }
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_active_duty_iter93.py",
+    "/app/test_reports/pytest/pytest_results_iter93.xml"
+  ],
+  "action_items": [
+    "OPTIONAL: Remove duplicate on-demand-toggle endpoint definition at line 1812 in photographer.py (dead code)"
+  ],
+  "critical_code_review_comments": [
+    "FIXED: SurferSessionHub.js was sending 'on_demand_available' but backend expects 'is_available' - changed to 'is_available'",
+    "OnDemandDutyIcon.js correctly navigates to /photographer/on-demand-settings (not /on-demand-settings)",
+    "SurferSessionHub.js shows 'Active Duty' label for photographers (not 'Photo Hub')",
+    "Active Duty drawer has correct hierarchy: Go On-Demand toggle, Go Live button, Other Shooters, Scheduled Sessions",
+    "Backend has duplicate endpoint definition for on-demand-toggle but first one is used correctly"
+  ],
+  "updated_files": [
+    "/app/frontend/src/components/SurferSessionHub.js"
+  ],
+  "success_rate": {
+    "backend": "100%",
+    "frontend": "100%"
+  },
+  "test_credentials": {
+    "photographer": {
+      "email": "photographer@surf.com",
+      "password": "test-shaka",
+      "id": "12dc6786-124f-40b1-8698-a9409f99736f",
+      "role": "Approved Pro"
+    }
+  },
+  "seed_data_creation": "",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Active Duty navigation bug fixes verified. OnDemandDutyIcon in TopNav shows On-Demand Duty drawer with toggle, Other Shooters Nearby, and On-Demand Settings. On-Demand Settings navigates to /photographer/on-demand-settings. SurferSessionHub shows 'Active Duty' for photographers with Go On-Demand toggle, Go Live, Other Shooters, Scheduled Sessions. Backend on-demand-toggle API uses is_available field.",
+  "features_verified": {
+    "on_demand_settings_navigation": "VERIFIED - OnDemandDutyIcon navigates to /photographer/on-demand-settings (not /on-demand-settings)",
+    "active_duty_label": "VERIFIED - SurferSessionHub shows 'Active Duty' label for photographers",
+    "go_on_demand_toggle": "VERIFIED - Active Duty drawer shows Go On-Demand toggle with yellow styling",
+    "go_live_button": "VERIFIED - Active Duty has Go Live button (green gradient)",
+    "other_shooters_button": "VERIFIED - Active Duty has Other Shooters button",
+    "scheduled_sessions_button": "VERIFIED - Active Duty has Scheduled Sessions button",
+    "on_demand_toggle_api": "VERIFIED - POST /api/photographer/{id}/on-demand-toggle works with is_available field"
+  },
+  "bugs_fixed": [
+    {
+      "file": "/app/frontend/src/components/SurferSessionHub.js",
+      "issue": "Used 'on_demand_available' field but backend expects 'is_available'",
+      "fix": "Changed to 'is_available' field in on-demand-toggle API call"
+    }
+  ],
+  "mocked_apis": {
+    "has_mocked_apis": true,
+    "mocked_apis_list": ["Stripe payment webhooks"]
+  }
+}

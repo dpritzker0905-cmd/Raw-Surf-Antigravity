@@ -1,0 +1,100 @@
+{
+  "summary": "Backend API testing for Lineup Settings toggles fix. All 13 tests passed. PATCH endpoint correctly updates split_mode, lineup_auto_confirm, and proximity_radius. GET user bookings returns all required lineup fields including participants array. GET surf spot returns open_bookings for split_mode='open_nearby' bookings.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_lineup_settings_iter270.py",
+    "/app/test_reports/pytest/pytest_results_iter270.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "PATCH /api/bookings/{booking_id} correctly validates user authorization (returns 403 for unauthorized users)",
+    "GET /api/bookings/user/{user_id} returns all 17 required fields including lineup-specific fields",
+    "GET /api/surf-spots/{spot_id} returns open_bookings array for bookings with split_mode='open_nearby'",
+    "Participants array includes full user details: participant_id, user_id, name, avatar_url, username, status, payment_status, paid_amount"
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_lineup_settings_iter270.py"
+  ],
+  "success_rate": {
+    "backend": "100% (13/13 tests passed)",
+    "frontend": "Not tested (backend only requested)"
+  },
+  "test_credentials": {
+    "user_id": "12dc6786-124f-40b1-8698-a9409f99736f",
+    "username": "@davidpritzker",
+    "email": "photographer@surf.com",
+    "test_booking_id": "942515d0-81a3-4733-964f-8ba1b9792869",
+    "test_spot_id": "c673e683-6d29-4ee4-90b1-2b9d82363f35"
+  },
+  "seed_data_creation": "",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Backend APIs for Lineup Settings are fully functional. PATCH endpoint updates booking settings correctly. GET user bookings returns all lineup fields needed by LineupManagerDrawer. GET surf spot returns open_bookings for public sessions. Frontend toggles should work correctly now that the API returns all required fields.",
+  "features_tested": {
+    "patch_booking_split_mode": {
+      "status": "PASS",
+      "details": "PATCH /api/bookings/{booking_id} correctly updates split_mode to 'open_nearby' or 'friends_only'"
+    },
+    "patch_booking_lineup_auto_confirm": {
+      "status": "PASS",
+      "details": "PATCH /api/bookings/{booking_id} correctly updates lineup_auto_confirm to true/false"
+    },
+    "patch_booking_proximity_radius": {
+      "status": "PASS",
+      "details": "PATCH /api/bookings/{booking_id} correctly updates proximity_radius"
+    },
+    "patch_booking_authorization": {
+      "status": "PASS",
+      "details": "Returns 403 for unauthorized users attempting to update booking settings"
+    },
+    "get_user_bookings_lineup_fields": {
+      "status": "PASS",
+      "details": "GET /api/bookings/user/{user_id} returns split_mode, lineup_auto_confirm, proximity_radius, lineup_status, lineup_closes_at, lineup_min_crew, lineup_max_crew, participants"
+    },
+    "get_user_bookings_participants_array": {
+      "status": "PASS",
+      "details": "Participants array includes participant_id, user_id, name, avatar_url, username, status, payment_status, paid_amount"
+    },
+    "get_surf_spot_open_bookings": {
+      "status": "PASS",
+      "details": "GET /api/surf-spots/{spot_id} returns open_bookings array with booking details for split_mode='open_nearby'"
+    },
+    "get_surf_spot_open_bookings_count": {
+      "status": "PASS",
+      "details": "Returns open_bookings_count for pin badge display"
+    },
+    "integration_workflow": {
+      "status": "PASS",
+      "details": "Full workflow: PATCH settings -> GET user bookings verifies persistence"
+    }
+  },
+  "api_response_samples": {
+    "patch_booking_response": {
+      "success": true,
+      "split_mode": "open_nearby",
+      "lineup_auto_confirm": true,
+      "proximity_radius": 5.0
+    },
+    "user_booking_sample_fields": {
+      "split_mode": "open_nearby",
+      "lineup_auto_confirm": true,
+      "proximity_radius": 5.0,
+      "lineup_status": "closed",
+      "lineup_min_crew": 2,
+      "lineup_max_crew": 4,
+      "participants": "[array with full user details]"
+    },
+    "surf_spot_open_bookings_sample": {
+      "open_bookings_count": 1,
+      "open_bookings": "[array with id, photographer_name, location, session_date, price_per_person, spots_left, max_participants]"
+    }
+  }
+}

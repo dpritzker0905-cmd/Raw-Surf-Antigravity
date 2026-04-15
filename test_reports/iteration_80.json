@@ -1,0 +1,92 @@
+{
+  "summary": "Iteration 80 - Testing 'Photos Included in Buy-in' control for On-Demand sessions. All 7 features verified PASS across backend APIs and frontend UI.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "features_verified": {
+    "gallery_pricing_api_returns_on_demand_photos_included": {
+      "status": "PASS",
+      "test_method": "pytest + curl",
+      "endpoint": "GET /api/photographer/{id}/gallery-pricing",
+      "response_field": "session_pricing.on_demand_photos_included",
+      "verified_value": 3
+    },
+    "gallery_pricing_api_accepts_on_demand_photos_included": {
+      "status": "PASS",
+      "test_method": "pytest + curl",
+      "endpoint": "PUT /api/photographer/{id}/gallery-pricing",
+      "request_field": "on_demand_photos_included",
+      "persists_correctly": true
+    },
+    "on_demand_settings_api_returns_on_demand_photos_included": {
+      "status": "PASS",
+      "test_method": "pytest + curl",
+      "endpoint": "GET /api/photographer/{id}/on-demand-settings",
+      "response_field": "on_demand_photos_included",
+      "verified_value": 3
+    },
+    "on_demand_settings_api_accepts_on_demand_photos_included": {
+      "status": "PASS",
+      "test_method": "pytest + curl",
+      "endpoint": "POST /api/photographer/{id}/on-demand-settings",
+      "request_field": "on_demand_photos_included",
+      "persists_correctly": true
+    },
+    "gallery_pricing_card_shows_included_in_buyin_for_on_demand": {
+      "status": "PASS",
+      "test_method": "playwright UI test",
+      "location": "Gallery Page - Gallery Pricing Card - On-Demand column",
+      "verified_row": "Included in Buy-in row shows '3 photos' for On-Demand column",
+      "screenshot": "iter80_gallery_page.png"
+    },
+    "gallery_pricing_modal_has_on_demand_photos_included_input": {
+      "status": "PASS",
+      "test_method": "playwright UI test",
+      "modal": "Gallery Pricing (Quality Tiers) modal",
+      "verified_section": "On-Demand Photo Pricing section with 'Photos Included in On-Demand Buy-In' input",
+      "screenshot": "iter80_gallery_pricing_modal.png"
+    },
+    "on_demand_settings_page_has_photos_included_slider": {
+      "status": "PASS",
+      "test_method": "playwright UI test",
+      "page": "On-Demand Settings Page",
+      "verified_element": "Slider labeled 'Photos Included in Buy-In' with range 0-20",
+      "description_text": "Number of photos included free with on-demand session buy-in. Additional photos charged per resolution tier.",
+      "screenshot": "iter80_ondemand_settings_final.png"
+    }
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_on_demand_photos_included.py",
+    "/app/test_reports/pytest/pytest_results_iter80.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "on_demand_photos_included column correctly added to profiles table (models.py line 133)",
+    "UpdateGalleryPricingRequest and OnDemandSettingsRequest both include on_demand_photos_included field (photographer.py lines 284, 1531)",
+    "Both GET and POST/PUT endpoints correctly read/write the field (photographer.py lines 268, 325, 1574, 1603)",
+    "GalleryPage.js correctly displays 'Included in Buy-in' for both Live Session AND On-Demand columns (lines 522-524, 548-550)",
+    "OnDemandSettingsPage.js has slider for Photos Included in Buy-In with state onDemandPhotosIncluded (line 39, 399-420)"
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_on_demand_photos_included.py"
+  ],
+  "success_rate": {
+    "backend": "100% - 5/5 tests passed",
+    "frontend": "100% - All 3 UI features verified"
+  },
+  "test_credentials": {
+    "photographer_email": "photographer@surf.com",
+    "photographer_password": "test-shaka",
+    "photographer_id": "34305abe-3880-410f-ab29-d4afd9a15242"
+  },
+  "seed_data_creation": "",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "The on_demand_photos_included field is fully integrated across both Gallery Pricing API and On-Demand Settings API. Both APIs read/write to the same database column (profiles.on_demand_photos_included). The UI displays this in 3 places: Gallery Pricing Card (On-Demand column), Gallery Pricing Modal (On-Demand section), and On-Demand Settings Page (slider)."
+}

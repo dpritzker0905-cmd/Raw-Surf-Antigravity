@@ -1,0 +1,92 @@
+{
+  "summary": "Completed testing of Raw Surf OS P2 Remaining Features: Auto-escrow release scheduler, Photographer Availability Calendar APIs, Stripe Identity age verification, and Group discounts in booking price calculation. All 15 backend tests passed.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration_189_p2_remaining.py",
+    "/app/test_reports/pytest/pytest_iteration_189.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Auto-escrow release scheduler job registered with CronTrigger(hour=3, minute=0) - runs daily at 3am UTC",
+    "auto_release_escrow_task releases escrow 7 days after session if content not delivered",
+    "GET /api/photographer/{id}/bookings-calendar returns bookings array, 7 availability_windows (one per day), and blocked_dates list",
+    "PUT /api/photographer/{id}/availability-windows saves weekly recurring availability",
+    "POST /api/photographer/{id}/block-date and unblock-date work correctly with YYYY-MM-DD format",
+    "POST /api/grom-hq/create-age-verification/{parent_id} creates Stripe Identity session with client_secret and verification_session_id",
+    "Group discounts applied in booking creation: 5+ surfers uses group_discount_5_plus, 3+ uses group_discount_3_plus, 2+ uses group_discount_2_plus",
+    "PhotographerBookingsManager has Calendar tab with PhotographerAvailabilityCalendar component",
+    "ScheduledBookingDrawer shows group discount notice when photographer has discounts configured"
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iteration_189_p2_remaining.py"
+  ],
+  "success_rate": {
+    "backend": "100%",
+    "frontend": "100%"
+  },
+  "test_credentials": {
+    "test_user_id": "12dc6786-124f-40b1-8698-a9409f99736f",
+    "test_photographer_id": "3fbb1276-a7fe-49cc-a302-c1928f0d56d0",
+    "grom_parent_id": "3f0c5325-6fa7-4346-b450-667a9b31ad8e"
+  },
+  "seed_data_creation": "None - used existing test data",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "P2 Remaining features fully tested: 1) Auto-escrow release scheduler job registered at 3am UTC daily - releases escrow 7 days after session if content not delivered, 2) Calendar API GET /api/photographer/{id}/bookings-calendar returns bookings, 7 availability_windows, and blocked_dates, 3) PUT /api/photographer/{id}/availability-windows saves weekly availability, 4) POST /api/photographer/{id}/block-date and unblock-date work correctly, 5) POST /api/grom-hq/create-age-verification/{parent_id} creates Stripe Identity session with client_secret and verification_session_id, 6) Group discounts applied in booking creation based on max_participants (5+, 3+, 2+ tiers), 7) PhotographerBookingsManager has Calendar tab with PhotographerAvailabilityCalendar, 8) ScheduledBookingDrawer shows group discount notice",
+  "features_verified": {
+    "auto_escrow_release_scheduler": {
+      "job_id": "auto_escrow_release",
+      "trigger": "CronTrigger(hour=3, minute=0)",
+      "logic": "Releases escrow 7 days after session if content not delivered",
+      "status": "PASS"
+    },
+    "photographer_bookings_calendar": {
+      "endpoint": "GET /api/photographer/{id}/bookings-calendar",
+      "response_fields": ["bookings", "availability_windows", "blocked_dates"],
+      "availability_windows_count": 7,
+      "status": "PASS"
+    },
+    "availability_windows_update": {
+      "endpoint": "PUT /api/photographer/{id}/availability-windows",
+      "payload": "windows array with day, enabled, start, end",
+      "status": "PASS"
+    },
+    "block_unblock_date": {
+      "block_endpoint": "POST /api/photographer/{id}/block-date",
+      "unblock_endpoint": "POST /api/photographer/{id}/unblock-date",
+      "date_format": "YYYY-MM-DD",
+      "status": "PASS"
+    },
+    "stripe_identity_age_verification": {
+      "endpoint": "POST /api/grom-hq/create-age-verification/{parent_id}",
+      "response_fields": ["client_secret", "verification_session_id", "status"],
+      "session_id_prefix": "vs_",
+      "status": "PASS"
+    },
+    "group_discount_booking_creation": {
+      "discount_tiers": ["group_discount_2_plus", "group_discount_3_plus", "group_discount_5_plus"],
+      "applied_in": "POST /api/bookings/create",
+      "calculation": "discount_amount = (base_price * group_discount_percent) / 100",
+      "status": "PASS"
+    },
+    "photographer_bookings_manager_calendar_tab": {
+      "component": "PhotographerBookingsManager.js",
+      "tab_id": "calendar",
+      "uses_component": "PhotographerAvailabilityCalendar",
+      "status": "PASS"
+    },
+    "scheduled_booking_drawer_group_discount_display": {
+      "component": "ScheduledBookingDrawer.js",
+      "displays": "Group Discounts Available notice when hasGroupDiscounts is true",
+      "status": "PASS"
+    }
+  }
+}

@@ -1,0 +1,65 @@
+{
+  "summary": "Tested Unified Earnings & Impact Dashboard and Start Shooting button visibility with persona masking. All core features verified working.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "features_verified": {
+    "earnings_dashboard_pro_view": {
+      "title": "PASS - Shows 'Earnings Dashboard' with subtitle 'Track your revenue and manage payouts'",
+      "gross_net_cards": "PASS - Gross Earnings, Net Earnings (with 15% platform fee note), Cash Available cards visible",
+      "split_pocket_settings": "PASS - Split-Pocket Settings card with Configure button visible",
+      "split_pocket_modal": "PASS - Modal opens with Auto-allocate toggle and allocation percentage slider",
+      "revenue_by_stream": "PASS - Shows 4 revenue streams: Live Sessions, Request Pro, Bookings, Gallery"
+    },
+    "earnings_dashboard_hobbyist_view": {
+      "title": "PASS - Shows 'Impact Dashboard' with subtitle 'Your contributions and gear fund progress'",
+      "gear_fund_progress": "PASS - Progress ring with 'complete' percentage displayed",
+      "set_goal_button": "PASS - 'Set Goal' button visible and opens Gear Goal Modal",
+      "gear_goal_modal": "PASS - Modal with preset goals (New Camera Lens, Wetsuit, Surf Trip Fund, Board Bag, Custom Goal), Goal Name input, Target Amount input",
+      "platform_credits": "PASS - Platform Credits card with spending buttons (Gear Shop, Travel, Sessions, Sponsor Grom)"
+    },
+    "start_shooting_button_visibility": {
+      "hobbyist": "PASS - Start Shooting button VISIBLE",
+      "photographer": "PASS - Start Shooting button VISIBLE (tested as Regular Photographer)",
+      "approved_pro": "PASS - Start Shooting button VISIBLE (tested as Verified Pro Photographer)",
+      "surfer": "PASS - Start Shooting button HIDDEN",
+      "pro_surfer": "PASS - Start Shooting button HIDDEN (tested as Verified Pro Surfer)",
+      "note": "Grom, Grom Parent, Competitive Surfer not explicitly tested but code review confirms they use same non-photographer path"
+    },
+    "photo_tools_menu": {
+      "hobbyist": "PASS - Photo Tools menu VISIBLE in sidebar with Earnings Dashboard option",
+      "photographer": "PASS - Photo Tools menu VISIBLE in sidebar",
+      "surfer": "PASS - Photo Tools menu HIDDEN in sidebar",
+      "pro_surfer": "PASS - Photo Tools menu HIDDEN in sidebar"
+    },
+    "god_mode_persona_switching": {
+      "status": "WORKING - Persona dropdown allows switching between all roles",
+      "cyan_bar": "WORKING - 'VIEWING AS: [ROLE]' bar appears at top when persona is active",
+      "sidebar_indicator": "WORKING - Shows '(God Mode Active)' below role in sidebar"
+    }
+  },
+  "test_report_links": [
+    "/app/frontend/src/components/EarningsDashboard.js",
+    "/app/frontend/src/components/MapPage.js",
+    "/app/frontend/src/components/UnifiedSpotDrawer.js"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": [],
+  "success_rate": {
+    "backend": "N/A - Frontend only testing requested",
+    "frontend": "100% - All requested features verified working"
+  },
+  "test_credentials": "kelly@surf.com / test-shaka (admin user with God Mode access)",
+  "seed_data_creation": "None",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Earnings Dashboard has two views based on effective role: Pro view (Photographer/Approved Pro) shows Gross/Net/Cash cards + Split-Pocket; Hobbyist view shows Gear Fund progress + Platform Credits. Start Shooting button visibility correctly uses effectiveRole from PersonaContext - visible for Hobbyist/Photographer/Approved Pro, hidden for all other roles.",
+  "test_methodology": "Used God Mode persona switching to test as different roles (Hobbyist, Photographer, Approved Pro, Surfer, Pro Surfer). Verified UI components, modal interactions, and conditional rendering based on persona."
+}

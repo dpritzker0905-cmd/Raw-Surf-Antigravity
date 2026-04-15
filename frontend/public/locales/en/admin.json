@@ -1,0 +1,82 @@
+{
+  "title": "Admin Console",
+  
+  "tabs": {
+    "overview": "Overview",
+    "moderation": "Moderation",
+    "contentMod": "Content Queue",
+    "verification": "Verification",
+    "analytics": "Analytics",
+    "support": "Support",
+    "communications": "Comms",
+    "system": "System",
+    "finance": "Finance",
+    "contentMgmt": "Content",
+    "users": "Users",
+    "spots": "Spots",
+    "pricing": "Pricing"
+  },
+  
+  "support": {
+    "title": "Support Tickets",
+    "openTickets": "Open Tickets",
+    "resolvedTickets": "Resolved",
+    "avgResponseTime": "Avg Response",
+    "slaBreached": "SLA Breached",
+    "status": {
+      "open": "Open",
+      "inProgress": "In Progress",
+      "waitingUser": "Waiting on User",
+      "resolved": "Resolved",
+      "closed": "Closed"
+    },
+    "priority": {
+      "urgent": "Urgent",
+      "high": "High",
+      "medium": "Medium",
+      "low": "Low"
+    }
+  },
+  
+  "moderation": {
+    "title": "Content Moderation",
+    "pending": "Pending Review",
+    "approved": "Approved",
+    "removed": "Removed",
+    "approve": "Approve",
+    "reject": "Reject",
+    "flagReason": "Flag Reason",
+    "flagCount": "{{count}} flag",
+    "flagCount_plural": "{{count}} flags"
+  },
+  
+  "system": {
+    "title": "System Health",
+    "healthy": "Healthy",
+    "warning": "Warning",
+    "critical": "Critical",
+    "cpu": "CPU",
+    "memory": "Memory",
+    "disk": "Disk",
+    "database": "Database"
+  },
+  
+  "finance": {
+    "title": "Financial Operations",
+    "refunds": "Refunds",
+    "payouts": "Payouts",
+    "failedPayments": "Failed Payments",
+    "totalRevenue": "Total Revenue",
+    "pendingRefunds": "Pending Refunds"
+  },
+  
+  "communications": {
+    "title": "Communications",
+    "announcements": "Announcements",
+    "templates": "Templates",
+    "campaigns": "Campaigns",
+    "createAnnouncement": "Create Announcement",
+    "createTemplate": "Create Template",
+    "createCampaign": "Create Campaign"
+  }
+}

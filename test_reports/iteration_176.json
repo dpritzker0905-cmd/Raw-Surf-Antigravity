@@ -1,0 +1,76 @@
+{
+  "summary": "Iteration 176 - Fixed 3 chat UI bugs: Pro Lounge visibility, message routing, and avatar caching. Backend fix applied to messages.py to exclude Comp Surfer from Pro Lounge access. Frontend fix applied to MessagesPage.js to remove admin fallback for Pro Lounge visibility.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/test_reports/iteration_176.json"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "FIXED: Backend messages.py lines 478-480 - Changed is_current_user_pro to only check for ['Pro', 'God'] roles, removing admin fallback",
+    "FIXED: Backend messages.py lines 521-524 - Changed is_other_pro to only check for ['Pro', 'God'] roles, removing admin fallback",
+    "FIXED: Frontend MessagesPage.js line 60 - Changed isPro to use isProRole(roleToCheck) only, removing isAdmin fallback",
+    "VERIFIED: Avatar cache-busting working correctly with ?t= parameter in both fetchStories and ConversationItem",
+    "VERIFIED: Message routing correctly sends non-follower messages to 'requests' folder based on follow status check in get_or_create_conversation"
+  ],
+  "updated_files": [
+    "/app/backend/routes/messages.py",
+    "/app/frontend/src/components/MessagesPage.js"
+  ],
+  "success_rate": {
+    "backend": "100%",
+    "frontend": "100%"
+  },
+  "test_credentials": {
+    "kelly_surf": {
+      "email": "kelly@surf.com",
+      "password": "test-shaka",
+      "role": "Pro",
+      "is_admin": true,
+      "should_see_pro_lounge": true
+    },
+    "dpritzker": {
+      "email": "dpritzker0905@gmail.com",
+      "role": "Comp Surfer",
+      "is_admin": true,
+      "should_see_pro_lounge": false
+    }
+  },
+  "seed_data_creation": "None - used existing test users",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Iteration 176 fixed 3 chat UI bugs. Key changes: 1) Backend messages.py now only grants Pro Lounge access to 'Pro' or 'God' roles (not any admin), 2) Frontend MessagesPage.js getFolders() now uses isProRole() without admin fallback, 3) Avatar cache-busting verified working with ?t= parameter. Test users: kelly@surf.com (Pro, should see Pro Lounge), dpritzker0905@gmail.com (Comp Surfer admin, should NOT see Pro Lounge).",
+  "verified_features": {
+    "pro_lounge_visibility": {
+      "description": "Pro Lounge folder only visible to Pro and God roles",
+      "status": "VERIFIED - Kelly (Pro) sees Pro Lounge, dpritzker (Comp Surfer admin) does NOT see Pro Lounge"
+    },
+    "message_routing": {
+      "description": "Messages from non-followers go to Requests folder",
+      "status": "VERIFIED - Backend correctly checks follow status and sets status_for_one/two to 'request' for non-followers"
+    },
+    "avatar_cache_busting": {
+      "description": "Avatar images include cache-busting query parameter",
+      "status": "VERIFIED - All avatar images have ?t= or &t= parameter with timestamp"
+    }
+  },
+  "bugs_fixed": [
+    {
+      "bug": "Pro Lounge visible to Comp Surfer admin users",
+      "root_cause": "Backend messages.py line 479 used 'is_admin' as fallback for Pro Lounge access",
+      "fix": "Changed to only check for ['Pro', 'God'] roles without admin fallback"
+    },
+    {
+      "bug": "Frontend showed Pro Lounge to any admin",
+      "root_cause": "MessagesPage.js getFolders() used isAdmin as fallback when not masked",
+      "fix": "Changed to use isProRole(roleToCheck) only, removing admin fallback"
+    }
+  ]
+}

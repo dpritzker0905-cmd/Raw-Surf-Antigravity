@@ -1,0 +1,81 @@
+{
+  "summary": "Iteration 252: Tested @username display in posts API and light mode theme across multiple pages. Backend API correctly returns author_username. Frontend PostCard displays @username correctly. Found issues with Profile page not showing @username and MessagesPage chat view having hardcoded dark mode colors.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {
+        "endpoint": "GET /api/profiles/{id}",
+        "issue": "Profile endpoint does not return username field. The username exists in the username table but ProfileResponse model doesn't include it. Profile.js expects profile.username but receives null.",
+        "priority": "MEDIUM"
+      }
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "MessagesPage.js",
+        "issue": "Chat view area has hardcoded dark mode colors (bg-zinc-800, bg-zinc-900, text-white, text-gray-400, border-zinc-800) that don't adapt to light mode. The right panel shows black background with white text in light mode.",
+        "selector": "Lines 1857, 1866, 1867, 1884, 1895, 1916",
+        "priority": "HIGH"
+      },
+      {
+        "component": "Profile.js",
+        "issue": "@username not displayed on Profile page because profile API doesn't return username field. The code at lines 723-728 checks for profile.username but it's always null.",
+        "selector": "[data-testid='profile-username']",
+        "priority": "MEDIUM"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {
+        "screen": "MessagesPage - Folder Tabs",
+        "issues": ["Line 1664-1667: Folder tabs use hardcoded bg-white/bg-zinc-900 instead of theme-aware classes"]
+      }
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_username_display.py",
+    "/app/test_reports/pytest/pytest_results_iter252.xml"
+  ],
+  "action_items": [
+    "Update ProfileResponse in /app/backend/routes/profiles.py to include username field by joining with username table",
+    "Fix MessagesPage.js chat view to use theme-aware classes: replace bg-zinc-800/900 with bg-muted, text-white with text-foreground, text-gray-400 with text-muted-foreground, border-zinc-800 with border-border",
+    "Fix MessagesPage.js folder tabs (lines 1664-1667) to use theme-aware classes instead of hardcoded bg-white/bg-zinc-900"
+  ],
+  "critical_code_review_comments": [
+    "Backend: ProfileResponse model missing username field - needs to join with username table to fetch actual username",
+    "Frontend: MessagesPage.js has ~15 instances of hardcoded dark mode colors in the chat view section (lines 1850-1950)",
+    "Frontend: MessagesPage.js folder tabs (line 1664-1667) use hardcoded colors instead of theme variables"
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_username_display.py"
+  ],
+  "success_rate": {
+    "backend": "100% (7/7 tests passed)",
+    "frontend": "80% - Most pages work in light mode, MessagesPage chat view has issues"
+  },
+  "test_credentials": {
+    "email": "dpritzker0905@gmail.com",
+    "password": "Test123!",
+    "profile_id": "12dc6786-124f-40b1-8698-a9409f99736f",
+    "username": "davidpritzker"
+  },
+  "seed_data_creation": "None - used existing data",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Backend posts API correctly returns author_username. PostCard.js displays @username on feed. Profile page needs backend fix to return username. MessagesPage chat view needs theme-aware CSS classes for light mode support.",
+  "verified_features": [
+    "Backend posts API returns author_username field correctly",
+    "PostCard.js displays @username when author_username is present (verified on feed)",
+    "NotificationsPage is readable in light mode",
+    "SurfAlerts page is readable in light mode",
+    "ImpactDashboard page is readable in light mode",
+    "CreatePost page is readable in light mode",
+    "Profile page stats (posts, followers, following) are readable in light mode"
+  ],
+  "issues_found": [
+    "Profile page does NOT display @username - backend ProfileResponse doesn't include username field",
+    "MessagesPage chat view has black background in light mode - hardcoded dark colors",
+    "MessagesPage folder tabs have hardcoded colors"
+  ]
+}

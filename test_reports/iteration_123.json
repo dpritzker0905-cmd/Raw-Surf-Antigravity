@@ -1,0 +1,77 @@
+{
+  "summary": "Account & Billing Hub testing complete. Backend: 15/15 tests passed. Frontend: All key components render correctly including Surfer Status toggle, Plan Management with 3 tiers, Grom Management for Parents, and Active Surfer Mode toggle.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_account_billing_hub_iter123.py",
+    "/app/test_reports/pytest/pytest_results_iter123.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "AccountBillingHub component correctly renders in Settings page",
+    "Surfer Status toggle correctly disabled for Pro-verified users (kelly@surf.com)",
+    "available_tiers correctly returns tier_1, tier_2, tier_3 with proper pricing",
+    "linked_groms array correctly populated for Grom Parent users",
+    "Stripe checkout uses custom domain (checkout.raw.surf) - working correctly",
+    "Toggle status endpoint correctly changes elite_tier between null and 'competitive'"
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_account_billing_hub_iter123.py"
+  ],
+  "success_rate": {
+    "backend": "100% (15/15 tests passed)",
+    "frontend": "100% - All Account & Billing Hub components render correctly"
+  },
+  "test_credentials": {
+    "pro_surfer": "kelly@surf.com / test-shaka (Pro Verified - toggle disabled)",
+    "grom_parent": "testgromparent@gmail.com / test123 (has 2 linked Groms)",
+    "comp_surfer_id": "0e42ce7f-c289-4ed8-a407-9697c2ad4cb7",
+    "grom_parent_id": "fc495a58-ccfa-4cd3-8641-5d90e11619be"
+  },
+  "seed_data_creation": "None - used existing test accounts",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Account & Billing Hub fully tested. Key endpoints: /api/subscriptions/account-billing/{user_id}, /api/subscriptions/toggle-status/{user_id}, /api/subscriptions/upgrade-tier/{user_id}, /api/subscriptions/grom-tier/{parent_id}, /api/subscriptions/apply-pro/{user_id}. Stripe checkout uses custom domain checkout.raw.surf.",
+  "verified_features": {
+    "P0_account_billing_endpoint": {
+      "status": "PASSED",
+      "details": "GET /api/subscriptions/account-billing/{user_id} returns available_tiers (tier_1, tier_2, tier_3), current_status, linked_groms for parents",
+      "test_evidence": "15/15 pytest tests passed"
+    },
+    "P0_toggle_status_endpoint": {
+      "status": "PASSED",
+      "details": "POST /api/subscriptions/toggle-status/{user_id} successfully toggles between regular and competitive status",
+      "test_evidence": "Toggle changes elite_tier field, returns new_status and role"
+    },
+    "P1_upgrade_tier_endpoint": {
+      "status": "PASSED",
+      "details": "POST /api/subscriptions/upgrade-tier/{user_id} initiates Stripe checkout for paid tiers, instant switch for free tier",
+      "test_evidence": "Free tier returns checkout_url=null, paid tiers return Stripe checkout URL"
+    },
+    "P1_grom_tier_management": {
+      "status": "PASSED",
+      "details": "POST /api/subscriptions/grom-tier/{parent_id} allows Grom Parents to manage linked Groms' subscriptions",
+      "test_evidence": "Non-parents get 403, unlinked groms get 403"
+    },
+    "P1_frontend_account_billing_hub": {
+      "status": "PASSED",
+      "details": "AccountBillingHub component renders correctly with Surfer Status, Your Plan, and Grom Management sections",
+      "test_evidence": "Screenshots show all sections rendering, data-testid elements found"
+    },
+    "P2_apply_pro_endpoint": {
+      "status": "PASSED",
+      "details": "POST /api/subscriptions/apply-pro/{user_id} sets pending Pro status for Comp Surfers",
+      "test_evidence": "Returns status='pending', Grom Parents correctly forbidden"
+    }
+  },
+  "mocked_apis": {
+    "stripe_checkout": "Uses test mode keys - checkout URLs are real Stripe test sessions"
+  }
+}

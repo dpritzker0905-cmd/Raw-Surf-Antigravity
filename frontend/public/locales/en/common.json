@@ -1,0 +1,78 @@
+{
+  "appName": "Raw Surf OS",
+  "welcome": "Welcome",
+  "loading": "Loading...",
+  "error": "Something went wrong",
+  "retry": "Try again",
+  "save": "Save",
+  "cancel": "Cancel",
+  "confirm": "Confirm",
+  "delete": "Delete",
+  "edit": "Edit",
+  "view": "View",
+  "close": "Close",
+  "back": "Back",
+  "next": "Next",
+  "submit": "Submit",
+  "search": "Search",
+  "filter": "Filter",
+  "sort": "Sort",
+  "all": "All",
+  "none": "None",
+  "yes": "Yes",
+  "no": "No",
+  "or": "or",
+  "and": "and",
+  
+  "nav": {
+    "home": "Home",
+    "feed": "Feed",
+    "gallery": "Gallery",
+    "bookings": "Bookings",
+    "profile": "Profile",
+    "settings": "Settings",
+    "admin": "Admin"
+  },
+  
+  "time": {
+    "now": "Now",
+    "today": "Today",
+    "yesterday": "Yesterday",
+    "tomorrow": "Tomorrow",
+    "daysAgo": "{{count}} day ago",
+    "daysAgo_plural": "{{count}} days ago",
+    "hoursAgo": "{{count}} hour ago",
+    "hoursAgo_plural": "{{count}} hours ago",
+    "minutesAgo": "{{count}} minute ago",
+    "minutesAgo_plural": "{{count}} minutes ago",
+    "justNow": "Just now"
+  },
+  
+  "status": {
+    "online": "Online",
+    "offline": "Offline",
+    "away": "Away",
+    "busy": "Busy",
+    "active": "Active",
+    "inactive": "Inactive",
+    "pending": "Pending",
+    "confirmed": "Confirmed",
+    "cancelled": "Cancelled",
+    "completed": "Completed"
+  },
+  
+  "errors": {
+    "networkError": "Network error. Please check your connection.",
+    "serverError": "Server error. Please try again later.",
+    "notFound": "Not found",
+    "unauthorized": "Please log in to continue",
+    "forbidden": "You don't have permission to do this",
+    "validationError": "Please check your input"
+  },
+  
+  "empty": {
+    "noResults": "No results found",
+    "noData": "No data available",
+    "noItems": "No items yet"
+  }
+}

@@ -1,0 +1,100 @@
+{
+  "summary": "Crew Chat & Payment Window Expiry Scheduler Testing Complete. Backend: 15/15 tests passed. All Crew Chat API endpoints working (GET /info, GET /messages, POST /send, POST /mark-read). Scheduler confirmed running with payment_expiry jobs registered. Frontend: Crew Chat page loads correctly with message history, online participants, and real-time messaging via WebSocket.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_crew_chat_scheduler_iter131.py",
+    "/app/test_reports/pytest/pytest_results_iter131.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "scheduler.py: check_payment_window_expiry_task registered and running every 5 minutes (confirmed in logs)",
+    "scheduler.py: send_payment_expiry_reminders_task registered and running every 5 minutes",
+    "crew_chat.py: GET /api/crew-chat/{booking_id}/info returns participants, online_users, my_role, unread_count",
+    "crew_chat.py: GET /api/crew-chat/{booking_id}/messages returns paginated message history with has_more flag",
+    "crew_chat.py: POST /api/crew-chat/{booking_id}/send creates message and broadcasts via WebSocket",
+    "crew_chat.py: WebSocket endpoint /api/ws/crew-chat/{booking_id}/{user_id} handles real-time messaging",
+    "CrewChat.js: Component renders with data-testid='crew-chat-page', shows messages, participants, input field",
+    "CrewHub.js: Chat button (data-testid='crew-hub-chat-btn') navigates to /bookings/{id}/chat"
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_crew_chat_scheduler_iter131.py"
+  ],
+  "success_rate": {
+    "backend": "100% (15/15 passed)",
+    "frontend": "100% - Crew Chat page renders and functions correctly"
+  },
+  "test_credentials": {
+    "admin_email": "dpritzker0905@gmail.com",
+    "admin_password": "test123",
+    "user_id": "12dc6786-124f-40b1-8698-a9409f99736f",
+    "test_booking_id": "eb3ab6be-394a-44ce-86e7-215251b6b2d0"
+  },
+  "seed_data_creation": "No new seed data created - used existing test booking",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Crew Chat feature fully tested. Key endpoints: GET /api/crew-chat/{id}/info, GET /api/crew-chat/{id}/messages, POST /api/crew-chat/{id}/send. WebSocket at /api/ws/crew-chat/{booking_id}/{user_id}. Frontend route /bookings/{id}/chat renders CrewChat component. CrewHub has Chat button that navigates to crew chat. Payment Window Expiry Scheduler running every 5 minutes checking for expired payment windows.",
+  "verified_features": {
+    "scheduler_payment_expiry": {
+      "status": "PASSED",
+      "details": "check_payment_window_expiry_task registered and running every 5 minutes. Logs show: '[Scheduler] Checking payment window expiry...' and '[Scheduler] Found 0 expired payment windows'"
+    },
+    "scheduler_payment_reminders": {
+      "status": "PASSED",
+      "details": "send_payment_expiry_reminders_task registered and running. Logs show: '[Scheduler] Checking for payment expiry reminders...'"
+    },
+    "GET_crew_chat_info": {
+      "status": "PASSED",
+      "details": "Returns booking_id, participants, online_users, my_role, unread_count, booking_status, location, session_date"
+    },
+    "GET_crew_chat_messages": {
+      "status": "PASSED",
+      "details": "Returns paginated messages with sender info, timestamps, message_type, has_more flag"
+    },
+    "POST_crew_chat_send": {
+      "status": "PASSED",
+      "details": "Creates message, broadcasts via WebSocket, returns success and message_id"
+    },
+    "POST_crew_chat_mark_read": {
+      "status": "PASSED",
+      "details": "Marks messages as read, returns marked_count"
+    },
+    "websocket_crew_chat": {
+      "status": "PASSED",
+      "details": "WebSocket connects at /api/ws/crew-chat/{booking_id}/{user_id}, handles new_message, user_joined, user_left, typing events"
+    },
+    "frontend_crew_chat_page": {
+      "status": "PASSED",
+      "details": "CrewChat.js renders with header (Crew Chat, location, online count), participant avatars, message history, input field, send button"
+    },
+    "frontend_crew_chat_send_message": {
+      "status": "PASSED",
+      "details": "Message 'Test message from Playwright' sent successfully and displayed in chat"
+    },
+    "crew_hub_chat_button": {
+      "status": "PASSED",
+      "details": "CrewHub.js has Chat button (data-testid='crew-hub-chat-btn') that navigates to /bookings/{id}/chat"
+    }
+  },
+  "mocked_apis": {
+    "has_mocked_apis": true,
+    "mocked_apis_list": ["OneSignal push notifications (requires API key)"],
+    "note": "OneSignal push notifications are MOCKED/skipped when API key not configured. All other endpoints use real database operations."
+  },
+  "scheduler_logs_evidence": [
+    "INFO:scheduler:[Scheduler] Background scheduler started",
+    "INFO:scheduler:[Scheduler] Jobs: surf_alerts (15min), story_cleanup (1hr), leaderboard_reset (monthly), grom_report (weekly), payment_expiry (5min)",
+    "INFO:scheduler:[Scheduler] Checking payment window expiry...",
+    "INFO:scheduler:[Scheduler] Found 0 expired payment windows",
+    "INFO:scheduler:[Scheduler] Payment expiry check complete",
+    "INFO:scheduler:[Scheduler] Checking for payment expiry reminders...",
+    "INFO:scheduler:[Scheduler] Sent 0 payment expiry reminders"
+  ]
+}
