@@ -30,4 +30,5 @@ wsproto==1.2.0
 python-dateutil==2.9.0
 shapely==2.0.4
 mux-python==3.5.0
+openai==1.51.0
 
