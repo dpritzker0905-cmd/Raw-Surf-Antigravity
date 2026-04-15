@@ -7,7 +7,7 @@ import {
   X, Users, MapPin, Clock, Camera, CreditCard, Wallet, 
   Plus, Check, Loader2, ChevronRight, Zap, AlertCircle, Upload
 } from 'lucide-react';
-import { Dialog, DialogContent } from './ui/dialog';
+import { Dialog, DialogContent, DialogTitle } from './ui/dialog';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { toast } from 'sonner';
@@ -132,6 +132,7 @@ export const CrewPaymentModal = ({
       <DialogContent 
         className={`${bgCard} border-border sm:max-w-md`}
       >
+        <DialogTitle className="sr-only">Dialog</DialogTitle>
         <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4">
         {/* ============ STEP 1: SESSION DETAILS ============ */}
         {step === 'details' && (

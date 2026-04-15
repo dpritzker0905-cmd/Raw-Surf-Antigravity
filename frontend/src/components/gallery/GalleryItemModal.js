@@ -10,7 +10,7 @@ import {
   Sparkles, Loader2, Check, ZoomIn
 } from 'lucide-react';
 import { Button } from '../ui/button';
-import { Dialog, DialogContent } from '../ui/dialog';
+import { Dialog, DialogContent, DialogTitle } from '../ui/dialog';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { toast } from 'sonner';
@@ -130,6 +130,7 @@ export const GalleryItemModal = ({ item, onClose, onPurchased }) => {
   return (
     <Dialog open={true} onOpenChange={onClose}>
       <DialogContent className="bg-zinc-900 border-zinc-800 text-white max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogTitle className="sr-only">Dialog</DialogTitle>
         <div className="relative">
           <img
             src={isOwner ? (item.original_url || item.preview_url) : (item.is_purchased ? item.original_url : item.preview_url)}

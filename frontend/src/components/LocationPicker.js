@@ -9,7 +9,7 @@ import {
   Target,
   Crosshair
 } from 'lucide-react';
-import { Dialog, DialogContent } from './ui/dialog';
+import { Dialog, DialogContent, DialogTitle } from './ui/dialog';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { toast } from 'sonner';
@@ -247,6 +247,7 @@ export const LocationPicker = ({
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="bg-zinc-900 border-zinc-700 w-[95vw] max-w-lg h-[85vh] max-h-[600px] overflow-hidden p-0 flex flex-col">
+        <DialogTitle className="sr-only">Dialog</DialogTitle>
         {/* Header with close button */}
         <div className="flex items-center justify-between p-4 border-b border-zinc-700 flex-shrink-0">
           <div className="flex items-center gap-2">

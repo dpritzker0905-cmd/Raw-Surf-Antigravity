@@ -5,7 +5,7 @@ import axios from 'axios';
 import { MapPin, Camera, Zap, Clock, ChevronRight, Radio, Award, Plus, X, Calculator, Loader2, Wallet, Check, Bell, CreditCard, Image } from 'lucide-react';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
-import { Dialog, DialogContent } from './ui/dialog';
+import { Dialog, DialogContent, DialogTitle } from './ui/dialog';
 import { Input } from './ui/input';
 import { toast } from 'sonner';
 import { RequestProSelfieModal } from './RequestProSelfieModal';
@@ -576,6 +576,7 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
         className={`${bgCard} border-border sm:max-w-lg w-full max-w-full sm:mx-auto mx-0 p-0 overflow-hidden h-[100dvh] sm:h-auto sm:max-h-[90vh] rounded-none sm:rounded-lg`}
         hideCloseButton={step === 'waiting'}
       >
+        <DialogTitle className="sr-only">Dialog</DialogTitle>
         <div className="overflow-y-auto h-full sm:max-h-[85vh] pb-24 sm:pb-6 overscroll-contain"
              style={{ WebkitOverflowScrolling: 'touch' }}>
         {/* ============ STEP 0: START TIME SELECTION ============ */}

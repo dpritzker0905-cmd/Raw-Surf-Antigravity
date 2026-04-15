@@ -499,6 +499,7 @@ const SurfboardDetailModal = ({ isOpen, onClose, board, onEdit, onDelete, isOwnP
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className={`${isLight ? 'bg-white' : 'bg-zinc-900'} border-zinc-800 max-w-lg p-0 overflow-hidden`}>
+        <DialogTitle className="sr-only">Surfboard Detail</DialogTitle>
         {/* Photo Gallery */}
         <div className="relative aspect-[4/3] bg-black">
           {photos.length > 0 ? (

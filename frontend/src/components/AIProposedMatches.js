@@ -645,6 +645,7 @@ const AIProposedMatches = ({
       {previewMatch && (
         <Dialog open={!!previewMatch} onOpenChange={() => setPreviewMatch(null)}>
           <DialogContent className="max-w-5xl p-0 overflow-hidden">
+            <DialogTitle className="sr-only">Preview Match</DialogTitle>
             {previewMatch.media_type === 'video' ? (
               <video
                 src={previewMatch.original_url || previewMatch.preview_url}

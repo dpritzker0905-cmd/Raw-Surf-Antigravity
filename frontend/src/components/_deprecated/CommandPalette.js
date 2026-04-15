@@ -6,7 +6,7 @@ import {
   Search, User, MapPin, Calendar, Settings, BarChart2,
   Shield, DollarSign, Bell, FileText, X, Command
 } from 'lucide-react';
-import { Dialog, DialogContent } from './ui/dialog';
+import { Dialog, DialogContent, DialogTitle } from './ui/dialog';
 import { Input } from './ui/input';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
@@ -121,6 +121,7 @@ export const CommandPalette = ({ isOpen, onClose }) => {
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="bg-zinc-900 border-zinc-800 p-0 max-w-lg overflow-hidden">
+        <DialogTitle className="sr-only">Dialog</DialogTitle>
         {/* Search Input */}
         <div className="flex items-center border-b border-zinc-800 px-4">
           <Search className="w-5 h-5 text-gray-500" />

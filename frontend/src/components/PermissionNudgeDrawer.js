@@ -6,7 +6,7 @@
 import React from 'react';
 import { MapPin, Settings, Navigation, ChevronRight, X, Smartphone } from 'lucide-react';
 import { Button } from './ui/button';
-import { Dialog, DialogContent } from './ui/dialog';
+import { Dialog, DialogContent, DialogTitle } from './ui/dialog';
 
 export const PermissionNudgeDrawer = ({ 
   isOpen, 
@@ -19,6 +19,7 @@ export const PermissionNudgeDrawer = ({
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="bg-zinc-900 border-zinc-700 text-white w-[95vw] max-w-md max-h-[85vh] overflow-hidden flex flex-col p-0 z-[1100]">
+        <DialogTitle className="sr-only">Dialog</DialogTitle>
         {/* Header with close button */}
         <div className="flex items-center justify-between p-4 border-b border-zinc-700 flex-shrink-0">
           <div className="flex items-center gap-2">

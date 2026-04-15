@@ -6,7 +6,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { X, Loader2, UserPlus, UserMinus, Users } from 'lucide-react';
-import { Dialog, DialogContent } from './ui/dialog';
+import { Dialog, DialogContent, DialogTitle } from './ui/dialog';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
@@ -103,6 +103,7 @@ export const FollowersModal = ({
         hideCloseButton
         className="bg-background border-border w-[calc(100%-2rem)] sm:w-[95vw] max-w-md max-h-[80vh] overflow-hidden flex flex-col p-0 mx-auto"
       >
+        <DialogTitle className="sr-only">Dialog</DialogTitle>
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-border flex-shrink-0">
           <div className="flex items-center gap-2">

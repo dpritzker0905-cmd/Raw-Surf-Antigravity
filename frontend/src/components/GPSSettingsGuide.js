@@ -12,7 +12,7 @@ import {
   Target,
   Map
 } from 'lucide-react';
-import { Dialog, DialogContent } from './ui/dialog';
+import { Dialog, DialogContent, DialogTitle } from './ui/dialog';
 import { Button } from './ui/button';
 import { toast } from 'sonner';
 
@@ -139,6 +139,7 @@ export const GPSSettingsGuide = ({
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="bg-zinc-900 border-zinc-700 sm:max-w-md" hideCloseButton>
+        <DialogTitle className="sr-only">Dialog</DialogTitle>
         {/* Header with close button */}
         <div className="shrink-0 flex items-center justify-between px-4 sm:px-6 pt-4 pb-3 border-b border-zinc-700">
           <div className="flex items-center gap-2">
