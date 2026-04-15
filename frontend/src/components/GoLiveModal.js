@@ -466,58 +466,54 @@ const LiveCommentsFeed = ({ streamId, colors, onSendComment, onLikeComment, isEx
   };
 
   return (
-    <div className={`flex flex-col transition-all duration-300`}>
-      {/* Header with expand toggle - always visible */}
-      <div className={`flex items-center justify-between px-3 py-2 ${colors.overlayBg} rounded-t-xl`}>
-        <div className="flex items-center gap-2">
-          <MessageCircle className={`w-4 h-4 ${colors.accentText}`} />
-          <span className={`text-sm font-medium ${colors.primaryText}`}>Live Chat</span>
-          <span className={`text-xs ${colors.secondaryText}`}>({comments.length})</span>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 12px', borderBottom: '1px solid #27272a', flexShrink: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <MessageCircle style={{ width: 15, height: 15, color: '#f59e0b' }} />
+          <span style={{ fontSize: 13, fontWeight: 600, color: '#fff' }}>Live Chat</span>
+          <span style={{ fontSize: 11, color: '#71717a' }}>({comments.length})</span>
         </div>
-        <button onClick={onToggleExpand} className={`p-1 rounded ${colors.buttonBg}`}>
+        <button onClick={onToggleExpand} className={`sm:hidden p-1 rounded ${colors.buttonBg}`}>
           {isExpanded ? <ChevronDown className={`w-4 h-4 ${colors.secondaryText}`} /> : <ChevronUp className={`w-4 h-4 ${colors.secondaryText}`} />}
         </button>
       </div>
 
-      {/* Expanded content - comments list only when expanded */}
-      {isExpanded && (
-        <>
-          {/* Comments list */}
-          <div 
-            ref={commentsRef}
-            className={`flex-1 overflow-y-auto p-2 space-y-2 ${colors.overlayBg} max-h-[20vh]`}
-          >
-            <AnimatePresence mode="popLayout">
-              {comments.slice(-20).map((comment) => (
-                <CommentTile 
-                  key={comment.id} 
-                  comment={comment} 
-                  colors={colors}
-                  onReply={handleReply}
-                  onLike={onLikeComment}
-                  currentUserId={currentUserId}
-                />
-              ))}
-            </AnimatePresence>
-            
-            {comments.length === 0 && (
-              <div className={`text-center py-3 ${colors.secondaryText}`}>
-                <MessageCircle className="w-6 h-6 mx-auto mb-1 opacity-50" />
-                <p className="text-xs">No comments yet</p>
-              </div>
-            )}
-          </div>
-        </>
-      )}
+      {/* Comments list - flex-1 fills all remaining height */}
+      <div
+        ref={commentsRef}
+        style={{ flex: 1, overflowY: 'auto', padding: '8px', display: 'flex', flexDirection: 'column', gap: 6, minHeight: 0 }}
+      >
+        <AnimatePresence mode="popLayout">
+          {comments.slice(-50).map((comment) => (
+            <CommentTile
+              key={comment.id}
+              comment={comment}
+              colors={colors}
+              onReply={handleReply}
+              onLike={onLikeComment}
+              currentUserId={currentUserId}
+            />
+          ))}
+        </AnimatePresence>
 
-      {/* Reply indicator - always show if replying */}
+        {comments.length === 0 && (
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#52525b' }}>
+            <MessageCircle style={{ width: 28, height: 28, opacity: 0.3, marginBottom: 8 }} />
+            <p style={{ fontSize: 13, margin: 0 }}>No comments yet</p>
+            <p style={{ fontSize: 11, opacity: 0.5, marginTop: 4 }}>Be the first to say something!</p>
+          </div>
+        )}
+      </div>
+
+      {/* Reply indicator */}
       <AnimatePresence>
         {replyingTo && (
-          <motion.div 
+          <motion.div
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
-            className={`px-3 py-1.5 ${colors.overlayBg} flex items-center gap-2`}
+            style={{ padding: '6px 12px', borderTop: '1px solid #27272a', background: '#18181b', display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}
           >
             <span className={`text-xs ${colors.secondaryText}`}>Replying to</span>
             <span className={`text-xs font-semibold ${colors.accentText}`}>@{replyingTo.user_name}</span>
@@ -528,14 +524,14 @@ const LiveCommentsFeed = ({ streamId, colors, onSendComment, onLikeComment, isEx
         )}
       </AnimatePresence>
 
-      {/* Input - ALWAYS visible for broadcaster to type */}
-      <form onSubmit={handleSend} className={`p-2 ${colors.overlayBg} rounded-b-xl`}>
-        <div className="flex gap-2">
+      {/* Input - pinned to bottom */}
+      <form onSubmit={handleSend} style={{ padding: '10px 12px', borderTop: '1px solid #27272a', background: '#09090b', flexShrink: 0 }}>
+        <div style={{ display: 'flex', gap: 8 }}>
           <Input
             value={newComment}
             onChange={(e) => setNewComment(e.target.value)}
-            placeholder={replyingTo ? `Reply to @${replyingTo.user_name}...` : "Say something..."}
-            className={`flex-1 h-9 text-sm ${colors.commentBg} ${colors.border} border ${colors.primaryText} placeholder:text-gray-500`}
+            placeholder={replyingTo ? `Reply to @${replyingTo.user_name}...` : 'Say something...'}
+            className={`flex-1 h-9 text-sm bg-zinc-800 border-zinc-700 text-white placeholder:text-zinc-500`}
             maxLength={200}
             disabled={sending}
           />
