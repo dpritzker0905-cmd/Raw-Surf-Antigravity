@@ -1059,6 +1059,16 @@ const GoLiveModal = ({ isOpen, onClose, onStreamEnded }) => {
 
     try {
       logger.info('[GoLiveModal] Starting social live stream...');
+
+      // Always silently clear any stale/orphaned stream records first
+      // This prevents "already broadcasting" errors from crashed sessions
+      try {
+        await axios.post(`${API}/social-live/force-clear/${user.id}`);
+        logger.info('[GoLiveModal] Pre-cleared any stale streams');
+      } catch (clearErr) {
+        // Non-fatal — the start call will handle it
+        logger.warn('[GoLiveModal] Force-clear failed (non-fatal):', clearErr.message);
+      }
       
       const response = await axios.post(`${API}/livekit/start-social-live`, {
         broadcaster_id: user.id,
@@ -1099,11 +1109,17 @@ const GoLiveModal = ({ isOpen, onClose, onStreamEnded }) => {
 
     } catch (err) {
       logger.error('[GoLiveModal] Failed to start stream:', err);
-      setError(err.response?.data?.detail || 'Failed to start live stream');
+      const detail = err.response?.data?.detail;
+      if (typeof detail === 'string' && detail.toLowerCase().includes('already broadcasting')) {
+        setError('Stream session conflict detected. Please close this and try again in a moment.');
+      } else {
+        setError(detail || 'Failed to start live stream');
+      }
     } finally {
       setIsLoading(false);
     }
   }, [user]);
+
 
   // End the stream
   const endStream = useCallback(async () => {
