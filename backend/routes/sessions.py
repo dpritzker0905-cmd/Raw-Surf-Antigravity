@@ -653,7 +653,7 @@ async def complete_session_payment(data: CompletePaymentRequest, db: AsyncSessio
         raise HTTPException(status_code=500, detail=f"Failed to complete session: {str(e)}")
 
 
-@router.get("/sessions/active/{photographer_id}", response_model=ActiveSessionResponse)
+@router.get("/sessions/active/{photographer_id}", response_model=Optional[ActiveSessionResponse])
 async def get_active_session(photographer_id: str, db: AsyncSession = Depends(get_db)):
     photographer_result = await db.execute(
         select(Profile)
@@ -665,7 +665,7 @@ async def get_active_session(photographer_id: str, db: AsyncSession = Depends(ge
         raise HTTPException(status_code=404, detail="Photographer not found")
     
     if not photographer.is_shooting:
-        raise HTTPException(status_code=400, detail="No active session")
+        return None
     
     participants_result = await db.execute(
         select(LiveSessionParticipant)

@@ -235,6 +235,44 @@ async def get_available_photographers(
     }
 
 
+@router.get("/requests/pending")
+async def get_pending_requests(db: AsyncSession = Depends(get_db)):
+    """
+    Get all active dispatch requests searching for a photographer.
+    Used by photographers to see 'breathing green markers' on the map.
+    """
+    result = await db.execute(
+        select(DispatchRequest)
+        .where(DispatchRequest.status == DispatchRequestStatusEnum.SEARCHING_FOR_PRO)
+        .options(selectinload(DispatchRequest.requester))
+    )
+    requests = result.scalars().all()
+    
+    output = []
+    for req in requests:
+        # Determine priority badge based on requester role
+        badge = {"level": "regular", "label": "Surfer", "color": "cyan"}
+        if req.requester:
+            if req.requester.role == RoleEnum.PRO:
+                badge = {"level": "pro", "label": "Pro", "color": "amber"}
+            elif req.requester.role == RoleEnum.COMP_SURFER:
+                badge = {"level": "comp", "label": "Competitor", "color": "purple"}
+                
+        output.append({
+            "id": req.id,
+            "latitude": req.latitude,
+            "longitude": req.longitude,
+            "location_name": req.location_name,
+            "estimated_duration_hours": req.estimated_duration_hours,
+            "is_boosted": getattr(req, 'is_boosted', False),
+            "priority_badge": badge,
+            "hourly_rate": req.hourly_rate,
+            "estimated_total": req.estimated_total
+        })
+        
+    return output
+
+
 @router.post("/request")
 async def create_dispatch_request(
     request_data: CreateDispatchRequest,

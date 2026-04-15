@@ -210,11 +210,12 @@ async def start_livekit_stream(
         room_name = f"live-{request.broadcaster_id}-{int(datetime.now().timestamp())}"
         
         # Create LiveKit room
-        async with api.LiveKitAPI(
+        lk_api = api.LiveKitAPI(
             url=LIVEKIT_URL.replace('wss://', 'https://'),
             api_key=LIVEKIT_API_KEY,
             api_secret=LIVEKIT_API_SECRET
-        ) as lk_api:
+        )
+        try:
             await lk_api.room.create_room(
                 api.CreateRoomRequest(
                     name=room_name,
@@ -222,6 +223,8 @@ async def start_livekit_stream(
                     empty_timeout=300,  # 5 minutes
                 )
             )
+        finally:
+            await lk_api.aclose()
         
         # Generate broadcaster token
         token = api.AccessToken(LIVEKIT_API_KEY, LIVEKIT_API_SECRET)
@@ -343,11 +346,12 @@ async def start_social_live(
         room_name = f"social-live-{request.broadcaster_id}-{int(datetime.now().timestamp())}"
         
         # Create LiveKit room
-        async with api.LiveKitAPI(
+        lk_api = api.LiveKitAPI(
             url=LIVEKIT_URL.replace('wss://', 'https://'),
             api_key=LIVEKIT_API_KEY,
             api_secret=LIVEKIT_API_SECRET
-        ) as lk_api:
+        )
+        try:
             await lk_api.room.create_room(
                 api.CreateRoomRequest(
                     name=room_name,
@@ -355,6 +359,8 @@ async def start_social_live(
                     empty_timeout=300,  # 5 minutes
                 )
             )
+        finally:
+            await lk_api.aclose()
         
         # Generate broadcaster token
         token = api.AccessToken(LIVEKIT_API_KEY, LIVEKIT_API_SECRET)
@@ -447,14 +453,17 @@ async def end_livekit_stream(
         # Delete LiveKit room
         if LIVEKIT_CONFIGURED and stream.stream_url:
             try:
-                async with api.LiveKitAPI(
+                lk_api = api.LiveKitAPI(
                     url=LIVEKIT_URL.replace('wss://', 'https://'),
                     api_key=LIVEKIT_API_KEY,
                     api_secret=LIVEKIT_API_SECRET
-                ) as lk_api:
+                )
+                try:
                     await lk_api.room.delete_room(
                         api.DeleteRoomRequest(room=stream.stream_url)
                     )
+                finally:
+                    await lk_api.aclose()
             except Exception as e:
                 logger.warning(f"Failed to delete LiveKit room: {e}")
         
