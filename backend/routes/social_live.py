@@ -10,7 +10,7 @@ from sqlalchemy import select, and_, desc, update
 from sqlalchemy.orm import selectinload
 from pydantic import BaseModel
 from typing import Optional, List
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 import os
 import logging
 
@@ -353,8 +353,8 @@ async def start_social_live(
                             }
                         )
     
-    # Check if user is already live
-    existing_stream = await db.execute(
+    # Check if user is already live — auto-clear stale/orphaned streams
+    existing_result = await db.execute(
         select(SocialLiveStream).where(
             and_(
                 SocialLiveStream.broadcaster_id == data.broadcaster_id,
@@ -362,8 +362,26 @@ async def start_social_live(
             )
         )
     )
-    if existing_stream.scalar_one_or_none():
-        raise HTTPException(status_code=400, detail="Already broadcasting. End current stream first.")
+    existing_stream = existing_result.scalar_one_or_none()
+    if existing_stream:
+        age = datetime.now(timezone.utc) - existing_stream.started_at.replace(tzinfo=timezone.utc)
+        if age > timedelta(minutes=15):
+            # Orphaned/stale stream — auto-end it and let the user start fresh
+            logger.warning(
+                f"[social-live] Auto-ending stale stream {existing_stream.id} "
+                f"for broadcaster {data.broadcaster_id} (age: {age})"
+            )
+            existing_stream.status = 'ended'
+            existing_stream.ended_at = datetime.now(timezone.utc)
+            existing_stream.duration_seconds = int(age.total_seconds())
+            await db.flush()
+        else:
+            # Stream started within the last 15 minutes — genuinely active
+            raise HTTPException(
+                status_code=400,
+                detail="Already broadcasting. End current stream first."
+            )
+
     
     # Get spot info if provided
     location_name = data.location_name
@@ -458,6 +476,49 @@ async def start_social_live(
             " Configure your streaming app with the RTMP URL and stream key." if stream_key else ""
         )
     )
+
+
+@router.post("/social-live/force-clear/{broadcaster_id}")
+async def force_clear_stale_stream(
+    broadcaster_id: str,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Force-end any stale 'live' stream for a broadcaster.
+    Called by the frontend when the user gets 'already broadcasting' but isn't actually live.
+    Safe to call at any time — only ends streams, never creates them.
+    """
+    result = await db.execute(
+        select(SocialLiveStream).where(
+            and_(
+                SocialLiveStream.broadcaster_id == broadcaster_id,
+                SocialLiveStream.status == 'live'
+            )
+        )
+    )
+    stale_stream = result.scalar_one_or_none()
+
+    if stale_stream:
+        age = datetime.now(timezone.utc) - stale_stream.started_at.replace(tzinfo=timezone.utc)
+        logger.warning(
+            f"[social-live] Force-clearing stream {stale_stream.id} "
+            f"for broadcaster {broadcaster_id} (age: {age})"
+        )
+        stale_stream.status = 'ended'
+        stale_stream.ended_at = datetime.now(timezone.utc)
+        stale_stream.duration_seconds = int(age.total_seconds())
+
+        # Also reset profile is_live flag
+        await db.execute(
+            update(Profile)
+            .where(Profile.id == broadcaster_id)
+            .values(is_live=False)
+        )
+        await db.commit()
+        return {"success": True, "cleared": True, "stream_id": stale_stream.id}
+
+    return {"success": True, "cleared": False, "message": "No active stream found"}
+
 
 
 @router.post("/social-live/{stream_id}/end")

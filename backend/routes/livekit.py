@@ -331,15 +331,29 @@ async def start_social_live(
     if not broadcaster:
         raise HTTPException(status_code=404, detail="User not found")
     
-    # Check for existing active stream
-    existing = await db.execute(
+    # Check for existing active stream — auto-clear stale/orphaned ones
+    existing_result = await db.execute(
         select(SocialLiveStream).where(
             SocialLiveStream.broadcaster_id == request.broadcaster_id,
             SocialLiveStream.status == 'live'
         )
     )
-    if existing.scalar_one_or_none():
-        raise HTTPException(status_code=400, detail="Already broadcasting")
+    existing_stream = existing_result.scalar_one_or_none()
+    if existing_stream:
+        age = datetime.now(timezone.utc) - existing_stream.started_at.replace(tzinfo=timezone.utc)
+        if age > timedelta(minutes=15):
+            # Stale / orphaned stream — auto-end it
+            logger.warning(
+                f"[livekit] Auto-ending stale stream {existing_stream.id} "
+                f"for broadcaster {request.broadcaster_id} (age: {age})"
+            )
+            existing_stream.status = 'ended'
+            existing_stream.ended_at = datetime.now(timezone.utc)
+            existing_stream.duration_seconds = int(age.total_seconds())
+            await db.flush()
+        else:
+            raise HTTPException(status_code=400, detail="Already broadcasting")
+
     
     try:
         # Generate unique room name
