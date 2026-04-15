@@ -1,6 +1,6 @@
 [build]
   base = "frontend"
-  command = "npm install --force && npm run build"
+  command = "yarn install && yarn build"
   publish = "build"
 
 [build.environment]
