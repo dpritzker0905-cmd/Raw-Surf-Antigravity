@@ -6,10 +6,13 @@
     "node": "18.x"
   },
   "overrides": {
-    "ajv": "6.12.6"
+    "ajv": "6.12.6",
+    "ajv-keywords": "3.5.2",
+    "schema-utils": "3.3.0"
   },
   "dependencies": {
     "ajv": "6.12.6",
+    "ajv-keywords": "3.5.2",
     "@hookform/resolvers": "^5.0.1",
     "@livekit/components-react": "^2.9.20",
     "@livekit/components-styles": "^1.2.0",
