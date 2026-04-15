@@ -466,57 +466,58 @@ const LiveCommentsFeed = ({ streamId, colors, onSendComment, onLikeComment, isEx
   };
 
   return (
-    <div className={`flex flex-col h-full`}>
-      {/* Header - always visible */}
-      <div className={`flex items-center justify-between px-3 py-2.5 border-b border-zinc-800`}>
+    <div className={`flex flex-col transition-all duration-300`}>
+      {/* Header with expand toggle - always visible */}
+      <div className={`flex items-center justify-between px-3 py-2 ${colors.overlayBg} rounded-t-xl`}>
         <div className="flex items-center gap-2">
           <MessageCircle className={`w-4 h-4 ${colors.accentText}`} />
-          <span className={`text-sm font-semibold ${colors.primaryText}`}>Live Chat</span>
+          <span className={`text-sm font-medium ${colors.primaryText}`}>Live Chat</span>
           <span className={`text-xs ${colors.secondaryText}`}>({comments.length})</span>
         </div>
-        {/* Only show toggle on mobile */}
-        <button onClick={onToggleExpand} className={`sm:hidden p-1 rounded ${colors.buttonBg}`}>
+        <button onClick={onToggleExpand} className={`p-1 rounded ${colors.buttonBg}`}>
           {isExpanded ? <ChevronDown className={`w-4 h-4 ${colors.secondaryText}`} /> : <ChevronUp className={`w-4 h-4 ${colors.secondaryText}`} />}
         </button>
       </div>
 
-      {/* Comments list — grows to fill all available space */}
+      {/* Expanded content - comments list only when expanded */}
       {isExpanded && (
-        <div
-          ref={commentsRef}
-          className={`flex-1 overflow-y-auto p-3 space-y-2`}
-        >
-          <AnimatePresence mode="popLayout">
-            {comments.slice(-50).map((comment) => (
-              <CommentTile
-                key={comment.id}
-                comment={comment}
-                colors={colors}
-                onReply={handleReply}
-                onLike={onLikeComment}
-                currentUserId={currentUserId}
-              />
-            ))}
-          </AnimatePresence>
-
-          {comments.length === 0 && (
-            <div className={`flex flex-col items-center justify-center h-full py-12 ${colors.secondaryText}`}>
-              <MessageCircle className="w-8 h-8 mx-auto mb-2 opacity-30" />
-              <p className="text-sm">No comments yet</p>
-              <p className="text-xs opacity-60 mt-1">Be the first to say something!</p>
-            </div>
-          )}
-        </div>
+        <>
+          {/* Comments list */}
+          <div 
+            ref={commentsRef}
+            className={`flex-1 overflow-y-auto p-2 space-y-2 ${colors.overlayBg} max-h-[20vh]`}
+          >
+            <AnimatePresence mode="popLayout">
+              {comments.slice(-20).map((comment) => (
+                <CommentTile 
+                  key={comment.id} 
+                  comment={comment} 
+                  colors={colors}
+                  onReply={handleReply}
+                  onLike={onLikeComment}
+                  currentUserId={currentUserId}
+                />
+              ))}
+            </AnimatePresence>
+            
+            {comments.length === 0 && (
+              <div className={`text-center py-3 ${colors.secondaryText}`}>
+                <MessageCircle className="w-6 h-6 mx-auto mb-1 opacity-50" />
+                <p className="text-xs">No comments yet</p>
+              </div>
+            )}
+          </div>
+        </>
       )}
 
-      {/* Reply indicator */}
+      {/* Reply indicator - always show if replying */}
       <AnimatePresence>
         {replyingTo && (
-          <motion.div
+          <motion.div 
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
-            className={`px-3 py-1.5 border-t border-zinc-800 flex items-center gap-2 bg-zinc-900`}
+            className={`px-3 py-1.5 ${colors.overlayBg} flex items-center gap-2`}
           >
             <span className={`text-xs ${colors.secondaryText}`}>Replying to</span>
             <span className={`text-xs font-semibold ${colors.accentText}`}>@{replyingTo.user_name}</span>
@@ -527,14 +528,14 @@ const LiveCommentsFeed = ({ streamId, colors, onSendComment, onLikeComment, isEx
         )}
       </AnimatePresence>
 
-      {/* Input — pinned to bottom */}
-      <form onSubmit={handleSend} className={`p-3 border-t border-zinc-800 bg-zinc-950`}>
+      {/* Input - ALWAYS visible for broadcaster to type */}
+      <form onSubmit={handleSend} className={`p-2 ${colors.overlayBg} rounded-b-xl`}>
         <div className="flex gap-2">
           <Input
             value={newComment}
             onChange={(e) => setNewComment(e.target.value)}
             placeholder={replyingTo ? `Reply to @${replyingTo.user_name}...` : "Say something..."}
-            className={`flex-1 h-9 text-sm bg-zinc-800 border-zinc-700 text-white placeholder:text-zinc-500`}
+            className={`flex-1 h-9 text-sm ${colors.commentBg} ${colors.border} border ${colors.primaryText} placeholder:text-gray-500`}
             maxLength={200}
             disabled={sending}
           />
@@ -551,7 +552,6 @@ const LiveCommentsFeed = ({ streamId, colors, onSendComment, onLikeComment, isEx
     </div>
   );
 };
-
 
 /**
  * Quick Reaction Buttons - Emoji reactions with burst animation
@@ -932,93 +932,63 @@ const BroadcasterControls = ({
             )}
           </AnimatePresence>
           
-          {/* Reaction Overlay (Floating on video) - desktop: bottom-center above controls */}
-          <div className="absolute bottom-20 left-3 sm:bottom-16 sm:left-4 z-10 pointer-events-none sm:pointer-events-auto">
-             <QuickReactions onReact={handleReaction} colors={colors} />
+          {/* Reaction Overlay */}
+          <div className="absolute bottom-16 left-4 z-10">
+            <QuickReactions onReact={handleReaction} colors={colors} />
           </div>
 
-          {/* ── BROADCASTER CONTROLS - Floating overlay at bottom of video (Desktop) ── */}
-          <div className="hidden sm:flex absolute bottom-0 left-0 right-0 z-20 items-center justify-between px-6 py-4 bg-gradient-to-t from-black/90 via-black/60 to-transparent">
+          {/* ── BROADCASTER CONTROLS: float over video bottom ── */}
+          <div style={{
+            position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: 20,
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            padding: '16px 24px',
+            background: 'linear-gradient(to top, rgba(0,0,0,0.92) 0%, rgba(0,0,0,0.55) 60%, transparent 100%)'
+          }}>
             {/* Left: Mic + Camera */}
-            <div className="flex items-center gap-3">
+            <div style={{ display: 'flex', gap: 10 }}>
               <button
                 onClick={toggleMute}
-                className={`p-3 rounded-full transition-all active:scale-95 backdrop-blur-sm ${
-                  isMuted ? 'bg-red-600 shadow-lg shadow-red-500/30' : 'bg-white/20 hover:bg-white/30'
-                }`}
-                title={isMuted ? 'Unmute Mic' : 'Mute Mic'}
+                style={{ padding: 11, borderRadius: '50%', border: 'none', cursor: 'pointer', backdropFilter: 'blur(6px)', background: isMuted ? '#dc2626' : 'rgba(255,255,255,0.18)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                title={isMuted ? 'Unmute' : 'Mute'}
               >
-                {isMuted ? <MicOff className="w-5 h-5 text-white" /> : <Mic className="w-5 h-5 text-white" />}
+                {isMuted ? <MicOff style={{ width: 20, height: 20 }} /> : <Mic style={{ width: 20, height: 20 }} />}
               </button>
               <button
                 onClick={toggleCamera}
-                className={`p-3 rounded-full transition-all active:scale-95 backdrop-blur-sm ${
-                  isCameraOff ? 'bg-red-600 shadow-lg shadow-red-500/30' : 'bg-white/20 hover:bg-white/30'
-                }`}
-                title={isCameraOff ? 'Turn Camera On' : 'Turn Camera Off'}
+                style={{ padding: 11, borderRadius: '50%', border: 'none', cursor: 'pointer', backdropFilter: 'blur(6px)', background: isCameraOff ? '#dc2626' : 'rgba(255,255,255,0.18)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                title={isCameraOff ? 'Camera On' : 'Camera Off'}
               >
-                {isCameraOff ? <CameraOff className="w-5 h-5 text-white" /> : <Camera className="w-5 h-5 text-white" />}
+                {isCameraOff ? <CameraOff style={{ width: 20, height: 20 }} /> : <Camera style={{ width: 20, height: 20 }} />}
               </button>
             </div>
 
             {/* Center: End Live */}
             <button
               onClick={onEndRequest}
-              className="px-8 py-3 bg-red-600 hover:bg-red-700 active:bg-red-800 text-white font-bold text-base rounded-full transition-all shadow-lg shadow-red-500/20"
+              style={{ padding: '11px 28px', background: '#dc2626', color: '#fff', fontWeight: 700, fontSize: 15, borderRadius: 999, border: 'none', cursor: 'pointer', boxShadow: '0 4px 18px rgba(220,38,38,0.45)' }}
             >
               End Live
             </button>
 
-            {/* Right: Status text */}
-            <p className="text-white/60 text-xs text-right max-w-[120px]">
+            {/* Right: Status */}
+            <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 11, textAlign: 'right', maxWidth: 110, margin: 0, lineHeight: 1.4 }}>
               {connectionState === ConnectionState.Connected
                 ? (viewerCount > 0 ? `${viewerCount} watching` : 'Waiting for surfers...')
-                : 'Connection issue'
-              }
+                : 'Connection issue'}
             </p>
           </div>
-        </div>
-
-        {/* ── MOBILE CONTROL BAR ── */}
-        <div className={`sm:hidden p-4 bg-zinc-900 border-t border-zinc-800 z-20`}>
-          <div className="flex items-center justify-center gap-4">
-            <button
-              onClick={toggleMute}
-              className={`p-4 rounded-full transition-all active:scale-95 ${
-                isMuted ? 'bg-red-600' : 'bg-zinc-800'
-              }`}
-              title={isMuted ? 'Unmute Mic' : 'Mute Mic'}
-            >
-              {isMuted ? <MicOff className="w-6 h-6 text-white" /> : <Mic className="w-6 h-6 text-white" />}
-            </button>
-            <button
-              onClick={onEndRequest}
-              className="px-10 py-4 bg-red-600 hover:bg-red-700 active:bg-red-800 text-white font-bold text-lg rounded-full transition-all shadow-lg shadow-red-500/20"
-            >
-              End Live
-            </button>
-            <button
-              onClick={toggleCamera}
-              className={`p-4 rounded-full transition-all active:scale-95 ${
-                isCameraOff ? 'bg-red-600' : 'bg-zinc-800'
-              }`}
-              title={isCameraOff ? 'Turn Camera On' : 'Turn Camera Off'}
-            >
-              {isCameraOff ? <CameraOff className="w-6 h-6 text-white" /> : <Camera className="w-6 h-6 text-white" />}
-            </button>
-          </div>
-        </div>
+        </div>{/* end video+overlay area */}
+      </div>{/* end video column */}
 
       {/* ── Desktop Sidebar: Live Chat ── */}
       <AnimatePresence>
         {isChatOpen && (
           <motion.div
             initial={{ width: 0, opacity: 0 }}
-            animate={{ width: '320px', opacity: 1 }}
+            animate={{ width: 310, opacity: 1 }}
             exit={{ width: 0, opacity: 0 }}
             transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-            className="hidden sm:flex flex-col bg-zinc-950 border-l border-zinc-800 shrink-0 overflow-hidden"
-            style={{ height: '100%' }}
+            style={{ height: '100%', display: 'flex', flexDirection: 'column', background: '#09090b', borderLeft: '1px solid #27272a', flexShrink: 0, overflow: 'hidden' }}
           >
             <LiveCommentsFeed
               streamId={streamId}
@@ -1026,8 +996,8 @@ const BroadcasterControls = ({
               onSendComment={handleSendComment}
               onLikeComment={handleLikeComment}
               currentUserId={userId}
-              isExpanded={true}
-              onToggleExpand={() => {}}
+              isExpanded={true} // Always expanded in sidebar
+              onToggleExpand={() => {}} // No toggle in sidebar
             />
           </motion.div>
         )}
@@ -1089,16 +1059,6 @@ const GoLiveModal = ({ isOpen, onClose, onStreamEnded }) => {
 
     try {
       logger.info('[GoLiveModal] Starting social live stream...');
-
-      // Always silently clear any stale/orphaned stream records first
-      // This prevents "already broadcasting" errors from crashed sessions
-      try {
-        await axios.post(`${API}/social-live/force-clear/${user.id}`);
-        logger.info('[GoLiveModal] Pre-cleared any stale streams');
-      } catch (clearErr) {
-        // Non-fatal — the start call will handle it
-        logger.warn('[GoLiveModal] Force-clear failed (non-fatal):', clearErr.message);
-      }
       
       const response = await axios.post(`${API}/livekit/start-social-live`, {
         broadcaster_id: user.id,
@@ -1139,17 +1099,11 @@ const GoLiveModal = ({ isOpen, onClose, onStreamEnded }) => {
 
     } catch (err) {
       logger.error('[GoLiveModal] Failed to start stream:', err);
-      const detail = err.response?.data?.detail;
-      if (typeof detail === 'string' && detail.toLowerCase().includes('already broadcasting')) {
-        setError('Stream session conflict detected. Please close this and try again in a moment.');
-      } else {
-        setError(detail || 'Failed to start live stream');
-      }
+      setError(err.response?.data?.detail || 'Failed to start live stream');
     } finally {
       setIsLoading(false);
     }
   }, [user]);
-
 
   // End the stream
   const endStream = useCallback(async () => {
