@@ -1,6 +1,6 @@
 [build]
   base = "frontend"
-  command = "yarn install --ignore-engines && yarn build"
+  command = "yarn install --ignore-engines && CI=false yarn build"
   publish = "build"
 
 [build.environment]
