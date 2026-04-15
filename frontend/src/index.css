@@ -114,7 +114,17 @@ code {
   z-index: 150;
 }
 
-/* ============ GLOBAL SCROLLBAR HIDING ============ */
+/* ── Override LiveKit component styles on desktop ──
+   @livekit/components-styles forces .lk-room-container to position:absolute;inset:0
+   which causes it to escape our centered 1100x720 modal.
+   Scoped specifically to the go-live-modal data attribute so it doesn't affect viewers. */
+[data-testid="go-live-modal"] .lk-room-container {
+  position: relative !important;
+  width: 100% !important;
+  height: 100% !important;
+  inset: auto !important;
+}
+
 /* Hide all scrollbars throughout the app while keeping scroll functionality */
 * {
   -ms-overflow-style: none !important;

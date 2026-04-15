@@ -652,6 +652,7 @@ const BroadcasterControls = ({
   const [isCameraOff, setIsCameraOff] = useState(false);
   const [isFrontCamera, setIsFrontCamera] = useState(true);
   const [showComments, setShowComments] = useState(true);
+  const [isChatOpen, setIsChatOpen] = useState(true); // Desktop sidebar toggle
   const [commentsExpanded, setCommentsExpanded] = useState(false);
   const [emojiBursts, setEmojiBursts] = useState([]);
   const [likeCount, setLikeCount] = useState(0);
@@ -823,137 +824,189 @@ const BroadcasterControls = ({
   }, [videoFilters.vignette]);
 
   return (
-    <div className="absolute inset-0 flex flex-col" data-theme={theme}>
-      {/* Video display - fills the screen */}
-      <div className="flex-1 relative bg-black">
-        {localVideoTrack && !isCameraOff ? (
-          <div ref={videoRef} className="w-full h-full relative" style={videoFilterStyle}>
-            <VideoTrack 
-              trackRef={localVideoTrack} 
-              className={`w-full h-full object-cover ${isFrontCamera ? 'scale-x-[-1]' : ''}`}
-            />
-            {/* Vignette overlay */}
-            {vignetteStyle && <div style={vignetteStyle} />}
-          </div>
-        ) : (
-          <div className="w-full h-full flex items-center justify-center bg-zinc-900">
-            <CameraOff className="w-20 h-20 text-zinc-600" />
-          </div>
-        )}
+    <div className="w-full h-full flex flex-col sm:flex-row overflow-hidden" data-theme={theme}>
+      {/* ── Main Video Section ── */}
+      <div className="flex-1 relative bg-black flex flex-col min-w-0">
+        {/* Actual Video */}
+        <div className="flex-1 relative overflow-hidden">
+          {localVideoTrack && !isCameraOff ? (
+            <div ref={videoRef} className="w-full h-full relative" style={videoFilterStyle}>
+              <VideoTrack 
+                trackRef={localVideoTrack} 
+                className={`w-full h-full object-cover ${isFrontCamera ? 'scale-x-[-1]' : ''}`}
+              />
+              {/* Vignette overlay */}
+              {vignetteStyle && <div style={vignetteStyle} />}
+            </div>
+          ) : (
+            <div className="w-full h-full flex items-center justify-center bg-zinc-900">
+              <CameraOff className="w-20 h-20 text-zinc-600" />
+            </div>
+          )}
 
-        {/* Emoji burst animations */}
-        <AnimatePresence>
-          {emojiBursts.map(burst => (
-            <EmojiBurst key={burst.id} {...burst} theme={theme} />
-          ))}
-        </AnimatePresence>
-      </div>
+          {/* Emoji burst animations */}
+          <AnimatePresence>
+            {emojiBursts.map(burst => (
+              <EmojiBurst key={burst.id} {...burst} theme={theme} />
+            ))}
+          </AnimatePresence>
 
-      {/* Top bar - Status indicators */}
-      <div className={`absolute top-0 left-0 right-0 p-3 sm:p-4 bg-gradient-to-b ${colors.gradientTop} safe-area-top`}>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
-            {/* LIVE indicator */}
-            <div className="flex items-center gap-2 bg-red-600 px-3 py-1.5 rounded-full animate-pulse">
-              <Radio className="w-4 h-4 text-white" />
-              <span className="text-white font-bold text-sm">LIVE</span>
+          {/* Top bar - Overlaid ONLY on video */}
+          <div className={`absolute top-0 left-0 right-0 p-3 sm:p-4 bg-gradient-to-b ${colors.gradientTop} safe-area-top z-10`}>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+                <div className="flex items-center gap-2 bg-red-600 px-3 py-1.5 rounded-full animate-pulse">
+                  <Radio className="w-4 h-4 text-white" />
+                  <span className="text-white font-bold text-sm">LIVE</span>
+                </div>
+                
+                <div className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-full ${colors.overlayBg}`}>
+                  <Clock className={`w-3.5 h-3.5 ${colors.primaryText}`} />
+                  <span className={`${colors.primaryText} font-mono text-sm`}>{formatDuration(streamDuration)}</span>
+                </div>
+                
+                <div className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-full ${colors.overlayBg}`}>
+                  <Eye className={`w-3.5 h-3.5 ${colors.primaryText}`} />
+                  <span className={`${colors.primaryText} text-sm`}>{viewerCount}</span>
+                </div>
+                
+                <ConnectionQualityBadge state={connectionState} />
+              </div>
+
+              <div className="flex items-center gap-2">
+                <div className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-full ${colors.overlayBg}`}>
+                  <Heart className={`w-3.5 h-3.5 text-red-500 ${likeCount > 0 ? 'fill-red-500' : ''}`} />
+                  <span className={`${colors.primaryText} text-sm`}>{likeCount}</span>
+                </div>
+                
+                {/* Desktop: Sidebar Toggle Button */}
+                <button
+                  onClick={() => setIsChatOpen(!isChatOpen)}
+                  className={`hidden sm:flex p-2 rounded-full ${colors.overlayBg} ${isChatOpen ? colors.accentBg : ''} transition-all`}
+                  title={isChatOpen ? "Close Chat" : "Open Chat"}
+                >
+                  <MessageCircle className={`w-4 h-4 ${isChatOpen ? 'text-white' : colors.primaryText}`} />
+                </button>
+
+                <button
+                  onClick={handleShare}
+                  className={`p-2 rounded-full ${colors.overlayBg} transition-transform active:scale-95`}
+                  title="Share Stream"
+                >
+                  <Share2 className={`w-4 h-4 ${colors.primaryText}`} />
+                </button>
+              </div>
             </div>
-            
-            {/* Duration */}
-            <div className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-full ${colors.overlayBg}`}>
-              <Clock className={`w-3.5 h-3.5 ${colors.primaryText}`} />
-              <span className={`${colors.primaryText} font-mono text-sm`}>{formatDuration(streamDuration)}</span>
-            </div>
-            
-            {/* Viewers */}
-            <div className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-full ${colors.overlayBg}`}>
-              <Eye className={`w-3.5 h-3.5 ${colors.primaryText}`} />
-              <span className={`${colors.primaryText} text-sm`}>{viewerCount}</span>
-            </div>
-            
-            {/* Connection Quality */}
-            <ConnectionQualityBadge state={connectionState} />
           </div>
 
-          {/* Right side: Like count + Share */}
-          <div className="flex items-center gap-2">
-            <div className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-full ${colors.overlayBg}`}>
-              <Heart className={`w-3.5 h-3.5 text-red-500 ${likeCount > 0 ? 'fill-red-500' : ''}`} />
-              <span className={`${colors.primaryText} text-sm`}>{likeCount}</span>
-            </div>
+          {/* Floating Side items - Filters/Camera Flip (Desktop) */}
+          <div className="absolute right-3 top-1/2 -translate-y-1/2 flex flex-col gap-3 z-10">
             <button
-              onClick={handleShare}
-              className={`p-2 rounded-full ${colors.overlayBg} transition-transform active:scale-95`}
-              title="Share Stream"
+              onClick={flipCamera}
+              className={`p-3 rounded-full ${colors.overlayBg} ${colors.border} border transition-all active:scale-95 shadow-md`}
+              title="Flip Camera"
             >
-              <Share2 className={`w-4 h-4 ${colors.primaryText}`} />
+              <RefreshCw className={`w-5 h-5 ${colors.primaryText}`} />
             </button>
+
+            <button
+              onClick={() => setShowFilters(!showFilters)}
+              className={`p-3 rounded-full ${colors.overlayBg} ${colors.border} border transition-all active:scale-95 shadow-md ${showFilters ? colors.accentBg : ''}`}
+              title="Surf Filters"
+            >
+              <Sparkles className={`w-5 h-5 ${showFilters ? 'text-white' : colors.primaryText}`} />
+            </button>
+          </div>
+
+          {/* Video Filter Panel */}
+          <AnimatePresence>
+            {showFilters && (
+              <VideoFilterPanel
+                isOpen={showFilters}
+                onClose={() => setShowFilters(false)}
+                filters={videoFilters}
+                onFilterChange={handleFilterChange}
+                onPresetSelect={handlePresetSelect}
+                colors={colors}
+              />
+            )}
+          </AnimatePresence>
+          
+          {/* Reaction Overlay (Floating on video) */}
+          <div className="absolute bottom-20 left-3 sm:bottom-6 sm:left-4 z-10 pointer-events-none sm:pointer-events-auto">
+             <QuickReactions onReact={handleReaction} colors={colors} />
+          </div>
+        </div>
+
+        {/* ── BROADCASTER BOTTOM CONTROL BAR ── */}
+        <div className={`p-4 sm:p-6 bg-zinc-900 border-t border-zinc-800 z-20`}>
+          <div className="flex items-center justify-center gap-4 sm:gap-8">
+            <button
+              onClick={toggleMute}
+              className={`p-4 rounded-full transition-all active:scale-95 ${
+                isMuted ? 'bg-red-600' : 'bg-zinc-800'
+              }`}
+              title={isMuted ? "Unmute Mic" : "Mute Mic"}
+            >
+              {isMuted ? <MicOff className="w-6 h-6 text-white" /> : <Mic className="w-6 h-6 text-white" />}
+            </button>
+
+            <button
+              onClick={onEndRequest}
+              className="px-10 py-4 bg-red-600 hover:bg-red-700 active:bg-red-800 text-white font-bold text-lg rounded-full transition-all shadow-lg shadow-red-500/20"
+            >
+              End Live
+            </button>
+
+            <button
+              onClick={toggleCamera}
+              className={`p-4 rounded-full transition-all active:scale-95 ${
+                isCameraOff ? 'bg-red-600' : 'bg-zinc-800'
+              }`}
+              title={isCameraOff ? "Turn Camera On" : "Turn Camera Off"}
+            >
+              {isCameraOff ? <CameraOff className="w-6 h-6 text-white" /> : <Camera className="w-6 h-6 text-white" />}
+            </button>
+          </div>
+          
+          <div className="mt-4 text-center">
+            <p className="text-zinc-500 text-xs">
+              {connectionState === ConnectionState.Connected 
+                ? (viewerCount > 0 ? `${viewerCount} people watching your session` : 'Waiting for surfers to join...')
+                : 'Connection issue - Check your signal'
+              }
+            </p>
           </div>
         </div>
       </div>
 
-      {/* Right side controls - Camera flip, filters, End Live */}
-      <div className="absolute right-3 top-1/3 flex flex-col gap-3">
-        {/* End Live Button - Important, at top */}
-        <button
-          onClick={onEndRequest}
-          className={`p-3 rounded-full bg-red-600 hover:bg-red-700 transition-all active:scale-95 shadow-lg shadow-red-500/30`}
-          title="End Live"
-          data-testid="end-live-top-btn"
-        >
-          <Power className="w-5 h-5 text-white" />
-        </button>
-
-        {/* Flip Camera */}
-        <button
-          onClick={flipCamera}
-          className={`p-3 rounded-full ${colors.overlayBg} ${colors.border} border transition-transform active:scale-95`}
-          title="Flip Camera"
-          data-testid="flip-camera-btn"
-        >
-          <RefreshCw className={`w-5 h-5 ${colors.primaryText}`} />
-        </button>
-
-        {/* Video Filters */}
-        <button
-          onClick={() => setShowFilters(!showFilters)}
-          className={`p-3 rounded-full ${colors.overlayBg} ${colors.border} border transition-transform active:scale-95 ${showFilters ? colors.accentBg : ''}`}
-          title="Surf Filters"
-          data-testid="filters-btn"
-        >
-          <Sparkles className={`w-5 h-5 ${showFilters ? 'text-white' : colors.primaryText}`} />
-        </button>
-
-        {/* Toggle Comments */}
-        <button
-          onClick={() => setShowComments(!showComments)}
-          className={`p-3 rounded-full ${colors.overlayBg} ${colors.border} border transition-transform active:scale-95 ${!showComments ? 'opacity-50' : ''}`}
-          title="Toggle Comments"
-          data-testid="toggle-comments-btn"
-        >
-          <MessageCircle className={`w-5 h-5 ${colors.primaryText}`} />
-        </button>
-      </div>
-
-      {/* Video Filter Panel */}
+      {/* ── Desktop Sidebar: Live Chat ── */}
       <AnimatePresence>
-        {showFilters && (
-          <VideoFilterPanel
-            isOpen={showFilters}
-            onClose={() => setShowFilters(false)}
-            filters={videoFilters}
-            onFilterChange={handleFilterChange}
-            onPresetSelect={handlePresetSelect}
-            colors={colors}
-          />
+        {isChatOpen && (
+          <motion.div 
+            initial={{ width: 0, opacity: 0 }}
+            animate={{ width: '350px', opacity: 1 }}
+            exit={{ width: 0, opacity: 0 }}
+            transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+            className="hidden sm:flex flex-col h-full bg-zinc-900 border-l border-zinc-800 shrink-0"
+          >
+            <LiveCommentsFeed
+              streamId={streamId}
+              colors={colors}
+              onSendComment={handleSendComment}
+              onLikeComment={handleLikeComment}
+              currentUserId={userId}
+              isExpanded={true} // Always expanded in sidebar
+              onToggleExpand={() => {}} // No toggle in sidebar
+            />
+          </motion.div>
         )}
       </AnimatePresence>
 
-      {/* Bottom section container - stacked properly */}
-      <div className="absolute bottom-0 left-0 right-0 flex flex-col z-30">
-        {/* Comments section - ALWAYS visible with input */}
+      {/* Mobile-only overlay elements */}
+      <div className="sm:hidden absolute bottom-24 left-3 right-3 z-30 pointer-events-none">
         {showComments && (
-          <div className="px-3 mb-2">
+          <div className="pointer-events-auto">
             <LiveCommentsFeed
               streamId={streamId}
               colors={colors}
@@ -965,54 +1018,6 @@ const BroadcasterControls = ({
             />
           </div>
         )}
-
-        {/* Quick reactions bar */}
-        <div className="px-3 mb-2">
-          <QuickReactions onReact={handleReaction} colors={colors} />
-        </div>
-
-        {/* Bottom controls */}
-        <div className={`p-4 bg-gradient-to-t ${colors.gradientBottom} safe-area-bottom`}>
-          <div className="flex items-center justify-center gap-4 sm:gap-6 mb-2">
-            {/* Mic Toggle */}
-            <button
-              onClick={toggleMute}
-              className={`p-3 sm:p-4 rounded-full transition-all duration-200 ${
-                isMuted ? 'bg-red-600 scale-95' : colors.buttonBg
-              }`}
-              data-testid="mic-toggle-btn"
-            >
-              {isMuted ? <MicOff className="w-5 h-5 sm:w-6 sm:h-6 text-white" /> : <Mic className={`w-5 h-5 sm:w-6 sm:h-6 ${colors.primaryText}`} />}
-            </button>
-
-            {/* END LIVE Button */}
-            <button
-              onClick={onEndRequest}
-              className="px-8 sm:px-10 py-3 sm:py-4 bg-red-600 hover:bg-red-700 active:bg-red-800 text-white font-bold text-base sm:text-lg rounded-full transition-all duration-200 shadow-lg shadow-red-500/30"
-              data-testid="end-live-btn"
-            >
-              End Live
-            </button>
-
-            {/* Camera Toggle */}
-            <button
-              onClick={toggleCamera}
-              className={`p-3 sm:p-4 rounded-full transition-all duration-200 ${
-                isCameraOff ? 'bg-red-600 scale-95' : colors.buttonBg
-              }`}
-              data-testid="camera-toggle-btn"
-            >
-              {isCameraOff ? <CameraOff className="w-5 h-5 sm:w-6 sm:h-6 text-white" /> : <Camera className={`w-5 h-5 sm:w-6 sm:h-6 ${colors.primaryText}`} />}
-            </button>
-          </div>
-          
-          <p className={`${colors.secondaryText} text-xs sm:text-sm text-center`}>
-            {connectionState === ConnectionState.Connected 
-              ? (viewerCount > 0 ? `${viewerCount} people watching` : 'Waiting for viewers...')
-              : connectionState === ConnectionState.Connecting ? 'Connecting...' : 'Connection issue'
-            }
-          </p>
-        </div>
       </div>
 
       <RoomAudioRenderer />
@@ -1165,7 +1170,15 @@ const GoLiveModal = ({ isOpen, onClose, onStreamEnded }) => {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[100] bg-black" data-testid="go-live-modal" data-theme={theme}>
+    /* ── Mobile: fullscreen  |  Desktop: centred popup ── */
+    <div className="fixed inset-0 z-[100] flex items-center justify-center" data-testid="go-live-modal" data-theme={theme}>
+      {/* Dark backdrop — click away closes */}
+      <div
+        className="fixed inset-0 bg-black/80 backdrop-blur-sm hidden sm:block"
+        onClick={onClose}
+      />
+      {/* Inner container — fullscreen on mobile, popup on desktop */}
+      <div className="relative w-full h-full sm:w-[1100px] sm:h-[720px] sm:max-h-[90vh] sm:rounded-2xl sm:overflow-hidden bg-black shadow-2xl shadow-black/60">
       {/* Loading state */}
       {isLoading && (
         <div className="absolute inset-0 flex items-center justify-center bg-black">
@@ -1200,28 +1213,31 @@ const GoLiveModal = ({ isOpen, onClose, onStreamEnded }) => {
 
       {/* LiveKit Room - Active broadcast */}
       {broadcasterToken && !error && (
-        <LiveKitRoom
-          token={broadcasterToken.token}
-          serverUrl={broadcasterToken.server_url}
-          video={true}
-          audio={true}
-          connect={true}
-          onConnected={() => setIsConnected(true)}
-          onDisconnected={() => {
-            logger.info('[GoLiveModal] Disconnected from room');
-          }}
-        >
-          <BroadcasterControls
-            onEnd={endStream}
-            onEndRequest={() => setShowEndDialog(true)}
-            streamDuration={streamDuration}
-            viewerCount={viewerCount}
-            streamId={streamData?.id}
-            userId={user?.id}
-            userName={user?.username ? `@${user.username}` : (user?.full_name || user?.email?.split('@')[0] || 'You')}
-            userAvatar={user?.avatar_url}
-          />
-        </LiveKitRoom>
+        <div className="relative w-full h-full">
+          <LiveKitRoom
+            token={broadcasterToken.token}
+            serverUrl={broadcasterToken.server_url}
+            video={true}
+            audio={true}
+            connect={true}
+            onConnected={() => setIsConnected(true)}
+            onDisconnected={() => {
+              logger.info('[GoLiveModal] Disconnected from room');
+            }}
+            style={{ position: 'relative', width: '100%', height: '100%' }}
+          >
+            <BroadcasterControls
+              onEnd={endStream}
+              onEndRequest={() => setShowEndDialog(true)}
+              streamDuration={streamDuration}
+              viewerCount={viewerCount}
+              streamId={streamData?.id}
+              userId={user?.id}
+              userName={user?.username ? `@${user.username}` : (user?.full_name || user?.email?.split('@')[0] || 'You')}
+              userAvatar={user?.avatar_url}
+            />
+          </LiveKitRoom>
+        </div>
       )}
 
       {/* End stream confirmation dialog */}
@@ -1232,6 +1248,7 @@ const GoLiveModal = ({ isOpen, onClose, onStreamEnded }) => {
         duration={streamDuration}
         colors={colors}
       />
+      </div>{/* End of inner container */}
     </div>
   );
 };
