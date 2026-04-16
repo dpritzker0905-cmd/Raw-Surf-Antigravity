@@ -68,11 +68,17 @@ export const Sidebar = () => {
   // Check if user is a Pro (shows The Peak)
   const isPro = effectiveRole === 'Pro';
   
-  // Check if user qualifies for Stoked tab (Comp Surfer, Pro ONLY - Groms use The Inside instead)
-  const hasStokesAccess = ['Comp Surfer', 'Pro'].includes(effectiveRole);
-  
-  // Check if user is a regular surfer (shows locked Stoked placeholder)
+  // Check if user is a regular surfer (role = Surfer, not Comp Surfer/Pro/Grom)
   const isRegularSurfer = effectiveRole === 'Surfer';
+
+  // Check if user qualifies for Stoked tab:
+  // - Comp Surfer or Pro role always gets access
+  // - Regular Surfer in competitive surf_mode also gets access
+  const isCompetitiveSurfer = user?.surf_mode === 'competitive' || user?.surf_mode === 'pro';
+  const hasStokesAccess = ['Comp Surfer', 'Pro'].includes(effectiveRole) || (isRegularSurfer && isCompetitiveSurfer);
+  
+  // Locked only if Surfer AND still in casual/non-competitive mode
+  const isStokedLocked = isRegularSurfer && !isCompetitiveSurfer;
   
   // Check if user is a hobbyist (shows Gear Hub) - use effective role
   const isHobbyist = ['Grom Parent', 'Hobbyist'].includes(effectiveRole);
@@ -148,8 +154,8 @@ export const Sidebar = () => {
     ...(isGrom ? [{ path: '/career/the-inside', icon: Baby, label: 'The Inside', highlight: true, highlightColor: 'cyan' }] : []),
     // Stoked tab ONLY for Comp Surfer, Pro - Groms use The Inside instead
     ...(hasStokesAccess ? [{ path: '/stoked', icon: Zap, label: 'Stoked', highlight: true, highlightColor: 'yellow' }] : []),
-    // Regular Surfers see Locked placeholder
-    ...(isRegularSurfer ? [{ path: '/stoked-locked', icon: Zap, label: 'Stoked', isLocked: true }] : []),
+    // Regular Surfers see Locked placeholder only if in casual mode
+    ...(isStokedLocked ? [{ path: '/stoked-locked', icon: Zap, label: 'Stoked', isLocked: true }] : []),
     // Impacted tab for ALL photographers (Hobbyist, Photographer, Approved Pro) - NOT Grom Parent
     ...(!isGromParent && isPhotographer ? [{ path: '/impacted', icon: Heart, label: 'Impacted', highlight: true, highlightColor: 'pink' }] : []),
     // Grom HQ for Grom Parents (Shield icon)
