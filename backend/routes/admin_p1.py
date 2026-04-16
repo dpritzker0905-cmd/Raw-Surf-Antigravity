@@ -45,6 +45,7 @@ class ProPhotographerVerificationRequest(BaseModel):
 
 class ReviewVerificationRequest(BaseModel):
     status: str  # approved, rejected, more_info_needed
+    approve_as: Optional[str] = 'pro'  # 'pro' or 'legend' — only applies when status='approved' on pro_surfer type
     admin_notes: Optional[str] = None
     rejection_reason: Optional[str] = None
 
@@ -285,6 +286,13 @@ async def review_verification_request(
         if request.verification_type == 'pro_surfer':
             request.user.role = RoleEnum.PRO
             request.user.is_wsl_verified = True
+            request.user.surf_mode = 'pro'
+            if data.approve_as == 'legend':
+                # Legend: retired/non-competing pro — same feature access as Pro but distinct badge
+                request.user.elite_tier = 'legend'
+            else:
+                # Active competing Pro
+                request.user.elite_tier = 'pro_elite'
         elif request.verification_type == 'approved_pro_photographer':
             request.user.role = RoleEnum.APPROVED_PRO
             request.user.is_approved_pro = True

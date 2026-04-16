@@ -15,9 +15,7 @@ const ROLE_CONFIG = {
     benefits: ['Book photographers on the beach', 'Build your surf portfolio', 'Track streaks & compete'],
     roles: [
       { id: 'Grom', label: 'Grom', icon: '👶', description: 'Under 18 • Parent-linked account', requiresParent: true },
-      { id: 'Surfer', label: 'Surfer', icon: '🏄', description: 'Casual to committed wave rider' },
-      { id: 'Comp Surfer', label: 'Competitive', icon: '🏆', description: 'Contest participant • Sponsor-ready' },
-      { id: 'Pro', label: 'Pro', icon: '⭐', description: 'Elite pro • Verified athlete' }
+      { id: 'Surfer', label: 'Surfer', icon: '🏄', description: 'Casual to committed wave rider' }
     ]
   },
   photographer: {

@@ -46,6 +46,7 @@ class ProfileResponse(BaseModel):
     skill_level: Optional[str]
     stance: Optional[str]
     home_break: Optional[str]
+    surf_mode: Optional[str] = 'casual'  # casual, competitive, pro (user-set); legend is via elite_tier (admin-set)
     # Surfer identification (for photographers)
     wetsuit_color: Optional[str] = None
     rash_guard_color: Optional[str] = None
@@ -75,6 +76,7 @@ class ProfileUpdate(BaseModel):
     skill_level: Optional[str] = None
     stance: Optional[str] = None
     home_break: Optional[str] = None
+    surf_mode: Optional[str] = None  # casual, competitive, pro
     # Surfer identification fields (for photographers)
     wetsuit_color: Optional[str] = None
     rash_guard_color: Optional[str] = None
@@ -126,6 +128,7 @@ def profile_to_response(profile: Profile) -> ProfileResponse:
         skill_level=profile.skill_level,
         stance=profile.stance,
         home_break=profile.home_break,
+        surf_mode=profile.surf_mode or 'casual',
         # Surfer identification fields
         wetsuit_color=profile.wetsuit_color,
         rash_guard_color=profile.rash_guard_color,

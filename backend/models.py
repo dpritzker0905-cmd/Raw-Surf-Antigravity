@@ -195,6 +195,7 @@ class Profile(Base):
     skill_level = Column(String(50), nullable=True)
     stance = Column(String(20), nullable=True)  # 'regular' or 'goofy'
     home_break = Column(String(255), nullable=True)
+    surf_mode = Column(String(20), default='casual', nullable=True)  # 'casual', 'competitive', 'pro' (user-selectable). elite_tier='legend' is admin-assigned via verification.
     
     # ============ SURFER IDENTIFICATION (For photographers) ============
     wetsuit_color = Column(String(50), nullable=True)  # e.g., "Black", "Blue/Black", "Full black with red stripe"

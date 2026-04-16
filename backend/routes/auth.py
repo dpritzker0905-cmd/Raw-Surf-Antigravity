@@ -75,6 +75,7 @@ class ProfileResponse(BaseModel):
     skill_level: Optional[str]
     stance: Optional[str]
     home_break: Optional[str]
+    surf_mode: Optional[str] = 'casual'  # casual, competitive, pro
     # Home/Pinned location for map centering
     home_latitude: Optional[float] = None
     home_longitude: Optional[float] = None
@@ -358,6 +359,7 @@ async def login(data: LoginRequest, db: AsyncSession = Depends(get_db)):
         skill_level=profile.skill_level,
         stance=profile.stance,
         home_break=profile.home_break,
+        surf_mode=profile.surf_mode or 'casual',
         # Home/Pinned location for map centering
         home_latitude=profile.home_latitude,
         home_longitude=profile.home_longitude,
