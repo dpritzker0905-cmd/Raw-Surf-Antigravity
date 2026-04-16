@@ -2,19 +2,22 @@
   base = "frontend"
   command = "yarn install --ignore-engines && CI=false yarn build"
   publish = "build"
-  # Only rebuild production when frontend source files actually changed
-  ignore = "git diff --quiet $CACHED_COMMIT_REF $COMMIT_REF -- frontend/src frontend/public netlify.toml"
 
 [build.environment]
   NODE_VERSION = "18.20.2"
   NODE_OPTIONS = "--openssl-legacy-provider"
   NETLIFY_NEXT_PLUGIN_SKIP = "true"
 
-# Deploy previews (branch deploys & PRs) - same build, no special flags needed
+# Production (main branch) - only rebuild when frontend files actually changed
+[context.production]
+  command = "yarn install --ignore-engines && CI=false yarn build"
+  ignore = "git diff --quiet $CACHED_COMMIT_REF $COMMIT_REF -- frontend/src frontend/public netlify.toml"
+
+# Deploy previews (PRs) - always build
 [context.deploy-preview]
   command = "yarn install --ignore-engines && CI=false yarn build"
 
-# Dev branch gets a stable preview URL at dev--rawsurf.netlify.app
+# Dev branch - always build, gets stable URL at dev--rawsurf.netlify.app
 [context.dev]
   command = "yarn install --ignore-engines && CI=false yarn build"
 
