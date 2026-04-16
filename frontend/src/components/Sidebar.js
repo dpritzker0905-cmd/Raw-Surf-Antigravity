@@ -73,8 +73,10 @@ export const Sidebar = () => {
 
   // Check if user qualifies for Stoked tab:
   // - Comp Surfer or Pro role always gets access
-  // - Regular Surfer in competitive surf_mode also gets access
-  const isCompetitiveSurfer = user?.surf_mode === 'competitive' || user?.surf_mode === 'pro';
+  // - Regular Surfer in any competitive/pro surf_mode also gets access
+  const isProSurferMode = user?.surf_mode === 'pro';
+  const isCompetitiveSurferMode = user?.surf_mode === 'competitive';
+  const isCompetitiveSurfer = isCompetitiveSurferMode || isProSurferMode; // used for Stoked access + locking
   const hasStokesAccess = ['Comp Surfer', 'Pro'].includes(effectiveRole) || (isRegularSurfer && isCompetitiveSurfer);
   
   // Locked only if Surfer AND still in casual/non-competitive mode
@@ -146,10 +148,10 @@ export const Sidebar = () => {
     { path: '/bookings', icon: Calendar, label: 'Bookings' },
     // Create button - special handling (not a NavLink)
     { id: 'create', icon: Plus, label: 'Create', isCreateButton: true },
-    // Career Hub: The Peak for Pro surfers ONLY
-    ...(isPro ? [{ path: '/career/the-peak', icon: Crown, label: 'The Peak', highlight: true, highlightColor: 'amber' }] : []),
-    // Career Hub: Impact Zone for Comp Surfers OR regular Surfers in competitive surf_mode
-    ...(isCompSurfer || (isRegularSurfer && isCompetitiveSurfer) ? [{ path: '/career/impact-zone', icon: Target, label: 'Impact Zone', highlight: true, highlightColor: 'orange' }] : []),
+    // Career Hub: The Peak for Pro role OR Surfer in pro surf_mode
+    ...(isPro || (isRegularSurfer && isProSurferMode) ? [{ path: '/career/the-peak', icon: Crown, label: 'The Peak', highlight: true, highlightColor: 'amber' }] : []),
+    // Career Hub: Impact Zone for Comp Surfers OR Surfers in competitive surf_mode (NOT pro mode - they get The Peak)
+    ...(isCompSurfer || (isRegularSurfer && isCompetitiveSurferMode) ? [{ path: '/career/impact-zone', icon: Target, label: 'Impact Zone', highlight: true, highlightColor: 'orange' }] : []),
     // Career Hub: The Inside for Groms (includes Stoked features - no separate Stoked for Groms)
     ...(isGrom ? [{ path: '/career/the-inside', icon: Baby, label: 'The Inside', highlight: true, highlightColor: 'cyan' }] : []),
     // Stoked tab ONLY for Comp Surfer, Pro - Groms use The Inside instead
