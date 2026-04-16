@@ -148,8 +148,8 @@ export const Sidebar = () => {
     { id: 'create', icon: Plus, label: 'Create', isCreateButton: true },
     // Career Hub: The Peak for Pro surfers ONLY
     ...(isPro ? [{ path: '/career/the-peak', icon: Crown, label: 'The Peak', highlight: true, highlightColor: 'amber' }] : []),
-    // Career Hub: Impact Zone for Comp Surfers
-    ...(isCompSurfer ? [{ path: '/career/impact-zone', icon: Target, label: 'Impact Zone', highlight: true, highlightColor: 'orange' }] : []),
+    // Career Hub: Impact Zone for Comp Surfers OR regular Surfers in competitive surf_mode
+    ...(isCompSurfer || (isRegularSurfer && isCompetitiveSurfer) ? [{ path: '/career/impact-zone', icon: Target, label: 'Impact Zone', highlight: true, highlightColor: 'orange' }] : []),
     // Career Hub: The Inside for Groms (includes Stoked features - no separate Stoked for Groms)
     ...(isGrom ? [{ path: '/career/the-inside', icon: Baby, label: 'The Inside', highlight: true, highlightColor: 'cyan' }] : []),
     // Stoked tab ONLY for Comp Surfer, Pro - Groms use The Inside instead
