@@ -99,7 +99,7 @@ export const TopNav = () => {
   const exclusiveIconColor = getAreaColor(resolvedRole);
   
   // Role categorization for Dynamic Persona Icon
-  const isGromParent = effectiveRole === 'Grom Parent';
+  const isGromParent = effectiveRole === 'Grom Parent' || user?.is_grom_parent === true;
   // isCompetitive: true for Comp Surfer/Pro roles OR regular Surfer in competitive/pro surf_mode
   const isCompetitive = ['Comp Surfer', 'Pro'].includes(effectiveRole) || (effectiveRole === 'Surfer' && isCompetitiveSurfer);
   // Note: isPhotographer already defined above for Duty Station icon
@@ -107,14 +107,6 @@ export const TopNav = () => {
 
   // Get Dynamic Persona Icon configuration based on role
   const getPersonaIconConfig = () => {
-    if (isGromParent) {
-      return {
-        icon: Shield,
-        label: 'Grom HQ',
-        color: 'text-cyan-400',
-        hoverColor: 'hover:text-cyan-300'
-      };
-    }
     if (isPhotographer) {
       return {
         icon: Heart,
@@ -231,8 +223,7 @@ export const TopNav = () => {
                 aria-label={
                   exclusiveAreaType === 'grom' ? 'The Inside' :
                   exclusiveAreaType === 'comp' ? 'The Impact Zone' :
-                  exclusiveAreaType === 'pro' ? 'The Peak' :
-                  exclusiveAreaType === 'grom_parent' ? 'Grom HQ' : 'Exclusive Area'
+                  exclusiveAreaType === 'pro' ? 'The Peak' : 'Exclusive Area'
                 }
               >
                 <ExclusiveIcon className="w-5 h-5" />
@@ -274,13 +265,26 @@ export const TopNav = () => {
               </SurferSessionHub>
             )}
             
+            {/* Position 5.5: Grom HQ Shield Icon - for Grom Parents */}
+            {isGromParent && (
+              <button 
+                onClick={() => navigate('/grom-hq')}
+                className="text-cyan-400 hover:text-cyan-300 transition-colors p-1"
+                data-testid="topnav-grom-hq"
+                aria-label="Grom HQ"
+              >
+                <Shield className="w-5 h-5" />
+              </button>
+            )}
+
             {/* Position 6 (or 5): Stoked/Persona Icon - Role-Based Navigation */}
-            {/* Note: Groms + Grom Parents skip this - they use the ExclusiveArea button instead */}
-            {effectiveRole !== 'Grom' && effectiveRole !== 'Grom Parent' && (
+            {/* Note: Groms skip this - they use the ExclusiveArea button instead */}
+            {effectiveRole !== 'Grom' && (
               <button 
                 onClick={() => {
-                  if (isGromParent) {
-                    navigate('/grom-hq');  // Grom Parents → Grom HQ
+                  if (effectiveRole === 'Grom Parent') {
+                    // Fallback for purely dedicated Grom Parents if they tap Gear
+                    setStokedOpen(true);
                   } else if (isPhotographer) {
                     navigate('/impacted');  // Photographers → Impact Dashboard
                   } else if (isCompetitive) {

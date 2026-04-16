@@ -86,7 +86,7 @@ export const Sidebar = () => {
   const isHobbyist = effectiveRole === 'Hobbyist';
   
   // Check if user is a Grom Parent (shows Grom HQ)
-  const isGromParent = effectiveRole === 'Grom Parent';
+  const isGromParent = effectiveRole === 'Grom Parent' || user?.is_grom_parent === true;
   
   // Check if current path is a photo tools path
   const isPhotoToolsPath = ['/gallery', '/photographer/bookings', '/photographer/sessions', '/photographer/on-demand', '/photographer/earnings', '/photographer/on-demand-settings'].some(path => 

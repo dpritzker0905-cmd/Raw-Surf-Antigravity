@@ -43,23 +43,7 @@ const AREA_CONFIG = {
       { icon: Gift, title: "Gear & Equipment", description: "Boards and wetsuits", route: "/gear-hub", color: "pink" },
     ]
   },
-  grom_parent: {
-    name: "Grom HQ",
-    icon: Shield,
-    tagline: "Your grom's command center",
-    color: "cyan",
-    gradient: "from-cyan-500/20 to-blue-500/20",
-    borderColor: "border-cyan-500/30",
-    textColor: "text-cyan-400",
-    options: [
-      { icon: Users, title: "Grom Squad", description: "See who your grom surfs with", route: "/explore?filter=groms", color: "cyan" },
-      { icon: TrendingUp, title: "Progress Tracker", description: "Track skill development", route: "/grom-hq/progress", color: "green" },
-      { icon: GraduationCap, title: "Find Lessons", description: "Book surf coaching nearby", route: "/map?filter=lessons", color: "blue" },
-      { icon: Shield, title: "Safety Zone", description: "Ocean safety & etiquette", route: "/safety", color: "orange" },
-      { icon: Gamepad2, title: "Grom Games", description: "Fun competitions & prizes", route: "/grom-games", color: "purple" },
-      { icon: Gift, title: "Gear & Equipment", description: "Boards and wetsuits", route: "/gear-hub", color: "pink" },
-    ]
-  },
+
   comp: {
     name: "The Impact Zone",
     icon: Target,
@@ -112,7 +96,6 @@ export const getAreaType = (role) => {
   if (role === 'Grom') return 'grom';
   if (role === 'Comp Surfer') return 'comp';
   if (role === 'Pro') return 'pro';
-  if (role === 'Grom Parent') return 'grom_parent';
   return null;
 };
 
@@ -120,7 +103,7 @@ export const getAreaType = (role) => {
  * Check if role has exclusive area access
  */
 export const hasExclusiveArea = (role) => {
-  return ['Grom', 'Comp Surfer', 'Pro', 'Grom Parent'].includes(role);
+  return ['Grom', 'Comp Surfer', 'Pro'].includes(role);
 };
 
 /**
