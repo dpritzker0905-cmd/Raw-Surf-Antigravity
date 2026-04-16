@@ -22,7 +22,8 @@ target_metadata = Base.metadata
 db_url = os.environ.get('DATABASE_URL', '')
 # Alembic uses psycopg2 (sync). Strip any +asyncpg driver prefix.
 sync_url = db_url.replace('postgresql+asyncpg://', 'postgresql://').replace('postgresql+psycopg2://', 'postgresql://')
-config.set_main_option('sqlalchemy.url', sync_url)
+# Escape % for ConfigParser interpolation (e.g. %23 in URL-encoded passwords)
+config.set_main_option('sqlalchemy.url', sync_url.replace('%', '%%'))
 
 # other values from the config, defined by the needs of env.py,
 # can be acquired:
@@ -44,7 +45,7 @@ def run_migrations_offline() -> None:
     """
     url = config.get_main_option("sqlalchemy.url")
     context.configure(
-        url=url,
+        url=sync_url,
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
@@ -61,11 +62,8 @@ def run_migrations_online() -> None:
     and associate a connection with the context.
 
     """
-    connectable = engine_from_config(
-        config.get_section(config.config_ini_section, {}),
-        prefix="sqlalchemy.",
-        poolclass=pool.NullPool,
-    )
+    from sqlalchemy import create_engine
+    connectable = create_engine(sync_url, poolclass=pool.NullPool)
 
     with connectable.connect() as connection:
         context.configure(
