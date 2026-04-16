@@ -85,14 +85,18 @@ export const TopNav = () => {
   const isPhotographer = ['Hobbyist', 'Photographer', 'Approved Pro'].includes(effectiveRole);
   
   // Check if user has exclusive area access (Grom, Comp Surfer, Pro)
-  const hasExclusiveAccess = hasExclusiveArea(effectiveRole);
-  const exclusiveAreaType = getAreaType(effectiveRole);
-  const ExclusiveIcon = getAreaIcon(effectiveRole);
-  const exclusiveIconColor = getAreaColor(effectiveRole);
+  // Competitive-mode Surfers get Impact Zone (comp) access too
+  const isCompetitiveSurfer = user?.surf_mode === 'competitive' || user?.surf_mode === 'pro';
+  const resolvedRole = (effectiveRole === 'Surfer' && isCompetitiveSurfer) ? 'Comp Surfer' : effectiveRole;
+  const hasExclusiveAccess = hasExclusiveArea(resolvedRole);
+  const exclusiveAreaType = getAreaType(resolvedRole);
+  const ExclusiveIcon = getAreaIcon(resolvedRole);
+  const exclusiveIconColor = getAreaColor(resolvedRole);
   
   // Role categorization for Dynamic Persona Icon
   const isGromParent = effectiveRole === 'Grom Parent';
-  const isCompetitive = ['Comp Surfer', 'Pro'].includes(effectiveRole);
+  // isCompetitive: true for Comp Surfer/Pro roles OR regular Surfer in competitive surf_mode
+  const isCompetitive = ['Comp Surfer', 'Pro'].includes(effectiveRole) || (effectiveRole === 'Surfer' && isCompetitiveSurfer);
   // Note: isPhotographer already defined above for Duty Station icon
   const isGromOrRegularSurfer = ['Grom', 'Surfer'].includes(effectiveRole);
 
