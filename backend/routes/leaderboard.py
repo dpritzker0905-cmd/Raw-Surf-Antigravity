@@ -20,10 +20,10 @@ import logging
 
 from database import get_db
 from models import (
-from utils.grom_parent import is_grom_parent_eligible
     Profile, ImpactLedger, LeaderboardSnapshot, 
     Notification, RoleEnum
 )
+from utils.grom_parent import is_grom_parent_eligible
 
 router = APIRouter(prefix="/leaderboard", tags=["Leaderboard"])
 logger = logging.getLogger(__name__)
