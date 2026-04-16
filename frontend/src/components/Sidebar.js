@@ -82,8 +82,8 @@ export const Sidebar = () => {
   // Locked only if Surfer AND still in casual/non-competitive mode
   const isStokedLocked = isRegularSurfer && !isCompetitiveSurfer;
   
-  // Check if user is a hobbyist (shows Gear Hub) - use effective role
-  const isHobbyist = ['Grom Parent', 'Hobbyist'].includes(effectiveRole);
+  // Check if user is a hobbyist (shows Gear Hub) - Grom Parent is NOT a hobbyist (gets Grom HQ instead)
+  const isHobbyist = effectiveRole === 'Hobbyist';
   
   // Check if user is a Grom Parent (shows Grom HQ)
   const isGromParent = effectiveRole === 'Grom Parent';
