@@ -1576,7 +1576,7 @@ export const Profile = () => {
 
       {/* Edit Profile Modal */}
       <Dialog open={showEditModal} onOpenChange={setShowEditModal}>
-        <DialogContent className="bg-zinc-900 border-zinc-800 border-t text-white max-w-md !fixed !bottom-[70px] !top-auto !translate-y-0 rounded-t-2xl rounded-b-none max-h-[65vh] flex flex-col p-0">
+        <DialogContent className="bg-zinc-900 border-zinc-800 border-t text-white max-w-md !fixed !bottom-[70px] !top-auto !translate-y-0 rounded-t-2xl rounded-b-none max-h-[85vh] flex flex-col p-0">
           {/* Header */}
           <div className="flex items-center justify-between p-4 border-b border-zinc-800 flex-shrink-0">
             <button

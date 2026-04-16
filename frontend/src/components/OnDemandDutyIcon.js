@@ -292,7 +292,7 @@ const DesktopOnDemandMenu = ({
         {children}
       </PopoverTrigger>
       <PopoverContent 
-        className="w-96 bg-zinc-900 border-zinc-700 p-3 max-h-[70vh] overflow-y-auto"
+        className="w-96 bg-zinc-900 border-zinc-700 p-3 max-h-[85vh] md:max-h-[70vh] overflow-y-auto"
         align="end"
       >
         <div className="flex items-center justify-between mb-3">

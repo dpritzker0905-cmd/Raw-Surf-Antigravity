@@ -163,7 +163,7 @@ export const ExclusiveAreaDrawer = ({ isOpen, onClose, areaType }) => {
       <SheetContent 
         side="bottom" 
         hideCloseButton
-        className="bg-zinc-900 border-zinc-700 rounded-t-3xl h-auto max-h-[65vh] !bottom-20 md:!bottom-4 overflow-hidden flex flex-col"
+        className="bg-zinc-900 border-zinc-700 rounded-t-3xl h-auto max-h-[85vh] md:max-h-[65vh] !bottom-20 md:!bottom-4 overflow-hidden flex flex-col"
       >
         <SheetHeader className="pb-3 shrink-0">
           <div className="flex items-center justify-between">
