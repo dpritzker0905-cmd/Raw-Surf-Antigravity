@@ -222,13 +222,18 @@ export const TopNav = () => {
               <MapPin className="w-5 h-5" />
             </button>
             
-            {/* Position 3 (or 2): Exclusive Area Icon - Grom/Comp/Pro only */}
+            {/* Position 3 (or 2): Exclusive Area Icon - Grom/Grom Parent/Comp/Pro only */}
             {hasExclusiveAccess && ExclusiveIcon && (
               <button 
                 onClick={() => setExclusiveAreaOpen(true)}
                 className={`${exclusiveIconColor} hover:opacity-80 transition-colors p-1`}
                 data-testid="topnav-exclusive-area"
-                aria-label={exclusiveAreaType === 'grom' ? 'The Inside' : exclusiveAreaType === 'comp' ? 'The Impact Zone' : 'The Peak'}
+                aria-label={
+                  exclusiveAreaType === 'grom' ? 'The Inside' :
+                  exclusiveAreaType === 'comp' ? 'The Impact Zone' :
+                  exclusiveAreaType === 'pro' ? 'The Peak' :
+                  exclusiveAreaType === 'grom_parent' ? 'Grom HQ' : 'Exclusive Area'
+                }
               >
                 <ExclusiveIcon className="w-5 h-5" />
               </button>
@@ -270,9 +275,8 @@ export const TopNav = () => {
             )}
             
             {/* Position 6 (or 5): Stoked/Persona Icon - Role-Based Navigation */}
-            {/* Each role navigates to their specific destination */}
-            {/* Note: Groms skip this - they use the ExclusiveArea button instead */}
-            {effectiveRole !== 'Grom' && (
+            {/* Note: Groms + Grom Parents skip this - they use the ExclusiveArea button instead */}
+            {effectiveRole !== 'Grom' && effectiveRole !== 'Grom Parent' && (
               <button 
                 onClick={() => {
                   if (isGromParent) {
