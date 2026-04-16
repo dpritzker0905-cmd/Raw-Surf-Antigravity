@@ -24,7 +24,7 @@ import { PhotographerDirectory } from './PhotographerDirectory';
 import { ScheduledBookingDrawer } from './ScheduledBookingDrawer';
 import LineupManagerDrawer from './LineupManagerDrawer';
 // Tab components extracted for maintainability
-import { LiveSessionsTab, OnDemandTab, ScheduledTab, FindBuddiesTab, PastTab, LiveNowTab, LineupTab } from './bookings';
+import { LiveSessionsTab, OnDemandTab, ScheduledTab, FindBuddiesTab, PastTab, LiveNowTab, LineupTab } from './bookings/index';
 import { GoldPassBookingsSection } from './bookings/GoldPassBookingsSection';
 import { RequestProSelfieModal } from './RequestProSelfieModal';
 import { OnDemandRequestDrawer } from './OnDemandRequestDrawer';

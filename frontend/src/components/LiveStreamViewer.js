@@ -607,6 +607,7 @@ const LiveStreamViewer = ({ isOpen, onClose, streamInfo }) => {
           />
         </LiveKitRoom>
       )}
+      </div>
     </div>
   );
 };
