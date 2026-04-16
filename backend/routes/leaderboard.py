@@ -20,6 +20,7 @@ import logging
 
 from database import get_db
 from models import (
+from utils.grom_parent import is_grom_parent_eligible
     Profile, ImpactLedger, LeaderboardSnapshot, 
     Notification, RoleEnum
 )
@@ -507,7 +508,7 @@ async def get_parent_grom_elite_rankings(
     if not parent:
         raise HTTPException(status_code=404, detail="Parent not found")
     
-    if parent.role != RoleEnum.GROM_PARENT:
+    if not is_grom_parent_eligible(parent):
         raise HTTPException(status_code=403, detail="Only Grom Parents can view this")
     
     # Get linked Groms

@@ -13,6 +13,7 @@ import asyncio
 
 from database import get_db
 from models import Profile, Conversation, Message, Follow, Notification, MessageReaction
+from utils.grom_parent import is_grom_parent_eligible
 
 # Import OneSignal service for push notifications
 try:
@@ -958,7 +959,7 @@ async def get_family_members_to_message(user_id: str, db: AsyncSession = Depends
     family_members = []
     
     # Grom Parent - get linked Groms
-    if user.role == RoleEnum.GROM_PARENT:
+    if is_grom_parent_eligible(user):
         result = await db.execute(
             select(Profile)
             .where(
@@ -1020,7 +1021,7 @@ async def get_family_conversations(
     # Build list of family member IDs
     family_ids = []
     
-    if user.role == RoleEnum.GROM_PARENT:
+    if is_grom_parent_eligible(user):
         # Get linked Groms
         groms_result = await db.execute(
             select(Profile.id)

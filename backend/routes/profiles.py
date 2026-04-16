@@ -47,6 +47,7 @@ class ProfileResponse(BaseModel):
     stance: Optional[str]
     home_break: Optional[str]
     surf_mode: Optional[str] = 'casual'  # casual, competitive, pro (user-set); legend is via elite_tier (admin-set)
+    is_grom_parent: bool = False  # True if user has Grom Parent privileges (role OR opt-in flag)
     # Surfer identification (for photographers)
     wetsuit_color: Optional[str] = None
     rash_guard_color: Optional[str] = None
@@ -77,6 +78,7 @@ class ProfileUpdate(BaseModel):
     stance: Optional[str] = None
     home_break: Optional[str] = None
     surf_mode: Optional[str] = None  # casual, competitive, pro
+    is_grom_parent: Optional[bool] = None  # toggle Grom Parent privileges for surfers
     # Surfer identification fields (for photographers)
     wetsuit_color: Optional[str] = None
     rash_guard_color: Optional[str] = None
@@ -129,6 +131,7 @@ def profile_to_response(profile: Profile) -> ProfileResponse:
         stance=profile.stance,
         home_break=profile.home_break,
         surf_mode=profile.surf_mode or 'casual',
+        is_grom_parent=profile.is_grom_parent or False,
         # Surfer identification fields
         wetsuit_color=profile.wetsuit_color,
         rash_guard_color=profile.rash_guard_color,

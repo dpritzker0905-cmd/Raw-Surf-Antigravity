@@ -165,21 +165,20 @@ const LiveComments = ({ streamId, userId, userName, userAvatar }) => {
 };
 
 /**
- * Viewer Controls - Shows when watching a LiveKit stream
+ * Viewer Side-by-Side Content
  */
-const ViewerControls = ({ broadcaster, onLeave, viewerCount, onViewProfile, streamId, userId, userName, userAvatar }) => {
-  const navigate = useNavigate();
+const ViewerContent = ({ broadcaster, onLeave, viewerCount, onViewProfile, streamId, userId, userName, userAvatar }) => {
+  const [isChatOpen, setIsChatOpen] = useState(true);
   const tracks = useTracks([Track.Source.Camera], { onlySubscribed: true });
   
   // Find broadcaster's video track
   const broadcasterTrack = tracks.find(t => !t.participant?.isLocal);
 
   return (
-    <div className="absolute inset-0 flex">
-      {/* Desktop: Video + Comments side by side */}
-      <div className="hidden sm:flex w-full h-full">
-        {/* Video Section */}
-        <div className="flex-1 relative bg-black flex items-center justify-center">
+    <div className="absolute inset-0 flex flex-col sm:flex-row overflow-hidden">
+      {/* ── Main Video Section ── */}
+      <div className="flex-1 relative bg-black flex flex-col min-w-0">
+        <div className="flex-1 relative overflow-hidden flex items-center justify-center">
           {broadcasterTrack ? (
             <VideoTrack 
               trackRef={broadcasterTrack} 
@@ -189,14 +188,11 @@ const ViewerControls = ({ broadcaster, onLeave, viewerCount, onViewProfile, stre
             <div className="text-center">
               <Loader2 className="w-12 h-12 animate-spin text-red-500 mx-auto mb-4" />
               <p className="text-gray-400">Waiting for video...</p>
-              <p className="text-gray-500 text-sm mt-1">
-                {tracks.length === 0 ? 'Connecting...' : `Found ${tracks.length} track(s)`}
-              </p>
             </div>
           )}
 
-          {/* Top overlay */}
-          <div className="absolute top-0 left-0 right-0 p-4 flex items-center justify-between bg-gradient-to-b from-black/80 to-transparent">
+          {/* Top overlay - Static indicators */}
+          <div className="absolute top-0 left-0 right-0 p-4 flex items-center justify-between bg-gradient-to-b from-black/80 to-transparent z-10">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-red-500">
                 {broadcaster?.avatar_url ? (
@@ -212,37 +208,52 @@ const ViewerControls = ({ broadcaster, onLeave, viewerCount, onViewProfile, stre
                   <span className="text-white font-semibold">{broadcaster?.name || 'Unknown'}</span>
                   <div className="flex items-center gap-1 bg-red-600 px-2 py-0.5 rounded-full animate-pulse">
                     <Radio className="w-3 h-3 text-white" />
-                    <span className="text-white text-xs font-bold">LIVE</span>
+                    <span className="text-white text-[10px] font-bold">LIVE</span>
                   </div>
                 </div>
-                <div className="flex items-center gap-1 text-gray-400 text-xs">
+                <div className="flex items-center gap-1 text-gray-400 text-[10px]">
                   <Users className="w-3 h-3" />
                   <span>{viewerCount} watching</span>
                 </div>
               </div>
             </div>
 
-            <button
-              onClick={onLeave}
-              className="p-2 bg-black/60 hover:bg-red-600 rounded-full transition-colors"
-            >
-              <X className="w-6 h-6 text-white" />
-            </button>
+            <div className="flex items-center gap-2">
+              {/* Desktop Toggle Chat */}
+              <button
+                onClick={() => setIsChatOpen(!isChatOpen)}
+                className={`hidden sm:flex p-2 rounded-full bg-black/40 hover:bg-black/60 transition-all ${isChatOpen ? 'bg-red-500/20 text-red-400' : 'text-white'}`}
+                title={isChatOpen ? "Hide Chat" : "Show Chat"}
+              >
+                <MessageCircle className="w-5 h-5" />
+              </button>
+
+              <button
+                onClick={onLeave}
+                className="p-2 bg-black/60 hover:bg-red-600 rounded-full transition-colors"
+                title="Exit View"
+              >
+                <X className="w-5 h-5 text-white" />
+              </button>
+            </div>
           </div>
 
-          {/* Bottom overlay */}
-          <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent">
-            <div className="flex items-center gap-4">
-              <button className="text-white hover:text-red-400 transition-colors">
-                <Heart className="w-6 h-6" />
+          {/* Bottom Bar Controls for Viewers */}
+          <div className="absolute bottom-4 left-0 right-0 px-6 flex items-center justify-between pointer-events-none z-10">
+            <div className="flex items-center gap-4 pointer-events-auto">
+              <button className="p-3 bg-black/40 hover:bg-red-500/20 text-white hover:text-red-400 rounded-full transition-all group backdrop-blur-md">
+                <Heart className="w-6 h-6 group-active:scale-125 transition-transform" />
               </button>
-              <button className="text-white hover:text-blue-400 transition-colors">
-                <Share2 className="w-6 h-6" />
+              <button className="p-3 bg-black/40 hover:bg-blue-500/20 text-white hover:text-blue-400 rounded-full transition-all group backdrop-blur-md">
+                <Share2 className="w-6 h-6 group-active:scale-125 transition-transform" />
               </button>
+            </div>
+            
+            <div className="pointer-events-auto">
               <Button
                 variant="outline"
                 size="sm"
-                className="border-white/30 text-white hover:bg-white/10 ml-auto"
+                className="bg-black/40 border-white/20 text-white hover:bg-white/10 backdrop-blur-md px-6 rounded-full"
                 onClick={onViewProfile}
               >
                 <UserPlus className="w-4 h-4 mr-2" />
@@ -251,79 +262,48 @@ const ViewerControls = ({ broadcaster, onLeave, viewerCount, onViewProfile, stre
             </div>
           </div>
         </div>
-
-        {/* Comments Section - Desktop */}
-        <div className="w-[350px] border-l border-zinc-800">
-          <LiveComments
-            streamId={streamId}
-            userId={userId}
-            userName={userName}
-            userAvatar={userAvatar}
-          />
-        </div>
       </div>
 
-      {/* Mobile: Video on top, Comments below */}
-      <div className="flex flex-col w-full h-full sm:hidden">
-        {/* Video Section */}
-        <div className="relative bg-black flex-1 flex items-center justify-center min-h-[50%]">
-          {broadcasterTrack ? (
-            <VideoTrack 
-              trackRef={broadcasterTrack} 
-              className="max-w-full max-h-full object-contain"
+      {/* ── Desktop Sidebar: Live Chat ── */}
+      <AnimatePresence>
+        {isChatOpen && (
+          <motion.div 
+            initial={{ width: 0, opacity: 0 }}
+            animate={{ width: '350px', opacity: 1 }}
+            exit={{ width: 0, opacity: 0 }}
+            transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+            className="hidden sm:flex flex-col h-full bg-zinc-900 border-l border-zinc-800 shrink-0"
+          >
+            <LiveComments
+              streamId={streamId}
+              userId={userId}
+              userName={userName}
+              userAvatar={userAvatar}
             />
-          ) : (
-            <div className="text-center">
-              <Loader2 className="w-10 h-10 animate-spin text-red-500 mx-auto mb-3" />
-              <p className="text-gray-400 text-sm">Waiting for video...</p>
-            </div>
-          )}
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-          {/* Top overlay - Mobile */}
-          <div className="absolute top-0 left-0 right-0 p-3 flex items-center justify-between bg-gradient-to-b from-black/80 to-transparent">
-            <button onClick={onLeave} className="p-2 bg-black/40 rounded-full">
-              <ArrowLeft className="w-5 h-5 text-white" />
-            </button>
-            
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-full overflow-hidden border-2 border-red-500">
-                {broadcaster?.avatar_url ? (
-                  <img src={broadcaster.avatar_url} alt="" className="w-full h-full object-cover" />
-                ) : (
-                  <div className="w-full h-full bg-zinc-700 flex items-center justify-center text-white text-xs font-bold">
-                    {broadcaster?.name?.[0] || '?'}
-                  </div>
-                )}
-              </div>
-              <div>
-                <span className="text-white text-sm font-medium">{broadcaster?.name}</span>
-                <div className="flex items-center gap-1 text-gray-400 text-xs">
-                  <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
-                  <span>{viewerCount} watching</span>
-                </div>
-              </div>
-            </div>
-            
-            <button onClick={onLeave} className="p-2 bg-black/40 rounded-full">
-              <X className="w-5 h-5 text-white" />
-            </button>
-          </div>
-        </div>
-
-        {/* Comments Section - Mobile */}
-        <div className="flex-1 min-h-[40%]">
-          <LiveComments
-            streamId={streamId}
-            userId={userId}
-            userName={userName}
-            userAvatar={userAvatar}
-          />
-        </div>
+      {/* Mobile-only overlay elements for chat */}
+      <div className="sm:hidden absolute bottom-0 left-0 right-0 h-[40%] pointer-events-auto z-20">
+        <LiveComments
+          streamId={streamId}
+          userId={userId}
+          userName={userName}
+          userAvatar={userAvatar}
+        />
       </div>
 
       <RoomAudioRenderer />
     </div>
   );
+};
+
+/**
+ * Viewer Controls - Legacy/Proxy wrapper
+ */
+const ViewerControls = (props) => {
+  return <ViewerContent {...props} />;
 };
 
 /**
@@ -572,7 +552,15 @@ const LiveStreamViewer = ({ isOpen, onClose, streamInfo }) => {
   };
 
   return (
-    <div className="fixed inset-0 z-[100] bg-zinc-950" data-testid="live-stream-viewer">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center" data-testid="live-stream-viewer">
+      {/* Desktop Backdrop */}
+      <div 
+        className="fixed inset-0 bg-black/80 backdrop-blur-sm hidden sm:block"
+        onClick={handleLeave}
+      />
+      
+      {/* Modal Container: Fullscreen on mobile, centered modal on desktop */}
+      <div className="relative w-full h-full sm:w-[1100px] sm:h-[720px] sm:max-h-[90vh] sm:rounded-2xl sm:overflow-hidden bg-black shadow-2xl shadow-black/60">
       {/* Loading state */}
       {isLoading && !connectionTimedOut && (
         <div className="absolute inset-0 flex items-center justify-center bg-zinc-950">

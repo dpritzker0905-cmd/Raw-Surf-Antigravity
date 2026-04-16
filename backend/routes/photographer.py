@@ -17,6 +17,7 @@ logger = logging.getLogger(__name__)
 
 from database import get_db
 from models import (
+from utils.grom_parent import is_grom_parent_eligible
     Profile, Booking, BookingParticipant, BookingInvite,
     LiveSessionParticipant, Notification, SurfSpot, RoleEnum,
     CreditTransaction, GalleryItem, LiveSession, Gallery,
@@ -1629,7 +1630,7 @@ async def go_live(
     
     # ============ ROLE-BASED PERMISSION CHECK ============
     # Grom Parent: NO Live Sessions, NO On-Demand
-    if photographer.role == RoleEnum.GROM_PARENT:
+    if is_grom_parent_eligible(photographer):
         raise HTTPException(
             status_code=403, 
             detail="Grom Parents cannot start Live Sessions. Gallery and Bookings access only."

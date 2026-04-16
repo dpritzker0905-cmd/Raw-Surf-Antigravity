@@ -110,6 +110,9 @@ class Profile(Base):
     parent_link_approved = Column(Boolean, default=False)
     # Parent age verification completed
     parent_age_verified = Column(Boolean, default=False)
+    # Whether this user has Grom Parent privileges (AND-able with any surfer role)
+    # True for: dedicated Grom Parent accounts AND surfers who opt in via Settings
+    is_grom_parent = Column(Boolean, default=False, nullable=False)
     
     # ============ PARENTAL CONTROL SETTINGS (JSON) ============
     # Stored as JSON: {"can_post": true, "can_stream": false, "can_message": true, "can_comment": true, "view_only": false}

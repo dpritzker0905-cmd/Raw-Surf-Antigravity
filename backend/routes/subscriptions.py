@@ -11,6 +11,7 @@ import logging
 
 from database import get_db
 from models import Profile, PaymentTransaction, RoleEnum
+from utils.grom_parent import is_grom_parent_eligible
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -605,7 +606,7 @@ async def update_grom_subscription(
     if not parent:
         raise HTTPException(status_code=404, detail="Parent not found")
     
-    if parent.role != RoleEnum.GROM_PARENT:
+    if not is_grom_parent_eligible(parent):
         raise HTTPException(status_code=403, detail="Only Grom Parents can manage Grom subscriptions")
     
     # Verify Grom is linked to this parent
@@ -707,7 +708,7 @@ async def toggle_parent_surfer_mode(
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     
-    if user.role != RoleEnum.GROM_PARENT:
+    if not is_grom_parent_eligible(user):
         raise HTTPException(status_code=403, detail="Only Grom Parents can enable Active Surfer Mode")
     
     # Store in profile metadata or add column
@@ -915,7 +916,7 @@ async def pay_grom_subscription_with_credits(
         raise HTTPException(status_code=400, detail="Target user is not a Grom")
     
     # For Grom Parents, verify linkage
-    if parent.role == RoleEnum.GROM_PARENT and grom.parent_id != parent_id:
+    if is_grom_parent_eligible(parent) and grom.parent_id != parent_id:
         raise HTTPException(status_code=403, detail="Grom is not linked to this parent")
     
     # Get Grom-specific tiers

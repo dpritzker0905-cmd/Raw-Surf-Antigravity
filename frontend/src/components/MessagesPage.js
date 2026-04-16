@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+﻿import React, { useState, useEffect, useRef, useCallback } from 'react';
 import axios from 'axios';
 import { useAuth } from '../contexts/AuthContext';
 import { usePersona, getExpandedRoleInfo, isProLevelRole, isBusinessRole as isBusinessRoleCheck } from '../contexts/PersonaContext';
@@ -70,7 +70,7 @@ const getFolders = (userRole, isAdmin = false, effectiveRole = null, isMasked = 
   const isPro = isProRole(roleToCheck);
   const isBusiness = isBusinessRole(roleToCheck);
   const isGrom = roleToCheck === 'Grom' || roleToCheck === 'GROM';
-  const isGromParent = roleToCheck === 'Grom Parent' || roleToCheck === 'GROM_PARENT' || roleToCheck?.toLowerCase?.()?.includes?.('grom parent');
+  const isGromParent = roleToCheck === 'Grom Parent' || roleToCheck === 'GROM_PARENT' || roleToCheck === 'grom_parent' || user?.is_grom_parent === true;
   
   const folders = [];
   

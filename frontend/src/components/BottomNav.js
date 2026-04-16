@@ -161,7 +161,7 @@ export const BottomNav = () => {
   // Role categorization
   const photographerRoles = ['Grom Parent', 'Hobbyist', 'Photographer', 'Approved Pro'];
   const isPhotographer = photographerRoles.includes(effectiveRole);
-  const isGromParent = effectiveRole === 'Grom Parent';
+  const isGromParent = effectiveRole === 'Grom Parent' || user?.is_grom_parent === true;
   
   // Theme-specific classes
   const isLight = theme === 'light';
@@ -197,8 +197,9 @@ export const BottomNav = () => {
 
   // Tab 2: Action Center destination & icon (Role-Based)
   const getActionCenterConfig = () => {
-    // GROM PARENT: Keep Photo Tools but with limited functionality
-    if (isGromParent) {
+    const isDedicatedGromParent = effectiveRole === 'Grom Parent';
+    // DEDICATED Grom Parent accounts: Photo Tools (archive-only, no commerce)
+    if (isDedicatedGromParent) {
       return {
         path: '/gallery',
         icon: Camera,
@@ -215,7 +216,7 @@ export const BottomNav = () => {
         activeColor: 'text-cyan-400'
       };
     }
-    // Default for surfers & all others: Explore
+    // Default for surfers (including surfer+Grom Parent): Explore
     return {
       path: '/explore',
       icon: Compass,

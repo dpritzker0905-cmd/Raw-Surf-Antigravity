@@ -16,6 +16,7 @@ from datetime import datetime, timezone
 import stripe
 import os
 import json
+from utils.grom_parent import is_grom_parent_eligible
 
 router = APIRouter(prefix="/grom-hq", tags=["grom-hq"])
 
@@ -70,7 +71,7 @@ async def toggle_grom_competition(
     if not parent:
         raise HTTPException(status_code=404, detail="Parent not found")
     
-    if parent.role != RoleEnum.GROM_PARENT:
+    if not is_grom_parent_eligible(parent):
         raise HTTPException(status_code=403, detail="Only Grom Parents can modify competition status")
     
     # Verify Grom exists and is linked to this parent
@@ -199,7 +200,7 @@ async def link_grom(
     if not parent:
         raise HTTPException(status_code=404, detail="Parent not found")
     
-    if parent.role != RoleEnum.GROM_PARENT:
+    if not is_grom_parent_eligible(parent):
         raise HTTPException(status_code=403, detail="Only Grom Parents can link Groms")
     
     # Verify grom exists and is a Grom
@@ -392,7 +393,7 @@ async def approve_grom_link(
     )
     parent = parent_result.scalar_one_or_none()
     
-    if not parent or parent.role != RoleEnum.GROM_PARENT:
+    if not parent or not is_grom_parent_eligible(parent):
         raise HTTPException(status_code=403, detail="Only Grom Parents can approve links")
     
     # Find and update grom
@@ -431,7 +432,7 @@ async def link_grom_by_code(
     )
     parent = parent_result.scalar_one_or_none()
     
-    if not parent or parent.role != RoleEnum.GROM_PARENT:
+    if not parent or not is_grom_parent_eligible(parent):
         raise HTTPException(status_code=403, detail="Only Grom Parents can link Groms")
     
     # Find grom by guardian code
@@ -488,7 +489,7 @@ async def create_age_verification(
     if not parent:
         raise HTTPException(status_code=404, detail="Parent not found")
     
-    if parent.role != RoleEnum.GROM_PARENT:
+    if not is_grom_parent_eligible(parent):
         raise HTTPException(status_code=400, detail="Only Grom Parents need age verification")
     
     # Check if already verified
@@ -635,7 +636,7 @@ async def demo_verify_age(
     if not parent:
         raise HTTPException(status_code=404, detail="Parent not found")
     
-    if parent.role != RoleEnum.GROM_PARENT:
+    if not is_grom_parent_eligible(parent):
         raise HTTPException(status_code=400, detail="Only Grom Parents need age verification")
     
     # Set age verified to true (demo mode)
@@ -1077,7 +1078,7 @@ async def get_family_activity_feed(
     if not parent:
         raise HTTPException(status_code=404, detail="Parent not found")
     
-    if parent.role != RoleEnum.GROM_PARENT:
+    if not is_grom_parent_eligible(parent):
         raise HTTPException(status_code=403, detail="Only Grom Parents can view family activity")
     
     # Get linked Groms

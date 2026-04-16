@@ -128,7 +128,7 @@ export const GearHub = () => {
 
   const categories = [...new Set(gearItems.map(item => item.category))];
 
-  const isHobbyist = user?.role === 'Hobbyist' || user?.role === 'Grom Parent';
+  const isHobbyist = user?.role === 'Hobbyist' || user?.role === 'Grom Parent' || user?.is_grom_parent === true;
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-black via-zinc-950 to-black pb-20 md:pb-6">

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+﻿import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { usePricing } from '../contexts/PricingContext';
 import axios from 'axios';
@@ -113,7 +113,7 @@ export const GalleryPage = () => {
   // Grom Parent: NO commerce - archive only, zero selling
   // Hobbyist: Can spend but NOT sell
   const userRole = user?.role?.toLowerCase?.() || '';
-  const isGromParent = userRole.includes('grom parent') || userRole === 'grom_parent' || user?.role === 'Grom Parent' || user?.role === 'GROM_PARENT';
+  const isGromParent = userRole.includes('grom parent') || userRole === 'grom_parent' || userRole.includes('Grom Parent') || user?.is_grom_parent === true;
   const isHobbyist = userRole.includes('hobbyist') || user?.role === 'Hobbyist' || user?.role === 'HOBBYIST';
   const canSellPhotos = isPhotographer && !isGromParent && !isHobbyist;
   const showPricing = canSellPhotos;

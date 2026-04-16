@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+﻿import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { usePersona } from '../contexts/PersonaContext';
@@ -452,7 +452,7 @@ export const EarningsDashboard = () => {
   
   // Determine user type based on effective role
   const isPro = ['Photographer', 'Approved Pro'].includes(effectiveRole);
-  const isHobbyist = ['Hobbyist', 'Grom Parent'].includes(effectiveRole);
+  const isHobbyist = ['Hobbyist', 'Grom Parent'].includes(effectiveRole) || (user?.is_grom_parent === true && !['Photographer', 'Approved Pro'].includes(effectiveRole));
   
   // Calculate gear fund progress
   const gearFundProgress = useMemo(() => {

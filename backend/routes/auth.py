@@ -76,6 +76,7 @@ class ProfileResponse(BaseModel):
     stance: Optional[str]
     home_break: Optional[str]
     surf_mode: Optional[str] = 'casual'  # casual, competitive, pro
+    is_grom_parent: bool = False  # Grom Parent privileges (role or opt-in flag)
     # Home/Pinned location for map centering
     home_latitude: Optional[float] = None
     home_longitude: Optional[float] = None
@@ -360,6 +361,7 @@ async def login(data: LoginRequest, db: AsyncSession = Depends(get_db)):
         stance=profile.stance,
         home_break=profile.home_break,
         surf_mode=profile.surf_mode or 'casual',
+        is_grom_parent=profile.is_grom_parent or (profile.role == RoleEnum.GROM_PARENT),
         # Home/Pinned location for map centering
         home_latitude=profile.home_latitude,
         home_longitude=profile.home_longitude,

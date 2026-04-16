@@ -19,6 +19,7 @@ from websocket_manager import broadcast_earnings_update
 
 # Import watermark service
 from services.watermark import watermark_image_from_url, generate_watermarked_preview
+from utils.grom_parent import is_grom_parent_eligible
 
 router = APIRouter()
 
@@ -137,7 +138,7 @@ async def create_gallery_item(
         raise HTTPException(status_code=403, detail="Only photographers can create gallery items")
     
     # GROM PARENT ISOLATION: Force for_sale=false for personal capture only
-    is_grom_parent = photographer.role == RoleEnum.GROM_PARENT
+    is_grom_parent = is_grom_parent_eligible(photographer)
     effective_for_sale = False if is_grom_parent else data.is_for_sale
     
     # Verify spot if provided
@@ -1101,7 +1102,7 @@ async def update_gallery_item(
     # Check if photographer is Grom Parent (restricted from commerce)
     profile_result = await db.execute(select(Profile).where(Profile.id == photographer_id))
     photographer = profile_result.scalar_one_or_none()
-    is_grom_parent = photographer and photographer.role == RoleEnum.GROM_PARENT
+    is_grom_parent = bool(photographer) and is_grom_parent_eligible(photographer)
     
     if data.title is not None:
         item.title = data.title
@@ -1715,7 +1716,7 @@ async def add_item_to_gallery(
     photographer = profile_result.scalar_one_or_none()
     
     # GROM PARENT ISOLATION: Force for_sale=false for personal capture only
-    is_grom_parent = photographer and photographer.role == RoleEnum.GROM_PARENT
+    is_grom_parent = bool(photographer) and is_grom_parent_eligible(photographer)
     effective_for_sale = False if is_grom_parent else data.is_for_sale
     effective_price = 0 if is_grom_parent else data.price
     
@@ -1844,7 +1845,7 @@ async def tag_grom_in_photo(
     if not parent:
         raise HTTPException(status_code=404, detail="Parent profile not found")
     
-    if parent.role != RoleEnum.GROM_PARENT:
+    if not is_grom_parent_eligible(parent):
         raise HTTPException(status_code=403, detail="Only Grom Parents can tag Groms in photos")
     
     # Get linked Grom and verify it's the parent's linked Grom
@@ -1987,7 +1988,7 @@ async def get_grom_highlights(
     if not parent:
         raise HTTPException(status_code=404, detail="Parent profile not found")
     
-    if parent.role != RoleEnum.GROM_PARENT:
+    if not is_grom_parent_eligible(parent):
         raise HTTPException(status_code=403, detail="Only Grom Parents can view Grom Highlights")
     
     # If specific grom_id provided, use that; otherwise get all linked Groms
@@ -2149,7 +2150,7 @@ async def get_linked_groms(
     if not parent:
         raise HTTPException(status_code=404, detail="Parent profile not found")
     
-    if parent.role != RoleEnum.GROM_PARENT:
+    if not is_grom_parent_eligible(parent):
         raise HTTPException(status_code=403, detail="Only Grom Parents can view linked Groms")
     
     # Get linked Groms

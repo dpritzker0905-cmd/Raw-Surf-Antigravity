@@ -10,6 +10,7 @@ import logging
 
 from database import get_db
 from models import Profile, SurfSpot, RoleEnum, LiveSession, SpotRefinement, SpotOfTheDay, Booking
+from utils.grom_parent import is_grom_parent_eligible
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -626,7 +627,7 @@ async def photographer_go_live(profile_id: str, data: GoLiveRequest, db: AsyncSe
     
     # ============ ROLE-BASED PERMISSION CHECK ============
     # Grom Parent: NO Live Sessions, NO On-Demand
-    if profile.role == RoleEnum.GROM_PARENT:
+    if is_grom_parent_eligible(profile):
         raise HTTPException(
             status_code=403, 
             detail="Grom Parents cannot start Live Sessions. Gallery and Bookings access only."

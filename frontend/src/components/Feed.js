@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+﻿import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../contexts/AuthContext';
@@ -249,7 +249,7 @@ export const Feed = () => {
   const isPhotographer = ['Grom Parent', 'Hobbyist', 'Photographer', 'Approved Pro'].includes(effectiveRole);
   
   // Grom Parent has restricted access - no active session dashboard or commerce features
-  const isGromParent = effectiveRole === 'Grom Parent';
+  const isGromParent = effectiveRole === 'Grom Parent' || user?.is_grom_parent === true;
   
   // Can show session dashboard (photographers except Grom Parent)
   const canShowSessionDashboard = isPhotographer && !isGromParent;
