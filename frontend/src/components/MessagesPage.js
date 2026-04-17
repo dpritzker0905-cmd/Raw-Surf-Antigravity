@@ -5,7 +5,7 @@ import { usePersona, getExpandedRoleInfo, isProLevelRole, isBusinessRole as isBu
 import { useSearchParams, useNavigate, useParams, useLocation } from 'react-router-dom';
 import { 
   Search, Send, ChevronLeft, ChevronRight, MoreHorizontal, Check, CheckCheck, 
-  X, Mic, Image, Camera, Play, Pause, Settings, Edit3,
+  X, Mic, Image, Camera, Play, Pause, Settings, Edit3, Video,
   Reply, Smile, Heart, Shield, Users, EyeOff, Filter, Star, Store, Briefcase,
   ThumbsUp, Sparkles, Pin, BellOff, Mail, Trash2
 } from 'lucide-react';
@@ -13,6 +13,7 @@ import { Input } from './ui/input';
 import { Button } from './ui/button';
 import { toast } from 'sonner';
 import VoiceRecorder from './VoiceRecorder';
+import WebcamCaptureModal from './WebcamCaptureModal';
 import { supabase } from '../lib/supabase';
 import logger from '../utils/logger';
 import {
@@ -1118,7 +1119,7 @@ const MessageBubble = ({ message, onReact, onReply }) => {
         />
       );
     }
-    if (message.message_type === 'video' && mediaUrl) {
+    if ((message.message_type === 'video' || message.message_type === 'ephemeral_video') && mediaUrl) {
       return <video src={mediaUrl} controls className="max-w-full rounded-lg mb-1" />;
     }
     if (message.message_type === 'voice_note' && mediaUrl) {
@@ -1270,6 +1271,7 @@ export const MessagesPage = () => {
   const [loading, setLoading] = useState(true);
   const [sendingMessage, setSendingMessage] = useState(false);
   const [showVoiceRecorder, setShowVoiceRecorder] = useState(false);
+  const [showVideoCapture, setShowVideoCapture] = useState(false);
   const [replyingTo, setReplyingTo] = useState(null);
   const [typingUsers, setTypingUsers] = useState([]);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
@@ -1959,6 +1961,27 @@ export const MessagesPage = () => {
     }
   };
 
+  const handleEphemeralMediaUpload = async (files) => {
+    const file = files?.[0];
+    if (!file || !selectedConversation) return;
+
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('conversation_id', selectedConversation.id || '');
+    formData.append('sender_id', user.id);
+    formData.append('recipient_id', selectedConversation.other_user_id);
+    formData.append('message_type_override', 'ephemeral_video');
+
+    try {
+      await axios.post(`${API}/messages/media`, formData, { headers: { 'Content-Type': 'multipart/form-data' } });
+      toast.success('Disappearing video sent!');
+      if (selectedConversation.id) fetchConversationDetail(selectedConversation.id);
+      fetchConversations();
+    } catch (error) {
+      toast.error('Failed to send video');
+    }
+  };
+
   const handleVoiceNoteSent = () => {
     setShowVoiceRecorder(false);
     if (selectedConversation?.id) fetchConversationDetail(selectedConversation.id);
@@ -2252,31 +2275,31 @@ export const MessagesPage = () => {
               <MoreHorizontal className="w-5 h-5" />
             </button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-48 bg-zinc-900 border-zinc-700">
+          <DropdownMenuContent align="end" className="w-48 bg-popover border border-border">
             <DropdownMenuItem 
               onClick={handleMarkUnread}
-              className="flex items-center justify-between cursor-pointer hover:bg-zinc-800"
+              className="flex items-center justify-between cursor-pointer hover:bg-accent"
             >
               <span>{conversationDetail?.is_manually_unread ? 'Mark as read' : 'Mark as unread'}</span>
               <Mail className="w-5 h-5" />
             </DropdownMenuItem>
             <DropdownMenuItem 
               onClick={handleTogglePin}
-              className="flex items-center justify-between cursor-pointer hover:bg-zinc-800"
+              className="flex items-center justify-between cursor-pointer hover:bg-accent"
             >
               <span>{conversationDetail?.is_pinned ? 'Unpin' : 'Pin'}</span>
               <Pin className="w-5 h-5" />
             </DropdownMenuItem>
             <DropdownMenuItem 
               onClick={handleToggleMute}
-              className="flex items-center justify-between cursor-pointer hover:bg-zinc-800"
+              className="flex items-center justify-between cursor-pointer hover:bg-accent"
             >
               <span>{conversationDetail?.is_muted ? 'Unmute' : 'Mute'}</span>
               <BellOff className="w-5 h-5" />
             </DropdownMenuItem>
             <DropdownMenuItem 
               onClick={handleDeleteConversation}
-              className="flex items-center justify-between cursor-pointer text-red-400 hover:bg-zinc-800 hover:text-red-400"
+              className="flex items-center justify-between cursor-pointer text-red-500 hover:bg-red-500/10 hover:text-red-600"
             >
               <span>Delete</span>
               <Trash2 className="w-5 h-5" />
@@ -2352,6 +2375,12 @@ export const MessagesPage = () => {
       {/* Message Input */}
       {(selectedConversation?.is_new_chat || !conversationDetail?.is_request) && (
         <div className="p-4 border-t border-border bg-muted/50 relative">
+          <WebcamCaptureModal
+            isOpen={showVideoCapture}
+            onClose={() => setShowVideoCapture(false)}
+            onCapture={handleEphemeralMediaUpload}
+            maxLength={30}
+          />
           {/* GIF Picker - positioned above the entire input area */}
           <GifPicker
             show={showGifPicker}
@@ -2425,9 +2454,14 @@ export const MessagesPage = () => {
                   <Send className="w-5 h-5" />
                 </button>
               ) : (
-                <button type="button" onClick={() => setShowVoiceRecorder(true)} className="p-2 text-gray-400 hover:text-cyan-400">
-                  <Mic className="w-5 h-5" />
-                </button>
+                <div className="flex items-center gap-1 shrink-0">
+                  <button type="button" onClick={() => setShowVideoCapture(true)} className="p-2 text-muted-foreground hover:text-cyan-400 transition-colors">
+                    <Video className="w-5 h-5" />
+                  </button>
+                  <button type="button" onClick={() => setShowVoiceRecorder(true)} className="p-2 text-muted-foreground hover:text-cyan-400 transition-colors">
+                    <Mic className="w-5 h-5" />
+                  </button>
+                </div>
               )}
             </form>
           )}

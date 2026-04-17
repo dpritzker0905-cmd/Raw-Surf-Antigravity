@@ -3,7 +3,7 @@ import { Camera, Video, X, Loader2, RefreshCcw, Circle, Square } from 'lucide-re
 import { Button } from './ui/button';
 import { toast } from 'sonner';
 
-export default function WebcamCaptureModal({ isOpen, onClose, onCapture }) {
+export default function WebcamCaptureModal({ isOpen, onClose, onCapture, maxLength = null }) {
   const [stream, setStream] = useState(null);
   const [isRecording, setIsRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
@@ -129,8 +129,21 @@ export default function WebcamCaptureModal({ isOpen, onClose, onCapture }) {
     setIsRecording(true);
     setRecordingTime(0);
     
+    // We encapsulate the timer hook so it inherently references the dynamically incremented value 
+    let currentSeconds = 0;
     timerRef.current = setInterval(() => {
-      setRecordingTime(prev => prev + 1);
+      currentSeconds += 1;
+      setRecordingTime(currentSeconds);
+      
+      // Hook the shutdown sequence natively when maximum constrained bounds hit
+      if (maxLength && currentSeconds >= maxLength) {
+        // Enforce stop execution cleanly pulling properties from the internal pointer
+        if (mediaRecorder.state !== 'inactive') {
+          mediaRecorder.stop();
+        }
+        setIsRecording(false);
+        clearInterval(timerRef.current);
+      }
     }, 1000);
   };
 
@@ -157,24 +170,31 @@ export default function WebcamCaptureModal({ isOpen, onClose, onCapture }) {
       {/* Inner container */}
       <div className="relative w-full h-full sm:w-[1100px] sm:h-[720px] sm:max-h-[90vh] sm:rounded-2xl sm:overflow-hidden bg-black shadow-2xl shadow-black/60 flex flex-col">
         {/* Header */}
-      <div className="flex items-center justify-between p-4 bg-gradient-to-b from-black/80 to-transparent absolute top-0 left-0 right-0 z-10">
-        <button onClick={onClose} className="p-2 bg-black/50 rounded-full text-white hover:bg-zinc-800 transition-colors">
-          <X className="w-6 h-6" />
-        </button>
-        
-        {isRecording && (
-          <div className="flex items-center gap-2 bg-red-500/20 px-3 py-1 rounded-full backdrop-blur-md">
-            <div className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse" />
-            <span className="text-white text-sm font-medium tracking-wide font-mono">
-              {formatTime(recordingTime)}
-            </span>
+        <div className="flex items-center justify-between p-4 bg-gradient-to-b from-black/80 to-transparent absolute top-0 left-0 right-0 z-20 pointer-events-none">
+          <button onClick={onClose} className="p-2 bg-black/50 rounded-full text-white hover:bg-zinc-800 transition-colors pointer-events-auto">
+            <X className="w-6 h-6" />
+          </button>
+          
+          <div className="flex gap-2 pointer-events-auto">
+            {isRecording ? (
+              <div className="bg-black/50 backdrop-blur text-white px-3 py-1 rounded-full text-sm font-medium flex items-center gap-2">
+                <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
+                <span className={maxLength && recordingTime >= maxLength - 5 ? 'text-red-400 font-bold' : ''}>
+                  {formatTime(recordingTime)} {maxLength ? `/ ${formatTime(maxLength)}` : ''}
+                </span>
+              </div>
+            ) : (
+              <div className="bg-black/50 backdrop-blur text-white px-3 py-1 rounded-full text-sm font-medium flex items-center gap-2">
+                <Camera className="w-4 h-4" />
+                <span>Camera</span>
+              </div>
+            )}
           </div>
-        )}
-        
-        <button onClick={toggleCamera} disabled={isRecording} className={`p-2 bg-black/50 rounded-full text-white hover:bg-zinc-800 transition-colors ${isRecording ? 'opacity-50' : ''}`}>
-          <RefreshCcw className="w-5 h-5" />
-        </button>
-      </div>
+
+          <button onClick={toggleCamera} disabled={isRecording} className={`p-2 bg-black/50 rounded-full text-white hover:bg-zinc-800 transition-colors ${isRecording ? 'opacity-50' : ''} pointer-events-auto`}>
+            <RefreshCcw className="w-5 h-5" />
+          </button>
+        </div>
 
       {/* Viewfinder */}
       <div className="flex-1 relative bg-zinc-900 flex items-center justify-center overflow-hidden">

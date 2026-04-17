@@ -686,8 +686,15 @@ async def get_conversation_messages(conversation_id: str, user_id: str, db: Asyn
             user_name=r.user.full_name if r.user else None
         ))
     
+    current_time = datetime.now(timezone.utc)
+    expiration_cutoff = current_time - timedelta(hours=24)
+    
     messages = []
     for m in sorted(conversation.messages, key=lambda x: x.created_at):
+        # Discard expiring videos dynamically
+        if m.message_type == 'ephemeral_video' and m.created_at < expiration_cutoff:
+            continue
+            
         # Build reply preview if this message is a reply
         reply_preview = None
         if m.reply_to:
@@ -1445,6 +1452,7 @@ async def upload_message_media(
     sender_id: str = Form(...),
     caption: str = Form(default=""),
     reply_to_id: Optional[str] = Form(default=None),
+    message_type_override: Optional[str] = Form(default=None),
     db: AsyncSession = Depends(get_db)
 ):
     """Upload photo/video media to a conversation"""
@@ -1459,9 +1467,12 @@ async def upload_message_media(
     if sender_id not in [conversation.participant_one_id, conversation.participant_two_id]:
         raise HTTPException(status_code=403, detail="Not a participant in this conversation")
     
-    # Determine media type from file
+    # Determine media type from file or override
     content_type = file.content_type or ""
-    if content_type.startswith("image/"):
+    if message_type_override == 'ephemeral_video':
+        media_type = 'ephemeral_video'
+        preview_text = "📹 Disappearing Video"
+    elif content_type.startswith("image/"):
         media_type = "image"
         preview_text = "📷 Photo"
     elif content_type.startswith("video/"):
