@@ -700,7 +700,14 @@ const MapPageContent = () => {
     if (!loading && mapInstanceRef.current) {
       updateMapMarkers();
     }
-  }, [surfSpots, livePhotographers, filter, userLocation, pulsingMarkers, loading]);
+  }, [surfSpots, livePhotographers, filter, pulsingMarkers, loading]);
+  
+  // Isolate user location updates so GPS polling doesn't destroy Map Clusters
+  useEffect(() => {
+    if (!loading && mapInstanceRef.current) {
+      updateUserLocationMarker();
+    }
+  }, [userLocation, effectiveLocation, loading]);
 
   // Keep selectedSpot in sync with latest surfSpots data (for active_photographers_count updates)
   useEffect(() => {
@@ -953,6 +960,7 @@ const MapPageContent = () => {
           // Update markers
           setTimeout(() => {
             updateMapMarkers();
+            updateUserLocationMarker();
             if (mapInstanceRef.current) {
               mapInstanceRef.current.invalidateSize();
             }
@@ -1085,6 +1093,7 @@ const MapPageContent = () => {
     
     // Initial marker update
     updateMapMarkers();
+    updateUserLocationMarker();
     } catch (error) {
       logger.error('[MAP] Error initializing map:', error);
       // Show user-friendly error
@@ -1096,23 +1105,9 @@ const MapPageContent = () => {
 
   // Separate function to update markers without reinitializing map
   // PERFORMANCE OPTIMIZED: Uses cluster groups and truncated coordinates
-  const updateMapMarkers = () => {
+  const updateUserLocationMarker = () => {
     const map = mapInstanceRef.current;
     if (!map) return;
-
-    try {
-      // Clear existing markers from markersRef (non-clustered markers like user location)
-      markersRef.current.forEach(m => m.remove());
-      markersRef.current = [];
-    
-    // Clear cluster groups
-    if (spotClusterRef.current) {
-      spotClusterRef.current.clearLayers();
-    }
-    if (photographerClusterRef.current) {
-      photographerClusterRef.current.clearLayers();
-    }
-    
     // Remove old user marker
     if (userMarkerRef.current) {
       userMarkerRef.current.remove();
@@ -1210,6 +1205,26 @@ const MapPageContent = () => {
           );
       }
     }
+  };
+
+  const updateMapMarkers = () => {
+    const map = mapInstanceRef.current;
+    if (!map) return;
+
+    try {
+      // Clear existing markers from markersRef (non-clustered markers like user location)
+      markersRef.current.forEach(m => m.remove());
+      markersRef.current = [];
+    
+    // Clear cluster groups
+    if (spotClusterRef.current) {
+      spotClusterRef.current.clearLayers();
+    }
+    if (photographerClusterRef.current) {
+      photographerClusterRef.current.clearLayers();
+    }
+    
+
     
     // Add surf spot markers to CLUSTER GROUP for performance
     // Privacy Shield: Shows different visual state based on geofence
