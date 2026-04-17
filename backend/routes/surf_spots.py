@@ -1278,6 +1278,54 @@ async def trigger_spot_import(
     }
 
 
+class CreateSpotRequest(BaseModel):
+    name: str
+    country: Optional[str] = None
+    state_province: Optional[str] = None
+    region: Optional[str] = None
+    wave_type: Optional[str] = None
+    latitude: float
+    longitude: float
+    difficulty: Optional[str] = None
+    override_land_warning: Optional[bool] = False
+
+@router.post("/admin/spots/create")
+async def create_spot(
+    data: CreateSpotRequest,
+    admin_id: str,
+    db: AsyncSession = Depends(get_db)
+):
+    """Create a new surf spot (admin only)."""
+    # Verify admin
+    result = await db.execute(select(Profile).where(Profile.id == admin_id))
+    admin = result.scalar_one_or_none()
+    if not admin or not admin.is_admin:
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    # Create spot
+    spot = SurfSpot(
+        name=data.name,
+        country=data.country,
+        state_province=data.state_province,
+        region=data.region,
+        wave_type=data.wave_type,
+        latitude=data.latitude,
+        longitude=data.longitude,
+        difficulty=data.difficulty,
+        is_active=True,
+        is_verified_peak=True,
+        accuracy_flag='verified',
+        verified_by=admin_id,
+        verified_at=datetime.now(timezone.utc)
+    )
+    
+    db.add(spot)
+    await db.commit()
+    await db.refresh(spot)
+    
+    return {"success": True, "message": f"Created spot: {spot.name}", "spot_id": spot.id}
+
+
 @router.put("/admin/spots/{spot_id}")
 async def update_spot(
     spot_id: str,
