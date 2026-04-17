@@ -47,6 +47,7 @@ export const CreatePost = () => {
   const photoInputRef = useRef(null);
   const videoInputRef = useRef(null);
   const cameraInputRef = useRef(null);
+  const cameraVideoInputRef = useRef(null);
   const captionRef = useRef(null);
 
   // Session metadata state
@@ -525,7 +526,15 @@ export const CreatePost = () => {
         <input
           ref={cameraInputRef}
           type="file"
-          accept="image/*,video/*"
+          accept="image/*"
+          capture="environment"
+          onChange={handleFileSelect}
+          className="hidden"
+        />
+        <input
+          ref={cameraVideoInputRef}
+          type="file"
+          accept="video/*"
           capture="environment"
           onChange={handleFileSelect}
           className="hidden"
@@ -593,15 +602,25 @@ export const CreatePost = () => {
               </button>
             </div>
 
-            {/* Camera shortcut */}
-            <Button
-              onClick={() => cameraInputRef.current?.click()}
-              variant="outline"
-              className="w-full h-12 border-border text-foreground hover:bg-muted font-medium"
-            >
-              <Camera className="w-5 h-5 mr-3 text-cyan-500 font-bold" />
-              Capture Photo or Video
-            </Button>
+            {/* Camera shortcuts */}
+            <div className="flex gap-3">
+              <Button
+                onClick={() => cameraInputRef.current?.click()}
+                variant="outline"
+                className="flex-1 h-12 border-border text-foreground hover:bg-muted font-medium px-2"
+              >
+                <Camera className="w-4 h-4 mr-2 text-cyan-500 font-bold flex-shrink-0" />
+                <span className="truncate">Photo</span>
+              </Button>
+              <Button
+                onClick={() => cameraVideoInputRef.current?.click()}
+                variant="outline"
+                className="flex-1 h-12 border-border text-foreground hover:bg-muted font-medium px-2"
+              >
+                <Video className="w-4 h-4 mr-2 text-cyan-500 font-bold flex-shrink-0" />
+                <span className="truncate">Video</span>
+              </Button>
+            </div>
 
             {/* Go Live Option */}
             <Button
