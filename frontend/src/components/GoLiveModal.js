@@ -3,7 +3,7 @@ import {
   Radio, Clock, Mic, MicOff, Camera, CameraOff, Loader2, AlertTriangle,
   RefreshCw, MessageCircle, Heart, Send, X, Sparkles, Sun, Contrast,
   Share2, Eye, Wifi, WifiOff, ChevronUp, ChevronDown, Droplets, Thermometer,
-  CircleDot, Sunset, Waves, Film, RotateCcw, Power, Zap, Moon
+  CircleDot, Sunset, Waves, Film, RotateCcw, Power, Zap, Moon, Grid
 } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -131,6 +131,24 @@ const VideoFilterPanel = ({ isOpen, onClose, filters, onFilterChange, onPresetSe
   
   // Surfer-specific AI Filter presets
   const presets = [
+    { 
+      name: 'None', 
+      icon: CircleDot,
+      values: { brightness: 100, contrast: 100, saturation: 100, warmth: 100, vignette: 0 },
+      description: 'Original camera'
+    },
+    { 
+      name: 'AI Night Vision', 
+      icon: Eye,
+      values: { brightness: 100, contrast: 100, saturation: 100, warmth: 100, vignette: 0 },
+      description: 'Tactical green overlay'
+    },
+    { 
+      name: 'AI Pixelate', 
+      icon: Grid,
+      values: { brightness: 100, contrast: 100, saturation: 100, warmth: 100, vignette: 0 },
+      description: 'Retro 8-bit aesthetic'
+    },
     { 
       name: 'Golden Hour', 
       icon: Sunset,
@@ -908,8 +926,8 @@ const BroadcasterControls = ({
             </div>
           </div>
 
-          {/* Floating Side items - Filters/Camera Flip (Desktop) */}
-          <div className="absolute right-3 top-1/2 -translate-y-1/2 flex flex-col gap-3 z-10">
+          {/* Floating Side items - Filters/Camera Flip (Desktop & Mobile Matrix Shifted vertically) */}
+          <div className="absolute right-3 top-1/4 sm:top-1/2 -translate-y-1/2 flex flex-col gap-3 z-10">
             <button
               onClick={flipCamera}
               className={`p-3 rounded-full ${colors.overlayBg} ${colors.border} border transition-all active:scale-95 shadow-md`}

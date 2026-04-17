@@ -51,8 +51,8 @@ export const WebGLBroadcastController = ({ activeFilter, isCameraOff, isFrontCam
         if (activeFilter.includes('Cyber-Surf')) filterKey = 'cyber';
         if (activeFilter.includes('Bio-Lum')) filterKey = 'bioluminescence';
         if (activeFilter.includes('Pipeline')) filterKey = 'gopro';
-        // Thermal is omitted from Golden Hour, we map Golden Hour basically as passthrough with warm CSS, 
-        // but if they had an explicit "AI Thermal", we'd map it here.
+        if (activeFilter.includes('Night Vision')) filterKey = 'nightvision';
+        if (activeFilter.includes('Pixelate')) filterKey = 'pixelate';
         
         processorRef.current.setFilter(filterKey);
         processorRef.current.start(video);
@@ -100,6 +100,8 @@ export const WebGLBroadcastController = ({ activeFilter, isCameraOff, isFrontCam
         if (activeFilter.includes('Cyber-Surf')) filterKey = 'cyber';
         if (activeFilter.includes('Bio-Lum')) filterKey = 'bioluminescence';
         if (activeFilter.includes('Pipeline')) filterKey = 'gopro';
+        if (activeFilter.includes('Night Vision')) filterKey = 'nightvision';
+        if (activeFilter.includes('Pixelate')) filterKey = 'pixelate';
         processorRef.current.setFilter(filterKey);
      }
   }, [activeFilter]);

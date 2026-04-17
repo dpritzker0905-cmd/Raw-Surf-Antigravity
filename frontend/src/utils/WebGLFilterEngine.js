@@ -20,6 +20,48 @@ const FRAGMENT_SHADERS = {
       gl_FragColor = texture2D(u_texture, uv);
     }
   `,
+  nightvision: `
+    precision highp float;
+    varying vec2 v_texcoord;
+    uniform sampler2D u_texture;
+    uniform float u_time;
+
+    float rand(vec2 co) {
+      return fract(sin(dot(co.xy ,vec2(12.9898,78.233))) * 43758.5453);
+    }
+
+    void main() {
+      vec2 uv = vec2(v_texcoord.x, 1.0 - v_texcoord.y);
+      vec4 color = texture2D(u_texture, uv);
+      
+      float lum = dot(color.rgb, vec3(0.299, 0.587, 0.114));
+      lum = clamp((lum - 0.2) * 1.5, 0.0, 1.0);
+      
+      vec3 greenVision = vec3(0.1, 0.9, 0.2) * lum;
+      float noise = (rand(uv * u_time) - 0.5) * 0.3;
+      float scanline = sin(uv.y * 800.0) * 0.1;
+      
+      vec3 finalColor = greenVision + noise - scanline;
+      gl_FragColor = vec4(finalColor, 1.0);
+    }
+  `,
+  pixelate: `
+    precision highp float;
+    varying vec2 v_texcoord;
+    uniform sampler2D u_texture;
+    uniform vec2 u_resolution;
+
+    void main() {
+      vec2 uv = vec2(v_texcoord.x, 1.0 - v_texcoord.y);
+      float pixelSize = 15.0;
+      
+      float dx = pixelSize / u_resolution.x;
+      float dy = pixelSize / u_resolution.y;
+      
+      vec2 coord = vec2(dx * floor(uv.x / dx), dy * floor(uv.y / dy));
+      gl_FragColor = texture2D(u_texture, coord);
+    }
+  `,
   bioluminescence: `
     precision highp float;
     varying vec2 v_texcoord;
