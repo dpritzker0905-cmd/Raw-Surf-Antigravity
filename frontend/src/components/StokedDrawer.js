@@ -150,16 +150,16 @@ export const StokedDrawer = ({ isOpen, onClose }) => {
           </div>
           
           {/* View Full Dashboard Link */}
-          <Button
-            variant="ghost"
-            className={`w-full text-yellow-400 hover:text-yellow-300 hover:bg-yellow-500/10 ${
-              !['Pro', 'Comp Surfer', 'Grom'].includes(effectiveRole) ? 'hidden md:inline-flex' : ''
-            }`}
-            onClick={handleViewFull}
-          >
-            View Full Stoked Dashboard
-            <ArrowRight className="w-4 h-4 ml-2" />
-          </Button>
+          <div className={!['Pro', 'Comp Surfer', 'Grom'].includes(effectiveRole) ? 'hidden md:block' : 'block'}>
+            <Button
+              variant="ghost"
+              className="w-full text-yellow-400 hover:text-yellow-300 hover:bg-yellow-500/10"
+              onClick={handleViewFull}
+            >
+              View Full Stoked Dashboard
+              <ArrowRight className="w-4 h-4 ml-2" />
+            </Button>
+          </div>
         </div>
       </SheetContent>
     </Sheet>
