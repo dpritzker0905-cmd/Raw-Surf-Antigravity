@@ -2849,15 +2849,15 @@ const AdminSpotsPanel = ({ userId }) => {
 
       {/* Import Tier Selection Dialog */}
       <Dialog open={showImportDialog} onOpenChange={setShowImportDialog}>
-        <DialogContent className="bg-zinc-900 border-zinc-700">
-          <DialogHeader>
+        <DialogContent className="bg-zinc-900 border border-zinc-700 sm:max-w-md w-[95vw] sm:w-full rounded-xl flex flex-col gap-0 p-0 overflow-hidden">
+          <DialogHeader className="p-4 sm:p-6 pb-2 border-b border-zinc-800">
             <DialogTitle className="text-white flex items-center gap-2">
               <Upload className="w-5 h-5 text-green-400" />
               Import Global Surf Spots
             </DialogTitle>
           </DialogHeader>
           
-          <div className="space-y-4">
+          <div className="space-y-4 overflow-y-auto max-h-[55vh] custom-scrollbar p-4 sm:p-6">
             <p className="text-gray-400 text-sm">
               Select which region tier to import surf spots from:
             </p>
@@ -2879,13 +2879,13 @@ const AdminSpotsPanel = ({ userId }) => {
                   }`}
                 >
                   <div className="flex items-center gap-3">
-                    <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
+                    <div className={`flex-shrink-0 w-4 h-4 rounded-full border-2 flex items-center justify-center ${
                       importTier === tier.value ? 'border-green-500' : 'border-zinc-500'
                     }`}>
                       {importTier === tier.value && <div className="w-2 h-2 rounded-full bg-green-500" />}
                     </div>
                     <div>
-                      <p className="text-white font-medium">{tier.label}</p>
+                      <p className="text-white font-medium text-sm sm:text-base">{tier.label}</p>
                       <p className="text-xs text-gray-400">{tier.desc}</p>
                     </div>
                   </div>
@@ -2893,40 +2893,40 @@ const AdminSpotsPanel = ({ userId }) => {
               ))}
             </div>
             
-            <div className="flex items-center gap-2 p-3 bg-zinc-800 rounded-lg">
+            <div className="flex items-start gap-2 p-3 bg-zinc-800 rounded-lg border border-zinc-700">
               <input
                 type="checkbox"
                 id="include-osm"
                 checked={includeOSM}
                 onChange={(e) => setIncludeOSM(e.target.checked)}
-                className="w-4 h-4 rounded border-zinc-600"
+                className="mt-0.5 w-4 h-4 rounded border-zinc-600 flex-shrink-0"
               />
-              <label htmlFor="include-osm" className="text-sm text-gray-300">
+              <label htmlFor="include-osm" className="text-sm text-gray-300 leading-tight">
                 Also fetch from OSM Overpass API (slower, more spots)
               </label>
             </div>
-            
-            <div className="flex gap-2 pt-2">
-              <Button
-                onClick={handleImport}
-                disabled={importLoading}
-                className="flex-1 bg-green-600 hover:bg-green-700"
-              >
-                {importLoading ? (
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                ) : (
-                  <Upload className="w-4 h-4 mr-2" />
-                )}
-                Start Import
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => setShowImportDialog(false)}
-                className="border-zinc-600"
-              >
-                Cancel
-              </Button>
-            </div>
+          </div>
+          
+          <div className="p-4 sm:p-6 pt-3 border-t border-zinc-800 bg-zinc-900/50 flex flex-col sm:flex-row gap-2">
+            <Button
+              onClick={handleImport}
+              disabled={importLoading}
+              className="w-full sm:flex-1 bg-green-600 hover:bg-green-700 text-white order-1 sm:order-2"
+            >
+              {importLoading ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <Upload className="w-4 h-4 mr-2" />
+              )}
+              Start Import
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => setShowImportDialog(false)}
+              className="w-full sm:flex-1 border-zinc-600 text-gray-300 hover:text-white order-2 sm:order-1"
+            >
+              Cancel
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
