@@ -2,7 +2,7 @@
  * PostCard - Extracted from Feed.js for better maintainability
  * Renders a single post in the feed with all interactions
  */
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { getExpandedRoleInfo } from '../contexts/PersonaContext';
@@ -622,6 +622,45 @@ const PostCard = ({
   const _checkMediaUrl = post.media_url || post.image_url;
   const isVideoItem = post.media_type === 'video' || (_checkMediaUrl && typeof _checkMediaUrl === 'string' && _checkMediaUrl.match(/\.(mp4|webm|ogg|mov)(\?.*)?$/i));
   
+  // Video Autoplay Setup
+  const videoRef = useRef(null);
+  const programmaticTarget = useRef(false);
+  const [userManuallyPaused, setUserManuallyPaused] = useState(false);
+
+  useEffect(() => {
+    if (!isVideoItem || !videoRef.current) return;
+
+    const currentVideo = videoRef.current;
+    currentVideo.muted = true; // Secure modern browsers autoplay policy
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            // Autoplay only if user hasn't explicitly disabled playback on this specific video
+            if (!userManuallyPaused) {
+              programmaticTarget.current = true;
+              currentVideo.play().catch(e => console.log('Autoplay deferred:', e)).finally(() => {
+                programmaticTarget.current = false;
+              });
+            }
+          } else {
+            // Safely stall video sequentially on viewport exit
+            if (!currentVideo.paused) {
+              programmaticTarget.current = true;
+              currentVideo.pause();
+              programmaticTarget.current = false;
+            }
+          }
+        });
+      },
+      { threshold: 0.6 } // Fire intersection only when heavily visible to avoid buffer overlaps
+    );
+
+    observer.observe(currentVideo);
+    return () => observer.disconnect();
+  }, [isVideoItem, userManuallyPaused]);
+  
   // Fetch detailed reactions when modal opens
   const handleLikesCountClick = async (e) => {
     e.preventDefault();
@@ -781,13 +820,22 @@ const PostCard = ({
       >
         {isVideoItem ? (
           <video
+            ref={videoRef}
             src={post.media_url}
             poster={post.thumbnail_url}
             controls
             className="w-full h-full object-cover"
             playsInline
             preload="metadata"
+            muted={true}
+            loop={true}
             onClick={(e) => e.stopPropagation()} // Allow video controls
+            onPlay={() => {
+              if (!programmaticTarget.current) setUserManuallyPaused(false);
+            }}
+            onPause={() => {
+              if (!programmaticTarget.current) setUserManuallyPaused(true);
+            }}
           />
         ) : (
           <img
