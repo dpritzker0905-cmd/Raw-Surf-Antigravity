@@ -17,8 +17,8 @@ const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 // Media Preview component for Posts, Waves, and Videos
 const PostMediaPreview = ({ post, isHoverScale = true }) => {
-  const isVideo = post?.media_type === 'video' || (post?.media_url && typeof post.media_url === 'string' && post.media_url.match(/\.(mp4|webm|ogg|mov)(\?.*)?$/i)) || post?.is_wave === true || typeof post?.view_count !== 'undefined';
   const mediaUrl = post?.media_url || post?.image_url || post?.thumbnail_url;
+  const isVideo = post?.media_type === 'video' || (mediaUrl && typeof mediaUrl === 'string' && mediaUrl.match(/\.(mp4|webm|ogg|mov)(\?.*)?$/i)) || post?.is_wave === true || typeof post?.view_count !== 'undefined';
   const thumbnailUrl = post?.thumbnail_url || (isVideo ? null : mediaUrl);
 
   const formatUrl = (url) => {
