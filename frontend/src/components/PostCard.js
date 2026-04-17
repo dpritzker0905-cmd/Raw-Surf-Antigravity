@@ -617,15 +617,13 @@ const PostCard = ({
   const [detailedReactions, setDetailedReactions] = useState([]);
   const [loadingReactions, setLoadingReactions] = useState(false);
 
-  if (!post) return null;
-
-  const _checkMediaUrl = post.media_url || post.image_url;
-  const isVideoItem = post.media_type === 'video' || (_checkMediaUrl && typeof _checkMediaUrl === 'string' && _checkMediaUrl.match(/\.(mp4|webm|ogg|mov)(\?.*)?$/i));
-  
   // Video Autoplay Setup
   const videoRef = useRef(null);
   const programmaticTarget = useRef(false);
   const [userManuallyPaused, setUserManuallyPaused] = useState(false);
+
+  const _checkMediaUrl = post?.media_url || post?.image_url;
+  const isVideoItem = post?.media_type === 'video' || (typeof _checkMediaUrl === 'string' && _checkMediaUrl.match(/\.(mp4|webm|ogg|mov)(\?.*)?$/i));
 
   useEffect(() => {
     if (!isVideoItem || !videoRef.current) return;
@@ -660,6 +658,8 @@ const PostCard = ({
     observer.observe(currentVideo);
     return () => observer.disconnect();
   }, [isVideoItem, userManuallyPaused]);
+
+  if (!post) return null;
   
   // Fetch detailed reactions when modal opens
   const handleLikesCountClick = async (e) => {
