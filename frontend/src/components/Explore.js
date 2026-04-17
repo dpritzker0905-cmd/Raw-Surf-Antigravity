@@ -859,7 +859,7 @@ export const Explore = () => {
                         // Map fallback with location pin
                         <div className="w-full h-full bg-muted relative">
                           <img 
-                            src={`https://api.mapbox.com/styles/v1/mapbox/dark-v11/static/pin-l+00b4d8(${spot.longitude},${spot.latitude})/${spot.longitude},${spot.latitude},12,0/400x300@2x?access_token=pk.eyJ1IjoiZGF2aWRwcml0emtlciIsImEiOiJjbTJqeHNnYTkwMzU5MmtvaWVsMHY0MW1zIn0.TAjy2Kf5OlO8DcA0RoLOyw`}
+                            src={`https://static-maps.yandex.ru/1.x/?lang=en_US&ll=${spot.longitude},${spot.latitude}&z=12&l=sat&size=400,300`}
                             alt={`Map of ${spot.name}`}
                             className="w-full h-full object-cover opacity-60 group-hover:opacity-80 transition-opacity"
                           />
