@@ -938,10 +938,11 @@ export const Explore = () => {
                 {trending.trending_posts.map((post) => (
                   <div
                     key={post.id}
-                    className="aspect-square bg-muted overflow-hidden cursor-pointer"
+                    className="aspect-square bg-muted overflow-hidden cursor-pointer group relative"
+                    onClick={() => navigate(`/post/${post.id}`)}
                     data-testid={`trending-post-${post.id}`}
                   >
-                    <img src={post.image_url} alt={post.caption} className="w-full h-full object-cover hover:opacity-80 transition-opacity" />
+                    <PostMediaPreview post={post} isHoverScale={false} />
                   </div>
                 ))}
               </div>
