@@ -6,12 +6,13 @@ import {
   Camera, Image, Video, Play, ShoppingCart, Download, Heart, Share2, 
   Filter, Grid, LayoutGrid, Calendar, MapPin, ChevronDown, X, Check,
   Sparkles, Star, ArrowLeft, User, Clock, DollarSign, Eye, Lock,
-  Zap, Radio, CalendarCheck, Folder, Search, SlidersHorizontal
+  Zap, Radio, CalendarCheck, Folder, Search, SlidersHorizontal, ScanFace
 } from 'lucide-react';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { Card } from './ui/card';
 import { Input } from './ui/input';
+import { LockerSelfieModal } from './LockerSelfieModal';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from './ui/dialog';
 import { toast } from 'sonner';
 import logger from '../utils/logger';
@@ -64,6 +65,9 @@ export const PublicPhotographerGallery = () => {
   const [showAIMatch, setShowAIMatch] = useState(false);
   const [aiMatchResults, setAIMatchResults] = useState([]);
   const [aiMatchLoading, setAIMatchLoading] = useState(false);
+  
+  // New Find Me Selfie Scanner state
+  const [scanModalOpen, setScanModalOpen] = useState(false);
 
   // Fetch photographer profile
   const fetchPhotographer = useCallback(async () => {
@@ -353,21 +357,11 @@ export const PublicPhotographerGallery = () => {
                 </div>
               </div>
               <Button 
-                onClick={runAIFaceMatch}
-                disabled={aiMatchLoading}
-                className="bg-purple-600 hover:bg-purple-700 text-white"
+                onClick={() => setScanModalOpen(true)}
+                className="bg-cyan-600 hover:bg-cyan-700 text-white font-semibold"
               >
-                {aiMatchLoading ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />
-                    Scanning...
-                  </>
-                ) : (
-                  <>
-                    <Sparkles className="w-4 h-4 mr-2" />
-                    Find My Photos
-                  </>
-                )}
+                <ScanFace className="w-4 h-4 mr-2" />
+                Find My Photos
               </Button>
             </div>
           </Card>
@@ -663,6 +657,15 @@ export const PublicPhotographerGallery = () => {
           )}
         </DialogContent>
       </Dialog>
+      
+      {/* Targeted Locker Selfie Scanner */}
+      <LockerSelfieModal 
+        isOpen={scanModalOpen}
+        onClose={() => setScanModalOpen(false)}
+        user={user}
+        photographerId={photographer?.id}
+        photographerName={photographer?.full_name}
+      />
     </div>
   );
 };

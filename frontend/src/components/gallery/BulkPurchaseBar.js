@@ -151,12 +151,22 @@ export const BulkPurchaseBar = ({
         buyer_id: userId
       });
       
-      toast.success(`Purchased ${selectedItems.length} items for $${totals.finalTotal.toFixed(2)}!`);
-      onPurchase?.(response.data);
-      onClearAll?.();
+      if (response.data.stripe_checkout_url) {
+        window.location.href = response.data.stripe_checkout_url;
+      } else {
+        toast.success(`Purchased ${selectedItems.length} items for $${totals.finalTotal.toFixed(2)}!`);
+        onPurchase?.(response.data);
+        onClearAll?.();
+      }
     } catch (error) {
       const msg = error.response?.data?.detail || 'Purchase failed';
       toast.error(msg);
+      
+      if (typeof msg === 'string' && msg.toLowerCase().includes('credit')) {
+        setTimeout(() => {
+          window.location.href = '/wallet';
+        }, 1500);
+      }
     } finally {
       setPurchasing(false);
     }

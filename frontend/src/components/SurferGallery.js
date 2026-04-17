@@ -20,7 +20,7 @@ import {
   Search, Grid, List, Share2, FolderOpen, Calendar,
   SortAsc, SortDesc, Camera, MapPin, History, X,
   MoreHorizontal, MessageSquare, ExternalLink, Check,
-  ChevronLeft, ChevronRight, Loader2, Plus, Star
+  ChevronLeft, ChevronRight, Loader2, Plus, Star, ScanFace, RefreshCw
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
@@ -43,10 +43,12 @@ import axios from 'axios';
 import PhotoSelectionQueue from './PhotoSelectionQueue';
 import AIProposedMatches from './AIProposedMatches';
 import { ResolutionUpsellBadge } from './ResolutionUpsell';
+import { LockerSelfieModal } from './LockerSelfieModal';
 import { BulkPurchaseBar, MultiSelectToggle } from './gallery/BulkPurchaseBar';
 import { DownloadButton, VisibilityToggle, VisibilityOnboarding, DownloadIndicator } from './gallery/DownloadVisibility';
 import { PriceSourceBadge, QualityTierBadge } from './gallery/PriceSourceBadge';
 import logger from '../utils/logger';
+import SelfieCapture from './SelfieCapture';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -369,16 +371,17 @@ const ClaimQueueItem = ({ item, onAction }) => (
 /**
  * Download Modal Component
  */
-const DownloadModal = ({ item, isOpen, onClose, onDownload }) => {
+const DownloadModal = ({ item, isOpen, onClose, onDownload, onPurchase }) => {
   if (!item) return null;
   
   const tiers = [
-    { id: 'web', label: 'Web Quality', desc: '1200px - Social media', price: item.price_web || 3 },
-    { id: 'standard', label: 'Standard', desc: '2400px - Prints up to 8x10', price: item.price_standard || 5 },
-    { id: 'high', label: 'High Resolution', desc: 'Full size - Large prints', price: item.price_high || 10 },
+    { id: 'web', label: 'Web Quality', desc: '1200px - Social media', price: item.price !== undefined ? item.price : 3.0 },
+    { id: 'standard', label: 'Standard', desc: '2400px - Prints up to 8x10', price: item.price !== undefined ? item.price : 5.0 },
+    { id: 'high', label: 'High Resolution', desc: 'Full size - Large prints', price: item.price !== undefined ? item.price : 10.0 },
   ];
   
   const isAccessible = item.is_paid || ['included', 'gifted'].includes(item.access_type);
+  const isFreeFromSession = item.price === 0.0 && item.price_source === 'included';
   
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -409,17 +412,25 @@ const DownloadModal = ({ item, isOpen, onClose, onDownload }) => {
                 {isAccessible ? (
                   <Download className="w-5 h-5 text-cyan-400" />
                 ) : (
-                  <span className="text-amber-400">${tier.price}</span>
+                  <span className="text-amber-400">${tier.price.toFixed(2)}</span>
                 )}
               </div>
             </button>
           ))}
         </div>
         {!isAccessible && (
-          <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg">
+          <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg flex flex-col gap-3">
             <p className="text-sm text-amber-400">
-              Purchase this photo to unlock downloads
+              {isFreeFromSession 
+                ? "This photo is included in your session package! Click below to unlock." 
+                : "Purchase this photo to unlock downloads"}
             </p>
+            <Button
+              className="w-full bg-cyan-500 hover:bg-cyan-600 text-black font-semibold"
+              onClick={() => onPurchase(item.id, 'high')} // Defaulting to high quality purchase
+            >
+               {isFreeFromSession ? "Unlock Included Photo" : `Buy Now ($${tiers[2].price.toFixed(2)})`}
+            </Button>
           </div>
         )}
       </DialogContent>
@@ -816,6 +827,27 @@ export const SurferGallery = () => {
     setSelectedItems(new Set());
   };
   
+  const handleSinglePurchase = async (itemId, quality) => {
+    setDownloadModal({ isOpen: false, item: null });
+    // Convert to a singular bulk-purchase call targeting the backend Stripe logic
+    try {
+      const response = await axios.post(`${API}/gallery/bulk-purchase`, {
+        item_ids: [itemId],
+        quality_tiers: { [itemId]: quality },
+        buyer_id: user.id
+      });
+      
+      if (response.data.stripe_checkout_url) {
+        window.location.href = response.data.stripe_checkout_url;
+      } else {
+        toast.success(`Successfully unlocked item!`);
+        fetchGallery(); // Refetch locker state
+      }
+    } catch (error) {
+      toast.error(error.response?.data?.detail || 'Checkout failed');
+    }
+  };
+  
   const handleRequestEdit = async (itemId, message) => {
     await axios.post(`${API}/surfer-gallery/${itemId}/request-edit`, {
       surfer_id: user.id,
@@ -997,6 +1029,15 @@ export const SurferGallery = () => {
           
           {/* Quick actions */}
           <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setScanModal(true)}
+              className="bg-zinc-800/80 border-cyan-500/50 text-cyan-400 hover:bg-cyan-500 hover:text-black shrink-0"
+            >
+              <ScanFace className="w-4 h-4 mr-1" />
+              <span className="hidden sm:inline">Find Me</span>
+            </Button>
             <Button
               variant="outline"
               size="sm"
@@ -1408,6 +1449,14 @@ export const SurferGallery = () => {
         isOpen={downloadModal.isOpen}
         onClose={() => setDownloadModal({ isOpen: false, item: null })}
         onDownload={handleDownload}
+        onPurchase={handleSinglePurchase}
+      />
+      
+      <LockerSelfieModal 
+        isOpen={scanModal} 
+        onClose={() => setScanModal(false)}
+        user={user}
+        fetchClaimQueue={fetchClaimQueue}
       />
       
       <ShareModal

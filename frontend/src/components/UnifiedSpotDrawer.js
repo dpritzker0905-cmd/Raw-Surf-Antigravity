@@ -12,6 +12,8 @@ import { Badge } from './ui/badge';
 import { useAuth } from '../contexts/AuthContext';
 import { usePersona } from '../contexts/PersonaContext';
 import { JumpInSessionModal } from './JumpInSessionModal';
+import { LockerSelfieModal } from './LockerSelfieModal';
+import { ScanFace } from 'lucide-react';
 import axios from 'axios';
 import { toast } from 'sonner';
 import logger from '../utils/logger';
@@ -756,7 +758,7 @@ const JumpInFlow = ({ photographer, onBack, onSuccess }) => {
     return () => stopCamera();
   }, [stopCamera]);
   
-  // Auto-start camera on selfie step
+  // Keyboard shortcut for closing map/drawer
   useEffect(() => {
     if (step === 'selfie' && !selfieUrl) {
       startCamera();
@@ -1333,6 +1335,9 @@ const UnifiedSpotDrawer = ({
     onSwitchLocation?.(spot?.id, sessionSettings);
   };
 
+  // Find Me Spot Scanner State
+  const [scanModalOpen, setScanModalOpen] = useState(false);
+
   // ============ REFINE LOCATION FUNCTIONS ============
   const openRefineModal = () => {
     setRefinePosition({ lat: spot.latitude, lng: spot.longitude });
@@ -1646,6 +1651,31 @@ const UnifiedSpotDrawer = ({
                     {/* Surf Conditions - Always visible */}
                     <div className="px-4">
                       <SpotConditions spotId={spot?.id} spotName={spot?.name} />
+                      
+                      {/* Targeted Spot AI Scan Feature */}
+                      {user && (
+                        <div className="mt-4 p-4 bg-gradient-to-r from-cyan-500/10 to-blue-500/10 border border-cyan-500/30 rounded-xl">
+                          <div className="flex items-start justify-between gap-3">
+                            <div>
+                              <h4 className="text-white font-medium flex items-center gap-2">
+                                <ScanFace className="w-4 h-4 text-cyan-400" />
+                                Scan {spot?.name} for My Photos
+                              </h4>
+                              <p className="text-gray-400 text-xs mt-1">
+                                Did you shred here recently? We'll sweep this exact spot searching for your wetsuit, board, and face.
+                              </p>
+                            </div>
+                            <Button
+                              onClick={() => setScanModalOpen(true)}
+                              className="bg-cyan-500 hover:bg-cyan-600 text-black font-semibold shrink-0"
+                              size="sm"
+                              data-testid="spot-scan-btn"
+                            >
+                              Scan Spot
+                            </Button>
+                          </div>
+                        </div>
+                      )}
                     </div>
 
                     {/* Photographer Verification Nudge - Show when photographer is within 200m */}
@@ -2132,6 +2162,14 @@ const UnifiedSpotDrawer = ({
           }}
         />
       )}
+      {/* LockerSelfieModal bound to this spot */}
+      <LockerSelfieModal 
+        isOpen={scanModalOpen}
+        onClose={() => setScanModalOpen(false)}
+        user={user}
+        spotId={spot?.id}
+        spotName={spot?.name}
+      />
     </>
   );
 };
