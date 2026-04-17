@@ -23,6 +23,7 @@ const NOTIFICATION_CONFIG = {
   session_reminder: { icon: Clock, color: 'text-blue-400', bgColor: 'bg-blue-500/20', category: 'sessions' },
   booking_request: { icon: Calendar, color: 'text-amber-400', bgColor: 'bg-amber-500/20', category: 'sessions' },
   booking_confirmed: { icon: Check, color: 'text-emerald-400', bgColor: 'bg-emerald-500/20', category: 'sessions' },
+  session_booked: { icon: Check, color: 'text-emerald-400', bgColor: 'bg-emerald-500/20', category: 'sessions' },
   booking_confirmation: { icon: Check, color: 'text-emerald-400', bgColor: 'bg-emerald-500/20', category: 'sessions' },
   booking_cancelled: { icon: X, color: 'text-red-400', bgColor: 'bg-red-500/20', category: 'sessions' },
   booking_updated: { icon: Calendar, color: 'text-amber-400', bgColor: 'bg-amber-500/20', category: 'sessions' },

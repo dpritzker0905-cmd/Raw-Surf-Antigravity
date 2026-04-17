@@ -48,6 +48,12 @@ const NOTIFICATION_CONFIG = {
     bgColor: 'bg-emerald-500/20',
     category: 'sessions' 
   },
+  session_booked: { 
+    icon: Check, 
+    color: 'text-emerald-400', 
+    bgColor: 'bg-emerald-500/20',
+    category: 'sessions' 
+  },
   booking_request: { 
     icon: Calendar, 
     color: 'text-amber-400', 
