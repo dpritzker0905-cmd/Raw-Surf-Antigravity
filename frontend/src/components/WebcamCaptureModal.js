@@ -179,8 +179,18 @@ export default function WebcamCaptureModal({ isOpen, onClose, onCapture }) {
         />
       </div>
 
+      {/* Rule of Thirds Grid Overlay */}
+      <div className="absolute inset-x-0 bottom-[160px] top-[72px] pointer-events-none z-[5] opacity-20 flex flex-col justify-center items-center mix-blend-overlay hidden sm:flex">
+        <div className="w-full h-1/3 border-b border-t border-white" />
+        <div className="absolute top-0 bottom-0 left-1/3 right-1/3 border-l border-r border-white" />
+      </div>
+      <div className="absolute inset-0 pointer-events-none z-[5] opacity-20 flex flex-col justify-center items-center mix-blend-overlay sm:hidden">
+        <div className="w-full h-1/3 border-b border-t border-white" />
+        <div className="absolute top-0 bottom-0 left-1/3 right-1/3 border-l border-r border-white" />
+      </div>
+
       {/* Controls */}
-      <div className="h-32 bg-black flex items-center justify-center gap-12 pb-6">
+      <div className="absolute bottom-0 left-0 right-0 h-40 bg-gradient-to-t from-black/95 via-black/50 to-transparent flex items-center justify-center gap-12 pb-6 z-20 pointer-events-auto">
         <Button
           onClick={takePhoto}
           disabled={isRecording}

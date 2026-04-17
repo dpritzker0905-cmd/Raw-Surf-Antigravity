@@ -980,11 +980,12 @@ const BroadcasterControls = ({
       <AnimatePresence>
         {isChatOpen && (
           <motion.div
+            className="hidden sm:flex flex-col"
             initial={{ width: 0, opacity: 0 }}
             animate={{ width: 310, opacity: 1 }}
             exit={{ width: 0, opacity: 0 }}
             transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-            style={{ height: '100%', display: 'flex', flexDirection: 'column', background: '#09090b', borderLeft: '1px solid #27272a', flexShrink: 0, overflow: 'hidden' }}
+            style={{ height: '100%', background: '#09090b', borderLeft: '1px solid #27272a', flexShrink: 0, overflow: 'hidden' }}
           >
             <LiveCommentsFeed
               streamId={streamId}
