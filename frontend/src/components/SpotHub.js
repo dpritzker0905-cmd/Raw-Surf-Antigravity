@@ -37,6 +37,11 @@ const conditionColors = {
 
 // Forecast day card - starts from TOMORROW (day 1 = tomorrow, not today)
 const ForecastDayCard = ({ day, dayIndex, isLocked = false }) => {
+  const { theme } = useTheme();
+  const isLight = theme === 'light';
+  const rowBg = isLight ? 'bg-gray-100/80 shadow-inner' : 'bg-zinc-800/50';
+  const lockBg = isLight ? 'bg-gray-100/50' : 'bg-zinc-800/50';
+  
   const dateObj = new Date(day.date);
   const dayName = dateObj.toLocaleDateString('en-US', { weekday: 'short' });
   const dateNum = dateObj.getDate();
@@ -44,8 +49,8 @@ const ForecastDayCard = ({ day, dayIndex, isLocked = false }) => {
   
   if (isLocked) {
     return (
-      <div className="flex flex-col items-center p-2 bg-zinc-800/50 rounded-lg opacity-60 min-w-[55px]">
-        <span className="text-[10px] text-gray-500">{dayName}</span>
+      <div className={`flex flex-col items-center p-2 rounded-lg min-w-[55px] ${lockBg}`}>
+        <span className={`text-[10px] ${isLight ? 'text-gray-400' : 'text-gray-500'}`}>{dayName}</span>
         <span className="text-sm font-bold text-gray-600">{dateNum}</span>
         <Lock className="w-3 h-3 text-purple-400 my-0.5" />
       </div>
@@ -53,9 +58,9 @@ const ForecastDayCard = ({ day, dayIndex, isLocked = false }) => {
   }
   
   return (
-    <div className="flex flex-col items-center p-2 bg-zinc-800 rounded-lg min-w-[55px]">
-      <span className="text-[10px] text-gray-400">{dayName}</span>
-      <span className="text-sm font-bold">{dateNum}</span>
+    <div className={`flex flex-col items-center p-2 rounded-lg min-w-[55px] ${rowBg}`}>
+      <span className={`text-[10px] ${isLight ? 'text-gray-500' : 'text-gray-400'}`}>{dayName}</span>
+      <span className={`text-sm font-bold ${isLight ? 'text-gray-900' : 'text-white'}`}>{dateNum}</span>
       <Waves className={`w-4 h-4 ${colors.text} my-0.5`} />
       <span className="text-xs font-bold">{day.wave_height_max}ft</span>
     </div>
@@ -430,9 +435,15 @@ const PhotographerRequestModal = ({ isOpen, onClose, spot, spotId, onSuccess }) 
  */
 const SpotHub = () => {
   const { spotId } = useParams();
+  const { theme } = useTheme();
+  const isLight = theme === 'light';
+  const textPrimary = isLight ? 'text-gray-900' : 'text-white';
+  const textSecondary = isLight ? 'text-gray-600' : 'text-gray-400';
+  const cardBg = isLight ? 'bg-white/80 border-gray-200 shadow-sm' : 'bg-zinc-900/80 border-zinc-800';
+  const rowBg = isLight ? 'bg-gray-100/80' : 'bg-zinc-800/50';
+  
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { theme } = useTheme();
   
   const [spot, setSpot] = useState(null);
   const [spotDetails, setSpotDetails] = useState(null);
@@ -634,34 +645,44 @@ const SpotHub = () => {
   const forecast = spotDetails?.forecast || [];
 
   return (
-    <div className="max-w-xl mx-auto pb-4">
-      {/* Header with Close Button */}
-      <div className="sticky top-0 z-20 bg-black/90 backdrop-blur-sm border-b border-zinc-800 px-4 py-3">
-        <div className="flex items-center gap-3">
+    <div className={`max-w-xl mx-auto pb-4 ${isLight ? 'bg-gray-50/50 min-h-screen' : ''}`}>
+      {/* Immersive Hero Header */}
+      <div className="sticky top-0 z-20 overflow-hidden min-h-[140px] flex items-end">
+        <div 
+          className="absolute inset-0 bg-cover bg-center"
+          style={{ backgroundImage: `url(${spot.image_url || `https://static-maps.yandex.ru/1.x/?lang=en_US&ll=${spot.longitude},${spot.latitude}&z=12&l=sat&size=400,300`})` }}
+        />
+        {/* Dark gradient overlay to guarantee text legibility */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-black/20" />
+        
+        {/* Close Button top-right */}
+        <button 
+          onClick={handleClose}
+          className="absolute top-4 right-4 p-2 bg-black/30 hover:bg-black/50 backdrop-blur-md rounded-full transition-colors text-white z-30"
+          data-testid="close-spothub-btn"
+        >
+          <X className="w-5 h-5" />
+        </button>
+
+        {/* Spot Text Info */}
+        <div className="relative z-30 px-4 py-3 w-full flex items-end justify-between">
           <div className="flex-1 min-w-0">
-            <h1 className="font-bold text-lg truncate">{spot.name}</h1>
-            <div className="flex items-center gap-2 text-xs text-gray-400">
-              <MapPin className="w-3 h-3" />
-              <span>{spot.region}</span>
+            <h1 className="font-bold text-2xl truncate text-white drop-shadow-md">{spot.name}</h1>
+            <div className="flex items-center gap-2 text-xs text-gray-200 mt-1">
+              <MapPin className="w-3 h-3 text-cyan-400 drop-shadow-sm" />
+              <span className="drop-shadow-sm font-medium">{spot.region}</span>
               {spot.difficulty && (
-                <Badge variant="outline" className="text-[10px] py-0 px-1">
+                <Badge variant="outline" className="text-[10px] py-0 px-1 border-white/30 text-white bg-black/20 backdrop-blur">
                   {spot.difficulty}
                 </Badge>
               )}
             </div>
           </div>
           {currentConditions && (
-            <Badge className={`${conditionColors[currentConditions.label]?.bg || 'bg-cyan-500'}`}>
+            <Badge className={`${conditionColors[currentConditions.label]?.bg || 'bg-cyan-500'} shadow-lg border-none text-white font-bold ml-2 shrink-0`}>
               {currentConditions.wave_height_ft}ft
             </Badge>
           )}
-          <button 
-            onClick={handleClose}
-            className="p-2 hover:bg-zinc-800 rounded-full transition-colors"
-            data-testid="close-spothub-btn"
-          >
-            <X className="w-5 h-5" />
-          </button>
         </div>
       </div>
 
@@ -750,9 +771,9 @@ const SpotHub = () => {
 
       {/* Active Photographers at this Spot - NOT social live, just working here */}
       {activePhotographers.length > 0 && (
-        <div className="mx-4 mt-3 p-3 bg-zinc-900/80 rounded-xl border border-zinc-800" data-testid="photographers-section">
+        <div className={`mx-4 mt-3 p-3 rounded-xl border backdrop-blur-md ${cardBg}`} data-testid="photographers-section">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-xs text-gray-400 flex items-center gap-1">
+            <span className={`text-xs flex items-center gap-1 ${textSecondary}`}>
               <Camera className="w-3 h-3 text-cyan-400" />
               Photographers at this Spot
             </span>
@@ -775,13 +796,13 @@ const SpotHub = () => {
                 return (
                   <div 
                     key={photographer.id}
-                    className="flex items-center gap-3 p-2 bg-zinc-800/50 rounded-lg opacity-50"
+                    className={`flex items-center gap-3 p-2 rounded-lg opacity-50 ${rowBg}`}
                   >
-                    <div className="w-10 h-10 rounded-full bg-zinc-700 flex items-center justify-center">
+                    <div className="w-10 h-10 rounded-full bg-zinc-700/50 flex items-center justify-center">
                       <Lock className="w-4 h-4 text-purple-400" />
                     </div>
                     <div className="flex-1">
-                      <p className="text-sm text-gray-500">Hidden Photographer</p>
+                      <p className={`text-sm ${textSecondary}`}>Hidden Photographer</p>
                       <p className="text-[10px] text-purple-400">Upgrade to view</p>
                     </div>
                     <Button 
@@ -799,7 +820,7 @@ const SpotHub = () => {
               return (
                 <div 
                   key={photographer.id}
-                  className="flex items-center gap-3 p-2 bg-zinc-800/50 rounded-lg"
+                  className={`flex items-center gap-3 p-2 rounded-lg ${rowBg}`}
                 >
                   <Avatar 
                     className="w-10 h-10 cursor-pointer ring-2 ring-cyan-500"
@@ -809,7 +830,7 @@ const SpotHub = () => {
                     <AvatarFallback className="text-sm">{photographer.full_name?.[0]}</AvatarFallback>
                   </Avatar>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">{photographer.full_name}</p>
+                    <p className={`text-sm font-medium truncate ${textPrimary}`}>{photographer.full_name}</p>
                     <div className="flex items-center gap-2 text-[10px]">
                       <Badge className={`py-0 px-1 ${
                         photographer.role === 'approved_pro' 
@@ -870,9 +891,9 @@ const SpotHub = () => {
 
       {/* Current Conditions Card */}
       {currentConditions && (
-        <div className="mx-4 mt-3 p-3 bg-zinc-900/80 rounded-xl">
+        <div className={`mx-4 mt-3 p-3 rounded-xl border backdrop-blur-md ${cardBg}`}>
           <div className="flex items-center justify-between mb-2">
-            <span className="text-xs text-gray-400 flex items-center gap-1">
+            <span className={`text-xs flex items-center gap-1 ${textSecondary}`}>
               <Sun className="w-3 h-3" />
               Today's Conditions
             </span>
@@ -892,14 +913,19 @@ const SpotHub = () => {
               <p className="text-[10px] text-gray-500">Period</p>
             </div>
             <div className="text-center">
-              <Compass className="w-4 h-4 mx-auto text-emerald-400 mb-0.5" />
-              <p className="text-lg font-bold">{currentConditions.wave_direction || '-'}°</p>
-              <p className="text-[10px] text-gray-500">Direction</p>
+              <div 
+                className="inline-block transition-transform duration-700 ease-in-out" 
+                style={{ transform: `rotate(${currentConditions.wave_direction}deg)` }}
+              >
+                <Compass className="w-4 h-4 mx-auto text-emerald-400 mb-0.5" />
+              </div>
+              <p className={`text-lg font-bold ${textPrimary}`}>{currentConditions.wave_direction || '-'}°</p>
+              <p className={`text-[10px] ${textSecondary}`}>Direction</p>
             </div>
             <div className="text-center">
               <TrendingUp className="w-4 h-4 mx-auto text-purple-400 mb-0.5" />
-              <p className="text-lg font-bold">{currentConditions.swell_height_ft || '-'}ft</p>
-              <p className="text-[10px] text-gray-500">Swell</p>
+              <p className={`text-lg font-bold ${textPrimary}`}>{currentConditions.swell_height_ft || '-'}ft</p>
+              <p className={`text-[10px] ${textSecondary}`}>Swell</p>
             </div>
           </div>
         </div>
@@ -907,9 +933,9 @@ const SpotHub = () => {
 
       {/* Forecast Section - Starts from TOMORROW */}
       {forecast.length > 0 && (
-        <div className="mx-4 mt-3 p-3 bg-zinc-900/80 rounded-xl">
+        <div className={`mx-4 mt-3 p-3 rounded-xl border backdrop-blur-md ${cardBg} mb-4`}>
           <div className="flex items-center justify-between mb-2">
-            <span className="text-xs text-gray-400 flex items-center gap-1">
+            <span className={`text-xs flex items-center gap-1 ${textSecondary}`}>
               <Calendar className="w-3 h-3" />
               {forecastDaysAllowed}-Day Forecast (Tomorrow onwards)
             </span>
