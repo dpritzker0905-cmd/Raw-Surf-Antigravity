@@ -20,6 +20,7 @@ import EmojiPicker from './EmojiPicker';
 import MentionAutocomplete from './MentionAutocomplete';
 import HashtagAutocomplete from './HashtagAutocomplete';
 import logger from '../utils/logger';
+import GoLiveModal from './GoLiveModal';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -41,6 +42,7 @@ export const CreatePost = () => {
   const [showCreateAdModal, setShowCreateAdModal] = useState(false);
   const [showCreateWaveModal, setShowCreateWaveModal] = useState(false);
   const [showVideoInfoModal, setShowVideoInfoModal] = useState(false);
+  const [showGoLiveModal, setShowGoLiveModal] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const photoInputRef = useRef(null);
   const videoInputRef = useRef(null);
@@ -523,7 +525,7 @@ export const CreatePost = () => {
         <input
           ref={cameraInputRef}
           type="file"
-          accept="image/*"
+          accept="image/*,video/*"
           capture="environment"
           onChange={handleFileSelect}
           className="hidden"
@@ -595,10 +597,19 @@ export const CreatePost = () => {
             <Button
               onClick={() => cameraInputRef.current?.click()}
               variant="outline"
-              className="w-full h-12 border-border text-foreground hover:bg-muted"
+              className="w-full h-12 border-border text-foreground hover:bg-muted font-medium"
             >
-              <Camera className="w-5 h-5 mr-2" />
-              Take Photo
+              <Camera className="w-5 h-5 mr-3 text-cyan-500 font-bold" />
+              Capture Photo or Video
+            </Button>
+
+            {/* Go Live Option */}
+            <Button
+              onClick={() => setShowGoLiveModal(true)}
+              className="w-full h-12 bg-red-500 hover:bg-red-600 text-white border-0 font-bold"
+            >
+              <Radio className="w-5 h-5 mr-3 animate-pulse" />
+              Go Live
             </Button>
 
             {/* Create Ad Option */}
@@ -1191,6 +1202,12 @@ export const CreatePost = () => {
           </div>
         </DialogContent>
       </Dialog>
+      
+      {/* Broadcast Launch Modal */}
+      <GoLiveModal 
+        isOpen={showGoLiveModal} 
+        onClose={() => setShowGoLiveModal(false)} 
+      />
     </div>
   );
 };
