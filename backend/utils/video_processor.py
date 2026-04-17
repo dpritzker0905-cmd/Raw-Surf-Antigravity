@@ -234,7 +234,9 @@ def process_video_upload(
         base_name = str(uuid.uuid4())
         ext = Path(filename).suffix.lower() or '.mp4'
         temp_filename = f"{base_name}_temp{ext}"
-        final_filename = f"{base_name}{ext}"
+        
+        # Force MP4 wrapper for universal iOS / Webkit playback security
+        final_filename = f"{base_name}.mp4"
         
         # Create upload directory if needed
         upload_dir.mkdir(parents=True, exist_ok=True)
@@ -260,8 +262,9 @@ def process_video_upload(
             'filename': final_filename
         }
         
-        # Check if transcoding is needed
-        if needs_transcoding(video_info, max_height, max_width):
+        # Check if transcoding is needed (Resolution check OR Container check)
+        is_mp4 = ext == '.mp4'
+        if needs_transcoding(video_info, max_height, max_width) or not is_mp4:
             # Transcode
             success, error = transcode_video(
                 str(temp_path), 
@@ -285,7 +288,7 @@ def process_video_upload(
                 result_data['final_height'] = final_info['height']
                 result_data['size'] = final_info['size']
         else:
-            # No transcoding needed, just rename
+            # Native MP4 at correct resolution, safely migrate to CDN pipeline
             shutil.move(str(temp_path), str(final_path))
             result_data['final_width'] = video_info['width']
             result_data['final_height'] = video_info['height']
