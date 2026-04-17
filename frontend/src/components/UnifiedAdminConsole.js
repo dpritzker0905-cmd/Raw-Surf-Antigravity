@@ -83,6 +83,7 @@ const UnifiedAdminConsole = () => {
   const [activeSessions, setActiveSessions] = useState([]);
   const [forceStartLoading, setForceStartLoading] = useState(false);
   const [forceEndLoading, setForceEndLoading] = useState(null);
+  const [seedingSpots, setSeedingSpots] = useState(false);
   const fileInputRef = useRef(null);
 
   // Site Access Control states
@@ -188,6 +189,77 @@ const UnifiedAdminConsole = () => {
     } catch (error) {
       toast.error('Failed to suspend user');
     }
+  };
+
+  const handleSeedMissingSpots = async () => {
+    if (!user?.is_admin) return;
+    setSeedingSpots(true);
+    let successCount = 0;
+    
+    const missingSpots = [
+      {"name": "Cox Bay", "region": "Tofino", "country": "Canada", "latitude": 49.1023, "longitude": -125.8770, "difficulty": "Intermediate", "wave_type": "Beach Break"},
+      {"name": "Chesterman Beach", "region": "Tofino", "country": "Canada", "latitude": 49.1172, "longitude": -125.8890, "difficulty": "Beginner", "wave_type": "Beach Break"},
+      {"name": "Lawrencetown Beach", "region": "Nova Scotia", "country": "Canada", "latitude": 44.6460, "longitude": -63.3510, "difficulty": "Intermediate", "wave_type": "Beach Break"},
+      {"name": "Martinique Beach", "region": "Nova Scotia", "country": "Canada", "latitude": 44.7070, "longitude": -63.1490, "difficulty": "Intermediate", "wave_type": "Beach Break"},
+      {"name": "Sandvik", "region": "Reykjanes", "country": "Iceland", "latitude": 63.8500, "longitude": -22.7160, "difficulty": "Intermediate", "wave_type": "Beach Break"},
+      {"name": "Thorlasnes", "region": "South Coast", "country": "Iceland", "latitude": 63.8440, "longitude": -22.4280, "difficulty": "Advanced", "wave_type": "Reef Break"},
+      {"name": "Unstad", "region": "Lofoten Islands", "country": "Norway", "latitude": 68.2670, "longitude": 13.5850, "difficulty": "Advanced", "wave_type": "Point Break"},
+      {"name": "Hoddevik", "region": "Stadlandet", "country": "Norway", "latitude": 62.1190, "longitude": 5.1430, "difficulty": "Intermediate", "wave_type": "Beach Break"},
+      {"name": "Playa Grande", "region": "Mar del Plata", "country": "Argentina", "latitude": -38.0330, "longitude": -57.5330, "difficulty": "Intermediate", "wave_type": "Beach Break"},
+      {"name": "Biologia", "region": "Mar del Plata", "country": "Argentina", "latitude": -38.0300, "longitude": -57.5300, "difficulty": "Beginner", "wave_type": "Beach Break"},
+      {"name": "Miramar", "region": "Buenos Aires", "country": "Argentina", "latitude": -38.2830, "longitude": -57.8330, "difficulty": "Intermediate", "wave_type": "Beach Break"},
+      {"name": "La Olla", "region": "Punta del Este", "country": "Uruguay", "latitude": -34.9540, "longitude": -54.9350, "difficulty": "Intermediate", "wave_type": "Beach Break"},
+      {"name": "Playa El Emir", "region": "Punta del Este", "country": "Uruguay", "latitude": -34.9610, "longitude": -54.9380, "difficulty": "Intermediate", "wave_type": "Beach Break"},
+      {"name": "Los Botes", "region": "La Paloma", "country": "Uruguay", "latitude": -34.6620, "longitude": -54.1610, "difficulty": "Intermediate", "wave_type": "Point Break"},
+      {"name": "Santa Iria", "region": "Sao Miguel", "country": "Portugal", "latitude": 37.8180, "longitude": -25.5900, "difficulty": "Intermediate", "wave_type": "Reef Break"},
+      {"name": "Ribeira Grande", "region": "Sao Miguel", "country": "Portugal", "latitude": 37.8220, "longitude": -25.5220, "difficulty": "Intermediate", "wave_type": "Beach Break"},
+      {"name": "Faja da Caldeira", "region": "Sao Jorge", "country": "Portugal", "latitude": 38.6250, "longitude": -27.9300, "difficulty": "Advanced", "wave_type": "Point Break"},
+      {"name": "Jardim do Mar", "region": "Madeira", "country": "Portugal", "latitude": 32.7380, "longitude": -17.2120, "difficulty": "Expert", "wave_type": "Point Break"},
+      {"name": "Paul do Mar", "region": "Madeira", "country": "Portugal", "latitude": 32.7520, "longitude": -17.2340, "difficulty": "Advanced", "wave_type": "Point Break"},
+      {"name": "Ponta Preta", "region": "Sal", "country": "Cape Verde", "latitude": 16.5860, "longitude": -22.9230, "difficulty": "Expert", "wave_type": "Reef Break"},
+      {"name": "Kite Beach", "region": "Sal", "country": "Cape Verde", "latitude": 16.6110, "longitude": -22.8880, "difficulty": "Beginner", "wave_type": "Beach Break"},
+      {"name": "Tamarin Bay", "region": "Black River", "country": "Mauritius", "latitude": -20.3220, "longitude": 57.3730, "difficulty": "Expert", "wave_type": "Reef Break"},
+      {"name": "One Eye", "region": "Le Morne", "country": "Mauritius", "latitude": -20.4630, "longitude": 57.3110, "difficulty": "Expert", "wave_type": "Reef Break"},
+      {"name": "Maconde", "region": "South Coast", "country": "Mauritius", "latitude": -20.4850, "longitude": 57.3820, "difficulty": "Advanced", "wave_type": "Point Break"},
+      {"name": "St. Leu", "region": "West Coast", "country": "Reunion Island", "latitude": -21.1680, "longitude": 55.2820, "difficulty": "Advanced", "wave_type": "Reef Break"},
+      {"name": "Boucan Canot", "region": "West Coast", "country": "Reunion Island", "latitude": -21.0280, "longitude": 55.2260, "difficulty": "Advanced", "wave_type": "Beach Break"},
+      {"name": "Trois Bassins", "region": "West Coast", "country": "Reunion Island", "latitude": -21.1110, "longitude": 55.2590, "difficulty": "Intermediate", "wave_type": "Reef Break"},
+      {"name": "Levanto", "region": "Liguria", "country": "Italy", "latitude": 44.1700, "longitude": 9.6100, "difficulty": "Intermediate", "wave_type": "Beach Break"},
+      {"name": "Buggerru", "region": "Sardinia", "country": "Italy", "latitude": 39.3980, "longitude": 8.3980, "difficulty": "Intermediate", "wave_type": "Beach Break"},
+      {"name": "Varazze", "region": "Liguria", "country": "Italy", "latitude": 44.3580, "longitude": 8.5750, "difficulty": "Advanced", "wave_type": "Reef Break"},
+      {"name": "Cold Hawaii (Klitmoller)", "region": "Jutland", "country": "Denmark", "latitude": 57.0420, "longitude": 8.4750, "difficulty": "Intermediate", "wave_type": "Reef Break"},
+      {"name": "Vorupor", "region": "Nationalpark Thy", "country": "Denmark", "latitude": 56.9550, "longitude": 8.3680, "difficulty": "Intermediate", "wave_type": "Beach Break"},
+      {"name": "Scheveningen", "region": "The Hague", "country": "Netherlands", "latitude": 52.1140, "longitude": 4.2740, "difficulty": "Beginner", "wave_type": "Beach Break"},
+      {"name": "Zandvoort", "region": "North Holland", "country": "Netherlands", "latitude": 52.3780, "longitude": 4.5200, "difficulty": "Beginner", "wave_type": "Beach Break"},
+      {"name": "Eisbach River", "region": "Munich", "country": "Germany", "latitude": 48.1432, "longitude": 11.5878, "difficulty": "Advanced", "wave_type": "River Break"},
+      {"name": "Brandenburger Strand", "region": "Sylt", "country": "Germany", "latitude": 54.9120, "longitude": 8.3120, "difficulty": "Intermediate", "wave_type": "Beach Break"},
+      {"name": "Jungmun Beach", "region": "Jeju Island", "country": "South Korea", "latitude": 33.2430, "longitude": 126.4120, "difficulty": "Intermediate", "wave_type": "Beach Break"},
+      {"name": "Surfyy Beach", "region": "Yangyang", "country": "South Korea", "latitude": 38.0330, "longitude": 128.7280, "difficulty": "Beginner", "wave_type": "Beach Break"},
+      {"name": "Songjeong Beach", "region": "Busan", "country": "South Korea", "latitude": 35.1780, "longitude": 129.2000, "difficulty": "Beginner", "wave_type": "Beach Break"}
+    ];
+
+    toast.loading(`Seeding ${missingSpots.length} missing global spots...`, { id: 'seeding' });
+    
+    for (const spot of missingSpots) {
+      try {
+        await axios.post(
+          `${API}/admin/spots/create`,
+          {
+            ...spot,
+            override_land_warning: true
+          },
+          { params: { admin_id: user.id } }
+        );
+        successCount++;
+      } catch (err) {
+        console.error(`Failed to seed ${spot.name}:`, err);
+      }
+    }
+    
+    toast.dismiss('seeding');
+    toast.success(`Successfully seeded ${successCount}/${missingSpots.length} global spots!`);
+    fetchSessionData(); // Refresh spots list
+    setSeedingSpots(false);
   };
 
   const handleUnsuspend = async (targetUser) => {
@@ -402,14 +474,26 @@ const UnifiedAdminConsole = () => {
             <Shield className="w-5 h-5 text-red-500" />
             Admin Console
           </h1>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => { fetchData(); fetchSessionData(); }}
-            className="text-gray-400"
-          >
-            <RefreshCw className="w-4 h-4" />
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleSeedMissingSpots}
+              disabled={seedingSpots}
+              className="text-emerald-400 border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20 whitespace-nowrap hidden md:flex"
+            >
+              {seedingSpots ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <MapPin className="w-4 h-4 mr-2" />}
+              Seed Global Spots
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => { fetchData(); fetchSessionData(); }}
+              className="text-gray-400"
+            >
+              <RefreshCw className="w-4 h-4" />
+            </Button>
+          </div>
         </div>
         
         {/* Current Persona Banner */}
