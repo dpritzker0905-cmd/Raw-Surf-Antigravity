@@ -241,16 +241,20 @@ const PhotoSelectionQueue = ({ open, onOpenChange, theme = 'dark', onSelectionCo
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className={`${isLight ? 'bg-white' : 'bg-zinc-900'} border ${borderClass} max-w-4xl max-h-[90vh] overflow-y-auto`}>
-        <DialogHeader>
-          <DialogTitle className={`${textPrimaryClass} flex items-center gap-2`}>
-            <Gift className="w-5 h-5 text-green-400" />
-            Select Your Included Photos
-          </DialogTitle>
-          <p className={`text-sm ${textSecondaryClass}`}>
-            Your session includes free photos! Choose your favorites from the shots below.
-          </p>
-        </DialogHeader>
+      <DialogContent className={`${isLight ? 'bg-white' : 'bg-zinc-900'} border ${borderClass} max-w-3xl w-[95vw] sm:w-full p-0 shadow-2xl overflow-hidden rounded-2xl flex flex-col gap-0`}>
+        <div className={`p-6 pb-4 border-b ${isLight ? 'border-gray-100' : 'border-zinc-800/60'}`}>
+          <DialogHeader>
+            <DialogTitle className={`${textPrimaryClass} flex items-center gap-2 text-lg md:text-xl`}>
+              <Gift className="w-5 h-5 md:w-6 md:h-6 text-green-400" />
+              Select Your Included Photos
+            </DialogTitle>
+            <p className={`text-sm ${textSecondaryClass}`}>
+              Your session includes free photos! Choose your favorites from the shots below.
+            </p>
+          </DialogHeader>
+        </div>
+
+        <div className="p-4 md:p-6 overflow-y-auto max-h-[60vh]">
 
         {loading ? (
           <div className="flex items-center justify-center py-16">
@@ -570,33 +574,36 @@ const PhotoSelectionQueue = ({ open, onOpenChange, theme = 'dark', onSelectionCo
             )}
           </div>
         )}
+        </div>
 
-        <DialogFooter className="flex items-center justify-between">
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Close
-          </Button>
-          
-          {selectedQuota && selectedItems.size > 0 && (
-            <Button
-              data-testid="confirm-selection-btn"
-              onClick={handleSubmitSelections}
-              disabled={submitting}
-              className="bg-gradient-to-r from-green-500 to-emerald-500 text-white"
-            >
-              {submitting ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Saving...
-                </>
-              ) : (
-                <>
-                  <Check className="w-4 h-4 mr-2" />
-                  Confirm Selection ({selectedItems.size})
-                </>
-              )}
+        <div className={`p-4 border-t ${isLight ? 'border-gray-100 bg-gray-50' : 'border-zinc-800/60 bg-zinc-900/50'}`}>
+          <DialogFooter className="flex flex-col sm:flex-row items-center justify-between gap-3 w-full">
+            <Button variant="outline" onClick={() => onOpenChange(false)} className="w-full sm:w-auto">
+              Close
             </Button>
-          )}
-        </DialogFooter>
+            
+            {selectedQuota && selectedItems.size > 0 && (
+              <Button
+                data-testid="confirm-selection-btn"
+                onClick={handleSubmitSelections}
+                disabled={submitting}
+                className="w-full sm:w-auto bg-gradient-to-r from-green-500 to-emerald-500 text-white"
+              >
+                {submitting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <Check className="w-4 h-4 mr-2" />
+                    Confirm Selection ({selectedItems.size})
+                  </>
+                )}
+              </Button>
+            )}
+          </DialogFooter>
+        </div>
       </DialogContent>
     </Dialog>
   );
