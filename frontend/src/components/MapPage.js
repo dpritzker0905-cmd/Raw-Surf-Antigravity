@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react'
 import axios from 'axios';
 import { useAuth } from '../contexts/AuthContext';
 import { usePersona } from '../contexts/PersonaContext';
+import { useTheme } from '../contexts/ThemeContext';
 import { MapPin, Camera, Users, ChevronUp, ChevronDown, X, Radio, MessageCircle, Navigation, Loader2, Waves, Lock, Crown, RefreshCw, HelpCircle, Target, Check, Clock } from 'lucide-react';
 import { PermissionNudgeDrawer } from './PermissionNudgeDrawer';
 import { Button } from './ui/button';
@@ -61,6 +62,10 @@ import logger from '../utils/logger';
 const MapPageContent = () => {
   const { user } = useAuth();
   const { getEffectiveRole } = usePersona();
+  const { theme } = useTheme();
+  
+  const isLight = theme === 'light';
+  const mapTilesUrl = isLight ? 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png' : TILE_LAYER_CONFIG.url;
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
   const markersRef = useRef([]);
@@ -614,6 +619,13 @@ const MapPageContent = () => {
     }
   }, [loading]);
 
+  // Dynamically update map tiles when user switches themes without unmounting the map instance
+  useEffect(() => {
+    if (mapInstanceRef.current && mapInstanceRef.current._tileLayer) {
+      mapInstanceRef.current._tileLayer.setUrl(mapTilesUrl);
+    }
+  }, [isLight, mapTilesUrl]);
+
   // Start watching location for continuous accuracy improvements
   // This helps Samsung devices improve GPS accuracy over time
   useEffect(() => {
@@ -924,7 +936,7 @@ const MapPageContent = () => {
           });
           
           // Add tile layer
-          window.L.tileLayer(TILE_LAYER_CONFIG.url, TILE_LAYER_CONFIG.options).addTo(map);
+          window.L.tileLayer(mapTilesUrl, TILE_LAYER_CONFIG.options).addTo(map);
           
           // Add zoom control
           window.L.control.zoom({ position: 'bottomright' }).addTo(map);
@@ -999,7 +1011,7 @@ const MapPageContent = () => {
     }, 100);
     
     // Add dark map tiles
-    const tileLayer = window.L.tileLayer(TILE_LAYER_CONFIG.url, TILE_LAYER_CONFIG.options).addTo(map);
+    const tileLayer = window.L.tileLayer(mapTilesUrl, TILE_LAYER_CONFIG.options).addTo(map);
     map._tileLayer = tileLayer;
     
     // Add zoom control to bottom right
@@ -1523,7 +1535,7 @@ const MapPageContent = () => {
   if (loading) {
     return (
       <div 
-        className="fixed bg-black md:left-[200px] flex items-center justify-center"
+        className={`fixed ${isLight ? 'bg-white' : 'bg-black'} md:left-[200px] flex items-center justify-center`}
         style={{ 
           top: '56px', // Below TopNav
           left: 0, 
@@ -1539,7 +1551,7 @@ const MapPageContent = () => {
 
   return (
     <div 
-      className="fixed bg-black md:left-[200px]"
+      className={`fixed ${isLight ? 'bg-gray-50' : 'bg-black'} md:left-[200px]`}
       style={{ 
         top: '56px', // Below TopNav (TopNav is ~56px height on mobile)
         left: 0, 
