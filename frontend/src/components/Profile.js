@@ -2110,7 +2110,8 @@ export const Profile = () => {
 const MediaGridItem = ({ item, onClick, isPinned = false }) => {
   if (!item) return null;
   
-  const isVideo = item.media_type === 'video';
+  const _checkMediaUrl = item.media_url || item.image_url;
+  const isVideo = item.media_type === 'video' || (_checkMediaUrl && typeof _checkMediaUrl === 'string' && _checkMediaUrl.match(/\.(mp4|webm|ogg|mov)(\?.*)?$/i));
   const isNew = item.is_new;
   const hasMedia = item.media_url || item.thumbnail_url || (item.media_urls && item.media_urls.length > 0);
   const isCheckIn = item.is_check_in;

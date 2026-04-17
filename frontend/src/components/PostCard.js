@@ -610,6 +610,11 @@ const PostCard = ({
   onFollowFromFeed,
   onImageClick  // Opens Instagram-style modal
 }) => {
+  if (!post) return null;
+
+  const _checkMediaUrl = post.media_url || post.image_url;
+  const isVideoItem = post.media_type === 'video' || (_checkMediaUrl && typeof _checkMediaUrl === 'string' && _checkMediaUrl.match(/\.(mp4|webm|ogg|mov)(\?.*)?$/i));
+
   const navigate = useNavigate();
   
   // Who Reacted Modal state
@@ -774,7 +779,7 @@ const PostCard = ({
         onClick={() => onImageClick && onImageClick(post)}
         data-testid={`post-image-container-${post.id}`}
       >
-        {post.media_type === 'video' ? (
+        {isVideoItem ? (
           <video
             src={post.media_url}
             poster={post.thumbnail_url}
@@ -793,7 +798,7 @@ const PostCard = ({
             draggable="false"
           />
         )}
-        {post.media_type === 'video' && (
+        {isVideoItem && (
           <div className="absolute top-2 right-2 bg-black/60 px-2 py-1 rounded text-xs text-white flex items-center gap-1">
             <Play className="w-3 h-3" />
             {post.video_duration ? `${Math.round(post.video_duration)}s` : 'Video'}
