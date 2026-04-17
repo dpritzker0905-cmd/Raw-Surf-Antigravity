@@ -5,7 +5,7 @@ import axios from 'axios';
 import { 
   Bell, BellRing, Plus, Trash2, MapPin, Waves, Loader2, X, Check, BellOff,
   Search, Target, Clock, Sun, Sunrise, Sunset, Moon, Share2, Copy, 
-  ChevronDown, ChevronUp, Droplets, ArrowUp, ArrowDown, Minus, Pencil
+  ChevronDown, ChevronUp, Droplets, ArrowUp, ArrowDown, Minus, Pencil, Settings
 } from 'lucide-react';
 import { Button } from './ui/button';
 import { Card, CardContent } from './ui/card';
