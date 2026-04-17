@@ -1120,12 +1120,14 @@ const MessageBubble = ({ message, onReact, onReply }) => {
       );
     }
     if ((message.message_type === 'video' || message.message_type === 'ephemeral_video') && mediaUrl) {
-      const isEphemeral = message.message_type === 'ephemeral_video';
+      // Force ALL chat videos mapped uniformly visually natively supporting the 24h countdown.
+      const isEphemeral = true;
       
       let timeLeftText = '';
-      if (isEphemeral && message.created_at) {
-        // Create an active visual ticker bounding 24 hr limit
-        const diff = (24 * 60 * 60 * 1000) - (Date.now() - new Date(message.created_at).getTime());
+      if (isEphemeral) {
+        // Fallback local date tracking
+        const startTime = message.created_at ? new Date(message.created_at).getTime() : Date.now();
+        const diff = (24 * 60 * 60 * 1000) - (Date.now() - startTime);
         if (diff > 0) {
           const h = Math.floor(diff / (1000 * 60 * 60));
           const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
@@ -1149,7 +1151,7 @@ const MessageBubble = ({ message, onReact, onReply }) => {
             controlsList="nodownload noplaybackrate noremoteplayback"
             disablePictureInPicture
             onContextMenu={(e) => e.preventDefault()}
-            className={`max-w-full rounded-lg ${isEphemeral ? 'border-2 border-red-500/30' : ''}`}
+            className={`max-w-full rounded-lg border-2 border-red-500/30`}
           />
         </div>
       );
@@ -1982,10 +1984,15 @@ export const MessagesPage = () => {
     formData.append('conversation_id', selectedConversation.id || '');
     formData.append('sender_id', user.id);
     formData.append('recipient_id', selectedConversation.other_user_id);
+    
+    // Automatically force ALL video uploads inside DM's to map to ephemeral securely
+    if (file.type.startsWith('video/')) {
+      formData.append('message_type_override', 'ephemeral_video');
+    }
 
     try {
       await axios.post(`${API}/messages/media`, formData, { headers: { 'Content-Type': 'multipart/form-data' } });
-      toast.success('Media sent!');
+      toast.success(file.type.startsWith('video/') ? 'Disappearing video sent!' : 'Media sent!');
       if (selectedConversation.id) fetchConversationDetail(selectedConversation.id);
       fetchConversations();
     } catch (error) {
