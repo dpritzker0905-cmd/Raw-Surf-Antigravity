@@ -13,8 +13,6 @@ import { useTheme } from '../contexts/ThemeContext';
 import axios from 'axios';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
-
-// LiveKit imports
 import {
   LiveKitRoom,
   VideoTrack,
@@ -23,6 +21,7 @@ import {
   RoomAudioRenderer,
   useConnectionState,
 } from '@livekit/components-react';
+import { WebGLBroadcastController } from './WebGLBroadcastController';
 import '@livekit/components-styles';
 import { Track, ConnectionState } from 'livekit-client';
 import logger from '../utils/logger';
@@ -184,7 +183,7 @@ const VideoFilterPanel = ({ isOpen, onClose, filters, onFilterChange, onPresetSe
             return (
               <button
                 key={preset.name}
-                onClick={() => onPresetSelect(preset.values)}
+                onClick={() => onPresetSelect(preset)}
                 className={`flex flex-col items-center gap-1 p-2 rounded-lg ${colors.buttonBg} hover:scale-105 transition-transform`}
                 title={preset.description}
               >
@@ -712,10 +711,13 @@ const BroadcasterControls = ({
     setVideoFilters(prev => ({ ...prev, [filter]: value }));
   }, []);
 
-  // Apply preset filter values
-  const handlePresetSelect = useCallback((presetValues) => {
-    setVideoFilters(presetValues);
-    toast.success('Filter preset applied!');
+  // Apply preset filter values mapping directly to WebGL state string bounds
+  const handlePresetSelect = useCallback((preset) => {
+    setVideoFilters({
+      ...preset.values,
+      presetName: preset.name
+    });
+    toast.success('AI Filter applied!');
   }, []);
 
   // Handle comment likes
@@ -835,11 +837,12 @@ const BroadcasterControls = ({
       <div className="flex-1 relative bg-black flex flex-col min-w-0">
         {/* Actual Video */}
         <div className="flex-1 relative overflow-hidden">
-          {localVideoTrack && !isCameraOff ? (
+          {!isCameraOff ? (
             <div ref={videoRef} className="w-full h-full relative" style={videoFilterStyle}>
-              <VideoTrack 
-                trackRef={localVideoTrack} 
-                className={`w-full h-full object-cover ${isFrontCamera ? 'scale-x-[-1]' : ''}`}
+              <WebGLBroadcastController 
+                activeFilter={videoFilters.presetName || 'none'}
+                isCameraOff={isCameraOff}
+                isFrontCamera={isFrontCamera}
               />
               {/* Vignette overlay */}
               {vignetteStyle && <div style={vignetteStyle} />}
@@ -1235,7 +1238,7 @@ const GoLiveModal = ({ isOpen, onClose, onStreamEnded }) => {
           <LiveKitRoom
             token={broadcasterToken.token}
             serverUrl={broadcasterToken.server_url}
-            video={true}
+            video={false}
             audio={true}
             connect={true}
             onConnected={() => setIsConnected(true)}
