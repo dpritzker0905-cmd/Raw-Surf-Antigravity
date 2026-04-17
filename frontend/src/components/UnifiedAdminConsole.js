@@ -390,11 +390,11 @@ const UnifiedAdminConsole = () => {
   return (
     <div className={`min-h-screen ${bgClass} pb-20`} data-testid="unified-admin-console">
       {/* Header */}
-      <div className="sticky top-0 z-10 bg-black/90 backdrop-blur-lg border-b border-zinc-800">
+      <div className={`sticky top-0 z-10 ${isLight ? 'bg-white/90 border-b border-gray-200' : 'bg-black/90 border-b border-zinc-800'} backdrop-blur-lg`}>
         <div className="flex items-center justify-between p-4">
           <button 
             onClick={() => navigate(-1)}
-            className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors"
+            className={`flex items-center gap-2 ${isLight ? 'text-gray-500 hover:text-black' : 'text-gray-400 hover:text-white'} transition-colors`}
           >
             <ArrowLeft className="w-5 h-5" />
             Back
@@ -408,7 +408,7 @@ const UnifiedAdminConsole = () => {
               variant="ghost"
               size="sm"
               onClick={() => { fetchData(); fetchSessionData(); }}
-              className="text-gray-400"
+              className={`${isLight ? 'text-gray-500 hover:text-black hover:bg-gray-100' : 'text-gray-400 hover:text-white hover:bg-zinc-800'}`}
             >
               <RefreshCw className="w-4 h-4" />
             </Button>
@@ -439,17 +439,17 @@ const UnifiedAdminConsole = () => {
         )}
         
         {/* Tabs - Horizontally scrollable with scroll buttons */}
-        <div className="relative group">
+        <div className="relative group border-b border-transparent">
           {/* Left scroll button */}
           <button 
             onClick={() => {
               const container = document.getElementById('admin-tabs-container');
               if (container) container.scrollBy({ left: -200, behavior: 'smooth' });
             }}
-            className="absolute left-0 top-0 bottom-0 w-10 bg-gradient-to-r from-black via-black/80 to-transparent z-20 flex items-center justify-start pl-1 opacity-70 hover:opacity-100 transition-opacity"
+            className={`absolute left-0 top-0 bottom-0 w-10 bg-gradient-to-r ${isLight ? 'from-white via-white/80' : 'from-black via-black/80'} to-transparent z-20 flex items-center justify-start pl-1 opacity-70 hover:opacity-100 transition-opacity`}
             aria-label="Scroll left"
           >
-            <ChevronLeft className="w-5 h-5 text-white" />
+            <ChevronLeft className={`w-5 h-5 ${isLight ? 'text-black' : 'text-white'}`} />
           </button>
           
           {/* Right scroll button */}
@@ -458,10 +458,10 @@ const UnifiedAdminConsole = () => {
               const container = document.getElementById('admin-tabs-container');
               if (container) container.scrollBy({ left: 200, behavior: 'smooth' });
             }}
-            className="absolute right-0 top-0 bottom-0 w-10 bg-gradient-to-l from-black via-black/80 to-transparent z-20 flex items-center justify-end pr-1 opacity-70 hover:opacity-100 transition-opacity"
+            className={`absolute right-0 top-0 bottom-0 w-10 bg-gradient-to-l ${isLight ? 'from-white via-white/80' : 'from-black via-black/80'} to-transparent z-20 flex items-center justify-end pr-1 opacity-70 hover:opacity-100 transition-opacity`}
             aria-label="Scroll right"
           >
-            <ChevronRight className="w-5 h-5 text-white" />
+            <ChevronRight className={`w-5 h-5 ${isLight ? 'text-black' : 'text-white'}`} />
           </button>
           
           <div 
@@ -479,7 +479,9 @@ const UnifiedAdminConsole = () => {
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium whitespace-nowrap transition-colors flex-shrink-0 ${
                     isActive
                       ? 'bg-red-500 text-white'
-                      : 'bg-zinc-800/50 text-gray-400 hover:text-white hover:bg-zinc-800'
+                      : isLight 
+                        ? 'bg-gray-100 text-gray-500 hover:text-black hover:bg-gray-200' 
+                        : 'bg-zinc-800/50 text-gray-400 hover:text-white hover:bg-zinc-800'
                   }`}
                 data-testid={`admin-tab-${tab.id}`}
               >
@@ -512,9 +514,9 @@ const UnifiedAdminConsole = () => {
               <CardContent>
                 <div className="grid grid-cols-2 gap-2">
                   {stats.users?.by_role && Object.entries(stats.users.by_role).map(([role, count]) => (
-                    <div key={role} className="bg-zinc-800/50 rounded-lg p-2">
-                      <p className="text-gray-400 text-xs capitalize">{role.replace(/_/g, ' ')}</p>
-                      <p className="text-white font-bold">{count}</p>
+                    <div key={role} className={`${isLight ? 'bg-gray-100' : 'bg-zinc-800/50'} rounded-lg p-2`}>
+                      <p className={`${textSecondary} text-xs capitalize`}>{role.replace(/_/g, ' ')}</p>
+                      <p className={`${textClass} font-bold`}>{count}</p>
                     </div>
                   ))}
                 </div>
@@ -527,16 +529,16 @@ const UnifiedAdminConsole = () => {
                 <CardTitle className={`${textClass} text-sm`}>Quick Navigation</CardTitle>
               </CardHeader>
               <CardContent className="grid grid-cols-2 gap-2">
-                <Button variant="outline" size="sm" onClick={() => navigate('/map')} className="border-zinc-700">
+                <Button variant="outline" size="sm" onClick={() => navigate('/map')} className={isLight ? 'border-gray-200 hover:bg-gray-100' : 'border-zinc-700'}>
                   Test Map
                 </Button>
-                <Button variant="outline" size="sm" onClick={() => navigate('/bookings')} className="border-zinc-700">
+                <Button variant="outline" size="sm" onClick={() => navigate('/bookings')} className={isLight ? 'border-gray-200 hover:bg-gray-100' : 'border-zinc-700'}>
                   Test Bookings
                 </Button>
-                <Button variant="outline" size="sm" onClick={() => navigate('/gallery')} className="border-zinc-700">
+                <Button variant="outline" size="sm" onClick={() => navigate('/gallery')} className={isLight ? 'border-gray-200 hover:bg-gray-100' : 'border-zinc-700'}>
                   Test Gallery
                 </Button>
-                <Button variant="outline" size="sm" onClick={() => navigate('/profile')} className="border-zinc-700">
+                <Button variant="outline" size="sm" onClick={() => navigate('/profile')} className={isLight ? 'border-gray-200 hover:bg-gray-100' : 'border-zinc-700'}>
                   Test Profile
                 </Button>
               </CardContent>
