@@ -501,18 +501,19 @@ export const Profile = () => {
     setTabLoading(true);
     try {
       let endpoint = '';
+      const qs = user?.id ? `?viewer_id=${user.id}` : '';
       switch (tab) {
         case 'posts':
-          endpoint = `/profile/${profileUserId}/posts`;
+          endpoint = `/profile/${profileUserId}/posts${qs}`;
           break;
         case 'photos':
-          endpoint = `/profile/${profileUserId}/photos`;
+          endpoint = `/profile/${profileUserId}/photos${qs}`;
           break;
         case 'session_shots':
-          endpoint = `/profile/${profileUserId}/session-shots`;
+          endpoint = `/profile/${profileUserId}/session-shots${qs}`;
           break;
         case 'videos':
-          endpoint = `/profile/${profileUserId}/videos`;
+          endpoint = `/profile/${profileUserId}/videos${qs}`;
           break;
         case 'saved':
           // Only show saved tab for own profile
@@ -521,13 +522,13 @@ export const Profile = () => {
             setTabLoading(false);
             return;
           }
-          endpoint = `/profile/${profileUserId}/saved`;
+          endpoint = `/profile/${profileUserId}/saved${qs}`;
           break;
         case 'tagged':
-          endpoint = `/profile/${profileUserId}/tagged`;
+          endpoint = `/profile/${profileUserId}/tagged${qs}`;
           break;
         default:
-          endpoint = `/profile/${profileUserId}/posts`;
+          endpoint = `/profile/${profileUserId}/posts${qs}`;
       }
       const response = await axios.get(`${API}${endpoint}`);
       // Handle both array and object responses (tagged returns {items, new_count})

@@ -31,13 +31,19 @@ router = APIRouter()
 @router.get("/profile/{user_id}/posts")
 async def get_user_posts(
     user_id: str,
+    viewer_id: Optional[str] = None,
     limit: int = 30,
     offset: int = 0,
     db: AsyncSession = Depends(get_db)
 ):
     """Get user's own posts for their profile grid"""
+    from models import PostReaction, PostLike
     result = await db.execute(
         select(Post)
+        .options(
+            selectinload(Post.reactions).selectinload(PostReaction.user),
+            selectinload(Post.comments)
+        )
         .where(Post.author_id == user_id)
         .order_by(Post.created_at.desc())
         .offset(offset)
@@ -45,15 +51,36 @@ async def get_user_posts(
     )
     posts = result.scalars().all()
     
+    liked_post_ids = set()
+    if viewer_id:
+        liked_result = await db.execute(
+            select(PostLike.post_id)
+            .where(PostLike.user_id == viewer_id)
+            .where(PostLike.post_id.in_([p.id for p in posts]))
+        )
+        liked_post_ids = set(liked_result.scalars().all())
+    
     return [{
         "id": p.id,
         "media_url": p.media_url,
         "media_type": p.media_type or 'image',
         "thumbnail_url": p.thumbnail_url,
         "caption": p.caption,
-        "likes_count": p.likes_count,
+        "likes_count": p.likes_count or 0,
+        "comments_count": getattr(p, 'comments_count', 0) or len(p.comments) or 0,
         "video_duration": p.video_duration,
-        "created_at": p.created_at.isoformat()
+        "created_at": p.created_at.isoformat(),
+        "liked": p.id in liked_post_ids,
+        "is_liked_by_user": p.id in liked_post_ids,
+        "reactions": [
+            {
+                "emoji": r.emoji,
+                "user_id": r.user_id,
+                "user_name": r.user.full_name if getattr(r, 'user', None) else None,
+                "avatar_url": r.user.avatar_url if getattr(r, 'user', None) else None,
+                "user_role": r.user.role if getattr(r, 'user', None) else None
+            } for r in p.reactions
+        ]
     } for p in posts]
 
 
@@ -183,13 +210,19 @@ async def get_session_shots(
 @router.get("/profile/{user_id}/videos")
 async def get_user_videos(
     user_id: str,
+    viewer_id: Optional[str] = None,
     limit: int = 30,
     offset: int = 0,
     db: AsyncSession = Depends(get_db)
 ):
     """Get user's video posts only"""
+    from models import PostReaction, PostLike
     result = await db.execute(
         select(Post)
+        .options(
+            selectinload(Post.reactions).selectinload(PostReaction.user),
+            selectinload(Post.comments)
+        )
         .where(Post.author_id == user_id)
         .where(Post.media_type == 'video')
         .order_by(Post.created_at.desc())
@@ -198,16 +231,37 @@ async def get_user_videos(
     )
     posts = result.scalars().all()
     
+    liked_post_ids = set()
+    if viewer_id:
+        liked_result = await db.execute(
+            select(PostLike.post_id)
+            .where(PostLike.user_id == viewer_id)
+            .where(PostLike.post_id.in_([p.id for p in posts]))
+        )
+        liked_post_ids = set(liked_result.scalars().all())
+    
     return [{
         "id": p.id,
         "media_url": p.media_url,
         "thumbnail_url": p.thumbnail_url,
         "caption": p.caption,
-        "likes_count": p.likes_count,
+        "likes_count": p.likes_count or 0,
+        "comments_count": getattr(p, 'comments_count', 0) or len(p.comments) or 0,
         "video_duration": p.video_duration,
         "video_width": p.video_width,
         "video_height": p.video_height,
-        "created_at": p.created_at.isoformat()
+        "created_at": p.created_at.isoformat(),
+        "liked": p.id in liked_post_ids,
+        "is_liked_by_user": p.id in liked_post_ids,
+        "reactions": [
+            {
+                "emoji": r.emoji,
+                "user_id": r.user_id,
+                "user_name": r.user.full_name if getattr(r, 'user', None) else None,
+                "avatar_url": r.user.avatar_url if getattr(r, 'user', None) else None,
+                "user_role": r.user.role if getattr(r, 'user', None) else None
+            } for r in p.reactions
+        ]
     } for p in posts]
 
 
@@ -216,13 +270,19 @@ async def get_user_videos(
 @router.get("/profile/{user_id}/photos")
 async def get_user_photos(
     user_id: str,
+    viewer_id: Optional[str] = None,
     limit: int = 30,
     offset: int = 0,
     db: AsyncSession = Depends(get_db)
 ):
     """Get user's photo posts only (excludes videos)"""
+    from models import PostReaction, PostLike
     result = await db.execute(
         select(Post)
+        .options(
+            selectinload(Post.reactions).selectinload(PostReaction.user),
+            selectinload(Post.comments)
+        )
         .where(Post.author_id == user_id)
         .where(Post.media_type == 'image')
         .order_by(Post.created_at.desc())
@@ -231,13 +291,34 @@ async def get_user_photos(
     )
     posts = result.scalars().all()
     
+    liked_post_ids = set()
+    if viewer_id:
+        liked_result = await db.execute(
+            select(PostLike.post_id)
+            .where(PostLike.user_id == viewer_id)
+            .where(PostLike.post_id.in_([p.id for p in posts]))
+        )
+        liked_post_ids = set(liked_result.scalars().all())
+    
     return [{
         "id": p.id,
         "media_url": p.media_url,
         "thumbnail_url": p.thumbnail_url,
         "caption": p.caption,
-        "likes_count": p.likes_count,
-        "created_at": p.created_at.isoformat()
+        "likes_count": p.likes_count or 0,
+        "comments_count": getattr(p, 'comments_count', 0) or len(p.comments) or 0,
+        "created_at": p.created_at.isoformat(),
+        "liked": p.id in liked_post_ids,
+        "is_liked_by_user": p.id in liked_post_ids,
+        "reactions": [
+            {
+                "emoji": r.emoji,
+                "user_id": r.user_id,
+                "user_name": r.user.full_name if getattr(r, 'user', None) else None,
+                "avatar_url": r.user.avatar_url if getattr(r, 'user', None) else None,
+                "user_role": r.user.role if getattr(r, 'user', None) else None
+            } for r in p.reactions
+        ]
     } for p in posts]
 
 
@@ -246,20 +327,39 @@ async def get_user_photos(
 @router.get("/profile/{user_id}/saved")
 async def get_saved_posts(
     user_id: str,
+    viewer_id: Optional[str] = None,
     limit: int = 30,
     offset: int = 0,
     db: AsyncSession = Depends(get_db)
 ):
     """Get user's saved/bookmarked posts"""
+    from models import PostReaction, PostLike
     result = await db.execute(
         select(SavedPost)
         .where(SavedPost.user_id == user_id)
-        .options(selectinload(SavedPost.post).selectinload(Post.author))
+        .options(
+            selectinload(SavedPost.post).selectinload(Post.author),
+            selectinload(SavedPost.post).selectinload(Post.reactions).selectinload(PostReaction.user),
+            selectinload(SavedPost.post).selectinload(Post.comments)
+        )
         .order_by(SavedPost.created_at.desc())
         .offset(offset)
         .limit(limit)
     )
     saved = result.scalars().all()
+    
+    # We use user_id or viewer_id for liked posts query
+    eval_id = viewer_id or user_id
+    liked_post_ids = set()
+    if eval_id:
+        post_ids = [s.post.id for s in saved if s.post]
+        if post_ids:
+            liked_result = await db.execute(
+                select(PostLike.post_id)
+                .where(PostLike.user_id == eval_id)
+                .where(PostLike.post_id.in_(post_ids))
+            )
+            liked_post_ids = set(liked_result.scalars().all())
     
     return [{
         "id": s.id,
@@ -270,11 +370,23 @@ async def get_saved_posts(
             "media_type": s.post.media_type or 'image',
             "thumbnail_url": s.post.thumbnail_url,
             "caption": s.post.caption,
-            "likes_count": s.post.likes_count,
-            "author_name": s.post.author.full_name if s.post.author else None,
-            "author_avatar": s.post.author.avatar_url if s.post.author else None,
+            "likes_count": s.post.likes_count or 0,
+            "comments_count": getattr(s.post, 'comments_count', 0) or len(s.post.comments) or 0,
+            "author_name": s.post.author.full_name if getattr(s.post, 'author', None) else None,
+            "author_avatar": s.post.author.avatar_url if getattr(s.post, 'author', None) else None,
             "video_duration": s.post.video_duration,
-            "created_at": s.post.created_at.isoformat()
+            "created_at": s.post.created_at.isoformat(),
+            "liked": s.post.id in liked_post_ids,
+            "is_liked_by_user": s.post.id in liked_post_ids,
+            "reactions": [
+                {
+                    "emoji": r.emoji,
+                    "user_id": r.user_id,
+                    "user_name": r.user.full_name if getattr(r, 'user', None) else None,
+                    "avatar_url": r.user.avatar_url if getattr(r, 'user', None) else None,
+                    "user_role": r.user.role if getattr(r, 'user', None) else None
+                } for r in s.post.reactions
+            ]
         }
     } for s in saved if s.post]
 

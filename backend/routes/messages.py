@@ -1448,8 +1448,9 @@ async def upload_voice_note(
 @router.post("/messages/media")
 async def upload_message_media(
     file: UploadFile = File(...),
-    conversation_id: str = Form(...),
     sender_id: str = Form(...),
+    recipient_id: str = Form(default=""),
+    conversation_id: str = Form(default=""),
     caption: str = Form(default=""),
     reply_to_id: Optional[str] = Form(default=None),
     message_type_override: Optional[str] = Form(default=None),
@@ -1457,15 +1458,18 @@ async def upload_message_media(
 ):
     """Upload photo/video media to a conversation"""
     
-    # Verify conversation exists and sender is participant
-    result = await db.execute(select(Conversation).where(Conversation.id == conversation_id))
-    conversation = result.scalar_one_or_none()
-    
-    if not conversation:
-        raise HTTPException(status_code=404, detail="Conversation not found")
-    
-    if sender_id not in [conversation.participant_one_id, conversation.participant_two_id]:
-        raise HTTPException(status_code=403, detail="Not a participant in this conversation")
+    # If starting a new chat via media upload, create the conversation first
+    if not conversation_id and recipient_id:
+        conversation, _ = await get_or_create_conversation(sender_id, recipient_id, db)
+    else:
+        # Verify conversation exists and sender is participant
+        result = await db.execute(select(Conversation).where(Conversation.id == conversation_id))
+        conversation = result.scalar_one_or_none()
+        
+        if not conversation:
+            raise HTTPException(status_code=404, detail="Conversation not found")
+        if sender_id not in [conversation.participant_one_id, conversation.participant_two_id]:
+            raise HTTPException(status_code=403, detail="Not a participant in this conversation")
     
     # Determine media type from file or override
     content_type = file.content_type or ""
