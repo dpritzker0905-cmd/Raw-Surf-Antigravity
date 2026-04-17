@@ -2605,7 +2605,7 @@ const AdminSpotsPanel = ({ userId }) => {
     setImportLoading(true);
     try {
       const response = await axios.post(
-        `${API}/admin/spots/import?admin_id=${userId}&tier=${importTier}&include_osm=${includeOSM}`
+        `${API}/admin/spots/import?admin_id=${user.id}&tier=${importTier}&include_osm=${includeOSM}`
       );
       toast.success(`Imported ${response.data.total_imported} spots (${response.data.tier_name})`);
       setShowImportDialog(false);
@@ -2620,7 +2620,7 @@ const AdminSpotsPanel = ({ userId }) => {
 
   const handleUpdateSpot = async (spotId, updates) => {
     try {
-      await axios.put(`${API}/admin/spots/${spotId}?admin_id=${userId}`, null, { params: updates });
+      await axios.put(`${API}/admin/spots/${spotId}?admin_id=${user.id}`, null, { params: updates });
       toast.success('Spot updated');
       setEditingSpot(null);
       fetchSpots();
@@ -2632,7 +2632,7 @@ const AdminSpotsPanel = ({ userId }) => {
   const handleDeleteSpot = async (spotId, spotName) => {
     if (!window.confirm(`Delete "${spotName}"? This cannot be undone.`)) return;
     try {
-      await axios.delete(`${API}/admin/spots/${spotId}?admin_id=${userId}`);
+      await axios.delete(`${API}/admin/spots/${spotId}?admin_id=${user.id}`);
       toast.success('Spot deleted');
       fetchSpots();
       fetchStats();
