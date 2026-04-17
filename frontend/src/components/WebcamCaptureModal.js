@@ -20,10 +20,24 @@ export default function WebcamCaptureModal({ isOpen, onClose, onCapture }) {
         stream.getTracks().forEach(track => track.stop());
       }
       
-      const newStream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode },
-        audio: true
-      });
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error('Camera API not accessible in this context. Use HTTPS or check hardware constraints.');
+      }
+
+      let newStream;
+      try {
+        // First try requesting both with flexible ideal mapping to avoid hardware constraint crashes
+        newStream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { ideal: facingMode } },
+          audio: true
+        });
+      } catch (audioErr) {
+        console.warn("Audio/Video simultaneous hook failed, falling back to Video only.", audioErr);
+        // Fallback for strict mobile webKit contexts blocking audio requests without strict touch interactions
+        newStream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { ideal: facingMode } }
+        });
+      }
       
       setStream(newStream);
       if (videoRef.current) {
