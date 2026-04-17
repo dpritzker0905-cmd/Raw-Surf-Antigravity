@@ -3,7 +3,7 @@ import {
   Radio, Clock, Mic, MicOff, Camera, CameraOff, Loader2, AlertTriangle,
   RefreshCw, MessageCircle, Heart, Send, X, Sparkles, Sun, Contrast,
   Share2, Eye, Wifi, WifiOff, ChevronUp, ChevronDown, Droplets, Thermometer,
-  CircleDot, Sunset, Waves, Film, RotateCcw, Power
+  CircleDot, Sunset, Waves, Film, RotateCcw, Power, Zap, Moon
 } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -130,25 +130,31 @@ const getThemeColors = (theme) => {
 const VideoFilterPanel = ({ isOpen, onClose, filters, onFilterChange, onPresetSelect, colors }) => {
   if (!isOpen) return null;
   
-  // Surfer-specific filter presets
+  // Surfer-specific AI Filter presets
   const presets = [
     { 
       name: 'Golden Hour', 
       icon: Sunset,
-      values: { brightness: 105, contrast: 110, saturation: 120, warmth: 130, vignette: 20 },
+      values: { brightness: 105, contrast: 110, saturation: 120, warmth: 120, vignette: 20 },
       description: 'Warm sunset vibes'
     },
     { 
-      name: 'Ocean Blue', 
+      name: 'AI Pipeline', 
       icon: Waves,
-      values: { brightness: 100, contrast: 115, saturation: 130, warmth: 85, vignette: 10 },
-      description: 'Enhanced ocean colors'
+      values: { brightness: 90, contrast: 130, saturation: 90, warmth: 110, vignette: 40 },
+      description: 'Deep barrel shadows'
     },
     { 
-      name: 'Surf Film', 
-      icon: Film,
-      values: { brightness: 95, contrast: 120, saturation: 90, warmth: 105, vignette: 30 },
-      description: 'Classic surf movie look'
+      name: 'AI Bio-Lum', 
+      icon: Moon,
+      values: { brightness: 85, contrast: 140, saturation: 150, warmth: 160, vignette: 30 },
+      description: 'Neon glowing night surf'
+    },
+    { 
+      name: 'AI Cyber-Surf', 
+      icon: Zap,
+      values: { brightness: 110, contrast: 125, saturation: 140, warmth: 40, vignette: 0 },
+      description: 'Hyper-performance cold lens'
     },
   ];
   
@@ -799,8 +805,12 @@ const BroadcasterControls = ({
 
   // CSS filter styles for video - includes all surfer-specific filters
   const videoFilterStyle = useMemo(() => {
-    // Calculate warmth as hue-rotate (warmth > 100 = warmer/more yellow-orange, < 100 = cooler/bluer)
-    const warmthDegrees = (videoFilters.warmth - 100) * 0.3; // Subtle effect
+    // Calculate AI mapping: warmth controls hue-rotate shift aggressively
+    let warmthDegrees = (videoFilters.warmth - 100) * 0.8;
+    
+    // Extreme overrides for AI Lenses (if warmth is pushed to max/min limits, it triggers hyper-neon shifts)
+    if (videoFilters.warmth >= 150) warmthDegrees = 300; // Neon blue/purple (AI Bioluminescence)
+    if (videoFilters.warmth <= 50) warmthDegrees = 180; // Negative inversion vibe (Cyber)
     
     return {
       filter: `brightness(${videoFilters.brightness}%) contrast(${videoFilters.contrast}%) saturate(${videoFilters.saturation}%) hue-rotate(${warmthDegrees}deg)`,
@@ -929,7 +939,7 @@ const BroadcasterControls = ({
           </AnimatePresence>
           
           {/* Reaction Overlay */}
-          <div className="absolute bottom-16 left-4 z-10">
+          <div className="absolute bottom-[84px] left-4 z-10">
             <QuickReactions onReact={handleReaction} colors={colors} />
           </div>
 
@@ -1001,7 +1011,7 @@ const BroadcasterControls = ({
       </AnimatePresence>
 
       {/* Mobile-only overlay elements */}
-      <div className="sm:hidden absolute bottom-24 left-3 right-3 z-30 pointer-events-none">
+      <div className="sm:hidden absolute bottom-[140px] left-3 right-3 z-30 pointer-events-none">
         {showComments && (
           <div className="pointer-events-auto">
             <LiveCommentsFeed
