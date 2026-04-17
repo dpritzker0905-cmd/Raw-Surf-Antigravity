@@ -622,7 +622,14 @@ const PostCard = ({
   const programmaticTarget = useRef(false);
   const [userManuallyPaused, setUserManuallyPaused] = useState(false);
 
-  const _checkMediaUrl = post?.media_url || post?.image_url;
+  // Helper to ensure media paths map to backend directly natively preventing Netlify 404 traps
+  const getFullUrl = (url) => {
+    if (!url) return url;
+    if (url.startsWith('http')) return url;
+    return `${process.env.REACT_APP_BACKEND_URL || ''}${url}`;
+  };
+
+  const _checkMediaUrl = getFullUrl(post?.media_url || post?.image_url);
   const isVideoItem = post?.media_type === 'video' || (typeof _checkMediaUrl === 'string' && _checkMediaUrl.match(/\.(mp4|webm|ogg|mov)(\?.*)?$/i));
 
   useEffect(() => {
@@ -821,8 +828,8 @@ const PostCard = ({
         {isVideoItem ? (
           <video
             ref={videoRef}
-            src={post.media_url}
-            poster={post.thumbnail_url}
+            src={getFullUrl(post.media_url)}
+            poster={getFullUrl(post.thumbnail_url)}
             controls
             className="w-full h-full object-cover"
             playsInline
@@ -839,7 +846,7 @@ const PostCard = ({
           />
         ) : (
           <img
-            src={post.media_url || post.image_url}
+            src={getFullUrl(post.media_url || post.image_url)}
             alt={post.caption || 'Surf photo'}
             className="w-full h-full object-cover"
             loading="lazy"

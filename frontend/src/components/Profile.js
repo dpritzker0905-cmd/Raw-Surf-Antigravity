@@ -2110,8 +2110,15 @@ export const Profile = () => {
 const MediaGridItem = ({ item, onClick, isPinned = false }) => {
   if (!item) return null;
   
-  const _checkMediaUrl = item.media_url || item.image_url;
-  const isVideo = item.media_type === 'video' || (_checkMediaUrl && typeof _checkMediaUrl === 'string' && _checkMediaUrl.match(/\.(mp4|webm|ogg|mov)(\?.*)?$/i));
+  // Helper to intercept Netlify HTML proxy traps on local backend arrays
+  const getFullUrl = (url) => {
+    if (!url) return url;
+    if (url.startsWith('http')) return url;
+    return `${process.env.REACT_APP_BACKEND_URL || ''}${url}`;
+  };
+  
+  const _checkMediaUrl = getFullUrl(item.media_url || item.image_url);
+  const isVideo = item.media_type === 'video' || (typeof _checkMediaUrl === 'string' && _checkMediaUrl.match(/\.(mp4|webm|ogg|mov)(\?.*)?$/i));
   const isNew = item.is_new;
   const hasMedia = item.media_url || item.thumbnail_url || (item.media_urls && item.media_urls.length > 0);
   const isCheckIn = item.is_check_in;
@@ -2127,7 +2134,7 @@ const MediaGridItem = ({ item, onClick, isPinned = false }) => {
         isVideo ? (
           <>
             <img
-              src={item.thumbnail_url || item.media_url}
+              src={getFullUrl(item.thumbnail_url || item.media_url)}
               alt=""
               className="w-full h-full object-cover"
               loading="lazy"
@@ -2139,7 +2146,7 @@ const MediaGridItem = ({ item, onClick, isPinned = false }) => {
           </>
         ) : (
           <img
-            src={item.thumbnail_url || item.media_url}
+            src={getFullUrl(item.thumbnail_url || item.media_url)}
             alt=""
             className="w-full h-full object-cover"
             loading="lazy"

@@ -1134,8 +1134,8 @@ export const CreatePost = () => {
       
       {/* Video vs Wave Info Modal */}
       <Dialog open={showVideoInfoModal} onOpenChange={setShowVideoInfoModal}>
-        <DialogContent className="bg-background border-border text-foreground max-w-md w-[95vw] sm:w-full p-0 overflow-hidden sm:border sm:rounded-xl shadow-2xl flex flex-col max-h-[85vh]">
-          <div className="overflow-y-auto w-full p-6 pb-8 custom-scrollbar">
+        <DialogContent className="bg-background border-border text-foreground max-w-md w-[95vw] sm:w-full p-0 overflow-hidden sm:border sm:rounded-xl shadow-2xl flex flex-col max-h-[75vh] my-auto">
+          <div className="overflow-y-auto w-full p-6 pb-12 custom-scrollbar">
             <DialogHeader className="mb-4">
               <DialogTitle className="flex items-center gap-2 text-xl font-bold text-foreground">
                 <HelpCircle className="w-6 h-6 text-cyan-500" />
