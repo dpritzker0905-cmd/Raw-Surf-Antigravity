@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import axios from 'axios';
 import { useAuth } from '../contexts/AuthContext';
 import { usePersona, getExpandedRoleInfo, isProLevelRole, isBusinessRole as isBusinessRoleCheck } from '../contexts/PersonaContext';
@@ -61,7 +61,7 @@ const isProRole = (role) => isProLevelRole(role);
 const isBusinessRole = (role) => isBusinessRoleCheck(role);
 
 // Updated folder system with Pro Lounge and The Channel
-const getFolders = (userRole, isAdmin = false, effectiveRole = null, isMasked = false) => {
+const getFolders = (userRole, isAdmin = false, effectiveRole = null, isMasked = false, isGromParentFlag = false) => {
   // Use effective role if God Mode is masking
   const roleToCheck = effectiveRole || userRole;
   // Pro Lounge access: ONLY for 'Pro' or 'God' roles
@@ -70,7 +70,7 @@ const getFolders = (userRole, isAdmin = false, effectiveRole = null, isMasked = 
   const isPro = isProRole(roleToCheck);
   const isBusiness = isBusinessRole(roleToCheck);
   const isGrom = roleToCheck === 'Grom' || roleToCheck === 'GROM';
-  const isGromParent = roleToCheck === 'Grom Parent' || roleToCheck === 'GROM_PARENT' || roleToCheck === 'grom_parent' || user?.is_grom_parent === true;
+  const isGromParent = roleToCheck === 'Grom Parent' || roleToCheck === 'GROM_PARENT' || roleToCheck === 'grom_parent' || isGromParentFlag;
   
   const folders = [];
   
@@ -1336,7 +1336,7 @@ export const MessagesPage = () => {
   useEffect(() => {
     if (user?.id) {
       // Reset to appropriate default folder based on effective role
-      const folders = getFolders(user?.role, user?.is_admin || isGodMode, effectiveRole, isMasked);
+      const folders = getFolders(user?.role, user?.is_admin || isGodMode, effectiveRole, isMasked, user?.is_grom_parent === true);
       const folderIds = folders.map(f => f.id);
       
       // If current folder is not available for this role, switch to primary
@@ -2071,7 +2071,7 @@ export const MessagesPage = () => {
         <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-background to-transparent z-10 pointer-events-none" />
         
         <div className="flex gap-2 px-4 py-3 overflow-x-auto scrollbar-hide border-b border-zinc-800 scroll-smooth">
-          {getFolders(user?.role, user?.is_admin || isGodMode, effectiveRole, isMasked).map((folder) => {
+          {getFolders(user?.role, user?.is_admin || isGodMode, effectiveRole, isMasked, user?.is_grom_parent === true).map((folder) => {
             const Icon = folder.icon;
             const count = folderCounts[folder.id] || 0;
             const isActive = activeFolder === folder.id;
