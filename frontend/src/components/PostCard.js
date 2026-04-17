@@ -610,17 +610,17 @@ const PostCard = ({
   onFollowFromFeed,
   onImageClick  // Opens Instagram-style modal
 }) => {
-  if (!post) return null;
-
-  const _checkMediaUrl = post.media_url || post.image_url;
-  const isVideoItem = post.media_type === 'video' || (_checkMediaUrl && typeof _checkMediaUrl === 'string' && _checkMediaUrl.match(/\.(mp4|webm|ogg|mov)(\?.*)?$/i));
-
   const navigate = useNavigate();
   
   // Who Reacted Modal state
   const [showWhoReacted, setShowWhoReacted] = useState(false);
   const [detailedReactions, setDetailedReactions] = useState([]);
   const [loadingReactions, setLoadingReactions] = useState(false);
+
+  if (!post) return null;
+
+  const _checkMediaUrl = post.media_url || post.image_url;
+  const isVideoItem = post.media_type === 'video' || (_checkMediaUrl && typeof _checkMediaUrl === 'string' && _checkMediaUrl.match(/\.(mp4|webm|ogg|mov)(\?.*)?$/i));
   
   // Fetch detailed reactions when modal opens
   const handleLikesCountClick = async (e) => {
