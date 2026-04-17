@@ -1146,9 +1146,10 @@ const MessageBubble = ({ message, onReact, onReply }) => {
           <video 
             src={mediaUrl} 
             controls 
+            controlsList="nodownload noplaybackrate noremoteplayback"
+            disablePictureInPicture
+            onContextMenu={(e) => e.preventDefault()}
             className={`max-w-full rounded-lg ${isEphemeral ? 'border-2 border-red-500/30' : ''}`}
-            controlsList={isEphemeral ? "nodownload noplaybackrate" : undefined}
-            disablePictureInPicture={isEphemeral ? true : undefined}
           />
         </div>
       );

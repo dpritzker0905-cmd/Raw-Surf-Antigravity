@@ -107,6 +107,7 @@ export default function WebcamCaptureModal({ isOpen, onClose, onCapture, maxLeng
       
       let filterKey = 'none';
       if (videoFilters.presetName.includes('Cyber-Surf')) filterKey = 'cyber';
+      else if (videoFilters.presetName.includes('Golden Hour')) filterKey = 'goldenhour';
       else if (videoFilters.presetName.includes('Bio-Lum')) filterKey = 'bioluminescence';
       else if (videoFilters.presetName.includes('Pipeline')) filterKey = 'gopro';
       else if (videoFilters.presetName.includes('Night Vision')) filterKey = 'nightvision';

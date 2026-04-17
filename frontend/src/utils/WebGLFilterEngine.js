@@ -20,6 +20,27 @@ const FRAGMENT_SHADERS = {
       gl_FragColor = texture2D(u_texture, uv);
     }
   `,
+  goldenhour: `
+    precision highp float;
+    varying vec2 v_texcoord;
+    uniform sampler2D u_texture;
+
+    void main() {
+      vec2 uv = vec2(v_texcoord.x, 1.0 - v_texcoord.y);
+      vec4 color = texture2D(u_texture, uv);
+
+      // Enhance warm tones specifically boosting red and green channels
+      color.r = color.r * 1.25 + 0.1; 
+      color.g = color.g * 1.08 + 0.05;
+      color.b = color.b * 0.75;
+      
+      // Add slight contrast and bright vignette map mimicking sunset light wash
+      float dist = distance(uv, vec2(0.5, 0.5));
+      color.rgb += (0.5 - dist) * 0.3 * vec3(1.0, 0.8, 0.1);
+      
+      gl_FragColor = color;
+    }
+  `,
   nightvision: `
     precision highp float;
     varying vec2 v_texcoord;

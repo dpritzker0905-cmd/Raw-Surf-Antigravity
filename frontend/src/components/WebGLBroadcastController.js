@@ -49,6 +49,7 @@ export const WebGLBroadcastController = ({ activeFilter, isCameraOff, isFrontCam
         // Map the incoming react-state filter string to the shader program key safely
         let filterKey = 'none';
         if (activeFilter.includes('Cyber-Surf')) filterKey = 'cyber';
+        if (activeFilter.includes('Golden Hour')) filterKey = 'goldenhour';
         if (activeFilter.includes('Bio-Lum')) filterKey = 'bioluminescence';
         if (activeFilter.includes('Pipeline')) filterKey = 'gopro';
         if (activeFilter.includes('Night Vision')) filterKey = 'nightvision';

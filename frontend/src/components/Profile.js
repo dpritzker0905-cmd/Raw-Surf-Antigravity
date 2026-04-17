@@ -606,36 +606,65 @@ export const Profile = () => {
       return;
     }
 
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error('Image must be less than 5MB');
-      return;
-    }
-
     setAvatarUploading(true);
 
     try {
       const reader = new FileReader();
-      reader.onload = async (event) => {
-        const base64 = event.target?.result;
-        const response = await axios.patch(`${API}/profiles/${user.id}`, {
-          avatar_url: base64
-        });
-        setProfile(response.data);
-        // Update auth context with new avatar_url to refresh BottomNav avatar
-        updateUser({ 
-          avatar_url: response.data.avatar_url,
-          updated_at: new Date().toISOString()
-        });
-        toast.success('Avatar updated!');
-        setAvatarUploading(false);
+      reader.onload = (event) => {
+        const img = new window.Image();
+        img.src = event.target.result;
+        img.onload = async () => {
+          // Native Image Compression to max 800px preserving 1:1 aspect ratio structurally
+          const MAX_SIZE = 800;
+          let width = img.width;
+          let height = img.height;
+          
+          if (width > height && width > MAX_SIZE) {
+            height *= MAX_SIZE / width;
+            width = MAX_SIZE;
+          } else if (height > MAX_SIZE) {
+            width *= MAX_SIZE / height;
+            height = MAX_SIZE;
+          }
+          
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+          
+          // Encodes specifically down optimizing file bytes cleanly
+          const base64 = canvas.toDataURL('image/jpeg', 0.85);
+
+          try {
+            const response = await axios.patch(`${API}/profiles/${user.id}`, {
+              avatar_url: base64
+            });
+            setProfile(response.data);
+            updateUser({ 
+              avatar_url: response.data.avatar_url,
+              updated_at: new Date().toISOString()
+            });
+            toast.success('Avatar updated!');
+          } catch (patchError) {
+            toast.error('Failed to upload compressed avatar');
+            console.error(patchError);
+          } finally {
+            setAvatarUploading(false);
+          }
+        };
+        img.onerror = () => {
+          toast.error('Corrupted image format');
+          setAvatarUploading(false);
+        };
       };
       reader.onerror = () => {
-        toast.error('Failed to read image');
+        toast.error('Failed to read file locally');
         setAvatarUploading(false);
       };
       reader.readAsDataURL(file);
     } catch (error) {
-      toast.error('Failed to upload avatar');
+      toast.error('Upload sequence crashed');
       setAvatarUploading(false);
     }
   };
