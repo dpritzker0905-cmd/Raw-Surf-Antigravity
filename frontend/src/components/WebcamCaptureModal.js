@@ -340,8 +340,8 @@ export default function WebcamCaptureModal({ isOpen, onClose, onCapture, maxLeng
               <p>Accessing camera...</p>
             </div>
           )}
-          {/* Natively bind canvas over video hiding the hardware video layer */}
-          <video ref={videoRef} autoPlay playsInline muted className="hidden" />
+          {/* Natively bind canvas over video minimizing hardware footprint strictly but avoiding display:none pausing */}
+          <video ref={videoRef} autoPlay playsInline muted className="opacity-0 absolute pointer-events-none w-[1px] h-[1px]" />
           <canvas ref={canvasRef} className="w-full h-full object-cover" />
         </div>
 
