@@ -179,20 +179,20 @@ const SurfModeCard = ({ textPrimaryClass, textSecondaryClass, cardBgClass }) => 
 
         {/* ── Pro Verification — collapsible section, not a selectable pill ── */}
         {!isLegend && (
-          <div className="rounded-xl border border-zinc-700 overflow-hidden">
+          <div className="rounded-xl border border-border overflow-hidden mt-3">
             <button
               id="pro-verification-toggle"
               onClick={() => setProSectionOpen(o => !o)}
-              className="w-full flex items-center justify-between px-4 py-3 bg-zinc-800/60 hover:bg-zinc-800 transition-colors text-sm font-medium text-left"
+              className="w-full flex items-center justify-between px-4 py-3 bg-muted/40 hover:bg-muted transition-colors text-sm font-medium text-left"
             >
-              <span className={isVerifiedPro ? 'text-emerald-400' : verificationStatus === 'pending' || verificationStatus === 'under_review' ? 'text-yellow-400' : 'text-muted-foreground'}>
+              <span className={isVerifiedPro ? 'text-emerald-600 dark:text-emerald-400' : verificationStatus === 'pending' || verificationStatus === 'under_review' ? 'text-yellow-600 dark:text-yellow-400' : textPrimaryClass}>
                 {proSectionLabel}
               </span>
-              <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform duration-200 ${proSectionOpen ? 'rotate-180' : ''}`} />
+              <ChevronDown className={`w-4 h-4 ${textSecondaryClass} transition-transform duration-200 ${proSectionOpen ? 'rotate-180' : ''}`} />
             </button>
 
             {proSectionOpen && (
-              <div className="p-4 space-y-3 border-t border-zinc-700 bg-zinc-900/40">
+              <div className="p-4 space-y-3 border-t border-border bg-background/50">
                 {loadingVerif ? (
                   <div className="flex justify-center py-4">
                     <Loader2 className="w-5 h-5 animate-spin text-yellow-400" />
@@ -237,8 +237,8 @@ const SurfModeCard = ({ textPrimaryClass, textSecondaryClass, cardBgClass }) => 
 
 /** Inline WSL verification form sub-component */
 const WslVerificationForm = ({ wslForm, setWslForm, onSubmit, submitting, textSecondaryClass }) => (
-  <div className="space-y-3 p-3 rounded-xl bg-zinc-900/60 border border-zinc-700">
-    <p className="text-yellow-400 text-sm font-semibold flex items-center gap-1"><Star className="w-4 h-4" /> Apply for Pro Verification</p>
+  <div className="space-y-3 p-3 rounded-xl bg-muted/30 border border-border">
+    <p className="text-yellow-600 dark:text-yellow-400 text-sm font-semibold flex items-center gap-1"><Star className="w-4 h-4" /> Apply for Pro Verification</p>
     <p className={`text-xs ${textSecondaryClass}`}>Submit your WSL credentials for review. Approval grants Verified Pro status.</p>
     <Input
       id="wsl-athlete-id"
