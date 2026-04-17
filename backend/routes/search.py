@@ -43,7 +43,6 @@ async def global_search(
     Global unified search across users, spots, posts, and hashtags.
     Returns categorized results for quick search dropdown.
     """
-    search_term = f"%{q}%"
     results = {
         "users": [],
         "spots": [],
@@ -51,19 +50,31 @@ async def global_search(
         "hashtags": []
     }
     
+    # Clean the query natively supporting @ and # search bounds natively
+    is_user_search = q.startswith('@')
+    is_hashtag_search = q.startswith('#')
+    clean_q = q.lstrip('@').lstrip('#')
+    
+    if len(clean_q) < 1:
+        return results
+        
+    search_term = f"%{clean_q}%"
+    
     # Search users
-    user_result = await db.execute(
-        select(Profile)
-        .where(
-            or_(
-                Profile.full_name.ilike(search_term),
-                Profile.username.ilike(search_term),
-                Profile.location.ilike(search_term)
+    # If the user specifically searched a hashtag #, we can skip user search. Otherwise proceed.
+    if not is_hashtag_search:
+        user_result = await db.execute(
+            select(Profile)
+            .where(
+                or_(
+                    Profile.full_name.ilike(search_term),
+                    Profile.username.ilike(search_term),
+                    Profile.location.ilike(search_term)
+                )
             )
+            .order_by(Profile.full_name)
+            .limit(limit)
         )
-        .order_by(Profile.full_name)
-        .limit(limit)
-    )
     users = user_result.scalars().all()
     results["users"] = [{
         "id": u.id,
@@ -75,66 +86,69 @@ async def global_search(
     } for u in users]
     
     # Search spots
-    spot_result = await db.execute(
-        select(SurfSpot)
-        .where(
-            or_(
-                SurfSpot.name.ilike(search_term),
-                SurfSpot.region.ilike(search_term),
-                SurfSpot.country.ilike(search_term) if hasattr(SurfSpot, 'country') else False
+    if not is_user_search and not is_hashtag_search:
+        spot_result = await db.execute(
+            select(SurfSpot)
+            .where(
+                or_(
+                    SurfSpot.name.ilike(search_term),
+                    SurfSpot.region.ilike(search_term),
+                    SurfSpot.country.ilike(search_term) if hasattr(SurfSpot, 'country') else False
+                )
             )
-        )
-        .order_by(SurfSpot.name)
-        .limit(limit)
-    )
-    spots = spot_result.scalars().all()
-    results["spots"] = [{
-        "id": s.id,
-        "name": s.name,
-        "region": s.region,
-        "image_url": s.image_url,
-        "difficulty": s.difficulty
-    } for s in spots]
-    
-    # Search hashtags (if table exists)
-    try:
-        hashtag_result = await db.execute(
-            select(Hashtag)
-            .where(Hashtag.tag.ilike(search_term.replace('%', '')))
-            .order_by(desc(Hashtag.post_count))
+            .order_by(SurfSpot.name)
             .limit(limit)
         )
-        hashtags = hashtag_result.scalars().all()
-        results["hashtags"] = [{
-            "tag": h.tag,
-            "post_count": h.post_count
-        } for h in hashtags]
-    except Exception as e:
-        logger.debug(f"Hashtag search skipped: {e}")
-        results["hashtags"] = []
+        spots = spot_result.scalars().all()
+        results["spots"] = [{
+            "id": s.id,
+            "name": s.name,
+            "region": s.region,
+            "image_url": s.image_url,
+            "difficulty": s.difficulty
+        } for s in spots]
+    
+    # Search hashtags
+    if not is_user_search:
+        try:
+            hashtag_result = await db.execute(
+                select(Hashtag)
+                .where(Hashtag.tag.ilike(f"%{clean_q}%"))
+                .order_by(desc(Hashtag.post_count))
+                .limit(limit)
+            )
+            hashtags = hashtag_result.scalars().all()
+            results["hashtags"] = [{
+                "tag": h.tag,
+                "post_count": h.post_count
+            } for h in hashtags]
+        except Exception as e:
+            logger.debug(f"Hashtag search skipped: {e}")
+            results["hashtags"] = []
     
     # Search posts by caption
-    post_result = await db.execute(
-        select(Post)
-        .options(selectinload(Post.author))
-        .where(
-            or_(
-                Post.caption.ilike(search_term),
-                Post.location.ilike(search_term)
+    if not is_user_search:
+        post_result = await db.execute(
+            select(Post)
+            .options(selectinload(Post.author))
+            .where(
+                or_(
+                    Post.caption.ilike(search_term),
+                    Post.location.ilike(search_term)
+                )
             )
+            .order_by(desc(Post.created_at))
+            .limit(limit)
         )
-        .order_by(desc(Post.created_at))
-        .limit(limit)
-    )
-    posts = post_result.scalars().all()
-    results["posts"] = [{
-        "id": p.id,
-        "image_url": p.media_url,
-        "caption": p.caption[:100] if p.caption else None,
-        "author_name": p.author.full_name if p.author else None,
-        "author_avatar": p.author.avatar_url if p.author else None,
-        "likes_count": p.likes_count
-    } for p in posts]
+        posts = post_result.scalars().all()
+        results["posts"] = [{
+            "id": p.id,
+            "image_url": p.media_url,
+            "caption": p.caption[:100] if p.caption else None,
+            "author_name": p.author.full_name if p.author else None,
+            "author_avatar": p.author.avatar_url if p.author else None,
+            "likes_count": p.likes_count
+        } for p in posts]
     
     return results
 
