@@ -40,7 +40,7 @@ const PostMediaPreview = ({ post, isHoverScale = true }) => {
           muted 
           loop 
           playsInline
-          className={`w-full h-full object-cover absolute inset-0 ${hoverClass}`}
+          className={`w-full h-full object-cover absolute inset-0 pointer-events-none ${hoverClass}`}
         />
         <div className="absolute top-2 right-2 bg-black/60 rounded-full w-6 h-6 flex items-center justify-center opacity-80 shadow-md z-10">
           <Play className="w-3 h-3 text-white fill-white ml-0.5" />
@@ -374,7 +374,7 @@ export const Explore = () => {
   
   // Handle post click - navigate to post detail
   const handlePostClick = (post) => {
-    navigate(`/feed?post=${post.id}`);
+    navigate(`/post/${post.id}`);
   };
 
   const fetchSpotConditions = async (spotIds) => {
@@ -769,7 +769,7 @@ export const Explore = () => {
                       <div
                         key={post.id}
                         className="aspect-square bg-muted overflow-hidden cursor-pointer group relative"
-                        onClick={() => navigate(`/feed?post=${post.id}`)}
+                        onClick={() => navigate(`/post/${post.id}`)}
                         data-testid={`post-result-${post.id}`}
                       >
                         <PostMediaPreview post={post} isHoverScale={false} />
@@ -1360,7 +1360,7 @@ export const Explore = () => {
                   {hashtagPosts.map((post) => (
                     <div
                       key={post.id}
-                      onClick={() => navigate(`/feed?post=${post.id}`)}
+                      onClick={() => navigate(`/post/${post.id}`)}
                       className="aspect-square bg-muted overflow-hidden cursor-pointer group relative"
                       data-testid={`hashtag-post-${post.id}`}
                     >
