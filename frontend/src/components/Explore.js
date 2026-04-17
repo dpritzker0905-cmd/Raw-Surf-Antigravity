@@ -15,6 +15,57 @@ import logger from '../utils/logger';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
+// Media Preview component for Posts, Waves, and Videos
+const PostMediaPreview = ({ post, isHoverScale = true }) => {
+  const isVideo = post?.media_type === 'video' || (post?.media_url && typeof post.media_url === 'string' && post.media_url.match(/\.(mp4|webm|ogg|mov)(\?.*)?$/i)) || post?.is_wave === true || typeof post?.view_count !== 'undefined';
+  const mediaUrl = post?.media_url || post?.image_url || post?.thumbnail_url;
+  const thumbnailUrl = post?.thumbnail_url || (isVideo ? null : mediaUrl);
+
+  const formatUrl = (url) => {
+    if (!url) return null;
+    return url.startsWith('/api') ? `${process.env.REACT_APP_BACKEND_URL}${url}` : url;
+  };
+
+  const finalMediaUrl = formatUrl(mediaUrl);
+  const finalThumbnailUrl = formatUrl(thumbnailUrl);
+  const hoverClass = isHoverScale ? "group-hover:scale-105 transition-transform duration-300" : "group-hover:opacity-80 transition-opacity duration-300";
+
+  if (isVideo && finalMediaUrl) {
+    return (
+      <>
+        <video 
+          src={finalMediaUrl}
+          poster={finalThumbnailUrl || ""}
+          autoPlay 
+          muted 
+          loop 
+          playsInline
+          className={`w-full h-full object-cover absolute inset-0 ${hoverClass}`}
+        />
+        <div className="absolute top-2 right-2 bg-black/60 rounded-full w-6 h-6 flex items-center justify-center opacity-80 shadow-md z-10">
+          <Play className="w-3 h-3 text-white fill-white ml-0.5" />
+        </div>
+      </>
+    );
+  }
+
+  if (finalThumbnailUrl || finalMediaUrl) {
+    return (
+      <img
+        src={finalThumbnailUrl || finalMediaUrl}
+        alt=""
+        className={`w-full h-full object-cover absolute inset-0 ${hoverClass}`}
+      />
+    );
+  }
+
+  return (
+    <div className="w-full h-full bg-zinc-800 flex items-center justify-center absolute inset-0">
+      <Image className="w-8 h-8 text-zinc-600" />
+    </div>
+  );
+};
+
 // Role badge component for user results
 const UserRoleBadge = ({ role }) => {
   const roleInfo = getExpandedRoleInfo(role);
@@ -717,10 +768,11 @@ export const Explore = () => {
                     {searchResults.posts.map((post) => (
                       <div
                         key={post.id}
-                        className="aspect-square bg-muted overflow-hidden cursor-pointer"
+                        className="aspect-square bg-muted overflow-hidden cursor-pointer group relative"
+                        onClick={() => navigate(`/feed?post=${post.id}`)}
                         data-testid={`post-result-${post.id}`}
                       >
-                        <img src={post.image_url} alt={post.caption} className="w-full h-full object-cover hover:opacity-80 transition-opacity" />
+                        <PostMediaPreview post={post} isHoverScale={false} />
                       </div>
                     ))}
                   </div>
@@ -1099,19 +1151,9 @@ export const Explore = () => {
                       className="aspect-[9/16] bg-black overflow-hidden cursor-pointer group relative"
                       data-testid={`wave-${wave.id}`}
                     >
-                      {wave.thumbnail_url ? (
-                        <img
-                          src={wave.thumbnail_url.startsWith('/api') ? `${process.env.REACT_APP_BACKEND_URL}${wave.thumbnail_url}` : wave.thumbnail_url}
-                          alt=""
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform"
-                        />
-                      ) : (
-                        <div className="w-full h-full bg-zinc-800 flex items-center justify-center">
-                          <Play className="w-8 h-8 text-zinc-600" />
-                        </div>
-                      )}
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                      <div className="absolute bottom-2 left-2 right-2 flex items-center gap-2 text-white text-xs">
+                      <PostMediaPreview post={wave} />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity z-10 pointer-events-none" />
+                      <div className="absolute bottom-2 left-2 right-2 flex items-center gap-2 text-white text-xs z-20 pointer-events-none">
                         <Play className="w-3 h-3" fill="white" />
                         <span>{wave.view_count || 0}</span>
                       </div>
@@ -1148,21 +1190,11 @@ export const Explore = () => {
                       className="aspect-[9/16] bg-black overflow-hidden cursor-pointer group relative"
                       data-testid={`trending-wave-${wave.id}`}
                     >
-                      {wave.thumbnail_url ? (
-                        <img
-                          src={wave.thumbnail_url.startsWith('/api') ? `${process.env.REACT_APP_BACKEND_URL}${wave.thumbnail_url}` : wave.thumbnail_url}
-                          alt=""
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform"
-                        />
-                      ) : (
-                        <div className="w-full h-full bg-zinc-800 flex items-center justify-center">
-                          <Play className="w-8 h-8 text-zinc-600" />
-                        </div>
-                      )}
+                      <PostMediaPreview post={wave} />
                       
                       {/* Rank badge for top 3 */}
                       {index < 3 && (
-                        <div className={`absolute top-2 left-2 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
+                        <div className={`absolute top-2 left-2 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold z-20 ${
                           index === 0 ? 'bg-yellow-500 text-black' :
                           index === 1 ? 'bg-gray-400 text-black' :
                           'bg-amber-700 text-white'
@@ -1172,10 +1204,10 @@ export const Explore = () => {
                       )}
                       
                       {/* Overlay on hover */}
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent z-10 pointer-events-none" />
                       
                       {/* Stats */}
-                      <div className="absolute bottom-2 left-2 right-2">
+                      <div className="absolute bottom-2 left-2 right-2 z-20 pointer-events-none">
                         <div className="flex items-center gap-3 text-white text-xs">
                           <span className="flex items-center gap-1">
                             <Play className="w-3 h-3" fill="white" />
@@ -1262,37 +1294,10 @@ export const Explore = () => {
                   className="aspect-square bg-zinc-800 overflow-hidden cursor-pointer group relative"
                   data-testid={`explore-post-${post.id}`}
                 >
-                  {post.media_url ? (
-                    post.media_type === 'video' ? (
-                      <>
-                        <img
-                          src={post.thumbnail_url?.startsWith('/api') 
-                            ? `${process.env.REACT_APP_BACKEND_URL}${post.thumbnail_url}` 
-                            : post.thumbnail_url || post.media_url}
-                          alt=""
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform"
-                        />
-                        <div className="absolute top-2 right-2">
-                          <Play className="w-5 h-5 text-white drop-shadow-lg" fill="white" />
-                        </div>
-                      </>
-                    ) : (
-                      <img
-                        src={post.media_url?.startsWith('/api') 
-                          ? `${process.env.REACT_APP_BACKEND_URL}${post.media_url}` 
-                          : post.media_url}
-                        alt=""
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform"
-                      />
-                    )
-                  ) : (
-                    <div className="w-full h-full bg-zinc-700 flex items-center justify-center">
-                      <Image className="w-8 h-8 text-zinc-500" />
-                    </div>
-                  )}
+                  <PostMediaPreview post={post} />
                   
                   {/* Overlay on hover */}
-                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-4 text-white">
+                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-4 text-white z-20 pointer-events-none">
                     <span className="flex items-center gap-1 text-sm">
                       <Heart className="w-4 h-4" />
                       {post.likes_count || 0}
@@ -1356,33 +1361,10 @@ export const Explore = () => {
                     <div
                       key={post.id}
                       onClick={() => navigate(`/feed?post=${post.id}`)}
-                      className="aspect-square bg-muted overflow-hidden cursor-pointer group"
+                      className="aspect-square bg-muted overflow-hidden cursor-pointer group relative"
                       data-testid={`hashtag-post-${post.id}`}
                     >
-                      {post.media_url ? (
-                        post.media_type === 'video' ? (
-                          <div className="relative w-full h-full">
-                            <img 
-                              src={post.thumbnail_url || post.media_url} 
-                              alt="" 
-                              className="w-full h-full object-cover group-hover:opacity-80 transition-opacity"
-                            />
-                            <div className="absolute top-1 right-1 bg-black/60 rounded-full p-1">
-                              <Play className="w-3 h-3 text-white fill-white" />
-                            </div>
-                          </div>
-                        ) : (
-                          <img 
-                            src={post.media_url} 
-                            alt="" 
-                            className="w-full h-full object-cover group-hover:opacity-80 transition-opacity"
-                          />
-                        )
-                      ) : (
-                        <div className="w-full h-full bg-muted flex items-center justify-center text-muted-foreground">
-                          <MessageCircle className="w-6 h-6" />
-                        </div>
-                      )}
+                      <PostMediaPreview post={post} isHoverScale={false} />
                     </div>
                   ))}
                 </div>
