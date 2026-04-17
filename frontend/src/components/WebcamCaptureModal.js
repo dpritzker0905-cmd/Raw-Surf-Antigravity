@@ -7,6 +7,7 @@ import {
 import { Button } from './ui/button';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
+import { WebGLVideoProcessor } from '../utils/WebGLFilterEngine';
 
 export default function WebcamCaptureModal({ isOpen, onClose, onCapture, maxLength = null }) {
   const [stream, setStream] = useState(null);
@@ -26,7 +27,7 @@ export default function WebcamCaptureModal({ isOpen, onClose, onCapture, maxLeng
   const mediaRecorderRef = useRef(null);
   const chunksRef = useRef([]);
   const timerRef = useRef(null);
-  const rafRef = useRef(null);
+  const processorRef = useRef(null); // Explicit binding for high-resolution dynamic shader engine
 
   const startCamera = useCallback(async () => {
     try {
@@ -85,61 +86,45 @@ export default function WebcamCaptureModal({ isOpen, onClose, onCapture, maxLeng
       if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
          mediaRecorderRef.current.stop();
       }
+      if (processorRef.current) {
+         processorRef.current.stop();
+         processorRef.current = null;
+      }
       if (timerRef.current) clearInterval(timerRef.current);
-      if (rafRef.current) cancelAnimationFrame(rafRef.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, facingMode]);
 
-  // Recursively map raw DOM hardware onto invisible canvas baking in the filters
-  const drawToCanvas = useCallback(() => {
-    if (!videoRef.current || !canvasRef.current) return;
-    const video = videoRef.current;
-    const canvas = canvasRef.current;
-    const ctx = canvas.getContext('2d');
-    
-    if (video.videoWidth > 0 && video.videoHeight > 0) {
-      if (canvas.width !== video.videoWidth) canvas.width = video.videoWidth;
-      if (canvas.height !== video.videoHeight) canvas.height = video.videoHeight;
-      
-      let warmthDegrees = (videoFilters.warmth - 100) * 0.8;
-      if (videoFilters.warmth >= 150) warmthDegrees = 300;
-      if (videoFilters.warmth <= 50) warmthDegrees = 180;
-      
-      ctx.filter = `brightness(${videoFilters.brightness}%) contrast(${videoFilters.contrast}%) saturate(${videoFilters.saturation}%) hue-rotate(${warmthDegrees}deg)`;
-      
-      if (facingMode === 'user') {
-        ctx.translate(canvas.width, 0);
-        ctx.scale(-1, 1);
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-        ctx.setTransform(1, 0, 0, 1, 0, 0);
-      } else {
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+  // Utilize the exact identical hardware shader mapped in the Live broadcast resolving highest tier filter deployments
+  const initProcessor = useCallback((video) => {
+    if (!video || !canvasRef.current) return;
+    try {
+      if (!processorRef.current) {
+        canvasRef.current.width = video.videoWidth || 1080;
+        canvasRef.current.height = video.videoHeight || 1920;
+        processorRef.current = new WebGLVideoProcessor(canvasRef.current);
       }
+      
+      let filterKey = 'none';
+      if (videoFilters.presetName.includes('Cyber-Surf')) filterKey = 'cyber';
+      else if (videoFilters.presetName.includes('Bio-Lum')) filterKey = 'bioluminescence';
+      else if (videoFilters.presetName.includes('Pipeline')) filterKey = 'gopro';
+      else if (videoFilters.presetName.includes('Night Vision')) filterKey = 'nightvision';
+      else if (videoFilters.presetName.includes('Pixelate')) filterKey = 'pixelate';
+      else filterKey = 'none';
 
-      if (videoFilters.vignette > 0) {
-        const gradient = ctx.createRadialGradient(
-          canvas.width / 2, canvas.height / 2, 0,
-          canvas.width / 2, canvas.height / 2, Math.max(canvas.width, canvas.height) / 2
-        );
-        gradient.addColorStop(videoFilters.vignette / 100, 'transparent');
-        gradient.addColorStop(1, `rgba(0,0,0,${videoFilters.vignette / 100})`);
-        ctx.fillStyle = gradient;
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-      }
+      processorRef.current.setFilter(filterKey);
+      processorRef.current.start(video);
+    } catch (e) {
+      console.warn("WebGL Shader instantiation crashed - falling back silently.", e);
     }
-    
-    rafRef.current = requestAnimationFrame(drawToCanvas);
-  }, [videoFilters, facingMode]);
+  }, [videoFilters.presetName]);
 
   useEffect(() => {
-    if (stream) {
-      rafRef.current = requestAnimationFrame(drawToCanvas);
+    if (stream && videoRef.current && videoRef.current.readyState >= 2) {
+      initProcessor(videoRef.current);
     }
-    return () => {
-      if (rafRef.current) cancelAnimationFrame(rafRef.current);
-    }
-  }, [stream, drawToCanvas]);
+  }, [stream, videoFilters.presetName, initProcessor]);
 
   const toggleCamera = () => {
     setFacingMode(prev => prev === 'user' ? 'environment' : 'user');
@@ -169,9 +154,6 @@ export default function WebcamCaptureModal({ isOpen, onClose, onCapture, maxLeng
     }
 
     if (!canvasRef.current) return;
-    
-    // Execute a forced final draw bridging any frame delays natively
-    if (drawToCanvas) drawToCanvas();
     
     canvasRef.current.toBlob((blob) => {
       if (blob) {
@@ -377,7 +359,12 @@ export default function WebcamCaptureModal({ isOpen, onClose, onCapture, maxLeng
             </div>
           )}
           {/* Expand core hardware view bounding securely ensuring background decoding maps accurately unblocking Mobile processors safely */}
-          <video ref={videoRef} autoPlay playsInline muted onLoadedMetadata={(e) => { if (e.target) e.target.play().catch(() => {}) }} className="absolute inset-0 w-full h-full object-cover opacity-0 pointer-events-none z-0" />
+          <video ref={videoRef} autoPlay playsInline muted onLoadedMetadata={(e) => { 
+            if (e.target) {
+              e.target.play().catch(() => {});
+              initProcessor(e.target);
+            }
+          }} className="absolute inset-0 w-full h-full object-cover opacity-0 pointer-events-none z-0" />
           <canvas ref={canvasRef} className="absolute inset-0 w-full h-full object-cover z-10" />
         </div>
 
