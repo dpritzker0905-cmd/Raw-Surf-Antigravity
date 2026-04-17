@@ -65,6 +65,7 @@ export const TopNav = () => {
   const [backpackOpen, setBackpackOpen] = useState(false);
   const [stokedOpen, setStokedOpen] = useState(false);
   const [exclusiveAreaOpen, setExclusiveAreaOpen] = useState(false);
+  const [gromHQDrawerOpen, setGromHQDrawerOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
 
   // Close all drawers when route changes (e.g., when BottomNav item is clicked)
@@ -72,6 +73,7 @@ export const TopNav = () => {
     setBackpackOpen(false);
     setStokedOpen(false);
     setExclusiveAreaOpen(false);
+    setGromHQDrawerOpen(false);
     setNotificationsOpen(false);
   }, [location.pathname]);
 
@@ -268,7 +270,7 @@ export const TopNav = () => {
             {/* Position 5.5: Grom HQ Shield Icon - for Grom Parents */}
             {isGromParent && (
               <button 
-                onClick={() => navigate('/grom-hq')}
+                onClick={() => setGromHQDrawerOpen(true)}
                 className="text-cyan-400 hover:text-cyan-300 transition-colors p-1"
                 data-testid="topnav-grom-hq"
                 aria-label="Grom HQ"
@@ -355,6 +357,15 @@ export const TopNav = () => {
           isOpen={exclusiveAreaOpen}
           onClose={() => setExclusiveAreaOpen(false)}
           areaType={exclusiveAreaType}
+        />
+      )}
+
+      {/* Grom HQ Drawer - always available if isGromParent is true */}
+      {isGromParent && (
+        <ExclusiveAreaDrawer
+          isOpen={gromHQDrawerOpen}
+          onClose={() => setGromHQDrawerOpen(false)}
+          areaType="grom_parent"
         />
       )}
     </>

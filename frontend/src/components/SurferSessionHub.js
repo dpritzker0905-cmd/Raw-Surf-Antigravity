@@ -486,7 +486,7 @@ const MobileSessionHub = ({
       </SheetTrigger>
       <SheetContent 
         side="bottom" 
-        className="bg-zinc-900 border-zinc-700 rounded-t-3xl h-auto max-h-[85vh] overflow-hidden flex flex-col"
+        className="bg-zinc-900 border-zinc-700 rounded-t-3xl h-auto max-h-[calc(100dvh-6rem)] md:max-h-[85vh] overflow-hidden flex flex-col"
       >
         <SheetHeader className="pb-3 shrink-0">
           <div className="flex items-center justify-between">
@@ -586,7 +586,7 @@ const DesktopSessionHub = ({
         {children}
       </PopoverTrigger>
       <PopoverContent 
-        className="w-96 bg-zinc-900 border-zinc-700 p-3 max-h-[85vh] md:max-h-[70vh] overflow-y-auto"
+        className="w-96 bg-zinc-900 border-zinc-700 p-3 max-h-[calc(100dvh-6rem)] md:max-h-[70vh] overflow-y-auto"
         align="end"
       >
         <div className="flex items-center justify-between mb-3">

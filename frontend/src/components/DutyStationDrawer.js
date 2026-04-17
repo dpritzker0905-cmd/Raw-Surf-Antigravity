@@ -973,8 +973,8 @@ export const DutyStationDrawer = ({ isOpen, onClose }) => {
         side="bottom"
         hideCloseButton
         className="bg-background/95 backdrop-blur-2xl border-t border-border rounded-t-3xl overflow-hidden flex flex-col p-0
-          h-auto max-h-[85vh] !bottom-20
-          sm:max-h-[85vh]
+          h-auto max-h-[calc(100dvh-6rem)] !bottom-20
+          sm:max-h-[calc(100dvh-6rem)]
           md:rounded-2xl md:border md:w-[600px] md:max-w-[90vw] md:max-h-[85vh] md:!bottom-24
           lg:w-[700px]"
       >
