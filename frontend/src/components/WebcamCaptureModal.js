@@ -58,23 +58,33 @@ export default function WebcamCaptureModal({ isOpen, onClose, onCapture, maxLeng
     } catch (err) {
       console.error("Camera access error:", err);
       toast.error("Could not access camera/microphone. Please check permissions.");
+      // Ensure we immediately purge pending bindings if a hardware error is detected natively
+      if (videoRef.current && videoRef.current.srcObject) {
+         videoRef.current.srcObject.getTracks().forEach(t => t.stop());
+      }
       onClose();
     }
-  }, [facingMode, onClose, stream]);
+  }, [facingMode, onClose]);
 
   useEffect(() => {
     if (isOpen) {
       startCamera();
     } else {
-      if (stream) {
-        stream.getTracks().forEach(track => track.stop());
-        setStream(null);
+      // Escape stale closure scope relying strictly on the active DOM source mapping
+      if (videoRef.current && videoRef.current.srcObject) {
+        videoRef.current.srcObject.getTracks().forEach(track => track.stop());
       }
       if (isRecording) stopRecording();
     }
     
     return () => {
-      if (stream) stream.getTracks().forEach(t => t.stop());
+      // Critical cleanup executing safely circumventing React closures to prevent Mobile WebRTC hardware freeze locks!
+      if (videoRef.current && videoRef.current.srcObject) {
+         videoRef.current.srcObject.getTracks().forEach(t => t.stop());
+      }
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+         mediaRecorderRef.current.stop();
+      }
       if (timerRef.current) clearInterval(timerRef.current);
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
     };
@@ -136,7 +146,33 @@ export default function WebcamCaptureModal({ isOpen, onClose, onCapture, maxLeng
   };
 
   const takePhoto = () => {
+    // If our invisible canvas stalled drawing (e.g. 1x1 width or missing dimensions), forcefully execute raw hardware buffer snapshot to secure fallback reliability ensuring no Black Photos
+    if (videoRef.current && (!canvasRef.current || canvasRef.current.width === 0 || canvasRef.current.width === 300)) {
+       const vRef = videoRef.current;
+       const fallbackCanvas = document.createElement('canvas');
+       fallbackCanvas.width = vRef.videoWidth || 1080;
+       fallbackCanvas.height = vRef.videoHeight || 1920;
+       const fallbackCtx = fallbackCanvas.getContext('2d');
+       
+       if (facingMode === 'user') {
+         fallbackCtx.translate(fallbackCanvas.width, 0);
+         fallbackCtx.scale(-1, 1);
+       }
+       fallbackCtx.drawImage(vRef, 0, 0, fallbackCanvas.width, fallbackCanvas.height);
+       fallbackCanvas.toBlob((blob) => {
+         if (blob) {
+           onCapture([new File([blob], `photo_${Date.now()}.jpg`, { type: 'image/jpeg' })]);
+           onClose();
+         }
+       }, 'image/jpeg', 0.9);
+       return;
+    }
+
     if (!canvasRef.current) return;
+    
+    // Execute a forced final draw bridging any frame delays natively
+    if (drawToCanvas) drawToCanvas();
+    
     canvasRef.current.toBlob((blob) => {
       if (blob) {
         const file = new File([blob], `photo_${Date.now()}.jpg`, { type: 'image/jpeg' });
@@ -340,9 +376,9 @@ export default function WebcamCaptureModal({ isOpen, onClose, onCapture, maxLeng
               <p>Accessing camera...</p>
             </div>
           )}
-          {/* Natively bind canvas over video minimizing hardware footprint strictly but avoiding display:none pausing */}
-          <video ref={videoRef} autoPlay playsInline muted className="opacity-0 absolute pointer-events-none w-[1px] h-[1px]" />
-          <canvas ref={canvasRef} className="w-full h-full object-cover" />
+          {/* Expand core hardware view bounding securely ensuring background decoding maps accurately unblocking Mobile processors safely */}
+          <video ref={videoRef} autoPlay playsInline muted onLoadedMetadata={(e) => { if (e.target) e.target.play().catch(() => {}) }} className="absolute inset-0 w-full h-full object-cover opacity-0 pointer-events-none z-0" />
+          <canvas ref={canvasRef} className="absolute inset-0 w-full h-full object-cover z-10" />
         </div>
 
         {/* Rule of Thirds */}
