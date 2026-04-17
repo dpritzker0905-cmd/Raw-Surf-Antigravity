@@ -2576,6 +2576,7 @@ const AdminSpotsPanel = ({ userId }) => {
           try {
             // Priority: Attempt secure direct injection via Supabase JWT (bypassing Render lock)
             const { error } = await supabase.from('surf_spots').insert({
+              id: crypto.randomUUID(), // Guarantee primary key exists since Python isn't generating it
               ...spot,
               is_active: true,
               is_verified_peak: true,
