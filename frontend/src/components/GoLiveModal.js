@@ -1042,6 +1042,11 @@ const GoLiveModal = ({ isOpen, onClose, onStreamEnded }) => {
   const streamDurationRef = useRef(0);
   const durationIntervalRef = useRef(null);
   const viewerPollRef = useRef(null);
+  const streamDataRef = useRef(null);
+
+  useEffect(() => {
+    streamDataRef.current = streamData;
+  }, [streamData]);
 
   // Start the stream
   const startStream = useCallback(async () => {
@@ -1149,6 +1154,12 @@ const GoLiveModal = ({ isOpen, onClose, onStreamEnded }) => {
       if (viewerPollRef.current) {
         clearInterval(viewerPollRef.current);
       }
+      
+      // Auto-teardown orphan cleanup if unmounted while active
+      if (streamDataRef.current?.id && user?.id) {
+        logger.info('[GoLiveModal] Unmount trapped active stream. Firing orphan teardown.');
+        axios.post(`${API}/livekit/end-stream/${streamDataRef.current.id}?broadcaster_id=${user.id}`).catch(() => {});
+      }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]); // Only trigger on modal open/close, not on state changes
@@ -1168,10 +1179,10 @@ const GoLiveModal = ({ isOpen, onClose, onStreamEnded }) => {
   return (
     /* ── Mobile: fullscreen  |  Desktop: centred popup ── */
     <div className="fixed inset-0 z-[99999] flex items-center justify-center p-0 sm:p-6" data-testid="go-live-modal" data-theme={theme}>
-      {/* Dark backdrop — click away closes */}
+      {/* Dark backdrop — click away closes ONLY if not streaming */}
       <div
         className="fixed inset-0 bg-black/80 backdrop-blur-sm hidden sm:block"
-        onClick={onClose}
+        onClick={(broadcasterToken || isLoading) ? () => setShowEndDialog(true) : onClose}
       />
       {/* Inner container — fullscreen on mobile, popup on desktop */}
       <div className="relative w-full h-full sm:w-[1100px] sm:h-[720px] sm:max-h-[90vh] sm:rounded-2xl sm:overflow-hidden bg-black shadow-2xl shadow-black/60">

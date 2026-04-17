@@ -202,8 +202,18 @@ async def start_livekit_stream(
             SocialLiveStream.status == 'live'
         )
     )
-    if existing.scalar_one_or_none():
-        raise HTTPException(status_code=400, detail="Already broadcasting")
+    existing_stream = existing.scalar_one_or_none()
+    if existing_stream:
+        # Aggressively terminate any existing stream blocks natively to prevent mobile unmount lockouts
+        age = datetime.now(timezone.utc) - existing_stream.started_at.replace(tzinfo=timezone.utc)
+        logger.warning(
+            f"[livekit] Auto-ending previous stream {existing_stream.id} "
+            f"for broadcaster {request.broadcaster_id} (age: {age}) to provision new request."
+        )
+        existing_stream.status = 'ended'
+        existing_stream.ended_at = datetime.now(timezone.utc)
+        existing_stream.duration_seconds = int(age.total_seconds())
+        await db.flush()
     
     try:
         # Generate unique room name
@@ -341,18 +351,15 @@ async def start_social_live(
     existing_stream = existing_result.scalar_one_or_none()
     if existing_stream:
         age = datetime.now(timezone.utc) - existing_stream.started_at.replace(tzinfo=timezone.utc)
-        if age > timedelta(minutes=15):
-            # Stale / orphaned stream — auto-end it
-            logger.warning(
-                f"[livekit] Auto-ending stale stream {existing_stream.id} "
-                f"for broadcaster {request.broadcaster_id} (age: {age})"
-            )
-            existing_stream.status = 'ended'
-            existing_stream.ended_at = datetime.now(timezone.utc)
-            existing_stream.duration_seconds = int(age.total_seconds())
-            await db.flush()
-        else:
-            raise HTTPException(status_code=400, detail="Already broadcasting")
+        # Any existing stream is automatically ended to prevent lockouts on mobile client unmounts
+        logger.warning(
+            f"[livekit] Auto-ending previous stream {existing_stream.id} "
+            f"for broadcaster {request.broadcaster_id} (age: {age}) to provision new request."
+        )
+        existing_stream.status = 'ended'
+        existing_stream.ended_at = datetime.now(timezone.utc)
+        existing_stream.duration_seconds = int(age.total_seconds())
+        await db.flush()
 
     
     try:
