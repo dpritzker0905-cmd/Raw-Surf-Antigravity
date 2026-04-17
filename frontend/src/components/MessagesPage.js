@@ -7,7 +7,7 @@ import {
   Search, Send, ChevronLeft, ChevronRight, MoreHorizontal, Check, CheckCheck, 
   X, Mic, Image, Camera, Play, Pause, Settings, Edit3, Video,
   Reply, Smile, Heart, Shield, Users, EyeOff, Filter, Star, Store, Briefcase,
-  ThumbsUp, Sparkles, Pin, BellOff, Mail, Trash2
+  ThumbsUp, Sparkles, Pin, BellOff, Mail, Trash2, Clock
 } from 'lucide-react';
 import { Input } from './ui/input';
 import { Button } from './ui/button';
@@ -1120,7 +1120,38 @@ const MessageBubble = ({ message, onReact, onReply }) => {
       );
     }
     if ((message.message_type === 'video' || message.message_type === 'ephemeral_video') && mediaUrl) {
-      return <video src={mediaUrl} controls className="max-w-full rounded-lg mb-1" />;
+      const isEphemeral = message.message_type === 'ephemeral_video';
+      
+      let timeLeftText = '';
+      if (isEphemeral && message.created_at) {
+        // Create an active visual ticker bounding 24 hr limit
+        const diff = (24 * 60 * 60 * 1000) - (Date.now() - new Date(message.created_at).getTime());
+        if (diff > 0) {
+          const h = Math.floor(diff / (1000 * 60 * 60));
+          const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+          timeLeftText = `${h}h ${m}m left`;
+        } else {
+          timeLeftText = 'Expired';
+        }
+      }
+
+      return (
+        <div className="relative group max-w-sm rounded-2xl overflow-hidden mt-1 cursor-pointer">
+          {isEphemeral && timeLeftText && (
+            <div className="absolute top-2 right-2 bg-black/60 backdrop-blur-sm px-2 py-1 rounded flex items-center gap-1 z-10 pointer-events-none">
+              <Clock className="w-3 h-3 text-red-400" />
+              <span className="text-white text-[10px] font-bold">{timeLeftText}</span>
+            </div>
+          )}
+          <video 
+            src={mediaUrl} 
+            controls 
+            className={`max-w-full rounded-lg ${isEphemeral ? 'border-2 border-red-500/30' : ''}`}
+            controlsList={isEphemeral ? "nodownload noplaybackrate" : undefined}
+            disablePictureInPicture={isEphemeral ? true : undefined}
+          />
+        </div>
+      );
     }
     if (message.message_type === 'voice_note' && mediaUrl) {
       return (
