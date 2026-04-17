@@ -1167,7 +1167,7 @@ const GoLiveModal = ({ isOpen, onClose, onStreamEnded }) => {
 
   return (
     /* ── Mobile: fullscreen  |  Desktop: centred popup ── */
-    <div className="fixed inset-0 z-[100] flex items-center justify-center" data-testid="go-live-modal" data-theme={theme}>
+    <div className="fixed inset-0 z-[99999] flex items-center justify-center p-0 sm:p-6" data-testid="go-live-modal" data-theme={theme}>
       {/* Dark backdrop — click away closes */}
       <div
         className="fixed inset-0 bg-black/80 backdrop-blur-sm hidden sm:block"

@@ -137,8 +137,12 @@ export default function WebcamCaptureModal({ isOpen, onClose, onCapture }) {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[200] bg-black flex flex-col">
-      {/* Header */}
+    <div className="fixed inset-0 z-[99999] flex items-center justify-center p-0 sm:p-6">
+      {/* Dark backdrop - click away closes */}
+      <div className="fixed inset-0 bg-black/80 backdrop-blur-sm hidden sm:block" onClick={onClose} />
+      {/* Inner container */}
+      <div className="relative w-full h-full sm:w-[1100px] sm:h-[720px] sm:max-h-[90vh] sm:rounded-2xl sm:overflow-hidden bg-black shadow-2xl shadow-black/60 flex flex-col">
+        {/* Header */}
       <div className="flex items-center justify-between p-4 bg-gradient-to-b from-black/80 to-transparent absolute top-0 left-0 right-0 z-10">
         <button onClick={onClose} className="p-2 bg-black/50 rounded-full text-white hover:bg-zinc-800 transition-colors">
           <X className="w-6 h-6" />
@@ -207,6 +211,7 @@ export default function WebcamCaptureModal({ isOpen, onClose, onCapture }) {
           <div className="w-12 h-12 rounded-full border-2 border-transparent" />
           <span className="text-transparent font-medium text-xs">Blank</span>
         </Button>
+      </div>
       </div>
     </div>
   );
