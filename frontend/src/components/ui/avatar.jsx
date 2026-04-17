@@ -11,12 +11,23 @@ const Avatar = React.forwardRef(({ className, ...props }, ref) => (
 ))
 Avatar.displayName = AvatarPrimitive.Root.displayName
 
-const AvatarImage = React.forwardRef(({ className, ...props }, ref) => (
-  <AvatarPrimitive.Image
-    ref={ref}
-    className={cn("aspect-square h-full w-full", className)}
-    {...props} />
-))
+const AvatarImage = React.forwardRef(({ className, src, ...props }, ref) => {
+  const getFullUrl = (url) => {
+    if (!url) return url;
+    if (url.startsWith('data:')) return url;
+    if (url.startsWith('http')) return url;
+    return `${process.env.REACT_APP_BACKEND_URL || ''}${url}`;
+  };
+
+  return (
+    <AvatarPrimitive.Image
+      ref={ref}
+      src={getFullUrl(src)}
+      className={cn("aspect-square h-full w-full object-cover", className)}
+      {...props} 
+    />
+  );
+})
 AvatarImage.displayName = AvatarPrimitive.Image.displayName
 
 const AvatarFallback = React.forwardRef(({ className, ...props }, ref) => (
