@@ -68,6 +68,9 @@ export const RequestProModal = ({
   const [selectedPro, setSelectedPro]           = useState(null);
   const [proListExpanded, setProListExpanded]   = useState(false);
 
+  // ── Scheduled start time (minutes from now: 30 / 60 / 90) ───────────────
+  const [startTimeOption, setStartTimeOption] = useState(30);
+
   // ── Session duration ────────────────────────────────────────────────────
   const [duration, setDuration]       = useState(1);
 
@@ -88,6 +91,7 @@ export const RequestProModal = ({
     if (!isOpen) {
       setSelectedPro(null);
       setProListExpanded(false);
+      setStartTimeOption(30);
       setDuration(1);
       setInviteFriends(false);
       setSelectedFriends([]);
@@ -123,6 +127,8 @@ export const RequestProModal = ({
     setLoading(true);
     try {
       const requesterIdParam = userId || user?.id;
+      const requestedStartTime = new Date(Date.now() + startTimeOption * 60000).toISOString();
+
       const response = await axios.post(
         `${API}/dispatch/request?requester_id=${requesterIdParam}`,
         {
@@ -132,6 +138,8 @@ export const RequestProModal = ({
           spot_id:                    nearestSpot?.id || null,
           estimated_duration_hours:   duration,
           is_immediate:               true,
+          requested_start_time:       requestedStartTime,
+          arrival_window_minutes:     startTimeOption,
           is_shared:                  inviteFriends && selectedFriends.length > 0,
           target_photographer_id:     selectedPro?.id || null,
           friend_ids:                 selectedFriends.length > 0
@@ -344,7 +352,43 @@ export const RequestProModal = ({
             </div>
           </div>
 
-          {/* ── 3. Session duration ────────────────────────────────────── */}
+          {/* ── 3. Scheduled arrival time ──────────────────────────────── */}
+          <div className="space-y-2">
+            <label className="flex items-center gap-1.5 text-sm font-medium text-gray-300">
+              <Clock className="w-4 h-4" />
+              When do you want the Pro to arrive?
+            </label>
+            <div className="grid grid-cols-3 gap-2">
+              {[
+                { value: 30,  label: '30 min' },
+                { value: 60,  label: '1 hour' },
+                { value: 90,  label: '90 min' },
+              ].map(({ value, label }) => {
+                const arrivalTime = new Date(Date.now() + value * 60000);
+                const timeStr = arrivalTime.toLocaleTimeString('en-US', {
+                  hour: 'numeric', minute: '2-digit', hour12: true,
+                });
+                return (
+                  <button
+                    key={value}
+                    onClick={() => setStartTimeOption(value)}
+                    className={`py-2.5 px-2 rounded-xl flex flex-col items-center transition-all ${
+                      startTimeOption === value
+                        ? 'bg-amber-500 text-black shadow-lg shadow-amber-500/20'
+                        : 'bg-zinc-800 text-gray-300 hover:bg-zinc-700'
+                    }`}
+                  >
+                    <span className="text-sm font-bold">{label}</span>
+                    <span className={`text-[10px] mt-0.5 ${
+                      startTimeOption === value ? 'text-black/70' : 'text-gray-500'
+                    }`}>{timeStr}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* ── 4. Session duration ────────────────────────────────────── */}
           <div className="space-y-2">
             <label className="flex items-center gap-1.5 text-sm font-medium text-gray-300">
               <Clock className="w-4 h-4" />
@@ -367,7 +411,7 @@ export const RequestProModal = ({
             </div>
           </div>
 
-          {/* ── 4. Invite friends to split ─────────────────────────────── */}
+          {/* ── 5. Invite friends to split ─────────────────────────────── */}
           <div className="bg-zinc-800/50 rounded-xl overflow-hidden">
             <div className="flex items-center justify-between px-3 py-3">
               <div>
@@ -480,7 +524,7 @@ export const RequestProModal = ({
             )}
           </div>
 
-          {/* ── 5. Price breakdown ────────────────────────────────────── */}
+          {/* ── 6. Price breakdown ────────────────────────────────────── */}
           <div className="bg-gradient-to-r from-cyan-900/30 to-blue-900/30 rounded-xl border border-cyan-500/25 overflow-hidden">
             <div className="px-3 pt-3 pb-2 space-y-1.5">
               <div className="flex items-center justify-between text-sm">
@@ -504,7 +548,7 @@ export const RequestProModal = ({
             </div>
           </div>
 
-          {/* ── 6. Boost Your Request ─────────────────────────────────── */}
+          {/* ── 7. Boost Your Request ─────────────────────────────────── */}
           <div className="bg-gradient-to-r from-orange-900/30 to-red-900/25 rounded-xl border border-orange-500/25 p-3 space-y-2.5">
             <div className="flex items-center gap-2">
               <Zap className="w-4 h-4 text-orange-400" />
