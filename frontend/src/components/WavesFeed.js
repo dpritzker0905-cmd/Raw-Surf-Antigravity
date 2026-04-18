@@ -278,7 +278,7 @@ const WaveCard = ({
 /**
  * WavesFeed - Main feed container with swipe navigation
  */
-export const WavesFeed = ({ feedType = 'for_you' }) => {
+export const WavesFeed = ({ feedType = 'for_you', onCreateWave }) => {
   const { user } = useAuth();
   const { theme } = useTheme();
   const navigate = useNavigate();
@@ -432,7 +432,13 @@ export const WavesFeed = ({ feedType = 'for_you' }) => {
         <h3 className="text-xl font-bold mb-2">No Waves Yet</h3>
         <p className="text-zinc-400 mb-6">Be the first to share a Wave!</p>
         <Button
-          onClick={() => navigate('/create-wave')}
+          onClick={() => {
+            if (onCreateWave) {
+              onCreateWave();
+            } else {
+              toast.error('Unable to create wave from here.');
+            }
+          }}
           className="bg-gradient-to-r from-cyan-500 to-blue-500 text-white"
           data-testid="create-first-wave-btn"
         >

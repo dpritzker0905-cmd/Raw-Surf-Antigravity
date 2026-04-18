@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../contexts/AuthContext';
@@ -1262,7 +1262,7 @@ export const Feed = () => {
       {/* Waves Tab - Full Screen Video Feed */}
       {activeTab === 'waves' && (
         <div className="relative" style={{ height: 'calc(100vh - 200px)', minHeight: '500px' }}>
-          <WavesFeed feedType="for_you" />
+          <WavesFeed feedType="for_you" onCreateWave={() => setShowCreateWaveModal(true)} />
           {/* Floating Create Wave Button */}
           <button
             onClick={() => setShowCreateWaveModal(true)}
