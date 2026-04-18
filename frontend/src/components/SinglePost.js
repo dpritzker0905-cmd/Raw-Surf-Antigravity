@@ -270,10 +270,11 @@ const SinglePost = () => {
     if (!content || !user?.id) return;
     
     try {
-      await axios.post(`${API}/posts/${postId}/comments`, {
-        author_id: user.id,
-        content
-      });
+      await axios.post(
+        `${API}/posts/${postId}/comments`,
+        { content },
+        { params: { user_id: user.id } }
+      );
       
       setCommentInputs(prev => ({ ...prev, [postId]: '' }));
       setPost(prev => ({
