@@ -32,14 +32,35 @@
   }
 }
 
-/* ── Modal body standard scroll pattern ── */
-/* Apply to the scrollable inner body of any dialog/drawer.
-   The parent must be display:flex + flex-direction:column. */
+/* ── Modal body: the scrollable region inside any dialog ── */
+/* Parent (DialogContent) must be display:flex flex-direction:column.
+   flex:1          — fills remaining space between header & footer
+   min-h:0         — THE critical rule: tells flex not to enforce the
+                     item's natural content height as a minimum. Without
+                     this, overflow:auto never activates because the flex
+                     algorithm never shrinks the item below content size.
+   overflow-y:auto — show scrollbar only when content overflows         */
 .modal-body {
   flex: 1 1 0%;
+  min-height: 0;              /* ← must pair with flex:1 to enable scroll */
   overflow-y: auto;
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
+}
+
+/* Subtle scrollbar so users know it's scrollable */
+.modal-body::-webkit-scrollbar {
+  width: 4px;
+}
+.modal-body::-webkit-scrollbar-track {
+  background: transparent;
+}
+.modal-body::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,0.15);
+  border-radius: 2px;
+}
+.modal-body::-webkit-scrollbar-thumb:hover {
+  background: rgba(255,255,255,0.3);
 }
 
 /* ── Mobile sheet / bottom-drawer positioning ── */

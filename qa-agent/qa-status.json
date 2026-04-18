@@ -3,13 +3,13 @@
     "targetBackend":  "https://raw-surf-antigravity.onrender.com",
     "activeEnv":  "dev",
     "overallStatus":  "PASS",
-    "lastRun":  "2026-04-17T23:35:34",
+    "lastRun":  "2026-04-17T23:42:10",
     "targetBranch":  "dev",
     "targetFrontend":  "https://dev--rawsurf.netlify.app",
     "history":  [
                     {
                         "activeEnv":  "dev",
-                        "timestamp":  "2026-04-17T23:35:34",
+                        "timestamp":  "2026-04-17T23:42:10",
                         "overallStatus":  "PASS",
                         "targetFrontend":  "https://dev--rawsurf.netlify.app",
                         "changedFile":  ""
@@ -167,7 +167,7 @@
                                       {
                                           "message":  "React Hook useEffect has missing dependencies: \u0027fetchFeedLineups\u0027, \u0027fetchFollowing\u0027, \u0027fetchPosts\u0027, \u0027fetchStreak\u0027, and \u0027fetchUpcomingSessions\u0027. Either include them or remove the dependency array.",
                                           "column":  6,
-                                          "line":  288,
+                                          "line":  304,
                                           "severity":  "warning",
                                           "rule":  "react-hooks/exhaustive-deps",
                                           "file":  "\\src\\components\\Feed.js"
@@ -511,7 +511,7 @@
                                       {
                                           "message":  "React Hook useEffect has a missing dependency: \u0027loadConversationById\u0027. Either include it or remove the dependency array.",
                                           "column":  6,
-                                          "line":  1365,
+                                          "line":  1389,
                                           "severity":  "warning",
                                           "rule":  "react-hooks/exhaustive-deps",
                                           "file":  "\\src\\components\\MessagesPage.js"
@@ -519,7 +519,7 @@
                                       {
                                           "message":  "React Hook useEffect has a missing dependency: \u0027startNewConversation\u0027. Either include it or remove the dependency array.",
                                           "column":  6,
-                                          "line":  1391,
+                                          "line":  1415,
                                           "severity":  "warning",
                                           "rule":  "react-hooks/exhaustive-deps",
                                           "file":  "\\src\\components\\MessagesPage.js"
@@ -527,7 +527,7 @@
                                       {
                                           "message":  "React Hook useEffect has missing dependencies: \u0027activeFolder\u0027, \u0027fetchConversations\u0027, \u0027isMasked\u0027, \u0027user?.id\u0027, \u0027user?.is_admin\u0027, \u0027user?.is_grom_parent\u0027, and \u0027user?.role\u0027. Either include them or remove the dependency array.",
                                           "column":  6,
-                                          "line":  1408,
+                                          "line":  1432,
                                           "severity":  "warning",
                                           "rule":  "react-hooks/exhaustive-deps",
                                           "file":  "\\src\\components\\MessagesPage.js"
@@ -535,7 +535,7 @@
                                       {
                                           "message":  "React Hook useEffect has missing dependencies: \u0027fetchConversations\u0027 and \u0027fetchStories\u0027. Either include them or remove the dependency array.",
                                           "column":  6,
-                                          "line":  1416,
+                                          "line":  1440,
                                           "severity":  "warning",
                                           "rule":  "react-hooks/exhaustive-deps",
                                           "file":  "\\src\\components\\MessagesPage.js"
@@ -543,7 +543,7 @@
                                       {
                                           "message":  "React Hook useEffect has a missing dependency: \u0027fetchConversationDetail\u0027. Either include it or remove the dependency array.",
                                           "column":  6,
-                                          "line":  1423,
+                                          "line":  1447,
                                           "severity":  "warning",
                                           "rule":  "react-hooks/exhaustive-deps",
                                           "file":  "\\src\\components\\MessagesPage.js"
@@ -551,7 +551,7 @@
                                       {
                                           "message":  "React Hook useEffect has missing dependencies: \u0027fetchConversationDetail\u0027, \u0027fetchConversations\u0027, and \u0027selectedConversation\u0027. Either include them or remove the dependency array.",
                                           "column":  6,
-                                          "line":  1462,
+                                          "line":  1486,
                                           "severity":  "warning",
                                           "rule":  "react-hooks/exhaustive-deps",
                                           "file":  "\\src\\components\\MessagesPage.js"
@@ -559,7 +559,7 @@
                                       {
                                           "message":  "React Hook useEffect has a missing dependency: \u0027selectedConversation.is_new_chat\u0027. Either include it or remove the dependency array.",
                                           "column":  6,
-                                          "line":  1478,
+                                          "line":  1502,
                                           "severity":  "warning",
                                           "rule":  "react-hooks/exhaustive-deps",
                                           "file":  "\\src\\components\\MessagesPage.js"
@@ -567,7 +567,7 @@
                                       {
                                           "message":  "React Hook useEffect has a missing dependency: \u0027fetchCrewChats\u0027. Either include it or remove the dependency array.",
                                           "column":  6,
-                                          "line":  1771,
+                                          "line":  1795,
                                           "severity":  "warning",
                                           "rule":  "react-hooks/exhaustive-deps",
                                           "file":  "\\src\\components\\MessagesPage.js"

@@ -1097,7 +1097,7 @@ const EphemeralCountdown = ({ createdAt }) => {
       if (r <= 0) clearInterval(interval); // Stop when expired
     }, 30000);
     return () => clearInterval(interval);
-  }, [createdAt]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [createdAt]); // eslint-disable-line
 
   if (remaining <= 0) {
     return (

@@ -18,7 +18,7 @@ import { Input } from './ui/input';
 import { Textarea } from './ui/textarea';
 import { Badge } from './ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from './ui/dialog';
 import { toast } from 'sonner';
 import { AdminCompetitionVerification } from './AdminCompetitionVerification';
 import { AdminPricingEditor } from './admin/AdminPricingEditor';
@@ -1027,7 +1027,7 @@ const UnifiedAdminConsole = () => {
               Suspend User
             </DialogTitle>
           </DialogHeader>
-          <div className="space-y-4 pt-4">
+          <div className="modal-body px-4 sm:px-6 space-y-4 py-4">
             <p className="text-gray-400">
               Suspending <span className="text-white">{userToSuspend?.email}</span>
             </p>
@@ -1091,7 +1091,7 @@ const UserDetailModal = ({ user: targetUser, onClose, onToggleAdmin }) => {
         <DialogHeader>
           <DialogTitle>User Details</DialogTitle>
         </DialogHeader>
-        <div className="space-y-4 pt-4">
+        <div className="modal-body px-4 sm:px-6 py-4 space-y-4">
           <div className="flex items-center gap-4">
             <Avatar className="w-16 h-16">
               <AvatarImage src={targetUser.avatar_url} />
@@ -2845,15 +2845,15 @@ const AdminSpotsPanel = ({ userId }) => {
 
       {/* Import Tier Selection Dialog */}
       <Dialog open={showImportDialog} onOpenChange={setShowImportDialog}>
-        <DialogContent className="bg-zinc-900 border border-zinc-700 sm:max-w-md w-[95vw] sm:w-full rounded-xl flex flex-col gap-0 p-0 overflow-hidden">
-          <DialogHeader className="p-4 sm:p-6 pb-2 border-b border-zinc-800">
+        <DialogContent className="bg-zinc-900 border border-zinc-700 sm:max-w-md w-[95vw] sm:w-full rounded-xl">
+          <DialogHeader>
             <DialogTitle className="text-white flex items-center gap-2">
               <Upload className="w-5 h-5 text-green-400" />
               Import Global Surf Spots
             </DialogTitle>
           </DialogHeader>
           
-          <div className="space-y-4 overflow-y-auto max-h-[55vh] custom-scrollbar p-4 sm:p-6">
+          <div className="modal-body px-4 sm:px-6 py-4 space-y-4">
             <p className="text-gray-400 text-sm">
               Select which region tier to import surf spots from:
             </p>
@@ -2903,11 +2903,18 @@ const AdminSpotsPanel = ({ userId }) => {
             </div>
           </div>
           
-          <div className="p-4 sm:p-6 pt-3 border-t border-zinc-800 bg-zinc-900/50 flex flex-col sm:flex-row gap-2">
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowImportDialog(false)}
+              className="border-zinc-600 text-gray-300 hover:text-white"
+            >
+              Cancel
+            </Button>
             <Button
               onClick={handleImport}
               disabled={importLoading}
-              className="w-full sm:flex-1 bg-green-600 hover:bg-green-700 text-white order-1 sm:order-2"
+              className="bg-green-600 hover:bg-green-700 text-white"
             >
               {importLoading ? (
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -2916,14 +2923,7 @@ const AdminSpotsPanel = ({ userId }) => {
               )}
               Start Import
             </Button>
-            <Button
-              variant="outline"
-              onClick={() => setShowImportDialog(false)}
-              className="w-full sm:flex-1 border-zinc-600 text-gray-300 hover:text-white order-2 sm:order-1"
-            >
-              Cancel
-            </Button>
-          </div>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 
@@ -3025,7 +3025,7 @@ const AdminSpotsPanel = ({ userId }) => {
             <DialogTitle className="text-white">Edit Spot: {editingSpot?.name}</DialogTitle>
           </DialogHeader>
           {editingSpot && (
-            <div className="space-y-4">
+            <div className="modal-body px-4 sm:px-6 py-4 space-y-4">
               <div>
                 <label className="text-sm text-gray-400">Name</label>
                 <Input
@@ -3103,7 +3103,7 @@ const AdminSpotsPanel = ({ userId }) => {
                   {editingSpot.is_active ? 'Active' : 'Inactive'}
                 </Button>
               </div>
-              <div className="flex gap-2 pt-4">
+              <div className="flex gap-2 pt-2">
                 <Button
                   onClick={() => handleUpdateSpot(editingSpot.id, editingSpot)}
                   className="flex-1 bg-cyan-600 hover:bg-cyan-700"

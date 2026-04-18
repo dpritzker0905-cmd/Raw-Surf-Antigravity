@@ -29,19 +29,31 @@ DialogOverlay.displayName = DialogPrimitive.Overlay.displayName
  * DialogContent
  *
  * LAYOUT SYSTEM:
- * ─ Mobile  (< sm): Bottom sheet. Anchors top:56px, bottom:var(--safe-bottom).
- *   --safe-bottom is set by BottomNav's ResizeObserver (see index.css + BottomNav.js).
- *   This guarantees the modal footer always clears the BottomNav + Create button.
+ * ─ Mobile  (< sm): Bottom sheet from below TopNav to above BottomNav.
+ *   Uses .dialog-safe-bottom CSS class (not inline style!) so the @media
+ *   rule can override bottom:auto on desktop without specificity fights.
  *
- * ─ Desktop (≥ sm): Centered modal. sm:max-h-[90vh] with sticky header/footer
- *   and a flex-1 scrollable body — no content ever cut off.
+ * ─ Desktop (≥ sm): Centered modal, max-h-[85vh].
  *
- * USAGE PATTERN inside DialogContent:
- *   <DialogHeader>…</DialogHeader>          ← sticky top
- *   <div className="modal-body px-4 py-4">  ← flex-1, scrolls
- *     …content…
- *   </div>
- *   <DialogFooter>…</DialogFooter>          ← sticky bottom
+ * SCROLLABILITY — why it works:
+ *   DialogContent itself is display:flex flex-col + overflow:hidden + max-h.
+ *   That makes it the flex formatting context at the height-constrained level.
+ *   Children:
+ *     • DialogHeader  — shrink-0 (never squished)
+ *     • .modal-body   — flex:1 min-h:0 overflow-y:auto  ← the scroll viewport
+ *     • DialogFooter  — shrink-0 (always visible)
+ *
+ *   The critical piece is min-h:0 on .modal-body. Without it, a flex child
+ *   will refuse to shrink below its content size, defeating overflow:auto.
+ *
+ * USAGE:
+ *   <DialogContent>
+ *     <DialogHeader>…</DialogHeader>
+ *     <div className="modal-body px-4 py-4 space-y-4">
+ *       …scrollable content…
+ *     </div>
+ *     <DialogFooter>…</DialogFooter>
+ *   </DialogContent>
  */
 const DialogContent = React.forwardRef(({ className, children, overlayClassName, hideCloseButton, ...props }, ref) => (
   <DialogPortal>
@@ -49,23 +61,31 @@ const DialogContent = React.forwardRef(({ className, children, overlayClassName,
     <DialogPrimitive.Content
       ref={ref}
       className={cn(
-        // ── Shared ───────────────────────────────────────────────────
-        "fixed z-50 border bg-background shadow-2xl duration-200 p-0 overflow-hidden",
+        // ── Shared base ────────────────────────────────────────────────
+        "fixed z-50 border bg-background shadow-2xl duration-200 p-0",
         "data-[state=open]:animate-in data-[state=closed]:animate-out",
         "data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
 
-        // ── Mobile: full-width bottom sheet ──────────────────────────────
-        // top:56px = below TopNav. bottom uses .dialog-safe-bottom class
-        // (CSS class instead of inline style so @media can reset to `auto`
-        //  on desktop without specificity fights).
+        // ── Flex column: DialogContent IS the flex container ───────────
+        // overflow-hidden here clips content that exceeds max-h.
+        // Children use shrink-0 (header/footer) and flex-1 min-h-0 (body).
+        // Do NOT add a nested flex wrapper — nested h-full on a fixed
+        // element resolves to 100vh, not the parent's max-h, breaking scroll.
+        "flex flex-col overflow-hidden",
+
+        // ── Mobile: full-width bottom sheet ───────────────────────────
+        // .dialog-safe-bottom class (in index.css) sets bottom to
+        // var(--safe-bottom) which clears the BottomNav + Create button.
+        // It uses a CSS class (not inline style) so the sm @media rule
+        // can properly reset it to `auto` for the desktop centered layout.
         "left-0 right-0 w-full",
         "top-14 rounded-t-2xl rounded-b-none",
         "data-[state=open]:slide-in-from-bottom data-[state=closed]:slide-out-to-bottom",
 
-        // ── Desktop: centered modal ──────────────────────────────────────
-        // sm:inset-auto clears all inset overrides from the mobile block.
-        // .dialog-safe-bottom's @media rule then sets bottom:auto so the
-        // dialog can grow freely to sm:max-h-[85vh] from the centered pivot.
+        // ── Desktop: centered modal ────────────────────────────────────
+        // sm:inset-auto clears left/right/top/bottom set above.
+        // sm:max-h-[85vh] caps height; flex-col + overflow-hidden above
+        // make the .modal-body the scroll viewport (not the whole dialog).
         "sm:inset-auto",
         "sm:left-1/2 sm:top-1/2",
         "sm:-translate-x-1/2 sm:-translate-y-1/2",
@@ -76,21 +96,14 @@ const DialogContent = React.forwardRef(({ className, children, overlayClassName,
         "sm:data-[state=closed]:slide-out-to-left-1/2 sm:data-[state=closed]:slide-out-to-top-[48%]",
         "sm:data-[state=open]:slide-in-from-left-1/2 sm:data-[state=open]:slide-in-from-top-[48%]",
 
-        // CSS class-based bottom positioning (media-query overridable)
+        // CSS class for bottom positioning (overridable via @media in index.css)
         "dialog-safe-bottom",
 
         className
       )}
       {...props}
     >
-      {/*
-        Inner flex column — expand to fill the available panel height.
-        `max-h-full overflow:hidden` on this div + `overflow-y:auto` on
-        .modal-body keeps header & footer pinned while only content scrolls.
-      */}
-      <div className="flex flex-col h-full max-h-full overflow-hidden">
-        {children}
-      </div>
+      {children}
       {!hideCloseButton && (
         <DialogPrimitive.Close
           className="absolute right-4 top-4 rounded-full p-1.5 bg-zinc-800/80 opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground z-10"
@@ -105,7 +118,8 @@ const DialogContent = React.forwardRef(({ className, children, overlayClassName,
 DialogContent.displayName = DialogPrimitive.Content.displayName
 
 /**
- * DialogHeader — Sticky top, blurred background, never scrolls out of view.
+ * DialogHeader — Sticky top, blurred background, never scrolls away.
+ * shrink-0 prevents it from being compressed by flex layout.
  */
 const DialogHeader = ({
   className,
@@ -113,11 +127,9 @@ const DialogHeader = ({
 }) => (
   <div
     className={cn(
-      // Sticky so it always shows at the top even when body scrolls
-      "sticky top-0 z-10",
-      "flex flex-col space-y-1 shrink-0",
+      "sticky top-0 z-10 shrink-0",
+      "flex flex-col space-y-1",
       "px-4 pt-5 pb-3 sm:px-6 sm:pt-6",
-      // Subtle blur for a premium feel when content scrolls under it
       "bg-background/95 backdrop-blur-sm",
       className
     )}
@@ -127,8 +139,8 @@ const DialogHeader = ({
 DialogHeader.displayName = "DialogHeader"
 
 /**
- * DialogFooter — Sticky bottom, blurred background, CTA buttons always visible.
- * Adding a top border and enough padding to clear the safe area on notch devices.
+ * DialogFooter — Sticky bottom, always visible above fold.
+ * shrink-0 prevents compression. safe-area-inset padding for notch devices.
  */
 const DialogFooter = ({
   className,
@@ -136,16 +148,14 @@ const DialogFooter = ({
 }) => (
   <div
     className={cn(
-      // Sticky so footer buttons always show regardless of scroll position
-      "sticky bottom-0 z-10",
-      "flex flex-col-reverse sm:flex-row sm:justify-end gap-2 shrink-0",
+      "sticky bottom-0 z-10 shrink-0",
+      "flex flex-col-reverse sm:flex-row sm:justify-end gap-2",
       "px-4 pt-3 sm:px-6 sm:pt-4",
       "border-t border-border/50",
       "bg-background/95 backdrop-blur-sm",
       className
     )}
     style={{
-      // Extra padding for devices with rounded corners / home indicators
       paddingBottom: 'max(1rem, env(safe-area-inset-bottom, 0px))',
     }}
     {...props}
