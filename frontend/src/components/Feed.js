@@ -111,18 +111,33 @@ const _ShakaIcon = ({ filled }) => (
   />
 );
 
-// Reaction Picker Component - Fixed positioning and z-index
-const ReactionPicker = ({ show, onSelect, onClose }) => {
+// Reaction Picker Component - Anchored near the Shaka button, not screen center
+const ReactionPicker = ({ show, onSelect, onClose, anchor }) => {
   if (!show) return null;
-  
+
+  // Position above the Shaka button, clamped within viewport
+  // anchor = { x: button center X, y: button top Y } in page coords
+  const PICKER_WIDTH = 220;  // approximate picker width in px
+  const PICKER_HEIGHT = 52;  // approximate picker height in px
+  const MARGIN = 8;           // gap above the button
+
+  let left = (anchor?.x ?? window.innerWidth / 2) - PICKER_WIDTH / 2;
+  let top = (anchor?.y ?? window.innerHeight / 2) - PICKER_HEIGHT - MARGIN;
+
+  // Clamp horizontally within viewport
+  left = Math.max(8, Math.min(left, window.innerWidth - PICKER_WIDTH - 8));
+  // Clamp vertically — if goes off top, show below button instead
+  if (top < 8) {
+    top = (anchor?.y ?? window.innerHeight / 2) + MARGIN + 36; // 36 ≈ button height
+  }
+
   return (
     <div 
       className="fixed bg-zinc-900/95 backdrop-blur-sm border border-zinc-600 rounded-full px-2 py-1.5 flex items-center gap-1 shadow-2xl animate-in zoom-in-95 duration-200"
       style={{ 
         zIndex: 99999,
-        left: '50%',
-        top: '50%',
-        transform: 'translate(-50%, -50%)',
+        left: `${left}px`,
+        top: `${top}px`,
         pointerEvents: 'auto'
       }}
       onClick={(e) => e.stopPropagation()}
@@ -224,6 +239,7 @@ export const Feed = () => {
   
   // Reaction state
   const [showReactionPicker, setShowReactionPicker] = useState(null);  // post ID or null
+  const [pickerAnchor, setPickerAnchor] = useState(null);  // {x, y} for positioning picker near the button
   const [pressingPostId, setPressingPostId] = useState(null);  // Track which shaka is being pressed
   const longPressTimerRef = useRef(null);
   
@@ -710,6 +726,12 @@ export const Feed = () => {
       e.preventDefault();
     }
     
+    // Capture the button's position for the picker to anchor to
+    if (e.currentTarget) {
+      const rect = e.currentTarget.getBoundingClientRect();
+      setPickerAnchor({ x: rect.left + rect.width / 2, y: rect.top });
+    }
+    
     // Clear any existing timer first
     if (longPressTimerRef.current) {
       clearTimeout(longPressTimerRef.current);
@@ -783,7 +805,9 @@ export const Feed = () => {
     }
     
     setShowReactionPicker(null);
+    setPickerAnchor(null);  // Clear anchor position
     setPressingPostId(null); // Clear pressing state when picker closes
+
     
     // Find the post to get author info for notification
     const targetPost = posts.find(p => p.id === postId);
@@ -1414,13 +1438,14 @@ export const Feed = () => {
           {/* Global Reaction Picker Overlay - renders on top of everything */}
           <ReactionOverlay 
             show={showReactionPicker !== null} 
-            onClose={() => setShowReactionPicker(null)} 
+            onClose={() => { setShowReactionPicker(null); setPickerAnchor(null); }} 
           />
           {showReactionPicker !== null && (
             <ReactionPicker 
               show={true}
+              anchor={pickerAnchor}
               onSelect={(emoji) => handleReaction(showReactionPicker, emoji)}
-              onClose={() => setShowReactionPicker(null)}
+              onClose={() => { setShowReactionPicker(null); setPickerAnchor(null); }}
             />
           )}
 

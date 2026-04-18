@@ -979,8 +979,9 @@ const ConversationItem = ({ conversation, isSelected, onClick }) => {
             </div>
           )}
         </div>
-        {/* Online indicator - only show if active in last 5 min */}
-        {conversation.other_user_updated_at && (Math.floor((Date.now() - new Date(conversation.other_user_updated_at).getTime()) / 1000) < 300) && (
+        {/* Online indicator - green dot only if they sent a message in this chat within last 5 min */}
+        {conversation.other_user_last_active &&
+          (Date.now() - new Date(conversation.other_user_last_active).getTime()) < 300000 && (
           <div className="absolute bottom-0 right-0 w-4 h-4 bg-green-500 rounded-full border-2 border-background" />
         )}
       </div>

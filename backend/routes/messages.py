@@ -177,6 +177,7 @@ class ConversationResponse(BaseModel):
     other_user_avatar: Optional[str]
     other_user_role: Optional[str]
     other_user_updated_at: Optional[datetime] = None  # For avatar cache-busting
+    other_user_last_active: Optional[datetime] = None  # Last message sent by other user (real presence)
     last_message_preview: Optional[str]
     last_message_at: Optional[datetime]
     unread_count: int
@@ -618,6 +619,10 @@ async def get_conversations(user_id: str, inbox_type: str = "primary", grom_zone
         is_muted = conv.is_muted_for_one if is_participant_one else conv.is_muted_for_two
         is_manually_unread = conv.is_unread_for_one if is_participant_one else conv.is_unread_for_two
         
+        # Get last activity by the OTHER user (their most recent message) for online dot
+        other_user_msgs = [m for m in conv.messages if m.sender_id != user_id]
+        other_user_last_active = max((m.created_at for m in other_user_msgs), default=None) if other_user_msgs else None
+        
         response.append(ConversationResponse(
             id=conv.id,
             other_user_id=other_user.id if other_user else "",
@@ -626,6 +631,7 @@ async def get_conversations(user_id: str, inbox_type: str = "primary", grom_zone
             other_user_avatar=other_user.avatar_url if other_user else None,
             other_user_role=other_role,
             other_user_updated_at=other_user.updated_at if other_user else None,
+            other_user_last_active=other_user_last_active,
             last_message_preview=conv.last_message_preview,
             last_message_at=conv.last_message_at,
             unread_count=unread_count,
