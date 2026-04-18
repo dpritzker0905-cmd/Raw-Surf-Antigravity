@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import axios from 'axios';
+import apiClient from '../lib/apiClient';
 import { Radio, MapPin, Calendar, ChevronRight, Users, Zap, Play, Activity, Lock, Sparkles } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from './ui/sheet';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
@@ -10,7 +10,7 @@ import { toast } from 'sonner';
 import { SpotSelector } from './SpotSelector';
 import logger from '../utils/logger';
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
+
 
 /**
  * SurferSessionHub - Consolidated Session Hub for ALL Users
@@ -692,7 +692,7 @@ export const SurferSessionHub = ({ children, isPhotographer = false }) => {
   // Fetch AI match count from claim queue (TICKET-007)
   const fetchAiMatchCount = async () => {
     try {
-      const response = await axios.get(`${API}/surfer-gallery/claim-queue-count/${user.id}`);
+      const response = await apiClient.get(`/surfer-gallery/claim-queue-count/${user.id}`);
       setAiMatchCount(response.data.pending_count || 0);
     } catch (error) {
       logger.debug('Failed to fetch AI match count:', error);
@@ -719,7 +719,7 @@ export const SurferSessionHub = ({ children, isPhotographer = false }) => {
 
   const fetchLiveCount = async () => {
     try {
-      const response = await axios.get(`${API}/photographers/live`);
+      const response = await apiClient.get(`/photographers/live`);
       setLiveCount(response.data.length || 0);
     } catch (error) {
       logger.error('Failed to fetch live count:', error);
@@ -728,7 +728,8 @@ export const SurferSessionHub = ({ children, isPhotographer = false }) => {
 
   const fetchUpcomingBookings = async () => {
     try {
-      const response = await axios.get(`${API}/bookings/surfer/${user.id}`);
+      // Correct backend route: /bookings/user/{id} (not /bookings/surfer/{id})
+      const response = await apiClient.get(`/bookings/user/${user.id}`);
       const upcoming = (response.data || []).filter(b => 
         b.status === 'confirmed' && new Date(b.session_date) > new Date()
       );
@@ -740,7 +741,7 @@ export const SurferSessionHub = ({ children, isPhotographer = false }) => {
 
   const fetchOnDemandStatus = async () => {
     try {
-      const response = await axios.get(`${API}/photographer/${user.id}/on-demand-status`);
+      const response = await apiClient.get(`/photographer/${user.id}/on-demand-status`);
       const data = response.data;
       setOnDemandActive(data?.is_available || false);
       
@@ -767,7 +768,7 @@ export const SurferSessionHub = ({ children, isPhotographer = false }) => {
 
   const fetchLiveStatus = async () => {
     try {
-      const response = await axios.get(`${API}/photographer/${user.id}/status`);
+      const response = await apiClient.get(`/photographer/${user.id}/status`);
       const data = response.data;
       setLiveActive(data?.is_shooting || false);
       if (data?.current_spot_name || data?.current_spot_id) {
@@ -794,7 +795,7 @@ export const SurferSessionHub = ({ children, isPhotographer = false }) => {
     // If spot is null, end the live session
     if (spot === null) {
       try {
-        await axios.post(`${API}/photographer/${user.id}/end-session`);
+        await apiClient.post(`/photographer/${user.id}/end-session`);
         setLiveActive(false);
         setSelectedLiveSpot(null);
         setShowLiveSpotSelector(false);
@@ -814,7 +815,7 @@ export const SurferSessionHub = ({ children, isPhotographer = false }) => {
     try {
       // MUTUAL EXCLUSION: Turn off On-Demand if active
       if (onDemandActive) {
-        await axios.post(`${API}/photographer/${user.id}/on-demand-toggle`, {
+        await apiClient.post(`/photographer/${user.id}/on-demand-toggle`, {
           is_available: false
         });
         setOnDemandActive(false);
@@ -822,7 +823,7 @@ export const SurferSessionHub = ({ children, isPhotographer = false }) => {
         toast.info('Switching to Live mode. On-Demand disabled.');
       }
       
-      await axios.post(`${API}/photographer/${user.id}/go-live`, {
+      await apiClient.post(`/photographer/${user.id}/go-live`, {
         spot_id: spot.id,
         spot_name: spot.name,
         latitude: spot.latitude,
@@ -842,7 +843,7 @@ export const SurferSessionHub = ({ children, isPhotographer = false }) => {
     // If turning off, just toggle
     if (onDemandActive) {
       try {
-        await axios.post(`${API}/photographer/${user.id}/on-demand-toggle`, {
+        await apiClient.post(`/photographer/${user.id}/on-demand-toggle`, {
           is_available: false
         });
         setOnDemandActive(false);
@@ -863,7 +864,7 @@ export const SurferSessionHub = ({ children, isPhotographer = false }) => {
     // MUTUAL EXCLUSION: Turn off Live if active
     if (liveActive) {
       try {
-        await axios.post(`${API}/photographer/${user.id}/end-session`);
+        await apiClient.post(`/photographer/${user.id}/end-session`);
         setLiveActive(false);
         setSelectedLiveSpot(null);
         toast.info('Switching to On-Demand mode. Live session ended.');
@@ -883,7 +884,7 @@ export const SurferSessionHub = ({ children, isPhotographer = false }) => {
     }
     
     try {
-      await axios.post(`${API}/photographer/${user.id}/on-demand-toggle`, {
+      await apiClient.post(`/photographer/${user.id}/on-demand-toggle`, {
         is_available: true,
         spot_id: selectedSpot.id,
         spot_name: selectedSpot.name,
