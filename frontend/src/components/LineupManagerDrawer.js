@@ -1,4 +1,4 @@
-﻿/**
+/**
  * LineupManagerDrawer - Captain's Command Center for managing a Lineup
  * 
  * Visual Concept: "The Lineup" - Surfers positioned in the water waiting for waves
@@ -360,11 +360,14 @@ const QuickActionsPanel = ({
   }
   
   if (!isCaptain) return null;
-  
+
+  const ACTIVE_STATUSES = ['open', 'filling', 'ready'];
+  const isActive = ACTIVE_STATUSES.includes(lineup.lineup_status);
+
   return (
     <div className="space-y-2">
-      {/* Primary Action - Lock & Confirm */}
-      {isReady && lineup.lineup_status === 'open' && (
+      {/* Primary Action - Lock & Confirm (any active status when ready) */}
+      {isReady && isActive && (
         <Button
           onClick={onLock}
           disabled={loading}
@@ -381,49 +384,41 @@ const QuickActionsPanel = ({
           )}
         </Button>
       )}
-      
-      {/* Secondary Actions Grid */}
+
+      {/* Close to New Invites - only when open */}
       {lineup.lineup_status === 'open' && (
-        <div className="grid grid-cols-2 gap-2">
-          <Button
-            onClick={onCloseToInvites}
-            disabled={loading}
-            variant="outline"
-            size="sm"
-            className={`${isLight ? 'border-amber-300 text-amber-600 hover:bg-amber-50' : 'border-amber-500/50 text-amber-400 hover:bg-amber-500/10'}`}
-            data-testid="close-to-invites-btn"
-          >
-            <Unlock className="w-4 h-4 mr-1" />
-            <span className="text-xs">Close to New</span>
-          </Button>
-          
-          <Button
-            onClick={onCancelAll}
-            disabled={loading}
-            variant="outline"
-            size="sm"
-            className={`${isLight ? 'border-red-300 text-red-600 hover:bg-red-50' : 'border-red-500/50 text-red-400 hover:bg-red-500/10'}`}
-            data-testid="cancel-all-btn"
-          >
-            <Ban className="w-4 h-4 mr-1" />
-            <span className="text-xs">Cancel & Refund</span>
-          </Button>
-        </div>
-      )}
-      
-      {/* Locked state - only cancel available */}
-      {lineup.lineup_status === 'locked' && (
         <Button
-          onClick={onCancelAll}
+          onClick={onCloseToInvites}
           disabled={loading}
           variant="outline"
-          className="w-full border-red-500/50 text-red-400 hover:bg-red-500/10"
-          data-testid="cancel-locked-btn"
+          size="sm"
+          className={`w-full ${
+            isLight
+              ? 'border-amber-300 text-amber-600 hover:bg-amber-50'
+              : 'border-amber-500/50 text-amber-400 hover:bg-amber-500/10'
+          }`}
+          data-testid="close-to-invites-btn"
         >
-          <Ban className="w-4 h-4 mr-2" />
-          Cancel Session & Refund All
+          <Unlock className="w-4 h-4 mr-2" />
+          <span className="text-xs">Close to New Surfers</span>
         </Button>
       )}
+
+      {/* Cancel — always available to captain regardless of status */}
+      <Button
+        onClick={onCancelAll}
+        disabled={loading}
+        variant="outline"
+        className={`w-full ${
+          isLight
+            ? 'border-red-300 text-red-600 hover:bg-red-50'
+            : 'border-red-500/50 text-red-400 hover:bg-red-500/10'
+        }`}
+        data-testid="cancel-lineup-btn"
+      >
+        <Ban className="w-4 h-4 mr-2" />
+        Cancel Lineup & Refund All
+      </Button>
     </div>
   );
 };
@@ -591,13 +586,16 @@ export const LineupManagerDrawer = ({
   onLineupUpdate
 }) => {
   const [loading, setLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState('lineup'); // 'lineup' | 'invite'
+  const [activeTab, setActiveTab] = useState('lineup');
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [searching, setSearching] = useState(false);
   const [inviting, setInviting] = useState(null);
   const [suggestions, setSuggestions] = useState({ mutual_friends: [], nearby_public: [] });
   const [_loadingSuggestions, setLoadingSuggestions] = useState(false);
+  // In-UI confirmation dialogs (replaces window.confirm)
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+  const [showLockConfirm, setShowLockConfirm] = useState(false);
   
   // Local state for toggle values to ensure immediate UI updates
   const [localSplitMode, setLocalSplitMode] = useState(lineup?.split_mode);
@@ -725,8 +723,8 @@ export const LineupManagerDrawer = ({
   };
 
   const handleLockLineup = async () => {
-    if (!confirm('Lock this lineup? No more surfers can join after locking.')) return;
-    
+    if (!showLockConfirm) { setShowLockConfirm(true); return; }
+    setShowLockConfirm(false);
     setLoading(true);
     try {
       await apiClient.post(`/bookings/${lineup.id}/lineup/lock?user_id=${user.id}`);
@@ -756,8 +754,8 @@ export const LineupManagerDrawer = ({
   };
 
   const handleCancelAll = async () => {
-    if (!confirm('Cancel this session entirely? All crew members will be refunded and notified.')) return;
-    
+    if (!showCancelConfirm) { setShowCancelConfirm(true); return; }
+    setShowCancelConfirm(false);
     setLoading(true);
     try {
       await apiClient.post(`/bookings/${lineup.id}/cancel?user_id=${user.id}`, {
@@ -768,7 +766,7 @@ export const LineupManagerDrawer = ({
       onClose();
     } catch (error) {
       const errorMessage = error.response?.data?.detail || 'Failed to cancel session';
-      const displayMessage = typeof errorMessage === 'object' 
+      const displayMessage = typeof errorMessage === 'object'
         ? (Array.isArray(errorMessage) ? errorMessage[0]?.msg : errorMessage.msg || 'Failed to cancel session')
         : errorMessage;
       toast.error(displayMessage);
@@ -1293,6 +1291,82 @@ export const LineupManagerDrawer = ({
                   localAutoConfirm ? 'translate-x-7' : 'translate-x-1'
                 }`} />
               </button>
+            </div>
+          </div>
+        )}
+
+        {/* Cancel Confirmation Banner */}
+        {showCancelConfirm && (
+          <div className={`mx-4 mb-3 p-4 rounded-xl border-2 border-red-500/50 ${
+            isLight ? 'bg-red-50' : 'bg-red-500/10'
+          }`}>
+            <div className="flex items-start gap-3 mb-3">
+              <Ban className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className={`font-semibold ${isLight ? 'text-red-700' : 'text-red-300'}`}>
+                  Cancel this lineup?
+                </p>
+                <p className={`text-sm mt-1 ${isLight ? 'text-red-600' : 'text-red-400'}`}>
+                  All crew members will be notified and any payments refunded. This cannot be undone.
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <Button
+                onClick={handleCancelAll}
+                disabled={loading}
+                size="sm"
+                className="flex-1 bg-red-500 hover:bg-red-600 text-white"
+                data-testid="confirm-cancel-btn"
+              >
+                {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Yes, Cancel & Refund'}
+              </Button>
+              <Button
+                onClick={() => setShowCancelConfirm(false)}
+                size="sm"
+                variant="outline"
+                className={`flex-1 ${isLight ? 'border-gray-300' : 'border-zinc-600'}`}
+              >
+                Keep Lineup
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Lock Confirmation Banner */}
+        {showLockConfirm && (
+          <div className={`mx-4 mb-3 p-4 rounded-xl border-2 border-green-500/50 ${
+            isLight ? 'bg-green-50' : 'bg-green-500/10'
+          }`}>
+            <div className="flex items-start gap-3 mb-3">
+              <Lock className="w-5 h-5 text-green-400 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className={`font-semibold ${isLight ? 'text-green-700' : 'text-green-300'}`}>
+                  Lock this lineup?
+                </p>
+                <p className={`text-sm mt-1 ${isLight ? 'text-green-600' : 'text-green-400'}`}>
+                  No more surfers can join. Payment requests will be sent to all crew members.
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <Button
+                onClick={handleLockLineup}
+                disabled={loading}
+                size="sm"
+                className="flex-1 bg-green-500 hover:bg-green-600 text-white"
+                data-testid="confirm-lock-btn"
+              >
+                {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Lock & Confirm'}
+              </Button>
+              <Button
+                onClick={() => setShowLockConfirm(false)}
+                size="sm"
+                variant="outline"
+                className={`flex-1 ${isLight ? 'border-gray-300' : 'border-zinc-600'}`}
+              >
+                Not Yet
+              </Button>
             </div>
           </div>
         )}

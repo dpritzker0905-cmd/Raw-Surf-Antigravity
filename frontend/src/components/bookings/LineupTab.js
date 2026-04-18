@@ -1,4 +1,4 @@
-﻿/**
+/**
  * LineupTab - The Lineup: Surf Session Lobby System
  * 
  * Like an online poker lobby - surfers wait for crew to join before session locks.
@@ -421,13 +421,19 @@ export const LineupTab = ({
   };
 
   // Separate lineups into categories
-  const myLineups = lineups.filter(l => l.creator_id === user?.id);
-  const joinedLineups = lineups.filter(l => 
-    l.creator_id !== user?.id && 
+  // Only show lobby-phase lineups here (open/filling/ready/locked/closed).
+  // Once 'confirmed' the session is a real booking and lives in the Scheduled tab.
+  const LOBBY_STATUSES = ['open', 'filling', 'ready', 'locked', 'closed'];
+  const activeLineups = lineups.filter(l => LOBBY_STATUSES.includes(l.lineup_status));
+  const confirmedLineupCount = lineups.filter(l => l.lineup_status === 'confirmed').length;
+
+  const myLineups = activeLineups.filter(l => l.creator_id === user?.id);
+  const joinedLineups = activeLineups.filter(l =>
+    l.creator_id !== user?.id &&
     l.participants?.some(p => p.participant_id === user?.id)
   );
-  const openLineups = lineups.filter(l => 
-    l.creator_id !== user?.id && 
+  const openLineups = activeLineups.filter(l =>
+    l.creator_id !== user?.id &&
     !l.participants?.some(p => p.participant_id === user?.id) &&
     l.lineup_status === 'open'
   );
@@ -544,8 +550,27 @@ export const LineupTab = ({
         </div>
       )}
 
+      {/* Confirmed lineups banner — moved to Scheduled */}
+      {confirmedLineupCount > 0 && (
+        <div className={`flex items-center gap-3 p-3 rounded-xl border ${
+          isLight
+            ? 'bg-green-50 border-green-200'
+            : 'bg-green-500/10 border-green-500/30'
+        }`}>
+          <CheckCircle className="w-5 h-5 text-green-400 flex-shrink-0" />
+          <div className="flex-1">
+            <p className={`text-sm font-medium ${textPrimaryClass}`}>
+              {confirmedLineupCount} confirmed session{confirmedLineupCount > 1 ? 's' : ''} locked in!
+            </p>
+            <p className={`text-xs ${textSecondaryClass}`}>
+              Confirmed bookings live in your <span className="text-cyan-400 font-medium">Scheduled</span> tab.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Empty State */}
-      {lineups.length === 0 && (
+      {activeLineups.length === 0 && (
         <Card className={cardBgClass}>
           <CardContent className="py-12 text-center">
             <div className={`w-16 h-16 mx-auto mb-4 rounded-full ${isLight ? 'bg-gray-100' : 'bg-zinc-800'} flex items-center justify-center`}>
