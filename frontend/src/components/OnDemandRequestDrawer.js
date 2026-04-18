@@ -179,6 +179,7 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
   const [requestDuration, setRequestDuration] = useState(minDuration);
   
   // ============ CREW / SPLIT STATE ============
+  const [splitEnabled, setSplitEnabled] = useState(false); // Whether user wants to split with crew
   const [crewMembers, setCrewMembers] = useState([]);
   const [newCrewInput, setNewCrewInput] = useState('');
   const [showAddCrewInput, setShowAddCrewInput] = useState(false);
@@ -789,10 +790,103 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
             </div>
             
             <Button
-              onClick={() => setStep('crew')}
+              onClick={() => setStep('split_choice')}
               className="w-full py-6 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-black font-bold text-lg rounded-xl"
             >
               Continue - ${totalPrice.toFixed(2)}
+              <ChevronRight className="w-5 h-5 ml-2" />
+            </Button>
+          </div>
+        )}
+
+        {/* ============ STEP 1.5: SPLIT CHOICE ============ */}
+        {step === 'split_choice' && (
+          <div className="p-4 sm:p-6 space-y-5">
+            {/* Header */}
+            <div className="flex items-center gap-3">
+              <button onClick={() => setStep('duration')} className={`p-2 rounded-lg ${isLight ? 'hover:bg-gray-100' : 'hover:bg-muted'}`}>
+                <ChevronRight className={`w-5 h-5 ${textSecondary} rotate-180`} />
+              </button>
+              <div>
+                <h2 className={`text-xl font-bold ${textPrimary}`}>Just you, or bringing crew?</h2>
+                <p className={`text-xs ${textSecondary}`}>{formatDuration(requestDuration)} session • {photographer?.full_name}</p>
+              </div>
+            </div>
+
+            {/* Two big choice cards */}
+            <div className="space-y-3">
+              {/* Solo */}
+              <button
+                onClick={() => { setSplitEnabled(false); setCrewMembers([]); }}
+                className={`w-full p-5 rounded-2xl border-2 flex items-center gap-4 transition-all text-left ${
+                  !splitEnabled
+                    ? 'border-amber-400 bg-amber-500/10'
+                    : `${isLight ? 'border-gray-200 bg-gray-50' : 'border-zinc-700 bg-muted/30'} hover:border-amber-400/50`
+                }`}
+              >
+                <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-2xl flex-shrink-0 ${
+                  !splitEnabled ? 'bg-amber-500' : isLight ? 'bg-gray-200' : 'bg-zinc-700'
+                }`}>🏄</div>
+                <div className="flex-1">
+                  <p className={`font-bold text-base ${textPrimary}`}>Just Me</p>
+                  <p className={`text-sm ${textSecondary}`}>Solo session — I'll pay the full rate</p>
+                  <p className="text-amber-400 font-bold mt-1">${totalPrice.toFixed(2)}</p>
+                </div>
+                <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
+                  !splitEnabled ? 'border-amber-400 bg-amber-400' : isLight ? 'border-gray-300' : 'border-zinc-600'
+                }`}>
+                  {!splitEnabled && <Check className="w-4 h-4 text-black" />}
+                </div>
+              </button>
+
+              {/* Split with Crew */}
+              <button
+                onClick={() => setSplitEnabled(true)}
+                className={`w-full p-5 rounded-2xl border-2 flex items-center gap-4 transition-all text-left ${
+                  splitEnabled
+                    ? 'border-cyan-400 bg-cyan-500/10'
+                    : `${isLight ? 'border-gray-200 bg-gray-50' : 'border-zinc-700 bg-muted/30'} hover:border-cyan-400/50`
+                }`}
+              >
+                <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-2xl flex-shrink-0 ${
+                  splitEnabled ? 'bg-cyan-500' : isLight ? 'bg-gray-200' : 'bg-zinc-700'
+                }`}>🤙</div>
+                <div className="flex-1">
+                  <p className={`font-bold text-base ${textPrimary}`}>Split with Crew</p>
+                  <p className={`text-sm ${textSecondary}`}>Share the session cost with friends</p>
+                  <p className="text-cyan-400 font-bold mt-1">
+                    {crewMembers.length > 0 ? `$${perPersonSplit}/person` : 'Add crew → split the cost'}
+                  </p>
+                </div>
+                <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
+                  splitEnabled ? 'border-cyan-400 bg-cyan-400' : isLight ? 'border-gray-300' : 'border-zinc-600'
+                }`}>
+                  {splitEnabled && <Check className="w-4 h-4 text-black" />}
+                </div>
+              </button>
+            </div>
+
+            {/* Tip */}
+            <div className={`flex items-start gap-3 p-3 rounded-xl ${
+              isLight ? 'bg-blue-50' : 'bg-blue-500/10'
+            } border border-blue-400/30`}>
+              <Bell className="w-4 h-4 text-blue-400 flex-shrink-0 mt-0.5" />
+              <p className={`text-xs ${textSecondary}`}>
+                {splitEnabled
+                  ? "You'll add crew in the next step. You can cover any percentage of a friend's share."
+                  : 'You can switch to crew split anytime by going back.'}
+              </p>
+            </div>
+
+            <Button
+              onClick={() => {
+                if (splitEnabled) setStep('crew');
+                else setStep('confirm');
+              }}
+              className="w-full py-6 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-black font-bold text-lg rounded-xl"
+            >
+              {splitEnabled ? 'Add My Crew' : 'Continue to Payment'}
+              <ChevronRight className="w-5 h-5 ml-2" />
             </Button>
           </div>
         )}
@@ -801,7 +895,7 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
         {step === 'crew' && (
           <div className="p-4 sm:p-6 space-y-5">
             <div className="flex items-center gap-3 mb-2">
-              <button onClick={() => setStep('duration')} className={`p-2 rounded-lg ${isLight ? 'hover:bg-gray-100' : 'hover:bg-muted'}`}>
+              <button onClick={() => setStep('split_choice')} className={`p-2 rounded-lg ${isLight ? 'hover:bg-gray-100' : 'hover:bg-muted'}`}>
                 <ChevronRight className={`w-5 h-5 ${textSecondary} rotate-180`} />
               </button>
               <h2 className={`text-xl font-bold ${textPrimary}`}>Your Crew</h2>
@@ -1228,7 +1322,7 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
         {step === 'confirm' && (
           <div className="p-4 sm:p-6 space-y-5">
             <div className="flex items-center gap-3 mb-2">
-              <button onClick={() => setStep(crewMembers.length > 0 ? 'crew_payment' : 'crew')} className={`p-2 rounded-lg ${isLight ? 'hover:bg-gray-100' : 'hover:bg-muted'}`}>
+              <button onClick={() => setStep(crewMembers.length > 0 ? 'crew_payment' : splitEnabled ? 'crew' : 'split_choice')} className={`p-2 rounded-lg ${isLight ? 'hover:bg-gray-100' : 'hover:bg-muted'}`}>
                 <ChevronRight className={`w-5 h-5 ${textSecondary} rotate-180`} />
               </button>
               <h2 className={`text-xl font-bold ${textPrimary}`}>Confirm Request</h2>
