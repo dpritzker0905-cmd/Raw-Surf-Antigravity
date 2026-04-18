@@ -4,7 +4,7 @@ from sqlalchemy import select, or_, and_
 from sqlalchemy.orm import selectinload
 from pydantic import BaseModel
 from typing import List, Optional
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 import json
 import os
 import uuid
@@ -158,7 +158,7 @@ class MessageResponse(BaseModel):
     sender_id: str
     sender_name: Optional[str]
     sender_avatar: Optional[str]
-    content: str
+    content: Optional[str] = None
     message_type: str
     is_read: bool
     created_at: datetime
@@ -691,16 +691,18 @@ async def get_conversation_messages(conversation_id: str, user_id: str, db: Asyn
     
     messages = []
     for m in sorted(conversation.messages, key=lambda x: x.created_at):
-        # Discard expiring videos dynamically
-        if m.message_type == 'ephemeral_video' and m.created_at < expiration_cutoff:
-            continue
+        # Discard expiring videos dynamically (handle both tz-aware and tz-naive datetimes)
+        if m.message_type == 'ephemeral_video':
+            msg_time = m.created_at.replace(tzinfo=timezone.utc) if m.created_at.tzinfo is None else m.created_at
+            if msg_time < expiration_cutoff:
+                continue
             
         # Build reply preview if this message is a reply
         reply_preview = None
         if m.reply_to:
             reply_preview = ReplyPreview(
                 id=m.reply_to.id,
-                content=m.reply_to.content[:50] + "..." if len(m.reply_to.content) > 50 else m.reply_to.content,
+                content=(m.reply_to.content[:50] + "..." if m.reply_to.content and len(m.reply_to.content) > 50 else (m.reply_to.content or "[Media]")),
                 sender_name=m.reply_to.sender.full_name if m.reply_to.sender else None
             )
         
@@ -1307,7 +1309,6 @@ async def update_typing(conversation_id: str, user_id: str, data: TypingRequest,
 async def get_typing_users(conversation_id: str, user_id: str, db: AsyncSession = Depends(get_db)):
     """Get users currently typing in a conversation (last 10 seconds)"""
     from models import TypingIndicator
-    from datetime import timedelta
     
     cutoff = datetime.now(timezone.utc) - timedelta(seconds=10)
     
