@@ -1336,11 +1336,13 @@ export const MessagesPage = () => {
 
   // Handle direct conversation routing
   useEffect(() => {
-    if (conversationId && user?.id) {
+    if (conversationId && conversationId !== 'undefined' && conversationId !== 'null' && user?.id) {
       logger.debug('[Messages] Loading conversation:', conversationId, 'for user:', user.id);
       loadConversationById(conversationId);
+    } else if (conversationId === 'undefined' || conversationId === 'null') {
+      navigate('/messages', { replace: true });
     }
-  }, [conversationId, user?.id]);
+  }, [conversationId, navigate, user?.id]);
 
   // Handle new chat routing
   useEffect(() => {
