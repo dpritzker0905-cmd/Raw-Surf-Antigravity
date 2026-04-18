@@ -11,8 +11,6 @@ import { ArrowLeft, Loader2, X } from 'lucide-react';
 import { Button } from './ui/button';
 import PostCard from './PostCard';
 import PostMenu, { SharePostModal } from './PostMenu';
-import { CommentInputWithEmoji } from './EmojiPicker';
-import { CommentText } from './RichText';
 import { toast } from 'sonner';
 import logger from '../utils/logger';
 
@@ -452,86 +450,6 @@ const SinglePost = () => {
           onIWasThere={handleIWasThere}
           onViewCollaborators={handleViewCollaborators}
           onFollowFromFeed={handleFollowFromFeed}
-        />
-        
-        {/* Comments Section */}
-        <div className={`${postCardBgClass} border-t ${borderClass} px-4 py-4`}>
-          {/* Comment Input */}
-          <div className="flex items-start gap-3 mb-4">
-            {user?.avatar_url ? (
-              <img 
-                src={user.avatar_url} 
-                alt="" 
-                className="w-8 h-8 rounded-full object-cover flex-shrink-0"
-              />
-            ) : (
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${isLight ? 'bg-gray-200' : 'bg-zinc-700'}`}>
-                <span className={`text-sm ${textPrimaryClass}`}>{user?.full_name?.charAt(0) || '?'}</span>
-              </div>
-            )}
-            <div className="flex-1">
-              <CommentInputWithEmoji
-                value={commentInputs[post?.id] || ''}
-                onChange={(val) => setCommentInputs(prev => ({ ...prev, [post?.id]: val }))}
-                onSubmit={() => post?.id && handleCommentSubmit(post.id)}
-                placeholder="Add a comment..."
-                isLight={isLight}
-              />
-            </div>
-          </div>
-          
-          {/* Comments List */}
-          <div className="space-y-3">
-            {loadingComments[post?.id] ? (
-              <div className="flex justify-center py-4">
-                <Loader2 className={`w-5 h-5 animate-spin ${textSecondaryClass}`} />
-              </div>
-            ) : (
-              <>
-                {/* Show all comments */}
-                {(allComments[post?.id] || post?.recent_comments || []).map((comment) => (
-                  <div key={comment.id} className="flex items-start gap-3">
-                    <div 
-                      className="w-8 h-8 rounded-full bg-zinc-700 overflow-hidden flex-shrink-0 cursor-pointer"
-                      onClick={() => navigate(`/profile/${comment.author_id}`)}
-                    >
-                      {comment.author_avatar ? (
-                        <img src={comment.author_avatar} alt="" className="w-full h-full object-cover" />
-                      ) : (
-                        <span className={`w-full h-full flex items-center justify-center text-sm ${textPrimaryClass}`}>
-                          {comment.author_name?.charAt(0)}
-                        </span>
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-baseline gap-2">
-                        <span 
-                          className={`font-semibold text-sm cursor-pointer hover:underline ${textPrimaryClass}`}
-                          onClick={() => navigate(`/profile/${comment.author_id}`)}
-                        >
-                          {comment.author_name}
-                        </span>
-                        <span className={`text-xs ${textSecondaryClass}`}>
-                          {formatTimeAgo(comment.created_at)}
-                        </span>
-                      </div>
-                      <p className={`text-sm mt-0.5 ${textPrimaryClass}`}>
-                        <CommentText text={comment.content} />
-                      </p>
-                    </div>
-                  </div>
-                ))}
-                
-                {/* No comments message */}
-                {(allComments[post?.id] || post?.recent_comments || []).length === 0 && (
-                  <p className={`text-center py-4 ${textSecondaryClass}`}>
-                    No comments yet. Be the first to comment!
-                  </p>
-                )}
-              </>
-            )}
-          </div>
-        </div>
       </div>
 
       {/* Post Menu */}

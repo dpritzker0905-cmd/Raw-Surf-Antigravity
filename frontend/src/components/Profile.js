@@ -808,7 +808,7 @@ export const Profile = () => {
               style={{ cursor: userNote ? 'pointer' : 'default' }}
             >
               <Avatar className="w-28 h-28 md:w-32 md:h-32 border-4 border-black" data-testid="profile-avatar">
-                <AvatarImage src={profile.avatar_url?.startsWith('http') ? profile.avatar_url : `${process.env.REACT_APP_BACKEND_URL || ''}${profile.avatar_url}`} className="object-cover" />
+                <AvatarImage src={profile.avatar_url} className="object-cover" />
                 <AvatarFallback className="text-4xl bg-zinc-800 text-white">
                   {profile.full_name?.[0] || 'U'}
                 </AvatarFallback>
@@ -2143,6 +2143,7 @@ const MediaGridItem = ({ item, onClick, isPinned = false }) => {
   // Helper to intercept Netlify HTML proxy traps on local backend arrays
   const getFullUrl = (url) => {
     if (!url) return url;
+    if (url.startsWith('data:')) return url;
     if (url.startsWith('http')) return url;
     return `${process.env.REACT_APP_BACKEND_URL || ''}${url}`;
   };
