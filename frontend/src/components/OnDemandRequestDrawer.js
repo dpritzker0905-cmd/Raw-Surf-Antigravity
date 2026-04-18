@@ -221,6 +221,7 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
   
   // Debounced friend search for autocomplete
   useEffect(() => {
+    // Show instant suggestions from following/buddies when input is empty or 1 char
     if (newCrewInput.length < 2) {
       setFriendSearchResults([]);
       return;
@@ -229,7 +230,7 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
     const timeoutId = setTimeout(async () => {
       setSearchingFriends(true);
       try {
-        const response = await apiClient.get(`/users/search?query=${encodeURIComponent(newCrewInput)}&limit=5`);
+        const response = await apiClient.get(`/users/search?query=${encodeURIComponent(newCrewInput)}&limit=8`);
         const existingIds = new Set([user?.id, ...crewMembers.map(m => m.user_id || m.id)]);
         const filtered = (response.data.users || []).filter(u => !existingIds.has(u.id));
         setFriendSearchResults(filtered);
@@ -239,7 +240,7 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
       } finally {
         setSearchingFriends(false);
       }
-    }, 300);
+    }, 200);
     
     return () => clearTimeout(timeoutId);
   }, [newCrewInput, user?.id, crewMembers]);
@@ -981,36 +982,40 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
                     .filter((p, idx, self) =>
                       idx === self.findIndex(t => t.id === p.id) && !usedIds.has(p.id)
                     ).slice(0, 8);
-                  return suggestions.length > 0 ? (
+                  return (
                     <div className="mt-4 space-y-2">
                       <p className={`text-xs font-medium ${textSecondary} flex items-center gap-1`}>
                         <span>⚡</span> Quick Add
                       </p>
-                      <div className="flex flex-wrap gap-2">
-                        {suggestions.map((person) => (
-                          <button
-                            key={person.id}
-                            onClick={() => handleSelectFriend(person)}
-                            className={`flex items-center gap-2 px-3 py-2 rounded-full ${
-                              isLight ? 'bg-gray-100 hover:bg-cyan-50' : 'bg-zinc-800 hover:bg-zinc-700'
-                            } hover:ring-2 ring-cyan-500/50 transition-all`}
-                          >
-                            <div className="w-6 h-6 rounded-full overflow-hidden bg-gradient-to-br from-cyan-400 to-blue-500 flex-shrink-0">
-                              {person.avatar_url ? (
-                                <img src={getFullUrl(person.avatar_url)} alt="" className="w-full h-full object-cover" />
-                              ) : (
-                                <span className="w-full h-full flex items-center justify-center text-white font-bold text-xs">
-                                  {(person.full_name || '?')[0].toUpperCase()}
-                                </span>
-                              )}
-                            </div>
-                            <span className={`text-sm ${textPrimary}`}>{person.full_name?.split(' ')[0]}</span>
-                            <Plus className="w-3 h-3 text-cyan-400" />
-                          </button>
-                        ))}
-                      </div>
+                      {suggestions.length > 0 ? (
+                        <div className="flex flex-wrap gap-2">
+                          {suggestions.map((person) => (
+                            <button
+                              key={person.id}
+                              onClick={() => handleSelectFriend(person)}
+                              className={`flex items-center gap-2 px-3 py-2 rounded-full ${
+                                isLight ? 'bg-gray-100 hover:bg-cyan-50' : 'bg-zinc-800 hover:bg-zinc-700'
+                              } hover:ring-2 ring-cyan-500/50 transition-all`}
+                            >
+                              <div className="w-6 h-6 rounded-full overflow-hidden bg-gradient-to-br from-cyan-400 to-blue-500 flex-shrink-0">
+                                {person.avatar_url ? (
+                                  <img src={getFullUrl(person.avatar_url)} alt="" className="w-full h-full object-cover" />
+                                ) : (
+                                  <span className="w-full h-full flex items-center justify-center text-white font-bold text-xs">
+                                    {(person.full_name || '?')[0].toUpperCase()}
+                                  </span>
+                                )}
+                              </div>
+                              <span className={`text-sm ${textPrimary}`}>{person.full_name?.split(' ')[0]}</span>
+                              <Plus className="w-3 h-3 text-cyan-400" />
+                            </button>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className={`text-xs ${textSecondary}`}>No recent connections — use the search to find crew members.</p>
+                      )}
                     </div>
-                  ) : null;
+                  );
                 })()
               ) : null}
 
@@ -1022,7 +1027,7 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
                       <Input
                         value={newCrewInput}
                         onChange={(e) => setNewCrewInput(e.target.value)}
-                        placeholder="Search by name or @username"
+                        placeholder="Search by name or @username..."
                         className={`w-full ${isLight ? 'bg-white' : 'bg-card/80'}`}
                         onKeyDown={(e) => {
                           if (e.key === 'Enter' && friendSearchResults.length === 0) {
@@ -1032,8 +1037,8 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
                         autoFocus
                         data-testid="crew-search-input"
                       />
-                      {/* Autocomplete Dropdown */}
-                      {(friendSearchResults.length > 0 || searchingFriends) && (
+                      {/* Autocomplete Dropdown — API results OR inline following list */}
+                      {(friendSearchResults.length > 0 || searchingFriends || (newCrewInput.length > 0 && !searchingFriends)) && (
                         <div 
                           className={`absolute top-full left-0 right-0 mt-1 rounded-xl shadow-2xl border ${isLight ? 'bg-white border-gray-200' : 'bg-zinc-800 border-zinc-600'}`}
                           style={{ zIndex: 9999 }}
@@ -1070,9 +1075,9 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
                               <Plus className="w-4 h-4 text-cyan-400 flex-shrink-0" />
                             </button>
                           ))}
-                          {!searchingFriends && friendSearchResults.length === 0 && newCrewInput.length >= 2 && (
+                          {!searchingFriends && friendSearchResults.length === 0 && newCrewInput.length >= 1 && (
                             <div className="p-3 text-sm text-muted-foreground">
-                              No users found. Press Enter to add manually.
+                              No matches found. Press Enter or tap + to add by username.
                             </div>
                           )}
                         </div>

@@ -1,4 +1,4 @@
-import logging
+﻿import logging
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -22,8 +22,9 @@ from utils.grom_parent import is_grom_parent_eligible
 router = APIRouter()
 
 logger = logging.getLogger(__name__)
-# Initialize Stripe
-STRIPE_API_KEY = os.environ.get('STRIPE_API_KEY')
+# Initialize Stripe - read both common env var names as fallback
+# STRIPE_SECRET_KEY is standard Stripe name (used in dispatch.py); STRIPE_API_KEY is legacy
+STRIPE_API_KEY = (os.environ.get('STRIPE_SECRET_KEY') or os.environ.get('STRIPE_API_KEY'))
 if STRIPE_API_KEY:
     stripe.api_key = STRIPE_API_KEY
 
@@ -63,8 +64,8 @@ async def join_session(data: JoinSessionRequest, surfer_id: str, db: AsyncSessio
     - Buy-in price to join the session
     - Additional per-photo price after buy-in
     - Subscription tier discounts apply
-    - Creates a Check-In Post on the feed (Map → Feed cross-pollination)
-    - Updates user's surf streak (Payment → Profile cross-pollination)
+    - Creates a Check-In Post on the feed (Map â†’ Feed cross-pollination)
+    - Updates user's surf streak (Payment â†’ Profile cross-pollination)
     - Supports God Mode persona masking for admin testing
     
     CaptureSession Unified Model:
@@ -319,7 +320,7 @@ async def join_session(data: JoinSessionRequest, surfer_id: str, db: AsyncSessio
             user_id=data.photographer_id,
             type='session_join',
             title=f"{surfer.full_name} joined your session!",
-            body=f"${final_price:.2f} • {photographer.current_spot.name if photographer.current_spot else 'Current location'}",
+            body=f"${final_price:.2f} â€¢ {photographer.current_spot.name if photographer.current_spot else 'Current location'}",
             data=json.dumps({
                 "surfer_id": surfer_id,
                 "surfer_name": surfer.full_name,
@@ -329,12 +330,12 @@ async def join_session(data: JoinSessionRequest, surfer_id: str, db: AsyncSessio
         )
         db.add(notification)
         
-        # ============ CROSS-POLLINATION: Map → Feed ============
+        # ============ CROSS-POLLINATION: Map â†’ Feed ============
         # Create a Check-In Post when user joins a live session
         spot_name = photographer.current_spot.name if photographer.current_spot else photographer.location
         check_in_post = Post(
             author_id=surfer_id,
-            caption=f"📍 Checked in at {spot_name} with {photographer.full_name}! 🏄‍♂️",
+            caption=f"ðŸ“ Checked in at {spot_name} with {photographer.full_name}! ðŸ„â€â™‚ï¸",
             media_type='check_in',
             media_url=data.selfie_url,  # Use selfie if provided
             spot_id=photographer.current_spot_id,
@@ -346,7 +347,7 @@ async def join_session(data: JoinSessionRequest, surfer_id: str, db: AsyncSessio
         )
         db.add(check_in_post)
         
-        # ============ CROSS-POLLINATION: Payment → Profile ============
+        # ============ CROSS-POLLINATION: Payment â†’ Profile ============
         # Update user's surf streak
         today = datetime.now(timezone.utc).date()
         last_surf = surfer.last_surf_date
@@ -388,7 +389,7 @@ async def join_session(data: JoinSessionRequest, surfer_id: str, db: AsyncSessio
                     badge_notification = Notification(
                         user_id=surfer_id,
                         type='badge_earned',
-                        title='New Badge Earned! 🏆',
+                        title='New Badge Earned! ðŸ†',
                         body=f'You earned the {badge.replace("_", " ").title()} badge!',
                         data=json.dumps({"badge": badge})
                     )
@@ -981,3 +982,4 @@ async def get_participant_credits(
         'resolution_preference': participant.resolution_preference or 'standard',
         'participant_role': participant.participant_role or 'participant'
     }
+

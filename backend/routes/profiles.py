@@ -448,31 +448,68 @@ async def get_following_list(
     limit: int = 20,
     db: AsyncSession = Depends(get_db)
 ):
-    """Get list of users that current user is following"""
-    from models import Follow
+    """Get list of users that current user is following or connected with.
+    Falls back to Friend (mutual follow) relationships when no Follow records exist.
+    This ensures the crew quick-add suggestions always have candidates.
+    """
+    from models import Follow, Friend, FriendshipStatusEnum
     from sqlalchemy.orm import selectinload
-    
+
+    # First try explicit Follow table
     result = await db.execute(
         select(Follow)
         .where(Follow.follower_id == user_id)
         .options(selectinload(Follow.following))
         .limit(limit)
     )
-    
     follows = result.scalars().all()
-    
+
     following = []
+    seen_ids = set()
     for follow in follows:
         if follow.following:
             p = follow.following
+            seen_ids.add(p.id)
             following.append({
                 "id": p.id,
                 "full_name": p.full_name,
-                "username": p.username,  # Use actual username from DB
+                "username": p.username,
                 "avatar_url": p.avatar_url,
                 "role": p.role.value if p.role else None
             })
-    
+
+    # If too few results, supplement from Friend (mutual connection) table
+    if len(following) < limit:
+        from sqlalchemy import or_
+        friend_result = await db.execute(
+            select(Friend)
+            .where(
+                or_(Friend.requester_id == user_id, Friend.addressee_id == user_id),
+                Friend.status == FriendshipStatusEnum.ACCEPTED
+            )
+            .options(
+                selectinload(Friend.requester),
+                selectinload(Friend.addressee)
+            )
+            .limit(limit * 2)
+        )
+        friends = friend_result.scalars().all()
+
+        for friend in friends:
+            # Determine which side is the other person
+            other = friend.addressee if friend.requester_id == user_id else friend.requester
+            if other and other.id not in seen_ids and other.id != user_id:
+                seen_ids.add(other.id)
+                following.append({
+                    "id": other.id,
+                    "full_name": other.full_name,
+                    "username": other.username,
+                    "avatar_url": other.avatar_url,
+                    "role": other.role.value if other.role else None
+                })
+                if len(following) >= limit:
+                    break
+
     return {"following": following}
 
 
