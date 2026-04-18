@@ -980,8 +980,10 @@ const ConversationItem = ({ conversation, isSelected, onClick }) => {
             </div>
           )}
         </div>
-        {/* Online indicator */}
-        <div className="absolute bottom-0 right-0 w-4 h-4 bg-green-500 rounded-full border-2 border-background" />
+        {/* Online indicator - only show if active in last 5 min */}
+        {conversation.other_user_updated_at && (Math.floor((Date.now() - new Date(conversation.other_user_updated_at).getTime()) / 1000) < 300) && (
+          <div className="absolute bottom-0 right-0 w-4 h-4 bg-green-500 rounded-full border-2 border-background" />
+        )}
       </div>
 
       {/* Content */}
@@ -1258,24 +1260,24 @@ const MessageBubble = ({ message, onReact, onReply, onNavigateProfile }) => {
             ))}
           </div>
         )}
-      </div>
-
-      {showReactions && (
-        <div className={`absolute ${message.is_mine ? 'right-0' : 'left-0'} -top-10 bg-card rounded-full px-2 py-1 flex gap-1 shadow-xl border border-border z-50`}>
-          {REACTIONS.map((emoji) => (
-            <button
-              key={emoji}
-              onClick={() => { onReact(message.id, emoji); setShowReactions(false); }}
-              className="text-lg hover:scale-125 transition-transform p-1"
-            >
-              {emoji}
+        {/* Reaction Emoji Picker - positioned beside the bubble */}
+        {showReactions && (
+          <div className={`absolute ${message.is_mine ? 'left-0 -translate-x-[calc(100%+8px)]' : 'right-0 translate-x-[calc(100%+8px)]'} top-1/2 -translate-y-1/2 bg-card rounded-full px-2 py-1 flex gap-1 shadow-xl border border-border z-50`}>
+            {REACTIONS.map((emoji) => (
+              <button
+                key={emoji}
+                onClick={() => { onReact(message.id, emoji); setShowReactions(false); }}
+                className="text-lg hover:scale-125 transition-transform p-1"
+              >
+                {emoji}
+              </button>
+            ))}
+            <button onClick={() => setShowReactions(false)} className="text-muted-foreground hover:text-foreground ml-1">
+              <X className="w-4 h-4" />
             </button>
-          ))}
-          <button onClick={() => setShowReactions(false)} className="text-muted-foreground hover:text-foreground ml-1">
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-      )}
+          </div>
+        )}
+      </div>
     </div>
   );
 };
