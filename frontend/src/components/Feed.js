@@ -19,7 +19,7 @@ import FeedLineupCard from './FeedLineupCard';
 import SessionCountdownWidget from './SessionCountdownWidget';
 import WavesFeed from './WavesFeed';
 import CreateWaveModal from './CreateWaveModal';
-import { MapPin, Flame, Plus, X, Check, Loader2, Navigation, Play, Users } from 'lucide-react';
+import { MapPin, Flame, Plus, X, Check, Loader2, Navigation, Play, Users, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from './ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from './ui/dialog';
@@ -216,6 +216,13 @@ export const Feed = () => {
   const [gpsLoading, setGpsLoading] = useState(false);
   const [nearestSpot, setNearestSpot] = useState(null);
   const [storiesKey, setStoriesKey] = useState(0);
+  // Location hierarchy for manual drill-down: Country → State/Province → Spot
+  const [locationHierarchy, setLocationHierarchy] = useState({ countries: [] });
+  const [selectedCountry, setSelectedCountry] = useState('');
+  const [selectedState, setSelectedState] = useState('');
+  // Gamification reward card shown after successful GPS check-in
+  const [checkInReward, setCheckInReward] = useState(null);
+
   
   // Live Stream Viewer state - for joining live broadcasts from feed
   const [liveStreamInfo, setLiveStreamInfo] = useState(null);
@@ -273,6 +280,7 @@ export const Feed = () => {
     fetchPosts();
     fetchStreak();
     fetchSpots();
+    fetchLocationHierarchy();
     fetchLiveUsers();
     if (user?.id) {
       fetchFollowing();
@@ -570,6 +578,15 @@ export const Feed = () => {
     }
   };
 
+  const fetchLocationHierarchy = async () => {
+    try {
+      const response = await apiClient.get(`/surf-spots/locations`);
+      setLocationHierarchy(response.data || { countries: [] });
+    } catch (error) {
+      logger.error('Error fetching location hierarchy:', error);
+    }
+  };
+
   // Calculate distance between two points
   const calculateDistance = (lat1, lon1, lat2, lon2) => {
     const R = 6371;
@@ -582,47 +599,81 @@ export const Feed = () => {
     return R * c;
   };
 
-  // Get GPS location for check-in
+  // Get GPS location for check-in — two-attempt strategy for iPhone 16 / iOS Safari
   const getGpsLocation = () => {
     if (!navigator.geolocation) {
-      toast.error('Geolocation not supported');
+      toast.error('Geolocation is not supported by your browser');
       return;
     }
 
     setGpsLoading(true);
+
+    const handlePosition = (position) => {
+      const { latitude, longitude } = position.coords;
+
+      // Find nearest spot
+      let nearest = null;
+      let minDistance = Infinity;
+      spots.forEach(spot => {
+        const distance = calculateDistance(latitude, longitude, spot.latitude, spot.longitude);
+        if (distance < minDistance) {
+          minDistance = distance;
+          nearest = { ...spot, distance: distance.toFixed(1) };
+        }
+      });
+
+      setCheckInData(prev => ({
+        ...prev,
+        latitude,
+        longitude,
+        use_gps: true,
+        spot_id: nearest && minDistance < 10 ? nearest.id : prev.spot_id
+      }));
+
+      setNearestSpot(nearest);
+      if (nearest && minDistance < 10) {
+        toast.success(`\uD83D\uDCCD At ${nearest.name} (${nearest.distance}km) — GPS verified, you'll earn XP!`);
+      } else if (nearest) {
+        toast.success(`\uD83D\uDCCD Location found. Nearest spot: ${nearest.name} (${nearest.distance}km)`);
+      } else {
+        toast.success('\uD83D\uDCCD Location detected — select your spot to earn XP');
+      }
+      setGpsLoading(false);
+    };
+
+    const handleErrorFinal = (error) => {
+      setGpsLoading(false);
+      if (error.code === 1) { // PERMISSION_DENIED
+        toast.error(
+          navigator.userAgent.includes('iPhone') || navigator.userAgent.includes('iPad')
+            ? 'Location denied. Go to Settings \u2192 Privacy \u2192 Location Services \u2192 Safari \u2192 While Using.'
+            : 'Location access denied. Please enable it in your browser settings.'
+        );
+      } else if (error.code === 3) { // TIMEOUT
+        toast.error('Location timed out. Tap again or select your spot manually below.');
+      } else {
+        toast.error('Unable to detect location. Select your spot manually below.');
+      }
+    };
+
+    const handleErrorWithRetry = (error) => {
+      if (error.code === 2 || error.code === 3) {
+        // POSITION_UNAVAILABLE or TIMEOUT — retry with high accuracy & fresh fix
+        navigator.geolocation.getCurrentPosition(
+          handlePosition,
+          handleErrorFinal,
+          { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+        );
+      } else {
+        handleErrorFinal(error);
+      }
+    };
+
+    // First attempt: low-accuracy / cached — fast on most devices
     navigator.geolocation.getCurrentPosition(
-      (position) => {
-        const { latitude, longitude } = position.coords;
-        
-        // Find nearest spot
-        let nearest = null;
-        let minDistance = Infinity;
-        
-        spots.forEach(spot => {
-          const distance = calculateDistance(latitude, longitude, spot.latitude, spot.longitude);
-          if (distance < minDistance) {
-            minDistance = distance;
-            nearest = { ...spot, distance: distance.toFixed(1) };
-          }
-        });
-        
-        setCheckInData(prev => ({
-          ...prev,
-          latitude,
-          longitude,
-          use_gps: true,
-          spot_id: nearest && minDistance < 10 ? nearest.id : prev.spot_id
-        }));
-        
-        setNearestSpot(nearest);
-        toast.success(`Location found! ${nearest ? `Nearest: ${nearest.name} (${nearest.distance}km)` : ''}`);
-        setGpsLoading(false);
-      },
-      (_error) => {
-        toast.error('Unable to get location');
-        setGpsLoading(false);
-      },
-      { enableHighAccuracy: true, timeout: 10000 }
+      handlePosition,
+      handleErrorWithRetry,
+      { enableHighAccuracy: false, timeout: 6000, maximumAge: 30000 }
     );
   };
 
@@ -1091,32 +1142,29 @@ export const Feed = () => {
 
   const submitCheckIn = async () => {
     setCheckInLoading(true);
-    
-    // Determine spot ID - either manually selected or auto-detected from GPS
+
     const spotId = checkInData.spot_id || nearestSpot?.id;
-    const spotName = spotId 
+    const spotName = spotId
       ? (spots.find(s => s.id === spotId)?.name || nearestSpot?.name || 'Unknown Spot')
       : 'Custom Location';
-    
+
     try {
-      // If GPS enabled AND spot selected, use Passport GPS-validated check-in
       if (checkInData.use_gps && checkInData.latitude && checkInData.longitude && spotId) {
-        // First, attempt Passport GPS-validated check-in (requires being within 500m)
+        // GPS path → Passport check-in (XP + stamps + badges)
         const passportResponse = await apiClient.post(`/passport/checkin?user_id=${user.id}`, {
           spot_id: spotId,
           latitude: checkInData.latitude,
           longitude: checkInData.longitude,
           notes: checkInData.notes || null
         });
-        
+
         if (!passportResponse.data.success) {
-          // User is too far from the spot - show distance feedback
           toast.error(passportResponse.data.message || `You're too far from ${spotName} to check in`);
           setCheckInLoading(false);
           return;
         }
-        
-        // GPS check-in successful! Now also update legacy streak
+
+        // Also update legacy streak (best-effort)
         try {
           const streakResponse = await apiClient.post(`/check-in?user_id=${user.id}`, {
             spot_id: spotId,
@@ -1128,7 +1176,6 @@ export const Feed = () => {
             longitude: checkInData.longitude,
             use_gps: true
           });
-          
           setStreak({
             current_streak: streakResponse.data.current_streak,
             longest_streak: streakResponse.data.longest_streak,
@@ -1136,22 +1183,24 @@ export const Feed = () => {
             checked_in_today: true
           });
         } catch (streakError) {
-          // Legacy streak may fail if already checked in - that's OK
           if (streakError.response?.data?.detail !== 'Already checked in today') {
             logger.warn('Legacy streak update failed:', streakError);
           }
           setStreak(prev => ({ ...prev, checked_in_today: true }));
         }
-        
-        // Show Passport rewards
-        const xpMsg = passportResponse.data.xp_earned > 0 ? ` +${passportResponse.data.xp_earned} XP!` : '';
-        const badgeMsg = passportResponse.data.badge_earned ? ` 🏅 Badge: ${passportResponse.data.badge_earned}` : '';
-        const firstVisitMsg = passportResponse.data.is_first_visit ? ' 🆕 First visit!' : '';
-        
-        toast.success(`${passportResponse.data.message}${xpMsg}${firstVisitMsg}${badgeMsg}`);
-        
+
+        // Show gamification reward card in modal instead of plain toast
+        setCheckInReward({
+          spot_name: spotName,
+          xp_earned: passportResponse.data.xp_earned,
+          badge_earned: passportResponse.data.badge_earned,
+          is_first_visit: passportResponse.data.is_first_visit,
+          streak_days: passportResponse.data.streak_days,
+          new_level: passportResponse.data.new_level,
+        });
+
       } else {
-        // Non-GPS check-in (manual selection) - use legacy endpoint only
+        // Manual (non-GPS) path → legacy streak only, no passport XP
         const response = await apiClient.post(`/check-in?user_id=${user.id}`, {
           spot_id: spotId || null,
           spot_name: spotName,
@@ -1162,21 +1211,23 @@ export const Feed = () => {
           longitude: checkInData.longitude,
           use_gps: checkInData.use_gps
         });
-        
+
         setStreak({
           current_streak: response.data.current_streak,
           longest_streak: response.data.longest_streak,
           total_check_ins: response.data.total_check_ins,
           checked_in_today: true
         });
-        
-        toast.success(`Checked in! 🔥 ${response.data.current_streak} day streak!`);
+
+        toast.success(`Checked in! \uD83D\uDD25 ${response.data.current_streak} day streak!`);
+        // Close immediately for manual check-in
+        setShowCheckInModal(false);
+        setCheckInData({ spot_id: '', conditions: '', wave_height: '', notes: '', latitude: null, longitude: null, use_gps: false });
+        setNearestSpot(null);
+        setSelectedCountry('');
+        setSelectedState('');
       }
-      
-      setShowCheckInModal(false);
-      setCheckInData({ spot_id: '', conditions: '', wave_height: '', notes: '', latitude: null, longitude: null, use_gps: false });
-      setNearestSpot(null);
-      
+
     } catch (error) {
       if (error.response?.data?.detail === 'Already checked in today') {
         toast.info('You already checked in today!');
@@ -1188,6 +1239,15 @@ export const Feed = () => {
     } finally {
       setCheckInLoading(false);
     }
+  };
+
+  const closeCheckInModal = () => {
+    setShowCheckInModal(false);
+    setCheckInReward(null);
+    setCheckInData({ spot_id: '', conditions: '', wave_height: '', notes: '', latitude: null, longitude: null, use_gps: false });
+    setNearestSpot(null);
+    setSelectedCountry('');
+    setSelectedState('');
   };
 
   if (loading) {
@@ -1466,7 +1526,7 @@ export const Feed = () => {
       )}
 
       {/* Check In Modal */}
-      <Dialog open={showCheckInModal} onOpenChange={setShowCheckInModal}>
+      <Dialog open={showCheckInModal} onOpenChange={closeCheckInModal}>
         <DialogContent className="bg-zinc-900 border border-zinc-700 text-white max-w-md w-full max-h-[90vh] flex flex-col p-0 overflow-hidden" aria-describedby="checkin-modal-description">
           {/* Fixed header */}
           <DialogHeader className="px-6 pt-6 pb-4 shrink-0 border-b border-zinc-800">
@@ -1479,133 +1539,261 @@ export const Feed = () => {
             </DialogDescription>
           </DialogHeader>
 
-          {/* Scrollable body */}
-          <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
-            {/* GPS Location Button */}
-            <div>
-              <Button
-                onClick={getGpsLocation}
-                disabled={gpsLoading}
-                variant="outline"
-                className={`w-full border-zinc-700 ${checkInData.latitude ? 'border-blue-500 bg-blue-500/10' : ''} text-white hover:bg-zinc-800`}
-                data-testid="gps-checkin-btn"
-              >
-                {gpsLoading ? (
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                ) : (
-                  <Navigation className={`w-4 h-4 mr-2 ${checkInData.latitude ? 'text-blue-400' : ''}`} />
-                )}
-                {checkInData.latitude ? 'Location Detected' : 'Use My Location'}
-              </Button>
-              {nearestSpot && (
-                <p className="text-xs text-blue-400 mt-2 text-center">
-                  Nearest: {nearestSpot.name} ({nearestSpot.distance}km away)
-                </p>
-              )}
-            </div>
-
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <span className="w-full border-t border-zinc-700" />
+          {/* Gamification Reward Card — shown after GPS check-in */}
+          {checkInReward ? (
+            <div className="flex-1 flex flex-col items-center justify-center px-6 py-8 text-center">
+              <div className="w-20 h-20 rounded-full bg-gradient-to-br from-yellow-400 to-orange-500 flex items-center justify-center mb-4 shadow-lg shadow-yellow-400/30">
+                <Flame className="w-10 h-10 text-white" />
               </div>
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-zinc-900 px-2 text-gray-500">or select manually</span>
-              </div>
-            </div>
+              <h3 className="text-2xl font-black text-white mb-1">Checked In! 🤙</h3>
+              <p className="text-gray-400 text-sm mb-6">{checkInReward.spot_name}</p>
 
-            {/* Spot Selection */}
-            <div>
-              <label className="text-sm text-gray-400 mb-2 block">Surf Spot</label>
-              <Select value={checkInData.spot_id} onValueChange={(v) => setCheckInData(prev => ({ ...prev, spot_id: v }))}>
-                <SelectTrigger className="bg-zinc-800 border-zinc-700 text-white">
-                  <SelectValue placeholder="Select a spot" />
-                </SelectTrigger>
-                <SelectContent className="bg-zinc-800 border-zinc-700">
-                  {spots.map((spot) => (
-                    <SelectItem key={spot.id} value={spot.id} className="text-white hover:bg-zinc-700">
-                      {spot.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Conditions */}
-            <div>
-              <label className="text-sm text-gray-400 mb-2 block">Conditions</label>
-              <Select value={checkInData.conditions} onValueChange={(v) => setCheckInData(prev => ({ ...prev, conditions: v }))}>
-                <SelectTrigger className="bg-zinc-800 border-zinc-700 text-white">
-                  <SelectValue placeholder="How's it looking?" />
-                </SelectTrigger>
-                <SelectContent className="bg-zinc-800 border-zinc-700">
-                  <SelectItem value="Glassy" className="text-white hover:bg-zinc-700">🪞 Glassy</SelectItem>
-                  <SelectItem value="Clean" className="text-white hover:bg-zinc-700">✨ Clean</SelectItem>
-                  <SelectItem value="Choppy" className="text-white hover:bg-zinc-700">🌊 Choppy</SelectItem>
-                  <SelectItem value="Messy" className="text-white hover:bg-zinc-700">💨 Messy</SelectItem>
-                  <SelectItem value="Blown Out" className="text-white hover:bg-zinc-700">🌀 Blown Out</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Wave Height */}
-            <div>
-              <label className="text-sm text-gray-400 mb-2 block">Wave Height</label>
-              <Select value={checkInData.wave_height} onValueChange={(v) => setCheckInData(prev => ({ ...prev, wave_height: v }))}>
-                <SelectTrigger className="bg-zinc-800 border-zinc-700 text-white">
-                  <SelectValue placeholder="How big?" />
-                </SelectTrigger>
-                <SelectContent className="bg-zinc-800 border-zinc-700">
-                  <SelectItem value="Flat" className="text-white hover:bg-zinc-700">Flat</SelectItem>
-                  <SelectItem value="1-2ft" className="text-white hover:bg-zinc-700">1-2ft</SelectItem>
-                  <SelectItem value="2-3ft" className="text-white hover:bg-zinc-700">2-3ft</SelectItem>
-                  <SelectItem value="3-4ft" className="text-white hover:bg-zinc-700">3-4ft</SelectItem>
-                  <SelectItem value="4-6ft" className="text-white hover:bg-zinc-700">4-6ft</SelectItem>
-                  <SelectItem value="6-8ft" className="text-white hover:bg-zinc-700">6-8ft</SelectItem>
-                  <SelectItem value="8ft+" className="text-white hover:bg-zinc-700">8ft+ (Overhead+)</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Notes */}
-            <div>
-              <label className="text-sm text-gray-400 mb-2 block">Notes (optional)</label>
-              <Input
-                placeholder="How was your session?"
-                value={checkInData.notes}
-                onChange={(e) => setCheckInData(prev => ({ ...prev, notes: e.target.value }))}
-                className="bg-zinc-800 border-zinc-700 text-white placeholder-gray-500"
-              />
-            </div>
-
-            {/* GPS Passport Info */}
-            {checkInData.use_gps && checkInData.latitude && (checkInData.spot_id || nearestSpot) && (
-              <div className="flex items-start gap-2 p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/30">
-                <Navigation className="w-4 h-4 text-emerald-400 mt-0.5 flex-shrink-0" />
-                <div className="text-xs text-emerald-300">
-                  <span className="font-medium">GPS-Verified Check-In:</span> You must be within 500m of the spot to earn Passport XP & stamps.
+              {/* XP earned */}
+              {checkInReward.xp_earned > 0 && (
+                <div className="flex items-center gap-2 bg-yellow-400/10 border border-yellow-400/30 rounded-xl px-6 py-3 mb-3">
+                  <Sparkles className="w-5 h-5 text-yellow-400" />
+                  <span className="text-2xl font-black text-yellow-400">+{checkInReward.xp_earned} XP</span>
                 </div>
-              </div>
-            )}
-          </div>
-
-          {/* Fixed footer with submit button */}
-          <div className="px-6 pb-6 pt-3 shrink-0 border-t border-zinc-800">
-            <Button
-              onClick={submitCheckIn}
-              disabled={checkInLoading}
-              className="w-full h-12 bg-gradient-to-r from-yellow-400 to-orange-400 hover:from-yellow-500 hover:to-orange-500 text-black font-bold"
-              data-testid="feed-checkin-submit-btn"
-            >
-              {checkInLoading ? (
-                <Loader2 className="w-5 h-5 animate-spin" />
-              ) : (
-                <>
-                  <Flame className="w-5 h-5 mr-2" />
-                  {checkInData.use_gps && (checkInData.spot_id || nearestSpot) ? 'Check In + Earn XP' : 'Check In & Keep Streak'}
-                </>
               )}
-            </Button>
-          </div>
+
+              {/* First visit bonus */}
+              {checkInReward.is_first_visit && (
+                <div className="text-blue-400 text-sm font-medium mb-2">🆕 First visit to this spot!</div>
+              )}
+
+              {/* Badge earned */}
+              {checkInReward.badge_earned && (
+                <div className="flex items-center gap-2 bg-purple-500/10 border border-purple-500/30 rounded-xl px-5 py-3 mb-3">
+                  <span className="text-lg">🏅</span>
+                  <div className="text-left">
+                    <div className="text-xs text-purple-400 uppercase tracking-wide">Badge Earned</div>
+                    <div className="text-white font-semibold capitalize">{checkInReward.badge_earned.replace(/_/g, ' ')}</div>
+                  </div>
+                </div>
+              )}
+
+              {/* Streak */}
+              {checkInReward.streak_days > 0 && (
+                <div className="text-orange-400 text-sm mb-6">
+                  🔥 {checkInReward.streak_days} day streak
+                  {checkInReward.streak_days >= 7 ? ' — on fire!' : ' — keep it going!'}
+                </div>
+              )}
+
+              <Button
+                onClick={closeCheckInModal}
+                className="w-full bg-gradient-to-r from-yellow-400 to-orange-400 hover:from-yellow-500 hover:to-orange-500 text-black font-bold h-12"
+              >
+                Awesome! 🤙
+              </Button>
+            </div>
+          ) : (
+            <>
+              {/* Scrollable body */}
+              <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+
+                {/* GPS Location Button */}
+                <div>
+                  <Button
+                    onClick={getGpsLocation}
+                    disabled={gpsLoading}
+                    variant="outline"
+                    className={`w-full ${
+                      checkInData.latitude
+                        ? 'border-emerald-500 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20'
+                        : 'border-zinc-700 text-white hover:bg-zinc-800'
+                    }`}
+                    data-testid="gps-checkin-btn"
+                  >
+                    {gpsLoading ? (
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    ) : (
+                      <Navigation className={`w-4 h-4 mr-2 ${checkInData.latitude ? 'text-emerald-400' : ''}`} />
+                    )}
+                    {gpsLoading ? 'Finding your location\u2026' : checkInData.latitude ? '\u2713 GPS Location Detected' : 'Use My GPS Location'}
+                  </Button>
+
+                  {/* GPS feedback */}
+                  {nearestSpot && checkInData.latitude && (
+                    <div className={`mt-2 p-2.5 rounded-lg text-xs ${
+                      parseFloat(nearestSpot.distance) < 10
+                        ? 'bg-emerald-500/10 border border-emerald-500/30 text-emerald-300'
+                        : 'bg-zinc-800 border border-zinc-700 text-gray-400'
+                    }`}>
+                      <span className="font-medium">{nearestSpot.name}</span>
+                      {' '}&mdash; {nearestSpot.distance}km away
+                      {parseFloat(nearestSpot.distance) < 10
+                        ? ' \u2022 \uD83C\uDFC6 Within range — you\'ll earn Passport XP!'
+                        : ' \u2022 Outside 10km check-in zone'}
+                    </div>
+                  )}
+                </div>
+
+                {/* Divider */}
+                <div className="relative">
+                  <div className="absolute inset-0 flex items-center">
+                    <span className="w-full border-t border-zinc-700" />
+                  </div>
+                  <div className="relative flex justify-center text-xs uppercase">
+                    <span className="bg-zinc-900 px-2 text-gray-500">or select your spot</span>
+                  </div>
+                </div>
+
+                {/* Country selector */}
+                <div>
+                  <label className="text-sm text-gray-400 mb-2 block">Country</label>
+                  <Select
+                    value={selectedCountry}
+                    onValueChange={(v) => { setSelectedCountry(v); setSelectedState(''); setCheckInData(prev => ({ ...prev, spot_id: '' })); }}
+                  >
+                    <SelectTrigger className="bg-zinc-800 border-zinc-700 text-white">
+                      <SelectValue placeholder="Select a country" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-zinc-800 border-zinc-700 max-h-60 overflow-y-auto">
+                      {locationHierarchy.countries.map(c => (
+                        <SelectItem key={c.name} value={c.name} className="text-white hover:bg-zinc-700">
+                          {c.name} <span className="text-gray-500 text-xs ml-1">({c.spot_count} spots)</span>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* State/Province selector — only shown when country selected */}
+                {selectedCountry && (() => {
+                  const countryData = locationHierarchy.countries.find(c => c.name === selectedCountry);
+                  const states = countryData?.states || [];
+                  if (states.length === 0) return null; // skip if no state breakdown
+                  return (
+                    <div>
+                      <label className="text-sm text-gray-400 mb-2 block">State / Province</label>
+                      <Select
+                        value={selectedState}
+                        onValueChange={(v) => { setSelectedState(v); setCheckInData(prev => ({ ...prev, spot_id: '' })); }}
+                      >
+                        <SelectTrigger className="bg-zinc-800 border-zinc-700 text-white">
+                          <SelectValue placeholder="Select a state / province" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-zinc-800 border-zinc-700 max-h-60 overflow-y-auto">
+                          {states.map(s => (
+                            <SelectItem key={s.name} value={s.name} className="text-white hover:bg-zinc-700">
+                              {s.name} <span className="text-gray-500 text-xs ml-1">({s.spot_count})</span>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  );
+                })()}
+
+                {/* Spot selector — filtered by country + state */}
+                <div>
+                  <label className="text-sm text-gray-400 mb-2 block">Surf Spot</label>
+                  <Select
+                    value={checkInData.spot_id}
+                    onValueChange={(v) => setCheckInData(prev => ({ ...prev, spot_id: v }))}
+                  >
+                    <SelectTrigger className="bg-zinc-800 border-zinc-700 text-white">
+                      <SelectValue placeholder={selectedCountry ? 'Select a spot' : 'Select country first (or use GPS)'} />
+                    </SelectTrigger>
+                    <SelectContent className="bg-zinc-800 border-zinc-700 max-h-72 overflow-y-auto">
+                      {spots
+                        .filter(spot => {
+                          if (!selectedCountry) return true; // Show all if no country filter
+                          if (spot.country !== selectedCountry) return false;
+                          if (selectedState && spot.state_province !== selectedState) return false;
+                          return true;
+                        })
+                        .map((spot) => (
+                          <SelectItem key={spot.id} value={spot.id} className="text-white hover:bg-zinc-700">
+                            {spot.name}
+                            {spot.region && <span className="text-gray-500 text-xs ml-1"> — {spot.region}</span>}
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Conditions */}
+                <div>
+                  <label className="text-sm text-gray-400 mb-2 block">Conditions</label>
+                  <Select value={checkInData.conditions} onValueChange={(v) => setCheckInData(prev => ({ ...prev, conditions: v }))}>
+                    <SelectTrigger className="bg-zinc-800 border-zinc-700 text-white">
+                      <SelectValue placeholder="How's it looking?" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-zinc-800 border-zinc-700">
+                      <SelectItem value="Glassy" className="text-white hover:bg-zinc-700">\uD83E\uDEDE Glassy</SelectItem>
+                      <SelectItem value="Clean" className="text-white hover:bg-zinc-700">\u2728 Clean</SelectItem>
+                      <SelectItem value="Choppy" className="text-white hover:bg-zinc-700">\uD83C\uDF0A Choppy</SelectItem>
+                      <SelectItem value="Messy" className="text-white hover:bg-zinc-700">\uD83D\uDCA8 Messy</SelectItem>
+                      <SelectItem value="Blown Out" className="text-white hover:bg-zinc-700">\uD83C\uDF00 Blown Out</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Wave Height */}
+                <div>
+                  <label className="text-sm text-gray-400 mb-2 block">Wave Height</label>
+                  <Select value={checkInData.wave_height} onValueChange={(v) => setCheckInData(prev => ({ ...prev, wave_height: v }))}>
+                    <SelectTrigger className="bg-zinc-800 border-zinc-700 text-white">
+                      <SelectValue placeholder="How big?" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-zinc-800 border-zinc-700">
+                      <SelectItem value="Flat" className="text-white hover:bg-zinc-700">Flat</SelectItem>
+                      <SelectItem value="1-2ft" className="text-white hover:bg-zinc-700">1-2ft</SelectItem>
+                      <SelectItem value="2-3ft" className="text-white hover:bg-zinc-700">2-3ft</SelectItem>
+                      <SelectItem value="3-4ft" className="text-white hover:bg-zinc-700">3-4ft</SelectItem>
+                      <SelectItem value="4-6ft" className="text-white hover:bg-zinc-700">4-6ft</SelectItem>
+                      <SelectItem value="6-8ft" className="text-white hover:bg-zinc-700">6-8ft</SelectItem>
+                      <SelectItem value="8ft+" className="text-white hover:bg-zinc-700">8ft+ (Overhead+)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Notes */}
+                <div>
+                  <label className="text-sm text-gray-400 mb-2 block">Notes (optional)</label>
+                  <Input
+                    placeholder="How was your session?"
+                    value={checkInData.notes}
+                    onChange={(e) => setCheckInData(prev => ({ ...prev, notes: e.target.value }))}
+                    className="bg-zinc-800 border-zinc-700 text-white placeholder-gray-500"
+                  />
+                </div>
+
+                {/* GPS Passport XP info banner */}
+                {checkInData.use_gps && checkInData.latitude && (checkInData.spot_id || nearestSpot) && (
+                  <div className="flex items-start gap-2 p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/30">
+                    <Navigation className="w-4 h-4 text-emerald-400 mt-0.5 flex-shrink-0" />
+                    <div className="text-xs text-emerald-300">
+                      <span className="font-medium">GPS-Verified Check-In:</span> Must be within 500m of the spot to earn Passport XP &amp; stamps.
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Fixed footer */}
+              <div className="px-6 pb-6 pt-3 shrink-0 border-t border-zinc-800">
+                <Button
+                  onClick={submitCheckIn}
+                  disabled={checkInLoading}
+                  className="w-full h-12 bg-gradient-to-r from-yellow-400 to-orange-400 hover:from-yellow-500 hover:to-orange-500 text-black font-bold"
+                  data-testid="feed-checkin-submit-btn"
+                >
+                  {checkInLoading ? (
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                  ) : (
+                    <>
+                      <Flame className="w-5 h-5 mr-2" />
+                      {checkInData.use_gps && (checkInData.spot_id || nearestSpot)
+                        ? 'Check In + Earn XP \uD83C\uDFC5'
+                        : 'Check In & Keep Streak \uD83D\uDD25'}
+                    </>
+                  )}
+                </Button>
+              </div>
+            </>
+          )}
         </DialogContent>
       </Dialog>
 
