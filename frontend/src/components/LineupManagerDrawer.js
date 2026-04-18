@@ -334,6 +334,7 @@ const QuickActionsPanel = ({
   onCloseToInvites,
   onCancelAll,
   onLeave,
+  onClose,
   isLight 
 }) => {
   const textPrimary = isLight ? 'text-gray-900' : 'text-white';
@@ -408,9 +409,19 @@ const QuickActionsPanel = ({
             <Waves className="w-4 h-4 text-cyan-400" />
             <p className={`text-sm font-medium ${textPrimary}`}>Keeping a Spot in the Water</p>
           </div>
-          <p className={`text-xs ${textSecondary}`}>
+          <p className={`text-xs ${textSecondary} mb-3`}>
             Your lineup is open. Use the invite panel above to fill the remaining spots — the session stays open until you're ready to lock it.
           </p>
+          <Button
+            onClick={onClose}
+            variant="outline"
+            size="sm"
+            className={`w-full ${isLight ? 'border-cyan-300 text-cyan-700 hover:bg-cyan-50' : 'border-cyan-500/50 text-cyan-400 hover:bg-cyan-500/10'}`}
+            data-testid="keep-open-close-btn"
+          >
+            <Waves className="w-4 h-4 mr-2" />
+            Leave Open & Come Back Later
+          </Button>
         </div>
       )}
 
@@ -438,10 +449,17 @@ const QuickActionsPanel = ({
             {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <><Lock className="w-5 h-5 mr-2" />Lock Lineup & Confirm Session</>}
           </Button>
 
-          {/* Neutral: Keep waiting */}
-          <p className={`text-xs text-center ${textSecondary}`}>
-            Or just close this panel — the session stays open automatically.
-          </p>
+          {/* Explicit Keep Open button replacing the hint text */}
+          <Button
+            onClick={onClose}
+            variant="outline"
+            size="sm"
+            className={`w-full ${isLight ? 'border-gray-300 text-gray-600 hover:bg-gray-50' : 'border-zinc-600 text-zinc-300 hover:bg-zinc-700'}`}
+            data-testid="keep-open-close-btn"
+          >
+            <Waves className="w-4 h-4 mr-2 text-cyan-400" />
+            Leave Open & Come Back Later
+          </Button>
         </>
       )}
 
@@ -1445,6 +1463,7 @@ export const LineupManagerDrawer = ({
             onCloseToInvites={handleCloseToInvites}
             onCancelAll={handleCancelAll}
             onLeave={handleLeaveLineup}
+            onClose={onClose}
             isLight={isLight}
           />
         </div>
