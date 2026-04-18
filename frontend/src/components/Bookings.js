@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 
@@ -10,7 +10,7 @@ import { usePersona } from '../contexts/PersonaContext';
 
 import apiClient from '../lib/apiClient';
 
-import { Users, Zap, Radio, History, CalendarClock, UserPlus, Copy, Mail, Target, Sparkles, Search, Loader2, AtSign, Send } from 'lucide-react';
+import { Users, Zap, Radio, History, CalendarClock, UserPlus, Copy, Mail, Target, Sparkles, Search, Loader2, AtSign, Send, ChevronLeft, ChevronRight } from 'lucide-react';
 
 import { Card, CardContent } from './ui/card';
 
@@ -327,8 +327,42 @@ export const Bookings = () => {
   const [searchParams] = useSearchParams();
   const tabFromUrl = searchParams.get('tab');
   const [activeTab, setActiveTab] = useState(tabFromUrl || 'lineup');  // Default to The Lineup tab, or use URL param
+  const tabScrollRef = useRef(null);
+  const [showLeftArrow, setShowLeftArrow] = useState(false);
+  const [showRightArrow, setShowRightArrow] = useState(false);
+  const isDraggingRef = useRef(false);
+  const dragStartXRef = useRef(0);
+  const scrollStartRef = useRef(0);
+
+  // Check if scroll arrows should show (desktop only)
+  const updateArrows = () => {
+    const el = tabScrollRef.current;
+    if (!el) return;
+    setShowLeftArrow(el.scrollLeft > 4);
+    setShowRightArrow(el.scrollLeft + el.clientWidth < el.scrollWidth - 4);
+  };
+
+  // Scroll arrows handler
+  const scrollTabs = (dir) => {
+    const el = tabScrollRef.current;
+    if (!el) return;
+    el.scrollBy({ left: dir * 160, behavior: 'smooth' });
+  };
+
+  // Auto-scroll active tab into view whenever activeTab changes
+  useEffect(() => {
+    const el = tabScrollRef.current;
+    if (!el) return;
+    const active = el.querySelector('[data-active="true"]');
+    if (active) {
+      active.scrollIntoView({ inline: 'nearest', block: 'nearest', behavior: 'smooth' });
+    }
+    setTimeout(updateArrows, 150);
+  }, [activeTab]); // eslint-disable-line
+
   const [bookings, setBookings] = useState([]);
   const [liveSessions, setLiveSessions] = useState([]);
+
   const [livePhotographers, setLivePhotographers] = useState([]);
   const [pendingInvites, setPendingInvites] = useState([]);
   const [crewInvites, setCrewInvites] = useState([]);  // On-demand crew invites
@@ -876,35 +910,100 @@ export const Bookings = () => {
           />
         )}
 
-        {/* Tabs */}
-        <div className={`flex border-b ${borderClass} mb-6 overflow-x-auto`}>
-          {tabs.map((tab) => {
-            const Icon = tab.icon;
-            const isActive = activeTab === tab.id;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-2 px-4 py-3 text-sm font-medium whitespace-nowrap transition-colors relative ${
-                  isActive ? textPrimaryClass : textSecondaryClass
-                }`}
-                data-testid={`tab-${tab.id}`}
-              >
-                <Icon className="w-4 h-4" />
-                {tab.label}
-                {tab.count > 0 && (
-                  <span className={`ml-1 px-1.5 py-0.5 text-xs rounded-full ${
-                    isActive ? 'bg-yellow-400 text-black' : isLight ? 'bg-gray-200 text-gray-600' : 'bg-zinc-700 text-gray-300'
-                  }`}>
-                    {tab.count}
-                  </span>
-                )}
-                {isActive && (
-                  <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-yellow-400 to-orange-400" />
-                )}
-              </button>
-            );
-          })}
+        {/* Tabs — mobile: touch-scroll; desktop: drag-scroll + arrow buttons */}
+        <div className="relative mb-6">
+          {/* Left arrow — only visible on desktop when scrolled */}
+          {showLeftArrow && (
+            <button
+              onClick={() => scrollTabs(-1)}
+              className={`hidden md:flex absolute left-0 top-0 bottom-0 z-10 items-center justify-center w-8 ${
+                isLight ? 'bg-gradient-to-r from-gray-50 to-transparent' : 'bg-gradient-to-r from-card to-transparent'
+              } pr-1`}
+              aria-label="Scroll tabs left"
+            >
+              <ChevronLeft className={`w-4 h-4 ${textSecondaryClass}`} />
+            </button>
+          )}
+
+          {/* Scrollable tab strip */}
+          <div
+            ref={tabScrollRef}
+            onScroll={updateArrows}
+            // Mouse-drag to scroll (desktop)
+            onMouseDown={(e) => {
+              isDraggingRef.current = true;
+              dragStartXRef.current = e.pageX;
+              scrollStartRef.current = tabScrollRef.current?.scrollLeft || 0;
+              e.currentTarget.style.cursor = 'grabbing';
+              e.currentTarget.style.userSelect = 'none';
+            }}
+            onMouseMove={(e) => {
+              if (!isDraggingRef.current) return;
+              const delta = dragStartXRef.current - e.pageX;
+              if (tabScrollRef.current) tabScrollRef.current.scrollLeft = scrollStartRef.current + delta;
+            }}
+            onMouseUp={(e) => {
+              isDraggingRef.current = false;
+              e.currentTarget.style.cursor = '';
+              e.currentTarget.style.userSelect = '';
+            }}
+            onMouseLeave={(e) => {
+              if (isDraggingRef.current) {
+                isDraggingRef.current = false;
+                e.currentTarget.style.cursor = '';
+                e.currentTarget.style.userSelect = '';
+              }
+            }}
+            className={`flex border-b ${borderClass} overflow-x-auto scrollbar-hide cursor-grab select-none`}
+            style={{ scrollbarWidth: 'none', msOverflowStyle: 'none', WebkitOverflowScrolling: 'touch' }}
+          >
+            {tabs.map((tab) => {
+              const Icon = tab.icon;
+              const isActive = activeTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  data-active={isActive ? 'true' : 'false'}
+                  onClick={() => {
+                    // Only fire click if we didn't drag
+                    if (Math.abs((tabScrollRef.current?.scrollLeft || 0) - scrollStartRef.current) < 4) {
+                      setActiveTab(tab.id);
+                    }
+                  }}
+                  className={`flex items-center gap-2 px-4 py-3 text-sm font-medium whitespace-nowrap transition-colors relative ${
+                    isActive ? textPrimaryClass : textSecondaryClass
+                  }`}
+                  data-testid={`tab-${tab.id}`}
+                >
+                  <Icon className="w-4 h-4" />
+                  {tab.label}
+                  {tab.count > 0 && (
+                    <span className={`ml-1 px-1.5 py-0.5 text-xs rounded-full ${
+                      isActive ? 'bg-yellow-400 text-black' : isLight ? 'bg-gray-200 text-gray-600' : 'bg-zinc-700 text-gray-300'
+                    }`}>
+                      {tab.count}
+                    </span>
+                  )}
+                  {isActive && (
+                    <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-yellow-400 to-orange-400" />
+                  )}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Right arrow — only visible on desktop when more tabs are hidden */}
+          {showRightArrow && (
+            <button
+              onClick={() => scrollTabs(1)}
+              className={`hidden md:flex absolute right-0 top-0 bottom-0 z-10 items-center justify-center w-8 ${
+                isLight ? 'bg-gradient-to-l from-gray-50 to-transparent' : 'bg-gradient-to-l from-card to-transparent'
+              } pl-1`}
+              aria-label="Scroll tabs right"
+            >
+              <ChevronRight className={`w-4 h-4 ${textSecondaryClass}`} />
+            </button>
+          )}
         </div>
 
         {/* Tab Content */}
