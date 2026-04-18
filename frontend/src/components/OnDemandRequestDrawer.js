@@ -179,10 +179,30 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
   const [requestDuration, setRequestDuration] = useState(minDuration);
   
   // ============ CREW / SPLIT STATE ============
-  const [splitEnabled, setSplitEnabled] = useState(false); // Whether user wants to split with crew
+  const [splitEnabled, setSplitEnabled] = useState(false);
   const [crewMembers, setCrewMembers] = useState([]);
   const [newCrewInput, setNewCrewInput] = useState('');
   const [showAddCrewInput, setShowAddCrewInput] = useState(false);
+
+  // Quick-Add suggestions (recent buddies + following)
+  const [recentBuddies, setRecentBuddies] = useState([]);
+  const [following, setFollowing] = useState([]);
+
+  const loadCrewSuggestions = async () => {
+    if (!user?.id) return;
+    try {
+      const [buddiesRes, followingRes] = await Promise.all([
+        apiClient.get(`/users/${user.id}/recent-buddies?limit=10`).catch(() => ({ data: { buddies: [] } })),
+        apiClient.get(`/users/${user.id}/following?limit=20`).catch(() => ({ data: { following: [] } }))
+      ]);
+      setRecentBuddies(buddiesRes.data.buddies || []);
+      setFollowing(followingRes.data.following || []);
+    } catch (e) { /* silent */ }
+  };
+
+  useEffect(() => {
+    if (step === 'crew') loadCrewSuggestions();
+  }, [step]); // eslint-disable-line
   
   // ============ FRIEND AUTOCOMPLETE STATE ============
   const [friendSearchResults, setFriendSearchResults] = useState([]);
@@ -952,6 +972,48 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
                 </div>
               </div>
               
+              {/* Add Crew Input with Autocomplete OR Quick Add suggestions */}
+              {!showAddCrewInput ? (
+                /* Quick Add suggestions - always visible when no search open */
+                (() => {
+                  const usedIds = new Set([user?.id, ...crewMembers.map(m => m.user_id || m.id)]);
+                  const suggestions = [...recentBuddies, ...following]
+                    .filter((p, idx, self) =>
+                      idx === self.findIndex(t => t.id === p.id) && !usedIds.has(p.id)
+                    ).slice(0, 8);
+                  return suggestions.length > 0 ? (
+                    <div className="mt-4 space-y-2">
+                      <p className={`text-xs font-medium ${textSecondary} flex items-center gap-1`}>
+                        <span>⚡</span> Quick Add
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        {suggestions.map((person) => (
+                          <button
+                            key={person.id}
+                            onClick={() => handleSelectFriend(person)}
+                            className={`flex items-center gap-2 px-3 py-2 rounded-full ${
+                              isLight ? 'bg-gray-100 hover:bg-cyan-50' : 'bg-zinc-800 hover:bg-zinc-700'
+                            } hover:ring-2 ring-cyan-500/50 transition-all`}
+                          >
+                            <div className="w-6 h-6 rounded-full overflow-hidden bg-gradient-to-br from-cyan-400 to-blue-500 flex-shrink-0">
+                              {person.avatar_url ? (
+                                <img src={getFullUrl(person.avatar_url)} alt="" className="w-full h-full object-cover" />
+                              ) : (
+                                <span className="w-full h-full flex items-center justify-center text-white font-bold text-xs">
+                                  {(person.full_name || '?')[0].toUpperCase()}
+                                </span>
+                              )}
+                            </div>
+                            <span className={`text-sm ${textPrimary}`}>{person.full_name?.split(' ')[0]}</span>
+                            <Plus className="w-3 h-3 text-cyan-400" />
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null;
+                })()
+              ) : null}
+
               {/* Add Crew Input with Autocomplete */}
               {showAddCrewInput && (
                 <div className="mt-4 relative" style={{ zIndex: 50 }}>

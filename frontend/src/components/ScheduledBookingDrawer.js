@@ -1767,7 +1767,11 @@ export const ScheduledBookingDrawer = ({
   // Include travel surcharge in total price
   const totalPrice = basePrice - discountAmount + travelSurcharge;
   const pricePerPerson = totalPrice / maxParticipants;
-  const captainShare = pricePerPerson; // Captain pays their share
+  // Captain covers their own equal share + anything they chose to cover for crew
+  const captainCoverageExtra = crewMembers.reduce(
+    (sum, m) => sum + (pricePerPerson * ((m.captain_cover_percent || 0) / 100)), 0
+  );
+  const captainShare = pricePerPerson + captainCoverageExtra;
   const userCredits = user?.credit_balance || 0;
   
   // Check if group discounts are available (for display)
@@ -1873,11 +1877,11 @@ export const ScheduledBookingDrawer = ({
       // Calculate payment window for crew
       const paymentWindowExpires = calculatePaymentWindow();
       
-      // Prepare crew member data for backend
+      // Prepare crew member data for backend (use actual out-of-pocket per member)
       const crewMemberData = crewMembers.map(m => ({
         user_id: m.user_id,
         name: m.name,
-        share_amount: pricePerPerson
+        share_amount: parseFloat((pricePerPerson * (1 - (m.captain_cover_percent || 0) / 100)).toFixed(2))
       }));
       
       // If there's an amount to charge and user selected card payment
