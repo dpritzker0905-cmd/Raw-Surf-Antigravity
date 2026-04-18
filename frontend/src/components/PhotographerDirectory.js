@@ -1,4 +1,4 @@
-﻿/**
+/**
  * PhotographerDirectory - Primary discovery layer for scheduled bookings
  * List-based directory with smart filters and "View on Map" toggle
  */
@@ -309,95 +309,37 @@ export const PhotographerDirectory = ({ isOpen, onClose, onSelectPhotographer })
   const _textPrimary = isLight ? 'text-gray-900' : 'text-white';
   const textSecondary = isLight ? 'text-gray-600' : 'text-gray-400';
   
-  // Fetch photographers
+  // Fetch photographers when dialog opens, filters change, or search query changes
   useEffect(() => {
     if (isOpen) {
-      fetchPhotographers();
+      // Debounce search to avoid hammering API on every keystroke
+      const tid = setTimeout(() => fetchPhotographers(), searchQuery.length > 0 ? 350 : 0);
+      return () => clearTimeout(tid);
     }
-  }, [isOpen]);
+    // intentionally omitting fetchPhotographers from deps — it reads filters/searchQuery from closure
+  }, [isOpen, filters, searchQuery]); // eslint-disable-line
   
   const fetchPhotographers = async () => {
     setLoading(true);
     try {
-      const response = await apiClient.get(`/photographers/directory`);
+      const params = new URLSearchParams();
+      if (filters.region !== 'all') params.append('region', filters.region);
+      if (filters.gearType !== 'all') params.append('gear_type', filters.gearType);
+      if (filters.skillLevel !== 'all') params.append('skill_level', filters.skillLevel);
+      if (searchQuery) params.append('search', searchQuery);
+      params.append('limit', '50');
+
+      const response = await apiClient.get(`/photographers/directory?${params.toString()}`);
       setPhotographers(response.data || []);
     } catch (error) {
       logger.error('Failed to fetch photographers:', error);
-      // Use mock data for now
-      setPhotographers(mockPhotographers);
+      setPhotographers([]);  // Show empty state — never show fake mock data to users
     } finally {
       setLoading(false);
     }
   };
   
-  // Mock photographers data
-  const mockPhotographers = [
-    {
-      id: '1',
-      full_name: 'Jake Martinez',
-      avatar_url: null,
-      role: 'Approved Pro',
-      home_break: 'Pipeline, Oahu',
-      region: 'hi',
-      gear_types: ['water', 'drone'],
-      avg_rating: 4.9,
-      total_sessions: 156,
-      session_rate: 150,
-      is_available: true
-    },
-    {
-      id: '2',
-      full_name: 'Sarah Chen',
-      avatar_url: null,
-      role: 'Photographer',
-      home_break: 'Huntington Beach, CA',
-      region: 'ca',
-      gear_types: ['land', 'water'],
-      avg_rating: 4.7,
-      total_sessions: 89,
-      session_rate: 100,
-      is_available: false
-    },
-    {
-      id: '3',
-      full_name: 'Miguel Santos',
-      avatar_url: null,
-      role: 'Approved Pro',
-      home_break: 'Tamarindo, Costa Rica',
-      region: 'cr',
-      gear_types: ['water', 'drone', 'land'],
-      avg_rating: 5.0,
-      total_sessions: 234,
-      session_rate: 175,
-      is_available: true
-    },
-    {
-      id: '4',
-      full_name: 'Emma Thompson',
-      avatar_url: null,
-      role: 'Hobbyist',
-      home_break: 'Cocoa Beach, FL',
-      region: 'fl',
-      gear_types: ['land'],
-      avg_rating: 4.5,
-      total_sessions: 23,
-      session_rate: 60,
-      is_available: true
-    },
-    {
-      id: '5',
-      full_name: 'Kai Nakamura',
-      avatar_url: null,
-      role: 'Approved Pro',
-      home_break: 'Banzai Pipeline, HI',
-      region: 'hi',
-      gear_types: ['water'],
-      avg_rating: 4.8,
-      total_sessions: 312,
-      session_rate: 200,
-      is_available: false
-    },
-  ];
+
   
   // Filter photographers
   const filteredPhotographers = useMemo(() => {
