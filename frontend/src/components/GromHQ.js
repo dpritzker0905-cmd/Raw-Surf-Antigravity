@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { 
+
   Shield, Users, DollarSign, Clock, Trophy, Plus,
   Settings, ChevronRight, CheckCircle, XCircle,
   ShoppingBag, Activity, Bell, UserPlus,
@@ -15,6 +16,7 @@ import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { Badge } from './ui/badge';
 import { Input } from './ui/input';
 import {
+
   Dialog,
   DialogContent,
   DialogDescription,
@@ -25,6 +27,13 @@ import {
 import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import { toast } from 'sonner';
 import logger from '../utils/logger';
+
+const getFullUrl = (url) => {
+  if (!url) return url;
+  if (url.startsWith('data:') || url.startsWith('blob:') || url.startsWith('http')) return url;
+  return `\\`;
+};
+
 
 
 /**
@@ -334,7 +343,7 @@ export const GromHQ = () => {
                   className={`flex items-center gap-3 p-3 rounded-xl ${isLight ? 'bg-gray-50' : 'bg-zinc-800'}`}
                 >
                   <Avatar className="w-12 h-12 border-2 border-yellow-500/30">
-                    <AvatarImage src={request.avatar_url} />
+                    <AvatarImage src={getFullUrl(request.avatar_url)} />
                     <AvatarFallback className="bg-yellow-500/20 text-yellow-400">
                       {request.full_name?.[0] || 'G'}
                     </AvatarFallback>
@@ -537,7 +546,7 @@ export const GromHQ = () => {
                 >
                   <div className="flex items-center gap-3">
                     <Avatar className="w-14 h-14 border-2 border-cyan-500/30">
-                      <AvatarImage src={grom.avatar_url} />
+                      <AvatarImage src={getFullUrl(grom.avatar_url)} />
                       <AvatarFallback className="bg-cyan-500/20 text-cyan-400 text-lg">
                         {grom.full_name?.[0] || 'G'}
                       </AvatarFallback>
@@ -775,7 +784,7 @@ export const GromHQ = () => {
           <div className="space-y-4 py-4">
             <div className="flex items-center gap-3 p-3 bg-zinc-800 rounded-lg">
               <Avatar className="w-10 h-10">
-                <AvatarImage src={unlinkingGrom?.avatar_url} />
+                <AvatarImage src={getFullUrl(unlinkingGrom?.avatar_url)} />
                 <AvatarFallback className="bg-cyan-500/20 text-cyan-400">
                   {unlinkingGrom?.full_name?.[0]}
                 </AvatarFallback>

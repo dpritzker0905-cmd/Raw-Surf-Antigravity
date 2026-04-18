@@ -1,4 +1,4 @@
-/**
+﻿/**
  * ScheduledTab - Booking Command Center for managing confirmed/pending bookings
  * 
  * This tab is strictly for MANAGING existing bookings (Modify, Cancel, Split, Invite Crew).
@@ -13,6 +13,12 @@ import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { BookingCard } from '../BookingCard';
 import { BookingSelfieModal } from '../BookingSelfieModal';
+
+const getFullUrl = (url) => {
+  if (!url) return url;
+  if (url.startsWith('data:') || url.startsWith('blob:') || url.startsWith('http')) return url;
+  return `\\`;
+};
 
 export const ScheduledTab = ({
   user,
@@ -185,7 +191,7 @@ export const ScheduledTab = ({
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex items-center gap-3">
                     {invite.captain?.avatar_url ? (
-                      <img src={invite.captain.avatar_url} alt="" className="w-10 h-10 rounded-full object-cover" />
+                      <img src={getFullUrl(invite.captain.avatar_url)} alt="" className="w-10 h-10 rounded-full object-cover" />
                     ) : (
                       <div className="w-10 h-10 rounded-full bg-cyan-500/20 flex items-center justify-center">
                         <span className="text-cyan-400 font-bold">{invite.captain?.name?.[0] || '?'}</span>

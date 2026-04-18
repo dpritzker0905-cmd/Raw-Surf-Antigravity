@@ -1,18 +1,37 @@
 ﻿import React, { useState, useEffect, useRef, useCallback } from 'react';
+
 import { useLocation } from 'react-router-dom';
+
 import { useAuth } from '../contexts/AuthContext';
+
 import { useTheme } from '../contexts/ThemeContext';
+
 import apiClient, { BACKEND_URL } from '../lib/apiClient';
+
 import { 
+
   Power, MapPin, Clock, DollarSign, Camera, Zap, Settings, User, Navigation, Check, X, Flame, Bell, Volume2, VolumeX, Loader2, Radio, Eye, Calendar, Square, ChevronDown, ChevronUp, Wallet, History, Info, Waves, Users
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from './ui/card';
+
 import { Button } from './ui/button';
+
 import { Badge } from './ui/badge';
+
 import { Switch } from './ui/switch';
+
 import { NumericStepper } from './ui/numeric-stepper';
+
 import { toast } from 'sonner';
+
 import logger from '../utils/logger';
+
+const getFullUrl = (url) => {
+  if (!url) return url;
+  if (url.startsWith('data:') || url.startsWith('blob:') || url.startsWith('http')) return url;
+  return `\\`;
+};
+
 
 
 // Helper to get full image URL
@@ -154,7 +173,7 @@ const IncomingRequestCard = ({
                     {member.selfie_url ? (
                       <img src={getImageUrl(member.selfie_url)} alt="" className="w-full h-full object-cover" />
                     ) : member.avatar_url ? (
-                      <img src={getImageUrl(member.avatar_url)} alt="" className="w-full h-full object-cover" />
+                      <img src={getFullUrl(getImageUrl(member.avatar_url))} alt="" className="w-full h-full object-cover" />
                     ) : (
                       <div className="w-full h-full bg-purple-500/30 flex items-center justify-center text-[8px] text-purple-300">
                         {member.name?.[0]?.toUpperCase() || '?'}
@@ -413,7 +432,7 @@ const IncomingRequestCard = ({
                             onClick={() => setSelectedCrewSelfie(member)}
                           />
                         ) : member.avatar_url ? (
-                          <img src={getImageUrl(member.avatar_url)} alt="" className="w-12 h-12 rounded-full object-cover ring-2 ring-purple-400/30" />
+                          <img src={getFullUrl(getImageUrl(member.avatar_url))} alt="" className="w-12 h-12 rounded-full object-cover ring-2 ring-purple-400/30" />
                         ) : (
                           <div className="w-12 h-12 rounded-full bg-purple-500/30 flex items-center justify-center text-lg text-purple-300 ring-2 ring-purple-400/30">
                             {member.name?.[0]?.toUpperCase() || '?'}
@@ -500,7 +519,7 @@ const IncomingRequestCard = ({
           <div className="p-5 space-y-4">
             <div className="flex items-center gap-4">
               {selectedCrewSelfie.avatar_url ? (
-                <img src={getImageUrl(selectedCrewSelfie.avatar_url)} alt="" className="w-14 h-14 rounded-full object-cover ring-2 ring-purple-400" />
+                <img src={getFullUrl(getImageUrl(selectedCrewSelfie.avatar_url))} alt="" className="w-14 h-14 rounded-full object-cover ring-2 ring-purple-400" />
               ) : (
                 <div className="w-14 h-14 rounded-full bg-purple-500/20 flex items-center justify-center">
                   <User className="w-7 h-7 text-purple-400" />
@@ -675,7 +694,7 @@ const ActiveSessionCard = ({
                     {member.selfie_url ? (
                       <img src={getImageUrl(member.selfie_url)} alt="" className="w-full h-full object-cover" />
                     ) : member.avatar_url ? (
-                      <img src={getImageUrl(member.avatar_url)} alt="" className="w-full h-full object-cover" />
+                      <img src={getFullUrl(getImageUrl(member.avatar_url))} alt="" className="w-full h-full object-cover" />
                     ) : (
                       <div className="w-full h-full bg-purple-500/30 flex items-center justify-center">
                         <User className="w-6 h-6 text-purple-400" />

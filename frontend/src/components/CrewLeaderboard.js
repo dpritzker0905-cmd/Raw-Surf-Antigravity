@@ -4,23 +4,43 @@
  */
 
 import React, { useState, useEffect } from 'react';
+
 import { useAuth } from '../contexts/AuthContext';
+
 import { useTheme } from '../contexts/ThemeContext';
+
 import {
+
   Trophy, Users, Flame, DollarSign,
   Medal, Crown, Star, TrendingUp, ChevronRight,
   Eye, EyeOff, Lock
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
+
 import { Button } from './ui/button';
+
 import { Badge } from './ui/badge';
+
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
+
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
+
 import { Switch } from './ui/switch';
+
 import { Label } from './ui/label';
+
 import { toast } from 'sonner';
+
 import apiClient, { BACKEND_URL } from '../lib/apiClient';
+
 import logger from '../utils/logger';
+
+const getFullUrl = (url) => {
+  if (!url) return url;
+  if (url.startsWith('data:') || url.startsWith('blob:') || url.startsWith('http')) return url;
+  return `\\`;
+};
+
 
 const API = process.env.REACT_APP_BACKEND_URL;
 
@@ -99,7 +119,7 @@ const CrewCard = ({ crew, onClick, isLight }) => {
                   style={{ zIndex: 4 - idx }}
                 >
                   {member.avatar_url ? (
-                    <img src={member.avatar_url} alt={member.full_name} className="w-full h-full object-cover" />
+                    <img src={getFullUrl(member.avatar_url)} alt={member.full_name} className="w-full h-full object-cover" />
                   ) : (
                     <span className="text-white text-xs font-bold">
                       {member.full_name?.charAt(0) || '?'}
@@ -186,7 +206,7 @@ const LeaderboardEntry = ({ entry, isLight }) => {
                 className="w-6 h-6 rounded-full border border-black bg-gradient-to-br from-cyan-400 to-blue-500 flex items-center justify-center overflow-hidden"
               >
                 {m.avatar_url ? (
-                  <img src={m.avatar_url} alt="" className="w-full h-full object-cover" />
+                  <img src={getFullUrl(m.avatar_url)} alt="" className="w-full h-full object-cover" />
                 ) : (
                   <span className="text-white text-xs">{m.full_name?.charAt(0)}</span>
                 )}
@@ -362,7 +382,7 @@ export const CrewLeaderboard = ({
               <div className="flex items-center gap-2 flex-1">
                 <div className="w-8 h-8 rounded-full bg-gradient-to-br from-cyan-400 to-blue-500 flex items-center justify-center overflow-hidden">
                   {userSummary.favorite_buddy.avatar_url ? (
-                    <img src={userSummary.favorite_buddy.avatar_url} alt="" className="w-full h-full object-cover" />
+                    <img src={getFullUrl(userSummary.favorite_buddy.avatar_url)} alt="" className="w-full h-full object-cover" />
                   ) : (
                     <span className="text-white text-sm">{userSummary.favorite_buddy.full_name?.charAt(0)}</span>
                   )}
@@ -553,7 +573,7 @@ export const CrewLeaderboard = ({
                     <div key={idx} className="flex items-center gap-2 bg-zinc-800 rounded-full px-3 py-1">
                       <div className="w-6 h-6 rounded-full bg-gradient-to-br from-cyan-400 to-blue-500 flex items-center justify-center overflow-hidden">
                         {member.avatar_url ? (
-                          <img src={member.avatar_url} alt="" className="w-full h-full object-cover" />
+                          <img src={getFullUrl(member.avatar_url)} alt="" className="w-full h-full object-cover" />
                         ) : (
                           <span className="text-white text-xs">{member.full_name?.charAt(0)}</span>
                         )}

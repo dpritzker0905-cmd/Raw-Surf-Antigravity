@@ -1,20 +1,40 @@
 ﻿import React, { useState, useEffect } from 'react';
+
 import { useAuth } from '../../contexts/AuthContext';
+
 import { useTheme } from '../../contexts/ThemeContext';
+
 import apiClient, { BACKEND_URL } from '../../lib/apiClient';
+
 import { MessageSquare, FileText,
+
   Loader2, RefreshCw, Flag, Scale, Wallet,
   Send
 } from 'lucide-react';
 import { Card, CardContent } from '../ui/card';
+
 import { Button } from '../ui/button';
+
 import { Input } from '../ui/input';
+
 import { Textarea } from '../ui/textarea';
+
 import { Badge } from '../ui/badge';
+
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
+
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../ui/dialog';
+
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
+
 import { toast } from 'sonner';
+
+const getFullUrl = (url) => {
+  if (!url) return url;
+  if (url.startsWith('data:') || url.startsWith('blob:') || url.startsWith('http')) return url;
+  return `\\`;
+};
+
 
 
 // Status badge component
@@ -360,13 +380,13 @@ export const AdminModerationDashboard = () => {
                           <div className="flex items-center gap-4 mt-3 text-xs">
                             <div className="flex items-center gap-1.5">
                               <Avatar className="w-5 h-5">
-                                <AvatarImage src={dispute.complainant?.avatar_url} />
+                                <AvatarImage src={getFullUrl(dispute.complainant?.avatar_url)} />
                                 <AvatarFallback className="text-xs">{dispute.complainant?.full_name?.[0]}</AvatarFallback>
                               </Avatar>
                               <span className={textSecondary}>{dispute.complainant?.full_name}</span>
                               <span className="text-gray-600">vs</span>
                               <Avatar className="w-5 h-5">
-                                <AvatarImage src={dispute.respondent?.avatar_url} />
+                                <AvatarImage src={getFullUrl(dispute.respondent?.avatar_url)} />
                                 <AvatarFallback className="text-xs">{dispute.respondent?.full_name?.[0]}</AvatarFallback>
                               </Avatar>
                               <span className={textSecondary}>{dispute.respondent?.full_name}</span>
@@ -457,7 +477,7 @@ export const AdminModerationDashboard = () => {
                             <div className="flex items-center gap-1.5">
                               <span className="text-gray-500">Reporter:</span>
                               <Avatar className="w-5 h-5">
-                                <AvatarImage src={report.reporter?.avatar_url} />
+                                <AvatarImage src={getFullUrl(report.reporter?.avatar_url)} />
                                 <AvatarFallback>{report.reporter?.full_name?.[0]}</AvatarFallback>
                               </Avatar>
                               <span className={textSecondary}>{report.reporter?.full_name}</span>
@@ -466,7 +486,7 @@ export const AdminModerationDashboard = () => {
                               <div className="flex items-center gap-1.5">
                                 <span className="text-gray-500">Reported:</span>
                                 <Avatar className="w-5 h-5">
-                                  <AvatarImage src={report.reported_user?.avatar_url} />
+                                  <AvatarImage src={getFullUrl(report.reported_user?.avatar_url)} />
                                   <AvatarFallback>{report.reported_user?.full_name?.[0]}</AvatarFallback>
                                 </Avatar>
                                 <span className={textSecondary}>{report.reported_user?.full_name}</span>
@@ -542,7 +562,7 @@ export const AdminModerationDashboard = () => {
                       <div className="flex items-start justify-between gap-4">
                         <div className="flex items-center gap-3">
                           <Avatar>
-                            <AvatarImage src={hold.photographer?.avatar_url} />
+                            <AvatarImage src={getFullUrl(hold.photographer?.avatar_url)} />
                             <AvatarFallback>{hold.photographer?.full_name?.[0]}</AvatarFallback>
                           </Avatar>
                           <div>
@@ -719,7 +739,7 @@ export const AdminModerationDashboard = () => {
                   <p className="text-xs text-gray-500 mb-2">Complainant</p>
                   <div className="flex items-center gap-2">
                     <Avatar>
-                      <AvatarImage src={selectedDispute.complainant?.avatar_url} />
+                      <AvatarImage src={getFullUrl(selectedDispute.complainant?.avatar_url)} />
                       <AvatarFallback>{selectedDispute.complainant?.full_name?.[0]}</AvatarFallback>
                     </Avatar>
                     <div>
@@ -732,7 +752,7 @@ export const AdminModerationDashboard = () => {
                   <p className="text-xs text-gray-500 mb-2">Respondent</p>
                   <div className="flex items-center gap-2">
                     <Avatar>
-                      <AvatarImage src={selectedDispute.respondent?.avatar_url} />
+                      <AvatarImage src={getFullUrl(selectedDispute.respondent?.avatar_url)} />
                       <AvatarFallback>{selectedDispute.respondent?.full_name?.[0]}</AvatarFallback>
                     </Avatar>
                     <div>
@@ -796,7 +816,7 @@ export const AdminModerationDashboard = () => {
                     >
                       <div className="flex items-center gap-2 mb-1">
                         <Avatar className="w-5 h-5">
-                          <AvatarImage src={msg.sender?.avatar_url} />
+                          <AvatarImage src={getFullUrl(msg.sender?.avatar_url)} />
                           <AvatarFallback className="text-xs">{msg.sender?.full_name?.[0]}</AvatarFallback>
                         </Avatar>
                         <span className="text-sm font-medium">{msg.sender?.full_name}</span>

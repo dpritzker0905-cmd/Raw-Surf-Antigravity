@@ -1,9 +1,15 @@
-﻿import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { X, Camera, CreditCard, Coins, Check, Loader2, RefreshCw } from 'lucide-react';
 import { Button } from './ui/button';
 import { useAuth } from '../contexts/AuthContext';
 import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import { toast } from 'sonner';
+
+const getFullUrl = (url) => {
+  if (!url) return url;
+  if (url.startsWith('data:') || url.startsWith('blob:') || url.startsWith('http')) return url;
+  return `${BACKEND_URL || ''}${url}`;
+};
 
 
 export const JumpInSessionModal = ({ photographer, onClose, onSuccess }) => {
@@ -196,7 +202,7 @@ export const JumpInSessionModal = ({ photographer, onClose, onSuccess }) => {
             <div className="w-12 h-12 rounded-full bg-gradient-to-br from-cyan-400 to-blue-600 p-0.5">
               <div className="w-full h-full rounded-full bg-zinc-900 flex items-center justify-center overflow-hidden">
                 {photographer?.avatar_url ? (
-                  <img src={photographer.avatar_url} className="w-full h-full object-cover" alt="" />
+                  <img src={getFullUrl(photographer.avatar_url)} className="w-full h-full object-cover" alt="" />
                 ) : (
                   <span className="text-cyan-400 font-bold">{photographer?.full_name?.[0]}</span>
                 )}

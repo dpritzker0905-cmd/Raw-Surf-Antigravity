@@ -1,19 +1,30 @@
 ﻿import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+
 import { 
+
   Radio, Clock, Mic, MicOff, Camera, CameraOff, Loader2, AlertTriangle,
   RefreshCw, MessageCircle, Heart, Send, X, Sparkles, Sun, Contrast,
   Share2, Eye, Wifi, WifiOff, ChevronUp, ChevronDown, Droplets, Thermometer,
   CircleDot, Sunset, Waves, RotateCcw, Zap, Moon, Grid
 } from 'lucide-react';
 import { Button } from './ui/button';
+
 import { Input } from './ui/input';
+
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
+
 import { useAuth } from '../contexts/AuthContext';
+
 import { useTheme } from '../contexts/ThemeContext';
+
 import apiClient, { BACKEND_URL } from '../lib/apiClient';
+
 import { toast } from 'sonner';
+
 import { motion, AnimatePresence } from 'framer-motion';
+
 import {
+
   LiveKitRoom,
   useLocalParticipant,
   useTracks,
@@ -21,9 +32,19 @@ import {
   useConnectionState,
 } from '@livekit/components-react';
 import { WebGLBroadcastController } from './WebGLBroadcastController';
+
 import '@livekit/components-styles';
+
 import { Track, ConnectionState } from 'livekit-client';
+
 import logger from '../utils/logger';
+
+const getFullUrl = (url) => {
+  if (!url) return url;
+  if (url.startsWith('data:') || url.startsWith('blob:') || url.startsWith('http')) return url;
+  return `\\`;
+};
+
 
 const API = process.env.REACT_APP_BACKEND_URL + '/api';
 
@@ -376,7 +397,7 @@ const CommentTile = React.memo(({ comment, colors, onReply, onLike, currentUserI
       className={`flex items-start gap-2 p-2 rounded-xl ${colors.commentBg} ${colors.border} border`}
     >
       <Avatar className="w-8 h-8 flex-shrink-0">
-        <AvatarImage src={comment.avatar_url} />
+        <AvatarImage src={getFullUrl(comment.avatar_url)} />
         <AvatarFallback className="bg-zinc-600 text-xs text-white">
           {comment.user_name?.[0] || '?'}
         </AvatarFallback>

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * LiveNowTab - Live photographers available for jump-in sessions
  * Extracted from Bookings.js for better maintainability
  */
@@ -8,6 +8,12 @@ import { Camera, MapPin, Radio, Sparkles, Star } from 'lucide-react';
 import { Card, CardContent } from '../ui/card';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
+
+const getFullUrl = (url) => {
+  if (!url) return url;
+  if (url.startsWith('data:') || url.startsWith('blob:') || url.startsWith('http')) return url;
+  return `\\`;
+};
 
 // Live Savings Badge Component (synced with Map drawer)
 const LiveSavingsBadge = ({ generalPrice, livePrice, className = '' }) => {
@@ -115,7 +121,7 @@ export const LiveNowTab = ({
                     <div className="relative">
                       <div className={`w-14 h-14 rounded-full ${isLight ? 'bg-gray-200' : 'bg-zinc-700'} overflow-hidden flex items-center justify-center`}>
                         {photographer.avatar_url ? (
-                          <img src={photographer.avatar_url} alt={photographer.full_name} className="w-full h-full object-cover" />
+                          <img src={getFullUrl(photographer.avatar_url)} alt={photographer.full_name} className="w-full h-full object-cover" />
                         ) : (
                           <Camera className="w-6 h-6 text-gray-400" />
                         )}

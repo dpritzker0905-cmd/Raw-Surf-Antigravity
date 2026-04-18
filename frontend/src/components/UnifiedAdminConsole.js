@@ -1,10 +1,17 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+﻿import React, { useState, useEffect, useRef, useCallback } from 'react';
+
 import { useNavigate } from 'react-router-dom';
+
 import { useAuth } from '../contexts/AuthContext';
+
 import { usePersona, ALL_PERSONAS, getExpandedRoleInfo } from '../contexts/PersonaContext';
+
 import { useTheme } from '../contexts/ThemeContext';
-import apiClient from '../lib/apiClient';
+
+import apiClient, { BACKEND_URL } from '../lib/apiClient';
+
 import {
+
   Shield, Zap, Users, DollarSign, Search, Ban, CheckCircle, 
   Loader2, ChevronDown, ChevronLeft, ChevronRight, Eye, Trash2, UserX, UserCheck, 
   Crown, Trophy, Radio, MapPin, Camera, Play, Square, Image, Video, 
@@ -13,28 +20,57 @@ import {
   Headphones, Server, Flag, Mail, Layout, Lock
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from './ui/card';
+
 import { Button } from './ui/button';
+
 import { Input } from './ui/input';
+
 import { Textarea } from './ui/textarea';
+
 import { Badge } from './ui/badge';
+
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
+
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from './ui/dialog';
+
 import { toast } from 'sonner';
+
 import { AdminCompetitionVerification } from './AdminCompetitionVerification';
+
 import { AdminPricingEditor } from './admin/AdminPricingEditor';
+
 import { AdminPrecisionQueue } from './admin/AdminPrecisionQueue';
+
 import { AdminSpotEditor } from './admin/AdminSpotEditor';
+
 import { AdminUnifiedAnalytics } from './admin/AdminUnifiedAnalytics';
+
 import { AdminModerationDashboard } from './admin/AdminModerationDashboard';
+
 import { AdminP1Dashboard } from './admin/AdminP1Dashboard';
+
 import { AdminSupportDashboard } from './admin/AdminSupportDashboard';
+
 import { AdminSystemDashboard } from './admin/AdminSystemDashboard';
+
 import { AdminFinanceDashboard } from './admin/AdminFinanceDashboard';
+
 import { AdminContentModDashboard } from './admin/AdminContentModDashboard';
+
 import { AdminCommunicationsDashboard } from './admin/AdminCommunicationsDashboard';
+
 import { AdminContentMgmtDashboard } from './admin/AdminContentMgmtDashboard';
+
 import logger from '../utils/logger';
+
 import { supabase } from '../lib/supabase';
+
+const getFullUrl = (url) => {
+  if (!url) return url;
+  if (url.startsWith('data:') || url.startsWith('blob:') || url.startsWith('http')) return url;
+  return `\\`;
+};
+
 
 
 
@@ -1094,7 +1130,7 @@ const UserDetailModal = ({ user: targetUser, onClose, onToggleAdmin }) => {
         <div className="modal-body px-4 sm:px-6 py-4 space-y-4">
           <div className="flex items-center gap-4">
             <Avatar className="w-16 h-16">
-              <AvatarImage src={targetUser.avatar_url} />
+              <AvatarImage src={getFullUrl(targetUser.avatar_url)} />
               <AvatarFallback className="bg-zinc-700 text-2xl">
                 {targetUser.full_name?.[0] || targetUser.email[0]}
               </AvatarFallback>
@@ -1604,7 +1640,7 @@ const UsersTabContent = ({
                   </button>
                   
                   <Avatar className="w-10 h-10">
-                    <AvatarImage src={u.avatar_url} />
+                    <AvatarImage src={getFullUrl(u.avatar_url)} />
                     <AvatarFallback className="bg-zinc-700">
                       {u.full_name?.[0] || u.email[0]}
                     </AvatarFallback>
@@ -2520,11 +2556,13 @@ const AdminSpotsPanel = ({ userId }) => {
   }, [fetchStats, fetchSpots]);
 
   // Import tier state
+
   const [importTier, setImportTier] = useState(0);
   const [showImportDialog, setShowImportDialog] = useState(false);
   const [includeOSM, setIncludeOSM] = useState(false);
 
   const handleImport = async () => {
+
     setImportLoading(true);
     let successCount = 0;
     
@@ -2609,6 +2647,7 @@ const AdminSpotsPanel = ({ userId }) => {
       fetchStats();
     } catch (error) {
       toast.error('Import failed - Server Proxy Connection Terminated');
+
     } finally {
       setImportLoading(false);
     }
@@ -2832,6 +2871,7 @@ const AdminSpotsPanel = ({ userId }) => {
         >
           <Upload className="w-4 h-4 mr-2" />
           Import Spots
+
         </Button>
         <Button
           variant="outline"
@@ -2844,23 +2884,27 @@ const AdminSpotsPanel = ({ userId }) => {
       </div>
 
       {/* Import Tier Selection Dialog */}
+
       <Dialog open={showImportDialog} onOpenChange={setShowImportDialog}>
         <DialogContent className="bg-zinc-900 border border-zinc-700 sm:max-w-md w-[95vw] sm:w-full rounded-xl">
           <DialogHeader>
             <DialogTitle className="text-white flex items-center gap-2">
               <Upload className="w-5 h-5 text-green-400" />
               Import Global Surf Spots
+
             </DialogTitle>
           </DialogHeader>
           
           <div className="modal-body px-4 sm:px-6 py-4 space-y-4">
             <p className="text-gray-400 text-sm">
               Select which region tier to import surf spots from:
+
             </p>
             
             <div className="space-y-2">
               {[
                 { value: 0, label: 'All Curated Spots', desc: 'Import entire curated database (~70 spots)' },
+
                 { value: 1, label: 'Tier 1: East Coast USA', desc: 'Florida to Maine (~25 spots)' },
                 { value: 2, label: 'Tier 2: West Coast & Islands', desc: 'California, Hawaii, Puerto Rico (~15 spots)' },
                 { value: 3, label: 'Tier 3: Global', desc: 'Australia, Indonesia, Europe, etc. (~30 spots)' },

@@ -4,21 +4,41 @@
  */
 
 import React, { useState, useEffect, useMemo } from 'react';
+
 import { useNavigate } from 'react-router-dom';
+
 import { useAuth } from '../contexts/AuthContext';
+
 import { useTheme } from '../contexts/ThemeContext';
+
 import {
+
   Search, MapPin, Camera, Filter, Star, ChevronRight, Loader2, Plane, CheckCircle, Map, SlidersHorizontal, Waves
 } from 'lucide-react';
 import { Card, CardContent } from './ui/card';
+
 import { Button } from './ui/button';
+
 import { Badge } from './ui/badge';
+
 import { Input } from './ui/input';
+
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
+
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from './ui/sheet';
+
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
+
 import apiClient, { BACKEND_URL } from '../lib/apiClient';
+
 import logger from '../utils/logger';
+
+const getFullUrl = (url) => {
+  if (!url) return url;
+  if (url.startsWith('data:') || url.startsWith('blob:') || url.startsWith('http')) return url;
+  return `\\`;
+};
+
 
 
 // Gear type options
@@ -72,7 +92,7 @@ const PhotographerCard = ({ photographer, onSelect, isLight }) => {
           {/* Avatar */}
           <div className="relative">
             <Avatar className="w-16 h-16 border-2 border-zinc-700">
-              <AvatarImage src={photographer.avatar_url} />
+              <AvatarImage src={getFullUrl(photographer.avatar_url)} />
               <AvatarFallback className="bg-zinc-800 text-white text-lg">
                 {photographer.full_name?.charAt(0) || 'P'}
               </AvatarFallback>

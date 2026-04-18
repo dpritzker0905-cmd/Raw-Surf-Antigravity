@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { 
+
   Heart, Users, TrendingUp, DollarSign, Loader2, Search, Gift, Zap, Medal, Baby,
   Trophy
 } from 'lucide-react';
@@ -15,6 +16,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { toast } from 'sonner';
 import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import logger from '../utils/logger';
+
+const getFullUrl = (url) => {
+  if (!url) return url;
+  if (url.startsWith('data:') || url.startsWith('blob:') || url.startsWith('http')) return url;
+  return `\\`;
+};
+
 
 
 /**
@@ -208,7 +216,7 @@ export const StokeSponsorDashboard = () => {
                   className="w-12 h-12 border-2 border-pink-500/30 cursor-pointer"
                   onClick={() => navigate(`/profile/${surfer.id}`)}
                 >
-                  <AvatarImage src={surfer.avatar_url} />
+                  <AvatarImage src={getFullUrl(surfer.avatar_url)} />
                   <AvatarFallback className="bg-pink-500/20 text-pink-400">
                     {surfer.full_name?.charAt(0) || 'S'}
                   </AvatarFallback>
@@ -351,7 +359,7 @@ const ContributeModal = ({ isOpen, onClose, surfer, photographerId, userCredits,
           {/* Surfer Info */}
           <div className="flex items-center gap-3 p-3 bg-zinc-800 rounded-lg">
             <Avatar className="w-12 h-12">
-              <AvatarImage src={surfer.avatar_url} />
+              <AvatarImage src={getFullUrl(surfer.avatar_url)} />
               <AvatarFallback className="bg-pink-500/20 text-pink-400">
                 {surfer.full_name?.charAt(0)}
               </AvatarFallback>

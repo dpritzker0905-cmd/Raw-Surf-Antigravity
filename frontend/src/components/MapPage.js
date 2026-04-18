@@ -1,30 +1,55 @@
-import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
-import apiClient from '../lib/apiClient';
+﻿import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
+
+import apiClient, { BACKEND_URL } from '../lib/apiClient';
+
 import { useAuth } from '../contexts/AuthContext';
+
 import { usePersona } from '../contexts/PersonaContext';
+
 import { useTheme } from '../contexts/ThemeContext';
+
 import { MapPin, Camera, Users, X, MessageCircle, Navigation, Loader2, Target, Check, Clock } from 'lucide-react';
+
 import { PermissionNudgeDrawer } from './PermissionNudgeDrawer';
+
 import { Button } from './ui/button';
+
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from './ui/dialog';
+
 import { toast } from 'sonner';
+
 import { JumpInSessionModal } from './JumpInSessionModal';
+
 import { supabase } from '../lib/supabase';
+
 import UnifiedSpotDrawer from './UnifiedSpotDrawer';
+
 import { RequestProSelfieModal } from './RequestProSelfieModal';
+
 import { RequestProModal } from './map/RequestProModal';
+
 import { MapLiveFloatingIsland } from './MapLiveIndicator';
+
 import EndSessionModal from './EndSessionModal';
+
 import ConditionsModal from './ConditionsModal';
+
 import WaveLoader from './WaveLoader';
+
 import { GPSSettingsGuide } from './GPSSettingsGuide';
+
 import { LocationPicker } from './LocationPicker';
+
 
 // Extracted map components and utilities
 import { MapFilterTabs } from './map/MapFilterTabs';
+
 import { MapHeader } from './map/MapHeader';
+
 import MapErrorBoundary from './map/MapErrorBoundary';
+
 import { 
+
   API, 
   ELECTRIC_CYAN, 
   FLORIDA_CENTER, 
@@ -42,13 +67,27 @@ import {
 
 // Custom hooks for cleaner code organization
 import { useMapData } from '../hooks/useMapData';
+
 import { useUserLocation } from '../hooks/useUserLocation';
+
 import { useGoLiveFlow } from '../hooks/useGoLiveFlow';
+
 import { useIPGeolocation } from '../hooks/useIPGeolocation';
+
 import { useMarkerClustering } from '../hooks/useMarkerClustering';
+
 import { useMapState } from '../hooks/useMapState';
+
 import { useFriendsOnMap } from '../hooks/useFriendsOnMap';
+
 import logger from '../utils/logger';
+
+const getFullUrl = (url) => {
+  if (!url) return url;
+  if (url.startsWith('data:') || url.startsWith('blob:') || url.startsWith('http')) return url;
+  return `\\`;
+};
+
 // Note: useOnDemandRequests and useRequestPro hooks exist but use different API paths
 // The inline code uses the correct /dispatch/ endpoints - keeping inline for now
 
@@ -1899,7 +1938,7 @@ const MapPageContent = () => {
                     <div className="relative">
                       <div className="w-10 h-10 rounded-full bg-zinc-700 overflow-hidden flex items-center justify-center">
                         {photographer.avatar_url ? (
-                          <img src={photographer.avatar_url} alt={photographer.full_name} className="w-full h-full object-cover" />
+                          <img src={getFullUrl(photographer.avatar_url)} alt={photographer.full_name} className="w-full h-full object-cover" />
                         ) : (
                           <Camera className="w-5 h-5 text-gray-400" />
                         )}
@@ -1996,7 +2035,7 @@ const MapPageContent = () => {
                 <div className="w-14 h-14 rounded-full p-[2px] bg-gradient-to-r from-cyan-400 to-blue-500">
                   <div className="w-full h-full rounded-full bg-zinc-800 flex items-center justify-center overflow-hidden">
                     {selectedPhotographer.avatar_url ? (
-                      <img src={selectedPhotographer.avatar_url} className="w-full h-full object-cover" />
+                      <img src={getFullUrl(selectedPhotographer.avatar_url)} className="w-full h-full object-cover" />
                     ) : (
                       <span className="text-xl text-cyan-400">{selectedPhotographer.full_name?.charAt(0)}</span>
                     )}

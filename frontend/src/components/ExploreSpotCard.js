@@ -1,4 +1,4 @@
-/**
+﻿/**
  * ExploreSpotCard - Engaging surf spot card with conditions, forecast, and actions
  * Used in the Explore tab's "Surf Spots" section
  */
@@ -11,6 +11,12 @@ import {
 import { Badge } from './ui/badge';
 import { Avatar, AvatarImage, AvatarFallback } from './ui/avatar';
 import { motion, AnimatePresence } from 'framer-motion';
+
+const getFullUrl = (url) => {
+  if (!url) return url;
+  if (url.startsWith('data:') || url.startsWith('blob:') || url.startsWith('http')) return url;
+  return `\\`;
+};
 
 // Conditions color mapping
 const conditionColors = {
@@ -268,7 +274,7 @@ const ExploreSpotCard = ({ spot, userSubscriptionTier = 'free' }) => {
                       className="flex items-center gap-2 px-2 py-1.5 bg-zinc-800 rounded-lg cursor-pointer hover:bg-zinc-700 transition-colors flex-shrink-0"
                     >
                       <Avatar className="w-6 h-6 ring-2 ring-red-500">
-                        <AvatarImage src={photographer.avatar_url} />
+                        <AvatarImage src={getFullUrl(photographer.avatar_url)} />
                         <AvatarFallback className="text-[10px]">
                           {photographer.full_name?.charAt(0)}
                         </AvatarFallback>

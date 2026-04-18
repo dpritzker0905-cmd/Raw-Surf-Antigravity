@@ -1,20 +1,43 @@
 ﻿import React, { useState, useEffect } from 'react';
+
 import { useAuth } from '../contexts/AuthContext';
+
 import { usePersona } from '../contexts/PersonaContext';
+
 import apiClient, { BACKEND_URL } from '../lib/apiClient';
+
 import { Shield, Users, Image, FileText, DollarSign, Search, Ban, CheckCircle, Loader2, Eye, UserX, UserCheck, Crown, Trophy, MapPin, AlertTriangle, Lock, Settings } from 'lucide-react';
+
 import { Button } from './ui/button';
+
 import { Input } from './ui/input';
+
 import { Badge } from './ui/badge';
+
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
+
 import { Textarea } from './ui/textarea';
+
 import { toast } from 'sonner';
+
 import PersonaSwitcher from './PersonaSwitcher';
+
 import { AdminCompetitionVerification } from './AdminCompetitionVerification';
+
 import { AdminPricingEditor } from './admin/AdminPricingEditor';
+
 import { AdminSpotEditor } from './admin/AdminSpotEditor';
+
 import { AdminPrecisionQueue } from './admin/AdminPrecisionQueue';
+
 import logger from '../utils/logger';
+
+const getFullUrl = (url) => {
+  if (!url) return url;
+  if (url.startsWith('data:') || url.startsWith('blob:') || url.startsWith('http')) return url;
+  return `\\`;
+};
+
 
 
 export const AdminDashboard = () => {
@@ -309,7 +332,7 @@ export const AdminDashboard = () => {
                         <div className="flex items-center gap-3">
                           <div className="w-10 h-10 rounded-full bg-zinc-700 overflow-hidden">
                             {u.avatar_url ? (
-                              <img src={u.avatar_url} alt="" className="w-full h-full object-cover" />
+                              <img src={getFullUrl(u.avatar_url)} alt="" className="w-full h-full object-cover" />
                             ) : (
                               <div className="w-full h-full flex items-center justify-center text-white font-bold">
                                 {u.full_name?.[0] || u.email[0]}
@@ -626,7 +649,7 @@ const UserDetailModal = ({ user: targetUser, _adminId, onClose, _onUpdate, onTog
           <div className="flex items-center gap-4">
             <div className="w-16 h-16 rounded-full bg-zinc-700 overflow-hidden">
               {targetUser.avatar_url ? (
-                <img src={targetUser.avatar_url} alt="" className="w-full h-full object-cover" />
+                <img src={getFullUrl(targetUser.avatar_url)} alt="" className="w-full h-full object-cover" />
               ) : (
                 <div className="w-full h-full flex items-center justify-center text-2xl font-bold text-white">
                   {targetUser.full_name?.[0] || targetUser.email[0]}

@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search, X, MapPin, User, FileText, Hash, Loader2, TrendingUp } from 'lucide-react';
 import { Input } from './ui/input';
@@ -6,6 +6,12 @@ import { Avatar, AvatarImage, AvatarFallback } from './ui/avatar';
 import { getExpandedRoleInfo } from '../contexts/PersonaContext';
 import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import logger from '../utils/logger';
+
+const getFullUrl = (url) => {
+  if (!url) return url;
+  if (url.startsWith('data:') || url.startsWith('blob:') || url.startsWith('http')) return url;
+  return `${BACKEND_URL || ''}${url}`;
+};
 
 
 /**
@@ -274,7 +280,7 @@ export const GlobalSearchBar = ({
                         data-testid={`search-result-user-${user.id}`}
                       >
                         <Avatar className="w-8 h-8">
-                          <AvatarImage src={user.avatar_url} />
+                          <AvatarImage src={getFullUrl(user.avatar_url)} />
                           <AvatarFallback className="bg-zinc-700 text-xs">
                             {user.full_name?.charAt(0) || '?'}
                           </AvatarFallback>

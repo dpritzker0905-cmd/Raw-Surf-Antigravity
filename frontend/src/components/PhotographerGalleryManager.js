@@ -5,6 +5,7 @@ import { useTheme } from '../contexts/ThemeContext';
 import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import logger from '../utils/logger';
 import { 
+
   ArrowLeft, Upload, Image as ImageIcon, Video, DollarSign, 
   Settings, Trash2, Eye, Tag, X, Users,
   MapPin, Calendar, Sparkles, UserCheck, Loader2,
@@ -20,6 +21,7 @@ import { Label } from './ui/label';
 import { Textarea } from './ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import {
+
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -27,6 +29,13 @@ import {
   DropdownMenuSeparator,
 } from './ui/dropdown-menu';
 import { toast } from 'sonner';
+
+const getFullUrl = (url) => {
+  if (!url) return url;
+  if (url.startsWith('data:') || url.startsWith('blob:') || url.startsWith('http')) return url;
+  return `\\`;
+};
+
 
 
 export const PhotographerGalleryManager = () => {
@@ -989,7 +998,7 @@ export const PhotographerGalleryManager = () => {
                     >
                       <div className="w-10 h-10 rounded-full overflow-hidden bg-zinc-700">
                         {suggestion.avatar_url ? (
-                          <img src={suggestion.avatar_url} alt={suggestion.name} className="w-full h-full object-cover" />
+                          <img src={getFullUrl(suggestion.avatar_url)} alt={suggestion.name} className="w-full h-full object-cover" />
                         ) : (
                           <Users className="w-5 h-5 m-auto mt-2.5 text-zinc-500" />
                         )}

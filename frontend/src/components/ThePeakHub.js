@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
@@ -17,6 +17,11 @@ import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import { GoldPassSlotCard } from './GoldPassSlotCard';
 import logger from '../utils/logger';
 
+const getFullUrl = (url) => {
+  if (!url) return url;
+  if (url.startsWith('data:') || url.startsWith('blob:') || url.startsWith('http')) return url;
+  return `${BACKEND_URL || ''}${url}`;
+};
 
 /**
  * The Peak - Career Hub for Pro-Elite (⭐+) and Competitive (🏄) surfers
@@ -389,7 +394,7 @@ export const ThePeakHub = () => {
                 onClick={() => navigate(`/profile/${photographer.id}`)}
               >
                 <Avatar className="w-12 h-12 border-2 border-yellow-500/50">
-                  <AvatarImage src={photographer.avatar_url} />
+                  <AvatarImage src={getFullUrl(photographer.avatar_url)} />
                   <AvatarFallback className="bg-yellow-500/20 text-yellow-400">
                     {photographer.full_name?.charAt(0) || 'P'}
                   </AvatarFallback>

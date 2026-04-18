@@ -1,27 +1,56 @@
 ﻿import React, { useEffect, useState, useRef } from 'react';
+
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
+
 import { useAuth } from '../contexts/AuthContext';
+
 import { useTheme } from '../contexts/ThemeContext';
+
 import { usePersona } from '../contexts/PersonaContext';
+
 import apiClient, { BACKEND_URL } from '../lib/apiClient';
+
 import { Users, Zap, Radio, History, CalendarClock, UserPlus, Copy, Mail, Target, Sparkles, Search, Loader2, AtSign, Send } from 'lucide-react';
+
 import { Card, CardContent } from './ui/card';
+
 import { Button } from './ui/button';
+
 import { Badge } from './ui/badge';
+
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from './ui/dialog';
+
 import { Input } from './ui/input';
+
 import { Label } from './ui/label';
+
 import { toast } from 'sonner';
+
 import { PhotographerDirectory } from './PhotographerDirectory';
+
 import { ScheduledBookingDrawer } from './ScheduledBookingDrawer';
+
 import LineupManagerDrawer from './LineupManagerDrawer';
+
 // Tab components extracted for maintainability
 import { LiveSessionsTab, OnDemandTab, ScheduledTab, FindBuddiesTab, PastTab, LiveNowTab, LineupTab } from './bookings/index';
+
 import { GoldPassBookingsSection } from './bookings/GoldPassBookingsSection';
+
 import { OnDemandRequestDrawer } from './OnDemandRequestDrawer';
+
 import { CrewPaymentModal } from './CrewPaymentModal';
+
 import { JumpInSessionModal } from './JumpInSessionModal';
+
 import logger from '../utils/logger';
+
+const getFullUrl = (url) => {
+  if (!url) return url;
+  if (url.startsWith('data:') || url.startsWith('blob:') || url.startsWith('http')) return url;
+  return `\\`;
+};
+
 
 
 // Surfer-capable roles that can join sessions
@@ -178,7 +207,7 @@ const InviteModalContent = ({ booking, user, isLight, textPrimaryClass, textSeco
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-full overflow-hidden bg-zinc-700">
                         {result.avatar_url ? (
-                          <img src={result.avatar_url} alt="" className="w-full h-full object-cover" />
+                          <img src={getFullUrl(result.avatar_url)} alt="" className="w-full h-full object-cover" />
                         ) : (
                           <div className="w-full h-full flex items-center justify-center text-muted-foreground">
                             {result.full_name?.[0] || '?'}

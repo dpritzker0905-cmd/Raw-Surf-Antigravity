@@ -1,4 +1,4 @@
-/**
+﻿/**
  * WhoReactedModal - Shows list of users who reacted to a post
  * Opens when user long-presses on the like count
  */
@@ -7,6 +7,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import { Avatar, AvatarImage, AvatarFallback } from './ui/avatar';
 import { useNavigate } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
+
+const getFullUrl = (url) => {
+  if (!url) return url;
+  if (url.startsWith('data:') || url.startsWith('blob:') || url.startsWith('http')) return url;
+  return `\\`;
+};
 
 const WhoReactedModal = ({ isOpen, onClose, reactions = [], _postAuthorName, loading = false }) => {
   const navigate = useNavigate();
@@ -60,7 +66,7 @@ const WhoReactedModal = ({ isOpen, onClose, reactions = [], _postAuthorName, loa
                   data-testid={`reactor-${reaction.user_id}`}
                 >
                   <Avatar className="w-10 h-10 border border-zinc-700">
-                    <AvatarImage src={reaction.avatar_url} />
+                    <AvatarImage src={getFullUrl(reaction.avatar_url)} />
                     <AvatarFallback className="bg-zinc-800 text-white">
                       {(reaction.user_name || 'U').charAt(0).toUpperCase()}
                     </AvatarFallback>

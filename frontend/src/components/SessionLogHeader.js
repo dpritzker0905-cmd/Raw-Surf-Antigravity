@@ -1,4 +1,4 @@
-/**
+﻿/**
  * SessionLogHeader - Displays session metadata on feed posts
  * Shows: Location, Time, Conditions, Collaborators
  * "Strava for Surfing" - Rich metadata on every session post
@@ -20,6 +20,12 @@ import {
   TooltipTrigger,
 } from './ui/tooltip';
 import { DirectionCompass } from './WaveDirectionIndicator';
+
+const getFullUrl = (url) => {
+  if (!url) return url;
+  if (url.startsWith('data:') || url.startsWith('blob:') || url.startsWith('http')) return url;
+  return `\\`;
+};
 
 // Session label icons
 const SESSION_LABEL_ICONS = {
@@ -132,7 +138,7 @@ const CollaboratorsRow = ({ collaborators, onViewAll, isLight }) => {
             style={{ zIndex: 4 - idx }}
           >
             {collab.avatar_url ? (
-              <img src={collab.avatar_url} alt="" className="w-full h-full object-cover" />
+              <img src={getFullUrl(collab.avatar_url)} alt="" className="w-full h-full object-cover" />
             ) : (
               <span className="text-white text-xs font-bold">
                 {collab.full_name?.charAt(0) || '?'}

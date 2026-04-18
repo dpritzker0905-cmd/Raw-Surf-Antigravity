@@ -1,15 +1,31 @@
 ﻿import React, { useState, useEffect } from 'react';
+
 import { useNavigate } from 'react-router-dom';
+
 import apiClient, { BACKEND_URL } from '../lib/apiClient';
+
 import { 
+
   Zap, Heart, DollarSign, Users, ShoppingBag, Camera, Loader2, TrendingUp, Sparkles, CheckCircle
 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
+
 import { Badge } from './ui/badge';
+
 import { Button } from './ui/button';
+
 import { Progress } from './ui/progress';
+
 import { usePersona } from '../contexts/PersonaContext';
+
 import logger from '../utils/logger';
+
+const getFullUrl = (url) => {
+  if (!url) return url;
+  if (url.startsWith('data:') || url.startsWith('blob:') || url.startsWith('http')) return url;
+  return `\\`;
+};
+
 
 
 // Default stoke level for new/empty users
@@ -228,7 +244,7 @@ export const StokedTab = ({ userId, isOwnProfile }) => {
                     data-testid={`supporter-${supporter.id}`}
                   >
                     <Avatar className="w-12 h-12 border-2 border-pink-500/30">
-                      <AvatarImage src={supporter.avatar_url} />
+                      <AvatarImage src={getFullUrl(supporter.avatar_url)} />
                       <AvatarFallback className="bg-zinc-800 text-pink-400">
                         {supporter.full_name?.[0] || '?'}
                       </AvatarFallback>

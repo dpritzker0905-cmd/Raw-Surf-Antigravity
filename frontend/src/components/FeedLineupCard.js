@@ -5,20 +5,31 @@
  * Users can join directly from the Feed
  */
 import React, { useState } from 'react';
+
 import apiClient, { BACKEND_URL } from '../lib/apiClient';
+
 import { useNavigate } from 'react-router-dom';
+
 import { 
+
   Users, MapPin, Calendar, 
   Loader2, UserPlus, Waves, DollarSign, Timer,
   Crown, Camera
 } from 'lucide-react';
 import { Card, CardContent } from './ui/card';
+
 import { Button } from './ui/button';
+
 import { Badge } from './ui/badge';
+
 import { Progress } from './ui/progress';
+
 import { Avatar, AvatarImage, AvatarFallback } from './ui/avatar';
+
 import { toast } from 'sonner';
+
 import logger from '../utils/logger';
+
 
 
 // Calculate time remaining

@@ -7,6 +7,7 @@
 import React, { useState, useEffect } from 'react';
 import apiClient, { BACKEND_URL } from '../../lib/apiClient';
 import { 
+
   Users, MapPin, 
   Loader2, UserPlus, Check, Calendar, Waves,
   Navigation, UserCheck
@@ -17,6 +18,13 @@ import { Badge } from './ui/badge';
 import { Avatar, AvatarImage, AvatarFallback } from './ui/avatar';
 import { Checkbox } from './ui/checkbox';
 import { toast } from 'sonner';
+
+const getFullUrl = (url) => {
+  if (!url) return url;
+  if (url.startsWith('data:') || url.startsWith('blob:') || url.startsWith('http')) return url;
+  return `\\`;
+};
+
 
 
 export const InviteNearbyCrewModal = ({
@@ -224,7 +232,7 @@ export const InviteNearbyCrewModal = ({
                     className="border-cyan-500 data-[state=checked]:bg-cyan-500"
                   />
                   <Avatar className="w-10 h-10">
-                    <AvatarImage src={friend.avatar_url} />
+                    <AvatarImage src={getFullUrl(friend.avatar_url)} />
                     <AvatarFallback className="bg-cyan-500/20 text-cyan-400">
                       {(friend.full_name || 'F').charAt(0).toUpperCase()}
                     </AvatarFallback>

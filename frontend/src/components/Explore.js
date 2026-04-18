@@ -1,17 +1,37 @@
 ﻿import React, { useState, useEffect, useCallback, useRef } from 'react';
+
 import { useNavigate, useSearchParams } from 'react-router-dom';
+
 import { Search, MapPin, Users, Image, TrendingUp, Radio, X, Waves, Heart, Trophy, MessageCircle, Camera, Clock, ChevronDown, ChevronRight, ChevronLeft, Navigation, Compass, Filter, Loader2, Play, Hash } from 'lucide-react';
+
 import { Input } from './ui/input';
+
 import { Badge } from './ui/badge';
+
 import { Avatar, AvatarImage, AvatarFallback } from './ui/avatar';
+
 import { getExpandedRoleInfo } from '../contexts/PersonaContext';
+
 import { useConditionsSync, useLiveStreamSync } from '../hooks/useWebSocket';
+
 import { useAuth } from '../contexts/AuthContext';
+
 import { SocialAdCard } from './SocialAdCard';
+
 import { toast } from 'sonner';
+
 import apiClient, { BACKEND_URL } from '../lib/apiClient';
+
 import ExploreSpotCard from './ExploreSpotCard';
+
 import logger from '../utils/logger';
+
+const getFullUrl = (url) => {
+  if (!url) return url;
+  if (url.startsWith('data:') || url.startsWith('blob:') || url.startsWith('http')) return url;
+  return `\\`;
+};
+
 
 
 // Media Preview component for Posts, Waves, and Videos
@@ -703,7 +723,7 @@ export const Explore = () => {
                       >
                         <div className="w-12 h-12 rounded-full bg-zinc-700 flex items-center justify-center overflow-hidden">
                           {user.avatar_url ? (
-                            <img src={user.avatar_url} alt={user.full_name} className="w-full h-full object-cover" />
+                            <img src={getFullUrl(user.avatar_url)} alt={user.full_name} className="w-full h-full object-cover" />
                           ) : (
                             <span className="text-lg font-medium text-muted-foreground">
                               {user.full_name?.charAt(0) || '?'}
@@ -804,7 +824,7 @@ export const Explore = () => {
                       <div className="w-full h-full rounded-full bg-card p-0.5">
                         <div className="w-full h-full rounded-full bg-zinc-700 flex items-center justify-center overflow-hidden">
                           {user.avatar_url ? (
-                            <img src={user.avatar_url} alt={user.full_name} className="w-full h-full object-cover" />
+                            <img src={getFullUrl(user.avatar_url)} alt={user.full_name} className="w-full h-full object-cover" />
                           ) : (
                             <span className="text-lg font-medium text-muted-foreground">
                               {user.full_name?.charAt(0) || '?'}
@@ -1625,7 +1645,7 @@ export const Explore = () => {
 
                     {/* Avatar */}
                     <Avatar className="w-12 h-12">
-                      <AvatarImage src={sponsor.avatar_url} />
+                      <AvatarImage src={getFullUrl(sponsor.avatar_url)} />
                       <AvatarFallback className="bg-zinc-700 text-foreground">
                         {sponsor.full_name?.[0] || '?'}
                       </AvatarFallback>
@@ -1679,7 +1699,7 @@ export const Explore = () => {
               {/* Profile Header */}
               <div className="flex items-center gap-4 mb-6">
                 <Avatar className="w-16 h-16">
-                  <AvatarImage src={selectedSponsor.avatar_url} />
+                  <AvatarImage src={getFullUrl(selectedSponsor.avatar_url)} />
                   <AvatarFallback className="bg-zinc-700 text-foreground text-xl">
                     {selectedSponsor.full_name?.[0] || '?'}
                   </AvatarFallback>
@@ -1733,7 +1753,7 @@ export const Explore = () => {
                         className="flex items-center gap-2 bg-muted rounded-full px-3 py-1.5"
                       >
                         <Avatar className="w-6 h-6">
-                          <AvatarImage src={athlete.avatar_url} />
+                          <AvatarImage src={getFullUrl(athlete.avatar_url)} />
                           <AvatarFallback className="bg-amber-900 text-amber-400 text-xs">
                             {athlete.full_name?.[0]}
                           </AvatarFallback>

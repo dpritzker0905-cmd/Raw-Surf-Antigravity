@@ -4,26 +4,41 @@
  * Allows captain to cover remaining shares to unlock media immediately
  */
 import React, { useState, useEffect } from 'react';
+
 import { 
+
   Check, Users, Loader2, 
   Send, AlertCircle, ChevronDown, ChevronUp, Shield
 } from 'lucide-react';
 import { Button } from '../ui/button';
+
 import { Badge } from '../ui/badge';
+
 import { Progress } from '../ui/progress';
+
 import {
+
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from '../ui/tooltip';
 import {
+
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
 } from '../ui/collapsible';
 import { toast } from 'sonner';
+
 import apiClient, { BACKEND_URL } from '../../lib/apiClient';
+
+const getFullUrl = (url) => {
+  if (!url) return url;
+  if (url.startsWith('data:') || url.startsWith('blob:') || url.startsWith('http')) return url;
+  return `\\`;
+};
+
 
 const API = process.env.REACT_APP_BACKEND_URL;
 
@@ -51,7 +66,7 @@ const CrewMemberChip = ({ member, _isLight }) => {
             <div className="relative">
               <div className="w-6 h-6 rounded-full overflow-hidden bg-zinc-700">
                 {member.avatar_url ? (
-                  <img src={member.avatar_url} alt="" className="w-full h-full object-cover" />
+                  <img src={getFullUrl(member.avatar_url)} alt="" className="w-full h-full object-cover" />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center text-xs text-zinc-400">
                     {member.name?.charAt(0) || '?'}
@@ -393,7 +408,7 @@ const CrewPaymentDetails = ({
                 <div className="flex items-center gap-2">
                   <div className="w-8 h-8 rounded-full overflow-hidden bg-zinc-700">
                     {member.avatar_url ? (
-                      <img src={member.avatar_url} alt="" className="w-full h-full object-cover" />
+                      <img src={getFullUrl(member.avatar_url)} alt="" className="w-full h-full object-cover" />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center text-sm text-zinc-400">
                         {member.name?.charAt(0) || '?'}

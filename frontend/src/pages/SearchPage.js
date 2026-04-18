@@ -1,9 +1,15 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, TrendingUp, Clock, Hash, User, MapPin } from 'lucide-react';
 import { GlobalSearchBar } from '../components/GlobalSearchBar';
 import { Avatar, AvatarImage, AvatarFallback } from '../components/ui/avatar';
 import apiClient, { BACKEND_URL } from '../lib/apiClient';
+
+const getFullUrl = (url) => {
+  if (!url) return url;
+  if (url.startsWith('data:') || url.startsWith('blob:') || url.startsWith('http')) return url;
+  return `${BACKEND_URL || ''}${url}`;
+};
 
 
 /**
@@ -149,7 +155,7 @@ const SearchPage = () => {
                     <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-muted-foreground">
                       {item.type === 'user' && item.avatar_url ? (
                         <Avatar className="w-8 h-8">
-                          <AvatarImage src={item.avatar_url} />
+                          <AvatarImage src={getFullUrl(item.avatar_url)} />
                           <AvatarFallback className="bg-muted text-xs">
                             {item.full_name?.charAt(0) || '?'}
                           </AvatarFallback>

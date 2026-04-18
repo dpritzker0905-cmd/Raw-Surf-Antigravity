@@ -1,22 +1,44 @@
 ﻿import React, { useState, useEffect } from 'react';
+
 import { useAuth } from '../../contexts/AuthContext';
+
 import { useTheme } from '../../contexts/ThemeContext';
+
 import { useLocation } from 'react-router-dom';
+
 import apiClient, { BACKEND_URL } from '../../lib/apiClient';
+
 import { UserCheck, Eye, AlertTriangle, Search,
+
   Loader2, ChevronRight, ExternalLink, Instagram, Globe, FileText, Camera, Award, Link2, RefreshCw, Activity, Calendar, DollarSign, MessageSquare,
   Flag, Gavel, Ban, Scale, MapPin, ThumbsUp, ThumbsDown, Users, Copy
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '../ui/card';
+
 import { Button } from '../ui/button';
+
 import { Input } from '../ui/input';
+
 import { Textarea } from '../ui/textarea';
+
 import { Badge } from '../ui/badge';
+
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
+
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../ui/dialog';
+
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
+
 import { toast } from 'sonner';
+
 import logger from '../../utils/logger';
+
+const getFullUrl = (url) => {
+  if (!url) return url;
+  if (url.startsWith('data:') || url.startsWith('blob:') || url.startsWith('http')) return url;
+  return `\\`;
+};
+
 
 
 // Status badge component
@@ -559,7 +581,7 @@ export const AdminP1Dashboard = () => {
                     <CardContent className="p-4">
                       <div className="flex items-start gap-4">
                         <Avatar className="w-12 h-12">
-                          <AvatarImage src={req.user?.avatar_url} />
+                          <AvatarImage src={getFullUrl(req.user?.avatar_url)} />
                           <AvatarFallback>{req.user?.full_name?.[0]}</AvatarFallback>
                         </Avatar>
                         
@@ -677,7 +699,7 @@ export const AdminP1Dashboard = () => {
                         >
                           <div className="flex items-center gap-3">
                             <Avatar className="w-8 h-8">
-                              <AvatarImage src={u.avatar_url} />
+                              <AvatarImage src={getFullUrl(u.avatar_url)} />
                               <AvatarFallback>{u.full_name?.[0]}</AvatarFallback>
                             </Avatar>
                             <div>
@@ -800,7 +822,7 @@ export const AdminP1Dashboard = () => {
                           
                           <div className="flex items-center gap-2 mt-2">
                             <Avatar className="w-5 h-5">
-                              <AvatarImage src={alert.user?.avatar_url} />
+                              <AvatarImage src={getFullUrl(alert.user?.avatar_url)} />
                               <AvatarFallback className="text-xs">{alert.user?.full_name?.[0]}</AvatarFallback>
                             </Avatar>
                             <span className={`text-xs ${textSecondary}`}>{alert.user?.full_name}</span>
@@ -1208,7 +1230,7 @@ export const AdminP1Dashboard = () => {
                         >
                           <div className="flex items-center gap-3">
                             <Avatar className="w-8 h-8">
-                              <AvatarImage src={u.avatar_url} />
+                              <AvatarImage src={getFullUrl(u.avatar_url)} />
                               <AvatarFallback>{u.full_name?.[0]}</AvatarFallback>
                             </Avatar>
                             <div>
@@ -1232,7 +1254,7 @@ export const AdminP1Dashboard = () => {
                     <CardContent className="p-4">
                       <div className="flex items-start gap-4">
                         <Avatar className="w-16 h-16">
-                          <AvatarImage src={journeyUser.avatar_url} />
+                          <AvatarImage src={getFullUrl(journeyUser.avatar_url)} />
                           <AvatarFallback className="text-xl">{journeyUser.full_name?.[0]}</AvatarFallback>
                         </Avatar>
                         <div className="flex-1">
@@ -1464,7 +1486,7 @@ export const AdminP1Dashboard = () => {
               {/* User Info */}
               <div className="flex items-center gap-4 p-3 bg-zinc-800 rounded-lg">
                 <Avatar className="w-12 h-12">
-                  <AvatarImage src={selectedVerification.user?.avatar_url} />
+                  <AvatarImage src={getFullUrl(selectedVerification.user?.avatar_url)} />
                   <AvatarFallback>{selectedVerification.user?.full_name?.[0]}</AvatarFallback>
                 </Avatar>
                 <div>
@@ -1729,7 +1751,7 @@ export const AdminP1Dashboard = () => {
               
               <div className="flex items-center gap-3 p-3 bg-zinc-800 rounded-lg">
                 <Avatar>
-                  <AvatarImage src={selectedAlert.user?.avatar_url} />
+                  <AvatarImage src={getFullUrl(selectedAlert.user?.avatar_url)} />
                   <AvatarFallback>{selectedAlert.user?.full_name?.[0]}</AvatarFallback>
                 </Avatar>
                 <div>

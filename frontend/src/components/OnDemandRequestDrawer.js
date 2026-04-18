@@ -1,16 +1,35 @@
 ﻿import React, { useEffect, useState } from 'react';
+
 import { useAuth } from '../contexts/AuthContext';
+
 import { useTheme } from '../contexts/ThemeContext';
+
 import apiClient, { BACKEND_URL } from '../lib/apiClient';
+
 import { MapPin, Camera, Zap, Clock, ChevronRight, Radio, Award, Plus, X, Calculator, Loader2, Wallet, Check, Bell, CreditCard } from 'lucide-react';
+
 import { Button } from './ui/button';
+
 import { Badge } from './ui/badge';
+
 import { Dialog, DialogContent, DialogTitle } from './ui/dialog';
+
 import { Input } from './ui/input';
+
 import { toast } from 'sonner';
+
 import { RequestProSelfieModal } from './RequestProSelfieModal';
+
 import { QualityTierBadge } from './gallery/PriceSourceBadge';
+
 import logger from '../utils/logger';
+
+const getFullUrl = (url) => {
+  if (!url) return url;
+  if (url.startsWith('data:') || url.startsWith('blob:') || url.startsWith('http')) return url;
+  return `\\`;
+};
+
 
 
 // ============ SURFBOARD COLORS FOR CREW VISUALIZATION ============
@@ -47,7 +66,7 @@ const SurfboardAvatar = ({ member, index, isCaptain, onRemove, isLight }) => {
       <div className="relative z-10">
         <div className={`w-11 h-11 rounded-full overflow-hidden ${isCaptain ? 'ring-2 ring-yellow-400' : 'ring-2 ring-cyan-400/50'} transition-all group-hover:scale-105`}>
           {member.avatar_url ? (
-            <img src={member.avatar_url} alt={member.name || member.value} className="w-full h-full object-cover" />
+            <img src={getFullUrl(member.avatar_url)} alt={member.name || member.value} className="w-full h-full object-cover" />
           ) : (
             <div className={`w-full h-full flex items-center justify-center ${isCaptain ? 'bg-gradient-to-br from-yellow-400 to-orange-500' : 'bg-gradient-to-br from-cyan-400 to-blue-500'}`}>
               <span className="text-foreground font-bold text-sm">
@@ -597,7 +616,7 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
             <div className={`flex items-center gap-4 p-4 rounded-2xl ${isLight ? 'bg-gray-50' : 'bg-muted/50'}`}>
               <div className={`w-12 h-12 rounded-full overflow-hidden ${isPro ? 'ring-2 ring-amber-400' : 'ring-2 ring-cyan-400/50'}`}>
                 {photographer?.avatar_url ? (
-                  <img src={photographer.avatar_url} alt={photographer.full_name} className="w-full h-full object-cover" />
+                  <img src={getFullUrl(photographer.avatar_url)} alt={photographer.full_name} className="w-full h-full object-cover" />
                 ) : (
                   <div className={`w-full h-full flex items-center justify-center ${isLight ? 'bg-gray-200' : 'bg-zinc-700'}`}>
                     <Camera className="w-6 h-6 text-muted-foreground" />
@@ -694,7 +713,7 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
             <div className={`flex items-center gap-4 p-4 rounded-2xl ${isLight ? 'bg-gray-50' : 'bg-muted/50'}`}>
               <div className={`w-14 h-14 rounded-full overflow-hidden ${isPro ? 'ring-2 ring-amber-400' : 'ring-2 ring-cyan-400/50'}`}>
                 {photographer?.avatar_url ? (
-                  <img src={photographer.avatar_url} alt={photographer.full_name} className="w-full h-full object-cover" />
+                  <img src={getFullUrl(photographer.avatar_url)} alt={photographer.full_name} className="w-full h-full object-cover" />
                 ) : (
                   <div className={`w-full h-full flex items-center justify-center ${isLight ? 'bg-gray-200' : 'bg-zinc-700'}`}>
                     <Camera className="w-6 h-6 text-muted-foreground" />
@@ -886,7 +905,7 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
                             >
                               <div className="w-9 h-9 rounded-full overflow-hidden bg-muted flex-shrink-0">
                                 {friend.avatar_url ? (
-                                  <img src={friend.avatar_url} alt="" className="w-full h-full object-cover" />
+                                  <img src={getFullUrl(friend.avatar_url)} alt="" className="w-full h-full object-cover" />
                                 ) : (
                                   <div className="w-full h-full flex items-center justify-center text-xs font-bold text-muted-foreground">
                                     {friend.full_name?.[0]?.toUpperCase() || '?'}
@@ -1227,7 +1246,7 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
               <div className="flex items-center gap-4 mb-4">
                 <div className="w-12 h-12 rounded-full overflow-hidden ring-2 ring-amber-400">
                   {photographer?.avatar_url ? (
-                    <img src={photographer.avatar_url} alt="" className="w-full h-full object-cover" />
+                    <img src={getFullUrl(photographer.avatar_url)} alt="" className="w-full h-full object-cover" />
                   ) : (
                     <div className={`w-full h-full flex items-center justify-center ${isLight ? 'bg-gray-200' : 'bg-zinc-700'}`}>
                       <Camera className="w-5 h-5 text-muted-foreground" />
@@ -1404,8 +1423,7 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
                             </div>
                           ) : member.avatar_url ? (
                             <div className="relative">
-                              <img 
-                                src={member.avatar_url} 
+                              <img src={getFullUrl(member.avatar_url)} 
                                 alt="" 
                                 className={`w-7 h-7 rounded-full object-cover ring-2 ${isPaid ? 'ring-green-400' : 'ring-amber-400'}`}
                               />
@@ -1529,7 +1547,7 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
                 </div>
                 <div className="w-14 h-14 rounded-full overflow-hidden ring-2 ring-green-400">
                   {(acceptedData?.photographer_avatar || photographer?.avatar_url) ? (
-                    <img src={acceptedData?.photographer_avatar || photographer?.avatar_url} alt="" className="w-full h-full object-cover" />
+                    <img src={getFullUrl(acceptedData?.photographer_avatar || photographer?.avatar_url)} alt="" className="w-full h-full object-cover" />
                   ) : (
                     <Camera className="w-6 h-6 text-muted-foreground m-auto" />
                   )}

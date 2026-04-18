@@ -1,4 +1,4 @@
-﻿/**
+/**
  * MentionAutocomplete - Dropdown for @mention suggestions
  * Shows when user types @ in a text input
  */
@@ -8,7 +8,11 @@ import { Loader2 } from 'lucide-react';
 import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import logger from '../utils/logger';
 
-const API = process.env.REACT_APP_BACKEND_URL;
+const getFullUrl = (url) => {
+  if (!url) return url;
+  if (url.startsWith('data:') || url.startsWith('blob:') || url.startsWith('http')) return url;
+  return `${BACKEND_URL || ''}${url}`;
+};
 
 const MentionAutocomplete = forwardRef(({ 
   text, 
@@ -165,7 +169,7 @@ const MentionAutocomplete = forwardRef(({
               data-testid={`mention-option-${user.username || user.id}`}
             >
               <Avatar className="w-8 h-8 border border-zinc-700">
-                <AvatarImage src={user.avatar_url} />
+                <AvatarImage src={getFullUrl(user.avatar_url)} />
                 <AvatarFallback className="bg-zinc-800 text-white text-xs">
                   {(user.full_name || user.username || 'U').charAt(0).toUpperCase()}
                 </AvatarFallback>

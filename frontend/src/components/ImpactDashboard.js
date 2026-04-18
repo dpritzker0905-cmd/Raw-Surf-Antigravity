@@ -8,9 +8,17 @@ import { Badge } from './ui/badge';
 import { toast } from 'sonner';
 import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import {
+
   Heart, Target, Search, Users, DollarSign, TrendingUp, Loader2, ExternalLink, Check, Waves, Star, Gift, Settings
 } from 'lucide-react';
 import logger from '../utils/logger';
+
+const getFullUrl = (url) => {
+  if (!url) return url;
+  if (url.startsWith('data:') || url.startsWith('blob:') || url.startsWith('http')) return url;
+  return `\\`;
+};
+
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
@@ -312,7 +320,7 @@ export const ImpactDashboard = () => {
                 <CardContent>
                   <div className="flex items-center gap-4">
                     <Avatar className="w-16 h-16">
-                      <AvatarImage src={dashboard.donation_settings.destination_info.avatar_url || dashboard.donation_settings.destination_info.logo_url} />
+                      <AvatarImage src={getFullUrl(dashboard.donation_settings.destination_info.avatar_url || dashboard.donation_settings.destination_info.logo_url)} />
                       <AvatarFallback className="bg-cyan-900 text-cyan-400">
                         {dashboard.donation_settings.destination_info.name?.[0] || '?'}
                       </AvatarFallback>
@@ -467,7 +475,7 @@ export const ImpactDashboard = () => {
                     <CardContent className="p-4">
                       <div className="flex items-center gap-4">
                         <Avatar className="w-14 h-14">
-                          <AvatarImage src={grom.avatar_url} />
+                          <AvatarImage src={getFullUrl(grom.avatar_url)} />
                           <AvatarFallback className="bg-amber-900 text-amber-400">
                             {grom.full_name?.[0] || '?'}
                           </AvatarFallback>
@@ -516,7 +524,7 @@ export const ImpactDashboard = () => {
                 {selectedDestination ? (
                   <div className="flex items-center gap-4 p-4 bg-muted/50 rounded-lg">
                     <Avatar>
-                      <AvatarImage src={selectedDestination.avatar_url} />
+                      <AvatarImage src={getFullUrl(selectedDestination.avatar_url)} />
                       <AvatarFallback className="bg-cyan-900 text-cyan-400">
                         {selectedDestination.name?.[0] || '?'}
                       </AvatarFallback>

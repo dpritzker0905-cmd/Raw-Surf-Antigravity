@@ -1,23 +1,40 @@
-/**
+﻿/**
  * CrewChat - Real-time messaging for booking coordination
  * Features: Text, Voice (30s max), Images, Quick Actions, Emoji Picker, Reactions
  */
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+
 import { useParams, useNavigate } from 'react-router-dom';
+
 import { useAuth } from '../contexts/AuthContext';
+
 import { Button } from './ui/button';
+
 import { Input } from './ui/input';
+
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
+
 import { Badge } from './ui/badge';
+
 import { 
+
   ArrowLeft, Send, Mic, MoreVertical, 
   MapPin, Users, CheckCheck, Loader2, X, Play, Pause,
   Zap, StopCircle, Smile, Plus, Reply, Download, Paperclip
 } from 'lucide-react';
 import { toast } from 'sonner';
+
 import logger from '../utils/logger';
 
+
 import apiClient, { BACKEND_URL } from '../lib/apiClient';
+
+const getFullUrl = (url) => {
+  if (!url) return url;
+  if (url.startsWith('data:') || url.startsWith('blob:') || url.startsWith('http')) return url;
+  return `\\`;
+};
+
 
 const WS_URL = BACKEND_URL.replace('https://', 'wss://').replace('http://', 'ws://');
 
@@ -814,7 +831,7 @@ export default function CrewChat() {
             <div key={participant.user_id} className="flex flex-col items-center flex-shrink-0">
               <div className="relative">
                 <Avatar className="h-10 w-10 border-2 border-zinc-800">
-                  <AvatarImage src={participant.avatar_url} />
+                  <AvatarImage src={getFullUrl(participant.avatar_url)} />
                   <AvatarFallback className="bg-zinc-700 text-white text-xs">
                     {getInitials(participant.full_name)}
                   </AvatarFallback>
@@ -1243,7 +1260,7 @@ export default function CrewChat() {
                     className="flex items-center gap-2 px-3 py-1.5 bg-zinc-700 hover:bg-zinc-600 rounded-full transition-colors"
                   >
                     <Avatar className="h-5 w-5">
-                      <AvatarImage src={mentionUser.avatar_url} />
+                      <AvatarImage src={getFullUrl(mentionUser.avatar_url)} />
                       <AvatarFallback className="bg-zinc-600 text-white text-[10px]">
                         {getInitials(mentionUser.full_name)}
                       </AvatarFallback>

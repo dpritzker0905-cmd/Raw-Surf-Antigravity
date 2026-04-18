@@ -14,8 +14,11 @@
  * - Real-time WebSocket updates
  */
 import React, { useState, useEffect, useCallback } from 'react';
+
 import apiClient, { BACKEND_URL } from '../lib/apiClient';
+
 import { 
+
   Users, Crown, Lock, Unlock, UserPlus, X, Copy, Send,
   DollarSign, Clock, MapPin, Loader2, MessageCircle,
   Globe, UserCheck, Timer, Ban, Search,
@@ -23,14 +26,29 @@ import {
   UserMinus, Settings, ChevronDown, ChevronUp
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from './ui/dialog';
+
 import { Button } from './ui/button';
+
 import { Badge } from './ui/badge';
+
 import { Input } from './ui/input';
+
 import { Label } from './ui/label';
+
 import { Progress } from './ui/progress';
+
 import { toast } from 'sonner';
+
 import { useLineupWebSocket } from '../hooks/useLineupWebSocket';
+
 import logger from '../utils/logger';
+
+const getFullUrl = (url) => {
+  if (!url) return url;
+  if (url.startsWith('data:') || url.startsWith('blob:') || url.startsWith('http')) return url;
+  return `\\`;
+};
+
 
 
 // Surfboard colors for each position
@@ -172,7 +190,7 @@ const SurferPosition = ({
             isCaptain ? 'ring-4 ring-yellow-400' : ''
           } transition-all group-hover:scale-105`}>
             {member.avatar_url ? (
-              <img src={member.avatar_url} alt={member.name} className="w-full h-full object-cover" />
+              <img src={getFullUrl(member.avatar_url)} alt={member.name} className="w-full h-full object-cover" />
             ) : (
               <div className={`w-full h-full flex items-center justify-center ${
                 isCaptain ? 'bg-gradient-to-br from-yellow-400 to-orange-500' : 'bg-gradient-to-br from-cyan-400 to-blue-500'
@@ -540,7 +558,7 @@ const AutoFillPanel = ({
               >
                 <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0">
                   {person.avatar_url ? (
-                    <img src={person.avatar_url} alt="" className="w-full h-full object-cover" />
+                    <img src={getFullUrl(person.avatar_url)} alt="" className="w-full h-full object-cover" />
                   ) : (
                     <div className={`w-full h-full flex items-center justify-center bg-gradient-to-br from-cyan-400 to-blue-500 text-white text-sm font-bold`}>
                       {person.full_name?.[0] || '?'}
@@ -1044,7 +1062,7 @@ export const LineupManagerDrawer = ({
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-full overflow-hidden bg-zinc-700">
                           {result.avatar_url ? (
-                            <img src={result.avatar_url} alt="" className="w-full h-full object-cover" />
+                            <img src={getFullUrl(result.avatar_url)} alt="" className="w-full h-full object-cover" />
                           ) : (
                             <div className="w-full h-full flex items-center justify-center text-gray-400">
                               {result.full_name?.[0] || '?'}
@@ -1096,7 +1114,7 @@ export const LineupManagerDrawer = ({
                             <div className="flex items-center gap-3">
                               <div className="w-10 h-10 rounded-full overflow-hidden">
                                 {friend.avatar_url ? (
-                                  <img src={friend.avatar_url} alt="" className="w-full h-full object-cover" />
+                                  <img src={getFullUrl(friend.avatar_url)} alt="" className="w-full h-full object-cover" />
                                 ) : (
                                   <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-green-400 to-emerald-500 text-white font-bold">
                                     {friend.full_name?.[0] || '?'}
@@ -1141,7 +1159,7 @@ export const LineupManagerDrawer = ({
                             <div className="flex items-center gap-3">
                               <div className="w-10 h-10 rounded-full overflow-hidden">
                                 {surfer.avatar_url ? (
-                                  <img src={surfer.avatar_url} alt="" className="w-full h-full object-cover" />
+                                  <img src={getFullUrl(surfer.avatar_url)} alt="" className="w-full h-full object-cover" />
                                 ) : (
                                   <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-blue-400 to-indigo-500 text-white font-bold">
                                     {surfer.full_name?.[0] || '?'}

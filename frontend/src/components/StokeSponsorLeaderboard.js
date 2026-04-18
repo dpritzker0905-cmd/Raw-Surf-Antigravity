@@ -2,6 +2,7 @@
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../contexts/ThemeContext';
 import { 
+
   Heart, Trophy, Medal, Loader2, 
   Baby, Crown, ChevronRight
 } from 'lucide-react';
@@ -11,6 +12,13 @@ import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { Badge } from './ui/badge';
 import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import logger from '../utils/logger';
+
+const getFullUrl = (url) => {
+  if (!url) return url;
+  if (url.startsWith('data:') || url.startsWith('blob:') || url.startsWith('http')) return url;
+  return `\\`;
+};
+
 
 
 /**
@@ -92,7 +100,7 @@ export const StokeSponsorLeaderboard = ({ compact = false }) => {
                     className="w-8 h-8 cursor-pointer"
                     onClick={() => navigate(`/profile/${sponsor.photographer_id}`)}
                   >
-                    <AvatarImage src={sponsor.avatar_url} />
+                    <AvatarImage src={getFullUrl(sponsor.avatar_url)} />
                     <AvatarFallback className="bg-pink-500/20 text-pink-400 text-xs">
                       {sponsor.full_name?.charAt(0)}
                     </AvatarFallback>
@@ -212,7 +220,7 @@ export const StokeSponsorLeaderboard = ({ compact = false }) => {
                   className="w-12 h-12 border-2 border-pink-500/30 cursor-pointer"
                   onClick={() => navigate(`/profile/${sponsor.photographer_id}`)}
                 >
-                  <AvatarImage src={sponsor.avatar_url} />
+                  <AvatarImage src={getFullUrl(sponsor.avatar_url)} />
                   <AvatarFallback className="bg-pink-500/20 text-pink-400">
                     {sponsor.full_name?.charAt(0)}
                   </AvatarFallback>

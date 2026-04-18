@@ -1,23 +1,49 @@
 ﻿import React, { useState, useEffect, useMemo, useRef } from 'react';
+
 import { useNavigate, useSearchParams } from 'react-router-dom';
+
 import { useAuth } from '../contexts/AuthContext';
+
 import { useTheme } from '../contexts/ThemeContext';
+
 import apiClient, { BACKEND_URL } from '../lib/apiClient';
+
 import { Calendar as CalendarIcon, MapPin, Users, DollarSign, Clock, Check, X, CalendarCheck, CalendarX, History, Plus, Copy, Share2, UserPlus, Globe, Settings, Camera, ChevronLeft, Mail, Link2, Send, Sunrise, Sunset, Sun, Repeat, LayoutGrid, Unlock, Lock, Navigation } from 'lucide-react';
+
 import { Card, CardHeader, CardTitle, CardContent } from './ui/card';
+
 import { Button } from './ui/button';
+
 import { Badge } from './ui/badge';
+
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from './ui/dialog';
+
 import { Input } from './ui/input';
+
 import { Label } from './ui/label';
+
 import { Textarea } from './ui/textarea';
+
 import { Switch } from './ui/switch';
+
 import { NumericStepper } from './ui/numeric-stepper';
+
 import { Calendar } from './ui/calendar';
+
 import { toast } from 'sonner';
+
 import { PhotographerAvailabilityCalendar } from './PhotographerAvailabilityCalendar';
+
 import { PhotographerSessionManager } from './PhotographerSessionManager';
+
 import logger from '../utils/logger';
+
+const getFullUrl = (url) => {
+  if (!url) return url;
+  if (url.startsWith('data:') || url.startsWith('blob:') || url.startsWith('http')) return url;
+  return `\\`;
+};
+
 
 
 export const PhotographerBookingsManager = () => {
@@ -1385,7 +1411,7 @@ export const PhotographerBookingsManager = () => {
                   <div className="flex items-center gap-3">
                     <div className={`w-10 h-10 rounded-full ${isLight ? 'bg-gray-200' : 'bg-zinc-700'} flex items-center justify-center overflow-hidden`}>
                       {p.avatar_url ? (
-                        <img src={p.avatar_url} alt={p.name} className="w-full h-full object-cover" />
+                        <img src={getFullUrl(p.avatar_url)} alt={p.name} className="w-full h-full object-cover" />
                       ) : (
                         <span className={textSecondaryClass}>{p.name?.[0] || '?'}</span>
                       )}

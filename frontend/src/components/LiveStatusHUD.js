@@ -1,6 +1,12 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { Square, Clock, Users, DollarSign, MapPin, Eye, Camera, ChevronDown, ChevronUp } from 'lucide-react';
 import { Button } from './ui/button';
+
+const getFullUrl = (url) => {
+  if (!url) return url;
+  if (url.startsWith('data:') || url.startsWith('blob:') || url.startsWith('http')) return url;
+  return `\\`;
+};
 
 /**
  * LiveStatusHUD - Persistent "Active Session" Heads-Up Display
@@ -233,7 +239,7 @@ const LiveStatusPanel = ({
                 >
                   <div className="w-5 h-5 rounded-full bg-zinc-700 overflow-hidden">
                     {p.avatar_url ? (
-                      <img src={p.avatar_url} alt={p.name} className="w-full h-full object-cover" />
+                      <img src={getFullUrl(p.avatar_url)} alt={p.name} className="w-full h-full object-cover" />
                     ) : (
                       <span className="flex items-center justify-center h-full text-[10px] text-white/70">
                         {p.name?.[0] || '?'}

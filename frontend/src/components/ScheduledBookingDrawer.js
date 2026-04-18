@@ -4,27 +4,50 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
+
 import { useAuth } from '../contexts/AuthContext';
+
 import { useTheme } from '../contexts/ThemeContext';
+
 import {
+
   Camera, MapPin, Clock, DollarSign, Zap, ChevronRight, ChevronLeft,
   Check, AlertTriangle, Star, Wallet, Target, Sparkles, Bell, Gift,
   Navigation, Map as MapIcon, X, Loader2, CheckCircle2, Radio, CreditCard, Users,
   UserPlus, Search, Crown, Percent, Anchor
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
+
 import { Button } from './ui/button';
+
 import { Badge } from './ui/badge';
+
 import { Input } from './ui/input';
+
 import { Label } from './ui/label';
+
 import { Slider } from './ui/slider';
+
 import { Switch } from './ui/switch';
+
 import { toast } from 'sonner';
+
 import apiClient, { BACKEND_URL } from '../lib/apiClient';
+
 import { ExactTimeSlotPicker } from './ExactTimeSlotPicker';
+
 import { SavedCrewSelector } from './SavedCrewSelector';
+
 import { SelfieCapture } from './SelfieCapture';
+
 import logger from '../utils/logger';
+
+const getFullUrl = (url) => {
+  if (!url) return url;
+  if (url.startsWith('data:') || url.startsWith('blob:') || url.startsWith('http')) return url;
+  return `\\`;
+};
+
 
 
 // Duration prices multiplier
@@ -1134,7 +1157,7 @@ const CrewSplitSection = ({
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-full bg-gradient-to-br from-cyan-400 to-blue-500 flex items-center justify-center overflow-hidden">
                         {member.avatar_url ? (
-                          <img src={member.avatar_url} alt={member.name} className="w-full h-full object-cover" />
+                          <img src={getFullUrl(member.avatar_url)} alt={member.name} className="w-full h-full object-cover" />
                         ) : (
                           <span className="text-white font-bold text-sm">
                             {member.name?.charAt(0)?.toUpperCase() || '?'}
@@ -1193,7 +1216,7 @@ const CrewSplitSection = ({
                   >
                     <div className="w-8 h-8 rounded-full bg-gradient-to-br from-cyan-400 to-blue-500 flex items-center justify-center overflow-hidden">
                       {result.avatar_url ? (
-                        <img src={result.avatar_url} alt={result.full_name} className="w-full h-full object-cover" />
+                        <img src={getFullUrl(result.avatar_url)} alt={result.full_name} className="w-full h-full object-cover" />
                       ) : (
                         <span className="text-white font-bold text-xs">
                           {result.full_name?.charAt(0)?.toUpperCase() || '?'}
@@ -1224,7 +1247,7 @@ const CrewSplitSection = ({
                   >
                     <div className="w-6 h-6 rounded-full bg-gradient-to-br from-cyan-400 to-blue-500 flex items-center justify-center overflow-hidden">
                       {person.avatar_url ? (
-                        <img src={person.avatar_url} alt={person.full_name} className="w-full h-full object-cover" />
+                        <img src={getFullUrl(person.avatar_url)} alt={person.full_name} className="w-full h-full object-cover" />
                       ) : (
                         <span className="text-white font-bold text-xs">
                           {person.full_name?.charAt(0)?.toUpperCase() || '?'}
@@ -1790,7 +1813,7 @@ export const ScheduledBookingDrawer = ({
               <div className="flex items-center gap-2">
                 <div className={`w-8 h-8 rounded-full overflow-hidden flex-shrink-0 ${isPro ? 'ring-2 ring-yellow-400' : 'ring-1 ring-cyan-400/50'}`}>
                   {photographer?.avatar_url ? (
-                    <img src={photographer.avatar_url} alt={photographer.full_name} className="w-full h-full object-cover" />
+                    <img src={getFullUrl(photographer.avatar_url)} alt={photographer.full_name} className="w-full h-full object-cover" />
                   ) : (
                     <div className={`w-full h-full flex items-center justify-center ${isLight ? 'bg-gray-200' : 'bg-zinc-700'}`}>
                       <Camera className="w-3 h-3 text-gray-400" />

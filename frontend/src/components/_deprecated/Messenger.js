@@ -6,6 +6,9 @@ import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Dialog, DialogContent, DialogTitle } from './ui/dialog';
 import { 
+
+const getFullUrl = (url) => { if (!url) return url; if (url.startsWith('data:') || url.startsWith('blob:') || url.startsWith('http')) return url; return `\`+url; };
+
   Send, 
   ArrowLeft, 
   MoreVertical, 
@@ -210,8 +213,7 @@ const Messenger = ({ isOpen, onClose }) => {
               
               <div className="w-10 h-10 rounded-full bg-gradient-to-r from-cyan-400 to-blue-500 flex items-center justify-center overflow-hidden">
                 {activeConversation.other_user?.avatar_url ? (
-                  <img 
-                    src={activeConversation.other_user.avatar_url} 
+                  <img src={getFullUrl(activeConversation.other_user.avatar_url)} 
                     alt="" 
                     className="w-full h-full object-cover"
                   />
@@ -289,7 +291,7 @@ const Messenger = ({ isOpen, onClose }) => {
                       <div className="relative">
                         <div className="w-12 h-12 rounded-full bg-gradient-to-r from-cyan-400 to-blue-500 flex items-center justify-center overflow-hidden">
                           {conv.other_user?.avatar_url ? (
-                            <img src={conv.other_user.avatar_url} alt="" className="w-full h-full object-cover" />
+                            <img src={getFullUrl(conv.other_user.avatar_url)} alt="" className="w-full h-full object-cover" />
                           ) : (
                             <span className="text-black font-bold text-lg">
                               {conv.other_user?.full_name?.charAt(0) || '?'}
@@ -344,7 +346,7 @@ const Messenger = ({ isOpen, onClose }) => {
                       {!isOwn && showAvatar && (
                         <div className="w-8 h-8 rounded-full bg-zinc-700 flex items-center justify-center mr-2 flex-shrink-0">
                           {msg.sender?.avatar_url ? (
-                            <img src={msg.sender.avatar_url} alt="" className="w-full h-full rounded-full object-cover" />
+                            <img src={getFullUrl(msg.sender.avatar_url)} alt="" className="w-full h-full rounded-full object-cover" />
                           ) : (
                             <span className="text-xs text-gray-400">{msg.sender?.full_name?.charAt(0)}</span>
                           )}

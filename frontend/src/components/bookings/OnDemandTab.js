@@ -1,4 +1,4 @@
-/**
+﻿/**
  * OnDemandTab - On-demand photographer requests
  * Extracted from Bookings.js for better maintainability
  */
@@ -9,6 +9,12 @@ import { Card, CardContent } from '../ui/card';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { CrewPaymentProgress } from '../dispatch/CrewPaymentProgress';
+
+const getFullUrl = (url) => {
+  if (!url) return url;
+  if (url.startsWith('data:') || url.startsWith('blob:') || url.startsWith('http')) return url;
+  return `\\`;
+};
 
 export const OnDemandTab = ({
   user,
@@ -120,7 +126,7 @@ export const OnDemandTab = ({
                     {activeDispatch.crew.slice(0, 3).map((member, idx) => (
                       <div key={idx} className="w-6 h-6 rounded-full bg-zinc-700 overflow-hidden border border-cyan-400/30">
                         {member.avatar_url ? (
-                          <img src={member.avatar_url} alt="" className="w-full h-full object-cover" />
+                          <img src={getFullUrl(member.avatar_url)} alt="" className="w-full h-full object-cover" />
                         ) : (
                           <div className="w-full h-full flex items-center justify-center text-[10px] text-cyan-400">
                             {member.name?.charAt(0) || '?'}
@@ -246,7 +252,7 @@ export const OnDemandTab = ({
                         isPro ? 'ring-2 ring-yellow-400' : 'ring-2 ring-cyan-400/50'
                       }`}>
                         {pro.avatar_url ? (
-                          <img src={pro.avatar_url} alt={pro.full_name} className="w-full h-full object-cover" />
+                          <img src={getFullUrl(pro.avatar_url)} alt={pro.full_name} className="w-full h-full object-cover" />
                         ) : (
                           <div className={`w-full h-full flex items-center justify-center ${isLight ? 'bg-gray-100' : 'bg-zinc-700'}`}>
                             <Camera className="w-6 h-6 text-gray-400" />

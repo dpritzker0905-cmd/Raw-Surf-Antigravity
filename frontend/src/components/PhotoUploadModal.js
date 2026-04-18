@@ -1,15 +1,31 @@
 ﻿import React, { useState, useRef, useCallback } from 'react';
+
 import { useAuth } from '../contexts/AuthContext';
+
 import { useTheme } from '../contexts/ThemeContext';
+
 import apiClient, { BACKEND_URL } from '../lib/apiClient';
+
 import { 
+
   Upload, X, Check, Loader2, Sparkles, Video
 } from 'lucide-react';
 import { Button } from './ui/button';
+
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from './ui/dialog';
+
 import { Label } from './ui/label';
+
 import { toast } from 'sonner';
+
 import logger from '../utils/logger';
+
+const getFullUrl = (url) => {
+  if (!url) return url;
+  if (url.startsWith('data:') || url.startsWith('blob:') || url.startsWith('http')) return url;
+  return `\\`;
+};
+
 
 
 // Photo Upload Component with Surfer Tagging
@@ -400,7 +416,7 @@ export const PhotoUploadModal = ({
                       >
                         <div className={`w-10 h-10 rounded-full ${isLight ? 'bg-gray-200' : 'bg-zinc-700'} overflow-hidden`}>
                           {surfer.avatar_url ? (
-                            <img src={surfer.avatar_url} className="w-full h-full object-cover" alt="" />
+                            <img src={getFullUrl(surfer.avatar_url)} className="w-full h-full object-cover" alt="" />
                           ) : (
                             <span className="flex items-center justify-center h-full text-gray-400">
                               {surfer.name?.[0] || '?'}

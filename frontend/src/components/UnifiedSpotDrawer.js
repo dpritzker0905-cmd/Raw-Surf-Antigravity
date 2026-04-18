@@ -1,22 +1,47 @@
 ﻿import React, { useState, useRef, useEffect, useCallback } from 'react';
+
 import { useNavigate } from 'react-router-dom';
+
 import { MapPin, Camera, Radio, Users, Waves, AlertTriangle, DollarSign, Zap, Check, ArrowLeft, Image, Tag, Sparkles, Star, CreditCard, Coins, Loader2, RefreshCw, ChevronDown, Calendar, Lock, Crown, Trophy, CheckCircle } from 'lucide-react';
+
 import { Button } from './ui/button';
+
 import { SpotConditions } from './SpotConditions';
+
 import { SpotVerificationNudge } from './SpotVerificationNudge';
+
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from './ui/dialog';
+
 import { Drawer, DrawerContent } from './ui/drawer';
+
 import { Input } from './ui/input';
+
 import { Switch } from './ui/switch';
+
 import { Badge } from './ui/badge';
+
 import { useAuth } from '../contexts/AuthContext';
+
 import { usePersona } from '../contexts/PersonaContext';
+
 import { JumpInSessionModal } from './JumpInSessionModal';
+
 import { LockerSelfieModal } from './LockerSelfieModal';
+
 import { ScanFace } from 'lucide-react';
+
 import apiClient, { BACKEND_URL } from '../lib/apiClient';
+
 import { toast } from 'sonner';
+
 import logger from '../utils/logger';
+
+const getFullUrl = (url) => {
+  if (!url) return url;
+  if (url.startsWith('data:') || url.startsWith('blob:') || url.startsWith('http')) return url;
+  return `\\`;
+};
+
 
 
 // Drawer modes
@@ -73,8 +98,7 @@ const SpotOfTheDayBadge = ({ spotOfTheDay, onClick }) => {
         
         {spotOfTheDay.featured_photographer && (
           <div className="flex items-center gap-2">
-            <img 
-              src={spotOfTheDay.featured_photographer.avatar_url || '/default-avatar.png'}
+            <img src={getFullUrl(spotOfTheDay.featured_photographer.avatar_url || '/default-avatar.png')}
               alt={spotOfTheDay.featured_photographer.full_name}
               className="w-8 h-8 rounded-full border-2 border-white/30"
             />
@@ -232,7 +256,7 @@ const PhotographerProfile = ({ photographer, onBack, onJumpIn }) => {
           <div className="w-16 h-16 rounded-full p-[2px] bg-gradient-to-r from-cyan-400 to-blue-500">
             <div className="w-full h-full rounded-full bg-zinc-800 overflow-hidden">
               {photographer?.avatar_url ? (
-                <img src={photographer.avatar_url} className="w-full h-full object-cover" alt="" />
+                <img src={getFullUrl(photographer.avatar_url)} className="w-full h-full object-cover" alt="" />
               ) : (
                 <span className="flex items-center justify-center h-full text-2xl text-cyan-400">
                   {photographer?.full_name?.charAt(0)}
@@ -384,7 +408,7 @@ const PhotographerProfileContent = ({ photographer }) => {
         <div className="w-16 h-16 rounded-full p-[2px] bg-gradient-to-r from-cyan-400 to-blue-500">
           <div className="w-full h-full rounded-full bg-zinc-800 overflow-hidden">
             {photographer?.avatar_url ? (
-              <img src={photographer.avatar_url} className="w-full h-full object-cover" alt="" />
+              <img src={getFullUrl(photographer.avatar_url)} className="w-full h-full object-cover" alt="" />
             ) : (
               <span className="flex items-center justify-center h-full text-2xl text-cyan-400">
                 {photographer?.full_name?.charAt(0)}
@@ -839,7 +863,7 @@ const JumpInFlow = ({ photographer, onBack, onSuccess }) => {
           <div className="w-12 h-12 rounded-full p-[2px] bg-gradient-to-r from-cyan-400 to-blue-500">
             <div className="w-full h-full rounded-full bg-zinc-800 overflow-hidden">
               {photographer?.avatar_url ? (
-                <img src={photographer.avatar_url} className="w-full h-full object-cover" alt="" />
+                <img src={getFullUrl(photographer.avatar_url)} className="w-full h-full object-cover" alt="" />
               ) : (
                 <span className="flex items-center justify-center h-full text-lg text-cyan-400">
                   {photographer?.full_name?.charAt(0)}
@@ -1721,7 +1745,7 @@ const UnifiedSpotDrawer = ({
                                   <div className="w-12 h-12 rounded-full p-[2px] bg-gradient-to-r from-green-400 to-cyan-400">
                                     <div className="w-full h-full rounded-full bg-zinc-800 overflow-hidden">
                                       {shooter.avatar_url ? (
-                                        <img src={shooter.avatar_url} className="w-full h-full object-cover" alt="" />
+                                        <img src={getFullUrl(shooter.avatar_url)} className="w-full h-full object-cover" alt="" />
                                       ) : (
                                         <span className="flex items-center justify-center h-full text-cyan-400">
                                           {shooter.full_name?.[0]}

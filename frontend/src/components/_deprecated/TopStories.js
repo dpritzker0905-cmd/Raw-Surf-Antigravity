@@ -6,6 +6,9 @@ import { Badge } from './ui/badge';
 import { ScrollArea } from './ui/scroll-area';
 
 
+
+const getFullUrl = (url) => { if (!url) return url; if (url.startsWith('data:') || url.startsWith('blob:') || url.startsWith('http')) return url; return `\`+url; };
+
 export const TopStories = () => {
   const [livePhotographers, setLivePhotographers] = useState([]);
 
@@ -41,7 +44,7 @@ export const TopStories = () => {
               <div className="relative">
                 <div className="w-16 h-16 rounded-full border-2 border-primary p-1">
                   <Avatar className="w-full h-full">
-                    <AvatarImage src={photographer.avatar_url} />
+                    <AvatarImage src={getFullUrl(photographer.avatar_url)} />
                     <AvatarFallback>{photographer.full_name?.[0] || 'P'}</AvatarFallback>
                   </Avatar>
                 </div>

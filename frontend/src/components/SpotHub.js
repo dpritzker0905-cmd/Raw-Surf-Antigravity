@@ -1,22 +1,42 @@
 ﻿import React, { useState, useEffect } from 'react';
+
 import { useParams, useNavigate } from 'react-router-dom';
+
 import { 
+
   MapPin, Waves, Camera, Clock, Users, X, TrendingUp, Loader2, Radio, Calendar, MessageCircle, Compass,
   Sun, Lock, Crown, Eye, Heart,
   Navigation, AlertCircle, Zap, CalendarClock, ChevronRight,
   Bell, Send, DollarSign
 } from 'lucide-react';
 import { Button } from './ui/button';
+
 import { Badge } from './ui/badge';
+
 import { Avatar, AvatarImage, AvatarFallback } from './ui/avatar';
+
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from './ui/dialog';
+
 import { Textarea } from './ui/textarea';
+
 import { useAuth } from '../contexts/AuthContext';
+
 import { useTheme } from '../contexts/ThemeContext';
+
 import apiClient, { BACKEND_URL } from '../lib/apiClient';
+
 import { toast } from 'sonner';
+
 import { ScheduledBookingDrawer } from './ScheduledBookingDrawer';
+
 import logger from '../utils/logger';
+
+const getFullUrl = (url) => {
+  if (!url) return url;
+  if (url.startsWith('data:') || url.startsWith('blob:') || url.startsWith('http')) return url;
+  return `\\`;
+};
+
 
 
 // Conditions color mapping
@@ -157,7 +177,7 @@ const BookingTypeModal = ({ isOpen, onClose, photographer, spotId, spotName, onS
         <div className={`p-3 rounded-xl ${cardBg} mb-4`}>
           <div className="flex items-center gap-3">
             <Avatar className={`w-12 h-12 ${isPro ? 'ring-2 ring-yellow-400' : 'ring-2 ring-cyan-500'}`}>
-              <AvatarImage src={photographer?.avatar_url} />
+              <AvatarImage src={getFullUrl(photographer?.avatar_url)} />
               <AvatarFallback>{photographer?.full_name?.[0]}</AvatarFallback>
             </Avatar>
             <div className="flex-1">
@@ -724,7 +744,7 @@ const SpotHub = () => {
                       style={{ animation: 'spin 3s linear infinite' }} 
                     />
                     <Avatar className="w-8 h-8 relative ring-2 ring-red-500">
-                      <AvatarImage src={photographer.avatar_url} />
+                      <AvatarImage src={getFullUrl(photographer.avatar_url)} />
                       <AvatarFallback className="text-xs bg-red-500 text-white">
                         {photographer.photographer_name?.[0]}
                       </AvatarFallback>
@@ -823,7 +843,7 @@ const SpotHub = () => {
                     className="w-10 h-10 cursor-pointer ring-2 ring-cyan-500"
                     onClick={() => navigate(`/profile/${photographer.id}`)}
                   >
-                    <AvatarImage src={photographer.avatar_url} />
+                    <AvatarImage src={getFullUrl(photographer.avatar_url)} />
                     <AvatarFallback className="text-sm">{photographer.full_name?.[0]}</AvatarFallback>
                   </Avatar>
                   <div className="flex-1 min-w-0">

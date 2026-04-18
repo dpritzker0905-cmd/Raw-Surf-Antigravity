@@ -1,6 +1,7 @@
 ﻿import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
+
   X, Radio, Users, Heart, MessageCircle, Send, Loader2, WifiOff, 
   ArrowLeft, Share2, UserPlus
 } from 'lucide-react';
@@ -11,8 +12,10 @@ import { useAuth } from '../contexts/AuthContext';
 import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import { toast } from 'sonner';
 
+
 // LiveKit imports
 import {
+
   LiveKitRoom,
   VideoTrack,
   useTracks,
@@ -21,6 +24,13 @@ import {
 import '@livekit/components-styles';
 import { Track } from 'livekit-client';
 import logger from '../utils/logger';
+
+const getFullUrl = (url) => {
+  if (!url) return url;
+  if (url.startsWith('data:') || url.startsWith('blob:') || url.startsWith('http')) return url;
+  return `\\`;
+};
+
 
 const API = process.env.REACT_APP_BACKEND_URL + '/api';
 const CONNECTION_TIMEOUT = 15000;
@@ -31,7 +41,7 @@ const CONNECTION_TIMEOUT = 15000;
 const ChatMessage = ({ message, isOwn }) => (
   <div className={`flex gap-2 ${isOwn ? 'flex-row-reverse' : ''}`}>
     <Avatar className="w-7 h-7 flex-shrink-0">
-      <AvatarImage src={message.avatar_url} />
+      <AvatarImage src={getFullUrl(message.avatar_url)} />
       <AvatarFallback className="bg-zinc-700 text-xs">
         {message.user_name?.[0] || '?'}
       </AvatarFallback>
@@ -196,7 +206,7 @@ const ViewerContent = ({ broadcaster, onLeave, viewerCount, onViewProfile, strea
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-red-500">
                 {broadcaster?.avatar_url ? (
-                  <img src={broadcaster.avatar_url} alt={broadcaster.name} className="w-full h-full object-cover" />
+                  <img src={getFullUrl(broadcaster.avatar_url)} alt={broadcaster.name} className="w-full h-full object-cover" />
                 ) : (
                   <div className="w-full h-full bg-zinc-700 flex items-center justify-center text-white font-bold">
                     {broadcaster?.name?.[0] || '?'}

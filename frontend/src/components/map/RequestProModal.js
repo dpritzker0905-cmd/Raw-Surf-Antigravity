@@ -15,6 +15,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import {
+
   Camera, MapPin, Clock, Loader2, Target, Check,
   X, Zap, ChevronDown, ChevronUp, Plus, Award, Calculator,
   Wallet, Users,
@@ -22,10 +23,18 @@ import {
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import {
+
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter
 } from '../ui/dialog';
 import { toast } from 'sonner';
 import apiClient, { BACKEND_URL } from '../../lib/apiClient';
+
+const getFullUrl = (url) => {
+  if (!url) return url;
+  if (url.startsWith('data:') || url.startsWith('blob:') || url.startsWith('http')) return url;
+  return `\\`;
+};
+
 
 
 // ─── Surfboard colour palette (matches OnDemandRequestDrawer) ────────────────
@@ -60,7 +69,7 @@ const SurfboardAvatar = ({ member, index, isCaptain, onRemove }) => {
       <div className="relative z-10">
         <div className={`w-11 h-11 rounded-full overflow-hidden ${isCaptain ? 'ring-2 ring-yellow-400' : 'ring-2 ring-cyan-400/50'} transition-all group-hover:scale-105`}>
           {member.avatar_url ? (
-            <img src={member.avatar_url} alt={member.name || 'crew'} className="w-full h-full object-cover" />
+            <img src={getFullUrl(member.avatar_url)} alt={member.name || 'crew'} className="w-full h-full object-cover" />
           ) : (
             <div className={`w-full h-full flex items-center justify-center font-bold text-sm ${isCaptain ? 'bg-gradient-to-br from-yellow-400 to-orange-500' : 'bg-gradient-to-br from-cyan-400 to-blue-500'} text-black`}>
               {(member.name || member.value)?.[0]?.toUpperCase() || '?'}
@@ -420,7 +429,7 @@ export const RequestProModal = ({
                     }`}
                   >
                     {pro.avatar_url ? (
-                      <img src={pro.avatar_url} alt={pro.full_name} className="w-9 h-9 rounded-full object-cover shrink-0" />
+                      <img src={getFullUrl(pro.avatar_url)} alt={pro.full_name} className="w-9 h-9 rounded-full object-cover shrink-0" />
                     ) : (
                       <div className="w-9 h-9 rounded-full bg-gradient-to-br from-purple-400 to-pink-500 flex items-center justify-center text-white font-bold text-sm shrink-0">
                         {pro.full_name?.charAt(0) || 'P'}
@@ -627,7 +636,7 @@ export const RequestProModal = ({
                                 >
                                   <div className="w-9 h-9 rounded-full overflow-hidden bg-zinc-600 flex-shrink-0">
                                     {friend.avatar_url
-                                      ? <img src={friend.avatar_url} alt="" className="w-full h-full object-cover" />
+                                      ? <img src={getFullUrl(friend.avatar_url)} alt="" className="w-full h-full object-cover" />
                                       : <div className="w-full h-full flex items-center justify-center text-xs font-bold text-gray-300">{friend.full_name?.[0]?.toUpperCase() || '?'}</div>
                                     }
                                   </div>

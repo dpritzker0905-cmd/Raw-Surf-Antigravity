@@ -1,19 +1,37 @@
 ﻿import React, { useState, useEffect, useCallback } from 'react';
+
 import { useParams, useNavigate } from 'react-router-dom';
+
 import { useAuth } from '../contexts/AuthContext';
+
 import { useTheme } from '../contexts/ThemeContext';
+
 import apiClient, { BACKEND_URL } from '../lib/apiClient';
+
 import { 
+
   DollarSign, Clock, MapPin, Users, Check, 
   Loader2, ArrowLeft, CreditCard, Wallet, Timer,
   AlertCircle, Crown, Camera, CalendarCheck, MessageCircle
 } from 'lucide-react';
 import { Button } from './ui/button';
+
 import { Card, CardHeader, CardTitle, CardContent } from './ui/card';
+
 import { Progress } from './ui/progress';
+
 import { Avatar, AvatarImage, AvatarFallback } from './ui/avatar';
+
 import { toast } from 'sonner';
+
 import logger from '../utils/logger';
+
+const getFullUrl = (url) => {
+  if (!url) return url;
+  if (url.startsWith('data:') || url.startsWith('blob:') || url.startsWith('http')) return url;
+  return `\\`;
+};
+
 
 const API = process.env.REACT_APP_BACKEND_URL;
 
@@ -211,7 +229,7 @@ const CrewPaymentPage = () => {
             <div className="flex items-center gap-4">
               <div className="relative">
                 <Avatar className="w-14 h-14 border-2 border-yellow-400">
-                  <AvatarImage src={captain.avatar_url} />
+                  <AvatarImage src={getFullUrl(captain.avatar_url)} />
                   <AvatarFallback className="bg-yellow-400/20 text-yellow-400">
                     {captain.full_name?.charAt(0)}
                   </AvatarFallback>
