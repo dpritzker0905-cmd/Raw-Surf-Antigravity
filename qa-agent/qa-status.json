@@ -3,13 +3,13 @@
     "targetBackend":  "https://raw-surf-antigravity.onrender.com",
     "activeEnv":  "dev",
     "overallStatus":  "PASS",
-    "lastRun":  "2026-04-17T23:07:51",
+    "lastRun":  "2026-04-17T23:35:34",
     "targetBranch":  "dev",
     "targetFrontend":  "https://dev--rawsurf.netlify.app",
     "history":  [
                     {
                         "activeEnv":  "dev",
-                        "timestamp":  "2026-04-17T23:07:51",
+                        "timestamp":  "2026-04-17T23:35:34",
                         "overallStatus":  "PASS",
                         "targetFrontend":  "https://dev--rawsurf.netlify.app",
                         "changedFile":  ""
@@ -127,7 +127,7 @@
                                       {
                                           "message":  "React Hook useEffect has a missing dependency: \u0027fetchActiveStatus\u0027. Either include it or remove the dependency array.",
                                           "column":  6,
-                                          "line":  1157,
+                                          "line":  1158,
                                           "severity":  "warning",
                                           "rule":  "react-hooks/exhaustive-deps",
                                           "file":  "\\src\\components\\DutyStationDrawer.js"
@@ -253,9 +253,161 @@
                                           "file":  "\\src\\components\\ImpactZoneHub.js"
                                       },
                                       {
+                                          "message":  "\u0027Target\u0027 is defined but never used.",
+                                          "column":  72,
+                                          "line":  6,
+                                          "severity":  "warning",
+                                          "rule":  "unused-imports/no-unused-imports",
+                                          "file":  "\\src\\components\\MapPage.js"
+                                      },
+                                      {
+                                          "message":  "\u0027Check\u0027 is defined but never used.",
+                                          "column":  80,
+                                          "line":  6,
+                                          "severity":  "warning",
+                                          "rule":  "unused-imports/no-unused-imports",
+                                          "file":  "\\src\\components\\MapPage.js"
+                                      },
+                                      {
+                                          "message":  "\u0027Clock\u0027 is defined but never used.",
+                                          "column":  87,
+                                          "line":  6,
+                                          "severity":  "warning",
+                                          "rule":  "unused-imports/no-unused-imports",
+                                          "file":  "\\src\\components\\MapPage.js"
+                                      },
+                                      {
+                                          "message":  "\u0027Dialog\u0027 is defined but never used.",
+                                          "column":  10,
+                                          "line":  9,
+                                          "severity":  "warning",
+                                          "rule":  "unused-imports/no-unused-imports",
+                                          "file":  "\\src\\components\\MapPage.js"
+                                      },
+                                      {
+                                          "message":  "\u0027DialogContent\u0027 is defined but never used.",
+                                          "column":  18,
+                                          "line":  9,
+                                          "severity":  "warning",
+                                          "rule":  "unused-imports/no-unused-imports",
+                                          "file":  "\\src\\components\\MapPage.js"
+                                      },
+                                      {
+                                          "message":  "\u0027DialogHeader\u0027 is defined but never used.",
+                                          "column":  33,
+                                          "line":  9,
+                                          "severity":  "warning",
+                                          "rule":  "unused-imports/no-unused-imports",
+                                          "file":  "\\src\\components\\MapPage.js"
+                                      },
+                                      {
+                                          "message":  "\u0027DialogTitle\u0027 is defined but never used.",
+                                          "column":  47,
+                                          "line":  9,
+                                          "severity":  "warning",
+                                          "rule":  "unused-imports/no-unused-imports",
+                                          "file":  "\\src\\components\\MapPage.js"
+                                      },
+                                      {
+                                          "message":  "\u0027DialogFooter\u0027 is defined but never used.",
+                                          "column":  60,
+                                          "line":  9,
+                                          "severity":  "warning",
+                                          "rule":  "unused-imports/no-unused-imports",
+                                          "file":  "\\src\\components\\MapPage.js"
+                                      },
+                                      {
+                                          "message":  "\u0027getErrorMessage\u0027 is defined but never used.",
+                                          "column":  3,
+                                          "line":  31,
+                                          "severity":  "warning",
+                                          "rule":  "unused-imports/no-unused-imports",
+                                          "file":  "\\src\\components\\MapPage.js"
+                                      },
+                                      {
+                                          "message":  "\u0027requestProLoading\u0027 is assigned a value but never used. Allowed unused vars must match /^_/u.",
+                                          "column":  10,
+                                          "line":  202,
+                                          "severity":  "warning",
+                                          "rule":  "unused-imports/no-unused-vars",
+                                          "file":  "\\src\\components\\MapPage.js"
+                                      },
+                                      {
+                                          "message":  "\u0027setRequestProLoading\u0027 is assigned a value but never used. Allowed unused vars must match /^_/u.",
+                                          "column":  29,
+                                          "line":  202,
+                                          "severity":  "warning",
+                                          "rule":  "unused-imports/no-unused-vars",
+                                          "file":  "\\src\\components\\MapPage.js"
+                                      },
+                                      {
+                                          "message":  "\u0027estimatedDuration\u0027 is assigned a value but never used. Allowed unused vars must match /^_/u.",
+                                          "column":  10,
+                                          "line":  203,
+                                          "severity":  "warning",
+                                          "rule":  "unused-imports/no-unused-vars",
+                                          "file":  "\\src\\components\\MapPage.js"
+                                      },
+                                      {
+                                          "message":  "\u0027setEstimatedDuration\u0027 is assigned a value but never used. Allowed unused vars must match /^_/u.",
+                                          "column":  29,
+                                          "line":  203,
+                                          "severity":  "warning",
+                                          "rule":  "unused-imports/no-unused-vars",
+                                          "file":  "\\src\\components\\MapPage.js"
+                                      },
+                                      {
+                                          "message":  "\u0027setInviteFriends\u0027 is assigned a value but never used. Allowed unused vars must match /^_/u.",
+                                          "column":  25,
+                                          "line":  204,
+                                          "severity":  "warning",
+                                          "rule":  "unused-imports/no-unused-vars",
+                                          "file":  "\\src\\components\\MapPage.js"
+                                      },
+                                      {
+                                          "message":  "\u0027boostHours\u0027 is assigned a value but never used. Allowed unused vars must match /^_/u.",
+                                          "column":  10,
+                                          "line":  209,
+                                          "severity":  "warning",
+                                          "rule":  "unused-imports/no-unused-vars",
+                                          "file":  "\\src\\components\\MapPage.js"
+                                      },
+                                      {
+                                          "message":  "\u0027setBoostHours\u0027 is assigned a value but never used. Allowed unused vars must match /^_/u.",
+                                          "column":  22,
+                                          "line":  209,
+                                          "severity":  "warning",
+                                          "rule":  "unused-imports/no-unused-vars",
+                                          "file":  "\\src\\components\\MapPage.js"
+                                      },
+                                      {
+                                          "message":  "\u0027requestProSelectedPro\u0027 is assigned a value but never used. Allowed unused vars must match /^_/u.",
+                                          "column":  10,
+                                          "line":  213,
+                                          "severity":  "warning",
+                                          "rule":  "unused-imports/no-unused-vars",
+                                          "file":  "\\src\\components\\MapPage.js"
+                                      },
+                                      {
+                                          "message":  "\u0027selectedFriends\u0027 is assigned a value but never used. Allowed unused vars must match /^_/u.",
+                                          "column":  10,
+                                          "line":  218,
+                                          "severity":  "warning",
+                                          "rule":  "unused-imports/no-unused-vars",
+                                          "file":  "\\src\\components\\MapPage.js"
+                                      },
+                                      {
+                                          "message":  "\u0027friendSearchQuery\u0027 is assigned a value but never used. Allowed unused vars must match /^_/u.",
+                                          "column":  10,
+                                          "line":  221,
+                                          "severity":  "warning",
+                                          "rule":  "unused-imports/no-unused-vars",
+                                          "file":  "\\src\\components\\MapPage.js"
+                                      },
+                                      {
                                           "message":  "React Hook useCallback has a missing dependency: \u0027setFilter\u0027. Either include it or remove the dependency array.",
                                           "column":  6,
-                                          "line":  296,
+                                          "line":  297,
                                           "severity":  "warning",
                                           "rule":  "react-hooks/exhaustive-deps",
                                           "file":  "\\src\\components\\MapPage.js"
@@ -263,7 +415,7 @@
                                       {
                                           "message":  "React Hook useEffect has missing dependencies: \u0027activeDispatch\u0027 and \u0027updateTrackingMarkers\u0027. Either include them or remove the dependency array.",
                                           "column":  6,
-                                          "line":  466,
+                                          "line":  467,
                                           "severity":  "warning",
                                           "rule":  "react-hooks/exhaustive-deps",
                                           "file":  "\\src\\components\\MapPage.js"
@@ -271,7 +423,7 @@
                                       {
                                           "message":  "React Hook useEffect has missing dependencies: \u0027fetchLivePhotographers\u0027 and \u0027setPulsingMarkers\u0027. Either include them or remove the dependency array.",
                                           "column":  6,
-                                          "line":  602,
+                                          "line":  603,
                                           "severity":  "warning",
                                           "rule":  "react-hooks/exhaustive-deps",
                                           "file":  "\\src\\components\\MapPage.js"
@@ -279,7 +431,7 @@
                                       {
                                           "message":  "React Hook useEffect has a missing dependency: \u0027initMap\u0027. Either include it or remove the dependency array.",
                                           "column":  6,
-                                          "line":  613,
+                                          "line":  614,
                                           "severity":  "warning",
                                           "rule":  "react-hooks/exhaustive-deps",
                                           "file":  "\\src\\components\\MapPage.js"
@@ -287,7 +439,7 @@
                                       {
                                           "message":  "React Hook useEffect has a missing dependency: \u0027updateMapMarkers\u0027. Either include it or remove the dependency array.",
                                           "column":  6,
-                                          "line":  696,
+                                          "line":  697,
                                           "severity":  "warning",
                                           "rule":  "react-hooks/exhaustive-deps",
                                           "file":  "\\src\\components\\MapPage.js"
@@ -295,7 +447,7 @@
                                       {
                                           "message":  "React Hook useEffect has a missing dependency: \u0027updateUserLocationMarker\u0027. Either include it or remove the dependency array.",
                                           "column":  6,
-                                          "line":  703,
+                                          "line":  704,
                                           "severity":  "warning",
                                           "rule":  "react-hooks/exhaustive-deps",
                                           "file":  "\\src\\components\\MapPage.js"
@@ -303,7 +455,7 @@
                                       {
                                           "message":  "React Hook useEffect has a missing dependency: \u0027setSelectedSpot\u0027. Either include it or remove the dependency array.",
                                           "column":  6,
-                                          "line":  713,
+                                          "line":  714,
                                           "severity":  "warning",
                                           "rule":  "react-hooks/exhaustive-deps",
                                           "file":  "\\src\\components\\MapPage.js"
@@ -311,7 +463,7 @@
                                       {
                                           "message":  "React Hook useEffect has a missing dependency: \u0027setShowIpBanner\u0027. Either include it or remove the dependency array.",
                                           "column":  6,
-                                          "line":  732,
+                                          "line":  733,
                                           "severity":  "warning",
                                           "rule":  "react-hooks/exhaustive-deps",
                                           "file":  "\\src\\components\\MapPage.js"
@@ -319,7 +471,7 @@
                                       {
                                           "message":  "React Hook useEffect has a missing dependency: \u0027friendMarkersRef\u0027. Either include it or remove the dependency array.",
                                           "column":  6,
-                                          "line":  784,
+                                          "line":  785,
                                           "severity":  "warning",
                                           "rule":  "react-hooks/exhaustive-deps",
                                           "file":  "\\src\\components\\MapPage.js"
@@ -327,7 +479,7 @@
                                       {
                                           "message":  "React Hook useCallback has missing dependencies: \u0027setBottomSheetOpen\u0027 and \u0027setUnifiedDrawerOpen\u0027. Either include them or remove the dependency array.",
                                           "column":  6,
-                                          "line":  1574,
+                                          "line":  1575,
                                           "severity":  "warning",
                                           "rule":  "react-hooks/exhaustive-deps",
                                           "file":  "\\src\\components\\MapPage.js"
@@ -415,7 +567,7 @@
                                       {
                                           "message":  "React Hook useEffect has a missing dependency: \u0027fetchCrewChats\u0027. Either include it or remove the dependency array.",
                                           "column":  6,
-                                          "line":  1770,
+                                          "line":  1771,
                                           "severity":  "warning",
                                           "rule":  "react-hooks/exhaustive-deps",
                                           "file":  "\\src\\components\\MessagesPage.js"
@@ -1181,6 +1333,14 @@
                                           "file":  "\\src\\components\\dispatch\\CrewPaymentProgress.js"
                                       },
                                       {
+                                          "message":  "\u0027friendPickerOpen\u0027 is assigned a value but never used. Allowed unused vars must match /^_/u.",
+                                          "column":  10,
+                                          "line":  78,
+                                          "severity":  "warning",
+                                          "rule":  "unused-imports/no-unused-vars",
+                                          "file":  "\\src\\components\\map\\RequestProModal.js"
+                                      },
+                                      {
                                           "message":  "React Hook useEffect has a missing dependency: \u0027fetchAccountBilling\u0027. Either include it or remove the dependency array.",
                                           "column":  6,
                                           "line":  67,
@@ -1246,7 +1406,7 @@
                                       }
                                   ],
                        "errorCount":  0,
-                       "warningCount":  153,
+                       "warningCount":  173,
                        "status":  "PASS"
                    },
                    {

@@ -49,6 +49,26 @@
   max-height: calc(100dvh - var(--safe-bottom)) !important;
 }
 
+/* ── Dialog: mobile bottom-safe positioning via CSS class ─────────────
+   Using a CSS class (not an inline style) means the @media rule below
+   can properly override `bottom` to `auto` on desktop.
+   Inline styles bleed through Tailwind's sm:inset-auto because they have
+   higher specificity than class-based rules, causing the dialog to be
+   capped at only the lower half of the viewport (~270px on a laptop).
+   ─────────────────────────────────────────────────────────────────── */
+.dialog-safe-bottom {
+  /* Mobile: clear the BottomNav + Create button protrusion */
+  bottom: var(--safe-bottom, 84px);
+}
+
+/* Desktop: dialog must be freely centered — bottom: auto lets it
+   expand to max-h-[90vh] without any top/bottom clamping */
+@media (min-width: 640px) {
+  .dialog-safe-bottom {
+    bottom: auto;
+  }
+}
+
 * {
   margin: 0;
   padding: 0;

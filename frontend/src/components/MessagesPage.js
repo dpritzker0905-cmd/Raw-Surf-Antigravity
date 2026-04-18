@@ -1076,6 +1076,48 @@ const EmojiPicker = ({ show, onSelect, onClose }) => {
     </div>
   );
 };
+// EphemeralCountdown - Live ticking countdown badge for 24hr ephemeral videos
+// Uses setInterval to update every minute so the display actually ticks down
+const EphemeralCountdown = ({ createdAt }) => {
+  const EPHEMERAL_MS = 24 * 60 * 60 * 1000; // 24 hours
+
+  const calcRemaining = () => {
+    const startTime = createdAt ? new Date(createdAt).getTime() : Date.now();
+    return EPHEMERAL_MS - (Date.now() - startTime);
+  };
+
+  const [remaining, setRemaining] = useState(calcRemaining);
+
+  useEffect(() => {
+    // Tick every 30 seconds (videos don't need per-second precision)
+    const interval = setInterval(() => {
+      const r = calcRemaining();
+      setRemaining(r);
+      if (r <= 0) clearInterval(interval); // Stop when expired
+    }, 30000);
+    return () => clearInterval(interval);
+  }, [createdAt]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  if (remaining <= 0) {
+    return (
+      <div className="absolute top-2 right-2 bg-black/70 backdrop-blur-sm px-2 py-1 rounded flex items-center gap-1 z-10 pointer-events-none">
+        <Clock className="w-3 h-3 text-gray-400" />
+        <span className="text-gray-300 text-[10px] font-bold">Expired</span>
+      </div>
+    );
+  }
+
+  const h = Math.floor(remaining / (1000 * 60 * 60));
+  const m = Math.floor((remaining % (1000 * 60 * 60)) / (1000 * 60));
+  const label = h > 0 ? `${h}h ${m}m left` : `${m}m left`;
+
+  return (
+    <div className="absolute top-2 right-2 bg-black/60 backdrop-blur-sm px-2 py-1 rounded flex items-center gap-1 z-10 pointer-events-none animate-pulse">
+      <Clock className="w-3 h-3 text-red-400" />
+      <span className="text-white text-[10px] font-bold">{label}</span>
+    </div>
+  );
+};
 
 // Message Bubble Component
 const MessageBubble = ({ message, onReact, _onReply, onNavigateProfile }) => {
@@ -1123,36 +1165,17 @@ const MessageBubble = ({ message, onReact, _onReply, onNavigateProfile }) => {
     if ((message.message_type === 'video' || message.message_type === 'ephemeral_video') && mediaUrl) {
       // Only treat as ephemeral if message_type is explicitly 'ephemeral_video'
       const isEphemeral = message.message_type === 'ephemeral_video';
-      
-      let timeLeftText = '';
-      if (isEphemeral) {
-        // Fallback local date tracking
-        const startTime = message.created_at ? new Date(message.created_at).getTime() : Date.now();
-        const diff = (24 * 60 * 60 * 1000) - (Date.now() - startTime);
-        if (diff > 0) {
-          const h = Math.floor(diff / (1000 * 60 * 60));
-          const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-          timeLeftText = `${h}h ${m}m left`;
-        } else {
-          timeLeftText = 'Expired';
-        }
-      }
 
       return (
         <div className="relative group max-w-sm rounded-2xl overflow-hidden mt-1 cursor-pointer">
-          {isEphemeral && timeLeftText && (
-            <div className="absolute top-2 right-2 bg-black/60 backdrop-blur-sm px-2 py-1 rounded flex items-center gap-1 z-10 pointer-events-none">
-              <Clock className="w-3 h-3 text-red-400" />
-              <span className="text-white text-[10px] font-bold">{timeLeftText}</span>
-            </div>
-          )}
+          {isEphemeral && <EphemeralCountdown createdAt={message.created_at} />}
           <video 
             src={mediaUrl} 
             controls 
             controlsList="nodownload noplaybackrate noremoteplayback"
             disablePictureInPicture
             onContextMenu={(e) => e.preventDefault()}
-            className={`max-w-full rounded-lg border-2 border-red-500/30`}
+            className={`max-w-full rounded-lg ${isEphemeral ? 'border-2 border-red-500/30' : ''}`}
           />
         </div>
       );

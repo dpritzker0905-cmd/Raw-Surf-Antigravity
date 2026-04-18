@@ -54,36 +54,39 @@ const DialogContent = React.forwardRef(({ className, children, overlayClassName,
         "data-[state=open]:animate-in data-[state=closed]:animate-out",
         "data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
 
-        // ── Mobile: full-width bottom sheet ──────────────────────────
-        // top:56px = below TopNav. bottom uses --safe-bottom (dynamic)
-        // so footer never hides under the BottomNav / Create button.
+        // ── Mobile: full-width bottom sheet ──────────────────────────────
+        // top:56px = below TopNav. bottom uses .dialog-safe-bottom class
+        // (CSS class instead of inline style so @media can reset to `auto`
+        //  on desktop without specificity fights).
         "left-0 right-0 w-full",
         "top-14 rounded-t-2xl rounded-b-none",
         "data-[state=open]:slide-in-from-bottom data-[state=closed]:slide-out-to-bottom",
 
-        // ── Desktop: centered modal ───────────────────────────────────
+        // ── Desktop: centered modal ──────────────────────────────────────
+        // sm:inset-auto clears all inset overrides from the mobile block.
+        // .dialog-safe-bottom's @media rule then sets bottom:auto so the
+        // dialog can grow freely to sm:max-h-[85vh] from the centered pivot.
         "sm:inset-auto",
         "sm:left-1/2 sm:top-1/2",
         "sm:-translate-x-1/2 sm:-translate-y-1/2",
         "sm:w-full sm:max-w-lg",
-        "sm:max-h-[90vh]",
+        "sm:max-h-[85vh]",
         "sm:rounded-xl",
         "sm:data-[state=closed]:zoom-out-95 sm:data-[state=open]:zoom-in-95",
         "sm:data-[state=closed]:slide-out-to-left-1/2 sm:data-[state=closed]:slide-out-to-top-[48%]",
         "sm:data-[state=open]:slide-in-from-left-1/2 sm:data-[state=open]:slide-in-from-top-[48%]",
 
+        // CSS class-based bottom positioning (media-query overridable)
+        "dialog-safe-bottom",
+
         className
       )}
-      style={{
-        // Mobile: bottom edge sits above the BottomNav + Create button protrusion
-        bottom: 'var(--safe-bottom, 84px)',
-      }}
       {...props}
     >
       {/*
-        Inner flex column — header/body/footer each take their slice.
-        `overflow:hidden` on this div + `overflow-y:auto` on .modal-body
-        is what keeps header & footer pinned while only the content scrolls.
+        Inner flex column — expand to fill the available panel height.
+        `max-h-full overflow:hidden` on this div + `overflow-y:auto` on
+        .modal-body keeps header & footer pinned while only content scrolls.
       */}
       <div className="flex flex-col h-full max-h-full overflow-hidden">
         {children}
