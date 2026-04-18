@@ -843,12 +843,26 @@ export const Bookings = () => {
     { id: 'live_sessions', label: 'Live Sessions', icon: Zap, count: liveSessions.length },
     { id: 'on_demand', label: 'On-Demand', icon: Target, count: onDemandPhotographers.length },
     { id: 'find_buddies', label: 'Open Sessions', icon: Users, count: nearbyBookings.length },
-    { id: 'scheduled', label: 'Scheduled', icon: CalendarClock, count: bookings.filter(b => b.status === 'Confirmed' || b.status === 'Pending').length },
+    { id: 'scheduled', label: 'Scheduled', icon: CalendarClock, count: bookings.filter(b => {
+      if (b.status === 'Confirmed') return true;
+      // Pending is only in Scheduled if the session is NOT still in an active lineup lobby
+      // (lobby-phase pending sessions already show in The Lineup tab)
+      const LOBBY_PHASE = ['open', 'filling', 'ready'];
+      if (b.status === 'Pending' && LOBBY_PHASE.includes(b.lineup_status)) return false;
+      return b.status === 'Pending';
+    }).length },
     { id: 'past', label: 'Past', icon: History, count: bookings.filter(b => b.status === 'Completed').length },
     { id: 'live_now', label: 'Live Now', icon: Radio, count: livePhotographers.length },
   ];
 
-  const scheduledBookings = bookings.filter(b => b.status === 'Confirmed' || b.status === 'Pending');
+  // Scheduled = confirmed bookings + pending bookings that are NOT still in an active lineup lobby
+  // (lineup-lobby pending sessions live in The Lineup tab to avoid duplication)
+  const LOBBY_PHASE = ['open', 'filling', 'ready'];
+  const scheduledBookings = bookings.filter(b => {
+    if (b.status === 'Confirmed') return true;
+    if (b.status === 'Pending' && LOBBY_PHASE.includes(b.lineup_status)) return false;
+    return b.status === 'Pending';
+  });
   const pastBookings = bookings.filter(b => b.status === 'Completed');
 
   if (loading) {
