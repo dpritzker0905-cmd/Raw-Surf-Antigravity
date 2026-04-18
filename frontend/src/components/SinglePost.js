@@ -450,6 +450,7 @@ const SinglePost = () => {
           onIWasThere={handleIWasThere}
           onViewCollaborators={handleViewCollaborators}
           onFollowFromFeed={handleFollowFromFeed}
+        />
       </div>
 
       {/* Post Menu */}
