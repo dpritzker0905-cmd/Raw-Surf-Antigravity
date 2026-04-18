@@ -298,8 +298,9 @@ async def get_surf_spot_locations(
     db: AsyncSession = Depends(get_db)
 ):
     """
-    Get unique countries and states/provinces for location filtering.
-    Returns a hierarchical structure for dropdowns.
+    Get unique countries, states/provinces, and city/area regions for location filtering.
+    Returns a three-level hierarchical structure: Country → State/Province → City/Area.
+    The 'region' field on SurfSpot is used as the city/municipality level.
     """
     # Get unique countries with count
     countries_query = await db.execute(
@@ -313,7 +314,7 @@ async def get_surf_spot_locations(
         .order_by(SurfSpot.country)
     )
     countries = countries_query.fetchall()
-    
+
     # Get states/provinces grouped by country
     states_query = await db.execute(
         select(
@@ -328,8 +329,24 @@ async def get_surf_spot_locations(
         .order_by(SurfSpot.country, SurfSpot.state_province)
     )
     states = states_query.fetchall()
-    
-    # Build hierarchical response
+
+    # Get city/area (region) grouped by country + state
+    cities_query = await db.execute(
+        select(
+            SurfSpot.country,
+            SurfSpot.state_province,
+            SurfSpot.region,
+            func.count(SurfSpot.id).label('spot_count')
+        )
+        .where(SurfSpot.is_active.is_(True))
+        .where(SurfSpot.country.isnot(None))
+        .where(SurfSpot.region.isnot(None))
+        .group_by(SurfSpot.country, SurfSpot.state_province, SurfSpot.region)
+        .order_by(SurfSpot.country, SurfSpot.state_province, SurfSpot.region)
+    )
+    cities = cities_query.fetchall()
+
+    # Build hierarchical response: country → state → city/area
     location_map = {}
     for country, count in countries:
         if country:
@@ -338,14 +355,34 @@ async def get_surf_spot_locations(
                 "spot_count": count,
                 "states": []
             }
-    
+
+    # Index states for easy city attachment
+    state_map = {}  # (country, state) -> state dict
     for country, state, count in states:
         if country and state and country in location_map:
-            location_map[country]["states"].append({
+            state_entry = {
                 "name": state,
+                "spot_count": count,
+                "cities": []
+            }
+            location_map[country]["states"].append(state_entry)
+            state_map[(country, state)] = state_entry
+
+    # Attach cities to their state
+    for country, state, region, count in cities:
+        if not (country and region):
+            continue
+        key = (country, state) if state else None
+        if key and key in state_map:
+            state_map[key]["cities"].append({
+                "name": region,
                 "spot_count": count
             })
-    
+        elif country in location_map:
+            # Region exists but no state — attach to country level under a None-state placeholder
+            # (handles spots with country+region but no state_province)
+            pass  # Skip — these spots still appear in the unfiltered spot list
+
     return {
         "countries": list(location_map.values()),
         "total_countries": len(location_map)

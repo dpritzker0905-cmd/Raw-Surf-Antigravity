@@ -216,10 +216,11 @@ export const Feed = () => {
   const [gpsLoading, setGpsLoading] = useState(false);
   const [nearestSpot, setNearestSpot] = useState(null);
   const [storiesKey, setStoriesKey] = useState(0);
-  // Location hierarchy for manual drill-down: Country → State/Province → Spot
+  // Location hierarchy for manual drill-down: Country → State/Province → City/Area → Spot
   const [locationHierarchy, setLocationHierarchy] = useState({ countries: [] });
   const [selectedCountry, setSelectedCountry] = useState('');
   const [selectedState, setSelectedState] = useState('');
+  const [selectedCity, setSelectedCity] = useState('');
   // Gamification reward card shown after successful GPS check-in
   const [checkInReward, setCheckInReward] = useState(null);
 
@@ -1226,6 +1227,7 @@ export const Feed = () => {
         setNearestSpot(null);
         setSelectedCountry('');
         setSelectedState('');
+        setSelectedCity('');
       }
 
     } catch (error) {
@@ -1248,6 +1250,7 @@ export const Feed = () => {
     setNearestSpot(null);
     setSelectedCountry('');
     setSelectedState('');
+    setSelectedCity('');
   };
 
   if (loading) {
@@ -1663,13 +1666,13 @@ export const Feed = () => {
                 {selectedCountry && (() => {
                   const countryData = locationHierarchy.countries.find(c => c.name === selectedCountry);
                   const states = countryData?.states || [];
-                  if (states.length === 0) return null; // skip if no state breakdown
+                  if (states.length === 0) return null;
                   return (
                     <div>
                       <label className="text-sm text-gray-400 mb-2 block">State / Province</label>
                       <Select
                         value={selectedState}
-                        onValueChange={(v) => { setSelectedState(v); setCheckInData(prev => ({ ...prev, spot_id: '' })); }}
+                        onValueChange={(v) => { setSelectedState(v); setSelectedCity(''); setCheckInData(prev => ({ ...prev, spot_id: '' })); }}
                       >
                         <SelectTrigger className="bg-zinc-800 border-zinc-700 text-white">
                           <SelectValue placeholder="Select a state / province" />
@@ -1686,7 +1689,35 @@ export const Feed = () => {
                   );
                 })()}
 
-                {/* Spot selector — filtered by country + state */}
+                {/* City / Area selector — only shown when state selected and cities exist */}
+                {selectedState && (() => {
+                  const countryData = locationHierarchy.countries.find(c => c.name === selectedCountry);
+                  const stateData = countryData?.states?.find(s => s.name === selectedState);
+                  const cities = stateData?.cities || [];
+                  if (cities.length === 0) return null;
+                  return (
+                    <div>
+                      <label className="text-sm text-gray-400 mb-2 block">City / Area</label>
+                      <Select
+                        value={selectedCity}
+                        onValueChange={(v) => { setSelectedCity(v); setCheckInData(prev => ({ ...prev, spot_id: '' })); }}
+                      >
+                        <SelectTrigger className="bg-zinc-800 border-zinc-700 text-white">
+                          <SelectValue placeholder="Select a city or area" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-zinc-800 border-zinc-700 max-h-60 overflow-y-auto">
+                          {cities.map(c => (
+                            <SelectItem key={c.name} value={c.name} className="text-white hover:bg-zinc-700">
+                              {c.name} <span className="text-gray-500 text-xs ml-1">({c.spot_count} spots)</span>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  );
+                })()}
+
+                {/* Spot selector — filtered by country + state + city */}
                 <div>
                   <label className="text-sm text-gray-400 mb-2 block">Surf Spot</label>
                   <Select
@@ -1699,9 +1730,10 @@ export const Feed = () => {
                     <SelectContent className="bg-zinc-800 border-zinc-700 max-h-72 overflow-y-auto">
                       {spots
                         .filter(spot => {
-                          if (!selectedCountry) return true; // Show all if no country filter
+                          if (!selectedCountry) return true;
                           if (spot.country !== selectedCountry) return false;
                           if (selectedState && spot.state_province !== selectedState) return false;
+                          if (selectedCity && spot.region !== selectedCity) return false;
                           return true;
                         })
                         .map((spot) => (
