@@ -469,18 +469,28 @@ const QuickActionsPanel = ({
         </Button>
       )}
 
-      {/* 3 — Cancel (always shown, red outline) */}
-      <Button
-        onClick={onCancelAll}
-        disabled={loading}
-        variant="outline"
-        size="sm"
-        className={`w-full ${isLight ? 'border-red-300 text-red-600 hover:bg-red-50' : 'border-red-500/50 text-red-400 hover:bg-red-500/10'}`}
-        data-testid="cancel-lineup-btn"
-      >
-        <Ban className="w-4 h-4 mr-2" />
-        Cancel Lineup & Refund All
-      </Button>
+      {/* Cancel — tap to reveal, discourages accidental cancels */}
+      {!showCancelRow ? (
+        <button
+          onClick={() => setShowCancelRow(true)}
+          className={`w-full text-xs text-center py-1.5 ${textSecondary} hover:text-red-400 transition-colors`}
+          data-testid="show-cancel-btn"
+        >
+          Need to cancel this lineup?
+        </button>
+      ) : (
+        <Button
+          onClick={onCancelAll}
+          disabled={loading}
+          variant="outline"
+          size="sm"
+          className={`w-full ${isLight ? 'border-red-300 text-red-600 hover:bg-red-50' : 'border-red-500/50 text-red-400 hover:bg-red-500/10'}`}
+          data-testid="cancel-lineup-btn"
+        >
+          <Ban className="w-4 h-4 mr-2" />
+          Cancel Lineup & Refund All
+        </Button>
+      )}
     </div>
   );
 };
