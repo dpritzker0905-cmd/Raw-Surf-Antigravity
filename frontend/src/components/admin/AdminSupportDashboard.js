@@ -1,18 +1,15 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import axios from 'axios';
-import {
-  Headphones, MessageSquare, Send, Clock, AlertTriangle,
-  Loader2, Plus, RefreshCw, Check, X, User, Mail,
-  Tag, ChevronRight, Filter, Search
+import { Send, AlertTriangle,
+  Loader2, RefreshCw, Search
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '../ui/card';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Textarea } from '../ui/textarea';
 import { Badge } from '../ui/badge';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { toast } from 'sonner';
 import logger from '../../utils/logger';
@@ -47,7 +44,7 @@ export const AdminSupportDashboard = () => {
   const isLight = theme === 'light';
   const cardBgClass = isLight ? 'bg-white border-gray-200' : 'bg-zinc-900/50 border-zinc-800';
   const textClass = isLight ? 'text-gray-900' : 'text-white';
-  const textSecondary = isLight ? 'text-gray-600' : 'text-gray-400';
+  const _textSecondary = isLight ? 'text-gray-600' : 'text-gray-400';
 
   useEffect(() => {
     if (user?.id) {

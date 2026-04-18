@@ -9,7 +9,7 @@ const DB_NAME = 'leaflet_tile_cache';
 const DB_VERSION = 1;
 const STORE_NAME = 'tiles';
 const MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
-const MAX_CACHE_SIZE = 500; // Max tiles to keep
+const _MAX_CACHE_SIZE = 500; // Max tiles to keep
 
 let db = null;
 let dbPromise = null;
@@ -20,7 +20,7 @@ let dbPromise = null;
 const initDB = () => {
   if (dbPromise) return dbPromise;
   
-  dbPromise = new Promise((resolve, reject) => {
+  dbPromise = new Promise((resolve, _reject) => {
     if (!window.indexedDB) {
       logger.debug('[TileCache] IndexedDB not supported');
       resolve(null);

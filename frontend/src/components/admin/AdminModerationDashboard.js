@@ -2,13 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import axios from 'axios';
-import {
-  AlertTriangle, MessageSquare, DollarSign, FileText, Search, Filter,
-  Loader2, ChevronDown, ChevronUp, Eye, CheckCircle, XCircle, Clock,
-  User, AlertCircle, Shield, Ban, RefreshCw, Flag, Scale, Wallet,
-  Send, Paperclip, ExternalLink
+import { MessageSquare, FileText,
+  Loader2, RefreshCw, Flag, Scale, Wallet,
+  Send
 } from 'lucide-react';
-import { Card, CardHeader, CardTitle, CardContent } from '../ui/card';
+import { Card, CardContent } from '../ui/card';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Textarea } from '../ui/textarea';
@@ -16,7 +14,6 @@ import { Badge } from '../ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 import { toast } from 'sonner';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
@@ -81,7 +78,7 @@ export const AdminModerationDashboard = () => {
   // Payout Holds state
   const [payoutHolds, setPayoutHolds] = useState([]);
   const [totalHeldAmount, setTotalHeldAmount] = useState(0);
-  const [showCreateHold, setShowCreateHold] = useState(false);
+  const [_showCreateHold, setShowCreateHold] = useState(false);
   
   // Audit Logs state
   const [auditLogs, setAuditLogs] = useState([]);

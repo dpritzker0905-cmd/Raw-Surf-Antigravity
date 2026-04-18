@@ -22,7 +22,7 @@ const COMMENT_REACTIONS = ['❤️', '🤙', '🌊', '🔥'];
 /**
  * ReplyItem - Simpler component for reply rendering (non-recursive)
  */
-const ReplyItem = ({ reply, userId, postId, textPrimaryClass, textSecondaryClass, isLight }) => {
+const ReplyItem = ({ reply, userId, _postId, textPrimaryClass, textSecondaryClass, _isLight }) => {
   const [reactionCount, setReactionCount] = useState(reply.reaction_count || 0);
   const [viewerReaction, setViewerReaction] = useState(reply.viewer_reaction || null);
   const [loading, setLoading] = useState(false);
@@ -546,7 +546,7 @@ const ReactionIcon = ({ post, userId, isLiked, isPressing }) => {
 };
 
 // Shaka icon using Twemoji image for consistent rendering
-const ShakaIcon = ({ filled }) => (
+const _ShakaIcon = ({ filled }) => (
   <img 
     src="https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/svg/1f919.svg"
     alt="shaka"
@@ -562,7 +562,7 @@ const ShakaIcon = ({ filled }) => (
 );
 
 // Format time ago helper
-const formatTimeAgo = (dateString) => {
+const _formatTimeAgo = (dateString) => {
   const date = new Date(dateString);
   const now = new Date();
   const diffMs = now - date;

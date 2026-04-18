@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { MapPin, Plus, Trash2, Move, CheckCircle, AlertTriangle, Search, RefreshCw, Loader2, Eye, X, Save, ChevronDown, Edit2 } from 'lucide-react';
+import { MapPin, Plus, Trash2, AlertTriangle, Search, RefreshCw, Loader2, Eye, X, Edit2 } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Badge } from '../ui/badge';

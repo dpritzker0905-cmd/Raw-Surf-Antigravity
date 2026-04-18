@@ -11,15 +11,14 @@ import React, { useState } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import { 
-  Users, DollarSign, Clock, X, ChevronRight, 
-  AlertTriangle, Calendar, MapPin, Wallet, 
+  Users, DollarSign, Clock, ChevronRight, 
+  AlertTriangle, Calendar, MapPin, 
   Send, UserPlus, Settings, Ban, Loader2,
   MessageCircle, Share2, Check
 } from 'lucide-react';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
-import { Card, CardContent } from './ui/card';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from './ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from './ui/dialog';
 import { Textarea } from './ui/textarea';
 import { toast } from 'sonner';
 import logger from '../utils/logger';
@@ -47,7 +46,7 @@ export const SessionActionDrawer = ({
   const [splitLoading, setSplitLoading] = useState(false);
   const [alreadyShared, setAlreadyShared] = useState(false);
   
-  const isHost = booking?.creator_id === user?.id;
+  const _isHost = booking?.creator_id === user?.id;
   const hoursUntilSession = booking ? 
     (new Date(booking.session_date) - new Date()) / (1000 * 60 * 60) : 0;
   

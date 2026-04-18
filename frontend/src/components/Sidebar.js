@@ -3,7 +3,7 @@ import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { usePersona, getExpandedRoleInfo } from '../contexts/PersonaContext';
-import { Home, Compass, MapPin, Calendar, MessageCircle, Bell, BellRing, User, Settings, LogOut, Camera, Shield, ChevronDown, ChevronRight, Image, CalendarCheck, Radio, Wallet, ShoppingBag, Heart, Sun, Moon, Waves, Eye, TrendingUp, Zap, Trophy, Crown, Baby, Lock, Plus, Stamp, Target, Backpack, CreditCard } from 'lucide-react';
+import { Home, Compass, MapPin, Calendar, MessageCircle, Bell, BellRing, User, Settings, LogOut, Camera, Shield, ChevronDown, ChevronRight, Image, CalendarCheck, Radio, ShoppingBag, Heart, Sun, Moon, Waves, Eye, TrendingUp, Zap, Crown, Baby, Lock, Plus, Stamp, Target, Backpack, CreditCard } from 'lucide-react';
 import axios from 'axios';
 import { SurfPassport } from './SurfPassport';
 import { GlobalSearchBar } from './GlobalSearchBar';
@@ -14,7 +14,7 @@ const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 export const Sidebar = () => {
   const { user, logout } = useAuth();
   const { theme } = useTheme();
-  const { getEffectiveRole, isMasked, activePersona, isGodMode } = usePersona();
+  const { getEffectiveRole, isMasked, _activePersona, _isGodMode } = usePersona();
   const navigate = useNavigate();
   const location = useLocation();
   const [unreadCount, setUnreadCount] = useState(0);
@@ -37,7 +37,7 @@ export const Sidebar = () => {
 
   // Theme-specific classes
   const isLight = theme === 'light';
-  const isDark = theme === 'dark';
+  const _isDark = theme === 'dark';
   const isBeach = theme === 'beach';
   
   // Sidebar background: white for light, dark gray for dark, pure black for beach
@@ -216,7 +216,7 @@ export const Sidebar = () => {
     : null;
 
   // Get role badge color
-  const getRoleBadgeColor = (role) => {
+  const _getRoleBadgeColor = (role) => {
     const surferRoles = ['Grom', 'Surfer', 'Comp Surfer', 'Pro'];
     const photographerRoles = ['Grom Parent', 'Hobbyist', 'Photographer', 'Approved Pro'];
     
@@ -274,7 +274,7 @@ export const Sidebar = () => {
 
       {/* Navigation - Scrollable section with minimum height */}
       <nav className="flex-1 p-2 overflow-y-auto min-h-0 scrollbar-thin scrollbar-thumb-zinc-700 scrollbar-track-transparent">
-        {navItems.map((item, index) => {
+        {navItems.map((item, _index) => {
           const Icon = item.icon;
           
           // Dynamic highlight colors based on item.highlightColor

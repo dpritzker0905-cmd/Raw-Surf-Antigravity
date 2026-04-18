@@ -10,7 +10,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import axios from 'axios';
 import { 
-  Megaphone, Plus, Activity, BarChart2, ChevronRight, 
+  Megaphone, Plus, Activity, BarChart2, 
   Loader2, CheckCircle, Clock, XCircle, Eye, MousePointer, TrendingUp
 } from 'lucide-react';
 import { Button } from '../ui/button';
@@ -23,7 +23,7 @@ const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 export const AdCenterPanel = () => {
   const { user } = useAuth();
   const { theme } = useTheme();
-  const navigate = useNavigate();
+  const _navigate = useNavigate();
   
   const [loading, setLoading] = useState(true);
   const [myAds, setMyAds] = useState({ ads: [], counts: {} });

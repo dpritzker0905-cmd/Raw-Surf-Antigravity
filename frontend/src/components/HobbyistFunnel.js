@@ -8,7 +8,6 @@ import {
   Heart, 
   Camera, 
   Gift, 
-  ShoppingBag, 
   Check, 
   X, 
   Loader2,

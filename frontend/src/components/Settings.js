@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
 import { usePersona } from '../contexts/PersonaContext';
-import { LogOut, User, Bell, Shield, Camera, Radio, DollarSign, Image, CalendarCheck, Wallet, ChevronRight, ChevronDown, Users, Eye, EyeOff, MapPin, Loader2, MessageSquare, Heart, UserPlus, Mail, Volume2, VolumeX, Sun, Moon, Waves, Check, Zap, CreditCard, Megaphone, BarChart2, Activity, WifiOff, Download, Trash2, HardDrive, Link2, ExternalLink, AtSign, Clock, AlertCircle, Trophy, Star, Award, FileText, Send } from 'lucide-react';
+import { LogOut, User, Bell, Shield, Camera, DollarSign, Image, CalendarCheck, Wallet, ChevronRight, ChevronDown, Users, Eye, EyeOff, MapPin, Loader2, MessageSquare, Heart, UserPlus, Mail, Volume2, VolumeX, Sun, Moon, Waves, Check, Zap, CreditCard, Megaphone, Activity, WifiOff, Download, Trash2, HardDrive, Link2, ExternalLink, AtSign, Clock, AlertCircle, Trophy, Star, Send } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from './ui/card';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -367,7 +367,7 @@ const GromParentCard = ({ textPrimaryClass, textSecondaryClass, cardBgClass }) =
   );
 };
 
-const UsernameCard = ({ userId, textPrimaryClass, textSecondaryClass, borderClass, cardBgClass }) => {
+const UsernameCard = ({ userId, _textPrimaryClass, textSecondaryClass, borderClass, cardBgClass }) => {
   const navigate = useNavigate();
   const [status, setStatus] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -741,7 +741,7 @@ const MetaConnectionsCard = ({ userId, textPrimaryClass, textSecondaryClass, bor
 export const Settings = () => {
   const { theme, toggleTheme } = useTheme();
   const { user, logout } = useAuth();
-  const { getEffectiveRole, activePersona } = usePersona();
+  const { getEffectiveRole, _activePersona } = usePersona();
   const navigate = useNavigate();
   
   // Offline mode hook
@@ -799,9 +799,9 @@ export const Settings = () => {
   const [notifLoading, setNotifLoading] = useState(false);
   
   // Friends state
-  const [friends, setFriends] = useState([]);
-  const [pendingRequests, setPendingRequests] = useState([]);
-  const [friendsLoading, setFriendsLoading] = useState(false);
+  const [_friends, setFriends] = useState([]);
+  const [_pendingRequests, setPendingRequests] = useState([]);
+  const [_friendsLoading, setFriendsLoading] = useState(false);
   
   // Collapsible sections state for settings page
   const [expandedSections, setExpandedSections] = useState({
@@ -892,7 +892,7 @@ export const Settings = () => {
     }
   };
   
-  const handleAcceptFriend = async (requestId) => {
+  const _handleAcceptFriend = async (requestId) => {
     try {
       await axios.post(`${API}/api/friends/accept/${requestId}?user_id=${user.id}`);
       toast.success('Friend request accepted!');
@@ -902,7 +902,7 @@ export const Settings = () => {
     }
   };
   
-  const handleDeclineFriend = async (requestId) => {
+  const _handleDeclineFriend = async (requestId) => {
     try {
       await axios.post(`${API}/api/friends/decline/${requestId}?user_id=${user.id}`);
       toast.success('Friend request declined');
@@ -912,7 +912,7 @@ export const Settings = () => {
     }
   };
   
-  const handleRemoveFriend = async (friendshipId) => {
+  const _handleRemoveFriend = async (friendshipId) => {
     try {
       await axios.delete(`${API}/api/friends/${friendshipId}?user_id=${user.id}`);
       toast.success('Friend removed');
@@ -939,9 +939,9 @@ export const Settings = () => {
   // GROM PARENT: true for dedicated Grom Parent role OR the opt-in flag (surfer who is also a parent)
   const isGromParent = effectiveRole === 'Grom Parent' || user?.is_grom_parent === true;
   // Can access commerce features (NOT Grom Parent - personal capture only)
-  const canAccessCommerce = isPhotographer && !isGromParent;
+  const _canAccessCommerce = isPhotographer && !isGromParent;
   // Can access live shooting settings (NOT Grom Parent)
-  const canAccessLiveShooting = isPhotographer && !isGromParent;
+  const _canAccessLiveShooting = isPhotographer && !isGromParent;
 
   const handleLogout = () => {
     logout();

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Image, Video, Play, Lock, DollarSign, Eye, Check, Loader2 } from 'lucide-react';
+import { Play, Lock, Eye, Check, Loader2 } from 'lucide-react';
 import { Badge } from './ui/badge';
 
 /**
@@ -25,7 +25,7 @@ export const MediaCard = ({
   theme = 'dark'
 }) => {
   const isVideo = item.media_type === 'video' || item.type === 'video';
-  const isLight = theme === 'light';
+  const _isLight = theme === 'light';
   
   const aspectClasses = {
     'square': 'aspect-square',

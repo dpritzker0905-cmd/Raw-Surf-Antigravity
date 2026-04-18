@@ -3,8 +3,8 @@ import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import axios from 'axios';
 import { 
-  Users, Plus, Star, Check, Trash2, Edit2, 
-  Loader2, ChevronDown, Clock, UserPlus, Save
+  Users, Plus, Star, Check, Trash2, 
+  Loader2, ChevronDown, Save
 } from 'lucide-react';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
@@ -117,7 +117,7 @@ export const SavedCrewSelector = ({
     }
   };
 
-  const handleSetDefault = async (crewId) => {
+  const _handleSetDefault = async (crewId) => {
     try {
       await axios.post(`${API}/api/crews/saved/${crewId}/set-default?user_id=${user.id}`);
       toast.success('Default crew updated!');

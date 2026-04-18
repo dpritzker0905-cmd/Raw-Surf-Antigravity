@@ -24,7 +24,7 @@ export const BookingProgressBar = ({ currentStep = 1, bookingType = 'scheduled' 
           const Icon = step.icon;
           const isCompleted = currentStep > step.id;
           const isCurrent = currentStep === step.id;
-          const isUpcoming = currentStep < step.id;
+          const _isUpcoming = currentStep < step.id;
           
           return (
             <React.Fragment key={step.id}>

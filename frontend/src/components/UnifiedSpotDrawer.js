@@ -1,11 +1,11 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { MapPin, Camera, Radio, X, Users, Waves, AlertTriangle, DollarSign, Clock, Zap, Check, ArrowLeft, Image, Tag, Percent, Sparkles, Star, CreditCard, Coins, Loader2, RefreshCw, ChevronDown, ChevronUp, Award, Calendar, Settings2, Lock, Crown, Trophy, Flame, CheckCircle } from 'lucide-react';
+import { MapPin, Camera, Radio, Users, Waves, AlertTriangle, DollarSign, Zap, Check, ArrowLeft, Image, Tag, Sparkles, Star, CreditCard, Coins, Loader2, RefreshCw, ChevronDown, Calendar, Lock, Crown, Trophy, CheckCircle } from 'lucide-react';
 import { Button } from './ui/button';
 import { SpotConditions } from './SpotConditions';
 import { SpotVerificationNudge } from './SpotVerificationNudge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from './ui/dialog';
-import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerClose } from './ui/drawer';
+import { Drawer, DrawerContent } from './ui/drawer';
 import { Input } from './ui/input';
 import { Switch } from './ui/switch';
 import { Badge } from './ui/badge';
@@ -492,7 +492,7 @@ const PhotographerProfileContent = ({ photographer }) => {
 const CAMERA_AUTHORIZED_KEY = 'raw_surf_camera_authorized';
 
 // Privacy Shield Upgrade CTA Component - High Intent Conversion Gate
-const GeofenceUpgradeCTA = ({ distanceMiles, visibilityRadius, activePhotographersCount = 0 }) => {
+const GeofenceUpgradeCTA = ({ distanceMiles, _visibilityRadius, activePhotographersCount = 0 }) => {
   const navigate = useNavigate();
   
   return (
@@ -590,7 +590,7 @@ const JumpInFlow = ({ photographer, onBack, onSuccess }) => {
   
   // Calculate session pricing
   const sessionBuyinPrice = photographer?.session_price || photographer?.live_buyin_price || 25;
-  const sessionPhotoPrice = photographer?.live_photo_price || 5;
+  const _sessionPhotoPrice = photographer?.live_photo_price || 5;
   const photosIncluded = photographer?.photo_package_size || 3;
   const galleryPhotoPrice = photographer?.gallery_photo_price || photographer?.photo_price_standard || 10;
   
@@ -1152,6 +1152,8 @@ const UnifiedSpotDrawer = ({
   userId = null
 }) => {
   // Privacy Shield: Check if spot is within user's geofence
+  const { user } = useAuth();
+  const navigate = useNavigate();
   const isWithinGeofence = spot?.is_within_geofence !== false;
   const distanceMiles = spot?.distance_miles;
   const visibilityRadius = spot?.visibility_radius_miles;
@@ -1160,7 +1162,7 @@ const UnifiedSpotDrawer = ({
   const [drawerMode, setDrawerMode] = useState(DRAWER_MODE.REPORT);
   const [showSwitchConfirm, setShowSwitchConfirm] = useState(false);
   const [selectedPhotographer, setSelectedPhotographer] = useState(null);
-  const drawerRef = useRef(null);
+  const _drawerRef = useRef(null);
   
   // Snap point control for drawer height
   const [activeSnapPoint, setActiveSnapPoint] = useState(0.75);
@@ -1449,7 +1451,7 @@ const UnifiedSpotDrawer = ({
   };
 
   // Handler for viewing photographer profile without joining
-  const handleViewPhotographerProfile = (shooter) => {
+  const _handleViewPhotographerProfile = (shooter) => {
     setSelectedPhotographer({
       ...shooter,
       current_spot_name: spot?.name
@@ -1459,7 +1461,7 @@ const UnifiedSpotDrawer = ({
     setActiveSnapPoint(1);
   };
 
-  const handleJumpInSuccess = (data) => {
+  const _handleJumpInSuccess = (_data) => {
     setShowJumpInModal(false);
     setDrawerMode(DRAWER_MODE.REPORT);
     setSelectedPhotographer(null);

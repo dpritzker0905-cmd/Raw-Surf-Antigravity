@@ -4,20 +4,15 @@
  * Shows resolution differences and helps surfers choose the right tier
  */
 import React, { useState, useEffect, useRef } from 'react';
-import { 
-  X, ZoomIn, ZoomOut, Image, Monitor, Printer, 
+import { ZoomIn, ZoomOut, Monitor, Printer, 
   Smartphone, Check, Lock, Loader2, Info, Download
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '../ui/tooltip';
+import { Tabs, TabsList, TabsTrigger } from '../ui/tabs';
+
+
 import axios from 'axios';
 
 const API = process.env.REACT_APP_BACKEND_URL;

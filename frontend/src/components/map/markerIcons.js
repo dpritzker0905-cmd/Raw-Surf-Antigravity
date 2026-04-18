@@ -4,7 +4,6 @@
  * Extracted from MapPage.js for better organization
  */
 
-import { ELECTRIC_CYAN } from './mapUtils';
 
 /**
  * Create user location marker icon

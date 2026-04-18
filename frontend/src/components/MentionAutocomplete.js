@@ -4,7 +4,7 @@
  */
 import React, { useState, useEffect, useRef, forwardRef, useImperativeHandle } from 'react';
 import { Avatar, AvatarImage, AvatarFallback } from './ui/avatar';
-import { AtSign, Loader2, User } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import axios from 'axios';
 import logger from '../utils/logger';
 

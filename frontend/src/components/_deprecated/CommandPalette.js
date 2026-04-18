@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import {
   Search, User, MapPin, Calendar, Settings, BarChart2,
-  Shield, DollarSign, Bell, FileText, X, Command
+  Shield, DollarSign, Bell, FileText, X
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogTitle } from './ui/dialog';
 import { Input } from './ui/input';

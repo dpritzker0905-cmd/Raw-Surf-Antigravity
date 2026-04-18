@@ -8,7 +8,7 @@ import { Avatar, AvatarImage, AvatarFallback } from './ui/avatar';
 import { useNavigate } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 
-const WhoReactedModal = ({ isOpen, onClose, reactions = [], postAuthorName, loading = false }) => {
+const WhoReactedModal = ({ isOpen, onClose, reactions = [], _postAuthorName, loading = false }) => {
   const navigate = useNavigate();
 
   // Group reactions by emoji for summary

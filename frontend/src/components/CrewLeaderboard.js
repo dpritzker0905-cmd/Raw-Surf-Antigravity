@@ -7,8 +7,8 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import {
-  Trophy, Users, Flame, Sunrise, Sunset, Calendar, DollarSign,
-  Medal, Crown, Star, TrendingUp, ChevronRight, Filter, Settings,
+  Trophy, Users, Flame, DollarSign,
+  Medal, Crown, Star, TrendingUp, ChevronRight,
   Eye, EyeOff, Lock
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
@@ -18,7 +18,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import { Switch } from './ui/switch';
 import { Label } from './ui/label';
-import { Input } from './ui/input';
 import { toast } from 'sonner';
 import axios from 'axios';
 import logger from '../utils/logger';
@@ -181,7 +180,7 @@ const LeaderboardEntry = ({ entry, isLight }) => {
       <div className="flex-1">
         <div className="flex items-center gap-2">
           <div className="flex -space-x-1">
-            {entry.members?.slice(0, 3).map((m, idx) => (
+            {entry.members?.slice(0, 3).map((m, _idx) => (
               <div 
                 key={m.user_id}
                 className="w-6 h-6 rounded-full border border-black bg-gradient-to-br from-cyan-400 to-blue-500 flex items-center justify-center overflow-hidden"

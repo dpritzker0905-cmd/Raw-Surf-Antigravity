@@ -12,7 +12,7 @@ const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 export const SubscriptionSuccess = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { user, updateUser } = useAuth();
+  const { _user, updateUser } = useAuth();
   const [status, setStatus] = useState('checking'); // checking, success, error
   const [tier, setTier] = useState(null);
 

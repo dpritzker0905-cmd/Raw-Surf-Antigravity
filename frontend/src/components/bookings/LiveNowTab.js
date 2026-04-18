@@ -12,7 +12,7 @@ import { Badge } from '../ui/badge';
 // Live Savings Badge Component (synced with Map drawer)
 const LiveSavingsBadge = ({ generalPrice, livePrice, className = '' }) => {
   const savings = generalPrice - livePrice;
-  const savingsPercent = generalPrice > 0 ? Math.round((savings / generalPrice) * 100) : 0;
+  const _savingsPercent = generalPrice > 0 ? Math.round((savings / generalPrice) * 100) : 0;
   
   if (savings <= 0) return null;
   

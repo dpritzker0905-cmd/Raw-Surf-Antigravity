@@ -5,7 +5,7 @@ import { useTheme } from '../contexts/ThemeContext';
 import axios from 'axios';
 import { 
   MapPin, DollarSign, Zap, Check, Loader2,
-  Navigation, TrendingUp, Info, Waves, ChevronDown, ChevronUp,
+  Navigation, Info, Waves, ChevronDown, ChevronUp,
   Settings
 } from 'lucide-react';
 import { Button } from './ui/button';

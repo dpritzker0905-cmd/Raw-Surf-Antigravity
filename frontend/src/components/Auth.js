@@ -5,7 +5,7 @@ import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Card } from './ui/card';
 import { toast } from 'sonner';
-import { ArrowLeft, User, Camera, Building2, Baby, Waves, Trophy, Star, Heart, ShieldCheck, GraduationCap, Dumbbell, Store, Hammer, Hotel, Eye, EyeOff } from 'lucide-react';
+import { ArrowLeft, User, Camera, Building2, Trophy, Star, Eye, EyeOff } from 'lucide-react';
 
 const ROLE_CONFIG = {
   surfer: {

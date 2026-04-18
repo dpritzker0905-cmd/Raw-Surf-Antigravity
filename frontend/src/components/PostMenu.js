@@ -9,8 +9,7 @@ import { useTheme } from '../contexts/ThemeContext';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { 
-  Trash2, Edit2, EyeOff, MessageSquareOff, ExternalLink, Share2, Link, 
-  Code, UserCircle, X, Flag, UserMinus, Star, Users, AlertTriangle,
+  Trash2, Edit2, EyeOff, MessageSquareOff, ExternalLink, Share2, Link, UserCircle, Flag, UserMinus, Star, Users, AlertTriangle,
   Loader2, Copy, Check, Waves, ChevronDown, Pin
 } from 'lucide-react';
 import { Button } from './ui/button';
@@ -86,7 +85,7 @@ const MenuItem = ({
 /**
  * Divider component
  */
-const MenuDivider = ({ isLight }) => (
+const _MenuDivider = ({ isLight }) => (
   <div className={`h-px ${isLight ? 'bg-gray-200' : 'bg-zinc-700'} my-1`} />
 );
 
@@ -882,7 +881,7 @@ export const PostMenu = ({
   onPostDeleted,
   onIWasThere,
   isFollowingAuthor = false,
-  onFollow,
+  _onFollow,
   onUnfollow
 }) => {
   const { user } = useAuth();

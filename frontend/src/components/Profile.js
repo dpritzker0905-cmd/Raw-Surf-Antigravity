@@ -4,9 +4,9 @@ import { usePersona, getExpandedRoleInfo } from '../contexts/PersonaContext';
 import { useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
 import { 
-  Camera, Settings, LogOut, DollarSign, MapPin, Edit2, Flame, 
+  Camera, Settings, DollarSign, MapPin, Flame, 
   Grid3X3, Bookmark, UserSquare2, Play, Waves, ExternalLink,
-  Instagram, Globe, Check, Loader2, X, ChevronDown, UserPlus, UserMinus, ArrowLeft, Heart, Award,
+  Instagram, Globe, Check, Loader2, UserPlus, UserMinus, ArrowLeft, Heart, Award,
   Zap, CalendarClock, Clock, Calculator, Users, Radio, Image, Shield, Trophy, Pin, MoreHorizontal, Ban, Flag, AlertTriangle
 } from 'lucide-react';
 
@@ -36,10 +36,9 @@ import { Badge } from './ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from './ui/dialog';
 import { Input } from './ui/input';
 import { Textarea } from './ui/textarea';
-import { Label } from './ui/label';
 import { toast } from 'sonner';
 import { TaggedPhotoModal } from './TaggedPhotoModal';
-import { XPDisplay, BadgeRow, ProfileBadgeSection } from './GamificationUI';
+import { XPDisplay, BadgeRow } from './GamificationUI';
 import { NumericStepper } from './ui/numeric-stepper';
 import GoLiveModal from './GoLiveModal';
 import { StokedTab } from './StokedTab';
@@ -65,7 +64,7 @@ const ProfileRoleBadge = ({ role }) => {
 
 export const Profile = () => {
   const { user, logout, updateUser, loading: authLoading } = useAuth();
-  const { getEffectiveRole, isMasked } = usePersona();
+  const { getEffectiveRole, _isMasked } = usePersona();
   const navigate = useNavigate();
   const { userId } = useParams(); // Get userId from URL if viewing someone else's profile
   
@@ -130,7 +129,7 @@ export const Profile = () => {
 
   // ============ NOTES STATE (Instagram-style) ============
   const [userNote, setUserNote] = useState(null);
-  const [isMutualFollower, setIsMutualFollower] = useState(false);
+  const [_isMutualFollower, setIsMutualFollower] = useState(false);
   const [showNoteModal, setShowNoteModal] = useState(false);
   const [noteText, setNoteText] = useState('');
   const [noteSubmitting, setNoteSubmitting] = useState(false);
@@ -545,7 +544,7 @@ export const Profile = () => {
     }
   };
 
-  const handleLogout = () => {
+  const _handleLogout = () => {
     logout();
     navigate('/auth');
     toast.success('Logged out successfully');
@@ -1913,7 +1912,7 @@ export const Profile = () => {
           travel_surcharges: profile?.travel_surcharges,
           charges_travel_fees: profile?.charges_travel_fees
         }}
-        onSuccess={(result) => {
+        onSuccess={(_result) => {
           setShowScheduledBookingDrawer(false);
           toast.success('Booking submitted successfully!');
         }}

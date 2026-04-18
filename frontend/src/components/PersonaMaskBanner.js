@@ -1,7 +1,7 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { usePersona, ALL_PERSONAS, getExpandedRoleInfo } from '../contexts/PersonaContext';
 import { useAuth } from '../contexts/AuthContext';
-import { X, Eye, ChevronDown, ChevronUp, Check, Minimize2, Maximize2 } from 'lucide-react';
+import { X, Eye, ChevronDown, Check, Minimize2 } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from './ui/sheet';
 
 /**
@@ -16,7 +16,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from './ui
 const PersonaMaskBanner = () => {
   const { user, loading: authLoading } = useAuth();
   const { 
-    isMasked, 
+    _isMasked, 
     activePersona, 
     setPersona, 
     exitPersonaMode,

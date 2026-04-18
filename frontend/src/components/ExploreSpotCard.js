@@ -5,8 +5,8 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
-  Waves, MapPin, Camera, Users, ChevronRight, ChevronDown, ChevronUp, 
-  Navigation, Clock, Compass, Crown, Lock, Radio, Star, ArrowUp, ArrowDown
+  Waves, MapPin, Camera, Users, ChevronDown, ChevronUp, 
+  Navigation, Clock, Compass, Crown, Lock, Radio, Star
 } from 'lucide-react';
 import { Badge } from './ui/badge';
 import { Avatar, AvatarImage, AvatarFallback } from './ui/avatar';

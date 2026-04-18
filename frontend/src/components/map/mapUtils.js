@@ -82,6 +82,13 @@ export const TILE_LAYER_CONFIG = {
 
 /**
  * Default map options
+ * 
+ * ANDROID FOLDABLE FIX (Galaxy Z Fold 7 et al.):
+ * - tap: false  — Leaflet's tap handler uses incorrect coordinate offsets on Android
+ *   when the visual viewport sits at a Y offset from the layout viewport (common on
+ *   foldables due to status/nav bar chrome). This causes pinch-zoom to drift south.
+ * - touchZoom is left as true but the drift correction happens via the
+ *   visualViewport resize listener in MapPage (invalidateSize on every fold/unfold).
  */
 export const DEFAULT_MAP_OPTIONS = {
   minZoom: 2,
@@ -91,7 +98,7 @@ export const DEFAULT_MAP_OPTIONS = {
   worldCopyJump: true,
   maxBounds: [[-85, -Infinity], [85, Infinity]],
   maxBoundsViscosity: 1.0,
-  tap: true,
+  tap: false,              // FIXED: Leaflet tap conflicts with Android touch offset on foldables
   tapTolerance: 15,
   touchZoom: true,
   bounceAtZoomLimits: false

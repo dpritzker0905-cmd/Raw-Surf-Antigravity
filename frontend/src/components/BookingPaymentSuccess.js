@@ -22,7 +22,7 @@ const BookingPaymentSuccess = () => {
   const bookingId = searchParams.get('booking_id');
   
   const [status, setStatus] = useState('checking');
-  const [bookingData, setBookingData] = useState(null);
+  const [_bookingData, setBookingData] = useState(null);
   const [pollAttempts, setPollAttempts] = useState(0);
   const maxAttempts = 5;
 

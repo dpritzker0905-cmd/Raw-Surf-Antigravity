@@ -25,10 +25,9 @@ import { Badge } from './ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from './ui/dialog';
 import { Card, CardContent } from './ui/card';
 import { 
-  Check, X, Image, Video, Clock, AlertCircle, Loader2, 
-  Crown, Lock, Unlock, Eye, EyeOff, ChevronLeft, ChevronRight,
-  Sparkles, Zap, DollarSign, Camera, Play, Pause, Volume2, VolumeX,
-  ArrowUpDown, CheckCircle, Ban, Gift, CreditCard, Star, Shield
+  Check, X, Image, Video, AlertCircle, Loader2, 
+  Crown, Lock, Eye,
+  Sparkles, DollarSign, CheckCircle, Gift, CreditCard, Shield
 } from 'lucide-react';
 import { toast } from 'sonner';
 import axios from 'axios';
@@ -41,8 +40,8 @@ const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
  * Shows credits remaining, tier info, and package type
  */
 const SessionEntitlementBanner = ({ 
-  sessionInfo, 
-  isPaidAccount,
+  _sessionInfo, 
+  _isPaidAccount,
   creditsRemaining,
   isAllInclusive
 }) => {
@@ -138,7 +137,7 @@ const MatchCard = ({
   sessionCreditsRemaining,
   pricePerClip
 }) => {
-  const [isPlaying, setIsPlaying] = useState(false);
+  const [_isPlaying, _setIsPlaying] = useState(false);
   const isVideo = match.media_type === 'video';
   
   // Free account: Show blurred unless revealed (costs a reveal or is being claimed)

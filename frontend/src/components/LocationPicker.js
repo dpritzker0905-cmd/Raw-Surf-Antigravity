@@ -1,7 +1,6 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { 
   MapPin, 
-  Navigation, 
   Search, 
   X,
   Check,
@@ -13,10 +12,9 @@ import { Dialog, DialogContent, DialogTitle } from './ui/dialog';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { toast } from 'sonner';
-import axios from 'axios';
 import logger from '../utils/logger';
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
+const _API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 /**
  * LocationPicker - Allows users to manually select their location on a map
@@ -32,12 +30,12 @@ export const LocationPicker = ({
 }) => {
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
-  const markerRef = useRef(null);
+  const _markerRef = useRef(null);
   const [selectedLocation, setSelectedLocation] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [searching, setSearching] = useState(false);
-  const [mapReady, setMapReady] = useState(false);
+  const [_mapReady, setMapReady] = useState(false);
 
   // Initialize map when dialog opens
   useEffect(() => {
@@ -113,7 +111,7 @@ export const LocationPicker = ({
       }
 
       // Crosshair in center
-      const crosshairIcon = window.L.divIcon({
+      const _crosshairIcon = window.L.divIcon({
         className: 'crosshair-icon',
         html: `
           <div style="position: relative; width: 40px; height: 40px;">

@@ -9,25 +9,20 @@
  * - Real-time WebSocket updates
  * - Session status management (Open, Closed, Locked)
  */
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { 
-  Users, Camera, Lock, Unlock, UserPlus, X, Copy, Send,
-  DollarSign, Clock, MapPin, Calendar, ChevronRight,
-  AlertTriangle, Check, Loader2, Share2, MessageCircle,
-  Globe, Eye, UserCheck, Timer, Ban, Search, Mail,
-  Sparkles, RefreshCw, Zap, Waves, Anchor, Navigation,
-  UserMinus, Settings, Bell, ChevronDown, ChevronUp,
-  Pause, Play, XCircle, CheckCircle, ToggleLeft, ToggleRight,
+  Users, Camera, Lock, Unlock, UserPlus, X, Copy, Send, Clock, MapPin,
+  AlertTriangle, Loader2, MessageCircle,
+  Globe, UserCheck, Timer, Ban, Search, Mail, Settings, XCircle, CheckCircle,
   Hand, UserCircle
 } from 'lucide-react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from './ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from './ui/dialog';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Progress } from './ui/progress';
-import { Switch } from './ui/switch';
 import { toast } from 'sonner';
 import logger from '../utils/logger';
 

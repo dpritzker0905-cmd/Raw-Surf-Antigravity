@@ -4,8 +4,8 @@ import { useTheme } from '../../contexts/ThemeContext';
 import axios from 'axios';
 import {
   DollarSign, TrendingUp, Percent, Gift, Flag as FlagIcon, Bell, BarChart3,
-  Loader2, Plus, RefreshCw, Check, X, Copy, ExternalLink, Send, Calendar,
-  Users, Target, Zap, ToggleLeft, ToggleRight, ChevronRight, Eye
+  Loader2, Plus, Check, Copy, Send,
+  Users, Eye
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '../ui/card';
 import { Button } from '../ui/button';
@@ -391,7 +391,7 @@ export const AdminP2Dashboard = () => {
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-2">
-                      {funnelData.funnel?.map((stage, idx) => (
+                      {funnelData.funnel?.map((stage, _idx) => (
                         <div key={stage.stage} className="flex items-center gap-3">
                           <div className="w-32 text-xs text-gray-400">{stage.stage}</div>
                           <div className="flex-1 relative h-6 bg-zinc-800 rounded-full overflow-hidden">

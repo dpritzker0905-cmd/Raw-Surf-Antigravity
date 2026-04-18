@@ -6,10 +6,8 @@ import { usePersona } from '../contexts/PersonaContext';
 import axios from 'axios';
 import { 
   Radio, Camera, Image, Calendar, DollarSign, MapPin, 
-  ChevronRight, X, Zap, Award, Flame, ToggleLeft, ToggleRight,
-  Clock, TrendingUp, Star
+  ChevronRight, X, Zap, Award, Flame
 } from 'lucide-react';
-import { Switch } from './ui/switch';
 import { Badge } from './ui/badge';
 import { toast } from 'sonner';
 import logger from '../utils/logger';
@@ -26,7 +24,7 @@ export const PhotoToolsDrawer = ({ isOpen, onClose }) => {
   const { theme } = useTheme();
   const { getEffectiveRole } = usePersona();
   const [onDemandActive, setOnDemandActive] = useState(false);
-  const [onDemandLoading, setOnDemandLoading] = useState(false);
+  const [_onDemandLoading, setOnDemandLoading] = useState(false);
   const [stats, setStats] = useState({
     activeSessions: 0,
     todayEarnings: 0,
@@ -55,7 +53,7 @@ export const PhotoToolsDrawer = ({ isOpen, onClose }) => {
   const isHobbyist = effectiveRole === 'Hobbyist';
   
   // Check if user can use Live Sessions
-  const canUseLiveSessions = !isGromParent; // Everyone except Grom Parent
+  const _canUseLiveSessions = !isGromParent; // Everyone except Grom Parent
   
   // Check if user can use On-Demand (Photographer, Pro, Approved Pro - NOT Hobbyist/Grom Parent)
   const canUseOnDemand = ['Photographer', 'Pro', 'Approved Pro'].includes(effectiveRole);
@@ -82,7 +80,7 @@ export const PhotoToolsDrawer = ({ isOpen, onClose }) => {
     }
   }, [isOpen, user?.id, canUseOnDemand]);
   
-  const [nearbyShooters, setNearbyShooters] = useState(0);
+  const [_nearbyShooters, setNearbyShooters] = useState(0);
   
   const fetchNearbyShooters = async () => {
     try {
@@ -135,7 +133,7 @@ export const PhotoToolsDrawer = ({ isOpen, onClose }) => {
     }
   };
   
-  const toggleOnDemand = async () => {
+  const _toggleOnDemand = async () => {
     if (!canUseOnDemand) {
       toast.error('On-Demand is only available for Pro photographers');
       return;
@@ -154,7 +152,7 @@ export const PhotoToolsDrawer = ({ isOpen, onClose }) => {
     // If turning OFF, just toggle off directly
     setOnDemandLoading(true);
     try {
-      const response = await axios.post(`${API}/photographer/${user.id}/on-demand-toggle`, {
+      const _response = await axios.post(`${API}/photographer/${user.id}/on-demand-toggle`, {
         is_available: false
       });
       

@@ -633,7 +633,7 @@ const QuickActions = ({ mode, onClose, nearbyShooters }) => {
  * DutyStationDrawer - Main exported component
  */
 export const DutyStationDrawer = ({ isOpen, onClose }) => {
-  const navigate = useNavigate();
+  const _navigate = useNavigate();
   const { user } = useAuth();
   const { getEffectiveRole } = usePersona();
   
@@ -743,7 +743,7 @@ export const DutyStationDrawer = ({ isOpen, onClose }) => {
       try {
         const statsResponse = await axios.get(`${API}/photographer/${user.id}/daily-stats`);
         setStats(statsResponse.data || { todayEarnings: 0, sessionsToday: 0 });
-      } catch (e) {}
+      } catch (e) { /* daily stats are optional - don't block on failure */ }
     } catch (error) {
       logger.error('Failed to fetch statuses:', error);
     }

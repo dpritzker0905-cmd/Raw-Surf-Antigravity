@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { 
-  TrendingUp, TrendingDown, Users, DollarSign, ShoppingCart, 
+import { DollarSign, ShoppingCart, 
   Target, BarChart3, PieChart, RefreshCw, Loader2, Calendar,
-  ArrowUpRight, ArrowDownRight, Percent, Eye, MousePointer, CreditCard
+  ArrowUpRight, ArrowDownRight, Eye, MousePointer, CreditCard
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '../ui/card';
 import { Button } from '../ui/button';

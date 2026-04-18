@@ -3,9 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { 
-  Trophy, Star, TrendingUp, Award, Users, Camera, Calendar, 
-  ChevronRight, Loader2, Plus, CheckCircle, Clock, Medal,
-  Target, Sparkles, Crown, Waves, Heart, DollarSign, Lock
+  Trophy, Star, Award, 
+  ChevronRight, Loader2, Plus, CheckCircle, Clock, Medal, Sparkles, Crown, Waves, Heart
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';

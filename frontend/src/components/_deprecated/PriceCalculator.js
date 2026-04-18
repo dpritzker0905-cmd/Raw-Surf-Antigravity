@@ -1,5 +1,5 @@
 import React from 'react';
-import { Calculator, Users, Clock, DollarSign } from 'lucide-react';
+import { Calculator, Users, Clock } from 'lucide-react';
 
 /**
  * PriceCalculator - Real-time pricing math component

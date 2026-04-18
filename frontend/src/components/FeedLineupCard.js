@@ -8,7 +8,7 @@ import React, { useState } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import { 
-  Users, Clock, MapPin, Calendar, ChevronRight, 
+  Users, MapPin, Calendar, 
   Loader2, UserPlus, Waves, DollarSign, Timer,
   Crown, Camera
 } from 'lucide-react';
@@ -86,7 +86,7 @@ export const FeedLineupCard = ({
     }
   };
 
-  const handleViewLineup = () => {
+  const _handleViewLineup = () => {
     navigate('/bookings?tab=lineup');
   };
 

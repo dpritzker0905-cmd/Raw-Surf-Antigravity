@@ -1,10 +1,9 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Calendar, MapPin, Users, Share2, AlertTriangle, Settings, ChevronRight, MoreHorizontal } from 'lucide-react';
+import { Calendar, MapPin, Users, Share2, AlertTriangle, ChevronRight, MoreHorizontal } from 'lucide-react';
 import { Card, CardContent } from './ui/card';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
-import { CrewPaymentCard } from './CrewPaymentCard';
 import { CrewPaymentDashboard } from './CrewPaymentDashboard';
 import { SessionActionDrawer } from './SessionActionDrawer';
 import CrewHub from './CrewHub';

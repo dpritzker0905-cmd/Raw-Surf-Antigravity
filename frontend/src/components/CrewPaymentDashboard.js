@@ -4,8 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { 
   Users, DollarSign, Clock, CheckCircle2, AlertTriangle, 
-  Send, Calculator, Loader2, ChevronDown, ChevronUp,
-  Mail, MessageCircle
+  Send, Calculator, Loader2, ChevronDown, ChevronUp
 } from 'lucide-react';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';

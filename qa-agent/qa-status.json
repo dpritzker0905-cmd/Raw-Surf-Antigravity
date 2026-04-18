@@ -1,0 +1,1463 @@
+﻿{
+    "changedFile":  "",
+    "targetBackend":  "https://raw-surf-antigravity.onrender.com",
+    "activeEnv":  "dev",
+    "overallStatus":  "FAIL",
+    "lastRun":  "2026-04-17T23:05:21",
+    "targetBranch":  "dev",
+    "targetFrontend":  "https://dev--rawsurf.netlify.app",
+    "history":  [
+                    {
+                        "activeEnv":  "dev",
+                        "timestamp":  "2026-04-17T23:05:21",
+                        "overallStatus":  "FAIL",
+                        "targetFrontend":  "https://dev--rawsurf.netlify.app",
+                        "changedFile":  ""
+                    }
+                ],
+    "status":  "IDLE",
+    "checks":  [
+                   {
+                       "tool":  "ESLint",
+                       "errors":  [
+                                      {
+                                          "message":  "React Hook useEffect has a missing dependency: \u0027fetchData\u0027. Either include it or remove the dependency array.",
+                                          "column":  6,
+                                          "line":  48,
+                                          "severity":  "warning",
+                                          "rule":  "react-hooks/exhaustive-deps",
+                                          "file":  "\\src\\components\\AdminDashboard.js"
+                                      },
+                                      {
+                                          "message":  "React Hook useEffect has missing dependencies: \u0027fetchLiveStatus\u0027, \u0027fetchNearbyShooters\u0027, and \u0027fetchOnDemandStatus\u0027. Either include them or remove the dependency array.",
+                                          "column":  6,
+                                          "line":  362,
+                                          "severity":  "warning",
+                                          "rule":  "react-hooks/exhaustive-deps",
+                                          "file":  "\\src\\components\\BlueLiveIcon.js"
+                                      },
+                                      {
+                                          "message":  "React Hook useEffect has a missing dependency: \u0027activeTab\u0027. Either include it or remove the dependency array.",
+                                          "column":  6,
+                                          "line":  372,
+                                          "severity":  "warning",
+                                          "rule":  "react-hooks/exhaustive-deps",
+                                          "file":  "\\src\\components\\Bookings.js"
+                                      },
+                                      {
+                                          "message":  "React Hook useEffect has a missing dependency: \u0027fetchData\u0027. Either include it or remove the dependency array.",
+                                          "column":  6,
+                                          "line":  378,
+                                          "severity":  "warning",
+                                          "rule":  "react-hooks/exhaustive-deps",
+                                          "file":  "\\src\\components\\Bookings.js"
+                                      },
+                                      {
+                                          "message":  "React Hook useEffect has a missing dependency: \u0027stopCamera\u0027. Either include it or remove the dependency array.",
+                                          "column":  6,
+                                          "line":  50,
+                                          "severity":  "warning",
+                                          "rule":  "react-hooks/exhaustive-deps",
+                                          "file":  "\\src\\components\\ConditionsModal.js"
+                                      },
+                                      {
+                                          "message":  "React Hook useEffect has a missing dependency: \u0027stopCamera\u0027. Either include it or remove the dependency array.",
+                                          "column":  6,
+                                          "line":  63,
+                                          "severity":  "warning",
+                                          "rule":  "react-hooks/exhaustive-deps",
+                                          "file":  "\\src\\components\\ConditionsModal.js"
+                                      },
+                                      {
+                                          "message":  "React Hook useEffect has missing dependencies: \u0027fetchWalletData\u0027, \u0027searchParams\u0027, and \u0027verifyPayment\u0027. Either include them or remove the dependency array.",
+                                          "column":  6,
+                                          "line":  53,
+                                          "severity":  "warning",
+                                          "rule":  "react-hooks/exhaustive-deps",
+                                          "file":  "\\src\\components\\CreditWallet.js"
+                                      },
+                                      {
+                                          "message":  "React Hook useEffect has a missing dependency: \u0027checkPaymentStatus\u0027. Either include it or remove the dependency array.",
+                                          "column":  6,
+                                          "line":  50,
+                                          "severity":  "warning",
+                                          "rule":  "react-hooks/exhaustive-deps",
+                                          "file":  "\\src\\components\\Credits.js"
+                                      },
+                                      {
+                                          "message":  "React Hook useEffect has a missing dependency: \u0027fetchCrewStatus\u0027. Either include it or remove the dependency array.",
+                                          "column":  6,
+                                          "line":  118,
+                                          "severity":  "warning",
+                                          "rule":  "react-hooks/exhaustive-deps",
+                                          "file":  "\\src\\components\\CrewHub.js"
+                                      },
+                                      {
+                                          "message":  "React Hook useEffect has a missing dependency: \u0027fetchData\u0027. Either include it or remove the dependency array.",
+                                          "column":  6,
+                                          "line":  243,
+                                          "severity":  "warning",
+                                          "rule":  "react-hooks/exhaustive-deps",
+                                          "file":  "\\src\\components\\CrewLeaderboard.js"
+                                      },
+                                      {
+                                          "message":  "React Hook useEffect has a missing dependency: \u0027fetchCrewStatus\u0027. Either include it or remove the dependency array.",
+                                          "column":  6,
+                                          "line":  57,
+                                          "severity":  "warning",
+                                          "rule":  "react-hooks/exhaustive-deps",
+                                          "file":  "\\src\\components\\CrewPaymentDashboard.js"
+                                      },
+                                      {
+                                          "message":  "React Hook useEffect has missing dependencies: \u0027fetchNearbyShooters\u0027 and \u0027fetchStatuses\u0027. Either include them or remove the dependency array.",
+                                          "column":  6,
+                                          "line":  701,
+                                          "severity":  "warning",
+                                          "rule":  "react-hooks/exhaustive-deps",
+                                          "file":  "\\src\\components\\DutyStationDrawer.js"
+                                      },
+                                      {
+                                          "message":  "React Hook useEffect has a missing dependency: \u0027fetchAvailableSpots\u0027. Either include it or remove the dependency array.",
+                                          "column":  6,
+                                          "line":  708,
+                                          "severity":  "warning",
+                                          "rule":  "react-hooks/exhaustive-deps",
+                                          "file":  "\\src\\components\\DutyStationDrawer.js"
+                                      },
+                                      {
+                                          "message":  "React Hook useEffect has a missing dependency: \u0027fetchActiveStatus\u0027. Either include it or remove the dependency array.",
+                                          "column":  6,
+                                          "line":  1157,
+                                          "severity":  "warning",
+                                          "rule":  "react-hooks/exhaustive-deps",
+                                          "file":  "\\src\\components\\DutyStationDrawer.js"
+                                      },
+                                      {
+                                          "message":  "React Hook useEffect has missing dependencies: \u0027fetchEarnings\u0027, \u0027fetchEarningsHistory\u0027, and \u0027fetchWalletBalance\u0027. Either include them or remove the dependency array.",
+                                          "column":  6,
+                                          "line":  469,
+                                          "severity":  "warning",
+                                          "rule":  "react-hooks/exhaustive-deps",
+                                          "file":  "\\src\\components\\EarningsDashboard.js"
+                                      },
+                                      {
+                                          "message":  "React Hook useEffect has a missing dependency: \u0027fetchTrending\u0027. Either include it or remove the dependency array.",
+                                          "column":  6,
+                                          "line":  176,
+                                          "severity":  "warning",
+                                          "rule":  "react-hooks/exhaustive-deps",
+                                          "file":  "\\src\\components\\Explore.js"
+                                      },
+                                      {
+                                          "message":  "React Hook useEffect has missing dependencies: \u0027fetchConditionReports\u0027 and \u0027fetchSurfSpots\u0027. Either include them or remove the dependency array.",
+                                          "column":  6,
+                                          "line":  198,
+                                          "severity":  "warning",
+                                          "rule":  "react-hooks/exhaustive-deps",
+                                          "file":  "\\src\\components\\Explore.js"
+                                      },
+                                      {
+                                          "message":  "React Hook useEffect has a missing dependency: \u0027performSearch\u0027. Either include it or remove the dependency array.",
+                                          "column":  6,
+                                          "line":  265,
+                                          "severity":  "warning",
+                                          "rule":  "react-hooks/exhaustive-deps",
+                                          "file":  "\\src\\components\\Explore.js"
+                                      },
+                                      {
+                                          "message":  "React Hook useEffect has missing dependencies: \u0027fetchFeedLineups\u0027, \u0027fetchFollowing\u0027, \u0027fetchPosts\u0027, \u0027fetchStreak\u0027, and \u0027fetchUpcomingSessions\u0027. Either include them or remove the dependency array.",
+                                          "column":  6,
+                                          "line":  288,
+                                          "severity":  "warning",
+                                          "rule":  "react-hooks/exhaustive-deps",
+                                          "file":  "\\src\\components\\Feed.js"
+                                      },
+                                      {
+                                          "message":  "React Hook useEffect has missing dependencies: \u0027fetchGalleries\u0027, \u0027fetchGallery\u0027, \u0027fetchGromHighlights\u0027, \u0027fetchLinkedGroms\u0027, \u0027isGromParent\u0027, and \u0027isPhotographer\u0027. Either include them or remove the dependency array.",
+                                          "column":  6,
+                                          "line":  148,
+                                          "severity":  "warning",
+                                          "rule":  "react-hooks/exhaustive-deps",
+                                          "file":  "\\src\\components\\GalleryPage.js"
+                                      },
+                                      {
+                                          "message":  "React Hook useEffect has missing dependencies: \u0027user.business_name\u0027 and \u0027user.full_name\u0027. Either include them or remove the dependency array.",
+                                          "column":  6,
+                                          "line":  186,
+                                          "severity":  "warning",
+                                          "rule":  "react-hooks/exhaustive-deps",
+                                          "file":  "\\src\\components\\GalleryPage.js"
+                                      },
+                                      {
+                                          "message":  "React Hook useEffect has missing dependencies: \u0027fetchGearCatalog\u0027 and \u0027fetchUserProgress\u0027. Either include them or remove the dependency array.",
+                                          "column":  6,
+                                          "line":  54,
+                                          "severity":  "warning",
+                                          "rule":  "react-hooks/exhaustive-deps",
+                                          "file":  "\\src\\components\\GearHub.js"
+                                      },
+                                      {
+                                          "message":  "React Hook useEffect has missing dependencies: \u0027broadcasterToken\u0027, \u0027isLoading\u0027, \u0027startStream\u0027, and \u0027user.id\u0027. Either include them or remove the dependency array.",
+                                          "column":  6,
+                                          "line":  1197,
+                                          "severity":  "warning",
+                                          "rule":  "react-hooks/exhaustive-deps",
+                                          "file":  "\\src\\components\\GoLiveModal.js"
+                                      },
+                                      {
+                                          "message":  "React Hook useEffect has missing dependencies: \u0027checkAgeVerification\u0027, \u0027fetchActivityFeed\u0027, \u0027fetchGromData\u0027, and \u0027fetchSpendingAlerts\u0027. Either include them or remove the dependency array.",
+                                          "column":  6,
+                                          "line":  79,
+                                          "severity":  "warning",
+                                          "rule":  "react-hooks/exhaustive-deps",
+                                          "file":  "\\src\\components\\GromHQ.js"
+                                      },
+                                      {
+                                          "message":  "React Hook useEffect has a missing dependency: \u0027fetchData\u0027. Either include it or remove the dependency array.",
+                                          "column":  6,
+                                          "line":  55,
+                                          "severity":  "warning",
+                                          "rule":  "react-hooks/exhaustive-deps",
+                                          "file":  "\\src\\components\\GromManage.js"
+                                      },
+                                      {
+                                          "message":  "React Hook useEffect has a missing dependency: \u0027checkGromStatus\u0027. Either include it or remove the dependency array.",
+                                          "column":  6,
+                                          "line":  51,
+                                          "severity":  "warning",
+                                          "rule":  "react-hooks/exhaustive-deps",
+                                          "file":  "\\src\\components\\GromSafetyGate.js"
+                                      },
+                                      {
+                                          "message":  "React Hook useEffect has a missing dependency: \u0027fetchControls\u0027. Either include it or remove the dependency array.",
+                                          "column":  6,
+                                          "line":  271,
+                                          "severity":  "warning",
+                                          "rule":  "react-hooks/exhaustive-deps",
+                                          "file":  "\\src\\components\\GromSafetyGate.js"
+                                      },
+                                      {
+                                          "message":  "React Hook useEffect has a missing dependency: \u0027fetchDashboard\u0027. Either include it or remove the dependency array.",
+                                          "column":  6,
+                                          "line":  59,
+                                          "severity":  "warning",
+                                          "rule":  "react-hooks/exhaustive-deps",
+                                          "file":  "\\src\\components\\ImpactDashboard.js"
+                                      },
+                                      {
+                                          "message":  "React Hook useEffect has a missing dependency: \u0027fetchCompetitionData\u0027. Either include it or remove the dependency array.",
+                                          "column":  6,
+                                          "line":  47,
+                                          "severity":  "warning",
+                                          "rule":  "react-hooks/exhaustive-deps",
+                                          "file":  "\\src\\components\\ImpactZoneHub.js"
+                                      },
+                                      {
+                                          "message":  "React Hook useCallback has a missing dependency: \u0027setFilter\u0027. Either include it or remove the dependency array.",
+                                          "column":  6,
+                                          "line":  296,
+                                          "severity":  "warning",
+                                          "rule":  "react-hooks/exhaustive-deps",
+                                          "file":  "\\src\\components\\MapPage.js"
+                                      },
+                                      {
+                                          "message":  "React Hook useEffect has missing dependencies: \u0027activeDispatch\u0027 and \u0027updateTrackingMarkers\u0027. Either include them or remove the dependency array.",
+                                          "column":  6,
+                                          "line":  466,
+                                          "severity":  "warning",
+                                          "rule":  "react-hooks/exhaustive-deps",
+                                          "file":  "\\src\\components\\MapPage.js"
+                                      },
+                                      {
+                                          "message":  "React Hook useEffect has missing dependencies: \u0027fetchLivePhotographers\u0027 and \u0027setPulsingMarkers\u0027. Either include them or remove the dependency array.",
+                                          "column":  6,
+                                          "line":  602,
+                                          "severity":  "warning",
+                                          "rule":  "react-hooks/exhaustive-deps",
+                                          "file":  "\\src\\components\\MapPage.js"
+                                      },
+                                      {
+                                          "message":  "React Hook useEffect has a missing dependency: \u0027initMap\u0027. Either include it or remove the dependency array.",
+                                          "column":  6,
+                                          "line":  613,
+                                          "severity":  "warning",
+                                          "rule":  "react-hooks/exhaustive-deps",
+                                          "file":  "\\src\\components\\MapPage.js"
+                                      },
+                                      {
+                                          "message":  "React Hook useEffect has a missing dependency: \u0027updateMapMarkers\u0027. Either include it or remove the dependency array.",
+                                          "column":  6,
+                                          "line":  696,
+                                          "severity":  "warning",
+                                          "rule":  "react-hooks/exhaustive-deps",
+                                          "file":  "\\src\\components\\MapPage.js"
+                                      },
+                                      {
+                                          "message":  "React Hook useEffect has a missing dependency: \u0027updateUserLocationMarker\u0027. Either include it or remove the dependency array.",
+                                          "column":  6,
+                                          "line":  703,
+                                          "severity":  "warning",
+                                          "rule":  "react-hooks/exhaustive-deps",
+                                          "file":  "\\src\\components\\MapPage.js"
+                                      },
+                                      {
+                                          "message":  "React Hook useEffect has a missing dependency: \u0027setSelectedSpot\u0027. Either include it or remove the dependency array.",
+                                          "column":  6,
+                                          "line":  713,
+                                          "severity":  "warning",
+                                          "rule":  "react-hooks/exhaustive-deps",
+                                          "file":  "\\src\\components\\MapPage.js"
+                                      },
+                                      {
+                                          "message":  "React Hook useEffect has a missing dependency: \u0027setShowIpBanner\u0027. Either include it or remove the dependency array.",
+                                          "column":  6,
+                                          "line":  732,
+                                          "severity":  "warning",
+                                          "rule":  "react-hooks/exhaustive-deps",
+                                          "file":  "\\src\\components\\MapPage.js"
+                                      },
+                                      {
+                                          "message":  "React Hook useEffect has a missing dependency: \u0027friendMarkersRef\u0027. Either include it or remove the dependency array.",
+                                          "column":  6,
+                                          "line":  784,
+                                          "severity":  "warning",
+                                          "rule":  "react-hooks/exhaustive-deps",
+                                          "file":  "\\src\\components\\MapPage.js"
+                                      },
+                                      {
+                                          "message":  "React Hook useCallback has missing dependencies: \u0027setBottomSheetOpen\u0027 and \u0027setUnifiedDrawerOpen\u0027. Either include them or remove the dependency array.",
+                                          "column":  6,
+                                          "line":  1574,
+                                          "severity":  "warning",
+                                          "rule":  "react-hooks/exhaustive-deps",
+                                          "file":  "\\src\\components\\MapPage.js"
+                                      },
+                                      {
+                                          "message":  "React Hook useEffect has a missing dependency: \u0027trendingGifs.length\u0027. Either include it or remove the dependency array.",
+                                          "column":  6,
+                                          "line":  181,
+                                          "severity":  "warning",
+                                          "rule":  "react-hooks/exhaustive-deps",
+                                          "file":  "\\src\\components\\MessagesPage.js"
+                                      },
+                                      {
+                                          "message":  "React Hook useEffect has a missing dependency: \u0027fetchSuggestedUsers\u0027. Either include it or remove the dependency array.",
+                                          "column":  6,
+                                          "line":  439,
+                                          "severity":  "warning",
+                                          "rule":  "react-hooks/exhaustive-deps",
+                                          "file":  "\\src\\components\\MessagesPage.js"
+                                      },
+                                      {
+                                          "message":  "React Hook useEffect has a missing dependency: \u0027searchUsers\u0027. Either include it or remove the dependency array.",
+                                          "column":  6,
+                                          "line":  448,
+                                          "severity":  "warning",
+                                          "rule":  "react-hooks/exhaustive-deps",
+                                          "file":  "\\src\\components\\MessagesPage.js"
+                                      },
+                                      {
+                                          "message":  "React Hook useEffect has a missing dependency: \u0027loadConversationById\u0027. Either include it or remove the dependency array.",
+                                          "column":  6,
+                                          "line":  1365,
+                                          "severity":  "warning",
+                                          "rule":  "react-hooks/exhaustive-deps",
+                                          "file":  "\\src\\components\\MessagesPage.js"
+                                      },
+                                      {
+                                          "message":  "React Hook useEffect has a missing dependency: \u0027startNewConversation\u0027. Either include it or remove the dependency array.",
+                                          "column":  6,
+                                          "line":  1391,
+                                          "severity":  "warning",
+                                          "rule":  "react-hooks/exhaustive-deps",
+                                          "file":  "\\src\\components\\MessagesPage.js"
+                                      },
+                                      {
+                                          "message":  "React Hook useEffect has missing dependencies: \u0027activeFolder\u0027, \u0027fetchConversations\u0027, \u0027isMasked\u0027, \u0027user?.id\u0027, \u0027user?.is_admin\u0027, \u0027user?.is_grom_parent\u0027, and \u0027user?.role\u0027. Either include them or remove the dependency array.",
+                                          "column":  6,
+                                          "line":  1408,
+                                          "severity":  "warning",
+                                          "rule":  "react-hooks/exhaustive-deps",
+                                          "file":  "\\src\\components\\MessagesPage.js"
+                                      },
+                                      {
+                                          "message":  "React Hook useEffect has missing dependencies: \u0027fetchConversations\u0027 and \u0027fetchStories\u0027. Either include them or remove the dependency array.",
+                                          "column":  6,
+                                          "line":  1416,
+                                          "severity":  "warning",
+                                          "rule":  "react-hooks/exhaustive-deps",
+                                          "file":  "\\src\\components\\MessagesPage.js"
+                                      },
+                                      {
+                                          "message":  "React Hook useEffect has a missing dependency: \u0027fetchConversationDetail\u0027. Either include it or remove the dependency array.",
+                                          "column":  6,
+                                          "line":  1423,
+                                          "severity":  "warning",
+                                          "rule":  "react-hooks/exhaustive-deps",
+                                          "file":  "\\src\\components\\MessagesPage.js"
+                                      },
+                                      {
+                                          "message":  "React Hook useEffect has missing dependencies: \u0027fetchConversationDetail\u0027, \u0027fetchConversations\u0027, and \u0027selectedConversation\u0027. Either include them or remove the dependency array.",
+                                          "column":  6,
+                                          "line":  1462,
+                                          "severity":  "warning",
+                                          "rule":  "react-hooks/exhaustive-deps",
+                                          "file":  "\\src\\components\\MessagesPage.js"
+                                      },
+                                      {
+                                          "message":  "React Hook useEffect has a missing dependency: \u0027selectedConversation.is_new_chat\u0027. Either include it or remove the dependency array.",
+                                          "column":  6,
+                                          "line":  1478,
+                                          "severity":  "warning",
+                                          "rule":  "react-hooks/exhaustive-deps",
+                                          "file":  "\\src\\components\\MessagesPage.js"
+                                      },
+                                      {
+                                          "message":  "React Hook useEffect has a missing dependency: \u0027fetchCrewChats\u0027. Either include it or remove the dependency array.",
+                                          "column":  6,
+                                          "line":  1770,
+                                          "severity":  "warning",
+                                          "rule":  "react-hooks/exhaustive-deps",
+                                          "file":  "\\src\\components\\MessagesPage.js"
+                                      },
+                                      {
+                                          "message":  "React Hook useEffect has a missing dependency: \u0027fetchNotifications\u0027. Either include it or remove the dependency array.",
+                                          "column":  6,
+                                          "line":  117,
+                                          "severity":  "warning",
+                                          "rule":  "react-hooks/exhaustive-deps",
+                                          "file":  "\\src\\components\\NotificationsDrawer.js"
+                                      },
+                                      {
+                                          "message":  "React Hook useEffect has a missing dependency: \u0027fetchNotifications\u0027. Either include it or remove the dependency array.",
+                                          "column":  6,
+                                          "line":  323,
+                                          "severity":  "warning",
+                                          "rule":  "react-hooks/exhaustive-deps",
+                                          "file":  "\\src\\components\\NotificationsPage.js"
+                                      },
+                                      {
+                                          "message":  "React Hook useEffect has missing dependencies: \u0027fetchLiveStatus\u0027, \u0027fetchNearbyShooters\u0027, and \u0027fetchOnDemandStatus\u0027. Either include them or remove the dependency array.",
+                                          "column":  6,
+                                          "line":  362,
+                                          "severity":  "warning",
+                                          "rule":  "react-hooks/exhaustive-deps",
+                                          "file":  "\\src\\components\\OnDemandDutyIcon.js"
+                                      },
+                                      {
+                                          "message":  "React Hook useEffect has missing dependencies: \u0027updateUser\u0027 and \u0027user?.credit_balance\u0027. Either include them or remove the dependency array.",
+                                          "column":  6,
+                                          "line":  560,
+                                          "severity":  "warning",
+                                          "rule":  "react-hooks/exhaustive-deps",
+                                          "file":  "\\src\\components\\OnDemandRequestDrawer.js"
+                                      },
+                                      {
+                                          "message":  "React Hook useEffect has missing dependencies: \u0027fetchOnDemandStatus\u0027, \u0027fetchSessionHistory\u0027, \u0027fetchSettings\u0027, \u0027fetchStats\u0027, and \u0027requestLocation\u0027. Either include them or remove the dependency array.",
+                                          "column":  6,
+                                          "line":  890,
+                                          "severity":  "warning",
+                                          "rule":  "react-hooks/exhaustive-deps",
+                                          "file":  "\\src\\components\\OnDemandSessionManager.js"
+                                      },
+                                      {
+                                          "message":  "React Hook useEffect has missing dependencies: \u0027fetchActiveSession\u0027 and \u0027fetchIncomingRequests\u0027. Either include them or remove the dependency array.",
+                                          "column":  6,
+                                          "line":  915,
+                                          "severity":  "warning",
+                                          "rule":  "react-hooks/exhaustive-deps",
+                                          "file":  "\\src\\components\\OnDemandSessionManager.js"
+                                      },
+                                      {
+                                          "message":  "React Hook useEffect has a missing dependency: \u0027soundEnabled\u0027. Either include it or remove the dependency array.",
+                                          "column":  6,
+                                          "line":  922,
+                                          "severity":  "warning",
+                                          "rule":  "react-hooks/exhaustive-deps",
+                                          "file":  "\\src\\components\\OnDemandSessionManager.js"
+                                      },
+                                      {
+                                          "message":  "React Hook useEffect has missing dependencies: \u0027fetchSettings\u0027 and \u0027requestLocation\u0027. Either include them or remove the dependency array.",
+                                          "column":  6,
+                                          "line":  96,
+                                          "severity":  "warning",
+                                          "rule":  "react-hooks/exhaustive-deps",
+                                          "file":  "\\src\\components\\OnDemandSettingsPage.js"
+                                      },
+                                      {
+                                          "message":  "React Hook useCallback has a missing dependency: \u0027fetchQuotaItems\u0027. Either include it or remove the dependency array.",
+                                          "column":  6,
+                                          "line":  124,
+                                          "severity":  "warning",
+                                          "rule":  "react-hooks/exhaustive-deps",
+                                          "file":  "\\src\\components\\PhotoSelectionQueue.js"
+                                      },
+                                      {
+                                          "message":  "React Hook useEffect has missing dependencies: \u0027fetchNearbyShooters\u0027, \u0027fetchOnDemandStatus\u0027, and \u0027fetchStats\u0027. Either include them or remove the dependency array.",
+                                          "column":  6,
+                                          "line":  81,
+                                          "severity":  "warning",
+                                          "rule":  "react-hooks/exhaustive-deps",
+                                          "file":  "\\src\\components\\PhotoToolsDrawer.js"
+                                      },
+                                      {
+                                          "message":  "React Hook useEffect has missing dependencies: \u0027fetchAvailability\u0027 and \u0027fetchSubscriptions\u0027. Either include them or remove the dependency array.",
+                                          "column":  6,
+                                          "line":  234,
+                                          "severity":  "warning",
+                                          "rule":  "react-hooks/exhaustive-deps",
+                                          "file":  "\\src\\components\\PhotographerAvailability.js"
+                                      },
+                                      {
+                                          "message":  "React Hook useMemo has a missing dependency: \u0027today\u0027. Either include it or remove the dependency array.",
+                                          "column":  6,
+                                          "line":  353,
+                                          "severity":  "warning",
+                                          "rule":  "react-hooks/exhaustive-deps",
+                                          "file":  "\\src\\components\\PhotographerAvailabilityCalendar.js"
+                                      },
+                                      {
+                                          "message":  "React Hook useEffect has missing dependencies: \u0027fetchAvailability\u0027, \u0027fetchBookingPricing\u0027, and \u0027fetchBookings\u0027. Either include them or remove the dependency array.",
+                                          "column":  6,
+                                          "line":  340,
+                                          "severity":  "warning",
+                                          "rule":  "react-hooks/exhaustive-deps",
+                                          "file":  "\\src\\components\\PhotographerBookingsManager.js"
+                                      },
+                                      {
+                                          "message":  "React Hook useEffect has a missing dependency: \u0027fetchBookedSlots\u0027. Either include it or remove the dependency array.",
+                                          "column":  6,
+                                          "line":  347,
+                                          "severity":  "warning",
+                                          "rule":  "react-hooks/exhaustive-deps",
+                                          "file":  "\\src\\components\\PhotographerBookingsManager.js"
+                                      },
+                                      {
+                                          "message":  "React Hook useEffect has a missing dependency: \u0027fetchPhotographers\u0027. Either include it or remove the dependency array.",
+                                          "column":  6,
+                                          "line":  302,
+                                          "severity":  "warning",
+                                          "rule":  "react-hooks/exhaustive-deps",
+                                          "file":  "\\src\\components\\PhotographerDirectory.js"
+                                      },
+                                      {
+                                          "message":  "React Hook useEffect has a missing dependency: \u0027fetchGallery\u0027. Either include it or remove the dependency array.",
+                                          "column":  6,
+                                          "line":  103,
+                                          "severity":  "warning",
+                                          "rule":  "react-hooks/exhaustive-deps",
+                                          "file":  "\\src\\components\\PhotographerGalleryManager.js"
+                                      },
+                                      {
+                                          "message":  "React Hook useEffect has a missing dependency: \u0027booking\u0027. Either include it or remove the dependency array.",
+                                          "column":  6,
+                                          "line":  575,
+                                          "severity":  "warning",
+                                          "rule":  "react-hooks/exhaustive-deps",
+                                          "file":  "\\src\\components\\PhotographerSessionManager.js"
+                                      },
+                                      {
+                                          "message":  "React Hook useEffect has a missing dependency: \u0027booking.participants\u0027. Either include it or remove the dependency array. If \u0027setParticipants\u0027 needs the current value of \u0027booking.participants\u0027, you can also switch to useReducer instead of useState and read \u0027booking.participants\u0027 in the reducer.",
+                                          "column":  6,
+                                          "line":  598,
+                                          "severity":  "warning",
+                                          "rule":  "react-hooks/exhaustive-deps",
+                                          "file":  "\\src\\components\\PhotographerSessionManager.js"
+                                      },
+                                      {
+                                          "message":  "React Hook useEffect has missing dependencies: \u0027fetchGalleries\u0027, \u0027fetchSessionData\u0027, and \u0027isHobbyist\u0027. Either include them or remove the dependency array.",
+                                          "column":  6,
+                                          "line":  367,
+                                          "severity":  "warning",
+                                          "rule":  "react-hooks/exhaustive-deps",
+                                          "file":  "\\src\\components\\PhotographerSessionsManager.js"
+                                      },
+                                      {
+                                          "message":  "React Hook useEffect has a missing dependency: \u0027refreshSession\u0027. Either include it or remove the dependency array.",
+                                          "column":  6,
+                                          "line":  907,
+                                          "severity":  "warning",
+                                          "rule":  "react-hooks/exhaustive-deps",
+                                          "file":  "\\src\\components\\PhotographerSessionsManager.js"
+                                      },
+                                      {
+                                          "message":  "React Hook useEffect has a missing dependency: \u0027API\u0027. Either include it or remove the dependency array.",
+                                          "column":  6,
+                                          "line":  565,
+                                          "severity":  "warning",
+                                          "rule":  "react-hooks/exhaustive-deps",
+                                          "file":  "\\src\\components\\PostMenu.js"
+                                      },
+                                      {
+                                          "message":  "React Hook useEffect has missing dependencies: \u0027loadComments\u0027, \u0027post.is_saved_by_user\u0027, \u0027post.liked\u0027, \u0027post.likes_count\u0027, \u0027post.reactions\u0027, \u0027post.saved\u0027, and \u0027user?.id\u0027. Either include them or remove the dependency array. If \u0027setLiked\u0027 needs the current value of \u0027post.liked\u0027, you can also switch to useReducer instead of useState and read \u0027post.liked\u0027 in the reducer.",
+                                          "column":  6,
+                                          "line":  235,
+                                          "severity":  "warning",
+                                          "rule":  "react-hooks/exhaustive-deps",
+                                          "file":  "\\src\\components\\PostModal.js"
+                                      },
+                                      {
+                                          "message":  "React Hook useEffect has missing dependencies: \u0027checkBlockStatus\u0027, \u0027checkFollowStatus\u0027, \u0027fetchContentStats\u0027, \u0027fetchGamificationStats\u0027, \u0027fetchImpactScore\u0027, \u0027fetchProfile\u0027, \u0027fetchSocialStats\u0027, \u0027fetchStreak\u0027, and \u0027fetchUserNote\u0027. Either include them or remove the dependency array.",
+                                          "column":  6,
+                                          "line":  170,
+                                          "severity":  "warning",
+                                          "rule":  "react-hooks/exhaustive-deps",
+                                          "file":  "\\src\\components\\Profile.js"
+                                      },
+                                      {
+                                          "message":  "React Hook useEffect has a missing dependency: \u0027fetchTabContent\u0027. Either include it or remove the dependency array.",
+                                          "column":  6,
+                                          "line":  177,
+                                          "severity":  "warning",
+                                          "rule":  "react-hooks/exhaustive-deps",
+                                          "file":  "\\src\\components\\Profile.js"
+                                      },
+                                      {
+                                          "message":  "React Hook useEffect has a missing dependency: \u0027fetchSavedCrews\u0027. Either include it or remove the dependency array.",
+                                          "column":  6,
+                                          "line":  45,
+                                          "severity":  "warning",
+                                          "rule":  "react-hooks/exhaustive-deps",
+                                          "file":  "\\src\\components\\SavedCrewSelector.js"
+                                      },
+                                      {
+                                          "message":  "The \u0027photographerCoords\u0027 object makes the dependencies of useCallback Hook (at line 134) change on every render. To fix this, wrap the initialization of \u0027photographerCoords\u0027 in its own useMemo() Hook.",
+                                          "column":  9,
+                                          "line":  81,
+                                          "severity":  "warning",
+                                          "rule":  "react-hooks/exhaustive-deps",
+                                          "file":  "\\src\\components\\ScheduledBookingDrawer.js"
+                                      },
+                                      {
+                                          "message":  "The \u0027photographerCoords\u0027 object makes the dependencies of useCallback Hook (at line 174) change on every render. To fix this, wrap the initialization of \u0027photographerCoords\u0027 in its own useMemo() Hook.",
+                                          "column":  9,
+                                          "line":  81,
+                                          "severity":  "warning",
+                                          "rule":  "react-hooks/exhaustive-deps",
+                                          "file":  "\\src\\components\\ScheduledBookingDrawer.js"
+                                      },
+                                      {
+                                          "message":  "React Hook useEffect has a missing dependency: \u0027loadRecentAndFollowing\u0027. Either include it or remove the dependency array.",
+                                          "column":  6,
+                                          "line":  1021,
+                                          "severity":  "warning",
+                                          "rule":  "react-hooks/exhaustive-deps",
+                                          "file":  "\\src\\components\\ScheduledBookingDrawer.js"
+                                      },
+                                      {
+                                          "message":  "React Hook useEffect has a missing dependency: \u0027sessionDate\u0027. Either include it or remove the dependency array.",
+                                          "column":  6,
+                                          "line":  76,
+                                          "severity":  "warning",
+                                          "rule":  "react-hooks/exhaustive-deps",
+                                          "file":  "\\src\\components\\SessionCountdownWidget.js"
+                                      },
+                                      {
+                                          "message":  "React Hook useEffect has a missing dependency: \u0027fetchVerificationStatus\u0027. Either include it or remove the dependency array.",
+                                          "column":  6,
+                                          "line":  40,
+                                          "severity":  "warning",
+                                          "rule":  "react-hooks/exhaustive-deps",
+                                          "file":  "\\src\\components\\Settings.js"
+                                      },
+                                      {
+                                          "message":  "React Hook useEffect has a missing dependency: \u0027fetchStatus\u0027. Either include it or remove the dependency array.",
+                                          "column":  6,
+                                          "line":  382,
+                                          "severity":  "warning",
+                                          "rule":  "react-hooks/exhaustive-deps",
+                                          "file":  "\\src\\components\\Settings.js"
+                                      },
+                                      {
+                                          "message":  "React Hook useEffect has a missing dependency: \u0027checkAvailability\u0027. Either include it or remove the dependency array.",
+                                          "column":  6,
+                                          "line":  419,
+                                          "severity":  "warning",
+                                          "rule":  "react-hooks/exhaustive-deps",
+                                          "file":  "\\src\\components\\Settings.js"
+                                      },
+                                      {
+                                          "message":  "React Hook useEffect has a missing dependency: \u0027fetchMetaStatus\u0027. Either include it or remove the dependency array.",
+                                          "column":  6,
+                                          "line":  561,
+                                          "severity":  "warning",
+                                          "rule":  "react-hooks/exhaustive-deps",
+                                          "file":  "\\src\\components\\Settings.js"
+                                      },
+                                      {
+                                          "message":  "React Hook useEffect has a missing dependency: \u0027handleOAuthCallback\u0027. Either include it or remove the dependency array.",
+                                          "column":  6,
+                                          "line":  571,
+                                          "severity":  "warning",
+                                          "rule":  "react-hooks/exhaustive-deps",
+                                          "file":  "\\src\\components\\Settings.js"
+                                      },
+                                      {
+                                          "message":  "React Hook useEffect has missing dependencies: \u0027fetchFriends\u0027, \u0027fetchNotificationPrefs\u0027, and \u0027fetchPrivacySettings\u0027. Either include them or remove the dependency array.",
+                                          "column":  6,
+                                          "line":  833,
+                                          "severity":  "warning",
+                                          "rule":  "react-hooks/exhaustive-deps",
+                                          "file":  "\\src\\components\\Settings.js"
+                                      },
+                                      {
+                                          "message":  "React Hook useEffect has missing dependencies: \u0027fetchUnreadCount\u0027 and \u0027fetchUnreadMessages\u0027. Either include them or remove the dependency array.",
+                                          "column":  6,
+                                          "line":  114,
+                                          "severity":  "warning",
+                                          "rule":  "react-hooks/exhaustive-deps",
+                                          "file":  "\\src\\components\\Sidebar.js"
+                                      },
+                                      {
+                                          "message":  "React Hook useEffect has missing dependencies: \u0027fetchFollowing\u0027 and \u0027fetchPost\u0027. Either include them or remove the dependency array.",
+                                          "column":  6,
+                                          "line":  84,
+                                          "severity":  "warning",
+                                          "rule":  "react-hooks/exhaustive-deps",
+                                          "file":  "\\src\\components\\SinglePost.js"
+                                      },
+                                      {
+                                          "message":  "React Hook useEffect has missing dependencies: \u0027loadAllComments\u0027 and \u0027showAllComments\u0027. Either include them or remove the dependency array.",
+                                          "column":  6,
+                                          "line":  92,
+                                          "severity":  "warning",
+                                          "rule":  "react-hooks/exhaustive-deps",
+                                          "file":  "\\src\\components\\SinglePost.js"
+                                      },
+                                      {
+                                          "message":  "React Hook useEffect has missing dependencies: \u0027fetchConditions\u0027, \u0027fetchForecast\u0027, \u0027fetchTideData\u0027, and \u0027fetchTodaysReports\u0027. Either include them or remove the dependency array.",
+                                          "column":  6,
+                                          "line":  71,
+                                          "severity":  "warning",
+                                          "rule":  "react-hooks/exhaustive-deps",
+                                          "file":  "\\src\\components\\SpotConditions.js"
+                                      },
+                                      {
+                                          "message":  "React Hook useEffect has missing dependencies: \u0027fetchAllSpotData\u0027 and \u0027fetchLivePulse\u0027. Either include them or remove the dependency array.",
+                                          "column":  6,
+                                          "line":  532,
+                                          "severity":  "warning",
+                                          "rule":  "react-hooks/exhaustive-deps",
+                                          "file":  "\\src\\components\\SpotHub.js"
+                                      },
+                                      {
+                                          "message":  "React Hook useEffect has a missing dependency: \u0027fetchNearbySpots\u0027. Either include it or remove the dependency array.",
+                                          "column":  6,
+                                          "line":  58,
+                                          "severity":  "warning",
+                                          "rule":  "react-hooks/exhaustive-deps",
+                                          "file":  "\\src\\components\\SpotSelector.js"
+                                      },
+                                      {
+                                          "message":  "React Hook useEffect has a missing dependency: \u0027fetchData\u0027. Either include it or remove the dependency array.",
+                                          "column":  6,
+                                          "line":  47,
+                                          "severity":  "warning",
+                                          "rule":  "react-hooks/exhaustive-deps",
+                                          "file":  "\\src\\components\\StokeSponsorDashboard.js"
+                                      },
+                                      {
+                                          "message":  "React Hook useEffect has a missing dependency: \u0027fetchLeaderboard\u0027. Either include it or remove the dependency array.",
+                                          "column":  6,
+                                          "line":  37,
+                                          "severity":  "warning",
+                                          "rule":  "react-hooks/exhaustive-deps",
+                                          "file":  "\\src\\components\\StokeSponsorLeaderboard.js"
+                                      },
+                                      {
+                                          "message":  "React Hook useEffect has a missing dependency: \u0027fetchStokedData\u0027. Either include it or remove the dependency array.",
+                                          "column":  6,
+                                          "line":  59,
+                                          "severity":  "warning",
+                                          "rule":  "react-hooks/exhaustive-deps",
+                                          "file":  "\\src\\components\\StokedDashboard.js"
+                                      },
+                                      {
+                                          "message":  "React Hook useEffect has a missing dependency: \u0027fetchStokedData\u0027. Either include it or remove the dependency array.",
+                                          "column":  6,
+                                          "line":  70,
+                                          "severity":  "warning",
+                                          "rule":  "react-hooks/exhaustive-deps",
+                                          "file":  "\\src\\components\\StokedTab.js"
+                                      },
+                                      {
+                                          "message":  "React Hook useEffect has a missing dependency: \u0027activeTab\u0027. Either include it or remove the dependency array.",
+                                          "column":  6,
+                                          "line":  58,
+                                          "severity":  "warning",
+                                          "rule":  "react-hooks/exhaustive-deps",
+                                          "file":  "\\src\\components\\Stories.js"
+                                      },
+                                      {
+                                          "message":  "React Hook useEffect has a missing dependency: \u0027fetchStories\u0027. Either include it or remove the dependency array.",
+                                          "column":  6,
+                                          "line":  74,
+                                          "severity":  "warning",
+                                          "rule":  "react-hooks/exhaustive-deps",
+                                          "file":  "\\src\\components\\Stories.js"
+                                      },
+                                      {
+                                          "message":  "React Hook useEffect has a missing dependency: \u0027fetchStories\u0027. Either include it or remove the dependency array.",
+                                          "column":  6,
+                                          "line":  143,
+                                          "severity":  "warning",
+                                          "rule":  "react-hooks/exhaustive-deps",
+                                          "file":  "\\src\\components\\Stories.js"
+                                      },
+                                      {
+                                          "message":  "React Hook useEffect has a missing dependency: \u0027startProgress\u0027. Either include it or remove the dependency array.",
+                                          "column":  6,
+                                          "line":  492,
+                                          "severity":  "warning",
+                                          "rule":  "react-hooks/exhaustive-deps",
+                                          "file":  "\\src\\components\\Stories.js"
+                                      },
+                                      {
+                                          "message":  "React Hook useEffect has a missing dependency: \u0027checkPaymentStatus\u0027. Either include it or remove the dependency array.",
+                                          "column":  6,
+                                          "line":  28,
+                                          "severity":  "warning",
+                                          "rule":  "react-hooks/exhaustive-deps",
+                                          "file":  "\\src\\components\\SubscriptionSuccess.js"
+                                      },
+                                      {
+                                          "message":  "React Hook useEffect has a missing dependency: \u0027fetchAlerts\u0027. Either include it or remove the dependency array.",
+                                          "column":  6,
+                                          "line":  130,
+                                          "severity":  "warning",
+                                          "rule":  "react-hooks/exhaustive-deps",
+                                          "file":  "\\src\\components\\SurfAlerts.js"
+                                      },
+                                      {
+                                          "message":  "React Hook useEffect has a missing dependency: \u0027fetchBoards\u0027. Either include it or remove the dependency array.",
+                                          "column":  6,
+                                          "line":  667,
+                                          "severity":  "warning",
+                                          "rule":  "react-hooks/exhaustive-deps",
+                                          "file":  "\\src\\components\\SurfboardsTab.js"
+                                      },
+                                      {
+                                          "message":  "React Hook useEffect has a missing dependency: \u0027fetchHistory\u0027. Either include it or remove the dependency array.",
+                                          "column":  6,
+                                          "line":  597,
+                                          "severity":  "warning",
+                                          "rule":  "react-hooks/exhaustive-deps",
+                                          "file":  "\\src\\components\\SurferGallery.js"
+                                      },
+                                      {
+                                          "message":  "React Hook useEffect has missing dependencies: \u0027checkPendingSelections\u0027, \u0027fetchAiSessions\u0027, \u0027fetchClaimQueue\u0027, and \u0027fetchGallery\u0027. Either include them or remove the dependency array.",
+                                          "column":  6,
+                                          "line":  713,
+                                          "severity":  "warning",
+                                          "rule":  "react-hooks/exhaustive-deps",
+                                          "file":  "\\src\\components\\SurferGallery.js"
+                                      },
+                                      {
+                                          "message":  "React Hook useEffect has a missing dependency: \u0027handleFavoriteToggle\u0027. Either include it or remove the dependency array.",
+                                          "column":  6,
+                                          "line":  1001,
+                                          "severity":  "warning",
+                                          "rule":  "react-hooks/exhaustive-deps",
+                                          "file":  "\\src\\components\\SurferGallery.js"
+                                      },
+                                      {
+                                          "message":  "React Hook useEffect has missing dependencies: \u0027fetchAiMatchCount\u0027, \u0027fetchLiveStatus\u0027, \u0027fetchOnDemandStatus\u0027, and \u0027fetchUpcomingBookings\u0027. Either include them or remove the dependency array.",
+                                          "column":  6,
+                                          "line":  690,
+                                          "severity":  "warning",
+                                          "rule":  "react-hooks/exhaustive-deps",
+                                          "file":  "\\src\\components\\SurferSessionHub.js"
+                                      },
+                                      {
+                                          "message":  "React Hook useEffect has missing dependencies: \u0027fetchGalleryPricing\u0027 and \u0027markAsViewed\u0027. Either include them or remove the dependency array.",
+                                          "column":  6,
+                                          "line":  51,
+                                          "severity":  "warning",
+                                          "rule":  "react-hooks/exhaustive-deps",
+                                          "file":  "\\src\\components\\TaggedPhotoModal.js"
+                                      },
+                                      {
+                                          "message":  "React Hook useEffect has a missing dependency: \u0027fetchGromData\u0027. Either include it or remove the dependency array.",
+                                          "column":  6,
+                                          "line":  50,
+                                          "severity":  "warning",
+                                          "rule":  "react-hooks/exhaustive-deps",
+                                          "file":  "\\src\\components\\TheInsideHub.js"
+                                      },
+                                      {
+                                          "message":  "React Hook useEffect has a missing dependency: \u0027fetchCareerData\u0027. Either include it or remove the dependency array.",
+                                          "column":  6,
+                                          "line":  50,
+                                          "severity":  "warning",
+                                          "rule":  "react-hooks/exhaustive-deps",
+                                          "file":  "\\src\\components\\ThePeakHub.js"
+                                      },
+                                      {
+                                          "message":  "React Hook \"useState\" is called in function \"_AnalyticsTabContent\" that is neither a React function component nor a custom React Hook function. React component names must start with an uppercase letter. React Hook names must start with the word \"use\".",
+                                          "column":  37,
+                                          "line":  1731,
+                                          "severity":  "error",
+                                          "rule":  "react-hooks/rules-of-hooks",
+                                          "file":  "\\src\\components\\UnifiedAdminConsole.js"
+                                      },
+                                      {
+                                          "message":  "React Hook \"useState\" is called in function \"_AnalyticsTabContent\" that is neither a React function component nor a custom React Hook function. React component names must start with an uppercase letter. React Hook names must start with the word \"use\".",
+                                          "column":  37,
+                                          "line":  1732,
+                                          "severity":  "error",
+                                          "rule":  "react-hooks/rules-of-hooks",
+                                          "file":  "\\src\\components\\UnifiedAdminConsole.js"
+                                      },
+                                      {
+                                          "message":  "React Hook \"useState\" is called in function \"_AnalyticsTabContent\" that is neither a React function component nor a custom React Hook function. React component names must start with an uppercase letter. React Hook names must start with the word \"use\".",
+                                          "column":  41,
+                                          "line":  1733,
+                                          "severity":  "error",
+                                          "rule":  "react-hooks/rules-of-hooks",
+                                          "file":  "\\src\\components\\UnifiedAdminConsole.js"
+                                      },
+                                      {
+                                          "message":  "React Hook \"useState\" is called in function \"_AnalyticsTabContent\" that is neither a React function component nor a custom React Hook function. React component names must start with an uppercase letter. React Hook names must start with the word \"use\".",
+                                          "column":  33,
+                                          "line":  1734,
+                                          "severity":  "error",
+                                          "rule":  "react-hooks/rules-of-hooks",
+                                          "file":  "\\src\\components\\UnifiedAdminConsole.js"
+                                      },
+                                      {
+                                          "message":  "React Hook \"useState\" is called in function \"_AnalyticsTabContent\" that is neither a React function component nor a custom React Hook function. React component names must start with an uppercase letter. React Hook names must start with the word \"use\".",
+                                          "column":  39,
+                                          "line":  1735,
+                                          "severity":  "error",
+                                          "rule":  "react-hooks/rules-of-hooks",
+                                          "file":  "\\src\\components\\UnifiedAdminConsole.js"
+                                      },
+                                      {
+                                          "message":  "React Hook \"useEffect\" is called in function \"_AnalyticsTabContent\" that is neither a React function component nor a custom React Hook function. React component names must start with an uppercase letter. React Hook names must start with the word \"use\".",
+                                          "column":  3,
+                                          "line":  1737,
+                                          "severity":  "error",
+                                          "rule":  "react-hooks/rules-of-hooks",
+                                          "file":  "\\src\\components\\UnifiedAdminConsole.js"
+                                      },
+                                      {
+                                          "message":  "React Hook useEffect has a missing dependency: \u0027fetchAnalytics\u0027. Either include it or remove the dependency array.",
+                                          "column":  6,
+                                          "line":  1739,
+                                          "severity":  "warning",
+                                          "rule":  "react-hooks/exhaustive-deps",
+                                          "file":  "\\src\\components\\UnifiedAdminConsole.js"
+                                      },
+                                      {
+                                          "message":  "React Hook useEffect has a missing dependency: \u0027fetchAdData\u0027. Either include it or remove the dependency array.",
+                                          "column":  6,
+                                          "line":  2017,
+                                          "severity":  "warning",
+                                          "rule":  "react-hooks/exhaustive-deps",
+                                          "file":  "\\src\\components\\UnifiedAdminConsole.js"
+                                      },
+                                      {
+                                          "message":  "React Hook \"useState\" is called in function \"_PhotographerProfile\" that is neither a React function component nor a custom React Hook function. React component names must start with an uppercase letter. React Hook names must start with the word \"use\".",
+                                          "column":  33,
+                                          "line":  174,
+                                          "severity":  "error",
+                                          "rule":  "react-hooks/rules-of-hooks",
+                                          "file":  "\\src\\components\\UnifiedSpotDrawer.js"
+                                      },
+                                      {
+                                          "message":  "React Hook \"useState\" is called in function \"_PhotographerProfile\" that is neither a React function component nor a custom React Hook function. React component names must start with an uppercase letter. React Hook names must start with the word \"use\".",
+                                          "column":  47,
+                                          "line":  175,
+                                          "severity":  "error",
+                                          "rule":  "react-hooks/rules-of-hooks",
+                                          "file":  "\\src\\components\\UnifiedSpotDrawer.js"
+                                      },
+                                      {
+                                          "message":  "React Hook \"useState\" is called in function \"_PhotographerProfile\" that is neither a React function component nor a custom React Hook function. React component names must start with an uppercase letter. React Hook names must start with the word \"use\".",
+                                          "column":  33,
+                                          "line":  176,
+                                          "severity":  "error",
+                                          "rule":  "react-hooks/rules-of-hooks",
+                                          "file":  "\\src\\components\\UnifiedSpotDrawer.js"
+                                      },
+                                      {
+                                          "message":  "React Hook \"useEffect\" is called in function \"_PhotographerProfile\" that is neither a React function component nor a custom React Hook function. React component names must start with an uppercase letter. React Hook names must start with the word \"use\".",
+                                          "column":  3,
+                                          "line":  178,
+                                          "severity":  "error",
+                                          "rule":  "react-hooks/rules-of-hooks",
+                                          "file":  "\\src\\components\\UnifiedSpotDrawer.js"
+                                      },
+                                      {
+                                          "message":  "React Hook useEffect has a missing dependency: \u0027fetchPhotographerData\u0027. Either include it or remove the dependency array.",
+                                          "column":  6,
+                                          "line":  180,
+                                          "severity":  "warning",
+                                          "rule":  "react-hooks/exhaustive-deps",
+                                          "file":  "\\src\\components\\UnifiedSpotDrawer.js"
+                                      },
+                                      {
+                                          "message":  "React Hook useEffect has a missing dependency: \u0027fetchPhotographerData\u0027. Either include it or remove the dependency array.",
+                                          "column":  6,
+                                          "line":  359,
+                                          "severity":  "warning",
+                                          "rule":  "react-hooks/exhaustive-deps",
+                                          "file":  "\\src\\components\\UnifiedSpotDrawer.js"
+                                      },
+                                      {
+                                          "message":  "React Hook \"useAuth\" is called in function \"_JumpInFlow\" that is neither a React function component nor a custom React Hook function. React component names must start with an uppercase letter. React Hook names must start with the word \"use\".",
+                                          "column":  32,
+                                          "line":  575,
+                                          "severity":  "error",
+                                          "rule":  "react-hooks/rules-of-hooks",
+                                          "file":  "\\src\\components\\UnifiedSpotDrawer.js"
+                                      },
+                                      {
+                                          "message":  "React Hook \"usePersona\" is called in function \"_JumpInFlow\" that is neither a React function component nor a custom React Hook function. React component names must start with an uppercase letter. React Hook names must start with the word \"use\".",
+                                          "column":  58,
+                                          "line":  576,
+                                          "severity":  "error",
+                                          "rule":  "react-hooks/rules-of-hooks",
+                                          "file":  "\\src\\components\\UnifiedSpotDrawer.js"
+                                      },
+                                      {
+                                          "message":  "React Hook \"useRef\" is called in function \"_JumpInFlow\" that is neither a React function component nor a custom React Hook function. React component names must start with an uppercase letter. React Hook names must start with the word \"use\".",
+                                          "column":  20,
+                                          "line":  577,
+                                          "severity":  "error",
+                                          "rule":  "react-hooks/rules-of-hooks",
+                                          "file":  "\\src\\components\\UnifiedSpotDrawer.js"
+                                      },
+                                      {
+                                          "message":  "React Hook \"useRef\" is called in function \"_JumpInFlow\" that is neither a React function component nor a custom React Hook function. React component names must start with an uppercase letter. React Hook names must start with the word \"use\".",
+                                          "column":  21,
+                                          "line":  578,
+                                          "severity":  "error",
+                                          "rule":  "react-hooks/rules-of-hooks",
+                                          "file":  "\\src\\components\\UnifiedSpotDrawer.js"
+                                      },
+                                      {
+                                          "message":  "React Hook \"useRef\" is called in function \"_JumpInFlow\" that is neither a React function component nor a custom React Hook function. React component names must start with an uppercase letter. React Hook names must start with the word \"use\".",
+                                          "column":  21,
+                                          "line":  579,
+                                          "severity":  "error",
+                                          "rule":  "react-hooks/rules-of-hooks",
+                                          "file":  "\\src\\components\\UnifiedSpotDrawer.js"
+                                      },
+                                      {
+                                          "message":  "React Hook \"useState\" is called in function \"_JumpInFlow\" that is neither a React function component nor a custom React Hook function. React component names must start with an uppercase letter. React Hook names must start with the word \"use\".",
+                                          "column":  27,
+                                          "line":  584,
+                                          "severity":  "error",
+                                          "rule":  "react-hooks/rules-of-hooks",
+                                          "file":  "\\src\\components\\UnifiedSpotDrawer.js"
+                                      },
+                                      {
+                                          "message":  "React Hook \"useState\" is called in function \"_JumpInFlow\" that is neither a React function component nor a custom React Hook function. React component names must start with an uppercase letter. React Hook names must start with the word \"use\".",
+                                          "column":  37,
+                                          "line":  585,
+                                          "severity":  "error",
+                                          "rule":  "react-hooks/rules-of-hooks",
+                                          "file":  "\\src\\components\\UnifiedSpotDrawer.js"
+                                      },
+                                      {
+                                          "message":  "React Hook \"useState\" is called in function \"_JumpInFlow\" that is neither a React function component nor a custom React Hook function. React component names must start with an uppercase letter. React Hook names must start with the word \"use\".",
+                                          "column":  43,
+                                          "line":  586,
+                                          "severity":  "error",
+                                          "rule":  "react-hooks/rules-of-hooks",
+                                          "file":  "\\src\\components\\UnifiedSpotDrawer.js"
+                                      },
+                                      {
+                                          "message":  "React Hook \"useState\" is called in function \"_JumpInFlow\" that is neither a React function component nor a custom React Hook function. React component names must start with an uppercase letter. React Hook names must start with the word \"use\".",
+                                          "column":  33,
+                                          "line":  587,
+                                          "severity":  "error",
+                                          "rule":  "react-hooks/rules-of-hooks",
+                                          "file":  "\\src\\components\\UnifiedSpotDrawer.js"
+                                      },
+                                      {
+                                          "message":  "React Hook \"useState\" is called in function \"_JumpInFlow\" that is neither a React function component nor a custom React Hook function. React component names must start with an uppercase letter. React Hook names must start with the word \"use\".",
+                                          "column":  45,
+                                          "line":  588,
+                                          "severity":  "error",
+                                          "rule":  "react-hooks/rules-of-hooks",
+                                          "file":  "\\src\\components\\UnifiedSpotDrawer.js"
+                                      },
+                                      {
+                                          "message":  "React Hook \"useState\" is called in function \"_JumpInFlow\" that is neither a React function component nor a custom React Hook function. React component names must start with an uppercase letter. React Hook names must start with the word \"use\".",
+                                          "column":  51,
+                                          "line":  589,
+                                          "severity":  "error",
+                                          "rule":  "react-hooks/rules-of-hooks",
+                                          "file":  "\\src\\components\\UnifiedSpotDrawer.js"
+                                      },
+                                      {
+                                          "message":  "React Hook \"useCallback\" is called in function \"_JumpInFlow\" that is neither a React function component nor a custom React Hook function. React component names must start with an uppercase letter. React Hook names must start with the word \"use\".",
+                                          "column":  35,
+                                          "line":  612,
+                                          "severity":  "error",
+                                          "rule":  "react-hooks/rules-of-hooks",
+                                          "file":  "\\src\\components\\UnifiedSpotDrawer.js"
+                                      },
+                                      {
+                                          "message":  "React Hook \"useCallback\" is called in function \"_JumpInFlow\" that is neither a React function component nor a custom React Hook function. React component names must start with an uppercase letter. React Hook names must start with the word \"use\".",
+                                          "column":  23,
+                                          "line":  637,
+                                          "severity":  "error",
+                                          "rule":  "react-hooks/rules-of-hooks",
+                                          "file":  "\\src\\components\\UnifiedSpotDrawer.js"
+                                      },
+                                      {
+                                          "message":  "React Hook \"useCallback\" is called in function \"_JumpInFlow\" that is neither a React function component nor a custom React Hook function. React component names must start with an uppercase letter. React Hook names must start with the word \"use\".",
+                                          "column":  22,
+                                          "line":  659,
+                                          "severity":  "error",
+                                          "rule":  "react-hooks/rules-of-hooks",
+                                          "file":  "\\src\\components\\UnifiedSpotDrawer.js"
+                                      },
+                                      {
+                                          "message":  "React Hook \"useCallback\" is called in function \"_JumpInFlow\" that is neither a React function component nor a custom React Hook function. React component names must start with an uppercase letter. React Hook names must start with the word \"use\".",
+                                          "column":  25,
+                                          "line":  667,
+                                          "severity":  "error",
+                                          "rule":  "react-hooks/rules-of-hooks",
+                                          "file":  "\\src\\components\\UnifiedSpotDrawer.js"
+                                      },
+                                      {
+                                          "message":  "React Hook \"useCallback\" is called in function \"_JumpInFlow\" that is neither a React function component nor a custom React Hook function. React component names must start with an uppercase letter. React Hook names must start with the word \"use\".",
+                                          "column":  24,
+                                          "line":  686,
+                                          "severity":  "error",
+                                          "rule":  "react-hooks/rules-of-hooks",
+                                          "file":  "\\src\\components\\UnifiedSpotDrawer.js"
+                                      },
+                                      {
+                                          "message":  "React Hook \"useEffect\" is called in function \"_JumpInFlow\" that is neither a React function component nor a custom React Hook function. React component names must start with an uppercase letter. React Hook names must start with the word \"use\".",
+                                          "column":  3,
+                                          "line":  757,
+                                          "severity":  "error",
+                                          "rule":  "react-hooks/rules-of-hooks",
+                                          "file":  "\\src\\components\\UnifiedSpotDrawer.js"
+                                      },
+                                      {
+                                          "message":  "React Hook \"useEffect\" is called in function \"_JumpInFlow\" that is neither a React function component nor a custom React Hook function. React component names must start with an uppercase letter. React Hook names must start with the word \"use\".",
+                                          "column":  3,
+                                          "line":  762,
+                                          "severity":  "error",
+                                          "rule":  "react-hooks/rules-of-hooks",
+                                          "file":  "\\src\\components\\UnifiedSpotDrawer.js"
+                                      },
+                                      {
+                                          "message":  "React Hook useEffect has a missing dependency: \u0027fetchPricing\u0027. Either include it or remove the dependency array.",
+                                          "column":  6,
+                                          "line":  1221,
+                                          "severity":  "warning",
+                                          "rule":  "react-hooks/exhaustive-deps",
+                                          "file":  "\\src\\components\\UnifiedSpotDrawer.js"
+                                      },
+                                      {
+                                          "message":  "React Hook useEffect has a missing dependency: \u0027fetchSpotOfTheDay\u0027. Either include it or remove the dependency array.",
+                                          "column":  6,
+                                          "line":  1228,
+                                          "severity":  "warning",
+                                          "rule":  "react-hooks/exhaustive-deps",
+                                          "file":  "\\src\\components\\UnifiedSpotDrawer.js"
+                                      },
+                                      {
+                                          "message":  "React Hook useEffect has a missing dependency: \u0027fetchLiveWaveHeight\u0027. Either include it or remove the dependency array.",
+                                          "column":  6,
+                                          "line":  1235,
+                                          "severity":  "warning",
+                                          "rule":  "react-hooks/exhaustive-deps",
+                                          "file":  "\\src\\components\\UnifiedSpotDrawer.js"
+                                      },
+                                      {
+                                          "message":  "React Hook useEffect has a missing dependency: \u0027spot\u0027. Either include it or remove the dependency array.",
+                                          "column":  6,
+                                          "line":  1291,
+                                          "severity":  "warning",
+                                          "rule":  "react-hooks/exhaustive-deps",
+                                          "file":  "\\src\\components\\UnifiedSpotDrawer.js"
+                                      },
+                                      {
+                                          "message":  "React Hook useEffect has a missing dependency: \u0027fetchSettings\u0027. Either include it or remove the dependency array.",
+                                          "column":  6,
+                                          "line":  48,
+                                          "severity":  "warning",
+                                          "rule":  "react-hooks/exhaustive-deps",
+                                          "file":  "\\src\\components\\WatermarkSettings.js"
+                                      },
+                                      {
+                                          "message":  "React Hook useCallback has a missing dependency: \u0027handleDoubleTapLike\u0027. Either include it or remove the dependency array.",
+                                          "column":  6,
+                                          "line":  86,
+                                          "severity":  "warning",
+                                          "rule":  "react-hooks/exhaustive-deps",
+                                          "file":  "\\src\\components\\WavesFeed.js"
+                                      },
+                                      {
+                                          "message":  "React Hook useEffect has a missing dependency: \u0027fetchWaves\u0027. Either include it or remove the dependency array.",
+                                          "column":  6,
+                                          "line":  322,
+                                          "severity":  "warning",
+                                          "rule":  "react-hooks/exhaustive-deps",
+                                          "file":  "\\src\\components\\WavesFeed.js"
+                                      },
+                                      {
+                                          "message":  "React Hook useEffect has a missing dependency: \u0027activeFilter\u0027. Either include it or remove the dependency array.",
+                                          "column":  6,
+                                          "line":  95,
+                                          "severity":  "warning",
+                                          "rule":  "react-hooks/exhaustive-deps",
+                                          "file":  "\\src\\components\\WebGLBroadcastController.js"
+                                      },
+                                      {
+                                          "message":  "React Hook useCallback has a missing dependency: \u0027stream\u0027. Either include it or remove the dependency array.",
+                                          "column":  6,
+                                          "line":  68,
+                                          "severity":  "warning",
+                                          "rule":  "react-hooks/exhaustive-deps",
+                                          "file":  "\\src\\components\\WebcamCaptureModal.js"
+                                      },
+                                      {
+                                          "message":  "The ref value \u0027videoRef.current\u0027 will likely have changed by the time this effect cleanup function runs. If this ref points to a node rendered by React, copy \u0027videoRef.current\u0027 to a variable inside the effect, and use that variable in the cleanup function.",
+                                          "column":  19,
+                                          "line":  84,
+                                          "severity":  "warning",
+                                          "rule":  "react-hooks/exhaustive-deps",
+                                          "file":  "\\src\\components\\WebcamCaptureModal.js"
+                                      },
+                                      {
+                                          "message":  "React Hook useEffect has missing dependencies: \u0027isRecording\u0027, \u0027startCamera\u0027, and \u0027stopRecording\u0027. Either include them or remove the dependency array.",
+                                          "column":  6,
+                                          "line":  96,
+                                          "severity":  "warning",
+                                          "rule":  "react-hooks/exhaustive-deps",
+                                          "file":  "\\src\\components\\WebcamCaptureModal.js"
+                                      },
+                                      {
+                                          "message":  "React Hook useEffect has a missing dependency: \u0027fetchLeaderboard\u0027. Either include it or remove the dependency array.",
+                                          "column":  6,
+                                          "line":  32,
+                                          "severity":  "warning",
+                                          "rule":  "react-hooks/exhaustive-deps",
+                                          "file":  "\\src\\components\\XPLeaderboard.js"
+                                      },
+                                      {
+                                          "message":  "React Hook useCallback has a missing dependency: \u0027handleSelect\u0027. Either include it or remove the dependency array.",
+                                          "column":  6,
+                                          "line":  91,
+                                          "severity":  "warning",
+                                          "rule":  "react-hooks/exhaustive-deps",
+                                          "file":  "\\src\\components\\_deprecated\\CommandPalette.js"
+                                      },
+                                      {
+                                          "message":  "React Hook useEffect has missing dependencies: \u0027fetchDataForTab\u0027 and \u0027fetchStats\u0027. Either include them or remove the dependency array.",
+                                          "column":  6,
+                                          "line":  70,
+                                          "severity":  "warning",
+                                          "rule":  "react-hooks/exhaustive-deps",
+                                          "file":  "\\src\\components\\admin\\AdminCommunicationsDashboard.js"
+                                      },
+                                      {
+                                          "message":  "React Hook useEffect has a missing dependency: \u0027fetchDataForTab\u0027. Either include it or remove the dependency array.",
+                                          "column":  6,
+                                          "line":  82,
+                                          "severity":  "warning",
+                                          "rule":  "react-hooks/exhaustive-deps",
+                                          "file":  "\\src\\components\\admin\\AdminContentMgmtDashboard.js"
+                                      },
+                                      {
+                                          "message":  "React Hook useEffect has missing dependencies: \u0027fetchQueue\u0027 and \u0027fetchStats\u0027. Either include them or remove the dependency array.",
+                                          "column":  6,
+                                          "line":  52,
+                                          "severity":  "warning",
+                                          "rule":  "react-hooks/exhaustive-deps",
+                                          "file":  "\\src\\components\\admin\\AdminContentModDashboard.js"
+                                      },
+                                      {
+                                          "message":  "React Hook useEffect has missing dependencies: \u0027fetchDataForTab\u0027 and \u0027fetchStats\u0027. Either include them or remove the dependency array.",
+                                          "column":  6,
+                                          "line":  64,
+                                          "severity":  "warning",
+                                          "rule":  "react-hooks/exhaustive-deps",
+                                          "file":  "\\src\\components\\admin\\AdminFinanceDashboard.js"
+                                      },
+                                      {
+                                          "message":  "React Hook useEffect has missing dependencies: \u0027fetchAuditLogs\u0027, \u0027fetchDisputes\u0027, \u0027fetchPayoutHolds\u0027, and \u0027fetchReports\u0027. Either include them or remove the dependency array.",
+                                          "column":  6,
+                                          "line":  107,
+                                          "severity":  "warning",
+                                          "rule":  "react-hooks/exhaustive-deps",
+                                          "file":  "\\src\\components\\admin\\AdminModerationDashboard.js"
+                                      },
+                                      {
+                                          "message":  "React Hook useEffect has missing dependencies: \u0027fetchComplianceData\u0027, \u0027fetchFraudAlerts\u0027, \u0027fetchImpersonationHistory\u0027, \u0027fetchTestAccounts\u0027, and \u0027fetchVerificationQueue\u0027. Either include them or remove the dependency array.",
+                                          "column":  6,
+                                          "line":  151,
+                                          "severity":  "warning",
+                                          "rule":  "react-hooks/exhaustive-deps",
+                                          "file":  "\\src\\components\\admin\\AdminP1Dashboard.js"
+                                      },
+                                      {
+                                          "message":  "React Hook useEffect has missing dependencies: \u0027fetchCampaigns\u0027, \u0027fetchCohortData\u0027, \u0027fetchFeatureFlags\u0027, \u0027fetchFunnelData\u0027, \u0027fetchPromoCodes\u0027, and \u0027fetchRevenueData\u0027. Either include them or remove the dependency array.",
+                                          "column":  6,
+                                          "line":  88,
+                                          "severity":  "warning",
+                                          "rule":  "react-hooks/exhaustive-deps",
+                                          "file":  "\\src\\components\\admin\\AdminP2Dashboard.js"
+                                      },
+                                      {
+                                          "message":  "React Hook useEffect has a missing dependency: \u0027commissionRates\u0027. Either include it or remove the dependency array. You can also replace multiple useState variables with useReducer if \u0027setOriginalCommissionRates\u0027 needs the current value of \u0027commissionRates\u0027.",
+                                          "column":  6,
+                                          "line":  200,
+                                          "severity":  "warning",
+                                          "rule":  "react-hooks/exhaustive-deps",
+                                          "file":  "\\src\\components\\admin\\AdminPricingEditor.js"
+                                      },
+                                      {
+                                          "message":  "React Hook useEffect has missing dependencies: \u0027editMode\u0027 and \u0027satelliteView\u0027. Either include them or remove the dependency array.",
+                                          "column":  6,
+                                          "line":  248,
+                                          "severity":  "warning",
+                                          "rule":  "react-hooks/exhaustive-deps",
+                                          "file":  "\\src\\components\\admin\\AdminSpotEditor.js"
+                                      },
+                                      {
+                                          "message":  "React Hook useEffect has missing dependencies: \u0027fetchMetrics\u0027 and \u0027fetchTickets\u0027. Either include them or remove the dependency array.",
+                                          "column":  6,
+                                          "line":  54,
+                                          "severity":  "warning",
+                                          "rule":  "react-hooks/exhaustive-deps",
+                                          "file":  "\\src\\components\\admin\\AdminSupportDashboard.js"
+                                      },
+                                      {
+                                          "message":  "React Hook useEffect has a missing dependency: \u0027fetchAllData\u0027. Either include it or remove the dependency array.",
+                                          "column":  6,
+                                          "line":  44,
+                                          "severity":  "warning",
+                                          "rule":  "react-hooks/exhaustive-deps",
+                                          "file":  "\\src\\components\\admin\\AdminSystemDashboard.js"
+                                      },
+                                      {
+                                          "message":  "React Hook useEffect has a missing dependency: \u0027fetchDataForTab\u0027. Either include it or remove the dependency array.",
+                                          "column":  6,
+                                          "line":  86,
+                                          "severity":  "warning",
+                                          "rule":  "react-hooks/exhaustive-deps",
+                                          "file":  "\\src\\components\\admin\\AdminUnifiedAnalytics.js"
+                                      },
+                                      {
+                                          "message":  "React Hook useEffect has a missing dependency: \u0027fetchGoldPassSlots\u0027. Either include it or remove the dependency array.",
+                                          "column":  6,
+                                          "line":  46,
+                                          "severity":  "warning",
+                                          "rule":  "react-hooks/exhaustive-deps",
+                                          "file":  "\\src\\components\\bookings\\GoldPassBookingsSection.js"
+                                      },
+                                      {
+                                          "message":  "React Hook useCallback has a missing dependency: \u0027fetchLineups\u0027. Either include it or remove the dependency array.",
+                                          "column":  6,
+                                          "line":  370,
+                                          "severity":  "warning",
+                                          "rule":  "react-hooks/exhaustive-deps",
+                                          "file":  "\\src\\components\\bookings\\LineupTab.js"
+                                      },
+                                      {
+                                          "message":  "React Hook useEffect has a missing dependency: \u0027fetchCrewStatus\u0027. Either include it or remove the dependency array.",
+                                          "column":  6,
+                                          "line":  148,
+                                          "severity":  "warning",
+                                          "rule":  "react-hooks/exhaustive-deps",
+                                          "file":  "\\src\\components\\dispatch\\CrewPaymentProgress.js"
+                                      },
+                                      {
+                                          "message":  "React Hook useEffect has a missing dependency: \u0027fetchAccountBilling\u0027. Either include it or remove the dependency array.",
+                                          "column":  6,
+                                          "line":  67,
+                                          "severity":  "warning",
+                                          "rule":  "react-hooks/exhaustive-deps",
+                                          "file":  "\\src\\components\\settings\\AccountBillingHub.js"
+                                      },
+                                      {
+                                          "message":  "React Hook useEffect has a missing dependency: \u0027fetchAdData\u0027. Either include it or remove the dependency array.",
+                                          "column":  6,
+                                          "line":  44,
+                                          "severity":  "warning",
+                                          "rule":  "react-hooks/exhaustive-deps",
+                                          "file":  "\\src\\components\\settings\\AdCenterPanel.js"
+                                      },
+                                      {
+                                          "message":  "React Hook useEffect has a missing dependency: \u0027fetchPreferences\u0027. Either include it or remove the dependency array.",
+                                          "column":  6,
+                                          "line":  52,
+                                          "severity":  "warning",
+                                          "rule":  "react-hooks/exhaustive-deps",
+                                          "file":  "\\src\\components\\settings\\NotificationPreferences.js"
+                                      },
+                                      {
+                                          "message":  "React Hook useCallback has a missing dependency: \u0027purgeLocationCache\u0027. Either include it or remove the dependency array.",
+                                          "column":  6,
+                                          "line":  132,
+                                          "severity":  "warning",
+                                          "rule":  "react-hooks/exhaustive-deps",
+                                          "file":  "\\src\\hooks\\useIPGeolocation.js"
+                                      },
+                                      {
+                                          "message":  "React Hook useCallback has a missing dependency: \u0027handleLineupUpdate\u0027. Either include it or remove the dependency array.",
+                                          "column":  6,
+                                          "line":  65,
+                                          "severity":  "warning",
+                                          "rule":  "react-hooks/exhaustive-deps",
+                                          "file":  "\\src\\hooks\\useLineupWebSocket.js"
+                                      },
+                                      {
+                                          "message":  "React Hook useEffect has missing dependencies: \u0027autoSyncEnabled\u0027, \u0027checkCacheStatus\u0027, \u0027loadAutoSyncSetting\u0027, and \u0027syncNearbySpots\u0027. Either include them or remove the dependency array.",
+                                          "column":  6,
+                                          "line":  63,
+                                          "severity":  "warning",
+                                          "rule":  "react-hooks/exhaustive-deps",
+                                          "file":  "\\src\\hooks\\useOfflineMode.js"
+                                      },
+                                      {
+                                          "message":  "React Hook useCallback has a missing dependency: \u0027startLocationTracking\u0027. Either include it or remove the dependency array.",
+                                          "column":  6,
+                                          "line":  72,
+                                          "severity":  "warning",
+                                          "rule":  "react-hooks/exhaustive-deps",
+                                          "file":  "\\src\\hooks\\useOfflineMode.js"
+                                      },
+                                      {
+                                          "message":  "React Hook useCallback has a missing dependency: \u0027syncNearbySpots\u0027. Either include it or remove the dependency array.",
+                                          "column":  6,
+                                          "line":  120,
+                                          "severity":  "warning",
+                                          "rule":  "react-hooks/exhaustive-deps",
+                                          "file":  "\\src\\hooks\\useOfflineMode.js"
+                                      }
+                                  ],
+                       "errorCount":  28,
+                       "warningCount":  149,
+                       "status":  "FAIL"
+                   },
+                   {
+                       "status":  "PASS",
+                       "errors":  [
+
+                                  ],
+                       "tool":  "Ruff",
+                       "errorCount":  0
+                   },
+                   {
+                       "passed":  0,
+                       "output":  "\u0027\"pytest\"\u0027 is not recognized as an internal or external command,\noperable program or batch file.",
+                       "failed":  0,
+                       "errors":  [
+
+                                  ],
+                       "tool":  "pytest",
+                       "status":  "PASS"
+                   }
+               ]
+}

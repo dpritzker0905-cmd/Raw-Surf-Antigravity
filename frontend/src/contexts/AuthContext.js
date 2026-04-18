@@ -58,42 +58,34 @@ export const AuthProvider = ({ children }) => {
   }, [checkImpersonationSession]);
 
   const signup = async (email, password, full_name, username, role, parent_email, company_name, birthdate, grom_competes = false) => {
-    try {
-      const response = await axios.post(`${API}/auth/signup`, {
-        email,
-        password,
-        full_name,
-        username,
-        role,
-        parent_email,
-        company_name,
-        birthdate,
-        grom_competes
-      });
-      const userData = response.data;
-      setUser(userData);
-      localStorage.setItem('raw-surf-user', JSON.stringify(userData));
-      document.documentElement.classList.remove('no-god-mode');
-      return userData;
-    } catch (error) {
-      throw error;
-    }
+    const response = await axios.post(`${API}/auth/signup`, {
+      email,
+      password,
+      full_name,
+      username,
+      role,
+      parent_email,
+      company_name,
+      birthdate,
+      grom_competes
+    });
+    const userData = response.data;
+    setUser(userData);
+    localStorage.setItem('raw-surf-user', JSON.stringify(userData));
+    document.documentElement.classList.remove('no-god-mode');
+    return userData;
   };
 
   const login = async (email, password) => {
-    try {
-      const response = await axios.post(`${API}/auth/login`, {
-        email,
-        password
-      });
-      const userData = response.data;
-      setUser(userData);
-      localStorage.setItem('raw-surf-user', JSON.stringify(userData));
-      document.documentElement.classList.remove('no-god-mode');
-      return userData;
-    } catch (error) {
-      throw error;
-    }
+    const response = await axios.post(`${API}/auth/login`, {
+      email,
+      password
+    });
+    const userData = response.data;
+    setUser(userData);
+    localStorage.setItem('raw-surf-user', JSON.stringify(userData));
+    document.documentElement.classList.remove('no-god-mode');
+    return userData;
   };
 
   const logout = () => {
@@ -136,25 +128,17 @@ export const AuthProvider = ({ children }) => {
   };
 
   const updateSubscription = async (profileId, subscriptionTier) => {
-    try {
-      const response = await axios.post(`${API}/profiles/${profileId}/subscription`, {
-        subscription_tier: subscriptionTier
-      });
-      updateUser({ subscription_tier: subscriptionTier });
-      return response.data;
-    } catch (error) {
-      throw error;
-    }
+    const response = await axios.post(`${API}/profiles/${profileId}/subscription`, {
+      subscription_tier: subscriptionTier
+    });
+    updateUser({ subscription_tier: subscriptionTier });
+    return response.data;
   };
 
   const submitProOnboarding = async (profileId, data) => {
-    try {
-      const response = await axios.post(`${API}/profiles/${profileId}/pro-onboarding`, data);
-      updateUser({ portfolio_url: data.portfolio_url });
-      return response.data;
-    } catch (error) {
-      throw error;
-    }
+    const response = await axios.post(`${API}/profiles/${profileId}/pro-onboarding`, data);
+    updateUser({ portfolio_url: data.portfolio_url });
+    return response.data;
   };
 
   // ============ IMPERSONATION METHODS ============

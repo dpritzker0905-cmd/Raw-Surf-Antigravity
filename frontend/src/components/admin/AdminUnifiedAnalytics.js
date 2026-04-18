@@ -3,11 +3,9 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import axios from 'axios';
 import {
-  DollarSign, TrendingUp, Percent, Gift, Flag as FlagIcon, Bell, BarChart3,
-  Loader2, Plus, RefreshCw, Check, X, Copy, Send, Activity,
-  Users, Target, Zap, Eye, ShoppingCart, CreditCard, PieChart,
-  ArrowUpRight, ArrowDownRight, MapPin, Star, Clock, Heart,
-  ToggleLeft, ToggleRight, AlertTriangle, ThumbsUp, Repeat
+  DollarSign, TrendingUp, Gift, Flag as FlagIcon, Bell, BarChart3,
+  Loader2, Plus, RefreshCw, Send, Activity, Target, Zap,
+  ArrowUpRight, ArrowDownRight, MapPin, Star, Clock, Heart
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '../ui/card';
 import { Button } from '../ui/button';
@@ -671,7 +669,7 @@ export const AdminUnifiedAnalytics = () => {
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-3">
-                      {funnelData.funnel?.map((stage, idx) => (
+                      {funnelData.funnel?.map((stage, _idx) => (
                         <div key={stage.stage} className="flex items-center gap-3">
                           <div className="w-32 text-xs text-gray-400">{stage.stage}</div>
                           <div className="flex-1 relative h-8 bg-zinc-800 rounded-full overflow-hidden">

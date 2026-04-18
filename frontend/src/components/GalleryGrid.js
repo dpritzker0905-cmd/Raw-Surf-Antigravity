@@ -16,14 +16,14 @@ export const GalleryGridItem = ({
   onClick,
   onEdit,
   onDelete,
-  theme = 'dark'
+  _theme = 'dark'
 }) => {
   const isVideo = item.media_type === 'video' || item.type === 'video';
 
   return (
     <div
       className="relative aspect-square rounded-lg overflow-hidden bg-zinc-800 group cursor-pointer"
-      onClick={(e) => {
+      onClick={(_e) => {
         if (bulkSelectMode) {
           onSelect?.(item.id);
         } else {
@@ -135,7 +135,7 @@ export const GalleryGrid = ({
   theme = 'dark'
 }) => {
   const isLight = theme === 'light';
-  const gridColsClass = `grid-cols-${columns.base} md:grid-cols-${columns.md} lg:grid-cols-${columns.lg}`;
+  const _gridColsClass = `grid-cols-${columns.base} md:grid-cols-${columns.md} lg:grid-cols-${columns.lg}`;
 
   if (items.length === 0) {
     return (

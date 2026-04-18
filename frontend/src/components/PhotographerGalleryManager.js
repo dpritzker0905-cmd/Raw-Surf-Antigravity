@@ -6,10 +6,10 @@ import axios from 'axios';
 import logger from '../utils/logger';
 import { 
   ArrowLeft, Upload, Image as ImageIcon, Video, DollarSign, 
-  Settings, Trash2, Eye, Tag, Save, Plus, X, Users,
+  Settings, Trash2, Eye, Tag, X, Users,
   MapPin, Calendar, Sparkles, UserCheck, Loader2,
-  Search, Filter, Check, MoreVertical, ChevronDown,
-  TrendingUp, Clock, Heart, ShoppingBag, BarChart3
+  Search, Filter, Check, MoreVertical,
+  TrendingUp, ShoppingBag, BarChart3
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from './ui/card';
 import { Button } from './ui/button';
@@ -18,7 +18,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Textarea } from './ui/textarea';
-import { Switch } from './ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import {
   DropdownMenu,

@@ -106,7 +106,7 @@ const DispatchPaymentSuccess = () => {
     confirmDispatchPayment();
   }, [sessionId, dispatchId, pollAttempts, user?.id, updateUser]);
 
-  const handleSelfieSuccess = (selfieUrl) => {
+  const handleSelfieSuccess = (_selfieUrl) => {
     setShowSelfieModal(false);
     toast.success('Selfie uploaded! The photographer can now find you.');
     // Navigate to bookings page where they can track the request

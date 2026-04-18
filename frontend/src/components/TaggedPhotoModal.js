@@ -4,8 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import axios from 'axios';
 import { 
-  X, Heart, Download, DollarSign, Calendar, MapPin, 
-  MessageCircle, Camera, Check, Lock, Sparkles, CreditCard, Gift
+  X, Heart, Download, Calendar, Camera, Check, Lock, Sparkles, CreditCard, Gift
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogTitle } from './ui/dialog';
 import { Button } from './ui/button';

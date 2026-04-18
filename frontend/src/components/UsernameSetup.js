@@ -2,7 +2,7 @@
  * UsernameSetup - Component for setting up @username
  * Shows after signup or when username is not set
  */
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { useNavigate } from 'react-router-dom';
@@ -55,7 +55,7 @@ const UsernameSetup = ({ onComplete, skipAllowed = false }) => {
   useEffect(() => {
     if (user?.full_name) {
       const nameParts = user.full_name.toLowerCase().split(' ').filter(Boolean);
-      const base = nameParts.join('');
+      const _base = nameParts.join('');
       const first = nameParts[0] || 'surfer';
       const last = nameParts[nameParts.length - 1] || '';
       

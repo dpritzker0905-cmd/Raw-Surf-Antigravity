@@ -9,12 +9,11 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import axios from 'axios';
 import {
-  Plus, Camera, Edit2, Trash2, X, Loader2, ChevronLeft, ChevronRight,
-  Ruler, Tag, Info, DollarSign, Calendar, Waves
+  Plus, Edit2, Trash2, X, Loader2, ChevronLeft, ChevronRight,
+  Ruler, Calendar, Waves
 } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';

@@ -7,8 +7,8 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { usePersona } from '../contexts/PersonaContext';
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from './ui/sheet';
-import { Zap, Gift, Plane, ShoppingBag, GraduationCap, Heart, Trophy, ArrowRight, X } from 'lucide-react';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from './ui/sheet';
+import { Zap, Gift, Plane, ShoppingBag, GraduationCap, ArrowRight, X } from 'lucide-react';
 import { Button } from './ui/button';
 
 /**

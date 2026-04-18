@@ -34,13 +34,13 @@ export const DownloadButton = ({
   const isDepleted = remaining <= 0;
   
   // Color classes based on remaining
-  const countColorClass = isDepleted 
+  const _countColorClass = isDepleted 
     ? 'text-red-400' 
     : isLow 
       ? 'text-amber-400' 
       : 'text-zinc-400';
   
-  const buttonSizeClass = size === 'sm' ? 'h-8 px-2 text-xs' : 'h-10 px-4 text-sm';
+  const _buttonSizeClass = size === 'sm' ? 'h-8 px-2 text-xs' : 'h-10 px-4 text-sm';
   
   if (isDepleted) {
     return (

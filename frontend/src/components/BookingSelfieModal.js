@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import axios from 'axios';
-import { Camera, X, Check, AlertCircle } from 'lucide-react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
+import { Camera, Check, AlertCircle } from 'lucide-react';
+import { Dialog, DialogContent, DialogTitle } from './ui/dialog';
 import { Button } from './ui/button';
 import { toast } from 'sonner';
 import { SelfieCapture } from './SelfieCapture';
@@ -21,7 +21,7 @@ export const BookingSelfieModal = ({
   onSuccess
 }) => {
   const [step, setStep] = useState('prompt'); // 'prompt' | 'capture' | 'success'
-  const [uploading, setUploading] = useState(false);
+  const [_uploading, setUploading] = useState(false);
   
   const isLight = theme === 'light';
   const textPrimaryClass = isLight ? 'text-gray-900' : 'text-white';

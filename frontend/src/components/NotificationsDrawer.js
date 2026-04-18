@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { 
   Bell, Users, MessageCircle, UserPlus, Check, CheckCheck, Camera, Tag, 
   Image as ImageIcon, CreditCard, Waves, Trophy, Calendar, X, Clock,
-  ChevronRight, Settings, ExternalLink
+  ChevronRight, ExternalLink
 } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from './ui/sheet';
 import { Button } from './ui/button';
@@ -152,7 +152,7 @@ export const NotificationsDrawer = ({ isOpen, onClose, onCountUpdate }) => {
     return counts;
   }, [notifications]);
 
-  const handleMarkAsRead = async (notificationId) => {
+  const _handleMarkAsRead = async (notificationId) => {
     try {
       await axios.post(`${API}/notifications/${notificationId}/read`);
       setNotifications(notifications.map(n => 

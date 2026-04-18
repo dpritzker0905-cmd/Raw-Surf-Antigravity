@@ -7,9 +7,9 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { 
-  Users, MapPin, DollarSign, ChevronRight, 
-  Loader2, UserPlus, X, Check, Calendar, Waves,
-  Navigation, UserCheck, Camera
+  Users, MapPin, 
+  Loader2, UserPlus, Check, Calendar, Waves,
+  Navigation, UserCheck
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from './ui/dialog';
 import { Button } from './ui/button';

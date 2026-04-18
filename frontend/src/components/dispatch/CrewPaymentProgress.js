@@ -5,9 +5,8 @@
  */
 import React, { useState, useEffect } from 'react';
 import { 
-  Check, Clock, DollarSign, Users, Loader2, 
-  Send, AlertCircle, ChevronDown, ChevronUp,
-  CreditCard, Shield
+  Check, Users, Loader2, 
+  Send, AlertCircle, ChevronDown, ChevronUp, Shield
 } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
@@ -31,7 +30,7 @@ const API = process.env.REACT_APP_BACKEND_URL;
 /**
  * Individual crew member chip showing payment status
  */
-const CrewMemberChip = ({ member, isLight }) => {
+const CrewMemberChip = ({ member, _isLight }) => {
   const isPaid = member.paid;
   
   return (
@@ -347,7 +346,7 @@ const CrewPaymentDetails = ({
   isLight,
   textPrimaryClass,
   textSecondaryClass,
-  bgCardClass
+  _bgCardClass
 }) => {
   return (
     <>

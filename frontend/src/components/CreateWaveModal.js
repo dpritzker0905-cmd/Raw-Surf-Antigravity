@@ -10,7 +10,7 @@ import { Button } from './ui/button';
 import { Textarea } from './ui/textarea';
 import { Input } from './ui/input';
 import { 
-  Upload, Video, X, Loader2, MapPin, Clock, AlertCircle, 
+  Upload, Video, Loader2, MapPin, Clock, AlertCircle, 
   CheckCircle, Play, Pause, Volume2, VolumeX, RotateCcw
 } from 'lucide-react';
 import { toast } from 'sonner';

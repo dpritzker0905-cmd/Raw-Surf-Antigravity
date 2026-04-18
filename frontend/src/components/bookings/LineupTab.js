@@ -14,11 +14,10 @@ import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { 
   Users, Clock, MapPin, Calendar, ChevronRight, 
-  Loader2, UserPlus, Lock, Unlock, Eye, EyeOff,
-  Crown, Timer, DollarSign, Waves, CheckCircle,
-  AlertCircle, Globe, UserCheck
+  Loader2, UserPlus, Lock, Unlock, Eye,
+  Crown, Timer, DollarSign, Waves, CheckCircle, Globe, UserCheck
 } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
+import { Card, CardContent } from '../ui/card';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { Progress } from '../ui/progress';
@@ -353,7 +352,7 @@ export const LineupTab = ({
   user,
   theme,
   onOpenDirectory,
-  onRefresh
+  _onRefresh
 }) => {
   const [lineups, setLineups] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -365,7 +364,7 @@ export const LineupTab = ({
   const textSecondaryClass = isLight ? 'text-gray-600' : 'text-gray-400';
 
   // Real-time WebSocket updates for user notifications
-  const handleWebSocketNotification = useCallback((data) => {
+  const handleWebSocketNotification = useCallback((_data) => {
     // Refresh lineups when we get a notification
     fetchLineups();
   }, []);

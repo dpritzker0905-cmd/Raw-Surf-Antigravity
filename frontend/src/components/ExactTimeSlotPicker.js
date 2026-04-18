@@ -7,7 +7,7 @@ import React, { useState, useMemo } from 'react';
 import { useTheme } from '../contexts/ThemeContext';
 import {
   Calendar as CalendarIcon, Clock, ChevronLeft, ChevronRight,
-  Sunrise, Sun, Sunset, Moon, Check
+  Sunrise, Sun, Sunset, Check
 } from 'lucide-react';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
@@ -93,7 +93,7 @@ const TIME_SLOTS_BY_CATEGORY = {
 /**
  * Calendar Component for date selection
  */
-const MiniCalendar = ({ selectedDate, onSelectDate, minDate }) => {
+const MiniCalendar = ({ selectedDate, onSelectDate, _minDate }) => {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const { theme } = useTheme();
   const isLight = theme === 'light';
@@ -199,10 +199,10 @@ export const ExactTimeSlotPicker = ({
   onTimeChange,
   onCategoryChange,
   onDurationChange,
-  photographerAvailability = []
+  _photographerAvailability = []
 }) => {
   const { theme } = useTheme();
-  const [step, setStep] = useState(1); // 1: Category, 2: Date, 3: Time, 4: Duration
+  const [_step, setStep] = useState(1); // 1: Category, 2: Date, 3: Time, 4: Duration
   
   const isLight = theme === 'light';
   const textPrimary = isLight ? 'text-gray-900' : 'text-white';

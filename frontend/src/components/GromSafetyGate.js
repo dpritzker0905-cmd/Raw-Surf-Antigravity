@@ -4,6 +4,11 @@ import { useAuth } from '../contexts/AuthContext';
 import axios from 'axios';
 import GromLimitedFeed from './GromLimitedFeed';
 import logger from '../utils/logger';
+import { Shield, Lock, Clock, Copy, CheckCircle, ShieldAlert, UserPlus } from 'lucide-react';
+import { Button } from './ui/button';
+import { Card, CardContent } from './ui/card';
+import { Badge } from './ui/badge';
+import { toast } from 'sonner';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -30,7 +35,7 @@ export const useGromStatus = () => useContext(GromStatusContext);
  */
 export const GromSafetyGate = ({ children, allowLimitedFeed = false }) => {
   const { user, loading: authLoading } = useAuth();
-  const navigate = useNavigate();
+  const _navigate = useNavigate();
   const location = useLocation();
   const [loading, setLoading] = useState(true);
   const [gromStatus, setGromStatus] = useState(null);
@@ -119,11 +124,6 @@ export const GromSafetyGate = ({ children, allowLimitedFeed = false }) => {
  */
 const SafetyGateUI = ({ gromStatus, onRefresh }) => {
   const [codeCopied, setCodeCopied] = useState(false);
-  const { Shield, Lock, Clock, Copy, CheckCircle, Loader2, ShieldAlert, UserPlus } = require('lucide-react');
-  const { Button } = require('./ui/button');
-  const { Card, CardContent } = require('./ui/card');
-  const { Badge } = require('./ui/badge');
-  const { toast } = require('sonner');
 
   const copyGuardianCode = () => {
     if (gromStatus?.guardian_code) {

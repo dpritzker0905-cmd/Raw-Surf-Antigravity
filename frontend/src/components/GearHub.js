@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
+import { Card, CardContent } from './ui/card';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { toast } from 'sonner';
 import axios from 'axios';
 import {
   Camera, Wrench, Package, Waves, Search, ShoppingBag,
-  ExternalLink, Star, ChevronRight, Loader2, Target,
+  ExternalLink, Loader2, Target,
   Percent, BadgeCheck
 } from 'lucide-react';
 import logger from '../utils/logger';
@@ -126,7 +126,7 @@ export const GearHub = () => {
     // TODO: API call to update profile target_gear_item_id
   };
 
-  const categories = [...new Set(gearItems.map(item => item.category))];
+  const _categories = [...new Set(gearItems.map(item => item.category))];
 
   const isHobbyist = user?.role === 'Hobbyist' || user?.role === 'Grom Parent' || user?.is_grom_parent === true;
 

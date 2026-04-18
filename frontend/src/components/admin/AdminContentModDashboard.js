@@ -3,8 +3,8 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import axios from 'axios';
 import {
-  Shield, Image, MessageSquare, AlertTriangle, Check, X,
-  Loader2, RefreshCw, Eye, Flag, Filter, Trash2
+  Shield, Image, MessageSquare, Check, X,
+  Loader2, RefreshCw, Eye, Flag, Trash2
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '../ui/card';
 import { Button } from '../ui/button';

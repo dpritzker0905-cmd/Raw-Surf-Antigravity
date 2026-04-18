@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import axios from 'axios';
-import { Calendar as CalendarIcon, MapPin, Users, DollarSign, Clock, Check, X, ChevronRight, CalendarCheck, CalendarX, History, Plus, Copy, Share2, UserPlus, Globe, Settings, Camera, ChevronLeft, Mail, Link2, Send, Sunrise, Sunset, Sun, Repeat, Trash2, LayoutGrid, Unlock, Lock, Navigation } from 'lucide-react';
+import { Calendar as CalendarIcon, MapPin, Users, DollarSign, Clock, Check, X, CalendarCheck, CalendarX, History, Plus, Copy, Share2, UserPlus, Globe, Settings, Camera, ChevronLeft, Mail, Link2, Send, Sunrise, Sunset, Sun, Repeat, LayoutGrid, Unlock, Lock, Navigation } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from './ui/card';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
@@ -24,7 +24,7 @@ const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 export const PhotographerBookingsManager = () => {
   const { user } = useAuth();
   const { theme } = useTheme();
-  const navigate = useNavigate();
+  const _navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState('pending');
   const [bookings, setBookings] = useState([]);
@@ -625,7 +625,7 @@ export const PhotographerBookingsManager = () => {
   };
 
   // Open crew modal for existing booking
-  const openCrewModal = (booking) => {
+  const _openCrewModal = (booking) => {
     setSelectedBooking(booking);
     setShowCrewModal(true);
     generateSplitLink();

@@ -5,11 +5,10 @@ import { useTheme } from '../contexts/ThemeContext';
 import { 
   Trophy, Target, TrendingUp, Users, Calendar, 
   ChevronRight, Loader2, Plus, CheckCircle, Clock, Medal,
-  Flame, Waves, Award, Video, MapPin, Star
+  Flame, Award, Video, MapPin, Star
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
-import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { Badge } from './ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from './ui/dialog';
 import { Input } from './ui/input';
@@ -28,11 +27,11 @@ export const ImpactZoneHub = () => {
   const { theme } = useTheme();
   const navigate = useNavigate();
   
-  const [competitionStats, setCompetitionStats] = useState(null);
+  const [_competitionStats, setCompetitionStats] = useState(null);
   const [upcomingContests, setUpcomingContests] = useState([]);
   const [competitionResults, setCompetitionResults] = useState([]);
   const [rankings, setRankings] = useState(null);
-  const [compCrewMembers, setCompCrewMembers] = useState([]);
+  const [_compCrewMembers, setCompCrewMembers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showAddResultModal, setShowAddResultModal] = useState(false);
 

@@ -68,7 +68,7 @@ export const AdminPricingEditor = () => {
     tier_2: 20,    // Basic - 20%
     tier_3: 15,    // Premium - 15%
   });
-  const [originalCommissionRates, setOriginalCommissionRates] = useState(null);
+  const [_originalCommissionRates, setOriginalCommissionRates] = useState(null);
   const [commissionHasChanges, setCommissionHasChanges] = useState(false);
 
   const fetchPricing = useCallback(async () => {
@@ -621,7 +621,7 @@ export const AdminPricingEditor = () => {
             Pricing History
           </h4>
           <div className="space-y-2">
-            {history.map((entry, idx) => (
+            {history.map((entry, _idx) => (
               <div
                 key={entry.version}
                 className={`flex items-center justify-between p-2 rounded-lg ${

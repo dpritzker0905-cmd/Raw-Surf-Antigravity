@@ -3,7 +3,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { 
   Shield, Lock, Copy, CheckCircle, Loader2, Heart, MessageCircle,
-  ShieldAlert, UserPlus, Clock, Users, Camera
+  ShieldAlert, Clock, Users, Camera
 } from 'lucide-react';
 import { Button } from './ui/button';
 import { Card, CardContent } from './ui/card';
@@ -18,8 +18,8 @@ const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
  * GromLimitedFeed - Shows a limited preview feed for unlinked Groms
  * Displays up to 3 posts from other Groms only, with a CTA to complete parent linking
  */
-const GromLimitedFeed = ({ gromStatus, onCopyCode }) => {
-  const { user } = useAuth();
+const GromLimitedFeed = ({ gromStatus, _onCopyCode }) => {
+  const { _user } = useAuth();
   const { theme } = useTheme();
   const isLight = theme === 'light';
   

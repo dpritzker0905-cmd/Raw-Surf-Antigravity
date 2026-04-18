@@ -19,7 +19,7 @@ const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
  * 
  * Allows photographers to verify pin accuracy or suggest relocation.
  */
-export const SpotVerificationNudge = ({ spot, userLocation, onClose }) => {
+export const SpotVerificationNudge = ({ spot, userLocation, _onClose }) => {
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState(null); // null | 'loading' | 'voted' | 'hidden'

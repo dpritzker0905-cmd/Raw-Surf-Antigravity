@@ -1,7 +1,6 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { Radio, Square, Clock, Users, DollarSign, MapPin, Eye, Camera, ChevronDown, ChevronUp } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Square, Clock, Users, DollarSign, MapPin, Eye, Camera, ChevronDown, ChevronUp } from 'lucide-react';
 import { Button } from './ui/button';
-import { Badge } from './ui/badge';
 
 /**
  * LiveStatusHUD - Persistent "Active Session" Heads-Up Display

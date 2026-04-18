@@ -75,7 +75,7 @@ export const PersonaProvider = ({ children }) => {
   
   // CRITICAL: Check for user in localStorage BEFORE initializing state
   // This prevents flash of God Mode UI when user is not logged in
-  const hasStoredUser = typeof window !== 'undefined' && !!localStorage.getItem('raw-surf-user');
+  const _hasStoredUser = typeof window !== 'undefined' && !!localStorage.getItem('raw-surf-user');
   
   const [activePersona, setActivePersona] = useState(null);
   const [isGodMode, setIsGodMode] = useState(false);

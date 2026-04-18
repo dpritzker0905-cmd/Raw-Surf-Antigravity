@@ -5,15 +5,12 @@ import { useTheme } from '../contexts/ThemeContext';
 import { 
   ArrowLeft, Activity, CreditCard, Shield, Clock, DollarSign, 
   ShoppingBag, Camera, MessageSquare, Edit3, Radio, Loader2,
-  TrendingUp, TrendingDown, ChevronRight, AlertCircle, CheckCircle,
-  ToggleLeft, ToggleRight, Save, Users
+  TrendingUp, TrendingDown, AlertCircle, Save, Users
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
-import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
-import { Badge } from './ui/badge';
+import { Avatar, AvatarFallback } from './ui/avatar';
 import { Input } from './ui/input';
-import { Switch } from './ui/switch';
 import { toast } from 'sonner';
 import axios from 'axios';
 import logger from '../utils/logger';

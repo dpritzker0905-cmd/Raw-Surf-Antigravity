@@ -17,19 +17,17 @@ import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { 
   Users, Crown, Lock, Unlock, UserPlus, X, Copy, Send,
-  DollarSign, Clock, MapPin, Calendar, ChevronRight,
-  AlertTriangle, Check, Loader2, Share2, MessageCircle,
-  Globe, Eye, UserCheck, Timer, Ban, Search, AtSign,
-  Sparkles, RefreshCw, Zap, Waves, Anchor, Navigation,
-  UserMinus, Settings, Bell, ChevronDown, ChevronUp
+  DollarSign, Clock, MapPin, Loader2, MessageCircle,
+  Globe, UserCheck, Timer, Ban, Search,
+  Sparkles, Zap, Waves, Anchor, Navigation,
+  UserMinus, Settings, ChevronDown, ChevronUp
 } from 'lucide-react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from './ui/dialog';
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from './ui/dialog';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Progress } from './ui/progress';
-import { Card, CardContent } from './ui/card';
 import { toast } from 'sonner';
 import { useLineupWebSocket } from '../hooks/useLineupWebSocket';
 import logger from '../utils/logger';
@@ -55,12 +53,12 @@ const SurferPosition = ({
   isCurrentUser,
   canRemove,
   onRemove,
-  pricePerPerson,
+  _pricePerPerson,
   isLight,
   loading
 }) => {
   const textPrimary = isLight ? 'text-gray-900' : 'text-white';
-  const textSecondary = isLight ? 'text-gray-600' : 'text-gray-400';
+  const _textSecondary = isLight ? 'text-gray-600' : 'text-gray-400';
   
   // Countdown timer state for pending invites
   const [timeLeft, setTimeLeft] = useState(null);
@@ -327,7 +325,7 @@ const QuickActionsPanel = ({
   onLeave,
   isLight 
 }) => {
-  const textPrimary = isLight ? 'text-gray-900' : 'text-white';
+  const _textPrimary = isLight ? 'text-gray-900' : 'text-white';
   
   if (!isCaptain && lineup.lineup_status === 'open') {
     // Non-captain view - only leave option
@@ -483,7 +481,7 @@ const AutoFillPanel = ({
   isLight 
 }) => {
   const textPrimary = isLight ? 'text-gray-900' : 'text-white';
-  const textSecondary = isLight ? 'text-gray-600' : 'text-gray-400';
+  const _textSecondary = isLight ? 'text-gray-600' : 'text-gray-400';
   const [expanded, setExpanded] = useState(true);
   
   const allSuggestions = [
@@ -587,7 +585,7 @@ export const LineupManagerDrawer = ({
   const [searching, setSearching] = useState(false);
   const [inviting, setInviting] = useState(null);
   const [suggestions, setSuggestions] = useState({ mutual_friends: [], nearby_public: [] });
-  const [loadingSuggestions, setLoadingSuggestions] = useState(false);
+  const [_loadingSuggestions, setLoadingSuggestions] = useState(false);
   
   // Local state for toggle values to ensure immediate UI updates
   const [localSplitMode, setLocalSplitMode] = useState(lineup?.split_mode);
@@ -600,11 +598,11 @@ export const LineupManagerDrawer = ({
   }, [lineup?.split_mode, lineup?.lineup_auto_confirm]);
   
   // Real-time WebSocket updates
-  const handleLineupUpdate = useCallback((data) => {
+  const handleLineupUpdate = useCallback((_data) => {
     onRefresh?.();
   }, [onRefresh]);
   
-  const { isConnected } = useLineupWebSocket(
+  const { _isConnected } = useLineupWebSocket(
     isOpen ? lineup?.id : null,
     user?.id,
     handleLineupUpdate
@@ -823,7 +821,7 @@ export const LineupManagerDrawer = ({
     payment_status: 'Paid'
   };
   
-  const allCrew = [captainMember, ...confirmedCrew];
+  const _allCrew = [captainMember, ...confirmedCrew];
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>

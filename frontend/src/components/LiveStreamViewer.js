@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   X, Radio, Users, Heart, MessageCircle, Send, Loader2, WifiOff, 
-  ArrowLeft, Volume2, VolumeX, Share2, UserPlus
+  ArrowLeft, Share2, UserPlus
 } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -490,11 +490,9 @@ const LiveStreamViewer = ({ isOpen, onClose, streamInfo }) => {
       timeoutRef.current = null;
     }
 
-    try {
-      if (streamInfo?.id && user?.id) {
-        axios.post(`${API}/social-live/${streamInfo.id}/leave?viewer_id=${user.id}`).catch(() => {});
-      }
-    } catch (e) {}
+    if (streamInfo?.id && user?.id) {
+      axios.post(`${API}/social-live/${streamInfo.id}/leave?viewer_id=${user.id}`).catch(() => {/* fire-and-forget */});
+    }
     
     onClose();
   }, [streamInfo, user, onClose]);

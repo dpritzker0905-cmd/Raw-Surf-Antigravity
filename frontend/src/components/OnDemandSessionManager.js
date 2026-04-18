@@ -4,11 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import axios from 'axios';
 import { 
-  Power, MapPin, Clock, DollarSign, Camera, Zap, Settings, 
-  RefreshCw, ChevronRight, User, Navigation, Phone, Check, X,
-  TrendingUp, Flame, Target, Bell, Volume2, VolumeX, Shield,
-  AlertCircle, Loader2, Radio, Eye, Star, Award, Calendar,
-  Play, Square, ChevronDown, ChevronUp, Wallet, History, Info, Waves, Users
+  Power, MapPin, Clock, DollarSign, Camera, Zap, Settings, User, Navigation, Check, X, Flame, Bell, Volume2, VolumeX, Loader2, Radio, Eye, Calendar, Square, ChevronDown, ChevronUp, Wallet, History, Info, Waves, Users
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from './ui/card';
 import { Button } from './ui/button';
@@ -547,7 +543,7 @@ const ActiveSessionCard = ({
   onMarkArrived, 
   onComplete, 
   onCancel,
-  cardBg,
+  _cardBg,
   textPrimary, 
   textSecondary,
   sectionBg
@@ -746,7 +742,7 @@ const ActiveSessionCard = ({
 };
 
 // ============ EARNINGS STATS CARD ============
-const EarningsStatsCard = ({ stats, cardBg, textPrimary, textSecondary, sectionBg, borderClass }) => {
+const EarningsStatsCard = ({ stats, cardBg, textPrimary, textSecondary, _sectionBg, borderClass }) => {
   const hasStreak = (stats.streak || 0) >= 3;
   
   return (

@@ -8,9 +8,7 @@ import { LivePhotographers } from './LivePhotographers';
 import { PhotographerSessionDashboard } from './PhotographerSessionDashboard';
 import { StoriesBar, CreateStoryModal } from './Stories';
 import LiveStreamViewer from './LiveStreamViewer';
-import { CommentInputWithEmoji } from './EmojiPicker';
 import { SocialAdCard, injectAdsIntoPosts } from './SocialAdCard';
-import SessionLogHeader from './SessionLogHeader';
 import PostMenu, { SharePostModal } from './PostMenu';
 import CreatePostModal from './CreatePostModal';
 import PostCard from './PostCard';
@@ -19,20 +17,18 @@ import FeedLineupCard from './FeedLineupCard';
 import SessionCountdownWidget from './SessionCountdownWidget';
 import WavesFeed from './WavesFeed';
 import CreateWaveModal from './CreateWaveModal';
-import { MapPin, Flame, Plus, MessageCircle, Send, Bookmark, MoreHorizontal, X, Check, Loader2, Navigation, Image, Video, Upload, Play, Radio, Camera, Megaphone, Users, Waves, ChevronDown, Wind, ArrowUpDown } from 'lucide-react';
+import { MapPin, Flame, Plus, X, Check, Loader2, Navigation, Play, Users } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from './ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from './ui/dialog';
 import { Input } from './ui/input';
-import { Textarea } from './ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { CreateAdModal } from './CreateAdModal';
 import logger from '../utils/logger';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 // Role badge component for post authors
-const RoleBadge = ({ role }) => {
+const _RoleBadge = ({ role }) => {
   const roleInfo = getExpandedRoleInfo(role);
   return (
     <span className={`text-sm ${roleInfo.color}`} title={roleInfo.label}>
@@ -50,7 +46,7 @@ const POST_REACTIONS = ['🤙', '🌊', '❤️', '🔥'];
 //   - hasNonShakaReaction: Show that emoji
 //   - isLiked (checked Shaka): Show colored Shaka
 //   - else: Show grayscale (unchecked) Shaka
-const ReactionIcon = ({ post, userId, isLiked }) => {
+const _ReactionIcon = ({ post, userId, isLiked }) => {
   // Find user's reaction on this post
   const userReaction = post.reactions?.find(r => r.user_id === userId);
   const hasNonShakaReaction = userReaction && userReaction.emoji !== '🤙';
@@ -101,7 +97,7 @@ const ReactionIcon = ({ post, userId, isLiked }) => {
 };
 
 // Shaka icon using Twemoji image for consistent rendering (kept for backwards compat)
-const ShakaIcon = ({ filled }) => (
+const _ShakaIcon = ({ filled }) => (
   <img 
     src="https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/svg/1f919.svg"
     alt="shaka"
@@ -174,7 +170,7 @@ const ReactionOverlay = ({ show, onClose }) => {
 export const Feed = () => {
   const { user } = useAuth();
   const { theme } = useTheme();
-  const { getEffectiveRole, isMasked } = usePersona();
+  const { getEffectiveRole, _isMasked } = usePersona();
   const navigate = useNavigate();
   
   // Get effective role for UI rendering (respects God Mode persona masking)
@@ -214,11 +210,11 @@ export const Feed = () => {
   
   // Feed Lineup Cards state - The Lineup integration
   const [feedLineups, setFeedLineups] = useState([]);
-  const [feedLineupsLoading, setFeedLineupsLoading] = useState(false);
+  const [_feedLineupsLoading, setFeedLineupsLoading] = useState(false);
   
   // Upcoming Sessions state - Session Countdown Widget
   const [upcomingSessions, setUpcomingSessions] = useState([]);
-  const [upcomingSessionsLoading, setUpcomingSessionsLoading] = useState(false);
+  const [_upcomingSessionsLoading, setUpcomingSessionsLoading] = useState(false);
   
   // Comment state
   const [commentInputs, setCommentInputs] = useState({});  // Track comment text per post
@@ -233,11 +229,11 @@ export const Feed = () => {
   
   // Collaboration state - "I Was There" feature
   const [showCollaboratorsModal, setShowCollaboratorsModal] = useState(null);  // post ID or null
-  const [collaborationLoading, setCollaborationLoading] = useState(null);  // post ID when loading
+  const [_collaborationLoading, setCollaborationLoading] = useState(null);  // post ID when loading
   
   // Following state for photographer posts
   const [followingUsers, setFollowingUsers] = useState(new Set());
-  const [followLoading, setFollowLoading] = useState(null);  // user ID when loading
+  const [_followLoading, setFollowLoading] = useState(null);  // user ID when loading
   
   // Post menu state
   const [postMenuOpen, setPostMenuOpen] = useState(null);  // post object or null
@@ -603,7 +599,7 @@ export const Feed = () => {
         toast.success(`Location found! ${nearest ? `Nearest: ${nearest.name} (${nearest.distance}km)` : ''}`);
         setGpsLoading(false);
       },
-      (error) => {
+      (_error) => {
         toast.error('Unable to get location');
         setGpsLoading(false);
       },
@@ -1043,7 +1039,7 @@ export const Feed = () => {
     setShowCollaboratorsModal(postId);
   };
 
-  const formatTimeAgo = (dateString) => {
+  const _formatTimeAgo = (dateString) => {
     const date = new Date(dateString);
     const now = new Date();
     const seconds = Math.floor((now - date) / 1000);
@@ -1177,7 +1173,7 @@ export const Feed = () => {
 
   // Get theme-specific classes
   const isLight = theme === 'light';
-  const isDark = theme === 'dark';
+  const _isDark = theme === 'dark';
   const isBeach = theme === 'beach';
   
   // Main background: white for light, dark gray for dark, pure black for beach

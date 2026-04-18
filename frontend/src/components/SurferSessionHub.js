@@ -2,8 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import axios from 'axios';
-import { Radio, MapPin, Calendar, ChevronRight, ChevronDown, ChevronUp, Users, Zap, Clock, X, Loader2, Camera, Play, Activity, AlertCircle, Lock, Image, Navigation, Star, User, Sparkles } from 'lucide-react';
-import { Button } from './ui/button';
+import { Radio, MapPin, Calendar, ChevronRight, Users, Zap, Play, Activity, Lock, Sparkles } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from './ui/sheet';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Badge } from './ui/badge';
@@ -167,7 +166,7 @@ const PhotographerHubContent = ({
   photographerTier,
   showSpotSelector,
   setShowSpotSelector,
-  pendingToggle,
+  _pendingToggle,
   onConfirmToggle,
   // Go Live state
   liveActive,
@@ -705,11 +704,11 @@ export const SurferSessionHub = ({ children, isPhotographer = false }) => {
     if (navigator.geolocation) {
       setGpsStatus('Getting location...');
       navigator.geolocation.getCurrentPosition(
-        (position) => {
+        (_position) => {
           setGpsStatus(null);
           setSpotsLoaded(true);
         },
-        (error) => {
+        (_error) => {
           setGpsStatus('Location unavailable');
           setTimeout(() => setGpsStatus(null), 3000);
         },

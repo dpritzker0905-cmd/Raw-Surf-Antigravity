@@ -29,14 +29,14 @@ export const useUserLocation = () => {
           setUserLocation(loc);
         }
       }
-    } catch (e) {}
+    } catch (e) { /* localStorage unavailable - run without cache */ }
   }, []);
 
   // Save to cache
   const cache = useCallback((loc) => {
     try {
       localStorage.setItem(CACHE_KEY, JSON.stringify({ loc, time: Date.now() }));
-    } catch (e) {}
+    } catch (e) { /* localStorage unavailable - skip cache write */ }
   }, []);
 
   /**

@@ -1,13 +1,10 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
-import { 
-  Users, DollarSign, Clock, CheckCircle2, AlertTriangle, 
-  Send, Calculator, Loader2, ChevronDown, ChevronUp,
-  Anchor, Shield, Percent, Wallet, ArrowRight, 
-  UserCheck, Crown, Timer, Bell, RefreshCw, MessageCircle
+import { DollarSign, Clock, CheckCircle2, AlertTriangle, 
+  Send, Calculator, Loader2, Shield, Wallet, ArrowRight, Crown, Timer, Bell, MessageCircle
 } from 'lucide-react';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
@@ -16,7 +13,6 @@ import { Input } from './ui/input';
 import { Switch } from './ui/switch';
 import { Slider } from './ui/slider';
 import { Card, CardHeader, CardTitle, CardContent } from './ui/card';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from './ui/dialog';
 import { toast } from 'sonner';
 import logger from '../utils/logger';
 

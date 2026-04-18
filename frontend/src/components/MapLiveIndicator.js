@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Radio, Square, Clock, MapPin } from 'lucide-react';
+import { Square, Clock, MapPin } from 'lucide-react';
 import { Button } from './ui/button';
 
 /**

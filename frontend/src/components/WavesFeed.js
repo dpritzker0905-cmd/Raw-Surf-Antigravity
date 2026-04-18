@@ -7,7 +7,7 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
-import { Heart, MessageCircle, Share2, Volume2, VolumeX, Play, Pause, ChevronUp, ChevronDown, MapPin, MoreHorizontal, Plus, Loader2 } from 'lucide-react';
+import { Heart, MessageCircle, Share2, Volume2, VolumeX, Play, ChevronUp, ChevronDown, MapPin, Plus, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from './ui/button';
 
@@ -25,7 +25,7 @@ const WaveCard = ({
   onComment, 
   onShare,
   onViewProfile,
-  userId
+  _userId
 }) => {
   const videoRef = useRef(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -280,7 +280,7 @@ const WaveCard = ({
  */
 export const WavesFeed = ({ feedType = 'for_you', onCreateWave }) => {
   const { user } = useAuth();
-  const { theme } = useTheme();
+  const { _theme } = useTheme();
   const navigate = useNavigate();
   
   const [waves, setWaves] = useState([]);

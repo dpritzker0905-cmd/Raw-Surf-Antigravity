@@ -8,8 +8,8 @@ import React, { useState } from 'react';
 import { useTheme } from '../contexts/ThemeContext';
 import {
   MapPin, Clock, Waves, Wind, Droplets, Users, ChevronDown,
-  ChevronUp, Navigation, Sunrise, Sunset, Sun, Moon, CheckCircle,
-  UserPlus, AlertTriangle, Calendar
+  ChevronUp, Sunrise, Sunset, Sun, Moon, CheckCircle,
+  UserPlus, Calendar
 } from 'lucide-react';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
@@ -32,7 +32,7 @@ const SESSION_LABEL_ICONS = {
 };
 
 // Wind direction display
-const WIND_ARROWS = {
+const _WIND_ARROWS = {
   'N': '↓', 'NE': '↙', 'E': '←', 'SE': '↖',
   'S': '↑', 'SW': '↗', 'W': '→', 'NW': '↘'
 };

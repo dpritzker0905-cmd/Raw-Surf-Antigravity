@@ -2,8 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { 
-  Zap, Heart, DollarSign, Users, ShoppingBag, Camera, Loader2,
-  ChevronRight, Gift, TrendingUp, Sparkles, CheckCircle, ExternalLink
+  Zap, Heart, DollarSign, Users, ShoppingBag, Camera, Loader2, TrendingUp, Sparkles, CheckCircle
 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { Badge } from './ui/badge';
@@ -103,7 +102,7 @@ export const StokedTab = ({ userId, isOwnProfile }) => {
   const recent_support = stokedData?.recent_support || [];
   const gear_purchases = stokedData?.gear_purchases || { total_spent: 0, count: 0, list: [] };
   const session_purchases = stokedData?.session_purchases || { total_spent: 0, count: 0, list: [] };
-  const credit_uses = stokedData?.credit_uses || getDefaultCreditUses(effectiveRole);
+  const _credit_uses = stokedData?.credit_uses || getDefaultCreditUses(effectiveRole);
 
   // Section navigation
   const sections = [

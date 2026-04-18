@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { usePersona } from '../contexts/PersonaContext';
 import axios from 'axios';
-import { Shield, Users, Image, FileText, DollarSign, Search, Ban, CheckCircle, XCircle, Loader2, ChevronDown, ChevronUp, Eye, Trash2, UserX, UserCheck, Crown, Trophy, MapPin, AlertTriangle, Lock, Settings } from 'lucide-react';
+import { Shield, Users, Image, FileText, DollarSign, Search, Ban, CheckCircle, Loader2, Eye, UserX, UserCheck, Crown, Trophy, MapPin, AlertTriangle, Lock, Settings } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Badge } from './ui/badge';
@@ -615,7 +615,7 @@ const StatCard = ({ icon: Icon, label, value, subtext, color }) => {
   );
 };
 
-const UserDetailModal = ({ user: targetUser, adminId, onClose, onUpdate, onToggleAdmin }) => {
+const UserDetailModal = ({ user: targetUser, _adminId, onClose, _onUpdate, onToggleAdmin }) => {
   return (
     <Dialog open={true} onOpenChange={onClose}>
       <DialogContent className="bg-zinc-900 border-zinc-800 text-white max-w-lg">

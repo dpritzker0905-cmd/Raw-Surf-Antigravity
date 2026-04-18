@@ -1,7 +1,7 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { 
-  Camera, Upload, X, Image as ImageIcon, Video, FileText, 
-  CheckCircle2, AlertCircle, Loader2, CloudSun, Waves, Wind, RefreshCw
+  Camera, Upload, X, Video, FileText, 
+  CheckCircle2, AlertCircle, Loader2, CloudSun, Waves, RefreshCw
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from './ui/dialog';
 import { Button } from './ui/button';
@@ -35,7 +35,7 @@ const ConditionsModal = ({
   const [cameraMode, setCameraMode] = useState('photo'); // 'photo' | 'video'
   const [cameraFacing, setCameraFacing] = useState('environment'); // 'environment' = rear, 'user' = front
   const [isRecording, setIsRecording] = useState(false);
-  const [uploadMode, setUploadMode] = useState('capture'); // 'capture' | 'upload'
+  const [_uploadMode, setUploadMode] = useState('capture'); // 'capture' | 'upload'
   
   // Refs
   const videoRef = useRef(null);

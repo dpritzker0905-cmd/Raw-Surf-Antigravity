@@ -3,10 +3,9 @@ import { useSearchParams, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import axios from 'axios';
 import { 
-  Camera, Image, Video, Play, ShoppingCart, Download, Heart, Share2, 
-  Filter, Grid, LayoutGrid, Calendar, MapPin, ChevronDown, X, Check,
-  Sparkles, Star, ArrowLeft, User, Clock, DollarSign, Eye, Lock,
-  Zap, Radio, CalendarCheck, Folder, Search, SlidersHorizontal, ScanFace
+  Camera, Image, Play, ShoppingCart, Grid, LayoutGrid, MapPin, Check,
+  Sparkles, Star, ArrowLeft, User, Lock,
+  Zap, Radio, CalendarCheck, Folder, Search, ScanFace
 } from 'lucide-react';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
@@ -27,7 +26,7 @@ const VIEW_MODES = {
 };
 
 // Service Types for filtering
-const SERVICE_TYPES = [
+const _SERVICE_TYPES = [
   { id: 'all', label: 'All Photos', icon: Image },
   { id: 'live_session', label: 'Live Sessions', icon: Radio },
   { id: 'booking', label: 'Bookings', icon: CalendarCheck },
@@ -52,8 +51,8 @@ export const PublicPhotographerGallery = () => {
   const [selectedGallery, setSelectedGallery] = useState(null);
   const [selectedItem, setSelectedItem] = useState(null);
   const [viewMode, setViewMode] = useState(VIEW_MODES.GRID);
-  const [serviceFilter, setServiceFilter] = useState('all');
-  const [showFilters, setShowFilters] = useState(false);
+  const [serviceFilter, _setServiceFilter] = useState('all');
+  const [_showFilters, _setShowFilters] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState('newest');
   const [purchasedIds, setPurchasedIds] = useState(new Set());
@@ -64,7 +63,7 @@ export const PublicPhotographerGallery = () => {
   // AI Face Match state
   const [showAIMatch, setShowAIMatch] = useState(false);
   const [aiMatchResults, setAIMatchResults] = useState([]);
-  const [aiMatchLoading, setAIMatchLoading] = useState(false);
+  const [_aiMatchLoading, setAIMatchLoading] = useState(false);
   
   // New Find Me Selfie Scanner state
   const [scanModalOpen, setScanModalOpen] = useState(false);
@@ -122,7 +121,7 @@ export const PublicPhotographerGallery = () => {
   }, [photographerId, user?.id]);
 
   // AI Face Match - Find photos of the current user
-  const runAIFaceMatch = async () => {
+  const _runAIFaceMatch = async () => {
     if (!user?.id || !photographerId) {
       toast.error('Please log in to find your photos');
       return;
@@ -159,7 +158,7 @@ export const PublicPhotographerGallery = () => {
     
     setPurchaseLoading(true);
     try {
-      const res = await axios.post(`${API}/gallery/${selectedItem.id}/purchase`, {
+      const _res = await axios.post(`${API}/gallery/${selectedItem.id}/purchase`, {
         buyer_id: user.id,
         quality_tier: selectedQuality
       });

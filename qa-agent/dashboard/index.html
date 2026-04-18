@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>🏄 Raw Surf — QA Companion</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="bg"></div>
+
+  <header>
+    <div class="logo">
+      <span class="wave">🏄</span>
+      <div>
+        <h1>Raw Surf QA</h1>
+        <p class="subtitle">Companion Agent</p>
+      </div>
+    </div>
+    <div class="header-right">
+      <div id="overall-badge" class="badge badge-idle">IDLE</div>
+      <div class="last-run" id="last-run">Waiting for first run...</div>
+    </div>
+  </header>
+
+  <main>
+    <!-- Changed File Banner -->
+    <div id="changed-file-banner" class="changed-file hidden">
+      <span class="changed-icon">📝</span>
+      <span id="changed-file-text">—</span>
+    </div>
+
+    <!-- Active Environment / Deploy Target Banner -->
+    <div id="env-target-banner" class="env-banner env-banner-dev" style="display:none">
+      🛠 Loading environment target...
+    </div>
+
+    <!-- Check Cards -->
+    <section class="checks-grid" id="checks-grid">
+      <div class="check-card skeleton" id="card-eslint">
+        <div class="check-header">
+          <div class="check-icon">⚡</div>
+          <div class="check-name">ESLint</div>
+          <div class="check-badge badge-idle">—</div>
+        </div>
+        <div class="check-body">
+          <div class="metric-row">
+            <span class="metric-label">Errors</span>
+            <span class="metric-value error-color" id="eslint-errors">—</span>
+          </div>
+          <div class="metric-row">
+            <span class="metric-label">Warnings</span>
+            <span class="metric-value warn-color" id="eslint-warnings">—</span>
+          </div>
+        </div>
+        <div class="error-list" id="eslint-error-list"></div>
+      </div>
+
+      <div class="check-card skeleton" id="card-ruff">
+        <div class="check-header">
+          <div class="check-icon">🐍</div>
+          <div class="check-name">Ruff</div>
+          <div class="check-badge badge-idle">—</div>
+        </div>
+        <div class="check-body">
+          <div class="metric-row">
+            <span class="metric-label">Issues</span>
+            <span class="metric-value error-color" id="ruff-errors">—</span>
+          </div>
+        </div>
+        <div class="error-list" id="ruff-error-list"></div>
+      </div>
+
+      <div class="check-card skeleton" id="card-pytest">
+        <div class="check-header">
+          <div class="check-icon">🧪</div>
+          <div class="check-name">pytest</div>
+          <div class="check-badge badge-idle">—</div>
+        </div>
+        <div class="check-body">
+          <div class="metric-row">
+            <span class="metric-label">Passed</span>
+            <span class="metric-value pass-color" id="pytest-passed">—</span>
+          </div>
+          <div class="metric-row">
+            <span class="metric-label">Failed</span>
+            <span class="metric-value error-color" id="pytest-failed">—</span>
+          </div>
+        </div>
+        <div class="check-output" id="pytest-output"></div>
+      </div>
+    </section>
+
+    <!-- History -->
+    <section class="history-section">
+      <h2 class="section-title">Run History</h2>
+      <div class="history-list" id="history-list">
+        <div class="history-empty">No runs yet — waiting for first file change...</div>
+      </div>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>

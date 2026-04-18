@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { NavLink, useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Compass, Plus, Camera, MessageCircle, Waves } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
@@ -161,7 +161,7 @@ export const BottomNav = () => {
   // Role categorization
   const photographerRoles = ['Grom Parent', 'Hobbyist', 'Photographer', 'Approved Pro'];
   const isPhotographer = photographerRoles.includes(effectiveRole);
-  const isGromParent = effectiveRole === 'Grom Parent' || user?.is_grom_parent === true;
+  const _isGromParent = effectiveRole === 'Grom Parent' || user?.is_grom_parent === true;
   
   // Theme-specific classes
   const isLight = theme === 'light';

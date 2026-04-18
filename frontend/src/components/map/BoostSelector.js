@@ -13,7 +13,7 @@ const BOOST_OPTIONS = [
 export const BoostSelector = ({ 
   selectedHours = 0, 
   onSelect,
-  variant = 'default' // 'default' | 'compact'
+  _variant = 'default' // 'default' | 'compact'
 }) => {
   return (
     <div className="p-4 bg-gradient-to-r from-orange-900/30 to-red-900/30 rounded-lg border border-orange-500/30">

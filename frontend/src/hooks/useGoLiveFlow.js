@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback } from 'react';
 import axios from 'axios';
 import { toast } from 'sonner';
 import logger from '../utils/logger';

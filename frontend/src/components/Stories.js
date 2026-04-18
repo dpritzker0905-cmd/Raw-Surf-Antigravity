@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import axios from 'axios';
-import { X, ChevronLeft, ChevronRight, MapPin, Play, Pause, Camera, Waves, Plus, Loader2, Image, Video, Bell, Radio } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, MapPin, Play, Pause, Camera, Waves, Plus, Loader2, Image, Video, Bell } from 'lucide-react';
 import { Button } from './ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import { Textarea } from './ui/textarea';
@@ -400,9 +400,9 @@ export const StoriesBar = ({ onCreateStory, onTierChange, selectedTier }) => {
 };
 
 const StoryCircle = ({ authorGroup, onClick, isConnecting = false }) => {
-  const isPhotographer = authorGroup.story_type === 'photographer';
-  const hasUnviewed = authorGroup.has_unviewed;
-  const isLive = authorGroup.is_live;
+  const _isPhotographer = authorGroup.story_type === 'photographer';
+  const _hasUnviewed = authorGroup.has_unviewed;
+  const _isLive = authorGroup.is_live;
   
   // Ring color based on live status, viewed status, and type
   // Priority: LIVE (RED) > NEW (BLUE) > TYPE-BASED > VIEWED (CLEAR)
@@ -464,11 +464,11 @@ const StoryCircle = ({ authorGroup, onClick, isConnecting = false }) => {
   );
 };
 
-const StoryViewer = ({ authorGroup, viewerId, viewerLocation, onClose, onNavigate }) => {
+const StoryViewer = ({ authorGroup, viewerId, _viewerLocation, onClose, onNavigate }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [progress, setProgress] = useState(0);
   const [paused, setPaused] = useState(false);
-  const [stories, setStories] = useState(authorGroup.stories);
+  const [stories, _setStories] = useState(authorGroup.stories);
   const progressInterval = useRef(null);
   const STORY_DURATION = 5000; // 5 seconds per story
 

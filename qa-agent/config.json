@@ -1,0 +1,39 @@
+{
+  "projects": [
+    {
+      "name": "RawSurf Frontend",
+      "path": "C:/Users/dprit/.gemini/antigravity/scratch/raw-surf/Raw-Surf-main/frontend",
+      "type": "react",
+      "checks": ["eslint"]
+    },
+    {
+      "name": "RawSurf Backend",
+      "path": "C:/Users/dprit/.gemini/antigravity/scratch/raw-surf/Raw-Surf-main/backend",
+      "type": "python",
+      "checks": ["ruff", "pytest"]
+    }
+  ],
+  "watchExtensions": [".js", ".jsx", ".ts", ".tsx", ".py"],
+  "debounceMs": 800,
+  "dashboardPort": 7734,
+  "qaStatusFile": "C:/Users/dprit/.gemini/antigravity/scratch/raw-surf/Raw-Surf-main/qa-agent/qa-status.json",
+  "conversationId": "e6b20a99-fc82-4e1b-9f1d-1b6e53e8818c",
+
+  "_comment_deploys": "Always use activeEnv=dev during development. Switch to prod only for production smoke tests.",
+  "activeEnv": "dev",
+
+  "environments": {
+    "dev": {
+      "branch": "dev",
+      "frontendUrl": "https://dev--rawsurf.netlify.app",
+      "backendUrl": "https://raw-surf-antigravity.onrender.com",
+      "description": "Netlify dev branch deploy — used for all QA integration tests"
+    },
+    "prod": {
+      "branch": "main",
+      "frontendUrl": "https://rawsurf.netlify.app",
+      "backendUrl": "https://raw-surf-antigravity.onrender.com",
+      "description": "Production deploy — NEVER target this for QA unless explicitly smoke-testing"
+    }
+  }
+}

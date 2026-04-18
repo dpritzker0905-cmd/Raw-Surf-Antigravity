@@ -4,10 +4,9 @@ import { useAuth } from '../contexts/AuthContext';
 import { usePersona, getExpandedRoleInfo, isProLevelRole, isBusinessRole as isBusinessRoleCheck } from '../contexts/PersonaContext';
 import { useSearchParams, useNavigate, useParams, useLocation } from 'react-router-dom';
 import { 
-  Search, Send, ChevronLeft, ChevronRight, MoreHorizontal, Check, CheckCheck, 
-  X, Mic, Image, Camera, Play, Pause, Settings, Edit3, Video,
-  Reply, Smile, Heart, Shield, Users, EyeOff, Filter, Star, Store, Briefcase,
-  ThumbsUp, Sparkles, Pin, BellOff, Mail, Trash2, Clock
+  Search, Send, ChevronLeft, MoreHorizontal, Check, CheckCheck, 
+  X, Mic, Image, Camera, Play, Edit3, Video,
+  Reply, Smile, Heart, Shield, Users, EyeOff, Filter, Star, Store, Briefcase, Pin, BellOff, Mail, Trash2, Clock
 } from 'lucide-react';
 import { Input } from './ui/input';
 import { Button } from './ui/button';
@@ -28,7 +27,7 @@ const BASE_URL = process.env.REACT_APP_BACKEND_URL;
 
 // Role-based icon helper - uses expanded PersonaContext
 const getRoleIcon = (role, isAdmin = false) => {
-  const roleInfo = getExpandedRoleInfo(role, isAdmin);
+  const _roleInfo = getExpandedRoleInfo(role, isAdmin);
   if (isAdmin) return { icon: Shield, color: 'text-red-500', label: 'God Mode', emoji: '🔴' };
   
   // Map to lucide icons for non-emoji contexts
@@ -62,14 +61,14 @@ const isProRole = (role) => isProLevelRole(role);
 const isBusinessRole = (role) => isBusinessRoleCheck(role);
 
 // Updated folder system with Pro Lounge and The Channel
-const getFolders = (userRole, isAdmin = false, effectiveRole = null, isMasked = false, isGromParentFlag = false) => {
+const getFolders = (userRole, _isAdmin = false, effectiveRole = null, _isMasked = false, isGromParentFlag = false) => {
   // Use effective role if God Mode is masking
   const roleToCheck = effectiveRole || userRole;
   // Pro Lounge access: ONLY for 'Pro' or 'God' roles
   // Admin status alone does NOT grant Pro Lounge access (e.g., Comp Surfer admin should NOT see Pro Lounge)
   // When masking, use the masked role; otherwise use the actual role
   const isPro = isProRole(roleToCheck);
-  const isBusiness = isBusinessRole(roleToCheck);
+  const _isBusiness = isBusinessRole(roleToCheck);
   const isGrom = roleToCheck === 'Grom' || roleToCheck === 'GROM';
   const isGromParent = roleToCheck === 'Grom Parent' || roleToCheck === 'GROM_PARENT' || roleToCheck === 'grom_parent' || isGromParentFlag;
   
@@ -423,7 +422,7 @@ const ShakaIcon = ({ className = "w-16 h-16" }) => (
 // Compose Modal Component - Instagram-style new message search
 const ComposeModal = ({ isOpen, onClose, onSelectUser, currentUserId }) => {
   const [searchTerm, setSearchTerm] = useState('');
-  const [suggestedUsers, setSuggestedUsers] = useState([]);
+  const [_suggestedUsers, setSuggestedUsers] = useState([]);
   const [searchResults, setSearchResults] = useState([]);
   const [recentContacts, setRecentContacts] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -498,7 +497,7 @@ const ComposeModal = ({ isOpen, onClose, onSelectUser, currentUserId }) => {
     }
   };
 
-  const handleSelectUser = (user) => {
+  const _handleSelectUser = (user) => {
     setSelectedUsers([user]);
   };
 
@@ -683,7 +682,7 @@ const ComposeModal = ({ isOpen, onClose, onSelectUser, currentUserId }) => {
 };
 
 // Story Bubble Component - Enhanced with Notes support
-const StoryBubble = ({ story, onClick, isOwnNote = false, showCreateOption = false }) => {
+const StoryBubble = ({ story, onClick, isOwnNote = false, _showCreateOption = false }) => {
   const hasUnread = story.hasUnread;
   const hasNote = story.noteContent && story.noteContent.length > 0;
   const ringColor = hasNote 
@@ -1079,7 +1078,7 @@ const EmojiPicker = ({ show, onSelect, onClose }) => {
 };
 
 // Message Bubble Component
-const MessageBubble = ({ message, onReact, onReply, onNavigateProfile }) => {
+const MessageBubble = ({ message, onReact, _onReply, onNavigateProfile }) => {
   const [showReactions, setShowReactions] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
   const longPressTimer = useRef(null);
@@ -1337,8 +1336,8 @@ export const MessagesPage = () => {
   const [isComposeModalOpen, setIsComposeModalOpen] = useState(false);
   
   // Notes state (Instagram-style notes feature)
-  const [notesFeed, setNotesFeed] = useState([]);
-  const [myNote, setMyNote] = useState(null);
+  const [_notesFeed, setNotesFeed] = useState([]);
+  const [_myNote, setMyNote] = useState(null);
   const [showCreateNoteModal, setShowCreateNoteModal] = useState(false);
   const [showViewNoteModal, setShowViewNoteModal] = useState(false);
   const [selectedNote, setSelectedNote] = useState(null);
@@ -1348,7 +1347,7 @@ export const MessagesPage = () => {
   const [crewChatsLoading, setCrewChatsLoading] = useState(false);
   
   // New chat state
-  const [newChatRecipient, setNewChatRecipient] = useState(null);
+  const [_newChatRecipient, setNewChatRecipient] = useState(null);
   const fromProfileId = location.state?.fromProfile;
   
   const messagesEndRef = useRef(null);
@@ -2157,7 +2156,7 @@ export const MessagesPage = () => {
         
         <div className="flex gap-2 px-4 py-3 overflow-x-auto scrollbar-hide border-b border-zinc-800 scroll-smooth">
           {getFolders(user?.role, user?.is_admin || isGodMode, effectiveRole, isMasked, user?.is_grom_parent === true).map((folder) => {
-            const Icon = folder.icon;
+            const _Icon = folder.icon;
             const count = folderCounts[folder.id] || 0;
             const isActive = activeFolder === folder.id;
             

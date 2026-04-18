@@ -5,8 +5,8 @@ import { usePersona, ALL_PERSONAS, getExpandedRoleInfo } from '../contexts/Perso
 import { useTheme } from '../contexts/ThemeContext';
 import axios from 'axios';
 import {
-  Shield, Zap, Users, DollarSign, Search, Ban, CheckCircle, XCircle, 
-  Loader2, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Eye, Trash2, UserX, UserCheck, 
+  Shield, Zap, Users, DollarSign, Search, Ban, CheckCircle, 
+  Loader2, ChevronDown, ChevronLeft, ChevronRight, Eye, Trash2, UserX, UserCheck, 
   Crown, Trophy, Radio, MapPin, Camera, Play, Square, Image, Video, 
   Upload, X, Check, User, FileText, ArrowLeft, Settings, Activity,
   Megaphone, History, RefreshCw, TrendingUp, PieChart, BarChart3, Wallet, AlertCircle, Edit, BarChart2,
@@ -34,6 +34,7 @@ import { AdminContentModDashboard } from './admin/AdminContentModDashboard';
 import { AdminCommunicationsDashboard } from './admin/AdminCommunicationsDashboard';
 import { AdminContentMgmtDashboard } from './admin/AdminContentMgmtDashboard';
 import logger from '../utils/logger';
+import { supabase } from '../lib/supabase';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -43,7 +44,7 @@ const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
  */
 const UnifiedAdminConsole = () => {
   const { user } = useAuth();
-  const userId = user?.id;
+  const _userId = user?.id;
   const navigate = useNavigate();
   const { theme } = useTheme();
   const { 
@@ -84,7 +85,7 @@ const UnifiedAdminConsole = () => {
   const [activeSessions, setActiveSessions] = useState([]);
   const [forceStartLoading, setForceStartLoading] = useState(false);
   const [forceEndLoading, setForceEndLoading] = useState(null);
-  const [seedingSpots, setSeedingSpots] = useState(false);
+  const [_seedingSpots, _setSeedingSpots] = useState(false);
   const fileInputRef = useRef(null);
 
   // Site Access Control states

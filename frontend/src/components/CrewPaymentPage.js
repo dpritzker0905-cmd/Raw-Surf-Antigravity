@@ -4,12 +4,11 @@ import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import axios from 'axios';
 import { 
-  DollarSign, Clock, MapPin, Users, Check, X, 
+  DollarSign, Clock, MapPin, Users, Check, 
   Loader2, ArrowLeft, CreditCard, Wallet, Timer,
   AlertCircle, Crown, Camera, CalendarCheck, MessageCircle
 } from 'lucide-react';
 import { Button } from './ui/button';
-import { Badge } from './ui/badge';
 import { Card, CardHeader, CardTitle, CardContent } from './ui/card';
 import { Progress } from './ui/progress';
 import { Avatar, AvatarImage, AvatarFallback } from './ui/avatar';
@@ -40,7 +39,7 @@ const CrewPaymentPage = () => {
   const [booking, setBooking] = useState(null);
   const [loading, setLoading] = useState(true);
   const [paying, setPaying] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState('credits');
+  const [_paymentMethod, _setPaymentMethod] = useState('credits');
   const [timeRemaining, setTimeRemaining] = useState(null);
   const [myShare, setMyShare] = useState(null);
   const [captain, setCaptain] = useState(null);

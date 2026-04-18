@@ -6,8 +6,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import axios from 'axios';
 import { 
-  Lock, Eye, ShoppingCart, Download, DollarSign, Edit3, 
-  Sparkles, Loader2, Check, ZoomIn
+  Lock, Eye, ShoppingCart, Download, DollarSign, Edit3, Loader2, Check
 } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Dialog, DialogContent, DialogTitle } from '../ui/dialog';
@@ -65,7 +64,7 @@ export const GalleryItemModal = ({ item, onClose, onPurchased }) => {
   const handlePurchase = async () => {
     setPurchasing(true);
     try {
-      const response = await axios.post(
+      const _response = await axios.post(
         `${API}/gallery/item/${item.id}/purchase?buyer_id=${user.id}`,
         { payment_method: 'credits' }
       );

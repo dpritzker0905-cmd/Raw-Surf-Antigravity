@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Camera, RefreshCw, Check, X, User } from 'lucide-react';
+import { Camera, RefreshCw, Check, User } from 'lucide-react';
 import { Button } from './ui/button';
 import { toast } from 'sonner';
 

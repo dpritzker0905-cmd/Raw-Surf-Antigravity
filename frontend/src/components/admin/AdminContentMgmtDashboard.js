@@ -2,9 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import axios from 'axios';
-import {
-  Layout, Image, Key, FileText, Star, Newspaper, Search,
-  Loader2, Plus, RefreshCw, Check, X, Edit2, Copy, Eye, Globe, Settings,
+import { Image, Key, Star, Newspaper, Search,
+  Loader2, Plus, Edit2, Globe,
   ChevronLeft, ChevronRight
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '../ui/card';

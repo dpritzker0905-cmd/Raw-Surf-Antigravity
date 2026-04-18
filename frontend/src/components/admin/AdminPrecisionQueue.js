@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { AlertTriangle, MapPin, ChevronRight, Check, X, Loader2, RefreshCw, ExternalLink, MessageSquare } from 'lucide-react';
+import { AlertTriangle, MapPin, Check, X, Loader2, RefreshCw, ExternalLink, MessageSquare } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { useAuth } from '../../contexts/AuthContext';

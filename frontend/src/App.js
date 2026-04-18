@@ -27,7 +27,6 @@ import { NotificationsPage } from './components/NotificationsPage';
 import { Explore } from './components/Explore';
 import { SurfAlerts } from './components/SurfAlerts';
 import { GalleryPage } from './components/GalleryPage';
-import { AdminDashboard } from './components/AdminDashboard';
 import { PhotographerBookingsManager } from './components/PhotographerBookingsManager';
 import { PhotographerSessionsManager } from './components/PhotographerSessionsManager';
 import { OnDemandSessionManager } from './components/OnDemandSessionManager';
@@ -36,7 +35,6 @@ import { CreditWallet } from './components/CreditWallet';
 import { GearHub } from './components/GearHub';
 import { ImpactDashboard } from './components/ImpactDashboard';
 import { EarningsDashboard } from './components/EarningsDashboard';
-import GodModePage from './components/GodModePage';
 import UnifiedAdminConsole from './components/UnifiedAdminConsole';
 import PaymentSuccess from './components/PaymentSuccess';
 import BookingPaymentSuccess from './components/BookingPaymentSuccess';
@@ -199,13 +197,13 @@ const PushNotificationInit = () => {
 
 // Handle browser back button to prevent going to auth pages
 const BackButtonHandler = () => {
-  const location = useLocation();
+  const _location = useLocation();
   const { user } = useAuth();
   const navigate = useNavigate();
   
   useEffect(() => {
     // Handler for browser back/forward navigation
-    const handlePopState = (event) => {
+    const handlePopState = (_event) => {
       // If user is authenticated and trying to go back to auth page, redirect to feed
       if (user && (
         window.location.pathname === '/auth' || 
@@ -288,7 +286,7 @@ const AppLayout = ({ children, hideNav = false, hideTopNav = false }) => {
 };
 
 // Placeholder components for routes
-const ExplorePage = () => (
+const _ExplorePage = () => (
   <div className="p-4 md:p-8">
     <h1 className="text-2xl font-bold text-white mb-4" style={{ fontFamily: 'Oswald' }}>Explore</h1>
     <p className="text-gray-400">Explore photographers and surf spots...</p>

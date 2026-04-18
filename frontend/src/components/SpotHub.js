@@ -1,11 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { 
-  MapPin, Waves, Camera, Clock, Users, X, 
-  Wind, TrendingUp, Loader2, Radio, Calendar,
-  Image, MessageCircle, Compass,
-  Sun, Lock, Crown, Eye, Heart, Star,
-  Navigation, AlertCircle, Grid3X3, Zap, CalendarClock, ChevronRight,
+  MapPin, Waves, Camera, Clock, Users, X, TrendingUp, Loader2, Radio, Calendar, MessageCircle, Compass,
+  Sun, Lock, Crown, Eye, Heart,
+  Navigation, AlertCircle, Zap, CalendarClock, ChevronRight,
   Bell, Send, DollarSign
 } from 'lucide-react';
 import { Button } from './ui/button';
@@ -36,7 +34,7 @@ const conditionColors = {
 };
 
 // Forecast day card - starts from TOMORROW (day 1 = tomorrow, not today)
-const ForecastDayCard = ({ day, dayIndex, isLocked = false }) => {
+const ForecastDayCard = ({ day, _dayIndex, isLocked = false }) => {
   const { theme } = useTheme();
   const isLight = theme === 'light';
   const rowBg = isLight ? 'bg-gray-100/80 shadow-inner' : 'bg-zinc-800/50';
@@ -453,12 +451,12 @@ const SpotHub = () => {
   const [userPosts, setUserPosts] = useState([]); // Posts tagged by regular users
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('conditions');
-  const [userLocation, setUserLocation] = useState(null);
+  const [_userLocation, setUserLocation] = useState(null);
   const [isWithinProximity, setIsWithinProximity] = useState(false);
   
   // Live Pulse state - shows active shooting photographers based on user permissions
   const [livePulse, setLivePulse] = useState(null);
-  const [pulseLoading, setPulseLoading] = useState(false);
+  const [_pulseLoading, setPulseLoading] = useState(false);
   
   // Booking modal state
   const [showBookingModal, setShowBookingModal] = useState(false);
@@ -1136,7 +1134,7 @@ const SpotHub = () => {
         isOpen={showScheduledDrawer}
         onClose={() => setShowScheduledDrawer(false)}
         photographer={selectedPhotographer}
-        onSuccess={(result) => {
+        onSuccess={(_result) => {
           setShowScheduledDrawer(false);
           toast.success('Session booked successfully!');
           navigate('/bookings?tab=scheduled');

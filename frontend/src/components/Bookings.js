@@ -4,29 +4,20 @@ import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { usePersona } from '../contexts/PersonaContext';
 import axios from 'axios';
-import { Calendar, MapPin, Users, DollarSign, Camera, Zap, Clock, ChevronRight, Radio, History, CalendarClock, UserPlus, Share2, Copy, Mail, Target, Award, Sparkles, Star, Plus, X, Calculator, AlertTriangle, Search, Loader2, AtSign, Send, Wallet, Check, Bell, CreditCard } from 'lucide-react';
-import { Card, CardHeader, CardTitle, CardContent } from './ui/card';
+import { Users, Zap, Radio, History, CalendarClock, UserPlus, Copy, Mail, Target, Sparkles, Search, Loader2, AtSign, Send } from 'lucide-react';
+import { Card, CardContent } from './ui/card';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from './ui/dialog';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { toast } from 'sonner';
-import { NumericStepper } from './ui/numeric-stepper';
-import UnifiedSpotDrawer from './UnifiedSpotDrawer';
-import { CrewPaymentCard } from './CrewPaymentCard';
-import { CrewPaymentDashboard } from './CrewPaymentDashboard';
-import { BookingCard } from './BookingCard';
-import CrewHub from './CrewHub';
-import BookingProgressBar from './BookingProgressBar';
-import SavedCrewSelector from './SavedCrewSelector';
 import { PhotographerDirectory } from './PhotographerDirectory';
 import { ScheduledBookingDrawer } from './ScheduledBookingDrawer';
 import LineupManagerDrawer from './LineupManagerDrawer';
 // Tab components extracted for maintainability
 import { LiveSessionsTab, OnDemandTab, ScheduledTab, FindBuddiesTab, PastTab, LiveNowTab, LineupTab } from './bookings/index';
 import { GoldPassBookingsSection } from './bookings/GoldPassBookingsSection';
-import { RequestProSelfieModal } from './RequestProSelfieModal';
 import { OnDemandRequestDrawer } from './OnDemandRequestDrawer';
 import { CrewPaymentModal } from './CrewPaymentModal';
 import { JumpInSessionModal } from './JumpInSessionModal';
@@ -39,9 +30,9 @@ const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 const SURFER_ROLES = ['Grom', 'Surfer', 'Comp Surfer', 'Pro', 'Hobbyist', 'Grom Parent'];
 
 // Live Savings Badge Component (synced with Map drawer)
-const LiveSavingsBadge = ({ generalPrice, livePrice, className = '' }) => {
+const _LiveSavingsBadge = ({ generalPrice, livePrice, className = '' }) => {
   const savings = generalPrice - livePrice;
-  const savingsPercent = generalPrice > 0 ? Math.round((savings / generalPrice) * 100) : 0;
+  const _savingsPercent = generalPrice > 0 ? Math.round((savings / generalPrice) * 100) : 0;
   
   if (savings <= 0) return null;
   
@@ -91,7 +82,7 @@ const InviteModalContent = ({ booking, user, isLight, textPrimaryClass, textSeco
   const handleInviteByHandle = async (targetUser) => {
     setInviting(targetUser.user_id);
     try {
-      const response = await axios.post(
+      const _response = await axios.post(
         `${API}/bookings/${booking.id}/invite-by-handle?user_id=${user.id}`,
         {
           // Use username if available, otherwise fall back to full_name
@@ -363,7 +354,7 @@ export const Bookings = () => {
   const isLight = theme === 'light';
   const isBeach = theme === 'beach';
   const mainBgClass = isLight ? 'bg-gray-50' : isBeach ? 'bg-background' : 'bg-card';
-  const cardBgClass = isLight ? 'bg-white border-gray-200' : isBeach ? 'bg-zinc-950 border-border' : 'bg-muted/50 border-zinc-700';
+  const _cardBgClass = isLight ? 'bg-white border-gray-200' : isBeach ? 'bg-zinc-950 border-border' : 'bg-muted/50 border-zinc-700';
   const textPrimaryClass = isLight ? 'text-gray-900' : 'text-foreground';
   const textSecondaryClass = isLight ? 'text-gray-600' : isBeach ? 'text-gray-300' : 'text-muted-foreground';
   const borderClass = isLight ? 'border-gray-200' : isBeach ? 'border-border' : 'border-zinc-700';
@@ -611,7 +602,7 @@ export const Bookings = () => {
   };
   
   // Handle successful join from drawer
-  const handleJumpInSuccess = (data) => {
+  const _handleJumpInSuccess = (data) => {
     setShowJumpInDrawer(false);
     setSelectedPhotographer(null);
     if (data?.remaining_credits !== undefined) {
@@ -627,7 +618,7 @@ export const Bookings = () => {
       return;
     }
     try {
-      const response = await axios.post(`${API}/bookings/join-by-code?user_id=${user.id}&invite_code=${joinCode.toUpperCase()}`);
+      const _response = await axios.post(`${API}/bookings/join-by-code?user_id=${user.id}&invite_code=${joinCode.toUpperCase()}`);
       toast.success('Successfully joined the booking!');
       setShowJoinCodeModal(false);
       setJoinCode('');
@@ -1115,7 +1106,7 @@ export const Bookings = () => {
           setSelectedScheduledPhotographer(null);
         }}
         photographer={selectedScheduledPhotographer}
-        onSuccess={(booking) => {
+        onSuccess={(_booking) => {
           setShowScheduledBookingDrawer(false);
           setSelectedScheduledPhotographer(null);
           fetchData();

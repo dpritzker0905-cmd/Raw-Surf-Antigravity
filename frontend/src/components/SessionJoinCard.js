@@ -8,7 +8,7 @@
  */
 import React, { useState } from 'react';
 import axios from 'axios';
-import { Users, DollarSign, MapPin, Calendar, ChevronRight, Loader2, UserPlus } from 'lucide-react';
+import { Users, DollarSign, Loader2, UserPlus } from 'lucide-react';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { toast } from 'sonner';

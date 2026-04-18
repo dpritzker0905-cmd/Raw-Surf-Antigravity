@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { Button } from './ui/button';
 import { Slider } from './ui/slider';
@@ -6,7 +6,7 @@ import { Label } from './ui/label';
 import { Input } from './ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from './ui/dialog';
-import { Droplet, Type, Image, Move, Eye, Upload, X, RefreshCw, Loader2, Check, AlertCircle } from 'lucide-react';
+import { Droplet, Type, Image, Move, Eye, Upload, X, Loader2, Check, AlertCircle } from 'lucide-react';
 import axios from 'axios';
 import logger from '../utils/logger';
 

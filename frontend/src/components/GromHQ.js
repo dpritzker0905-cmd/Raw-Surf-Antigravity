@@ -3,9 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { 
-  Shield, Users, DollarSign, Clock, Trophy, AlertTriangle, Plus,
-  Settings, Lock, Eye, EyeOff, ChevronRight, CheckCircle, XCircle,
-  ShoppingBag, Calendar, Activity, TrendingUp, Bell, UserPlus,
+  Shield, Users, DollarSign, Clock, Trophy, Plus,
+  Settings, ChevronRight, CheckCircle, XCircle,
+  ShoppingBag, Activity, Bell, UserPlus,
   CreditCard, ShieldCheck, ShieldAlert, ArrowRight, Loader2, Unlink,
   KeyRound, UserX
 } from 'lucide-react';
@@ -13,7 +13,6 @@ import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { Badge } from './ui/badge';
-import { Progress } from './ui/progress';
 import { Input } from './ui/input';
 import {
   Dialog,

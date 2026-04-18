@@ -24,7 +24,7 @@ export const PhotographerSessionDashboard = ({ onClose }) => {
   
   // Get effective role
   const effectiveRole = getEffectiveRole(user?.role);
-  const isPhotographer = ['Hobbyist', 'Photographer', 'Approved Pro'].includes(effectiveRole);
+  const _isPhotographer = ['Hobbyist', 'Photographer', 'Approved Pro'].includes(effectiveRole);
 
   const fetchSession = useCallback(async () => {
     if (!user?.id) return;

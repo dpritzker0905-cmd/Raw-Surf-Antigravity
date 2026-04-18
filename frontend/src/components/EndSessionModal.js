@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { AlertTriangle, Square, Clock, Users, DollarSign, Camera, Loader2, CheckCircle } from 'lucide-react';
+import React from 'react';
+import { AlertTriangle, Square, Clock, Users, DollarSign, Camera, Loader2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from './ui/dialog';
 import { Button } from './ui/button';
 import { formatTime } from './LiveStatusHUD';

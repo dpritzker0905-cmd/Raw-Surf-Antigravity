@@ -6,9 +6,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
-import { X, ChevronLeft, ChevronRight, Heart, MessageCircle, Send, Bookmark, MoreHorizontal, Loader2, MapPin, Calendar, Clock, Waves } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, Heart, MessageCircle, Send, Bookmark, MoreHorizontal, Loader2, Calendar, Waves } from 'lucide-react';
 import { toast } from 'sonner';
-import { CommentInputWithEmoji } from './EmojiPicker';
 import { RichText, CommentText } from './RichText';
 import { SharePostModal } from './PostMenu';
 import PostMenu from './PostMenu';
@@ -125,7 +124,7 @@ const ImageCarousel = ({ images, mediaType }) => {
 };
 
 // Comment Item
-const CommentItem = ({ comment, userId, onReact }) => {
+const CommentItem = ({ comment, userId, _onReact }) => {
   const [liked, setLiked] = useState(comment.viewer_reaction !== null);
   const [likeCount, setLikeCount] = useState(comment.reaction_count || 0);
   
@@ -186,10 +185,10 @@ const CommentItem = ({ comment, userId, onReact }) => {
   );
 };
 
-const PostModal = ({ post, isOpen, onClose, onPostUpdated }) => {
+const PostModal = ({ post, isOpen, onClose, _onPostUpdated }) => {
   const { user } = useAuth();
   const { theme } = useTheme();
-  const isLight = theme === 'light';
+  const _isLight = theme === 'light';
   
   const [comments, setComments] = useState([]);
   const [loadingComments, setLoadingComments] = useState(false);
@@ -241,7 +240,7 @@ const PostModal = ({ post, isOpen, onClose, onPostUpdated }) => {
       // Push a state to history when modal opens
       window.history.pushState({ modal: 'post' }, '');
       
-      const handlePopState = (e) => {
+      const handlePopState = (_e) => {
         // When back is pressed, close the modal
         onClose();
       };
@@ -469,7 +468,7 @@ const PostModal = ({ post, isOpen, onClose, onPostUpdated }) => {
     }
     
     try {
-      const response = await axios.post(
+      const _response = await axios.post(
         `${API}/comments/${commentId}/reactions?user_id=${user.id}`,
         { emoji: '❤️' }
       );
@@ -602,7 +601,7 @@ const PostModal = ({ post, isOpen, onClose, onPostUpdated }) => {
               }}
               onClick={(e) => e.stopPropagation()}
             >
-              {POST_REACTIONS.map((emoji, index) => (
+              {POST_REACTIONS.map((emoji, _index) => (
                 <button
                   key={emoji}
                   onClick={() => handleReaction(emoji)}
@@ -823,7 +822,7 @@ const PostModal = ({ post, isOpen, onClose, onPostUpdated }) => {
           open={postMenuOpen}
           onClose={() => setPostMenuOpen(false)}
           isLight={false}
-          onPostUpdated={(updatedPost) => {
+          onPostUpdated={(_updatedPost) => {
             // Handle post update if needed
           }}
           onPostDeleted={() => {

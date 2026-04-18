@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Waves, Wind, Clock, Compass, ThermometerSun, Users, Star, MessageSquare, ChevronDown, ChevronUp, Loader2, ArrowUp, ArrowDown, Droplets, Calendar, Lock, Crown, Activity, Gauge } from 'lucide-react';
+import { Waves, Clock, Compass, Users, Star, MessageSquare, ChevronDown, ChevronUp, Loader2, ArrowUp, ArrowDown, Droplets, Calendar, Lock, Crown } from 'lucide-react';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';

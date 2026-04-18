@@ -15,7 +15,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import axios from 'axios';
 import { 
-  CreditCard, Trophy, Users, Loader2, Check, ChevronRight, 
+  CreditCard, Trophy, Users, Loader2, Check, 
   Clock, AlertCircle, Waves, UserPlus, Crown, Shield, Coins, Plus
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '../ui/card';
@@ -57,8 +57,8 @@ export const AccountBillingHub = () => {
   const [toggling, setToggling] = useState(false);
   const [upgrading, setUpgrading] = useState(null);
   const [expandedGrom, setExpandedGrom] = useState(null);
-  const [showCreditPayment, setShowCreditPayment] = useState(null); // tier_id or 'grom-{id}-{tier}'
-  const [creditPaymentInfo, setCreditPaymentInfo] = useState(null);
+  const [_showCreditPayment, setShowCreditPayment] = useState(null); // tier_id or 'grom-{id}-{tier}'
+  const [_creditPaymentInfo, setCreditPaymentInfo] = useState(null);
 
   useEffect(() => {
     if (user?.id) {

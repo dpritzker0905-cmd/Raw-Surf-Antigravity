@@ -9,7 +9,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import axios from 'axios';
 import { 
-  Radio, Clock, Calendar, Bell, BellOff, Check, X, Loader2,
+  Radio, Calendar, Bell, BellOff, Loader2,
   MapPin, Camera, ChevronRight, Zap
 } from 'lucide-react';
 import { Button } from './ui/button';

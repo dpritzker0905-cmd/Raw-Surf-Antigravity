@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../contexts/ThemeContext';
 import { 
-  Heart, Trophy, Medal, Users, TrendingUp, Loader2, 
-  Baby, Crown, ChevronRight, Award, Sparkles, DollarSign
+  Heart, Trophy, Medal, Loader2, 
+  Baby, Crown, ChevronRight
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';

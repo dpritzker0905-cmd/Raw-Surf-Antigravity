@@ -7,7 +7,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../contexts/AuthContext';
-import { MapPin, Loader2, Navigation, Image, Video, Upload, Camera, Megaphone, Waves, ChevronDown, Wind, ArrowUpDown, X, Check, ChevronLeft, ChevronRight, Smile, AtSign, Hash, Play, HelpCircle, Clock, Music, Volume2, VolumeX, Radio } from 'lucide-react';
+import { MapPin, Loader2, Navigation, Image, Video, Upload, Camera, Megaphone, Waves, ChevronDown, Wind, ArrowUpDown, X, Check, ChevronLeft, ChevronRight, Smile, AtSign, Play, HelpCircle, Clock, Music, VolumeX, Radio } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -479,7 +479,7 @@ export const CreatePost = () => {
       };
       
       // Store mentions separately for notification purposes (not on Post model)
-      const mentionsToNotify = mentions.length > 0 ? mentions.map(m => ({
+      const _mentionsToNotify = mentions.length > 0 ? mentions.map(m => ({
         user_id: m.user_id,
         username: m.username,
         full_name: m.full_name

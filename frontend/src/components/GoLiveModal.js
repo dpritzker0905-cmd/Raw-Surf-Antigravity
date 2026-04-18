@@ -3,7 +3,7 @@ import {
   Radio, Clock, Mic, MicOff, Camera, CameraOff, Loader2, AlertTriangle,
   RefreshCw, MessageCircle, Heart, Send, X, Sparkles, Sun, Contrast,
   Share2, Eye, Wifi, WifiOff, ChevronUp, ChevronDown, Droplets, Thermometer,
-  CircleDot, Sunset, Waves, Film, RotateCcw, Power, Zap, Moon, Grid
+  CircleDot, Sunset, Waves, RotateCcw, Zap, Moon, Grid
 } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -15,7 +15,6 @@ import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   LiveKitRoom,
-  VideoTrack,
   useLocalParticipant,
   useTracks,
   RoomAudioRenderer,
@@ -656,7 +655,7 @@ const EndStreamDialog = ({ isOpen, onConfirm, onCancel, duration, colors }) => {
  * Modern features: Connection quality, surfer video filters, comment likes
  */
 const BroadcasterControls = ({ 
-  onEnd, 
+  _onEnd, 
   onEndRequest, 
   streamDuration, 
   viewerCount,
@@ -674,7 +673,7 @@ const BroadcasterControls = ({
   const [isMuted, setIsMuted] = useState(false);
   const [isCameraOff, setIsCameraOff] = useState(false);
   const [isFrontCamera, setIsFrontCamera] = useState(true);
-  const [showComments, setShowComments] = useState(true);
+  const [showComments, _setShowComments] = useState(true);
   const [isChatOpen, setIsChatOpen] = useState(true); // Desktop sidebar toggle
   const [commentsExpanded, setCommentsExpanded] = useState(false);
   const [emojiBursts, setEmojiBursts] = useState([]);
@@ -691,7 +690,7 @@ const BroadcasterControls = ({
   const videoRef = useRef(null);
 
   const tracks = useTracks([Track.Source.Camera], { onlySubscribed: false });
-  const localVideoTrack = tracks.find(t => t.participant?.isLocal);
+  const _localVideoTrack = tracks.find(t => t.participant?.isLocal);
 
   const toggleMute = async () => {
     if (localParticipant) {
@@ -744,14 +743,11 @@ const BroadcasterControls = ({
 
   // Handle comment likes
   const handleLikeComment = useCallback(async (commentId, isLiked) => {
-    try {
-      await axios.post(`${API}/social-live/${streamId}/comments/${commentId}/like`, {
-        user_id: userId,
-        liked: isLiked
-      });
-    } catch (err) {
-      throw err; // Let the CommentTile handle the revert
-    }
+    await axios.post(`${API}/social-live/${streamId}/comments/${commentId}/like`, {
+      user_id: userId,
+      liked: isLiked
+    });
+    // Throws on error so CommentTile can revert the optimistic update
   }, [streamId, userId]);
 
   const handleReaction = useCallback((emoji) => {
@@ -1073,7 +1069,7 @@ const GoLiveModal = ({ isOpen, onClose, onStreamEnded }) => {
   const [streamDuration, setStreamDuration] = useState(0);
   const [viewerCount, setViewerCount] = useState(0);
   const [showEndDialog, setShowEndDialog] = useState(false);
-  const [isConnected, setIsConnected] = useState(false);
+  const [_isConnected, setIsConnected] = useState(false);
   
   const streamDurationRef = useRef(0);
   const durationIntervalRef = useRef(null);
@@ -1131,7 +1127,7 @@ const GoLiveModal = ({ isOpen, onClose, onStreamEnded }) => {
           if (myStream) {
             setViewerCount(myStream.viewer_count);
           }
-        } catch (e) {}
+        } catch (e) { /* viewer count poll - non-critical, ignore failures */ }
       }, 5000);
 
     } catch (err) {
@@ -1197,7 +1193,7 @@ const GoLiveModal = ({ isOpen, onClose, onStreamEnded }) => {
         axios.post(`${API}/livekit/end-stream/${streamDataRef.current.id}?broadcaster_id=${user.id}`).catch(() => {});
       }
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // Intentionally limited deps: only trigger on modal open/close
   }, [isOpen]); // Only trigger on modal open/close, not on state changes
 
   // Prevent body scroll

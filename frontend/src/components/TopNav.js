@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { usePersona } from '../contexts/PersonaContext';
-import { MapPin, Search, Bell, Settings, ShoppingBag, Zap, Heart, Shield, Stamp, Users, Waves, Target, Crown, Compass, Backpack } from 'lucide-react';
+import { MapPin, Search, Bell, Settings, ShoppingBag, Zap, Heart, Shield, Users, Compass, Backpack } from 'lucide-react';
 import { SurferSessionHub } from './SurferSessionHub';
 import { DutyStationIcon } from './DutyStationDrawer';
 import { BackpackDrawer } from './BackpackDrawer';
@@ -78,7 +78,7 @@ export const TopNav = () => {
   }, [location.pathname]);
 
   // Check if God Mode banner is active (need to shift TopNav down)
-  const isGodModeBannerVisible = user?.is_admin && isGodMode && isPersonaBarActive;
+  const _isGodModeBannerVisible = user?.is_admin && isGodMode && isPersonaBarActive;
 
   // Get effective role (respects God Mode persona masking)
   const effectiveRole = getEffectiveRole(user?.role);
@@ -105,7 +105,7 @@ export const TopNav = () => {
   // isCompetitive: true for Comp Surfer/Pro roles OR regular Surfer in competitive/pro surf_mode
   const isCompetitive = ['Comp Surfer', 'Pro'].includes(effectiveRole) || (effectiveRole === 'Surfer' && isCompetitiveSurfer);
   // Note: isPhotographer already defined above for Duty Station icon
-  const isGromOrRegularSurfer = ['Grom', 'Surfer'].includes(effectiveRole);
+  const _isGromOrRegularSurfer = ['Grom', 'Surfer'].includes(effectiveRole);
 
   // Get Dynamic Persona Icon configuration based on role
   const getPersonaIconConfig = () => {

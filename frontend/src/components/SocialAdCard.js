@@ -72,7 +72,7 @@ export const SocialAdCard = ({ position = 0, onDismiss }) => {
   };
   
   const cardBg = isLight ? 'bg-white' : 'bg-zinc-900';
-  const textPrimary = isLight ? 'text-gray-900' : 'text-white';
+  const _textPrimary = isLight ? 'text-gray-900' : 'text-white';
   const textSecondary = isLight ? 'text-gray-600' : 'text-gray-400';
   const borderColor = isLight ? 'border-gray-200' : 'border-zinc-800';
   

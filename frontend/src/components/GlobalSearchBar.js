@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { Search, X, MapPin, User, FileText, Hash, Loader2, TrendingUp } from 'lucide-react';
 import { Input } from './ui/input';
 import { Avatar, AvatarImage, AvatarFallback } from './ui/avatar';
-import { Badge } from './ui/badge';
 import { getExpandedRoleInfo } from '../contexts/PersonaContext';
 import axios from 'axios';
 import logger from '../utils/logger';

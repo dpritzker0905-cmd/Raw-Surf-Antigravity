@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { usePersona } from '../contexts/PersonaContext';
@@ -7,8 +7,8 @@ import axios from 'axios';
 import logger from '../utils/logger';
 import { 
   DollarSign, TrendingUp, Camera, Calendar, Image, Users, 
-  Settings, ChevronDown, Sparkles, Target, Award, Heart,
-  Wallet, ShoppingBag, Plane, ArrowUpRight, PieChart, Wifi,
+  Settings, Sparkles, Target, Award, Heart,
+  Wallet, ShoppingBag, Plane, PieChart, Wifi,
   BarChart3, Eye
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from './ui/card';
@@ -20,7 +20,7 @@ import { Label } from './ui/label';
 import { Switch } from './ui/switch';
 import { Slider } from './ui/slider';
 import { toast } from 'sonner';
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Legend } from 'recharts';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -396,28 +396,28 @@ export const EarningsDashboard = () => {
     
     switch (update.type) {
       case 'new_sale':
-        toast.success(`📸 New sale: +$${amount}`, { 
+        toast.success(`?? New sale: +$${amount}`, { 
           description: details.item_title ? `"${details.item_title}" purchased by ${details.buyer_name}` : undefined,
           duration: 5000 
         });
         setLoading(true);
         break;
       case 'booking_paid':
-        toast.success(`📅 Booking payment: +$${amount}`, {
+        toast.success(`?? Booking payment: +$${amount}`, {
           description: `${details.buyer_name} joined your session at ${details.booking_location}`,
           duration: 5000
         });
         setLoading(true);
         break;
       case 'tip_received':
-        toast.success(`🤙 Tip received: +$${amount}`, {
+        toast.success(`?? Tip received: +$${amount}`, {
           description: `From ${details.donor_name}`,
           duration: 5000
         });
         setLoading(true);
         break;
       case 'payout_complete':
-        toast.success(`💰 Payout complete: $${amount} transferred`, { duration: 4000 });
+        toast.success(`?? Payout complete: $${amount} transferred`, { duration: 4000 });
         setLoading(true);
         break;
       default:
@@ -445,7 +445,7 @@ export const EarningsDashboard = () => {
   const cardBgClass = isLight ? 'bg-white border-gray-200' : isBeach ? 'bg-zinc-950 border-zinc-800' : 'bg-zinc-800/50 border-zinc-700';
   const textPrimaryClass = isLight ? 'text-gray-900' : 'text-white';
   const textSecondaryClass = isLight ? 'text-gray-600' : 'text-gray-400';
-  const borderClass = isLight ? 'border-gray-200' : isBeach ? 'border-zinc-800' : 'border-zinc-700';
+  const _borderClass = isLight ? 'border-gray-200' : isBeach ? 'border-zinc-800' : 'border-zinc-700';
   
   // Get effective role (respects God Mode persona masking)
   const effectiveRole = getEffectiveRole(user?.role);

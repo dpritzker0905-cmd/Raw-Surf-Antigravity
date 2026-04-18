@@ -3,7 +3,7 @@ import axios from 'axios';
 import { useAuth } from '../contexts/AuthContext';
 import { usePersona } from '../contexts/PersonaContext';
 import { useTheme } from '../contexts/ThemeContext';
-import { MapPin, Camera, Users, ChevronUp, ChevronDown, X, Radio, MessageCircle, Navigation, Loader2, Waves, Lock, Crown, RefreshCw, HelpCircle, Target, Check, Clock } from 'lucide-react';
+import { MapPin, Camera, Users, X, MessageCircle, Navigation, Loader2, Target, Check, Clock } from 'lucide-react';
 import { PermissionNudgeDrawer } from './PermissionNudgeDrawer';
 import { Button } from './ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from './ui/dialog';
@@ -22,7 +22,6 @@ import { LocationPicker } from './LocationPicker';
 // Extracted map components and utilities
 import { MapFilterTabs } from './map/MapFilterTabs';
 import { MapHeader } from './map/MapHeader';
-import { RequestProModal } from './map/RequestProModal';
 import MapErrorBoundary from './map/MapErrorBoundary';
 import { 
   API, 
@@ -37,15 +36,8 @@ import {
   SPOT_CLUSTER_OPTIONS,
   PHOTOGRAPHER_CLUSTER_OPTIONS
 } from './map/mapUtils';
-import {
-  createUserLocationIcon,
-  createSpotIcon,
-  createPhotographerIcon,
-  createSpotClusterIcon,
-  createPhotographerClusterIcon,
-  createFriendIcon,
-  getPriorityColors
-} from './map/markerIcons';
+
+
 
 // Custom hooks for cleaner code organization
 import { useMapData } from '../hooks/useMapData';
@@ -97,7 +89,7 @@ const MapPageContent = () => {
     featuredPhotographers,
     loading,
     fetchLivePhotographers,
-    fetchSurfSpots,
+    _fetchSurfSpots,
   } = useMapData(user?.id, userLocation);
 
   // Go live flow hook - handles photographer go-live workflow
@@ -131,15 +123,15 @@ const MapPageContent = () => {
   // IP Geolocation fallback when GPS is denied (with Coastal Snap support)
   const { 
     ipLocation, 
-    ipLoading, 
-    coastalSnapped,
+    _ipLoading, 
+    _coastalSnapped,
     cityChanged,
-    forceRecalibrate 
+    _forceRecalibrate 
   } = useIPGeolocation();
 
   // Map viewport state for clustering
-  const [mapBounds, setMapBounds] = useState(null);
-  const [mapZoom, setMapZoom] = useState(10);
+  const [mapBounds, _setMapBounds] = useState(null);
+  const [mapZoom, _setMapZoom] = useState(10);
 
   // Memoize clustering options to prevent infinite re-render loop
   const clusteringOptions = useMemo(() => ({
@@ -149,7 +141,7 @@ const MapPageContent = () => {
 
   // Use marker clustering for performance (supercluster-based, optional)
   // Note: Primary clustering is handled by Leaflet markerClusterGroup
-  const { clusters } = useMarkerClustering(surfSpots, mapBounds, mapZoom, clusteringOptions);
+  const { _clusters } = useMarkerClustering(surfSpots, mapBounds, mapZoom, clusteringOptions);
 
   // Effective location (GPS or IP fallback)
   // CRITICAL: Validates all coordinates before returning
@@ -224,16 +216,17 @@ const MapPageContent = () => {
   const [friendsList, setFriendsList] = useState([]);
   const [selectedFriends, setSelectedFriends] = useState([]);
   const [friendsLoading, setFriendsLoading] = useState(false);
-  const [showFriendPicker, setShowFriendPicker] = useState(false);
+  const [_showFriendPicker, setShowFriendPicker] = useState(false);
   const [friendSearchQuery, setFriendSearchQuery] = useState('');
   
   // Friends on Map - use extracted hook
   const {
     friendsOnMap,
     showFriendsOnMap,
+    setShowFriendsOnMap,
     friendMarkersRef,
-    fetchFriendsOnMap,
-    clearFriendMarkers,
+    _fetchFriendsOnMap,
+    _clearFriendMarkers,
   } = useFriendsOnMap({ user, mapInstanceRef });
   
   // Active On-Demand requests on map (kept local as marker logic is in updateMapMarkers)
@@ -241,7 +234,7 @@ const MapPageContent = () => {
   const onDemandMarkersRef = useRef([]);
   
   // Locked shooter count for persistent display
-  const [lockedShooterCount, setLockedShooterCount] = useState(null);
+  const [_lockedShooterCount, setLockedShooterCount] = useState(null);
   
   // Active dispatch tracking for real-time GPS
   const [activeDispatch, setActiveDispatch] = useState(null);
@@ -263,7 +256,7 @@ const MapPageContent = () => {
   );
   
   // Check if user can access Photo Tools (includes Grom Parent for viewing)
-  const canAccessPhotoTools = useMemo(() => 
+  const _canAccessPhotoTools = useMemo(() => 
     ['Grom Parent', 'Hobbyist', 'Photographer', 'Approved Pro'].includes(effectiveRole),
     [effectiveRole]
   );
@@ -303,7 +296,7 @@ const MapPageContent = () => {
   }, [surfSpots, livePhotographers]);
 
   // Debug logger for permission status
-  const logPermissionStatus = useCallback((step, status, details = '') => {
+  const _logPermissionStatus = useCallback((step, status, details = '') => {
     const timestamp = new Date().toISOString();
     logger.debug(`[PERMISSION DEBUG ${timestamp}] Step: ${step}, Status: ${status}${details ? `, Details: ${details}` : ''}`);
   }, []);
@@ -939,7 +932,7 @@ const MapPageContent = () => {
           const map = window.L.map(mapRef.current, {
             center: [location.lat, location.lng],
             zoom: 12,
-            ...DEFAULT_MAP_OPTIONS
+            ...DEFAULT_MAP_OPTIONS  // includes tap: false for Android foldable fix
           });
           
           // Add tile layer
@@ -954,6 +947,21 @@ const MapPageContent = () => {
           
           photographerClusterRef.current = window.L.markerClusterGroup(PHOTOGRAPHER_CLUSTER_OPTIONS);
           map.addLayer(photographerClusterRef.current);
+
+          // ANDROID FOLDABLE FIX: Re-attach visualViewport listener on map recreation
+          if (window.visualViewport) {
+            const onVvResize = debounce(() => {
+              if (mapInstanceRef.current) {
+                mapInstanceRef.current.invalidateSize({ pan: false });
+              }
+            }, 100);
+            window.visualViewport.addEventListener('resize', onVvResize);
+            window.visualViewport.addEventListener('scroll', onVvResize);
+            map.on('remove', () => {
+              window.visualViewport.removeEventListener('resize', onVvResize);
+              window.visualViewport.removeEventListener('scroll', onVvResize);
+            });
+          }
           
           mapInstanceRef.current = map;
           
@@ -967,6 +975,7 @@ const MapPageContent = () => {
           }, 100);
         }
       }, 100);
+
       
     } catch (error) {
       logger.error('[MAP] GPS failed:', error);
@@ -1087,6 +1096,36 @@ const MapPageContent = () => {
     }, 250);
     
     map.on('moveend', debouncedMoveEnd);
+
+    // ─── ANDROID FOLDABLE FIX: visualViewport resize listener ────────────────
+    // Samsung Galaxy Z Fold 7 (and other foldable / large-screen Android devices)
+    // report a visual viewport that can shift vertically relative to the layout
+    // viewport whenever the screen folds/unfolds, the soft keyboard appears, or
+    // the browser chrome (address bar) hides/shows. Leaflet caches the map
+    // container's bounding rect for touch-point calculations. When that rect
+    // becomes stale, pinch-zoom drags the map away from the pinch center
+    // (southward, because the container is offset downward by the nav chrome).
+    //
+    // Solution: re-call invalidateSize() the moment the visual viewport changes
+    // so Leaflet always has fresh container geometry for touch events.
+    if (window.visualViewport) {
+      const onVisualViewportResize = debounce(() => {
+        if (mapInstanceRef.current) {
+          logger.debug('[MAP] visualViewport resized — correcting Leaflet container geometry');
+          mapInstanceRef.current.invalidateSize({ pan: false });
+        }
+      }, 100);
+      
+      window.visualViewport.addEventListener('resize', onVisualViewportResize);
+      window.visualViewport.addEventListener('scroll', onVisualViewportResize);
+      
+      // Clean up when the map is removed
+      map.on('remove', () => {
+        window.visualViewport.removeEventListener('resize', onVisualViewportResize);
+        window.visualViewport.removeEventListener('scroll', onVisualViewportResize);
+      });
+    }
+    // ─────────────────────────────────────────────────────────────────────────
     
     mapInstanceRef.current = map;
     logger.debug('[MAP] Map initialized with clustering successfully');
@@ -1619,7 +1658,7 @@ const MapPageContent = () => {
                 mapRef.current.flyTo([spot.latitude, spot.longitude], 14, { duration: 1 });
               }
               setSelectedSpot(spot);
-              setShowSpotDrawer(true);
+              setUnifiedDrawerOpen(true);
             }}
           />
           
@@ -1917,7 +1956,7 @@ const MapPageContent = () => {
                 mapInstanceRef.current.setView([nearestSpot.latitude, nearestSpot.longitude], 14);
               }
               setSelectedSpot(nearestSpot);
-              setShowSpotDrawer(true);
+              setUnifiedDrawerOpen(true);
             }}
           >
             <p className="text-[10px] text-gray-500 uppercase tracking-wide mb-0.5">Nearest spot</p>
@@ -2063,7 +2102,7 @@ const MapPageContent = () => {
         <JumpInSessionModal
           photographer={selectedPhotographer}
           onClose={() => setShowJumpInModal(false)}
-          onSuccess={(data) => {
+          onSuccess={(_data) => {
             setShowJumpInModal(false);
             setBottomSheetOpen(false);
             toast.success(`Joined ${selectedPhotographer.full_name}'s session!`);
@@ -2477,7 +2516,7 @@ const MapPageContent = () => {
                       // Apply boost if selected
                       if (boostHours > 0) {
                         try {
-                          const boostResponse = await axios.post(`${API}/dispatch/request/${dispatchId}/boost?user_id=${user?.id}`, {
+                          const _boostResponse = await axios.post(`${API}/dispatch/request/${dispatchId}/boost?user_id=${user?.id}`, {
                             boost_hours: boostHours
                           });
                           toast.success(`🚀 Request boosted! You'll appear first for ${boostHours} hour(s)`);
@@ -2525,7 +2564,7 @@ const MapPageContent = () => {
         dispatchId={activeDispatchId}
         isOpen={showRequestProSelfieModal}
         onClose={() => setShowRequestProSelfieModal(false)}
-        onSuccess={(selfieUrl) => {
+        onSuccess={(_selfieUrl) => {
           toast.success('Great! Your Pro will be able to spot you easily.');
         }}
       />

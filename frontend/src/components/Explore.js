@@ -7,7 +7,7 @@ import { Avatar, AvatarImage, AvatarFallback } from './ui/avatar';
 import { getExpandedRoleInfo } from '../contexts/PersonaContext';
 import { useConditionsSync, useLiveStreamSync } from '../hooks/useWebSocket';
 import { useAuth } from '../contexts/AuthContext';
-import { SocialAdCard, injectAdsIntoPosts } from './SocialAdCard';
+import { SocialAdCard } from './SocialAdCard';
 import { toast } from 'sonner';
 import axios from 'axios';
 import ExploreSpotCard from './ExploreSpotCard';
@@ -168,8 +168,8 @@ export const Explore = () => {
   }, []);
 
   // Connect WebSockets
-  const { isConnected: conditionsConnected } = useConditionsSync(handleNewCondition);
-  const { isConnected: liveConnected } = useLiveStreamSync(handleLiveUpdate);
+  const { isConnected: _conditionsConnected } = useConditionsSync(handleNewCondition);
+  const { isConnected: _liveConnected } = useLiveStreamSync(handleLiveUpdate);
 
   useEffect(() => {
     fetchTrending();
@@ -332,7 +332,7 @@ export const Explore = () => {
   };
   
   // Fetch Waves by hashtag
-  const fetchWavesByHashtag = async (tag) => {
+  const _fetchWavesByHashtag = async (tag) => {
     setWavesLoading(true);
     setSelectedWaveHashtag(tag);
     try {

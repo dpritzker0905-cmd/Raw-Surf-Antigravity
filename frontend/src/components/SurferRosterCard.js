@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import axios from 'axios';
-import { Users, Clock, DollarSign, User, ChevronRight, X, Save, Volume2, VolumeX, Footprints, Shirt, Waves, StickyNote, Maximize2 } from 'lucide-react';
+import { Users, Clock, DollarSign, User, Save, Volume2, VolumeX, Footprints, Shirt, Waves, StickyNote, Maximize2 } from 'lucide-react';
 import { Card, CardContent } from './ui/card';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
@@ -298,7 +298,7 @@ export const SurferRosterCard = ({
 }) => {
   const [participants, setParticipants] = useState([]);
   const [totalEarnings, setTotalEarnings] = useState(0);
-  const [loading, setLoading] = useState(false);
+  const [_loading, _setLoading] = useState(false);
   const [selectedSurfer, setSelectedSurfer] = useState(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(true);

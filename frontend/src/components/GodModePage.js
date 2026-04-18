@@ -4,7 +4,7 @@ import axios from 'axios';
 import { useAuth } from '../contexts/AuthContext';
 import { usePersona, ALL_PERSONAS, getExpandedRoleInfo } from '../contexts/PersonaContext';
 import { useTheme } from '../contexts/ThemeContext';
-import { ArrowLeft, Zap, Check, X, User, Camera, Radio, MapPin, Loader2, Search, Upload, Play, Square, Image, Video } from 'lucide-react';
+import { ArrowLeft, Zap, Check, X, Camera, Radio, MapPin, Loader2, Upload, Play, Square, Image, Video } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from './ui/card';
 import { Button } from './ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
@@ -36,7 +36,7 @@ const GodModePage = () => {
   const [simulatePhotographers, setSimulatePhotographers] = useState([]);
   const [surfSpots, setSurfSpots] = useState([]);
   const [loadingPhotographers, setLoadingPhotographers] = useState(false);
-  const [simulatingId, setSimulatingId] = useState(null);
+  const [_simulatingId, _setSimulatingId] = useState(null);
   
   // Enhanced session control state
   const [selectedPhotographer, setSelectedPhotographer] = useState('');
@@ -169,7 +169,7 @@ const GodModePage = () => {
   };
 
   // Force End Session
-  const handleForceEnd = async (photographerId, photographerName) => {
+  const handleForceEnd = async (photographerId, _photographerName) => {
     setForceEndLoading(photographerId);
     try {
       const response = await axios.post(`${API}/api/admin/force-end-session/${photographerId}`);
@@ -212,7 +212,7 @@ const GodModePage = () => {
   const textSecondary = isLight ? 'text-gray-600' : 'text-muted-foreground';
 
   // Get role info for color coding
-  const getRoleColor = (role) => {
+  const _getRoleColor = (role) => {
     const info = getExpandedRoleInfo(role);
     return info?.color || 'cyan';
   };

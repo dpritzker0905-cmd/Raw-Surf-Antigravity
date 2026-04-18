@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { Backpack, Stamp, Wallet, Bell, ChevronRight, X, Waves, MapPin, CreditCard, BellRing } from 'lucide-react';
+import { Backpack, Stamp, ChevronRight, X, CreditCard, BellRing } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from './ui/sheet';
 import { SurfPassport } from './SurfPassport';
 

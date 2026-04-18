@@ -3,9 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { 
-  Heart, Users, TrendingUp, DollarSign, Loader2, Search,
-  ChevronRight, Gift, Award, Sparkles, Zap, Medal, Baby,
-  Trophy, Filter, X
+  Heart, Users, TrendingUp, DollarSign, Loader2, Search, Gift, Zap, Medal, Baby,
+  Trophy
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';

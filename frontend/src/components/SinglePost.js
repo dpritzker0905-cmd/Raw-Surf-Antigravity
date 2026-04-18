@@ -64,7 +64,7 @@ const SinglePost = () => {
   const postCardBgClass = isLight ? 'bg-white' : 'bg-zinc-900/50';
 
   // Time formatting helper
-  const formatTimeAgo = (dateString) => {
+  const _formatTimeAgo = (dateString) => {
     const date = new Date(dateString);
     const now = new Date();
     const seconds = Math.floor((now - date) / 1000);
@@ -127,7 +127,7 @@ const SinglePost = () => {
   
   const VALID_REACTIONS = ['🤙', '❤️', '🔥', '🌊', '👏'];
   
-  const handleShakaPointerDown = (postId, e) => {
+  const handleShakaPointerDown = (postId, _e) => {
     if (pressTimerRef.current) {
       clearTimeout(pressTimerRef.current);
       pressTimerRef.current = null;
@@ -146,7 +146,7 @@ const SinglePost = () => {
     }, 600);
   };
 
-  const handleShakaPointerUp = async (postId, e) => {
+  const handleShakaPointerUp = async (postId, _e) => {
     const wasPressing = isPressingRef.current;
     const pickerWasShown = pickerShownRef.current;
     
@@ -341,7 +341,7 @@ const SinglePost = () => {
     }
   };
 
-  const handleViewCollaborators = (postId) => {
+  const handleViewCollaborators = (_postId) => {
     // Could show a modal, for now just a toast
     const collabs = post?.collaborators || [];
     if (collabs.length === 0) {

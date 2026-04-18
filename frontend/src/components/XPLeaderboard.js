@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Trophy, Medal, Crown, Flame, Star, ChevronRight, Users, Camera, Waves } from 'lucide-react';
+import { Trophy, Medal, Crown, Star, ChevronRight, Users, Camera, Waves } from 'lucide-react';
 import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
@@ -82,7 +82,7 @@ export const XPLeaderboard = ({ compact = false, limit = 10 }) => {
     }
   };
 
-  const getBadgeInfo = (badge, tier) => {
+  const getBadgeInfo = (badge, _tier) => {
     const badges = {
       'the_patron': { label: 'Patron', icon: Users, color: 'cyan' },
       'the_workhorse': { label: 'Workhorse', icon: Camera, color: 'orange' },

@@ -8,9 +8,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import {
-  Search, MapPin, Camera, Filter, Star, ChevronRight, Loader2,
-  Video, Plane, CheckCircle, Clock, X, Map, List, SlidersHorizontal,
-  Award, Shield, Waves, Zap
+  Search, MapPin, Camera, Filter, Star, ChevronRight, Loader2, Plane, CheckCircle, Map, SlidersHorizontal, Waves
 } from 'lucide-react';
 import { Card, CardContent } from './ui/card';
 import { Button } from './ui/button';
@@ -163,7 +161,7 @@ const PhotographerCard = ({ photographer, onSelect, isLight }) => {
  * Filter Sheet Component
  */
 const FilterSheet = ({ isOpen, onClose, filters, onFiltersChange, isLight }) => {
-  const textPrimary = isLight ? 'text-gray-900' : 'text-white';
+  const _textPrimary = isLight ? 'text-gray-900' : 'text-white';
   const textSecondary = isLight ? 'text-gray-600' : 'text-gray-400';
   
   return (
@@ -277,14 +275,14 @@ const FilterSheet = ({ isOpen, onClose, filters, onFiltersChange, isLight }) => 
  * Main Photographer Directory Component
  */
 export const PhotographerDirectory = ({ isOpen, onClose, onSelectPhotographer }) => {
-  const { user } = useAuth();
+  const { _user } = useAuth();
   const { theme } = useTheme();
   const navigate = useNavigate();
   
   const [photographers, setPhotographers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [viewMode, setViewMode] = useState('list'); // 'list' or 'map'
+  const [_viewMode, _setViewMode] = useState('list'); // 'list' or 'map'
   const [showFilters, setShowFilters] = useState(false);
   const [filters, setFilters] = useState({
     region: 'all',
@@ -293,7 +291,7 @@ export const PhotographerDirectory = ({ isOpen, onClose, onSelectPhotographer })
   });
   
   const isLight = theme === 'light';
-  const textPrimary = isLight ? 'text-gray-900' : 'text-white';
+  const _textPrimary = isLight ? 'text-gray-900' : 'text-white';
   const textSecondary = isLight ? 'text-gray-600' : 'text-gray-400';
   
   // Fetch photographers

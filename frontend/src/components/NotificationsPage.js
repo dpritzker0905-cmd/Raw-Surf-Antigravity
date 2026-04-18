@@ -5,10 +5,9 @@ import { useNavigate } from 'react-router-dom';
 import { 
   Bell, Users, MessageCircle, UserPlus, Check, CheckCheck, Camera, Tag, 
   Image as ImageIcon, CreditCard, Waves, Trophy, Calendar, X, Clock,
-  ChevronRight, ChevronLeft, Trash2, Settings, BellOff, Filter, Shield
+  ChevronRight, ChevronLeft, Settings, Shield
 } from 'lucide-react';
 import { Button } from './ui/button';
-import { Badge } from './ui/badge';
 import { toast } from 'sonner';
 import logger from '../utils/logger';
 import { getNotificationDeepLink } from '../utils/notificationDeepLinks';
@@ -390,7 +389,7 @@ export const NotificationsPage = () => {
     return counts;
   }, [notifications]);
 
-  const handleMarkAsRead = async (notificationId) => {
+  const _handleMarkAsRead = async (notificationId) => {
     try {
       await axios.post(`${API}/notifications/${notificationId}/read`);
       setNotifications(notifications.map(n => 

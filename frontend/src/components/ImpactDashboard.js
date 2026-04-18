@@ -8,9 +8,7 @@ import { Badge } from './ui/badge';
 import { toast } from 'sonner';
 import axios from 'axios';
 import {
-  Heart, Target, Search, Users, DollarSign, TrendingUp,
-  ChevronRight, Loader2, ExternalLink, Check, Waves,
-  Trophy, Star, Gift, ShoppingBag, Settings, Play
+  Heart, Target, Search, Users, DollarSign, TrendingUp, Loader2, ExternalLink, Check, Waves, Star, Gift, Settings
 } from 'lucide-react';
 import logger from '../utils/logger';
 

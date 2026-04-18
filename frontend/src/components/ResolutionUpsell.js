@@ -6,15 +6,12 @@
  */
 import React, { useState, useEffect } from 'react';
 import { Button } from './ui/button';
-import { Badge } from './ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from './ui/dialog';
 import { 
-  Crown, Sparkles, ArrowUp, Loader2, Check, 
-  Image, Video, Zap, Shield, Download
+  Crown, ArrowUp, Loader2, Check, Zap
 } from 'lucide-react';
 import { toast } from 'sonner';
 import axios from 'axios';
-import logger from '../utils/logger';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -29,7 +26,7 @@ export const ResolutionUpsellBadge = ({
 }) => {
   const [upsellInfo, setUpsellInfo] = useState(null);
   const [showModal, setShowModal] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [_loading, _setLoading] = useState(false);
   const [processing, setProcessing] = useState(false);
   
   useEffect(() => {
@@ -184,7 +181,7 @@ export const ResolutionUpsellBadge = ({
 export const ResolutionUpsellCard = ({ 
   galleryItemId, 
   userId, 
-  mediaType = 'image',
+  _mediaType = 'image',
   onUpgradeComplete 
 }) => {
   const [upsellInfo, setUpsellInfo] = useState(null);

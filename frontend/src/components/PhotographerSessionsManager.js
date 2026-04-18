@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import axios from 'axios';
-import { Radio, MapPin, Users, DollarSign, Clock, Play, Square, Eye, Camera, Zap, Settings, RefreshCw, ChevronDown, Image as ImageIcon, Heart, Target, Bug, Video, Signal, Tag, Percent, Sparkles, ArrowLeft, Calculator, TrendingUp, Upload, AlertTriangle, Check, Search, X } from 'lucide-react';
+import { Radio, MapPin, Users, DollarSign, Clock, Play, Square, Eye, Camera, Zap, Settings, RefreshCw, ChevronDown, Image as ImageIcon, Heart, Target, Bug, Video, Signal, Tag, Percent, Sparkles, Calculator, Upload, AlertTriangle, Check, Search, X } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from './ui/card';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
@@ -56,7 +56,7 @@ const getCommissionRate = (subscriptionTier) => {
 // Live Savings Badge Component - Synced with UnifiedSpotDrawer
 const LiveSavingsBadge = ({ generalPrice, livePrice, className = '' }) => {
   const savings = generalPrice - livePrice;
-  const savingsPercent = Math.round((savings / generalPrice) * 100);
+  const _savingsPercent = Math.round((savings / generalPrice) * 100);
   
   if (savings <= 0) return null;
   
@@ -126,7 +126,7 @@ const PotentialEarningsCalculator = ({
 };
 
 // Promotional Preview Component - Shows how deal appears to surfers
-const PromotionalPreview = ({ 
+const _PromotionalPreview = ({ 
   generalPhotoPrice, 
   livePhotoPrice, 
   buyinPrice, 
@@ -205,9 +205,9 @@ export const PhotographerSessionsManager = () => {
   const [sessionHistory, setSessionHistory] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showPricingModal, setShowPricingModal] = useState(false);
-  const [showPromoPreview, setShowPromoPreview] = useState(false);
+  const [_showPromoPreview, _setShowPromoPreview] = useState(false);
   const [surfSpots, setSurfSpots] = useState([]);
-  const [galleries, setGalleries] = useState([]);
+  const [_galleries, setGalleries] = useState([]);
   const [showGalleryCreatedModal, setShowGalleryCreatedModal] = useState(false);
   const [lastCreatedGallery, setLastCreatedGallery] = useState(null);
   
@@ -327,7 +327,7 @@ export const PhotographerSessionsManager = () => {
   };
 
   // Calculate distance between two coordinates (Haversine formula)
-  const calculateDistance = (lat1, lon1, lat2, lon2) => {
+  const _calculateDistance = (lat1, lon1, lat2, lon2) => {
     const R = 3959; // Earth's radius in miles
     const dLat = (lat2 - lat1) * Math.PI / 180;
     const dLon = (lon2 - lon1) * Math.PI / 180;
@@ -694,7 +694,7 @@ export const PhotographerSessionsManager = () => {
       try {
         await requestCameraPermission();
         setTimeout(() => stopCameraStream(), 2000);
-      } catch (camError) {
+      } catch (_camError) {
         logger.warn('Camera access denied, continuing without selfie');
       }
       
@@ -786,14 +786,14 @@ export const PhotographerSessionsManager = () => {
   };
 
   // Legacy handleGoLive - now redirects to new flow
-  const handleGoLive = async () => {
+  const _handleGoLive = async () => {
     if (!sessionSettings.surf_spot_id) {
       toast.error('Please select a surf spot before going live');
       setShowSettingsModal(true);
       return;
     }
     // Redirect to new conditions gatekeeper flow
-    handleSettingsConfirmed();
+    startSequentialGoLive();
   };
 
   // Show End Session confirmation modal (Kill Switch)

@@ -7,7 +7,7 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { CalendarClock, Wallet, Camera, MapPin, Clock, CreditCard, Users, AlertCircle } from 'lucide-react';
+import { CalendarClock, Wallet, Camera, MapPin, CreditCard, Users } from 'lucide-react';
 import { Card, CardContent } from '../ui/card';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
@@ -19,7 +19,7 @@ export const ScheduledTab = ({
   scheduledBookings,
   pendingInvites,
   crewInvites = [],
-  onOpenDirectory,
+  _onOpenDirectory,
   onInvite,
   onRespondToInvite,
   onPayCrewShare,

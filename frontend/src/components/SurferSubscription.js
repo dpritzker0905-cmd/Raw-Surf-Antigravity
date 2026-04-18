@@ -32,7 +32,7 @@ export const SurferSubscription = () => {
     try {
       if (tier.price === 0) {
         // Free tier - direct update via API
-        const response = await axios.post(
+        const _response = await axios.post(
           `${API}/subscriptions/checkout?user_id=${user.id}`,
           {
             tier_id: tier.id,

@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { 
   Camera, X, Loader2, RefreshCcw, Sparkles, SlidersHorizontal, 
   CircleDot, Eye, Grid, Sunset, Waves, Moon, Zap, 
@@ -92,7 +92,7 @@ export default function WebcamCaptureModal({ isOpen, onClose, onCapture, maxLeng
       }
       if (timerRef.current) clearInterval(timerRef.current);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // Intentionally limited deps: only trigger on modal open/close and camera switch
   }, [isOpen, facingMode]);
 
   // Utilize the exact identical hardware shader mapped in the Live broadcast resolving highest tier filter deployments

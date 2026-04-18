@@ -3,8 +3,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import axios from 'axios';
 import {
-  DollarSign, CreditCard, ArrowUpRight, ArrowDownRight,
-  Loader2, RefreshCw, Check, X, Download, AlertTriangle,
+  Loader2, RefreshCw, Check, X,
   Receipt, Wallet, TrendingDown, FileText
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '../ui/card';
@@ -55,7 +54,7 @@ export const AdminFinanceDashboard = () => {
   const isLight = theme === 'light';
   const cardBgClass = isLight ? 'bg-white border-gray-200' : 'bg-zinc-900/50 border-zinc-800';
   const textClass = isLight ? 'text-gray-900' : 'text-white';
-  const textSecondary = isLight ? 'text-gray-600' : 'text-gray-400';
+  const _textSecondary = isLight ? 'text-gray-600' : 'text-gray-400';
 
   useEffect(() => {
     if (user?.id) {

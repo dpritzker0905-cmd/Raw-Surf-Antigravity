@@ -10,16 +10,14 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from './ui/sheet';
-import { 
-  Waves, Trophy, Target, Users, Calendar, MessageSquare, 
-  Video, Star, Zap, Gift, ArrowRight, X, Crown, Flame,
+import { Trophy, Target, Users, Calendar, MessageSquare, 
+  Video, Star, Zap, Gift, ArrowRight, X, Crown,
   GraduationCap, Gamepad2, Shield, Award, TrendingUp, Sparkles
 } from 'lucide-react';
 import { Button } from './ui/button';
-import axios from 'axios';
 import logger from '../utils/logger';
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
+const _API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 /**
  * Area configurations for each tier

@@ -3,12 +3,9 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useLocation } from 'react-router-dom';
 import axios from 'axios';
-import {
-  Shield, UserCheck, Eye, AlertTriangle, Clock, Search, Filter,
-  Loader2, ChevronDown, ChevronRight, CheckCircle, XCircle, ExternalLink,
-  User, Instagram, Globe, FileText, Camera, Award, Link2, RefreshCw,
-  Play, Square, AlertCircle, Activity, Calendar, DollarSign, MessageSquare,
-  Flag, TrendingUp, Zap, Gavel, Ban, Scale, MapPin, ThumbsUp, ThumbsDown, Users, Copy
+import { UserCheck, Eye, AlertTriangle, Search,
+  Loader2, ChevronRight, ExternalLink, Instagram, Globe, FileText, Camera, Award, Link2, RefreshCw, Activity, Calendar, DollarSign, MessageSquare,
+  Flag, Gavel, Ban, Scale, MapPin, ThumbsUp, ThumbsDown, Users, Copy
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '../ui/card';
 import { Button } from '../ui/button';
@@ -942,7 +939,7 @@ export const AdminP1Dashboard = () => {
                       
                       {/* Fraud Incidents List */}
                       <div className="max-h-60 overflow-y-auto space-y-2">
-                        {locationFraudMapData.map((fraud, idx) => (
+                        {locationFraudMapData.map((fraud, _idx) => (
                           <div 
                             key={fraud.id}
                             className="p-3 rounded-lg bg-zinc-800/50 border border-zinc-700"
@@ -1296,7 +1293,7 @@ export const AdminP1Dashboard = () => {
                         <p className={`text-sm ${textSecondary} text-center py-4`}>No activity recorded</p>
                       ) : (
                         <div className="space-y-2 max-h-96 overflow-y-auto">
-                          {journeyActivities.map((activity, idx) => (
+                          {journeyActivities.map((activity, _idx) => (
                             <div key={activity.id} className="flex gap-3 p-2 hover:bg-zinc-800 rounded-lg">
                               <div className="w-8 h-8 rounded-full bg-zinc-800 flex items-center justify-center shrink-0">
                                 <Activity className="w-4 h-4 text-gray-500" />

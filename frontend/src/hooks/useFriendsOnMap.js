@@ -9,7 +9,7 @@ import axios from 'axios';
 import { API } from '../components/map/mapUtils';
 import logger from '../utils/logger';
 
-export const useFriendsOnMap = ({ user, mapInstanceRef }) => {
+export const useFriendsOnMap = ({ user, _mapInstanceRef }) => {
   const [friendsOnMap, setFriendsOnMap] = useState([]);
   const [showFriendsOnMap, setShowFriendsOnMap] = useState(true);
   const friendMarkersRef = useRef([]);

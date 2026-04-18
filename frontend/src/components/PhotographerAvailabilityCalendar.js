@@ -12,13 +12,11 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import {
-  Calendar, Clock, ChevronLeft, ChevronRight, Plus, X, Check,
-  Camera, Users, MapPin, Loader2, Eye, EyeOff, AlertTriangle, GripVertical, Move
+  Calendar, Clock, ChevronLeft, ChevronRight, X, Check, Users, MapPin, Loader2, Eye, EyeOff, AlertTriangle, GripVertical, Move
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from './ui/dialog';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
-import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { toast } from 'sonner';
 import axios from 'axios';
@@ -53,7 +51,7 @@ const getFirstDayOfMonth = (year, month) => {
 /**
  * Format date for display
  */
-const formatDate = (date) => {
+const _formatDate = (date) => {
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 };
 

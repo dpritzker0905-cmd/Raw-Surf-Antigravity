@@ -3,9 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import axios from 'axios';
-import { 
-  X, Users, MapPin, Clock, Camera, CreditCard, Wallet, 
-  Plus, Check, Loader2, ChevronRight, Zap, AlertCircle, Upload
+import { Users, MapPin, Clock, Camera, CreditCard, Wallet, 
+  Plus, Check, Loader2, ChevronRight, Zap, AlertCircle
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogTitle } from './ui/dialog';
 import { Button } from './ui/button';

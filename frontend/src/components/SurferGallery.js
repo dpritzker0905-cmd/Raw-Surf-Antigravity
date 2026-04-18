@@ -12,23 +12,21 @@
  * - Purchase history
  * - Album/folder organization
  */
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
-  Lock, Unlock, Download, Eye, EyeOff, CheckCircle, XCircle,
-  Image as ImageIcon, Video, Sparkles, Filter, ChevronDown,
-  Clock, DollarSign, AlertCircle, Crown, Gift, Heart,
-  Search, Grid, List, Share2, FolderOpen, Calendar,
-  SortAsc, SortDesc, Camera, MapPin, History, X,
-  MoreHorizontal, MessageSquare, ExternalLink, Check,
-  ChevronLeft, ChevronRight, Loader2, Plus, Star, ScanFace, RefreshCw
+  Lock, Download, Eye, EyeOff, CheckCircle, XCircle,
+  Image as ImageIcon, Video, Sparkles, Filter, Crown, Gift, Heart,
+  Search, Grid, List, Share2, Calendar, SortDesc, Camera, MapPin, History, X,
+  MoreHorizontal, MessageSquare, Check,
+  ChevronLeft, ChevronRight, Loader2, ScanFace
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
-import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
+import { Card, CardContent } from './ui/card';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { Input } from './ui/input';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
+import { Tabs, TabsList, TabsTrigger } from './ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from './ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import {
@@ -36,19 +34,15 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-  DropdownMenuSeparator,
 } from './ui/dropdown-menu';
 import { toast } from 'sonner';
 import axios from 'axios';
 import PhotoSelectionQueue from './PhotoSelectionQueue';
 import AIProposedMatches from './AIProposedMatches';
-import { ResolutionUpsellBadge } from './ResolutionUpsell';
 import { LockerSelfieModal } from './LockerSelfieModal';
 import { BulkPurchaseBar, MultiSelectToggle } from './gallery/BulkPurchaseBar';
-import { DownloadButton, VisibilityToggle, VisibilityOnboarding, DownloadIndicator } from './gallery/DownloadVisibility';
-import { PriceSourceBadge, QualityTierBadge } from './gallery/PriceSourceBadge';
+import { VisibilityOnboarding } from './gallery/DownloadVisibility';
 import logger from '../utils/logger';
-import SelfieCapture from './SelfieCapture';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -64,7 +58,7 @@ const GalleryItemCard = ({
   onRequestEdit,
   onImageClick,
   onMessage,
-  userId,
+  _userId,
   viewMode = 'grid',
   isSelected,
   onSelect
@@ -697,6 +691,7 @@ export const SurferGallery = () => {
   const [downloadModal, setDownloadModal] = useState({ isOpen: false, item: null });
   const [shareModal, setShareModal] = useState({ isOpen: false, item: null });
   const [editModal, setEditModal] = useState({ isOpen: false, item: null });
+  const [scanModal, setScanModal] = useState(false);
   const [showPurchaseHistory, setShowPurchaseHistory] = useState(false);
   const [lightboxItem, setLightboxItem] = useState(null); // Phase 2: Lightbox
   
@@ -856,7 +851,7 @@ export const SurferGallery = () => {
   };
 
   // Quick Message to Photographer
-  const handleMessagePhotographer = async (photographerId, photographerName) => {
+  const handleMessagePhotographer = async (photographerId, _photographerName) => {
     try {
       // Start or get existing conversation
       const response = await axios.post(`${API}/messages/start-conversation`, {

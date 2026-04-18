@@ -10,9 +10,9 @@ import {
   Camera, MapPin, Clock, DollarSign, Zap, ChevronRight, ChevronLeft,
   Check, AlertTriangle, Star, Wallet, Target, Sparkles, Bell, Gift,
   Navigation, Map as MapIcon, X, Loader2, CheckCircle2, Radio, CreditCard, Users,
-  UserPlus, Search, Crown, MessageCircle, Share2, Copy, Percent, Anchor
+  UserPlus, Search, Crown, Percent, Anchor
 } from 'lucide-react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from './ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { Input } from './ui/input';
@@ -54,7 +54,7 @@ const ImpactZonePicker = ({
 }) => {
   const textPrimary = isLight ? 'text-gray-900' : 'text-white';
   const textSecondary = isLight ? 'text-gray-600' : 'text-gray-400';
-  const cardBg = isLight ? 'bg-gray-100' : 'bg-zinc-800';
+  const _cardBg = isLight ? 'bg-gray-100' : 'bg-zinc-800';
   
   const [gpsLoading, setGpsLoading] = useState(false);
   const [manualInput, setManualInput] = useState(location?.description || '');
@@ -413,7 +413,7 @@ const ImpactZonePicker = ({
   
   // Get fee badge for a spot
   const getFeeBadge = (spot) => {
-    const { surcharge, label } = getTravelSurchargeForDistance(spot.distanceFromPhotographer);
+    const { surcharge, _label } = getTravelSurchargeForDistance(spot.distanceFromPhotographer);
     if (surcharge === -1) return { text: 'Out of Range', color: 'text-red-400 bg-red-500/20' };
     if (surcharge === 0) return { text: 'No fee', color: 'text-green-400 bg-green-500/20' };
     return { text: `+$${surcharge}`, color: 'text-yellow-400 bg-yellow-500/20' };
@@ -867,7 +867,7 @@ const ImpactZonePicker = ({
 /**
  * Account Credit Application Component
  */
-const AccountCreditSection = ({
+const _AccountCreditSection = ({
   userCredits,
   totalPrice,
   appliedCredits,
@@ -1009,7 +1009,7 @@ const CrewSplitSection = ({
   const [searching, setSearching] = useState(false);
   const [recentBuddies, setRecentBuddies] = useState([]);
   const [following, setFollowing] = useState([]);
-  const [loadingRecent, setLoadingRecent] = useState(false);
+  const [_loadingRecent, setLoadingRecent] = useState(false);
   
   const API = process.env.REACT_APP_BACKEND_URL;
   
@@ -1295,7 +1295,7 @@ const CrewSplitSection = ({
 /**
  * Cross-Sell Suggestion Component
  */
-const CrossSellSuggestion = ({ type, photographerName, onAction, isLight }) => {
+const CrossSellSuggestion = ({ type, _photographerName, onAction, isLight }) => {
   const textPrimary = isLight ? 'text-gray-900' : 'text-white';
   const textSecondary = isLight ? 'text-gray-600' : 'text-gray-400';
   
@@ -1454,7 +1454,7 @@ export const ScheduledBookingDrawer = ({
   isOpen,
   onClose,
   photographer,
-  onSuccess
+  _onSuccess
 }) => {
   const { user, updateUser } = useAuth();
   const { theme } = useTheme();
@@ -1517,7 +1517,7 @@ export const ScheduledBookingDrawer = ({
   const userCredits = user?.credit_balance || 0;
   
   // Check if group discounts are available (for display)
-  const hasGroupDiscounts = groupDiscount2 > 0 || groupDiscount3 > 0 || groupDiscount5 > 0;
+  const _hasGroupDiscounts = groupDiscount2 > 0 || groupDiscount3 > 0 || groupDiscount5 > 0;
   
   // Reset state when drawer opens
   useEffect(() => {

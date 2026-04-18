@@ -3,16 +3,11 @@ import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import axios from 'axios';
 import { 
-  Upload, X, Image, Users, Check, Loader2, Camera, 
-  Tag, DollarSign, Sparkles, AlertCircle, ChevronDown, Video
+  Upload, X, Check, Loader2, Sparkles, Video
 } from 'lucide-react';
-import { Card, CardHeader, CardTitle, CardContent } from './ui/card';
 import { Button } from './ui/button';
-import { Badge } from './ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from './ui/dialog';
-import { Input } from './ui/input';
 import { Label } from './ui/label';
-import { Checkbox } from './ui/checkbox';
 import { toast } from 'sonner';
 import logger from '../utils/logger';
 
@@ -44,7 +39,7 @@ export const PhotoUploadModal = ({
   const textPrimaryClass = isLight ? 'text-gray-900' : 'text-white';
   const textSecondaryClass = isLight ? 'text-gray-600' : 'text-gray-400';
   const borderClass = isLight ? 'border-gray-200' : 'border-zinc-700';
-  const inputBgClass = isLight ? 'bg-white' : 'bg-zinc-800';
+  const _inputBgClass = isLight ? 'bg-white' : 'bg-zinc-800';
   
   // Live Savings pricing
   const livePhotoPrice = sessionPricing.live_photo_price || 5;
@@ -163,7 +158,7 @@ export const PhotoUploadModal = ({
           formData.append('media_type', fileData.mediaType || 'image');
           
           // Upload with progress
-          const response = await axios.post(`${API}/photos/upload`, formData, {
+          const _response = await axios.post(`${API}/photos/upload`, formData, {
             headers: { 'Content-Type': 'multipart/form-data' },
             onUploadProgress: (progressEvent) => {
               const progress = Math.round((progressEvent.loaded * 100) / progressEvent.total);

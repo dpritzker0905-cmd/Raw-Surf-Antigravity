@@ -1,7 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Bell, BellOff, Volume2, VolumeX, Mail, Clock, Loader2, Smartphone, MessageSquare, Heart, Users, Camera, Calendar, ShoppingBag, AlertTriangle, CheckCircle } from 'lucide-react';
-import { Card, CardHeader, CardTitle, CardContent } from '../ui/card';
-import { Button } from '../ui/button';
+import { Bell, BellOff, Volume2, VolumeX, Mail, Clock, Loader2, Smartphone, MessageSquare, Heart, Camera, AlertTriangle, CheckCircle } from 'lucide-react';
 import { Switch } from '../ui/switch';
 import { Label } from '../ui/label';
 import { toast } from 'sonner';
@@ -18,9 +16,9 @@ const API = process.env.REACT_APP_BACKEND_URL;
  * - Digest mode (batch notifications)
  * - Email notification preferences
  */
-export const NotificationPreferences = ({ userId, textPrimaryClass, textSecondaryClass, borderClass, cardBgClass }) => {
+export const NotificationPreferences = ({ userId, textPrimaryClass, textSecondaryClass, borderClass, _cardBgClass }) => {
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
+  const [_saving, setSaving] = useState(false);
   const [preferences, setPreferences] = useState({
     // Push notification types
     push_enabled: true,
@@ -82,7 +80,7 @@ export const NotificationPreferences = ({ userId, textPrimaryClass, textSecondar
     }
   };
   
-  const saveAllPreferences = async () => {
+  const _saveAllPreferences = async () => {
     setSaving(true);
     try {
       await axios.put(`${API}/api/notifications/preferences?user_id=${userId}`, preferences);

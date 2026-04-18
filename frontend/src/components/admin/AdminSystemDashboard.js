@@ -3,9 +3,8 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import axios from 'axios';
 import {
-  Activity, Server, Database, Cpu, HardDrive, Clock,
-  Loader2, RefreshCw, Check, X, AlertTriangle, Bell,
-  Play, Pause, CheckCircle, XCircle, AlertCircle
+  Activity, Server, Database, Cpu, HardDrive,
+  Loader2, RefreshCw, Check, X, AlertTriangle, Bell, CheckCircle, XCircle, AlertCircle
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '../ui/card';
 import { Button } from '../ui/button';

@@ -4,7 +4,7 @@
  * Provides visual 2-step instructions for enabling GPS on iOS/Android.
  */
 import React from 'react';
-import { MapPin, Settings, Navigation, ChevronRight, X, Smartphone } from 'lucide-react';
+import { Navigation, ChevronRight, X, Smartphone } from 'lucide-react';
 import { Button } from './ui/button';
 import { Dialog, DialogContent, DialogTitle } from './ui/dialog';
 

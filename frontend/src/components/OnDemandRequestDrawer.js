@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import axios from 'axios';
-import { MapPin, Camera, Zap, Clock, ChevronRight, Radio, Award, Plus, X, Calculator, Loader2, Wallet, Check, Bell, CreditCard, Image } from 'lucide-react';
+import { MapPin, Camera, Zap, Clock, ChevronRight, Radio, Award, Plus, X, Calculator, Loader2, Wallet, Check, Bell, CreditCard } from 'lucide-react';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { Dialog, DialogContent, DialogTitle } from './ui/dialog';
@@ -110,12 +110,12 @@ const EmptySeat = ({ onClick, isLight }) => {
 };
 
 // On-Demand Request Drawer Component
-export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess, userLocation, userCredits = 0, resumeDispatchId }) => {
+export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess, userLocation, _userCredits = 0, resumeDispatchId }) => {
   const { user, updateUser } = useAuth();
   const { theme } = useTheme();
   // Flow: 'timing' -> 'duration' -> 'crew' -> 'confirm' -> 'selfie' -> 'waiting' -> 'success'
   const [step, setStep] = useState('timing');
-  const [selectedResolution, setSelectedResolution] = useState('standard');
+  const [_selectedResolution, _setSelectedResolution] = useState('standard');
   const [paymentMethod, setPaymentMethod] = useState('card');
   const [loading, setLoading] = useState(false);
   const [countdown, setCountdown] = useState(null);
@@ -497,7 +497,7 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
             const audio = new Audio('/sounds/notification.mp3');
             audio.volume = 0.5;
             audio.play().catch(() => {});
-          } catch (e) {}
+          } catch (e) { /* audio playback unavailable - ignore silently */ }
           
           setAcceptedData({
             photographer_id: data.photographer?.id,
@@ -1568,7 +1568,7 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
         setShowSelfieModal(false);
         setStep('waiting');
       }}
-      onSuccess={(selfieUrl) => {
+      onSuccess={(_selfieUrl) => {
         setShowSelfieModal(false);
         toast.success('Selfie uploaded! The photographer can now find you.');
         setStep('waiting');

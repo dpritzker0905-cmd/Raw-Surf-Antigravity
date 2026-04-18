@@ -1,6 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Mic, Square, Play, Pause, Send, X, Loader2 } from 'lucide-react';
-import { Button } from './ui/button';
 import { toast } from 'sonner';
 import axios from 'axios';
 import logger from '../utils/logger';
@@ -8,7 +7,7 @@ import logger from '../utils/logger';
 const API = process.env.REACT_APP_BACKEND_URL;
 
 // Supabase storage URL for voice notes
-const SUPABASE_URL = process.env.REACT_APP_SUPABASE_URL || '';
+const _SUPABASE_URL = process.env.REACT_APP_SUPABASE_URL || '';
 
 export const VoiceRecorder = ({ 
   onSend, 
@@ -18,7 +17,7 @@ export const VoiceRecorder = ({
   maxDuration = 60 // seconds
 }) => {
   const [isRecording, setIsRecording] = useState(false);
-  const [isPaused, setIsPaused] = useState(false);
+  const [_isPaused, _setIsPaused] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [duration, setDuration] = useState(0);
   const [audioBlob, setAudioBlob] = useState(null);

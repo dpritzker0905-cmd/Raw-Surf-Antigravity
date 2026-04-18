@@ -1,19 +1,16 @@
-﻿import React, { useState, useEffect, useRef } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { usePricing } from '../contexts/PricingContext';
 import axios from 'axios';
-import { Camera, Upload, X, DollarSign, Eye, ShoppingCart, Download, Plus, Loader2, Image, Check, Lock, Video, Play, Settings, Edit3, Sparkles, RotateCcw, Folder, MapPin, Calendar, Trash2, Copy, Radio, UserPlus, Droplet } from 'lucide-react';
+import { Camera, Upload, X, DollarSign, Eye, ShoppingCart, Plus, Loader2, Image, Check, Lock, Video, Play, Settings, Edit3, Sparkles, RotateCcw, Folder, MapPin, Calendar, Trash2, Copy, Radio, UserPlus, Droplet } from 'lucide-react';
 import { Button } from './ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from './ui/dialog';
 import { Input } from './ui/input';
-import { Textarea } from './ui/textarea';
 import { Badge } from './ui/badge';
 import { Label } from './ui/label';
 import { Card, CardHeader, CardTitle, CardContent } from './ui/card';
 import { toast } from 'sonner';
-import { GalleryGrid, GalleryGridItem } from './GalleryGrid';
-import { MediaCard } from './MediaCard';
-import { MediaActionButtons, PurchaseActionButtons, TagGromButton } from './ActionButtons';
+import { GalleryGrid } from './GalleryGrid';
 import WatermarkSettings from './WatermarkSettings';
 
 // Extracted gallery components
@@ -46,7 +43,7 @@ export const GalleryPage = () => {
     clearItemCustomPrice,
     getDisplayPrice,
     lastUpdated,
-    refreshPricing 
+    _refreshPricing 
   } = usePricing();
   
   const [gallery, setGallery] = useState([]);
@@ -94,9 +91,9 @@ export const GalleryPage = () => {
   // Grom Highlights state (for Grom Parents)
   const [gromHighlights, setGromHighlights] = useState([]);
   const [linkedGroms, setLinkedGroms] = useState([]);
-  const [selectedTagGrom, setSelectedTagGrom] = useState(null);
-  const [showTagGromModal, setShowTagGromModal] = useState(false);
-  const [itemToTag, setItemToTag] = useState(null);
+  const [_selectedTagGrom, _setSelectedTagGrom] = useState(null);
+  const [_showTagGromModal, setShowTagGromModal] = useState(false);
+  const [_itemToTag, setItemToTag] = useState(null);
   
   // Watermark settings state
   const [showWatermarkSettings, setShowWatermarkSettings] = useState(false);

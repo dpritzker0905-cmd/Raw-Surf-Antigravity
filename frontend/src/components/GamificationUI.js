@@ -1,6 +1,5 @@
 import React from 'react';
-import { Award, Sparkles, Camera, Users, Heart, TrendingUp, Star, Zap } from 'lucide-react';
-import { Badge } from './ui/badge';
+import { Award, Sparkles, Camera, Heart, TrendingUp, Star, Zap } from 'lucide-react';
 
 // Badge configuration
 const BADGE_CONFIG = {

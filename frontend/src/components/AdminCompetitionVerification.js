@@ -2,10 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { 
-  Trophy, CheckCircle, XCircle, Clock, Loader2, ExternalLink,
-  Calendar, MapPin, Medal, ChevronRight, Eye, Shield, Award
+  Trophy, CheckCircle, XCircle, Loader2, ExternalLink,
+  Calendar, MapPin, Medal, Eye, Shield, Award
 } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
+import { Card, CardContent } from './ui/card';
 import { Button } from './ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { Badge } from './ui/badge';
@@ -56,7 +56,7 @@ export const AdminCompetitionVerification = () => {
   const handleVerify = async (resultId, approved) => {
     setProcessing(true);
     try {
-      const res = await axios.post(`${API}/career/competition-results/${resultId}/verify`, null, {
+      const _res = await axios.post(`${API}/career/competition-results/${resultId}/verify`, null, {
         params: {
           approved,
           admin_id: user.id

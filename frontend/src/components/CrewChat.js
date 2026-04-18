@@ -10,9 +10,9 @@ import { Input } from './ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { Badge } from './ui/badge';
 import { 
-  ArrowLeft, Send, Mic, Image as ImageIcon, MoreVertical, 
-  MapPin, Users, Check, CheckCheck, Loader2, X, Play, Pause,
-  Zap, Camera, StopCircle, Smile, Plus, Reply, AtSign, Download, Paperclip
+  ArrowLeft, Send, Mic, MoreVertical, 
+  MapPin, Users, CheckCheck, Loader2, X, Play, Pause,
+  Zap, StopCircle, Smile, Plus, Reply, Download, Paperclip
 } from 'lucide-react';
 import { toast } from 'sonner';
 import logger from '../utils/logger';
@@ -54,7 +54,7 @@ const QUICK_ACTIONS = [
 ];
 
 // Quick Action Categories with colors
-const QUICK_ACTION_CATEGORIES = {
+const _QUICK_ACTION_CATEGORIES = {
   status: { label: 'Status', color: 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30' },
   conditions: { label: 'Conditions', color: 'bg-blue-500/20 text-blue-400 border-blue-500/30' },
   logistics: { label: 'Logistics', color: 'bg-purple-500/20 text-purple-400 border-purple-500/30' },
@@ -402,7 +402,7 @@ export default function CrewChat() {
   };
   
   // Image handling
-  const handleImageSelect = (e) => {
+  const _handleImageSelect = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
     

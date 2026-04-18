@@ -1,6 +1,5 @@
 import React from 'react';
 import { Minus, Plus } from 'lucide-react';
-import { Input } from './input';
 
 /**
  * NumericStepper - Standard numeric input with increment/decrement buttons
