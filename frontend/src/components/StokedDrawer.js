@@ -86,7 +86,7 @@ export const StokedDrawer = ({ isOpen, onClose }) => {
       <SheetContent 
         side="bottom" 
         hideCloseButton
-        className="bg-zinc-900 border-zinc-700 rounded-t-3xl h-auto max-h-[calc(100dvh-6rem)] md:max-h-[65vh] !bottom-20 md:!bottom-4 overflow-hidden flex flex-col"
+        className="bg-zinc-900 border-zinc-700 rounded-t-3xl h-auto sheet-safe-bottom md:max-h-[65vh] md:!bottom-4 overflow-hidden flex flex-col"
       >
         <SheetHeader className="pb-3 shrink-0">
           <div className="flex items-center justify-between">

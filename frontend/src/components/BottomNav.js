@@ -190,10 +190,25 @@ export const BottomNav = () => {
     }
   }, [user?.id, fetchUnreadMessages]);
 
+  // Dynamically track BottomNav height and expose as --bottomnav-h CSS variable.
+  // This drives the safe-bottom clearance system used by all modals and drawers.
+  const navRef = React.useRef(null);
+  useEffect(() => {
+    const el = navRef.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(([entry]) => {
+      const h = entry.contentRect.height;
+      document.documentElement.style.setProperty('--bottomnav-h', `${h}px`);
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
   // Close Photo Tools drawer when route changes (e.g., navigation from TopNav)
   useEffect(() => {
     setShowPhotoTools(false);
   }, [location.pathname]);
+
 
   // Tab 2: Action Center destination & icon (Role-Based)
   const getActionCenterConfig = () => {
@@ -249,6 +264,7 @@ export const BottomNav = () => {
 
   return (
     <nav 
+      ref={navRef}
       className={`fixed bottom-0 left-0 right-0 z-[100] ${navBgClass} border-t md:hidden`}
       style={{ 
         paddingBottom: 'env(safe-area-inset-bottom, 0px)',

@@ -973,10 +973,11 @@ export const DutyStationDrawer = ({ isOpen, onClose }) => {
         side="bottom"
         hideCloseButton
         className="bg-background/95 backdrop-blur-2xl border-t border-border rounded-t-3xl overflow-hidden flex flex-col p-0
-          h-auto max-h-[calc(100dvh-6rem)] !bottom-20
-          sm:max-h-[calc(100dvh-6rem)]
-          md:rounded-2xl md:border md:w-[600px] md:max-w-[90vw] md:max-h-[85vh] md:!bottom-24
+          h-auto sheet-safe-bottom
+          sm:max-h-[calc(100dvh-var(--safe-bottom,84px))]
+          md:rounded-2xl md:border md:w-[600px] md:max-w-[90vw] md:max-h-[85vh] md:!bottom-4
           lg:w-[700px]"
+
       >
         {/* Drag Handle - hide on desktop */}
         <div className="flex justify-center pt-3 pb-2 md:pt-4 md:pb-3">

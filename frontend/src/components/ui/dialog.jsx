@@ -16,48 +16,82 @@ const DialogOverlay = React.forwardRef(({ className, ...props }, ref) => (
   <DialogPrimitive.Overlay
     ref={ref}
     className={cn(
-      "fixed inset-0 z-50 bg-black/80 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
+      "fixed inset-0 z-50 bg-black/80 backdrop-blur-sm",
+      "data-[state=open]:animate-in data-[state=closed]:animate-out",
+      "data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
       className
     )}
     {...props} />
 ))
 DialogOverlay.displayName = DialogPrimitive.Overlay.displayName
 
+/**
+ * DialogContent
+ *
+ * LAYOUT SYSTEM:
+ * ─ Mobile  (< sm): Bottom sheet. Anchors top:56px, bottom:var(--safe-bottom).
+ *   --safe-bottom is set by BottomNav's ResizeObserver (see index.css + BottomNav.js).
+ *   This guarantees the modal footer always clears the BottomNav + Create button.
+ *
+ * ─ Desktop (≥ sm): Centered modal. sm:max-h-[90vh] with sticky header/footer
+ *   and a flex-1 scrollable body — no content ever cut off.
+ *
+ * USAGE PATTERN inside DialogContent:
+ *   <DialogHeader>…</DialogHeader>          ← sticky top
+ *   <div className="modal-body px-4 py-4">  ← flex-1, scrolls
+ *     …content…
+ *   </div>
+ *   <DialogFooter>…</DialogFooter>          ← sticky bottom
+ */
 const DialogContent = React.forwardRef(({ className, children, overlayClassName, hideCloseButton, ...props }, ref) => (
   <DialogPortal>
     <DialogOverlay className={overlayClassName} />
     <DialogPrimitive.Content
       ref={ref}
       className={cn(
-        // Base positioning and animations
-        "fixed z-50 grid gap-4 border bg-background shadow-lg duration-200",
+        // ── Shared ───────────────────────────────────────────────────
+        "fixed z-50 border bg-background shadow-2xl duration-200 p-0 overflow-hidden",
         "data-[state=open]:animate-in data-[state=closed]:animate-out",
         "data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
-        
-        // Desktop: centered modal
-        "sm:left-[50%] sm:top-[50%] sm:translate-x-[-50%] sm:translate-y-[-50%]",
-        "sm:max-w-lg sm:max-h-[85vh] sm:rounded-lg sm:w-full",
+
+        // ── Mobile: full-width bottom sheet ──────────────────────────
+        // top:56px = below TopNav. bottom uses --safe-bottom (dynamic)
+        // so footer never hides under the BottomNav / Create button.
+        "left-0 right-0 w-full",
+        "top-14 rounded-t-2xl rounded-b-none",
+        "data-[state=open]:slide-in-from-bottom data-[state=closed]:slide-out-to-bottom",
+
+        // ── Desktop: centered modal ───────────────────────────────────
+        "sm:inset-auto",
+        "sm:left-1/2 sm:top-1/2",
+        "sm:-translate-x-1/2 sm:-translate-y-1/2",
+        "sm:w-full sm:max-w-lg",
+        "sm:max-h-[90vh]",
+        "sm:rounded-xl",
         "sm:data-[state=closed]:zoom-out-95 sm:data-[state=open]:zoom-in-95",
         "sm:data-[state=closed]:slide-out-to-left-1/2 sm:data-[state=closed]:slide-out-to-top-[48%]",
         "sm:data-[state=open]:slide-in-from-left-1/2 sm:data-[state=open]:slide-in-from-top-[48%]",
-        
-        // Mobile: full-width bottom sheet style with safe height
-        "left-0 right-0 bottom-0 top-16",
-        "w-full",
-        "rounded-t-2xl rounded-b-none",
-        "data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom",
-        
-        // Padding and overflow
-        "p-0 overflow-hidden",
+
         className
       )}
-      {...props}>
+      style={{
+        // Mobile: bottom edge sits above the BottomNav + Create button protrusion
+        bottom: 'var(--safe-bottom, 84px)',
+      }}
+      {...props}
+    >
+      {/*
+        Inner flex column — header/body/footer each take their slice.
+        `overflow:hidden` on this div + `overflow-y:auto` on .modal-body
+        is what keeps header & footer pinned while only the content scrolls.
+      */}
       <div className="flex flex-col h-full max-h-full overflow-hidden">
         {children}
       </div>
       {!hideCloseButton && (
         <DialogPrimitive.Close
-          className="absolute right-4 top-4 rounded-full p-1.5 bg-zinc-800/80 opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground z-10">
+          className="absolute right-4 top-4 rounded-full p-1.5 bg-zinc-800/80 opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground z-10"
+        >
           <X className="h-5 w-5" />
           <span className="sr-only">Close</span>
         </DialogPrimitive.Close>
@@ -67,34 +101,52 @@ const DialogContent = React.forwardRef(({ className, children, overlayClassName,
 ))
 DialogContent.displayName = DialogPrimitive.Content.displayName
 
+/**
+ * DialogHeader — Sticky top, blurred background, never scrolls out of view.
+ */
 const DialogHeader = ({
   className,
   ...props
 }) => (
   <div
     className={cn(
-      "flex flex-col space-y-1.5 text-center sm:text-left shrink-0",
-      "px-4 pt-4 pb-2 sm:px-6 sm:pt-6",
+      // Sticky so it always shows at the top even when body scrolls
+      "sticky top-0 z-10",
+      "flex flex-col space-y-1 shrink-0",
+      "px-4 pt-5 pb-3 sm:px-6 sm:pt-6",
+      // Subtle blur for a premium feel when content scrolls under it
+      "bg-background/95 backdrop-blur-sm",
       className
     )}
-    {...props} />
+    {...props}
+  />
 )
 DialogHeader.displayName = "DialogHeader"
 
+/**
+ * DialogFooter — Sticky bottom, blurred background, CTA buttons always visible.
+ * Adding a top border and enough padding to clear the safe area on notch devices.
+ */
 const DialogFooter = ({
   className,
   ...props
 }) => (
   <div
     className={cn(
-      "flex flex-col-reverse sm:flex-row sm:justify-end gap-2 sm:space-x-2 shrink-0",
-      "px-4 pt-3 sm:px-6",
-      "pb-8 sm:pb-6", // Extra bottom padding on mobile for safe area
-      "border-t border-border/50 bg-background",
+      // Sticky so footer buttons always show regardless of scroll position
+      "sticky bottom-0 z-10",
+      "flex flex-col-reverse sm:flex-row sm:justify-end gap-2 shrink-0",
+      "px-4 pt-3 sm:px-6 sm:pt-4",
+      "border-t border-border/50",
+      "bg-background/95 backdrop-blur-sm",
       className
     )}
-    style={{ paddingBottom: 'max(2rem, calc(1rem + env(safe-area-inset-bottom, 0px)))' }}
-    {...props} />
+    style={{
+      // Extra padding for devices with rounded corners / home indicators
+      paddingBottom: 'max(1rem, env(safe-area-inset-bottom, 0px))',
+    }}
+    {...props}
+  />
 )
 DialogFooter.displayName = "DialogFooter"
 

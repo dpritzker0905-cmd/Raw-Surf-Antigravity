@@ -5,6 +5,50 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ============================================================
+   BOTTOM-NAV SAFE ZONE SYSTEM
+   ============================================================
+   --bottomnav-h   : Set dynamically by BottomNav ResizeObserver.
+                     Default 64px covers the nav bar height.
+   --create-protrude: The Create (+) button uses -mt-4 (16px) to
+                     pop above the nav. We add extra clearance so
+                     modal footers are never obscured.
+   --safe-bottom   : Total bottom clearance for modals/drawers.
+                     = nav height + create button protrusion + safe-area
+
+   On md+ (desktop sidebar layout), everything collapses to 0.
+   ============================================================ */
+:root {
+  --bottomnav-h: 64px;
+  --create-protrude: 20px;
+  --safe-bottom: calc(var(--bottomnav-h) + var(--create-protrude) + env(safe-area-inset-bottom, 0px));
+}
+
+@media (min-width: 768px) {
+  :root {
+    --bottomnav-h: 0px;
+    --create-protrude: 0px;
+    --safe-bottom: 0px;
+  }
+}
+
+/* ── Modal body standard scroll pattern ── */
+/* Apply to the scrollable inner body of any dialog/drawer.
+   The parent must be display:flex + flex-direction:column. */
+.modal-body {
+  flex: 1 1 0%;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* ── Mobile sheet / bottom-drawer positioning ── */
+/* Replaces all the !bottom-20 / calc(100dvh-6rem) one-offs */
+.sheet-safe-bottom {
+  bottom: var(--safe-bottom) !important;
+  max-height: calc(100dvh - var(--safe-bottom)) !important;
+}
+
 * {
   margin: 0;
   padding: 0;

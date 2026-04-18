@@ -269,7 +269,7 @@ export const NotificationsDrawer = ({ isOpen, onClose, onCountUpdate }) => {
       <SheetContent 
         side="bottom"
         hideCloseButton
-        className="bg-zinc-900 border-zinc-700 rounded-t-3xl h-[75vh] max-h-[600px] !bottom-20 md:!bottom-4 overflow-hidden flex flex-col"
+        className="bg-zinc-900 border-zinc-700 rounded-t-3xl sheet-safe-bottom md:!bottom-4 overflow-hidden flex flex-col"
       >
         <SheetHeader className="pb-2 shrink-0 pt-2">
           <div className="flex items-center justify-between">

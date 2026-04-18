@@ -2,15 +2,15 @@
     "changedFile":  "",
     "targetBackend":  "https://raw-surf-antigravity.onrender.com",
     "activeEnv":  "dev",
-    "overallStatus":  "FAIL",
-    "lastRun":  "2026-04-17T23:05:21",
+    "overallStatus":  "PASS",
+    "lastRun":  "2026-04-17T23:07:51",
     "targetBranch":  "dev",
     "targetFrontend":  "https://dev--rawsurf.netlify.app",
     "history":  [
                     {
                         "activeEnv":  "dev",
-                        "timestamp":  "2026-04-17T23:05:21",
-                        "overallStatus":  "FAIL",
+                        "timestamp":  "2026-04-17T23:07:51",
+                        "overallStatus":  "PASS",
                         "targetFrontend":  "https://dev--rawsurf.netlify.app",
                         "changedFile":  ""
                     }
@@ -893,51 +893,11 @@
                                           "file":  "\\src\\components\\ThePeakHub.js"
                                       },
                                       {
-                                          "message":  "React Hook \"useState\" is called in function \"_AnalyticsTabContent\" that is neither a React function component nor a custom React Hook function. React component names must start with an uppercase letter. React Hook names must start with the word \"use\".",
-                                          "column":  37,
-                                          "line":  1731,
-                                          "severity":  "error",
-                                          "rule":  "react-hooks/rules-of-hooks",
-                                          "file":  "\\src\\components\\UnifiedAdminConsole.js"
-                                      },
-                                      {
-                                          "message":  "React Hook \"useState\" is called in function \"_AnalyticsTabContent\" that is neither a React function component nor a custom React Hook function. React component names must start with an uppercase letter. React Hook names must start with the word \"use\".",
-                                          "column":  37,
-                                          "line":  1732,
-                                          "severity":  "error",
-                                          "rule":  "react-hooks/rules-of-hooks",
-                                          "file":  "\\src\\components\\UnifiedAdminConsole.js"
-                                      },
-                                      {
-                                          "message":  "React Hook \"useState\" is called in function \"_AnalyticsTabContent\" that is neither a React function component nor a custom React Hook function. React component names must start with an uppercase letter. React Hook names must start with the word \"use\".",
-                                          "column":  41,
-                                          "line":  1733,
-                                          "severity":  "error",
-                                          "rule":  "react-hooks/rules-of-hooks",
-                                          "file":  "\\src\\components\\UnifiedAdminConsole.js"
-                                      },
-                                      {
-                                          "message":  "React Hook \"useState\" is called in function \"_AnalyticsTabContent\" that is neither a React function component nor a custom React Hook function. React component names must start with an uppercase letter. React Hook names must start with the word \"use\".",
-                                          "column":  33,
-                                          "line":  1734,
-                                          "severity":  "error",
-                                          "rule":  "react-hooks/rules-of-hooks",
-                                          "file":  "\\src\\components\\UnifiedAdminConsole.js"
-                                      },
-                                      {
-                                          "message":  "React Hook \"useState\" is called in function \"_AnalyticsTabContent\" that is neither a React function component nor a custom React Hook function. React component names must start with an uppercase letter. React Hook names must start with the word \"use\".",
-                                          "column":  39,
-                                          "line":  1735,
-                                          "severity":  "error",
-                                          "rule":  "react-hooks/rules-of-hooks",
-                                          "file":  "\\src\\components\\UnifiedAdminConsole.js"
-                                      },
-                                      {
-                                          "message":  "React Hook \"useEffect\" is called in function \"_AnalyticsTabContent\" that is neither a React function component nor a custom React Hook function. React component names must start with an uppercase letter. React Hook names must start with the word \"use\".",
-                                          "column":  3,
-                                          "line":  1737,
-                                          "severity":  "error",
-                                          "rule":  "react-hooks/rules-of-hooks",
+                                          "message":  "\u0027AnalyticsTabContent\u0027 is assigned a value but never used. Allowed unused vars must match /^_/u.",
+                                          "column":  7,
+                                          "line":  1730,
+                                          "severity":  "warning",
+                                          "rule":  "unused-imports/no-unused-vars",
                                           "file":  "\\src\\components\\UnifiedAdminConsole.js"
                                       },
                                       {
@@ -957,35 +917,19 @@
                                           "file":  "\\src\\components\\UnifiedAdminConsole.js"
                                       },
                                       {
-                                          "message":  "React Hook \"useState\" is called in function \"_PhotographerProfile\" that is neither a React function component nor a custom React Hook function. React component names must start with an uppercase letter. React Hook names must start with the word \"use\".",
-                                          "column":  33,
-                                          "line":  174,
-                                          "severity":  "error",
-                                          "rule":  "react-hooks/rules-of-hooks",
+                                          "message":  "\u0027LiveSavingsBadge\u0027 is assigned a value but never used. Allowed unused vars must match /^_/u.",
+                                          "column":  7,
+                                          "line":  104,
+                                          "severity":  "warning",
+                                          "rule":  "unused-imports/no-unused-vars",
                                           "file":  "\\src\\components\\UnifiedSpotDrawer.js"
                                       },
                                       {
-                                          "message":  "React Hook \"useState\" is called in function \"_PhotographerProfile\" that is neither a React function component nor a custom React Hook function. React component names must start with an uppercase letter. React Hook names must start with the word \"use\".",
-                                          "column":  47,
-                                          "line":  175,
-                                          "severity":  "error",
-                                          "rule":  "react-hooks/rules-of-hooks",
-                                          "file":  "\\src\\components\\UnifiedSpotDrawer.js"
-                                      },
-                                      {
-                                          "message":  "React Hook \"useState\" is called in function \"_PhotographerProfile\" that is neither a React function component nor a custom React Hook function. React component names must start with an uppercase letter. React Hook names must start with the word \"use\".",
-                                          "column":  33,
-                                          "line":  176,
-                                          "severity":  "error",
-                                          "rule":  "react-hooks/rules-of-hooks",
-                                          "file":  "\\src\\components\\UnifiedSpotDrawer.js"
-                                      },
-                                      {
-                                          "message":  "React Hook \"useEffect\" is called in function \"_PhotographerProfile\" that is neither a React function component nor a custom React Hook function. React component names must start with an uppercase letter. React Hook names must start with the word \"use\".",
-                                          "column":  3,
-                                          "line":  178,
-                                          "severity":  "error",
-                                          "rule":  "react-hooks/rules-of-hooks",
+                                          "message":  "\u0027PhotographerProfile\u0027 is assigned a value but never used. Allowed unused vars must match /^_/u.",
+                                          "column":  7,
+                                          "line":  173,
+                                          "severity":  "warning",
+                                          "rule":  "unused-imports/no-unused-vars",
                                           "file":  "\\src\\components\\UnifiedSpotDrawer.js"
                                       },
                                       {
@@ -1005,147 +949,11 @@
                                           "file":  "\\src\\components\\UnifiedSpotDrawer.js"
                                       },
                                       {
-                                          "message":  "React Hook \"useAuth\" is called in function \"_JumpInFlow\" that is neither a React function component nor a custom React Hook function. React component names must start with an uppercase letter. React Hook names must start with the word \"use\".",
-                                          "column":  32,
-                                          "line":  575,
-                                          "severity":  "error",
-                                          "rule":  "react-hooks/rules-of-hooks",
-                                          "file":  "\\src\\components\\UnifiedSpotDrawer.js"
-                                      },
-                                      {
-                                          "message":  "React Hook \"usePersona\" is called in function \"_JumpInFlow\" that is neither a React function component nor a custom React Hook function. React component names must start with an uppercase letter. React Hook names must start with the word \"use\".",
-                                          "column":  58,
-                                          "line":  576,
-                                          "severity":  "error",
-                                          "rule":  "react-hooks/rules-of-hooks",
-                                          "file":  "\\src\\components\\UnifiedSpotDrawer.js"
-                                      },
-                                      {
-                                          "message":  "React Hook \"useRef\" is called in function \"_JumpInFlow\" that is neither a React function component nor a custom React Hook function. React component names must start with an uppercase letter. React Hook names must start with the word \"use\".",
-                                          "column":  20,
-                                          "line":  577,
-                                          "severity":  "error",
-                                          "rule":  "react-hooks/rules-of-hooks",
-                                          "file":  "\\src\\components\\UnifiedSpotDrawer.js"
-                                      },
-                                      {
-                                          "message":  "React Hook \"useRef\" is called in function \"_JumpInFlow\" that is neither a React function component nor a custom React Hook function. React component names must start with an uppercase letter. React Hook names must start with the word \"use\".",
-                                          "column":  21,
-                                          "line":  578,
-                                          "severity":  "error",
-                                          "rule":  "react-hooks/rules-of-hooks",
-                                          "file":  "\\src\\components\\UnifiedSpotDrawer.js"
-                                      },
-                                      {
-                                          "message":  "React Hook \"useRef\" is called in function \"_JumpInFlow\" that is neither a React function component nor a custom React Hook function. React component names must start with an uppercase letter. React Hook names must start with the word \"use\".",
-                                          "column":  21,
-                                          "line":  579,
-                                          "severity":  "error",
-                                          "rule":  "react-hooks/rules-of-hooks",
-                                          "file":  "\\src\\components\\UnifiedSpotDrawer.js"
-                                      },
-                                      {
-                                          "message":  "React Hook \"useState\" is called in function \"_JumpInFlow\" that is neither a React function component nor a custom React Hook function. React component names must start with an uppercase letter. React Hook names must start with the word \"use\".",
-                                          "column":  27,
-                                          "line":  584,
-                                          "severity":  "error",
-                                          "rule":  "react-hooks/rules-of-hooks",
-                                          "file":  "\\src\\components\\UnifiedSpotDrawer.js"
-                                      },
-                                      {
-                                          "message":  "React Hook \"useState\" is called in function \"_JumpInFlow\" that is neither a React function component nor a custom React Hook function. React component names must start with an uppercase letter. React Hook names must start with the word \"use\".",
-                                          "column":  37,
-                                          "line":  585,
-                                          "severity":  "error",
-                                          "rule":  "react-hooks/rules-of-hooks",
-                                          "file":  "\\src\\components\\UnifiedSpotDrawer.js"
-                                      },
-                                      {
-                                          "message":  "React Hook \"useState\" is called in function \"_JumpInFlow\" that is neither a React function component nor a custom React Hook function. React component names must start with an uppercase letter. React Hook names must start with the word \"use\".",
-                                          "column":  43,
-                                          "line":  586,
-                                          "severity":  "error",
-                                          "rule":  "react-hooks/rules-of-hooks",
-                                          "file":  "\\src\\components\\UnifiedSpotDrawer.js"
-                                      },
-                                      {
-                                          "message":  "React Hook \"useState\" is called in function \"_JumpInFlow\" that is neither a React function component nor a custom React Hook function. React component names must start with an uppercase letter. React Hook names must start with the word \"use\".",
-                                          "column":  33,
-                                          "line":  587,
-                                          "severity":  "error",
-                                          "rule":  "react-hooks/rules-of-hooks",
-                                          "file":  "\\src\\components\\UnifiedSpotDrawer.js"
-                                      },
-                                      {
-                                          "message":  "React Hook \"useState\" is called in function \"_JumpInFlow\" that is neither a React function component nor a custom React Hook function. React component names must start with an uppercase letter. React Hook names must start with the word \"use\".",
-                                          "column":  45,
-                                          "line":  588,
-                                          "severity":  "error",
-                                          "rule":  "react-hooks/rules-of-hooks",
-                                          "file":  "\\src\\components\\UnifiedSpotDrawer.js"
-                                      },
-                                      {
-                                          "message":  "React Hook \"useState\" is called in function \"_JumpInFlow\" that is neither a React function component nor a custom React Hook function. React component names must start with an uppercase letter. React Hook names must start with the word \"use\".",
-                                          "column":  51,
-                                          "line":  589,
-                                          "severity":  "error",
-                                          "rule":  "react-hooks/rules-of-hooks",
-                                          "file":  "\\src\\components\\UnifiedSpotDrawer.js"
-                                      },
-                                      {
-                                          "message":  "React Hook \"useCallback\" is called in function \"_JumpInFlow\" that is neither a React function component nor a custom React Hook function. React component names must start with an uppercase letter. React Hook names must start with the word \"use\".",
-                                          "column":  35,
-                                          "line":  612,
-                                          "severity":  "error",
-                                          "rule":  "react-hooks/rules-of-hooks",
-                                          "file":  "\\src\\components\\UnifiedSpotDrawer.js"
-                                      },
-                                      {
-                                          "message":  "React Hook \"useCallback\" is called in function \"_JumpInFlow\" that is neither a React function component nor a custom React Hook function. React component names must start with an uppercase letter. React Hook names must start with the word \"use\".",
-                                          "column":  23,
-                                          "line":  637,
-                                          "severity":  "error",
-                                          "rule":  "react-hooks/rules-of-hooks",
-                                          "file":  "\\src\\components\\UnifiedSpotDrawer.js"
-                                      },
-                                      {
-                                          "message":  "React Hook \"useCallback\" is called in function \"_JumpInFlow\" that is neither a React function component nor a custom React Hook function. React component names must start with an uppercase letter. React Hook names must start with the word \"use\".",
-                                          "column":  22,
-                                          "line":  659,
-                                          "severity":  "error",
-                                          "rule":  "react-hooks/rules-of-hooks",
-                                          "file":  "\\src\\components\\UnifiedSpotDrawer.js"
-                                      },
-                                      {
-                                          "message":  "React Hook \"useCallback\" is called in function \"_JumpInFlow\" that is neither a React function component nor a custom React Hook function. React component names must start with an uppercase letter. React Hook names must start with the word \"use\".",
-                                          "column":  25,
-                                          "line":  667,
-                                          "severity":  "error",
-                                          "rule":  "react-hooks/rules-of-hooks",
-                                          "file":  "\\src\\components\\UnifiedSpotDrawer.js"
-                                      },
-                                      {
-                                          "message":  "React Hook \"useCallback\" is called in function \"_JumpInFlow\" that is neither a React function component nor a custom React Hook function. React component names must start with an uppercase letter. React Hook names must start with the word \"use\".",
-                                          "column":  24,
-                                          "line":  686,
-                                          "severity":  "error",
-                                          "rule":  "react-hooks/rules-of-hooks",
-                                          "file":  "\\src\\components\\UnifiedSpotDrawer.js"
-                                      },
-                                      {
-                                          "message":  "React Hook \"useEffect\" is called in function \"_JumpInFlow\" that is neither a React function component nor a custom React Hook function. React component names must start with an uppercase letter. React Hook names must start with the word \"use\".",
-                                          "column":  3,
-                                          "line":  757,
-                                          "severity":  "error",
-                                          "rule":  "react-hooks/rules-of-hooks",
-                                          "file":  "\\src\\components\\UnifiedSpotDrawer.js"
-                                      },
-                                      {
-                                          "message":  "React Hook \"useEffect\" is called in function \"_JumpInFlow\" that is neither a React function component nor a custom React Hook function. React component names must start with an uppercase letter. React Hook names must start with the word \"use\".",
-                                          "column":  3,
-                                          "line":  762,
-                                          "severity":  "error",
-                                          "rule":  "react-hooks/rules-of-hooks",
+                                          "message":  "\u0027JumpInFlow\u0027 is assigned a value but never used. Allowed unused vars must match /^_/u.",
+                                          "column":  7,
+                                          "line":  574,
+                                          "severity":  "warning",
+                                          "rule":  "unused-imports/no-unused-vars",
                                           "file":  "\\src\\components\\UnifiedSpotDrawer.js"
                                       },
                                       {
@@ -1437,9 +1245,9 @@
                                           "file":  "\\src\\hooks\\useOfflineMode.js"
                                       }
                                   ],
-                       "errorCount":  28,
-                       "warningCount":  149,
-                       "status":  "FAIL"
+                       "errorCount":  0,
+                       "warningCount":  153,
+                       "status":  "PASS"
                    },
                    {
                        "status":  "PASS",
