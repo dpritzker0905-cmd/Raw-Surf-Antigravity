@@ -10,6 +10,12 @@ import {
 } from 'lucide-react';
 import { Input } from './ui/input';
 import { Button } from './ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from './ui/dropdown-menu';
 import { toast } from 'sonner';
 import VoiceRecorder from './VoiceRecorder';
 import WebcamCaptureModal from './WebcamCaptureModal';
