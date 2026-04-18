@@ -50,7 +50,7 @@ const WatermarkSettings = ({ open, onOpenChange, theme = 'dark' }) => {
   const fetchSettings = async () => {
     setLoading(true);
     try {
-      const response = await apiClient.get(`/api/users/${user.id}/profile`);
+      const response = await apiClient.get(`/users/${user.id}/profile`);
       const profile = response.data;
       
       setSettings({
@@ -70,7 +70,7 @@ const WatermarkSettings = ({ open, onOpenChange, theme = 'dark' }) => {
   const handleSaveSettings = async () => {
     setSaving(true);
     try {
-      await apiClient.put(`/api/photographer/${user.id}/watermark-settings`, settings);
+      await apiClient.put(`/photographer/${user.id}/watermark-settings`, settings);
       setSavedMessage('Watermark settings saved!');
       setTimeout(() => setSavedMessage(''), 3000);
     } catch (error) {
@@ -103,7 +103,7 @@ const WatermarkSettings = ({ open, onOpenChange, theme = 'dark' }) => {
       formData.append('upload_type', 'watermark_logo');
 
       const response = await apiClient.post(
-        `/api/upload/image`,
+        `/upload/image`,
         formData,
         {
           headers: { 'Content-Type': 'multipart/form-data' }
@@ -133,7 +133,7 @@ const WatermarkSettings = ({ open, onOpenChange, theme = 'dark' }) => {
     setGeneratingPreview(true);
     try {
       // Call backend to generate a preview with current settings
-      const response = await apiClient.post(`/api/gallery/generate-watermark-preview`, {
+      const response = await apiClient.post(`/gallery/generate-watermark-preview`, {
         photographer_id: user.id,
         sample_image_url: sampleImage,
         watermark_style: settings.watermark_style,

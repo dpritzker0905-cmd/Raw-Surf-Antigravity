@@ -1024,8 +1024,8 @@ const CrewSplitSection = ({
     try {
       // Fetch recent session buddies
       const [buddiesRes, followingRes] = await Promise.all([
-        apiClient.get(`/api/users/${user.id}/recent-buddies?limit=10`).catch(() => ({ data: { buddies: [] } })),
-        apiClient.get(`/api/users/${user.id}/following?limit=20`).catch(() => ({ data: { following: [] } }))
+        apiClient.get(`/users/${user.id}/recent-buddies?limit=10`).catch(() => ({ data: { buddies: [] } })),
+        apiClient.get(`/users/${user.id}/following?limit=20`).catch(() => ({ data: { following: [] } }))
       ]);
       setRecentBuddies(buddiesRes.data.buddies || []);
       setFollowing(followingRes.data.following || []);
@@ -1046,7 +1046,7 @@ const CrewSplitSection = ({
     
     setSearching(true);
     try {
-      const res = await apiClient.get(`/api/users/search?query=${encodeURIComponent(query)}&limit=10`);
+      const res = await apiClient.get(`/users/search?query=${encodeURIComponent(query)}&limit=10`);
       // Filter out current user and already selected members
       const selectedIds = crewMembers.map(m => m.user_id);
       const filtered = (res.data.users || []).filter(u => 

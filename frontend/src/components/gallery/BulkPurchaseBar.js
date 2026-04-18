@@ -140,7 +140,7 @@ export const BulkPurchaseBar = ({
         return acc;
       }, {});
       
-      const response = await apiClient.post(`/api/gallery/bulk-purchase`, {
+      const response = await apiClient.post(`/gallery/bulk-purchase`, {
         item_ids: itemIds,
         quality_tiers: qualityTiers,
         buyer_id: userId

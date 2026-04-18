@@ -246,8 +246,8 @@ export const CrewLeaderboard = ({
     setLoading(true);
     try {
       const [summaryRes, leaderboardRes] = await Promise.all([
-        apiClient.get(`/api/users/${targetUserId}/crew-summary`),
-        apiClient.get(`/api/crew/leaderboard?metric=${leaderboardMetric}&limit=20`)
+        apiClient.get(`/users/${targetUserId}/crew-summary`),
+        apiClient.get(`/crew/leaderboard?metric=${leaderboardMetric}&limit=20`)
       ]);
       
       setUserSummary(summaryRes.data);
@@ -261,7 +261,7 @@ export const CrewLeaderboard = ({
   
   const handleCrewClick = async (crew) => {
     try {
-      const res = await apiClient.get(`/api/crew/stats/${crew.crew_hash}?user_id=${targetUserId}`);
+      const res = await apiClient.get(`/crew/stats/${crew.crew_hash}?user_id=${targetUserId}`);
       setSelectedCrew(res.data);
       setShowCrewDetail(true);
     } catch (error) {
@@ -275,7 +275,7 @@ export const CrewLeaderboard = ({
   
   const handlePrivacyToggle = async (crewHash, isPublic) => {
     try {
-      await apiClient.put(`/api/crew/${crewHash}/settings?user_id=${targetUserId}`, {
+      await apiClient.put(`/crew/${crewHash}/settings?user_id=${targetUserId}`, {
         is_public: isPublic
       });
       toast.success(`Crew is now ${isPublic ? 'public' : 'private'}`);

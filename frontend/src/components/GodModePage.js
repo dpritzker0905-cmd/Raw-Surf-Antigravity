@@ -74,9 +74,9 @@ const GodModePage = () => {
       setLoadingPhotographers(true);
       try {
         const [photosRes, spotsRes, sessionsRes] = await Promise.all([
-          apiClient.get(`/api/admin/photographers`),
-          apiClient.get(`/api/surf-spots`),
-          apiClient.get(`/api/admin/active-sessions`).catch(() => ({ data: [] }))
+          apiClient.get(`/admin/photographers`),
+          apiClient.get(`/surf-spots`),
+          apiClient.get(`/admin/active-sessions`).catch(() => ({ data: [] }))
         ]);
         setSimulatePhotographers(photosRes.data);
         setSurfSpots(spotsRes.data);
@@ -134,7 +134,7 @@ const GodModePage = () => {
     
     setForceStartLoading(true);
     try {
-      const response = await apiClient.post(`/api/admin/force-start-session`, {
+      const response = await apiClient.post(`/admin/force-start-session`, {
         photographer_id: selectedPhotographer,
         spot_id: selectedSpot,
         session_price: parseFloat(sessionPrice) || 25,
@@ -149,8 +149,8 @@ const GodModePage = () => {
       
       // Refresh data
       const [photosRes, sessionsRes] = await Promise.all([
-        apiClient.get(`/api/admin/photographers`),
-        apiClient.get(`/api/admin/active-sessions`).catch(() => ({ data: [] }))
+        apiClient.get(`/admin/photographers`),
+        apiClient.get(`/admin/active-sessions`).catch(() => ({ data: [] }))
       ]);
       setSimulatePhotographers(photosRes.data);
       setActiveSessions(sessionsRes.data || []);
@@ -172,7 +172,7 @@ const GodModePage = () => {
   const handleForceEnd = async (photographerId, _photographerName) => {
     setForceEndLoading(photographerId);
     try {
-      const response = await apiClient.post(`/api/admin/force-end-session/${photographerId}`);
+      const response = await apiClient.post(`/admin/force-end-session/${photographerId}`);
       
       toast.success(response.data.message, {
         icon: <Square className="w-4 h-4 text-gray-500" />
@@ -180,8 +180,8 @@ const GodModePage = () => {
       
       // Refresh data
       const [photosRes, sessionsRes] = await Promise.all([
-        apiClient.get(`/api/admin/photographers`),
-        apiClient.get(`/api/admin/active-sessions`).catch(() => ({ data: [] }))
+        apiClient.get(`/admin/photographers`),
+        apiClient.get(`/admin/active-sessions`).catch(() => ({ data: [] }))
       ]);
       setSimulatePhotographers(photosRes.data);
       setActiveSessions(sessionsRes.data || []);

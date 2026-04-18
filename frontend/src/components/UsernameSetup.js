@@ -80,7 +80,7 @@ const UsernameSetup = ({ onComplete, skipAllowed = false }) => {
       setChecking(true);
       try {
         const response = await apiClient.get(
-          `/api/username/check/${debouncedUsername}?user_id=${user?.id}`
+          `/username/check/${debouncedUsername}?user_id=${user?.id}`
         );
         setAvailability(response.data);
       } catch (error) {
@@ -107,7 +107,7 @@ const UsernameSetup = ({ onComplete, skipAllowed = false }) => {
     
     setSubmitting(true);
     try {
-      await apiClient.post(`/api/username/set?user_id=${user.id}`, {
+      await apiClient.post(`/username/set?user_id=${user.id}`, {
         username: username
       });
       

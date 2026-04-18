@@ -41,7 +41,7 @@ const SurfModeCard = ({ textPrimaryClass, textSecondaryClass, cardBgClass }) => 
 
   const fetchVerificationStatus = async () => {
     try {
-      const res = await apiClient.get(`/api/verification/my-requests?user_id=${user.id}`);
+      const res = await apiClient.get(`/verification/my-requests?user_id=${user.id}`);
       const proReq = (res.data || []).find(r => r.verification_type === 'pro_surfer');
       if (proReq) setVerificationStatus(proReq.status);
     } catch (e) {
@@ -56,7 +56,7 @@ const SurfModeCard = ({ textPrimaryClass, textSecondaryClass, cardBgClass }) => 
     setSurfMode(mode);
     setSaving(true);
     try {
-      await apiClient.patch(`/api/profiles/${user.id}`, { surf_mode: mode });
+      await apiClient.patch(`/profiles/${user.id}`, { surf_mode: mode });
       if (updateUser) updateUser({ ...user, surf_mode: mode });
       toast.success(`Surf Mode set to ${mode.charAt(0).toUpperCase() + mode.slice(1)}`);
     } catch (e) {
@@ -77,7 +77,7 @@ const SurfModeCard = ({ textPrimaryClass, textSecondaryClass, cardBgClass }) => 
       const urls = wslForm.competition_history_urls
         ? wslForm.competition_history_urls.split(',').map(u => u.trim()).filter(Boolean)
         : [];
-      await apiClient.post(`/api/verification/pro-surfer/submit`, {
+      await apiClient.post(`/verification/pro-surfer/submit`, {
         user_id: user.id,
         wsl_athlete_id: wslForm.wsl_athlete_id.trim(),
         wsl_profile_url: wslForm.wsl_profile_url.trim(),
@@ -298,7 +298,7 @@ const GromParentCard = ({ textPrimaryClass, textSecondaryClass, cardBgClass }) =
     setToggling(true);
     const newVal = !user?.is_grom_parent;
     try {
-      await apiClient.patch(`/api/profiles/${user.id}`, { is_grom_parent: newVal });
+      await apiClient.patch(`/profiles/${user.id}`, { is_grom_parent: newVal });
       updateUser({ ...user, is_grom_parent: newVal });
       if (newVal) {
         toast.success('Grom Parent mode enabled — access GromHQ to link your child\'s account');
@@ -383,7 +383,7 @@ const UsernameCard = ({ userId, _textPrimaryClass, textSecondaryClass, borderCla
 
   const fetchStatus = async () => {
     try {
-      const response = await apiClient.get(`/api/username/status?user_id=${userId}`);
+      const response = await apiClient.get(`/username/status?user_id=${userId}`);
       setStatus(response.data);
       setNewUsername(response.data.username || '');
     } catch (error) {
@@ -400,7 +400,7 @@ const UsernameCard = ({ userId, _textPrimaryClass, textSecondaryClass, borderCla
     }
     setChecking(true);
     try {
-      const response = await apiClient.get(`/api/username/check/${username}?user_id=${userId}`);
+      const response = await apiClient.get(`/username/check/${username}?user_id=${userId}`);
       setAvailability(response.data);
     } catch (error) {
       setAvailability({ available: false, reason: 'Unable to check' });
@@ -427,9 +427,9 @@ const UsernameCard = ({ userId, _textPrimaryClass, textSecondaryClass, borderCla
     setSaving(true);
     try {
       if (status?.has_username) {
-        await apiClient.put(`/api/username/change?user_id=${userId}`, { new_username: newUsername });
+        await apiClient.put(`/username/change?user_id=${userId}`, { new_username: newUsername });
       } else {
-        await apiClient.post(`/api/username/set?user_id=${userId}`, { username: newUsername });
+        await apiClient.post(`/username/set?user_id=${userId}`, { username: newUsername });
       }
       toast.success(`Username updated to @${newUsername}`);
       setEditing(false);
@@ -572,7 +572,7 @@ const MetaConnectionsCard = ({ userId, textPrimaryClass, textSecondaryClass, bor
 
   const fetchMetaStatus = async () => {
     try {
-      const response = await apiClient.get(`/api/meta/status?user_id=${userId}`);
+      const response = await apiClient.get(`/meta/status?user_id=${userId}`);
       setMetaStatus(response.data);
     } catch (err) {
       setMetaStatus(null);
@@ -584,7 +584,7 @@ const MetaConnectionsCard = ({ userId, textPrimaryClass, textSecondaryClass, bor
   const handleOAuthCallback = async (code, state) => {
     setConnecting(true);
     try {
-      const response = await apiClient.get(`/api/meta/callback`, {
+      const response = await apiClient.get(`/meta/callback`, {
         params: { code, state, redirect_uri: `${window.location.origin}/settings` }
       });
       
@@ -604,7 +604,7 @@ const MetaConnectionsCard = ({ userId, textPrimaryClass, textSecondaryClass, bor
   const handleConnect = async () => {
     setConnecting(true);
     try {
-      const response = await apiClient.get(`/api/meta/oauth-url`, {
+      const response = await apiClient.get(`/meta/oauth-url`, {
         params: { 
           user_id: userId,
           redirect_uri: `${window.location.origin}/settings`
@@ -622,7 +622,7 @@ const MetaConnectionsCard = ({ userId, textPrimaryClass, textSecondaryClass, bor
   const handleDisconnect = async () => {
     setDisconnecting(true);
     try {
-      await apiClient.delete(`/api/meta/disconnect?user_id=${userId}`);
+      await apiClient.delete(`/meta/disconnect?user_id=${userId}`);
       setMetaStatus(null);
       toast.success('Meta accounts disconnected');
     } catch (err) {
@@ -834,7 +834,7 @@ export const Settings = () => {
   
   const fetchPrivacySettings = async () => {
     try {
-      const response = await apiClient.get(`/api/friends/privacy/${user.id}`);
+      const response = await apiClient.get(`/friends/privacy/${user.id}`);
       setPrivacy(response.data);
     } catch (error) {
       logger.error('Failed to fetch privacy settings:', error);
@@ -843,7 +843,7 @@ export const Settings = () => {
   
   const fetchNotificationPrefs = async () => {
     try {
-      const response = await apiClient.get(`/api/notifications/preferences/${user.id}`);
+      const response = await apiClient.get(`/notifications/preferences/${user.id}`);
       setNotifPrefs(response.data);
     } catch (error) {
       logger.error('Failed to fetch notification preferences:', error);
@@ -853,7 +853,7 @@ export const Settings = () => {
   const updateNotifPref = async (key, value) => {
     setNotifLoading(true);
     try {
-      await apiClient.put(`/api/notifications/preferences/${user.id}`, { [key]: value });
+      await apiClient.put(`/notifications/preferences/${user.id}`, { [key]: value });
       setNotifPrefs(prev => ({ ...prev, [key]: value }));
       toast.success('Notification setting updated');
     } catch (error) {
@@ -866,7 +866,7 @@ export const Settings = () => {
   const updatePrivacySetting = async (key, value) => {
     setPrivacyLoading(true);
     try {
-      await apiClient.put(`/api/friends/privacy/${user.id}`, { [key]: value });
+      await apiClient.put(`/friends/privacy/${user.id}`, { [key]: value });
       setPrivacy(prev => ({ ...prev, [key]: value }));
       toast.success('Privacy setting updated');
     } catch (error) {
@@ -880,8 +880,8 @@ export const Settings = () => {
     setFriendsLoading(true);
     try {
       const [friendsRes, pendingRes] = await Promise.all([
-        apiClient.get(`/api/friends/list/${user.id}`),
-        apiClient.get(`/api/friends/pending/${user.id}`)
+        apiClient.get(`/friends/list/${user.id}`),
+        apiClient.get(`/friends/pending/${user.id}`)
       ]);
       setFriends(friendsRes.data.friends || []);
       setPendingRequests(pendingRes.data.pending_requests || []);
@@ -894,7 +894,7 @@ export const Settings = () => {
   
   const _handleAcceptFriend = async (requestId) => {
     try {
-      await apiClient.post(`/api/friends/accept/${requestId}?user_id=${user.id}`);
+      await apiClient.post(`/friends/accept/${requestId}?user_id=${user.id}`);
       toast.success('Friend request accepted!');
       fetchFriends();
     } catch (error) {
@@ -904,7 +904,7 @@ export const Settings = () => {
   
   const _handleDeclineFriend = async (requestId) => {
     try {
-      await apiClient.post(`/api/friends/decline/${requestId}?user_id=${user.id}`);
+      await apiClient.post(`/friends/decline/${requestId}?user_id=${user.id}`);
       toast.success('Friend request declined');
       fetchFriends();
     } catch (error) {
@@ -914,7 +914,7 @@ export const Settings = () => {
   
   const _handleRemoveFriend = async (friendshipId) => {
     try {
-      await apiClient.delete(`/api/friends/${friendshipId}?user_id=${user.id}`);
+      await apiClient.delete(`/friends/${friendshipId}?user_id=${user.id}`);
       toast.success('Friend removed');
       fetchFriends();
     } catch (error) {

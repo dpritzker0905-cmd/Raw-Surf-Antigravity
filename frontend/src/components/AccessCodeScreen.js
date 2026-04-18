@@ -26,7 +26,7 @@ export const AccessCodeScreen = ({ children }) => {
   const checkAccess = async () => {
     try {
       // First check if access code is even enabled
-      const response = await apiClient.get(`/api/site-access`);
+      const response = await apiClient.get(`/site-access`);
       
       if (!response.data.access_code_enabled) {
         // Access code not required - grant access
@@ -41,7 +41,7 @@ export const AccessCodeScreen = ({ children }) => {
       if (storedCode) {
         // Verify the stored code is still valid against the backend
         try {
-          const verifyResponse = await apiClient.post(`/api/site-access/verify`, { code: storedCode });
+          const verifyResponse = await apiClient.post(`/site-access/verify`, { code: storedCode });
           if (verifyResponse.data.valid) {
             setAccessGranted(true);
             setChecking(false);
@@ -77,7 +77,7 @@ export const AccessCodeScreen = ({ children }) => {
     setError('');
 
     try {
-      const response = await apiClient.post(`/api/site-access/verify`, { code: code.trim() });
+      const response = await apiClient.post(`/site-access/verify`, { code: code.trim() });
       if (response.data.valid) {
         // Store the actual code for future re-validation
         localStorage.setItem(ACCESS_CODE_KEY, code.trim().toUpperCase());

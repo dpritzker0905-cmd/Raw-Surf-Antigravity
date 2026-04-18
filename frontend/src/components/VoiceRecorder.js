@@ -164,7 +164,7 @@ export const VoiceRecorder = ({
       
       // Upload to backend (which handles Supabase storage)
       const response = await apiClient.post(
-        `/api/messages/voice-note`,
+        `/messages/voice-note`,
         formData,
         {
           headers: { 'Content-Type': 'multipart/form-data' }

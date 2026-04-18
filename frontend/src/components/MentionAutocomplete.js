@@ -69,7 +69,7 @@ const MentionAutocomplete = forwardRef(({
       
       setLoading(true);
       try {
-        const response = await apiClient.get(`/api/username/search?q=${encodeURIComponent(query)}&limit=8`);
+        const response = await apiClient.get(`/username/search?q=${encodeURIComponent(query)}&limit=8`);
         setSuggestions(response.data || []);
         setSelectedIndex(0);
       } catch (error) {

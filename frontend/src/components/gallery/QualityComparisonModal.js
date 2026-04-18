@@ -273,7 +273,7 @@ export const QualityComparisonModal = ({
     const fetchPreviews = async () => {
       setLoading(true);
       try {
-        const response = await apiClient.get(`/api/gallery/item/${itemId}/quality-previews`);
+        const response = await apiClient.get(`/gallery/item/${itemId}/quality-previews`);
         setPreviewUrls(response.data.previews || {});
       } catch (error) {
         console.error('Failed to fetch quality previews:', error);

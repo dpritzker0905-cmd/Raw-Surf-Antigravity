@@ -46,7 +46,7 @@ const CrewPaymentPage = () => {
 
   const fetchBookingDetails = useCallback(async () => {
     try {
-      const response = await apiClient.get(`/api/bookings/${bookingId}/crew-payment-details?user_id=${user.id}`);
+      const response = await apiClient.get(`/bookings/${bookingId}/crew-payment-details?user_id=${user.id}`);
       setBooking(response.data.booking);
       setMyShare(response.data.my_share);
       setCaptain(response.data.captain);
@@ -103,7 +103,7 @@ const CrewPaymentPage = () => {
     setPaying(true);
     try {
       const response = await apiClient.post(
-        `/api/bookings/${bookingId}/crew-pay`,
+        `/bookings/${bookingId}/crew-pay`,
         {
           participant_id: user.id,
           amount: myShare.share_amount,
