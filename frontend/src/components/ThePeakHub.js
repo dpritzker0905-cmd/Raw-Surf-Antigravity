@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
@@ -13,15 +13,10 @@ import { Badge } from './ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from './ui/dialog';
 import { Input } from './ui/input';
 import { toast } from 'sonner';
-import apiClient, { BACKEND_URL } from '../lib/apiClient';
+import apiClient from '../lib/apiClient';
 import { GoldPassSlotCard } from './GoldPassSlotCard';
 import logger from '../utils/logger';
-
-const getFullUrl = (url) => {
-  if (!url) return url;
-  if (url.startsWith('data:') || url.startsWith('blob:') || url.startsWith('http')) return url;
-  return `${BACKEND_URL || ''}${url}`;
-};
+import { getFullUrl } from '../utils/media';
 
 /**
  * The Peak - Career Hub for Pro-Elite (⭐+) and Competitive (🏄) surfers

@@ -7,12 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import { Avatar, AvatarImage, AvatarFallback } from './ui/avatar';
 import { useNavigate } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
-
-const getFullUrl = (url) => {
-  if (!url) return url;
-  if (url.startsWith('data:') || url.startsWith('blob:') || url.startsWith('http')) return url;
-  return `\\`;
-};
+import { getFullUrl } from '../utils/media';
 
 const WhoReactedModal = ({ isOpen, onClose, reactions = [], _postAuthorName, loading = false }) => {
   const navigate = useNavigate();

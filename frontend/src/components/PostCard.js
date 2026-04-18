@@ -4,7 +4,7 @@
  */
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import apiClient, { BACKEND_URL } from '../lib/apiClient';
+import apiClient from '../lib/apiClient';
 import { getExpandedRoleInfo } from '../contexts/PersonaContext';
 import SessionLogHeader from './SessionLogHeader';
 import { CommentInputWithEmoji } from './EmojiPicker';
@@ -13,6 +13,7 @@ import SessionJoinCard from './SessionJoinCard';
 import { RichText, CommentText } from './RichText';
 import { MapPin, MessageCircle, Send, Bookmark, MoreHorizontal, Loader2, Play, Radio, Heart, ShoppingBag, ChevronRight } from 'lucide-react';
 import { toast } from 'sonner';
+import { getFullUrl } from '../utils/media';
 
 
 // Comment reaction emojis
@@ -622,15 +623,6 @@ const PostCard = ({
   const [userManuallyPaused, setUserManuallyPaused] = useState(false);
 
   // Helper to ensure media paths map to backend directly natively preventing Netlify 404 traps
-  const getFullUrl = (url) => {
-    if (!url) return url;
-    if (url.startsWith('data:')) return url;     // base64 data URIs
-    if (url.startsWith('blob:')) return url;     // local blob URLs (camera capture)
-    if (url.startsWith('//')) return url;        // protocol-relative URLs (CDN)
-    if (url.startsWith('http')) return url;      // absolute http/https URLs
-    return `${BACKEND_URL || ''}${url}`;
-  };
-
   const _checkMediaUrl = getFullUrl(post?.media_url || post?.image_url);
   const isVideoItem = post?.media_type === 'video' || (typeof _checkMediaUrl === 'string' && _checkMediaUrl.match(/\.(mp4|webm|ogg|mov)(\?.*)?$/i));
 

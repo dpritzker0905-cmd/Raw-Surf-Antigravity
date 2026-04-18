@@ -24,12 +24,7 @@ import {
 import '@livekit/components-styles';
 import { Track } from 'livekit-client';
 import logger from '../utils/logger';
-
-const getFullUrl = (url) => {
-  if (!url) return url;
-  if (url.startsWith('data:') || url.startsWith('blob:') || url.startsWith('http')) return url;
-  return `\\`;
-};
+import { getFullUrl } from '../utils/media';
 
 
 const API = process.env.REACT_APP_BACKEND_URL + '/api';

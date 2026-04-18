@@ -4,7 +4,7 @@ import { useAuth } from '../../contexts/AuthContext';
 
 import { useTheme } from '../../contexts/ThemeContext';
 
-import apiClient, { BACKEND_URL } from '../../lib/apiClient';
+import apiClient from '../../lib/apiClient';
 
 import { MessageSquare, FileText,
 
@@ -28,12 +28,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 
 import { toast } from 'sonner';
-
-const getFullUrl = (url) => {
-  if (!url) return url;
-  if (url.startsWith('data:') || url.startsWith('blob:') || url.startsWith('http')) return url;
-  return `\\`;
-};
+import { getFullUrl } from '../../utils/media';
 
 
 

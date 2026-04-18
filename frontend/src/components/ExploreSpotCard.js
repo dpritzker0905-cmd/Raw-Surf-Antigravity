@@ -11,12 +11,7 @@ import {
 import { Badge } from './ui/badge';
 import { Avatar, AvatarImage, AvatarFallback } from './ui/avatar';
 import { motion, AnimatePresence } from 'framer-motion';
-
-const getFullUrl = (url) => {
-  if (!url) return url;
-  if (url.startsWith('data:') || url.startsWith('blob:') || url.startsWith('http')) return url;
-  return `\\`;
-};
+import { getFullUrl } from '../utils/media';
 
 // Conditions color mapping
 const conditionColors = {

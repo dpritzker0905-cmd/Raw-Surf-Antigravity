@@ -12,12 +12,7 @@ import {
   Heart, Target, Search, Users, DollarSign, TrendingUp, Loader2, ExternalLink, Check, Waves, Star, Gift, Settings
 } from 'lucide-react';
 import logger from '../utils/logger';
-
-const getFullUrl = (url) => {
-  if (!url) return url;
-  if (url.startsWith('data:') || url.startsWith('blob:') || url.startsWith('http')) return url;
-  return `\\`;
-};
+import { getFullUrl } from '../utils/media';
 
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;

@@ -25,12 +25,7 @@ import { Avatar, AvatarImage, AvatarFallback } from './ui/avatar';
 import { toast } from 'sonner';
 
 import logger from '../utils/logger';
-
-const getFullUrl = (url) => {
-  if (!url) return url;
-  if (url.startsWith('data:') || url.startsWith('blob:') || url.startsWith('http')) return url;
-  return `\\`;
-};
+import { getFullUrl } from '../utils/media';
 
 
 const API = process.env.REACT_APP_BACKEND_URL;

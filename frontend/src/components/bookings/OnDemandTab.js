@@ -9,12 +9,7 @@ import { Card, CardContent } from '../ui/card';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { CrewPaymentProgress } from '../dispatch/CrewPaymentProgress';
-
-const getFullUrl = (url) => {
-  if (!url) return url;
-  if (url.startsWith('data:') || url.startsWith('blob:') || url.startsWith('http')) return url;
-  return `\\`;
-};
+import { getFullUrl } from '../../utils/media';
 
 export const OnDemandTab = ({
   user,

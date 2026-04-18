@@ -1,15 +1,10 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, TrendingUp, Clock, Hash, User, MapPin } from 'lucide-react';
 import { GlobalSearchBar } from '../components/GlobalSearchBar';
 import { Avatar, AvatarImage, AvatarFallback } from '../components/ui/avatar';
-import apiClient, { BACKEND_URL } from '../lib/apiClient';
-
-const getFullUrl = (url) => {
-  if (!url) return url;
-  if (url.startsWith('data:') || url.startsWith('blob:') || url.startsWith('http')) return url;
-  return `${BACKEND_URL || ''}${url}`;
-};
+import apiClient from '../lib/apiClient';
+import { getFullUrl } from '../utils/media';
 
 
 /**

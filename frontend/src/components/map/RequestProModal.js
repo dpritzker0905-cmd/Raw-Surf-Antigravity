@@ -27,13 +27,8 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter
 } from '../ui/dialog';
 import { toast } from 'sonner';
-import apiClient, { BACKEND_URL } from '../../lib/apiClient';
-
-const getFullUrl = (url) => {
-  if (!url) return url;
-  if (url.startsWith('data:') || url.startsWith('blob:') || url.startsWith('http')) return url;
-  return `\\`;
-};
+import apiClient from '../../lib/apiClient';
+import { getFullUrl } from '../../utils/media';
 
 
 

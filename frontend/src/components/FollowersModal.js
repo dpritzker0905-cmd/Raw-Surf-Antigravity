@@ -1,10 +1,10 @@
-/**
+﻿/**
  * FollowersModal - Instagram-style modal showing followers or following list
  * Allows users to view who follows them or who they follow
  */
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import apiClient, { BACKEND_URL } from '../lib/apiClient';
+import apiClient from '../lib/apiClient';
 import { X, Loader2, UserPlus, UserMinus, Users } from 'lucide-react';
 import { Dialog, DialogContent, DialogTitle } from './ui/dialog';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
@@ -12,12 +12,7 @@ import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { useAuth } from '../contexts/AuthContext';
 import { toast } from 'sonner';
-
-const getFullUrl = (url) => {
-  if (!url) return url;
-  if (url.startsWith('data:') || url.startsWith('blob:') || url.startsWith('http')) return url;
-  return `${BACKEND_URL || ''}${url}`;
-};
+import { getFullUrl } from '../utils/media';
 
 
 export const FollowersModal = ({ 

@@ -1,18 +1,13 @@
-/**
+﻿/**
  * MentionAutocomplete - Dropdown for @mention suggestions
  * Shows when user types @ in a text input
  */
 import React, { useState, useEffect, useRef, forwardRef, useImperativeHandle } from 'react';
 import { Avatar, AvatarImage, AvatarFallback } from './ui/avatar';
 import { Loader2 } from 'lucide-react';
-import apiClient, { BACKEND_URL } from '../lib/apiClient';
+import apiClient from '../lib/apiClient';
 import logger from '../utils/logger';
-
-const getFullUrl = (url) => {
-  if (!url) return url;
-  if (url.startsWith('data:') || url.startsWith('blob:') || url.startsWith('http')) return url;
-  return `${BACKEND_URL || ''}${url}`;
-};
+import { getFullUrl } from '../utils/media';
 
 const MentionAutocomplete = forwardRef(({ 
   text, 

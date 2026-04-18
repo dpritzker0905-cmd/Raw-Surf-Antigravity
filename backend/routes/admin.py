@@ -639,29 +639,47 @@ async def bootstrap_first_admin(email: str, db: AsyncSession = Depends(get_db)):
     }
 
 
-@router.api_route("/admin/setup/{email}", methods=["GET", "POST"])
+
+@router.post("/admin/setup/{email}")
 async def setup_admin_by_email(email: str, db: AsyncSession = Depends(get_db)):
     """
     Direct admin setup by email — for initial configuration only.
-    SECURITY: Only enabled when ALLOW_ADMIN_BOOTSTRAP=true env var is set.
-    Never set this in production — Render/Netlify do not set this var.
+
+    SECURITY LAYERS:
+    1. ALLOW_ADMIN_BOOTSTRAP env var must be explicitly set to 'true'
+       (it is NOT set on Render/Netlify by default)
+    2. Endpoint restricted to POST only (no accidental GET-based discovery)
+    3. If admin already exists this endpoint refuses to operate
+    4. Removed from GET routes so it won't appear in OpenAPI 'Try It Out'
+
+    To temporarily enable: set ALLOW_ADMIN_BOOTSTRAP=true in Render env vars,
+    make your account admin, then immediately remove the env var.
     """
     import os
     if os.getenv("ALLOW_ADMIN_BOOTSTRAP", "false").lower() != "true":
         raise HTTPException(status_code=404, detail="Not found")
+
+    # Safety: refuse to run if ANY admin already exists (use /admin/make-admin instead)
+    existing_admin_result = await db.execute(
+        select(Profile).where(Profile.is_admin == True).limit(1)
+    )
+    if existing_admin_result.scalars().first():
+        raise HTTPException(
+            status_code=400,
+            detail="An admin already exists. Use /admin/make-admin/{user_id} (requires admin_id)."
+        )
+
     result = await db.execute(select(Profile).where(Profile.email == email))
     user = result.scalar_one_or_none()
-    
+
     if not user:
         raise HTTPException(status_code=404, detail="User not found. Create an account first.")
-    
-    if user.is_admin:
-        return {"message": f"{user.full_name or user.email} is already an admin!", "status": "already_admin"}
-    
+
     user.is_admin = True
     await db.commit()
-    
+
     return {
         "message": f"✅ {user.full_name or user.email} is now an admin!",
-        "next_step": "Log out and log back in, then click 'Admin' in the sidebar"
+        "next_step": "Log out and log back in, then click 'Admin' in the sidebar",
+        "security_reminder": "Remove ALLOW_ADMIN_BOOTSTRAP from your environment variables now.",
     }

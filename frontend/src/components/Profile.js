@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+﻿import React, { useEffect, useState, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { usePersona, getExpandedRoleInfo } from '../contexts/PersonaContext';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -48,17 +48,10 @@ import { ScheduledBookingDrawer } from './ScheduledBookingDrawer';
 import { SurfboardsTab } from './SurfboardsTab';
 import { FollowersModal } from './FollowersModal';
 import logger from '../utils/logger';
-import apiClient, { BACKEND_URL } from '../lib/apiClient';
+import apiClient from '../lib/apiClient';
+import { getFullUrl } from '../utils/media';
 
 // Resolve relative /api/uploads/... paths to backend absolute URLs
-const getFullUrl = (url) => {
-  if (!url) return url;
-  if (url.startsWith('data:')) return url;
-  if (url.startsWith('blob:')) return url;
-  if (url.startsWith('http')) return url;
-  return `${BACKEND_URL || ''}${url}`;
-};
-
 
 // Role badge component showing icon and label
 const ProfileRoleBadge = ({ role }) => {
@@ -2170,13 +2163,6 @@ const MediaGridItem = ({ item, onClick, isPinned = false }) => {
   if (!item) return null;
   
   // Helper to intercept Netlify HTML proxy traps on local backend arrays
-  const getFullUrl = (url) => {
-    if (!url) return url;
-    if (url.startsWith('data:')) return url;
-    if (url.startsWith('http')) return url;
-    return `${BACKEND_URL || ''}${url}`;
-  };
-  
   const _checkMediaUrl = getFullUrl(item.media_url || item.image_url);
   const isVideo = item.media_type === 'video' || (typeof _checkMediaUrl === 'string' && _checkMediaUrl.match(/\.(mp4|webm|ogg|mov)(\?.*)?$/i));
   const isNew = item.is_new;

@@ -1,12 +1,7 @@
 ﻿import React, { useState, useEffect } from 'react';
 import { Square, Clock, Users, DollarSign, MapPin, Eye, Camera, ChevronDown, ChevronUp } from 'lucide-react';
 import { Button } from './ui/button';
-
-const getFullUrl = (url) => {
-  if (!url) return url;
-  if (url.startsWith('data:') || url.startsWith('blob:') || url.startsWith('http')) return url;
-  return `\\`;
-};
+import { getFullUrl } from '../utils/media';
 
 /**
  * LiveStatusHUD - Persistent "Active Session" Heads-Up Display

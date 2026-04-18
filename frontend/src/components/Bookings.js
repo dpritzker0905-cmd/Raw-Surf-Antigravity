@@ -8,7 +8,7 @@ import { useTheme } from '../contexts/ThemeContext';
 
 import { usePersona } from '../contexts/PersonaContext';
 
-import apiClient, { BACKEND_URL } from '../lib/apiClient';
+import apiClient from '../lib/apiClient';
 
 import { Users, Zap, Radio, History, CalendarClock, UserPlus, Copy, Mail, Target, Sparkles, Search, Loader2, AtSign, Send } from 'lucide-react';
 
@@ -44,12 +44,7 @@ import { CrewPaymentModal } from './CrewPaymentModal';
 import { JumpInSessionModal } from './JumpInSessionModal';
 
 import logger from '../utils/logger';
-
-const getFullUrl = (url) => {
-  if (!url) return url;
-  if (url.startsWith('data:') || url.startsWith('blob:') || url.startsWith('http')) return url;
-  return `\\`;
-};
+import { getFullUrl } from '../utils/media';
 
 
 

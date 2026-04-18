@@ -8,7 +8,7 @@ import { usePersona, ALL_PERSONAS, getExpandedRoleInfo } from '../contexts/Perso
 
 import { useTheme } from '../contexts/ThemeContext';
 
-import apiClient, { BACKEND_URL } from '../lib/apiClient';
+import apiClient from '../lib/apiClient';
 
 import {
 
@@ -64,12 +64,7 @@ import { AdminContentMgmtDashboard } from './admin/AdminContentMgmtDashboard';
 import logger from '../utils/logger';
 
 import { supabase } from '../lib/supabase';
-
-const getFullUrl = (url) => {
-  if (!url) return url;
-  if (url.startsWith('data:') || url.startsWith('blob:') || url.startsWith('http')) return url;
-  return `\\`;
-};
+import { getFullUrl } from '../utils/media';
 
 
 

@@ -1,6 +1,6 @@
 ﻿import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 
-import apiClient, { BACKEND_URL } from '../lib/apiClient';
+import apiClient from '../lib/apiClient';
 
 import { useAuth } from '../contexts/AuthContext';
 
@@ -81,12 +81,7 @@ import { useMapState } from '../hooks/useMapState';
 import { useFriendsOnMap } from '../hooks/useFriendsOnMap';
 
 import logger from '../utils/logger';
-
-const getFullUrl = (url) => {
-  if (!url) return url;
-  if (url.startsWith('data:') || url.startsWith('blob:') || url.startsWith('http')) return url;
-  return `\\`;
-};
+import { getFullUrl } from '../utils/media';
 
 // Note: useOnDemandRequests and useRequestPro hooks exist but use different API paths
 // The inline code uses the correct /dispatch/ endpoints - keeping inline for now

@@ -13,12 +13,7 @@ import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { BookingCard } from '../BookingCard';
 import { BookingSelfieModal } from '../BookingSelfieModal';
-
-const getFullUrl = (url) => {
-  if (!url) return url;
-  if (url.startsWith('data:') || url.startsWith('blob:') || url.startsWith('http')) return url;
-  return `\\`;
-};
+import { getFullUrl } from '../../utils/media';
 
 export const ScheduledTab = ({
   user,

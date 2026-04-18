@@ -6,7 +6,7 @@ import { useTheme } from '../../contexts/ThemeContext';
 
 import { useLocation } from 'react-router-dom';
 
-import apiClient, { BACKEND_URL } from '../../lib/apiClient';
+import apiClient from '../../lib/apiClient';
 
 import { UserCheck, Eye, AlertTriangle, Search,
 
@@ -32,12 +32,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { toast } from 'sonner';
 
 import logger from '../../utils/logger';
-
-const getFullUrl = (url) => {
-  if (!url) return url;
-  if (url.startsWith('data:') || url.startsWith('blob:') || url.startsWith('http')) return url;
-  return `\\`;
-};
+import { getFullUrl } from '../../utils/media';
 
 
 

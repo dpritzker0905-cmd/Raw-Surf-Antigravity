@@ -28,12 +28,7 @@ import logger from '../utils/logger';
 
 
 import apiClient, { BACKEND_URL } from '../lib/apiClient';
-
-const getFullUrl = (url) => {
-  if (!url) return url;
-  if (url.startsWith('data:') || url.startsWith('blob:') || url.startsWith('http')) return url;
-  return `\\`;
-};
+import { getFullUrl } from '../utils/media';
 
 
 const WS_URL = BACKEND_URL.replace('https://', 'wss://').replace('http://', 'ws://');

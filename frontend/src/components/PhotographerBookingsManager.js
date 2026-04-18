@@ -6,7 +6,7 @@ import { useAuth } from '../contexts/AuthContext';
 
 import { useTheme } from '../contexts/ThemeContext';
 
-import apiClient, { BACKEND_URL } from '../lib/apiClient';
+import apiClient from '../lib/apiClient';
 
 import { Calendar as CalendarIcon, MapPin, Users, DollarSign, Clock, Check, X, CalendarCheck, CalendarX, History, Plus, Copy, Share2, UserPlus, Globe, Settings, Camera, ChevronLeft, Mail, Link2, Send, Sunrise, Sunset, Sun, Repeat, LayoutGrid, Unlock, Lock, Navigation } from 'lucide-react';
 
@@ -37,12 +37,7 @@ import { PhotographerAvailabilityCalendar } from './PhotographerAvailabilityCale
 import { PhotographerSessionManager } from './PhotographerSessionManager';
 
 import logger from '../utils/logger';
-
-const getFullUrl = (url) => {
-  if (!url) return url;
-  if (url.startsWith('data:') || url.startsWith('blob:') || url.startsWith('http')) return url;
-  return `\\`;
-};
+import { getFullUrl } from '../utils/media';
 
 
 

@@ -8,12 +8,7 @@ import { Camera, MapPin, Radio, Sparkles, Star } from 'lucide-react';
 import { Card, CardContent } from '../ui/card';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
-
-const getFullUrl = (url) => {
-  if (!url) return url;
-  if (url.startsWith('data:') || url.startsWith('blob:') || url.startsWith('http')) return url;
-  return `\\`;
-};
+import { getFullUrl } from '../../utils/media';
 
 // Live Savings Badge Component (synced with Map drawer)
 const LiveSavingsBadge = ({ generalPrice, livePrice, className = '' }) => {

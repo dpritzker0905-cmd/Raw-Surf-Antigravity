@@ -20,12 +20,7 @@ import {
   TooltipTrigger,
 } from './ui/tooltip';
 import { DirectionCompass } from './WaveDirectionIndicator';
-
-const getFullUrl = (url) => {
-  if (!url) return url;
-  if (url.startsWith('data:') || url.startsWith('blob:') || url.startsWith('http')) return url;
-  return `\\`;
-};
+import { getFullUrl } from '../utils/media';
 
 // Session label icons
 const SESSION_LABEL_ICONS = {

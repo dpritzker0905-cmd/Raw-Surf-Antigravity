@@ -4,7 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 
 import { usePersona } from '../contexts/PersonaContext';
 
-import apiClient, { BACKEND_URL } from '../lib/apiClient';
+import apiClient from '../lib/apiClient';
 
 import { Shield, Users, Image, FileText, DollarSign, Search, Ban, CheckCircle, Loader2, Eye, UserX, UserCheck, Crown, Trophy, MapPin, AlertTriangle, Lock, Settings } from 'lucide-react';
 
@@ -31,12 +31,7 @@ import { AdminSpotEditor } from './admin/AdminSpotEditor';
 import { AdminPrecisionQueue } from './admin/AdminPrecisionQueue';
 
 import logger from '../utils/logger';
-
-const getFullUrl = (url) => {
-  if (!url) return url;
-  if (url.startsWith('data:') || url.startsWith('blob:') || url.startsWith('http')) return url;
-  return `\\`;
-};
+import { getFullUrl } from '../utils/media';
 
 
 
