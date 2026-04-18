@@ -1,10 +1,18 @@
-﻿import React, { useEffect, useMemo } from 'react';
-import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
+import React from 'react';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
-import { ThemeProvider, useTheme } from './contexts/ThemeContext';
+import { ThemeProvider } from './contexts/ThemeContext';
 import { PricingProvider } from './contexts/PricingContext';
 import { PersonaProvider } from './contexts/PersonaContext';
 import { Toaster } from './components/ui/sonner';
+import AccessCodeScreen from './components/AccessCodeScreen';
+
+// ─── Routing utilities ─────────────────────────────────────────────────────────
+import ErrorBoundary from './components/routing/ErrorBoundary';
+import ProtectedRoute from './components/routing/ProtectedRoute';
+import AppLayout from './components/routing/AppLayout';
+
+// ─── Pages & Features ────────────────────────────────────────────────────────
 import { Home } from './components/Home';
 import { Auth } from './components/Auth';
 import { ForgotPassword, ResetPassword } from './components/PasswordReset';
@@ -18,9 +26,6 @@ import { Settings } from './components/Settings';
 import SinglePost from './components/SinglePost';
 import { Credits } from './components/Credits';
 import { Bookings } from './components/Bookings';
-import { Sidebar } from './components/Sidebar';
-import { TopNav } from './components/TopNav';
-import { BottomNav } from './components/BottomNav';
 import { MapPage } from './components/MapPage';
 import { MessagesPage } from './components/MessagesPage';
 import { NotificationsPage } from './components/NotificationsPage';
@@ -49,7 +54,6 @@ import StokedDashboard from './components/StokedDashboard';
 import StokedLockedPage from './components/StokedLockedPage';
 import GromHQ from './components/GromHQ';
 import GromManage from './components/GromManage';
-import GromSafetyGate from './components/GromSafetyGate';
 import OnDemandSettingsPage from './components/OnDemandSettingsPage';
 import SpotHub from './components/SpotHub';
 import CrewPaymentPage from './components/CrewPaymentPage';
@@ -57,148 +61,16 @@ import CrewChat from './components/CrewChat';
 import SurferGallery from './components/SurferGallery';
 import { PublicPhotographerGallery } from './components/PublicPhotographerGallery';
 import UsernameSetup from './components/UsernameSetup';
-import { usePushNotifications } from './hooks/usePushNotifications';
 import { ThemePage } from './components/ThemePage';
-import PersonaMaskBanner from './components/PersonaMaskBanner';
-import ImpersonationBanner from './components/ImpersonationBanner';
-import AccessCodeScreen from './components/AccessCodeScreen';
 import SearchPage from './pages/SearchPage';
 import { CreatePost } from './components/CreatePost';
 import './App.css';
 
-// Error Boundary to catch render crashes that produce blank screens
-class ErrorBoundary extends React.Component {
-  constructor(props) {
-    super(props);
-    this.state = { hasError: false, error: null, errorInfo: null };
-  }
-  static getDerivedStateFromError(error) {
-    return { hasError: true, error };
-  }
-  componentDidCatch(error, errorInfo) {
-    console.error('[ErrorBoundary] Caught render error:', error, errorInfo);
-    this.setState({ errorInfo });
-  }
-  render() {
-    if (this.state.hasError) {
-      return (
-        <div style={{ padding: 40, color: 'white', background: '#111', minHeight: '100vh', fontFamily: 'monospace' }}>
-          <h1 style={{ color: '#f44' }}>App Crashed</h1>
-          <pre style={{ whiteSpace: 'pre-wrap', color: '#faa', marginTop: 16 }}>
-            {this.state.error?.toString()}
-          </pre>
-          <pre style={{ whiteSpace: 'pre-wrap', color: '#aaa', marginTop: 8, fontSize: 12 }}>
-            {this.state.errorInfo?.componentStack}
-          </pre>
-        </div>
-      );
-    }
-    return this.props.children;
-  }
-}
+// ─── Simple wrappers ──────────────────────────────────────────────────────────
 
-
-// Wrapper to render ImpersonationBanner when admin is viewing as another user
-const ImpersonationBannerWrapper = () => {
-  const { impersonation, loading } = useAuth();
-  
-  if (loading || !impersonation) {
-    return null;
-  }
-  
-  return <ImpersonationBanner />;
-};
-
-// Wrapper to only render PersonaMaskBanner when user is confirmed authenticated
-// and NOT on public/landing pages
-const PersonaMaskBannerWrapper = () => {
-  const { user, loading } = useAuth();
-  const location = useLocation();
-  
-  // List of public routes where God Mode banner should NOT appear
-  const publicRoutes = ['/', '/auth', '/auth/'];
-  const isOnPublicRoute = publicRoutes.includes(location.pathname);
-  
-  // CRITICAL: Don't render anything during loading, if no user, or on public routes
-  // This prevents any flash of the God Mode UI for unauthorized users or on landing page
-  if (loading || !user?.id || !user?.is_admin || isOnPublicRoute) {
-    return null;
-  }
-  
-  return <PersonaMaskBanner />;
-};
-
-/**
- * ROUTES THAT ALLOW LIMITED GROM ACCESS
- * These routes show limited content for unlinked Groms instead of blocking
- */
-const GROM_LIMITED_ACCESS_ROUTES = ['/feed'];
-
-/**
- * ROUTES THAT ARE ALWAYS ALLOWED FOR GROMS
- * These routes don't require parent linking (profile, settings, etc.)
- */
-const GROM_ALWAYS_ALLOWED_ROUTES = [
-  '/profile',
-  '/settings',
-  '/theme',
-  '/grom-hq',  // They can see their own status
-];
-
-const ProtectedRoute = ({ children, bypassGromGate = false }) => {
-  const { user, loading } = useAuth();
-  const location = useLocation();
-
-  // Hydrate from localStorage synchronously if AuthContext hasn't loaded yet.
-  // This replaces the old window.location.reload() hack which masked an auth
-  // state timing issue. We now derive the stored user directly so we can
-  // redirect properly without a full page reload.
-  const storedUser = React.useMemo(() => {
-    if (user || loading) return null;
-    try {
-      const raw = localStorage.getItem('raw-surf-user');
-      return raw ? JSON.parse(raw) : null;
-    } catch {
-      return null;
-    }
-  }, [user, loading]);
-
-  const effectiveUser = user || storedUser;
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-black">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-yellow-400"></div>
-      </div>
-    );
-  }
-
-  if (!effectiveUser) {
-    // Save intended destination for post-login redirect
-    const currentPath = window.location.pathname + window.location.search;
-    return <Navigate to={`/auth?tab=signup&redirect=${encodeURIComponent(currentPath)}`} replace />;
-  }
-
-  // Check if this route should bypass Grom gate (e.g., profile, settings)
-  const currentPath = location.pathname;
-  const isAlwaysAllowed = GROM_ALWAYS_ALLOWED_ROUTES.some(route => currentPath.startsWith(route));
-  const isLimitedAccess = GROM_LIMITED_ACCESS_ROUTES.includes(currentPath);
-
-  // If user is Grom and route is not always allowed, wrap with GromSafetyGate
-  if (effectiveUser.role === 'Grom' && !effectiveUser.is_admin && !bypassGromGate && !isAlwaysAllowed) {
-    return (
-      <GromSafetyGate allowLimitedFeed={isLimitedAccess}>
-        {children}
-      </GromSafetyGate>
-    );
-  }
-
-  return children;
-};
-
+// Subscription-only gate (no layout needed)
 const SubscriptionRoute = ({ children }) => {
   const { user, loading } = useAuth();
-
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-black">
@@ -206,125 +78,13 @@ const SubscriptionRoute = ({ children }) => {
       </div>
     );
   }
-
-  if (!user) {
-    return <Navigate to="/auth?tab=signup" replace />;
-  }
-
+  if (!user) return <Navigate to="/auth?tab=signup" replace />;
   return children;
 };
 
-// Push notification initializer component
-const PushNotificationInit = () => {
-  const { user } = useAuth();
-  const { isSupported, subscribe } = usePushNotifications(user?.id);
+const CreatePostPage = () => <CreatePost />;
 
-  useEffect(() => {
-    // Auto-subscribe to push notifications when user logs in
-    // Only if supported and user has already granted permission
-    if (user?.id && isSupported && Notification.permission === 'granted') {
-      subscribe();
-    }
-  }, [user?.id, isSupported, subscribe]);
 
-  return null; // This component doesn't render anything
-};
-
-// Handle browser back button to prevent going to auth pages
-const BackButtonHandler = () => {
-  const _location = useLocation();
-  const { user } = useAuth();
-  const navigate = useNavigate();
-  
-  useEffect(() => {
-    // Handler for browser back/forward navigation
-    const handlePopState = (_event) => {
-      // If user is authenticated and trying to go back to auth page, redirect to feed
-      if (user && (
-        window.location.pathname === '/auth' || 
-        window.location.pathname === '/login' ||
-        window.location.pathname === '/'
-      )) {
-        // Prevent the back navigation by pushing forward to feed
-        // Use setTimeout to ensure this runs after the popstate event completes
-        setTimeout(() => {
-          window.history.pushState(null, '', '/feed');
-          // Trigger a React Router navigation to properly render the Feed component
-          navigate('/feed', { replace: true });
-        }, 0);
-      }
-    };
-
-    window.addEventListener('popstate', handlePopState);
-    
-    return () => {
-      window.removeEventListener('popstate', handlePopState);
-    };
-  }, [user, navigate]);
-
-  return null;
-};
-
-// Responsive layout for authenticated users
-// Desktop: Sidebar on left
-// Mobile: TopNav + BottomNav
-const AppLayout = ({ children, hideNav = false, hideTopNav = false }) => {
-  const { theme } = useTheme();
-  const { impersonation } = useAuth();
-  
-  // Theme-specific classes
-  const isLight = theme === 'light';
-  const isBeach = theme === 'beach';
-  // Main bg: white for light, dark gray for dark, pure black for beach
-  const mainBgClass = isLight ? 'bg-gray-50' : isBeach ? 'bg-black' : 'bg-zinc-900';
-  
-  // Add top padding when impersonation banner is shown
-  const impersonationPadding = impersonation ? 'pt-[88px] md:pt-[72px]' : '';
-  
-  // Determine what to show based on hideNav and hideTopNav
-  const showSidebar = !hideNav;
-  const showTopNav = !hideNav && !hideTopNav;
-  const showBottomNav = !hideNav;
-  
-  return (
-    <div 
-      className={`${mainBgClass} transition-colors duration-300`}
-      style={{ height: '100dvh', overflow: 'hidden' }}
-    >
-      {/* Impersonation Banner - shows when admin is viewing as another user */}
-      <ImpersonationBannerWrapper />
-      
-      {/* Initialize push notifications */}
-      <PushNotificationInit />
-      
-      {/* Handle browser back button */}
-      <BackButtonHandler />
-      
-      {/* Desktop Sidebar - changes with theme */}
-      {showSidebar && <Sidebar />}
-      
-      {/* Mobile Top Nav */}
-      {showTopNav && <TopNav />}
-      
-      {/* Main Content */}
-      <main 
-        className={`${mainBgClass} ${showSidebar ? 'md:ml-[200px]' : ''} ${showTopNav ? 'pt-14' : ''} ${showBottomNav ? 'pb-20 md:pb-0' : ''} transition-colors duration-300 ${impersonationPadding} hide-scrollbar`}
-        style={{ height: '100dvh', overflowY: 'auto', overflowX: 'hidden' }}
-      >
-        {children}
-      </main>
-      
-      {/* Mobile Bottom Nav */}
-      {showBottomNav && <BottomNav />}
-    </div>
-  );
-};
-
-// CreatePost page wrapper (import is at top of file)
-
-const CreatePostPage = () => (
-  <CreatePost />
-);
 
 function App() {
   console.log('[App] Rendering App component');
@@ -336,7 +96,6 @@ function App() {
       <PricingProvider>
         <AccessCodeScreen>
         <BrowserRouter>
-          <PersonaMaskBannerWrapper />
           <Routes>
             {/* Public Routes */}
             <Route path="/" element={<Home />} />

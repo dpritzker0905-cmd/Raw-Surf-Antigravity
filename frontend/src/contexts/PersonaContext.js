@@ -1,27 +1,31 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useAuth } from './AuthContext';
 import logger from '../utils/logger';
+import { ROLES, ROLE_SETS, isProLevel, isBusinessRole as _isBusinessRole } from '../constants/roles';
 
 // All available personas/roles in the system
 export const ALL_PERSONAS = [
-  { id: 'God', label: 'God Mode', icon: '🔴', description: 'Full admin access' },
-  { id: 'Pro', label: 'Verified Pro Surfer', icon: '⭐', description: 'Professional athlete' },
-  { id: 'Approved Pro', label: 'Verified Pro Photographer', icon: '📸', description: 'Verified pro photographer' },
-  { id: 'Photographer', label: 'Regular Photographer', icon: '📷', description: 'Standard photographer' },
-  { id: 'Hobbyist', label: 'Hobbyist Photographer', icon: '🔍', description: 'Amateur/hobbyist' },
-  { id: 'Shop', label: 'Surf Shop', icon: '🛍️', description: 'Retail business' },
-  { id: 'Surf School', label: 'Surf School / Coach', icon: '🌬️', description: 'Teaching/coaching' },
-  { id: 'Shaper', label: 'Shaper', icon: '🛠️', description: 'Board shaper' },
-  { id: 'Resort', label: 'Resort / Retreat', icon: '🌴', description: 'Hospitality' },
-  { id: 'Surfer', label: 'Regular Surfer', icon: '🏄', description: 'Standard surfer' },
-  { id: 'Comp Surfer', label: 'Competition Surfer', icon: '🏆', description: 'Competition level' },
-  { id: 'Grom', label: 'Grom', icon: '🐣', description: 'Young surfer' },
-  { id: 'Grom Parent', label: 'Grom Parent', icon: '👨‍👧', description: 'Parent of grom' },
+  { id: ROLES.GOD, label: 'God Mode', icon: '🔴', description: 'Full admin access' },
+  { id: ROLES.PRO, label: 'Verified Pro Surfer', icon: '⭐', description: 'Professional athlete' },
+  { id: ROLES.APPROVED_PRO, label: 'Verified Pro Photographer', icon: '📸', description: 'Verified pro photographer' },
+  { id: ROLES.PHOTOGRAPHER, label: 'Regular Photographer', icon: '📷', description: 'Standard photographer' },
+  { id: ROLES.HOBBYIST, label: 'Hobbyist Photographer', icon: '🔍', description: 'Amateur/hobbyist' },
+  { id: ROLES.SHOP, label: 'Surf Shop', icon: '🛍️', description: 'Retail business' },
+  { id: ROLES.SURF_SCHOOL, label: 'Surf School / Coach', icon: '🌬️', description: 'Teaching/coaching' },
+  { id: ROLES.SHAPER, label: 'Shaper', icon: '🛠️', description: 'Board shaper' },
+  { id: ROLES.RESORT, label: 'Resort / Retreat', icon: '🌴', description: 'Hospitality' },
+  { id: ROLES.SURFER, label: 'Regular Surfer', icon: '🏄', description: 'Standard surfer' },
+  { id: ROLES.COMP_SURFER, label: 'Competition Surfer', icon: '🏆', description: 'Competition level' },
+  { id: ROLES.GROM, label: 'Grom', icon: '🐣', description: 'Young surfer' },
+  { id: ROLES.GROM_PARENT, label: 'Grom Parent', icon: '👨‍👧', description: 'Parent of grom' },
 ];
+
+// Re-export for backward compatibility — consumers that import from PersonaContext still work
+export { ROLES, ROLE_SETS };
 
 // Get expanded role info with proper icons
 export const getExpandedRoleInfo = (role, isAdmin = false) => {
-  if (isAdmin && role !== 'God') {
+  if (isAdmin && role !== ROLES.GOD) {
     // Admin viewing as another role - keep admin indicator
     return { ...getRoleDetails(role), isAdminMasked: true };
   }
@@ -30,31 +34,31 @@ export const getExpandedRoleInfo = (role, isAdmin = false) => {
 
 const getRoleDetails = (role) => {
   switch (role) {
-    case 'God':
+    case ROLES.GOD:
       return { icon: '🔴', color: 'text-red-500', bgColor: 'bg-red-500/20', label: 'God Mode', priority: 0 };
-    case 'Pro':
+    case ROLES.PRO:
       return { icon: '⭐', color: 'text-amber-400', bgColor: 'bg-amber-400/20', label: 'Pro Surfer', priority: 1 };
-    case 'Approved Pro':
+    case ROLES.APPROVED_PRO:
       return { icon: '📸', color: 'text-blue-400', bgColor: 'bg-blue-400/20', label: 'Pro Photographer', priority: 1 };
-    case 'Photographer':
+    case ROLES.PHOTOGRAPHER:
       return { icon: '📷', color: 'text-purple-400', bgColor: 'bg-purple-400/20', label: 'Photographer', priority: 2 };
-    case 'Hobbyist':
+    case ROLES.HOBBYIST:
       return { icon: '🔍', color: 'text-indigo-400', bgColor: 'bg-indigo-400/20', label: 'Hobbyist', priority: 3 };
-    case 'Shop':
+    case ROLES.SHOP:
       return { icon: '🛍️', color: 'text-pink-400', bgColor: 'bg-pink-400/20', label: 'Surf Shop', priority: 2 };
-    case 'Surf School':
+    case ROLES.SURF_SCHOOL:
       return { icon: '🌬️', color: 'text-teal-400', bgColor: 'bg-teal-400/20', label: 'Surf School', priority: 2 };
-    case 'Shaper':
+    case ROLES.SHAPER:
       return { icon: '🛠️', color: 'text-orange-400', bgColor: 'bg-orange-400/20', label: 'Shaper', priority: 2 };
-    case 'Resort':
+    case ROLES.RESORT:
       return { icon: '🌴', color: 'text-emerald-400', bgColor: 'bg-emerald-400/20', label: 'Resort', priority: 2 };
-    case 'Comp Surfer':
+    case ROLES.COMP_SURFER:
       return { icon: '🏆', color: 'text-yellow-400', bgColor: 'bg-yellow-400/20', label: 'Comp Surfer', priority: 1 };
-    case 'Grom':
+    case ROLES.GROM:
       return { icon: '🐣', color: 'text-lime-400', bgColor: 'bg-lime-400/20', label: 'Grom', priority: 4 };
-    case 'Grom Parent':
+    case ROLES.GROM_PARENT:
       return { icon: '👨‍👧', color: 'text-sky-400', bgColor: 'bg-sky-400/20', label: 'Grom Parent', priority: 3 };
-    case 'Surfer':
+    case ROLES.SURFER:
     default:
       return { icon: '🏄', color: 'text-cyan-400', bgColor: 'bg-cyan-400/20', label: 'Surfer', priority: 4 };
   }
@@ -63,10 +67,10 @@ const getRoleDetails = (role) => {
 // Check if role is Pro-level (for Pro Lounge access)
 // Note: Only Verified Pro Surfers ('Pro') and God Mode have access to Pro Lounge
 // 'Comp Surfer' (Competition Surfer) does NOT have Pro Lounge access
-export const isProLevelRole = (role) => ['Pro', 'God'].includes(role);
+export const isProLevelRole = (role) => isProLevel(role);
 
 // Check if role is Business/Photographer (for The Channel)
-export const isBusinessRole = (role) => ['Photographer', 'Approved Pro', 'Hobbyist', 'Shop', 'Surf School', 'Shaper', 'Resort'].includes(role);
+export const isBusinessRole = (role) => _isBusinessRole(role);
 
 const PersonaContext = createContext();
 
