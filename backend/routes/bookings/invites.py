@@ -41,6 +41,7 @@ from .crud import (
     InviteFriendRequest,
     InviteByHandleRequest,
     InviteResponse,
+    InviteCrewRequest,
     check_time_slot_conflict,
 )
 

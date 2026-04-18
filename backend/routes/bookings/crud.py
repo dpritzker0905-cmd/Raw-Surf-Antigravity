@@ -159,6 +159,13 @@ class InviteResponse(BaseModel):
     join_url: str
 
 
+class InviteCrewRequest(BaseModel):
+    """Invite multiple friends to a booking/lineup session by user_id"""
+    friend_ids: List[str]
+    share_amount: Optional[float] = None  # If None, auto-calculated from booking total
+    message: Optional[str] = None
+
+
 # ============ USER BOOKINGS ============
 
 
