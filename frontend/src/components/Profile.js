@@ -1268,7 +1268,7 @@ export const Profile = () => {
         )}
 
         {/* Tabs */}
-        <div className="border-t border-zinc-800">
+        <div className="border-t border-border">
           <div className="flex justify-around">
             {tabs.map((tab) => (
               <button
@@ -1276,14 +1276,14 @@ export const Profile = () => {
                 onClick={() => setActiveTab(tab.id)}
                 className={`flex-1 py-3 flex flex-col items-center gap-1 relative transition-colors ${
                   activeTab === tab.id
-                    ? 'text-white'
-                    : 'text-gray-500 hover:text-gray-300'
+                    ? 'text-foreground'
+                    : 'text-muted-foreground hover:text-foreground/70'
                 }`}
                 data-testid={`tab-${tab.id}`}
               >
-                {/* Active indicator bar at top */}
+                {/* Active indicator bar — rides the border-t of the container */}
                 {activeTab === tab.id && (
-                  <span className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-0.5 rounded-b-full bg-white" />
+                  <span className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-0.5 rounded-b-full bg-foreground" />
                 )}
                 <tab.icon className="w-5 h-5" />
                 <span className="text-[10px]">{tab.label}</span>
