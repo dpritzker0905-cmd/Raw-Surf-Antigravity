@@ -253,6 +253,7 @@ async def get_user_videos(
     return [{
         "id": p.id,
         "media_url": p.media_url,
+        "media_type": p.media_type or "video",  # Always 'video' for this endpoint — required by Profile grid renderer
         "thumbnail_url": p.thumbnail_url,
         "caption": p.caption,
         "likes_count": p.likes_count or 0,

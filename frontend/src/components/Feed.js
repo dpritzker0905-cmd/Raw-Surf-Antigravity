@@ -1626,8 +1626,8 @@ export const Feed = () => {
                       <span className="font-medium">{nearestSpot.name}</span>
                       {' '}&mdash; {nearestSpot.distance}km away
                       {parseFloat(nearestSpot.distance) < 10
-                        ? ' \u2022 \uD83C\uDFC6 Within range — you\'ll earn Passport XP!'
-                        : ' \u2022 Outside 10km check-in zone'}
+                        ? ' · 🏆 Within range — you\'ll earn Passport XP!'
+                        : ' · Outside 10km check-in zone'}
                     </div>
                   )}
                 </div>
@@ -1769,11 +1769,11 @@ export const Feed = () => {
                       <SelectValue placeholder="How's it looking?" />
                     </SelectTrigger>
                     <SelectContent className="bg-zinc-800 border-zinc-700">
-                      <SelectItem value="Glassy" className="text-white hover:bg-zinc-700">\uD83E\uDEDE Glassy</SelectItem>
-                      <SelectItem value="Clean" className="text-white hover:bg-zinc-700">\u2728 Clean</SelectItem>
-                      <SelectItem value="Choppy" className="text-white hover:bg-zinc-700">\uD83C\uDF0A Choppy</SelectItem>
-                      <SelectItem value="Messy" className="text-white hover:bg-zinc-700">\uD83D\uDCA8 Messy</SelectItem>
-                      <SelectItem value="Blown Out" className="text-white hover:bg-zinc-700">\uD83C\uDF00 Blown Out</SelectItem>
+                      <SelectItem value="Glassy" className="text-white hover:bg-zinc-700">🪞 Glassy</SelectItem>
+                      <SelectItem value="Clean" className="text-white hover:bg-zinc-700">✨ Clean</SelectItem>
+                      <SelectItem value="Choppy" className="text-white hover:bg-zinc-700">🌊 Choppy</SelectItem>
+                      <SelectItem value="Messy" className="text-white hover:bg-zinc-700">💨 Messy</SelectItem>
+                      <SelectItem value="Blown Out" className="text-white hover:bg-zinc-700">🌀 Blown Out</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -1833,8 +1833,8 @@ export const Feed = () => {
                     <>
                       <Flame className="w-5 h-5 mr-2" />
                       {checkInData.use_gps && (checkInData.spot_id || nearestSpot)
-                        ? 'Check In + Earn XP \uD83C\uDFC5'
-                        : 'Check In & Keep Streak \uD83D\uDD25'}
+                        ? 'Check In + Earn XP 🏅'
+                        : 'Check In & Keep Streak 🔥'}
                     </>
                   )}
                 </Button>
