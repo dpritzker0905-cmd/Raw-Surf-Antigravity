@@ -42,6 +42,7 @@ async def get_user_posts(
         select(Post)
         .options(
             selectinload(Post.reactions).selectinload(PostReaction.user),
+            selectinload(Post.likes).selectinload(PostLike.user),
             selectinload(Post.comments)
         )
         .where(Post.author_id == user_id)
@@ -80,6 +81,14 @@ async def get_user_posts(
                 "avatar_url": r.user.avatar_url if getattr(r, 'user', None) else None,
                 "user_role": r.user.role if getattr(r, 'user', None) else None
             } for r in p.reactions
+        ] + [
+            {
+                "emoji": "🤙",
+                "user_id": l.user_id,
+                "user_name": l.user.full_name if getattr(l, 'user', None) else None,
+                "avatar_url": l.user.avatar_url if getattr(l, 'user', None) else None,
+                "user_role": l.user.role if getattr(l, 'user', None) else None
+            } for l in getattr(p, 'likes', [])
         ]
     } for p in posts]
 
@@ -221,6 +230,7 @@ async def get_user_videos(
         select(Post)
         .options(
             selectinload(Post.reactions).selectinload(PostReaction.user),
+            selectinload(Post.likes).selectinload(PostLike.user),
             selectinload(Post.comments)
         )
         .where(Post.author_id == user_id)
@@ -261,6 +271,14 @@ async def get_user_videos(
                 "avatar_url": r.user.avatar_url if getattr(r, 'user', None) else None,
                 "user_role": r.user.role if getattr(r, 'user', None) else None
             } for r in p.reactions
+        ] + [
+            {
+                "emoji": "🤙",
+                "user_id": l.user_id,
+                "user_name": l.user.full_name if getattr(l, 'user', None) else None,
+                "avatar_url": l.user.avatar_url if getattr(l, 'user', None) else None,
+                "user_role": l.user.role if getattr(l, 'user', None) else None
+            } for l in getattr(p, 'likes', [])
         ]
     } for p in posts]
 
@@ -281,6 +299,7 @@ async def get_user_photos(
         select(Post)
         .options(
             selectinload(Post.reactions).selectinload(PostReaction.user),
+            selectinload(Post.likes).selectinload(PostLike.user),
             selectinload(Post.comments)
         )
         .where(Post.author_id == user_id)
@@ -318,6 +337,14 @@ async def get_user_photos(
                 "avatar_url": r.user.avatar_url if getattr(r, 'user', None) else None,
                 "user_role": r.user.role if getattr(r, 'user', None) else None
             } for r in p.reactions
+        ] + [
+            {
+                "emoji": "🤙",
+                "user_id": l.user_id,
+                "user_name": l.user.full_name if getattr(l, 'user', None) else None,
+                "avatar_url": l.user.avatar_url if getattr(l, 'user', None) else None,
+                "user_role": l.user.role if getattr(l, 'user', None) else None
+            } for l in getattr(p, 'likes', [])
         ]
     } for p in posts]
 
@@ -340,6 +367,7 @@ async def get_saved_posts(
         .options(
             selectinload(SavedPost.post).selectinload(Post.author),
             selectinload(SavedPost.post).selectinload(Post.reactions).selectinload(PostReaction.user),
+            selectinload(SavedPost.post).selectinload(Post.likes).selectinload(PostLike.user),
             selectinload(SavedPost.post).selectinload(Post.comments)
         )
         .order_by(SavedPost.created_at.desc())
@@ -386,6 +414,14 @@ async def get_saved_posts(
                     "avatar_url": r.user.avatar_url if getattr(r, 'user', None) else None,
                     "user_role": r.user.role if getattr(r, 'user', None) else None
                 } for r in s.post.reactions
+            ] + [
+                {
+                    "emoji": "🤙",
+                    "user_id": l.user_id,
+                    "user_name": l.user.full_name if getattr(l, 'user', None) else None,
+                    "avatar_url": l.user.avatar_url if getattr(l, 'user', None) else None,
+                    "user_role": l.user.role if getattr(l, 'user', None) else None
+                } for l in getattr(s.post, 'likes', [])
             ]
         }
     } for s in saved if s.post]

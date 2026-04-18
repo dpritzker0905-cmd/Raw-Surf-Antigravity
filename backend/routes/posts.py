@@ -280,6 +280,7 @@ async def get_feed(limit: int = 50, user_id: Optional[str] = Query(None), db: As
             selectinload(Post.author), 
             selectinload(Post.comments).selectinload(Comment.author),
             selectinload(Post.reactions).selectinload(PostReaction.user),
+            selectinload(Post.likes).selectinload(PostLike.user),
             selectinload(Post.collaborators).selectinload(PostCollaboration.user),
             selectinload(Post.spot)
         )
@@ -342,6 +343,15 @@ async def get_feed(limit: int = 50, user_id: Optional[str] = Query(None), db: As
                 user_role=r.user.role if r.user else None
             ) for r in p.reactions
         ]
+        
+        for like in getattr(p, 'likes', []):
+            reactions_data.append(ReactionData(
+                emoji="🤙",
+                user_id=like.user_id,
+                user_name=like.user.full_name if getattr(like, 'user', None) else None,
+                avatar_url=like.user.avatar_url if getattr(like, 'user', None) else None,
+                user_role=like.user.role if getattr(like, 'user', None) else None
+            ))
         
         # Get accepted collaborators
         accepted_collaborators = [
@@ -532,6 +542,7 @@ async def get_single_post(
             selectinload(Post.author), 
             selectinload(Post.comments).selectinload(Comment.author),
             selectinload(Post.reactions).selectinload(PostReaction.user),
+            selectinload(Post.likes).selectinload(PostLike.user),
             selectinload(Post.collaborators).selectinload(PostCollaboration.user),
             selectinload(Post.spot)
         )
@@ -578,6 +589,15 @@ async def get_single_post(
             user_role=r.user.role if r.user else None
         ) for r in post.reactions
     ]
+    
+    for like in getattr(post, 'likes', []):
+        reactions_data.append(ReactionData(
+            emoji="🤙",
+            user_id=like.user_id,
+            user_name=like.user.full_name if getattr(like, 'user', None) else None,
+            avatar_url=like.user.avatar_url if getattr(like, 'user', None) else None,
+            user_role=like.user.role if getattr(like, 'user', None) else None
+        ))
     
     # Get accepted collaborators
     accepted_collaborators = [
