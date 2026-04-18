@@ -10,6 +10,7 @@ import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import { PHOTOGRAPHER_PLANS, VERIFIED_PRO_PLANS } from '../config/subscriptionPlans.config';
 import { HobbyistFunnel } from './HobbyistFunnel';
 import logger from '../utils/logger';
+import { ROLES } from '../constants/roles';
 
 
 export const PhotographerSubscription = () => {
@@ -23,7 +24,7 @@ export const PhotographerSubscription = () => {
   
   // Determine if this is a Verified Pro user based on location state or user role
   const isVerifiedPro = location.state?.userType === 'verified_pro' || 
-                        user?.role === 'Approved Pro' || 
+                        user?.role === ROLES.APPROVED_PRO || 
                         user?.role === 'approved_pro';
   
   // Use appropriate plans based on user type

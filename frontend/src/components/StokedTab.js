@@ -20,6 +20,7 @@ import { usePersona } from '../contexts/PersonaContext';
 
 import logger from '../utils/logger';
 import { getFullUrl } from '../utils/media';
+import { ROLES } from '../constants/roles';
 
 
 
@@ -33,18 +34,18 @@ const DEFAULT_STOKE_LEVEL = {
 
 // Default credit uses based on role
 const getDefaultCreditUses = (effectiveRole) => {
-  if (effectiveRole === 'Grom') {
+  if (effectiveRole === ROLES.GROM) {
     return [
       { icon: "🏄", title: "Gear & Equipment", description: "Boards, wetsuits, and accessories" },
       { icon: "🎓", title: "Surf Lessons", description: "Training with local coaches" },
       { icon: "🏆", title: "Competition Entry", description: "Local and regional contests" },
     ];
-  } else if (effectiveRole === 'Comp Surfer') {
+  } else if (effectiveRole === ROLES.COMP_SURFER) {
     return [
       { icon: "✈️", title: "Travel & Contests", description: "Competition travel expenses" },
       { icon: "🏄", title: "Pro Equipment", description: "High-performance gear" },
     ];
-  } else if (effectiveRole === 'Pro') {
+  } else if (effectiveRole === ROLES.PRO) {
     return [
       { icon: "💰", title: "Cash Out", description: "Withdraw to your bank account" },
       { icon: "🎁", title: "Pay It Forward", description: "Support other surfers" },

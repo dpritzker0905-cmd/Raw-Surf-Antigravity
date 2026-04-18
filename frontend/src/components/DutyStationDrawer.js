@@ -31,6 +31,7 @@ import { SpotSelector } from './SpotSelector';
 import { motion, AnimatePresence } from 'framer-motion';
 import logger from '../utils/logger';
 import ConditionsModal from './ConditionsModal';
+import { ROLES } from '../constants/roles';
 
 
 // Distance constants
@@ -654,8 +655,8 @@ export const DutyStationDrawer = ({ isOpen, onClose }) => {
   
   // Role-based permissions
   const effectiveRole = getEffectiveRole(user?.role);
-  const isHobbyist = effectiveRole === 'Hobbyist';
-  const isApprovedPro = effectiveRole === 'Approved Pro';
+  const isHobbyist = effectiveRole === ROLES.HOBBYIST;
+  const isApprovedPro = effectiveRole === ROLES.APPROVED_PRO;
   const showOnDemand = !isHobbyist;
   
   // Get radius based on tier
@@ -1143,7 +1144,7 @@ export const DutyStationIcon = ({ className }) => {
   const [onDemandActive, setOnDemandActive] = useState(false);
   
   const effectiveRole = getEffectiveRole(user?.role);
-  const isHobbyist = effectiveRole === 'Hobbyist';
+  const isHobbyist = effectiveRole === ROLES.HOBBYIST;
   
   // Close drawer when route changes
   useEffect(() => {

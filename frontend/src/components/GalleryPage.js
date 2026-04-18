@@ -17,6 +17,7 @@ import WatermarkSettings from './WatermarkSettings';
 import { UploadPhotoModal } from './gallery/UploadPhotoModal';
 import { GalleryItemModal } from './gallery/GalleryItemModal';
 import logger from '../utils/logger';
+import { ROLES } from '../constants/roles';
 
 
 // Helper function to safely extract error messages from API responses
@@ -110,7 +111,7 @@ export const GalleryPage = () => {
   // Hobbyist: Can spend but NOT sell
   const userRole = user?.role?.toLowerCase?.() || '';
   const isGromParent = userRole.includes('grom parent') || userRole === 'grom_parent' || userRole.includes('Grom Parent') || user?.is_grom_parent === true;
-  const isHobbyist = userRole.includes('hobbyist') || user?.role === 'Hobbyist' || user?.role === 'HOBBYIST';
+  const isHobbyist = userRole.includes('hobbyist') || user?.role === ROLES.HOBBYIST || user?.role === 'HOBBYIST';
   const canSellPhotos = isPhotographer && !isGromParent && !isHobbyist;
   const showPricing = canSellPhotos;
 

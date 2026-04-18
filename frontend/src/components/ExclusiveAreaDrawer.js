@@ -16,6 +16,7 @@ import { Trophy, Target, Users, Calendar, MessageSquare,
 } from 'lucide-react';
 import { Button } from './ui/button';
 import logger from '../utils/logger';
+import { ROLES } from '../constants/roles';
 
 const _API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -107,10 +108,10 @@ const colorMap = {
  * Get area type based on role
  */
 export const getAreaType = (role) => {
-  if (role === 'Grom') return 'grom';
-  if (role === 'Comp Surfer') return 'comp';
-  if (role === 'Pro') return 'pro';
-  if (role === 'Grom Parent') return 'grom_parent';
+  if (role === ROLES.GROM) return 'grom';
+  if (role === ROLES.COMP_SURFER) return 'comp';
+  if (role === ROLES.PRO) return 'pro';
+  if (role === ROLES.GROM_PARENT) return 'grom_parent';
   return null;
 };
 

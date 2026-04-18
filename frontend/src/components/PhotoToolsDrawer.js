@@ -11,6 +11,7 @@ import {
 import { Badge } from './ui/badge';
 import { toast } from 'sonner';
 import logger from '../utils/logger';
+import { ROLES } from '../constants/roles';
 
 
 /**
@@ -48,8 +49,8 @@ export const PhotoToolsDrawer = ({ isOpen, onClose }) => {
   // Hobbyist: Live Sessions ONLY (if no Pros nearby), NO On-Demand
   // Photographer & Pro: Full access to BOTH Live Sessions and On-Demand
   
-  const isGromParent = effectiveRole === 'Grom Parent';
-  const isHobbyist = effectiveRole === 'Hobbyist';
+  const isGromParent = effectiveRole === ROLES.GROM_PARENT;
+  const isHobbyist = effectiveRole === ROLES.HOBBYIST;
   
   // Check if user can use Live Sessions
   const _canUseLiveSessions = !isGromParent; // Everyone except Grom Parent
@@ -61,8 +62,8 @@ export const PhotoToolsDrawer = ({ isOpen, onClose }) => {
   // Standard Photographers: 10-20 mile GPS radius
   // Verified Pro Photographers: 30-50 mile radius
   const getGeographicRadius = () => {
-    if (effectiveRole === 'Approved Pro') return { min: 30, max: 50, default: 40 };
-    if (effectiveRole === 'Pro') return { min: 30, max: 50, default: 40 };
+    if (effectiveRole === ROLES.APPROVED_PRO) return { min: 30, max: 50, default: 40 };
+    if (effectiveRole === ROLES.PRO) return { min: 30, max: 50, default: 40 };
     return { min: 10, max: 20, default: 15 }; // Standard Photographer/Hobbyist
   };
   

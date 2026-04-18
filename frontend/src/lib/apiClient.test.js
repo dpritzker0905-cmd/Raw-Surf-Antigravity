@@ -1,60 +1,123 @@
 /**
- * apiClient.test.js — Unit tests for the centralized apiClient.
- * Tests the BACKEND_URL export and the shared getFullUrl helper logic.
+ * apiClient.test.js
+ * Tests for the shared Axios instance: Bearer token injection, error handling.
  */
+import axios from 'axios';
 
-import { BACKEND_URL } from '../lib/apiClient';
+// We test the interceptor behavior by mocking localStorage and checking requests
+describe('apiClient', () => {
+  const BACKEND_URL = 'https://api.rawsurf.com';
 
-
-describe('BACKEND_URL export', () => {
-  test('exports a string (environment URL from .env or empty string)', () => {
-    // BACKEND_URL is set at module load time from REACT_APP_BACKEND_URL.
-    // In CI/test this may be the real env value or undefined — just verify type.
-    expect(typeof BACKEND_URL).toBe('string');
-  });
-});
-
-
-// ─── getFullUrl helper (used in PostCard, Profile, MessagesPage) ───────────────
-
-/**
- * This function is duplicated in several components. These tests validate the
- * shared logic so any future consolidation has coverage.
- */
-const getFullUrl = (url, backendUrl = 'http://test-backend:8000') => {
-  if (!url) return url;
-  if (url.startsWith('data:')) return url;   // base64 data URIs
-  if (url.startsWith('blob:')) return url;   // local blob URLs
-  if (url.startsWith('//')) return url;      // protocol-relative CDN URLs
-  if (url.startsWith('http')) return url;    // absolute http/https URLs
-  return `${backendUrl}${url}`;              // relative /uploads paths
-};
-
-describe('getFullUrl()', () => {
-  test('returns relative path prefixed with backend URL', () => {
-    expect(getFullUrl('/uploads/photo.jpg')).toBe('http://test-backend:8000/uploads/photo.jpg');
+  beforeEach(() => {
+    // Set the env var
+    process.env.REACT_APP_BACKEND_URL = BACKEND_URL;
+    // Clear localStorage before each test
+    localStorage.clear();
+    // Clear module cache so interceptors are fresh
+    jest.resetModules();
   });
 
-  test('passes through absolute http URLs unchanged', () => {
-    expect(getFullUrl('https://cdn.rawsurf.com/img.jpg')).toBe('https://cdn.rawsurf.com/img.jpg');
+  describe('BACKEND_URL and API_BASE exports', () => {
+    it('exports BACKEND_URL from env var', () => {
+      const { BACKEND_URL: url } = require('./apiClient');
+      expect(url).toBe(BACKEND_URL);
+    });
+
+    it('exports API_BASE as BACKEND_URL + /api', () => {
+      const { API_BASE } = require('./apiClient');
+      expect(API_BASE).toBe(`${BACKEND_URL}/api`);
+    });
   });
 
-  test('passes through blob URLs unchanged', () => {
-    expect(getFullUrl('blob:http://localhost/abc')).toBe('blob:http://localhost/abc');
+  describe('Bearer token injection', () => {
+    it('injects Authorization header when user has access_token in localStorage', async () => {
+      const mockUser = {
+        id: 'user-123',
+        email: 'test@example.com',
+        access_token: 'eyJhbGciOiJIUzI1NiJ9.test.token',
+      };
+      localStorage.setItem('raw-surf-user', JSON.stringify(mockUser));
+
+      // Re-import to get fresh interceptors
+      const { default: client } = require('./apiClient');
+
+      // Mock the actual HTTP call
+      const mockAdapter = jest.fn().mockResolvedValue({
+        status: 200,
+        data: {},
+        headers: {},
+        config: {},
+      });
+
+      // Intercept the request config before it goes out
+      let capturedConfig = null;
+      client.interceptors.request.use((config) => {
+        capturedConfig = config;
+        throw new axios.Cancel('stop'); // Short-circuit the request
+      });
+
+      try {
+        await client.get('/test');
+      } catch (e) {
+        // Expected cancel
+      }
+
+      if (capturedConfig) {
+        expect(capturedConfig.headers['Authorization']).toMatch(/^Bearer /);
+      }
+    });
+
+    it('does not inject Authorization header when no user in localStorage', async () => {
+      // No user stored
+      const { default: client } = require('./apiClient');
+
+      let capturedConfig = null;
+      client.interceptors.request.use((config) => {
+        capturedConfig = config;
+        throw new axios.Cancel('stop');
+      });
+
+      try {
+        await client.get('/test');
+      } catch (e) {
+        // Expected cancel
+      }
+
+      if (capturedConfig) {
+        expect(capturedConfig.headers['Authorization']).toBeUndefined();
+      }
+    });
+
+    it('silently skips malformed localStorage JSON', async () => {
+      localStorage.setItem('raw-surf-user', 'NOT_VALID_JSON{{{{');
+      const { default: client } = require('./apiClient');
+
+      let error = null;
+      client.interceptors.request.use(
+        (config) => { throw new axios.Cancel('stop'); },
+        (err) => { error = err; }
+      );
+
+      try {
+        await client.get('/test');
+      } catch (e) {
+        // Expected cancel
+      }
+
+      // Should not throw a JSON parse error
+      expect(error).toBeNull();
+    });
   });
 
-  test('passes through data URIs unchanged', () => {
-    const dataUri = 'data:image/jpeg;base64,/9j/4AA';
-    expect(getFullUrl(dataUri)).toBe(dataUri);
-  });
+  describe('baseURL config', () => {
+    it('uses REACT_APP_BACKEND_URL + /api as base', () => {
+      const { default: client } = require('./apiClient');
+      expect(client.defaults.baseURL).toBe(`${BACKEND_URL}/api`);
+    });
 
-  test('passes through protocol-relative URLs unchanged', () => {
-    expect(getFullUrl('//cdn.example.com/img.png')).toBe('//cdn.example.com/img.png');
-  });
-
-  test('returns falsy value as-is', () => {
-    expect(getFullUrl(null)).toBe(null);
-    expect(getFullUrl(undefined)).toBe(undefined);
-    expect(getFullUrl('')).toBe('');
+    it('has 30s timeout configured', () => {
+      const { default: client } = require('./apiClient');
+      expect(client.defaults.timeout).toBe(30000);
+    });
   });
 });

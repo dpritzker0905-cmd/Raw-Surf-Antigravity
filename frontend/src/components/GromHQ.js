@@ -25,6 +25,7 @@ import {
   DialogTitle,
 } from './ui/dialog';
 import apiClient from '../lib/apiClient';
+import { getNotifications, getUnreadCount, markRead, markAllRead, sendNotification, sendPhotographerAlert, createNotification, markAlertRead } from '../services/notificationService';
 import { toast } from 'sonner';
 import logger from '../utils/logger';
 import { getFullUrl } from '../utils/media';
@@ -142,7 +143,7 @@ export const GromHQ = () => {
 
   const markAlertRead = async (alertId) => {
     try {
-      await apiClient.post(`/notifications/${alertId}/read`);
+      await markAlertRead(alertId);
       setSpendingAlerts(prev => prev.filter(a => a.id !== alertId));
     } catch (error) {
       logger.error('Failed to mark alert read:', error);

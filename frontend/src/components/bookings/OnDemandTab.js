@@ -10,6 +10,7 @@ import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { CrewPaymentProgress } from '../dispatch/CrewPaymentProgress';
 import { getFullUrl } from '../../utils/media';
+import { ROLES } from '../../constants/roles';
 
 export const OnDemandTab = ({
   user,
@@ -227,8 +228,8 @@ export const OnDemandTab = ({
             {onDemandPhotographers.length} photographer{onDemandPhotographers.length > 1 ? 's' : ''} available on-demand
           </p>
           {onDemandPhotographers.map((pro, index) => {
-            const isPro = pro.role === 'Approved Pro' || pro.role === 'Pro';
-            const isPhotographer = pro.role === 'Photographer';
+            const isPro = pro.role === ROLES.APPROVED_PRO || pro.role === ROLES.PRO;
+            const isPhotographer = pro.role === ROLES.PHOTOGRAPHER;
             
             return (
               <Card 

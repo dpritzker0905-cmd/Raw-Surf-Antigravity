@@ -10,10 +10,12 @@ import { Input } from './ui/input';
 import { Badge } from './ui/badge';
 import { toast } from 'sonner';
 import apiClient, { BACKEND_URL } from '../lib/apiClient';
+import { getNotifications, getUnreadCount, markRead, markAllRead, sendNotification, sendPhotographerAlert, createNotification, markAlertRead } from '../services/notificationService';
 import { AccountBillingHub } from './settings/AccountBillingHub';
 import { AdCenterPanel } from './settings/AdCenterPanel';
 import useOfflineMode from '../hooks/useOfflineMode';
 import logger from '../utils/logger';
+import { ROLES } from '../constants/roles';
 
 const API = process.env.REACT_APP_BACKEND_URL;
 
@@ -33,7 +35,7 @@ const SurfModeCard = ({ textPrimaryClass, textSecondaryClass, cardBgClass }) => 
   const [proSectionOpen, setProSectionOpen] = useState(false);
 
   const isLegend = user?.elite_tier === 'legend';
-  const isVerifiedPro = user?.role === 'Pro' && user?.elite_tier === 'pro_elite';
+  const isVerifiedPro = user?.role === ROLES.PRO && user?.elite_tier === 'pro_elite';
 
   useEffect(() => {
     if (user?.id) fetchVerificationStatus();
@@ -290,7 +292,7 @@ const GromParentCard = ({ textPrimaryClass, textSecondaryClass, cardBgClass }) =
   const navigate = useNavigate();
   const [toggling, setToggling] = useState(false);
   // Dedicated Grom Parent accounts have is_grom_parent true by default in login response
-  const isDedicatedGromParent = user?.role === 'Grom Parent';
+  const isDedicatedGromParent = user?.role === ROLES.GROM_PARENT;
   const isEnabled = isDedicatedGromParent || user?.is_grom_parent === true;
 
   const handleToggle = async () => {
@@ -843,7 +845,7 @@ export const Settings = () => {
   
   const fetchNotificationPrefs = async () => {
     try {
-      const response = await apiClient.get(`/notifications/preferences/${user.id}`);
+      const response = await getPreferencesByPath(user.id);
       setNotifPrefs(response.data);
     } catch (error) {
       logger.error('Failed to fetch notification preferences:', error);
@@ -853,7 +855,7 @@ export const Settings = () => {
   const updateNotifPref = async (key, value) => {
     setNotifLoading(true);
     try {
-      await apiClient.put(`/notifications/preferences/${user.id}`, { [key]: value });
+      await updatePreferenceByPath(userId, key, value);
       setNotifPrefs(prev => ({ ...prev, [key]: value }));
       toast.success('Notification setting updated');
     } catch (error) {
@@ -933,11 +935,11 @@ export const Settings = () => {
   
   const isPhotographer = photographerRoles.includes(effectiveRole);
   const isSurfer = surferRoles.includes(effectiveRole);
-  const isGrom = effectiveRole === 'Grom';
+  const isGrom = effectiveRole === ROLES.GROM;
   const isBusiness = businessRoles.includes(effectiveRole);
   
   // GROM PARENT: true for dedicated Grom Parent role OR the opt-in flag (surfer who is also a parent)
-  const isGromParent = effectiveRole === 'Grom Parent' || user?.is_grom_parent === true;
+  const isGromParent = effectiveRole === ROLES.GROM_PARENT || user?.is_grom_parent === true;
   // Can access commerce features (NOT Grom Parent - personal capture only)
   const _canAccessCommerce = isPhotographer && !isGromParent;
   // Can access live shooting settings (NOT Grom Parent)

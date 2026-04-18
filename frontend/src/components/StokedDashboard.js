@@ -16,6 +16,7 @@ import { Progress } from './ui/progress';
 import { CrewLeaderboard } from './CrewLeaderboard';
 import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import logger from '../utils/logger';
+import { ROLES } from '../constants/roles';
 
 
 /**
@@ -31,9 +32,9 @@ export const StokedDashboard = () => {
   
   // Get effective role for role-specific options
   const effectiveRole = getEffectiveRole(user?.role);
-  const isGrom = effectiveRole === 'Grom';
-  const isCompSurfer = effectiveRole === 'Comp Surfer';
-  const isPro = effectiveRole === 'Pro';
+  const isGrom = effectiveRole === ROLES.GROM;
+  const isCompSurfer = effectiveRole === ROLES.COMP_SURFER;
+  const isPro = effectiveRole === ROLES.PRO;
   
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({

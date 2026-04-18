@@ -6,6 +6,7 @@ import { Input } from './ui/input';
 import { Card } from './ui/card';
 import { toast } from 'sonner';
 import { ArrowLeft, User, Camera, Building2, Trophy, Star, Eye, EyeOff } from 'lucide-react';
+import { ROLES } from '../constants/roles';
 
 const ROLE_CONFIG = {
   surfer: {
@@ -113,13 +114,13 @@ export const Auth = () => {
         
         // Check routing based on user state
         // Groms with linked & approved parents get auto-access (no subscription needed)
-        const isLinkedGrom = userData.role === 'Grom' && userData.parent_id && userData.parent_link_approved;
+        const isLinkedGrom = userData.role === ROLES.GROM && userData.parent_id && userData.parent_link_approved;
         
         if (!userData.subscription_tier && ['Grom', 'Surfer', 'Comp Surfer', 'Pro'].includes(userData.role) && !isLinkedGrom) {
           navigate('/surfer-subscription', { replace: true });
-        } else if (!userData.subscription_tier && userData.role === 'Photographer') {
+        } else if (!userData.subscription_tier && userData.role === ROLES.PHOTOGRAPHER) {
           navigate('/photographer-subscription', { replace: true });
-        } else if (userData.role === 'Approved Pro' && !userData.portfolio_url) {
+        } else if (userData.role === ROLES.APPROVED_PRO && !userData.portfolio_url) {
           navigate('/pro-onboarding', { replace: true });
         } else {
           navigate('/feed', { replace: true });
@@ -176,17 +177,17 @@ export const Auth = () => {
         }
         
         // Route based on user role - same logic as login
-        const isLinkedGrom = userData.role === 'Grom' && userData.parent_id && userData.parent_link_approved;
+        const isLinkedGrom = userData.role === ROLES.GROM && userData.parent_id && userData.parent_link_approved;
         
         if (!userData.subscription_tier && ['Grom', 'Surfer', 'Comp Surfer', 'Pro'].includes(userData.role) && !isLinkedGrom) {
           navigate('/surfer-subscription', { replace: true });
-        } else if (!userData.subscription_tier && userData.role === 'Photographer') {
+        } else if (!userData.subscription_tier && userData.role === ROLES.PHOTOGRAPHER) {
           navigate('/photographer-subscription', { replace: true });
-        } else if (!userData.subscription_tier && userData.role === 'Hobbyist') {
+        } else if (!userData.subscription_tier && userData.role === ROLES.HOBBYIST) {
           navigate('/photographer-subscription', { replace: true });
-        } else if (userData.role === 'Approved Pro' && !userData.portfolio_url) {
+        } else if (userData.role === ROLES.APPROVED_PRO && !userData.portfolio_url) {
           navigate('/pro-onboarding', { replace: true });
-        } else if (!userData.subscription_tier && userData.role === 'Approved Pro') {
+        } else if (!userData.subscription_tier && userData.role === ROLES.APPROVED_PRO) {
           navigate('/photographer-subscription', { state: { userType: 'verified_pro' }, replace: true });
         } else if (['School', 'Coach', 'Shop', 'Shaper', 'Resort'].includes(userData.role)) {
           // Business roles - they get business tier automatically, go to feed

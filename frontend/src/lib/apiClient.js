@@ -6,25 +6,47 @@
  *   const res = await apiClient.get('/profiles/123');
  *   const res = await apiClient.post('/posts', { ... });
  *
+ * Auth:
+ *   Bearer token is automatically injected from localStorage on every request.
+ *   Token is issued by the backend /auth/login and /auth/signup routes.
+ *   The backend verifies the token signature using SECRET_KEY (see backend/core/security.py).
+ *
  * Base URL is set from REACT_APP_BACKEND_URL env var.
- * All frontend components should use this instead of raw axios + manual URL construction.
  */
 
 import axios from 'axios';
 import { toast } from 'sonner';
 
+/** Raw backend origin (no /api suffix) — for WebSocket and media URLs */
+export const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || '';
+
+/** Full /api base URL string — for edge cases that still need a bare string */
+export const API_BASE = `${BACKEND_URL}/api`;
+
 const apiClient = axios.create({
-  baseURL: `${process.env.REACT_APP_BACKEND_URL}/api`,
+  baseURL: `${BACKEND_URL}/api`,
   timeout: 30000,
   headers: {
     'Content-Type': 'application/json',
   },
 });
 
-// ── Request interceptor ──────────────────────────────────────────────────────
+// ── Request interceptor — inject auth token ───────────────────────────────────
 apiClient.interceptors.request.use(
   (config) => {
-    // Dev logging — removed in production builds via env check
+    // Inject Bearer token from stored user session
+    try {
+      const stored = localStorage.getItem('raw-surf-user');
+      if (stored) {
+        const user = JSON.parse(stored);
+        if (user?.access_token) {
+          config.headers['Authorization'] = `Bearer ${user.access_token}`;
+        }
+      }
+    } catch {
+      // Malformed localStorage — silently skip; 401 interceptor below will handle
+    }
+
     if (process.env.NODE_ENV === 'development') {
       console.debug(`[apiClient] ${config.method?.toUpperCase()} ${config.url}`);
     }
@@ -33,26 +55,24 @@ apiClient.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// ── Response interceptor ─────────────────────────────────────────────────────
+// ── Response interceptor — handle auth errors ────────────────────────────────
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
-    // Network failure (no response at all)
     if (!error.response) {
       if (process.env.NODE_ENV === 'development') {
         console.error('[apiClient] Network error:', error.message);
       }
-      // Don't auto-toast — let each call site decide how to handle
       return Promise.reject(error);
     }
 
     const { status } = error.response;
 
-    // 401 — session expired or invalid user_id. Reload to re-auth.
+    // 401 — token expired or invalid. Clear session and redirect to login.
     if (status === 401) {
-      // Give the UI a moment before redirecting
       setTimeout(() => {
         localStorage.removeItem('raw-surf-user');
+        localStorage.removeItem('raw-surf-token');
         window.location.href = '/auth';
       }, 500);
       return Promise.reject(error);
@@ -69,14 +89,3 @@ apiClient.interceptors.response.use(
 );
 
 export default apiClient;
-
-/**
- * Convenience: raw backend URL (without /api) for WebSocket and media URLs.
- * Use this anywhere you need `process.env.REACT_APP_BACKEND_URL` directly.
- */
-export const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || '';
-
-/**
- * Convenience: full /api base URL string (for places that still need a string, e.g. fetch()).
- */
-export const API_BASE = `${BACKEND_URL}/api`;

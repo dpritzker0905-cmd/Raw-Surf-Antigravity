@@ -5,9 +5,11 @@ import { useTheme } from '../contexts/ThemeContext';
 import { usePersona, getExpandedRoleInfo } from '../contexts/PersonaContext';
 import { Home, Compass, MapPin, Calendar, MessageCircle, Bell, BellRing, User, Settings, LogOut, Camera, Shield, ChevronDown, ChevronRight, Image, CalendarCheck, Radio, ShoppingBag, Heart, Sun, Moon, Waves, Eye, TrendingUp, Zap, Crown, Baby, Lock, Plus, Stamp, Target, Backpack, CreditCard } from 'lucide-react';
 import apiClient, { BACKEND_URL } from '../lib/apiClient';
+import { getNotifications, getUnreadCount, markRead, markAllRead, sendNotification, sendPhotographerAlert, createNotification, markAlertRead } from '../services/notificationService';
 import { SurfPassport } from './SurfPassport';
 import { GlobalSearchBar } from './GlobalSearchBar';
 import logger from '../utils/logger';
+import { ROLES } from '../constants/roles';
 
 
 export const Sidebar = () => {
@@ -59,16 +61,16 @@ export const Sidebar = () => {
   const isSurfer = ['Grom', 'Surfer', 'Comp Surfer', 'Pro'].includes(effectiveRole);
   
   // Check if user is a Grom (shows The Inside hub - includes Stoked features)
-  const isGrom = effectiveRole === 'Grom';
+  const isGrom = effectiveRole === ROLES.GROM;
   
   // Check if user is a Comp Surfer (shows Impact Zone)
-  const isCompSurfer = effectiveRole === 'Comp Surfer';
+  const isCompSurfer = effectiveRole === ROLES.COMP_SURFER;
   
   // Check if user is a Pro (shows The Peak)
-  const isPro = effectiveRole === 'Pro';
+  const isPro = effectiveRole === ROLES.PRO;
   
   // Check if user is a regular surfer (role = Surfer, not Comp Surfer/Pro/Grom)
-  const isRegularSurfer = effectiveRole === 'Surfer';
+  const isRegularSurfer = effectiveRole === ROLES.SURFER;
 
   // Check if user qualifies for Stoked tab:
   // - Comp Surfer or Pro role always gets access
@@ -82,10 +84,10 @@ export const Sidebar = () => {
   const isStokedLocked = isRegularSurfer && !isCompetitiveSurfer;
   
   // Check if user is a hobbyist (shows Gear Hub) - Grom Parent is NOT a hobbyist (gets Grom HQ instead)
-  const isHobbyist = effectiveRole === 'Hobbyist';
+  const isHobbyist = effectiveRole === ROLES.HOBBYIST;
   
   // Check if user is a Grom Parent (shows Grom HQ)
-  const isGromParent = effectiveRole === 'Grom Parent' || user?.is_grom_parent === true;
+  const isGromParent = effectiveRole === ROLES.GROM_PARENT || user?.is_grom_parent === true;
   
   // Check if current path is a photo tools path
   const isPhotoToolsPath = ['/gallery', '/photographer/bookings', '/photographer/sessions', '/photographer/on-demand', '/photographer/earnings', '/photographer/on-demand-settings'].some(path => 
@@ -114,7 +116,7 @@ export const Sidebar = () => {
 
   const fetchUnreadCount = async () => {
     try {
-      const response = await apiClient.get(`/notifications/${user.id}/unread-count`);
+      const response = await getUnreadCount(user.id);
       setUnreadCount(response.data.unread_count || 0);
     } catch (error) {
       logger.error('Failed to fetch notification count:', error);
@@ -182,7 +184,7 @@ export const Sidebar = () => {
       ];
     }
     
-    if (effectiveRole === 'Hobbyist') {
+    if (effectiveRole === ROLES.HOBBYIST) {
       // Hobbyist: Can spend but not earn - no earnings/bookings/sessions
       return [
         { path: '/gallery', icon: Image, label: 'My Gallery' },

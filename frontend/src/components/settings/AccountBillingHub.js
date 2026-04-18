@@ -32,6 +32,7 @@ import {
   getPlanByTierId
 } from '../../config/subscriptionPlans.config';
 import logger from '../../utils/logger';
+import { ROLES } from '../../constants/roles';
 
 const API = process.env.REACT_APP_BACKEND_URL;
 
@@ -241,7 +242,7 @@ export const AccountBillingHub = () => {
   }
 
   const isSurfer = ['Surfer', 'Comp Surfer', 'Pro'].includes(accountData.role);
-  const isGromParent = accountData.role === 'Grom Parent';
+  const isGromParent = accountData.role === ROLES.GROM_PARENT;
   const isPhotographer = ['Photographer', 'Hobbyist', 'Approved Pro'].includes(accountData.role);
   const isCompetitive = accountData.current_status === 'competitive';
 
@@ -682,7 +683,7 @@ export const AccountBillingHub = () => {
             <div className="p-4 bg-muted rounded-lg">
               <div className="flex items-center gap-3">
                 <div className={`p-2 rounded-full ${accountData.role === 'Hobbyist' ? 'bg-blue-500/20' : accountData.is_approved_pro ? 'bg-purple-500/20' : 'bg-orange-500/20'}`}>
-                  {accountData.role === 'Hobbyist' ? (
+                  {accountData.role === ROLES.HOBBYIST ? (
                     <Shield className="w-5 h-5 text-blue-400" />
                   ) : accountData.is_approved_pro ? (
                     <Crown className="w-5 h-5 text-purple-400" />
@@ -693,7 +694,7 @@ export const AccountBillingHub = () => {
                 <div>
                   <p className="font-medium text-foreground">{accountData.role}</p>
                   <p className="text-xs text-muted-foreground">
-                    {accountData.role === 'Hobbyist' 
+                    {accountData.role === ROLES.HOBBYIST 
                       ? 'Earnings locked to Contribution Only (Groms, Gear, Causes)' 
                       : accountData.is_approved_pro 
                         ? 'Full Pro features with Bank Transfer enabled'
@@ -704,7 +705,7 @@ export const AccountBillingHub = () => {
             </div>
 
             {/* Apply for Vetted Pro - Only for Working Photographers */}
-            {accountData.role === 'Photographer' && !accountData.is_approved_pro && (
+            {accountData.role === ROLES.PHOTOGRAPHER && !accountData.is_approved_pro && (
               <Button
                 onClick={handleApplyForPro}
                 disabled={toggling}

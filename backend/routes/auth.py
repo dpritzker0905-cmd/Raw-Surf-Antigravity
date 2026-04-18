@@ -9,6 +9,7 @@ import uuid
 
 from database import get_db
 from models import Profile, RoleEnum
+from core.security import create_access_token
 
 router = APIRouter()
 
@@ -46,6 +47,8 @@ class SignupResponse(BaseModel):
     requires_subscription: bool
     requires_onboarding: bool
     redirect_path: str
+    access_token: Optional[str] = None  # JWT — store in localStorage
+    token_type: str = "bearer"
 
 class ProfileResponse(BaseModel):
     id: str
@@ -297,7 +300,9 @@ async def signup(data: SignupRequest, db: AsyncSession = Depends(get_db)):
         
         await db.commit()
         await db.refresh(profile)
-        
+
+        token = create_access_token({"sub": profile.id, "role": profile.role.value})
+
         return SignupResponse(
             id=profile.id,
             email=profile.email,
@@ -306,7 +311,8 @@ async def signup(data: SignupRequest, db: AsyncSession = Depends(get_db)):
             subscription_tier=profile.subscription_tier,
             requires_subscription=requires_subscription,
             requires_onboarding=requires_onboarding,
-            redirect_path=redirect_path
+            redirect_path=redirect_path,
+            access_token=token,
         )
     except HTTPException:
         await db.rollback()
@@ -331,13 +337,15 @@ async def login(data: LoginRequest, db: AsyncSession = Depends(get_db)):
     # Check if suspended
     if profile.is_suspended:
         raise HTTPException(status_code=403, detail="Account suspended")
-    
-    return ProfileResponse(
+
+    token = create_access_token({"sub": profile.id, "role": profile.role.value})
+
+    profile_data = ProfileResponse(
         id=profile.id,
         user_id=profile.user_id,
         email=profile.email,
         full_name=profile.full_name,
-        username=profile.username,  # @username handle
+        username=profile.username,
         role=profile.role.value,
         subscription_tier=profile.subscription_tier,
         is_ad_supported=profile.is_ad_supported if profile.is_ad_supported is not None else True,
@@ -362,16 +370,18 @@ async def login(data: LoginRequest, db: AsyncSession = Depends(get_db)):
         home_break=profile.home_break,
         surf_mode=profile.surf_mode or 'casual',
         is_grom_parent=profile.is_grom_parent or (profile.role == RoleEnum.GROM_PARENT),
-        # Home/Pinned location for map centering
         home_latitude=profile.home_latitude,
         home_longitude=profile.home_longitude,
         home_location_name=profile.home_location_name,
         created_at=profile.created_at,
-        # Grom-specific fields
         parent_id=profile.parent_id,
         parent_link_approved=profile.parent_link_approved,
         parental_controls=profile.parental_controls
     )
+
+    # Return profile data + signed token as a flat dict
+    # Frontend stores the whole object in localStorage; token is in access_token field
+    return {**profile_data.model_dump(), "access_token": token, "token_type": "bearer"}
 
 
 

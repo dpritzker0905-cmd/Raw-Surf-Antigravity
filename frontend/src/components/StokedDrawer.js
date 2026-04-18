@@ -10,24 +10,25 @@ import { usePersona } from '../contexts/PersonaContext';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from './ui/sheet';
 import { Zap, Gift, Plane, ShoppingBag, GraduationCap, ArrowRight, X } from 'lucide-react';
 import { Button } from './ui/button';
+import { ROLES } from '../constants/roles';
 
 /**
  * Get credit usage options based on role
  */
 const getCreditOptions = (effectiveRole) => {
-  if (effectiveRole === 'Pro') {
+  if (effectiveRole === ROLES.PRO) {
     return [
       { icon: Gift, title: "Pay It Forward", description: "Support other surfers", color: "pink", route: "/stoked" },
       { icon: ShoppingBag, title: "Premium Gear", description: "Top-tier equipment", color: "cyan", route: "/gear-hub" },
     ];
   }
-  if (effectiveRole === 'Comp Surfer') {
+  if (effectiveRole === ROLES.COMP_SURFER) {
     return [
       { icon: Plane, title: "Travel & Contests", description: "Competition expenses", color: "purple", route: "/explore" },
       { icon: ShoppingBag, title: "Pro Equipment", description: "High-performance gear", color: "cyan", route: "/gear-hub" },
     ];
   }
-  if (effectiveRole === 'Grom') {
+  if (effectiveRole === ROLES.GROM) {
     return [
       { icon: ShoppingBag, title: "Gear & Equipment", description: "Boards and wetsuits", color: "cyan", route: "/gear-hub" },
       { icon: GraduationCap, title: "Surf Lessons", description: "Level up your skills", color: "green", route: "/map" },
@@ -67,7 +68,7 @@ export const StokedDrawer = ({ isOpen, onClose }) => {
   // Determine title based on role
   const getTitle = () => {
     if (['Comp Surfer', 'Pro'].includes(effectiveRole)) return 'Stoked';
-    if (effectiveRole === 'Grom') return 'Grom Stash';
+    if (effectiveRole === ROLES.GROM) return 'Grom Stash';
     return 'Surf Credits';
   };
 

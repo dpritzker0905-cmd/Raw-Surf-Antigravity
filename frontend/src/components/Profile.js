@@ -50,6 +50,7 @@ import { FollowersModal } from './FollowersModal';
 import logger from '../utils/logger';
 import apiClient from '../lib/apiClient';
 import { getFullUrl } from '../utils/media';
+import { ROLES } from '../constants/roles';
 
 // Resolve relative /api/uploads/... paths to backend absolute URLs
 
@@ -699,7 +700,7 @@ export const Profile = () => {
   // Stoked eligible: Grom, Comp Surfer, Pro (NOT regular Surfer - they don't receive donations)
   const isStokedEligible = ['Grom', 'Comp Surfer', 'Pro'].includes(displayRole);
   // Grom Parent gets Grom Overview tab (Shield icon)
-  const isGromParent = displayRole === 'Grom Parent';
+  const isGromParent = displayRole === ROLES.GROM_PARENT;
 
   // Tabs - Saved is only visible on own profile, Stoked for eligible surfers
   // Badges merged into Crew tab, Surfboards tab for all users

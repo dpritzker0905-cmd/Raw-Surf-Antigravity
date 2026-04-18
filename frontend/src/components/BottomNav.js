@@ -8,6 +8,7 @@ import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { PhotoToolsDrawer } from './PhotoToolsDrawer';
 import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import logger from '../utils/logger';
+import { ROLES } from '../constants/roles';
 
 
 /**
@@ -160,7 +161,7 @@ export const BottomNav = () => {
   // Role categorization
   const photographerRoles = ['Grom Parent', 'Hobbyist', 'Photographer', 'Approved Pro'];
   const isPhotographer = photographerRoles.includes(effectiveRole);
-  const _isGromParent = effectiveRole === 'Grom Parent' || user?.is_grom_parent === true;
+  const _isGromParent = effectiveRole === ROLES.GROM_PARENT || user?.is_grom_parent === true;
   
   // Theme-specific classes
   const isLight = theme === 'light';
@@ -211,7 +212,7 @@ export const BottomNav = () => {
 
   // Tab 2: Action Center destination & icon (Role-Based)
   const getActionCenterConfig = () => {
-    const isDedicatedGromParent = effectiveRole === 'Grom Parent';
+    const isDedicatedGromParent = effectiveRole === ROLES.GROM_PARENT;
     // DEDICATED Grom Parent accounts: Photo Tools (archive-only, no commerce)
     if (isDedicatedGromParent) {
       return {

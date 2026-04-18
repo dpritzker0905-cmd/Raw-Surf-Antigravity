@@ -11,6 +11,7 @@ import {
   Percent, BadgeCheck
 } from 'lucide-react';
 import logger from '../utils/logger';
+import { ROLES } from '../constants/roles';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
@@ -136,7 +137,7 @@ export const GearHub = () => {
 
   const _categories = [...new Set(gearItems.map(item => item.category))];
 
-  const isHobbyist = user?.role === 'Hobbyist' || user?.role === 'Grom Parent' || user?.is_grom_parent === true;
+  const isHobbyist = user?.role === ROLES.HOBBYIST || user?.role === ROLES.GROM_PARENT || user?.is_grom_parent === true;
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-black via-zinc-950 to-black pb-20 md:pb-6">

@@ -1,6 +1,7 @@
 ﻿import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import apiClient from '../lib/apiClient';
+import { getNotifications, getUnreadCount, markRead, markAllRead, sendNotification, sendPhotographerAlert, createNotification, markAlertRead } from '../services/notificationService';
 
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
@@ -26,6 +27,7 @@ import { Input } from './ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import logger from '../utils/logger';
 import { getFullUrl } from '../utils/media';
+import { ROLES } from '../constants/roles';
 
 
 // Role badge component for post authors
@@ -262,7 +264,7 @@ export const Feed = () => {
   const isPhotographer = ['Grom Parent', 'Hobbyist', 'Photographer', 'Approved Pro'].includes(effectiveRole);
   
   // Grom Parent has restricted access - no active session dashboard or commerce features
-  const isGromParent = effectiveRole === 'Grom Parent' || user?.is_grom_parent === true;
+  const isGromParent = effectiveRole === ROLES.GROM_PARENT || user?.is_grom_parent === true;
   
   // Can show session dashboard (photographers except Grom Parent)
   const canShowSessionDashboard = isPhotographer && !isGromParent;
@@ -881,7 +883,7 @@ export const Feed = () => {
       const action = response?.data?.action || (isRemoving ? 'removed' : 'added');
       if (action === 'added' && targetPost && targetPost.author_id !== user.id) {
         // Create notification via API
-        await apiClient.post(`/notifications`, {
+        await createNotification({
           user_id: targetPost.author_id,
           type: 'post_reaction',
           title: `${user.full_name} reacted ${emoji}`,

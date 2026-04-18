@@ -15,6 +15,7 @@ import { NumericStepper } from './ui/numeric-stepper';
 import { Card, CardHeader, CardTitle, CardContent } from './ui/card';
 import { toast } from 'sonner';
 import logger from '../utils/logger';
+import { ROLES } from '../constants/roles';
 
 
 /**
@@ -71,8 +72,8 @@ export const OnDemandSettingsPage = () => {
   
   // Geographic Range Logic (Role-Based) - LOGIC PRESERVED
   const getGeographicRadius = () => {
-    if (user?.role === 'Approved Pro') return { min: 30, max: 50, default: 40 };
-    if (user?.role === 'Pro') return { min: 30, max: 50, default: 40 };
+    if (user?.role === ROLES.APPROVED_PRO) return { min: 30, max: 50, default: 40 };
+    if (user?.role === ROLES.PRO) return { min: 30, max: 50, default: 40 };
     return { min: 10, max: 20, default: 15 }; // Standard Photographer
   };
   

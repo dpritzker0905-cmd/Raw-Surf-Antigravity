@@ -9,6 +9,7 @@ import { Badge } from './ui/badge';
 import { toast } from 'sonner';
 import { SpotSelector } from './SpotSelector';
 import logger from '../utils/logger';
+import { ROLES } from '../constants/roles';
 
 
 
@@ -666,9 +667,9 @@ export const SurferSessionHub = ({ children, isPhotographer = false }) => {
   const [spotsLoaded, setSpotsLoaded] = useState(false);
   
   // Determine photographer tier for radius filtering
-  const photographerTier = user?.role === 'Approved Pro' || user?.is_approved_pro 
+  const photographerTier = user?.role === ROLES.APPROVED_PRO || user?.is_approved_pro 
     ? 'pro' 
-    : user?.role === 'Pro' 
+    : user?.role === ROLES.PRO 
       ? 'pro' 
       : 'standard';
 

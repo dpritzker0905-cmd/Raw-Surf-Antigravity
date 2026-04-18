@@ -31,6 +31,7 @@ import { ScheduledBookingDrawer } from './ScheduledBookingDrawer';
 
 import logger from '../utils/logger';
 import { getFullUrl } from '../utils/media';
+import { ROLES } from '../constants/roles';
 
 
 
@@ -112,7 +113,7 @@ const BookingTypeModal = ({ isOpen, onClose, photographer, spotId, spotName, onS
   const textSecondary = isLight ? 'text-gray-600' : 'text-gray-400';
   const cardBg = isLight ? 'bg-gray-50' : 'bg-zinc-800';
   
-  const isPro = photographer?.role === 'approved_pro' || photographer?.role === 'Approved Pro';
+  const isPro = photographer?.role === 'approved_pro' || photographer?.role === ROLES.APPROVED_PRO;
   
   // Check if photographer is actively shooting at THIS specific spot
   const isCurrentlyShooting = photographer?.is_shooting && 

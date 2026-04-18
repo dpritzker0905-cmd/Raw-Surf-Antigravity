@@ -42,6 +42,7 @@ import { SelfieCapture } from './SelfieCapture';
 
 import logger from '../utils/logger';
 import { getFullUrl } from '../utils/media';
+import { ROLES } from '../constants/roles';
 
 
 
@@ -1771,7 +1772,7 @@ export const ScheduledBookingDrawer = ({
     }
   };
   
-  const isPro = photographer?.role === 'Approved Pro' || photographer?.role === 'Pro';
+  const isPro = photographer?.role === ROLES.APPROVED_PRO || photographer?.role === ROLES.PRO;
   
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>

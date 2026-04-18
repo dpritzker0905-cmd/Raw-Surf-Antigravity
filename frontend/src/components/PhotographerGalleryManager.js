@@ -30,6 +30,7 @@ import {
 } from './ui/dropdown-menu';
 import { toast } from 'sonner';
 import { getFullUrl } from '../utils/media';
+import { ROLES } from '../constants/roles';
 
 
 
@@ -42,8 +43,8 @@ export const PhotographerGalleryManager = () => {
   // ROLE-BASED COMMERCE RESTRICTIONS
   // Grom Parent: NO commerce at all - pure archive/family photos
   // Hobbyist: Can browse/buy but NOT sell
-  const isGromParent = user?.role === 'Grom Parent' || user?.role === 'GROM_PARENT';
-  const isHobbyist = user?.role === 'Hobbyist' || user?.role === 'HOBBYIST';
+  const isGromParent = user?.role === ROLES.GROM_PARENT || user?.role === 'GROM_PARENT';
+  const isHobbyist = user?.role === ROLES.HOBBYIST || user?.role === 'HOBBYIST';
   const canSellPhotos = !isGromParent && !isHobbyist; // Only Pro photographers can sell
   const showPricing = canSellPhotos; // Hide all pricing UI for non-sellers
   

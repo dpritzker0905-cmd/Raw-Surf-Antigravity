@@ -68,6 +68,7 @@ export const AuthProvider = ({ children }) => {
       grom_competes
     });
     const userData = response.data;
+    // Token is included in signup response — store it inside the user object
     setUser(userData);
     localStorage.setItem('raw-surf-user', JSON.stringify(userData));
     document.documentElement.classList.remove('no-god-mode');
@@ -80,6 +81,8 @@ export const AuthProvider = ({ children }) => {
       password
     });
     const userData = response.data;
+    // Store token inside the user object so apiClient can read it
+    // (token is in userData.access_token from the backend)
     setUser(userData);
     localStorage.setItem('raw-surf-user', JSON.stringify(userData));
     document.documentElement.classList.remove('no-god-mode');
@@ -92,6 +95,7 @@ export const AuthProvider = ({ children }) => {
       endImpersonation();
     }
     setUser(null);
+    // Clear all session data including the Bearer token
     localStorage.removeItem('raw-surf-user');
     localStorage.removeItem('raw-surf-user-original');
     localStorage.removeItem('godModeMinimized');
@@ -99,6 +103,7 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem('isGodMode');
     localStorage.removeItem('isPersonaBarActive');
     localStorage.removeItem('activePersona');
+    localStorage.removeItem('impersonation_session');
     document.documentElement.classList.add('no-god-mode');
   };
 

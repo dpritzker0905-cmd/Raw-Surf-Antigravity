@@ -26,6 +26,7 @@ import { toast } from 'sonner';
 
 import logger from '../utils/logger';
 import { getFullUrl } from '../utils/media';
+import { ROLES } from '../constants/roles';
 
 
 
@@ -884,8 +885,8 @@ export const OnDemandSessionManager = () => {
   
   // Geographic Range Logic (Role-Based)
   const getGeographicRadius = () => {
-    if (user?.role === 'Approved Pro') return { min: 30, max: 50, default: 40 };
-    if (user?.role === 'Pro') return { min: 30, max: 50, default: 40 };
+    if (user?.role === ROLES.APPROVED_PRO) return { min: 30, max: 50, default: 40 };
+    if (user?.role === ROLES.PRO) return { min: 30, max: 50, default: 40 };
     return { min: 10, max: 20, default: 15 };
   };
   const geoRadius = getGeographicRadius();

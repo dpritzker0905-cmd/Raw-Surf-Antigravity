@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import apiClient, { BACKEND_URL } from '../lib/apiClient';
+import { getNotifications, getUnreadCount, markRead, markAllRead, sendNotification, sendPhotographerAlert, createNotification, markAlertRead } from '../services/notificationService';
 import { 
   X, Heart, Download, Calendar, Camera, Check, Lock, Sparkles, CreditCard, Gift
 } from 'lucide-react';
@@ -75,7 +76,7 @@ export const TaggedPhotoModal = ({
 
   const handleThankPhotographer = async () => {
     try {
-      await apiClient.post(`/notifications/send`, {
+      await sendNotification({
         recipient_id: photo.photographer_id,
         sender_id: user?.id,
         type: 'thank_you',

@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import logger from '../utils/logger';
 import { getFullUrl } from '../utils/media';
+import { ROLES } from '../constants/roles';
 
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
@@ -41,7 +42,7 @@ export const ImpactDashboard = () => {
   const [activeTab, setActiveTab] = useState('overview');
   
   // Check if user is a Hobbyist (no payout access)
-  const isHobbyist = user?.role === 'Hobbyist' || user?.role === 'Grom Parent' || user?.is_grom_parent === true;
+  const isHobbyist = user?.role === ROLES.HOBBYIST || user?.role === ROLES.GROM_PARENT || user?.is_grom_parent === true;
   
   // Search states
   const [causes, setCauses] = useState([]);

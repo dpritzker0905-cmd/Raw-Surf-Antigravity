@@ -5,6 +5,7 @@ import { MapPin, Search, Check, Loader2, Navigation, X } from 'lucide-react';
 import { Input } from './ui/input';
 import { Badge } from './ui/badge';
 import logger from '../utils/logger';
+import { ROLES } from '../constants/roles';
 
 
 /**
@@ -38,7 +39,7 @@ export const SpotSelector = ({
 
   // Radius limits based on photographer tier
   const radiusConfig = useMemo(() => {
-    if (photographerTier === 'pro' || photographerTier === 'verified' || photographerTier === 'Approved Pro') {
+    if (photographerTier === 'pro' || photographerTier === 'verified' || photographerTier === ROLES.APPROVED_PRO) {
       return { min: 30, max: 50, label: 'Pro Range (30-50mi)' };
     }
     return { min: 10, max: 20, label: 'Standard Range (10-20mi)' };

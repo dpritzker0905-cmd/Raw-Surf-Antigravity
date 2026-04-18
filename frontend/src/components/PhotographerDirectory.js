@@ -33,6 +33,7 @@ import apiClient from '../lib/apiClient';
 
 import logger from '../utils/logger';
 import { getFullUrl } from '../utils/media';
+import { ROLES } from '../constants/roles';
 
 
 
@@ -74,7 +75,7 @@ const PhotographerCard = ({ photographer, onSelect, isLight }) => {
   const textSecondary = isLight ? 'text-gray-600' : 'text-gray-400';
   const cardBg = isLight ? 'bg-white border-gray-200' : 'bg-zinc-900 border-zinc-800';
   
-  const isVerified = photographer.role === 'Approved Pro';
+  const isVerified = photographer.role === ROLES.APPROVED_PRO;
   const isOnline = photographer.is_available || photographer.is_on_duty;
   
   return (

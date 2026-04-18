@@ -10,7 +10,9 @@ import { StokedDrawer } from './StokedDrawer';
 import { NotificationsDrawer } from './NotificationsDrawer';
 import { ExclusiveAreaDrawer, hasExclusiveArea, getAreaType, getAreaIcon, getAreaColor } from './ExclusiveAreaDrawer';
 import apiClient, { BACKEND_URL } from '../lib/apiClient';
+import { getNotifications, getUnreadCount, markRead, markAllRead, sendNotification, sendPhotographerAlert, createNotification, markAlertRead } from '../services/notificationService';
 import logger from '../utils/logger';
+import { ROLES } from '../constants/roles';
 
 
 /**
@@ -91,7 +93,7 @@ export const TopNav = () => {
   const isCompetitiveSurferMode = user?.surf_mode === 'competitive';
   const isCompetitiveSurfer = isCompetitiveSurferMode || isProSurferMode;
   // Map surf_mode to the equivalent role for icon/drawer resolution
-  const resolvedRole = effectiveRole === 'Surfer'
+  const resolvedRole = effectiveRole === ROLES.SURFER
     ? (isProSurferMode ? 'Pro' : isCompetitiveSurferMode ? 'Comp Surfer' : effectiveRole)
     : effectiveRole;
   const hasExclusiveAccess = hasExclusiveArea(resolvedRole);
@@ -100,9 +102,9 @@ export const TopNav = () => {
   const exclusiveIconColor = getAreaColor(resolvedRole);
   
   // Role categorization for Dynamic Persona Icon
-  const isGromParent = effectiveRole === 'Grom Parent' || user?.is_grom_parent === true;
+  const isGromParent = effectiveRole === ROLES.GROM_PARENT || user?.is_grom_parent === true;
   // isCompetitive: true for Comp Surfer/Pro roles OR regular Surfer in competitive/pro surf_mode
-  const isCompetitive = ['Comp Surfer', 'Pro'].includes(effectiveRole) || (effectiveRole === 'Surfer' && isCompetitiveSurfer);
+  const isCompetitive = ['Comp Surfer', 'Pro'].includes(effectiveRole) || (effectiveRole === ROLES.SURFER && isCompetitiveSurfer);
   // Note: isPhotographer already defined above for Duty Station icon
   const _isGromOrRegularSurfer = ['Grom', 'Surfer'].includes(effectiveRole);
 
@@ -124,7 +126,7 @@ export const TopNav = () => {
         hoverColor: 'hover:text-yellow-300'
       };
     }
-    if (effectiveRole === 'Grom') {
+    if (effectiveRole === ROLES.GROM) {
       return {
         icon: null,  // Groms use ExclusiveArea button, no separate persona icon needed
         label: null,
@@ -147,7 +149,7 @@ export const TopNav = () => {
   const fetchUnreadCount = useCallback(async () => {
     if (!user?.id) return;
     try {
-      const response = await apiClient.get(`/notifications/${user.id}/unread-count`);
+      const response = await getUnreadCount(user.id);
       setUnreadCount(response.data.unread_count || 0);
     } catch (error) {
       logger.error('Failed to fetch notification count:', error);
@@ -280,10 +282,10 @@ export const TopNav = () => {
 
             {/* Position 6 (or 5): Stoked/Persona Icon - Role-Based Navigation */}
             {/* Note: Groms skip this - they use the ExclusiveArea button instead */}
-            {effectiveRole !== 'Grom' && (
+            {effectiveRole !== ROLES.GROM && (
               <button 
                 onClick={() => {
-                  if (effectiveRole === 'Grom Parent') {
+                  if (effectiveRole === ROLES.GROM_PARENT) {
                     // Fallback for purely dedicated Grom Parents if they tap Gear
                     setStokedOpen(true);
                   } else if (isPhotographer) {

@@ -9,6 +9,7 @@ import { toast } from 'sonner';
 import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import { SpotSelector } from './SpotSelector';
 import logger from '../utils/logger';
+import { ROLES } from '../constants/roles';
 
 
 /**
@@ -344,9 +345,9 @@ export const OnDemandDutyIcon = () => {
   const [spotsLoaded, setSpotsLoaded] = useState(false);
   
   // Photographer tier for radius filtering
-  const photographerTier = user?.role === 'Approved Pro' || user?.is_approved_pro 
+  const photographerTier = user?.role === ROLES.APPROVED_PRO || user?.is_approved_pro 
     ? 'pro' 
-    : user?.role === 'Pro' 
+    : user?.role === ROLES.PRO 
       ? 'pro' 
       : 'standard';
 

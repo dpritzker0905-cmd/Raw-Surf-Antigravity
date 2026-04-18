@@ -13,6 +13,7 @@ import { AtSign, Check, X, Loader2, AlertCircle, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import logger from '../utils/logger';
+import { ROLES } from '../constants/roles';
 
 const API = process.env.REACT_APP_BACKEND_URL;
 
@@ -135,14 +136,14 @@ const UsernameSetup = ({ onComplete, skipAllowed = false }) => {
   // Determine where to navigate after username setup
   const navigateToNextStep = (userData) => {
     // Check if user needs subscription
-    const isLinkedGrom = userData.role === 'Grom' && userData.parent_id && userData.parent_link_approved;
+    const isLinkedGrom = userData.role === ROLES.GROM && userData.parent_id && userData.parent_link_approved;
     const surferRoles = ['Grom', 'Surfer', 'Comp Surfer', 'Pro'];
     
     if (!userData.subscription_tier && surferRoles.includes(userData.role) && !isLinkedGrom) {
       navigate('/surfer-subscription', { replace: true });
-    } else if (!userData.subscription_tier && userData.role === 'Photographer') {
+    } else if (!userData.subscription_tier && userData.role === ROLES.PHOTOGRAPHER) {
       navigate('/photographer-subscription', { replace: true });
-    } else if (userData.role === 'Approved Pro' && !userData.portfolio_url) {
+    } else if (userData.role === ROLES.APPROVED_PRO && !userData.portfolio_url) {
       navigate('/pro-onboarding', { replace: true });
     } else {
       navigate('/feed', { replace: true });

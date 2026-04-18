@@ -9,6 +9,7 @@ import { Button } from './ui/button';
 import { Card, CardContent } from './ui/card';
 import { Badge } from './ui/badge';
 import { toast } from 'sonner';
+import { ROLES } from '../constants/roles';
 
 
 // Create context to share Grom status across components
@@ -42,7 +43,7 @@ export const GromSafetyGate = ({ children, allowLimitedFeed = false }) => {
   useEffect(() => {
     if (authLoading) return;
     
-    if (user?.id && user?.role === 'Grom') {
+    if (user?.id && user?.role === ROLES.GROM) {
       checkGromStatus();
     } else {
       setLoading(false);
@@ -72,7 +73,7 @@ export const GromSafetyGate = ({ children, allowLimitedFeed = false }) => {
   }
 
   // Not a Grom - show content normally
-  if (!user || user.role !== 'Grom') {
+  if (!user || user.role !== ROLES.GROM) {
     return (
       <GromStatusContext.Provider value={{ gromStatus: null, loading: false, isUnlinked: false }}>
         {children}
@@ -261,7 +262,7 @@ export const useParentalControls = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (user?.id && user?.role === 'Grom') {
+    if (user?.id && user?.role === ROLES.GROM) {
       fetchControls();
     } else {
       setLoading(false);
@@ -280,11 +281,11 @@ export const useParentalControls = () => {
     }
   };
 
-  const canPost = () => !user || user.role !== 'Grom' || controls?.can_post !== false;
-  const canStream = () => !user || user.role !== 'Grom' || controls?.can_stream !== false;
-  const canMessage = () => !user || user.role !== 'Grom' || controls?.can_message !== false;
-  const canComment = () => !user || user.role !== 'Grom' || controls?.can_comment !== false;
-  const isViewOnly = () => user?.role === 'Grom' && controls?.view_only === true;
+  const canPost = () => !user || user.role !== ROLES.GROM || controls?.can_post !== false;
+  const canStream = () => !user || user.role !== ROLES.GROM || controls?.can_stream !== false;
+  const canMessage = () => !user || user.role !== ROLES.GROM || controls?.can_message !== false;
+  const canComment = () => !user || user.role !== ROLES.GROM || controls?.can_comment !== false;
+  const isViewOnly = () => user?.role === ROLES.GROM && controls?.view_only === true;
 
   return {
     loading,

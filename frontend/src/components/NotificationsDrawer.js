@@ -1,5 +1,6 @@
 ﻿import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import apiClient, { BACKEND_URL } from '../lib/apiClient';
+import { getNotifications, getUnreadCount, markRead, markAllRead, sendNotification, sendPhotographerAlert, createNotification, markAlertRead } from '../services/notificationService';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { 
@@ -118,7 +119,7 @@ export const NotificationsDrawer = ({ isOpen, onClose, onCountUpdate }) => {
   const fetchNotifications = async () => {
     try {
       setLoading(true);
-      const response = await apiClient.get(`/notifications/${user.id}`);
+      const response = await getNotifications(user.id);
       setNotifications(response.data);
     } catch (error) {
       logger.error('Failed to fetch notifications:', error);
@@ -153,7 +154,7 @@ export const NotificationsDrawer = ({ isOpen, onClose, onCountUpdate }) => {
 
   const _handleMarkAsRead = async (notificationId) => {
     try {
-      await apiClient.post(`/notifications/${notificationId}/read`);
+      await markRead(notificationId);
       setNotifications(notifications.map(n => 
         n.id === notificationId ? { ...n, is_read: true } : n
       ));
@@ -165,7 +166,7 @@ export const NotificationsDrawer = ({ isOpen, onClose, onCountUpdate }) => {
 
   const handleMarkAllRead = async () => {
     try {
-      await apiClient.post(`/notifications/${user.id}/read-all`);
+      await markAllRead(user.id);
       setNotifications(notifications.map(n => ({ ...n, is_read: true })));
       toast.success('All marked as read');
       if (onCountUpdate) onCountUpdate();
@@ -198,7 +199,7 @@ export const NotificationsDrawer = ({ isOpen, onClose, onCountUpdate }) => {
     // Mark as read first
     if (!notification.is_read) {
       try {
-        await apiClient.post(`/notifications/${notification.id}/read`);
+        await markRead(notification.id);
         setNotifications(prev => prev.map(n => 
           n.id === notification.id ? { ...n, is_read: true } : n
         ));

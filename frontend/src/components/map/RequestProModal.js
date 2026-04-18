@@ -29,6 +29,7 @@ import {
 import { toast } from 'sonner';
 import apiClient from '../../lib/apiClient';
 import { getFullUrl } from '../../utils/media';
+import { ROLES } from '../../constants/roles';
 
 
 
@@ -433,7 +434,7 @@ export const RequestProModal = ({
                     <div className="flex-1 text-left min-w-0">
                       <p className="text-sm font-medium flex items-center gap-1.5 truncate">
                         {pro.full_name}
-                        {pro.role === 'Approved Pro' && (
+                        {pro.role === ROLES.APPROVED_PRO && (
                           <span className="text-[9px] px-1 py-0.5 bg-yellow-500/20 text-yellow-400 rounded font-bold shrink-0">PRO</span>
                         )}
                       </p>
