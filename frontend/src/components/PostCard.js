@@ -621,10 +621,21 @@ const PostCard = ({
   const videoRef = useRef(null);
   const programmaticTarget = useRef(false);
   const [userManuallyPaused, setUserManuallyPaused] = useState(false);
+  // Track if video source failed to load (dead ephemeral URL or network error)
+  const [videoError, setVideoError] = useState(false);
 
   // Helper to ensure media paths map to backend directly natively preventing Netlify 404 traps
   const _checkMediaUrl = getFullUrl(post?.media_url || post?.image_url);
   const isVideoItem = post?.media_type === 'video' || (typeof _checkMediaUrl === 'string' && _checkMediaUrl.match(/\.(mp4|webm|ogg|mov)(\?.*)?$/i));
+
+  // Pre-check: Local /api/uploads/ video paths on Render are ephemeral.
+  // If the media_url is a relative local path (not Supabase https://), mark it as
+  // broken immediately to avoid showing the browser's broken video player UI.
+  // Exception: if there's a thumbnail we can show that as a static image.
+  const isDeadLocalVideo = isVideoItem &&
+    post?.media_url &&
+    post.media_url.startsWith('/api/uploads/') &&
+    !post.media_url.startsWith('http');
 
   useEffect(() => {
     if (!isVideoItem || !videoRef.current) return;
@@ -706,6 +717,9 @@ const PostCard = ({
     const ext = post.media_url.split('?')[0].split('.').pop().toLowerCase();
     return { mp4: 'video/mp4', mov: 'video/mp4', webm: 'video/webm', ogv: 'video/ogg' }[ext] || 'video/mp4';
   })();
+
+  // Determine thumbnail fallback URL (show image instead of broken video player)
+  const videoFallbackSrc = getFullUrl(post.thumbnail_url || post.media_url);
 
   return (
     <>
@@ -834,6 +848,22 @@ const PostCard = ({
         data-testid={`post-image-container-${post.id}`}
       >
         {isVideoItem ? (
+          // If video is confirmed dead (local ephemeral URL) or errored, show thumbnail as image
+          (isDeadLocalVideo || videoError) && videoFallbackSrc ? (
+            <div className="relative w-full h-full">
+              <img
+                src={videoFallbackSrc}
+                alt={post.caption || 'Video'}
+                className="w-full h-full object-cover"
+                onError={(e) => { e.target.style.display = 'none'; }}
+              />
+              {/* Overlay badge showing it was a video */}
+              <div className="absolute top-2 right-2 bg-black/70 px-2 py-1 rounded text-xs text-white flex items-center gap-1">
+                <Play className="w-3 h-3" />
+                {post.video_duration ? `${Math.round(post.video_duration)}s` : 'Video'}
+              </div>
+            </div>
+          ) : (
           <video
             ref={videoRef}
             poster={videoPoster}
@@ -847,22 +877,12 @@ const PostCard = ({
             onClick={(e) => e.stopPropagation()}
             onPlay={() => { if (!programmaticTarget.current) setUserManuallyPaused(false); }}
             onPause={() => { if (!programmaticTarget.current) setUserManuallyPaused(true); }}
-            onError={(e) => {
-              if (videoPoster) {
-                const parent = e.target.parentNode;
-                if (parent) {
-                  const img = document.createElement('img');
-                  img.src = videoPoster;
-                  img.className = 'w-full h-full object-cover';
-                  img.alt = post.caption || 'Video';
-                  parent.replaceChild(img, e.target);
-                }
-              }
-            }}
+            onError={() => setVideoError(true)}
           >
             <source src={videoSrc} type={videoMimeType} />
             {videoMimeType !== 'video/mp4' && <source src={videoSrc} type="video/mp4" />}
           </video>
+          )
         ) : (
           <img
             src={getFullUrl(post.media_url || post.image_url)}
@@ -873,7 +893,7 @@ const PostCard = ({
             onError={(e) => { e.target.style.display = 'none'; }}
           />
         )}
-        {isVideoItem && (
+        {isVideoItem && !(isDeadLocalVideo || videoError) && (
           <div className="absolute top-2 right-2 bg-black/60 px-2 py-1 rounded text-xs text-white flex items-center gap-1">
             <Play className="w-3 h-3" />
             {post.video_duration ? `${Math.round(post.video_duration)}s` : 'Video'}

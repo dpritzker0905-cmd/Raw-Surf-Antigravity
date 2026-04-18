@@ -1689,26 +1689,41 @@ export const Feed = () => {
                   );
                 })()}
 
-                {/* City / Area selector — only shown when state selected and cities exist */}
+                {/* City / Area selector — shown when state is selected */}
                 {selectedState && (() => {
+                  // First try cities from the hierarchy API response
                   const countryData = locationHierarchy.countries.find(c => c.name === selectedCountry);
                   const stateData = countryData?.states?.find(s => s.name === selectedState);
-                  const cities = stateData?.cities || [];
-                  if (cities.length === 0) return null;
+                  const apiCities = stateData?.cities || [];
+
+                  // Fallback: derive cities directly from the loaded spots list
+                  // (handles spots where state_province is null in the DB but region is set)
+                  const spotsInState = spots.filter(s =>
+                    s.country === selectedCountry &&
+                    (selectedState ? s.state_province === selectedState : true)
+                  );
+                  const derivedCities = apiCities.length > 0
+                    ? apiCities
+                    : [...new Set(spotsInState.map(s => s.region).filter(Boolean))]
+                        .sort()
+                        .map(r => ({ name: r, spot_count: spotsInState.filter(s => s.region === r).length }));
+
+                  if (derivedCities.length === 0) return null; // No regional data at all
                   return (
                     <div>
-                      <label className="text-sm text-gray-400 mb-2 block">City / Area</label>
+                      <label className="text-sm text-gray-400 mb-2 block">City / Area <span className="text-zinc-600 text-xs">(optional)</span></label>
                       <Select
                         value={selectedCity}
-                        onValueChange={(v) => { setSelectedCity(v); setCheckInData(prev => ({ ...prev, spot_id: '' })); }}
+                        onValueChange={(v) => { setSelectedCity(v === '__all__' ? '' : v); setCheckInData(prev => ({ ...prev, spot_id: '' })); }}
                       >
                         <SelectTrigger className="bg-zinc-800 border-zinc-700 text-white">
-                          <SelectValue placeholder="Select a city or area" />
+                          <SelectValue placeholder="All areas (or pick one to narrow)" />
                         </SelectTrigger>
                         <SelectContent className="bg-zinc-800 border-zinc-700 max-h-60 overflow-y-auto">
-                          {cities.map(c => (
+                          <SelectItem value="__all__" className="text-zinc-400 hover:bg-zinc-700 italic">— All areas —</SelectItem>
+                          {derivedCities.map(c => (
                             <SelectItem key={c.name} value={c.name} className="text-white hover:bg-zinc-700">
-                              {c.name} <span className="text-gray-500 text-xs ml-1">({c.spot_count} spots)</span>
+                              {c.name} <span className="text-gray-500 text-xs ml-1">({c.spot_count} {c.spot_count === 1 ? 'spot' : 'spots'})</span>
                             </SelectItem>
                           ))}
                         </SelectContent>
