@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 
 import { useNavigate } from 'react-router-dom';
 
@@ -62,9 +62,9 @@ import { AdminCommunicationsDashboard } from './admin/AdminCommunicationsDashboa
 import { AdminContentMgmtDashboard } from './admin/AdminContentMgmtDashboard';
 
 import logger from '../utils/logger';
-
 import { supabase } from '../lib/supabase';
 import { getFullUrl } from '../utils/media';
+import AdminOverviewTab from './admin/AdminOverviewTab';
 
 
 
@@ -530,53 +530,13 @@ const UnifiedAdminConsole = () => {
       <div className="max-w-4xl mx-auto p-4 space-y-4">
         {/* Overview Tab */}
         {activeTab === 'overview' && stats && (
-          <div className="space-y-4">
-            {/* Stats Grid */}
-            <div className="grid grid-cols-2 gap-3">
-              <StatCard icon={Users} label="Total Users" value={stats.users?.total || 0} subtext={`${stats.users?.new_this_week || 0} this week`} color="cyan" />
-              <StatCard icon={FileText} label="Total Posts" value={stats.content?.total_posts || 0} color="blue" />
-              <StatCard icon={Image} label="Gallery Items" value={stats.content?.total_gallery_items || 0} color="purple" />
-              <StatCard icon={DollarSign} label="Revenue (30d)" value={`$${stats.revenue?.last_30_days || 0}`} color="green" />
-            </div>
-
-            {/* Users by Role */}
-            <Card className={cardBgClass}>
-              <CardHeader>
-                <CardTitle className={`${textClass} text-sm`}>Users by Role</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-2 gap-2">
-                  {stats.users?.by_role && Object.entries(stats.users.by_role).map(([role, count]) => (
-                    <div key={role} className={`${isLight ? 'bg-gray-100' : 'bg-zinc-800/50'} rounded-lg p-2`}>
-                      <p className={`${textSecondary} text-xs capitalize`}>{role.replace(/_/g, ' ')}</p>
-                      <p className={`${textClass} font-bold`}>{count}</p>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Quick Actions */}
-            <Card className={cardBgClass}>
-              <CardHeader>
-                <CardTitle className={`${textClass} text-sm`}>Quick Navigation</CardTitle>
-              </CardHeader>
-              <CardContent className="grid grid-cols-2 gap-2">
-                <Button variant="outline" size="sm" onClick={() => navigate('/map')} className={isLight ? 'border-gray-200 hover:bg-gray-100' : 'border-zinc-700'}>
-                  Test Map
-                </Button>
-                <Button variant="outline" size="sm" onClick={() => navigate('/bookings')} className={isLight ? 'border-gray-200 hover:bg-gray-100' : 'border-zinc-700'}>
-                  Test Bookings
-                </Button>
-                <Button variant="outline" size="sm" onClick={() => navigate('/gallery')} className={isLight ? 'border-gray-200 hover:bg-gray-100' : 'border-zinc-700'}>
-                  Test Gallery
-                </Button>
-                <Button variant="outline" size="sm" onClick={() => navigate('/profile')} className={isLight ? 'border-gray-200 hover:bg-gray-100' : 'border-zinc-700'}>
-                  Test Profile
-                </Button>
-              </CardContent>
-            </Card>
-          </div>
+          <AdminOverviewTab
+            stats={stats}
+            cardBgClass={cardBgClass}
+            textClass={textClass}
+            textSecondary={textSecondary}
+            isLight={isLight}
+          />
         )}
 
         {/* Access Control Tab - Site Access Code */}
