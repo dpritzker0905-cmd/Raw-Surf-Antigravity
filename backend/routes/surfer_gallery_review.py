@@ -28,7 +28,7 @@ from models import (
     LiveSessionParticipant, DispatchRequest
 )
 
-router = APIRouter(prefix="/surfer-gallery", tags=["Surfer Gallery Review"])
+router = APIRouter(prefix="/surfer-gallery-review", tags=["Surfer Gallery Review"])
 logger = logging.getLogger(__name__)
 
 

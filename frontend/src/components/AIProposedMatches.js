@@ -316,8 +316,8 @@ const AIProposedMatches = ({
     setLoading(true);
     try {
       const [matchesRes, sessionRes] = await Promise.all([
-        axios.get(`${API}/surfer-gallery/proposed-matches/${sessionId}`),
-        axios.get(`${API}/surfer-gallery/session-entitlements/${sessionId}`)
+        axios.get(`${API}/surfer-gallery-review/proposed-matches/${sessionId}`),
+        axios.get(`${API}/surfer-gallery-review/session-entitlements/${sessionId}`)
       ]);
       
       setMatches(matchesRes.data.matches || []);
@@ -358,7 +358,7 @@ const AIProposedMatches = ({
   const claimSingle = async (matchId) => {
     setProcessing(true);
     try {
-      await axios.post(`${API}/surfer-gallery/claim-match`, {
+      await axios.post(`${API}/surfer-gallery-review/claim-match`, {
         match_id: matchId,
         session_id: sessionId,
         use_credit: creditsRemaining > 0
@@ -385,7 +385,7 @@ const AIProposedMatches = ({
   const dismissSingle = async (matchId) => {
     setProcessing(true);
     try {
-      await axios.post(`${API}/surfer-gallery/dismiss-match`, {
+      await axios.post(`${API}/surfer-gallery-review/dismiss-match`, {
         match_id: matchId,
         session_id: sessionId
       });
@@ -411,7 +411,7 @@ const AIProposedMatches = ({
     
     setProcessing(true);
     try {
-      await axios.post(`${API}/surfer-gallery/claim-matches-batch`, {
+      await axios.post(`${API}/surfer-gallery-review/claim-matches-batch`, {
         match_ids: Array.from(selectedIds),
         session_id: sessionId,
         use_credits: creditsRemaining > 0
@@ -434,7 +434,7 @@ const AIProposedMatches = ({
   const confirmIdentity = async (matchId, isMe) => {
     setProcessing(true);
     try {
-      await axios.post(`${API}/surfer-gallery/confirm-identity`, {
+      await axios.post(`${API}/surfer-gallery-review/confirm-identity`, {
         match_id: matchId,
         is_confirmed: isMe
       });

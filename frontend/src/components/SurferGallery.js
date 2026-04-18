@@ -737,7 +737,7 @@ export const SurferGallery = () => {
   
   const fetchAiSessions = async () => {
     try {
-      const response = await axios.get(`${API}/surfer-gallery/ai-sessions?surfer_id=${user.id}`);
+      const response = await axios.get(`${API}/surfer-gallery-review/ai-sessions?surfer_id=${user.id}`);
       setAiSessions(response.data.sessions || []);
     } catch (error) {
       logger.debug('AI sessions not available:', error);
