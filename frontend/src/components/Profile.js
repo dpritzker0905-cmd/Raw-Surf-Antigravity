@@ -1274,13 +1274,17 @@ export const Profile = () => {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex-1 py-3 flex flex-col items-center gap-1 border-t-2 transition-colors ${
+                className={`flex-1 py-3 flex flex-col items-center gap-1 relative transition-colors ${
                   activeTab === tab.id
-                    ? 'border-white text-white'
-                    : 'border-transparent text-gray-500 hover:text-gray-300'
+                    ? 'text-white'
+                    : 'text-gray-500 hover:text-gray-300'
                 }`}
                 data-testid={`tab-${tab.id}`}
               >
+                {/* Active indicator bar at top */}
+                {activeTab === tab.id && (
+                  <span className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-0.5 rounded-b-full bg-white" />
+                )}
                 <tab.icon className="w-5 h-5" />
                 <span className="text-[10px]">{tab.label}</span>
               </button>
@@ -1514,6 +1518,7 @@ export const Profile = () => {
           <div className="text-center py-12 px-4">
             <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-muted flex items-center justify-center">
               {activeTab === 'posts' && <Grid3X3 className="w-8 h-8 text-muted-foreground" />}
+              {activeTab === 'photos' && <Image className="w-8 h-8 text-muted-foreground" />}
               {activeTab === 'session_shots' && <Waves className="w-8 h-8 text-muted-foreground" />}
               {activeTab === 'videos' && <Play className="w-8 h-8 text-muted-foreground" />}
               {activeTab === 'saved' && <Bookmark className="w-8 h-8 text-muted-foreground" />}
@@ -1521,6 +1526,7 @@ export const Profile = () => {
             </div>
             <h3 className="text-foreground font-semibold mb-1">
               {activeTab === 'posts' && 'No Posts Yet'}
+              {activeTab === 'photos' && 'No Photos Yet'}
               {activeTab === 'session_shots' && 'No Session Shots Yet'}
               {activeTab === 'videos' && 'No Videos Yet'}
               {activeTab === 'saved' && 'No Saved Posts'}
@@ -1528,6 +1534,7 @@ export const Profile = () => {
             </h3>
             <p className="text-muted-foreground text-sm">
               {activeTab === 'posts' && (isOwnProfile ? 'Share your surf moments with the community' : 'No posts to show')}
+              {activeTab === 'photos' && (isOwnProfile ? 'Your photo posts will appear here' : 'No photos yet')}
               {activeTab === 'session_shots' && (isOwnProfile ? 'Pro shots from photographers will appear here' : 'No session shots yet')}
               {activeTab === 'videos' && (isOwnProfile ? 'Your video posts will show up here' : 'No videos yet')}
               {activeTab === 'saved' && 'Save posts from the feed to view them later'}
