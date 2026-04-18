@@ -159,19 +159,37 @@ class Profile(Base):
     
     # ============ MULTI-TIERED GALLERY PRICING ============
     # Session-specific pricing (separate from general gallery pricing)
-    # On-Demand Photo Price: Per-photo rate for on-demand requests
+    # On-Demand Photo Price: Per-photo rate for on-demand requests (legacy single-tier)
     on_demand_photo_price = Column(Float, default=10.0)
     # On-Demand Photos Included: Free photos surfers get with on-demand buy-in
     on_demand_photos_included = Column(Integer, default=3)
     # On-Demand Full Gallery: All photos included (unlimited) with buy-in
     on_demand_full_gallery = Column(Boolean, default=False)
-    # Live Session Photo Price: Per-photo rate for active live sessions
+    # Live Session Photo Price: Per-photo rate for active live sessions (legacy single-tier)
     live_session_photo_price = Column(Float, default=5.0)
     # Photos included in session buy-in (surfers get these free)
     live_session_photos_included = Column(Integer, default=3)
     # Live Session Full Gallery: All photos included (unlimited) with buy-in
     live_session_full_gallery = Column(Boolean, default=False)
-    
+
+    # ============ ON-DEMAND INDEPENDENT RESOLUTION PRICING ============
+    # Fully independent from Gallery and Booking pricing
+    on_demand_price_web = Column(Float, default=5.0)       # Web quality (800px) - on-demand rate
+    on_demand_price_standard = Column(Float, default=10.0) # Standard (1920px) - on-demand rate
+    on_demand_price_high = Column(Float, default=18.0)     # High-res (original) - on-demand rate
+    on_demand_video_720p = Column(Float, default=12.0)     # 720p video clip - on-demand rate
+    on_demand_video_1080p = Column(Float, default=20.0)    # 1080p Full HD - on-demand rate
+    on_demand_video_4k = Column(Float, default=40.0)       # 4K Ultra HD - on-demand rate
+
+    # ============ LIVE SESSION INDEPENDENT RESOLUTION PRICING ============
+    # Fully independent from Gallery and On-Demand pricing
+    live_price_web = Column(Float, default=3.0)            # Web quality (800px) - live session rate
+    live_price_standard = Column(Float, default=6.0)       # Standard (1920px) - live session rate
+    live_price_high = Column(Float, default=12.0)          # High-res (original) - live session rate
+    live_video_720p = Column(Float, default=8.0)           # 720p video clip - live session rate
+    live_video_1080p = Column(Float, default=15.0)         # 1080p Full HD - live session rate
+    live_video_4k = Column(Float, default=30.0)            # 4K Ultra HD - live session rate
+
     # ============ GENERAL BOOKING TIERED PRICING ============
     # Standard scheduled bookings now support resolution tiers like Live/On-Demand
     booking_price_web = Column(Float, default=3.0)       # Web quality price
@@ -180,6 +198,10 @@ class Profile(Base):
     booking_photos_included = Column(Integer, default=3) # Photos included in booking
     booking_full_gallery = Column(Boolean, default=False) # Full gallery access toggle
     price_per_additional_surfer = Column(Float, default=15.0)  # Crew split: added per extra surfer
+    # Booking video tiers (independent from Gallery video pricing)
+    booking_video_720p = Column(Float, default=8.0)        # 720p video clip - booking rate
+    booking_video_1080p = Column(Float, default=15.0)      # 1080p Full HD - booking rate
+    booking_video_4k = Column(Float, default=30.0)         # 4K Ultra HD - booking rate
     
     # ============ GROUP BOOKING DISCOUNTS ============
     # Photographers can set percentage discounts for group bookings

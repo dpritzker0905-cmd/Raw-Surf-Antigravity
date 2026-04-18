@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 
 import { useLocation } from 'react-router-dom';
 
@@ -839,6 +839,14 @@ export const OnDemandSessionManager = () => {
   const [peakMultiplier, setPeakMultiplier] = useState(1.5);
   const [onDemandPhotosIncluded, setOnDemandPhotosIncluded] = useState(3);
   const [onDemandFullGallery, setOnDemandFullGallery] = useState(false);
+
+  // On-Demand independent resolution pricing
+  const [odPriceWeb, setOdPriceWeb] = useState(5);
+  const [odPriceStandard, setOdPriceStandard] = useState(10);
+  const [odPriceHigh, setOdPriceHigh] = useState(18);
+  const [odVideo720p, setOdVideo720p] = useState(12);
+  const [odVideo1080p, setOdVideo1080p] = useState(20);
+  const [odVideo4k, setOdVideo4k] = useState(40);
   
   // Coverage spots state
   const [nearbySpots, setNearbySpots] = useState([]);
@@ -1018,6 +1026,13 @@ export const OnDemandSessionManager = () => {
         setOnDemandPhotosIncluded(response.data.on_demand_photos_included || 3);
         setOnDemandFullGallery(response.data.on_demand_full_gallery || false);
         setSelectedSpots(response.data.claimed_spots || []);
+        // Resolution pricing
+        setOdPriceWeb(response.data.on_demand_price_web || 5);
+        setOdPriceStandard(response.data.on_demand_price_standard || 10);
+        setOdPriceHigh(response.data.on_demand_price_high || 18);
+        setOdVideo720p(response.data.on_demand_video_720p || 12);
+        setOdVideo1080p(response.data.on_demand_video_1080p || 20);
+        setOdVideo4k(response.data.on_demand_video_4k || 40);
       }
       setLoading(false);
     } catch (error) {
@@ -1267,7 +1282,13 @@ export const OnDemandSessionManager = () => {
         latitude: userLocation?.latitude,
         longitude: userLocation?.longitude,
         on_demand_photos_included: onDemandPhotosIncluded,
-        on_demand_full_gallery: onDemandFullGallery
+        on_demand_full_gallery: onDemandFullGallery,
+        on_demand_price_web: odPriceWeb,
+        on_demand_price_standard: odPriceStandard,
+        on_demand_price_high: odPriceHigh,
+        on_demand_video_720p: odVideo720p,
+        on_demand_video_1080p: odVideo1080p,
+        on_demand_video_4k: odVideo4k,
       });
       
       toast.success('On-Demand settings saved!');
@@ -1650,6 +1671,32 @@ export const OnDemandSessionManager = () => {
                         theme={theme}
                       />
                     )}
+
+                    {/* Photo Download Prices */}
+                    <div className={`mt-4 p-4 rounded-xl border ${isLight ? 'bg-blue-50 border-blue-200' : 'bg-blue-500/10 border-blue-500/20'}`}>
+                      <p className={`text-sm font-semibold mb-3 flex items-center gap-2 ${textPrimary}`}>
+                        📸 Photo Download Prices
+                        <span className={`text-xs font-normal ${textSecondary}`}>(per resolution — independent from Gallery)</span>
+                      </p>
+                      <div className="grid grid-cols-1 gap-3">
+                        <NumericStepper label="Web Quality (800px)" value={odPriceWeb} onChange={setOdPriceWeb} min={0} max={500} step={0.5} prefix="$" theme={theme} />
+                        <NumericStepper label="Standard (1920px)" value={odPriceStandard} onChange={setOdPriceStandard} min={0} max={500} step={0.5} prefix="$" theme={theme} />
+                        <NumericStepper label="High-Res (Original)" value={odPriceHigh} onChange={setOdPriceHigh} min={0} max={500} step={0.5} prefix="$" theme={theme} />
+                      </div>
+                    </div>
+
+                    {/* Video Download Prices */}
+                    <div className={`mt-4 p-4 rounded-xl border ${isLight ? 'bg-purple-50 border-purple-200' : 'bg-purple-500/10 border-purple-500/20'}`}>
+                      <p className={`text-sm font-semibold mb-3 flex items-center gap-2 ${textPrimary}`}>
+                        🎬 Video Download Prices
+                        <span className={`text-xs font-normal ${textSecondary}`}>(per resolution — independent from Gallery)</span>
+                      </p>
+                      <div className="grid grid-cols-1 gap-3">
+                        <NumericStepper label="720p HD" value={odVideo720p} onChange={setOdVideo720p} min={0} max={500} step={0.5} prefix="$" theme={theme} />
+                        <NumericStepper label="1080p Full HD" value={odVideo1080p} onChange={setOdVideo1080p} min={0} max={500} step={0.5} prefix="$" theme={theme} />
+                        <NumericStepper label="4K Ultra HD" value={odVideo4k} onChange={setOdVideo4k} min={0} max={500} step={0.5} prefix="$" theme={theme} />
+                      </div>
+                    </div>
                   </div>
                 </CardContent>
               )}

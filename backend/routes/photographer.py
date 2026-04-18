@@ -683,22 +683,66 @@ async def get_gallery_pricing(
             "on_demand_photos_included": photographer.on_demand_photos_included or 3,
             "live_session_photo_price": photographer.live_session_photo_price or 5.0,
             "live_session_photos_included": photographer.live_session_photos_included or 3
+        },
+        # Independent per-session-type resolution pricing
+        "on_demand_pricing": {
+            "photo_web": photographer.on_demand_price_web or 5.0,
+            "photo_standard": photographer.on_demand_price_standard or 10.0,
+            "photo_high": photographer.on_demand_price_high or 18.0,
+            "video_720p": photographer.on_demand_video_720p or 12.0,
+            "video_1080p": photographer.on_demand_video_1080p or 20.0,
+            "video_4k": photographer.on_demand_video_4k or 40.0,
+        },
+        "live_session_pricing": {
+            "photo_web": photographer.live_price_web or 3.0,
+            "photo_standard": photographer.live_price_standard or 6.0,
+            "photo_high": photographer.live_price_high or 12.0,
+            "video_720p": photographer.live_video_720p or 8.0,
+            "video_1080p": photographer.live_video_1080p or 15.0,
+            "video_4k": photographer.live_video_4k or 30.0,
+        },
+        "booking_pricing": {
+            "photo_web": photographer.booking_price_web or 3.0,
+            "photo_standard": photographer.booking_price_standard or 5.0,
+            "photo_high": photographer.booking_price_high or 10.0,
+            "video_720p": photographer.booking_video_720p or 8.0,
+            "video_1080p": photographer.booking_video_1080p or 15.0,
+            "video_4k": photographer.booking_video_4k or 30.0,
         }
     }
 
 
 class UpdateGalleryPricingRequest(BaseModel):
+    # Gallery pricing (general)
     photo_price_web: Optional[float] = None
     photo_price_standard: Optional[float] = None
     photo_price_high: Optional[float] = None
     video_price_720p: Optional[float] = None
     video_price_1080p: Optional[float] = None
     video_price_4k: Optional[float] = None
-    # Multi-tiered session pricing
-    on_demand_photo_price: Optional[float] = None      # Per-photo rate for on-demand requests
-    on_demand_photos_included: Optional[int] = None    # Photos included in on-demand buy-in
-    live_session_photo_price: Optional[float] = None   # Per-photo rate for live sessions
-    live_session_photos_included: Optional[int] = None # Photos included in buy-in
+    # Legacy session pricing (single-tier, kept for backward compat)
+    on_demand_photo_price: Optional[float] = None
+    on_demand_photos_included: Optional[int] = None
+    live_session_photo_price: Optional[float] = None
+    live_session_photos_included: Optional[int] = None
+    # On-Demand independent resolution pricing
+    on_demand_price_web: Optional[float] = None
+    on_demand_price_standard: Optional[float] = None
+    on_demand_price_high: Optional[float] = None
+    on_demand_video_720p: Optional[float] = None
+    on_demand_video_1080p: Optional[float] = None
+    on_demand_video_4k: Optional[float] = None
+    # Live Session independent resolution pricing
+    live_price_web: Optional[float] = None
+    live_price_standard: Optional[float] = None
+    live_price_high: Optional[float] = None
+    live_video_720p: Optional[float] = None
+    live_video_1080p: Optional[float] = None
+    live_video_4k: Optional[float] = None
+    # Booking video pricing (photo tiers already exist)
+    booking_video_720p: Optional[float] = None
+    booking_video_1080p: Optional[float] = None
+    booking_video_4k: Optional[float] = None
 
 
 @router.put("/photographer/{photographer_id}/gallery-pricing")
@@ -707,33 +751,31 @@ async def update_gallery_pricing(
     data: UpdateGalleryPricingRequest,
     db: AsyncSession = Depends(get_db)
 ):
-    """Update photographer's SmugMug-style gallery pricing tiers"""
+    """Update photographer's SmugMug-style gallery pricing tiers (all session types independent)"""
     result = await db.execute(select(Profile).where(Profile.id == photographer_id))
     photographer = result.scalar_one_or_none()
-    
+
     if not photographer:
         raise HTTPException(status_code=404, detail="Photographer not found")
-    
+
     if not is_photographer_role(photographer.role):
         raise HTTPException(status_code=403, detail="User is not a photographer")
-    
-    # Update photo pricing
+
+    # Gallery pricing
     if data.photo_price_web is not None:
         photographer.photo_price_web = max(0, data.photo_price_web)
     if data.photo_price_standard is not None:
         photographer.photo_price_standard = max(0, data.photo_price_standard)
     if data.photo_price_high is not None:
         photographer.photo_price_high = max(0, data.photo_price_high)
-    
-    # Update video pricing
     if data.video_price_720p is not None:
         photographer.video_price_720p = max(0, data.video_price_720p)
     if data.video_price_1080p is not None:
         photographer.video_price_1080p = max(0, data.video_price_1080p)
     if data.video_price_4k is not None:
         photographer.video_price_4k = max(0, data.video_price_4k)
-    
-    # Update session-specific pricing (Multi-tiered)
+
+    # Legacy session pricing
     if data.on_demand_photo_price is not None:
         photographer.on_demand_photo_price = max(0, data.on_demand_photo_price)
     if data.on_demand_photos_included is not None:
@@ -742,10 +784,46 @@ async def update_gallery_pricing(
         photographer.live_session_photo_price = max(0, data.live_session_photo_price)
     if data.live_session_photos_included is not None:
         photographer.live_session_photos_included = max(0, data.live_session_photos_included)
-    
+
+    # On-Demand independent resolution pricing
+    if data.on_demand_price_web is not None:
+        photographer.on_demand_price_web = max(0, data.on_demand_price_web)
+    if data.on_demand_price_standard is not None:
+        photographer.on_demand_price_standard = max(0, data.on_demand_price_standard)
+    if data.on_demand_price_high is not None:
+        photographer.on_demand_price_high = max(0, data.on_demand_price_high)
+    if data.on_demand_video_720p is not None:
+        photographer.on_demand_video_720p = max(0, data.on_demand_video_720p)
+    if data.on_demand_video_1080p is not None:
+        photographer.on_demand_video_1080p = max(0, data.on_demand_video_1080p)
+    if data.on_demand_video_4k is not None:
+        photographer.on_demand_video_4k = max(0, data.on_demand_video_4k)
+
+    # Live Session independent resolution pricing
+    if data.live_price_web is not None:
+        photographer.live_price_web = max(0, data.live_price_web)
+    if data.live_price_standard is not None:
+        photographer.live_price_standard = max(0, data.live_price_standard)
+    if data.live_price_high is not None:
+        photographer.live_price_high = max(0, data.live_price_high)
+    if data.live_video_720p is not None:
+        photographer.live_video_720p = max(0, data.live_video_720p)
+    if data.live_video_1080p is not None:
+        photographer.live_video_1080p = max(0, data.live_video_1080p)
+    if data.live_video_4k is not None:
+        photographer.live_video_4k = max(0, data.live_video_4k)
+
+    # Booking video pricing
+    if data.booking_video_720p is not None:
+        photographer.booking_video_720p = max(0, data.booking_video_720p)
+    if data.booking_video_1080p is not None:
+        photographer.booking_video_1080p = max(0, data.booking_video_1080p)
+    if data.booking_video_4k is not None:
+        photographer.booking_video_4k = max(0, data.booking_video_4k)
+
     await db.commit()
     await db.refresh(photographer)
-    
+
     return {
         "message": "Gallery pricing updated",
         "photo_pricing": {
@@ -758,11 +836,29 @@ async def update_gallery_pricing(
             "1080p": photographer.video_price_1080p,
             "4k": photographer.video_price_4k
         },
-        "session_pricing": {
-            "on_demand_photo_price": photographer.on_demand_photo_price or 10.0,
-            "on_demand_photos_included": photographer.on_demand_photos_included or 3,
-            "live_session_photo_price": photographer.live_session_photo_price or 5.0,
-            "live_session_photos_included": photographer.live_session_photos_included or 3
+        "on_demand_pricing": {
+            "photo_web": photographer.on_demand_price_web,
+            "photo_standard": photographer.on_demand_price_standard,
+            "photo_high": photographer.on_demand_price_high,
+            "video_720p": photographer.on_demand_video_720p,
+            "video_1080p": photographer.on_demand_video_1080p,
+            "video_4k": photographer.on_demand_video_4k,
+        },
+        "live_session_pricing": {
+            "photo_web": photographer.live_price_web,
+            "photo_standard": photographer.live_price_standard,
+            "photo_high": photographer.live_price_high,
+            "video_720p": photographer.live_video_720p,
+            "video_1080p": photographer.live_video_1080p,
+            "video_4k": photographer.live_video_4k,
+        },
+        "booking_pricing": {
+            "photo_web": photographer.booking_price_web,
+            "photo_standard": photographer.booking_price_standard,
+            "photo_high": photographer.booking_price_high,
+            "video_720p": photographer.booking_video_720p,
+            "video_1080p": photographer.booking_video_1080p,
+            "video_4k": photographer.booking_video_4k,
         }
     }
 
@@ -2754,8 +2850,15 @@ class OnDemandSettingsRequest(BaseModel):
     claimed_spots: List[str] = []
     latitude: Optional[float] = None
     longitude: Optional[float] = None
-    on_demand_photos_included: Optional[int] = None  # Photos included in buy-in
-    on_demand_full_gallery: Optional[bool] = None    # Full gallery access toggle
+    on_demand_photos_included: Optional[int] = None
+    on_demand_full_gallery: Optional[bool] = None
+    # Independent resolution pricing for On-Demand sessions
+    on_demand_price_web: Optional[float] = None
+    on_demand_price_standard: Optional[float] = None
+    on_demand_price_high: Optional[float] = None
+    on_demand_video_720p: Optional[float] = None
+    on_demand_video_1080p: Optional[float] = None
+    on_demand_video_4k: Optional[float] = None
 
 
 class OnDemandSettingsResponse(BaseModel):
@@ -2767,6 +2870,12 @@ class OnDemandSettingsResponse(BaseModel):
     longitude: Optional[float] = None
     on_demand_photos_included: int = 3
     on_demand_full_gallery: bool = False
+    on_demand_price_web: float = 5.0
+    on_demand_price_standard: float = 10.0
+    on_demand_price_high: float = 18.0
+    on_demand_video_720p: float = 12.0
+    on_demand_video_1080p: float = 20.0
+    on_demand_video_4k: float = 40.0
 
 
 @router.get("/photographer/{photographer_id}/on-demand-settings")
@@ -2799,7 +2908,14 @@ async def get_on_demand_settings(
         "latitude": profile.on_demand_latitude,
         "longitude": profile.on_demand_longitude,
         "on_demand_photos_included": profile.on_demand_photos_included or 3,
-        "on_demand_full_gallery": profile.on_demand_full_gallery or False
+        "on_demand_full_gallery": profile.on_demand_full_gallery or False,
+        # Independent resolution pricing
+        "on_demand_price_web": profile.on_demand_price_web or 5.0,
+        "on_demand_price_standard": profile.on_demand_price_standard or 10.0,
+        "on_demand_price_high": profile.on_demand_price_high or 18.0,
+        "on_demand_video_720p": profile.on_demand_video_720p or 12.0,
+        "on_demand_video_1080p": profile.on_demand_video_1080p or 20.0,
+        "on_demand_video_4k": profile.on_demand_video_4k or 40.0,
     }
 
 
@@ -2827,15 +2943,26 @@ async def save_on_demand_settings(
     profile.on_demand_peak_enabled = data.peak_pricing_enabled
     profile.on_demand_peak_multiplier = data.peak_multiplier
     profile.on_demand_claimed_spots = json.dumps(data.claimed_spots)
-    
-    # Update photos included in buy-in
+
     if data.on_demand_photos_included is not None:
         profile.on_demand_photos_included = max(0, data.on_demand_photos_included)
-    
-    # Update full gallery toggle
     if data.on_demand_full_gallery is not None:
         profile.on_demand_full_gallery = data.on_demand_full_gallery
-    
+
+    # Independent resolution pricing for on-demand sessions
+    if data.on_demand_price_web is not None:
+        profile.on_demand_price_web = max(0, data.on_demand_price_web)
+    if data.on_demand_price_standard is not None:
+        profile.on_demand_price_standard = max(0, data.on_demand_price_standard)
+    if data.on_demand_price_high is not None:
+        profile.on_demand_price_high = max(0, data.on_demand_price_high)
+    if data.on_demand_video_720p is not None:
+        profile.on_demand_video_720p = max(0, data.on_demand_video_720p)
+    if data.on_demand_video_1080p is not None:
+        profile.on_demand_video_1080p = max(0, data.on_demand_video_1080p)
+    if data.on_demand_video_4k is not None:
+        profile.on_demand_video_4k = max(0, data.on_demand_video_4k)
+
     if data.latitude and data.longitude:
         profile.on_demand_latitude = data.latitude
         profile.on_demand_longitude = data.longitude

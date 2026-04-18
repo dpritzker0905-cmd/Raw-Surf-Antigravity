@@ -1498,14 +1498,27 @@ async def get_gallery(
         purchased_ids = set(row[0] for row in purchase_result.fetchall())
     
     items = []
+    is_owner = viewer_id and viewer_id == gallery.photographer_id
     for item in gallery.items:
-        if item.is_public:
+        # Gallery owner can always see all items (including private/draft ones)
+        # Public viewers only see items marked is_public
+        if is_owner or item.is_public:
             items.append({
                 "id": item.id,
                 "preview_url": item.preview_url,
                 "thumbnail_url": item.thumbnail_url,
-                "media_type": item.media_type,
+                "media_type": item.media_type or "image",
                 "title": item.title,
+                "description": item.description,
+                "tags": item.tags,
+                "price": item.price,
+                "custom_price": item.custom_price,
+                "is_for_sale": item.is_for_sale,
+                "is_public": item.is_public,
+                "is_featured": item.is_featured,
+                "view_count": item.view_count,
+                "purchase_count": item.purchase_count,
+                "tagged_surfer_ids": item.tagged_surfer_ids,
                 "is_purchased": item.id in purchased_ids,
                 "created_at": item.created_at.isoformat()
             })
