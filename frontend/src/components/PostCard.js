@@ -1,4 +1,4 @@
-﻿/**
+/**
  * PostCard - Extracted from Feed.js for better maintainability
  * Renders a single post in the feed with all interactions
  */
@@ -735,7 +735,7 @@ const PostCard = ({
               <div className={`w-10 h-10 rounded-full ${isLight ? 'bg-gray-200' : 'bg-zinc-700'} ${liveUsers.includes(post.author_id) ? 'border-2 border-black' : ''} flex items-center justify-center overflow-hidden`}>
                 {post.author_avatar ? (
                   <img 
-                    src={post.author_avatar} 
+                    src={getFullUrl(post.author_avatar)} 
                     alt={post.author_name} 
                     className="w-full h-full object-cover"
                     onError={(e) => { e.target.style.display = 'none'; }}

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * PostModal - Instagram-style post popup with image on left, details on right
  * Opens when clicking on a post in the feed
  */
@@ -12,6 +12,7 @@ import { RichText, CommentText } from './RichText';
 import { SharePostModal } from './PostMenu';
 import PostMenu from './PostMenu';
 import logger from '../utils/logger';
+import { getFullUrl } from '../utils/media';
 
 
 // Reaction emojis (Shaka plus others)
@@ -155,7 +156,7 @@ const CommentItem = ({ comment, userId, _onReact }) => {
     <div className="flex gap-3 py-2">
       <div className="w-8 h-8 rounded-full bg-zinc-700 flex items-center justify-center overflow-hidden flex-shrink-0">
         {comment.author_avatar ? (
-          <img src={comment.author_avatar} alt="" className="w-full h-full object-cover" />
+          <img src={getFullUrl(comment.author_avatar)} alt="" className="w-full h-full object-cover" />
         ) : (
           <span className="text-xs text-gray-400">{comment.author_name?.charAt(0)}</span>
         )}
@@ -549,7 +550,7 @@ const PostModal = ({ post, isOpen, onClose, _onPostUpdated }) => {
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 rounded-full bg-zinc-700 overflow-hidden ring-2 ring-white/20">
                 {post.author_avatar ? (
-                  <img src={post.author_avatar} alt="" className="w-full h-full object-cover" />
+                  <img src={getFullUrl(post.author_avatar)} alt="" className="w-full h-full object-cover" />
                 ) : (
                   <span className="w-full h-full flex items-center justify-center text-sm text-white">
                     {post.author_name?.charAt(0)}
@@ -868,7 +869,7 @@ const PostModal = ({ post, isOpen, onClose, _onPostUpdated }) => {
           <div className="flex items-center gap-3 p-4 border-b border-zinc-800">
             <div className="w-8 h-8 rounded-full bg-zinc-700 overflow-hidden">
               {post.author_avatar ? (
-                <img src={post.author_avatar} alt="" className="w-full h-full object-cover" />
+                <img src={getFullUrl(post.author_avatar)} alt="" className="w-full h-full object-cover" />
               ) : (
                 <span className="w-full h-full flex items-center justify-center text-sm text-gray-400">
                   {post.author_name?.charAt(0)}
@@ -911,7 +912,7 @@ const PostModal = ({ post, isOpen, onClose, _onPostUpdated }) => {
               <div className="flex gap-3 p-4">
                 <div className="w-8 h-8 rounded-full bg-zinc-700 overflow-hidden flex-shrink-0">
                   {post.author_avatar ? (
-                    <img src={post.author_avatar} alt="" className="w-full h-full object-cover" />
+                    <img src={getFullUrl(post.author_avatar)} alt="" className="w-full h-full object-cover" />
                   ) : (
                     <span className="w-full h-full flex items-center justify-center text-sm text-gray-400">
                       {post.author_name?.charAt(0)}

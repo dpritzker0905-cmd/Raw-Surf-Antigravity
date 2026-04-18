@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { usePersona, getExpandedRoleInfo } from '../contexts/PersonaContext';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -541,7 +541,7 @@ export const Profile = () => {
         default:
           endpoint = `/profile/${profileUserId}/posts${qs}`;
       }
-      const response = await apiClient.get(`${API}${endpoint}`);
+      const response = await apiClient.get(endpoint);
       // Handle both array and object responses (tagged returns {items, new_count})
       // Use the `tab` parameter (not activeTab state) to avoid stale closure issues
       if (tab === 'tagged' && response.data?.items) {
