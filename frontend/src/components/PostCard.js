@@ -562,19 +562,22 @@ const _ShakaIcon = ({ filled }) => (
 );
 
 // Format time ago helper
-const _formatTimeAgo = (dateString) => {
+const formatTimeAgo = (dateString) => {
+  if (!dateString) return '';
   const date = new Date(dateString);
   const now = new Date();
   const diffMs = now - date;
   const diffMins = Math.floor(diffMs / 60000);
   const diffHours = Math.floor(diffMs / 3600000);
   const diffDays = Math.floor(diffMs / 86400000);
-  
-  if (diffMins < 1) return 'now';
+  const diffWeeks = Math.floor(diffDays / 7);
+
+  if (diffMins < 1) return 'just now';
   if (diffMins < 60) return `${diffMins}m`;
   if (diffHours < 24) return `${diffHours}h`;
   if (diffDays < 7) return `${diffDays}d`;
-  return date.toLocaleDateString();
+  if (diffWeeks < 52) return `${diffWeeks}w`;
+  return date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
 };
 
 const PostCard = ({
@@ -806,14 +809,19 @@ const PostCard = ({
                 </button>
               )}
             </div>
-            {/* Real name as subtitle if username exists */}
-            {post.author_username && post.author_name && (
-              <p className={`text-xs ${textSecondaryClass}`}>{post.author_name}</p>
+          {/* Timestamp + location row */}
+          <p className={`text-xs ${textSecondaryClass} flex items-center gap-1`}>
+            {post.created_at && (
+              <span>{formatTimeAgo(post.created_at)}</span>
+            )}
+            {post.location && post.created_at && (
+              <span className="opacity-50">·</span>
             )}
             {post.location && (
-              <p className={`text-xs ${textSecondaryClass}`}>{post.location}</p>
+              <span>{post.location}</span>
             )}
-          </div>
+          </p>
+        </div>
         </div>
         <button 
           onClick={() => onPostMenuOpen(post)}
