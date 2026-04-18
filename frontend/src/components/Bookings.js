@@ -842,7 +842,7 @@ export const Bookings = () => {
     { id: 'lineup', label: 'The Lineup', icon: Users, count: 0, highlight: true },  // New Lineup tab
     { id: 'live_sessions', label: 'Live Sessions', icon: Zap, count: liveSessions.length },
     { id: 'on_demand', label: 'On-Demand', icon: Target, count: onDemandPhotographers.length },
-    { id: 'find_buddies', label: 'Find Buddies', icon: Users, count: nearbyBookings.length },
+    { id: 'find_buddies', label: 'Open Sessions', icon: Users, count: nearbyBookings.length },
     { id: 'scheduled', label: 'Scheduled', icon: CalendarClock, count: bookings.filter(b => b.status === 'Confirmed' || b.status === 'Pending').length },
     { id: 'past', label: 'Past', icon: History, count: bookings.filter(b => b.status === 'Completed').length },
     { id: 'live_now', label: 'Live Now', icon: Radio, count: livePhotographers.length },
