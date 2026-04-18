@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useCallback, useMemo } from 'react';
+﻿import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Compass, Plus, Camera, MessageCircle, Waves } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';

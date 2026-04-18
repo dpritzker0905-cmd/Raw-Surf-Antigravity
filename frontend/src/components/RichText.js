@@ -1,4 +1,4 @@
-/**
+﻿/**
  * RichText - Renders text with clickable #hashtags and @mentions
  * 
  * Best practices from social media:
@@ -10,7 +10,7 @@
  * - #hashtags: Cyan color, navigate to /explore?hashtag={tag}
  * - @mentions: Blue color, navigate to /profile/{username}
  */
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 // Regex patterns for matching

@@ -1,9 +1,9 @@
-/**
+﻿/**
  * StokedDrawer - Mobile bottom sheet drawer for Stoked credits/impact
  * Opens from the lightning bolt icon in mobile TopNav
  */
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { usePersona } from '../contexts/PersonaContext';
