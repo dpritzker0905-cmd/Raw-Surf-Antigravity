@@ -191,6 +191,7 @@ class ConversationDetailResponse(BaseModel):
     other_user_id: str
     other_user_name: Optional[str]
     other_user_avatar: Optional[str]
+    other_user_last_active: Optional[datetime] = None  # For real presence
     messages: List[MessageResponse]
     is_request: bool
     is_pinned: bool = False
@@ -733,6 +734,7 @@ async def get_conversation_messages(conversation_id: str, user_id: str, db: Asyn
         other_user_id=other_user.id if other_user else "",
         other_user_name=other_user.full_name if other_user else None,
         other_user_avatar=other_user.avatar_url if other_user else None,
+        other_user_last_active=other_user.updated_at if other_user else None,
         messages=messages,
         is_request=(my_status == 'request'),
         is_pinned=is_pinned or False,

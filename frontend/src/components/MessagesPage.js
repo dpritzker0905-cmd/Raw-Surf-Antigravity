@@ -2316,20 +2316,28 @@ export const MessagesPage = () => {
             </span>
           )}
         </button>
-        <div className="flex-1">
+        <div className="flex-1 min-w-0">
           <button
             onClick={() => navigate(`/profile/${conversationDetail?.other_user_id || selectedConversation?.other_user_id}`)}
-            className="font-medium text-foreground hover:text-cyan-400 transition-colors text-left"
+            className="font-medium text-foreground hover:text-cyan-400 transition-colors text-left block truncate"
           >
             {conversationDetail?.other_user_name || selectedConversation?.other_user_name}
           </button>
-          {selectedConversation?.is_new_chat ? (
-            <span className="text-xs text-muted-foreground">Start a conversation</span>
-          ) : typingUsers.length > 0 ? (
-            <span className="text-xs text-cyan-400 animate-pulse">typing...</span>
-          ) : (
-            <span className="text-xs text-green-400">Active now</span>
-          )}
+          <div className="text-xs mt-0.5">
+            {selectedConversation?.is_new_chat ? (
+              <span className="text-muted-foreground">Start a conversation</span>
+            ) : typingUsers.length > 0 ? (
+              <span className="text-cyan-400 animate-pulse">typing...</span>
+            ) : (() => {
+              const lastActive = conversationDetail?.other_user_last_active;
+              if (!lastActive) return <span className="text-muted-foreground">Active recently</span>;
+              const diff = Math.floor((Date.now() - new Date(lastActive).getTime()) / 1000);
+              if (diff < 300) return <span className="text-green-400">&#x25CF; Active now</span>;
+              if (diff < 3600) return <span className="text-muted-foreground">Active {Math.floor(diff / 60)}m ago</span>;
+              if (diff < 86400) return <span className="text-muted-foreground">Active {Math.floor(diff / 3600)}h ago</span>;
+              return <span className="text-muted-foreground">Active {new Date(lastActive).toLocaleDateString()}</span>;
+            })()}
+          </div>
         </div>
         
         {/* Conversation Controls Dropdown */}
