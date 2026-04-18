@@ -182,7 +182,7 @@ const SurfboardModal = ({ isOpen, onClose, board, onSave, userId }) => {
         const uploadFormData = new FormData();
         uploadFormData.append('file', file);
         
-        const response = await axios.post(`${API}/uploads/image`, uploadFormData, {
+        const response = await axios.post(`${API}/upload`, uploadFormData, {
           headers: { 'Content-Type': 'multipart/form-data' }
         });
         
