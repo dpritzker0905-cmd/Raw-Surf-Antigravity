@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import apiClient from '../lib/apiClient';
 import { getNotifications, getUnreadCount, markRead, markAllRead, sendNotification, sendPhotographerAlert, createNotification, markAlertRead } from '../services/notificationService';
@@ -1467,8 +1467,9 @@ export const Feed = () => {
 
       {/* Check In Modal */}
       <Dialog open={showCheckInModal} onOpenChange={setShowCheckInModal}>
-        <DialogContent className="bg-zinc-900 border-zinc-800 text-white max-w-md" aria-describedby="checkin-modal-description">
-          <DialogHeader>
+        <DialogContent className="bg-zinc-900 border border-zinc-700 text-white max-w-md w-full max-h-[90vh] flex flex-col p-0 overflow-hidden" aria-describedby="checkin-modal-description">
+          {/* Fixed header */}
+          <DialogHeader className="px-6 pt-6 pb-4 shrink-0 border-b border-zinc-800">
             <DialogTitle className="text-xl font-bold flex items-center gap-2">
               <MapPin className="w-5 h-5 text-yellow-400" />
               Check In
@@ -1477,8 +1478,9 @@ export const Feed = () => {
               Check in to a surf spot
             </DialogDescription>
           </DialogHeader>
-          
-          <div className="space-y-4 pt-4">
+
+          {/* Scrollable body */}
+          <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
             {/* GPS Location Button */}
             <div>
               <Button
@@ -1584,8 +1586,10 @@ export const Feed = () => {
                 </div>
               </div>
             )}
+          </div>
 
-            {/* Submit Button */}
+          {/* Fixed footer with submit button */}
+          <div className="px-6 pb-6 pt-3 shrink-0 border-t border-zinc-800">
             <Button
               onClick={submitCheckIn}
               disabled={checkInLoading}
