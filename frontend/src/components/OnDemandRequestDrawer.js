@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 
 import { useAuth } from '../contexts/AuthContext';
 
@@ -808,7 +808,7 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
             </div>
             
             {/* Ocean Background with Surfboards */}
-            <div className={`relative p-4 sm:p-6 rounded-2xl ${isLight ? 'bg-gradient-to-b from-cyan-100 via-blue-50 to-white' : 'bg-gradient-to-b from-cyan-900/30 via-blue-900/20 to-zinc-900'}`}>
+            <div className={`relative p-4 sm:p-6 rounded-2xl overflow-visible ${isLight ? 'bg-gradient-to-b from-cyan-100 via-blue-50 to-white' : 'bg-gradient-to-b from-cyan-900/30 via-blue-900/20 to-zinc-900'}`}>
               {/* Wave pattern background */}
               <div className="absolute inset-0 opacity-20 overflow-hidden rounded-2xl">
                 <svg viewBox="0 0 400 200" className="w-full h-full" preserveAspectRatio="none">
@@ -860,7 +860,7 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
               
               {/* Add Crew Input with Autocomplete */}
               {showAddCrewInput && (
-                <div className="mt-4 relative z-20">
+                <div className="mt-4 relative" style={{ zIndex: 50 }}>
                   <div className="flex gap-2">
                     <div className="flex-1 relative">
                       <Input

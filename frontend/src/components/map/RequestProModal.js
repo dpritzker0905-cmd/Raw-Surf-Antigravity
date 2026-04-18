@@ -1,4 +1,4 @@
-﻿/**
+/**
  * RequestProModal — Unified "Request a Pro Photographer" flow
  *
  * Features:
@@ -536,7 +536,7 @@ export const RequestProModal = ({
           </div>
 
           {/* ── 5. Crew / Split — surfboard lineup ─────────────────────────── */}
-          <div className="bg-zinc-800/50 rounded-xl overflow-hidden">
+          <div className="bg-zinc-800/50 rounded-xl">
             {/* Toggle header */}
             <div className="flex items-center justify-between px-3 py-3">
               <div>
@@ -559,7 +559,7 @@ export const RequestProModal = ({
               <div className="border-t border-zinc-700">
 
                 {/* ── OCEAN / LINEUP VISUALIZATION ── */}
-                <div className="relative p-4 bg-gradient-to-b from-cyan-900/30 via-blue-900/20 to-zinc-900">
+                <div className="relative p-4 bg-gradient-to-b from-cyan-900/30 via-blue-900/20 to-zinc-900 overflow-visible">
                   {/* Wave SVG background */}
                   <div className="absolute inset-0 opacity-20 overflow-hidden rounded-b-none">
                     <svg viewBox="0 0 400 200" className="w-full h-full" preserveAspectRatio="none">
