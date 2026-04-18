@@ -385,6 +385,31 @@ export const CreatePost = () => {
     }
   };
 
+  // Compress an image File to a base64 string (max 1200px, 85% quality)
+  const compressImageToBase64 = (file) => new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new window.Image();
+      img.src = e.target.result;
+      img.onload = () => {
+        const MAX = 1200;
+        let w = img.width, h = img.height;
+        if (w > MAX || h > MAX) {
+          if (w > h) { h = Math.round(h * MAX / w); w = MAX; }
+          else { w = Math.round(w * MAX / h); h = MAX; }
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL('image/jpeg', 0.85));
+      };
+      img.onerror = reject;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+
   const handleUpload = async () => {
     if (selectedFiles.length === 0) return;
 
@@ -397,32 +422,46 @@ export const CreatePost = () => {
       
       for (let i = 0; i < selectedFiles.length; i++) {
         const file = selectedFiles[i];
-        const formData = new FormData();
-        formData.append('file', file);
-        formData.append('user_id', user.id);
+        const isVideo = file.type.startsWith('video/');
 
         setProcessingStatus(
           isCarousel 
-            ? `Uploading photo ${i + 1} of ${selectedFiles.length}...` 
-            : (mediaType === 'video' ? 'Uploading & processing video...' : 'Uploading...')
+            ? `Processing photo ${i + 1} of ${selectedFiles.length}...` 
+            : (isVideo ? 'Uploading & processing video...' : 'Processing...')
         );
 
-        const uploadResponse = await axios.post(`${API}/upload/feed`, formData, {
-          headers: { 'Content-Type': 'multipart/form-data' },
-          onUploadProgress: (progressEvent) => {
-            const fileProgress = Math.round((progressEvent.loaded * 100) / progressEvent.total);
-            const overallProgress = Math.round(((i + fileProgress / 100) / selectedFiles.length) * 100);
-            setUploadProgress(overallProgress);
-          }
-        });
-        
-        uploadedMedia.push({
-          url: uploadResponse.data.media_url,
-          type: uploadResponse.data.media_type,
-          thumbnail_url: uploadResponse.data.thumbnail_url,
-          width: uploadResponse.data.final_width,
-          height: uploadResponse.data.final_height
-        });
+        if (isVideo) {
+          // Videos still go through server upload for transcoding
+          const formData = new FormData();
+          formData.append('file', file);
+          formData.append('user_id', user.id);
+          const uploadResponse = await axios.post(`${API}/upload/feed`, formData, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+            onUploadProgress: (progressEvent) => {
+              const fileProgress = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+              const overallProgress = Math.round(((i + fileProgress / 100) / selectedFiles.length) * 100);
+              setUploadProgress(overallProgress);
+            }
+          });
+          uploadedMedia.push({
+            url: uploadResponse.data.media_url,
+            type: uploadResponse.data.media_type,
+            thumbnail_url: uploadResponse.data.thumbnail_url,
+            width: uploadResponse.data.final_width,
+            height: uploadResponse.data.final_height
+          });
+        } else {
+          // Images: compress and store as base64 directly in DB (no ephemeral disk)
+          const base64 = await compressImageToBase64(file);
+          setUploadProgress(Math.round(((i + 1) / selectedFiles.length) * 100));
+          uploadedMedia.push({
+            url: base64,
+            type: 'image',
+            thumbnail_url: null,
+            width: null,
+            height: null
+          });
+        }
       }
 
       setProcessingStatus('Creating post...');
