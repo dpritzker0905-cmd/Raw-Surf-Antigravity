@@ -1,3 +1,4 @@
+import logging
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -20,6 +21,7 @@ from utils.grom_parent import is_grom_parent_eligible
 
 router = APIRouter()
 
+logger = logging.getLogger(__name__)
 # Initialize Stripe
 STRIPE_API_KEY = os.environ.get('STRIPE_API_KEY')
 if STRIPE_API_KEY:
@@ -458,7 +460,7 @@ async def join_session(data: JoinSessionRequest, surfer_id: str, db: AsyncSessio
     except Exception as join_error:
         # ============ AUTOMATIC CREDIT REFUND ON FAILURE ============
         # Payment was processed but session join failed - refund the user
-        print(f"SESSION JOIN ERROR: {type(join_error).__name__}: {str(join_error)}")
+        logger.error(f"SESSION JOIN ERROR: {type(join_error).__name__}: {str(join_error)}")
         import traceback
         traceback.print_exc()
         
@@ -521,7 +523,7 @@ async def join_session(data: JoinSessionRequest, surfer_id: str, db: AsyncSessio
                 raise
             except Exception as refund_error:
                 # Refund also failed - log this critical error
-                print(f"CRITICAL: Payment refund failed for user {surfer_id}: {str(refund_error)}")
+                logger.error(f"CRITICAL: Payment refund failed for user {surfer_id}: {str(refund_error)}")
                 raise HTTPException(
                     status_code=500,
                     detail={

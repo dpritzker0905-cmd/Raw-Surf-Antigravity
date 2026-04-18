@@ -1386,12 +1386,12 @@ async def upload_voice_note(
                 )
                 
                 if response.status_code not in [200, 201]:
-                    print(f"Supabase upload error: {response.text}")
+                    logger.error(f"Supabase upload error: {response.text}")
                     raise HTTPException(status_code=500, detail="Failed to upload voice note")
                 
                 audio_url = f"{SUPABASE_URL}/storage/v1/object/public/chat_media/{storage_filename}"
         except Exception as e:
-            print(f"Supabase upload error: {e}")
+            logger.error(f"Supabase upload error: {e}")
             audio_url = f"/api/uploads/{storage_filename}"
     else:
         audio_url = f"/api/uploads/{storage_filename}"
@@ -1517,12 +1517,12 @@ async def upload_message_media(
                 )
                 
                 if response.status_code not in [200, 201]:
-                    print(f"Supabase upload error: {response.text}")
+                    logger.error(f"Supabase upload error: {response.text}")
                     raise HTTPException(status_code=500, detail="Failed to upload media")
                 
                 media_url = f"{SUPABASE_URL}/storage/v1/object/public/chat_media/{storage_filename}"
         except Exception as e:
-            print(f"Supabase upload error: {e}")
+            logger.error(f"Supabase upload error: {e}")
             # Fall back to local storage
             from pathlib import Path
             UPLOAD_DIR = Path(__file__).parent.parent / "uploads"

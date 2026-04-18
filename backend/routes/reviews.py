@@ -3,6 +3,7 @@ Reviews API Routes - Two-Way Review System
 Handles surfer-to-photographer and photographer-to-surfer reviews
 with AI moderation for vulgarities
 """
+import logging
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, and_, or_
@@ -20,6 +21,7 @@ from routes.gamification import check_badge_milestones
 
 router = APIRouter(prefix="/reviews", tags=["reviews"])
 
+logger = logging.getLogger(__name__)
 # ============ VULGAR WORD FILTER ============
 # Basic list - in production would use a more comprehensive library or AI service
 VULGAR_WORDS = [
@@ -164,7 +166,7 @@ async def create_review(
                     moderation_notes = f"AI moderation: {ai_result.get('reason', 'Content flagged')}"
             except Exception as e:
                 # If AI moderation fails, allow the review (fail open)
-                print(f"AI moderation error: {e}")
+                logger.error(f"AI moderation error: {e}")
     
     # Check for duplicate review
     existing_result = await db.execute(

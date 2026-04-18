@@ -1102,7 +1102,7 @@ async def upload_session_photo(
             img.save(preview_path, quality=85)
             preview_url = f"/api/uploads/gallery/{photographer_id}/{preview_filename}"
         except Exception as e:
-            print(f"Watermark error: {e}")
+            logger.error(f"Watermark error: {e}")
             # Just use original as preview
     
     # For videos, optionally generate thumbnail (if video processor is available)
@@ -1116,7 +1116,7 @@ async def upload_session_photo(
             if thumbnail_success:
                 preview_url = f"/api/uploads/gallery/{photographer_id}/{thumbnail_filename}"
         except Exception as e:
-            print(f"Video thumbnail error: {e}")
+            logger.error(f"Video thumbnail error: {e}")
             # Keep original URL as preview
     
     # Parse tagged surfers

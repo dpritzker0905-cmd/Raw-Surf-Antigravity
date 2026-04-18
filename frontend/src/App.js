@@ -87,7 +87,6 @@ const CreatePostPage = () => <CreatePost />;
 
 
 function App() {
-  console.log('[App] Rendering App component');
   return (
     <ErrorBoundary>
     <ThemeProvider>

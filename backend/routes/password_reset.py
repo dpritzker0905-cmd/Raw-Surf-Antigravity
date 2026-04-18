@@ -54,7 +54,7 @@ async def send_password_reset_email(email: str, reset_link: str, user_name: str 
         return False
     
     # DEBUG: Log the exact reset_link being used
-    print(f"[EMAIL_DEBUG] Sending reset email to {email} with link: {reset_link}", flush=True)
+    logger.error(f"[EMAIL_DEBUG] Sending reset email to {email} with link: {reset_link}", flush=True)
     
     try:
         display_name = user_name or email.split('@')[0]

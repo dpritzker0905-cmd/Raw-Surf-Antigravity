@@ -463,7 +463,6 @@ export const Bookings = () => {
     if (sessionPayment === 'success' && checkoutSessionId) {
       // Guard: Only process once per mount/redirect
       if (paymentProcessedRef.current) {
-        console.log('Payment already processed, skipping duplicate call');
         return;
       }
       paymentProcessedRef.current = true;
@@ -471,12 +470,10 @@ export const Bookings = () => {
       // Complete the session join after successful payment
       const completeSessionJoin = async () => {
         try {
-          console.log('Completing session payment:', checkoutSessionId);
           const response = await apiClient.post(`/sessions/complete-payment`, {
             checkout_session_id: checkoutSessionId
           });
           
-          console.log('Complete payment response:', response.data);
           
           if (response.data.success) {
             toast.success(`You're in the session with ${response.data.photographer_name || 'the photographer'}! 🏄`, { duration: 5000 });
@@ -484,7 +481,6 @@ export const Bookings = () => {
             setActiveTab('live_sessions');
             // Refresh live sessions
             const sessionsRes = await apiClient.get(`/sessions/user/${user.id}`);
-            console.log('Live sessions:', sessionsRes.data);
             setLiveSessions(sessionsRes.data || []);
           }
         } catch (error) {
@@ -515,7 +511,6 @@ export const Bookings = () => {
         }
       } catch (e) {
         // Silent fail for credits
-        console.log('Credits fetch failed:', e);
       }
       
       // Fetch user's bookings

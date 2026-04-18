@@ -3,6 +3,7 @@ On-Demand Dispatch System Routes
 Uber-style reverse request system for summoning photographers
 """
 
+import logging
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Body
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, or_, func
@@ -29,6 +30,7 @@ from services.onesignal_service import onesignal_service
 
 router = APIRouter(prefix="/dispatch", tags=["dispatch"])
 
+logger = logging.getLogger(__name__)
 # Initialize Stripe
 stripe.api_key = os.environ.get("STRIPE_SECRET_KEY")
 
@@ -413,7 +415,7 @@ async def create_dispatch_request(
         dispatch_request.stripe_payment_intent_id = payment_intent.id
     except Exception as e:
         # If Stripe fails, still create the request for wallet payment
-        print(f"Stripe error: {e}")
+        logger.error(f"Stripe error: {e}")
     
     # If shared request, create participant records with custom shares
     if request_data.is_shared and request_data.friend_ids:
@@ -836,7 +838,7 @@ async def process_dispatch_notifications(dispatch_id: str):
                 )
                 db.add(notification)
                 await db.commit()
-                print(f"[Dispatch] Sent Quick Book notification to {target_pro.full_name} for request {dispatch_id}")
+                logger.error(f"[Dispatch] Sent Quick Book notification to {target_pro.full_name} for request {dispatch_id}")
             return
         
         # Regular dispatch - notify Approved Pros in radius (Stage 1)
@@ -905,7 +907,7 @@ async def notify_crew_members(dispatch_id: str, captain_id: str):
             )
             db.add(notification)
             
-            print(f"[Dispatch] Sent crew invite notification to participant {participant.participant_id}")
+            logger.error(f"[Dispatch] Sent crew invite notification to participant {participant.participant_id}")
         
         await db.commit()
 
@@ -1005,7 +1007,7 @@ async def accept_dispatch(
                 url=f"/bookings?tab=on-demand&dispatch={dispatch_id}"
             )
         except Exception as e:
-            print(f"Failed to send acceptance notification: {e}")
+            logger.error(f"Failed to send acceptance notification: {e}")
     
     background_tasks.add_task(send_acceptance_notification)
     

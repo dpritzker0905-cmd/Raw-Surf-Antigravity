@@ -40,7 +40,6 @@ export const BookingSelfieModal = ({
         selfie_url: selfieUrl
       });
       
-      console.log('Selfie upload response:', response.data);
       setStep('success');
       toast.success('Selfie saved! The photographer will use this to identify you.', { duration: 5000 });
       

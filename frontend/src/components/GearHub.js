@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { Card, CardContent } from './ui/card';
 import { Button } from './ui/button';
@@ -121,9 +121,17 @@ export const GearHub = () => {
   };
 
   const setAsTarget = async (item) => {
-    toast.success(`Set ${item.name} as your savings goal!`);
-    setTargetGear(item);
-    // TODO: API call to update profile target_gear_item_id
+    if (!user?.id) return;
+    try {
+      await apiClient.patch(`/api/profiles/me?user_id=${user.id}`, {
+        target_gear_item_id: item.id,
+      });
+      setTargetGear(item);
+      toast.success(`Set ${item.name} as your savings goal!`);
+    } catch (err) {
+      logger.error('Failed to set target gear:', err);
+      toast.error('Could not save your goal. Try again.');
+    }
   };
 
   const _categories = [...new Set(gearItems.map(item => item.category))];

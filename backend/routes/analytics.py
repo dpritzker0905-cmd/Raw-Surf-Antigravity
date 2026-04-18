@@ -8,6 +8,7 @@ Features:
 - A/B test management
 - Time-based aggregations
 """
+import logging
 from fastapi import APIRouter, HTTPException, Query, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, and_, text
@@ -19,6 +20,7 @@ from typing import Optional
 router = APIRouter(prefix="/admin/analytics", tags=["Admin Analytics"])
 
 
+logger = logging.getLogger(__name__)
 async def check_is_admin(admin_id: str, db: AsyncSession) -> Profile:
     """Verify user is an admin"""
     result = await db.execute(
@@ -113,7 +115,7 @@ async def get_analytics_metrics(
         }
         
     except Exception as e:
-        print(f"Analytics metrics error: {e}")
+        logger.error(f"Analytics metrics error: {e}")
         # Return mock data on error
         return {
             "totalRevenue": 24580,
@@ -179,7 +181,7 @@ async def get_conversion_funnel(
         }
         
     except Exception as e:
-        print(f"Funnel data error: {e}")
+        logger.error(f"Funnel data error: {e}")
         return {
             "spotViews": 15420,
             "drawerOpens": 8750,
@@ -266,7 +268,7 @@ async def get_revenue_by_source(
         }
         
     except Exception as e:
-        print(f"Revenue by source error: {e}")
+        logger.error(f"Revenue by source error: {e}")
         return {
             "sources": [
                 {"name": "Photo Sales", "revenue": 15240, "count": 215},

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * RichText - Renders text with clickable #hashtags and @mentions
  * 
  * Best practices from social media:
@@ -12,6 +12,7 @@
  */
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import apiClient from '../lib/apiClient';
 
 // Regex patterns for matching
 const HASHTAG_REGEX = /#(\w+)/g;
@@ -147,19 +148,10 @@ export const RichText = ({
     
     // Lookup username to get user ID, then navigate
     try {
-      const response = await fetch(
-        `${process.env.REACT_APP_BACKEND_URL}/api/username/lookup/${encodeURIComponent(username)}`
-      );
-      
-      if (response.ok) {
-        const user = await response.json();
-        navigate(`/profile/${user.id}`);
-      } else {
-        // Fallback: navigate with username
-        navigate(`/user/${encodeURIComponent(username)}`);
-      }
-    } catch (error) {
-      // Fallback: navigate with username
+      const res = await apiClient.get(`/api/username/lookup/${encodeURIComponent(username)}`);
+      navigate(`/profile/${res.data.id}`);
+    } catch {
+      // Fallback: navigate with username slug
       navigate(`/user/${encodeURIComponent(username)}`);
     }
   };

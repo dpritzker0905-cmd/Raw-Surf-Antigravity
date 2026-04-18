@@ -143,16 +143,13 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
     const fetchCredits = async () => {
       if (user?.id && isOpen && !creditsFetched) {
         try {
-          console.log('[OnDemandDrawer] Fetching credits for user:', user.id);
           const res = await apiClient.get(`/credits/balance/${user.id}`);
-          console.log('[OnDemandDrawer] Credits response:', res.data);
           if (res.data?.balance !== undefined) {
             const balance = res.data.balance;
             setLocalCredits(balance);
             setCreditsFetched(true);
             // Auto-select credits if user has them
             if (balance > 0) {
-              console.log('[OnDemandDrawer] User has credits, setting payment method to credits');
               setPaymentMethod('credits');
             }
           }

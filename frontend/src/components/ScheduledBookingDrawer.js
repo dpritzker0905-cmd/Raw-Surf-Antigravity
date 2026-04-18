@@ -1,4 +1,4 @@
-﻿/**
+/**
  * ScheduledBookingDrawer - Complete booking flow for scheduled sessions
  * Integrates: ExactTimeSlotPicker, Impact Zone coordinates, Account Credit, Crew Split, Confirmation
  */
@@ -1632,15 +1632,6 @@ export const ScheduledBookingDrawer = ({
       // Calculate captain's payment amount
       const captainPaymentAmount = crewSplitEnabled ? captainShare : totalPrice;
       const amountToCharge = Math.max(0, captainPaymentAmount - appliedCredits);
-      
-      // Debug logging for payment troubleshooting
-      console.log('Payment details:', {
-        paymentMethod,
-        captainPaymentAmount,
-        appliedCredits,
-        amountToCharge,
-        totalPrice
-      });
       
       // Calculate payment window for crew
       const paymentWindowExpires = calculatePaymentWindow();

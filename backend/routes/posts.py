@@ -1,3 +1,4 @@
+import logging
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, and_, or_
@@ -11,6 +12,7 @@ from models import Profile, Post, PostLike, Comment, PostReaction, PostCollabora
 
 router = APIRouter()
 
+logger = logging.getLogger(__name__)
 class PostCreate(BaseModel):
     media_url: str
     media_type: str = 'image'  # 'image' or 'video'
@@ -1432,7 +1434,7 @@ async def report_post(
     except Exception:
         # If table doesn't exist, just log and return success
         # Admin will see it via manual review
-        print(f"Report logging: {report.reason} for post {post_id}")
+        logger.error(f"Report logging: {report.reason} for post {post_id}")
         await db.rollback()
     
     return {"success": True, "message": "Report submitted"}

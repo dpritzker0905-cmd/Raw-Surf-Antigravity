@@ -9,6 +9,7 @@ Features:
 4. Community Verified Badge: 5+ "Yes" votes from photographers
 5. Precision Queue: List spots flagged for review (>150m inland)
 """
+import logging
 from fastapi import APIRouter, HTTPException, Query, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, and_, or_, desc
@@ -23,6 +24,7 @@ import httpx
 
 router = APIRouter(prefix="/admin/spots", tags=["Admin Spots"])
 
+logger = logging.getLogger(__name__)
 # ============ PYDANTIC MODELS ============
 
 class SpotCreateRequest(BaseModel):
@@ -117,7 +119,7 @@ async def check_is_on_land(latitude: float, longitude: float) -> dict:
             return {"is_land": False, "location_type": "unknown", "display_name": "API unavailable"}
             
     except Exception as e:
-        print(f"Water check error: {e}")
+        logger.error(f"Water check error: {e}")
         return {"is_land": False, "location_type": "error", "display_name": "Check failed"}
 
 

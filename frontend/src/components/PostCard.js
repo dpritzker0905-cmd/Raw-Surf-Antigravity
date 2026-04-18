@@ -639,7 +639,7 @@ const PostCard = ({
             // Autoplay only if user hasn't explicitly disabled playback on this specific video
             if (!userManuallyPaused) {
               programmaticTarget.current = true;
-              currentVideo.play().catch(e => console.log('Autoplay deferred:', e)).finally(() => {
+              currentVideo.play().catch(() => {}).finally(() => {
                 programmaticTarget.current = false;
               });
             }

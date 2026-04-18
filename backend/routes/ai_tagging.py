@@ -2,6 +2,7 @@
 AI-powered photo tagging routes for detecting and identifying surfers in photos
 Uses GPT-4o Vision API for analysis
 """
+import logging
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -22,6 +23,7 @@ load_dotenv()
 
 router = APIRouter()
 
+logger = logging.getLogger(__name__)
 EMERGENT_LLM_KEY = os.environ.get('EMERGENT_LLM_KEY')
 
 
@@ -199,7 +201,7 @@ Return JSON with matches array.""",
             return []
             
     except Exception as e:
-        print(f"Face comparison error: {e}")
+        logger.error(f"Face comparison error: {e}")
         return []
 
 

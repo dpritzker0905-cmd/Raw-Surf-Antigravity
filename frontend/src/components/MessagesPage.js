@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import { useAuth } from '../contexts/AuthContext';
 import { usePersona, getExpandedRoleInfo, isProLevelRole, isBusinessRole as isBusinessRoleCheck } from '../contexts/PersonaContext';
@@ -15,6 +15,7 @@ import VoiceRecorder from './VoiceRecorder';
 import WebcamCaptureModal from './WebcamCaptureModal';
 import { supabase } from '../lib/supabase';
 import logger from '../utils/logger';
+import GifPicker from './messages/GifPicker';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -160,243 +161,7 @@ const getFolders = (userRole, _isAdmin = false, effectiveRole = null, _isMasked 
 // Available reaction emojis for messages
 const REACTIONS = ['🤙', '🌊', '❤️', '🔥', '👏', '😂'];
 
-// GIF Picker Component using Tenor API (Google)
-const GifPicker = ({ show, onSelect, onClose }) => {
-  const [searchTerm, setSearchTerm] = useState('');
-  const [gifs, setGifs] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [trendingGifs, setTrendingGifs] = useState([]);
-  const pickerRef = useRef(null);
-  const isScrollingRef = useRef(false);
-  
-  // Tenor API key (Google API key for development)
-  const TENOR_API_KEY = 'AIzaSyAyimkuYQYF_FXVALexPuGQctUWRURdCYQ';
-  
-  // Fetch trending GIFs on mount
-  useEffect(() => {
-    if (show && trendingGifs.length === 0) {
-      fetchTrendingGifs();
-    }
-  }, [show]);
-  
-  // Click outside handler - only close on mousedown/touchstart outside (not scroll)
-  useEffect(() => {
-    if (!show) return;
-    
-    const handleClickOutside = (e) => {
-      // Don't close if we're scrolling
-      if (isScrollingRef.current) return;
-      
-      if (pickerRef.current && !pickerRef.current.contains(e.target)) {
-        onClose();
-      }
-    };
-    
-    // Use mousedown for desktop, touchstart for mobile (not touchend to avoid scroll interference)
-    const timeoutId = setTimeout(() => {
-      document.addEventListener('mousedown', handleClickOutside);
-    }, 150);
-    
-    return () => {
-      clearTimeout(timeoutId);
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [show, onClose]);
-  
-  const fetchTrendingGifs = async () => {
-    setLoading(true);
-    try {
-      const response = await fetch(
-        `https://tenor.googleapis.com/v2/featured?key=${TENOR_API_KEY}&limit=20&media_filter=gif,tinygif`
-      );
-      const data = await response.json();
-      // Map Tenor response format to our expected format
-      const mappedGifs = (data.results || []).map(g => ({
-        id: g.id,
-        title: g.content_description || 'GIF',
-        images: {
-          fixed_height: {
-            url: g.media_formats?.gif?.url || g.media_formats?.mediumgif?.url || g.media_formats?.tinygif?.url
-          },
-          fixed_height_small: {
-            url: g.media_formats?.tinygif?.url || g.media_formats?.nanogif?.url
-          },
-          preview_gif: {
-            url: g.media_formats?.tinygif?.url || g.media_formats?.nanogif?.url
-          },
-          original: {
-            url: g.media_formats?.gif?.url
-          }
-        }
-      }));
-      setTrendingGifs(mappedGifs);
-    } catch (error) {
-      console.error('Failed to fetch trending GIFs:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-  
-  const searchGifs = async (query) => {
-    if (!query.trim()) {
-      setGifs([]);
-      return;
-    }
-    setLoading(true);
-    try {
-      const response = await fetch(
-        `https://tenor.googleapis.com/v2/search?key=${TENOR_API_KEY}&q=${encodeURIComponent(query)}&limit=20&media_filter=gif,tinygif`
-      );
-      const data = await response.json();
-      // Map Tenor response format to our expected format
-      const mappedGifs = (data.results || []).map(g => ({
-        id: g.id,
-        title: g.content_description || 'GIF',
-        images: {
-          fixed_height: {
-            url: g.media_formats?.gif?.url || g.media_formats?.mediumgif?.url || g.media_formats?.tinygif?.url
-          },
-          fixed_height_small: {
-            url: g.media_formats?.tinygif?.url || g.media_formats?.nanogif?.url
-          },
-          preview_gif: {
-            url: g.media_formats?.tinygif?.url || g.media_formats?.nanogif?.url
-          },
-          original: {
-            url: g.media_formats?.gif?.url
-          }
-        }
-      }));
-      setGifs(mappedGifs);
-    } catch (error) {
-      console.error('Failed to search GIFs:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-  
-  // Debounced search
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      if (searchTerm) {
-        searchGifs(searchTerm);
-      } else {
-        setGifs([]);
-      }
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [searchTerm]);
-  
-  const displayGifs = searchTerm ? gifs : trendingGifs;
-  
-  if (!show) return null;
-  
-  return (
-    <div 
-      ref={pickerRef}
-      className="absolute left-0 w-[320px] max-w-[calc(100vw-32px)] bottom-full mb-2 h-[420px] max-h-[60vh] flex flex-col bg-card rounded-xl shadow-2xl border border-border overflow-hidden z-[100]"
-    >
-      {/* Search Header */}
-      <div className="p-3 border-b border-border">
-        <div className="flex items-center justify-between mb-2">
-          <span className="text-sm font-medium text-foreground">GIF Picker</span>
-          <button 
-            onClick={onClose}
-            className="p-1 rounded-full hover:bg-muted"
-            type="button"
-          >
-            <X className="w-5 h-5 text-muted-foreground" />
-          </button>
-        </div>
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <input
-            type="text"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Search GIFs..."
-            className="w-full bg-muted rounded-full pl-10 pr-4 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-cyan-500"
-          />
-        </div>
-        <div className="flex items-center justify-between mt-2">
-          <span className="text-xs text-muted-foreground">
-            {searchTerm ? `Results for "${searchTerm}"` : 'Trending GIFs'}
-          </span>
-          <span className="text-[10px] text-muted-foreground opacity-50">Powered by Tenor</span>
-        </div>
-      </div>
-      
-      {/* GIF Grid */}
-      <div 
-        className="p-2 overflow-y-auto flex-1 grid grid-cols-3 gap-2 overscroll-contain"
-        onTouchStart={() => { isScrollingRef.current = false; }}
-        onTouchMove={() => { isScrollingRef.current = true; }}
-        onTouchEnd={() => { 
-          // Reset after a brief delay to allow click events to process
-          setTimeout(() => { isScrollingRef.current = false; }, 100);
-        }}
-      >
-        {loading ? (
-          <div className="col-span-2 flex items-center justify-center py-8">
-            <div className="w-6 h-6 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin" />
-          </div>
-        ) : displayGifs.length === 0 ? (
-          <div className="col-span-2 text-center py-8 text-muted-foreground text-sm">
-            {searchTerm ? 'No GIFs found' : 'Loading...'}
-          </div>
-        ) : (
-          displayGifs.map((gif) => {
-            const gifUrl = gif.images?.fixed_height?.url || gif.images?.original?.url;
-            const previewUrl = gif.images?.fixed_height_small?.url || gif.images?.preview_gif?.url || gifUrl;
-            
-            if (!gifUrl) return null; // Skip if no valid URL
-            
-            return (
-              <button
-                type="button"
-                key={gif.id}
-                onMouseDown={(e) => {
-                  // Use mousedown to ensure selection happens before any blur/close events
-                  e.preventDefault();
-                  e.stopPropagation();
-                }}
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  console.log('GIF clicked, URL:', gifUrl);
-                  if (gifUrl) {
-                    onSelect(gifUrl);
-                  }
-                }}
-                onTouchEnd={(e) => {
-                  // Don't trigger on scroll
-                  if (!isScrollingRef.current) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    console.log('GIF touched, URL:', gifUrl);
-                    if (gifUrl) {
-                      onSelect(gifUrl);
-                    }
-                  }
-                }}
-                className="relative rounded-lg overflow-hidden hover:ring-2 hover:ring-cyan-500 transition-all aspect-square cursor-pointer bg-zinc-800 touch-manipulation"
-                data-testid="gif-item"
-              >
-                <img
-                  src={previewUrl}
-                  alt={gif.title || 'GIF'}
-                  className="w-full h-full object-cover pointer-events-none select-none"
-                  loading="lazy"
-                  draggable={false}
-                />
-              </button>
-            );
-          })
-        )}
-      </div>
-    </div>
-  );
-};
+// GifPicker extracted to ./messages/GifPicker.js
 
 // Emoji picker categories and emojis
 const EMOJI_CATEGORIES = {
@@ -2488,7 +2253,6 @@ export const MessagesPage = () => {
           <GifPicker
             show={showGifPicker}
             onSelect={(gifUrl) => {
-              console.log('GIF picker onSelect called with:', gifUrl);
               if (gifUrl) {
                 handleSendGif(gifUrl);
                 setShowGifPicker(false);
