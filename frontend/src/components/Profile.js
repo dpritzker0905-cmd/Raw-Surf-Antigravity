@@ -1020,7 +1020,7 @@ export const Profile = () => {
             <>
               <Button
                 onClick={() => setShowEditModal(true)}
-                className="flex-1 bg-zinc-800 hover:bg-zinc-700 text-white text-sm h-10"
+                className="flex-1 bg-secondary hover:bg-secondary/80 text-secondary-foreground text-sm h-10"
                 data-testid="edit-profile-btn"
               >
                 Edit profile
@@ -1058,10 +1058,10 @@ export const Profile = () => {
               <Button
                 onClick={() => navigate('/settings')}
                 variant="outline"
-                className="h-10 w-10 p-0 border-zinc-700"
+                className="h-10 w-10 p-0 border-border text-foreground hover:bg-accent"
                 data-testid="settings-button"
               >
-                <Settings className="w-4 h-4 text-white" />
+                <Settings className="w-4 h-4 text-foreground" />
               </Button>
             </>
           ) : (
