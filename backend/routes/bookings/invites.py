@@ -37,6 +37,7 @@ if STRIPE_API_KEY:
 
 # Import shared models from crud domain
 from .crud import (
+    CrewMember,
     InviteFriendRequest,
     InviteByHandleRequest,
     InviteResponse,
