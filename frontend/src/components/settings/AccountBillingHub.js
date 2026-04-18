@@ -583,7 +583,7 @@ export const AccountBillingHub = () => {
                   <div className="flex items-center gap-3">
                     {grom.avatar_url ? (
                       <img 
-                        src={grom.avatar_url} 
+                        src={getFullUrl(grom.avatar_url)} 
                         alt={grom.full_name}
                         className="w-10 h-10 rounded-full object-cover"
                       />

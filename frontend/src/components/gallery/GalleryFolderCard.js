@@ -38,7 +38,7 @@ export const GalleryFolderCard = ({
       <div className="aspect-square bg-zinc-800 relative">
         {folder.thumbnail_url ? (
           <img 
-            src={folder.thumbnail_url} 
+            src={getFullUrl(folder.thumbnail_url)} 
             alt={folder.name}
             className="w-full h-full object-cover"
           />

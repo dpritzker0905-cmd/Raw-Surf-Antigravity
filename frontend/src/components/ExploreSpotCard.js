@@ -1,4 +1,4 @@
-﻿/**
+/**
  * ExploreSpotCard - Engaging surf spot card with conditions, forecast, and actions
  * Used in the Explore tab's "Surf Spots" section
  */
@@ -96,7 +96,7 @@ const ExploreSpotCard = ({ spot, userSubscriptionTier = 'free' }) => {
       <div className="relative h-32 overflow-hidden">
         {spot.image_url ? (
           <img 
-            src={spot.image_url} 
+            src={getFullUrl(spot.image_url)} 
             alt={spot.name}
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
           />

@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
@@ -484,9 +484,9 @@ export const GromHQ = () => {
                       {activity.media_url && (
                         <div className="mt-2 rounded-lg overflow-hidden max-w-[200px]">
                           {activity.media_type === 'video' ? (
-                            <video src={activity.media_url} className="w-full h-auto" muted />
+                            <video src={getFullUrl(activity.media_url)} className="w-full h-auto" muted />
                           ) : (
-                            <img src={activity.media_url} alt="Activity" className="w-full h-auto" />
+                            <img src={getFullUrl(activity.media_url)} alt="Activity" className="w-full h-auto" />
                           )}
                         </div>
                       )}

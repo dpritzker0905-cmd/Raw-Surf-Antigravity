@@ -1,7 +1,8 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import logger from '../utils/logger';
+import { getFullUrl } from '../utils/media';
 
 
 /**
@@ -72,7 +73,7 @@ export const LivePhotographers = () => {
                 <div className="w-full h-full rounded-full bg-black flex items-center justify-center overflow-hidden p-[2px]">
                   {user.avatar_url ? (
                     <img 
-                      src={user.avatar_url} 
+                      src={getFullUrl(user.avatar_url)} 
                       alt={user.full_name}
                       className="w-full h-full object-cover rounded-full"
                     />

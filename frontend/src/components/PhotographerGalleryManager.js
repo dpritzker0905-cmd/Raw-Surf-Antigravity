@@ -942,7 +942,7 @@ export const PhotographerGalleryManager = () => {
             {selectedItem && (
               <div className="flex justify-center">
                 <img 
-                  src={selectedItem.preview_url} 
+                  src={getFullUrl(selectedItem.preview_url)} 
                   alt="Photo to tag" 
                   className="max-h-64 rounded-lg object-contain"
                 />

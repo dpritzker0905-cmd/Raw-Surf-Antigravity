@@ -11,6 +11,7 @@ import React from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { Eye, EyeOff, UserCircle, X, Shield, AlertTriangle } from 'lucide-react';
 import { Button } from './ui/button';
+import { getFullUrl } from '../utils/media';
 
 const ImpersonationBanner = () => {
   const { 
@@ -41,7 +42,7 @@ const ImpersonationBanner = () => {
           <div className="flex items-center gap-2">
             {targetUser.avatar_url ? (
               <img 
-                src={targetUser.avatar_url} 
+                src={getFullUrl(targetUser.avatar_url)} 
                 alt="" 
                 className="w-8 h-8 rounded-full border-2 border-white/50"
               />

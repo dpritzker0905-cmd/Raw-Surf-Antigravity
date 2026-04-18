@@ -314,7 +314,7 @@ const PhotographerRequestModal = ({ isOpen, onClose, spot, spotId, onSuccess }) 
         {/* Spot Info */}
         <div className={`p-3 rounded-xl ${cardBg} mb-4 flex items-center gap-3`}>
           {spot?.image_url && (
-            <img src={spot.image_url} alt={spot.name} className="w-14 h-14 rounded-lg object-cover" />
+            <img src={getFullUrl(spot.image_url)} alt={spot.name} className="w-14 h-14 rounded-lg object-cover" />
           )}
           <div>
             <span className={`font-medium ${textPrimary}`}>{spot?.name}</span>

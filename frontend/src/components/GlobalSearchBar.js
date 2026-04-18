@@ -359,7 +359,7 @@ export const GlobalSearchBar = ({
                     >
                       {post.image_url ? (
                         <img 
-                          src={post.image_url} 
+                          src={getFullUrl(post.image_url)} 
                           alt="" 
                           className="w-8 h-8 rounded object-cover"
                         />

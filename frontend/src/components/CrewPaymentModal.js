@@ -150,7 +150,7 @@ export const CrewPaymentModal = ({
             <div className={`flex items-center gap-3 p-3 rounded-xl ${sectionBg}`}>
               {invite.captain?.avatar_url ? (
                 <img 
-                  src={invite.captain.avatar_url} 
+                  src={getFullUrl(invite.captain.avatar_url)} 
                   alt="" 
                   className="w-10 h-10 rounded-full object-cover ring-2 ring-cyan-400"
                 />

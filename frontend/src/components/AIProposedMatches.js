@@ -159,7 +159,7 @@ const MatchCard = ({
         >
           {isVideo ? (
             <video
-              src={match.preview_url}
+              src={getFullUrl(match.preview_url)}
               poster={match.thumbnail_url}
               className="w-full h-full object-cover"
               loop

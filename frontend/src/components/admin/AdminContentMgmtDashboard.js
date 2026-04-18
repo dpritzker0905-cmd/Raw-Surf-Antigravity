@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import apiClient, { BACKEND_URL } from '../../lib/apiClient';
@@ -16,6 +16,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { toast } from 'sonner';
 import logger from '../../utils/logger';
+import { getFullUrl } from '../../utils/media';
 
 
 /**
@@ -323,7 +324,7 @@ export const AdminContentMgmtDashboard = () => {
                         <div className="flex items-start justify-between">
                           <div className="flex gap-3">
                             {banner.image_url && (
-                              <img src={banner.image_url} alt={banner.title} className="w-20 h-12 object-cover rounded" />
+                              <img src={getFullUrl(banner.image_url)} alt={banner.title} className="w-20 h-12 object-cover rounded" />
                             )}
                             <div>
                               <p className={`font-medium ${textClass}`}>{banner.title}</p>

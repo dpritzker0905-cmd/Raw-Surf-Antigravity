@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import { X, ChevronLeft, ChevronRight, MapPin, Play, Pause, Camera, Waves, Plus, Loader2, Image, Video, Bell } from 'lucide-react';
@@ -8,6 +8,7 @@ import { Textarea } from './ui/textarea';
 import { toast } from 'sonner';
 import { supabase } from '../lib/supabase';
 import LiveStreamViewer from './LiveStreamViewer';
+import { getFullUrl } from '../utils/media';
 import logger from '../utils/logger';
 
 
@@ -423,7 +424,7 @@ const StoryCircle = ({ authorGroup, onClick, isConnecting = false }) => {
           <div className="w-14 h-14 rounded-full overflow-hidden bg-zinc-800">
             {authorGroup.author_avatar ? (
               <img
-                src={authorGroup.author_avatar}
+                src={getFullUrl(authorGroup.author_avatar)}
                 alt={authorGroup.author_name}
                 className="w-full h-full object-cover"
               />
@@ -597,7 +598,7 @@ const StoryViewer = ({ authorGroup, viewerId, _viewerLocation, onClose, onNaviga
           <div className={`p-[2px] rounded-full ${getStoryRingColor(authorGroup)}`}>
             <div className="w-10 h-10 rounded-full overflow-hidden bg-black">
               {authorGroup.author_avatar ? (
-                <img src={authorGroup.author_avatar} alt="" className="w-full h-full object-cover" />
+                <img src={getFullUrl(authorGroup.author_avatar)} alt="" className="w-full h-full object-cover" />
               ) : (
                 <div className="w-full h-full flex items-center justify-center text-white font-bold">
                   {authorGroup.author_name?.[0]}
@@ -643,7 +644,7 @@ const StoryViewer = ({ authorGroup, viewerId, _viewerLocation, onClose, onNaviga
         <div className="w-full h-full flex items-center justify-center bg-black">
           {currentStory.media_type === 'video' ? (
             <video
-              src={currentStory.media_url}
+              src={getFullUrl(currentStory.media_url)}
               className="max-w-full max-h-full object-contain"
               autoPlay
               loop
@@ -652,7 +653,7 @@ const StoryViewer = ({ authorGroup, viewerId, _viewerLocation, onClose, onNaviga
             />
           ) : (
             <img
-              src={currentStory.media_url}
+              src={getFullUrl(currentStory.media_url)}
               alt=""
               className="max-w-full max-h-full object-contain"
             />

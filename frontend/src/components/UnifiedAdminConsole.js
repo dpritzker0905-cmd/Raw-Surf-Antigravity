@@ -2360,7 +2360,7 @@ const AdControlsPanel = ({ user }) => {
                           ) : (
                             <>
                               <img 
-                                src={ad.image_url} 
+                                src={getFullUrl(ad.image_url)} 
                                 alt="Ad preview" 
                                 className="w-full h-32 object-cover" 
                               />

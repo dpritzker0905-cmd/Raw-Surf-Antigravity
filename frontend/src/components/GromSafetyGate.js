@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, createContext, useContext } from 'react';
+import React, { useState, useEffect, createContext, useContext } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import apiClient, { BACKEND_URL } from '../lib/apiClient';
@@ -10,6 +10,7 @@ import { Card, CardContent } from './ui/card';
 import { Badge } from './ui/badge';
 import { toast } from 'sonner';
 import { ROLES } from '../constants/roles';
+import { getFullUrl } from '../utils/media';
 
 
 // Create context to share Grom status across components
@@ -194,7 +195,7 @@ const SafetyGateUI = ({ gromStatus, onRefresh }) => {
                 <div className="w-10 h-10 rounded-full bg-cyan-500/20 flex items-center justify-center">
                   {gromStatus.parent_info.avatar_url ? (
                     <img 
-                      src={gromStatus.parent_info.avatar_url} 
+                    src={getFullUrl(gromStatus.parent_info.avatar_url)} 
                       alt="" 
                       className="w-10 h-10 rounded-full"
                     />

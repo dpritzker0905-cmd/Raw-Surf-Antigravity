@@ -738,7 +738,7 @@ export const GalleryPage = () => {
                 >
                   {item.media_type === 'video' ? (
                     <video 
-                      src={item.preview_url} 
+                      src={getFullUrl(item.preview_url)} 
                       className="w-full h-full object-cover"
                       muted
                     />
@@ -1792,14 +1792,14 @@ const GalleryCard = ({ item, onClick, isOwner, isGromParent, linkedGroms, onTagG
       <div onClick={onClick}>
         {isVideo ? (
           <video
-            src={item.preview_url}
+            src={getFullUrl(item.preview_url)}
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
             muted
             playsInline
           />
         ) : (
           <img
-            src={item.preview_url}
+            src={getFullUrl(item.preview_url)}
             alt={item.title || 'Gallery photo'}
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
           />

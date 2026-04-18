@@ -189,7 +189,7 @@ export const GearHub = () => {
               <div className="flex items-center gap-4">
                 <div className="w-16 h-16 bg-zinc-800 rounded-lg overflow-hidden flex-shrink-0">
                   {targetGear.image_url ? (
-                    <img src={targetGear.image_url} alt={targetGear.name} className="w-full h-full object-cover" />
+                    <img src={getFullUrl(targetGear.image_url)} alt={targetGear.name} className="w-full h-full object-cover" />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center">
                       <Target className="w-8 h-8 text-zinc-500" />
@@ -305,7 +305,7 @@ export const GearHub = () => {
                   <div className="aspect-video bg-zinc-800 relative">
                     {item.image_url ? (
                       <img 
-                        src={item.image_url} 
+                        src={getFullUrl(item.image_url)} 
                         alt={item.name}
                         className="w-full h-full object-cover"
                       />

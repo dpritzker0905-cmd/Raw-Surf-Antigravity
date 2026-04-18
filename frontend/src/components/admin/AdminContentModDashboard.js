@@ -306,7 +306,7 @@ export const AdminContentModDashboard = () => {
               {/* Content Preview */}
               <div className="p-3 bg-zinc-800 rounded-lg">
                 {selectedItem.media_url && (
-                  <img src={selectedItem.media_url} alt="Content" className="w-full rounded mb-2 max-h-48 object-cover" />
+                  <img src={getFullUrl(selectedItem.media_url)} alt="Content" className="w-full rounded mb-2 max-h-48 object-cover" />
                 )}
                 <p className="text-sm text-gray-300">{selectedItem.content_preview}</p>
               </div>

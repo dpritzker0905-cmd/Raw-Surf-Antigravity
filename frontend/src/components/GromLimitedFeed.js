@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { 
@@ -11,6 +11,7 @@ import { Badge } from './ui/badge';
 import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import { toast } from 'sonner';
 import logger from '../utils/logger';
+import { getFullUrl } from '../utils/media';
 
 
 /**
@@ -141,7 +142,7 @@ const GromLimitedFeed = ({ gromStatus, _onCopyCode }) => {
                   <div className="flex items-center gap-3 p-3">
                     <div className="w-10 h-10 rounded-full bg-gradient-to-br from-cyan-500 to-blue-500 flex items-center justify-center">
                       {post.author_avatar ? (
-                        <img src={post.author_avatar} alt="" className="w-10 h-10 rounded-full object-cover" />
+                        <img src={getFullUrl(post.author_avatar)} alt="" className="w-10 h-10 rounded-full object-cover" />
                       ) : (
                         <span className="text-white font-bold text-sm">
                           {post.author_name?.charAt(0) || 'G'}
@@ -163,7 +164,7 @@ const GromLimitedFeed = ({ gromStatus, _onCopyCode }) => {
                   {post.media_url && (
                     <div className="relative aspect-square bg-zinc-800">
                       <img 
-                        src={post.media_url} 
+                        src={getFullUrl(post.media_url)} 
                         alt="" 
                         className="w-full h-full object-cover"
                       />
