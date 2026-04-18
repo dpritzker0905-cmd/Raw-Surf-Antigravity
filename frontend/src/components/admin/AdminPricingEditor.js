@@ -201,8 +201,8 @@ export const AdminPricingEditor = () => {
   const handleSave = async () => {
     setSaving(true);
     try {
-      const response = await axios.post(
-        `${API}/admin/pricing/update?admin_id=${user.id}`,
+      const response = await apiClient.post(
+        `/admin/pricing/update?admin_id=${user.id}`,
         pricing
       );
       

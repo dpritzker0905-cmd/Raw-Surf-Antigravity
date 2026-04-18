@@ -48,8 +48,8 @@ export const SessionJoinCard = ({
     setLoading(true);
     try {
       // Request to join the booking
-      const response = await axios.post(
-        `${API}/bookings/${post.booking_id}/request-join`,
+      const response = await apiClient.post(
+        `/bookings/${post.booking_id}/request-join`,
         { user_id: user.id }
       );
       

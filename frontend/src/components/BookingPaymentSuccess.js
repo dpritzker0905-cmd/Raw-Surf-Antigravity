@@ -33,8 +33,8 @@ const BookingPaymentSuccess = () => {
 
     const confirmBookingPayment = async () => {
       try {
-        const response = await axios.get(
-          `${API}/bookings/payment-success?session_id=${sessionId}&booking_id=${bookingId}`
+        const response = await apiClient.get(
+          `/bookings/payment-success?session_id=${sessionId}&booking_id=${bookingId}`
         );
         
         if (response.data.success) {

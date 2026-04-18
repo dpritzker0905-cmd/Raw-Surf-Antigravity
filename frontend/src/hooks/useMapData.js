@@ -41,8 +41,8 @@ export const useMapData = (userId = null, userLocation = null) => {
         params.append('max_lon', viewport.maxLng);
       }
       
-      const url = `${API}/surf-spots${params.toString() ? '?' + params.toString() : ''}`;
-      const response = await axios.get(url);
+      const url = `/surf-spots${params.toString() ? '?' + params.toString() : ''}`;
+      const response = await apiClient.get(url);
       setSurfSpots(response.data);
     } catch (error) {
       logger.error('Error fetching surf spots:', error);

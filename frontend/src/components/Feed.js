@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+﻿import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import apiClient from '../lib/apiClient';
 import { useAuth } from '../contexts/AuthContext';
@@ -931,8 +931,8 @@ export const Feed = () => {
     }
 
     try {
-      const response = await axios.post(
-        `${API}/posts/${postId}/comments?user_id=${user.id}`,
+      const response = await apiClient.post(
+        `/posts/${postId}/comments?user_id=${user.id}`,
         { content }
       );
       
@@ -1020,8 +1020,8 @@ export const Feed = () => {
         }
       }
       
-      await axios.post(
-        `${API}/posts/${postId}/request-collaboration?user_id=${user.id}`,
+      await apiClient.post(
+        `/posts/${postId}/request-collaboration?user_id=${user.id}`,
         {
           latitude,
           longitude

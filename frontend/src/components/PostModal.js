@@ -134,8 +134,8 @@ const CommentItem = ({ comment, userId, _onReact }) => {
     }
     
     try {
-      const response = await axios.post(
-        `${API}/comments/${comment.id}/reactions?user_id=${userId}`,
+      const response = await apiClient.post(
+        `/comments/${comment.id}/reactions?user_id=${userId}`,
         { emoji: '❤️' }
       );
       
@@ -410,8 +410,8 @@ const PostModal = ({ post, isOpen, onClose, _onPostUpdated }) => {
     try {
       const isRemovingReaction = userReaction?.emoji === emoji;
       
-      const response = await axios.post(
-        `${API}/posts/${post.id}/reactions?user_id=${user.id}`,
+      const response = await apiClient.post(
+        `/posts/${post.id}/reactions?user_id=${user.id}`,
         { emoji }
       );
       
@@ -467,8 +467,8 @@ const PostModal = ({ post, isOpen, onClose, _onPostUpdated }) => {
     }
     
     try {
-      const _response = await axios.post(
-        `${API}/comments/${commentId}/reactions?user_id=${user.id}`,
+      const _response = await apiClient.post(
+        `/comments/${commentId}/reactions?user_id=${user.id}`,
         { emoji: '❤️' }
       );
       

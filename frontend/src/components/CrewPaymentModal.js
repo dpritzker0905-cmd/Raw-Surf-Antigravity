@@ -75,8 +75,8 @@ export const CrewPaymentModal = ({
     
     setLoading(true);
     try {
-      const response = await axios.post(
-        `${API}/dispatch/crew-invite/${invite.id}/pay?payer_id=${user.id}`,
+      const response = await apiClient.post(
+        `/dispatch/crew-invite/${invite.id}/pay?payer_id=${user.id}`,
         { selfie_url: selfieUrl }
       );
       

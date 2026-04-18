@@ -274,8 +274,8 @@ export const PhotographerAvailability = ({
   
   const fetchSubscriptions = async () => {
     try {
-      const response = await axios.get(
-        `${API}/notifications/photographer-alerts/${photographerId}?user_id=${user.id}`
+      const response = await apiClient.get(
+        `/notifications/photographer-alerts/${photographerId}?user_id=${user.id}`
       );
       setSubscriptions(response.data || {});
     } catch (error) {
@@ -302,8 +302,8 @@ export const PhotographerAvailability = ({
         toast.success(`You'll be notified when ${photographerName} is available for ${STATUS_CONFIG[type].label}`);
       } else {
         // Unsubscribe
-        await axios.delete(
-          `${API}/notifications/photographer-alerts/${photographerId}?user_id=${user.id}&alert_type=${type}`
+        await apiClient.delete(
+          `/notifications/photographer-alerts/${photographerId}?user_id=${user.id}&alert_type=${type}`
         );
         toast.success('Notification unsubscribed');
       }

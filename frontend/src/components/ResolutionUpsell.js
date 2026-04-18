@@ -33,8 +33,8 @@ export const ResolutionUpsellBadge = ({
     
     const fetchUpsell = async () => {
       try {
-        const response = await axios.get(
-          `${API}/surfer-gallery/resolution-upsell/${galleryItemId}?user_id=${userId}`
+        const response = await apiClient.get(
+          `/surfer-gallery/resolution-upsell/${galleryItemId}?user_id=${userId}`
         );
         if (response.data.upgrade_available) {
           setUpsellInfo(response.data);
@@ -50,8 +50,8 @@ export const ResolutionUpsellBadge = ({
   const handleUpgrade = async () => {
     setProcessing(true);
     try {
-      await axios.post(
-        `${API}/surfer-gallery/upgrade-resolution/${galleryItemId}?user_id=${userId}`
+      await apiClient.post(
+        `/surfer-gallery/upgrade-resolution/${galleryItemId}?user_id=${userId}`
       );
       
       toast.success('Upgraded to 4K RAW!');
@@ -189,8 +189,8 @@ export const ResolutionUpsellCard = ({
   useEffect(() => {
     const fetchUpsell = async () => {
       try {
-        const response = await axios.get(
-          `${API}/surfer-gallery/resolution-upsell/${galleryItemId}?user_id=${userId}`
+        const response = await apiClient.get(
+          `/surfer-gallery/resolution-upsell/${galleryItemId}?user_id=${userId}`
         );
         if (response.data.upgrade_available) {
           setUpsellInfo(response.data);
@@ -206,8 +206,8 @@ export const ResolutionUpsellCard = ({
   const handleUpgrade = async () => {
     setProcessing(true);
     try {
-      await axios.post(
-        `${API}/surfer-gallery/upgrade-resolution/${galleryItemId}?user_id=${userId}`
+      await apiClient.post(
+        `/surfer-gallery/upgrade-resolution/${galleryItemId}?user_id=${userId}`
       );
       
       toast.success('Upgraded to 4K RAW!');

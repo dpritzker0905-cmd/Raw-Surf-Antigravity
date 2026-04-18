@@ -102,8 +102,8 @@ const WatermarkSettings = ({ open, onOpenChange, theme = 'dark' }) => {
       formData.append('file', file);
       formData.append('upload_type', 'watermark_logo');
 
-      const response = await axios.post(
-        `${API}/api/upload/image`,
+      const response = await apiClient.post(
+        `/api/upload/image`,
         formData,
         {
           headers: { 'Content-Type': 'multipart/form-data' }

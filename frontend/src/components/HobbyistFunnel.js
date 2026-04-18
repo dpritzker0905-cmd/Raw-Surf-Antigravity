@@ -45,8 +45,8 @@ export const HobbyistFunnel = ({ onBack, onComplete }) => {
 
     try {
       // Convert to Hobbyist role and set subscription
-      const response = await axios.post(
-        `${API}/auth/convert-to-hobbyist?user_id=${user.id}`,
+      const response = await apiClient.post(
+        `/auth/convert-to-hobbyist?user_id=${user.id}`,
         {
           tier_id: plan.tier_id,
           origin_url: window.location.origin

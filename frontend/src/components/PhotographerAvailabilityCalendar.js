@@ -362,8 +362,8 @@ export const PhotographerAvailabilityCalendar = ({ photographerId }) => {
         const startDate = new Date(year, month, 1).toISOString();
         const endDate = new Date(year, month + 1, 0).toISOString();
         
-        const res = await axios.get(
-          `${API}/photographer/${targetId}/bookings-calendar?start=${startDate}&end=${endDate}`
+        const res = await apiClient.get(
+          `/photographer/${targetId}/bookings-calendar?start=${startDate}&end=${endDate}`
         );
         
         // Transform bookings for calendar display

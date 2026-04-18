@@ -175,8 +175,8 @@ export const GromHQ = () => {
         
         const checkStatus = async () => {
           try {
-            const statusResponse = await axios.post(
-              `${API}/grom-hq/verify-age-complete/${user.id}?verification_session_id=${sessionId}`
+            const statusResponse = await apiClient.post(
+              `/grom-hq/verify-age-complete/${user.id}?verification_session_id=${sessionId}`
             );
             
             if (statusResponse.data.success && statusResponse.data.age_verified) {
@@ -225,8 +225,8 @@ export const GromHQ = () => {
     
     setUnlinkLoading(true);
     try {
-      await axios.post(
-        `${API}/grom-hq/unlink-grom/${unlinkingGrom.id}?parent_id=${user.id}`,
+      await apiClient.post(
+        `/grom-hq/unlink-grom/${unlinkingGrom.id}?parent_id=${user.id}`,
         { password: unlinkPassword }
       );
       

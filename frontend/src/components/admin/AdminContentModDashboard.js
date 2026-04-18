@@ -53,9 +53,9 @@ export const AdminContentModDashboard = () => {
   const fetchQueue = async () => {
     setLoading(true);
     try {
-      let url = `${API}/admin/content-moderation/queue?admin_id=${user.id}&status=${status}&limit=50`;
+      let url = `/admin/content-moderation/queue?admin_id=${user.id}&status=${status}&limit=50`;
       if (contentType && contentType !== 'all') url += `&content_type=${contentType}`;
-      const response = await axios.get(url);
+      const response = await apiClient.get(url);
       setItems(response.data.items || []);
     } catch (error) {
       logger.error('Failed to load queue:', error);

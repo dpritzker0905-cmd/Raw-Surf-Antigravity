@@ -289,8 +289,8 @@ export const RequestProModal = ({
           }))
         : null;
 
-      const response = await axios.post(
-        `${API}/dispatch/request?requester_id=${uid}`,
+      const response = await apiClient.post(
+        `/dispatch/request?requester_id=${uid}`,
         {
           latitude:                 userLocation.lat,
           longitude:                userLocation.lng,

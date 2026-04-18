@@ -329,8 +329,8 @@ export const AdminSpotEditor = () => {
         const newPos = e.target.getLatLng();
         try {
           setSaving(true);
-          const response = await axios.put(
-            `${API}/admin/spots/${spot.id}/move`,
+          const response = await apiClient.put(
+            `/admin/spots/${spot.id}/move`,
             { latitude: newPos.lat, longitude: newPos.lng, override_land_warning: false },
             { params: { admin_id: user.id } }
           );
@@ -379,8 +379,8 @@ export const AdminSpotEditor = () => {
 
     setSaving(true);
     try {
-      const response = await axios.post(
-        `${API}/admin/spots/create`,
+      const response = await apiClient.post(
+        `/admin/spots/create`,
         {
           ...formData,
           latitude: pendingCoords.lat,
@@ -416,8 +416,8 @@ export const AdminSpotEditor = () => {
 
     setSaving(true);
     try {
-      await axios.put(
-        `${API}/admin/spots/${selectedSpot.id}/update`,
+      await apiClient.put(
+        `/admin/spots/${selectedSpot.id}/update`,
         formData,
         { params: { admin_id: user.id } }
       );
@@ -459,8 +459,8 @@ export const AdminSpotEditor = () => {
       // Move with override
       try {
         setSaving(true);
-        await axios.put(
-          `${API}/admin/spots/${landWarning.spotId}/move`,
+        await apiClient.put(
+          `/admin/spots/${landWarning.spotId}/move`,
           { ...landWarning.coords, override_land_warning: true },
           { params: { admin_id: user.id } }
         );

@@ -59,8 +59,8 @@ const Messenger = ({ isOpen, onClose }) => {
     if (!activeConversation || !user?.id) return;
     setLoading(true);
     try {
-      const response = await axios.get(
-        `${API}/messages/conversation/${activeConversation.id}?user_id=${user.id}`
+      const response = await apiClient.get(
+        `/messages/conversation/${activeConversation.id}?user_id=${user.id}`
       );
       setMessages(response.data.messages || []);
     } catch (error) {
@@ -74,8 +74,8 @@ const Messenger = ({ isOpen, onClose }) => {
   const fetchTypingUsers = useCallback(async () => {
     if (!activeConversation || !user?.id) return;
     try {
-      const response = await axios.get(
-        `${API}/messages/typing/${activeConversation.id}?user_id=${user.id}`
+      const response = await apiClient.get(
+        `/messages/typing/${activeConversation.id}?user_id=${user.id}`
       );
       setTypingUsers(response.data.typing_users || []);
     } catch (error) {
@@ -110,8 +110,8 @@ const Messenger = ({ isOpen, onClose }) => {
   const sendTypingIndicator = useCallback(async (isTyping) => {
     if (!activeConversation || !user?.id) return;
     try {
-      await axios.post(
-        `${API}/messages/typing/${activeConversation.id}?user_id=${user.id}`,
+      await apiClient.post(
+        `/messages/typing/${activeConversation.id}?user_id=${user.id}`,
         { is_typing: isTyping }
       );
     } catch (error) {
@@ -143,8 +143,8 @@ const Messenger = ({ isOpen, onClose }) => {
     
     setSending(true);
     try {
-      await axios.post(
-        `${API}/messages/send/${activeConversation.id}?sender_id=${user.id}`,
+      await apiClient.post(
+        `/messages/send/${activeConversation.id}?sender_id=${user.id}`,
         {
           content: newMessage,
           message_type: 'text',
@@ -167,8 +167,8 @@ const Messenger = ({ isOpen, onClose }) => {
   const handleAddReaction = async (messageId, emoji) => {
     if (!user?.id) return;
     try {
-      await axios.post(
-        `${API}/messages/react/${messageId}?user_id=${user.id}`,
+      await apiClient.post(
+        `/messages/react/${messageId}?user_id=${user.id}`,
         { emoji }
       );
       setShowEmojiPicker(null);

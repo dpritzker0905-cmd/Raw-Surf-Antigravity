@@ -101,8 +101,8 @@ export const RequestProSelfieModal = ({ dispatchId, isOpen, onClose, onSuccess }
       const imageUrl = uploadResponse.data.url;
       
       // Then update the dispatch request with the selfie URL
-      await axios.post(
-        `${API}/dispatch/${dispatchId}/update-selfie?requester_id=${user?.id}`,
+      await apiClient.post(
+        `/dispatch/${dispatchId}/update-selfie?requester_id=${user?.id}`,
         { selfie_url: imageUrl }
       );
       

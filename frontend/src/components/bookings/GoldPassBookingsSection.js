@@ -65,8 +65,8 @@ export const GoldPassBookingsSection = ({ user, theme, onBookingComplete }) => {
     if (!selectedSlot) return;
     setBooking(true);
     try {
-      await axios.post(
-        `${API}/career/gold-pass/${selectedSlot.id}/book?surfer_id=${user.id}`
+      await apiClient.post(
+        `/career/gold-pass/${selectedSlot.id}/book?surfer_id=${user.id}`
       );
       toast.success(
         hasGoldPass 

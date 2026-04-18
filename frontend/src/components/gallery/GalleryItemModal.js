@@ -47,8 +47,8 @@ export const GalleryItemModal = ({ item, onClose, onPurchased }) => {
   useEffect(() => {
     const fetchPricing = async () => {
       try {
-        const response = await axios.get(
-          `${API}/gallery/item/${item.id}/pricing?viewer_id=${user?.id || ''}`
+        const response = await apiClient.get(
+          `/gallery/item/${item.id}/pricing?viewer_id=${user?.id || ''}`
         );
         setPricingInfo(response.data);
       } catch (error) {
@@ -63,8 +63,8 @@ export const GalleryItemModal = ({ item, onClose, onPurchased }) => {
   const handlePurchase = async () => {
     setPurchasing(true);
     try {
-      const _response = await axios.post(
-        `${API}/gallery/item/${item.id}/purchase?buyer_id=${user.id}`,
+      const _response = await apiClient.post(
+        `/gallery/item/${item.id}/purchase?buyer_id=${user.id}`,
         { payment_method: 'credits' }
       );
       
@@ -80,8 +80,8 @@ export const GalleryItemModal = ({ item, onClose, onPurchased }) => {
 
   const handleDownload = async () => {
     try {
-      const response = await axios.get(
-        `${API}/gallery/download/${item.id}?buyer_id=${user.id}`
+      const response = await apiClient.get(
+        `/gallery/download/${item.id}?buyer_id=${user.id}`
       );
       
       // Open original URL in new tab
@@ -95,8 +95,8 @@ export const GalleryItemModal = ({ item, onClose, onPurchased }) => {
   const handleSavePrice = async () => {
     setSaving(true);
     try {
-      await axios.patch(
-        `${API}/gallery/item/${item.id}/custom-price?photographer_id=${user.id}`,
+      await apiClient.patch(
+        `/gallery/item/${item.id}/custom-price?photographer_id=${user.id}`,
         { custom_price: customPrice }
       );
       toast.success('Price updated successfully');
@@ -112,8 +112,8 @@ export const GalleryItemModal = ({ item, onClose, onPurchased }) => {
   const handleClearPrice = async () => {
     setSaving(true);
     try {
-      await axios.delete(
-        `${API}/gallery/item/${item.id}/custom-price?photographer_id=${user.id}`
+      await apiClient.delete(
+        `/gallery/item/${item.id}/custom-price?photographer_id=${user.id}`
       );
       toast.success('Price reset to gallery default');
       setEditMode(false);

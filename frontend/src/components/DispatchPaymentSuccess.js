@@ -36,16 +36,16 @@ const DispatchPaymentSuccess = () => {
     const confirmDispatchPayment = async () => {
       try {
         // Step 1: Confirm payment with Stripe
-        const response = await axios.get(
-          `${API}/dispatch/payment-success?session_id=${sessionId}&dispatch_id=${dispatchId}`
+        const response = await apiClient.get(
+          `/dispatch/payment-success?session_id=${sessionId}&dispatch_id=${dispatchId}`
         );
         
         if (response.data.success) {
           // Step 2: VERIFICATION - Check that participant record was created with metadata
           // This prevents "phantom" bookings where payment succeeded but metadata was lost
           try {
-            const verifyResponse = await axios.get(
-              `${API}/dispatch/${dispatchId}/verify-payment?user_id=${user?.id}`
+            const verifyResponse = await apiClient.get(
+              `/dispatch/${dispatchId}/verify-payment?user_id=${user?.id}`
             );
             
             if (!verifyResponse.data.verified) {

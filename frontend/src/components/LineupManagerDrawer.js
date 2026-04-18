@@ -626,8 +626,8 @@ export const LineupManagerDrawer = ({
       
       setLoadingSuggestions(true);
       try {
-        const response = await axios.get(
-          `${API}/bookings/${lineup.id}/invite-suggestions?user_id=${user.id}`
+        const response = await apiClient.get(
+          `/bookings/${lineup.id}/invite-suggestions?user_id=${user.id}`
         );
         setSuggestions(response.data || { mutual_friends: [], nearby_public: [] });
       } catch (error) {
@@ -650,8 +650,8 @@ export const LineupManagerDrawer = ({
     const timeout = setTimeout(async () => {
       setSearching(true);
       try {
-        const response = await axios.get(
-          `${API}/bookings/${lineup.id}/search-users?query=${encodeURIComponent(searchQuery)}&user_id=${user.id}`
+        const response = await apiClient.get(
+          `/bookings/${lineup.id}/search-users?query=${encodeURIComponent(searchQuery)}&user_id=${user.id}`
         );
         setSearchResults(response.data || []);
       } catch (error) {
@@ -669,8 +669,8 @@ export const LineupManagerDrawer = ({
   const handleInvite = async (targetUser) => {
     setInviting(targetUser.user_id);
     try {
-      await axios.post(
-        `${API}/bookings/${lineup.id}/invite-by-handle?user_id=${user.id}`,
+      await apiClient.post(
+        `/bookings/${lineup.id}/invite-by-handle?user_id=${user.id}`,
         { handle_query: targetUser.username || targetUser.full_name }
       );
       const displayName = targetUser.username ? `@${targetUser.username}` : targetUser.full_name;
@@ -691,8 +691,8 @@ export const LineupManagerDrawer = ({
     
     for (const targetUser of users) {
       try {
-        await axios.post(
-          `${API}/bookings/${lineup.id}/invite-by-handle?user_id=${user.id}`,
+        await apiClient.post(
+          `/bookings/${lineup.id}/invite-by-handle?user_id=${user.id}`,
           { handle_query: targetUser.username || targetUser.full_name }
         );
         successCount++;

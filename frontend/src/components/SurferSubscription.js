@@ -31,8 +31,8 @@ export const SurferSubscription = () => {
     try {
       if (tier.price === 0) {
         // Free tier - direct update via API
-        const _response = await axios.post(
-          `${API}/subscriptions/checkout?user_id=${user.id}`,
+        const _response = await apiClient.post(
+          `/subscriptions/checkout?user_id=${user.id}`,
           {
             tier_id: tier.id,
             origin_url: window.location.origin
@@ -45,8 +45,8 @@ export const SurferSubscription = () => {
         navigate('/feed');
       } else {
         // Paid tier - redirect to Stripe checkout
-        const response = await axios.post(
-          `${API}/subscriptions/checkout?user_id=${user.id}`,
+        const response = await apiClient.post(
+          `/subscriptions/checkout?user_id=${user.id}`,
           {
             tier_id: tier.id,
             origin_url: window.location.origin

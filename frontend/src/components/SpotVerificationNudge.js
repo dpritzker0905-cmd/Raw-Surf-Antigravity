@@ -68,8 +68,8 @@ export const SpotVerificationNudge = ({ spot, userLocation, _onClose }) => {
         suggestion_note: suggestionNote || null
       };
       
-      const response = await axios.post(
-        `${API}/spots/verification/${spot.id}`,
+      const response = await apiClient.post(
+        `/spots/verification/${spot.id}`,
         payload,
         { params: { user_id: user.id } }
       );

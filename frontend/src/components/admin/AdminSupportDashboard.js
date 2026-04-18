@@ -55,12 +55,12 @@ export const AdminSupportDashboard = () => {
   const fetchTickets = async () => {
     setLoading(true);
     try {
-      let url = `${API}/admin/support/tickets?admin_id=${user.id}&limit=50`;
+      let url = `/admin/support/tickets?admin_id=${user.id}&limit=50`;
       if (statusFilter) url += `&status=${statusFilter}`;
       if (priorityFilter) url += `&priority=${priorityFilter}`;
       if (searchQuery) url += `&search=${encodeURIComponent(searchQuery)}`;
       
-      const response = await axios.get(url);
+      const response = await apiClient.get(url);
       setTickets(response.data.tickets || []);
     } catch (error) {
       logger.error('Failed to load tickets:', error);

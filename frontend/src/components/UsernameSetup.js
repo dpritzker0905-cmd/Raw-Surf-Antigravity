@@ -79,8 +79,8 @@ const UsernameSetup = ({ onComplete, skipAllowed = false }) => {
       
       setChecking(true);
       try {
-        const response = await axios.get(
-          `${API}/api/username/check/${debouncedUsername}?user_id=${user?.id}`
+        const response = await apiClient.get(
+          `/api/username/check/${debouncedUsername}?user_id=${user?.id}`
         );
         setAvailability(response.data);
       } catch (error) {

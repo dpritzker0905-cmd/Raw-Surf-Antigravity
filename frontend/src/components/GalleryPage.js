@@ -317,8 +317,8 @@ export const GalleryPage = () => {
 
   const fetchGallery = async () => {
     try {
-      const response = await axios.get(
-        `${API}/gallery/photographer/${user.id}?viewer_id=${user.id}`
+      const response = await apiClient.get(
+        `/gallery/photographer/${user.id}?viewer_id=${user.id}`
       );
       setGallery(response.data);
     } catch (error) {

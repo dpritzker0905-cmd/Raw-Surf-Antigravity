@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+﻿import React, { useState, useEffect, useRef, useCallback } from 'react';
 import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import { useAuth } from '../contexts/AuthContext';
 import { usePersona, getExpandedRoleInfo, isProLevelRole, isBusinessRole as isBusinessRoleCheck } from '../contexts/PersonaContext';
@@ -1932,8 +1932,8 @@ export const MessagesPage = () => {
   const handleTogglePin = async () => {
     if (!selectedConversation?.id) return;
     try {
-      const response = await axios.post(
-        `${API}/messages/conversation/${selectedConversation.id}/pin?user_id=${user.id}`
+      const response = await apiClient.post(
+        `/messages/conversation/${selectedConversation.id}/pin?user_id=${user.id}`
       );
       toast.success(response.data.message);
       fetchConversations();
@@ -1948,8 +1948,8 @@ export const MessagesPage = () => {
   const handleToggleMute = async () => {
     if (!selectedConversation?.id) return;
     try {
-      const response = await axios.post(
-        `${API}/messages/conversation/${selectedConversation.id}/mute?user_id=${user.id}`
+      const response = await apiClient.post(
+        `/messages/conversation/${selectedConversation.id}/mute?user_id=${user.id}`
       );
       toast.success(response.data.message);
       fetchConversations();
@@ -1964,8 +1964,8 @@ export const MessagesPage = () => {
   const handleMarkUnread = async () => {
     if (!selectedConversation?.id) return;
     try {
-      const response = await axios.post(
-        `${API}/messages/conversation/${selectedConversation.id}/mark-unread?user_id=${user.id}`
+      const response = await apiClient.post(
+        `/messages/conversation/${selectedConversation.id}/mark-unread?user_id=${user.id}`
       );
       toast.success(response.data.message);
       fetchConversations();

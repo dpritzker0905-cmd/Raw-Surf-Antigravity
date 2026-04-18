@@ -60,7 +60,7 @@ export const ImpactDashboard = () => {
 
   const fetchDashboard = async () => {
     try {
-      const res = await axios.get(`${API_URL}/api/impact/dashboard/${user.id}`);
+      const res = await apiClient.get(`/impact/dashboard/${user.id}`);
       setDashboard(res.data);
       if (res.data.donation_settings?.split_percentage) {
         setSplitPercentage(res.data.donation_settings.split_percentage);
@@ -74,7 +74,7 @@ export const ImpactDashboard = () => {
 
   const fetchCauses = async () => {
     try {
-      const res = await axios.get(`${API_URL}/api/impact/causes`);
+      const res = await apiClient.get(`/impact/causes`);
       setCauses(res.data);
     } catch (err) {
       logger.error('Failed to fetch causes:', err);
@@ -88,7 +88,7 @@ export const ImpactDashboard = () => {
     }
     setSearching(true);
     try {
-      const res = await axios.get(`${API_URL}/api/impact/search-groms?search=${encodeURIComponent(query)}`);
+      const res = await apiClient.get(`/impact/search-groms?search=${encodeURIComponent(query)}`);
       setGroms(res.data);
     } catch (err) {
       logger.error('Failed to search groms:', err);
@@ -115,7 +115,7 @@ export const ImpactDashboard = () => {
 
     setSaving(true);
     try {
-      await axios.put(`${API_URL}/api/impact/settings/${user.id}`, {
+      await apiClient.put(`/impact/settings/${user.id}`, {
         donation_destination_type: selectedDestination.type,
         donation_destination_id: selectedDestination.is_cause ? null : selectedDestination.id,
         donation_cause_name: selectedDestination.is_cause ? selectedDestination.name : null,

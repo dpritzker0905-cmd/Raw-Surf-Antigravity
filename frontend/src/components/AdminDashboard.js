@@ -85,8 +85,8 @@ export const AdminDashboard = () => {
 
   const handleSearch = async () => {
     try {
-      const response = await axios.get(
-        `${API}/admin/users?admin_id=${user.id}&search=${searchQuery}&limit=50`
+      const response = await apiClient.get(
+        `/admin/users?admin_id=${user.id}&search=${searchQuery}&limit=50`
       );
       setUsers(response.data.users);
     } catch (error) {
@@ -98,8 +98,8 @@ export const AdminDashboard = () => {
     if (!userToSuspend || !suspendReason) return;
     
     try {
-      await axios.post(
-        `${API}/admin/users/${userToSuspend.id}/suspend?admin_id=${user.id}`,
+      await apiClient.post(
+        `/admin/users/${userToSuspend.id}/suspend?admin_id=${user.id}`,
         { reason: suspendReason }
       );
       toast.success(`${userToSuspend.email} suspended`);
@@ -114,8 +114,8 @@ export const AdminDashboard = () => {
 
   const handleUnsuspend = async (targetUser) => {
     try {
-      await axios.post(
-        `${API}/admin/users/${targetUser.id}/unsuspend?admin_id=${user.id}`
+      await apiClient.post(
+        `/admin/users/${targetUser.id}/unsuspend?admin_id=${user.id}`
       );
       toast.success(`${targetUser.email} unsuspended`);
       fetchData();
@@ -126,8 +126,8 @@ export const AdminDashboard = () => {
 
   const handleVerify = async (targetUser) => {
     try {
-      await axios.patch(
-        `${API}/admin/users/${targetUser.id}?admin_id=${user.id}`,
+      await apiClient.patch(
+        `/admin/users/${targetUser.id}?admin_id=${user.id}`,
         { is_verified: !targetUser.is_verified }
       );
       toast.success(`Verification ${targetUser.is_verified ? 'removed' : 'added'}`);
@@ -140,12 +140,12 @@ export const AdminDashboard = () => {
   const handleToggleAdmin = async (targetUser) => {
     try {
       if (targetUser.is_admin) {
-        await axios.post(
-          `${API}/admin/revoke-admin/${targetUser.id}?admin_id=${user.id}`
+        await apiClient.post(
+          `/admin/revoke-admin/${targetUser.id}?admin_id=${user.id}`
         );
       } else {
-        await axios.post(
-          `${API}/admin/make-admin/${targetUser.id}?admin_id=${user.id}`
+        await apiClient.post(
+          `/admin/make-admin/${targetUser.id}?admin_id=${user.id}`
         );
       }
       toast.success(`Admin status updated`);

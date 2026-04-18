@@ -59,7 +59,7 @@ export const GearHub = () => {
       if (selectedCategory) params.append('category', selectedCategory);
       if (searchQuery) params.append('search', searchQuery);
       
-      const res = await axios.get(`${API_URL}/api/gear-hub?${params}`);
+      const res = await apiClient.get(`/gear-hub?${params}`);
       setGearItems(res.data);
     } catch (err) {
       logger.error('Failed to fetch gear catalog:', err);
@@ -71,7 +71,7 @@ export const GearHub = () => {
 
   const fetchUserProgress = async () => {
     try {
-      const res = await axios.get(`${API_URL}/api/gear-hub/user/${user.id}/progress`);
+      const res = await apiClient.get(`/gear-hub/user/${user.id}/progress`);
       setUserProgress(res.data);
       
       // Find target gear if user has one set
@@ -102,7 +102,7 @@ export const GearHub = () => {
 
     setPurchasing(item.id);
     try {
-      const res = await axios.post(`${API_URL}/api/gear-hub/${item.id}/purchase?user_id=${user.id}`);
+      const res = await apiClient.post(`/gear-hub/${item.id}/purchase?user_id=${user.id}`);
       
       toast.success(res.data.message);
       

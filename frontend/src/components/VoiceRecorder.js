@@ -163,8 +163,8 @@ export const VoiceRecorder = ({
       formData.append('sender_id', senderId);
       
       // Upload to backend (which handles Supabase storage)
-      const response = await axios.post(
-        `${API}/api/messages/voice-note`,
+      const response = await apiClient.post(
+        `/api/messages/voice-note`,
         formData,
         {
           headers: { 'Content-Type': 'multipart/form-data' }

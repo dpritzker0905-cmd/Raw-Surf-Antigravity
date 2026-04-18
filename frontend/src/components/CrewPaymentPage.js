@@ -102,8 +102,8 @@ const CrewPaymentPage = () => {
     
     setPaying(true);
     try {
-      const response = await axios.post(
-        `${API}/api/bookings/${bookingId}/crew-pay`,
+      const response = await apiClient.post(
+        `/api/bookings/${bookingId}/crew-pay`,
         {
           participant_id: user.id,
           amount: myShare.share_amount,

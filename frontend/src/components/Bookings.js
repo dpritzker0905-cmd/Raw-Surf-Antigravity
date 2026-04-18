@@ -63,8 +63,8 @@ const InviteModalContent = ({ booking, user, isLight, textPrimaryClass, textSeco
     const timeoutId = setTimeout(async () => {
       setSearching(true);
       try {
-        const response = await axios.get(
-          `${API}/bookings/${booking.id}/search-users?query=${encodeURIComponent(searchQuery)}&user_id=${user.id}`
+        const response = await apiClient.get(
+          `/bookings/${booking.id}/search-users?query=${encodeURIComponent(searchQuery)}&user_id=${user.id}`
         );
         setSearchResults(response.data || []);
       } catch (error) {
@@ -81,8 +81,8 @@ const InviteModalContent = ({ booking, user, isLight, textPrimaryClass, textSeco
   const handleInviteByHandle = async (targetUser) => {
     setInviting(targetUser.user_id);
     try {
-      const _response = await axios.post(
-        `${API}/bookings/${booking.id}/invite-by-handle?user_id=${user.id}`,
+      const _response = await apiClient.post(
+        `/bookings/${booking.id}/invite-by-handle?user_id=${user.id}`,
         {
           // Use username if available, otherwise fall back to full_name
           handle_query: targetUser.username || targetUser.full_name,

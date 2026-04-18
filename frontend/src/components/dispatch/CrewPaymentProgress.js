@@ -119,10 +119,10 @@ export const CrewPaymentProgress = ({
   const fetchCrewStatus = async () => {
     try {
       const endpoint = serviceType === 'dispatch' 
-        ? `${API}/api/dispatch/${dispatchId}/crew-status`
-        : `${API}/api/bookings/${bookingId}/crew-status`;
+        ? `/api/dispatch/${dispatchId}/crew-status`
+        : `/api/bookings/${bookingId}/crew-status`;
       
-      const response = await axios.get(endpoint);
+      const response = await apiClient.get(endpoint);
       setCrewMembers(response.data.crew || response.data.participants || []);
       
       // Check if all paid
@@ -163,10 +163,10 @@ export const CrewPaymentProgress = ({
     setCovering(true);
     try {
       const endpoint = serviceType === 'dispatch'
-        ? `${API}/api/dispatch/${dispatchId}/cover-remaining`
-        : `${API}/api/bookings/${bookingId}/cover-remaining`;
+        ? `/api/dispatch/${dispatchId}/cover-remaining`
+        : `/api/bookings/${bookingId}/cover-remaining`;
       
-      await axios.post(endpoint, { captain_id: currentUserId });
+      await apiClient.post(endpoint, { captain_id: currentUserId });
       
       toast.success(`Covered $${unpaidAmount.toFixed(2)} for your crew!`);
       await fetchCrewStatus();
@@ -184,10 +184,10 @@ export const CrewPaymentProgress = ({
     setSendingReminder(memberId);
     try {
       const endpoint = serviceType === 'dispatch'
-        ? `${API}/api/dispatch/${dispatchId}/remind-crew`
-        : `${API}/api/bookings/${bookingId}/remind-crew`;
+        ? `/api/dispatch/${dispatchId}/remind-crew`
+        : `/api/bookings/${bookingId}/remind-crew`;
       
-      await axios.post(endpoint, { 
+      await apiClient.post(endpoint, { 
         captain_id: currentUserId,
         member_id: memberId 
       });

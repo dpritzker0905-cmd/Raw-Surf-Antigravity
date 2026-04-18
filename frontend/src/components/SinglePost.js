@@ -267,8 +267,8 @@ const SinglePost = () => {
     if (!content || !user?.id) return;
     
     try {
-      await axios.post(
-        `${API}/posts/${postId}/comments`,
+      await apiClient.post(
+        `/posts/${postId}/comments`,
         { content },
         { params: { user_id: user.id } }
       );

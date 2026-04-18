@@ -56,8 +56,8 @@ export const AdminPrecisionQueue = () => {
       const offsetLat = -0.001; // ~111m south (towards water for most US spots)
       const offsetLng = -0.001; // ~85m west
       
-      await axios.put(
-        `${API}/admin/spots/${spot.id}/move`,
+      await apiClient.put(
+        `/admin/spots/${spot.id}/move`,
         { 
           latitude: spot.latitude + offsetLat, 
           longitude: spot.longitude + offsetLng,
@@ -79,8 +79,8 @@ export const AdminPrecisionQueue = () => {
   const handleApplySuggestion = async (suggestion) => {
     setProcessing(suggestion.id);
     try {
-      await axios.put(
-        `${API}/admin/spots/${suggestion.spot_id}/move`,
+      await apiClient.put(
+        `/admin/spots/${suggestion.spot_id}/move`,
         { 
           latitude: suggestion.suggested_coords.latitude, 
           longitude: suggestion.suggested_coords.longitude,

@@ -188,8 +188,8 @@ export const PricingProvider = ({ children }) => {
   // Set custom price for a single item
   const setItemCustomPrice = useCallback(async (itemId, customPrice) => {
     try {
-      const res = await axios.patch(
-        `${API}/gallery/item/${itemId}/custom-price?photographer_id=${user.id}`,
+      const res = await apiClient.patch(
+        `/gallery/item/${itemId}/custom-price?photographer_id=${user.id}`,
         { custom_price: customPrice }
       );
       setLastUpdated(Date.now());

@@ -36,10 +36,10 @@ export const FollowersModal = ({
       setLoading(true);
       try {
         const endpoint = type === 'followers' 
-          ? `${API}/followers/${userId}`
-          : `${API}/following/${userId}`;
+          ? `/followers/${userId}`
+          : `/following/${userId}`;
         
-        const response = await axios.get(endpoint);
+        const response = await apiClient.get(endpoint);
         setUsers(response.data || []);
         
         // If logged in, also fetch who the current user follows to show follow/unfollow buttons

@@ -243,8 +243,8 @@ export const AdminP1Dashboard = () => {
     
     setBulkProcessing(true);
     try {
-      const response = await axios.post(
-        `${API}/compliance/violations/bulk-review-appeals?admin_id=${user.id}`,
+      const response = await apiClient.post(
+        `/compliance/violations/bulk-review-appeals?admin_id=${user.id}`,
         {
           violation_ids: Array.from(selectedAppeals),
           approved,

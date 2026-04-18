@@ -1119,8 +1119,8 @@ export const OnDemandSessionManager = () => {
       // Find the first selected spot to use
       const spotToUse = nearbySpots.find(s => selectedSpots.includes(s.id));
       
-      const response = await axios.post(
-        `${API}/photographer/${user.id}/on-demand-toggle`,
+      const response = await apiClient.post(
+        `/photographer/${user.id}/on-demand-toggle`,
         { 
           is_available: !isOnline,
           latitude: spotToUse?.latitude || lat, 

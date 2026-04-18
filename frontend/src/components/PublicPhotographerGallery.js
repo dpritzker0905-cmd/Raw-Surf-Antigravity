@@ -99,12 +99,12 @@ export const PublicPhotographerGallery = () => {
     
     try {
       setLoading(true);
-      let url = `${API}/gallery/photographer/${photographerId}?include_in_folders=true&limit=100`;
+      let url = `/gallery/photographer/${photographerId}?include_in_folders=true&limit=100`;
       if (user?.id) {
         url += `&viewer_id=${user.id}`;
       }
       
-      const res = await axios.get(url);
+      const res = await apiClient.get(url);
       setItems(res.data);
       
       // Track purchased items

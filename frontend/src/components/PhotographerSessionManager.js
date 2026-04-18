@@ -606,8 +606,8 @@ export const PhotographerSessionManager = ({
     const timeout = setTimeout(async () => {
       setSearching(true);
       try {
-        const response = await axios.get(
-          `${API}/bookings/${booking.id}/search-users?query=${encodeURIComponent(searchQuery)}&user_id=${user.id}`
+        const response = await apiClient.get(
+          `/bookings/${booking.id}/search-users?query=${encodeURIComponent(searchQuery)}&user_id=${user.id}`
         );
         setSearchResults(response.data || []);
       } catch (error) {
@@ -625,8 +625,8 @@ export const PhotographerSessionManager = ({
   const handleInviteSurfer = async (surfer) => {
     setInviting(surfer.user_id);
     try {
-      await axios.post(
-        `${API}/bookings/${booking.id}/invite-by-handle?user_id=${user.id}`,
+      await apiClient.post(
+        `/bookings/${booking.id}/invite-by-handle?user_id=${user.id}`,
         { handle_query: surfer.username || surfer.email || surfer.full_name }
       );
       const displayName = surfer.username ? `@${surfer.username}` : surfer.full_name;

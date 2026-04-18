@@ -1,4 +1,4 @@
-/**
+﻿/**
  * PostCard - Extracted from Feed.js for better maintainability
  * Renders a single post in the feed with all interactions
  */
@@ -34,8 +34,8 @@ const ReplyItem = ({ reply, userId, _postId, textPrimaryClass, textSecondaryClas
     
     setLoading(true);
     try {
-      const response = await axios.post(
-        `${API}/comments/${reply.id}/reactions?user_id=${userId}`,
+      const response = await apiClient.post(
+        `/comments/${reply.id}/reactions?user_id=${userId}`,
         { emoji }
       );
       
@@ -140,8 +140,8 @@ const CommentWithReaction = ({
     
     setLoading(true);
     try {
-      const response = await axios.post(
-        `${API}/comments/${comment.id}/reactions?user_id=${userId}`,
+      const response = await apiClient.post(
+        `/comments/${comment.id}/reactions?user_id=${userId}`,
         { emoji }
       );
       
@@ -173,8 +173,8 @@ const CommentWithReaction = ({
     
     setSubmittingReply(true);
     try {
-      const response = await axios.post(
-        `${API}/posts/${postId}/comments?user_id=${userId}`,
+      const response = await apiClient.post(
+        `/posts/${postId}/comments?user_id=${userId}`,
         { 
           content: replyContent.trim(),
           parent_id: comment.id

@@ -85,8 +85,8 @@ export const GromManage = () => {
   const saveControls = async () => {
     setSaving(true);
     try {
-      await axios.post(
-        `${API}/grom-hq/update-parental-controls/${gromId}?parent_id=${user.id}`,
+      await apiClient.post(
+        `/grom-hq/update-parental-controls/${gromId}?parent_id=${user.id}`,
         controls
       );
       toast.success('Controls updated');
@@ -100,8 +100,8 @@ export const GromManage = () => {
   const saveSpendingControls = async () => {
     setSaving(true);
     try {
-      await axios.post(
-        `${API}/grom-hq/spending-controls/${gromId}?parent_id=${user.id}`,
+      await apiClient.post(
+        `/grom-hq/spending-controls/${gromId}?parent_id=${user.id}`,
         {
           monthly_limit: spendingLimit ? parseFloat(spendingLimit) : null,
           require_approval_above: approvalThreshold ? parseFloat(approvalThreshold) : null

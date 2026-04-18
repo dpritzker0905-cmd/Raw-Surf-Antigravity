@@ -390,8 +390,8 @@ const LiveStreamViewer = ({ isOpen, onClose, streamInfo }) => {
         try {
           logger.info('[LiveStreamViewer] Fetching viewer token for room:', streamInfo.room_name);
           
-          const response = await axios.get(
-            `${API}/livekit/viewer-token/${streamInfo.room_name}?viewer_id=${user.id}&viewer_name=${encodeURIComponent(user.full_name || 'Viewer')}`
+          const response = await apiClient.get(
+            `/livekit/viewer-token/${streamInfo.room_name}?viewer_id=${user.id}&viewer_name=${encodeURIComponent(user.full_name || 'Viewer')}`
           );
 
           if (!isMountedRef.current) return;
@@ -460,8 +460,8 @@ const LiveStreamViewer = ({ isOpen, onClose, streamInfo }) => {
         
         const fetchToken = async () => {
           try {
-            const response = await axios.get(
-              `${API}/livekit/viewer-token/${streamInfo.room_name}?viewer_id=${user.id}&viewer_name=${encodeURIComponent(user.full_name || 'Viewer')}`
+            const response = await apiClient.get(
+              `/livekit/viewer-token/${streamInfo.room_name}?viewer_id=${user.id}&viewer_name=${encodeURIComponent(user.full_name || 'Viewer')}`
             );
             
             if (isMountedRef.current) {
