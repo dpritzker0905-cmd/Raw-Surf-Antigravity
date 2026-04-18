@@ -1538,12 +1538,40 @@ export const Profile = () => {
           <div className="grid grid-cols-3 gap-0.5">
             {tabContent
               .filter(item => {
-                // Filter out items with ephemeral Render disk URLs (gone after every redeploy)
+                // Smart filter for ephemeral Render disk URLs.
+                // Context: Supabase-uploaded videos have an https media_url but their
+                // thumbnail_url may still be a /api/uploads/ local path (stored on backend disk).
+                // The old blunt filter was hiding ALL posts with any local path — killing
+                // every video in the Videos tab regardless of where the actual video was stored.
+                //
+                // New rule: only block a post if ALL of the following are true:
+                //   1. media_url is a relative /api/uploads/ path (i.e., NOT Supabase)
+                //   2. thumbnail_url is also absent or also a local path
+                //   3. It is a video post (images served from disk are fine — they're small)
                 const mediaItem = activeTab === 'saved' ? item?.post : item;
                 if (!mediaItem) return false;
                 const mu = mediaItem.media_url || '';
-                // Relative /api/uploads/ paths are ephemeral - never show these as they're gone
-                if (mu && mu.startsWith('/api/uploads/')) return false;
+                const tu = mediaItem.thumbnail_url || '';
+                const isLocalPath = (url) => url && url.startsWith('/api/uploads/');
+                const isAbsoluteUrl = (url) => url && (url.startsWith('http://') || url.startsWith('https://'));
+
+                // If media_url is a full Supabase/CDN URL → always show
+                if (isAbsoluteUrl(mu)) return true;
+
+                // If thumbnail_url exists and is a Supabase URL → show (thumb will display)
+                if (isAbsoluteUrl(tu)) return true;
+
+                // If it's a video and BOTH media_url and thumbnail_url are local paths → hide
+                // (ephemeral disk video — file is gone after Render redeploy)
+                if (
+                  mediaItem.media_type === 'video' &&
+                  isLocalPath(mu) &&
+                  (isLocalPath(tu) || !tu)
+                ) {
+                  return false;
+                }
+
+                // Images with local paths — still serve fine through the backend proxy
                 return true;
               })
               .filter(item => {

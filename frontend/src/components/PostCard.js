@@ -697,7 +697,16 @@ const PostCard = ({
       setLoadingReactions(false);
     }
   };
-  
+
+  // Video URL resolution — extracted here to keep JSX clean (no IIFE needed)
+  const videoSrc = isVideoItem ? getFullUrl(post.media_url) : null;
+  const videoPoster = isVideoItem ? getFullUrl(post.thumbnail_url) : null;
+  const videoMimeType = (() => {
+    if (!post.media_url) return 'video/mp4';
+    const ext = post.media_url.split('?')[0].split('.').pop().toLowerCase();
+    return { mp4: 'video/mp4', mov: 'video/mp4', webm: 'video/webm', ogv: 'video/ogg' }[ext] || 'video/mp4';
+  })();
+
   return (
     <>
     <article 
@@ -827,22 +836,33 @@ const PostCard = ({
         {isVideoItem ? (
           <video
             ref={videoRef}
-            src={getFullUrl(post.media_url)}
-            poster={getFullUrl(post.thumbnail_url)}
+            poster={videoPoster}
             controls
             className="w-full h-full object-cover"
             playsInline
             preload="metadata"
-            muted={true}
-            loop={true}
-            onClick={(e) => e.stopPropagation()} // Allow video controls
-            onPlay={() => {
-              if (!programmaticTarget.current) setUserManuallyPaused(false);
+            muted
+            loop
+            crossOrigin="anonymous"
+            onClick={(e) => e.stopPropagation()}
+            onPlay={() => { if (!programmaticTarget.current) setUserManuallyPaused(false); }}
+            onPause={() => { if (!programmaticTarget.current) setUserManuallyPaused(true); }}
+            onError={(e) => {
+              if (videoPoster) {
+                const parent = e.target.parentNode;
+                if (parent) {
+                  const img = document.createElement('img');
+                  img.src = videoPoster;
+                  img.className = 'w-full h-full object-cover';
+                  img.alt = post.caption || 'Video';
+                  parent.replaceChild(img, e.target);
+                }
+              }
             }}
-            onPause={() => {
-              if (!programmaticTarget.current) setUserManuallyPaused(true);
-            }}
-          />
+          >
+            <source src={videoSrc} type={videoMimeType} />
+            {videoMimeType !== 'video/mp4' && <source src={videoSrc} type="video/mp4" />}
+          </video>
         ) : (
           <img
             src={getFullUrl(post.media_url || post.image_url)}

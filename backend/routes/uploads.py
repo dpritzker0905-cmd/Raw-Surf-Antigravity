@@ -939,20 +939,70 @@ async def upload_photographer_gallery_media(
 
 @router.get("/uploads/feed/{filename}")
 async def get_feed_media(filename: str):
-    """Serve feed media file"""
+    """Serve feed media file with correct MIME type for video streaming.
+    .mov files are served as video/mp4 (same codec, different container label)
+    so that Safari/iOS can play them without requiring QuickTime plugin.
+    """
     file_path = UPLOAD_DIR / "feed" / filename
     if not file_path.exists():
         raise HTTPException(status_code=404, detail="File not found")
-    return FileResponse(file_path)
+
+    # Explicit MIME type mapping to avoid FastAPI mis-detecting .mov as
+    # video/quicktime, which breaks video streaming on iOS Safari
+    lower = filename.lower()
+    if lower.endswith('.mp4') or lower.endswith('.mov'):
+        content_type = 'video/mp4'
+    elif lower.endswith('.webm'):
+        content_type = 'video/webm'
+    elif lower.endswith('.ogv'):
+        content_type = 'video/ogg'
+    elif lower.endswith(('.jpg', '.jpeg')):
+        content_type = 'image/jpeg'
+    elif lower.endswith('.png'):
+        content_type = 'image/png'
+    elif lower.endswith('.webp'):
+        content_type = 'image/webp'
+    elif lower.endswith('.gif'):
+        content_type = 'image/gif'
+    else:
+        content_type = None
+
+    return FileResponse(
+        file_path,
+        media_type=content_type,
+        headers={
+            'Accept-Ranges': 'bytes',  # Allow browser to seek/scrub video
+            'Cache-Control': 'public, max-age=86400',  # 24h cache for videos
+        }
+    )
 
 
 @router.get("/uploads/user-gallery/{user_id}/{filename}")
 async def get_user_gallery_media(user_id: str, filename: str):
-    """Serve user gallery media file"""
+    """Serve user gallery media file with correct MIME type"""
     file_path = UPLOAD_DIR / "user-gallery" / user_id / filename
     if not file_path.exists():
         raise HTTPException(status_code=404, detail="File not found")
-    return FileResponse(file_path)
+
+    lower = filename.lower()
+    if lower.endswith('.mp4') or lower.endswith('.mov'):
+        content_type = 'video/mp4'
+    elif lower.endswith('.webm'):
+        content_type = 'video/webm'
+    elif lower.endswith(('.jpg', '.jpeg')):
+        content_type = 'image/jpeg'
+    elif lower.endswith('.png'):
+        content_type = 'image/png'
+    elif lower.endswith('.webp'):
+        content_type = 'image/webp'
+    else:
+        content_type = None
+
+    return FileResponse(
+        file_path,
+        media_type=content_type,
+        headers={'Accept-Ranges': 'bytes', 'Cache-Control': 'public, max-age=86400'}
+    )
 
 
 
