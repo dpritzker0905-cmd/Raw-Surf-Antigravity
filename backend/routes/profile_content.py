@@ -64,12 +64,20 @@ async def get_user_posts(
     return [{
         "id": p.id,
         "media_url": p.media_url,
-        "media_type": p.media_type or 'image',
+        # Infer media_type from URL if not explicitly set (Waves posts sometimes have NULL media_type)
+        "media_type": p.media_type or (
+            'video' if p.media_url and any(
+                p.media_url.lower().endswith(ext)
+                for ext in ('.mp4', '.mov', '.webm', '.avi', '.mkv')
+            ) else 'image'
+        ),
         "thumbnail_url": p.thumbnail_url,
         "caption": p.caption,
         "likes_count": p.likes_count or 0,
         "comments_count": getattr(p, 'comments_count', 0) or len(p.comments) or 0,
         "video_duration": p.video_duration,
+        "video_width": p.video_width,
+        "video_height": p.video_height,
         "created_at": p.created_at.isoformat(),
         "liked": p.id in liked_post_ids,
         "is_liked_by_user": p.id in liked_post_ids,
@@ -83,7 +91,7 @@ async def get_user_posts(
             } for r in p.reactions
         ] + [
             {
-                "emoji": "🤙",
+                "emoji": "\U0001f919",
                 "user_id": l.user_id,
                 "user_name": l.user.full_name if getattr(l, 'user', None) else None,
                 "avatar_url": l.user.avatar_url if getattr(l, 'user', None) else None,
@@ -224,7 +232,7 @@ async def get_user_videos(
     offset: int = 0,
     db: AsyncSession = Depends(get_db)
 ):
-    """Get user's video posts only"""
+    """Get user's video posts only (media_type='video' OR URL ends in a video extension)"""
     from models import PostReaction, PostLike
     result = await db.execute(
         select(Post)
@@ -234,7 +242,21 @@ async def get_user_videos(
             selectinload(Post.comments)
         )
         .where(Post.author_id == user_id)
-        .where(Post.media_type == 'video')
+        .where(
+            # Catch videos stored with explicit type OR with video URL extension (Waves / old posts)
+            or_(
+                Post.media_type == 'video',
+                and_(
+                    Post.media_type.is_(None),
+                    or_(
+                        Post.media_url.ilike('%.mp4'),
+                        Post.media_url.ilike('%.mov'),
+                        Post.media_url.ilike('%.webm'),
+                        Post.media_url.ilike('%.avi'),
+                    )
+                )
+            )
+        )
         .order_by(Post.created_at.desc())
         .offset(offset)
         .limit(limit)

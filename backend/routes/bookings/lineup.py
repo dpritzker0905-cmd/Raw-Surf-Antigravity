@@ -35,7 +35,26 @@ STRIPE_API_KEY = os.environ.get('STRIPE_API_KEY')
 if STRIPE_API_KEY:
     stripe.api_key = STRIPE_API_KEY
 
-# ═══ ROUTES ══════════════════════════════════════════════════════════════
+# ═══ PYDANTIC MODELS ══════════════════════════════════════════════════════
+
+class OpenLineupRequest(BaseModel):
+    """Request to open a lineup for a booking"""
+    visibility: str = 'friends'  # 'friends', 'area', 'both'
+    min_crew: int = 2
+    max_crew: Optional[int] = None
+    message: Optional[str] = None
+    auto_confirm: bool = False
+
+
+class ReservationSettingsUpdate(BaseModel):
+    """Update booking reservation/seat settings"""
+    invite_expiry_hours: Optional[float] = None
+    waitlist_enabled: Optional[bool] = None
+    waitlist_claim_minutes: Optional[int] = None
+    allow_keep_seat: Optional[bool] = None
+    keep_seat_extension_hours: Optional[float] = None
+    max_keep_seat_extensions: Optional[int] = None
+
 
 @router.get("/bookings/lineups")
 async def get_user_lineups(
