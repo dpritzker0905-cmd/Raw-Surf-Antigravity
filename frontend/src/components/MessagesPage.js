@@ -296,7 +296,7 @@ const GifPicker = ({ show, onSelect, onClose }) => {
   return (
     <div 
       ref={pickerRef}
-      className="absolute left-0 right-0 bottom-full mb-2 max-h-[40vh] bg-card rounded-xl shadow-2xl border border-border overflow-hidden z-[100]"
+      className="absolute left-0 w-[320px] max-w-[calc(100vw-32px)] bottom-full mb-2 h-[420px] max-h-[60vh] flex flex-col bg-card rounded-xl shadow-2xl border border-border overflow-hidden z-[100]"
     >
       {/* Search Header */}
       <div className="p-3 border-b border-border">
@@ -330,7 +330,7 @@ const GifPicker = ({ show, onSelect, onClose }) => {
       
       {/* GIF Grid */}
       <div 
-        className="p-2 overflow-y-auto max-h-72 grid grid-cols-2 gap-2 overscroll-contain"
+        className="p-2 overflow-y-auto flex-1 grid grid-cols-3 gap-2 overscroll-contain"
         onTouchStart={() => { isScrollingRef.current = false; }}
         onTouchMove={() => { isScrollingRef.current = true; }}
         onTouchEnd={() => { 
@@ -1211,17 +1211,19 @@ const MessageBubble = ({ message, onReact, onReply, onNavigateProfile }) => {
         </div>
       )}
       
-      {/* Quick React Button - Visible on hover */}
-      {!message.is_mine && isHovered && !showReactions && (
-        <button
-          onClick={() => setShowReactions(true)}
-          className={`absolute ${message.is_mine ? 'left-0 -translate-x-full mr-2' : 'right-0 translate-x-full ml-2'} top-1/2 -translate-y-1/2 p-1.5 rounded-full bg-muted/80 hover:bg-muted text-muted-foreground hover:text-foreground transition-all opacity-0 group-hover:opacity-100`}
-        >
-          <Smile className="w-4 h-4" />
-        </button>
-      )}
-      
-      <div className={`max-w-[75%] ${message.is_mine ? 'items-end' : 'items-start'}`}>
+      <div className={`max-w-[75%] ${message.is_mine ? 'items-end' : 'items-start'} relative flex flex-col`}>
+        {/* Quick React Button - Visible on hover */}
+        {!message.is_mine && isHovered && !showReactions && (
+          <button
+            onClick={() => setShowReactions(true)}
+            className={`absolute right-0 translate-x-[calc(100%+8px)] top-1/2 -translate-y-1/2 p-2 rounded-full text-muted-foreground hover:text-foreground transition-all opacity-0 group-hover:opacity-100 z-10 flex items-center justify-center`}
+          >
+            <div className="bg-muted/80 hover:bg-muted rounded-full p-1.5 shadow-sm">
+              <Smile className="w-4 h-4" />
+            </div>
+          </button>
+        )}
+        
         <div className={`rounded-2xl px-4 py-2 ${
           message.is_mine 
             ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white' 
@@ -1466,7 +1468,7 @@ export const MessagesPage = () => {
       try {
         const response = await axios.get(`${API}/messages/typing/${selectedConversation.id}?user_id=${user.id}`);
         setTypingUsers(response.data.typing_users || []);
-      } catch (error) {}
+      } catch (error) { /* typing indicator is non-critical, ignore poll failures */ }
     };
 
     fetchTypingUsers();
@@ -1658,7 +1660,7 @@ export const MessagesPage = () => {
       try {
         const profileResp = await axios.get(`${API}/profiles/${user.id}`);
         fallbackAvatar = profileResp.data.avatar_url;
-      } catch (e) {}
+      } catch (e) { /* fallback avatar fetch failed - use cached value */ }
       
       const avatarWithCacheBust = fallbackAvatar 
         ? `${fallbackAvatar}${fallbackAvatar.includes('?') ? '&' : '?'}v=${Date.now()}`
@@ -1770,7 +1772,7 @@ export const MessagesPage = () => {
     if (!selectedConversation?.id || selectedConversation.is_new_chat) return;
     try {
       await axios.post(`${API}/messages/typing/${selectedConversation.id}?user_id=${user.id}`, { is_typing: isTyping });
-    } catch (error) {}
+    } catch (error) { /* typing indicator fire-and-forget, ignore network errors */ }
   }, [selectedConversation, user?.id]);
 
   const handleInputChange = (e) => {
