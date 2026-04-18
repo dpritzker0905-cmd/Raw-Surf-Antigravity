@@ -7,7 +7,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
-import { ArrowLeft, Loader2, X, MessageCircle, Send } from 'lucide-react';
+import { ArrowLeft, Loader2, X } from 'lucide-react';
 import { Button } from './ui/button';
 import PostCard from './PostCard';
 import PostMenu, { SharePostModal } from './PostMenu';

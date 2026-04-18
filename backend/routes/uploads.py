@@ -13,6 +13,17 @@ import io
 import asyncio
 import logging
 
+# Supabase Storage client for persistent video/thumbnail storage
+try:
+    from supabase import create_client as _create_supabase_client
+    _SUPABASE_URL = os.environ.get('SUPABASE_URL', '')
+    _SUPABASE_KEY = os.environ.get('SUPABASE_KEY', '')
+    _supabase = _create_supabase_client(_SUPABASE_URL, _SUPABASE_KEY) if _SUPABASE_URL and _SUPABASE_KEY else None
+    SUPABASE_STORAGE_AVAILABLE = _supabase is not None
+except Exception:
+    _supabase = None
+    SUPABASE_STORAGE_AVAILABLE = False
+
 # Import pillow-heif for HEIC support
 try:
     import pillow_heif
@@ -46,6 +57,32 @@ ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp", "image/gif", "im
 ALLOWED_VIDEO_TYPES = {"video/mp4", "video/quicktime", "video/webm", "video/mpeg", "video/x-m4v"}
 MAX_FILE_SIZE = 500 * 1024 * 1024  # 500MB for videos
 MAX_IMAGE_SIZE = 50 * 1024 * 1024  # 50MB for images
+
+
+def upload_to_supabase_storage(local_path: Path, bucket: str, remote_key: str, content_type: str = 'video/mp4') -> str | None:
+    """Upload a local file to Supabase Storage and return the public URL.
+    Returns None if Supabase is unavailable or upload fails."""
+    if not SUPABASE_STORAGE_AVAILABLE or _supabase is None:
+        return None
+    try:
+        with open(local_path, 'rb') as f:
+            data = f.read()
+        # Ensure bucket exists (ignore error if already exists)
+        try:
+            _supabase.storage.create_bucket(bucket, options={'public': True})
+        except Exception:
+            pass
+        res = _supabase.storage.from_(bucket).upload(
+            remote_key, data,
+            file_options={'content-type': content_type, 'upsert': 'true'}
+        )
+        if hasattr(res, 'error') and res.error:
+            return None
+        public_url = _supabase.storage.from_(bucket).get_public_url(remote_key)
+        return public_url
+    except Exception as e:
+        logging.getLogger(__name__).warning(f'Supabase upload failed: {e}')
+        return None
 
 
 def convert_heic_to_jpeg(content: bytes) -> tuple[bytes, str]:
@@ -482,25 +519,34 @@ async def upload_feed_media(
         
         if not success:
             raise HTTPException(status_code=400, detail=f"Video processing failed: {error}")
-        
-        media_url = f"/api/uploads/feed/{result['filename']}"
-        
-        # Generate smart thumbnail
-        thumbnail_url = None
+
         video_path = feed_dir / result['filename']
         thumbnail_filename = f"{result['filename'].rsplit('.', 1)[0]}_thumb.jpg"
         thumbnail_path = feed_dir / thumbnail_filename
-        
-        thumb_success, thumb_error = await asyncio.to_thread(
+
+        # Generate smart thumbnail
+        thumbnail_url = None
+        thumb_success, _ = await asyncio.to_thread(
             generate_video_thumbnail,
             str(video_path),
             str(thumbnail_path),
             'smart'
         )
-        
+
+        # Prefer Supabase Storage (permanent) over ephemeral disk URL
+        remote_key = f"feed/{result['filename']}"
+        supabase_video_url = await asyncio.to_thread(
+            upload_to_supabase_storage, video_path, 'videos', remote_key, 'video/mp4'
+        )
+        media_url = supabase_video_url or f"/api/uploads/feed/{result['filename']}"
+
         if thumb_success:
-            thumbnail_url = f"/api/uploads/feed/{thumbnail_filename}"
-        
+            remote_thumb_key = f"feed/{thumbnail_filename}"
+            supabase_thumb_url = await asyncio.to_thread(
+                upload_to_supabase_storage, thumbnail_path, 'videos', remote_thumb_key, 'image/jpeg'
+            )
+            thumbnail_url = supabase_thumb_url or f"/api/uploads/feed/{thumbnail_filename}"
+
         return {
             "media_url": media_url,
             "media_type": "video",
