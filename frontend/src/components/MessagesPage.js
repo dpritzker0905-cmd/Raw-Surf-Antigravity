@@ -1077,7 +1077,7 @@ const EmojiPicker = ({ show, onSelect, onClose }) => {
 };
 
 // Message Bubble Component
-const MessageBubble = ({ message, onReact, onReply }) => {
+const MessageBubble = ({ message, onReact, onReply, onNavigateProfile }) => {
   const [showReactions, setShowReactions] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
   const longPressTimer = useRef(null);
@@ -1178,15 +1178,32 @@ const MessageBubble = ({ message, onReact, onReply }) => {
 
   return (
     <div 
-      className={`relative flex ${message.is_mine ? 'justify-end' : 'justify-start'} mb-3 group`}
+      className={`relative flex ${message.is_mine ? 'justify-end' : 'justify-start'} items-end gap-2 mb-3 group`}
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
       onContextMenu={(e) => { e.preventDefault(); setShowReactions(true); }}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => { setIsHovered(false); if (!showReactions) setShowReactions(false); }}
     >
+      {/* Sender avatar - only for incoming messages, Instagram-style */}
+      {!message.is_mine && (
+        <button
+          onClick={() => onNavigateProfile && message.sender_id && onNavigateProfile(message.sender_id)}
+          className="flex-shrink-0 w-7 h-7 rounded-full overflow-hidden bg-muted ring-1 ring-border hover:ring-cyan-400/60 hover:scale-105 transition-all self-end mb-1 cursor-pointer"
+          title={`View ${message.sender_name || 'profile'}`}
+        >
+          {message.sender_avatar ? (
+            <img src={message.sender_avatar} alt="" className="w-full h-full object-cover" />
+          ) : (
+            <span className="w-full h-full flex items-center justify-center text-[10px] text-muted-foreground font-semibold">
+              {message.sender_name?.charAt(0) || '?'}
+            </span>
+          )}
+        </button>
+      )}
+
       {message.reply_to && (
-        <div className={`absolute -top-6 ${message.is_mine ? 'right-0' : 'left-0'} max-w-[60%]`}>
+        <div className={`absolute -top-6 ${message.is_mine ? 'right-0' : 'left-8'} max-w-[60%]`}>
           <div className="flex items-center gap-1 text-xs text-muted-foreground bg-muted/50 rounded px-2 py-1">
             <Reply className="w-3 h-3" />
             <span className="truncate">{message.reply_to.content}</span>
@@ -2286,7 +2303,11 @@ export const MessagesPage = () => {
         >
           <ChevronLeft className="w-6 h-6" />
         </button>
-        <div className="w-10 h-10 rounded-full bg-muted overflow-hidden ring-2 ring-cyan-500/30">
+        <button
+          onClick={() => navigate(`/profile/${conversationDetail?.other_user_id || selectedConversation?.other_user_id}`)}
+          className="w-10 h-10 rounded-full bg-muted overflow-hidden ring-2 ring-cyan-500/30 hover:ring-cyan-400 hover:scale-105 transition-all flex-shrink-0"
+          title="View profile"
+        >
           {chatAvatarWithCacheBust ? (
             <img src={chatAvatarWithCacheBust} className="w-full h-full object-cover" alt="" />
           ) : (
@@ -2294,9 +2315,14 @@ export const MessagesPage = () => {
               {(conversationDetail?.other_user_name || selectedConversation?.other_user_name)?.charAt(0)}
             </span>
           )}
-        </div>
+        </button>
         <div className="flex-1">
-          <div className="font-medium text-foreground">{conversationDetail?.other_user_name || selectedConversation?.other_user_name}</div>
+          <button
+            onClick={() => navigate(`/profile/${conversationDetail?.other_user_id || selectedConversation?.other_user_id}`)}
+            className="font-medium text-foreground hover:text-cyan-400 transition-colors text-left"
+          >
+            {conversationDetail?.other_user_name || selectedConversation?.other_user_name}
+          </button>
           {selectedConversation?.is_new_chat ? (
             <span className="text-xs text-muted-foreground">Start a conversation</span>
           ) : typingUsers.length > 0 ? (
@@ -2396,6 +2422,7 @@ export const MessagesPage = () => {
               message={message}
               onReact={handleReaction}
               onReply={(msg) => setReplyingTo(msg)}
+              onNavigateProfile={(userId) => navigate(`/profile/${userId}`)}
             />
           ))
         )}
