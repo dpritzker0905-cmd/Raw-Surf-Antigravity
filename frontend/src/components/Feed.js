@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import apiClient from '../lib/apiClient';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { usePersona, getExpandedRoleInfo } from '../contexts/PersonaContext';
@@ -25,7 +25,6 @@ import { Input } from './ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import logger from '../utils/logger';
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 // Role badge component for post authors
 const _RoleBadge = ({ role }) => {
@@ -309,7 +308,7 @@ export const Feed = () => {
     
     try {
       setFeedLineupsLoading(true);
-      const response = await axios.get(`${API}/feed/lineups`, {
+      const response = await apiClient.get(`/feed/lineups`, {
         params: { user_id: user.id, limit: 3 }
       });
       setFeedLineups(response.data || []);
@@ -332,7 +331,7 @@ export const Feed = () => {
       
       // For photographers, get bookings where they are the photographer (client bookings)
       if (isPhotographer) {
-        const response = await axios.get(`${API}/photographer/${user.id}/bookings`);
+        const response = await apiClient.get(`/photographer/${user.id}/bookings`);
         upcoming = (response.data || []).filter(b => {
           const sessionDate = new Date(b.session_date);
           const isActive = ['Confirmed', 'Pending', 'PendingPayment'].includes(b.status);
@@ -341,7 +340,7 @@ export const Feed = () => {
         }).slice(0, 2);
       } else {
         // For surfers, get bookings where they are a participant
-        const response = await axios.get(`${API}/bookings/user/${user.id}`, {
+        const response = await apiClient.get(`/bookings/user/${user.id}`, {
           params: { status: 'upcoming', limit: 5 }
         });
         upcoming = (response.data || []).filter(b => {
@@ -365,7 +364,7 @@ export const Feed = () => {
   // Fetch currently live users
   const fetchLiveUsers = async () => {
     try {
-      const response = await axios.get(`${API}/livekit/active-streams`);
+      const response = await apiClient.get(`/livekit/active-streams`);
       const liveUserIds = response.data.streams?.map(s => s.broadcaster_id) || [];
       setLiveUsers(liveUserIds);
     } catch (e) {
@@ -377,7 +376,7 @@ export const Feed = () => {
   const fetchFollowing = async () => {
     if (!user?.id) return;
     try {
-      const response = await axios.get(`${API}/following/${user.id}`);
+      const response = await apiClient.get(`/following/${user.id}`);
       const followingIds = new Set(response.data.map(f => f.id));
       setFollowingUsers(followingIds);
     } catch (e) {
@@ -394,7 +393,7 @@ export const Feed = () => {
     
     setFollowLoading(photographerId);
     try {
-      await axios.post(`${API}/follow/${photographerId}?follower_id=${user.id}`);
+      await apiClient.post(`/follow/${photographerId}?follower_id=${user.id}`);
       setFollowingUsers(prev => new Set([...prev, photographerId]));
       toast.success('Following! Check their profile for availability');
     } catch (error) {
@@ -408,7 +407,7 @@ export const Feed = () => {
   const handleUnfollowFromMenu = async (userId) => {
     if (!user?.id) return;
     try {
-      await axios.delete(`${API}/follow/${userId}?follower_id=${user.id}`);
+      await apiClient.delete(`/follow/${userId}?follower_id=${user.id}`);
       setFollowingUsers(prev => {
         const newSet = new Set(prev);
         newSet.delete(userId);
@@ -447,7 +446,7 @@ export const Feed = () => {
     setConnectingToStream(authorId);
     
     try {
-      const response = await axios.get(`${API}/livekit/active-streams`);
+      const response = await apiClient.get(`/livekit/active-streams`);
       const liveStream = response.data.streams?.find(s => s.broadcaster_id === authorId);
       
       if (liveStream) {
@@ -476,7 +475,7 @@ export const Feed = () => {
 
   const fetchPosts = async () => {
     try {
-      const response = await axios.get(`${API}/posts`, {
+      const response = await apiClient.get(`/posts`, {
         params: { user_id: user?.id }
       });
       if (response.data && response.data.length > 0) {
@@ -551,7 +550,7 @@ export const Feed = () => {
   const fetchStreak = async () => {
     if (!user?.id) return;
     try {
-      const response = await axios.get(`${API}/streak/${user.id}`);
+      const response = await apiClient.get(`/streak/${user.id}`);
       setStreak(response.data);
     } catch (error) {
       logger.error('Error fetching streak:', error);
@@ -560,7 +559,7 @@ export const Feed = () => {
 
   const fetchSpots = async () => {
     try {
-      const response = await axios.get(`${API}/surf-spots`);
+      const response = await apiClient.get(`/surf-spots`);
       setSpots(response.data);
     } catch (error) {
       logger.error('Error fetching spots:', error);
@@ -644,7 +643,7 @@ export const Feed = () => {
     ));
     
     try {
-      const response = await axios.post(`${API}/posts/${postId}/like?user_id=${user.id}`);
+      const response = await apiClient.post(`/posts/${postId}/like?user_id=${user.id}`);
       // Update with actual server response using functional update
       setPosts(prevPosts => prevPosts.map(p =>
         p.id === postId ? { 
@@ -701,12 +700,12 @@ export const Feed = () => {
       
       try {
         // Call API to remove the reaction (toggle it off)
-        await axios.post(`${API}/posts/${postId}/reactions?user_id=${user.id}`, { 
+        await apiClient.post(`/posts/${postId}/reactions?user_id=${user.id}`, { 
           emoji: userReaction.emoji 
         });
         // Also unlike if was liked
         if (isLiked) {
-          await axios.post(`${API}/posts/${postId}/like?user_id=${user.id}`);
+          await apiClient.post(`/posts/${postId}/like?user_id=${user.id}`);
         }
       } catch (error) {
         toast.error('Failed to clear reaction');
@@ -853,14 +852,14 @@ export const Feed = () => {
       let response;
       if (isShakaEmoji) {
         // Shaka emoji uses the like endpoint
-        response = await axios.post(`${API}/posts/${postId}/like?user_id=${user.id}`);
+        response = await apiClient.post(`/posts/${postId}/like?user_id=${user.id}`);
       } else {
-        response = await axios.post(`${API}/posts/${postId}/reactions?user_id=${user.id}`, { emoji });
+        response = await apiClient.post(`/posts/${postId}/reactions?user_id=${user.id}`, { emoji });
       }
       
       // Broadcast reaction update via Supabase Realtime for social sync
       try {
-        await axios.post(`${API}/realtime/broadcast`, {
+        await apiClient.post(`/realtime/broadcast`, {
           channel: `post:${postId}`,
           event: 'reaction_update',
           payload: {
@@ -880,7 +879,7 @@ export const Feed = () => {
       const action = response?.data?.action || (isRemoving ? 'removed' : 'added');
       if (action === 'added' && targetPost && targetPost.author_id !== user.id) {
         // Create notification via API
-        await axios.post(`${API}/notifications`, {
+        await apiClient.post(`/notifications`, {
           user_id: targetPost.author_id,
           type: 'post_reaction',
           title: `${user.full_name} reacted ${emoji}`,
@@ -908,10 +907,10 @@ export const Feed = () => {
     
     try {
       if (isSaved) {
-        await axios.delete(`${API}/posts/${postId}/save?user_id=${user.id}`);
+        await apiClient.delete(`/posts/${postId}/save?user_id=${user.id}`);
         toast.success('Post removed from saved');
       } else {
-        await axios.post(`${API}/posts/${postId}/save?user_id=${user.id}`);
+        await apiClient.post(`/posts/${postId}/save?user_id=${user.id}`);
         toast.success('Post saved!');
       }
     } catch (error) {
@@ -973,7 +972,7 @@ export const Feed = () => {
     
     setLoadingComments(prev => ({ ...prev, [postId]: true }));
     try {
-      const response = await axios.get(`${API}/posts/${postId}/comments`, {
+      const response = await apiClient.get(`/posts/${postId}/comments`, {
         params: { viewer_id: user?.id }
       });
       setAllComments(prev => ({ ...prev, [postId]: response.data }));
@@ -1099,7 +1098,7 @@ export const Feed = () => {
       // If GPS enabled AND spot selected, use Passport GPS-validated check-in
       if (checkInData.use_gps && checkInData.latitude && checkInData.longitude && spotId) {
         // First, attempt Passport GPS-validated check-in (requires being within 500m)
-        const passportResponse = await axios.post(`${API}/passport/checkin?user_id=${user.id}`, {
+        const passportResponse = await apiClient.post(`/passport/checkin?user_id=${user.id}`, {
           spot_id: spotId,
           latitude: checkInData.latitude,
           longitude: checkInData.longitude,
@@ -1115,7 +1114,7 @@ export const Feed = () => {
         
         // GPS check-in successful! Now also update legacy streak
         try {
-          const streakResponse = await axios.post(`${API}/check-in?user_id=${user.id}`, {
+          const streakResponse = await apiClient.post(`/check-in?user_id=${user.id}`, {
             spot_id: spotId,
             spot_name: spotName,
             conditions: checkInData.conditions || null,
@@ -1149,7 +1148,7 @@ export const Feed = () => {
         
       } else {
         // Non-GPS check-in (manual selection) - use legacy endpoint only
-        const response = await axios.post(`${API}/check-in?user_id=${user.id}`, {
+        const response = await apiClient.post(`/check-in?user_id=${user.id}`, {
           spot_id: spotId || null,
           spot_name: spotName,
           conditions: checkInData.conditions || null,

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import axios from 'axios';
+import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import { useAuth } from '../contexts/AuthContext';
 import { usePersona, getExpandedRoleInfo, isProLevelRole, isBusinessRole as isBusinessRoleCheck } from '../contexts/PersonaContext';
 import { useSearchParams, useNavigate, useParams, useLocation } from 'react-router-dom';
@@ -22,8 +22,7 @@ import {
   DropdownMenuTrigger,
 } from "./ui/dropdown-menu";
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
-const BASE_URL = process.env.REACT_APP_BACKEND_URL;
+
 
 // Role-based icon helper - uses expanded PersonaContext
 const getRoleIcon = (role, isAdmin = false) => {
@@ -451,7 +450,7 @@ const ComposeModal = ({ isOpen, onClose, onSelectUser, currentUserId }) => {
     setLoading(true);
     try {
       // Fetch recent conversations for frequent contacts
-      const convResponse = await axios.get(`${API}/messages/conversations/${currentUserId}?inbox_type=all`);
+      const convResponse = await apiClient.get(`/messages/conversations/${currentUserId}?inbox_type=all`);
       const recentUsers = convResponse.data.slice(0, 10).map(c => ({
         id: c.other_user_id,
         name: c.other_user_name,
@@ -474,7 +473,7 @@ const ComposeModal = ({ isOpen, onClose, onSelectUser, currentUserId }) => {
   const searchUsers = async (term) => {
     setLoading(true);
     try {
-      const response = await axios.get(`${API}/profiles/search?q=${encodeURIComponent(term)}&limit=20&user_id=${currentUserId}`);
+      const response = await apiClient.get(`/profiles/search?q=${encodeURIComponent(term)}&limit=20&user_id=${currentUserId}`);
       
       // Results are already sorted by backend: God Mode > Pros > Photographers > Businesses > Users
       setSearchResults(response.data.map(u => ({
@@ -1142,7 +1141,7 @@ const MessageBubble = ({ message, onReact, _onReply, onNavigateProfile }) => {
       if (url.startsWith('http://') || url.startsWith('https://')) return url;
       // If it's a relative /uploads path, prepend the backend URL
       if (url.startsWith('/uploads') || url.startsWith('/api/uploads')) {
-        return `${BASE_URL}${url.startsWith('/api') ? '' : '/api'}${url}`;
+        return `${BACKEND_URL}${url.startsWith('/api') ? '' : '/api'}${url}`;
       }
       return url;
     };
@@ -1491,7 +1490,7 @@ export const MessagesPage = () => {
     
     const fetchTypingUsers = async () => {
       try {
-        const response = await axios.get(`${API}/messages/typing/${selectedConversation.id}?user_id=${user.id}`);
+        const response = await apiClient.get(`/messages/typing/${selectedConversation.id}?user_id=${user.id}`);
         setTypingUsers(response.data.typing_users || []);
       } catch (error) { /* typing indicator is non-critical, ignore poll failures */ }
     };
@@ -1512,7 +1511,7 @@ export const MessagesPage = () => {
     }
     try {
       logger.debug('[Messages] Fetching conversation:', convId);
-      const response = await axios.get(`${API}/messages/conversation/${convId}?user_id=${user.id}`);
+      const response = await apiClient.get(`/messages/conversation/${convId}?user_id=${user.id}`);
       setSelectedConversation({
         id: convId,
         other_user_id: response.data.other_user_id,
@@ -1531,7 +1530,7 @@ export const MessagesPage = () => {
 
   const startNewConversation = async (targetRecipientId) => {
     try {
-      const response = await axios.post(`${API}/messages/start-conversation?sender_id=${user.id}&recipient_id=${targetRecipientId}`);
+      const response = await apiClient.post(`/messages/start-conversation?sender_id=${user.id}&recipient_id=${targetRecipientId}`);
       setSearchParams({});
       await fetchConversations();
       
@@ -1568,21 +1567,21 @@ export const MessagesPage = () => {
       const isFamily = activeFolder === 'family';
       
       // Fetch conversations for active folder
-      let url;
+      let path;
       if (isGromZone) {
-        url = `${API}/messages/conversations/${user.id}?inbox_type=primary&grom_zone=true`;
+        path = `/messages/conversations/${user.id}?inbox_type=primary&grom_zone=true`;
       } else if (isFamily) {
-        url = `${API}/messages/conversations/${user.id}/family`;
+        path = `/messages/conversations/${user.id}/family`;
       } else {
-        url = `${API}/messages/conversations/${user.id}?inbox_type=${activeFolder}`;
+        path = `/messages/conversations/${user.id}?inbox_type=${activeFolder}`;
       }
       
       // Fetch conversations + unread counts in parallel (2 requests max, not 8)
       // /messages/unread-counts returns primary, requests, grom_zone totals in ONE call
       const [response, countsResp, familyCountResp] = await Promise.all([
-        axios.get(url),
-        axios.get(`${API}/messages/unread-counts/${user.id}`).catch(() => ({ data: { primary: 0, requests: 0, grom_zone: 0 } })),
-        axios.get(`${API}/messages/conversations/${user.id}/family`).catch(() => ({ data: [] }))
+        apiClient.get(path),
+        apiClient.get(`/messages/unread-counts/${user.id}`).catch(() => ({ data: { primary: 0, requests: 0, grom_zone: 0 } })),
+        apiClient.get(`/messages/conversations/${user.id}/family`).catch(() => ({ data: [] }))
       ]);
       
       setConversations(response.data);
@@ -1611,7 +1610,7 @@ export const MessagesPage = () => {
 
   const fetchConversationDetail = async (convId) => {
     try {
-      const response = await axios.get(`${API}/messages/conversation/${convId}?user_id=${user.id}`);
+      const response = await apiClient.get(`/messages/conversation/${convId}?user_id=${user.id}`);
       setConversationDetail(response.data);
     } catch (error) {
       logger.error('Failed to fetch conversation:', error);
@@ -1621,14 +1620,14 @@ export const MessagesPage = () => {
   const fetchStories = async () => {
     // Fetch notes from API (Instagram-style Notes feature)
     try {
-      const response = await axios.get(`${API}/notes/feed?user_id=${user.id}`);
+      const response = await apiClient.get(`/notes/feed?user_id=${user.id}`);
       const { own_note, feed } = response.data;
       
       // CRITICAL: Fetch fresh profile data to get current avatar_url
       // The user context may have stale data from login
       let freshAvatarUrl = user?.avatar_url;
       try {
-        const profileResp = await axios.get(`${API}/profiles/${user.id}`);
+        const profileResp = await apiClient.get(`/profiles/${user.id}`);
         freshAvatarUrl = profileResp.data.avatar_url;
       } catch (e) {
         logger.debug('Could not fetch fresh profile, using context avatar');
@@ -1684,7 +1683,7 @@ export const MessagesPage = () => {
       // Fallback to basic own note bubble - try to fetch fresh avatar
       let fallbackAvatar = user?.avatar_url;
       try {
-        const profileResp = await axios.get(`${API}/profiles/${user.id}`);
+        const profileResp = await apiClient.get(`/profiles/${user.id}`);
         fallbackAvatar = profileResp.data.avatar_url;
       } catch (e) { /* fallback avatar fetch failed - use cached value */ }
       
@@ -1707,7 +1706,7 @@ export const MessagesPage = () => {
   // Create a new note
   const createNote = async (content) => {
     try {
-      await axios.post(`${API}/notes/create?user_id=${user.id}`, { content });
+      await apiClient.post(`/notes/create?user_id=${user.id}`, { content });
       toast.success('Note shared!');
       fetchStories(); // Refresh notes
     } catch (error) {
@@ -1719,7 +1718,7 @@ export const MessagesPage = () => {
   // Reply to a note
   const replyToNote = async (noteId, replyText) => {
     try {
-      const response = await axios.post(`${API}/notes/${noteId}/reply?user_id=${user.id}`, {
+      const response = await apiClient.post(`/notes/${noteId}/reply?user_id=${user.id}`, {
         reply_text: replyText
       });
       // Navigate to the conversation created by the reply
@@ -1750,7 +1749,7 @@ export const MessagesPage = () => {
     setCrewChatsLoading(true);
     try {
       // Get user's bookings
-      const response = await axios.get(`${API}/bookings/user/${user.id}`);
+      const response = await apiClient.get(`/bookings/user/${user.id}`);
       const bookings = response.data || [];
       
       // Filter to only active/confirmed bookings and get chat info for each
@@ -1762,7 +1761,7 @@ export const MessagesPage = () => {
       const chatsWithInfo = await Promise.all(
         activeBookings.map(async (booking) => {
           try {
-            const chatInfo = await axios.get(`${API}/crew-chat/${booking.id}/info?user_id=${user.id}`);
+            const chatInfo = await apiClient.get(`/crew-chat/${booking.id}/info?user_id=${user.id}`);
             return {
               ...booking,
               chatInfo: chatInfo.data,
@@ -1797,7 +1796,7 @@ export const MessagesPage = () => {
   const sendTypingIndicator = useCallback(async (isTyping) => {
     if (!selectedConversation?.id || selectedConversation.is_new_chat) return;
     try {
-      await axios.post(`${API}/messages/typing/${selectedConversation.id}?user_id=${user.id}`, { is_typing: isTyping });
+      await apiClient.post(`/messages/typing/${selectedConversation.id}?user_id=${user.id}`, { is_typing: isTyping });
     } catch (error) { /* typing indicator fire-and-forget, ignore network errors */ }
   }, [selectedConversation, user?.id]);
 
@@ -1817,7 +1816,7 @@ export const MessagesPage = () => {
     sendTypingIndicator(false);
     
     try {
-      const response = await axios.post(`${API}/messages/send?sender_id=${user.id}`, {
+      const response = await apiClient.post(`/messages/send?sender_id=${user.id}`, {
         recipient_id: selectedConversation.other_user_id,
         content: newMessage.trim(),
         reply_to_id: replyingTo?.id || null
@@ -1865,7 +1864,7 @@ export const MessagesPage = () => {
     setSendingMessage(true);
     try {
       logger.debug('[Messages] Sending GIF:', { gifUrl, recipientId: selectedConversation.other_user_id });
-      const response = await axios.post(`${API}/messages/send?sender_id=${user.id}`, {
+      const response = await apiClient.post(`/messages/send?sender_id=${user.id}`, {
         recipient_id: selectedConversation.other_user_id,
         content: '', // No text content for GIF
         message_type: 'gif',
@@ -1898,7 +1897,7 @@ export const MessagesPage = () => {
 
   const handleReaction = async (messageId, emoji) => {
     try {
-      await axios.post(`${API}/messages/react/${messageId}?user_id=${user.id}`, { emoji });
+      await apiClient.post(`/messages/react/${messageId}?user_id=${user.id}`, { emoji });
       fetchConversationDetail(selectedConversation.id);
     } catch (error) {
       toast.error('Failed to add reaction');
@@ -1907,7 +1906,7 @@ export const MessagesPage = () => {
 
   const handleAcceptRequest = async () => {
     try {
-      await axios.post(`${API}/messages/accept/${selectedConversation.id}?user_id=${user.id}`);
+      await apiClient.post(`/messages/accept/${selectedConversation.id}?user_id=${user.id}`);
       toast.success('Moved to Primary inbox');
       fetchConversations();
       fetchConversationDetail(selectedConversation.id);
@@ -1918,7 +1917,7 @@ export const MessagesPage = () => {
 
   const handleDeclineRequest = async () => {
     try {
-      await axios.delete(`${API}/messages/conversation/${selectedConversation.id}?user_id=${user.id}`);
+      await apiClient.delete(`/messages/conversation/${selectedConversation.id}?user_id=${user.id}`);
       toast.success('Request declined');
       setSelectedConversation(null);
       setConversationDetail(null);
@@ -1982,7 +1981,7 @@ export const MessagesPage = () => {
     if (!selectedConversation?.id) return;
     if (!window.confirm('Delete this conversation? It will be hidden from your inbox.')) return;
     try {
-      await axios.delete(`${API}/messages/conversation/${selectedConversation.id}?user_id=${user.id}`);
+      await apiClient.delete(`/messages/conversation/${selectedConversation.id}?user_id=${user.id}`);
       toast.success('Conversation deleted');
       setSelectedConversation(null);
       setConversationDetail(null);
@@ -2008,7 +2007,7 @@ export const MessagesPage = () => {
       // Accept all requests in parallel
       await Promise.all(
         requestConversations.map(conv => 
-          axios.post(`${API}/messages/accept/${conv.id}?user_id=${user.id}`)
+          apiClient.post(`/messages/accept/${conv.id}?user_id=${user.id}`)
         )
       );
       
@@ -2038,7 +2037,7 @@ export const MessagesPage = () => {
     }
 
     try {
-      await axios.post(`${API}/messages/media`, formData, { headers: { 'Content-Type': 'multipart/form-data' } });
+      await apiClient.post(`/messages/media`, formData, { headers: { 'Content-Type': 'multipart/form-data' } });
       toast.success(file.type.startsWith('video/') ? 'Disappearing video sent!' : 'Media sent!');
       if (selectedConversation.id) fetchConversationDetail(selectedConversation.id);
       fetchConversations();
@@ -2059,7 +2058,7 @@ export const MessagesPage = () => {
     formData.append('message_type_override', 'ephemeral_video');
 
     try {
-      await axios.post(`${API}/messages/media`, formData, { headers: { 'Content-Type': 'multipart/form-data' } });
+      await apiClient.post(`/messages/media`, formData, { headers: { 'Content-Type': 'multipart/form-data' } });
       toast.success('Disappearing video sent!');
       if (selectedConversation.id) fetchConversationDetail(selectedConversation.id);
       fetchConversations();
@@ -2082,7 +2081,7 @@ export const MessagesPage = () => {
   const handleComposeSelectUser = async (selectedUser) => {
     try {
       // Check for existing conversation
-      const response = await axios.get(`${API}/messages/check-thread/${user.id}/${selectedUser.id}`);
+      const response = await apiClient.get(`/messages/check-thread/${user.id}/${selectedUser.id}`);
       
       if (response.data.exists) {
         // Navigate to existing conversation

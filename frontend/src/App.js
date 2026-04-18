@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ThemeProvider, useTheme } from './contexts/ThemeContext';
@@ -63,7 +63,9 @@ import PersonaMaskBanner from './components/PersonaMaskBanner';
 import ImpersonationBanner from './components/ImpersonationBanner';
 import AccessCodeScreen from './components/AccessCodeScreen';
 import SearchPage from './pages/SearchPage';
+import { CreatePost } from './components/CreatePost';
 import './App.css';
+
 
 // Wrapper to render ImpersonationBanner when admin is viewing as another user
 const ImpersonationBannerWrapper = () => {
@@ -115,22 +117,24 @@ const GROM_ALWAYS_ALLOWED_ROUTES = [
 const ProtectedRoute = ({ children, bypassGromGate = false }) => {
   const { user, loading } = useAuth();
   const location = useLocation();
-  const [isRestoring, setIsRestoring] = useState(true);
 
-  useEffect(() => {
-    // Double-check localStorage for auth persistence fix
-    if (!user && !loading) {
-      const storedUser = localStorage.getItem('raw-surf-user');
-      if (storedUser) {
-        // User exists in localStorage but not in state - reload
-        window.location.reload();
-        return;
-      }
+  // Hydrate from localStorage synchronously if AuthContext hasn't loaded yet.
+  // This replaces the old window.location.reload() hack which masked an auth
+  // state timing issue. We now derive the stored user directly so we can
+  // redirect properly without a full page reload.
+  const storedUser = React.useMemo(() => {
+    if (user || loading) return null;
+    try {
+      const raw = localStorage.getItem('raw-surf-user');
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
     }
-    setIsRestoring(false);
   }, [user, loading]);
 
-  if (loading || isRestoring) {
+  const effectiveUser = user || storedUser;
+
+  if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-black">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-yellow-400"></div>
@@ -138,7 +142,7 @@ const ProtectedRoute = ({ children, bypassGromGate = false }) => {
     );
   }
 
-  if (!user) {
+  if (!effectiveUser) {
     // Save intended destination for post-login redirect
     const currentPath = window.location.pathname + window.location.search;
     return <Navigate to={`/auth?tab=signup&redirect=${encodeURIComponent(currentPath)}`} replace />;
@@ -150,7 +154,7 @@ const ProtectedRoute = ({ children, bypassGromGate = false }) => {
   const isLimitedAccess = GROM_LIMITED_ACCESS_ROUTES.includes(currentPath);
 
   // If user is Grom and route is not always allowed, wrap with GromSafetyGate
-  if (user.role === 'Grom' && !user.is_admin && !bypassGromGate && !isAlwaysAllowed) {
+  if (effectiveUser.role === 'Grom' && !effectiveUser.is_admin && !bypassGromGate && !isAlwaysAllowed) {
     return (
       <GromSafetyGate allowLimitedFeed={isLimitedAccess}>
         {children}
@@ -285,16 +289,7 @@ const AppLayout = ({ children, hideNav = false, hideTopNav = false }) => {
   );
 };
 
-// Placeholder components for routes
-const _ExplorePage = () => (
-  <div className="p-4 md:p-8">
-    <h1 className="text-2xl font-bold text-white mb-4" style={{ fontFamily: 'Oswald' }}>Explore</h1>
-    <p className="text-gray-400">Explore photographers and surf spots...</p>
-  </div>
-);
-
-// Import the actual CreatePost component
-import { CreatePost } from './components/CreatePost';
+// CreatePost page wrapper (import is at top of file)
 
 const CreatePostPage = () => (
   <CreatePost />
@@ -638,13 +633,7 @@ function App() {
             />
             <Route
               path="/god-mode"
-              element={
-                <ProtectedRoute>
-                  <AppLayout>
-                    <UnifiedAdminConsole />
-                  </AppLayout>
-                </ProtectedRoute>
-              }
+              element={<Navigate to="/admin" replace />}
             />
             <Route
               path="/leaderboard"

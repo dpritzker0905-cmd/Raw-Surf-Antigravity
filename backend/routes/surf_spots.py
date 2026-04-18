@@ -7,6 +7,8 @@ from typing import List, Optional
 from datetime import datetime, timezone, date
 import math
 import logging
+from utils.geo import haversine_distance
+
 
 from database import get_db
 from models import Profile, SurfSpot, RoleEnum, LiveSession, SpotRefinement, SpotOfTheDay, Booking
@@ -93,23 +95,6 @@ def get_visibility_radius(subscription_tier: str) -> float:
     return TIER_RADIUS.get(subscription_tier.lower() if subscription_tier else None, 1.0)
 
 
-def haversine_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
-    """
-    Calculate the great circle distance between two points on earth (in miles).
-    Used for Privacy Shield geofencing.
-    """
-    R = 3959  # Earth's radius in miles
-    
-    lat1_rad = math.radians(lat1)
-    lat2_rad = math.radians(lat2)
-    delta_lat = math.radians(lat2 - lat1)
-    delta_lon = math.radians(lon2 - lon1)
-    
-    a = math.sin(delta_lat / 2) ** 2 + \
-        math.cos(lat1_rad) * math.cos(lat2_rad) * math.sin(delta_lon / 2) ** 2
-    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
-    
-    return R * c
 
 
 def is_within_geofence(user_lat: float, user_lon: float, spot_lat: float, spot_lon: float, radius_miles: float) -> bool:

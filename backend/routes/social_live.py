@@ -13,6 +13,8 @@ from typing import Optional, List
 from datetime import datetime, timezone, timedelta
 import os
 import logging
+from utils.geo import haversine_distance
+
 
 from database import get_db
 from models import Profile, SurfSpot, SocialLiveStream, Story, Follow
@@ -245,16 +247,6 @@ async def check_pro_zone(
     
     PRO_ZONE_RADIUS_MILES = 0.5
     
-    def haversine_distance(lat1, lon1, lat2, lon2):
-        R = 3959
-        phi1 = math.radians(lat1)
-        phi2 = math.radians(lat2)
-        delta_phi = math.radians(lat2 - lat1)
-        delta_lambda = math.radians(lon2 - lon1)
-        a = math.sin(delta_phi/2)**2 + math.cos(phi1) * math.cos(phi2) * math.sin(delta_lambda/2)**2
-        c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
-        return R * c
-    
     for pro in active_pros:
         if pro.current_latitude and pro.current_longitude:
             distance = haversine_distance(
@@ -322,19 +314,6 @@ async def start_social_live(
             
             # Calculate distance to each active Pro
             PRO_ZONE_RADIUS_MILES = 0.5
-            
-            def haversine_distance(lat1, lon1, lat2, lon2):
-                """Calculate distance between two points in miles"""
-                R = 3959  # Earth's radius in miles
-                phi1 = math.radians(lat1)
-                phi2 = math.radians(lat2)
-                delta_phi = math.radians(lat2 - lat1)
-                delta_lambda = math.radians(lon2 - lon1)
-                
-                a = math.sin(delta_phi/2)**2 + math.cos(phi1) * math.cos(phi2) * math.sin(delta_lambda/2)**2
-                c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
-                
-                return R * c
             
             for pro in active_pros:
                 if pro.current_latitude and pro.current_longitude:

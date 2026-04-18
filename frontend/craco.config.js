@@ -89,4 +89,15 @@ if (isDevServer) {
   }
 }
 
-module.exports = webpackConfig;
+module.exports = {
+  ...webpackConfig,
+  jest: {
+    configure: (jestConfig) => {
+      // On Windows, CRA's default testMatch globs don't expand properly.
+      // Switch to testRegex which handles both / and \ path separators.
+      delete jestConfig.testMatch;
+      jestConfig.testRegex = 'src[/\\\\].+\\.(spec|test)\\.[jt]sx?$';
+      return jestConfig;
+    }
+  }
+};

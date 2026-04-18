@@ -1,9 +1,6 @@
 import React, { createContext, useState, useContext, useEffect, useCallback } from 'react';
-import axios from 'axios';
+import apiClient from '../lib/apiClient';
 
-const AuthContext = createContext();
-
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
@@ -40,7 +37,7 @@ export const AuthProvider = ({ children }) => {
       
       // Auto-refresh if username is missing (backwards compatibility)
       if (parsedUser?.id && !parsedUser?.username) {
-        axios.get(`${API}/profiles/${parsedUser.id}`)
+        apiClient.get(`/profiles/${parsedUser.id}`)
           .then(response => {
             if (response.data?.username) {
               const updatedUser = { ...parsedUser, username: response.data.username };
@@ -58,7 +55,7 @@ export const AuthProvider = ({ children }) => {
   }, [checkImpersonationSession]);
 
   const signup = async (email, password, full_name, username, role, parent_email, company_name, birthdate, grom_competes = false) => {
-    const response = await axios.post(`${API}/auth/signup`, {
+    const response = await apiClient.post('/auth/signup', {
       email,
       password,
       full_name,
@@ -77,7 +74,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   const login = async (email, password) => {
-    const response = await axios.post(`${API}/auth/login`, {
+    const response = await apiClient.post('/auth/login', {
       email,
       password
     });
@@ -116,7 +113,7 @@ export const AuthProvider = ({ children }) => {
   const refreshUser = async () => {
     if (!user?.id) return null;
     try {
-      const response = await axios.get(`${API}/profiles/${user.id}`);
+      const response = await apiClient.get(`/profiles/${user.id}`);
       const refreshedUser = { ...user, ...response.data };
       setUser(refreshedUser);
       localStorage.setItem('raw-surf-user', JSON.stringify(refreshedUser));
@@ -128,7 +125,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   const updateSubscription = async (profileId, subscriptionTier) => {
-    const response = await axios.post(`${API}/profiles/${profileId}/subscription`, {
+    const response = await apiClient.post(`/profiles/${profileId}/subscription`, {
       subscription_tier: subscriptionTier
     });
     updateUser({ subscription_tier: subscriptionTier });
@@ -136,7 +133,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   const submitProOnboarding = async (profileId, data) => {
-    const response = await axios.post(`${API}/profiles/${profileId}/pro-onboarding`, data);
+    const response = await apiClient.post(`/profiles/${profileId}/pro-onboarding`, data);
     updateUser({ portfolio_url: data.portfolio_url });
     return response.data;
   };
@@ -179,9 +176,7 @@ export const AuthProvider = ({ children }) => {
     
     try {
       // Call API to end session
-      await axios.post(
-        `${API}/admin/impersonate/${impersonation.session_id}/end?admin_id=${originalUser.id}`
-      );
+      await apiClient.post(`/admin/impersonate/${impersonation.session_id}/end?admin_id=${originalUser.id}`);
     } catch (e) {
       // Continue anyway - session cleanup is important
     }

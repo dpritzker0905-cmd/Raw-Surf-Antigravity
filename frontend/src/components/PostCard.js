@@ -4,7 +4,7 @@
  */
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import { getExpandedRoleInfo } from '../contexts/PersonaContext';
 import SessionLogHeader from './SessionLogHeader';
 import { CommentInputWithEmoji } from './EmojiPicker';
@@ -14,7 +14,6 @@ import { RichText, CommentText } from './RichText';
 import { MapPin, MessageCircle, Send, Bookmark, MoreHorizontal, Loader2, Play, Radio, Heart, ShoppingBag, ChevronRight } from 'lucide-react';
 import { toast } from 'sonner';
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 // Comment reaction emojis
 const COMMENT_REACTIONS = ['❤️', '🤙', '🌊', '🔥'];
@@ -210,8 +209,8 @@ const CommentWithReaction = ({
     
     setSavingEdit(true);
     try {
-      const response = await axios.put(
-        `${API}/posts/${postId}/comments/${comment.id}?user_id=${userId}`,
+      const response = await apiClient.put(
+        `/posts/${postId}/comments/${comment.id}?user_id=${userId}`,
         { content: editContent.trim() }
       );
       
@@ -629,7 +628,7 @@ const PostCard = ({
     if (url.startsWith('blob:')) return url;     // local blob URLs (camera capture)
     if (url.startsWith('//')) return url;        // protocol-relative URLs (CDN)
     if (url.startsWith('http')) return url;      // absolute http/https URLs
-    return `${process.env.REACT_APP_BACKEND_URL || ''}${url}`;
+    return `${BACKEND_URL || ''}${url}`;
   };
 
   const _checkMediaUrl = getFullUrl(post?.media_url || post?.image_url);
@@ -680,7 +679,7 @@ const PostCard = ({
     // Fetch detailed data
     setLoadingReactions(true);
     try {
-      const response = await axios.get(`${API}/posts/${post.id}/reactions-detail`);
+      const response = await apiClient.get(`/posts/${post.id}/reactions-detail`);
       // Combine likers and reactors for full list
       const allReactors = [
         ...(response.data.all_reactors || []).map(r => ({

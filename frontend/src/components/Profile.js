@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { usePersona, getExpandedRoleInfo } from '../contexts/PersonaContext';
 import { useNavigate, useParams } from 'react-router-dom';
-import axios from 'axios';
+
 import { 
   Camera, Settings, DollarSign, MapPin, Flame, 
   Grid3X3, Bookmark, UserSquare2, Play, Waves, ExternalLink,
@@ -48,8 +48,9 @@ import { ScheduledBookingDrawer } from './ScheduledBookingDrawer';
 import { SurfboardsTab } from './SurfboardsTab';
 import { FollowersModal } from './FollowersModal';
 import logger from '../utils/logger';
+import apiClient, { BACKEND_URL } from '../lib/apiClient';
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
+
 
 // Role badge component showing icon and label
 const ProfileRoleBadge = ({ role }) => {
@@ -183,7 +184,7 @@ export const Profile = () => {
     }
     
     try {
-      const response = await axios.get(`${API}/profiles/${profileUserId}`);
+      const response = await apiClient.get(`/profiles/${profileUserId}`);
       setProfile(response.data);
       if (isOwnProfile && user) {
         setEditData({
@@ -213,7 +214,7 @@ export const Profile = () => {
 
   const fetchStreak = async () => {
     try {
-      const response = await axios.get(`${API}/streak/${profileUserId}`);
+      const response = await apiClient.get(`/streak/${profileUserId}`);
       setStreak(response.data);
     } catch (error) {
       logger.error('Error fetching streak:', error);
@@ -223,8 +224,8 @@ export const Profile = () => {
   const fetchSocialStats = async () => {
     try {
       const [followersRes, followingRes] = await Promise.all([
-        axios.get(`${API}/followers/${profileUserId}`).catch(() => ({ data: [] })),
-        axios.get(`${API}/following/${profileUserId}`).catch(() => ({ data: [] }))
+        apiClient.get(`/followers/${profileUserId}`).catch(() => ({ data: [] })),
+        apiClient.get(`/following/${profileUserId}`).catch(() => ({ data: [] }))
       ]);
       setSocialStats({
         followers: followersRes.data?.length || 0,
@@ -237,7 +238,7 @@ export const Profile = () => {
 
   const fetchContentStats = async () => {
     try {
-      const response = await axios.get(`${API}/profile/${profileUserId}/stats`);
+      const response = await apiClient.get(`/profile/${profileUserId}/stats`);
       setContentStats(response.data);
     } catch (error) {
       logger.error('Error fetching content stats:', error);
@@ -246,7 +247,7 @@ export const Profile = () => {
 
   const fetchImpactScore = async () => {
     try {
-      const response = await axios.get(`${API}/impact/public/${profileUserId}`);
+      const response = await apiClient.get(`/impact/public/${profileUserId}`);
       setImpactScore(response.data);
     } catch (error) {
       logger.error('Error fetching impact score:', error);
@@ -255,7 +256,7 @@ export const Profile = () => {
 
   const fetchGamificationStats = async () => {
     try {
-      const response = await axios.get(`${API}/gamification/user/${profileUserId}`);
+      const response = await apiClient.get(`/gamification/user/${profileUserId}`);
       setGamificationStats(response.data);
     } catch (error) {
       logger.error('Error fetching gamification stats:', error);
@@ -266,7 +267,7 @@ export const Profile = () => {
   const fetchUserNote = async () => {
     if (!profileUserId || !user?.id) return;
     try {
-      const response = await axios.get(`${API}/notes/user/${profileUserId}?viewer_id=${user.id}`);
+      const response = await apiClient.get(`/notes/user/${profileUserId}?viewer_id=${user.id}`);
       setUserNote(response.data.note);
       setIsMutualFollower(response.data.is_mutual_follower);
     } catch (error) {
@@ -280,7 +281,7 @@ export const Profile = () => {
     if (!noteText.trim() || noteSubmitting) return;
     setNoteSubmitting(true);
     try {
-      await axios.post(`${API}/notes/create?user_id=${user.id}`, { content: noteText.trim() });
+      await apiClient.post(`/notes/create?user_id=${user.id}`, { content: noteText.trim() });
       toast.success('Note shared with mutual followers!');
       setShowNoteModal(false);
       setNoteText('');
@@ -295,7 +296,7 @@ export const Profile = () => {
   // Delete note
   const handleDeleteNote = async () => {
     try {
-      await axios.delete(`${API}/notes/delete?user_id=${user.id}`);
+      await apiClient.delete(`/notes/delete?user_id=${user.id}`);
       setUserNote(null);
       setShowNoteModal(false);
       toast.success('Note deleted');
@@ -308,7 +309,7 @@ export const Profile = () => {
     if (!user?.id) return;
     
     try {
-      const response = await axios.get(`${API}/following/${user.id}`);
+      const response = await apiClient.get(`/following/${user.id}`);
       const following = response.data || [];
       setIsFollowing(following.some(f => f.id === profileUserId));
     } catch (error) {
@@ -325,12 +326,12 @@ export const Profile = () => {
     setFollowLoading(true);
     try {
       if (isFollowing) {
-        await axios.delete(`${API}/follow/${profileUserId}?follower_id=${user.id}`);
+        await apiClient.delete(`/follow/${profileUserId}?follower_id=${user.id}`);
         setIsFollowing(false);
         setSocialStats(prev => ({ ...prev, followers: Math.max(0, prev.followers - 1) }));
         toast.success(`Unfollowed ${profile.full_name}`);
       } else {
-        await axios.post(`${API}/follow/${profileUserId}?follower_id=${user.id}`);
+        await apiClient.post(`/follow/${profileUserId}?follower_id=${user.id}`);
         setIsFollowing(true);
         setSocialStats(prev => ({ ...prev, followers: prev.followers + 1 }));
         toast.success(`Following ${profile.full_name}`);
@@ -346,7 +347,7 @@ export const Profile = () => {
   const checkBlockStatus = async () => {
     if (!user?.id || !profileUserId || isOwnProfile) return;
     try {
-      const response = await axios.get(`${API}/users/${user.id}/is-blocked/${profileUserId}`);
+      const response = await apiClient.get(`/users/${user.id}/is-blocked/${profileUserId}`);
       setIsBlocked(response.data.user_blocked_other);
       setIsBlockedByThem(response.data.other_blocked_user);
     } catch (error) {
@@ -359,7 +360,7 @@ export const Profile = () => {
     
     setBlockLoading(true);
     try {
-      await axios.post(`${API}/users/block`, {
+      await apiClient.post(`/users/block`, {
         blocker_id: user.id,
         blocked_id: profileUserId,
         reason: blockReason || null,
@@ -390,7 +391,7 @@ export const Profile = () => {
     
     setBlockLoading(true);
     try {
-      await axios.post(`${API}/users/unblock`, {
+      await apiClient.post(`/users/unblock`, {
         blocker_id: user.id,
         blocked_id: profileUserId
       });
@@ -408,7 +409,7 @@ export const Profile = () => {
   const fetchPhotographerPricing = async () => {
     if (!profileUserId) return;
     try {
-      const res = await axios.get(`${API}/photographer/${profileUserId}/pricing`);
+      const res = await apiClient.get(`/photographer/${profileUserId}/pricing`);
       setPhotographerPricing(res.data);
     } catch (e) {
       logger.error('Error fetching photographer pricing:', e);
@@ -457,7 +458,7 @@ export const Profile = () => {
       if (quickBookType === 'on-demand') {
         // Submit On-Demand request using correct API format
         // API expects: requester_id as query param, CreateDispatchRequest in body
-        await axios.post(`${API}/dispatch/request?requester_id=${user.id}`, {
+        await apiClient.post(`/dispatch/request?requester_id=${user.id}`, {
           latitude: userLocation?.latitude || 0,
           longitude: userLocation?.longitude || 0,
           estimated_duration_hours: quickBookDuration,
@@ -559,10 +560,10 @@ export const Profile = () => {
     } else {
       // End live broadcast
       try {
-        const activeStreams = await axios.get(`${API}/social-live/active`);
+        const activeStreams = await apiClient.get(`/social-live/active`);
         const myStream = activeStreams.data.streams?.find(s => s.broadcaster_id === user.id);
         if (myStream) {
-          await axios.post(`${API}/social-live/${myStream.id}/end?broadcaster_id=${user.id}`);
+          await apiClient.post(`/social-live/${myStream.id}/end?broadcaster_id=${user.id}`);
         }
         setProfile({ ...profile, is_live: false });
         toast.success('Live broadcast ended');
@@ -570,7 +571,7 @@ export const Profile = () => {
         logger.error('End live error:', error);
         // Fallback: update profile directly
         try {
-          await axios.patch(`${API}/profiles/${user.id}`, { is_live: false });
+          await apiClient.patch(`/profiles/${user.id}`, { is_live: false });
           setProfile({ ...profile, is_live: false });
           toast.success('Live broadcast ended');
         } catch (e) {
@@ -588,7 +589,7 @@ export const Profile = () => {
   const handleSaveProfile = async () => {
     setEditLoading(true);
     try {
-      const response = await axios.patch(`${API}/profiles/${user.id}`, editData);
+      const response = await apiClient.patch(`/profiles/${user.id}`, editData);
       setProfile(response.data);
       updateUser({ ...user, full_name: response.data.full_name });
       setShowEditModal(false);
@@ -640,7 +641,7 @@ export const Profile = () => {
           const base64 = canvas.toDataURL('image/jpeg', 0.85);
 
           try {
-            const response = await axios.patch(`${API}/profiles/${user.id}`, {
+            const response = await apiClient.patch(`/profiles/${user.id}`, {
               avatar_url: base64
             });
             setProfile(response.data);
@@ -1082,7 +1083,7 @@ export const Profile = () => {
                 onClick={async () => {
                   // Lazy thread routing: check for existing conversation first
                   try {
-                    const response = await axios.get(`${API}/messages/check-thread/${user.id}/${profileUserId}`);
+                    const response = await apiClient.get(`/messages/check-thread/${user.id}/${profileUserId}`);
                     if (response.data.exists) {
                       // Navigate directly to existing conversation
                       navigate(`/messages/${response.data.conversation_id}`, { 
@@ -2156,7 +2157,7 @@ const MediaGridItem = ({ item, onClick, isPinned = false }) => {
     if (!url) return url;
     if (url.startsWith('data:')) return url;
     if (url.startsWith('http')) return url;
-    return `${process.env.REACT_APP_BACKEND_URL || ''}${url}`;
+    return `${BACKEND_URL || ''}${url}`;
   };
   
   const _checkMediaUrl = getFullUrl(item.media_url || item.image_url);

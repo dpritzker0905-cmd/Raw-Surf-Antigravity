@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { usePersona, ALL_PERSONAS, getExpandedRoleInfo } from '../contexts/PersonaContext';
 import { useTheme } from '../contexts/ThemeContext';
-import axios from 'axios';
+import apiClient from '../lib/apiClient';
 import {
   Shield, Zap, Users, DollarSign, Search, Ban, CheckCircle, 
   Loader2, ChevronDown, ChevronLeft, ChevronRight, Eye, Trash2, UserX, UserCheck, 
@@ -36,7 +36,7 @@ import { AdminContentMgmtDashboard } from './admin/AdminContentMgmtDashboard';
 import logger from '../utils/logger';
 import { supabase } from '../lib/supabase';
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
+
 
 /**
  * Unified Admin Console - Combines Admin Dashboard + God Mode
@@ -120,10 +120,10 @@ const UnifiedAdminConsole = () => {
     setLoading(true);
     try {
       const [statsRes, usersRes, logsRes, settingsRes] = await Promise.all([
-        axios.get(`${API}/admin/stats?admin_id=${user.id}`).catch(() => ({ data: null })),
-        axios.get(`${API}/admin/users?admin_id=${user.id}&limit=50`).catch(() => ({ data: { users: [] } })),
-        axios.get(`${API}/admin/logs?admin_id=${user.id}&limit=50`).catch(() => ({ data: [] })),
-        axios.get(`${API}/admin/platform-settings?admin_id=${user.id}`).catch(() => ({ data: null }))
+        apiClient.get(`/admin/stats?admin_id=${user.id}`).catch(() => ({ data: null })),
+        apiClient.get(`/admin/users?admin_id=${user.id}&limit=50`).catch(() => ({ data: { users: [] } })),
+        apiClient.get(`/admin/logs?admin_id=${user.id}&limit=50`).catch(() => ({ data: [] })),
+        apiClient.get(`/admin/platform-settings?admin_id=${user.id}`).catch(() => ({ data: null }))
       ]);
       
       setStats(statsRes.data);
@@ -143,9 +143,9 @@ const UnifiedAdminConsole = () => {
     setLoadingPhotographers(true);
     try {
       const [photosRes, spotsRes, sessionsRes] = await Promise.all([
-        axios.get(`${API}/admin/photographers`).catch(() => ({ data: [] })),
-        axios.get(`${API}/surf-spots`).catch(() => ({ data: [] })),
-        axios.get(`${API}/admin/active-sessions`).catch(() => ({ data: [] }))
+        apiClient.get(`/admin/photographers`).catch(() => ({ data: [] })),
+        apiClient.get(`/surf-spots`).catch(() => ({ data: [] })),
+        apiClient.get(`/admin/active-sessions`).catch(() => ({ data: [] }))
       ]);
       setSimulatePhotographers(photosRes.data || []);
       setSurfSpots(spotsRes.data || []);
@@ -167,8 +167,8 @@ const UnifiedAdminConsole = () => {
   // User management handlers
   const handleSearch = async () => {
     try {
-      const response = await axios.get(
-        `${API}/admin/users?admin_id=${user.id}&search=${searchQuery}&limit=50`
+      const response = await apiClient.get(
+        `/admin/users?admin_id=${user.id}&search=${searchQuery}&limit=50`
       );
       setUsers(response.data.users);
     } catch (error) {
@@ -179,8 +179,8 @@ const UnifiedAdminConsole = () => {
   const handleSuspend = async () => {
     if (!userToSuspend || !suspendReason) return;
     try {
-      await axios.post(
-        `${API}/admin/users/${userToSuspend.id}/suspend?admin_id=${user.id}`,
+      await apiClient.post(
+        `/admin/users/${userToSuspend.id}/suspend?admin_id=${user.id}`,
         { reason: suspendReason }
       );
       toast.success(`${userToSuspend.email} suspended`);
@@ -195,8 +195,8 @@ const UnifiedAdminConsole = () => {
 
   const handleUnsuspend = async (targetUser) => {
     try {
-      await axios.post(
-        `${API}/admin/users/${targetUser.id}/unsuspend?admin_id=${user.id}`
+      await apiClient.post(
+        `/admin/users/${targetUser.id}/unsuspend?admin_id=${user.id}`
       );
       toast.success(`${targetUser.email} unsuspended`);
       fetchData();
@@ -207,8 +207,8 @@ const UnifiedAdminConsole = () => {
 
   const handleVerify = async (targetUser) => {
     try {
-      await axios.patch(
-        `${API}/admin/users/${targetUser.id}?admin_id=${user.id}`,
+      await apiClient.patch(
+        `/admin/users/${targetUser.id}?admin_id=${user.id}`,
         { is_verified: !targetUser.is_verified }
       );
       toast.success(`Verification ${targetUser.is_verified ? 'removed' : 'added'}`);
@@ -221,9 +221,9 @@ const UnifiedAdminConsole = () => {
   const handleToggleAdmin = async (targetUser) => {
     try {
       if (targetUser.is_admin) {
-        await axios.post(`${API}/admin/revoke-admin/${targetUser.id}?admin_id=${user.id}`);
+        await apiClient.post(`/admin/revoke-admin/${targetUser.id}?admin_id=${user.id}`);
       } else {
-        await axios.post(`${API}/admin/make-admin/${targetUser.id}?admin_id=${user.id}`);
+        await apiClient.post(`/admin/make-admin/${targetUser.id}?admin_id=${user.id}`);
       }
       toast.success('Admin status updated');
       fetchData();
@@ -236,7 +236,7 @@ const UnifiedAdminConsole = () => {
   const updateSiteSettings = async (updates) => {
     setSavingSettings(true);
     try {
-      await axios.put(`${API}/admin/platform-settings?admin_id=${user.id}`, updates);
+      await apiClient.put(`/admin/platform-settings?admin_id=${user.id}`, updates);
       setSiteSettings(prev => ({ ...prev, ...updates }));
       toast.success('Settings saved');
     } catch (error) {
@@ -284,7 +284,7 @@ const UnifiedAdminConsole = () => {
     
     setForceStartLoading(true);
     try {
-      const response = await axios.post(`${API}/admin/force-start-session`, {
+      const response = await apiClient.post(`/admin/force-start-session`, {
         photographer_id: selectedPhotographer,
         spot_id: selectedSpot,
         session_price: parseFloat(sessionPrice) || 25,
@@ -313,7 +313,7 @@ const UnifiedAdminConsole = () => {
   const handleForceEnd = async (photographerId) => {
     setForceEndLoading(photographerId);
     try {
-      const response = await axios.post(`${API}/admin/force-end-session/${photographerId}`);
+      const response = await apiClient.post(`/admin/force-end-session/${photographerId}`);
       toast.success(response.data.message);
       fetchSessionData();
     } catch (error) {
@@ -1285,8 +1285,8 @@ const UsersTabContent = ({
     setLoadingUser(userId);
     setLoadingField('role');
     try {
-      await axios.patch(
-        `${API}/admin/users/${userId}?admin_id=${adminId}`,
+      await apiClient.patch(
+        `/admin/users/${userId}?admin_id=${adminId}`,
         { role: newRole }
       );
       toast.success(`Role updated to ${newRole}`);
@@ -1303,8 +1303,8 @@ const UsersTabContent = ({
     setLoadingUser(userId);
     setLoadingField('subscription');
     try {
-      await axios.patch(
-        `${API}/admin/users/${userId}?admin_id=${adminId}`,
+      await apiClient.patch(
+        `/admin/users/${userId}?admin_id=${adminId}`,
         { subscription_tier: newTier }
       );
       toast.success(`Subscription updated to ${newTier}`);
@@ -1348,8 +1348,8 @@ const UsersTabContent = ({
     
     try {
       const userIds = Array.from(selectedUsers);
-      await axios.post(
-        `${API}/admin/users/bulk-update?admin_id=${adminId}`,
+      await apiClient.post(
+        `/admin/users/bulk-update?admin_id=${adminId}`,
         { user_ids: userIds, role: newRole }
       );
       toast.success(`Updated ${userIds.length} users to ${newRole}`);
@@ -1371,8 +1371,8 @@ const UsersTabContent = ({
     
     try {
       const userIds = Array.from(selectedUsers);
-      await axios.post(
-        `${API}/admin/users/bulk-update?admin_id=${adminId}`,
+      await apiClient.post(
+        `/admin/users/bulk-update?admin_id=${adminId}`,
         { user_ids: userIds, subscription_tier: newTier }
       );
       toast.success(`Updated ${userIds.length} users to ${newTier}`);
@@ -1400,8 +1400,8 @@ const UsersTabContent = ({
     
     try {
       const userIds = Array.from(selectedUsers);
-      const response = await axios.post(
-        `${API}/admin/users/bulk-delete?admin_id=${adminId}`,
+      const response = await apiClient.post(
+        `/admin/users/bulk-delete?admin_id=${adminId}`,
         { user_ids: userIds }
       );
       toast.success(response.data.message || `Deleted ${count} users`);
@@ -1743,9 +1743,9 @@ const AnalyticsTabContent = ({ user, cardBgClass, textClass, textSecondary }) =>
     setLoading(true);
     try {
       const [financialRes, ecosystemRes, priceRes] = await Promise.all([
-        axios.get(`${API}/admin/analytics/financial?admin_id=${user.id}&days=30`).catch(() => ({ data: null })),
-        axios.get(`${API}/admin/analytics/ecosystem?admin_id=${user.id}`).catch(() => ({ data: null })),
-        axios.get(`${API}/admin/analytics/price-impact?admin_id=${user.id}&days=90`).catch(() => ({ data: null }))
+        apiClient.get(`/admin/analytics/financial?admin_id=${user.id}&days=30`).catch(() => ({ data: null })),
+        apiClient.get(`/admin/analytics/ecosystem?admin_id=${user.id}`).catch(() => ({ data: null })),
+        apiClient.get(`/admin/analytics/price-impact?admin_id=${user.id}&days=90`).catch(() => ({ data: null }))
       ]);
       setFinancial(financialRes.data);
       setEcosystem(ecosystemRes.data);
@@ -1760,7 +1760,7 @@ const AnalyticsTabContent = ({ user, cardBgClass, textClass, textSecondary }) =>
   const handleRefreshCache = async () => {
     setRefreshing(true);
     try {
-      await axios.post(`${API}/admin/analytics/refresh-cache?admin_id=${user.id}`);
+      await apiClient.post(`/admin/analytics/refresh-cache?admin_id=${user.id}`);
       toast.success('Metrics cache refreshed');
       fetchAnalytics();
     } catch (error) {
@@ -2019,9 +2019,9 @@ const AdControlsPanel = ({ user }) => {
   const fetchAdData = async () => {
     try {
       const [configRes, analyticsRes, queueRes] = await Promise.all([
-        axios.get(`${API}/admin/ads/config?admin_id=${user.id}`).catch(() => ({ data: { config: null } })),
-        axios.get(`${API}/admin/ads/analytics?admin_id=${user.id}`).catch(() => ({ data: null })),
-        axios.get(`${API}/admin/ads/queue?admin_id=${user.id}&status=pending`).catch(() => ({ data: { queue: [], counts: {} } }))
+        apiClient.get(`/admin/ads/config?admin_id=${user.id}`).catch(() => ({ data: { config: null } })),
+        apiClient.get(`/admin/ads/analytics?admin_id=${user.id}`).catch(() => ({ data: null })),
+        apiClient.get(`/admin/ads/queue?admin_id=${user.id}&status=pending`).catch(() => ({ data: { queue: [], counts: {} } }))
       ]);
       setConfig(configRes.data?.config);
       setAnalytics(analyticsRes.data);
@@ -2036,7 +2036,7 @@ const AdControlsPanel = ({ user }) => {
   const handleFrequencyChange = async (newFreq) => {
     setSaving(true);
     try {
-      await axios.patch(`${API}/admin/ads/frequency?admin_id=${user.id}&frequency=${newFreq}`);
+      await apiClient.patch(`/admin/ads/frequency?admin_id=${user.id}&frequency=${newFreq}`);
       setConfig(prev => ({ ...prev, frequency: newFreq }));
       toast.success(`Ad frequency updated to 1 per ${newFreq} posts`);
     } catch (error) {
@@ -2048,7 +2048,7 @@ const AdControlsPanel = ({ user }) => {
 
   const toggleVariant = async (variantId, isActive) => {
     try {
-      await axios.patch(`${API}/admin/ads/variant/${variantId}/toggle?admin_id=${user.id}&is_active=${isActive}`);
+      await apiClient.patch(`/admin/ads/variant/${variantId}/toggle?admin_id=${user.id}&is_active=${isActive}`);
       setConfig(prev => ({
         ...prev,
         variants: prev.variants.map(v => v.id === variantId ? { ...v, is_active: isActive } : v)
@@ -2062,7 +2062,7 @@ const AdControlsPanel = ({ user }) => {
   const handleApproveAd = async (adId) => {
     setProcessingAd(adId);
     try {
-      await axios.post(`${API}/admin/ads/queue/${adId}/action?admin_id=${user.id}`, {
+      await apiClient.post(`/admin/ads/queue/${adId}/action?admin_id=${user.id}`, {
         action: 'approve'
       });
       toast.success('Ad approved and activated!');
@@ -2077,7 +2077,7 @@ const AdControlsPanel = ({ user }) => {
   const handleRejectAd = async (adId, reason) => {
     setProcessingAd(adId);
     try {
-      await axios.post(`${API}/admin/ads/queue/${adId}/action?admin_id=${user.id}`, {
+      await apiClient.post(`/admin/ads/queue/${adId}/action?admin_id=${user.id}`, {
         action: 'reject',
         reason: reason || 'Does not meet advertising guidelines'
       });
@@ -2093,7 +2093,7 @@ const AdControlsPanel = ({ user }) => {
   const handleEditAd = async (adId) => {
     setProcessingAd(adId);
     try {
-      await axios.post(`${API}/admin/ads/queue/${adId}/action?admin_id=${user.id}`, {
+      await apiClient.post(`/admin/ads/queue/${adId}/action?admin_id=${user.id}`, {
         action: 'edit',
         edited_content: editForm
       });
@@ -2492,7 +2492,7 @@ const AdminSpotsPanel = ({ userId }) => {
 
   const fetchStats = useCallback(async () => {
     try {
-      const response = await axios.get(`${API}/admin/spots/stats?admin_id=${userId}`);
+      const response = await apiClient.get(`/admin/spots/stats?admin_id=${userId}`);
       setStats(response.data);
     } catch (error) {
       logger.error('Error fetching spot stats:', error);
@@ -2503,7 +2503,7 @@ const AdminSpotsPanel = ({ userId }) => {
     try {
       const params = new URLSearchParams();
       if (filterCountry) params.append('country', filterCountry);
-      const response = await axios.get(`${API}/surf-spots?${params.toString()}`);
+      const response = await apiClient.get(`/surf-spots?${params.toString()}`);
       setSpots(response.data);
     } catch (error) {
       logger.error('Error fetching spots:', error);
@@ -2587,8 +2587,8 @@ const AdminSpotsPanel = ({ userId }) => {
 
             if (error) {
               // Fallback: If RLS blocked, attempt proxying through the Python backend loop
-              await axios.post(
-                `${API}/admin/spots/create`,
+              await apiClient.post(
+                `/admin/spots/create`,
                 { ...spot, override_land_warning: true },
                 { params: { admin_id: userId } }
               );
@@ -2616,7 +2616,7 @@ const AdminSpotsPanel = ({ userId }) => {
 
   const handleUpdateSpot = async (spotId, updates) => {
     try {
-      await axios.put(`${API}/admin/spots/${spotId}?admin_id=${userId}`, null, { params: updates });
+      await apiClient.put(`/admin/spots/${spotId}?admin_id=${userId}`, null, { params: updates });
       toast.success('Spot updated');
       setEditingSpot(null);
       fetchSpots();
@@ -2628,7 +2628,7 @@ const AdminSpotsPanel = ({ userId }) => {
   const handleDeleteSpot = async (spotId, spotName) => {
     if (!window.confirm(`Delete "${spotName}"? This cannot be undone.`)) return;
     try {
-      await axios.delete(`${API}/admin/spots/${spotId}?admin_id=${userId}`);
+      await apiClient.delete(`/admin/spots/${spotId}?admin_id=${userId}`);
       toast.success('Spot deleted');
       fetchSpots();
       fetchStats();
@@ -2748,8 +2748,8 @@ const AdminSpotsPanel = ({ userId }) => {
     if (!pinMapSpot || !draggedPosition) return;
     
     try {
-      await axios.post(
-        `${API}/admin/spots/${pinMapSpot.id}/apply-refinement?admin_id=${userId}`,
+      await apiClient.post(
+        `/admin/spots/${pinMapSpot.id}/apply-refinement?admin_id=${userId}`,
         null,
         { params: { new_latitude: draggedPosition.lat, new_longitude: draggedPosition.lng } }
       );

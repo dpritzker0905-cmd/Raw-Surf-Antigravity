@@ -607,9 +607,13 @@ async def revoke_user_admin(user_id: str, admin_id: str, db: AsyncSession = Depe
 @router.api_route("/admin/bootstrap", methods=["GET", "POST"])
 async def bootstrap_first_admin(email: str, db: AsyncSession = Depends(get_db)):
     """
-    Bootstrap the first admin user. 
-    Only works if there are no existing admins in the system.
+    Bootstrap the first admin user.
+    SECURITY: Only enabled when ALLOW_ADMIN_BOOTSTRAP=true env var is set.
+    Never set this in production — this endpoint is intentionally disabled by default.
     """
+    import os
+    if os.getenv("ALLOW_ADMIN_BOOTSTRAP", "false").lower() != "true":
+        raise HTTPException(status_code=404, detail="Not found")
     # Check if any admin exists
     existing_admin = await db.execute(
         select(Profile).where(Profile.is_admin == True)
@@ -638,9 +642,13 @@ async def bootstrap_first_admin(email: str, db: AsyncSession = Depends(get_db)):
 @router.api_route("/admin/setup/{email}", methods=["GET", "POST"])
 async def setup_admin_by_email(email: str, db: AsyncSession = Depends(get_db)):
     """
-    Direct admin setup by email - for initial configuration only.
-    In production, remove or protect this endpoint.
+    Direct admin setup by email — for initial configuration only.
+    SECURITY: Only enabled when ALLOW_ADMIN_BOOTSTRAP=true env var is set.
+    Never set this in production — Render/Netlify do not set this var.
     """
+    import os
+    if os.getenv("ALLOW_ADMIN_BOOTSTRAP", "false").lower() != "true":
+        raise HTTPException(status_code=404, detail="Not found")
     result = await db.execute(select(Profile).where(Profile.email == email))
     user = result.scalar_one_or_none()
     

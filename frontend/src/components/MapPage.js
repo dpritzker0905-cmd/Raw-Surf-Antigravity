@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
-import axios from 'axios';
+import apiClient from '../lib/apiClient';
 import { useAuth } from '../contexts/AuthContext';
 import { usePersona } from '../contexts/PersonaContext';
 import { useTheme } from '../contexts/ThemeContext';
@@ -319,7 +319,7 @@ const MapPageContent = () => {
       
       setOnDemandLoading(true);
       try {
-        const response = await axios.get(`${API}/photographers/on-demand`, {
+        const response = await apiClient.get(`/photographers/on-demand`, {
           params: {
             latitude: userLocation.lat,
             longitude: userLocation.lng,
@@ -346,13 +346,13 @@ const MapPageContent = () => {
       setFriendsLoading(true);
       try {
         // Fetch mutual followers (friends)
-        const response = await axios.get(`${API}/profiles/${user.id}/friends`);
+        const response = await apiClient.get(`/profiles/${user.id}/friends`);
         setFriendsList(response.data || []);
       } catch (error) {
         logger.error('Error fetching friends:', error);
         // Fallback: try followers endpoint
         try {
-          const followersRes = await axios.get(`${API}/followers/${user.id}`);
+          const followersRes = await apiClient.get(`/followers/${user.id}`);
           setFriendsList(followersRes.data?.filter(f => f.is_mutual) || []);
         } catch (e) {
           setFriendsList([]);
@@ -370,7 +370,7 @@ const MapPageContent = () => {
     const checkActiveDispatch = async () => {
       if (!user?.id) return;
       try {
-        const response = await axios.get(`${API}/dispatch/user/${user.id}/active`);
+        const response = await apiClient.get(`/dispatch/user/${user.id}/active`);
         if (response.data && response.data.status === 'en_route') {
           setActiveDispatch(response.data);
         }
@@ -388,7 +388,7 @@ const MapPageContent = () => {
     
     const fetchActiveRequests = async () => {
       try {
-        const response = await axios.get(`${API}/dispatch/requests/pending`);
+        const response = await apiClient.get(`/dispatch/requests/pending`);
         setActiveOnDemandRequests(response.data || []);
       } catch (error) {
         logger.debug('No pending dispatch requests');
@@ -416,7 +416,7 @@ const MapPageContent = () => {
     // Poll for location updates every 5 seconds
     const pollLocations = async () => {
       try {
-        const response = await axios.get(`${API}/dispatch/${activeDispatch.id}/tracking`);
+        const response = await apiClient.get(`/dispatch/${activeDispatch.id}/tracking`);
         setActiveDispatch(prev => ({
           ...prev,
           photographer_lat: response.data.photographer_location?.lat,
@@ -439,7 +439,7 @@ const MapPageContent = () => {
       
       navigator.geolocation.getCurrentPosition(async (position) => {
         try {
-          await axios.post(`${API}/dispatch/${activeDispatch.id}/update-location?user_id=${user.id}`, {
+          await apiClient.post(`/dispatch/${activeDispatch.id}/update-location?user_id=${user.id}`, {
             latitude: position.coords.latitude,
             longitude: position.coords.longitude
           });
@@ -1509,7 +1509,7 @@ const MapPageContent = () => {
     // End current session first
     if (currentUserShooting) {
       try {
-        await axios.post(`${API}/photographer-sessions/end`, {
+        await apiClient.post(`/photographer-sessions/end`, {
           photographer_id: user.id
         });
         setCurrentLiveSpot(null);

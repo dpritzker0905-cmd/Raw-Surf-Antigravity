@@ -17,8 +17,9 @@ import {
 import { toast } from 'sonner';
 import logger from '../utils/logger';
 
-const API_URL = process.env.REACT_APP_BACKEND_URL || '';
-const WS_URL = API_URL.replace('https://', 'wss://').replace('http://', 'ws://');
+import apiClient, { BACKEND_URL } from '../lib/apiClient';
+
+const WS_URL = BACKEND_URL.replace('https://', 'wss://').replace('http://', 'ws://');
 
 const MAX_VOICE_DURATION = 30; // seconds
 
@@ -132,9 +133,8 @@ export default function CrewChat() {
   const fetchChatInfo = useCallback(async () => {
     if (!user?.id || !bookingId) return;
     try {
-      const response = await fetch(`${API_URL}/api/crew-chat/${bookingId}/info?user_id=${user.id}`);
-      if (!response.ok) throw new Error('Failed to fetch chat info');
-      const data = await response.json();
+      const response = await apiClient.get(`/crew-chat/${bookingId}/info?user_id=${user.id}`);
+      const data = response.data;
       setChatInfo(data);
       setOnlineUsers(data.online_users || []);
     } catch (err) {
@@ -148,9 +148,8 @@ export default function CrewChat() {
     if (!user?.id || !bookingId) return;
     try {
       setIsLoading(true);
-      const response = await fetch(`${API_URL}/api/crew-chat/${bookingId}/messages?user_id=${user.id}&limit=50`);
-      if (!response.ok) throw new Error('Failed to fetch messages');
-      const data = await response.json();
+      const response = await apiClient.get(`/crew-chat/${bookingId}/messages?user_id=${user.id}&limit=50`);
+      const data = response.data;
       setMessages(data.messages || []);
       setOnlineUsers(data.online_users || []);
       scrollToBottom();
@@ -247,16 +246,11 @@ export default function CrewChat() {
     setShowMentionPicker(false);
     
     try {
-      const response = await fetch(`${API_URL}/api/crew-chat/${bookingId}/send?user_id=${user.id}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          content: messageContent, 
-          message_type: 'text',
-          reply_to_id: replyingTo?.id || null
-        })
+      await apiClient.post(`/crew-chat/${bookingId}/send?user_id=${user.id}`, {
+        content: messageContent,
+        message_type: 'text',
+        reply_to_id: replyingTo?.id || null
       });
-      if (!response.ok) throw new Error('Failed to send message');
       setReplyingTo(null); // Clear reply after sending
     } catch (err) {
       logger.error('Error sending message:', err);
@@ -288,14 +282,11 @@ export default function CrewChat() {
     }
     
     try {
-      const response = await fetch(
-        `${API_URL}/api/mentions/search?query=${encodeURIComponent(query)}&user_id=${user.id}&context=crew_chat&context_id=${bookingId}`
+      const response = await apiClient.get(
+        `/mentions/search?query=${encodeURIComponent(query)}&user_id=${user.id}&context=crew_chat&context_id=${bookingId}`
       );
-      if (response.ok) {
-        const data = await response.json();
-        setMentionResults(data.users || []);
-        setShowMentionPicker(data.users?.length > 0);
-      }
+      setMentionResults(response.data.users || []);
+      setShowMentionPicker((response.data.users?.length || 0) > 0);
     } catch (err) {
       logger.error('Error searching mentions:', err);
     }
@@ -384,13 +375,10 @@ export default function CrewChat() {
       formData.append('file', audioBlob, 'voice.webm');
       formData.append('user_id', user.id);
       formData.append('duration', recordingTime);
-      
-      const response = await fetch(`${API_URL}/api/crew-chat/${bookingId}/upload-voice`, {
-        method: 'POST',
-        body: formData
+
+      await apiClient.post(`/crew-chat/${bookingId}/upload-voice`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
       });
-      
-      if (!response.ok) throw new Error('Failed to upload voice note');
       toast.success('Voice note sent!');
     } catch (err) {
       logger.error('Error uploading voice:', err);
@@ -430,13 +418,10 @@ export default function CrewChat() {
       formData.append('file', selectedImage);
       formData.append('user_id', user.id);
       formData.append('caption', imageCaption);
-      
-      const response = await fetch(`${API_URL}/api/crew-chat/${bookingId}/upload-image`, {
-        method: 'POST',
-        body: formData
+
+      await apiClient.post(`/crew-chat/${bookingId}/upload-image`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
       });
-      
-      if (!response.ok) throw new Error('Failed to upload image');
       toast.success('Photo sent!');
       setShowImagePreview(false);
       setSelectedImage(null);
@@ -482,15 +467,11 @@ export default function CrewChat() {
       formData.append('file', selectedFile);
       formData.append('user_id', user.id);
       formData.append('caption', fileCaption);
-      
-      const response = await fetch(`${API_URL}/api/crew-chat/${bookingId}/upload-file`, {
-        method: 'POST',
-        body: formData
+
+      const response = await apiClient.post(`/crew-chat/${bookingId}/upload-file`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
       });
-      
-      if (!response.ok) throw new Error('Failed to upload file');
-      const result = await response.json();
-      toast.success(`File sent: ${result.file_name}`);
+      toast.success(`File sent: ${response.data.file_name}`);
       setShowFilePreview(false);
       setSelectedFile(null);
       setFileCaption('');
@@ -529,7 +510,7 @@ export default function CrewChat() {
       if (audioRef.current) {
         audioRef.current.pause();
       }
-      audioRef.current = new Audio(`${API_URL}${mediaUrl}`);
+      audioRef.current = new Audio(`${BACKEND_URL}${mediaUrl}`);
       audioRef.current.onended = () => setPlayingVoice(null);
       audioRef.current.play();
       setPlayingVoice(messageId);
@@ -604,19 +585,13 @@ export default function CrewChat() {
   // Reaction handler
   const handleReaction = async (messageId, emoji) => {
     try {
-      const response = await fetch(
-        `${API_URL}/api/crew-chat/${bookingId}/messages/${messageId}/react?user_id=${user.id}&emoji=${encodeURIComponent(emoji)}`,
-        { method: 'POST' }
+      const response = await apiClient.post(
+        `/crew-chat/${bookingId}/messages/${messageId}/react?user_id=${user.id}&emoji=${encodeURIComponent(emoji)}`
       );
-      
-      if (!response.ok) throw new Error('Failed to react');
-      
-      // Update will come via WebSocket, but also update locally for instant feedback
-      const data = await response.json();
-      setMessages(prev => prev.map(msg => 
+      const data = response.data;
+      setMessages(prev => prev.map(msg =>
         msg.id === messageId ? { ...msg, reactions: data.reactions } : msg
       ));
-      
       setShowReactionPicker(null);
     } catch (err) {
       logger.error('Error adding reaction:', err);
@@ -938,7 +913,7 @@ export default function CrewChat() {
                 {msg.message_type === 'image' && (
                   <div className={`rounded-2xl overflow-hidden ${isMe ? 'rounded-br-md' : 'rounded-bl-md'}`}>
                     <img
-                      src={`${API_URL}${msg.media_url}`}
+                                      src={`${BACKEND_URL}${msg.media_url}`}
                       alt="Shared"
                       className="max-w-[250px] max-h-[300px] object-cover cursor-pointer"
                       onClick={() => setExpandedImage(msg.media_url)}
@@ -980,7 +955,7 @@ export default function CrewChat() {
                 {/* File message */}
                 {msg.message_type === 'file' && (
                   <a 
-                    href={`${API_URL}${msg.media_url}`}
+                                    href={`${BACKEND_URL}${msg.media_url}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className={`flex items-center gap-3 px-4 py-3 rounded-2xl transition-colors ${
@@ -1230,7 +1205,7 @@ export default function CrewChat() {
             <X className="h-6 w-6" />
           </Button>
           <img
-            src={`${API_URL}${expandedImage}`}
+                          src={`${BACKEND_URL}${expandedImage}`}
             alt="Full size"
             className="max-w-full max-h-full object-contain"
           />
