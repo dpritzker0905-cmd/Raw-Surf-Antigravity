@@ -1732,31 +1732,71 @@ export const Feed = () => {
                   );
                 })()}
 
-                {/* Spot selector — filtered by country + state + city */}
+                {/* Spot selector — GPS-sorted when GPS active, filtered by hierarchy when manual */}
                 <div>
-                  <label className="text-sm text-gray-400 mb-2 block">Surf Spot</label>
+                  <label className="text-sm text-gray-400 mb-2 block">
+                    Surf Spot
+                    {checkInData.use_gps && checkInData.latitude && (
+                      <span className="ml-2 text-xs text-cyan-400">📍 sorted by distance</span>
+                    )}
+                  </label>
                   <Select
                     value={checkInData.spot_id}
                     onValueChange={(v) => setCheckInData(prev => ({ ...prev, spot_id: v }))}
                   >
                     <SelectTrigger className="bg-zinc-800 border-zinc-700 text-white">
-                      <SelectValue placeholder={selectedCountry ? 'Select a spot' : 'Select country first (or use GPS)'} />
+                      <SelectValue placeholder={
+                        checkInData.use_gps && checkInData.latitude
+                          ? 'Nearest spots listed first'
+                          : selectedCountry ? 'Select a spot' : 'Select country first (or use GPS)'
+                      } />
                     </SelectTrigger>
                     <SelectContent className="bg-zinc-800 border-zinc-700 max-h-72 overflow-y-auto">
-                      {spots
-                        .filter(spot => {
-                          if (!selectedCountry) return true;
-                          if (spot.country !== selectedCountry) return false;
-                          if (selectedState && spot.state_province !== selectedState) return false;
-                          if (selectedCity && spot.region !== selectedCity) return false;
-                          return true;
-                        })
-                        .map((spot) => (
-                          <SelectItem key={spot.id} value={spot.id} className="text-white hover:bg-zinc-700">
-                            {spot.name}
-                            {spot.region && <span className="text-gray-500 text-xs ml-1"> — {spot.region}</span>}
-                          </SelectItem>
-                        ))}
+                      {(() => {
+                        // GPS MODE: sort all spots by distance from user, show nearest first
+                        if (checkInData.use_gps && checkInData.latitude && checkInData.longitude) {
+                          return spots
+                            .map(spot => ({
+                              ...spot,
+                              _dist: spot.latitude && spot.longitude
+                                ? calculateDistance(checkInData.latitude, checkInData.longitude, spot.latitude, spot.longitude)
+                                : Infinity
+                            }))
+                            .sort((a, b) => a._dist - b._dist)
+                            .slice(0, 30) // limit to 30 nearest spots for readability
+                            .map(spot => (
+                              <SelectItem key={spot.id} value={spot.id} className="text-white hover:bg-zinc-700">
+                                <span className="flex items-center justify-between w-full">
+                                  <span>{spot.name}</span>
+                                  <span className={`text-xs ml-2 ${
+                                    spot._dist < 2 ? 'text-green-400' :
+                                    spot._dist < 10 ? 'text-cyan-400' :
+                                    'text-gray-500'
+                                  }`}>
+                                    {spot._dist === Infinity ? '' : `${spot._dist.toFixed(1)}km`}
+                                  </span>
+                                </span>
+                              </SelectItem>
+                            ));
+                        }
+
+                        // MANUAL MODE: filter by country → state → city hierarchy, sorted alphabetically
+                        return spots
+                          .filter(spot => {
+                            if (!selectedCountry) return true;
+                            if (spot.country !== selectedCountry) return false;
+                            if (selectedState && spot.state_province !== selectedState) return false;
+                            if (selectedCity && spot.region !== selectedCity) return false;
+                            return true;
+                          })
+                          .sort((a, b) => a.name.localeCompare(b.name))
+                          .map((spot) => (
+                            <SelectItem key={spot.id} value={spot.id} className="text-white hover:bg-zinc-700">
+                              {spot.name}
+                              {spot.region && <span className="text-gray-500 text-xs ml-1"> — {spot.region}</span>}
+                            </SelectItem>
+                          ));
+                      })()}
                     </SelectContent>
                   </Select>
                 </div>
