@@ -1524,6 +1524,15 @@ export const Profile = () => {
           <div className="grid grid-cols-3 gap-0.5">
             {tabContent
               .filter(item => {
+                // Filter out items with ephemeral Render disk URLs (gone after every redeploy)
+                const mediaItem = activeTab === 'saved' ? item?.post : item;
+                if (!mediaItem) return false;
+                const mu = mediaItem.media_url || '';
+                // Relative /api/uploads/ paths are ephemeral - never show these as they're gone
+                if (mu && mu.startsWith('/api/uploads/')) return false;
+                return true;
+              })
+              .filter(item => {
                 // Filter out items without media (ghost placeholders from deleted posts)
                 // But allow check-in posts that might not have media
                 const mediaItem = activeTab === 'saved' ? item?.post : item;
@@ -2169,6 +2178,7 @@ const MediaGridItem = ({ item, onClick, isPinned = false }) => {
               alt=""
               className="w-full h-full object-cover"
               loading="lazy"
+              onError={(e) => { e.target.style.display = 'none'; }}
             />
             <div className="absolute top-2 right-2 bg-black/60 px-1.5 py-0.5 rounded text-white text-xs flex items-center gap-1">
               <Play className="w-3 h-3" fill="currentColor" />
@@ -2181,6 +2191,7 @@ const MediaGridItem = ({ item, onClick, isPinned = false }) => {
             alt=""
             className="w-full h-full object-cover"
             loading="lazy"
+            onError={(e) => { e.target.style.display = 'none'; }}
           />
         )
       ) : isPhotographerSession ? (

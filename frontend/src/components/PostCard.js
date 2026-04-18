@@ -741,7 +741,12 @@ const PostCard = ({
             <div className={`${liveUsers.includes(post.author_id) ? 'p-[2px] rounded-full bg-gradient-to-r from-red-500 via-red-600 to-red-500 animate-pulse' : ''}`}>
               <div className={`w-10 h-10 rounded-full ${isLight ? 'bg-gray-200' : 'bg-zinc-700'} ${liveUsers.includes(post.author_id) ? 'border-2 border-black' : ''} flex items-center justify-center overflow-hidden`}>
                 {post.author_avatar ? (
-                  <img src={post.author_avatar} alt={post.author_name} className="w-full h-full object-cover" />
+                  <img 
+                    src={post.author_avatar} 
+                    alt={post.author_name} 
+                    className="w-full h-full object-cover"
+                    onError={(e) => { e.target.style.display = 'none'; }}
+                  />
                 ) : (
                   <span className={textSecondaryClass + " font-medium"}>
                     {post.author_name?.charAt(0) || '?'}
@@ -852,6 +857,7 @@ const PostCard = ({
             className="w-full h-full object-cover"
             loading="lazy"
             draggable="false"
+            onError={(e) => { e.target.style.display = 'none'; }}
           />
         )}
         {isVideoItem && (
