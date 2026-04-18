@@ -531,7 +531,8 @@ export const Profile = () => {
       }
       const response = await axios.get(`${API}${endpoint}`);
       // Handle both array and object responses (tagged returns {items, new_count})
-      if (activeTab === 'tagged' && response.data?.items) {
+      // Use the `tab` parameter (not activeTab state) to avoid stale closure issues
+      if (tab === 'tagged' && response.data?.items) {
         setTabContent(response.data.items);
       } else {
         setTabContent(response.data);
@@ -551,6 +552,7 @@ export const Profile = () => {
   };
 
   const toggleLive = async () => {
+    if (!profile) return; // Guard against null profile
     if (!profile.is_live) {
       // Open the Go Live modal with camera
       setShowGoLiveModal(true);
@@ -579,6 +581,7 @@ export const Profile = () => {
   };
   
   const handleGoLiveEnded = () => {
+    if (!profile) return; // Guard against null profile
     setProfile({ ...profile, is_live: false });
   };
 

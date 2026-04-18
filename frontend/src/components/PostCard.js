@@ -625,8 +625,10 @@ const PostCard = ({
   // Helper to ensure media paths map to backend directly natively preventing Netlify 404 traps
   const getFullUrl = (url) => {
     if (!url) return url;
-    if (url.startsWith('data:')) return url;
-    if (url.startsWith('http')) return url;
+    if (url.startsWith('data:')) return url;     // base64 data URIs
+    if (url.startsWith('blob:')) return url;     // local blob URLs (camera capture)
+    if (url.startsWith('//')) return url;        // protocol-relative URLs (CDN)
+    if (url.startsWith('http')) return url;      // absolute http/https URLs
     return `${process.env.REACT_APP_BACKEND_URL || ''}${url}`;
   };
 

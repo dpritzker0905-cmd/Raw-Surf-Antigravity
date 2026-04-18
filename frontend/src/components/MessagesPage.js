@@ -1121,8 +1121,8 @@ const MessageBubble = ({ message, onReact, _onReply, onNavigateProfile }) => {
       );
     }
     if ((message.message_type === 'video' || message.message_type === 'ephemeral_video') && mediaUrl) {
-      // Force ALL chat videos mapped uniformly visually natively supporting the 24h countdown.
-      const isEphemeral = true;
+      // Only treat as ephemeral if message_type is explicitly 'ephemeral_video'
+      const isEphemeral = message.message_type === 'ephemeral_video';
       
       let timeLeftText = '';
       if (isEphemeral) {
@@ -1413,7 +1413,7 @@ export const MessagesPage = () => {
       fetchConversations();
       fetchStories();
     }
-  }, [user?.id, user?.avatar_url, user?.updated_at, activeFolder]);
+  }, [user?.id, activeFolder]);
 
   // Fetch conversation detail when selected
   useEffect(() => {
@@ -1553,30 +1553,31 @@ export const MessagesPage = () => {
         url = `${API}/messages/conversations/${user.id}?inbox_type=${activeFolder}`;
       }
       
-      const response = await axios.get(url);
+      // Fetch conversations + unread counts in parallel (2 requests max, not 8)
+      // /messages/unread-counts returns primary, requests, grom_zone totals in ONE call
+      const [response, countsResp, familyCountResp] = await Promise.all([
+        axios.get(url),
+        axios.get(`${API}/messages/unread-counts/${user.id}`).catch(() => ({ data: { primary: 0, requests: 0, grom_zone: 0 } })),
+        axios.get(`${API}/messages/conversations/${user.id}/family`).catch(() => ({ data: [] }))
+      ]);
+      
       setConversations(response.data);
       
-      // Fetch counts for all possible folders (including pro_lounge, channel, grom_zone, and family)
-      const allFolders = ['grom_zone', 'family', 'pro_lounge', 'channel', 'primary', 'requests', 'hidden'];
-      const counts = {};
+      // Build folder counts from the single unread-counts response
+      const unreadData = countsResp.data;
+      const familyUnread = (familyCountResp.data || []).filter(c => c.unread_count > 0).length;
       
-      for (const folder of allFolders) {
-        try {
-          let countUrl;
-          if (folder === 'grom_zone') {
-            countUrl = `${API}/messages/conversations/${user.id}?inbox_type=primary&grom_zone=true`;
-          } else if (folder === 'family') {
-            countUrl = `${API}/messages/conversations/${user.id}/family`;
-          } else {
-            countUrl = `${API}/messages/conversations/${user.id}?inbox_type=${folder}`;
-          }
-          const countResp = await axios.get(countUrl);
-          counts[folder] = countResp.data.filter(c => c.unread_count > 0).length;
-        } catch (e) {
-          counts[folder] = 0;
-        }
-      }
-      setFolderCounts(counts);
+      setFolderCounts({
+        primary: unreadData.primary || 0,
+        requests: unreadData.requests || 0,
+        grom_zone: unreadData.grom_zone || 0,
+        family: familyUnread,
+        // Channel/Pro Lounge/Hidden don't have dedicated count endpoints;
+        // derive from current conversation list when viewing those folders
+        pro_lounge: activeFolder === 'pro_lounge' ? (response.data || []).filter(c => c.unread_count > 0).length : 0,
+        channel: activeFolder === 'channel' ? (response.data || []).filter(c => c.unread_count > 0).length : 0,
+        hidden: 0
+      });
     } catch (error) {
       logger.error('Failed to fetch conversations:', error);
     } finally {

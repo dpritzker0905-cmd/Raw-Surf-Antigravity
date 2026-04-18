@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, or_, and_
+from sqlalchemy import select, or_, and_, text
 from sqlalchemy.orm import selectinload
 from pydantic import BaseModel
 from typing import List, Optional
@@ -336,8 +336,10 @@ async def merge_duplicate_conversations(target_conversation_id: str, duplicate_i
     
     for dup_id in duplicate_ids:
         # Move all messages from duplicate to target
+        # Use text() with bound params — raw f-string is SQL-injectable and not valid in AsyncSession
         await db.execute(
-            f"UPDATE messages SET conversation_id = '{target_conversation_id}' WHERE conversation_id = '{dup_id}'"
+            text("UPDATE messages SET conversation_id = :target WHERE conversation_id = :dup"),
+            {"target": target_conversation_id, "dup": dup_id}
         )
         logger.info(f"Moved messages from conversation {dup_id} to {target_conversation_id}")
         
