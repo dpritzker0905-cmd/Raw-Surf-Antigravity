@@ -1695,9 +1695,27 @@ def start_scheduler():
         replace_existing=True
     )
     
+    # Rate limiter memory cleanup - every hour to purge stale IP entries
+    def _cleanup_rate_limiter():
+        try:
+            from core.rate_limiter import cleanup_old_entries
+            removed = cleanup_old_entries()
+            if removed > 0:
+                logger.debug(f"[Scheduler] Rate limiter cleanup: removed {removed} stale entries")
+        except Exception as e:
+            logger.warning(f"[Scheduler] Rate limiter cleanup failed: {e}")
+
+    scheduler.add_job(
+        _cleanup_rate_limiter,
+        IntervalTrigger(hours=1),
+        id='rate_limiter_cleanup',
+        name='Cleanup stale rate limiter entries',
+        replace_existing=True
+    )
+
     scheduler.start()
     logger.info("[Scheduler] Background scheduler started")
-    logger.info("[Scheduler] Jobs: surf_alerts (15min), story_cleanup (1hr), leaderboard_reset (monthly), grom_report (weekly), payment_expiry (5min), platform_metrics (6hr), session_reminders (5min), auto_escrow_release (daily 3am), selection_deadline_expiry (daily 4am), weekly_sales_reports (Monday 9am), expire_booking_invites (5min), cleanup_stripe_sessions (30min), credit_integrity_check (daily 5am)")
+    logger.info("[Scheduler] Jobs: surf_alerts (15min), story_cleanup (1hr), leaderboard_reset (monthly), grom_report (weekly), payment_expiry (5min), platform_metrics (6hr), session_reminders (5min), auto_escrow_release (daily 3am), selection_deadline_expiry (daily 4am), weekly_sales_reports (Monday 9am), expire_booking_invites (5min), cleanup_stripe_sessions (30min), credit_integrity_check (daily 5am), rate_limiter_cleanup (1hr)")
 
 def stop_scheduler():
     """Stop the background scheduler"""

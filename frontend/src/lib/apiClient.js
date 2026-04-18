@@ -55,32 +55,68 @@ apiClient.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
+// ── Track whether we've already shown the session-expired message ────────────
+let _sessionExpiredShown = false;
+
 // ── Response interceptor — handle auth errors ────────────────────────────────
 apiClient.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    // Reset session-expired flag on any successful response
+    _sessionExpiredShown = false;
+    return response;
+  },
   (error) => {
     if (!error.response) {
+      // Network / CORS errors
       if (process.env.NODE_ENV === 'development') {
         console.error('[apiClient] Network error:', error.message);
       }
+      // Don't show toast for cancelled requests
+      if (axios.isCancel(error)) return Promise.reject(error);
       return Promise.reject(error);
     }
 
     const { status } = error.response;
+    const url = error.config?.url || '';
 
-    // 401 — token expired or invalid. Clear session and redirect to login.
-    if (status === 401) {
-      setTimeout(() => {
-        localStorage.removeItem('raw-surf-user');
-        localStorage.removeItem('raw-surf-token');
-        window.location.href = '/auth';
-      }, 500);
+    // 401 — token expired or invalid.
+    // Do NOT redirect if already on /auth (avoids redirect loops).
+    if (status === 401 && !_sessionExpiredShown) {
+      // Skip if this is an auth call itself (login/signup) — let the caller handle it
+      if (!url.includes('/auth/login') && !url.includes('/auth/signup')) {
+        _sessionExpiredShown = true;
+        const isAlreadyOnAuth = window.location.pathname.startsWith('/auth');
+        if (!isAlreadyOnAuth) {
+          toast.error('Session expired — please sign in again.', { duration: 4000 });
+          setTimeout(() => {
+            // Clear ALL session data before redirecting
+            ['raw-surf-user', 'raw-surf-user-original', 'impersonation_session',
+             'isGodMode', 'isPersonaBarActive', 'activePersona',
+             'godModeMinimized', 'godModeDesktopMinimized'].forEach(k => localStorage.removeItem(k));
+            window.location.href = '/auth';
+          }, 1200);
+        }
+      }
       return Promise.reject(error);
     }
 
-    // 503 — backend is down
+    // 403 — access forbidden (e.g., non-admin trying admin route)
+    if (status === 403) {
+      if (process.env.NODE_ENV === 'development') {
+        console.warn('[apiClient] 403 Forbidden:', url);
+      }
+      return Promise.reject(error);
+    }
+
+    // 429 — rate limited (backend slowdown)
+    if (status === 429) {
+      toast.error('Too many requests — please wait a moment.', { duration: 3000 });
+      return Promise.reject(error);
+    }
+
+    // 503 — backend is down / starting up on Render free tier
     if (status === 503) {
-      toast.error('Service temporarily unavailable. Please try again.');
+      toast.error('Service temporarily unavailable. Please try again shortly.', { duration: 5000 });
       return Promise.reject(error);
     }
 

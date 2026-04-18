@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from pydantic import BaseModel, EmailStr
@@ -10,6 +10,7 @@ import uuid
 from database import get_db
 from models import Profile, RoleEnum
 from core.security import create_access_token
+from core.rate_limiter import rate_limit_check
 
 router = APIRouter()
 
@@ -91,7 +92,9 @@ class ProfileResponse(BaseModel):
     parental_controls: Optional[dict] = None
 
 @router.post("/auth/signup", response_model=SignupResponse)
-async def signup(data: SignupRequest, db: AsyncSession = Depends(get_db)):
+async def signup(request: Request, data: SignupRequest, db: AsyncSession = Depends(get_db)):
+    # Rate limit: max 3 signup attempts per 5 minutes per IP
+    rate_limit_check(request, max_requests=3, window_seconds=300, key_prefix="signup:")
     import random
     import string
     import re
@@ -322,7 +325,9 @@ async def signup(data: SignupRequest, db: AsyncSession = Depends(get_db)):
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/auth/login")
-async def login(data: LoginRequest, db: AsyncSession = Depends(get_db)):
+async def login(request: Request, data: LoginRequest, db: AsyncSession = Depends(get_db)):
+    # Rate limit: max 5 login attempts per minute per IP (brute-force protection)
+    rate_limit_check(request, max_requests=5, window_seconds=60, key_prefix="login:")
     result = await db.execute(select(Profile).where(Profile.email == data.email))
     profile = result.scalar_one_or_none()
     
