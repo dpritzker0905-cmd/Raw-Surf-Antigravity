@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+﻿import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { usePersona } from '../contexts/PersonaContext';
@@ -9,10 +9,9 @@ import { BackpackDrawer } from './BackpackDrawer';
 import { StokedDrawer } from './StokedDrawer';
 import { NotificationsDrawer } from './NotificationsDrawer';
 import { ExclusiveAreaDrawer, hasExclusiveArea, getAreaType, getAreaIcon, getAreaColor } from './ExclusiveAreaDrawer';
-import axios from 'axios';
+import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import logger from '../utils/logger';
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 /**
  * TopNav - Global Header Navigation (Restructured April 2026)
@@ -148,7 +147,7 @@ export const TopNav = () => {
   const fetchUnreadCount = useCallback(async () => {
     if (!user?.id) return;
     try {
-      const response = await axios.get(`${API}/notifications/${user.id}/unread-count`);
+      const response = await apiClient.get(`/notifications/${user.id}/unread-count`);
       setUnreadCount(response.data.unread_count || 0);
     } catch (error) {
       logger.error('Failed to fetch notification count:', error);

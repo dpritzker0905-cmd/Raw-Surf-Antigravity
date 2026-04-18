@@ -1,10 +1,10 @@
-/**
+﻿/**
  * GalleryItemModal - View/Purchase modal for gallery items
  * Extracted from GalleryPage.js for cleaner architecture
  */
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import axios from 'axios';
+import apiClient, { BACKEND_URL } from '../../lib/apiClient';
 import { 
   Lock, Eye, ShoppingCart, Download, DollarSign, Edit3, Loader2, Check
 } from 'lucide-react';
@@ -16,7 +16,6 @@ import { toast } from 'sonner';
 import logger from '../../utils/logger';
 import { PriceSourceBadge } from './PriceSourceBadge';
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 // Helper function to safely extract error messages from API responses
 const getErrorMessage = (error, fallback = 'An error occurred') => {

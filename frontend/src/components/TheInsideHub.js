@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
@@ -15,10 +15,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Input } from './ui/input';
 import { toast } from 'sonner';
 import { CrewLeaderboard } from './CrewLeaderboard';
-import axios from 'axios';
+import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import logger from '../utils/logger';
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 /**
  * The Inside - Career Hub for Grom (🍼) surfers
@@ -53,10 +52,10 @@ export const TheInsideHub = () => {
     setLoading(true);
     try {
       const [statsRes, sponsorsRes, resultsRes, stokeRes] = await Promise.all([
-        axios.get(`${API}/career/stats/${user.id}`).catch(() => ({ data: null })),
-        axios.get(`${API}/career/sponsorships/${user.id}`).catch(() => ({ data: { sponsorships: [] } })),
-        axios.get(`${API}/career/competition-results/${user.id}`).catch(() => ({ data: { results: [] } })),
-        axios.get(`${API}/career/stoke-sponsor/income/${user.id}`).catch(() => ({ data: null }))
+        apiClient.get(`/career/stats/${user.id}`).catch(() => ({ data: null })),
+        apiClient.get(`/career/sponsorships/${user.id}`).catch(() => ({ data: { sponsorships: [] } })),
+        apiClient.get(`/career/competition-results/${user.id}`).catch(() => ({ data: { results: [] } })),
+        apiClient.get(`/career/stoke-sponsor/income/${user.id}`).catch(() => ({ data: null }))
       ]);
       
       setCareerStats(statsRes.data);
@@ -543,7 +542,7 @@ const AddResultForm = ({ userId, defaultTier, onSuccess }) => {
 
     setLoading(true);
     try {
-      await axios.post(`${API}/career/competition-results?surfer_id=${userId}`, {
+      await apiClient.post(`/career/competition-results?surfer_id=${userId}`, {
         ...formData,
         event_tier: defaultTier,
         placing: parseInt(formData.placing),
@@ -618,7 +617,7 @@ const AddStokeSponsorForm = ({ userId, onSuccess }) => {
 
     setLoading(true);
     try {
-      await axios.post(`${API}/career/sponsorships?surfer_id=${userId}`, {
+      await apiClient.post(`/career/sponsorships?surfer_id=${userId}`, {
         ...formData,
         sponsorship_tier: 'stoke'
       });

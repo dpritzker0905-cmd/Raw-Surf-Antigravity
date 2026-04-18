@@ -1,4 +1,4 @@
-/**
+﻿/**
  * SessionJoinCard - Inline component for joining sessions from Feed posts
  * 
  * Displays when a post is a session_log with open invites
@@ -7,14 +7,13 @@
  * - Join session directly (triggers crew payment flow)
  */
 import React, { useState } from 'react';
-import axios from 'axios';
+import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import { Users, DollarSign, Loader2, UserPlus } from 'lucide-react';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { toast } from 'sonner';
 import logger from '../utils/logger';
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 export const SessionJoinCard = ({
   post,

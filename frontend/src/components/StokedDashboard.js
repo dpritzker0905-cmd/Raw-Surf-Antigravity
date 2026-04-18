@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
@@ -14,10 +14,9 @@ import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { Progress } from './ui/progress';
 import { CrewLeaderboard } from './CrewLeaderboard';
-import axios from 'axios';
+import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import logger from '../utils/logger';
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 /**
  * Stoked Dashboard - Surfer's Impact & Progress Tracking
@@ -62,10 +61,10 @@ export const StokedDashboard = () => {
     setLoading(true);
     try {
       const [gamificationRes, careerRes, stokeRes, sessionsRes] = await Promise.all([
-        axios.get(`${API}/gamification/${user.id}`).catch(() => ({ data: { total_xp: 0, badges: [] } })),
-        axios.get(`${API}/career/stats/${user.id}`).catch(() => ({ data: null })),
-        axios.get(`${API}/career/stoke-sponsor/income/${user.id}`).catch(() => ({ data: null })),
-        axios.get(`${API}/sessions/surfer/${user.id}?limit=5`).catch(() => ({ data: { sessions: [] } }))
+        apiClient.get(`/gamification/${user.id}`).catch(() => ({ data: { total_xp: 0, badges: [] } })),
+        apiClient.get(`/career/stats/${user.id}`).catch(() => ({ data: null })),
+        apiClient.get(`/career/stoke-sponsor/income/${user.id}`).catch(() => ({ data: null })),
+        apiClient.get(`/sessions/surfer/${user.id}?limit=5`).catch(() => ({ data: { sessions: [] } }))
       ]);
       
       setStats({

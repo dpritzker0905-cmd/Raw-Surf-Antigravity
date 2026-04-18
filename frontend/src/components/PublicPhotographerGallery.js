@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useCallback } from 'react';
+﻿import React, { useState, useEffect, useCallback } from 'react';
 import { useSearchParams, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import axios from 'axios';
+import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import { 
   Camera, Image, Play, ShoppingCart, Grid, LayoutGrid, MapPin, Check,
   Sparkles, Star, ArrowLeft, User, Lock,
@@ -16,7 +16,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { toast } from 'sonner';
 import logger from '../utils/logger';
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 // Gallery View Modes
 const VIEW_MODES = {
@@ -73,7 +72,7 @@ export const PublicPhotographerGallery = () => {
     if (!photographerId) return;
     
     try {
-      const res = await axios.get(`${API}/profiles/${photographerId}`);
+      const res = await apiClient.get(`/profiles/${photographerId}`);
       setPhotographer(res.data);
     } catch (error) {
       logger.error('Failed to fetch photographer:', error);
@@ -86,7 +85,7 @@ export const PublicPhotographerGallery = () => {
     if (!photographerId) return;
     
     try {
-      const res = await axios.get(`${API}/galleries/photographer/${photographerId}`);
+      const res = await apiClient.get(`/galleries/photographer/${photographerId}`);
       // Only show public galleries
       setGalleries(res.data.filter(g => g.is_public));
     } catch (error) {
@@ -129,7 +128,7 @@ export const PublicPhotographerGallery = () => {
     
     setAIMatchLoading(true);
     try {
-      const res = await axios.post(`${API}/ai/face-match`, {
+      const res = await apiClient.post(`/ai/face-match`, {
         photographer_id: photographerId,
         surfer_id: user.id
       });
@@ -158,7 +157,7 @@ export const PublicPhotographerGallery = () => {
     
     setPurchaseLoading(true);
     try {
-      const _res = await axios.post(`${API}/gallery/${selectedItem.id}/purchase`, {
+      const _res = await apiClient.post(`/gallery/${selectedItem.id}/purchase`, {
         buyer_id: user.id,
         quality_tier: selectedQuality
       });

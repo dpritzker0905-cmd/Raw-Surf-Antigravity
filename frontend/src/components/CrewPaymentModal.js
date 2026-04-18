@@ -1,8 +1,8 @@
-import React, { useState, useRef } from 'react';
+﻿import React, { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
-import axios from 'axios';
+import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import { Users, MapPin, Clock, Camera, CreditCard, Wallet, 
   Plus, Check, Loader2, ChevronRight, Zap, AlertCircle
 } from 'lucide-react';
@@ -11,7 +11,6 @@ import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { toast } from 'sonner';
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 export const CrewPaymentModal = ({ 
   invite, 
@@ -54,7 +53,7 @@ export const CrewPaymentModal = ({
       const formData = new FormData();
       formData.append('file', file);
       
-      const response = await axios.post(`${API}/upload`, formData, {
+      const response = await apiClient.post(`/upload`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
       

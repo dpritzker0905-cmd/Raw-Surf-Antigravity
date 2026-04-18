@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
-import axios from 'axios';
+import apiClient, { BACKEND_URL } from '../../lib/apiClient';
 import {
   DollarSign, TrendingUp, Gift, Flag as FlagIcon, Bell, BarChart3,
   Loader2, Plus, RefreshCw, Send, Activity, Target, Zap,
@@ -18,7 +18,6 @@ import { Switch } from '../ui/switch';
 import { toast } from 'sonner';
 import logger from '../../utils/logger';
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 /**
  * AdminUnifiedAnalytics - Enhanced Analytics Dashboard
@@ -106,55 +105,55 @@ export const AdminUnifiedAnalytics = () => {
 
   const fetchOverviewData = async () => {
     const [revenueRes, ltvCacRes] = await Promise.all([
-      axios.get(`${API}/admin/revenue/overview?admin_id=${user.id}&days=${getDays()}`),
-      axios.get(`${API}/admin/analytics/ltv-cac?admin_id=${user.id}&days=${getDays() * 3}`)
+      apiClient.get(`/admin/revenue/overview?admin_id=${user.id}&days=${getDays()}`),
+      apiClient.get(`/admin/analytics/ltv-cac?admin_id=${user.id}&days=${getDays() * 3}`)
     ]);
     setRevenueData(revenueRes.data);
     setLtvCacData(ltvCacRes.data);
   };
 
   const fetchHealthScore = async () => {
-    const res = await axios.get(`${API}/admin/analytics/health-score?admin_id=${user.id}`);
+    const res = await apiClient.get(`/admin/analytics/health-score?admin_id=${user.id}`);
     setHealthScore(res.data);
   };
 
   const fetchLiquidityData = async () => {
-    const res = await axios.get(`${API}/admin/analytics/liquidity?admin_id=${user.id}&days=${getDays()}`);
+    const res = await apiClient.get(`/admin/analytics/liquidity?admin_id=${user.id}&days=${getDays()}`);
     setLiquidityData(res.data);
   };
 
   const fetchSupplyDemandData = async () => {
-    const res = await axios.get(`${API}/admin/analytics/supply-demand?admin_id=${user.id}&days=${getDays()}&limit=8`);
+    const res = await apiClient.get(`/admin/analytics/supply-demand?admin_id=${user.id}&days=${getDays()}&limit=8`);
     setSupplyDemandData(res.data);
   };
 
   const fetchTopPerformers = async () => {
-    const res = await axios.get(`${API}/admin/analytics/top-performers?admin_id=${user.id}&days=${getDays()}&limit=5`);
+    const res = await apiClient.get(`/admin/analytics/top-performers?admin_id=${user.id}&days=${getDays()}&limit=5`);
     setTopPerformers(res.data);
   };
 
   const fetchFunnelData = async () => {
-    const res = await axios.get(`${API}/admin/funnel/detailed?admin_id=${user.id}&days=${getDays()}`);
+    const res = await apiClient.get(`/admin/funnel/detailed?admin_id=${user.id}&days=${getDays()}`);
     setFunnelData(res.data);
   };
 
   const fetchCohortData = async () => {
-    const res = await axios.get(`${API}/admin/revenue/cohort?admin_id=${user.id}&months=6`);
+    const res = await apiClient.get(`/admin/revenue/cohort?admin_id=${user.id}&months=6`);
     setCohortData(res.data);
   };
 
   const fetchPromoCodes = async () => {
-    const res = await axios.get(`${API}/admin/promo-codes?admin_id=${user.id}`);
+    const res = await apiClient.get(`/admin/promo-codes?admin_id=${user.id}`);
     setPromoCodes(res.data.promo_codes || []);
   };
 
   const fetchFeatureFlags = async () => {
-    const res = await axios.get(`${API}/admin/feature-flags?admin_id=${user.id}`);
+    const res = await apiClient.get(`/admin/feature-flags?admin_id=${user.id}`);
     setFeatureFlags(res.data.feature_flags || []);
   };
 
   const fetchCampaigns = async () => {
-    const res = await axios.get(`${API}/admin/notification-campaigns?admin_id=${user.id}`);
+    const res = await apiClient.get(`/admin/notification-campaigns?admin_id=${user.id}`);
     setCampaigns(res.data.campaigns || []);
   };
 
@@ -163,7 +162,7 @@ export const AdminUnifiedAnalytics = () => {
     if (!newPromo.code) { toast.error('Please enter a code'); return; }
     setActionLoading(true);
     try {
-      await axios.post(`${API}/admin/promo-codes?admin_id=${user.id}`, newPromo);
+      await apiClient.post(`/admin/promo-codes?admin_id=${user.id}`, newPromo);
       toast.success('Promo code created');
       setShowCreatePromo(false);
       setNewPromo({ code: '', code_type: 'percentage', discount_value: 10, max_uses: null, campaign_name: '' });
@@ -177,7 +176,7 @@ export const AdminUnifiedAnalytics = () => {
 
   const handleTogglePromo = async (codeId) => {
     try {
-      await axios.put(`${API}/admin/promo-codes/${codeId}/toggle?admin_id=${user.id}`);
+      await apiClient.put(`/admin/promo-codes/${codeId}/toggle?admin_id=${user.id}`);
       fetchPromoCodes();
     } catch (error) {
       toast.error('Failed to toggle');
@@ -188,7 +187,7 @@ export const AdminUnifiedAnalytics = () => {
     if (!newFlag.key || !newFlag.name) { toast.error('Please fill required fields'); return; }
     setActionLoading(true);
     try {
-      await axios.post(`${API}/admin/feature-flags?admin_id=${user.id}`, newFlag);
+      await apiClient.post(`/admin/feature-flags?admin_id=${user.id}`, newFlag);
       toast.success('Feature flag created');
       setShowCreateFlag(false);
       setNewFlag({ key: '', name: '', description: '', rollout_percentage: 0, is_experiment: false });
@@ -202,7 +201,7 @@ export const AdminUnifiedAnalytics = () => {
 
   const handleToggleFlag = async (flagId, currentState) => {
     try {
-      await axios.put(`${API}/admin/feature-flags/${flagId}?admin_id=${user.id}&is_enabled=${!currentState}`);
+      await apiClient.put(`/admin/feature-flags/${flagId}?admin_id=${user.id}&is_enabled=${!currentState}`);
       fetchFeatureFlags();
     } catch (error) {
       toast.error('Failed to toggle');
@@ -213,7 +212,7 @@ export const AdminUnifiedAnalytics = () => {
     if (!newCampaign.name || !newCampaign.title) { toast.error('Please fill required fields'); return; }
     setActionLoading(true);
     try {
-      await axios.post(`${API}/admin/notification-campaigns?admin_id=${user.id}`, newCampaign);
+      await apiClient.post(`/admin/notification-campaigns?admin_id=${user.id}`, newCampaign);
       toast.success('Campaign created');
       setShowCreateCampaign(false);
       setNewCampaign({ name: '', title: '', body: '', target_all_users: true });
@@ -228,7 +227,7 @@ export const AdminUnifiedAnalytics = () => {
   const handleSendCampaign = async (campaignId) => {
     if (!confirm('Send this campaign now?')) return;
     try {
-      const res = await axios.post(`${API}/admin/notification-campaigns/${campaignId}/send?admin_id=${user.id}`);
+      const res = await apiClient.post(`/admin/notification-campaigns/${campaignId}/send?admin_id=${user.id}`);
       toast.success(`Sent to ${res.data.total_sent} users`);
       fetchCampaigns();
     } catch (error) {

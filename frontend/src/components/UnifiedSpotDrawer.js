@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+﻿import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MapPin, Camera, Radio, Users, Waves, AlertTriangle, DollarSign, Zap, Check, ArrowLeft, Image, Tag, Sparkles, Star, CreditCard, Coins, Loader2, RefreshCw, ChevronDown, Calendar, Lock, Crown, Trophy, CheckCircle } from 'lucide-react';
 import { Button } from './ui/button';
@@ -14,11 +14,10 @@ import { usePersona } from '../contexts/PersonaContext';
 import { JumpInSessionModal } from './JumpInSessionModal';
 import { LockerSelfieModal } from './LockerSelfieModal';
 import { ScanFace } from 'lucide-react';
-import axios from 'axios';
+import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import { toast } from 'sonner';
 import logger from '../utils/logger';
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 // Drawer modes
 const DRAWER_MODE = {
@@ -184,11 +183,11 @@ const PhotographerProfile = ({ photographer, onBack, onJumpIn }) => {
     setLoading(true);
     try {
       // Fetch reviews
-      const reviewsRes = await axios.get(`${API}/reviews/photographer/${photographer.id}?limit=5`);
+      const reviewsRes = await apiClient.get(`/reviews/photographer/${photographer.id}?limit=5`);
       setReviews(reviewsRes.data || []);
       
       // Fetch recent sessions
-      const sessionsRes = await axios.get(`${API}/photographer/${photographer.id}/session-history?limit=3`);
+      const sessionsRes = await apiClient.get(`/photographer/${photographer.id}/session-history?limit=3`);
       setRecentBookings(sessionsRes.data || []);
     } catch (e) {
       logger.error('Error fetching photographer data:', e);
@@ -362,10 +361,10 @@ const PhotographerProfileContent = ({ photographer }) => {
     if (!photographer?.id) return;
     setLoading(true);
     try {
-      const reviewsRes = await axios.get(`${API}/reviews/photographer/${photographer.id}?limit=5`);
+      const reviewsRes = await apiClient.get(`/reviews/photographer/${photographer.id}?limit=5`);
       setReviews(reviewsRes.data || []);
       
-      const sessionsRes = await axios.get(`${API}/photographer/${photographer.id}/session-history?limit=3`);
+      const sessionsRes = await apiClient.get(`/photographer/${photographer.id}/session-history?limit=3`);
       setRecentBookings(sessionsRes.data || []);
     } catch (e) {
       logger.error('Error fetching photographer data:', e);
@@ -704,7 +703,7 @@ const JumpInFlow = ({ photographer, onBack, onSuccess }) => {
       const formData = new FormData();
       formData.append('file', file);
       
-      const uploadRes = await axios.post(`${API}/upload`, formData, {
+      const uploadRes = await apiClient.post(`/upload`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
       
@@ -728,7 +727,7 @@ const JumpInFlow = ({ photographer, onBack, onSuccess }) => {
       // Get effective role for God Mode support - pass user's actual role
       const effectiveRole = getEffectiveRole(user?.role);
       
-      const response = await axios.post(`${API}/sessions/join?surfer_id=${user.id}`, {
+      const response = await apiClient.post(`/sessions/join?surfer_id=${user.id}`, {
         photographer_id: photographer.id,
         selfie_url: uploadedSelfieUrl,
         payment_method: paymentMethod,
@@ -1254,7 +1253,7 @@ const UnifiedSpotDrawer = ({
 
   const fetchLiveWaveHeight = async () => {
     try {
-      const response = await axios.get(`${API}/conditions/${spot.id}`);
+      const response = await apiClient.get(`/conditions/${spot.id}`);
       if (response.data?.current?.wave_height_ft) {
         setLiveWaveHeight(Math.round(response.data.current.wave_height_ft));
       }
@@ -1266,7 +1265,7 @@ const UnifiedSpotDrawer = ({
 
   const fetchSpotOfTheDay = async () => {
     try {
-      const response = await axios.get(`${API}/spot-of-the-day`, {
+      const response = await apiClient.get(`/spot-of-the-day`, {
         params: { region: spot?.region }
       });
       if (response.data.has_spot_of_the_day) {
@@ -1300,8 +1299,8 @@ const UnifiedSpotDrawer = ({
   const fetchPricing = async () => {
     try {
       const [pricingRes, galleryRes] = await Promise.all([
-        axios.get(`${API}/photographer/${userId}/pricing`),
-        axios.get(`${API}/photographer/${userId}/gallery-pricing`).catch(() => ({ data: {} }))
+        apiClient.get(`/photographer/${userId}/pricing`),
+        apiClient.get(`/photographer/${userId}/gallery-pricing`).catch(() => ({ data: {} }))
       ]);
       
       const generalPrice = galleryRes.data?.photo_pricing?.standard || 10;
@@ -1417,7 +1416,7 @@ const UnifiedSpotDrawer = ({
     
     setRefineLoading(true);
     try {
-      await axios.post(`${API}/spots/${spot.id}/refine-location`, null, {
+      await apiClient.post(`/spots/${spot.id}/refine-location`, null, {
         params: {
           photographer_id: userId,
           new_latitude: refinePosition.lat,

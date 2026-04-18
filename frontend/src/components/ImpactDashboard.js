@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
@@ -6,7 +6,7 @@ import { Input } from './ui/input';
 import { Avatar, AvatarImage, AvatarFallback } from './ui/avatar';
 import { Badge } from './ui/badge';
 import { toast } from 'sonner';
-import axios from 'axios';
+import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import {
   Heart, Target, Search, Users, DollarSign, TrendingUp, Loader2, ExternalLink, Check, Waves, Star, Gift, Settings
 } from 'lucide-react';

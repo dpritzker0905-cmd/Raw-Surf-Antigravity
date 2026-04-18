@@ -1,9 +1,8 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import logger from '../utils/logger';
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 /**
  * LivePhotographers - Shows users who are SOCIALLY LIVE (broadcasting to followers)
@@ -22,7 +21,7 @@ export const LivePhotographers = () => {
   const fetchSocialLiveUsers = async () => {
     try {
       // Fetch users who are SOCIALLY live (is_live=true), NOT just shooting (is_shooting)
-      const response = await axios.get(`${API}/profiles?is_live=true`);
+      const response = await apiClient.get(`/profiles?is_live=true`);
       // Filter to ensure only is_live users (not is_shooting)
       const socialLiveUsers = (response.data || []).filter(u => u.is_live === true);
       setLiveUsers(socialLiveUsers);

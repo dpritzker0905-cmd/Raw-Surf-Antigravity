@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+﻿import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import apiClient, { BACKEND_URL } from '../../lib/apiClient';
 import {
   Search, User, MapPin, Calendar, Settings, BarChart2,
   Shield, DollarSign, Bell, FileText, X
@@ -9,7 +9,6 @@ import {
 import { Dialog, DialogContent, DialogTitle } from './ui/dialog';
 import { Input } from './ui/input';
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 /**
  * Global Command Palette (Cmd+K)
@@ -55,7 +54,7 @@ export const CommandPalette = ({ isOpen, onClose }) => {
       if (query.length >= 2 && user?.is_admin) {
         setLoading(true);
         try {
-          const response = await axios.get(`${API}/admin/search?admin_id=${user.id}&query=${encodeURIComponent(query)}&limit=10`);
+          const response = await apiClient.get(`/admin/search?admin_id=${user.id}&query=${encodeURIComponent(query)}&limit=10`);
           setResults(response.data);
           setSelectedIndex(0);
         } catch (error) {

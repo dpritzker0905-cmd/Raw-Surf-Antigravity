@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+﻿import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
@@ -7,10 +7,9 @@ import {
   X, Users, Target, Sparkles, Navigation, CheckCircle2, AlertCircle,
   Plane, Hotel
 } from 'lucide-react';
-import axios from 'axios';
+import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import logger from '../utils/logger';
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 // Badge definitions with icons and descriptions
 const BADGE_INFO = {
@@ -57,7 +56,7 @@ export const SurfPassport = ({ isOpen, onClose }) => {
   const fetchStats = useCallback(async () => {
     if (!user?.id) return;
     try {
-      const response = await axios.get(`${API}/passport/stats?user_id=${user.id}`);
+      const response = await apiClient.get(`/passport/stats?user_id=${user.id}`);
       setStats(response.data);
     } catch (error) {
       logger.error('Failed to fetch passport stats:', error);
@@ -68,7 +67,7 @@ export const SurfPassport = ({ isOpen, onClose }) => {
   const fetchVisitedSpots = useCallback(async () => {
     if (!user?.id) return;
     try {
-      const response = await axios.get(`${API}/passport/visited-spots?user_id=${user.id}`);
+      const response = await apiClient.get(`/passport/visited-spots?user_id=${user.id}`);
       setVisitedSpots(response.data.visited_spots || []);
     } catch (error) {
       logger.error('Failed to fetch visited spots:', error);
@@ -78,7 +77,7 @@ export const SurfPassport = ({ isOpen, onClose }) => {
   // Fetch leaderboard
   const fetchLeaderboard = useCallback(async () => {
     try {
-      const response = await axios.get(`${API}/passport/leaderboard?category=${leaderboardCategory}&limit=20`);
+      const response = await apiClient.get(`/passport/leaderboard?category=${leaderboardCategory}&limit=20`);
       setLeaderboard(response.data.leaderboard || []);
     } catch (error) {
       logger.error('Failed to fetch leaderboard:', error);
@@ -114,7 +113,7 @@ export const SurfPassport = ({ isOpen, onClose }) => {
     
     try {
       // Get all spots and find the closest one
-      const response = await axios.get(`${API}/surf-spots`);
+      const response = await apiClient.get(`/surf-spots`);
       const spots = response.data;
       
       let closestSpot = null;
@@ -164,7 +163,7 @@ export const SurfPassport = ({ isOpen, onClose }) => {
     
     setCheckingIn(true);
     try {
-      const response = await axios.post(`${API}/passport/checkin?user_id=${user.id}`, {
+      const response = await apiClient.post(`/passport/checkin?user_id=${user.id}`, {
         spot_id: nearbySpot.id,
         latitude: userLocation.latitude,
         longitude: userLocation.longitude

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+﻿import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { 
   Radio, Clock, Mic, MicOff, Camera, CameraOff, Loader2, AlertTriangle,
   RefreshCw, MessageCircle, Heart, Send, X, Sparkles, Sun, Contrast,
@@ -10,7 +10,7 @@ import { Input } from './ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
-import axios from 'axios';
+import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -433,7 +433,7 @@ const LiveCommentsFeed = ({ streamId, colors, onSendComment, onLikeComment, isEx
     
     const fetchComments = async () => {
       try {
-        const response = await axios.get(`${API}/social-live/${streamId}/comments`);
+        const response = await apiClient.get(`/social-live/${streamId}/comments`);
         if (response.data?.comments) {
           // Memoized update - only update if there are new comments
           setComments(prev => {
@@ -743,7 +743,7 @@ const BroadcasterControls = ({
 
   // Handle comment likes
   const handleLikeComment = useCallback(async (commentId, isLiked) => {
-    await axios.post(`${API}/social-live/${streamId}/comments/${commentId}/like`, {
+    await apiClient.post(`/social-live/${streamId}/comments/${commentId}/like`, {
       user_id: userId,
       liked: isLiked
     });
@@ -778,7 +778,7 @@ const BroadcasterControls = ({
       return;
     }
     try {
-      const response = await axios.post(`${API}/social-live/${streamId}/comments`, {
+      const response = await apiClient.post(`/social-live/${streamId}/comments`, {
         user_id: userId,
         user_name: userName || 'You',
         avatar_url: userAvatar || '',
@@ -1093,7 +1093,7 @@ const GoLiveModal = ({ isOpen, onClose, onStreamEnded }) => {
     try {
       logger.info('[GoLiveModal] Starting social live stream...');
       
-      const response = await axios.post(`${API}/livekit/start-social-live`, {
+      const response = await apiClient.post(`/livekit/start-social-live`, {
         broadcaster_id: user.id,
         broadcaster_name: user.full_name || user.username || 'Broadcaster'
       });
@@ -1120,7 +1120,7 @@ const GoLiveModal = ({ isOpen, onClose, onStreamEnded }) => {
       // Start viewer count polling
       viewerPollRef.current = setInterval(async () => {
         try {
-          const activeStreams = await axios.get(`${API}/livekit/active-streams`);
+          const activeStreams = await apiClient.get(`/livekit/active-streams`);
           const myStream = activeStreams.data.streams?.find(
             s => s.room_name === response.data.room_name
           );
@@ -1155,7 +1155,7 @@ const GoLiveModal = ({ isOpen, onClose, onStreamEnded }) => {
     // Notify backend
     if (streamData?.id) {
       try {
-        await axios.post(`${API}/livekit/end-stream/${streamData.id}?broadcaster_id=${user.id}`);
+        await apiClient.post(`/livekit/end-stream/${streamData.id}?broadcaster_id=${user.id}`);
       } catch (e) {
         logger.error('[GoLiveModal] Error ending stream on backend:', e);
       }
@@ -1190,7 +1190,7 @@ const GoLiveModal = ({ isOpen, onClose, onStreamEnded }) => {
       // Auto-teardown orphan cleanup if unmounted while active
       if (streamDataRef.current?.id && user?.id) {
         logger.info('[GoLiveModal] Unmount trapped active stream. Firing orphan teardown.');
-        axios.post(`${API}/livekit/end-stream/${streamDataRef.current.id}?broadcaster_id=${user.id}`).catch(() => {});
+        apiClient.post(`/livekit/end-stream/${streamDataRef.current.id}?broadcaster_id=${user.id}`).catch(() => {});
       }
     };
     // Intentionally limited deps: only trigger on modal open/close

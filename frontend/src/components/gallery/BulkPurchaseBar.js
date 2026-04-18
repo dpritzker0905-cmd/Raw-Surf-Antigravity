@@ -1,4 +1,4 @@
-/**
+﻿/**
  * BulkPurchaseBar - TICKET-005
  * Floating action bar for bulk photo/video purchases with volume discounts
  * Shows running total and applies automatic tier-based discounts
@@ -20,7 +20,7 @@ import {
 
 
 import { toast } from 'sonner';
-import axios from 'axios';
+import apiClient, { BACKEND_URL } from '../../lib/apiClient';
 
 const API = process.env.REACT_APP_BACKEND_URL;
 
@@ -140,7 +140,7 @@ export const BulkPurchaseBar = ({
         return acc;
       }, {});
       
-      const response = await axios.post(`${API}/api/gallery/bulk-purchase`, {
+      const response = await apiClient.post(`/api/gallery/bulk-purchase`, {
         item_ids: itemIds,
         quality_tiers: qualityTiers,
         buyer_id: userId

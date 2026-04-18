@@ -1,12 +1,11 @@
-import React, { useState, useEffect, useCallback } from 'react';
+﻿import React, { useState, useEffect, useCallback } from 'react';
 import { AlertTriangle, MapPin, Check, X, Loader2, RefreshCw, ExternalLink, MessageSquare } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { useAuth } from '../../contexts/AuthContext';
-import axios from 'axios';
+import apiClient, { BACKEND_URL } from '../../lib/apiClient';
 import { toast } from 'sonner';
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 /**
  * AdminPrecisionQueue - Queue of spots flagged for review
@@ -30,8 +29,8 @@ export const AdminPrecisionQueue = () => {
     try {
       setLoading(true);
       const [queueRes, suggestionsRes] = await Promise.all([
-        axios.get(`${API}/admin/spots/queue`, { params: { admin_id: user.id } }),
-        axios.get(`${API}/admin/spots/suggestions`, { params: { admin_id: user.id } })
+        apiClient.get(`/admin/spots/queue`, { params: { admin_id: user.id } }),
+        apiClient.get(`/admin/spots/suggestions`, { params: { admin_id: user.id } })
       ]);
       setQueue(queueRes.data.queue);
       setSuggestions(suggestionsRes.data.suggestions);

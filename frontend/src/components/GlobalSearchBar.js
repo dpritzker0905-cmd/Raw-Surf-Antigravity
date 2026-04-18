@@ -1,13 +1,12 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+﻿import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search, X, MapPin, User, FileText, Hash, Loader2, TrendingUp } from 'lucide-react';
 import { Input } from './ui/input';
 import { Avatar, AvatarImage, AvatarFallback } from './ui/avatar';
 import { getExpandedRoleInfo } from '../contexts/PersonaContext';
-import axios from 'axios';
+import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import logger from '../utils/logger';
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 /**
  * GlobalSearchBar - Unified search component for desktop sidebar and mobile
@@ -65,7 +64,7 @@ export const GlobalSearchBar = ({
   
   const fetchTrendingHashtags = async () => {
     try {
-      const response = await axios.get(`${API}/hashtags/trending?limit=5`);
+      const response = await apiClient.get(`/hashtags/trending?limit=5`);
       setTrendingHashtags(response.data.hashtags || []);
     } catch (error) {
       // Silently fail - trending is optional
@@ -81,7 +80,7 @@ export const GlobalSearchBar = ({
     
     setIsSearching(true);
     try {
-      const response = await axios.get(`${API}/search/global`, {
+      const response = await apiClient.get(`/search/global`, {
         params: { q: searchQuery, limit: 5 }
       });
       setResults(response.data);
@@ -89,7 +88,7 @@ export const GlobalSearchBar = ({
       logger.error('Search error:', error);
       // Fallback to explore search
       try {
-        const fallbackResponse = await axios.get(`${API}/explore/search`, {
+        const fallbackResponse = await apiClient.get(`/explore/search`, {
           params: { q: searchQuery, type: 'all', limit: 5 }
         });
         setResults({

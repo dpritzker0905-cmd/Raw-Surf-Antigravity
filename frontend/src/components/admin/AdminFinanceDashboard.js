@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
-import axios from 'axios';
+import apiClient, { BACKEND_URL } from '../../lib/apiClient';
 import {
   Loader2, RefreshCw, Check, X,
   Receipt, Wallet, TrendingDown, FileText
@@ -15,7 +15,6 @@ import { Textarea } from '../ui/textarea';
 import { toast } from 'sonner';
 import logger from '../../utils/logger';
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 /**
  * Admin Finance Dashboard
@@ -65,7 +64,7 @@ export const AdminFinanceDashboard = () => {
 
   const fetchStats = async () => {
     try {
-      const response = await axios.get(`${API}/admin/finance/stats?admin_id=${user.id}&days=30`);
+      const response = await apiClient.get(`/admin/finance/stats?admin_id=${user.id}&days=30`);
       setStats(response.data);
     } catch (error) {
       logger.error('Failed to load stats:', error);
@@ -76,20 +75,20 @@ export const AdminFinanceDashboard = () => {
     setLoading(true);
     try {
       if (activeTab === 'refunds') {
-        const response = await axios.get(`${API}/admin/finance/refunds?admin_id=${user.id}&status=${refundFilter}&limit=50`);
+        const response = await apiClient.get(`/admin/finance/refunds?admin_id=${user.id}&status=${refundFilter}&limit=50`);
         setRefunds(response.data.refunds || []);
       } else if (activeTab === 'payouts') {
         const [batchesRes, pendingRes] = await Promise.all([
-          axios.get(`${API}/admin/finance/payouts?admin_id=${user.id}&limit=20`),
-          axios.get(`${API}/admin/finance/payouts/pending?admin_id=${user.id}`)
+          apiClient.get(`/admin/finance/payouts?admin_id=${user.id}&limit=20`),
+          apiClient.get(`/admin/finance/payouts/pending?admin_id=${user.id}`)
         ]);
         setPayoutBatches(batchesRes.data.batches || []);
         setPendingPayouts(pendingRes.data);
       } else if (activeTab === 'failed') {
-        const response = await axios.get(`${API}/admin/finance/failed-payments?admin_id=${user.id}&limit=50`);
+        const response = await apiClient.get(`/admin/finance/failed-payments?admin_id=${user.id}&limit=50`);
         setFailedPayments(response.data.failed_payments || []);
       } else if (activeTab === 'tax') {
-        const response = await axios.get(`${API}/admin/finance/tax-report?admin_id=${user.id}&year=${taxYear}`);
+        const response = await apiClient.get(`/admin/finance/tax-report?admin_id=${user.id}&year=${taxYear}`);
         setTaxReport(response.data);
       }
     } catch (error) {
@@ -102,7 +101,7 @@ export const AdminFinanceDashboard = () => {
   const handleProcessRefund = async (refundId, action) => {
     setActionLoading(true);
     try {
-      await axios.post(`${API}/admin/finance/refunds/${refundId}/process?admin_id=${user.id}`, {
+      await apiClient.post(`/admin/finance/refunds/${refundId}/process?admin_id=${user.id}`, {
         action,
         rejection_reason: action === 'reject' ? rejectionReason : null
       });
@@ -122,7 +121,7 @@ export const AdminFinanceDashboard = () => {
   const handleCreatePayoutBatch = async () => {
     setActionLoading(true);
     try {
-      const response = await axios.post(`${API}/admin/finance/payouts/create-batch?admin_id=${user.id}`, {});
+      const response = await apiClient.post(`/admin/finance/payouts/create-batch?admin_id=${user.id}`, {});
       toast.success(`Batch ${response.data.batch_number} created`);
       fetchDataForTab();
     } catch (error) {
@@ -135,7 +134,7 @@ export const AdminFinanceDashboard = () => {
   const handleProcessBatch = async (batchId) => {
     setActionLoading(true);
     try {
-      await axios.post(`${API}/admin/finance/payouts/${batchId}/process?admin_id=${user.id}`);
+      await apiClient.post(`/admin/finance/payouts/${batchId}/process?admin_id=${user.id}`);
       toast.success('Batch processed');
       fetchDataForTab();
     } catch (error) {
@@ -148,7 +147,7 @@ export const AdminFinanceDashboard = () => {
   const handleRetryPayment = async (paymentId) => {
     setActionLoading(true);
     try {
-      const response = await axios.post(`${API}/admin/finance/failed-payments/${paymentId}/retry?admin_id=${user.id}`);
+      const response = await apiClient.post(`/admin/finance/failed-payments/${paymentId}/retry?admin_id=${user.id}`);
       toast.success(response.data.recovered ? 'Payment recovered!' : 'Retry failed');
       fetchDataForTab();
       fetchStats();

@@ -1,11 +1,10 @@
-import React, { useState, useRef, useEffect } from 'react';
+﻿import React, { useState, useRef, useEffect } from 'react';
 import { X, Camera, CreditCard, Coins, Check, Loader2, RefreshCw } from 'lucide-react';
 import { Button } from './ui/button';
 import { useAuth } from '../contexts/AuthContext';
-import axios from 'axios';
+import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import { toast } from 'sonner';
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 export const JumpInSessionModal = ({ photographer, onClose, onSuccess }) => {
   const { user, updateUser } = useAuth();
@@ -124,7 +123,7 @@ export const JumpInSessionModal = ({ photographer, onClose, onSuccess }) => {
     
     setLoading(true);
     try {
-      const response = await axios.post(`${API}/sessions/join?surfer_id=${user.id}`, {
+      const response = await apiClient.post(`/sessions/join?surfer_id=${user.id}`, {
         photographer_id: photographer.id,
         selfie_url: selfieUrl || null,
         payment_method: paymentMethod,

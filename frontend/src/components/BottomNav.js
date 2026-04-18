@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+﻿import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Compass, Plus, Camera, MessageCircle, Waves } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
@@ -6,10 +6,9 @@ import { useAuth } from '../contexts/AuthContext';
 import { usePersona } from '../contexts/PersonaContext';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { PhotoToolsDrawer } from './PhotoToolsDrawer';
-import axios from 'axios';
+import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import logger from '../utils/logger';
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 /**
  * Animated Wave Home Icon - Simple Lucide Waves with gentle animation
@@ -125,7 +124,7 @@ export const BottomNav = () => {
     const fetchFreshAvatar = async () => {
       if (!user?.id) return;
       try {
-        const response = await axios.get(`${API}/profiles/${user.id}`);
+        const response = await apiClient.get(`/profiles/${user.id}`);
         const avatarFromApi = response.data.avatar_url;
         if (avatarFromApi) {
           // Add cache buster with current timestamp
@@ -174,7 +173,7 @@ export const BottomNav = () => {
   const fetchUnreadMessages = useCallback(async () => {
     if (!user?.id) return;
     try {
-      const response = await axios.get(`${API}/messages/unread-counts/${user.id}`);
+      const response = await apiClient.get(`/messages/unread-counts/${user.id}`);
       setUnreadMessages(response.data.total || 0);
     } catch (error) {
       logger.error('Failed to fetch message count:', error);

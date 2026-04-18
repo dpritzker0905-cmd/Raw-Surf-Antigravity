@@ -1,4 +1,4 @@
-/**
+﻿/**
  * AccountBillingHub - Subscription & Status Management
  * Location: Settings > Account & Billing
  * 
@@ -13,7 +13,7 @@
  */
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import axios from 'axios';
+import apiClient, { BACKEND_URL } from '../../lib/apiClient';
 import { 
   CreditCard, Trophy, Users, Loader2, Check, 
   Clock, AlertCircle, Waves, UserPlus, Crown, Shield, Coins, Plus
@@ -68,7 +68,7 @@ export const AccountBillingHub = () => {
 
   const fetchAccountBilling = async () => {
     try {
-      const response = await axios.get(`${API}/api/subscriptions/account-billing/${user.id}`);
+      const response = await apiClient.get(`/api/subscriptions/account-billing/${user.id}`);
       setAccountData(response.data);
     } catch (error) {
       logger.error('Failed to fetch account billing:', error);
@@ -81,7 +81,7 @@ export const AccountBillingHub = () => {
   const handleStatusToggle = async (newStatus) => {
     setToggling(true);
     try {
-      await axios.post(`${API}/api/subscriptions/toggle-status/${user.id}`, {
+      await apiClient.post(`/api/subscriptions/toggle-status/${user.id}`, {
         status: newStatus
       });
       toast.success(`Status changed to ${newStatus === 'competitive' ? 'Competitive' : 'Regular'} Surfer`);
@@ -99,7 +99,7 @@ export const AccountBillingHub = () => {
     if (useCredits) {
       setUpgrading(tierId);
       try {
-        const response = await axios.post(`${API}/api/subscriptions/pay-with-credits/${user.id}`, {
+        const response = await apiClient.post(`/api/subscriptions/pay-with-credits/${user.id}`, {
           tier_id: tierId,
           use_credits: true
         });
@@ -125,7 +125,7 @@ export const AccountBillingHub = () => {
     // Standard Stripe checkout
     setUpgrading(tierId);
     try {
-      const response = await axios.post(`${API}/api/subscriptions/upgrade-tier/${user.id}`, {
+      const response = await apiClient.post(`/api/subscriptions/upgrade-tier/${user.id}`, {
         tier_id: tierId,
         origin_url: window.location.origin
       });
@@ -151,7 +151,7 @@ export const AccountBillingHub = () => {
     if (useCredits) {
       setUpgrading(upgradeKey);
       try {
-        const response = await axios.post(`${API}/api/subscriptions/grom-pay-with-credits/${user.id}`, {
+        const response = await apiClient.post(`/api/subscriptions/grom-pay-with-credits/${user.id}`, {
           grom_id: gromId,
           tier_id: tierId,
           use_credits: true
@@ -176,7 +176,7 @@ export const AccountBillingHub = () => {
     // Standard Stripe checkout for Grom
     setUpgrading(upgradeKey);
     try {
-      const response = await axios.post(`${API}/api/subscriptions/grom-tier/${user.id}`, {
+      const response = await apiClient.post(`/api/subscriptions/grom-tier/${user.id}`, {
         grom_id: gromId,
         tier_id: tierId,
         origin_url: window.location.origin
@@ -198,7 +198,7 @@ export const AccountBillingHub = () => {
   const handleApplyForPro = async () => {
     setToggling(true);
     try {
-      const response = await axios.post(`${API}/api/subscriptions/apply-pro/${user.id}`);
+      const response = await apiClient.post(`/api/subscriptions/apply-pro/${user.id}`);
       toast.success(response.data.message);
       await fetchAccountBilling();
     } catch (error) {
@@ -211,7 +211,7 @@ export const AccountBillingHub = () => {
   const handleParentSurferMode = async (enabled) => {
     setToggling(true);
     try {
-      await axios.post(`${API}/api/subscriptions/parent-surfer-mode/${user.id}`, {
+      await apiClient.post(`/api/subscriptions/parent-surfer-mode/${user.id}`, {
         active_surfer_mode: enabled
       });
       toast.success(`Active Surfer Mode ${enabled ? 'enabled' : 'disabled'}`);

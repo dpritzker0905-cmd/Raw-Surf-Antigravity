@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
-import axios from 'axios';
+import apiClient, { BACKEND_URL } from '../../lib/apiClient';
 import {
   Shield, Image, MessageSquare, Check, X,
   Loader2, RefreshCw, Eye, Flag, Trash2
@@ -15,7 +15,6 @@ import { Textarea } from '../ui/textarea';
 import { toast } from 'sonner';
 import logger from '../../utils/logger';
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 /**
  * Admin Content Moderation Dashboard
@@ -67,7 +66,7 @@ export const AdminContentModDashboard = () => {
 
   const fetchStats = async () => {
     try {
-      const response = await axios.get(`${API}/admin/content-moderation/stats?admin_id=${user.id}&days=30`);
+      const response = await apiClient.get(`/admin/content-moderation/stats?admin_id=${user.id}&days=30`);
       setStats(response.data);
     } catch (error) {
       logger.error('Failed to load stats:', error);
@@ -77,7 +76,7 @@ export const AdminContentModDashboard = () => {
   const handleModerate = async (itemId, decision) => {
     setActionLoading(true);
     try {
-      await axios.post(`${API}/admin/content-moderation/${itemId}/moderate?admin_id=${user.id}`, {
+      await apiClient.post(`/admin/content-moderation/${itemId}/moderate?admin_id=${user.id}`, {
         decision,
         notes: moderationNote
       });
@@ -97,7 +96,7 @@ export const AdminContentModDashboard = () => {
     if (selectedItems.size === 0) return;
     setActionLoading(true);
     try {
-      await axios.post(`${API}/admin/content-moderation/bulk-moderate?admin_id=${user.id}`, {
+      await apiClient.post(`/admin/content-moderation/bulk-moderate?admin_id=${user.id}`, {
         item_ids: Array.from(selectedItems),
         decision
       });

@@ -1,9 +1,9 @@
-/**
+﻿/**
  * PostModal - Instagram-style post popup with image on left, details on right
  * Opens when clicking on a post in the feed
  */
 import React, { useState, useEffect, useRef } from 'react';
-import axios from 'axios';
+import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { X, ChevronLeft, ChevronRight, Heart, MessageCircle, Send, Bookmark, MoreHorizontal, Loader2, Calendar, Waves } from 'lucide-react';
@@ -13,7 +13,6 @@ import { SharePostModal } from './PostMenu';
 import PostMenu from './PostMenu';
 import logger from '../utils/logger';
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 // Reaction emojis (Shaka plus others)
 const POST_REACTIONS = ['🤙', '❤️', '🔥', '🌊', '👏'];
@@ -282,7 +281,7 @@ const PostModal = ({ post, isOpen, onClose, _onPostUpdated }) => {
   const loadComments = async () => {
     setLoadingComments(true);
     try {
-      const response = await axios.get(`${API}/posts/${post.id}/comments`, {
+      const response = await apiClient.get(`/posts/${post.id}/comments`, {
         params: { viewer_id: user?.id }
       });
       setComments(response.data || []);
@@ -301,11 +300,11 @@ const PostModal = ({ post, isOpen, onClose, _onPostUpdated }) => {
     
     try {
       if (liked) {
-        await axios.delete(`${API}/posts/${post.id}/like`, { params: { user_id: user.id } });
+        await apiClient.delete(`/posts/${post.id}/like`, { params: { user_id: user.id } });
         setLiked(false);
         setLikeCount(prev => Math.max(0, prev - 1));
       } else {
-        await axios.post(`${API}/posts/${post.id}/like`, null, { params: { user_id: user.id } });
+        await apiClient.post(`/posts/${post.id}/like`, null, { params: { user_id: user.id } });
         setLiked(true);
         setLikeCount(prev => prev + 1);
       }
@@ -322,11 +321,11 @@ const PostModal = ({ post, isOpen, onClose, _onPostUpdated }) => {
     
     try {
       if (saved) {
-        await axios.delete(`${API}/posts/${post.id}/save?user_id=${user.id}`);
+        await apiClient.delete(`/posts/${post.id}/save?user_id=${user.id}`);
         setSaved(false);
         toast.success('Removed from saved');
       } else {
-        await axios.post(`${API}/posts/${post.id}/save?user_id=${user.id}`);
+        await apiClient.post(`/posts/${post.id}/save?user_id=${user.id}`);
         setSaved(true);
         toast.success('Saved!');
       }
@@ -444,7 +443,7 @@ const PostModal = ({ post, isOpen, onClose, _onPostUpdated }) => {
     
     setSubmittingComment(true);
     try {
-      await axios.post(`${API}/posts/${post.id}/comments?user_id=${user.id}`, {
+      await apiClient.post(`/posts/${post.id}/comments?user_id=${user.id}`, {
         content: commentInput.trim()
       });
       setCommentInput('');

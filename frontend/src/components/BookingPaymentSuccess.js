@@ -1,17 +1,16 @@
-/**
+﻿/**
  * Booking Payment Success Page
  * Handles Stripe payment confirmation for scheduled bookings
  */
 import React, { useEffect, useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import axios from 'axios';
+import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import { CheckCircle, Loader2, XCircle, Calendar, MapPin, Camera, Sparkles, Gift } from 'lucide-react';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import logger from '../utils/logger';
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 const BookingPaymentSuccess = () => {
   const [searchParams] = useSearchParams();
@@ -44,7 +43,7 @@ const BookingPaymentSuccess = () => {
           
           // Refresh user data to get updated credit balance
           try {
-            const profileResponse = await axios.get(`${API}/profiles/${user?.id}`);
+            const profileResponse = await apiClient.get(`/profiles/${user?.id}`);
             if (profileResponse.data?.credit_balance !== undefined) {
               updateUser({ credit_balance: profileResponse.data.credit_balance });
             }

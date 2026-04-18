@@ -1,11 +1,11 @@
-/**
+﻿/**
  * FeedLineupCard - Session lineup card that appears in the Feed
  * 
  * Shows open lineups from friends or nearby surfers
  * Users can join directly from the Feed
  */
 import React, { useState } from 'react';
-import axios from 'axios';
+import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import { useNavigate } from 'react-router-dom';
 import { 
   Users, MapPin, Calendar, 
@@ -20,7 +20,6 @@ import { Avatar, AvatarImage, AvatarFallback } from './ui/avatar';
 import { toast } from 'sonner';
 import logger from '../utils/logger';
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 // Calculate time remaining
 const getTimeRemaining = (closesAt) => {
@@ -71,7 +70,7 @@ export const FeedLineupCard = ({
     
     setLoading(true);
     try {
-      await axios.post(`${API}/bookings/${lineup.id}/lineup/join`, null, {
+      await apiClient.post(`/bookings/${lineup.id}/lineup/join`, null, {
         params: { user_id: user.id }
       });
       

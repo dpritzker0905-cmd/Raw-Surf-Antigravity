@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
@@ -13,11 +13,10 @@ import { Badge } from './ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from './ui/dialog';
 import { Input } from './ui/input';
 import { toast } from 'sonner';
-import axios from 'axios';
+import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import { GoldPassSlotCard } from './GoldPassSlotCard';
 import logger from '../utils/logger';
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 /**
  * The Peak - Career Hub for Pro-Elite (⭐+) and Competitive (🏄) surfers
@@ -53,12 +52,12 @@ export const ThePeakHub = () => {
     setLoading(true);
     try {
       const [statsRes, sponsorsRes, resultsRes, photographersRes, slotsRes, stokeRes] = await Promise.all([
-        axios.get(`${API}/career/stats/${user.id}`).catch(() => ({ data: null })),
-        axios.get(`${API}/career/sponsorships/${user.id}`).catch(() => ({ data: { sponsorships: [] } })),
-        axios.get(`${API}/career/competition-results/${user.id}`).catch(() => ({ data: { results: [] } })),
-        axios.get(`${API}/career/elite-photographers`).catch(() => ({ data: { elite_photographers: [] } })),
-        axios.get(`${API}/career/gold-pass/available?surfer_id=${user.id}`).catch(() => ({ data: { slots: [] } })),
-        axios.get(`${API}/career/stoke-sponsor/income/${user.id}`).catch(() => ({ data: null }))
+        apiClient.get(`/career/stats/${user.id}`).catch(() => ({ data: null })),
+        apiClient.get(`/career/sponsorships/${user.id}`).catch(() => ({ data: { sponsorships: [] } })),
+        apiClient.get(`/career/competition-results/${user.id}`).catch(() => ({ data: { results: [] } })),
+        apiClient.get(`/career/elite-photographers`).catch(() => ({ data: { elite_photographers: [] } })),
+        apiClient.get(`/career/gold-pass/available?surfer_id=${user.id}`).catch(() => ({ data: { slots: [] } })),
+        apiClient.get(`/career/stoke-sponsor/income/${user.id}`).catch(() => ({ data: null }))
       ]);
       
       setCareerStats(statsRes.data);
@@ -345,7 +344,7 @@ export const ThePeakHub = () => {
                   hasGoldPass={user?.subscription_tier === 'tier_3'}
                   onBook={async (s) => {
                     try {
-                      await axios.post(`${API}/career/gold-pass/${s.id}/book?surfer_id=${user.id}`);
+                      await apiClient.post(`/career/gold-pass/${s.id}/book?surfer_id=${user.id}`);
                       toast.success('Slot booked successfully!');
                       fetchCareerData();
                     } catch (error) {
@@ -459,7 +458,7 @@ const AddCompetitionResultModal = ({ isOpen, onClose, userId, onSuccess }) => {
 
     setLoading(true);
     try {
-      await axios.post(`${API}/career/competition-results?surfer_id=${userId}`, {
+      await apiClient.post(`/career/competition-results?surfer_id=${userId}`, {
         ...formData,
         placing: parseInt(formData.placing),
         total_competitors: formData.total_competitors ? parseInt(formData.total_competitors) : null,
@@ -582,7 +581,7 @@ const AddSponsorModal = ({ isOpen, onClose, userId, onSuccess }) => {
 
     setLoading(true);
     try {
-      await axios.post(`${API}/career/sponsorships?surfer_id=${userId}`, formData);
+      await apiClient.post(`/career/sponsorships?surfer_id=${userId}`, formData);
       onSuccess();
     } catch (error) {
       toast.error('Failed to add sponsor');

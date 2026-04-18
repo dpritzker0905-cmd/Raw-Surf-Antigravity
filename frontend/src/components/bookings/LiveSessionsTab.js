@@ -1,4 +1,4 @@
-/**
+﻿/**
  * LiveSessionsTab - User's active live sessions they've joined
  * Extracted from Bookings.js for better maintainability
  */
@@ -8,10 +8,9 @@ import { Calendar, Radio, LogOut, Loader2 } from 'lucide-react';
 import { Card, CardContent } from '../ui/card';
 import { Button } from '../ui/button';
 import { useAuth } from '../../contexts/AuthContext';
-import axios from 'axios';
+import apiClient, { BACKEND_URL } from '../../lib/apiClient';
 import { toast } from 'sonner';
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 export const LiveSessionsTab = ({
   liveSessions,
@@ -30,7 +29,7 @@ export const LiveSessionsTab = ({
   const handleLeaveSession = async (sessionId) => {
     setLeavingSession(sessionId);
     try {
-      const response = await axios.post(`${API}/sessions/leave/${sessionId}?user_id=${userId}`);
+      const response = await apiClient.post(`/sessions/leave/${sessionId}?user_id=${userId}`);
       
       // Check if refund was applied
       if (response.data.refunded) {

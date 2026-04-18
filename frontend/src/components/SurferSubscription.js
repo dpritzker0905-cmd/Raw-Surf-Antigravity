@@ -1,16 +1,15 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Button } from './ui/button';
 import { Card, CardContent } from './ui/card';
 import { toast } from 'sonner';
 import { Check, X, Loader2, Calendar, MapPin, Zap, Bell, Shield } from 'lucide-react';
-import axios from 'axios';
+import apiClient, { BACKEND_URL } from '../lib/apiClient';
 // Import from centralized config - SINGLE SOURCE OF TRUTH
 import { SURFER_PLANS } from '../config/subscriptionPlans.config';
 import logger from '../utils/logger';
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 // Use centralized config for subscription tiers
 const SURFER_TIERS_MONTHLY = SURFER_PLANS.monthly;

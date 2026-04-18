@@ -1,4 +1,4 @@
-/**
+﻿/**
  * DutyStationDrawer - Unified Photographer Duty Management
  * 
  * Features:
@@ -26,13 +26,12 @@ import { Badge } from './ui/badge';
 import { Button } from './ui/button';
 import { Checkbox } from './ui/checkbox';
 import { toast } from 'sonner';
-import axios from 'axios';
+import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import { SpotSelector } from './SpotSelector';
 import { motion, AnimatePresence } from 'framer-motion';
 import logger from '../utils/logger';
 import ConditionsModal from './ConditionsModal';
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 // Distance constants
 const LIVE_PROXIMITY_MILES = 0.2; // Must be within 0.2 miles to go live
@@ -714,7 +713,7 @@ export const DutyStationDrawer = ({ isOpen, onClose }) => {
   
   const fetchStatuses = async () => {
     try {
-      const liveResponse = await axios.get(`${API}/photographer/${user.id}/status`);
+      const liveResponse = await apiClient.get(`/photographer/${user.id}/status`);
       const liveData = liveResponse.data;
       setLiveActive(liveData?.is_shooting || false);
       
@@ -730,7 +729,7 @@ export const DutyStationDrawer = ({ isOpen, onClose }) => {
       }
       
       if (showOnDemand) {
-        const onDemandResponse = await axios.get(`${API}/photographer/${user.id}/on-demand-status`);
+        const onDemandResponse = await apiClient.get(`/photographer/${user.id}/on-demand-status`);
         const onDemandData = onDemandResponse.data;
         setOnDemandActive(onDemandData?.is_available || false);
         
@@ -741,7 +740,7 @@ export const DutyStationDrawer = ({ isOpen, onClose }) => {
       }
       
       try {
-        const statsResponse = await axios.get(`${API}/photographer/${user.id}/daily-stats`);
+        const statsResponse = await apiClient.get(`/photographer/${user.id}/daily-stats`);
         setStats(statsResponse.data || { todayEarnings: 0, sessionsToday: 0 });
       } catch (e) { /* daily stats are optional - don't block on failure */ }
     } catch (error) {
@@ -755,7 +754,7 @@ export const DutyStationDrawer = ({ isOpen, onClose }) => {
     setSpotsLoading(true);
     try {
       // Use correct endpoint: /surf-spots/nearby with radius_miles parameter
-      const response = await axios.get(`${API}/surf-spots/nearby`, {
+      const response = await apiClient.get(`/surf-spots/nearby`, {
         params: {
           latitude: userLocation.lat,
           longitude: userLocation.lng,
@@ -785,7 +784,7 @@ export const DutyStationDrawer = ({ isOpen, onClose }) => {
     try {
       if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(async (position) => {
-          const response = await axios.get(`${API}/photographers/live`, {
+          const response = await apiClient.get(`/photographers/live`, {
             params: {
               latitude: position.coords.latitude,
               longitude: position.coords.longitude,
@@ -858,7 +857,7 @@ export const DutyStationDrawer = ({ isOpen, onClose }) => {
     setLoading(true);
     try {
       if (onDemandActive) {
-        await axios.post(`${API}/photographer/${user.id}/on-demand-toggle`, { is_available: false });
+        await apiClient.post(`/photographer/${user.id}/on-demand-toggle`, { is_available: false });
         setOnDemandActive(false);
         toast.info('Switching to Live mode. On-Demand disabled.');
       }
@@ -888,7 +887,7 @@ export const DutyStationDrawer = ({ isOpen, onClose }) => {
         condition_media_type: conditionsData?.mediaType || null
       };
       
-      await axios.post(`${API}/photographer/${user.id}/go-live`, goLivePayload);
+      await apiClient.post(`/photographer/${user.id}/go-live`, goLivePayload);
       setLiveActive(true);
       setShowConditionsModal(false);
       toast.success(`Now live at ${selectedSpot.name}!`);
@@ -914,12 +913,12 @@ export const DutyStationDrawer = ({ isOpen, onClose }) => {
     setLoading(true);
     try {
       if (liveActive) {
-        await axios.post(`${API}/photographer/${user.id}/end-session`);
+        await apiClient.post(`/photographer/${user.id}/end-session`);
         setLiveActive(false);
         toast.info('Switching to On-Demand mode. Live session ended.');
       }
       
-      await axios.post(`${API}/photographer/${user.id}/on-demand-toggle`, {
+      await apiClient.post(`/photographer/${user.id}/on-demand-toggle`, {
         is_available: true,
         spots: selectedSpots.map(s => ({ id: s.id, name: s.name, latitude: s.latitude, longitude: s.longitude }))
       });
@@ -935,7 +934,7 @@ export const DutyStationDrawer = ({ isOpen, onClose }) => {
   const handleDeactivateLive = async () => {
     setLoading(true);
     try {
-      await axios.post(`${API}/photographer/${user.id}/end-session`);
+      await apiClient.post(`/photographer/${user.id}/end-session`);
       setLiveActive(false);
       setSelectedSpot(null);
       setProximityConfirmed(false);
@@ -950,7 +949,7 @@ export const DutyStationDrawer = ({ isOpen, onClose }) => {
   const handleDeactivateOnDemand = async () => {
     setLoading(true);
     try {
-      await axios.post(`${API}/photographer/${user.id}/on-demand-toggle`, { is_available: false });
+      await apiClient.post(`/photographer/${user.id}/on-demand-toggle`, { is_available: false });
       setOnDemandActive(false);
       setSelectedSpots([]);
       toast.success('On-Demand mode deactivated');
@@ -1159,11 +1158,11 @@ export const DutyStationIcon = ({ className }) => {
   
   const fetchActiveStatus = async () => {
     try {
-      const liveResponse = await axios.get(`${API}/photographer/${user.id}/status`);
+      const liveResponse = await apiClient.get(`/photographer/${user.id}/status`);
       setLiveActive(liveResponse.data?.is_shooting || false);
       
       if (!isHobbyist) {
-        const onDemandResponse = await axios.get(`${API}/photographer/${user.id}/on-demand-status`);
+        const onDemandResponse = await apiClient.get(`/photographer/${user.id}/on-demand-status`);
         setOnDemandActive(onDemandResponse.data?.is_available || false);
       }
     } catch (error) {

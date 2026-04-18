@@ -5,8 +5,7 @@
  */
 
 import { useState, useCallback, useRef, useEffect } from 'react';
-import axios from 'axios';
-import { API } from '../components/map/mapUtils';
+import apiClient from '../lib/apiClient';
 import logger from '../utils/logger';
 
 export const useOnDemandRequests = ({ user, isPhotographer }) => {
@@ -20,7 +19,7 @@ export const useOnDemandRequests = ({ user, isPhotographer }) => {
     if (!user?.id || !isPhotographer) return;
 
     try {
-      const response = await axios.get(`${API}/on-demand/active`, {
+      const response = await apiClient.get(`/on-demand/active`, {
         params: { photographer_id: user.id }
       });
       
@@ -51,7 +50,7 @@ export const useOnDemandRequests = ({ user, isPhotographer }) => {
     if (!user?.id) return;
 
     try {
-      const response = await axios.post(`${API}/on-demand/${requestId}/accept`, {
+      const response = await apiClient.post(`/on-demand/${requestId}/accept`, {
         photographer_id: user.id
       });
       
@@ -73,7 +72,7 @@ export const useOnDemandRequests = ({ user, isPhotographer }) => {
     if (!user?.id) return;
 
     try {
-      const response = await axios.post(`${API}/on-demand/${requestId}/decline`, {
+      const response = await apiClient.post(`/on-demand/${requestId}/decline`, {
         photographer_id: user.id
       });
       

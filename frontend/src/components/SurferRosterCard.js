@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import axios from 'axios';
+﻿import React, { useState, useEffect, useRef, useCallback } from 'react';
+import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import { Users, Clock, DollarSign, User, Save, Volume2, VolumeX, Footprints, Shirt, Waves, StickyNote, Maximize2 } from 'lucide-react';
 import { Card, CardContent } from './ui/card';
 import { Button } from './ui/button';
@@ -8,7 +8,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import { Textarea } from './ui/textarea';
 import { toast } from 'sonner';
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 // Audio notification for new surfer joins
 const useJoinChime = () => {
@@ -317,7 +316,7 @@ export const SurferRosterCard = ({
     if (!photographerId || !isLive) return;
     
     try {
-      const res = await axios.get(`${API}/photographer/${photographerId}/live-participants`);
+      const res = await apiClient.get(`/photographer/${photographerId}/live-participants`);
       const data = res.data;
       
       if (data.is_live && data.participants) {
@@ -369,7 +368,7 @@ export const SurferRosterCard = ({
   
   // Save photographer notes
   const handleSaveNotes = async (participantId, notes) => {
-    await axios.patch(`${API}/photographer/${photographerId}/participant/${participantId}/notes`, {
+    await apiClient.patch(`/photographer/${photographerId}/participant/${participantId}/notes`, {
       notes
     });
     

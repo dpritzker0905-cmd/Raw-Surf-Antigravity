@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+﻿import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { MapPin, Plus, Trash2, AlertTriangle, Search, RefreshCw, Loader2, Eye, X, Edit2 } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
@@ -6,11 +6,10 @@ import { Badge } from '../ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectGroup, SelectLabel } from '../ui/select';
 import { useAuth } from '../../contexts/AuthContext';
-import axios from 'axios';
+import apiClient, { BACKEND_URL } from '../../lib/apiClient';
 import { toast } from 'sonner';
 import logger from '../../utils/logger';
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 // NOAA Buoy stations - comprehensive list for all supported regions
 const NOAA_BUOYS = [
@@ -159,7 +158,7 @@ export const AdminSpotEditor = () => {
   // Fetch spots - no limit to get all spots
   const fetchSpots = useCallback(async () => {
     try {
-      const response = await axios.get(`${API}/admin/spots/list`, {
+      const response = await apiClient.get(`/admin/spots/list`, {
         params: { admin_id: user.id, limit: 5000 }  // High limit to fetch all spots
       });
       setSpots(response.data.spots || []);
@@ -438,7 +437,7 @@ export const AdminSpotEditor = () => {
 
     setSaving(true);
     try {
-      await axios.delete(`${API}/admin/spots/${selectedSpot.id}`, {
+      await apiClient.delete(`/admin/spots/${selectedSpot.id}`, {
         params: { admin_id: user.id }
       });
       toast.success(`Deleted ${selectedSpot.name}`);

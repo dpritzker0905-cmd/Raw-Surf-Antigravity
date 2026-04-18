@@ -1,13 +1,12 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Button } from './ui/button';
 import { CheckCircle, Loader2, XCircle } from 'lucide-react';
 import { toast } from 'sonner';
-import axios from 'axios';
+import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import logger from '../utils/logger';
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 export const SubscriptionSuccess = () => {
   const navigate = useNavigate();
@@ -39,7 +38,7 @@ export const SubscriptionSuccess = () => {
       }
 
       try {
-        const response = await axios.get(`${API}/subscriptions/status/${sessionId}`);
+        const response = await apiClient.get(`/subscriptions/status/${sessionId}`);
         
         if (response.data.status === 'completed') {
           setStatus('success');

@@ -1,10 +1,10 @@
-/**
+﻿/**
  * FollowersModal - Instagram-style modal showing followers or following list
  * Allows users to view who follows them or who they follow
  */
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import { X, Loader2, UserPlus, UserMinus, Users } from 'lucide-react';
 import { Dialog, DialogContent, DialogTitle } from './ui/dialog';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
@@ -13,7 +13,6 @@ import { Badge } from './ui/badge';
 import { useAuth } from '../contexts/AuthContext';
 import { toast } from 'sonner';
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 export const FollowersModal = ({ 
   isOpen, 
@@ -45,7 +44,7 @@ export const FollowersModal = ({
         
         // If logged in, also fetch who the current user follows to show follow/unfollow buttons
         if (user?.id) {
-          const followingRes = await axios.get(`${API}/following/${user.id}`);
+          const followingRes = await apiClient.get(`/following/${user.id}`);
           const followingSet = new Set((followingRes.data || []).map(u => u.id));
           setFollowingIds(followingSet);
         }
@@ -70,7 +69,7 @@ export const FollowersModal = ({
     setActionLoading(targetUserId);
     try {
       if (isCurrentlyFollowing) {
-        await axios.delete(`${API}/follow/${targetUserId}?follower_id=${user.id}`);
+        await apiClient.delete(`/follow/${targetUserId}?follower_id=${user.id}`);
         setFollowingIds(prev => {
           const newSet = new Set(prev);
           newSet.delete(targetUserId);
@@ -78,7 +77,7 @@ export const FollowersModal = ({
         });
         toast.success('Unfollowed');
       } else {
-        await axios.post(`${API}/follow/${targetUserId}?follower_id=${user.id}`);
+        await apiClient.post(`/follow/${targetUserId}?follower_id=${user.id}`);
         setFollowingIds(prev => new Set([...prev, targetUserId]));
         toast.success('Following!');
       }

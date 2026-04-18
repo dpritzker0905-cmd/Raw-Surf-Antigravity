@@ -1,9 +1,8 @@
-import React, { useState, useEffect, useCallback, forwardRef, useImperativeHandle } from 'react';
+﻿import React, { useState, useEffect, useCallback, forwardRef, useImperativeHandle } from 'react';
 import { Hash, TrendingUp, Loader2 } from 'lucide-react';
-import axios from 'axios';
+import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import logger from '../utils/logger';
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 /**
  * HashtagAutocomplete - Dropdown for suggesting hashtags when typing #
@@ -30,7 +29,7 @@ const HashtagAutocomplete = forwardRef(({
   useEffect(() => {
     const fetchTrending = async () => {
       try {
-        const response = await axios.get(`${API}/hashtags/trending?limit=8`);
+        const response = await apiClient.get(`/hashtags/trending?limit=8`);
         setTrendingHashtags(response.data.hashtags || []);
       } catch (error) {
         logger.debug('Could not fetch trending hashtags');
@@ -48,7 +47,7 @@ const HashtagAutocomplete = forwardRef(({
 
     setLoading(true);
     try {
-      const response = await axios.get(`${API}/hashtags/suggest`, {
+      const response = await apiClient.get(`/hashtags/suggest`, {
         params: { q: searchQuery, limit: 8 }
       });
       setSuggestions(response.data.suggestions || []);

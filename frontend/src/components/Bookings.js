@@ -1,9 +1,9 @@
-import React, { useEffect, useState, useRef } from 'react';
+﻿import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { usePersona } from '../contexts/PersonaContext';
-import axios from 'axios';
+import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import { Users, Zap, Radio, History, CalendarClock, UserPlus, Copy, Mail, Target, Sparkles, Search, Loader2, AtSign, Send } from 'lucide-react';
 import { Card, CardContent } from './ui/card';
 import { Button } from './ui/button';
@@ -23,7 +23,6 @@ import { CrewPaymentModal } from './CrewPaymentModal';
 import { JumpInSessionModal } from './JumpInSessionModal';
 import logger from '../utils/logger';
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 // Surfer-capable roles that can join sessions
 // Role IDs must match Auth.js signup roles exactly
@@ -402,7 +401,7 @@ export const Bookings = () => {
     const pollInterval = setInterval(async () => {
       // Refresh active dispatch
       try {
-        const activeRes = await axios.get(`${API}/dispatch/user/${user.id}/active`);
+        const activeRes = await apiClient.get(`/dispatch/user/${user.id}/active`);
         // Show dispatch for requester, crew_member, or photographer roles
         if (activeRes.data.active_dispatch && 
             ['requester', 'crew_member', 'photographer'].includes(activeRes.data.active_dispatch.role)) {
@@ -416,7 +415,7 @@ export const Bookings = () => {
       
       // Refresh crew invites
       try {
-        const crewRes = await axios.get(`${API}/dispatch/user/${user.id}/crew-invites`);
+        const crewRes = await apiClient.get(`/dispatch/user/${user.id}/crew-invites`);
         setCrewInvites(crewRes.data.crew_invites || []);
       } catch (e) {
         // Silent fail
@@ -449,7 +448,7 @@ export const Bookings = () => {
       const completeSessionJoin = async () => {
         try {
           console.log('Completing session payment:', checkoutSessionId);
-          const response = await axios.post(`${API}/sessions/complete-payment`, {
+          const response = await apiClient.post(`/sessions/complete-payment`, {
             checkout_session_id: checkoutSessionId
           });
           
@@ -460,7 +459,7 @@ export const Bookings = () => {
             // Switch to live_sessions tab to show the active session
             setActiveTab('live_sessions');
             // Refresh live sessions
-            const sessionsRes = await axios.get(`${API}/sessions/user/${user.id}`);
+            const sessionsRes = await apiClient.get(`/sessions/user/${user.id}`);
             console.log('Live sessions:', sessionsRes.data);
             setLiveSessions(sessionsRes.data || []);
           }
@@ -485,7 +484,7 @@ export const Bookings = () => {
     try {
       // Fetch user's credit balance first
       try {
-        const creditsRes = await axios.get(`${API}/credits/${user.id}/balance`);
+        const creditsRes = await apiClient.get(`/credits/${user.id}/balance`);
         if (creditsRes.data?.balance !== undefined) {
           setUserCreditBalance(creditsRes.data.balance);
           updateUser({ credit_balance: creditsRes.data.balance });
@@ -497,7 +496,7 @@ export const Bookings = () => {
       
       // Fetch user's bookings
       try {
-        const bookingsRes = await axios.get(`${API}/bookings/user/${user.id}`);
+        const bookingsRes = await apiClient.get(`/bookings/user/${user.id}`);
         setBookings(bookingsRes.data || []);
       } catch (e) {
         setBookings([]);
@@ -505,7 +504,7 @@ export const Bookings = () => {
 
       // Fetch live sessions user is part of
       try {
-        const sessionsRes = await axios.get(`${API}/sessions/user/${user.id}`);
+        const sessionsRes = await apiClient.get(`/sessions/user/${user.id}`);
         setLiveSessions(sessionsRes.data || []);
       } catch (e) {
         setLiveSessions([]);
@@ -513,7 +512,7 @@ export const Bookings = () => {
 
       // Fetch live photographers nearby
       try {
-        const liveRes = await axios.get(`${API}/photographers/live`);
+        const liveRes = await apiClient.get(`/photographers/live`);
         setLivePhotographers(liveRes.data || []);
       } catch (e) {
         setLivePhotographers([]);
@@ -521,7 +520,7 @@ export const Bookings = () => {
 
       // Fetch pending invites
       try {
-        const invitesRes = await axios.get(`${API}/bookings/invites/${user.id}`);
+        const invitesRes = await apiClient.get(`/bookings/invites/${user.id}`);
         setPendingInvites(invitesRes.data || []);
       } catch (e) {
         setPendingInvites([]);
@@ -529,7 +528,7 @@ export const Bookings = () => {
       
       // Fetch on-demand crew invites (shared sessions)
       try {
-        const crewRes = await axios.get(`${API}/dispatch/user/${user.id}/crew-invites`);
+        const crewRes = await apiClient.get(`/dispatch/user/${user.id}/crew-invites`);
         setCrewInvites(crewRes.data.crew_invites || []);
       } catch (e) {
         setCrewInvites([]);
@@ -537,7 +536,7 @@ export const Bookings = () => {
       
       // Fetch active dispatch request (for returning to "Finding Your Photographer")
       try {
-        const activeRes = await axios.get(`${API}/dispatch/user/${user.id}/active`);
+        const activeRes = await apiClient.get(`/dispatch/user/${user.id}/active`);
         // Show dispatch for requester, crew_member, or photographer roles
         if (activeRes.data.active_dispatch && 
             ['requester', 'crew_member', 'photographer'].includes(activeRes.data.active_dispatch.role)) {
@@ -563,7 +562,7 @@ export const Bookings = () => {
             if (selectedSkillFilter) {
               params.append('skill_level', selectedSkillFilter);
             }
-            const nearbyRes = await axios.get(`${API}/bookings/nearby?${params}`);
+            const nearbyRes = await apiClient.get(`/bookings/nearby?${params}`);
             setNearbyBookings(nearbyRes.data || []);
           }, () => {
             // Location denied - skip nearby bookings
@@ -618,7 +617,7 @@ export const Bookings = () => {
       return;
     }
     try {
-      const _response = await axios.post(`${API}/bookings/join-by-code?user_id=${user.id}&invite_code=${joinCode.toUpperCase()}`);
+      const _response = await apiClient.post(`/bookings/join-by-code?user_id=${user.id}&invite_code=${joinCode.toUpperCase()}`);
       toast.success('Successfully joined the booking!');
       setShowJoinCodeModal(false);
       setJoinCode('');
@@ -630,7 +629,7 @@ export const Bookings = () => {
 
   const handleRespondToInvite = async (inviteId, accept) => {
     try {
-      await axios.post(`${API}/bookings/invites/${inviteId}/respond?user_id=${user.id}&accept=${accept}`);
+      await apiClient.post(`/bookings/invites/${inviteId}/respond?user_id=${user.id}&accept=${accept}`);
       toast.success(accept ? 'Invite accepted!' : 'Invite declined');
       fetchData();
     } catch (error) {
@@ -640,7 +639,7 @@ export const Bookings = () => {
 
   const handleJoinNearbyBooking = async (bookingId) => {
     try {
-      const response = await axios.post(`${API}/bookings/${bookingId}/join?user_id=${user.id}`);
+      const response = await apiClient.post(`/bookings/${bookingId}/join?user_id=${user.id}`);
       toast.success(`Joined booking! Paid ${response.data.amount_paid} credits`);
       fetchData();
     } catch (error) {
@@ -676,7 +675,7 @@ export const Bookings = () => {
           params.append('skill_level', skillLevel);
         }
         try {
-          const nearbyRes = await axios.get(`${API}/bookings/nearby?${params}`);
+          const nearbyRes = await apiClient.get(`/bookings/nearby?${params}`);
           setNearbyBookings(nearbyRes.data || []);
         } catch (e) {
           logger.error('Error fetching nearby bookings:', e);
@@ -708,7 +707,7 @@ export const Bookings = () => {
             
             try {
               // Fetch photographers with on_demand_available = true
-              const response = await axios.get(`${API}/photographers/on-demand`, {
+              const response = await apiClient.get(`/photographers/on-demand`, {
                 params: {
                   latitude,
                   longitude,
@@ -768,7 +767,7 @@ export const Bookings = () => {
     // If needs to enable splitting first
     if (booking.needsEnableSplitting) {
       try {
-        const response = await axios.post(`${API}/bookings/${booking.id}/enable-splitting?user_id=${user.id}`);
+        const response = await apiClient.post(`/bookings/${booking.id}/enable-splitting?user_id=${user.id}`);
         if (response.data.success) {
           toast.success('Crew splitting enabled!');
           // Refresh booking with new invite code

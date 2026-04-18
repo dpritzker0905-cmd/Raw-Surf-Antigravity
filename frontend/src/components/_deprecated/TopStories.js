@@ -1,11 +1,10 @@
-import React, { useEffect, useState } from 'react';
-import axios from 'axios';
+﻿import React, { useEffect, useState } from 'react';
+import apiClient, { BACKEND_URL } from '../../lib/apiClient';
 import { Camera, MapPin } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { Badge } from './ui/badge';
 import { ScrollArea } from './ui/scroll-area';
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 export const TopStories = () => {
   const [livePhotographers, setLivePhotographers] = useState([]);
@@ -18,7 +17,7 @@ export const TopStories = () => {
 
   const fetchLivePhotographers = async () => {
     try {
-      const response = await axios.get(`${API}/profiles?is_live=true`);
+      const response = await apiClient.get(`/profiles?is_live=true`);
       setLivePhotographers(response.data);
     } catch (error) {
       console.error('Error fetching live photographers:', error);

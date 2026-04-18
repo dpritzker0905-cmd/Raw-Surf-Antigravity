@@ -1,4 +1,4 @@
-/**
+﻿/**
  * SurfboardsTab - Display and manage user's surfboard quiver
  * Features:
  * - Grid display of surfboards with photos
@@ -10,7 +10,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useTheme } from '../contexts/ThemeContext';
-import axios from 'axios';
+import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import {
   Plus, Edit2, Trash2, X, Loader2, ChevronLeft, ChevronRight,
   Ruler, Calendar, Waves
@@ -25,7 +25,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { toast } from 'sonner';
 import logger from '../utils/logger';
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 // Board type options
 const BOARD_TYPES = [
@@ -181,7 +180,7 @@ const SurfboardModal = ({ isOpen, onClose, board, onSave, userId }) => {
         const uploadFormData = new FormData();
         uploadFormData.append('file', file);
         
-        const response = await axios.post(`${API}/upload`, uploadFormData, {
+        const response = await apiClient.post(`/upload`, uploadFormData, {
           headers: { 'Content-Type': 'multipart/form-data' }
         });
         
@@ -221,10 +220,10 @@ const SurfboardModal = ({ isOpen, onClose, board, onSave, userId }) => {
       };
       
       if (isEditing) {
-        await axios.patch(`${API}/surfboards/${board.id}?user_id=${userId}`, payload);
+        await apiClient.patch(`/surfboards/${board.id}?user_id=${userId}`, payload);
         toast.success('Surfboard updated!');
       } else {
-        await axios.post(`${API}/surfboards/?user_id=${userId}`, payload);
+        await apiClient.post(`/surfboards/?user_id=${userId}`, payload);
         toast.success('Surfboard added to your quiver!');
       }
       
@@ -476,7 +475,7 @@ const SurfboardDetailModal = ({ isOpen, onClose, board, onEdit, onDelete, isOwnP
   const handleDelete = async () => {
     setDeleting(true);
     try {
-      await axios.delete(`${API}/surfboards/${board.id}?user_id=${userId}`);
+      await apiClient.delete(`/surfboards/${board.id}?user_id=${userId}`);
       toast.success('Surfboard removed from quiver');
       onDelete();
       onClose();
@@ -651,7 +650,7 @@ export const SurfboardsTab = ({ userId, isOwnProfile }) => {
   
   const fetchBoards = async () => {
     try {
-      const response = await axios.get(`${API}/surfboards/user/${userId}`);
+      const response = await apiClient.get(`/surfboards/user/${userId}`);
       setBoards(response.data.boards || []);
     } catch (error) {
       logger.error('Error fetching surfboards:', error);

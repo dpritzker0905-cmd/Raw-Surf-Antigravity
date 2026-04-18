@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { Bell, BellOff, Volume2, VolumeX, Mail, Clock, Loader2, Smartphone, MessageSquare, Heart, Camera, AlertTriangle, CheckCircle } from 'lucide-react';
 import { Switch } from '../ui/switch';
 import { Label } from '../ui/label';
 import { toast } from 'sonner';
-import axios from 'axios';
+import apiClient, { BACKEND_URL } from '../../lib/apiClient';
 import logger from '../../utils/logger';
 
 const API = process.env.REACT_APP_BACKEND_URL;
@@ -53,7 +53,7 @@ export const NotificationPreferences = ({ userId, textPrimaryClass, textSecondar
   
   const fetchPreferences = async () => {
     try {
-      const response = await axios.get(`${API}/api/notifications/preferences?user_id=${userId}`);
+      const response = await apiClient.get(`/api/notifications/preferences?user_id=${userId}`);
       if (response.data) {
         setPreferences(prev => ({ ...prev, ...response.data }));
       }
@@ -70,7 +70,7 @@ export const NotificationPreferences = ({ userId, textPrimaryClass, textSecondar
     setPreferences(updated);
     
     try {
-      await axios.put(`${API}/api/notifications/preferences?user_id=${userId}`, {
+      await apiClient.put(`/api/notifications/preferences?user_id=${userId}`, {
         [key]: value
       });
     } catch (error) {
@@ -83,7 +83,7 @@ export const NotificationPreferences = ({ userId, textPrimaryClass, textSecondar
   const _saveAllPreferences = async () => {
     setSaving(true);
     try {
-      await axios.put(`${API}/api/notifications/preferences?user_id=${userId}`, preferences);
+      await apiClient.put(`/api/notifications/preferences?user_id=${userId}`, preferences);
       toast.success('Notification preferences saved');
     } catch (error) {
       toast.error('Failed to save preferences');

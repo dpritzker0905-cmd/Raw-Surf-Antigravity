@@ -1,10 +1,10 @@
-import React, { useState, useEffect, useCallback } from 'react';
+﻿import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { Button } from './ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from './ui/dialog';
 import { Check, Image, Video, AlertCircle, Loader2, X, Gift, Camera, Timer, Zap, Ban } from 'lucide-react';
 import { toast } from 'sonner';
-import axios from 'axios';
+import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import logger from '../utils/logger';
 
 const API = process.env.REACT_APP_BACKEND_URL;
@@ -69,7 +69,7 @@ const PhotoSelectionQueue = ({ open, onOpenChange, theme = 'dark', onSelectionCo
   // Fetch deadline info for a quota
   const fetchDeadlineInfo = async (quotaId) => {
     try {
-      const response = await axios.get(`${API}/api/surfer-gallery/selection-queue/${quotaId}/deadline-info`);
+      const response = await apiClient.get(`/api/surfer-gallery/selection-queue/${quotaId}/deadline-info`);
       setDeadlineInfo(response.data);
     } catch (err) {
       // Non-critical - just log
@@ -82,7 +82,7 @@ const PhotoSelectionQueue = ({ open, onOpenChange, theme = 'dark', onSelectionCo
     
     setUpdatingPreference(true);
     try {
-      await axios.patch(`${API}/api/surfer-gallery/selection-queue/${selectedQuota.id}/preference`, {
+      await apiClient.patch(`/api/surfer-gallery/selection-queue/${selectedQuota.id}/preference`, {
         auto_select_on_expiry: autoSelect
       });
       
@@ -107,7 +107,7 @@ const PhotoSelectionQueue = ({ open, onOpenChange, theme = 'dark', onSelectionCo
     setLoading(true);
     setError(null);
     try {
-      const response = await axios.get(`${API}/api/surfer-gallery/selection-queue/${user.id}`);
+      const response = await apiClient.get(`/api/surfer-gallery/selection-queue/${user.id}`);
       setQuotas(response.data.quotas || []);
       
       // Auto-select first quota if only one
@@ -126,7 +126,7 @@ const PhotoSelectionQueue = ({ open, onOpenChange, theme = 'dark', onSelectionCo
   // Fetch items for a specific quota
   const fetchQuotaItems = async (quotaId) => {
     try {
-      const response = await axios.get(`${API}/api/surfer-gallery/selection-queue/${quotaId}/items`);
+      const response = await apiClient.get(`/api/surfer-gallery/selection-queue/${quotaId}/items`);
       setEligibleItems(response.data.unselected_items || []);
       setSelectedItems(new Set());
       
@@ -183,7 +183,7 @@ const PhotoSelectionQueue = ({ open, onOpenChange, theme = 'dark', onSelectionCo
     
     setSubmitting(true);
     try {
-      await axios.post(`${API}/api/surfer-gallery/selection-queue/${selectedQuota.id}/select`, {
+      await apiClient.post(`/api/surfer-gallery/selection-queue/${selectedQuota.id}/select`, {
         item_ids: Array.from(selectedItems)
       });
       

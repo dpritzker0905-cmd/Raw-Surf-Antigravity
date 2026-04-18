@@ -1,12 +1,11 @@
-/**
+﻿/**
  * OneSignal Push Notifications Hook
  * Initialize OneSignal and manage user subscriptions
  */
 import { useEffect, useState, useCallback } from 'react';
-import axios from 'axios';
+import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import logger from '../utils/logger';
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 // Dynamic import for OneSignal to avoid SSR issues
 let OneSignal = null;
@@ -23,7 +22,7 @@ export const useOneSignal = (userId, userEmail) => {
       
       try {
         // Fetch config from backend
-        const response = await axios.get(`${API}/push/onesignal/config`);
+        const response = await apiClient.get(`/push/onesignal/config`);
         const { app_id, enabled } = response.data;
         
         if (!enabled || !app_id) {
@@ -100,7 +99,7 @@ export const useOneSignal = (userId, userEmail) => {
         // Save subscription to our backend
         const subscriptionId = await OneSignal.User.PushSubscription.id;
         if (subscriptionId) {
-          await axios.post(`${API}/push/onesignal/subscribe`, {
+          await apiClient.post(`/push/onesignal/subscribe`, {
             user_id: userId,
             subscription_id: subscriptionId
           });

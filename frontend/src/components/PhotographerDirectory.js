@@ -1,4 +1,4 @@
-/**
+﻿/**
  * PhotographerDirectory - Primary discovery layer for scheduled bookings
  * List-based directory with smart filters and "View on Map" toggle
  */
@@ -17,10 +17,9 @@ import { Input } from './ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from './ui/sheet';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
-import axios from 'axios';
+import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import logger from '../utils/logger';
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 // Gear type options
 const GEAR_TYPES = [
@@ -304,7 +303,7 @@ export const PhotographerDirectory = ({ isOpen, onClose, onSelectPhotographer })
   const fetchPhotographers = async () => {
     setLoading(true);
     try {
-      const response = await axios.get(`${API}/photographers/directory`);
+      const response = await apiClient.get(`/photographers/directory`);
       setPhotographers(response.data || []);
     } catch (error) {
       logger.error('Failed to fetch photographers:', error);

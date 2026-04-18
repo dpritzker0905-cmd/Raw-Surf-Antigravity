@@ -1,11 +1,11 @@
-/**
+﻿/**
  * CreatePost Page - Uses CreatePostModal component
  * This is a full-page version that renders the modal content directly
  * Provides the same full-featured experience as the Feed's "+ Post" button
  */
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import { useAuth } from '../contexts/AuthContext';
 import { MapPin, Loader2, Navigation, Image, Video, Upload, Camera, Megaphone, Waves, ChevronDown, Wind, ArrowUpDown, X, Check, ChevronLeft, ChevronRight, Smile, AtSign, Play, HelpCircle, Clock, Music, VolumeX, Radio } from 'lucide-react';
 import { toast } from 'sonner';
@@ -23,7 +23,6 @@ import logger from '../utils/logger';
 import GoLiveModal from './GoLiveModal';
 import WebcamCaptureModal from './WebcamCaptureModal';
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 export const CreatePost = () => {
   const { user } = useAuth();
@@ -91,7 +90,7 @@ export const CreatePost = () => {
   useEffect(() => {
     const fetchSpots = async () => {
       try {
-        const response = await axios.get(`${API}/surf-conditions/known-spots`);
+        const response = await apiClient.get(`/surf-conditions/known-spots`);
         setKnownSpots(response.data.spots || []);
       } catch (e) {
         // Silent fail
@@ -105,7 +104,7 @@ export const CreatePost = () => {
     const fetchRecentLocations = async () => {
       if (!user?.id) return;
       try {
-        const response = await axios.get(`${API}/posts/user/${user.id}/recent-locations`);
+        const response = await apiClient.get(`/posts/user/${user.id}/recent-locations`);
         setRecentLocations(response.data || []);
         if (response.data && response.data.length > 0) {
           setShowRecentLocations(true);
@@ -137,7 +136,7 @@ export const CreatePost = () => {
   const fetchConditions = async (lat, lon, spotName) => {
     setConditionsLoading(true);
     try {
-      const response = await axios.get(`${API}/surf-conditions`, {
+      const response = await apiClient.get(`/surf-conditions`, {
         params: { latitude: lat, longitude: lon, spot_name: spotName }
       });
       
@@ -435,7 +434,7 @@ export const CreatePost = () => {
           const formData = new FormData();
           formData.append('file', file);
           formData.append('user_id', user.id);
-          const uploadResponse = await axios.post(`${API}/upload/feed`, formData, {
+          const uploadResponse = await apiClient.post(`/upload/feed`, formData, {
             headers: { 'Content-Type': 'multipart/form-data' },
             onUploadProgress: (progressEvent) => {
               const fileProgress = Math.round((progressEvent.loaded * 100) / progressEvent.total);
@@ -501,7 +500,7 @@ export const CreatePost = () => {
         postData.conditions_source = conditionsSource;
       }
 
-      await axios.post(`${API}/posts?author_id=${user.id}`, postData);
+      await apiClient.post(`/posts?author_id=${user.id}`, postData);
 
       if (isCarousel) {
         toast.success(`Posted ${selectedFiles.length} photos!`);

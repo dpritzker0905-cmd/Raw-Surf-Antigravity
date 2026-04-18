@@ -1,9 +1,8 @@
-import { useState, useCallback } from 'react';
-import axios from 'axios';
+﻿import { useState, useCallback } from 'react';
+import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import { toast } from 'sonner';
 import logger from '../utils/logger';
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 // Permission status enum
 const PermissionStatus = {
@@ -162,7 +161,7 @@ export const useGoLiveFlow = ({ userId, onGoLiveSuccess, onEndSessionSuccess }) 
       }
       
       // Go live at the spot with session settings and condition media
-      const response = await axios.post(`${API}/photographers/${userId}/go-live`, {
+      const response = await apiClient.post(`/photographers/${userId}/go-live`, {
         spot_id: goLiveSpotId,
         is_streaming: false,
         condition_media: mediaBase64, // Now guaranteed to be a string
@@ -223,7 +222,7 @@ export const useGoLiveFlow = ({ userId, onGoLiveSuccess, onEndSessionSuccess }) 
   const handleEndSessionConfirmed = useCallback(async () => {
     setEndSessionLoading(true);
     try {
-      await axios.post(`${API}/photographers/${userId}/stop-live`, {});
+      await apiClient.post(`/photographers/${userId}/stop-live`, {});
       toast.success('Session ended! Check your Impacted dashboard for summary.');
       setShowEndSessionModal(false);
       setCurrentLiveSession(null);

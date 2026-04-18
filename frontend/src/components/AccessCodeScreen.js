@@ -1,9 +1,9 @@
-/**
+﻿/**
  * AccessCodeScreen - Gate screen requiring access code before viewing the app
  * Controlled via admin settings - can be disabled when going live
  */
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import { Lock, Loader2, Waves } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -26,7 +26,7 @@ export const AccessCodeScreen = ({ children }) => {
   const checkAccess = async () => {
     try {
       // First check if access code is even enabled
-      const response = await axios.get(`${API}/api/site-access`);
+      const response = await apiClient.get(`/api/site-access`);
       
       if (!response.data.access_code_enabled) {
         // Access code not required - grant access
@@ -41,7 +41,7 @@ export const AccessCodeScreen = ({ children }) => {
       if (storedCode) {
         // Verify the stored code is still valid against the backend
         try {
-          const verifyResponse = await axios.post(`${API}/api/site-access/verify`, { code: storedCode });
+          const verifyResponse = await apiClient.post(`/api/site-access/verify`, { code: storedCode });
           if (verifyResponse.data.valid) {
             setAccessGranted(true);
             setChecking(false);
@@ -77,7 +77,7 @@ export const AccessCodeScreen = ({ children }) => {
     setError('');
 
     try {
-      const response = await axios.post(`${API}/api/site-access/verify`, { code: code.trim() });
+      const response = await apiClient.post(`/api/site-access/verify`, { code: code.trim() });
       if (response.data.valid) {
         // Store the actual code for future re-validation
         localStorage.setItem(ACCESS_CODE_KEY, code.trim().toUpperCase());

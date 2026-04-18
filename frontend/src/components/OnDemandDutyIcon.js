@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+﻿import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Zap, Settings, MapPin, Users, ChevronRight, Loader2 } from 'lucide-react';
@@ -6,11 +6,10 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from './ui
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Badge } from './ui/badge';
 import { toast } from 'sonner';
-import axios from 'axios';
+import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import { SpotSelector } from './SpotSelector';
 import logger from '../utils/logger';
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 /**
  * OnDemandDutyIcon - On-Demand Duty Access for Photographers (Lightning Bolt)
@@ -381,7 +380,7 @@ export const OnDemandDutyIcon = () => {
 
   const fetchOnDemandStatus = async () => {
     try {
-      const response = await axios.get(`${API}/photographer/${user.id}/on-demand-status`);
+      const response = await apiClient.get(`/photographer/${user.id}/on-demand-status`);
       const data = response.data;
       setOnDemandActive(data?.is_available || false);
       
@@ -400,7 +399,7 @@ export const OnDemandDutyIcon = () => {
 
   const fetchLiveStatus = async () => {
     try {
-      const response = await axios.get(`${API}/photographer/${user.id}/status`);
+      const response = await apiClient.get(`/photographer/${user.id}/status`);
       setLiveActive(response.data?.is_shooting || false);
     } catch (error) {
       logger.error('Failed to fetch live status:', error);
@@ -411,7 +410,7 @@ export const OnDemandDutyIcon = () => {
     try {
       if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(async (position) => {
-          const response = await axios.get(`${API}/photographers/live`, {
+          const response = await apiClient.get(`/photographers/live`, {
             params: {
               latitude: position.coords.latitude,
               longitude: position.coords.longitude,
@@ -434,7 +433,7 @@ export const OnDemandDutyIcon = () => {
   const handleToggleOff = async () => {
     setLoading(true);
     try {
-      await axios.post(`${API}/photographer/${user.id}/on-demand-toggle`, {
+      await apiClient.post(`/photographer/${user.id}/on-demand-toggle`, {
         is_available: false
       });
       setOnDemandActive(false);
@@ -457,12 +456,12 @@ export const OnDemandDutyIcon = () => {
     try {
       // MUTUAL EXCLUSION: Turn off Live if active
       if (liveActive) {
-        await axios.post(`${API}/photographer/${user.id}/end-session`);
+        await apiClient.post(`/photographer/${user.id}/end-session`);
         setLiveActive(false);
         toast.info('Switching to On-Demand mode. Live session ended.');
       }
 
-      await axios.post(`${API}/photographer/${user.id}/on-demand-toggle`, {
+      await apiClient.post(`/photographer/${user.id}/on-demand-toggle`, {
         is_available: true,
         spot_id: selectedSpot.id,
         spot_name: selectedSpot.name,

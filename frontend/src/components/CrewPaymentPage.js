@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useCallback } from 'react';
+﻿import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
-import axios from 'axios';
+import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import { 
   DollarSign, Clock, MapPin, Users, Check, 
   Loader2, ArrowLeft, CreditCard, Wallet, Timer,
@@ -46,7 +46,7 @@ const CrewPaymentPage = () => {
 
   const fetchBookingDetails = useCallback(async () => {
     try {
-      const response = await axios.get(`${API}/api/bookings/${bookingId}/crew-payment-details?user_id=${user.id}`);
+      const response = await apiClient.get(`/api/bookings/${bookingId}/crew-payment-details?user_id=${user.id}`);
       setBooking(response.data.booking);
       setMyShare(response.data.my_share);
       setCaptain(response.data.captain);

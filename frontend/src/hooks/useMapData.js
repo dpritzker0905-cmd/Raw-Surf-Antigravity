@@ -1,8 +1,7 @@
-import { useState, useCallback, useEffect } from 'react';
-import axios from 'axios';
+﻿import { useState, useCallback, useEffect } from 'react';
+import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import logger from '../utils/logger';
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 /**
  * useMapData - Custom hook for fetching map data with Privacy Shield support
@@ -52,7 +51,7 @@ export const useMapData = (userId = null, userLocation = null) => {
 
   const fetchLivePhotographers = useCallback(async () => {
     try {
-      const response = await axios.get(`${API}/live-photographers`);
+      const response = await apiClient.get(`/live-photographers`);
       setLivePhotographers(response.data);
     } catch (error) {
       logger.error('Error fetching live photographers:', error);
@@ -61,7 +60,7 @@ export const useMapData = (userId = null, userLocation = null) => {
 
   const fetchFeaturedPhotographers = useCallback(async () => {
     try {
-      const response = await axios.get(`${API}/photographers/featured`);
+      const response = await apiClient.get(`/photographers/featured`);
       setFeaturedPhotographers(response.data);
     } catch (error) {
       logger.error('Error fetching featured photographers:', error);

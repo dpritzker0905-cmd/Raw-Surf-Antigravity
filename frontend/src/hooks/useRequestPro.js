@@ -5,9 +5,9 @@
  */
 
 import { useState, useCallback } from 'react';
-import axios from 'axios';
+import apiClient from '../lib/apiClient';
 import { toast } from 'sonner';
-import { API, getErrorMessage } from '../components/map/mapUtils';
+import { getErrorMessage } from '../components/map/mapUtils';
 import logger from '../utils/logger';
 
 export const useRequestPro = ({ user, userLocation, getUserLocation }) => {
@@ -62,7 +62,7 @@ export const useRequestPro = ({ user, userLocation, getUserLocation }) => {
     setRequestProLoading(true);
     
     try {
-      const response = await axios.post(`${API}/on-demand/request`, {
+      const response = await apiClient.post(`/on-demand/request`, {
         surfer_id: user.id,
         latitude: userLocation.lat,
         longitude: userLocation.lng,
@@ -98,7 +98,7 @@ export const useRequestPro = ({ user, userLocation, getUserLocation }) => {
     if (!activeDispatchId) return;
 
     try {
-      await axios.post(`${API}/on-demand/${activeDispatchId}/cancel`);
+      await apiClient.post(`/on-demand/${activeDispatchId}/cancel`);
       setActiveDispatchId(null);
       toast.info('Request cancelled');
     } catch (error) {

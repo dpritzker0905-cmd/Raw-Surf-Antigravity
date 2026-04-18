@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from 'react';
+﻿import React, { useEffect, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
-import axios from 'axios';
+import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import { MapPin, Camera, Zap, Clock, ChevronRight, Radio, Award, Plus, X, Calculator, Loader2, Wallet, Check, Bell, CreditCard } from 'lucide-react';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
@@ -12,7 +12,6 @@ import { RequestProSelfieModal } from './RequestProSelfieModal';
 import { QualityTierBadge } from './gallery/PriceSourceBadge';
 import logger from '../utils/logger';
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 // ============ SURFBOARD COLORS FOR CREW VISUALIZATION ============
 const SURFBOARD_COLORS = [
@@ -131,7 +130,7 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
       if (user?.id && isOpen && !creditsFetched) {
         try {
           console.log('[OnDemandDrawer] Fetching credits for user:', user.id);
-          const res = await axios.get(`${API}/credits/balance/${user.id}`);
+          const res = await apiClient.get(`/credits/balance/${user.id}`);
           console.log('[OnDemandDrawer] Credits response:', res.data);
           if (res.data?.balance !== undefined) {
             const balance = res.data.balance;
@@ -197,7 +196,7 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
     const timeoutId = setTimeout(async () => {
       setSearchingFriends(true);
       try {
-        const response = await axios.get(`${API}/users/search?query=${encodeURIComponent(newCrewInput)}&limit=5`);
+        const response = await apiClient.get(`/users/search?query=${encodeURIComponent(newCrewInput)}&limit=5`);
         const existingIds = new Set([user?.id, ...crewMembers.map(m => m.user_id || m.id)]);
         const filtered = (response.data.users || []).filter(u => !existingIds.has(u.id));
         setFriendSearchResults(filtered);
@@ -392,7 +391,7 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
         covered_by_captain: m.covered_by_captain || false
       })) : null;
       
-      const response = await axios.post(`${API}/dispatch/request?requester_id=${user.id}`, {
+      const response = await apiClient.post(`/dispatch/request?requester_id=${user.id}`, {
         latitude: lat,
         longitude: lng,
         location_name: photographer?.on_demand_city || 'Current Location',
@@ -413,7 +412,7 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
       // Step 2: Process payment based on method selected
       if (paymentMethod === 'credits') {
         // Pay with credits - immediate confirmation
-        const payResponse = await axios.post(`${API}/dispatch/${dispatchId}/pay?payer_id=${user.id}`);
+        const payResponse = await apiClient.post(`/dispatch/${dispatchId}/pay?payer_id=${user.id}`);
         
         if (payResponse.data.remaining_credits !== undefined) {
           updateUser({ credit_balance: payResponse.data.remaining_credits });
@@ -425,7 +424,7 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
         // Pay with card - redirect to Stripe Checkout
         const amountToCharge = crewMembers.length > 0 ? captainPayAmount : totalPrice;
         
-        const checkoutResponse = await axios.post(`${API}/dispatch/checkout`, {
+        const checkoutResponse = await apiClient.post(`/dispatch/checkout`, {
           dispatch_id: dispatchId,
           payer_id: user.id,
           amount: amountToCharge,
@@ -465,7 +464,7 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
       if (!requestId) return;
       
       try {
-        const response = await axios.get(`${API}/dispatch/${requestId}`);
+        const response = await apiClient.get(`/dispatch/${requestId}`);
         const data = response.data;
         
         // Update crew member payment status from backend
@@ -1493,7 +1492,7 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
               variant="outline"
               onClick={async () => {
                 try {
-                  await axios.post(`${API}/dispatch/${requestId}/cancel?user_id=${user.id}`, { reason: 'User cancelled' });
+                  await apiClient.post(`/dispatch/${requestId}/cancel?user_id=${user.id}`, { reason: 'User cancelled' });
                   toast.info('Request cancelled');
                 } catch (e) {
                   toast.error('Failed to cancel request');

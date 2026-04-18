@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+﻿import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
-import axios from 'axios';
+import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import { Calendar as CalendarIcon, MapPin, Users, DollarSign, Clock, Check, X, CalendarCheck, CalendarX, History, Plus, Copy, Share2, UserPlus, Globe, Settings, Camera, ChevronLeft, Mail, Link2, Send, Sunrise, Sunset, Sun, Repeat, LayoutGrid, Unlock, Lock, Navigation } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from './ui/card';
 import { Button } from './ui/button';
@@ -19,7 +19,6 @@ import { PhotographerAvailabilityCalendar } from './PhotographerAvailabilityCale
 import { PhotographerSessionManager } from './PhotographerSessionManager';
 import logger from '../utils/logger';
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 export const PhotographerBookingsManager = () => {
   const { user } = useAuth();
@@ -253,7 +252,7 @@ export const PhotographerBookingsManager = () => {
       // Create recurring availability for each day
       for (const [dayId, daySlots] of Object.entries(groupedByDay)) {
         for (const slot of daySlots) {
-          await axios.post(`${API}/photographer/${user?.id}/availability`, {
+          await apiClient.post(`/photographer/${user?.id}/availability`, {
             is_recurring: true,
             recurring_days: [parseInt(dayId)],
             start_time: slot.start_time,
@@ -306,7 +305,7 @@ export const PhotographerBookingsManager = () => {
     if (!date || !user?.id) return;
     try {
       const dateStr = date.toISOString().split('T')[0];
-      const response = await axios.get(`${API}/photographer/${user.id}/booked-slots`, {
+      const response = await apiClient.get(`/photographer/${user.id}/booked-slots`, {
         params: { date: dateStr }
       });
       setExistingBookedSlots(response.data || []);
@@ -400,7 +399,7 @@ export const PhotographerBookingsManager = () => {
   // ============ AVAILABILITY FUNCTIONS ============
   const fetchAvailability = async () => {
     try {
-      const response = await axios.get(`${API}/photographer/${user?.id}/availability`);
+      const response = await apiClient.get(`/photographer/${user?.id}/availability`);
       setAvailability(response.data || []);
     } catch (error) {
       logger.error('Error fetching availability:', error);
@@ -420,7 +419,7 @@ export const PhotographerBookingsManager = () => {
     }
 
     try {
-      await axios.post(`${API}/photographer/${user?.id}/availability`, newAvailability);
+      await apiClient.post(`/photographer/${user?.id}/availability`, newAvailability);
       toast.success('Availability saved!');
       fetchAvailability();
       setShowAvailabilityModal(false);
@@ -432,7 +431,7 @@ export const PhotographerBookingsManager = () => {
 
   const handleDeleteAvailability = async (availabilityId) => {
     try {
-      await axios.delete(`${API}/photographer/${user?.id}/availability/${availabilityId}`);
+      await apiClient.delete(`/photographer/${user?.id}/availability/${availabilityId}`);
       toast.success('Availability removed');
       fetchAvailability();
     } catch (error) {
@@ -471,7 +470,7 @@ export const PhotographerBookingsManager = () => {
 
   const fetchBookingPricing = async () => {
     try {
-      const res = await axios.get(`${API}/photographer/${user?.id}/pricing`);
+      const res = await apiClient.get(`/photographer/${user?.id}/pricing`);
       setBookingPricing({
         booking_hourly_rate: res.data.booking_hourly_rate || 75,
         booking_min_hours: res.data.booking_min_hours || 1,
@@ -512,7 +511,7 @@ export const PhotographerBookingsManager = () => {
 
   const handleSaveBookingPricing = async () => {
     try {
-      await axios.put(`${API}/photographer/${user?.id}/pricing`, bookingPricing);
+      await apiClient.put(`/photographer/${user?.id}/pricing`, bookingPricing);
       toast.success('Booking rates updated!');
       setShowPricingModal(false);
       // Update new booking default price
@@ -529,7 +528,7 @@ export const PhotographerBookingsManager = () => {
   const fetchBookings = async () => {
     setLoading(true);
     try {
-      const response = await axios.get(`${API}/photographer/${user?.id}/bookings`);
+      const response = await apiClient.get(`/photographer/${user?.id}/bookings`);
       setBookings(response.data || []);
     } catch (error) {
       logger.error('Error fetching bookings:', error);
@@ -550,7 +549,7 @@ export const PhotographerBookingsManager = () => {
     const sessionDateTime = `${dateStr}T${selectedTime}:00`;
 
     try {
-      await axios.post(`${API}/photographer/${user?.id}/bookings`, {
+      await apiClient.post(`/photographer/${user?.id}/bookings`, {
         ...newBooking,
         session_date: sessionDateTime,
         duration: newBooking.duration_hours * 60, // Convert hours to minutes for API
@@ -633,7 +632,7 @@ export const PhotographerBookingsManager = () => {
 
   const handleUpdateStatus = async (bookingId, status) => {
     try {
-      await axios.patch(`${API}/bookings/${bookingId}/status`, { status });
+      await apiClient.patch(`/bookings/${bookingId}/status`, { status });
       toast.success(`Booking ${status.toLowerCase()}`);
       fetchBookings();
     } catch (error) {
@@ -660,7 +659,7 @@ export const PhotographerBookingsManager = () => {
     if (!editBooking) return;
     
     try {
-      await axios.patch(`${API}/bookings/${editBooking.id}`, {
+      await apiClient.patch(`/bookings/${editBooking.id}`, {
         location: editBooking.location,
         session_date: editBooking.session_date?.toISOString(),
         duration: editBooking.duration,

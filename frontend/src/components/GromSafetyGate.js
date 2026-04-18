@@ -1,7 +1,7 @@
-import React, { useState, useEffect, createContext, useContext } from 'react';
+﻿import React, { useState, useEffect, createContext, useContext } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import axios from 'axios';
+import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import GromLimitedFeed from './GromLimitedFeed';
 import logger from '../utils/logger';
 import { Shield, Lock, Clock, Copy, CheckCircle, ShieldAlert, UserPlus } from 'lucide-react';
@@ -10,7 +10,6 @@ import { Card, CardContent } from './ui/card';
 import { Badge } from './ui/badge';
 import { toast } from 'sonner';
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 // Create context to share Grom status across components
 const GromStatusContext = createContext(null);
@@ -52,7 +51,7 @@ export const GromSafetyGate = ({ children, allowLimitedFeed = false }) => {
 
   const checkGromStatus = async () => {
     try {
-      const response = await axios.get(`${API}/grom-hq/grom-status/${user.id}`);
+      const response = await apiClient.get(`/grom-hq/grom-status/${user.id}`);
       setGromStatus(response.data);
     } catch (error) {
       logger.error('Failed to check grom status:', error);
@@ -272,7 +271,7 @@ export const useParentalControls = () => {
 
   const fetchControls = async () => {
     try {
-      const response = await axios.get(`${API}/grom-hq/grom-status/${user.id}`);
+      const response = await apiClient.get(`/grom-hq/grom-status/${user.id}`);
       setControls(response.data.parental_controls);
     } catch (error) {
       logger.error('Failed to fetch parental controls:', error);

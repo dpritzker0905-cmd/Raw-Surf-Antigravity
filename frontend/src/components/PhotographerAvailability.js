@@ -1,4 +1,4 @@
-/**
+﻿/**
  * PhotographerAvailability - Availability status and notification subscription
  * Shows: Live Active Shooting, On-Demand, Booking availability
  * "Notify Me" feature for unavailable services using OneSignal
@@ -7,7 +7,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
-import axios from 'axios';
+import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import { 
   Radio, Calendar, Bell, BellOff, Loader2,
   MapPin, Camera, ChevronRight, Zap
@@ -36,7 +36,6 @@ import { toast } from 'sonner';
 import { useMediaQuery } from '../hooks/useMediaQuery';
 import logger from '../utils/logger';
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 // Availability status types
 const AVAILABILITY_TYPES = {
@@ -237,19 +236,19 @@ export const PhotographerAvailability = ({
     setLoading(true);
     try {
       // Check if photographer is live (using photographer status endpoint)
-      const statusResponse = await axios.get(`${API}/photographer/${photographerId}/status`);
+      const statusResponse = await apiClient.get(`/photographer/${photographerId}/status`);
       const isLive = statusResponse.data?.is_shooting || false;
       const spotName = statusResponse.data?.current_spot_name || null;
       
       // Check on-demand status using dedicated endpoint
-      const onDemandResponse = await axios.get(`${API}/photographer/${photographerId}/on-demand-status`);
+      const onDemandResponse = await apiClient.get(`/photographer/${photographerId}/on-demand-status`);
       const isOnDemand = onDemandResponse.data?.is_available || false;
       const onDemandSpotName = onDemandResponse.data?.spot_name || onDemandResponse.data?.city || null;
       
       // Check booking availability from profile
       let acceptsBookings = true;
       try {
-        const profileResponse = await axios.get(`${API}/profile/${photographerId}`);
+        const profileResponse = await apiClient.get(`/profile/${photographerId}`);
         acceptsBookings = profileResponse.data?.accepts_bookings !== false;
       } catch (e) {
         // Default to true if profile fetch fails
@@ -295,7 +294,7 @@ export const PhotographerAvailability = ({
     try {
       if (subscribe) {
         // Subscribe to notifications
-        await axios.post(`${API}/notifications/photographer-alerts`, {
+        await apiClient.post(`/notifications/photographer-alerts`, {
           user_id: user.id,
           photographer_id: photographerId,
           alert_type: type

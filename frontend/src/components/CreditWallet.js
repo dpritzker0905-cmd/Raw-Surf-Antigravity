@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
-import axios from 'axios';
+import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import { Wallet, CreditCard, ArrowUpRight, ArrowDownLeft, History, Plus, RefreshCw, TrendingUp, TrendingDown } from 'lucide-react';
 import { Card, CardContent } from './ui/card';
 import { Button } from './ui/button';
@@ -11,7 +11,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { toast } from 'sonner';
 import logger from '../utils/logger';
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 export const CreditWallet = () => {
   const { user } = useAuth();
@@ -57,12 +56,12 @@ export const CreditWallet = () => {
     setLoading(true);
     try {
       // Fetch balance
-      const balanceRes = await axios.get(`${API}/credits/balance/${user.id}`);
+      const balanceRes = await apiClient.get(`/credits/balance/${user.id}`);
       setBalance(balanceRes.data.balance || 0);
 
       // Fetch transaction history
       try {
-        const historyRes = await axios.get(`${API}/credits/history/${user.id}?limit=20`);
+        const historyRes = await apiClient.get(`/credits/history/${user.id}?limit=20`);
         setTransactions(historyRes.data.transactions || []);
       } catch (e) {
         setTransactions([]);
@@ -70,7 +69,7 @@ export const CreditWallet = () => {
 
       // Fetch summary
       try {
-        const summaryRes = await axios.get(`${API}/credits/summary/${user.id}`);
+        const summaryRes = await apiClient.get(`/credits/summary/${user.id}`);
         setSummary(summaryRes.data);
       } catch (e) {
         setSummary(null);
@@ -84,7 +83,7 @@ export const CreditWallet = () => {
 
   const verifyPayment = async (sessionId) => {
     try {
-      const res = await axios.get(`${API}/credits/status/${sessionId}`);
+      const res = await apiClient.get(`/credits/status/${sessionId}`);
       if (res.data.payment_status === 'paid') {
         toast.success(`Successfully added ${res.data.amount} credits!`);
       }
@@ -102,7 +101,7 @@ export const CreditWallet = () => {
     if (!user?.id) return;
     setPurchasing(true);
     try {
-      const res = await axios.post(`${API}/credits/purchase?user_id=${user.id}`, {
+      const res = await apiClient.post(`/credits/purchase?user_id=${user.id}`, {
         amount: selectedAmount,
         origin_url: window.location.origin
       });

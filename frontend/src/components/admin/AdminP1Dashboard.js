@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useLocation } from 'react-router-dom';
-import axios from 'axios';
+import apiClient, { BACKEND_URL } from '../../lib/apiClient';
 import { UserCheck, Eye, AlertTriangle, Search,
   Loader2, ChevronRight, ExternalLink, Instagram, Globe, FileText, Camera, Award, Link2, RefreshCw, Activity, Calendar, DollarSign, MessageSquare,
   Flag, Gavel, Ban, Scale, MapPin, ThumbsUp, ThumbsDown, Users, Copy
@@ -18,7 +18,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { toast } from 'sonner';
 import logger from '../../utils/logger';
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 // Status badge component
 const StatusBadge = ({ status }) => {
@@ -158,7 +157,7 @@ export const AdminP1Dashboard = () => {
         params.append('verification_type', verificationFilter.type);
       }
       
-      const response = await axios.get(`${API}/admin/verification/queue?${params}`);
+      const response = await apiClient.get(`/admin/verification/queue?${params}`);
       setVerificationQueue(response.data.requests || []);
       setPendingVerifications(response.data.pending_count || 0);
     } catch (error) {
@@ -171,7 +170,7 @@ export const AdminP1Dashboard = () => {
   const fetchImpersonationHistory = async () => {
     setLoading(true);
     try {
-      const response = await axios.get(`${API}/admin/impersonate/history?admin_id=${user.id}`);
+      const response = await apiClient.get(`/admin/impersonate/history?admin_id=${user.id}`);
       setImpersonationHistory(response.data || []);
     } catch (error) {
       toast.error('Failed to load impersonation history');
@@ -188,7 +187,7 @@ export const AdminP1Dashboard = () => {
         params.append('severity', fraudFilter.severity);
       }
       
-      const response = await axios.get(`${API}/admin/fraud/alerts?${params}`);
+      const response = await apiClient.get(`/admin/fraud/alerts?${params}`);
       setFraudAlerts(response.data.alerts || []);
       setSeverityCounts(response.data.severity_counts || {});
     } catch (error) {
@@ -201,7 +200,7 @@ export const AdminP1Dashboard = () => {
   const fetchComplianceData = async () => {
     setLoading(true);
     try {
-      const response = await axios.get(`${API}/compliance/dashboard?admin_id=${user.id}`);
+      const response = await apiClient.get(`/compliance/dashboard?admin_id=${user.id}`);
       setComplianceStats(response.data.stats);
       setRecentViolations(response.data.recent_violations || []);
       setLocationFraudMapData(response.data.location_fraud_map_data || []);
@@ -221,7 +220,7 @@ export const AdminP1Dashboard = () => {
   const handleReviewAppeal = async (violationId, approved) => {
     setActionLoading(true);
     try {
-      await axios.put(`${API}/compliance/violations/${violationId}/appeal/review?admin_id=${user.id}`, {
+      await apiClient.put(`/compliance/violations/${violationId}/appeal/review?admin_id=${user.id}`, {
         approved,
         notes: appealNotes
       });
@@ -288,7 +287,7 @@ export const AdminP1Dashboard = () => {
   const fetchTestAccounts = async () => {
     setLoading(true);
     try {
-      const response = await axios.get(`${API}/admin/test-accounts?admin_id=${user.id}`);
+      const response = await apiClient.get(`/admin/test-accounts?admin_id=${user.id}`);
       setTestAccounts(response.data.accounts || []);
     } catch (error) {
       toast.error('Failed to load test accounts');
@@ -300,7 +299,7 @@ export const AdminP1Dashboard = () => {
   const seedAllRoleAccounts = async () => {
     setSeedingAccounts(true);
     try {
-      const response = await axios.post(`${API}/admin/seed-test-accounts?admin_id=${user.id}`, {
+      const response = await apiClient.post(`/admin/seed-test-accounts?admin_id=${user.id}`, {
         seed_all_roles: true,
         password: testAccountPassword
       });
@@ -316,7 +315,7 @@ export const AdminP1Dashboard = () => {
   const cleanupOldTestAccounts = async () => {
     setActionLoading(true);
     try {
-      const response = await axios.delete(`${API}/admin/test-accounts/cleanup?admin_id=${user.id}&older_than_days=7`);
+      const response = await apiClient.delete(`/admin/test-accounts/cleanup?admin_id=${user.id}&older_than_days=7`);
       toast.success(response.data.message);
       fetchTestAccounts();
     } catch (error) {
@@ -338,7 +337,7 @@ export const AdminP1Dashboard = () => {
       return;
     }
     try {
-      const response = await axios.get(`${API}/admin/users/search?admin_id=${user.id}&q=${query}&limit=10`);
+      const response = await apiClient.get(`/admin/users/search?admin_id=${user.id}&q=${query}&limit=10`);
       setSearchResults(response.data.users || []);
     } catch (error) {
       logger.error('Search failed:', error);
@@ -352,7 +351,7 @@ export const AdminP1Dashboard = () => {
     }
     setActionLoading(true);
     try {
-      await axios.put(`${API}/admin/verification/${requestId}/review?admin_id=${user.id}`, {
+      await apiClient.put(`/admin/verification/${requestId}/review?admin_id=${user.id}`, {
         status: reviewStatus,
         admin_notes: adminNotes,
         rejection_reason: rejectionReason
@@ -373,7 +372,7 @@ export const AdminP1Dashboard = () => {
   const startImpersonation = async (targetUserId) => {
     setActionLoading(true);
     try {
-      const response = await axios.post(`${API}/admin/impersonate/start?admin_id=${user.id}`, {
+      const response = await apiClient.post(`/admin/impersonate/start?admin_id=${user.id}`, {
         target_user_id: targetUserId,
         reason: impersonationReason,
         is_read_only: true
@@ -417,7 +416,7 @@ export const AdminP1Dashboard = () => {
     }
     setActionLoading(true);
     try {
-      await axios.put(`${API}/admin/fraud/alerts/${alertId}/resolve?admin_id=${user.id}`, {
+      await apiClient.put(`/admin/fraud/alerts/${alertId}/resolve?admin_id=${user.id}`, {
         resolution_notes: resolutionNotes,
         action_taken: actionTaken
       });
@@ -437,8 +436,8 @@ export const AdminP1Dashboard = () => {
     setLoading(true);
     try {
       const [summaryRes, activitiesRes] = await Promise.all([
-        axios.get(`${API}/admin/user-journey/${userId}/summary?admin_id=${user.id}`),
-        axios.get(`${API}/admin/user-journey/${userId}?admin_id=${user.id}&limit=50`)
+        apiClient.get(`/admin/user-journey/${userId}/summary?admin_id=${user.id}`),
+        apiClient.get(`/admin/user-journey/${userId}?admin_id=${user.id}&limit=50`)
       ]);
       setJourneySummary(summaryRes.data);
       setJourneyUser(summaryRes.data.user);

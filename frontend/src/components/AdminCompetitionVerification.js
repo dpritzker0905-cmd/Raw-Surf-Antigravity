@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { 
@@ -11,10 +11,9 @@ import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { Badge } from './ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from './ui/dialog';
 import { toast } from 'sonner';
-import axios from 'axios';
+import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import logger from '../utils/logger';
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 /**
  * Admin Competition Result Verification
@@ -42,7 +41,7 @@ export const AdminCompetitionVerification = () => {
   const fetchPendingResults = async () => {
     setLoading(true);
     try {
-      const res = await axios.get(`${API}/career/admin/pending-verifications`);
+      const res = await apiClient.get(`/career/admin/pending-verifications`);
       setPendingResults(res.data?.results || []);
     } catch (error) {
       logger.error('Failed to fetch pending results:', error);
@@ -56,7 +55,7 @@ export const AdminCompetitionVerification = () => {
   const handleVerify = async (resultId, approved) => {
     setProcessing(true);
     try {
-      const _res = await axios.post(`${API}/career/competition-results/${resultId}/verify`, null, {
+      const _res = await apiClient.post(`/career/competition-results/${resultId}/verify`, null, {
         params: {
           approved,
           admin_id: user.id

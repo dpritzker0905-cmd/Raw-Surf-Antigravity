@@ -1,4 +1,4 @@
-/**
+﻿/**
  * QualityComparisonModal - TICKET-004
  * Side-by-side quality tier comparison for photo/video purchases
  * Shows resolution differences and helps surfers choose the right tier
@@ -13,7 +13,7 @@ import { Badge } from '../ui/badge';
 import { Tabs, TabsList, TabsTrigger } from '../ui/tabs';
 
 
-import axios from 'axios';
+import apiClient, { BACKEND_URL } from '../../lib/apiClient';
 
 const API = process.env.REACT_APP_BACKEND_URL;
 
@@ -273,7 +273,7 @@ export const QualityComparisonModal = ({
     const fetchPreviews = async () => {
       setLoading(true);
       try {
-        const response = await axios.get(`${API}/api/gallery/item/${itemId}/quality-previews`);
+        const response = await apiClient.get(`/api/gallery/item/${itemId}/quality-previews`);
         setPreviewUrls(response.data.previews || {});
       } catch (error) {
         console.error('Failed to fetch quality previews:', error);

@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+﻿import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import axios from 'axios';
+import apiClient, { BACKEND_URL } from '../../lib/apiClient';
 import { toast } from 'sonner';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -47,7 +47,7 @@ const Messenger = ({ isOpen, onClose }) => {
   const fetchConversations = useCallback(async () => {
     if (!user?.id) return;
     try {
-      const response = await axios.get(`${API}/messages/conversations/${user.id}`);
+      const response = await apiClient.get(`/messages/conversations/${user.id}`);
       setConversations(response.data.conversations || response.data || []);
     } catch (error) {
       console.error('Failed to fetch conversations:', error);

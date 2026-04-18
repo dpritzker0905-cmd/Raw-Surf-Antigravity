@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
-import axios from 'axios';
+import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import { 
   Users, Plus, Star, Check, Trash2, 
   Loader2, ChevronDown, Save
@@ -46,7 +46,7 @@ export const SavedCrewSelector = ({
 
   const fetchSavedCrews = async () => {
     try {
-      const response = await axios.get(`${API}/api/crews/saved?user_id=${user.id}`);
+      const response = await apiClient.get(`/api/crews/saved?user_id=${user.id}`);
       setSavedCrews(response.data.crews || []);
     } catch (error) {
       logger.error('Failed to fetch saved crews:', error);
@@ -58,7 +58,7 @@ export const SavedCrewSelector = ({
   const handleSelectCrew = async (crew) => {
     // Mark as used
     try {
-      await axios.post(`${API}/api/crews/saved/${crew.id}/use?user_id=${user.id}`);
+      await apiClient.post(`/api/crews/saved/${crew.id}/use?user_id=${user.id}`);
     } catch (error) {
       logger.error('Failed to mark crew as used:', error);
     }
@@ -98,7 +98,7 @@ export const SavedCrewSelector = ({
         avatar_url: m.avatar_url || null
       }));
       
-      await axios.post(`${API}/api/crews/saved?user_id=${user.id}`, {
+      await apiClient.post(`/api/crews/saved?user_id=${user.id}`, {
         name: newCrewName,
         members: membersData,
         is_default: setAsDefault
@@ -119,7 +119,7 @@ export const SavedCrewSelector = ({
 
   const _handleSetDefault = async (crewId) => {
     try {
-      await axios.post(`${API}/api/crews/saved/${crewId}/set-default?user_id=${user.id}`);
+      await apiClient.post(`/api/crews/saved/${crewId}/set-default?user_id=${user.id}`);
       toast.success('Default crew updated!');
       fetchSavedCrews();
     } catch (error) {
@@ -132,7 +132,7 @@ export const SavedCrewSelector = ({
     if (!window.confirm('Delete this saved crew?')) return;
     
     try {
-      await axios.delete(`${API}/api/crews/saved/${crewId}?user_id=${user.id}`);
+      await apiClient.delete(`/api/crews/saved/${crewId}?user_id=${user.id}`);
       toast.success('Crew deleted');
       fetchSavedCrews();
     } catch (error) {

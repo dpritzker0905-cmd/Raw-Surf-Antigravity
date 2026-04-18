@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Button } from './ui/button';
@@ -16,11 +16,10 @@ import {
   Users,
   AlertCircle
 } from 'lucide-react';
-import axios from 'axios';
+import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import { HOBBYIST_PLANS } from '../config/subscriptionPlans.config';
 import logger from '../utils/logger';
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 /**
  * Hobbyist Funnel - Shown when Photographer selects $0 plan

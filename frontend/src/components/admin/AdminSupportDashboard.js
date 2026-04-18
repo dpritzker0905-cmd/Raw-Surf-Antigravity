@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
-import axios from 'axios';
+import apiClient, { BACKEND_URL } from '../../lib/apiClient';
 import { Send, AlertTriangle,
   Loader2, RefreshCw, Search
 } from 'lucide-react';
@@ -14,7 +14,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { toast } from 'sonner';
 import logger from '../../utils/logger';
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 /**
  * Admin Support Dashboard - Ticketing System
@@ -72,7 +71,7 @@ export const AdminSupportDashboard = () => {
 
   const fetchMetrics = async () => {
     try {
-      const response = await axios.get(`${API}/admin/support/metrics?admin_id=${user.id}&days=30`);
+      const response = await apiClient.get(`/admin/support/metrics?admin_id=${user.id}&days=30`);
       setMetrics(response.data);
     } catch (error) {
       logger.error('Failed to load metrics:', error);
@@ -81,7 +80,7 @@ export const AdminSupportDashboard = () => {
 
   const fetchTicketDetail = async (ticketId) => {
     try {
-      const response = await axios.get(`${API}/admin/support/tickets/${ticketId}?admin_id=${user.id}`);
+      const response = await apiClient.get(`/admin/support/tickets/${ticketId}?admin_id=${user.id}`);
       setTicketDetail(response.data);
     } catch (error) {
       toast.error('Failed to load ticket details');
@@ -91,7 +90,7 @@ export const AdminSupportDashboard = () => {
   const handleUpdateTicket = async (ticketId, updates) => {
     setActionLoading(true);
     try {
-      await axios.put(`${API}/admin/support/tickets/${ticketId}?admin_id=${user.id}`, updates);
+      await apiClient.put(`/admin/support/tickets/${ticketId}?admin_id=${user.id}`, updates);
       toast.success('Ticket updated');
       fetchTickets();
       if (ticketDetail?.id === ticketId) {
@@ -108,7 +107,7 @@ export const AdminSupportDashboard = () => {
     if (!replyText.trim() || !ticketDetail) return;
     setActionLoading(true);
     try {
-      await axios.post(`${API}/admin/support/tickets/${ticketDetail.id}/reply?admin_id=${user.id}`, {
+      await apiClient.post(`/admin/support/tickets/${ticketDetail.id}/reply?admin_id=${user.id}`, {
         message: replyText,
         is_internal_note: isInternalNote
       });

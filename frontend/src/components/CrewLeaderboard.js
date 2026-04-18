@@ -1,4 +1,4 @@
-/**
+﻿/**
  * CrewLeaderboard - Displays crew statistics, badges, and rankings
  * Shows on Profile page, "Stoked" section, and "The Inside" for competitive surfers
  */
@@ -19,7 +19,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import { Switch } from './ui/switch';
 import { Label } from './ui/label';
 import { toast } from 'sonner';
-import axios from 'axios';
+import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import logger from '../utils/logger';
 
 const API = process.env.REACT_APP_BACKEND_URL;
@@ -246,8 +246,8 @@ export const CrewLeaderboard = ({
     setLoading(true);
     try {
       const [summaryRes, leaderboardRes] = await Promise.all([
-        axios.get(`${API}/api/users/${targetUserId}/crew-summary`),
-        axios.get(`${API}/api/crew/leaderboard?metric=${leaderboardMetric}&limit=20`)
+        apiClient.get(`/api/users/${targetUserId}/crew-summary`),
+        apiClient.get(`/api/crew/leaderboard?metric=${leaderboardMetric}&limit=20`)
       ]);
       
       setUserSummary(summaryRes.data);
@@ -261,7 +261,7 @@ export const CrewLeaderboard = ({
   
   const handleCrewClick = async (crew) => {
     try {
-      const res = await axios.get(`${API}/api/crew/stats/${crew.crew_hash}?user_id=${targetUserId}`);
+      const res = await apiClient.get(`/api/crew/stats/${crew.crew_hash}?user_id=${targetUserId}`);
       setSelectedCrew(res.data);
       setShowCrewDetail(true);
     } catch (error) {
@@ -275,7 +275,7 @@ export const CrewLeaderboard = ({
   
   const handlePrivacyToggle = async (crewHash, isPublic) => {
     try {
-      await axios.put(`${API}/api/crew/${crewHash}/settings?user_id=${targetUserId}`, {
+      await apiClient.put(`/api/crew/${crewHash}/settings?user_id=${targetUserId}`, {
         is_public: isPublic
       });
       toast.success(`Crew is now ${isPublic ? 'public' : 'private'}`);

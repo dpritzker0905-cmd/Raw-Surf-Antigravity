@@ -1,8 +1,8 @@
-/**
+﻿/**
  * CreateWaveModal - Upload short-form vertical video (max 60 seconds)
  */
 import React, { useState, useRef, useCallback } from 'react';
-import axios from 'axios';
+import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
@@ -15,7 +15,6 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 const MAX_DURATION = 60; // seconds
 const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB
 
@@ -141,7 +140,7 @@ export const CreateWaveModal = ({ isOpen, onClose, onSuccess }) => {
       formData.append('file', selectedFile);
       formData.append('user_id', user.id);
       
-      const uploadResponse = await axios.post(`${API}/upload/wave`, formData, {
+      const uploadResponse = await apiClient.post(`/upload/wave`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
         onUploadProgress: (progressEvent) => {
           const progress = Math.round((progressEvent.loaded * 100) / progressEvent.total);
@@ -162,7 +161,7 @@ export const CreateWaveModal = ({ isOpen, onClose, onSuccess }) => {
         video_duration: uploadResponse.data.duration
       };
       
-      await axios.post(`${API}/waves`, null, { params: waveData });
+      await apiClient.post(`/waves`, null, { params: waveData });
       
       toast.success('Wave posted!');
       handleClose();

@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
-import axios from 'axios';
+import apiClient, { BACKEND_URL } from '../../lib/apiClient';
 import { MessageSquare, FileText,
   Loader2, RefreshCw, Flag, Scale, Wallet,
   Send
@@ -16,7 +16,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { toast } from 'sonner';
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 // Status badge component
 const StatusBadge = ({ status }) => {
@@ -113,7 +112,7 @@ export const AdminModerationDashboard = () => {
       if (disputeFilter.status) params.append('status', disputeFilter.status);
       if (disputeFilter.type) params.append('dispute_type', disputeFilter.type);
       
-      const response = await axios.get(`${API}/admin/disputes?${params}`);
+      const response = await apiClient.get(`/admin/disputes?${params}`);
       setDisputes(response.data.disputes || []);
       setDisputesTotal(response.data.total || 0);
     } catch (error) {
@@ -130,7 +129,7 @@ export const AdminModerationDashboard = () => {
       if (reportFilter.status) params.append('status', reportFilter.status);
       if (reportFilter.reason) params.append('reason', reportFilter.reason);
       
-      const response = await axios.get(`${API}/admin/reports?${params}`);
+      const response = await apiClient.get(`/admin/reports?${params}`);
       setReports(response.data.reports || []);
       setPendingReportsCount(response.data.pending_count || 0);
     } catch (error) {
@@ -143,7 +142,7 @@ export const AdminModerationDashboard = () => {
   const fetchPayoutHolds = async () => {
     setLoading(true);
     try {
-      const response = await axios.get(`${API}/admin/payout-holds?admin_id=${user.id}`);
+      const response = await apiClient.get(`/admin/payout-holds?admin_id=${user.id}`);
       setPayoutHolds(response.data.holds || []);
       setTotalHeldAmount(response.data.total_held_amount || 0);
     } catch (error) {
@@ -159,7 +158,7 @@ export const AdminModerationDashboard = () => {
       const params = new URLSearchParams({ admin_id: user.id, limit: '100' });
       if (auditFilter.category) params.append('category', auditFilter.category);
       
-      const response = await axios.get(`${API}/admin/audit-logs?${params}`);
+      const response = await apiClient.get(`/admin/audit-logs?${params}`);
       setAuditLogs(response.data.logs || []);
     } catch (error) {
       toast.error('Failed to load audit logs');
@@ -170,7 +169,7 @@ export const AdminModerationDashboard = () => {
 
   const fetchDisputeDetail = async (disputeId) => {
     try {
-      const response = await axios.get(`${API}/admin/disputes/${disputeId}?admin_id=${user.id}`);
+      const response = await apiClient.get(`/admin/disputes/${disputeId}?admin_id=${user.id}`);
       setSelectedDispute(response.data);
       setShowDisputeDetail(true);
     } catch (error) {
@@ -181,7 +180,7 @@ export const AdminModerationDashboard = () => {
   const handleUpdateDispute = async (disputeId, updates) => {
     setActionLoading(true);
     try {
-      await axios.put(`${API}/admin/disputes/${disputeId}?admin_id=${user.id}`, updates);
+      await apiClient.put(`/admin/disputes/${disputeId}?admin_id=${user.id}`, updates);
       toast.success('Dispute updated');
       fetchDisputes();
       if (selectedDispute?.id === disputeId) {
@@ -198,7 +197,7 @@ export const AdminModerationDashboard = () => {
     if (!newMessage.trim()) return;
     setActionLoading(true);
     try {
-      await axios.post(`${API}/admin/disputes/${disputeId}/messages?admin_id=${user.id}`, {
+      await apiClient.post(`/admin/disputes/${disputeId}/messages?admin_id=${user.id}`, {
         message: newMessage,
         is_internal: false
       });
@@ -219,7 +218,7 @@ export const AdminModerationDashboard = () => {
     }
     setActionLoading(true);
     try {
-      await axios.put(`${API}/admin/reports/${reportId}/review?admin_id=${user.id}`, {
+      await apiClient.put(`/admin/reports/${reportId}/review?admin_id=${user.id}`, {
         action_taken: reviewAction,
         admin_notes: adminNotes,
         escalate_to_dispute: reviewAction === 'escalate'
@@ -239,7 +238,7 @@ export const AdminModerationDashboard = () => {
   const handleReleaseHold = async (holdId) => {
     setActionLoading(true);
     try {
-      await axios.post(`${API}/admin/payout-holds/${holdId}/release?admin_id=${user.id}`, {
+      await apiClient.post(`/admin/payout-holds/${holdId}/release?admin_id=${user.id}`, {
         release_notes: 'Admin released hold'
       });
       toast.success('Hold released');

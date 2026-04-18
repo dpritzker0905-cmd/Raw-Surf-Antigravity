@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useCallback } from 'react';
+﻿import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import { useAuth } from '../contexts/AuthContext';
 import { usePersona } from '../contexts/PersonaContext';
 import { Users, Clock, DollarSign, MapPin, RefreshCw, Radio, X } from 'lucide-react';
@@ -9,7 +9,6 @@ import { toast } from 'sonner';
 import { DutyStationDrawer } from './DutyStationDrawer';
 import logger from '../utils/logger';
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 export const PhotographerSessionDashboard = ({ onClose }) => {
   const { user } = useAuth();
@@ -31,7 +30,7 @@ export const PhotographerSessionDashboard = ({ onClose }) => {
     
     try {
       // Check for live broadcast session
-      const response = await axios.get(`${API}/sessions/active/${user.id}`);
+      const response = await apiClient.get(`/sessions/active/${user.id}`);
       setSession(response.data);
     } catch (error) {
       if (error.response?.status === 400) {
@@ -43,7 +42,7 @@ export const PhotographerSessionDashboard = ({ onClose }) => {
     
     // Check for active on-demand dispatch session (photographer role)
     try {
-      const dispatchRes = await axios.get(`${API}/dispatch/user/${user.id}/active`);
+      const dispatchRes = await apiClient.get(`/dispatch/user/${user.id}/active`);
       if (dispatchRes.data.active_dispatch && dispatchRes.data.active_dispatch.role === 'photographer') {
         setActiveDispatch(dispatchRes.data.active_dispatch);
       } else {
@@ -55,7 +54,7 @@ export const PhotographerSessionDashboard = ({ onClose }) => {
     
     // Check for PENDING on-demand requests (incoming bookings)
     try {
-      const pendingRes = await axios.get(`${API}/dispatch/photographer/${user.id}/pending`);
+      const pendingRes = await apiClient.get(`/dispatch/photographer/${user.id}/pending`);
       setPendingRequests(pendingRes.data.pending_dispatches || []);
     } catch (error) {
       setPendingRequests([]);
@@ -73,7 +72,7 @@ export const PhotographerSessionDashboard = ({ onClose }) => {
 
   const handleStopSession = async () => {
     try {
-      await axios.post(`${API}/photographers/${user.id}/stop-live`, {});
+      await apiClient.post(`/photographers/${user.id}/stop-live`, {});
       toast.success('Session ended');
       setSession(null);
       onClose?.();

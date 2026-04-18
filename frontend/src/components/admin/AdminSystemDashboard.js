@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
-import axios from 'axios';
+import apiClient, { BACKEND_URL } from '../../lib/apiClient';
 import {
   Activity, Server, Database, Cpu, HardDrive,
   Loader2, RefreshCw, Check, X, AlertTriangle, Bell, CheckCircle, XCircle, AlertCircle
@@ -13,7 +13,6 @@ import { Switch } from '../ui/switch';
 import { toast } from 'sonner';
 import logger from '../../utils/logger';
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 /**
  * Admin System Health Dashboard
@@ -46,9 +45,9 @@ export const AdminSystemDashboard = () => {
   const fetchAllData = async () => {
     try {
       const [healthRes, jobsRes, alertsRes] = await Promise.all([
-        axios.get(`${API}/admin/system/health?admin_id=${user.id}`),
-        axios.get(`${API}/admin/system/jobs?admin_id=${user.id}`),
-        axios.get(`${API}/admin/system/alerts?admin_id=${user.id}`)
+        apiClient.get(`/admin/system/health?admin_id=${user.id}`),
+        apiClient.get(`/admin/system/jobs?admin_id=${user.id}`),
+        apiClient.get(`/admin/system/alerts?admin_id=${user.id}`)
       ]);
       setHealthData(healthRes.data);
       setJobs(jobsRes.data.jobs || []);
@@ -62,7 +61,7 @@ export const AdminSystemDashboard = () => {
 
   const handleToggleJob = async (jobName, currentState) => {
     try {
-      await axios.put(`${API}/admin/system/jobs/${jobName}/toggle?admin_id=${user.id}`);
+      await apiClient.put(`/admin/system/jobs/${jobName}/toggle?admin_id=${user.id}`);
       toast.success(`Job ${currentState ? 'disabled' : 'enabled'}`);
       fetchAllData();
     } catch (error) {
@@ -72,7 +71,7 @@ export const AdminSystemDashboard = () => {
 
   const handleAcknowledgeAlert = async (alertId) => {
     try {
-      await axios.post(`${API}/admin/system/alerts/acknowledge?admin_id=${user.id}`, {
+      await apiClient.post(`/admin/system/alerts/acknowledge?admin_id=${user.id}`, {
         alert_ids: [alertId]
       });
       toast.success('Alert acknowledged');
@@ -84,7 +83,7 @@ export const AdminSystemDashboard = () => {
 
   const handleResolveAlert = async (alertId) => {
     try {
-      await axios.post(`${API}/admin/system/alerts/${alertId}/resolve?admin_id=${user.id}`);
+      await apiClient.post(`/admin/system/alerts/${alertId}/resolve?admin_id=${user.id}`);
       toast.success('Alert resolved');
       fetchAllData();
     } catch (error) {

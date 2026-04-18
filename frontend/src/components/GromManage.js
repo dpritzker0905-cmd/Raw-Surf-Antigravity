@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
@@ -12,10 +12,9 @@ import { Button } from './ui/button';
 import { Avatar, AvatarFallback } from './ui/avatar';
 import { Input } from './ui/input';
 import { toast } from 'sonner';
-import axios from 'axios';
+import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import logger from '../utils/logger';
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 /**
  * GromManage - Activity monitoring and spending controls for a specific Grom
@@ -58,8 +57,8 @@ export const GromManage = () => {
     setLoading(true);
     try {
       const [activityRes, spendingRes] = await Promise.all([
-        axios.get(`${API}/grom-hq/activity/${gromId}?parent_id=${user.id}`),
-        axios.get(`${API}/grom-hq/spending-summary/${gromId}?parent_id=${user.id}`)
+        apiClient.get(`/grom-hq/activity/${gromId}?parent_id=${user.id}`),
+        apiClient.get(`/grom-hq/spending-summary/${gromId}?parent_id=${user.id}`)
       ]);
       
       setActivityData(activityRes.data);

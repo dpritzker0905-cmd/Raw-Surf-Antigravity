@@ -1,12 +1,11 @@
-import React, { useState, useEffect, useMemo } from 'react';
+﻿import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import axios from 'axios';
+import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import { MapPin, Search, Check, Loader2, Navigation, X } from 'lucide-react';
 import { Input } from './ui/input';
 import { Badge } from './ui/badge';
 import logger from '../utils/logger';
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 /**
  * SpotSelector - In-Drawer Searchable Spot Selection
@@ -84,7 +83,7 @@ export const SpotSelector = ({
     
     setLoading(true);
     try {
-      const response = await axios.get(`${API}/surf-spots/nearby`, {
+      const response = await apiClient.get(`/surf-spots/nearby`, {
         params: {
           latitude: userLocation.latitude,
           longitude: userLocation.longitude,

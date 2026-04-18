@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
-import axios from 'axios';
+import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import { 
   X, Heart, Download, Calendar, Camera, Check, Lock, Sparkles, CreditCard, Gift
 } from 'lucide-react';
@@ -13,7 +13,6 @@ import { Avatar, AvatarImage, AvatarFallback } from './ui/avatar';
 import { toast } from 'sonner';
 import logger from '../utils/logger';
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 export const TaggedPhotoModal = ({ 
   isOpen, 
@@ -53,7 +52,7 @@ export const TaggedPhotoModal = ({
   const markAsViewed = async () => {
     if (photo?.is_new && photo?.tag_id) {
       try {
-        await axios.post(`${API}/ai/mark-photo-viewed?user_id=${user?.id}&tag_id=${photo.tag_id}`);
+        await apiClient.post(`/ai/mark-photo-viewed?user_id=${user?.id}&tag_id=${photo.tag_id}`);
         onPhotoViewed?.(photo.id);
       } catch (e) {
         logger.error('Failed to mark as viewed:', e);
@@ -76,7 +75,7 @@ export const TaggedPhotoModal = ({
 
   const handleThankPhotographer = async () => {
     try {
-      await axios.post(`${API}/notifications/send`, {
+      await apiClient.post(`/notifications/send`, {
         recipient_id: photo.photographer_id,
         sender_id: user?.id,
         type: 'thank_you',
@@ -113,7 +112,7 @@ export const TaggedPhotoModal = ({
       }
 
       // Purchase photo - this moves it to user's personal gallery
-      const response = await axios.post(`${API}/gallery/items/${photo.id}/purchase`, {
+      const response = await apiClient.post(`/gallery/items/${photo.id}/purchase`, {
         buyer_id: user?.id,
         quality_tier: quality,
         amount: price
@@ -134,7 +133,7 @@ export const TaggedPhotoModal = ({
   const handleClaimFreePhoto = async () => {
     // For session participants with $0 price - claim without payment
     try {
-      const response = await axios.post(`${API}/gallery/items/${photo.id}/claim`, {
+      const response = await apiClient.post(`/gallery/items/${photo.id}/claim`, {
         user_id: user?.id,
         tag_id: photo.tag_id
       });

@@ -1,11 +1,11 @@
-/**
+﻿/**
  * CreateAdModal - User-facing ad submission for Self-Serve Ad Engine
  * Similar flow to creating a social post - supports images and videos
  */
 import React, { useState, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
-import axios from 'axios';
+import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import {
   Megaphone, Image, Video, X, Upload, Loader2, DollarSign,
   CheckCircle, AlertCircle, ExternalLink, Sparkles
@@ -18,7 +18,6 @@ import { Badge } from './ui/badge';
 import { toast } from 'sonner';
 import logger from '../utils/logger';
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 // Ad type options
 const AD_TYPES = [
@@ -97,7 +96,7 @@ export const CreateAdModal = ({ isOpen, onClose, onSuccess }) => {
       formData.append('user_id', user.id);
       formData.append('upload_type', 'ad_creative');
 
-      const response = await axios.post(`${API}/uploads/media`, formData, {
+      const response = await apiClient.post(`/uploads/media`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
 
@@ -144,7 +143,7 @@ export const CreateAdModal = ({ isOpen, onClose, onSuccess }) => {
 
     setSubmitting(true);
     try {
-      const response = await axios.post(`${API}/ads/submit?user_id=${user.id}`, {
+      const response = await apiClient.post(`/ads/submit?user_id=${user.id}`, {
         headline: headline.trim(),
         description: description.trim(),
         cta: cta.trim() || 'Learn More',

@@ -1,11 +1,10 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, TrendingUp, Clock, Hash, User, MapPin } from 'lucide-react';
 import { GlobalSearchBar } from '../components/GlobalSearchBar';
 import { Avatar, AvatarImage, AvatarFallback } from '../components/ui/avatar';
-import axios from 'axios';
+import apiClient, { BACKEND_URL } from '../lib/apiClient';
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 /**
  * SearchPage - Mobile search experience
@@ -32,7 +31,7 @@ const SearchPage = () => {
     // Fetch trending hashtags
     const fetchTrending = async () => {
       try {
-        const response = await axios.get(`${API}/hashtags/trending?limit=8`);
+        const response = await apiClient.get(`/hashtags/trending?limit=8`);
         setTrendingHashtags(response.data.hashtags || []);
       } catch (error) {
         // Silently fail

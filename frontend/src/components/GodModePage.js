@@ -1,6 +1,6 @@
-import React, { useEffect, useState, useRef } from 'react';
+﻿import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import { useAuth } from '../contexts/AuthContext';
 import { usePersona, ALL_PERSONAS, getExpandedRoleInfo } from '../contexts/PersonaContext';
 import { useTheme } from '../contexts/ThemeContext';
@@ -74,9 +74,9 @@ const GodModePage = () => {
       setLoadingPhotographers(true);
       try {
         const [photosRes, spotsRes, sessionsRes] = await Promise.all([
-          axios.get(`${API}/api/admin/photographers`),
-          axios.get(`${API}/api/surf-spots`),
-          axios.get(`${API}/api/admin/active-sessions`).catch(() => ({ data: [] }))
+          apiClient.get(`/api/admin/photographers`),
+          apiClient.get(`/api/surf-spots`),
+          apiClient.get(`/api/admin/active-sessions`).catch(() => ({ data: [] }))
         ]);
         setSimulatePhotographers(photosRes.data);
         setSurfSpots(spotsRes.data);
@@ -134,7 +134,7 @@ const GodModePage = () => {
     
     setForceStartLoading(true);
     try {
-      const response = await axios.post(`${API}/api/admin/force-start-session`, {
+      const response = await apiClient.post(`/api/admin/force-start-session`, {
         photographer_id: selectedPhotographer,
         spot_id: selectedSpot,
         session_price: parseFloat(sessionPrice) || 25,
@@ -149,8 +149,8 @@ const GodModePage = () => {
       
       // Refresh data
       const [photosRes, sessionsRes] = await Promise.all([
-        axios.get(`${API}/api/admin/photographers`),
-        axios.get(`${API}/api/admin/active-sessions`).catch(() => ({ data: [] }))
+        apiClient.get(`/api/admin/photographers`),
+        apiClient.get(`/api/admin/active-sessions`).catch(() => ({ data: [] }))
       ]);
       setSimulatePhotographers(photosRes.data);
       setActiveSessions(sessionsRes.data || []);
@@ -172,7 +172,7 @@ const GodModePage = () => {
   const handleForceEnd = async (photographerId, _photographerName) => {
     setForceEndLoading(photographerId);
     try {
-      const response = await axios.post(`${API}/api/admin/force-end-session/${photographerId}`);
+      const response = await apiClient.post(`/api/admin/force-end-session/${photographerId}`);
       
       toast.success(response.data.message, {
         icon: <Square className="w-4 h-4 text-gray-500" />
@@ -180,8 +180,8 @@ const GodModePage = () => {
       
       // Refresh data
       const [photosRes, sessionsRes] = await Promise.all([
-        axios.get(`${API}/api/admin/photographers`),
-        axios.get(`${API}/api/admin/active-sessions`).catch(() => ({ data: [] }))
+        apiClient.get(`/api/admin/photographers`),
+        apiClient.get(`/api/admin/active-sessions`).catch(() => ({ data: [] }))
       ]);
       setSimulatePhotographers(photosRes.data);
       setActiveSessions(sessionsRes.data || []);

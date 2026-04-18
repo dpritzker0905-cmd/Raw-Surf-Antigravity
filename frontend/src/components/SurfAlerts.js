@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+﻿import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useLocation, useSearchParams } from 'react-router-dom';
-import axios from 'axios';
+import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import { 
   Bell, BellRing, Plus, Trash2, MapPin, Waves, Loader2, X, Check, BellOff,
   Search, Target, Clock, Sun, Sunrise, Sunset, Share2, Copy, 
@@ -17,7 +17,6 @@ import { Input } from './ui/input';
 import { toast } from 'sonner';
 import logger from '../utils/logger';
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 // Time window options
 const TIME_WINDOWS = [
@@ -171,7 +170,7 @@ export const SurfAlerts = () => {
 
   const fetchAlerts = async () => {
     try {
-      const response = await axios.get(`${API}/alerts/user/${user.id}`);
+      const response = await apiClient.get(`/alerts/user/${user.id}`);
       setAlerts(response.data);
     } catch (error) {
       logger.error('Error fetching alerts:', error);
@@ -182,7 +181,7 @@ export const SurfAlerts = () => {
 
   const fetchSpots = async () => {
     try {
-      const response = await axios.get(`${API}/surf-spots`);
+      const response = await apiClient.get(`/surf-spots`);
       setSpots(response.data);
     } catch (error) {
       logger.error('Error fetching spots:', error);
@@ -233,7 +232,7 @@ export const SurfAlerts = () => {
         
         if ('serviceWorker' in navigator) {
           const registration = await navigator.serviceWorker.ready;
-          const vapidResponse = await axios.get(`${API}/push/vapid-key`);
+          const vapidResponse = await apiClient.get(`/push/vapid-key`);
           
           const subscription = await registration.pushManager.subscribe({
             userVisibleOnly: true,
@@ -241,7 +240,7 @@ export const SurfAlerts = () => {
           });
           
           const subJson = subscription.toJSON();
-          await axios.post(`${API}/push/subscribe?user_id=${user.id}`, {
+          await apiClient.post(`/push/subscribe?user_id=${user.id}`, {
             endpoint: subJson.endpoint,
             p256dh_key: subJson.keys?.p256dh || '',
             auth_key: subJson.keys?.auth || '',
@@ -302,7 +301,7 @@ export const SurfAlerts = () => {
 
     setCreateLoading(true);
     try {
-      await axios.post(`${API}/alerts?user_id=${user.id}`, {
+      await apiClient.post(`/alerts?user_id=${user.id}`, {
         spot_id: newAlert.spot_id,
         min_wave_height: newAlert.min_wave_height ? parseFloat(newAlert.min_wave_height) : null,
         max_wave_height: newAlert.max_wave_height ? parseFloat(newAlert.max_wave_height) : null,
@@ -376,7 +375,7 @@ export const SurfAlerts = () => {
 
     setCreateLoading(true);
     try {
-      await axios.put(`${API}/alerts/${editingAlert.id}`, {
+      await apiClient.put(`/alerts/${editingAlert.id}`, {
         spot_id: newAlert.spot_id,
         min_wave_height: newAlert.min_wave_height ? parseFloat(newAlert.min_wave_height) : null,
         max_wave_height: newAlert.max_wave_height ? parseFloat(newAlert.max_wave_height) : null,
@@ -408,7 +407,7 @@ export const SurfAlerts = () => {
 
   const toggleAlert = async (alertId, isActive) => {
     try {
-      await axios.patch(`${API}/alerts/${alertId}`, { is_active: !isActive });
+      await apiClient.patch(`/alerts/${alertId}`, { is_active: !isActive });
       setAlerts(alerts.map(a => a.id === alertId ? { ...a, is_active: !isActive } : a));
       toast.success(isActive ? 'Alert paused' : 'Alert activated');
     } catch (error) {
@@ -418,7 +417,7 @@ export const SurfAlerts = () => {
 
   const deleteAlert = async (alertId) => {
     try {
-      await axios.delete(`${API}/alerts/${alertId}`);
+      await apiClient.delete(`/alerts/${alertId}`);
       setAlerts(alerts.filter(a => a.id !== alertId));
       toast.success('Alert deleted');
     } catch (error) {
@@ -440,7 +439,7 @@ export const SurfAlerts = () => {
 
     setShareLoading(true);
     try {
-      await axios.post(`${API}/alerts/share`, {
+      await apiClient.post(`/alerts/share`, {
         alert_id: alertToShare.id,
         sender_id: user.id,
         recipient_identifier: shareRecipient.trim()

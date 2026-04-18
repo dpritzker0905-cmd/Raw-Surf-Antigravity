@@ -5,8 +5,7 @@
  */
 
 import { useState, useCallback, useRef, useEffect } from 'react';
-import axios from 'axios';
-import { API } from '../components/map/mapUtils';
+import apiClient from '../lib/apiClient';
 import logger from '../utils/logger';
 
 export const useFriendsOnMap = ({ user, _mapInstanceRef }) => {
@@ -21,8 +20,7 @@ export const useFriendsOnMap = ({ user, _mapInstanceRef }) => {
     if (!user?.id) return;
 
     try {
-      const response = await axios.get(`${API}/friends/map/${user.id}`);
-      // API returns { friends_on_map: [...] } format
+      const response = await apiClient.get(`/friends/map/${user.id}`);
       setFriendsOnMap(response.data.friends_on_map || []);
     } catch (error) {
       logger.error('Error fetching friends on map:', error);

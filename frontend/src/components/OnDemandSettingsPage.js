@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
-import axios from 'axios';
+import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import { 
   MapPin, DollarSign, Zap, Check, Loader2,
   Navigation, Info, Waves, ChevronDown, ChevronUp,
@@ -16,7 +16,6 @@ import { Card, CardHeader, CardTitle, CardContent } from './ui/card';
 import { toast } from 'sonner';
 import logger from '../utils/logger';
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 /**
  * On-Demand Settings Page - For Pro/Approved Pro photographers
@@ -124,7 +123,7 @@ export const OnDemandSettingsPage = () => {
   const fetchNearbySpots = async (location) => {
     try {
       // Use role-based geographic radius - LOGIC PRESERVED
-      const response = await axios.get(`${API}/surf-spots/nearby`, {
+      const response = await apiClient.get(`/surf-spots/nearby`, {
         params: {
           latitude: location.latitude,
           longitude: location.longitude,
@@ -135,7 +134,7 @@ export const OnDemandSettingsPage = () => {
     } catch (error) {
       logger.error('Failed to fetch nearby spots:', error);
       try {
-        const fallbackResponse = await axios.get(`${API}/surf-spots?limit=30`);
+        const fallbackResponse = await apiClient.get(`/surf-spots?limit=30`);
         setNearbySpots(fallbackResponse.data || []);
       } catch (e) {
         logger.error('Fallback also failed:', e);
@@ -145,7 +144,7 @@ export const OnDemandSettingsPage = () => {
   
   const fetchSettings = async () => {
     try {
-      const response = await axios.get(`${API}/photographer/${user?.id}/on-demand-settings`);
+      const response = await apiClient.get(`/photographer/${user?.id}/on-demand-settings`);
       if (response.data) {
         setBaseRate(response.data.base_rate || 75);
         setPeakPricingEnabled(response.data.peak_pricing_enabled || false);
@@ -156,7 +155,7 @@ export const OnDemandSettingsPage = () => {
       }
       
       // Also fetch on-demand status
-      const statusResponse = await axios.get(`${API}/photographer/${user?.id}/on-demand-status`);
+      const statusResponse = await apiClient.get(`/photographer/${user?.id}/on-demand-status`);
       if (statusResponse.data) {
         setOnDemandActive(statusResponse.data.is_available || false);
         if (statusResponse.data.spot_name) {
@@ -169,7 +168,7 @@ export const OnDemandSettingsPage = () => {
       
       // Also fetch photographer status to check if live shooting (for mutual exclusivity)
       try {
-        const photographerStatusRes = await axios.get(`${API}/photographer/${user?.id}/status`);
+        const photographerStatusRes = await apiClient.get(`/photographer/${user?.id}/status`);
         setIsLiveShooting(photographerStatusRes.data.is_shooting || false);
       } catch (e) {
         logger.error('Error fetching photographer status:', e);
@@ -195,7 +194,7 @@ export const OnDemandSettingsPage = () => {
     try {
       if (onDemandActive) {
         // Turn off
-        await axios.post(`${API}/photographer/${user.id}/on-demand-toggle`, {
+        await apiClient.post(`/photographer/${user.id}/on-demand-toggle`, {
           is_available: false
         });
         setOnDemandActive(false);
@@ -213,7 +212,7 @@ export const OnDemandSettingsPage = () => {
           return;
         }
         
-        await axios.post(`${API}/photographer/${user.id}/on-demand-toggle`, {
+        await apiClient.post(`/photographer/${user.id}/on-demand-toggle`, {
           is_available: true,
           spot_id: spotToUse.id,
           spot_name: spotToUse.name,
@@ -251,7 +250,7 @@ export const OnDemandSettingsPage = () => {
   const saveSettings = async () => {
     setSaving(true);
     try {
-      await axios.post(`${API}/photographer/${user.id}/on-demand-settings`, {
+      await apiClient.post(`/photographer/${user.id}/on-demand-settings`, {
         base_rate: baseRate,
         peak_pricing_enabled: peakPricingEnabled,
         peak_multiplier: peakMultiplier,

@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { usePersona } from '../contexts/PersonaContext';
-import axios from 'axios';
+import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import { 
   Radio, Camera, Image, Calendar, DollarSign, MapPin, 
   ChevronRight, X, Zap, Award, Flame
@@ -12,7 +12,6 @@ import { Badge } from './ui/badge';
 import { toast } from 'sonner';
 import logger from '../utils/logger';
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 /**
  * Photo Tools Drawer - Root category menu for photographers
@@ -87,7 +86,7 @@ export const PhotoToolsDrawer = ({ isOpen, onClose }) => {
       // Get user's location and fetch live photographers nearby
       if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(async (position) => {
-          const response = await axios.get(`${API}/photographers/live`, {
+          const response = await apiClient.get(`/photographers/live`, {
             params: {
               latitude: position.coords.latitude,
               longitude: position.coords.longitude,
@@ -99,7 +98,7 @@ export const PhotoToolsDrawer = ({ isOpen, onClose }) => {
           setNearbyShooters(others.length);
         }, () => {
           // If geolocation fails, just get all live photographers
-          axios.get(`${API}/photographers/live`).then(res => {
+          apiClient.get(`/photographers/live`).then(res => {
             const others = (res.data || []).filter(p => p.id !== user?.id);
             setNearbyShooters(others.length);
           }).catch(() => {});
@@ -112,7 +111,7 @@ export const PhotoToolsDrawer = ({ isOpen, onClose }) => {
   
   const fetchStats = async () => {
     try {
-      const response = await axios.get(`${API}/photographer/${user.id}/stats`);
+      const response = await apiClient.get(`/photographer/${user.id}/stats`);
       if (response.data) {
         setStats(prev => ({
           ...prev,
@@ -126,7 +125,7 @@ export const PhotoToolsDrawer = ({ isOpen, onClose }) => {
   
   const fetchOnDemandStatus = async () => {
     try {
-      const response = await axios.get(`${API}/photographer/${user.id}/on-demand-status`);
+      const response = await apiClient.get(`/photographer/${user.id}/on-demand-status`);
       setOnDemandActive(response.data?.is_available || false);
     } catch (error) {
       logger.error('Failed to fetch on-demand status:', error);
@@ -152,7 +151,7 @@ export const PhotoToolsDrawer = ({ isOpen, onClose }) => {
     // If turning OFF, just toggle off directly
     setOnDemandLoading(true);
     try {
-      const _response = await axios.post(`${API}/photographer/${user.id}/on-demand-toggle`, {
+      const _response = await apiClient.post(`/photographer/${user.id}/on-demand-toggle`, {
         is_available: false
       });
       

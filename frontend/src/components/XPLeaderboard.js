@@ -1,14 +1,13 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { Trophy, Medal, Crown, Star, ChevronRight, Users, Camera, Waves } from 'lucide-react';
 import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { useTheme } from '../contexts/ThemeContext';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import logger from '../utils/logger';
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 /**
  * XP Leaderboard Component
@@ -34,7 +33,7 @@ export const XPLeaderboard = ({ compact = false, limit = 10 }) => {
   const fetchLeaderboard = async () => {
     setLoading(true);
     try {
-      const response = await axios.get(`${API}/gamification/leaderboard`, {
+      const response = await apiClient.get(`/gamification/leaderboard`, {
         params: { time_range: timeRange, category, limit }
       });
       setLeaderboard(response.data.leaderboard || []);

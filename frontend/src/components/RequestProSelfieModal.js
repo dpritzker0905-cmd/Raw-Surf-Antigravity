@@ -1,13 +1,12 @@
-import React, { useState, useRef, useCallback, useEffect } from 'react';
+﻿import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { Camera, RefreshCw, Loader2, Check } from 'lucide-react';
 import { Button } from './ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import { useAuth } from '../contexts/AuthContext';
-import axios from 'axios';
+import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import { toast } from 'sonner';
 import logger from '../utils/logger';
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 /**
  * RequestProSelfieModal - Surfer uploads identification selfie with surfboard
@@ -95,7 +94,7 @@ export const RequestProSelfieModal = ({ dispatchId, isOpen, onClose, onSuccess }
       const blob = await fetch(selfieUrl).then(r => r.blob());
       formData.append('file', blob, 'dispatch-selfie.jpg');
       
-      const uploadResponse = await axios.post(`${API}/upload`, formData, {
+      const uploadResponse = await apiClient.post(`/upload`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
       

@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+﻿import React, { useState, useEffect } from 'react';
+import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { 
@@ -59,7 +59,7 @@ export const CrewPaymentDashboard = ({ booking, onUpdate }) => {
   const fetchCrewStatus = async () => {
     try {
       setLoading(true);
-      const response = await axios.get(`${API}/bookings/${booking.id}/crew-status`);
+      const response = await apiClient.get(`/bookings/${booking.id}/crew-status`);
       setCrewMembers(response.data?.crew || []);
       
       // Initialize custom amounts
@@ -89,7 +89,7 @@ export const CrewPaymentDashboard = ({ booking, onUpdate }) => {
   const handleNudge = async (memberId) => {
     setSendingNudge(memberId);
     try {
-      await axios.post(`${API}/bookings/${booking.id}/nudge`, {
+      await apiClient.post(`/bookings/${booking.id}/nudge`, {
         participant_id: memberId
       });
       toast.success('Reminder sent!');
@@ -112,7 +112,7 @@ export const CrewPaymentDashboard = ({ booking, onUpdate }) => {
 
     setSendingNudge('all');
     try {
-      await axios.post(`${API}/bookings/${booking.id}/nudge-all`);
+      await apiClient.post(`/bookings/${booking.id}/nudge-all`);
       toast.success(`Reminders sent to ${pendingIds.length} crew members!`);
     } catch (error) {
       toast.error('Failed to send reminders');
@@ -130,7 +130,7 @@ export const CrewPaymentDashboard = ({ booking, onUpdate }) => {
     }
 
     try {
-      await axios.post(`${API}/bookings/${booking.id}/update-splits`, {
+      await apiClient.post(`/bookings/${booking.id}/update-splits`, {
         splits: Object.entries(customAmounts).map(([id, amount]) => ({
           participant_id: id,
           share_amount: parseFloat(amount)

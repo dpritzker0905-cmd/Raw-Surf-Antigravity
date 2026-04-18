@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
@@ -13,10 +13,9 @@ import { Badge } from './ui/badge';
 import { Input } from './ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from './ui/dialog';
 import { toast } from 'sonner';
-import axios from 'axios';
+import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import logger from '../utils/logger';
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 /**
  * Stoke Sponsor Dashboard - Photographers supporting Surfers
@@ -51,8 +50,8 @@ export const StokeSponsorDashboard = () => {
     try {
       const filterParam = tierFilter ? `&tier_filter=${tierFilter}` : '';
       const [surfersRes, contributionsRes] = await Promise.all([
-        axios.get(`${API}/career/stoke-sponsor/eligible-surfers?photographer_id=${user.id}${filterParam}`),
-        axios.get(`${API}/career/stoke-sponsor/my-contributions/${user.id}`)
+        apiClient.get(`/career/stoke-sponsor/eligible-surfers?photographer_id=${user.id}${filterParam}`),
+        apiClient.get(`/career/stoke-sponsor/my-contributions/${user.id}`)
       ]);
       
       setEligibleSurfers(surfersRes.data?.eligible_surfers || []);
@@ -323,7 +322,7 @@ const ContributeModal = ({ isOpen, onClose, surfer, photographerId, userCredits,
 
     setLoading(true);
     try {
-      await axios.post(`${API}/career/stoke-sponsor/contribute?photographer_id=${photographerId}`, {
+      await apiClient.post(`/career/stoke-sponsor/contribute?photographer_id=${photographerId}`, {
         surfer_id: surfer.id,
         amount: numAmount,
         message: message || null

@@ -1,11 +1,11 @@
-/**
+﻿/**
  * InviteNearbyCrewModal - Popup for inviting nearby friends to split a booking
  * 
  * Appears when creating a NEW booking (scheduled or on-demand) to offer splitting costs
  * NOT for active live shooting sessions - this is for booking together before the session
  */
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import apiClient, { BACKEND_URL } from '../../lib/apiClient';
 import { 
   Users, MapPin, 
   Loader2, UserPlus, Check, Calendar, Waves,
@@ -18,7 +18,6 @@ import { Avatar, AvatarImage, AvatarFallback } from './ui/avatar';
 import { Checkbox } from './ui/checkbox';
 import { toast } from 'sonner';
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 export const InviteNearbyCrewModal = ({
   isOpen,
@@ -70,7 +69,7 @@ export const InviteNearbyCrewModal = ({
         }
         
         // Fetch nearby friends from API
-        const response = await axios.get(`${API}/friends/nearby`, {
+        const response = await apiClient.get(`/friends/nearby`, {
           params: {
             user_id: user.id,
             latitude: lat,
@@ -109,7 +108,7 @@ export const InviteNearbyCrewModal = ({
     setSending(true);
     try {
       // Send invites to selected friends
-      await axios.post(`${API}/bookings/${booking.id}/invite-crew`, {
+      await apiClient.post(`/bookings/${booking.id}/invite-crew`, {
         friend_ids: selectedFriends,
         share_amount: parseFloat(pricePerPerson),
         message: `Join my surf session! Split cost: $${pricePerPerson}/person`

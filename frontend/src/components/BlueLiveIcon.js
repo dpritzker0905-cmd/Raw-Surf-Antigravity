@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+﻿import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Radio, ChevronRight, MapPin, Users, Settings, Loader2, Play } from 'lucide-react';
@@ -6,11 +6,10 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from './ui
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Badge } from './ui/badge';
 import { toast } from 'sonner';
-import axios from 'axios';
+import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import { SpotSelector } from './SpotSelector';
 import logger from '../utils/logger';
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 /**
  * BlueLiveIcon - Live Duty Access for Pro/Verified Photographers
@@ -381,7 +380,7 @@ export const BlueLiveIcon = () => {
 
   const fetchLiveStatus = async () => {
     try {
-      const response = await axios.get(`${API}/photographer/${user.id}/status`);
+      const response = await apiClient.get(`/photographer/${user.id}/status`);
       const data = response.data;
       setLiveActive(data?.is_shooting || false);
       
@@ -398,7 +397,7 @@ export const BlueLiveIcon = () => {
 
   const fetchOnDemandStatus = async () => {
     try {
-      const response = await axios.get(`${API}/photographer/${user.id}/on-demand-status`);
+      const response = await apiClient.get(`/photographer/${user.id}/on-demand-status`);
       setOnDemandActive(response.data?.is_available || false);
     } catch (error) {
       logger.error('Failed to fetch on-demand status:', error);
@@ -409,7 +408,7 @@ export const BlueLiveIcon = () => {
     try {
       if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(async (position) => {
-          const response = await axios.get(`${API}/photographers/live`, {
+          const response = await apiClient.get(`/photographers/live`, {
             params: {
               latitude: position.coords.latitude,
               longitude: position.coords.longitude,
@@ -432,7 +431,7 @@ export const BlueLiveIcon = () => {
   const handleEndSession = async () => {
     setLoading(true);
     try {
-      await axios.post(`${API}/photographer/${user.id}/end-session`);
+      await apiClient.post(`/photographer/${user.id}/end-session`);
       setLiveActive(false);
       setSelectedSpot(null);
       toast.success('Live session ended');
@@ -453,14 +452,14 @@ export const BlueLiveIcon = () => {
     try {
       // MUTUAL EXCLUSION: Turn off On-Demand if active
       if (onDemandActive) {
-        await axios.post(`${API}/photographer/${user.id}/on-demand-toggle`, {
+        await apiClient.post(`/photographer/${user.id}/on-demand-toggle`, {
           is_available: false
         });
         setOnDemandActive(false);
         toast.info('Switching to Live mode. On-Demand disabled.');
       }
 
-      await axios.post(`${API}/photographer/${user.id}/go-live`, {
+      await apiClient.post(`/photographer/${user.id}/go-live`, {
         spot_id: selectedSpot.id,
         spot_name: selectedSpot.name,
         latitude: selectedSpot.latitude,

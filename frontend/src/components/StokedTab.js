@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import { 
   Zap, Heart, DollarSign, Users, ShoppingBag, Camera, Loader2, TrendingUp, Sparkles, CheckCircle
 } from 'lucide-react';
@@ -11,7 +11,6 @@ import { Progress } from './ui/progress';
 import { usePersona } from '../contexts/PersonaContext';
 import logger from '../utils/logger';
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 // Default stoke level for new/empty users
 const DEFAULT_STOKE_LEVEL = {
@@ -72,7 +71,7 @@ export const StokedTab = ({ userId, isOwnProfile }) => {
   const fetchStokedData = async () => {
     setLoading(true);
     try {
-      const response = await axios.get(`${API}/stoked/${userId}`);
+      const response = await apiClient.get(`/stoked/${userId}`);
       setStokedData(response.data);
     } catch (error) {
       logger.error('Failed to fetch stoked data:', error);

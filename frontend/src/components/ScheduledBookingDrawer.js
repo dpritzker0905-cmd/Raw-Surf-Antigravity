@@ -1,4 +1,4 @@
-/**
+﻿/**
  * ScheduledBookingDrawer - Complete booking flow for scheduled sessions
  * Integrates: ExactTimeSlotPicker, Impact Zone coordinates, Account Credit, Crew Split, Confirmation
  */
@@ -20,13 +20,12 @@ import { Label } from './ui/label';
 import { Slider } from './ui/slider';
 import { Switch } from './ui/switch';
 import { toast } from 'sonner';
-import axios from 'axios';
+import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import { ExactTimeSlotPicker } from './ExactTimeSlotPicker';
 import { SavedCrewSelector } from './SavedCrewSelector';
 import { SelfieCapture } from './SelfieCapture';
 import logger from '../utils/logger';
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 // Duration prices multiplier
 const DURATION_PRICES = {
@@ -178,7 +177,7 @@ const ImpactZonePicker = ({
     setSpotsLoading(true);
     try {
       // Fetch spots within full service radius
-      const response = await axios.get(`${API}/surf-spots/nearby`, {
+      const response = await apiClient.get(`/surf-spots/nearby`, {
         params: { latitude: lat, longitude: lng, radius_miles: serviceRadius }
       });
       let spots = response.data || [];
@@ -274,7 +273,7 @@ const ImpactZonePicker = ({
     
     try {
       // Fetch available locations for filtering
-      const locResponse = await axios.get(`${API}/surf-spots/locations`);
+      const locResponse = await apiClient.get(`/surf-spots/locations`);
       setLocationData(locResponse.data);
       
       // If photographer has coordinates, also fetch nearby spots
@@ -299,7 +298,7 @@ const ImpactZonePicker = ({
       if (country) params.country = country;
       if (state) params.state_province = state;
       
-      const response = await axios.get(`${API}/surf-spots`, { params });
+      const response = await apiClient.get(`/surf-spots`, { params });
       const spots = response.data || [];
       
       // Enhance spots with distance from photographer if available
@@ -1025,8 +1024,8 @@ const CrewSplitSection = ({
     try {
       // Fetch recent session buddies
       const [buddiesRes, followingRes] = await Promise.all([
-        axios.get(`${API}/api/users/${user.id}/recent-buddies?limit=10`).catch(() => ({ data: { buddies: [] } })),
-        axios.get(`${API}/api/users/${user.id}/following?limit=20`).catch(() => ({ data: { following: [] } }))
+        apiClient.get(`/api/users/${user.id}/recent-buddies?limit=10`).catch(() => ({ data: { buddies: [] } })),
+        apiClient.get(`/api/users/${user.id}/following?limit=20`).catch(() => ({ data: { following: [] } }))
       ]);
       setRecentBuddies(buddiesRes.data.buddies || []);
       setFollowing(followingRes.data.following || []);
@@ -1047,7 +1046,7 @@ const CrewSplitSection = ({
     
     setSearching(true);
     try {
-      const res = await axios.get(`${API}/api/users/search?query=${encodeURIComponent(query)}&limit=10`);
+      const res = await apiClient.get(`/api/users/search?query=${encodeURIComponent(query)}&limit=10`);
       // Filter out current user and already selected members
       const selectedIds = crewMembers.map(m => m.user_id);
       const filtered = (res.data.users || []).filter(u => 
@@ -1638,7 +1637,7 @@ export const ScheduledBookingDrawer = ({
       // If there's an amount to charge and user selected card payment
       if (amountToCharge > 0 && paymentMethod === 'card') {
         // Create booking with pending payment status and redirect to Stripe
-        const response = await axios.post(`${API}/bookings/create-with-stripe?user_id=${user.id}`, {
+        const response = await apiClient.post(`/bookings/create-with-stripe?user_id=${user.id}`, {
           photographer_id: photographer.id,
           location: impactZone.description,
           session_date: sessionDateTime.toISOString(),
@@ -1670,7 +1669,7 @@ export const ScheduledBookingDrawer = ({
       }
       
       // Full credit payment or credits cover everything
-      const response = await axios.post(`${API}/bookings/create?user_id=${user.id}`, {
+      const response = await apiClient.post(`/bookings/create?user_id=${user.id}`, {
         photographer_id: photographer.id,
         location: impactZone.description,
         session_date: sessionDateTime.toISOString(),
@@ -1698,7 +1697,7 @@ export const ScheduledBookingDrawer = ({
       // If crew split is enabled, send payment requests to crew members
       if (crewSplitEnabled && crewMembers.length > 0 && response.data.booking?.id) {
         try {
-          await axios.post(`${API}/bookings/${response.data.booking.id}/send-crew-requests?user_id=${user.id}`, {
+          await apiClient.post(`/bookings/${response.data.booking.id}/send-crew-requests?user_id=${user.id}`, {
             crew_members: crewMemberData,
             price_per_person: pricePerPerson,
             payment_deadline: paymentWindowExpires?.toISOString(),
@@ -1727,7 +1726,7 @@ export const ScheduledBookingDrawer = ({
       // Upload selfie for the booking if captured
       if (selfieUrl && response.data.booking?.id) {
         try {
-          await axios.patch(`${API}/bookings/${response.data.booking.id}/participant-selfie`, {
+          await apiClient.patch(`/bookings/${response.data.booking.id}/participant-selfie`, {
             participant_id: user.id,
             selfie_url: selfieUrl
           });

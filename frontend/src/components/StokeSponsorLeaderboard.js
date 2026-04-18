@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../contexts/ThemeContext';
 import { 
@@ -9,10 +9,9 @@ import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { Badge } from './ui/badge';
-import axios from 'axios';
+import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import logger from '../utils/logger';
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 /**
  * Stoke Sponsor Leaderboard - Top photographers supporting surfers
@@ -39,7 +38,7 @@ export const StokeSponsorLeaderboard = ({ compact = false }) => {
   const fetchLeaderboard = async () => {
     setLoading(true);
     try {
-      const res = await axios.get(`${API}/career/stoke-sponsor/leaderboard?time_range=${timeRange}`);
+      const res = await apiClient.get(`/career/stoke-sponsor/leaderboard?time_range=${timeRange}`);
       setLeaderboard(res.data?.leaderboard || []);
       setStats(res.data?.stats || { total_contributed: 0, total_to_groms: 0, total_sponsors: 0 });
     } catch (error) {

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+﻿import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   X, Radio, Users, Heart, MessageCircle, Send, Loader2, WifiOff, 
@@ -8,7 +8,7 @@ import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { useAuth } from '../contexts/AuthContext';
-import axios from 'axios';
+import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import { toast } from 'sonner';
 
 // LiveKit imports
@@ -60,7 +60,7 @@ const LiveComments = ({ streamId, userId, userName, userAvatar }) => {
   useEffect(() => {
     const fetchComments = async () => {
       try {
-        const response = await axios.get(`${API}/social-live/${streamId}/comments`);
+        const response = await apiClient.get(`/social-live/${streamId}/comments`);
         if (response.data?.comments) {
           setComments(response.data.comments);
         }
@@ -85,7 +85,7 @@ const LiveComments = ({ streamId, userId, userName, userAvatar }) => {
 
     setSending(true);
     try {
-      await axios.post(`${API}/social-live/${streamId}/comments`, {
+      await apiClient.post(`/social-live/${streamId}/comments`, {
         user_id: userId,
         user_name: userName,
         avatar_url: userAvatar,
@@ -491,7 +491,7 @@ const LiveStreamViewer = ({ isOpen, onClose, streamInfo }) => {
     }
 
     if (streamInfo?.id && user?.id) {
-      axios.post(`${API}/social-live/${streamInfo.id}/leave?viewer_id=${user.id}`).catch(() => {/* fire-and-forget */});
+      apiClient.post(`/social-live/${streamInfo.id}/leave?viewer_id=${user.id}`).catch(() => {/* fire-and-forget */});
     }
     
     onClose();

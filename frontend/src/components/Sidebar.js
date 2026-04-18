@@ -1,15 +1,14 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { usePersona, getExpandedRoleInfo } from '../contexts/PersonaContext';
 import { Home, Compass, MapPin, Calendar, MessageCircle, Bell, BellRing, User, Settings, LogOut, Camera, Shield, ChevronDown, ChevronRight, Image, CalendarCheck, Radio, ShoppingBag, Heart, Sun, Moon, Waves, Eye, TrendingUp, Zap, Crown, Baby, Lock, Plus, Stamp, Target, Backpack, CreditCard } from 'lucide-react';
-import axios from 'axios';
+import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import { SurfPassport } from './SurfPassport';
 import { GlobalSearchBar } from './GlobalSearchBar';
 import logger from '../utils/logger';
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 export const Sidebar = () => {
   const { user, logout } = useAuth();
@@ -115,7 +114,7 @@ export const Sidebar = () => {
 
   const fetchUnreadCount = async () => {
     try {
-      const response = await axios.get(`${API}/notifications/${user.id}/unread-count`);
+      const response = await apiClient.get(`/notifications/${user.id}/unread-count`);
       setUnreadCount(response.data.unread_count || 0);
     } catch (error) {
       logger.error('Failed to fetch notification count:', error);
@@ -124,7 +123,7 @@ export const Sidebar = () => {
 
   const fetchUnreadMessages = async () => {
     try {
-      const response = await axios.get(`${API}/messages/conversations/${user.id}`);
+      const response = await apiClient.get(`/messages/conversations/${user.id}`);
       const convs = response.data.conversations || response.data || [];
       const total = convs.reduce((sum, c) => sum + (c.unread_count || 0), 0);
       setUnreadMessages(total);

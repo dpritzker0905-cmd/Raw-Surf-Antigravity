@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import axios from 'axios';
+import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Card } from './ui/card';
@@ -8,7 +8,6 @@ import { toast } from 'sonner';
 import { ArrowLeft, Mail, Lock, Eye, EyeOff, Check, Loader2 } from 'lucide-react';
 import logger from '../utils/logger';
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 export const ForgotPassword = () => {
   const navigate = useNavigate();
@@ -22,7 +21,7 @@ export const ForgotPassword = () => {
     setLoading(true);
 
     try {
-      const response = await axios.post(`${API}/auth/forgot-password`, { email });
+      const response = await apiClient.post(`/auth/forgot-password`, { email });
       setSent(true);
       toast.success('Reset link sent! Check your email.');
       
@@ -203,7 +202,7 @@ export const ResetPassword = () => {
       logger.debug('[Password Reset] Verifying token:', token.substring(0, 10) + '...');
 
       try {
-        const response = await axios.post(`${API}/auth/verify-reset-token`, { token });
+        const response = await apiClient.post(`/auth/verify-reset-token`, { token });
         setTokenValid(true);
         setEmail(response.data.email || '');
       } catch (error) {
@@ -232,7 +231,7 @@ export const ResetPassword = () => {
     setLoading(true);
 
     try {
-      await axios.post(`${API}/auth/reset-password`, {
+      await apiClient.post(`/auth/reset-password`, {
         token,
         new_password: password
       });

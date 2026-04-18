@@ -1,4 +1,4 @@
-/**
+﻿/**
  * GoldPassBookingsSection - Exclusive early-access booking slots for Premium subscribers
  * 
  * Gold Pass Feature:
@@ -9,7 +9,7 @@
  * Placement: Bookings page, before the main booking tabs
  */
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import apiClient, { BACKEND_URL } from '../../lib/apiClient';
 import { 
   Crown, Sparkles, Loader2, ChevronRight, Lock, 
   Calendar, Clock, Camera, ArrowUpRight
@@ -23,7 +23,6 @@ import { GoldPassSlotCard } from '../GoldPassSlotCard';
 import { useNavigate } from 'react-router-dom';
 import logger from '../../utils/logger';
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 export const GoldPassBookingsSection = ({ user, theme, onBookingComplete }) => {
   const navigate = useNavigate();
@@ -48,7 +47,7 @@ export const GoldPassBookingsSection = ({ user, theme, onBookingComplete }) => {
   const fetchGoldPassSlots = async () => {
     setLoading(true);
     try {
-      const response = await axios.get(`${API}/career/gold-pass/available?surfer_id=${user.id}`);
+      const response = await apiClient.get(`/career/gold-pass/available?surfer_id=${user.id}`);
       setSlots(response.data.slots || []);
       setHasGoldPass(response.data.has_gold_pass || false);
     } catch (error) {

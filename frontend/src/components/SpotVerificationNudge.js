@@ -1,13 +1,12 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { CheckCircle, AlertCircle, MapPin, Loader2, X } from 'lucide-react';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { useAuth } from '../contexts/AuthContext';
-import axios from 'axios';
+import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import { toast } from 'sonner';
 import logger from '../utils/logger';
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 /**
  * SpotVerificationNudge - Photographer verification prompt
@@ -33,7 +32,7 @@ export const SpotVerificationNudge = ({ spot, userLocation, _onClose }) => {
       if (!user?.id || !spot?.id) return;
       
       try {
-        const response = await axios.get(`${API}/spots/verification/${spot.id}/status`, {
+        const response = await apiClient.get(`/spots/verification/${spot.id}/status`, {
           params: { user_id: user.id }
         });
         

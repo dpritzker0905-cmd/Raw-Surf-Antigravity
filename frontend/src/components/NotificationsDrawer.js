@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import axios from 'axios';
+﻿import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { 
@@ -13,7 +13,6 @@ import { toast } from 'sonner';
 import logger from '../utils/logger';
 import { getNotificationDeepLink } from '../utils/notificationDeepLinks';
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 // Notification type configurations
 const NOTIFICATION_CONFIG = {
@@ -119,7 +118,7 @@ export const NotificationsDrawer = ({ isOpen, onClose, onCountUpdate }) => {
   const fetchNotifications = async () => {
     try {
       setLoading(true);
-      const response = await axios.get(`${API}/notifications/${user.id}`);
+      const response = await apiClient.get(`/notifications/${user.id}`);
       setNotifications(response.data);
     } catch (error) {
       logger.error('Failed to fetch notifications:', error);
@@ -154,7 +153,7 @@ export const NotificationsDrawer = ({ isOpen, onClose, onCountUpdate }) => {
 
   const _handleMarkAsRead = async (notificationId) => {
     try {
-      await axios.post(`${API}/notifications/${notificationId}/read`);
+      await apiClient.post(`/notifications/${notificationId}/read`);
       setNotifications(notifications.map(n => 
         n.id === notificationId ? { ...n, is_read: true } : n
       ));
@@ -166,7 +165,7 @@ export const NotificationsDrawer = ({ isOpen, onClose, onCountUpdate }) => {
 
   const handleMarkAllRead = async () => {
     try {
-      await axios.post(`${API}/notifications/${user.id}/read-all`);
+      await apiClient.post(`/notifications/${user.id}/read-all`);
       setNotifications(notifications.map(n => ({ ...n, is_read: true })));
       toast.success('All marked as read');
       if (onCountUpdate) onCountUpdate();
@@ -199,7 +198,7 @@ export const NotificationsDrawer = ({ isOpen, onClose, onCountUpdate }) => {
     // Mark as read first
     if (!notification.is_read) {
       try {
-        await axios.post(`${API}/notifications/${notification.id}/read`);
+        await apiClient.post(`/notifications/${notification.id}/read`);
         setNotifications(prev => prev.map(n => 
           n.id === notification.id ? { ...n, is_read: true } : n
         ));

@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+﻿import React, { useState, useEffect } from 'react';
+import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import { Waves, Clock, Compass, Users, Star, MessageSquare, ChevronDown, ChevronUp, Loader2, ArrowUp, ArrowDown, Droplets, Calendar, Lock, Crown } from 'lucide-react';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
@@ -10,7 +10,6 @@ import { toast } from 'sonner';
 import { useAuth } from '../contexts/AuthContext';
 import logger from '../utils/logger';
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 // Get subscription tier for forecast access
 const getForecastDays = (subscriptionTier) => {
@@ -72,7 +71,7 @@ export const SpotConditions = ({ spotId, spotName, compact = false }) => {
 
   const fetchConditions = async () => {
     try {
-      const response = await axios.get(`${API}/conditions/${spotId}`);
+      const response = await apiClient.get(`/conditions/${spotId}`);
       setConditions(response.data);
     } catch (error) {
       logger.error('Error fetching conditions:', error);
@@ -83,7 +82,7 @@ export const SpotConditions = ({ spotId, spotName, compact = false }) => {
 
   const fetchTideData = async () => {
     try {
-      const response = await axios.get(`${API}/tides/${spotId}`);
+      const response = await apiClient.get(`/tides/${spotId}`);
       if (!response.data.error) {
         setTideData(response.data);
       }
@@ -94,7 +93,7 @@ export const SpotConditions = ({ spotId, spotName, compact = false }) => {
 
   const fetchTodaysReports = async () => {
     try {
-      const response = await axios.get(`${API}/surf-reports/today/${spotId}`);
+      const response = await apiClient.get(`/surf-reports/today/${spotId}`);
       setReports(response.data);
     } catch (error) {
       logger.error('Error fetching reports:', error);
@@ -103,7 +102,7 @@ export const SpotConditions = ({ spotId, spotName, compact = false }) => {
 
   const fetchForecast = async () => {
     try {
-      const response = await axios.get(`${API}/conditions/forecast/${spotId}`);
+      const response = await apiClient.get(`/conditions/forecast/${spotId}`);
       if (response.data?.forecast) {
         setForecast(response.data.forecast);
       }
@@ -120,7 +119,7 @@ export const SpotConditions = ({ spotId, spotName, compact = false }) => {
 
     setReportLoading(true);
     try {
-      await axios.post(`${API}/surf-reports?user_id=${user.id}`, {
+      await apiClient.post(`/surf-reports?user_id=${user.id}`, {
         spot_id: spotId,
         ...reportData
       });

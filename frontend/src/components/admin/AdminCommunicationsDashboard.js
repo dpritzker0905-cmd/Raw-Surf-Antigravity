@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useMemo } from 'react';
+﻿import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
-import axios from 'axios';
+import apiClient, { BACKEND_URL } from '../../lib/apiClient';
 import {
   Megaphone, Mail, Send, Search,
   Loader2, Plus, Copy
@@ -17,7 +17,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { toast } from 'sonner';
 import logger from '../../utils/logger';
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 /**
  * Admin Communications Dashboard
@@ -71,7 +70,7 @@ export const AdminCommunicationsDashboard = () => {
 
   const fetchStats = async () => {
     try {
-      const response = await axios.get(`${API}/admin/communication/stats?admin_id=${user.id}&days=30`);
+      const response = await apiClient.get(`/admin/communication/stats?admin_id=${user.id}&days=30`);
       setStats(response.data);
     } catch (error) {
       logger.error('Failed to load stats:', error);
@@ -82,13 +81,13 @@ export const AdminCommunicationsDashboard = () => {
     setLoading(true);
     try {
       if (activeTab === 'announcements') {
-        const response = await axios.get(`${API}/admin/announcements?admin_id=${user.id}`);
+        const response = await apiClient.get(`/admin/announcements?admin_id=${user.id}`);
         setAnnouncements(response.data.announcements || []);
       } else if (activeTab === 'templates') {
-        const response = await axios.get(`${API}/admin/message-templates?admin_id=${user.id}`);
+        const response = await apiClient.get(`/admin/message-templates?admin_id=${user.id}`);
         setTemplates(response.data.templates || []);
       } else if (activeTab === 'campaigns') {
-        const response = await axios.get(`${API}/admin/bulk-campaigns?admin_id=${user.id}`);
+        const response = await apiClient.get(`/admin/bulk-campaigns?admin_id=${user.id}`);
         setCampaigns(response.data.campaigns || []);
       }
     } catch (error) {
@@ -106,7 +105,7 @@ export const AdminCommunicationsDashboard = () => {
     }
     setActionLoading(true);
     try {
-      await axios.post(`${API}/admin/announcements?admin_id=${user.id}`, announcementForm);
+      await apiClient.post(`/admin/announcements?admin_id=${user.id}`, announcementForm);
       toast.success('Announcement created');
       setShowAnnouncementForm(false);
       setAnnouncementForm({ title: '', content: '', type: 'info', target_audience: 'all', priority: 1 });
@@ -120,7 +119,7 @@ export const AdminCommunicationsDashboard = () => {
 
   const handleToggleAnnouncement = async (id) => {
     try {
-      await axios.put(`${API}/admin/announcements/${id}/toggle?admin_id=${user.id}`);
+      await apiClient.put(`/admin/announcements/${id}/toggle?admin_id=${user.id}`);
       fetchDataForTab();
     } catch (error) {
       toast.error('Failed to toggle announcement');
@@ -135,7 +134,7 @@ export const AdminCommunicationsDashboard = () => {
     }
     setActionLoading(true);
     try {
-      await axios.post(`${API}/admin/message-templates?admin_id=${user.id}`, templateForm);
+      await apiClient.post(`/admin/message-templates?admin_id=${user.id}`, templateForm);
       toast.success('Template created');
       setShowTemplateForm(false);
       setTemplateForm({ name: '', subject: '', body: '', template_type: 'email', category: 'general' });
@@ -155,7 +154,7 @@ export const AdminCommunicationsDashboard = () => {
     }
     setActionLoading(true);
     try {
-      await axios.post(`${API}/admin/bulk-campaigns?admin_id=${user.id}`, campaignForm);
+      await apiClient.post(`/admin/bulk-campaigns?admin_id=${user.id}`, campaignForm);
       toast.success('Campaign created');
       setShowCampaignForm(false);
       setCampaignForm({ name: '', subject: '', body: '', channel: 'email', target_audience: 'all', template_id: '' });
@@ -171,7 +170,7 @@ export const AdminCommunicationsDashboard = () => {
     if (!confirm('Send this campaign to all target users?')) return;
     setActionLoading(true);
     try {
-      const response = await axios.post(`${API}/admin/bulk-campaigns/${campaignId}/send?admin_id=${user.id}`);
+      const response = await apiClient.post(`/admin/bulk-campaigns/${campaignId}/send?admin_id=${user.id}`);
       toast.success(`Sent to ${response.data.total_sent} users`);
       fetchDataForTab();
       fetchStats();

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { 
   MapPin, Waves, Camera, Clock, Users, X, TrendingUp, Loader2, Radio, Calendar, MessageCircle, Compass,
@@ -13,12 +13,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Textarea } from './ui/textarea';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
-import axios from 'axios';
+import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import { toast } from 'sonner';
 import { ScheduledBookingDrawer } from './ScheduledBookingDrawer';
 import logger from '../utils/logger';
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 // Conditions color mapping
 const conditionColors = {
@@ -263,7 +262,7 @@ const PhotographerRequestModal = ({ isOpen, onClose, spot, spotId, onSuccess }) 
     
     setIsSubmitting(true);
     try {
-      const response = await axios.post(`${API}/photographer-request?user_id=${user.id}`, {
+      const response = await apiClient.post(`/photographer-request?user_id=${user.id}`, {
         spot_id: spotId,
         urgency,
         preferred_time: preferredTime || null,
@@ -510,7 +509,7 @@ const SpotHub = () => {
     try {
       setPulseLoading(true);
       const viewerId = user?.id || '';
-      const response = await axios.get(`${API}/surf-spots/${spotId}/live-shooting-pulse?viewer_id=${viewerId}`);
+      const response = await apiClient.get(`/surf-spots/${spotId}/live-shooting-pulse?viewer_id=${viewerId}`);
       setLivePulse(response.data);
     } catch (error) {
       logger.error('Error fetching live pulse:', error);
@@ -535,7 +534,7 @@ const SpotHub = () => {
     setLoading(true);
     try {
       // Fetch spot details with forecast
-      const detailsResponse = await axios.get(`${API}/explore/spot-details/${spotId}?subscription_tier=${userTier}`);
+      const detailsResponse = await apiClient.get(`/explore/spot-details/${spotId}?subscription_tier=${userTier}`);
       if (detailsResponse.data.error) {
         toast.error(detailsResponse.data.error);
         setLoading(false);
@@ -554,8 +553,8 @@ const SpotHub = () => {
       
       // Fetch additional data in parallel
       const [reportsRes, postsRes] = await Promise.allSettled([
-        axios.get(`${API}/condition-reports/spot/${spotId}?limit=10`),
-        axios.get(`${API}/posts/spot/${spotId}?limit=50&viewer_id=${user?.id || ''}`) // Only posts TAGGED to this spot
+        apiClient.get(`/condition-reports/spot/${spotId}?limit=10`),
+        apiClient.get(`/posts/spot/${spotId}?limit=50&viewer_id=${user?.id || ''}`) // Only posts TAGGED to this spot
       ]);
       
       if (reportsRes.status === 'fulfilled') {

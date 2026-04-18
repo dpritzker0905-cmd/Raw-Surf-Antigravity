@@ -1,14 +1,13 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
-import axios from 'axios';
+import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import { DollarSign, CreditCard, CheckCircle, Coins, Loader2 } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { toast } from 'sonner';
 import logger from '../utils/logger';
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 export const Credits = () => {
   const { user, updateUser } = useAuth();
@@ -62,7 +61,7 @@ export const Credits = () => {
       }
 
       try {
-        const response = await axios.get(`${API}/credits/status/${sessionId}`);
+        const response = await apiClient.get(`/credits/status/${sessionId}`);
         if (response.data.status === 'completed') {
           setPurchaseSuccess(true);
           setCreditsAdded(response.data.credits_added || 0);
@@ -101,7 +100,7 @@ export const Credits = () => {
 
     try {
       const originUrl = window.location.origin;
-      const response = await axios.post(`${API}/credits/purchase?user_id=${user.id}`, {
+      const response = await apiClient.post(`/credits/purchase?user_id=${user.id}`, {
         amount: parseFloat(amount),
         origin_url: originUrl
       });

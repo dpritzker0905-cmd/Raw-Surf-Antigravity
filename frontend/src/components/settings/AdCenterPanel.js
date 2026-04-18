@@ -1,4 +1,4 @@
-/**
+﻿/**
  * AdCenterPanel - User's Ad Management Hub in Settings
  * - Create new ads
  * - View ad activity (submissions with status)
@@ -8,7 +8,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
-import axios from 'axios';
+import apiClient, { BACKEND_URL } from '../../lib/apiClient';
 import { 
   Megaphone, Plus, Activity, BarChart2, 
   Loader2, CheckCircle, Clock, XCircle, Eye, MousePointer, TrendingUp
@@ -18,7 +18,6 @@ import { Badge } from '../ui/badge';
 import { CreateAdModal } from '../CreateAdModal';
 import logger from '../../utils/logger';
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 export const AdCenterPanel = () => {
   const { user } = useAuth();
@@ -47,12 +46,12 @@ export const AdCenterPanel = () => {
     setLoading(true);
     try {
       // Fetch user's ads
-      const adsRes = await axios.get(`${API}/ads/my-submissions?user_id=${user.id}`);
+      const adsRes = await apiClient.get(`/ads/my-submissions?user_id=${user.id}`);
       setMyAds(adsRes.data);
       
       // Fetch analytics
       try {
-        const analyticsRes = await axios.get(`${API}/ads/my-analytics?user_id=${user.id}`);
+        const analyticsRes = await apiClient.get(`/ads/my-analytics?user_id=${user.id}`);
         setAnalytics(analyticsRes.data);
       } catch (e) {
         setAnalytics(null);

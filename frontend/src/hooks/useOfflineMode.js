@@ -1,4 +1,4 @@
-/**
+﻿/**
  * useOfflineMode - React hook for managing offline spot data
  * 
  * Features:
@@ -10,10 +10,9 @@
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import axios from 'axios';
+import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import logger from '../utils/logger';
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 const SPOTS_STORAGE_KEY = 'rawsurf_cached_spots';
 const NEARBY_SPOTS_KEY = 'rawsurf_nearby_spots';
 const FAVORITE_SPOTS_KEY = 'rawsurf_favorite_spots';
@@ -146,7 +145,7 @@ export const useOfflineMode = () => {
       }
       
       // Fetch spots within 100km radius
-      const response = await axios.get(`${API}/spots-in-bounds`, {
+      const response = await apiClient.get(`/spots-in-bounds`, {
         params: {
           sw_lat: lat - 0.9, // ~100km
           sw_lng: lng - 0.9,
@@ -175,7 +174,7 @@ export const useOfflineMode = () => {
     
     try {
       // Fetch user's favorite/saved spots
-      const response = await axios.get(`${API}/users/${userId}/favorites`);
+      const response = await apiClient.get(`/users/${userId}/favorites`);
       const favorites = response.data;
       
       if (favorites && favorites.length > 0) {
@@ -218,7 +217,7 @@ export const useOfflineMode = () => {
     setIsDownloading(true);
     try {
       // Fetch all spots
-      const response = await axios.get(`${API}/surf-spots`);
+      const response = await apiClient.get(`/surf-spots`);
       const spots = response.data;
       
       // Store in localStorage

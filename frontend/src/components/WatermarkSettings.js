@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { Button } from './ui/button';
 import { Slider } from './ui/slider';
@@ -7,7 +7,7 @@ import { Input } from './ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from './ui/dialog';
 import { Droplet, Type, Image, Move, Eye, Upload, X, Loader2, Check, AlertCircle } from 'lucide-react';
-import axios from 'axios';
+import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import logger from '../utils/logger';
 
 const API = process.env.REACT_APP_BACKEND_URL;
@@ -50,7 +50,7 @@ const WatermarkSettings = ({ open, onOpenChange, theme = 'dark' }) => {
   const fetchSettings = async () => {
     setLoading(true);
     try {
-      const response = await axios.get(`${API}/api/users/${user.id}/profile`);
+      const response = await apiClient.get(`/api/users/${user.id}/profile`);
       const profile = response.data;
       
       setSettings({
@@ -70,7 +70,7 @@ const WatermarkSettings = ({ open, onOpenChange, theme = 'dark' }) => {
   const handleSaveSettings = async () => {
     setSaving(true);
     try {
-      await axios.put(`${API}/api/photographer/${user.id}/watermark-settings`, settings);
+      await apiClient.put(`/api/photographer/${user.id}/watermark-settings`, settings);
       setSavedMessage('Watermark settings saved!');
       setTimeout(() => setSavedMessage(''), 3000);
     } catch (error) {
@@ -133,7 +133,7 @@ const WatermarkSettings = ({ open, onOpenChange, theme = 'dark' }) => {
     setGeneratingPreview(true);
     try {
       // Call backend to generate a preview with current settings
-      const response = await axios.post(`${API}/api/gallery/generate-watermark-preview`, {
+      const response = await apiClient.post(`/api/gallery/generate-watermark-preview`, {
         photographer_id: user.id,
         sample_image_url: sampleImage,
         watermark_style: settings.watermark_style,

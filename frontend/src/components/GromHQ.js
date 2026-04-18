@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
@@ -22,11 +22,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from './ui/dialog';
-import axios from 'axios';
+import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import { toast } from 'sonner';
 import logger from '../utils/logger';
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 /**
  * Grom HQ - Parental Management Dashboard
@@ -84,7 +83,7 @@ export const GromHQ = () => {
     
     try {
       // Fetch linked Groms
-      const gromsResponse = await axios.get(`${API}/grom-hq/linked-groms/${user.id}`);
+      const gromsResponse = await apiClient.get(`/grom-hq/linked-groms/${user.id}`);
       setLinkedGroms(gromsResponse.data.linked_groms || []);
       setPendingRequests(gromsResponse.data.pending_requests || []);
       setStats(gromsResponse.data.stats || {
@@ -106,7 +105,7 @@ export const GromHQ = () => {
   const checkAgeVerification = async () => {
     if (!user?.id) return;
     try {
-      const response = await axios.get(`${API}/grom-hq/age-verification-status/${user.id}`);
+      const response = await apiClient.get(`/grom-hq/age-verification-status/${user.id}`);
       setAgeVerified(response.data.age_verified || false);
     } catch (error) {
       logger.error('Failed to check age verification:', error);
@@ -116,7 +115,7 @@ export const GromHQ = () => {
   const fetchSpendingAlerts = async () => {
     if (!user?.id) return;
     try {
-      const response = await axios.get(`${API}/grom-hq/spending-alerts/${user.id}?limit=5`);
+      const response = await apiClient.get(`/grom-hq/spending-alerts/${user.id}?limit=5`);
       setSpendingAlerts(response.data.alerts || []);
     } catch (error) {
       logger.error('Failed to fetch spending alerts:', error);
@@ -127,7 +126,7 @@ export const GromHQ = () => {
     if (!user?.id) return;
     setActivityLoading(true);
     try {
-      const response = await axios.get(`${API}/grom-hq/family-activity/${user.id}?limit=20`);
+      const response = await apiClient.get(`/grom-hq/family-activity/${user.id}?limit=20`);
       setActivityFeed(response.data.activities || []);
     } catch (error) {
       logger.error('Failed to fetch activity feed:', error);
@@ -139,7 +138,7 @@ export const GromHQ = () => {
 
   const markAlertRead = async (alertId) => {
     try {
-      await axios.post(`${API}/notifications/${alertId}/read`);
+      await apiClient.post(`/notifications/${alertId}/read`);
       setSpendingAlerts(prev => prev.filter(a => a.id !== alertId));
     } catch (error) {
       logger.error('Failed to mark alert read:', error);
@@ -149,7 +148,7 @@ export const GromHQ = () => {
   const startAgeVerification = async () => {
     setVerifyingAge(true);
     try {
-      const response = await axios.post(`${API}/grom-hq/create-age-verification/${user.id}`, {
+      const response = await apiClient.post(`/grom-hq/create-age-verification/${user.id}`, {
         return_url: window.location.href
       });
       
@@ -593,7 +592,7 @@ export const GromHQ = () => {
                         e.stopPropagation();
                         const newStatus = grom.elite_tier !== 'grom_rising';
                         try {
-                          await axios.post(`${API}/grom-hq/toggle-competition/${grom.id}?parent_id=${user.id}`, {
+                          await apiClient.post(`/grom-hq/toggle-competition/${grom.id}?parent_id=${user.id}`, {
                             competes: newStatus
                           });
                           // Update local state

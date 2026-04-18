@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useRef } from 'react';
+﻿import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
-import axios from 'axios';
+import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import { Radio, MapPin, Users, DollarSign, Clock, Play, Square, Eye, Camera, Zap, Settings, RefreshCw, ChevronDown, Image as ImageIcon, Heart, Target, Bug, Video, Signal, Tag, Percent, Sparkles, Calculator, Upload, AlertTriangle, Check, Search, X } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from './ui/card';
 import { Button } from './ui/button';
@@ -18,7 +18,6 @@ import EndSessionModal from './EndSessionModal';
 import { SurferRosterCard } from './SurferRosterCard';
 import logger from '../utils/logger';
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 // Helper function to get commission rate based on subscription tier
 const getCommissionRate = (subscriptionTier) => {
@@ -369,8 +368,8 @@ export const PhotographerSessionsManager = () => {
   const fetchCausesAndGroms = async () => {
     try {
       const [causesRes, gromsRes] = await Promise.all([
-        axios.get(`${API}/impact/causes`),
-        axios.get(`${API}/impact/search-groms?limit=20`)
+        apiClient.get(`/impact/causes`),
+        apiClient.get(`/impact/search-groms?limit=20`)
       ]);
       setCauses(causesRes.data || []);
       setGroms(gromsRes.data || []);
@@ -381,7 +380,7 @@ export const PhotographerSessionsManager = () => {
 
   const fetchSurfSpots = async () => {
     try {
-      const res = await axios.get(`${API}/surf-spots`);
+      const res = await apiClient.get(`/surf-spots`);
       setSurfSpots(res.data || []);
     } catch (e) {
       logger.error('Error fetching surf spots:', e);
@@ -390,7 +389,7 @@ export const PhotographerSessionsManager = () => {
 
   const fetchGalleries = async () => {
     try {
-      const res = await axios.get(`${API}/galleries/photographer/${user?.id}`);
+      const res = await apiClient.get(`/galleries/photographer/${user?.id}`);
       setGalleries(res.data || []);
     } catch (e) {
       logger.error('Error fetching galleries:', e);
@@ -402,7 +401,7 @@ export const PhotographerSessionsManager = () => {
     try {
       // Fetch pricing settings
       try {
-        const pricingRes = await axios.get(`${API}/photographer/${user?.id}/pricing`);
+        const pricingRes = await apiClient.get(`/photographer/${user?.id}/pricing`);
         setPricing(prev => ({
           ...prev,
           ...pricingRes.data
@@ -420,7 +419,7 @@ export const PhotographerSessionsManager = () => {
       
       // Fetch gallery pricing (for general_photo_price comparison and resolution pricing)
       try {
-        const galleryPricingRes = await axios.get(`${API}/photographer/${user?.id}/gallery-pricing`);
+        const galleryPricingRes = await apiClient.get(`/photographer/${user?.id}/gallery-pricing`);
         const standardPrice = galleryPricingRes.data.photo_pricing?.standard || 10;
         const webPrice = galleryPricingRes.data.photo_pricing?.web || 3;
         const highPrice = galleryPricingRes.data.photo_pricing?.high || 10;
@@ -443,7 +442,7 @@ export const PhotographerSessionsManager = () => {
       }
       
       // Check if photographer has an active session
-      const activeRes = await axios.get(`${API}/photographer/${user?.id}/active-session`);
+      const activeRes = await apiClient.get(`/photographer/${user?.id}/active-session`);
       if (activeRes.data) {
         setIsLive(true);
         setCurrentSession(activeRes.data);
@@ -460,7 +459,7 @@ export const PhotographerSessionsManager = () => {
       
       // Check on-demand status for mutual exclusivity warning
       try {
-        const statusRes = await axios.get(`${API}/photographer/${user?.id}/status`);
+        const statusRes = await apiClient.get(`/photographer/${user?.id}/status`);
         setIsOnDemandActive(statusRes.data.on_demand_available || false);
       } catch (e) {
         logger.error('Error fetching photographer status:', e);
@@ -469,7 +468,7 @@ export const PhotographerSessionsManager = () => {
       
       // Fetch session history
       try {
-        const historyRes = await axios.get(`${API}/photographer/${user?.id}/session-history`);
+        const historyRes = await apiClient.get(`/photographer/${user?.id}/session-history`);
         setSessionHistory(historyRes.data || []);
       } catch (e) {
         setSessionHistory([]);
@@ -555,7 +554,7 @@ export const PhotographerSessionsManager = () => {
   const handleSaveSettings = async () => {
     try {
       // Save settings to backend
-      const response = await axios.post(`${API}/photographer/session-settings`, {
+      const response = await apiClient.post(`/photographer/session-settings`, {
         user_id: user.id,
         ...sessionSettings
       });
@@ -575,7 +574,7 @@ export const PhotographerSessionsManager = () => {
   const fetchNearbySpots = async (lat, lng) => {
     setNearbySpotsLoading(true);
     try {
-      const response = await axios.get(`${API}/surf-spots/nearby`, {
+      const response = await apiClient.get(`/surf-spots/nearby`, {
         params: {
           latitude: lat,
           longitude: lng,
@@ -737,7 +736,7 @@ export const PhotographerSessionsManager = () => {
       }
       
       // Use regular JSON call for now (media upload handled separately if needed)
-      const response = await axios.post(`${API}/photographer/${user?.id}/go-live`, {
+      const response = await apiClient.post(`/photographer/${user?.id}/go-live`, {
         ...sessionSettings,
         location: selectedSpot?.name || sessionSettings.location,
         spot_id: sessionSettings.surf_spot_id,
@@ -814,7 +813,7 @@ export const PhotographerSessionsManager = () => {
     while (attempts < maxAttempts) {
       try {
         attempts++;
-        const response = await axios.post(`${API}/photographer/${user?.id}/end-session`);
+        const response = await apiClient.post(`/photographer/${user?.id}/end-session`);
         setIsLive(false);
         setCurrentSession(null);
         setShowEndSessionModal(false);
@@ -862,7 +861,7 @@ export const PhotographerSessionsManager = () => {
 
   const handleSavePricing = async () => {
     try {
-      await axios.put(`${API}/photographer/${user?.id}/pricing`, {
+      await apiClient.put(`/photographer/${user?.id}/pricing`, {
         live_buyin_price: pricing.live_buyin_price,
         live_photo_price: pricing.live_photo_price,
         photo_package_size: pricing.photo_package_size,
@@ -886,7 +885,7 @@ export const PhotographerSessionsManager = () => {
   const refreshSession = async () => {
     if (!isLive) return;
     try {
-      const activeRes = await axios.get(`${API}/photographer/${user?.id}/active-session`);
+      const activeRes = await apiClient.get(`/photographer/${user?.id}/active-session`);
       if (activeRes.data) {
         setCurrentSession(activeRes.data);
       }

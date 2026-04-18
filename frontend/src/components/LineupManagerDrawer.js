@@ -1,4 +1,4 @@
-/**
+﻿/**
  * LineupManagerDrawer - Captain's Command Center for managing a Lineup
  * 
  * Visual Concept: "The Lineup" - Surfers positioned in the water waiting for waves
@@ -14,7 +14,7 @@
  * - Real-time WebSocket updates
  */
 import React, { useState, useEffect, useCallback } from 'react';
-import axios from 'axios';
+import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import { 
   Users, Crown, Lock, Unlock, UserPlus, X, Copy, Send,
   DollarSign, Clock, MapPin, Loader2, MessageCircle,
@@ -32,7 +32,6 @@ import { toast } from 'sonner';
 import { useLineupWebSocket } from '../hooks/useLineupWebSocket';
 import logger from '../utils/logger';
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 // Surfboard colors for each position
 const SURFBOARD_COLORS = [
@@ -717,7 +716,7 @@ export const LineupManagerDrawer = ({
     
     setLoading(true);
     try {
-      await axios.post(`${API}/bookings/${lineup.id}/lineup/lock?user_id=${user.id}`);
+      await apiClient.post(`/bookings/${lineup.id}/lineup/lock?user_id=${user.id}`);
       toast.success('Lineup locked! Payment requests sent to crew.');
       onRefresh?.();
       onClose();
@@ -733,7 +732,7 @@ export const LineupManagerDrawer = ({
     
     setLoading(true);
     try {
-      await axios.post(`${API}/bookings/${lineup.id}/lineup/close?user_id=${user.id}`);
+      await apiClient.post(`/bookings/${lineup.id}/lineup/close?user_id=${user.id}`);
       toast.success('Lineup closed to new members');
       onRefresh?.();
     } catch (error) {
@@ -748,7 +747,7 @@ export const LineupManagerDrawer = ({
     
     setLoading(true);
     try {
-      await axios.post(`${API}/bookings/${lineup.id}/cancel?user_id=${user.id}`, {
+      await apiClient.post(`/bookings/${lineup.id}/cancel?user_id=${user.id}`, {
         reason: 'Cancelled by captain'
       });
       toast.success('Session cancelled. All participants have been notified.');
@@ -770,7 +769,7 @@ export const LineupManagerDrawer = ({
     
     setLoading(true);
     try {
-      await axios.post(`${API}/bookings/${lineup.id}/lineup/remove-member?user_id=${user.id}`, {
+      await apiClient.post(`/bookings/${lineup.id}/lineup/remove-member?user_id=${user.id}`, {
         member_id: memberId
       });
       toast.success(`${memberName} removed from lineup. Spot is now open.`);
@@ -787,7 +786,7 @@ export const LineupManagerDrawer = ({
     
     setLoading(true);
     try {
-      await axios.post(`${API}/bookings/${lineup.id}/lineup/leave?user_id=${user.id}`);
+      await apiClient.post(`/bookings/${lineup.id}/lineup/leave?user_id=${user.id}`);
       toast.success('You left the lineup. The captain has been notified.');
       onRefresh?.();
       onClose();
@@ -1216,7 +1215,7 @@ export const LineupManagerDrawer = ({
                     const newMode = localSplitMode === 'open_nearby' ? 'friends_only' : 'open_nearby';
                     // Immediately update local state for instant UI feedback
                     setLocalSplitMode(newMode);
-                    await axios.patch(`${API}/bookings/${lineup.id}?user_id=${user.id}`, {
+                    await apiClient.patch(`/bookings/${lineup.id}?user_id=${user.id}`, {
                       split_mode: newMode
                     });
                     // Update parent state
@@ -1259,7 +1258,7 @@ export const LineupManagerDrawer = ({
                     const newValue = !localAutoConfirm;
                     // Immediately update local state for instant UI feedback
                     setLocalAutoConfirm(newValue);
-                    await axios.patch(`${API}/bookings/${lineup.id}?user_id=${user.id}`, {
+                    await apiClient.patch(`/bookings/${lineup.id}?user_id=${user.id}`, {
                       lineup_auto_confirm: newValue
                     });
                     // Update parent state

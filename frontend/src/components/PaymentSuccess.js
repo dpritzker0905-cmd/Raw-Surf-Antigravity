@@ -1,15 +1,14 @@
-/**
+﻿/**
  * Payment Success Page
  * Polls Stripe for payment status and shows confirmation
  */
 import React, { useEffect, useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import { CheckCircle, Loader2, XCircle, ArrowLeft } from 'lucide-react';
 import { Button } from './ui/button';
 import logger from '../utils/logger';
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 const PaymentSuccess = () => {
   const [searchParams] = useSearchParams();
@@ -29,7 +28,7 @@ const PaymentSuccess = () => {
 
     const pollPaymentStatus = async () => {
       try {
-        const response = await axios.get(`${API}/payments/checkout/status/${sessionId}`);
+        const response = await apiClient.get(`/payments/checkout/status/${sessionId}`);
         const data = response.data;
         
         setPaymentData(data);

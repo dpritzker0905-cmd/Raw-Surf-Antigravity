@@ -1,4 +1,4 @@
-/**
+﻿/**
  * LineupTab - The Lineup: Surf Session Lobby System
  * 
  * Like an online poker lobby - surfers wait for crew to join before session locks.
@@ -11,7 +11,7 @@
  * - Countdown timer to lineup close (96hrs before session)
  */
 import React, { useState, useEffect, useCallback } from 'react';
-import axios from 'axios';
+import apiClient, { BACKEND_URL } from '../../lib/apiClient';
 import { 
   Users, Clock, MapPin, Calendar, ChevronRight, 
   Loader2, UserPlus, Lock, Unlock, Eye,
@@ -26,7 +26,6 @@ import { LineupManagerDrawer } from '../LineupManagerDrawer';
 import { useUserWebSocket } from '../../hooks/useLineupWebSocket';
 import logger from '../../utils/logger';
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 // Lineup status badges
 const STATUS_CONFIG = {
@@ -377,7 +376,7 @@ export const LineupTab = ({
     
     try {
       setLoading(true);
-      const response = await axios.get(`${API}/bookings/lineups`, {
+      const response = await apiClient.get(`/bookings/lineups`, {
         params: { user_id: user.id }
       });
       setLineups(response.data || []);
@@ -394,13 +393,13 @@ export const LineupTab = ({
   }, [fetchLineups]);
 
   const handleJoinLineup = async (bookingId) => {
-    await axios.post(`${API}/bookings/${bookingId}/lineup/join`, null, {
+    await apiClient.post(`/bookings/${bookingId}/lineup/join`, null, {
       params: { user_id: user.id }
     });
   };
 
   const handleLeaveLineup = async (bookingId) => {
-    await axios.post(`${API}/bookings/${bookingId}/lineup/leave`, null, {
+    await apiClient.post(`/bookings/${bookingId}/lineup/leave`, null, {
       params: { user_id: user.id }
     });
   };
@@ -415,7 +414,7 @@ export const LineupTab = ({
 
   // Toggle session open/closed status
   const handleToggleStatus = async (bookingId, newStatus) => {
-    await axios.post(`${API}/bookings/${bookingId}/lineup/status`, 
+    await apiClient.post(`/bookings/${bookingId}/lineup/status`, 
       { status: newStatus },
       { params: { user_id: user.id } }
     );

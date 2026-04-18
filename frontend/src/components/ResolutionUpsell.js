@@ -1,4 +1,4 @@
-/**
+﻿/**
  * ResolutionUpsell - "Upgrade to RAW" button and modal
  * 
  * Shows on all Social-tier (1080p) clips with available RAW/4K versions.
@@ -11,9 +11,8 @@ import {
   Crown, ArrowUp, Loader2, Check, Zap
 } from 'lucide-react';
 import { toast } from 'sonner';
-import axios from 'axios';
+import apiClient, { BACKEND_URL } from '../lib/apiClient';
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 /**
  * Compact Upsell Badge - Shows on gallery item cards

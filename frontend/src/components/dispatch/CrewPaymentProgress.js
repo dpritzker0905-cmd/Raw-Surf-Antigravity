@@ -1,4 +1,4 @@
-/**
+﻿/**
  * CrewPaymentProgress - TICKET-003
  * Shows individual payment status per crew member
  * Allows captain to cover remaining shares to unlock media immediately
@@ -23,7 +23,7 @@ import {
   CollapsibleTrigger,
 } from '../ui/collapsible';
 import { toast } from 'sonner';
-import axios from 'axios';
+import apiClient, { BACKEND_URL } from '../../lib/apiClient';
 
 const API = process.env.REACT_APP_BACKEND_URL;
 

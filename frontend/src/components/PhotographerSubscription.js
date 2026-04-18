@@ -1,17 +1,16 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Button } from './ui/button';
 import { Card, CardContent } from './ui/card';
 import { toast } from 'sonner';
 import { Check, X, Loader2, Calendar, Camera, Globe, Tag, Gift, Percent, Heart } from 'lucide-react';
-import axios from 'axios';
+import apiClient, { BACKEND_URL } from '../lib/apiClient';
 // Import from centralized config - SINGLE SOURCE OF TRUTH
 import { PHOTOGRAPHER_PLANS, VERIFIED_PRO_PLANS } from '../config/subscriptionPlans.config';
 import { HobbyistFunnel } from './HobbyistFunnel';
 import logger from '../utils/logger';
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 export const PhotographerSubscription = () => {
   const navigate = useNavigate();

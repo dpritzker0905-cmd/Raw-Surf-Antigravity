@@ -1,4 +1,4 @@
-/**
+﻿/**
  * useIPGeolocation - IP-based location fallback when GPS is denied
  * Features:
  * - Coastal Snap: Snaps inland IP locations to nearest coastline
@@ -6,10 +6,9 @@
  * - Session Persistence: Stores last known city for comparison
  */
 import { useState, useEffect, useCallback } from 'react';
-import axios from 'axios';
+import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import logger from '../utils/logger';
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 const LAST_CITY_KEY = 'rawsurf_last_known_city';
 const LAST_COORDS_KEY = 'rawsurf_last_known_coords';
 
@@ -54,7 +53,7 @@ export const useIPGeolocation = () => {
     try {
       const lastCity = forceRefresh ? null : getLastKnownCity();
       
-      const response = await axios.get(`${API}/location/ip-geolocation`, {
+      const response = await apiClient.get(`/location/ip-geolocation`, {
         params: {
           coastal_snap: true,
           last_city: lastCity

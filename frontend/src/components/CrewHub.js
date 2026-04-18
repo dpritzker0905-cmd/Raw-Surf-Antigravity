@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import axios from 'axios';
+﻿import React, { useState, useEffect, useMemo } from 'react';
+import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
@@ -120,7 +120,7 @@ export const CrewHub = ({
   const fetchCrewStatus = async () => {
     try {
       setLoading(true);
-      const response = await axios.get(`${API}/api/bookings/${booking.id}/crew-hub-status?captain_id=${user.id}`);
+      const response = await apiClient.get(`/api/bookings/${booking.id}/crew-hub-status?captain_id=${user.id}`);
       setCrewMembers(response.data?.crew || []);
     } catch (error) {
       logger.error('Failed to fetch crew status:', error);
@@ -170,7 +170,7 @@ export const CrewHub = ({
 
     setSavingSplits(true);
     try {
-      await axios.post(`${API}/api/bookings/${booking.id}/crew-hub/update-splits`, {
+      await apiClient.post(`/api/bookings/${booking.id}/crew-hub/update-splits`, {
         captain_id: user.id,
         splits: crewMembers.map(m => ({
           participant_id: m.participant_id || m.id,
@@ -193,7 +193,7 @@ export const CrewHub = ({
   const handleNudge = async (memberId) => {
     setSendingNudge(memberId);
     try {
-      await axios.post(`${API}/api/bookings/${booking.id}/nudge`, {
+      await apiClient.post(`/api/bookings/${booking.id}/nudge`, {
         participant_id: memberId,
         captain_id: user.id
       });
@@ -218,7 +218,7 @@ export const CrewHub = ({
 
     setSendingNudge('all');
     try {
-      await axios.post(`${API}/api/bookings/${booking.id}/nudge-all`, {
+      await apiClient.post(`/api/bookings/${booking.id}/nudge-all`, {
         captain_id: user.id
       });
       toast.success(`Reminders sent to ${pendingIds.length} crew members!`);
@@ -235,7 +235,7 @@ export const CrewHub = ({
     
     setLoading(true);
     try {
-      await axios.post(`${API}/api/bookings/${booking.id}/crew-hub/captain-cover-remaining`, {
+      await apiClient.post(`/api/bookings/${booking.id}/crew-hub/captain-cover-remaining`, {
         captain_id: user.id,
         cover_amount: remainingBalance
       });

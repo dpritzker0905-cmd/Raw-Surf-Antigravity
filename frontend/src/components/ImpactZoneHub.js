@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
@@ -13,10 +13,9 @@ import { Badge } from './ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from './ui/dialog';
 import { Input } from './ui/input';
 import { toast } from 'sonner';
-import axios from 'axios';
+import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import logger from '../utils/logger';
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 /**
  * The Impact Zone - Career Hub for Competitive Surfers
@@ -50,11 +49,11 @@ export const ImpactZoneHub = () => {
     setLoading(true);
     try {
       const [statsRes, contestsRes, resultsRes, rankingsRes, crewRes] = await Promise.all([
-        axios.get(`${API}/career/stats/${user.id}`).catch(() => ({ data: null })),
-        axios.get(`${API}/career/upcoming-contests`).catch(() => ({ data: { contests: [] } })),
-        axios.get(`${API}/career/competition-results/${user.id}`).catch(() => ({ data: { results: [] } })),
-        axios.get(`${API}/career/rankings/${user.id}`).catch(() => ({ data: null })),
-        axios.get(`${API}/social/followers/${user.id}?filter=comp`).catch(() => ({ data: [] }))
+        apiClient.get(`/career/stats/${user.id}`).catch(() => ({ data: null })),
+        apiClient.get(`/career/upcoming-contests`).catch(() => ({ data: { contests: [] } })),
+        apiClient.get(`/career/competition-results/${user.id}`).catch(() => ({ data: { results: [] } })),
+        apiClient.get(`/career/rankings/${user.id}`).catch(() => ({ data: null })),
+        apiClient.get(`/social/followers/${user.id}?filter=comp`).catch(() => ({ data: [] }))
       ]);
       
       setCompetitionStats(statsRes.data);

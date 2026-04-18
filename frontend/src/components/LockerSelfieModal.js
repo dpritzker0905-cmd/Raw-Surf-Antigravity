@@ -1,11 +1,10 @@
-import React, { useState } from 'react';
-import axios from 'axios';
+﻿import React, { useState } from 'react';
+import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import { toast } from 'sonner';
 import { ScanFace, RefreshCw } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import SelfieCapture from './SelfieCapture';
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 export const LockerSelfieModal = ({ isOpen, onClose, user, fetchClaimQueue, spotId = null, spotName = null, photographerId = null, photographerName = null }) => {
   const [scanning, setScanning] = useState(false);
@@ -13,7 +12,7 @@ export const LockerSelfieModal = ({ isOpen, onClose, user, fetchClaimQueue, spot
   const handleCapture = async (selfieUrl) => {
     setScanning(true);
     try {
-      await axios.post(`${API}/surfer-gallery/scan-locker?surfer_id=${user?.id}`, {
+      await apiClient.post(`/surfer-gallery/scan-locker?surfer_id=${user?.id}`, {
         selfie_url: selfieUrl,
         spot_id: spotId,
         photographer_id: photographerId

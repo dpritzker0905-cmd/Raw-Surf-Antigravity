@@ -1,12 +1,11 @@
-import React, { useState } from 'react';
-import axios from 'axios';
+﻿import React, { useState } from 'react';
+import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import { Camera, Check, AlertCircle } from 'lucide-react';
 import { Dialog, DialogContent, DialogTitle } from './ui/dialog';
 import { Button } from './ui/button';
 import { toast } from 'sonner';
 import { SelfieCapture } from './SelfieCapture';
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 /**
  * BookingSelfieModal - Prompts surfers to take a selfie for scheduled bookings
@@ -36,7 +35,7 @@ export const BookingSelfieModal = ({
     
     setUploading(true);
     try {
-      const response = await axios.patch(`${API}/bookings/${booking.id}/participant-selfie`, {
+      const response = await apiClient.patch(`/bookings/${booking.id}/participant-selfie`, {
         participant_id: userId,
         selfie_url: selfieUrl
       });

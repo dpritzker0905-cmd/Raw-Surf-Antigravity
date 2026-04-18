@@ -1,4 +1,4 @@
-/**
+﻿/**
  * SurferGallery - "My Gallery" / "The Locker"
  * Private media collection for surfers with full controls
  * 
@@ -36,7 +36,7 @@ import {
   DropdownMenuTrigger,
 } from './ui/dropdown-menu';
 import { toast } from 'sonner';
-import axios from 'axios';
+import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import PhotoSelectionQueue from './PhotoSelectionQueue';
 import AIProposedMatches from './AIProposedMatches';
 import { LockerSelfieModal } from './LockerSelfieModal';
@@ -44,7 +44,6 @@ import { BulkPurchaseBar, MultiSelectToggle } from './gallery/BulkPurchaseBar';
 import { VisibilityOnboarding } from './gallery/DownloadVisibility';
 import logger from '../utils/logger';
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 /**
  * Gallery Item Card Component - Enhanced with favorites and sharing
@@ -598,7 +597,7 @@ const PurchaseHistoryModal = ({ isOpen, onClose, userId }) => {
   
   const fetchHistory = async () => {
     try {
-      const response = await axios.get(`${API}/surfer-gallery/purchase-history?surfer_id=${userId}`);
+      const response = await apiClient.get(`/surfer-gallery/purchase-history?surfer_id=${userId}`);
       setHistory(response.data.purchases || []);
     } catch (error) {
       logger.error('Failed to fetch purchase history:', error);
@@ -715,7 +714,7 @@ export const SurferGallery = () => {
   const fetchGallery = async () => {
     setLoading(true);
     try {
-      const response = await axios.get(`${API}/surfer-gallery?surfer_id=${user.id}`);
+      const response = await apiClient.get(`/surfer-gallery?surfer_id=${user.id}`);
       setGalleryItems(response.data.items || []);
       setStats(response.data.stats || {});
     } catch (error) {
@@ -728,7 +727,7 @@ export const SurferGallery = () => {
   
   const fetchClaimQueue = async () => {
     try {
-      const response = await axios.get(`${API}/surfer-gallery/claim-queue?surfer_id=${user.id}`);
+      const response = await apiClient.get(`/surfer-gallery/claim-queue?surfer_id=${user.id}`);
       setClaimQueue(response.data.items || []);
     } catch (error) {
       logger.error('Failed to fetch claim queue:', error);
@@ -737,7 +736,7 @@ export const SurferGallery = () => {
   
   const fetchAiSessions = async () => {
     try {
-      const response = await axios.get(`${API}/surfer-gallery-review/ai-sessions?surfer_id=${user.id}`);
+      const response = await apiClient.get(`/surfer-gallery-review/ai-sessions?surfer_id=${user.id}`);
       setAiSessions(response.data.sessions || []);
     } catch (error) {
       logger.debug('AI sessions not available:', error);
@@ -746,7 +745,7 @@ export const SurferGallery = () => {
   
   const checkPendingSelections = async () => {
     try {
-      const response = await axios.get(`${API}/surfer-gallery/pending-selections?surfer_id=${user.id}`);
+      const response = await apiClient.get(`/surfer-gallery/pending-selections?surfer_id=${user.id}`);
       setPendingSelections(response.data.count || 0);
     } catch (error) {
       logger.error('Failed to check pending selections:', error);
@@ -756,7 +755,7 @@ export const SurferGallery = () => {
   // Handlers
   const handleVisibilityToggle = async (itemId, isPublic) => {
     try {
-      await axios.put(`${API}/surfer-gallery/${itemId}/visibility`, {
+      await apiClient.put(`/surfer-gallery/${itemId}/visibility`, {
         surfer_id: user.id,
         is_public: isPublic
       });
@@ -772,7 +771,7 @@ export const SurferGallery = () => {
   const handleFavoriteToggle = async (itemId) => {
     try {
       const item = galleryItems.find(i => i.id === itemId);
-      await axios.put(`${API}/surfer-gallery/${itemId}/favorite`, {
+      await apiClient.put(`/surfer-gallery/${itemId}/favorite`, {
         surfer_id: user.id,
         is_favorite: !item.is_favorite
       });
@@ -786,7 +785,7 @@ export const SurferGallery = () => {
   
   const handleClaimAction = async (queueItemId, action) => {
     try {
-      await axios.post(`${API}/surfer-gallery/claim-queue/${queueItemId}/action`, { action });
+      await apiClient.post(`/surfer-gallery/claim-queue/${queueItemId}/action`, { action });
       setClaimQueue(prev => prev.filter(item => item.id !== queueItemId));
       if (action === 'claim') {
         toast.success('Added to your gallery!');
@@ -801,7 +800,7 @@ export const SurferGallery = () => {
   
   const handleDownload = async (itemId, quality) => {
     try {
-      const response = await axios.get(`${API}/surfer-gallery/download/${itemId}`, {
+      const response = await apiClient.get(`/surfer-gallery/download/${itemId}`, {
         params: { surfer_id: user.id, quality_tier: quality }
       });
       window.open(response.data.download_url, '_blank');
@@ -826,7 +825,7 @@ export const SurferGallery = () => {
     setDownloadModal({ isOpen: false, item: null });
     // Convert to a singular bulk-purchase call targeting the backend Stripe logic
     try {
-      const response = await axios.post(`${API}/gallery/bulk-purchase`, {
+      const response = await apiClient.post(`/gallery/bulk-purchase`, {
         item_ids: [itemId],
         quality_tiers: { [itemId]: quality },
         buyer_id: user.id
@@ -844,7 +843,7 @@ export const SurferGallery = () => {
   };
   
   const handleRequestEdit = async (itemId, message) => {
-    await axios.post(`${API}/surfer-gallery/${itemId}/request-edit`, {
+    await apiClient.post(`/surfer-gallery/${itemId}/request-edit`, {
       surfer_id: user.id,
       message
     });
@@ -854,7 +853,7 @@ export const SurferGallery = () => {
   const handleMessagePhotographer = async (photographerId, _photographerName) => {
     try {
       // Start or get existing conversation
-      const response = await axios.post(`${API}/messages/start-conversation`, {
+      const response = await apiClient.post(`/messages/start-conversation`, {
         sender_id: user.id,
         recipient_id: photographerId,
         initial_message: null // Just open the conversation
@@ -866,7 +865,7 @@ export const SurferGallery = () => {
     } catch (error) {
       // If conversation already exists, get it
       try {
-        const checkResponse = await axios.get(`${API}/messages/check-thread/${user.id}/${photographerId}`);
+        const checkResponse = await apiClient.get(`/messages/check-thread/${user.id}/${photographerId}`);
         if (checkResponse.data.conversation_id) {
           window.location.href = `/messages?conversation=${checkResponse.data.conversation_id}`;
         }

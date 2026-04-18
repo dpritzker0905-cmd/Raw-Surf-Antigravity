@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Dispatch Payment Success Page
  * Handles Stripe payment confirmation for on-demand dispatch sessions
  * Shows selfie upload modal after payment confirmation
@@ -6,14 +6,13 @@
 import React, { useEffect, useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import axios from 'axios';
+import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import { CheckCircle, Loader2, XCircle, Camera, Sparkles, Upload } from 'lucide-react';
 import { Button } from './ui/button';
 import { toast } from 'sonner';
 import { RequestProSelfieModal } from './RequestProSelfieModal';
 import logger from '../utils/logger';
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 const DispatchPaymentSuccess = () => {
   const [searchParams] = useSearchParams();
@@ -75,7 +74,7 @@ const DispatchPaymentSuccess = () => {
           
           // Refresh user data
           try {
-            const profileResponse = await axios.get(`${API}/profiles/${user?.id}`);
+            const profileResponse = await apiClient.get(`/profiles/${user?.id}`);
             if (profileResponse.data?.credit_balance !== undefined) {
               updateUser({ credit_balance: profileResponse.data.credit_balance });
             }

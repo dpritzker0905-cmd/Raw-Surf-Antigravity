@@ -1,4 +1,4 @@
-/**
+﻿/**
  * SessionActionDrawer - Command Center for managing scheduled bookings
  * 
  * Features:
@@ -8,7 +8,7 @@
  * - Cancel: Execute cancellation policy logic
  */
 import React, { useState } from 'react';
-import axios from 'axios';
+import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import { useNavigate } from 'react-router-dom';
 import { 
   Users, DollarSign, Clock, ChevronRight, 
@@ -23,7 +23,6 @@ import { Textarea } from './ui/textarea';
 import { toast } from 'sonner';
 import logger from '../utils/logger';
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 export const SessionActionDrawer = ({
   isOpen,
@@ -70,7 +69,7 @@ export const SessionActionDrawer = ({
     
     setCancelLoading(true);
     try {
-      await axios.post(`${API}/bookings/${booking.id}/cancel?user_id=${user.id}`, {
+      await apiClient.post(`/bookings/${booking.id}/cancel?user_id=${user.id}`, {
         reason: cancellationReason || 'Cancelled by user'
       });
       
@@ -103,7 +102,7 @@ export const SessionActionDrawer = ({
     setSplitLoading(true);
     try {
       // Create payment split requests for all pending crew members
-      await axios.post(`${API}/bookings/${booking.id}/send-split-requests`);
+      await apiClient.post(`/bookings/${booking.id}/send-split-requests`);
       
       toast.success('Payment requests sent to crew members!');
       setActiveAction(null);
@@ -131,7 +130,7 @@ export const SessionActionDrawer = ({
     
     setShareLoading(true);
     try {
-      const response = await axios.post(`${API}/bookings/${booking.id}/share-to-feed?user_id=${user.id}`);
+      const response = await apiClient.post(`/bookings/${booking.id}/share-to-feed?user_id=${user.id}`);
       toast.success('Session posted to feed! Friends can join from there.', {
         description: response.data?.spots_left > 0 
           ? `${response.data.spots_left} spot${response.data.spots_left > 1 ? 's' : ''} available for crew` 

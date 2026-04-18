@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
-import axios from 'axios';
+import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import logger from '../utils/logger';
 import { 
   ArrowLeft, Upload, Image as ImageIcon, Video, DollarSign, 
@@ -28,7 +28,6 @@ import {
 } from './ui/dropdown-menu';
 import { toast } from 'sonner';
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 export const PhotographerGalleryManager = () => {
   const { galleryId } = useParams();
@@ -104,7 +103,7 @@ export const PhotographerGalleryManager = () => {
 
   const fetchGallery = async () => {
     try {
-      const res = await axios.get(`${API}/galleries/${galleryId}?viewer_id=${user?.id}`);
+      const res = await apiClient.get(`/galleries/${galleryId}?viewer_id=${user?.id}`);
       setGallery(res.data);
       setPricing({
         price_web: res.data.pricing?.photo?.web || 3,
@@ -130,7 +129,7 @@ export const PhotographerGalleryManager = () => {
   const fetchSalesData = async () => {
     setLoadingSales(true);
     try {
-      const res = await axios.get(`${API}/galleries/${galleryId}/sales-dashboard?photographer_id=${user?.id}`);
+      const res = await apiClient.get(`/galleries/${galleryId}/sales-dashboard?photographer_id=${user?.id}`);
       setSalesData(res.data);
     } catch (error) {
       logger.error('Failed to load sales data:', error);
@@ -143,7 +142,7 @@ export const PhotographerGalleryManager = () => {
   const fetchClientActivity = async () => {
     setLoadingSales(true);
     try {
-      const res = await axios.get(`${API}/galleries/${galleryId}/client-activity?photographer_id=${user?.id}`);
+      const res = await apiClient.get(`/galleries/${galleryId}/client-activity?photographer_id=${user?.id}`);
       setClientsData(res.data);
     } catch (error) {
       logger.error('Failed to load client activity:', error);
@@ -168,13 +167,13 @@ export const PhotographerGalleryManager = () => {
         formData.append('add_watermark_preview', 'true');
 
         // Upload to server using the correct photographer-gallery endpoint
-        const uploadRes = await axios.post(`${API}/upload/photographer-gallery`, formData, {
+        const uploadRes = await apiClient.post(`/upload/photographer-gallery`, formData, {
           headers: { 'Content-Type': 'multipart/form-data' }
         });
 
         if (uploadRes.data) {
           // Add item to gallery
-          await axios.post(`${API}/galleries/${galleryId}/items?photographer_id=${user?.id}`, {
+          await apiClient.post(`/galleries/${galleryId}/items?photographer_id=${user?.id}`, {
             original_url: uploadRes.data.original_url,
             preview_url: uploadRes.data.preview_url,
             thumbnail_url: uploadRes.data.thumbnail_url,
@@ -197,7 +196,7 @@ export const PhotographerGalleryManager = () => {
 
   const handleSavePricing = async () => {
     try {
-      await axios.put(`${API}/galleries/${galleryId}?photographer_id=${user?.id}`, {
+      await apiClient.put(`/galleries/${galleryId}?photographer_id=${user?.id}`, {
         ...pricing
       });
       toast.success('Pricing updated');
@@ -210,7 +209,7 @@ export const PhotographerGalleryManager = () => {
 
   const handleSaveEdit = async () => {
     try {
-      await axios.put(`${API}/galleries/${galleryId}?photographer_id=${user?.id}`, editData);
+      await apiClient.put(`/galleries/${galleryId}?photographer_id=${user?.id}`, editData);
       toast.success('Gallery updated');
       setShowEditModal(false);
       fetchGallery();
@@ -224,7 +223,7 @@ export const PhotographerGalleryManager = () => {
       return;
     }
     try {
-      await axios.delete(`${API}/galleries/${galleryId}?photographer_id=${user?.id}`);
+      await apiClient.delete(`/galleries/${galleryId}?photographer_id=${user?.id}`);
       toast.success('Gallery deleted');
       navigate('/photographer/sessions');
     } catch (error) {
@@ -245,7 +244,7 @@ export const PhotographerGalleryManager = () => {
     
     setAnalyzingPhoto(true);
     try {
-      const response = await axios.post(`${API}/ai/suggest-tags`, {
+      const response = await apiClient.post(`/ai/suggest-tags`, {
         image_url: selectedItem.preview_url,
         gallery_item_id: selectedItem.id
       });
@@ -280,7 +279,7 @@ export const PhotographerGalleryManager = () => {
     }
     
     try {
-      await axios.post(`${API}/ai/confirm-tags?photographer_id=${user?.id}`, {
+      await apiClient.post(`/ai/confirm-tags?photographer_id=${user?.id}`, {
         gallery_item_id: selectedItem.id,
         surfer_ids: selectedTags
       });
@@ -364,7 +363,7 @@ export const PhotographerGalleryManager = () => {
   const handleDeleteItem = async (itemId) => {
     if (!window.confirm('Delete this item? This cannot be undone.')) return;
     try {
-      await axios.delete(`${API}/galleries/${galleryId}/items/${itemId}?photographer_id=${user?.id}`);
+      await apiClient.delete(`/galleries/${galleryId}/items/${itemId}?photographer_id=${user?.id}`);
       toast.success('Item deleted');
       fetchGallery();
     } catch (error) {
@@ -378,7 +377,7 @@ export const PhotographerGalleryManager = () => {
     
     try {
       for (const itemId of selectedItems) {
-        await axios.delete(`${API}/galleries/${galleryId}/items/${itemId}?photographer_id=${user?.id}`);
+        await apiClient.delete(`/galleries/${galleryId}/items/${itemId}?photographer_id=${user?.id}`);
       }
       toast.success(`Deleted ${selectedItems.size} items`);
       setSelectedItems(new Set());
@@ -392,7 +391,7 @@ export const PhotographerGalleryManager = () => {
   const handleSetCustomPrice = async () => {
     if (!selectedItem || !itemCustomPrice) return;
     try {
-      await axios.patch(`${API}/gallery/item/${selectedItem.id}/custom-price?photographer_id=${user?.id}`, {
+      await apiClient.patch(`/gallery/item/${selectedItem.id}/custom-price?photographer_id=${user?.id}`, {
         custom_price: parseFloat(itemCustomPrice)
       });
       toast.success('Custom price set');

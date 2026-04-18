@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useCallback } from 'react';
+﻿import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import axios from 'axios';
+import apiClient, { BACKEND_URL } from '../../lib/apiClient';
 import { 
   DollarSign, 
   Save, 
@@ -20,7 +20,6 @@ import { Badge } from '../ui/badge';
 import { toast } from 'sonner';
 import logger from '../../utils/logger';
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 // Role display config - matches all RoleEnum values
 const ROLE_CONFIG = {
@@ -73,7 +72,7 @@ export const AdminPricingEditor = () => {
 
   const fetchPricing = useCallback(async () => {
     try {
-      const response = await axios.get(`${API}/admin/pricing/config?admin_id=${user.id}`);
+      const response = await apiClient.get(`/admin/pricing/config?admin_id=${user.id}`);
       setPricing(response.data.pricing);
       setOriginalPricing(JSON.parse(JSON.stringify(response.data.pricing)));
       setVersion(response.data.version);
@@ -90,7 +89,7 @@ export const AdminPricingEditor = () => {
 
   const fetchHistory = async () => {
     try {
-      const response = await axios.get(`${API}/admin/pricing/history?admin_id=${user.id}&limit=10`);
+      const response = await apiClient.get(`/admin/pricing/history?admin_id=${user.id}&limit=10`);
       setHistory(response.data.history);
     } catch (error) {
       logger.error('Failed to fetch history:', error);
@@ -235,7 +234,7 @@ export const AdminPricingEditor = () => {
     
     setSaving(true);
     try {
-      const response = await axios.post(`${API}/admin/pricing/reset?admin_id=${user.id}`);
+      const response = await apiClient.post(`/admin/pricing/reset?admin_id=${user.id}`);
       
       setPricing(response.data.pricing);
       setOriginalPricing(JSON.parse(JSON.stringify(response.data.pricing)));

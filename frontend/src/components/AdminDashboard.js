@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { usePersona } from '../contexts/PersonaContext';
-import axios from 'axios';
+import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import { Shield, Users, Image, FileText, DollarSign, Search, Ban, CheckCircle, Loader2, Eye, UserX, UserCheck, Crown, Trophy, MapPin, AlertTriangle, Lock, Settings } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -16,7 +16,6 @@ import { AdminSpotEditor } from './admin/AdminSpotEditor';
 import { AdminPrecisionQueue } from './admin/AdminPrecisionQueue';
 import logger from '../utils/logger';
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 export const AdminDashboard = () => {
   const { user } = useAuth();
@@ -50,10 +49,10 @@ export const AdminDashboard = () => {
   const fetchData = async () => {
     try {
       const [statsRes, usersRes, logsRes, settingsRes] = await Promise.all([
-        axios.get(`${API}/admin/stats?admin_id=${user.id}`),
-        axios.get(`${API}/admin/users?admin_id=${user.id}&limit=50`),
-        axios.get(`${API}/admin/logs?admin_id=${user.id}&limit=50`),
-        axios.get(`${API}/admin/platform-settings?admin_id=${user.id}`).catch(() => ({ data: null }))
+        apiClient.get(`/admin/stats?admin_id=${user.id}`),
+        apiClient.get(`/admin/users?admin_id=${user.id}&limit=50`),
+        apiClient.get(`/admin/logs?admin_id=${user.id}&limit=50`),
+        apiClient.get(`/admin/platform-settings?admin_id=${user.id}`).catch(() => ({ data: null }))
       ]);
       
       setStats(statsRes.data);
@@ -74,7 +73,7 @@ export const AdminDashboard = () => {
   const updateSiteSettings = async (updates) => {
     setSavingSettings(true);
     try {
-      await axios.put(`${API}/admin/platform-settings?admin_id=${user.id}`, updates);
+      await apiClient.put(`/admin/platform-settings?admin_id=${user.id}`, updates);
       setSiteSettings(prev => ({ ...prev, ...updates }));
       toast.success('Settings saved');
     } catch (error) {

@@ -1,8 +1,7 @@
-import { useState, useEffect, useCallback } from 'react';
-import axios from 'axios';
+﻿import { useState, useEffect, useCallback } from 'react';
+import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import logger from '../utils/logger';
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 export const usePushNotifications = (userId) => {
   const [isSupported, setIsSupported] = useState(false);
@@ -60,7 +59,7 @@ export const usePushNotifications = (userId) => {
       }
 
       // Get VAPID public key from server
-      const vapidResponse = await axios.get(`${API}/push/vapid-key`);
+      const vapidResponse = await apiClient.get(`/push/vapid-key`);
       const vapidPublicKey = vapidResponse.data.public_key;
 
       // Convert VAPID key to Uint8Array
@@ -85,7 +84,7 @@ export const usePushNotifications = (userId) => {
 
       // Send subscription to server
       const subJson = subscription.toJSON();
-      await axios.post(`${API}/push/subscribe?user_id=${userId}`, {
+      await apiClient.post(`/push/subscribe?user_id=${userId}`, {
         endpoint: subJson.endpoint,
         p256dh_key: subJson.keys?.p256dh || '',
         auth_key: subJson.keys?.auth || '',
@@ -115,7 +114,7 @@ export const usePushNotifications = (userId) => {
         await subscription.unsubscribe();
         
         // Remove from server
-        await axios.delete(`${API}/push/unsubscribe?user_id=${userId}&endpoint=${encodeURIComponent(subscription.endpoint)}`);
+        await apiClient.delete(`/push/unsubscribe?user_id=${userId}&endpoint=${encodeURIComponent(subscription.endpoint)}`);
       }
 
       setIsSubscribed(false);

@@ -1,9 +1,8 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+﻿import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useAuth } from './AuthContext';
-import axios from 'axios';
+import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import logger from '../utils/logger';
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 // Pricing Context for dynamic, reactive gallery pricing
 const PricingContext = createContext(null);
@@ -114,7 +113,7 @@ export const PricingProvider = ({ children }) => {
     }
 
     try {
-      const res = await axios.get(`${API}/photographer/${user.id}/gallery-pricing`);
+      const res = await apiClient.get(`/photographer/${user.id}/gallery-pricing`);
       setGeneralSettings({
         photo_price_web: res.data.photo_pricing?.web || 3,
         photo_price_standard: res.data.photo_pricing?.standard || 5,
@@ -141,7 +140,7 @@ export const PricingProvider = ({ children }) => {
     if (!user?.id) return;
     
     try {
-      const res = await axios.get(`${API}/photographer/${user.id}/active-session`);
+      const res = await apiClient.get(`/photographer/${user.id}/active-session`);
       if (res.data && res.data.id) {
         setSessionPricing({
           is_active: true,
@@ -165,7 +164,7 @@ export const PricingProvider = ({ children }) => {
   // Update pricing settings (called after photographer saves new prices)
   const updateGeneralSettings = useCallback(async (newSettings) => {
     try {
-      await axios.put(`${API}/photographer/${user.id}/gallery-pricing`, newSettings);
+      await apiClient.put(`/photographer/${user.id}/gallery-pricing`, newSettings);
       setGeneralSettings({
         photo_price_web: newSettings.photo_price_web,
         photo_price_standard: newSettings.photo_price_standard,

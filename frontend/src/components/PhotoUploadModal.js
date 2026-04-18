@@ -1,7 +1,7 @@
-import React, { useState, useRef, useCallback } from 'react';
+﻿import React, { useState, useRef, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
-import axios from 'axios';
+import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import { 
   Upload, X, Check, Loader2, Sparkles, Video
 } from 'lucide-react';
@@ -11,7 +11,6 @@ import { Label } from './ui/label';
 import { toast } from 'sonner';
 import logger from '../utils/logger';
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 // Photo Upload Component with Surfer Tagging
 export const PhotoUploadModal = ({ 
@@ -158,7 +157,7 @@ export const PhotoUploadModal = ({
           formData.append('media_type', fileData.mediaType || 'image');
           
           // Upload with progress
-          const _response = await axios.post(`${API}/photos/upload`, formData, {
+          const _response = await apiClient.post(`/photos/upload`, formData, {
             headers: { 'Content-Type': 'multipart/form-data' },
             onUploadProgress: (progressEvent) => {
               const progress = Math.round((progressEvent.loaded * 100) / progressEvent.total);

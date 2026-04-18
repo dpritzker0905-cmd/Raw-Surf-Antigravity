@@ -1,4 +1,4 @@
-/**
+﻿/**
  * UsernameSetup - Component for setting up @username
  * Shows after signup or when username is not set
  */
@@ -11,7 +11,7 @@ import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { AtSign, Check, X, Loader2, AlertCircle, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
-import axios from 'axios';
+import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import logger from '../utils/logger';
 
 const API = process.env.REACT_APP_BACKEND_URL;
@@ -107,7 +107,7 @@ const UsernameSetup = ({ onComplete, skipAllowed = false }) => {
     
     setSubmitting(true);
     try {
-      await axios.post(`${API}/api/username/set?user_id=${user.id}`, {
+      await apiClient.post(`/api/username/set?user_id=${user.id}`, {
         username: username
       });
       

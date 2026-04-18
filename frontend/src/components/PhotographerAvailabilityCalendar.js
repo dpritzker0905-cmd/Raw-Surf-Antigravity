@@ -1,4 +1,4 @@
-/**
+﻿/**
  * PhotographerAvailabilityCalendar - Visual calendar showing booking slots
  * Features:
  * - Monthly/Weekly view toggle
@@ -19,10 +19,9 @@ import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { Label } from './ui/label';
 import { toast } from 'sonner';
-import axios from 'axios';
+import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import logger from '../utils/logger';
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 // Days of week
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -423,12 +422,12 @@ export const PhotographerAvailabilityCalendar = ({ photographerId }) => {
       if (blockedDates.includes(dateStr)) {
         // Unblock
         setBlockedDates(prev => prev.filter(d => d !== dateStr));
-        await axios.post(`${API}/photographer/${targetId}/unblock-date`, { date: dateStr });
+        await apiClient.post(`/photographer/${targetId}/unblock-date`, { date: dateStr });
         toast.success('Date unblocked');
       } else {
         // Block
         setBlockedDates(prev => [...prev, dateStr]);
-        await axios.post(`${API}/photographer/${targetId}/block-date`, { date: dateStr });
+        await apiClient.post(`/photographer/${targetId}/block-date`, { date: dateStr });
         toast.success('Date blocked - surfers cannot book this day');
       }
     } catch (error) {
@@ -439,7 +438,7 @@ export const PhotographerAvailabilityCalendar = ({ photographerId }) => {
   // Save availability windows
   const saveAvailabilityWindows = async () => {
     try {
-      await axios.put(`${API}/photographer/${targetId}/availability-windows`, {
+      await apiClient.put(`/photographer/${targetId}/availability-windows`, {
         windows: availabilityWindows
       });
       toast.success('Availability saved!');
@@ -504,7 +503,7 @@ export const PhotographerAvailabilityCalendar = ({ photographerId }) => {
       const newDateTime = new Date(rescheduleData.newDate);
       newDateTime.setHours(hours, minutes, 0, 0);
       
-      await axios.patch(`${API}/photographer/bookings/${rescheduleData.booking.id}`, {
+      await apiClient.patch(`/photographer/bookings/${rescheduleData.booking.id}`, {
         session_date: newDateTime.toISOString()
       });
       

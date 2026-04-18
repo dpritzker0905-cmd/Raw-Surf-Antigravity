@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useRef } from 'react';
+﻿import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import axios from 'axios';
+import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import { X, ChevronLeft, ChevronRight, MapPin, Play, Pause, Camera, Waves, Plus, Loader2, Image, Video, Bell } from 'lucide-react';
 import { Button } from './ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
@@ -10,7 +10,6 @@ import { supabase } from '../lib/supabase';
 import LiveStreamViewer from './LiveStreamViewer';
 import logger from '../utils/logger';
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 // Story ring colors - Ring System
 // RED Ring: Active Social 'GO LIVE' broadcasts - Always at front
@@ -159,7 +158,7 @@ export const StoriesBar = ({ onCreateStory, onTierChange, selectedTier }) => {
         params.append('viewer_lon', viewerLocation.lon);
       }
       
-      const response = await axios.get(`${API}/stories/feed?${params}`);
+      const response = await apiClient.get(`/stories/feed?${params}`);
       setStories(response.data);
     } catch (error) {
       logger.error('Error fetching stories:', error);
@@ -209,7 +208,7 @@ export const StoriesBar = ({ onCreateStory, onTierChange, selectedTier }) => {
       
       try {
         // Fetch active stream info for this user
-        const response = await axios.get(`${API}/livekit/active-streams`);
+        const response = await apiClient.get(`/livekit/active-streams`);
         const liveStream = response.data.streams?.find(
           s => s.broadcaster_id === authorGroup.author_id
         );
@@ -477,7 +476,7 @@ const StoryViewer = ({ authorGroup, viewerId, _viewerLocation, onClose, onNaviga
   useEffect(() => {
     // Mark story as viewed
     if (currentStory && viewerId) {
-      axios.post(`${API}/stories/${currentStory.id}/view?viewer_id=${viewerId}`).catch(() => {});
+      apiClient.post(`/stories/${currentStory.id}/view?viewer_id=${viewerId}`).catch(() => {});
     }
   }, [currentStory, viewerId]);
 
@@ -719,7 +718,7 @@ export const CreateStoryModal = ({ isOpen, onClose, onCreated }) => {
     formData.append('user_id', user.id);
 
     try {
-      const response = await axios.post(`${API}/upload/story`, formData, {
+      const response = await apiClient.post(`/upload/story`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
         onUploadProgress: (progressEvent) => {
           const percent = Math.round((progressEvent.loaded * 100) / progressEvent.total);
@@ -754,7 +753,7 @@ export const CreateStoryModal = ({ isOpen, onClose, onCreated }) => {
         return;
       }
 
-      await axios.post(`${API}/stories?author_id=${user.id}`, {
+      await apiClient.post(`/stories?author_id=${user.id}`, {
         media_url: finalMediaUrl,
         media_type: finalMediaType,
         caption: caption || null

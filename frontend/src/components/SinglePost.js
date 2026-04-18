@@ -1,10 +1,10 @@
-/**
+﻿/**
  * SinglePost - View a single post with full details
  * Used when navigating directly to /post/:postId
  */
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { ArrowLeft, Loader2, X } from 'lucide-react';
@@ -14,7 +14,6 @@ import PostMenu, { SharePostModal } from './PostMenu';
 import { toast } from 'sonner';
 import logger from '../utils/logger';
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 const SinglePost = () => {
   const { postId } = useParams();
@@ -94,7 +93,7 @@ const SinglePost = () => {
   const fetchPost = async () => {
     try {
       setLoading(true);
-      const response = await axios.get(`${API}/posts/${postId}`, {
+      const response = await apiClient.get(`/posts/${postId}`, {
         params: { viewer_id: user?.id }
       });
       setPost(response.data);
@@ -109,7 +108,7 @@ const SinglePost = () => {
 
   const fetchFollowing = async () => {
     try {
-      const response = await axios.get(`${API}/follows/${user.id}/following`);
+      const response = await apiClient.get(`/follows/${user.id}/following`);
       const followingIds = new Set(response.data.map(f => f.following_id));
       setFollowingUsers(followingIds);
     } catch (err) {
@@ -187,7 +186,7 @@ const SinglePost = () => {
     setShowReactionPicker(false);
     
     try {
-      const response = await axios.post(`${API}/posts/${postId}/reactions`, 
+      const response = await apiClient.post(`/posts/${postId}/reactions`, 
         { emoji },
         { params: { user_id: user.id } }
       );
@@ -245,13 +244,13 @@ const SinglePost = () => {
     
     try {
       if (isSaved) {
-        await axios.delete(`${API}/posts/${postId}/save`, {
+        await apiClient.delete(`/posts/${postId}/save`, {
           params: { user_id: user.id }
         });
         setPost(prev => ({ ...prev, saved: false }));
         toast.success('Removed from saved');
       } else {
-        await axios.post(`${API}/posts/${postId}/save`, null, {
+        await apiClient.post(`/posts/${postId}/save`, null, {
           params: { user_id: user.id }
         });
         setPost(prev => ({ ...prev, saved: true }));
@@ -294,7 +293,7 @@ const SinglePost = () => {
   const loadAllComments = async (postId) => {
     setLoadingComments(prev => ({ ...prev, [postId]: true }));
     try {
-      const response = await axios.get(`${API}/posts/${postId}/comments`, {
+      const response = await apiClient.get(`/posts/${postId}/comments`, {
         params: { viewer_id: user?.id }
       });
       setAllComments(prev => ({ ...prev, [postId]: response.data }));
@@ -315,7 +314,7 @@ const SinglePost = () => {
     if (!user?.id) return;
     
     try {
-      await axios.post(`${API}/follows/${user.id}/follow/${userId}`);
+      await apiClient.post(`/follows/${user.id}/follow/${userId}`);
       setFollowingUsers(prev => new Set([...prev, userId]));
       toast.success(`Following ${userName}`);
     } catch (err) {
@@ -331,7 +330,7 @@ const SinglePost = () => {
     }
     
     try {
-      await axios.post(`${API}/posts/${postId}/collaborators`, null, {
+      await apiClient.post(`/posts/${postId}/collaborators`, null, {
         params: { user_id: user.id }
       });
       toast.success("Added you as a collaborator!");
@@ -368,7 +367,7 @@ const SinglePost = () => {
   const handleUnfollowFromMenu = async (userId) => {
     if (!user?.id) return;
     try {
-      await axios.delete(`${API}/follows/${user.id}/unfollow/${userId}`);
+      await apiClient.delete(`/follows/${user.id}/unfollow/${userId}`);
       setFollowingUsers(prev => {
         const next = new Set(prev);
         next.delete(userId);

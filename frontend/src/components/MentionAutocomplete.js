@@ -1,11 +1,11 @@
-/**
+﻿/**
  * MentionAutocomplete - Dropdown for @mention suggestions
  * Shows when user types @ in a text input
  */
 import React, { useState, useEffect, useRef, forwardRef, useImperativeHandle } from 'react';
 import { Avatar, AvatarImage, AvatarFallback } from './ui/avatar';
 import { Loader2 } from 'lucide-react';
-import axios from 'axios';
+import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import logger from '../utils/logger';
 
 const API = process.env.REACT_APP_BACKEND_URL;
@@ -69,7 +69,7 @@ const MentionAutocomplete = forwardRef(({
       
       setLoading(true);
       try {
-        const response = await axios.get(`${API}/api/username/search?q=${encodeURIComponent(query)}&limit=8`);
+        const response = await apiClient.get(`/api/username/search?q=${encodeURIComponent(query)}&limit=8`);
         setSuggestions(response.data || []);
         setSelectedIndex(0);
       } catch (error) {

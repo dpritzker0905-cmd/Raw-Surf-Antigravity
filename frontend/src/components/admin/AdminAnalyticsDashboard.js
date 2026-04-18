@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+﻿import React, { useState, useEffect, useCallback } from 'react';
 import { DollarSign, ShoppingCart, 
   Target, BarChart3, PieChart, RefreshCw, Loader2, Calendar,
   ArrowUpRight, ArrowDownRight, Eye, MousePointer, CreditCard
@@ -8,10 +8,9 @@ import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { useAuth } from '../../contexts/AuthContext';
-import axios from 'axios';
+import apiClient, { BACKEND_URL } from '../../lib/apiClient';
 import logger from '../../utils/logger';
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 /**
  * AdminAnalyticsDashboard - A/B Testing & Booking Conversion Analytics
@@ -35,8 +34,8 @@ export const AdminAnalyticsDashboard = () => {
     setLoading(true);
     try {
       const [metricsRes, funnelRes] = await Promise.all([
-        axios.get(`${API}/admin/analytics/metrics`, { params: { admin_id: user?.id, range: timeRange } }),
-        axios.get(`${API}/admin/analytics/funnel`, { params: { admin_id: user?.id, range: timeRange } })
+        apiClient.get(`/admin/analytics/metrics`, { params: { admin_id: user?.id, range: timeRange } }),
+        apiClient.get(`/admin/analytics/funnel`, { params: { admin_id: user?.id, range: timeRange } })
       ]);
       
       setMetrics(metricsRes.data);

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+﻿import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Search, MapPin, Users, Image, TrendingUp, Radio, X, Waves, Heart, Trophy, MessageCircle, Camera, Clock, ChevronDown, ChevronRight, ChevronLeft, Navigation, Compass, Filter, Loader2, Play, Hash } from 'lucide-react';
 import { Input } from './ui/input';
@@ -9,11 +9,10 @@ import { useConditionsSync, useLiveStreamSync } from '../hooks/useWebSocket';
 import { useAuth } from '../contexts/AuthContext';
 import { SocialAdCard } from './SocialAdCard';
 import { toast } from 'sonner';
-import axios from 'axios';
+import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import ExploreSpotCard from './ExploreSpotCard';
 import logger from '../utils/logger';
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 // Media Preview component for Posts, Waves, and Videos
 const PostMediaPreview = ({ post, isHoverScale = true }) => {
@@ -266,7 +265,7 @@ export const Explore = () => {
 
   const fetchTrending = async () => {
     try {
-      const response = await axios.get(`${API}/explore/trending`);
+      const response = await apiClient.get(`/explore/trending`);
       setTrending(response.data);
       
       // Fetch conditions for popular spots
@@ -287,7 +286,7 @@ export const Explore = () => {
   // Fetch trending hashtags
   const fetchTrendingHashtags = async () => {
     try {
-      const response = await axios.get(`${API}/hashtags/trending?limit=15&days=7`);
+      const response = await apiClient.get(`/hashtags/trending?limit=15&days=7`);
       setTrendingHashtags(response.data.hashtags || []);
     } catch (error) {
       logger.debug('Trending hashtags not available');
@@ -299,7 +298,7 @@ export const Explore = () => {
   const fetchHashtagPosts = async (tag) => {
     setHashtagLoading(true);
     try {
-      const response = await axios.get(`${API}/hashtags/${tag}/posts?limit=30`);
+      const response = await apiClient.get(`/hashtags/${tag}/posts?limit=30`);
       setHashtagPosts(response.data.posts || []);
     } catch (error) {
       logger.error('Error fetching hashtag posts:', error);
@@ -319,7 +318,7 @@ export const Explore = () => {
   const fetchTrendingWaves = async () => {
     setWavesLoading(true);
     try {
-      const response = await axios.get(`${API}/waves/trending`, {
+      const response = await apiClient.get(`/waves/trending`, {
         params: { limit: 12, days: 7 }
       });
       setTrendingWaves(response.data.trending_waves || []);
@@ -336,7 +335,7 @@ export const Explore = () => {
     setWavesLoading(true);
     setSelectedWaveHashtag(tag);
     try {
-      const response = await axios.get(`${API}/waves/hashtag/${tag}`, {
+      const response = await apiClient.get(`/waves/hashtag/${tag}`, {
         params: { limit: 20 }
       });
       setWaveHashtagResults(response.data.waves || []);
@@ -357,7 +356,7 @@ export const Explore = () => {
   const fetchExplorePosts = async () => {
     setPostsLoading(true);
     try {
-      const response = await axios.get(`${API}/posts`, {
+      const response = await apiClient.get(`/posts`, {
         params: { 
           limit: 24,
           content_type: 'post' // Exclude waves, only regular posts
@@ -379,7 +378,7 @@ export const Explore = () => {
 
   const fetchSpotConditions = async (spotIds) => {
     try {
-      const response = await axios.get(`${API}/conditions/batch?spot_ids=${spotIds}`);
+      const response = await apiClient.get(`/conditions/batch?spot_ids=${spotIds}`);
       // API returns conditions as an object keyed by spot_id
       const conditionsData = response.data.conditions || {};
       const conditionsMap = {};
@@ -401,7 +400,7 @@ export const Explore = () => {
   const performSearch = async () => {
     setIsSearching(true);
     try {
-      const response = await axios.get(`${API}/explore/search`, {
+      const response = await apiClient.get(`/explore/search`, {
         params: { q: searchQuery, type: activeTab }
       });
       setSearchResults(response.data);
@@ -420,7 +419,7 @@ export const Explore = () => {
   const fetchLeaderboard = async () => {
     setLeaderboardLoading(true);
     try {
-      const response = await axios.get(`${API}/leaderboard/top-sponsors?limit=50`);
+      const response = await apiClient.get(`/leaderboard/top-sponsors?limit=50`);
       setLeaderboard(response.data.leaderboard || []);
     } catch (error) {
       logger.error('Error fetching leaderboard:', error);
@@ -431,7 +430,7 @@ export const Explore = () => {
 
   const fetchSponsorDetails = async (photographerId) => {
     try {
-      const response = await axios.get(`${API}/leaderboard/photographer/${photographerId}/details`);
+      const response = await apiClient.get(`/leaderboard/photographer/${photographerId}/details`);
       setSponsorDetails(response.data);
     } catch (error) {
       logger.error('Error fetching sponsor details:', error);
@@ -465,7 +464,7 @@ export const Explore = () => {
         params.append('user_lng', location.lng);
       }
       
-      const response = await axios.get(`${API}/condition-reports/feed?${params}`);
+      const response = await apiClient.get(`/condition-reports/feed?${params}`);
       setConditionReports(response.data.reports || []);
     } catch (error) {
       logger.error('Error fetching condition reports:', error);
@@ -478,7 +477,7 @@ export const Explore = () => {
   // Fetch available regions for filter
   const fetchConditionsRegions = async () => {
     try {
-      const response = await axios.get(`${API}/condition-reports/regions`);
+      const response = await apiClient.get(`/condition-reports/regions`);
       setConditionsRegions(['All', ...(response.data.regions || [])]);
     } catch (error) {
       logger.error('Error fetching regions:', error);
@@ -538,7 +537,7 @@ export const Explore = () => {
         params.append('user_lng', location.lng);
       }
       
-      const response = await axios.get(`${API}/explore/surf-spots?${params}`);
+      const response = await apiClient.get(`/explore/surf-spots?${params}`);
       setSurfSpots(response.data.spots || []);
       setSurfSpotsRegions(['All', ...(response.data.regions || [])]);
     } catch (error) {

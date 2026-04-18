@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+﻿import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
-import axios from 'axios';
+import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import { 
   Power, MapPin, Clock, DollarSign, Camera, Zap, Settings, User, Navigation, Check, X, Flame, Bell, Volume2, VolumeX, Loader2, Radio, Eye, Calendar, Square, ChevronDown, ChevronUp, Wallet, History, Info, Waves, Users
 } from 'lucide-react';
@@ -14,7 +14,6 @@ import { NumericStepper } from './ui/numeric-stepper';
 import { toast } from 'sonner';
 import logger from '../utils/logger';
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 // Helper to get full image URL
 const getImageUrl = (url) => {
@@ -962,7 +961,7 @@ export const OnDemandSessionManager = () => {
   
   const fetchNearbySpots = async (location) => {
     try {
-      const response = await axios.get(`${API}/surf-spots/nearby`, {
+      const response = await apiClient.get(`/surf-spots/nearby`, {
         params: {
           latitude: location.latitude,
           longitude: location.longitude,
@@ -973,7 +972,7 @@ export const OnDemandSessionManager = () => {
     } catch (error) {
       logger.error('Failed to fetch nearby spots:', error);
       try {
-        const fallbackResponse = await axios.get(`${API}/surf-spots?limit=30`);
+        const fallbackResponse = await apiClient.get(`/surf-spots?limit=30`);
         setNearbySpots(fallbackResponse.data || []);
       } catch (e) {
         logger.error('Fallback also failed:', e);
@@ -983,7 +982,7 @@ export const OnDemandSessionManager = () => {
   
   const fetchOnDemandStatus = async () => {
     try {
-      const response = await axios.get(`${API}/photographer/${user.id}/on-demand-status`);
+      const response = await apiClient.get(`/photographer/${user.id}/on-demand-status`);
       setIsOnline(response.data.is_available || false);
       if (response.data.active_spot) {
         setSelectedOnDemandSpot(response.data.active_spot);
@@ -996,7 +995,7 @@ export const OnDemandSessionManager = () => {
   
   const fetchSettings = async () => {
     try {
-      const response = await axios.get(`${API}/photographer/${user.id}/on-demand-settings`);
+      const response = await apiClient.get(`/photographer/${user.id}/on-demand-settings`);
       if (response.data) {
         setBaseRate(response.data.base_rate || 75);
         setPeakPricingEnabled(response.data.peak_pricing_enabled || false);
@@ -1014,7 +1013,7 @@ export const OnDemandSessionManager = () => {
   
   const fetchStats = async () => {
     try {
-      const response = await axios.get(`${API}/dispatch/photographer/${user.id}/stats`);
+      const response = await apiClient.get(`/dispatch/photographer/${user.id}/stats`);
       setStats(response.data);
     } catch (error) {
       logger.error('Failed to fetch stats:', error);
@@ -1032,7 +1031,7 @@ export const OnDemandSessionManager = () => {
     if (activeSession) return;
     
     try {
-      const response = await axios.get(`${API}/dispatch/photographer/${user.id}/pending`);
+      const response = await apiClient.get(`/dispatch/photographer/${user.id}/pending`);
       const pending = response.data.pending_dispatches || [];
       
       // The pending endpoint already returns all needed data including crew with selfies
@@ -1046,7 +1045,7 @@ export const OnDemandSessionManager = () => {
   
   const fetchActiveSession = async () => {
     try {
-      const response = await axios.get(`${API}/dispatch/user/${user.id}/active`);
+      const response = await apiClient.get(`/dispatch/user/${user.id}/active`);
       const active = response.data.active_dispatch;
       
       if (active && active.role === 'photographer') {
@@ -1054,7 +1053,7 @@ export const OnDemandSessionManager = () => {
         const requesterSelfie = active.requester_selfie;
         
         // Also fetch full details for additional info
-        const detailResponse = await axios.get(`${API}/dispatch/${active.id}`);
+        const detailResponse = await apiClient.get(`/dispatch/${active.id}`);
         
         setActiveSession({
           id: active.id,
@@ -1080,7 +1079,7 @@ export const OnDemandSessionManager = () => {
   
   const fetchSessionHistory = async () => {
     try {
-      const response = await axios.get(`${API}/dispatch/photographer/${user.id}/history?limit=20`);
+      const response = await apiClient.get(`/dispatch/photographer/${user.id}/history?limit=20`);
       setSessionHistory(response.data.history || []);
     } catch (error) {
       logger.error('Failed to fetch history:', error);
@@ -1157,7 +1156,7 @@ export const OnDemandSessionManager = () => {
   const handleAcceptRequest = async (dispatchId) => {
     setIsAccepting(true);
     try {
-      await axios.post(`${API}/dispatch/${dispatchId}/accept`, {
+      await apiClient.post(`/dispatch/${dispatchId}/accept`, {
         photographer_id: user.id
       });
       
@@ -1174,7 +1173,7 @@ export const OnDemandSessionManager = () => {
   const handleDeclineRequest = useCallback(async (dispatchId, isTimeout = false) => {
     try {
       // Call backend to decline
-      await axios.post(`${API}/dispatch/${dispatchId}/decline?photographer_id=${user.id}`);
+      await apiClient.post(`/dispatch/${dispatchId}/decline?photographer_id=${user.id}`);
       
       // Remove from local state
       setIncomingRequests(prev => prev.filter(r => r.dispatch_id !== dispatchId));
@@ -1192,7 +1191,7 @@ export const OnDemandSessionManager = () => {
   
   const handleMarkArrived = async (dispatchId) => {
     try {
-      await axios.post(`${API}/dispatch/${dispatchId}/arrived?photographer_id=${user.id}`);
+      await apiClient.post(`/dispatch/${dispatchId}/arrived?photographer_id=${user.id}`);
       toast.success('Session started! Have fun shooting!');
       fetchActiveSession();
     } catch (error) {
@@ -1202,7 +1201,7 @@ export const OnDemandSessionManager = () => {
   
   const handleCompleteSession = async (dispatchId) => {
     try {
-      await axios.post(`${API}/dispatch/${dispatchId}/complete?photographer_id=${user.id}`);
+      await apiClient.post(`/dispatch/${dispatchId}/complete?photographer_id=${user.id}`);
       toast.success('Session completed! Gallery created.');
       setActiveSession(null);
       fetchStats();
@@ -1216,7 +1215,7 @@ export const OnDemandSessionManager = () => {
     if (!confirm('Are you sure you want to cancel this session?')) return;
     
     try {
-      await axios.post(`${API}/dispatch/${dispatchId}/cancel?user_id=${user.id}`, {
+      await apiClient.post(`/dispatch/${dispatchId}/cancel?user_id=${user.id}`, {
         reason: 'Photographer cancelled'
       });
       toast.info('Session cancelled');
@@ -1245,7 +1244,7 @@ export const OnDemandSessionManager = () => {
   const saveSettings = async () => {
     setSaving(true);
     try {
-      await axios.post(`${API}/photographer/${user.id}/on-demand-settings`, {
+      await apiClient.post(`/photographer/${user.id}/on-demand-settings`, {
         base_rate: baseRate,
         peak_pricing_enabled: peakPricingEnabled,
         peak_multiplier: peakMultiplier,

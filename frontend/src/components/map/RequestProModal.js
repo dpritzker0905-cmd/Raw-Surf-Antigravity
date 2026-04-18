@@ -1,4 +1,4 @@
-/**
+﻿/**
  * RequestProModal — Unified "Request a Pro Photographer" flow
  *
  * Features:
@@ -25,9 +25,8 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter
 } from '../ui/dialog';
 import { toast } from 'sonner';
-import axios from 'axios';
+import apiClient, { BACKEND_URL } from '../../lib/apiClient';
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 // ─── Surfboard colour palette (matches OnDemandRequestDrawer) ────────────────
 const SURFBOARD_COLORS = [
@@ -206,7 +205,7 @@ export const RequestProModal = ({
     const tid = setTimeout(async () => {
       setSearchingFriends(true);
       try {
-        const res = await axios.get(`${API}/users/search?query=${encodeURIComponent(newCrewInput)}&limit=5`);
+        const res = await apiClient.get(`/users/search?query=${encodeURIComponent(newCrewInput)}&limit=5`);
         const existing = new Set([userId || user?.id, ...crewMembers.map(m => m.user_id || m.id)]);
         setFriendSearchResults((res.data.users || []).filter(u => !existing.has(u.id)));
       } catch { setFriendSearchResults([]); }
@@ -320,11 +319,11 @@ export const RequestProModal = ({
 
       setTimeout(async () => {
         try {
-          await axios.post(`${API}/dispatch/${dispatchId}/pay?payer_id=${uid}`);
+          await apiClient.post(`/dispatch/${dispatchId}/pay?payer_id=${uid}`);
           toast.success('Payment confirmed! Searching for a Pro…');
           if (boostHours > 0) {
             try {
-              await axios.post(`${API}/dispatch/request/${dispatchId}/boost?user_id=${uid}`, { boost_hours: boostHours });
+              await apiClient.post(`/dispatch/request/${dispatchId}/boost?user_id=${uid}`, { boost_hours: boostHours });
               toast.success(`🚀 Boosted! You'll appear first for ${boostHours}h`);
               onBoostApplied?.();
             } catch (e) {

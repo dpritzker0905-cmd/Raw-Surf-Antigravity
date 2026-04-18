@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { 
@@ -8,11 +8,10 @@ import {
 import { Button } from './ui/button';
 import { Card, CardContent } from './ui/card';
 import { Badge } from './ui/badge';
-import axios from 'axios';
+import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import { toast } from 'sonner';
 import logger from '../utils/logger';
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 /**
  * GromLimitedFeed - Shows a limited preview feed for unlinked Groms
@@ -39,7 +38,7 @@ const GromLimitedFeed = ({ gromStatus, _onCopyCode }) => {
   const fetchGromPosts = async () => {
     try {
       // Fetch posts from other Groms only, limited to 3
-      const response = await axios.get(`${API}/posts/grom-preview?limit=3`);
+      const response = await apiClient.get(`/posts/grom-preview?limit=3`);
       setPosts(response.data || []);
     } catch (error) {
       logger.error('Failed to fetch grom posts:', error);

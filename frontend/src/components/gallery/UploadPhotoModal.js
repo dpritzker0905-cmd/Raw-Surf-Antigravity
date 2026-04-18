@@ -1,4 +1,4 @@
-/**
+﻿/**
  * UploadPhotoModal - Photo/Video upload modal for photographers
  * Extracted from GalleryPage.js for better organization
  */
@@ -11,10 +11,9 @@ import { Textarea } from '../ui/textarea';
 import { Label } from '../ui/label';
 import { useAuth } from '../../contexts/AuthContext';
 import { toast } from 'sonner';
-import axios from 'axios';
+import apiClient, { BACKEND_URL } from '../../lib/apiClient';
 import logger from '../../utils/logger';
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 export const UploadPhotoModal = ({ 
   isOpen, 
@@ -86,7 +85,7 @@ export const UploadPhotoModal = ({
       const maxRes = isPaidPhotographer ? '4K' : '1080p';
       setProcessingStatus(isVideo ? `Uploading & processing video (${maxRes} max)...` : 'Uploading & adding watermark...');
 
-      const uploadResponse = await axios.post(`${API}/upload/photographer-gallery`, formData, {
+      const uploadResponse = await apiClient.post(`/upload/photographer-gallery`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
         onUploadProgress: (progressEvent) => {
           const percent = Math.round((progressEvent.loaded * 100) / progressEvent.total);
@@ -110,7 +109,7 @@ export const UploadPhotoModal = ({
         gallery_id: selectedFolderId || null
       };
 
-      await axios.post(`${API}/gallery/items`, itemData);
+      await apiClient.post(`/gallery/items`, itemData);
 
       toast.success(`${mediaType === 'video' ? 'Video' : 'Photo'} uploaded successfully!`);
       

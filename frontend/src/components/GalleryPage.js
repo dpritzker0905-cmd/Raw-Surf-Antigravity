@@ -1,7 +1,7 @@
 ﻿import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { usePricing } from '../contexts/PricingContext';
-import axios from 'axios';
+import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import { Camera, Upload, X, DollarSign, Eye, ShoppingCart, Plus, Loader2, Image, Check, Lock, Video, Play, Settings, Edit3, Sparkles, RotateCcw, Folder, MapPin, Calendar, Trash2, Copy, Radio, UserPlus, Droplet } from 'lucide-react';
 import { Button } from './ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from './ui/dialog';
@@ -18,7 +18,6 @@ import { UploadPhotoModal } from './gallery/UploadPhotoModal';
 import { GalleryItemModal } from './gallery/GalleryItemModal';
 import logger from '../utils/logger';
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 // Helper function to safely extract error messages from API responses
 const getErrorMessage = (error, fallback = 'An error occurred') => {
@@ -154,7 +153,7 @@ export const GalleryPage = () => {
       
       try {
         // Get watermark settings
-        const settingsRes = await axios.get(`${API}/photographer/${user.id}/watermark-settings`);
+        const settingsRes = await apiClient.get(`/photographer/${user.id}/watermark-settings`);
         const settings = settingsRes.data;
         
         setWatermarkSettings({
@@ -164,7 +163,7 @@ export const GalleryPage = () => {
         });
         
         // Generate preview with a sample surf image
-        const previewRes = await axios.post(`${API}/gallery/generate-watermark-preview`, {
+        const previewRes = await apiClient.post(`/gallery/generate-watermark-preview`, {
           photographer_id: user.id,
           sample_image_url: 'https://images.unsplash.com/photo-1502680390469-be75c86b636f?w=400',
           watermark_style: settings.watermark_style || 'text',
@@ -188,7 +187,7 @@ export const GalleryPage = () => {
   // Fetch linked Groms for tagging (Grom Parents only)
   const fetchLinkedGroms = async () => {
     try {
-      const response = await axios.get(`${API}/gallery/linked-groms/${user.id}`);
+      const response = await apiClient.get(`/gallery/linked-groms/${user.id}`);
       setLinkedGroms(response.data.groms || []);
     } catch (error) {
       logger.error('Error fetching linked groms:', error);
@@ -199,7 +198,7 @@ export const GalleryPage = () => {
   // Fetch Grom Highlights (Grom Parents only)
   const fetchGromHighlights = async () => {
     try {
-      const response = await axios.get(`${API}/gallery/grom-highlights/${user.id}`);
+      const response = await apiClient.get(`/gallery/grom-highlights/${user.id}`);
       setGromHighlights(response.data.items || []);
     } catch (error) {
       logger.error('Error fetching grom highlights:', error);
@@ -210,7 +209,7 @@ export const GalleryPage = () => {
   // Tag a Grom in a photo
   const handleTagGrom = async (galleryItemId, gromId) => {
     try {
-      await axios.post(`${API}/gallery/tag-grom?parent_id=${user.id}`, {
+      await apiClient.post(`/gallery/tag-grom?parent_id=${user.id}`, {
         gallery_item_id: galleryItemId,
         grom_id: gromId
       });
@@ -226,7 +225,7 @@ export const GalleryPage = () => {
   // Remove Grom tag from photo
   const handleUntagGrom = async (galleryItemId, gromId) => {
     try {
-      await axios.delete(`${API}/gallery/untag-grom/${galleryItemId}/${gromId}?parent_id=${user.id}`);
+      await apiClient.delete(`/gallery/untag-grom/${galleryItemId}/${gromId}?parent_id=${user.id}`);
       toast.success('Photo removed from Grom Highlights');
       fetchGromHighlights();
     } catch (error) {
@@ -236,7 +235,7 @@ export const GalleryPage = () => {
 
   const fetchGalleries = async () => {
     try {
-      const response = await axios.get(`${API}/galleries/photographer/${user.id}`);
+      const response = await apiClient.get(`/galleries/photographer/${user.id}`);
       setGalleries(response.data || []);
     } catch (error) {
       logger.error('Error fetching galleries:', error);
@@ -248,7 +247,7 @@ export const GalleryPage = () => {
   const fetchGalleryItems = async (galleryId) => {
     setGalleryItemsLoading(true);
     try {
-      const response = await axios.get(`${API}/galleries/${galleryId}/items?viewer_id=${user.id}`);
+      const response = await apiClient.get(`/galleries/${galleryId}/items?viewer_id=${user.id}`);
       setGalleryItems(response.data || []);
     } catch (error) {
       logger.error('Error fetching gallery items:', error);
@@ -264,7 +263,7 @@ export const GalleryPage = () => {
     
     setDeletingItemId(itemId);
     try {
-      await axios.delete(`${API}/galleries/${selectedGallery.id}/items/${itemId}?photographer_id=${user.id}`);
+      await apiClient.delete(`/galleries/${selectedGallery.id}/items/${itemId}?photographer_id=${user.id}`);
       toast.success('Photo deleted from gallery');
       fetchGalleryItems(selectedGallery.id);
       fetchGalleries(); // Refresh gallery count
@@ -280,7 +279,7 @@ export const GalleryPage = () => {
     if (!selectedGallery) return;
     
     try {
-      await axios.post(`${API}/galleries/${selectedGallery.id}/items?photographer_id=${user.id}`, {
+      await apiClient.post(`/galleries/${selectedGallery.id}/items?photographer_id=${user.id}`, {
         item_id: itemId
       });
       toast.success('Photo added to gallery');
@@ -359,7 +358,7 @@ export const GalleryPage = () => {
     }
     setFolderActionLoading(true);
     try {
-      await axios.post(`${API}/galleries?photographer_id=${user.id}`, {
+      await apiClient.post(`/galleries?photographer_id=${user.id}`, {
         title: newFolderName.trim(),
         description: ''
       });
@@ -382,7 +381,7 @@ export const GalleryPage = () => {
     }
     setFolderActionLoading(true);
     try {
-      await axios.put(`${API}/galleries/${folderToRename.id}?photographer_id=${user.id}`, {
+      await apiClient.put(`/galleries/${folderToRename.id}?photographer_id=${user.id}`, {
         title: newFolderName.trim()
       });
       toast.success('Folder renamed successfully');
@@ -408,7 +407,7 @@ export const GalleryPage = () => {
     if (!folderToDelete) return;
     setFolderActionLoading(true);
     try {
-      await axios.delete(`${API}/galleries/${folderToDelete.id}?photographer_id=${user.id}`);
+      await apiClient.delete(`/galleries/${folderToDelete.id}?photographer_id=${user.id}`);
       toast.success('Folder deleted successfully');
       if (selectedGallery?.id === folderToDelete.id) {
         closeGalleryDetail();
@@ -458,7 +457,7 @@ export const GalleryPage = () => {
     try {
       const itemIds = Array.from(selectedItems);
       await Promise.all(itemIds.map(itemId => 
-        axios.patch(`${API}/gallery/item/${itemId}/move?photographer_id=${user.id}`, {
+        apiClient.patch(`/gallery/item/${itemId}/move?photographer_id=${user.id}`, {
           target_gallery_id: targetFolderId
         })
       ));
@@ -487,7 +486,7 @@ export const GalleryPage = () => {
     try {
       const itemIds = Array.from(selectedItems);
       await Promise.all(itemIds.map(itemId => 
-        axios.post(`${API}/gallery/item/${itemId}/copy?photographer_id=${user.id}`, {
+        apiClient.post(`/gallery/item/${itemId}/copy?photographer_id=${user.id}`, {
           target_gallery_id: targetFolderId
         })
       ));
@@ -517,7 +516,7 @@ export const GalleryPage = () => {
     try {
       const itemIds = Array.from(selectedItems);
       await Promise.all(itemIds.map(itemId => 
-        axios.delete(`${API}/gallery/${itemId}?photographer_id=${user.id}`)
+        apiClient.delete(`/gallery/${itemId}?photographer_id=${user.id}`)
       ));
       toast.success(`Deleted ${itemIds.length} items`);
       clearSelection();

@@ -1,17 +1,16 @@
-/**
+﻿/**
  * WavesFeed - Full-screen vertical video feed (TikTok/Reels style)
  * Swipe up/down to navigate, double-tap to like
  */
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { Heart, MessageCircle, Share2, Volume2, VolumeX, Play, ChevronUp, ChevronDown, MapPin, Plus, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from './ui/button';
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 /**
  * Single Wave Card - Full screen vertical video
@@ -41,7 +40,7 @@ const WaveCard = ({
         videoRef.current.play().catch(() => {});
         setIsPlaying(true);
         // Record view
-        axios.post(`${API}/waves/${wave.id}/view`).catch(() => {});
+        apiClient.post(`/waves/${wave.id}/view`).catch(() => {});
       } else {
         videoRef.current.pause();
         videoRef.current.currentTime = 0;
@@ -294,7 +293,7 @@ export const WavesFeed = ({ feedType = 'for_you', onCreateWave }) => {
   const fetchWaves = useCallback(async (reset = false) => {
     try {
       const offset = reset ? 0 : waves.length;
-      const response = await axios.get(`${API}/waves`, {
+      const response = await apiClient.get(`/waves`, {
         params: {
           user_id: user?.id,
           feed_type: feedType,
@@ -375,7 +374,7 @@ export const WavesFeed = ({ feedType = 'for_you', onCreateWave }) => {
     }
     
     try {
-      await axios.post(`${API}/posts/${waveId}/like?user_id=${user.id}`);
+      await apiClient.post(`/posts/${waveId}/like?user_id=${user.id}`);
     } catch (error) {
       console.error('Failed to like:', error);
     }

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * PhotographerSessionManager - Photographer's Command Center for Session Management
  * 
  * This is the photographer's counterpart to the surfer's LineupManagerDrawer.
@@ -10,7 +10,7 @@
  * - Session status management (Open, Closed, Locked)
  */
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import { 
   Users, Camera, Lock, Unlock, UserPlus, X, Copy, Send, Clock, MapPin,
   AlertTriangle, Loader2, MessageCircle,
@@ -26,7 +26,6 @@ import { Progress } from './ui/progress';
 import { toast } from 'sonner';
 import logger from '../utils/logger';
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 // Surfboard colors for visual consistency with LineupManagerDrawer
 const SURFBOARD_COLORS = [
@@ -581,7 +580,7 @@ export const PhotographerSessionManager = ({
       
       setLoading(true);
       try {
-        const response = await axios.get(`${API}/bookings/${booking.id}/participants`);
+        const response = await apiClient.get(`/bookings/${booking.id}/participants`);
         setParticipants(response.data || []);
       } catch (error) {
         logger.error('Failed to load participants:', error);
@@ -647,7 +646,7 @@ export const PhotographerSessionManager = ({
     
     setActionLoading('remove');
     try {
-      await axios.post(`${API}/bookings/${booking.id}/lineup/remove-member?user_id=${user.id}`, {
+      await apiClient.post(`/bookings/${booking.id}/lineup/remove-member?user_id=${user.id}`, {
         member_id: participantId
       });
       toast.success(`${name} removed from session`);
@@ -669,7 +668,7 @@ export const PhotographerSessionManager = ({
     setLocalLineupStatus(newStatus);
     setActionLoading('toggle');
     try {
-      await axios.post(`${API}/bookings/${booking.id}/lineup/status?user_id=${user.id}`, {
+      await apiClient.post(`/bookings/${booking.id}/lineup/status?user_id=${user.id}`, {
         status: newStatus
       });
       toast.success(newStatus === 'open' ? 'Session opened for bookings' : 'Session closed to new bookings');
@@ -690,7 +689,7 @@ export const PhotographerSessionManager = ({
     setLocalSplitMode(newMode);
     setActionLoading('visibility');
     try {
-      await axios.patch(`${API}/bookings/${booking.id}?user_id=${user.id}`, {
+      await apiClient.patch(`/bookings/${booking.id}?user_id=${user.id}`, {
         split_mode: newMode
       });
       toast.success(newMode === 'open_nearby' 
@@ -713,7 +712,7 @@ export const PhotographerSessionManager = ({
     setLocalAutoConfirm(newValue);
     setActionLoading('autoconfirm');
     try {
-      await axios.patch(`${API}/bookings/${booking.id}?user_id=${user.id}`, {
+      await apiClient.patch(`/bookings/${booking.id}?user_id=${user.id}`, {
         lineup_auto_confirm: newValue
       });
       toast.success(newValue 
@@ -735,7 +734,7 @@ export const PhotographerSessionManager = ({
     
     setActionLoading('lock');
     try {
-      await axios.post(`${API}/bookings/${booking.id}/lineup/lock?user_id=${user.id}`);
+      await apiClient.post(`/bookings/${booking.id}/lineup/lock?user_id=${user.id}`);
       toast.success('Session locked and finalized');
       onRefresh?.();
       onClose();
@@ -751,7 +750,7 @@ export const PhotographerSessionManager = ({
     
     setActionLoading('cancel');
     try {
-      await axios.post(`${API}/bookings/${booking.id}/cancel?user_id=${user.id}`, {
+      await apiClient.post(`/bookings/${booking.id}/cancel?user_id=${user.id}`, {
         reason: 'Cancelled by photographer'
       });
       toast.success('Session cancelled. All participants notified.');
@@ -771,7 +770,7 @@ export const PhotographerSessionManager = ({
   const handleUpdateReservationSettings = async (updates) => {
     setActionLoading('reservation');
     try {
-      await axios.patch(`${API}/bookings/${booking.id}/reservation-settings?user_id=${user.id}`, updates);
+      await apiClient.patch(`/bookings/${booking.id}/reservation-settings?user_id=${user.id}`, updates);
       toast.success('Reservation settings updated');
       // Update parent state with new settings
       onBookingUpdate?.(updates);

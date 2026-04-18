@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
@@ -9,7 +9,7 @@ import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Badge } from './ui/badge';
 import { toast } from 'sonner';
-import axios from 'axios';
+import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import { AccountBillingHub } from './settings/AccountBillingHub';
 import { AdCenterPanel } from './settings/AdCenterPanel';
 import useOfflineMode from '../hooks/useOfflineMode';
@@ -41,7 +41,7 @@ const SurfModeCard = ({ textPrimaryClass, textSecondaryClass, cardBgClass }) => 
 
   const fetchVerificationStatus = async () => {
     try {
-      const res = await axios.get(`${API}/api/verification/my-requests?user_id=${user.id}`);
+      const res = await apiClient.get(`/api/verification/my-requests?user_id=${user.id}`);
       const proReq = (res.data || []).find(r => r.verification_type === 'pro_surfer');
       if (proReq) setVerificationStatus(proReq.status);
     } catch (e) {
@@ -56,7 +56,7 @@ const SurfModeCard = ({ textPrimaryClass, textSecondaryClass, cardBgClass }) => 
     setSurfMode(mode);
     setSaving(true);
     try {
-      await axios.patch(`${API}/api/profiles/${user.id}`, { surf_mode: mode });
+      await apiClient.patch(`/api/profiles/${user.id}`, { surf_mode: mode });
       if (updateUser) updateUser({ ...user, surf_mode: mode });
       toast.success(`Surf Mode set to ${mode.charAt(0).toUpperCase() + mode.slice(1)}`);
     } catch (e) {
@@ -77,7 +77,7 @@ const SurfModeCard = ({ textPrimaryClass, textSecondaryClass, cardBgClass }) => 
       const urls = wslForm.competition_history_urls
         ? wslForm.competition_history_urls.split(',').map(u => u.trim()).filter(Boolean)
         : [];
-      await axios.post(`${API}/api/verification/pro-surfer/submit`, {
+      await apiClient.post(`/api/verification/pro-surfer/submit`, {
         user_id: user.id,
         wsl_athlete_id: wslForm.wsl_athlete_id.trim(),
         wsl_profile_url: wslForm.wsl_profile_url.trim(),
@@ -298,7 +298,7 @@ const GromParentCard = ({ textPrimaryClass, textSecondaryClass, cardBgClass }) =
     setToggling(true);
     const newVal = !user?.is_grom_parent;
     try {
-      await axios.patch(`${API}/api/profiles/${user.id}`, { is_grom_parent: newVal });
+      await apiClient.patch(`/api/profiles/${user.id}`, { is_grom_parent: newVal });
       updateUser({ ...user, is_grom_parent: newVal });
       if (newVal) {
         toast.success('Grom Parent mode enabled — access GromHQ to link your child\'s account');
@@ -383,7 +383,7 @@ const UsernameCard = ({ userId, _textPrimaryClass, textSecondaryClass, borderCla
 
   const fetchStatus = async () => {
     try {
-      const response = await axios.get(`${API}/api/username/status?user_id=${userId}`);
+      const response = await apiClient.get(`/api/username/status?user_id=${userId}`);
       setStatus(response.data);
       setNewUsername(response.data.username || '');
     } catch (error) {
@@ -400,7 +400,7 @@ const UsernameCard = ({ userId, _textPrimaryClass, textSecondaryClass, borderCla
     }
     setChecking(true);
     try {
-      const response = await axios.get(`${API}/api/username/check/${username}?user_id=${userId}`);
+      const response = await apiClient.get(`/api/username/check/${username}?user_id=${userId}`);
       setAvailability(response.data);
     } catch (error) {
       setAvailability({ available: false, reason: 'Unable to check' });
@@ -427,9 +427,9 @@ const UsernameCard = ({ userId, _textPrimaryClass, textSecondaryClass, borderCla
     setSaving(true);
     try {
       if (status?.has_username) {
-        await axios.put(`${API}/api/username/change?user_id=${userId}`, { new_username: newUsername });
+        await apiClient.put(`/api/username/change?user_id=${userId}`, { new_username: newUsername });
       } else {
-        await axios.post(`${API}/api/username/set?user_id=${userId}`, { username: newUsername });
+        await apiClient.post(`/api/username/set?user_id=${userId}`, { username: newUsername });
       }
       toast.success(`Username updated to @${newUsername}`);
       setEditing(false);
@@ -572,7 +572,7 @@ const MetaConnectionsCard = ({ userId, textPrimaryClass, textSecondaryClass, bor
 
   const fetchMetaStatus = async () => {
     try {
-      const response = await axios.get(`${API}/api/meta/status?user_id=${userId}`);
+      const response = await apiClient.get(`/api/meta/status?user_id=${userId}`);
       setMetaStatus(response.data);
     } catch (err) {
       setMetaStatus(null);
@@ -584,7 +584,7 @@ const MetaConnectionsCard = ({ userId, textPrimaryClass, textSecondaryClass, bor
   const handleOAuthCallback = async (code, state) => {
     setConnecting(true);
     try {
-      const response = await axios.get(`${API}/api/meta/callback`, {
+      const response = await apiClient.get(`/api/meta/callback`, {
         params: { code, state, redirect_uri: `${window.location.origin}/settings` }
       });
       
@@ -604,7 +604,7 @@ const MetaConnectionsCard = ({ userId, textPrimaryClass, textSecondaryClass, bor
   const handleConnect = async () => {
     setConnecting(true);
     try {
-      const response = await axios.get(`${API}/api/meta/oauth-url`, {
+      const response = await apiClient.get(`/api/meta/oauth-url`, {
         params: { 
           user_id: userId,
           redirect_uri: `${window.location.origin}/settings`
@@ -622,7 +622,7 @@ const MetaConnectionsCard = ({ userId, textPrimaryClass, textSecondaryClass, bor
   const handleDisconnect = async () => {
     setDisconnecting(true);
     try {
-      await axios.delete(`${API}/api/meta/disconnect?user_id=${userId}`);
+      await apiClient.delete(`/api/meta/disconnect?user_id=${userId}`);
       setMetaStatus(null);
       toast.success('Meta accounts disconnected');
     } catch (err) {
@@ -834,7 +834,7 @@ export const Settings = () => {
   
   const fetchPrivacySettings = async () => {
     try {
-      const response = await axios.get(`${API}/api/friends/privacy/${user.id}`);
+      const response = await apiClient.get(`/api/friends/privacy/${user.id}`);
       setPrivacy(response.data);
     } catch (error) {
       logger.error('Failed to fetch privacy settings:', error);
@@ -843,7 +843,7 @@ export const Settings = () => {
   
   const fetchNotificationPrefs = async () => {
     try {
-      const response = await axios.get(`${API}/api/notifications/preferences/${user.id}`);
+      const response = await apiClient.get(`/api/notifications/preferences/${user.id}`);
       setNotifPrefs(response.data);
     } catch (error) {
       logger.error('Failed to fetch notification preferences:', error);
@@ -853,7 +853,7 @@ export const Settings = () => {
   const updateNotifPref = async (key, value) => {
     setNotifLoading(true);
     try {
-      await axios.put(`${API}/api/notifications/preferences/${user.id}`, { [key]: value });
+      await apiClient.put(`/api/notifications/preferences/${user.id}`, { [key]: value });
       setNotifPrefs(prev => ({ ...prev, [key]: value }));
       toast.success('Notification setting updated');
     } catch (error) {
@@ -866,7 +866,7 @@ export const Settings = () => {
   const updatePrivacySetting = async (key, value) => {
     setPrivacyLoading(true);
     try {
-      await axios.put(`${API}/api/friends/privacy/${user.id}`, { [key]: value });
+      await apiClient.put(`/api/friends/privacy/${user.id}`, { [key]: value });
       setPrivacy(prev => ({ ...prev, [key]: value }));
       toast.success('Privacy setting updated');
     } catch (error) {
@@ -880,8 +880,8 @@ export const Settings = () => {
     setFriendsLoading(true);
     try {
       const [friendsRes, pendingRes] = await Promise.all([
-        axios.get(`${API}/api/friends/list/${user.id}`),
-        axios.get(`${API}/api/friends/pending/${user.id}`)
+        apiClient.get(`/api/friends/list/${user.id}`),
+        apiClient.get(`/api/friends/pending/${user.id}`)
       ]);
       setFriends(friendsRes.data.friends || []);
       setPendingRequests(pendingRes.data.pending_requests || []);
@@ -894,7 +894,7 @@ export const Settings = () => {
   
   const _handleAcceptFriend = async (requestId) => {
     try {
-      await axios.post(`${API}/api/friends/accept/${requestId}?user_id=${user.id}`);
+      await apiClient.post(`/api/friends/accept/${requestId}?user_id=${user.id}`);
       toast.success('Friend request accepted!');
       fetchFriends();
     } catch (error) {
@@ -904,7 +904,7 @@ export const Settings = () => {
   
   const _handleDeclineFriend = async (requestId) => {
     try {
-      await axios.post(`${API}/api/friends/decline/${requestId}?user_id=${user.id}`);
+      await apiClient.post(`/api/friends/decline/${requestId}?user_id=${user.id}`);
       toast.success('Friend request declined');
       fetchFriends();
     } catch (error) {
@@ -914,7 +914,7 @@ export const Settings = () => {
   
   const _handleRemoveFriend = async (friendshipId) => {
     try {
-      await axios.delete(`${API}/api/friends/${friendshipId}?user_id=${user.id}`);
+      await apiClient.delete(`/api/friends/${friendshipId}?user_id=${user.id}`);
       toast.success('Friend removed');
       fetchFriends();
     } catch (error) {

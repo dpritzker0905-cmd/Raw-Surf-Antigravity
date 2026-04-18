@@ -1,4 +1,4 @@
-/**
+﻿/**
  * PostMenu - Instagram-style post options menu
  * Different options for own posts vs other users' posts
  */
@@ -7,7 +7,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import { 
   Trash2, Edit2, EyeOff, MessageSquareOff, ExternalLink, Share2, Link, UserCircle, Flag, UserMinus, Star, Users, AlertTriangle,
   Loader2, Copy, Check, Waves, ChevronDown, Pin
@@ -44,7 +44,6 @@ import { useMediaQuery } from '../hooks/useMediaQuery';
 import { TextareaWithEmoji } from './EmojiPicker';
 import logger from '../utils/logger';
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 /**
  * Menu item component
@@ -446,7 +445,7 @@ const ReportPostModal = ({ post, open, onClose, isLight }) => {
     
     setLoading(true);
     try {
-      await axios.post(`${API}/posts/${post.id}/report`, {
+      await apiClient.post(`/posts/${post.id}/report`, {
         reporter_id: user?.id,
         reason,
         description
@@ -549,7 +548,7 @@ const SharePostModal = ({ post, open, onClose, isLight }) => {
         return;
       }
       try {
-        const response = await axios.get(`${API}/meta/status?user_id=${user.id}`);
+        const response = await apiClient.get(`/meta/status?user_id=${user.id}`);
         setMetaStatus(response.data);
       } catch (err) {
         // Not connected or error - that's fine
@@ -581,7 +580,7 @@ const SharePostModal = ({ post, open, onClose, isLight }) => {
     
     setDirectShareLoading('facebook');
     try {
-      const response = await axios.post(`${API}/meta/share-to-facebook?user_id=${user.id}`, {
+      const response = await apiClient.post(`/meta/share-to-facebook?user_id=${user.id}`, {
         post_id: post.id,
         platform: 'facebook'
       });
@@ -604,7 +603,7 @@ const SharePostModal = ({ post, open, onClose, isLight }) => {
     
     setDirectShareLoading('instagram');
     try {
-      const response = await axios.post(`${API}/meta/share-to-instagram?user_id=${user.id}`, {
+      const response = await apiClient.post(`/meta/share-to-instagram?user_id=${user.id}`, {
         post_id: post.id,
         platform: 'instagram'
       });
@@ -923,7 +922,7 @@ export const PostMenu = ({
     if (!activePost?.id || !user?.id) return;
     setActionLoading('pin');
     try {
-      const response = await axios.post(`${API}/posts/${activePost.id}/pin?user_id=${user.id}`);
+      const response = await apiClient.post(`/posts/${activePost.id}/pin?user_id=${user.id}`);
       if (response.data.pinned) {
         setIsPinned(true);
         toast.success('Post pinned to profile');
@@ -947,7 +946,7 @@ export const PostMenu = ({
     }
     try {
       logger.debug('Updating post:', activePost.id, 'with user:', user.id, 'updates:', updates);
-      await axios.patch(`${API}/posts/${activePost.id}?user_id=${user.id}`, updates);
+      await apiClient.patch(`/posts/${activePost.id}?user_id=${user.id}`, updates);
       toast.success('Post updated');
       onPostUpdated?.({ ...activePost, ...updates });
     } catch (error) {
@@ -964,7 +963,7 @@ export const PostMenu = ({
       return;
     }
     try {
-      await axios.delete(`${API}/posts/${activePost.id}?user_id=${user.id}`);
+      await apiClient.delete(`/posts/${activePost.id}?user_id=${user.id}`);
       toast.success('Post deleted');
       onPostDeleted?.(activePost.id);
       onClose();
@@ -979,7 +978,7 @@ export const PostMenu = ({
     if (!activePost?.id || !user?.id) return;
     setActionLoading('like-count');
     try {
-      await axios.patch(`${API}/posts/${activePost.id}/settings?user_id=${user.id}`, {
+      await apiClient.patch(`/posts/${activePost.id}/settings?user_id=${user.id}`, {
         hide_like_count: !activePost.hide_like_count
       });
       toast.success(activePost.hide_like_count ? 'Like count shown' : 'Like count hidden');
@@ -997,7 +996,7 @@ export const PostMenu = ({
     if (!activePost?.id || !user?.id) return;
     setActionLoading('commenting');
     try {
-      await axios.patch(`${API}/posts/${activePost.id}/settings?user_id=${user.id}`, {
+      await apiClient.patch(`/posts/${activePost.id}/settings?user_id=${user.id}`, {
         comments_disabled: !activePost.comments_disabled
       });
       toast.success(activePost.comments_disabled ? 'Comments enabled' : 'Comments disabled');
@@ -1029,7 +1028,7 @@ export const PostMenu = ({
     if (!activePost?.id || !user?.id) return;
     setActionLoading('favorites');
     try {
-      await axios.post(`${API}/users/${user.id}/favorites`, {
+      await apiClient.post(`/users/${user.id}/favorites`, {
         post_id: activePost.id
       });
       toast.success('Added to favorites');

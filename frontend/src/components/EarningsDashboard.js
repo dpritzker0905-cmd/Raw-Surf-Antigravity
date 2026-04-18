@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+﻿import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { usePersona } from '../contexts/PersonaContext';
 import { useEarningsSync, usePhotographerActivitySync } from '../hooks/useWebSocket';
-import axios from 'axios';
+import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import logger from '../utils/logger';
 import { 
   DollarSign, TrendingUp, Camera, Calendar, Image, Users, 
@@ -22,7 +22,6 @@ import { Slider } from './ui/slider';
 import { toast } from 'sonner';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 // Helper function to get commission rate based on subscription tier
 const getCommissionRate = (subscriptionTier) => {
@@ -470,7 +469,7 @@ export const EarningsDashboard = () => {
 
   const fetchEarningsHistory = async () => {
     try {
-      const response = await axios.get(`${API}/photographer/${user?.id}/earnings-history?months=12`);
+      const response = await apiClient.get(`/photographer/${user?.id}/earnings-history?months=12`);
       setEarningsHistory(response.data);
     } catch (error) {
       logger.error('Error fetching earnings history:', error);
@@ -481,7 +480,7 @@ export const EarningsDashboard = () => {
   const fetchEarnings = async () => {
     setLoading(true);
     try {
-      const response = await axios.get(`${API}/photographer/${user?.id}/earnings-breakdown?days=${timeRange}`);
+      const response = await apiClient.get(`/photographer/${user?.id}/earnings-breakdown?days=${timeRange}`);
       setEarnings(response.data);
     } catch (error) {
       logger.error('Error fetching earnings:', error);
@@ -501,7 +500,7 @@ export const EarningsDashboard = () => {
   
   const fetchWalletBalance = async () => {
     try {
-      const response = await axios.get(`${API}/credits/${user?.id}/balance`);
+      const response = await apiClient.get(`/credits/${user?.id}/balance`);
       // For now, use total balance as platform credits
       // In production, this would be a separate "platform_credits" field
       setPlatformCredits(response.data.balance || 0);
@@ -531,7 +530,7 @@ export const EarningsDashboard = () => {
     const fetchFreshTier = async () => {
       if (user?.id) {
         try {
-          const response = await axios.get(`${API}/profiles/${user.id}`);
+          const response = await apiClient.get(`/profiles/${user.id}`);
           if (response.data?.subscription_tier && response.data.subscription_tier !== user?.subscription_tier) {
             setFreshSubscriptionTier(response.data.subscription_tier);
             // Also update the user context
