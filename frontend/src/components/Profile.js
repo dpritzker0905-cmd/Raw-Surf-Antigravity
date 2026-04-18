@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { usePersona, getExpandedRoleInfo } from '../contexts/PersonaContext';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -50,6 +50,14 @@ import { FollowersModal } from './FollowersModal';
 import logger from '../utils/logger';
 import apiClient, { BACKEND_URL } from '../lib/apiClient';
 
+// Resolve relative /api/uploads/... paths to backend absolute URLs
+const getFullUrl = (url) => {
+  if (!url) return url;
+  if (url.startsWith('data:')) return url;
+  if (url.startsWith('blob:')) return url;
+  if (url.startsWith('http')) return url;
+  return `${BACKEND_URL || ''}${url}`;
+};
 
 
 // Role badge component showing icon and label
@@ -306,12 +314,21 @@ export const Profile = () => {
   };
 
   const checkFollowStatus = async () => {
-    if (!user?.id) return;
-    
+    if (!user?.id || !profileUserId) return;
     try {
+      // Use direct check: GET /follow/check?follower_id=X&following_id=Y
+      // Fallback: load the following list and search
+      try {
+        const response = await apiClient.get(`/follow/check?follower_id=${user.id}&following_id=${profileUserId}`);
+        setIsFollowing(response.data?.is_following === true);
+        return;
+      } catch (checkErr) {
+        // Endpoint doesn't exist yet — fall back to list search
+      }
       const response = await apiClient.get(`/following/${user.id}`);
       const following = response.data || [];
-      setIsFollowing(following.some(f => f.id === profileUserId));
+      // Compare as strings to avoid UUID type mismatch
+      setIsFollowing(following.some(f => String(f.id) === String(profileUserId)));
     } catch (error) {
       logger.error('Error checking follow status:', error);
     }
@@ -811,7 +828,7 @@ export const Profile = () => {
               style={{ cursor: userNote ? 'pointer' : 'default' }}
             >
               <Avatar className="w-28 h-28 md:w-32 md:h-32 border-4 border-black" data-testid="profile-avatar">
-                <AvatarImage src={profile.avatar_url} className="object-cover" />
+                <AvatarImage src={getFullUrl(profile.avatar_url)} className="object-cover" />
                 <AvatarFallback className="text-4xl bg-zinc-800 text-white">
                   {profile.full_name?.[0] || 'U'}
                 </AvatarFallback>
@@ -1787,7 +1804,7 @@ export const Profile = () => {
             {/* Photographer Info */}
             <div className="flex items-center gap-4 p-4 rounded-xl bg-zinc-800">
               <Avatar className="w-14 h-14 border-2 border-cyan-400">
-                <AvatarImage src={profile?.avatar_url} />
+                <AvatarImage src={getFullUrl(profile?.avatar_url)} />
                 <AvatarFallback className="bg-zinc-700 text-cyan-400">
                   {profile?.full_name?.charAt(0)}
                 </AvatarFallback>

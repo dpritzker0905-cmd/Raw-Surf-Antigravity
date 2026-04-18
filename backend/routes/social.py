@@ -86,6 +86,18 @@ async def unfollow_user(user_id: str, follower_id: str, db: AsyncSession = Depen
     await db.commit()
     return {"message": "Unfollowed successfully"}
 
+@router.get("/follow/check")
+async def check_follow_status(follower_id: str, following_id: str, db: AsyncSession = Depends(get_db)):
+    """Fast check: is follower_id following following_id?"""
+    result = await db.execute(
+        select(Follow).where(
+            Follow.follower_id == follower_id,
+            Follow.following_id == following_id
+        )
+    )
+    follow = result.scalar_one_or_none()
+    return {"is_following": follow is not None}
+
 @router.get("/followers/{user_id}")
 async def get_followers(user_id: str, db: AsyncSession = Depends(get_db)):
     result = await db.execute(

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * FollowersModal - Instagram-style modal showing followers or following list
  * Allows users to view who follows them or who they follow
  */
@@ -12,6 +12,12 @@ import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { useAuth } from '../contexts/AuthContext';
 import { toast } from 'sonner';
+
+const getFullUrl = (url) => {
+  if (!url) return url;
+  if (url.startsWith('data:') || url.startsWith('blob:') || url.startsWith('http')) return url;
+  return `${BACKEND_URL || ''}${url}`;
+};
 
 
 export const FollowersModal = ({ 
@@ -151,7 +157,7 @@ export const FollowersModal = ({
                       className="flex-shrink-0"
                     >
                       <Avatar className="w-12 h-12 border-2 border-border">
-                        <AvatarImage src={listUser.avatar_url} alt={listUser.full_name} />
+                        <AvatarImage src={getFullUrl(listUser.avatar_url)} alt={listUser.full_name} />
                         <AvatarFallback className="bg-muted text-muted-foreground">
                           {listUser.full_name?.charAt(0) || '?'}
                         </AvatarFallback>
