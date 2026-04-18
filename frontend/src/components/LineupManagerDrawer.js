@@ -409,37 +409,26 @@ const QuickActionsPanel = ({
             <Waves className="w-4 h-4 text-cyan-400" />
             <p className={`text-sm font-medium ${textPrimary}`}>Keeping a Spot in the Water</p>
           </div>
-          <p className={`text-xs ${textSecondary} mb-3`}>
+          <p className={`text-xs ${textSecondary}`}>
             Your lineup is open. Use the invite panel above to fill the remaining spots — the session stays open until you're ready to lock it.
           </p>
-          <Button
-            onClick={onClose}
-            variant="outline"
-            size="sm"
-            className={`w-full ${isLight ? 'border-cyan-300 text-cyan-700 hover:bg-cyan-50' : 'border-cyan-500/50 text-cyan-400 hover:bg-cyan-500/10'}`}
-            data-testid="keep-open-close-btn"
-          >
-            <Waves className="w-4 h-4 mr-2" />
-            Leave Open & Come Back Later
-          </Button>
         </div>
       )}
 
       {/* ── State B: Ready to lock ── */}
       {isReady && isActive && (
         <>
-          {/* Informational banner — captain is NOT forced to act */}
           <div className={`p-3 rounded-xl ${isLight ? 'bg-green-50 border border-green-200' : 'bg-green-500/10 border border-green-500/30'}`}>
             <p className={`text-sm font-medium ${textPrimary} flex items-center gap-2`}>
               <CheckCircle className="w-4 h-4 text-green-400" />
               Crew is ready!
             </p>
             <p className={`text-xs ${textSecondary} mt-0.5`}>
-              You can lock now or keep the lineup open to let more surfers join.
+              Lock to confirm the session, or keep it open to let more surfers join.
             </p>
           </div>
 
-          {/* Primary: Lock */}
+          {/* 1 — Lock (primary) */}
           <Button
             onClick={onLock}
             disabled={loading}
@@ -448,19 +437,21 @@ const QuickActionsPanel = ({
           >
             {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <><Lock className="w-5 h-5 mr-2" />Lock Lineup & Confirm Session</>}
           </Button>
-
-          {/* Explicit Keep Open button replacing the hint text */}
-          <Button
-            onClick={onClose}
-            variant="outline"
-            size="sm"
-            className={`w-full ${isLight ? 'border-gray-300 text-gray-600 hover:bg-gray-50' : 'border-zinc-600 text-zinc-300 hover:bg-zinc-700'}`}
-            data-testid="keep-open-close-btn"
-          >
-            <Waves className="w-4 h-4 mr-2 text-cyan-400" />
-            Leave Open & Come Back Later
-          </Button>
         </>
+      )}
+
+      {/* 2 — Leave Open & Come Back Later (always shown when active) */}
+      {isActive && (
+        <Button
+          onClick={onClose}
+          variant="outline"
+          size="sm"
+          className={`w-full ${isLight ? 'border-gray-300 text-gray-600 hover:bg-gray-50' : 'border-zinc-600 text-zinc-300 hover:bg-zinc-700'}`}
+          data-testid="keep-open-close-btn"
+        >
+          <Waves className="w-4 h-4 mr-2 text-cyan-400" />
+          Leave Open & Come Back Later
+        </Button>
       )}
 
       {/* Close to new surfers (open status only) */}
@@ -478,30 +469,22 @@ const QuickActionsPanel = ({
         </Button>
       )}
 
-      {/* Cancel — secondary disclosure, not prominent by default */}
-      {!showCancelRow ? (
-        <button
-          onClick={() => setShowCancelRow(true)}
-          className={`w-full text-xs text-center py-1.5 ${textSecondary} hover:text-red-400 transition-colors`}
-          data-testid="show-cancel-btn"
-        >
-          Need to cancel this lineup?
-        </button>
-      ) : (
-        <Button
-          onClick={onCancelAll}
-          disabled={loading}
-          variant="outline"
-          className={`w-full ${isLight ? 'border-red-300 text-red-600 hover:bg-red-50' : 'border-red-500/50 text-red-400 hover:bg-red-500/10'}`}
-          data-testid="cancel-lineup-btn"
-        >
-          <Ban className="w-4 h-4 mr-2" />
-          Cancel Lineup & Refund All
-        </Button>
-      )}
+      {/* 3 — Cancel (always shown, red outline) */}
+      <Button
+        onClick={onCancelAll}
+        disabled={loading}
+        variant="outline"
+        size="sm"
+        className={`w-full ${isLight ? 'border-red-300 text-red-600 hover:bg-red-50' : 'border-red-500/50 text-red-400 hover:bg-red-500/10'}`}
+        data-testid="cancel-lineup-btn"
+      >
+        <Ban className="w-4 h-4 mr-2" />
+        Cancel Lineup & Refund All
+      </Button>
     </div>
   );
 };
+
 
 
 // Countdown Timer Component
