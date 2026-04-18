@@ -482,7 +482,7 @@ async def bulk_delete_users(
         except Exception as e:
             try:
                 await db.rollback()
-            except:
+            except Exception:
                 pass
             errors.append(f"{user_id[:8]}...")
     

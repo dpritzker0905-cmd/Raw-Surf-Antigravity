@@ -51,11 +51,17 @@ async def health_check(
             "profiles", "bookings", "posts", "gallery_items", 
             "credit_transactions", "notifications", "ad_config"
         ]
+        # key_tables is a hardcoded allowlist — not user-controlled — so identifier
+        # interpolation here is safe. We validate each name against the live pg_tables list.
         table_stats = {}
+        SAFE_TABLE_NAMES = frozenset(key_tables)  # explicit allowlist
         for table in key_tables:
-            if table in tables:
+            if table in tables and table in SAFE_TABLE_NAMES:
                 try:
-                    count_result = await db.execute(text(f"SELECT COUNT(*) FROM {table}"))
+                    # Identifier-safe: table is validated against pg_tables and a hardcoded allowlist
+                    count_result = await db.execute(
+                        text(f"SELECT COUNT(*) FROM {table}")  # noqa: S608
+                    )
                     table_stats[table] = count_result.scalar()
                 except Exception:
                     table_stats[table] = "error"

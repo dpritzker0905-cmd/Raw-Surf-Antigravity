@@ -1370,7 +1370,7 @@ async def mark_arrived(
         if surfer.badges:
             try:
                 badges = json.loads(surfer.badges) if isinstance(surfer.badges, str) else (surfer.badges or [])
-            except:
+            except (ValueError, TypeError):
                 badges = []
         
         if 'first_responder' not in badges:

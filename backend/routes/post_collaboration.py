@@ -92,7 +92,7 @@ def get_session_label(start_time: str) -> str:
             return "Afternoon Shred"
         else:
             return "Sunset Session"
-    except:
+    except (ValueError, IndexError):
         return None
 
 

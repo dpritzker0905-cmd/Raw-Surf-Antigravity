@@ -2693,7 +2693,7 @@ async def get_photographer_stats(
     if profile.badges:
         try:
             badges = json.loads(profile.badges) if isinstance(profile.badges, str) else profile.badges
-        except:
+        except (ValueError, TypeError):
             badges = []
     
     # Hot streak multiplier (3+ requests in a day = 2x)
@@ -2788,7 +2788,7 @@ async def get_on_demand_settings(
     if profile.on_demand_claimed_spots:
         try:
             claimed_spots = json.loads(profile.on_demand_claimed_spots) if isinstance(profile.on_demand_claimed_spots, str) else profile.on_demand_claimed_spots
-        except:
+        except (ValueError, TypeError):
             claimed_spots = []
     
     return {
@@ -2875,7 +2875,7 @@ async def update_watermark_settings(
     if not profile:
         raise HTTPException(status_code=404, detail="Photographer not found")
     
-    if profile.role != RoleEnum.PHOTOGRAPHER:
+    if profile.role not in [RoleEnum.PHOTOGRAPHER, RoleEnum.PRO, RoleEnum.APPROVED_PRO]:
         raise HTTPException(status_code=403, detail="Only photographers can set watermark settings")
     
     # Validate watermark style
