@@ -107,7 +107,7 @@ class PostResponse(BaseModel):
     video_width: Optional[int]
     video_height: Optional[int]
     video_duration: Optional[float]
-    was_transcoded: bool
+    was_transcoded: bool = False
     created_at: datetime
     recent_comments: List[CommentResponse] = []  # Show latest 2 comments inline
     
