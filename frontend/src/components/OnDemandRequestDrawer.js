@@ -371,13 +371,25 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
   // ============ CREW PAYMENT SPLIT FUNCTIONS ============
   
   const handleCrewPercentageChange = (memberId, newPercentage) => {
-    // Calculate share based on full session price
+    // Calculate this member's new dollar amount
     const newAmount = (newPercentage / 100) * totalPrice;
-    setCrewMembers(prev => prev.map(m => 
-      m.id === memberId 
-        ? { ...m, share_percentage: newPercentage, share_amount: newAmount }
-        : m
-    ));
+    
+    // Update this member, then recalculate all percentages for display consistency
+    setCrewMembers(prev => {
+      const updated = prev.map(m => {
+        if (m.id === memberId) {
+          return { ...m, share_percentage: newPercentage, share_amount: newAmount, covered_by_captain: false };
+        }
+        return m;
+      });
+      
+      // Recalculate each member's percentage based on their current share_amount
+      // so the display stays consistent
+      return updated.map(m => ({
+        ...m,
+        share_percentage: m.covered_by_captain ? 0 : ((m.share_amount || 0) / totalPrice) * 100
+      }));
+    });
   };
   
   const handleToggleCoverMember = (memberId) => {
@@ -630,6 +642,17 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
       <DialogContent 
         className={`${bgCard} border-border sm:max-w-lg p-0`}
         hideCloseButton={step === 'waiting' || step === 'success'}
+        onInteractOutside={(e) => {
+          // Block overlay clicks from closing during waiting/success steps
+          if (step === 'waiting' || step === 'success') e.preventDefault();
+        }}
+        onEscapeKeyDown={(e) => {
+          // Block Escape key from closing during waiting step
+          if (step === 'waiting') {
+            e.preventDefault();
+            setShowCancelConfirm(true);
+          }
+        }}
       >
         <DialogTitle className="sr-only">On-Demand Session Booking</DialogTitle>
         {/* DialogContent is flex-col: this div fills remaining space and scrolls */}
