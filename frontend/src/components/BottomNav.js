@@ -127,32 +127,29 @@ export const BottomNav = () => {
       try {
         const response = await apiClient.get(`/profiles/${user.id}`);
         const avatarFromApi = response.data.avatar_url;
-        if (avatarFromApi) {
-          // Add cache buster with current timestamp
-          const separator = avatarFromApi.includes('?') ? '&' : '?';
-          setFreshAvatarUrl(`${avatarFromApi}${separator}v=${Date.now()}`);
-        } else {
-          setFreshAvatarUrl(null);
-        }
+        // Store raw URL — never add ?v= to data: or blob: URLs
+        setFreshAvatarUrl(avatarFromApi || null);
       } catch (error) {
-        // Fallback to context avatar if API fails
         logger.error('Failed to fetch fresh avatar:', error);
       }
     };
-    
     fetchFreshAvatar();
   }, [user?.id, user?.avatar_url, user?.updated_at]);
-  
+
+  // Helper: add cache-buster only for real HTTP paths (not data:/blob:/CDN URLs)
+  const withCacheBuster = (url, version) => {
+    if (!url) return url;
+    if (url.startsWith('data:') || url.startsWith('blob:') || url.startsWith('//')) return url;
+    const sep = url.includes('?') ? '&' : '?';
+    return `${url}${sep}v=${version}`;
+  };
+
   // Use fresh avatar URL if available, otherwise fallback to context
   const avatarUrl = useMemo(() => {
-    if (freshAvatarUrl) return freshAvatarUrl;
-    if (!user?.avatar_url) return null;
-    // Add cache buster using updated_at timestamp or current time hash
-    const cacheBuster = user?.updated_at 
-      ? new Date(user.updated_at).getTime() 
-      : Date.now();
-    const separator = user.avatar_url.includes('?') ? '&' : '?';
-    return `${user.avatar_url}${separator}v=${cacheBuster}`;
+    const raw = freshAvatarUrl || user?.avatar_url;
+    if (!raw) return null;
+    const version = user?.updated_at ? new Date(user.updated_at).getTime() : Date.now();
+    return withCacheBuster(raw, version);
   }, [user?.avatar_url, user?.updated_at, freshAvatarUrl]);
   
   // Get effective role for UI rendering (respects God Mode masking)

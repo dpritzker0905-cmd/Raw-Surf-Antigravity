@@ -147,7 +147,7 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
     const fetchCredits = async () => {
       if (user?.id && isOpen && !creditsFetched) {
         try {
-          const res = await apiClient.get(`/credits/balance/${user.id}`);
+          const res = await apiClient.get(`/credits/${user.id}/balance`);
           if (res.data?.balance !== undefined) {
             const balance = res.data.balance;
             setLocalCredits(balance);
@@ -621,8 +621,8 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
         hideCloseButton={step === 'waiting'}
       >
         <DialogTitle className="sr-only">On-Demand Session Booking</DialogTitle>
-        {/* Scrollable content area — uses modal-body flex class from index.css */}
-        <div className="modal-body pb-[88px]">
+        {/* DialogContent is flex-col: this div fills remaining space and scrolls */}
+        <div style={{ flex: '1 1 0%', minHeight: 0, overflowY: 'auto', paddingBottom: '88px', WebkitOverflowScrolling: 'touch' }}>
         {/* ============ STEP 0: START TIME SELECTION ============ */}
         {step === 'timing' && (
           <div className="p-4 sm:p-6 space-y-5">
