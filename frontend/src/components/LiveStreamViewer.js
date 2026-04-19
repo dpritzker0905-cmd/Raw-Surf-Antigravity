@@ -1,21 +1,22 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
-  X, Radio, Users, Heart, MessageCircle, Send, Loader2, WifiOff, 
-  ArrowLeft, Share2, UserPlus, Sparkles, SlidersHorizontal
+import {
+  X, Radio, Users, Heart, MessageCircle, Send, Loader2, WifiOff,
+  ArrowLeft, Share2, UserPlus, Sparkles, RotateCcw,
+  Sun, Contrast, Droplets, Thermometer, CircleDot,
+  Eye, Grid, Waves, Moon, Zap, Sunset
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { useAuth } from '../contexts/AuthContext';
-import apiClient, { BACKEND_URL } from '../lib/apiClient';
+import { useTheme } from '../contexts/ThemeContext';
+import apiClient from '../lib/apiClient';
 import { toast } from 'sonner';
 
-
-// LiveKit imports
+// LiveKit
 import {
-
   LiveKitRoom,
   VideoTrack,
   useTracks,
@@ -26,64 +27,135 @@ import { Track } from 'livekit-client';
 import logger from '../utils/logger';
 import { getFullUrl } from '../utils/media';
 
-
-const API = process.env.REACT_APP_BACKEND_URL + '/api';
 const CONNECTION_TIMEOUT = 15000;
 
-/**
- * Viewer Display Filter Panel - local CSS filters for viewer's display only
- * (not applied to the stream itself - just for their local viewing experience)
- */
-const ViewerFilterPanel = ({ filters, onFilterChange, onClose }) => (
-  <motion.div
-    initial={{ opacity: 0, x: 20 }}
-    animate={{ opacity: 1, x: 0 }}
-    exit={{ opacity: 0, x: 20 }}
-    className="absolute right-16 top-1/4 z-30 bg-zinc-900/95 backdrop-blur-md border border-zinc-700 rounded-2xl p-4 w-52 shadow-2xl"
-  >
-    <div className="flex items-center justify-between mb-3">
-      <span className="text-white text-sm font-semibold flex items-center gap-1.5">
-        <SlidersHorizontal className="w-4 h-4 text-cyan-400" />
-        View Filters
-      </span>
-      <button onClick={onClose} className="text-zinc-500 hover:text-white text-xs">✕</button>
-    </div>
-    {[
-      { key: 'brightness', label: 'Brightness', min: 50, max: 150 },
-      { key: 'contrast',   label: 'Contrast',   min: 50, max: 150 },
-      { key: 'saturation', label: 'Saturation', min: 0,  max: 200 },
-      { key: 'warmth',     label: 'Warmth',     min: 50, max: 150 },
-    ].map(({ key, label, min, max }) => (
-      <div key={key} className="mb-3">
-        <div className="flex justify-between text-xs text-zinc-400 mb-1">
-          <span>{label}</span>
-          <span className="text-cyan-400">{filters[key]}%</span>
+// ─── Theme colours (mirrors GoLiveModal.getThemeColors) ───────────────────────
+const getThemeColors = (theme) => {
+  if (theme === 'light') return {
+    overlayBg: 'bg-white/90',   border: 'border-gray-200',
+    primaryText: 'text-gray-900', secondaryText: 'text-gray-600',
+    buttonBg: 'bg-gray-100 hover:bg-gray-200',
+    accentText: 'text-blue-600', accentBg: 'bg-blue-600',
+    gradientTop: 'from-white/70',
+  };
+  if (theme === 'beach') return {
+    overlayBg: 'bg-zinc-950/90', border: 'border-amber-700/40',
+    primaryText: 'text-amber-100', secondaryText: 'text-amber-300',
+    buttonBg: 'bg-amber-900/50 hover:bg-amber-800/50',
+    accentText: 'text-orange-400', accentBg: 'bg-orange-500',
+    gradientTop: 'from-zinc-950/80',
+  };
+  // dark (default)
+  return {
+    overlayBg: 'bg-zinc-900/90',  border: 'border-zinc-700',
+    primaryText: 'text-white',    secondaryText: 'text-zinc-400',
+    buttonBg: 'bg-zinc-800/80 hover:bg-zinc-700',
+    accentText: 'text-cyan-400',  accentBg: 'bg-cyan-500',
+    gradientTop: 'from-black/80',
+  };
+};
+
+// ─── AI Filter presets (identical to GoLiveModal broadcaster) ─────────────────
+const FILTER_PRESETS = [
+  { name: 'None',           icon: CircleDot, values: { brightness: 100, contrast: 100, saturation: 100, warmth: 100, vignette: 0  }, description: 'Original' },
+  { name: 'Golden Hour',    icon: Sunset,    values: { brightness: 105, contrast: 110, saturation: 120, warmth: 120, vignette: 20 }, description: 'Warm sunset vibes' },
+  { name: 'AI Pipeline',    icon: Waves,     values: { brightness: 90,  contrast: 130, saturation: 90,  warmth: 110, vignette: 40 }, description: 'Deep barrel shadows' },
+  { name: 'AI Bio-Lum',     icon: Moon,      values: { brightness: 85,  contrast: 140, saturation: 150, warmth: 160, vignette: 30 }, description: 'Neon glowing night surf' },
+  { name: 'AI Cyber-Surf',  icon: Zap,       values: { brightness: 110, contrast: 125, saturation: 140, warmth: 40,  vignette: 0  }, description: 'Hyper-performance cold lens' },
+  { name: 'AI Night Vision',icon: Eye,       values: { brightness: 100, contrast: 100, saturation: 100, warmth: 100, vignette: 0  }, description: 'Tactical green overlay' },
+  { name: 'AI Pixelate',    icon: Grid,      values: { brightness: 100, contrast: 100, saturation: 100, warmth: 100, vignette: 0  }, description: 'Retro 8-bit aesthetic' },
+];
+
+// ─── Surf Filters Panel (mirrors GoLiveModal VideoFilterPanel) ────────────────
+const ViewerFilterPanel = ({ isOpen, onClose, filters, onFilterChange, onPresetSelect, colors }) => {
+  if (!isOpen) return null;
+  return (
+    <motion.div
+      initial={{ opacity: 0, x: -20 }}
+      animate={{ opacity: 1, x: 0 }}
+      exit={{ opacity: 0, x: -20 }}
+      className={`absolute left-3 top-24 w-64 max-h-[58vh] overflow-y-auto p-3 rounded-2xl ${colors.overlayBg} ${colors.border} border z-50 shadow-2xl`}
+    >
+      {/* Header */}
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <Sparkles className={`w-4 h-4 ${colors.accentText}`} />
+          <span className={`text-sm font-medium ${colors.primaryText}`}>Surf Filters</span>
         </div>
-        <input
-          type="range" min={min} max={max} value={filters[key]}
-          onChange={(e) => onFilterChange(key, parseInt(e.target.value))}
-          className="w-full h-1 bg-zinc-700 rounded-full appearance-none cursor-pointer accent-cyan-400"
-        />
+        <button onClick={onClose} className={`p-1.5 rounded-full ${colors.buttonBg}`}>
+          <X className={`w-4 h-4 ${colors.secondaryText}`} />
+        </button>
       </div>
-    ))}
-    <button
-      onClick={() => { onFilterChange('brightness', 100); onFilterChange('contrast', 100); onFilterChange('saturation', 100); onFilterChange('warmth', 100); }}
-      className="w-full text-xs text-zinc-500 hover:text-zinc-300 py-1 transition-colors"
-    >Reset all</button>
-  </motion.div>
-);
 
+      {/* AI Presets grid */}
+      <div className="mb-3 space-y-1.5">
+        <span className={`text-xs font-medium ${colors.secondaryText}`}>Quick Presets</span>
+        <div className="grid grid-cols-3 gap-1.5">
+          {FILTER_PRESETS.map((preset) => {
+            const Icon = preset.icon;
+            const isActive = filters.presetName === preset.name;
+            return (
+              <button
+                key={preset.name}
+                onClick={() => onPresetSelect(preset)}
+                className={`flex flex-col items-center gap-1 p-2 rounded-lg transition-all hover:scale-105 ${isActive ? colors.accentBg : colors.buttonBg}`}
+                title={preset.description}
+              >
+                <Icon className={`w-4 h-4 ${isActive ? 'text-white' : colors.accentText}`} />
+                <span className={`text-[9px] text-center leading-tight ${isActive ? 'text-white' : colors.primaryText}`}>{preset.name}</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
 
-/**
- * Live Chat Message Component
- */
+      {/* Manual sliders */}
+      {[
+        { key: 'brightness', label: 'Brightness', Icon: Sun,         min: 50,  max: 150 },
+        { key: 'contrast',   label: 'Contrast',   Icon: Contrast,    min: 50,  max: 150 },
+        { key: 'saturation', label: 'Saturation', Icon: Droplets,    min: 50,  max: 200 },
+        { key: 'warmth',     label: 'Warmth',     Icon: Thermometer, min: 50,  max: 150 },
+        { key: 'vignette',   label: 'Vignette',   Icon: CircleDot,   min: 0,   max: 50  },
+      ].map(({ key, label, Icon, min, max }) => (
+        <div key={key} className="mb-2.5">
+          <div className="flex items-center justify-between mb-1">
+            <div className="flex items-center gap-1.5">
+              <Icon className={`w-3 h-3 ${colors.secondaryText}`} />
+              <span className={`text-xs ${colors.secondaryText}`}>{label}</span>
+            </div>
+            <span className={`text-xs ${colors.primaryText}`}>{filters[key]}%</span>
+          </div>
+          <input
+            type="range" min={min} max={max} value={filters[key]}
+            onChange={(e) => onFilterChange(key, parseInt(e.target.value))}
+            className="w-full h-1.5 rounded-full appearance-none cursor-pointer accent-cyan-500"
+          />
+        </div>
+      ))}
+
+      {/* Reset */}
+      <Button
+        onClick={() => {
+          onFilterChange('brightness', 100); onFilterChange('contrast', 100);
+          onFilterChange('saturation', 100); onFilterChange('warmth', 100);
+          onFilterChange('vignette', 0);     onFilterChange('presetName', 'None');
+        }}
+        size="sm" variant="outline"
+        className={`w-full mt-1 ${colors.buttonBg} ${colors.primaryText}`}
+      >
+        <RotateCcw className="w-3 h-3 mr-2" />
+        Reset All
+      </Button>
+    </motion.div>
+  );
+};
+
+// ─── Live Chat ────────────────────────────────────────────────────────────────
 const ChatMessage = ({ message, isOwn }) => (
   <div className={`flex gap-2 ${isOwn ? 'flex-row-reverse' : ''}`}>
     <Avatar className="w-7 h-7 flex-shrink-0">
       <AvatarImage src={getFullUrl(message.avatar_url)} />
-      <AvatarFallback className="bg-zinc-700 text-xs">
-        {message.user_name?.[0] || '?'}
-      </AvatarFallback>
+      <AvatarFallback className="bg-zinc-700 text-xs">{message.user_name?.[0] || '?'}</AvatarFallback>
     </Avatar>
     <div className={`max-w-[80%] ${isOwn ? 'text-right' : ''}`}>
       <span className="text-xs text-cyan-400 font-medium">{message.user_name}</span>
@@ -92,70 +164,42 @@ const ChatMessage = ({ message, isOwn }) => (
   </div>
 );
 
-/**
- * Live Comments Section
- */
-const LiveComments = ({ streamId, userId, userName, userAvatar }) => {
-  const [comments, setComments] = useState([]);
+const LiveChat = ({ streamId, userId, userName, userAvatar }) => {
+  const [comments, setComments]   = useState([]);
   const [newComment, setNewComment] = useState('');
-  const [sending, setSending] = useState(false);
-  const commentsEndRef = useRef(null);
-  const pollIntervalRef = useRef(null);
+  const [sending, setSending]     = useState(false);
+  const endRef    = useRef(null);
+  const pollRef   = useRef(null);
+
+  useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [comments]);
 
   useEffect(() => {
-    commentsEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [comments]);
-
-  useEffect(() => {
-    const fetchComments = async () => {
+    const fetch = async () => {
       try {
-        const response = await apiClient.get(`/social-live/${streamId}/comments`);
-        if (response.data?.comments) {
-          setComments(response.data.comments);
-        }
-      } catch (err) {
-        // Silently fail
-      }
+        const r = await apiClient.get(`/social-live/${streamId}/comments`);
+        if (r.data?.comments) setComments(r.data.comments);
+      } catch { /* silent */ }
     };
-
-    fetchComments();
-    pollIntervalRef.current = setInterval(fetchComments, 3000);
-
-    return () => {
-      if (pollIntervalRef.current) {
-        clearInterval(pollIntervalRef.current);
-      }
-    };
+    fetch();
+    pollRef.current = setInterval(fetch, 3000);
+    return () => clearInterval(pollRef.current);
   }, [streamId]);
 
-  const handleSendComment = async (e) => {
+  const send = async (e) => {
     e.preventDefault();
     if (!newComment.trim() || sending) return;
-
     setSending(true);
     try {
       await apiClient.post(`/social-live/${streamId}/comments`, {
-        user_id: userId,
-        user_name: userName,
-        avatar_url: userAvatar,
-        text: newComment.trim()
+        user_id: userId, user_name: userName, avatar_url: userAvatar, text: newComment.trim()
       });
-      
       setComments(prev => [...prev, {
-        id: Date.now().toString(),
-        user_id: userId,
-        user_name: userName,
-        avatar_url: userAvatar,
-        text: newComment.trim(),
-        created_at: new Date().toISOString()
+        id: Date.now().toString(), user_id: userId, user_name: userName,
+        avatar_url: userAvatar, text: newComment.trim(), created_at: new Date().toISOString()
       }]);
-      
       setNewComment('');
-    } catch (err) {
-      toast.error('Failed to send comment');
-    } finally {
-      setSending(false);
-    }
+    } catch { toast.error('Failed to send'); }
+    finally { setSending(false); }
   };
 
   return (
@@ -165,7 +209,6 @@ const LiveComments = ({ streamId, userId, userName, userAvatar }) => {
         <span className="text-sm font-medium text-zinc-300">Live Chat</span>
         <span className="text-xs text-zinc-500">({comments.length})</span>
       </div>
-
       <div className="flex-1 overflow-y-auto p-3 space-y-3 min-h-0">
         {comments.length === 0 ? (
           <div className="text-center text-zinc-500 text-sm py-8">
@@ -173,39 +216,25 @@ const LiveComments = ({ streamId, userId, userName, userAvatar }) => {
             <p>No comments yet</p>
             <p className="text-xs">Be the first to say something!</p>
           </div>
-        ) : (
-          comments.map((msg) => (
-            <ChatMessage 
-              key={msg.id} 
-              message={msg} 
-              isOwn={msg.user_id === userId}
-            />
-          ))
-        )}
-        <div ref={commentsEndRef} />
+        ) : comments.map(msg => (
+          <ChatMessage key={msg.id} message={msg} isOwn={msg.user_id === userId} />
+        ))}
+        <div ref={endRef} />
       </div>
-
-      <form onSubmit={handleSendComment} className="p-3 border-t border-zinc-800">
+      <form onSubmit={send} className="p-3 border-t border-zinc-800">
         <div className="flex gap-2">
           <Input
             value={newComment}
             onChange={(e) => setNewComment(e.target.value)}
             placeholder="Say something..."
             className="flex-1 bg-zinc-800 border-zinc-700 text-white placeholder:text-zinc-500 h-10"
-            maxLength={200}
-            disabled={sending}
+            maxLength={200} disabled={sending}
           />
-          <Button
-            type="submit"
-            size="icon"
+          <Button type="submit" size="icon"
             disabled={!newComment.trim() || sending}
             className="bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600 h-10 w-10"
           >
-            {sending ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : (
-              <Send className="w-4 h-4" />
-            )}
+            {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
           </Button>
         </div>
       </form>
@@ -213,117 +242,165 @@ const LiveComments = ({ streamId, userId, userName, userAvatar }) => {
   );
 };
 
-/**
- * Viewer Side-by-Side Content
- */
-const ViewerContent = ({ broadcaster, onLeave, viewerCount, onViewProfile, streamId, userId, userName, userAvatar }) => {
-  const [isChatOpen, setIsChatOpen] = useState(true);
+// ─── Stream Unavailable ───────────────────────────────────────────────────────
+const StreamUnavailable = ({ onBack, broadcasterName, onRetry }) => (
+  <div className="absolute inset-0 flex items-center justify-center bg-zinc-950">
+    <div className="text-center p-6 max-w-md">
+      <div className="w-20 h-20 rounded-full bg-zinc-800 flex items-center justify-center mx-auto mb-4">
+        <WifiOff className="w-10 h-10 text-gray-500" />
+      </div>
+      <h3 className="text-white text-xl font-bold mb-2">Stream Ended</h3>
+      <p className="text-gray-400 mb-6">
+        {broadcasterName ? `${broadcasterName}'s live stream` : 'This stream'} has ended or is unavailable.
+      </p>
+      <div className="flex flex-col sm:flex-row gap-3 justify-center">
+        <Button onClick={onRetry} variant="outline" className="border-zinc-700 text-white hover:bg-zinc-800 gap-2">
+          <Radio className="w-4 h-4" /> Try Again
+        </Button>
+        <Button onClick={onBack} className="bg-white text-black hover:bg-gray-200 gap-2">
+          <ArrowLeft className="w-4 h-4" /> Back to Feed
+        </Button>
+      </div>
+    </div>
+  </div>
+);
+
+// ─── Viewer Room Content (inside LiveKitRoom) ─────────────────────────────────
+const ViewerRoomContent = ({
+  broadcaster, onLeave, viewerCount, onViewProfile,
+  streamId, userId, userName, userAvatar, colors
+}) => {
+  const [isChatOpen, setIsChatOpen]   = useState(true);
   const [showFilters, setShowFilters] = useState(false);
-  const [viewFilters, setViewFilters] = useState({ brightness: 100, contrast: 100, saturation: 100, warmth: 100 });
+  const [filters, setFilters] = useState({
+    brightness: 100, contrast: 100, saturation: 100, warmth: 100, vignette: 0, presetName: 'None'
+  });
+
   const tracks = useTracks([Track.Source.Camera], { onlySubscribed: true });
-  
-  // Find broadcaster's video track
   const broadcasterTrack = tracks.find(t => !t.participant?.isLocal);
 
-  const handleFilterChange = (key, value) => setViewFilters(prev => ({ ...prev, [key]: value }));
+  const handleFilterChange = useCallback((key, value) => {
+    setFilters(prev => ({ ...prev, [key]: value }));
+  }, []);
 
-  // Build CSS filter string from viewer filter values
+  const handlePresetSelect = useCallback((preset) => {
+    setFilters({ ...preset.values, presetName: preset.name });
+    toast.success(`Filter: ${preset.name}`);
+  }, []);
+
+  // CSS filter computed from slider values (mirrors GoLiveModal.videoFilterStyle)
   const videoFilterStyle = useMemo(() => {
-    const warmthDeg = (viewFilters.warmth - 100) * 0.5;
+    let warmthDeg = (filters.warmth - 100) * 0.8;
+    if (filters.warmth >= 150) warmthDeg = 300; // Bio-Lum neon
+    if (filters.warmth <= 50)  warmthDeg = 180; // Cyber cold
     return {
-      filter: `brightness(${viewFilters.brightness}%) contrast(${viewFilters.contrast}%) saturate(${viewFilters.saturation}%) hue-rotate(${warmthDeg}deg)`,
-      width: '100%', height: '100%', position: 'relative'
+      filter: `brightness(${filters.brightness}%) contrast(${filters.contrast}%) saturate(${filters.saturation}%) hue-rotate(${warmthDeg}deg)`,
+      position: 'relative', width: '100%', height: '100%'
     };
-  }, [viewFilters]);
+  }, [filters]);
+
+  const vignetteStyle = useMemo(() => {
+    if (!filters.vignette) return null;
+    return {
+      position: 'absolute', inset: 0, pointerEvents: 'none',
+      background: `radial-gradient(circle, transparent ${100 - filters.vignette}%, rgba(0,0,0,${filters.vignette / 100}) 100%)`
+    };
+  }, [filters.vignette]);
 
   return (
-    <div className="absolute inset-0 flex flex-col sm:flex-row overflow-hidden">
-      {/* ── Main Video Section ── */}
+    <div className="w-full h-full flex flex-col sm:flex-row overflow-hidden">
+
+      {/* ── Left: Video ── */}
       <div className="flex-1 relative bg-black flex flex-col min-w-0">
-        <div className="flex-1 relative overflow-hidden flex items-center justify-center">
-          {/* Video with viewer-side CSS filters applied */}
-          <div style={videoFilterStyle} className="flex items-center justify-center">
+        <div className="flex-1 relative overflow-hidden">
+
+          {/* Video with CSS filters */}
+          <div style={videoFilterStyle} className="absolute inset-0 flex items-center justify-center">
             {broadcasterTrack ? (
-              <VideoTrack 
-                trackRef={broadcasterTrack} 
-                className="max-w-full max-h-full object-contain"
-              />
+              <VideoTrack trackRef={broadcasterTrack} className="max-w-full max-h-full object-contain" />
             ) : (
               <div className="text-center">
                 <Loader2 className="w-12 h-12 animate-spin text-red-500 mx-auto mb-4" />
                 <p className="text-gray-400">Waiting for video...</p>
               </div>
             )}
+            {/* Vignette overlay */}
+            {vignetteStyle && <div style={vignetteStyle} />}
           </div>
 
-          {/* Top overlay - Static indicators */}
-          <div className="absolute top-0 left-0 right-0 p-4 flex items-center justify-between bg-gradient-to-b from-black/80 to-transparent z-10">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-red-500">
-                {broadcaster?.avatar_url ? (
-                  <img src={getFullUrl(broadcaster.avatar_url)} alt={broadcaster.name} className="w-full h-full object-cover" />
-                ) : (
-                  <div className="w-full h-full bg-zinc-700 flex items-center justify-center text-white font-bold">
-                    {broadcaster?.name?.[0] || '?'}
+          {/* Top bar */}
+          <div className={`absolute top-0 left-0 right-0 p-3 sm:p-4 bg-gradient-to-b ${colors.gradientTop} to-transparent z-10`}>
+            <div className="flex items-center justify-between">
+              {/* Left: broadcaster info */}
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-red-500 flex-shrink-0">
+                  {broadcaster?.avatar_url
+                    ? <img src={getFullUrl(broadcaster.avatar_url)} alt={broadcaster.name} className="w-full h-full object-cover" />
+                    : <div className="w-full h-full bg-zinc-700 flex items-center justify-center text-white font-bold">{broadcaster?.name?.[0] || '?'}</div>
+                  }
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-white font-semibold text-sm">{broadcaster?.name || 'Live Stream'}</span>
+                    <div className="flex items-center gap-1 bg-red-600 px-2 py-0.5 rounded-full animate-pulse">
+                      <Radio className="w-3 h-3 text-white" />
+                      <span className="text-white text-[10px] font-bold">LIVE</span>
+                    </div>
                   </div>
-                )}
-              </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <span className="text-white font-semibold">{broadcaster?.name || 'Unknown'}</span>
-                  <div className="flex items-center gap-1 bg-red-600 px-2 py-0.5 rounded-full animate-pulse">
-                    <Radio className="w-3 h-3 text-white" />
-                    <span className="text-white text-[10px] font-bold">LIVE</span>
+                  <div className="flex items-center gap-1 text-gray-400 text-[10px]">
+                    <Users className="w-3 h-3" />
+                    <span>{viewerCount} watching</span>
                   </div>
                 </div>
-                <div className="flex items-center gap-1 text-gray-400 text-[10px]">
-                  <Users className="w-3 h-3" />
-                  <span>{viewerCount} watching</span>
-                </div>
               </div>
-            </div>
 
-            <div className="flex items-center gap-2">
-              {/* View Filters Toggle */}
-              <button
-                onClick={() => setShowFilters(!showFilters)}
-                className={`p-2 rounded-full transition-all ${showFilters ? 'bg-cyan-500/30 text-cyan-400' : 'bg-black/40 text-white hover:bg-black/60'}`}
-                title="View Filters"
-              >
-                <Sparkles className="w-5 h-5" />
-              </button>
+              {/* Right: controls */}
+              <div className="flex items-center gap-2">
+                {/* Filters */}
+                <button
+                  onClick={() => setShowFilters(!showFilters)}
+                  className={`p-2 rounded-full transition-all ${showFilters ? `${colors.accentBg} text-white` : `${colors.overlayBg} ${colors.primaryText} hover:opacity-80`}`}
+                  title="Surf Filters"
+                >
+                  <Sparkles className="w-5 h-5" />
+                </button>
 
-              {/* Desktop Toggle Chat */}
-              <button
-                onClick={() => setIsChatOpen(!isChatOpen)}
-                className={`hidden sm:flex p-2 rounded-full bg-black/40 hover:bg-black/60 transition-all ${isChatOpen ? 'bg-red-500/20 text-red-400' : 'text-white'}`}
-                title={isChatOpen ? "Hide Chat" : "Show Chat"}
-              >
-                <MessageCircle className="w-5 h-5" />
-              </button>
+                {/* Chat toggle (desktop) */}
+                <button
+                  onClick={() => setIsChatOpen(!isChatOpen)}
+                  className={`hidden sm:flex p-2 rounded-full transition-all ${colors.overlayBg} ${isChatOpen ? colors.accentBg : ''}`}
+                  title={isChatOpen ? 'Hide Chat' : 'Show Chat'}
+                >
+                  <MessageCircle className={`w-5 h-5 ${isChatOpen ? 'text-white' : colors.primaryText}`} />
+                </button>
 
-              <button
-                onClick={onLeave}
-                className="p-2 bg-black/60 hover:bg-red-600 rounded-full transition-colors"
-                title="Exit View"
-              >
-                <X className="w-5 h-5 text-white" />
-              </button>
+                {/* Exit */}
+                <button
+                  onClick={onLeave}
+                  className="p-2 bg-black/60 hover:bg-red-600 rounded-full transition-colors"
+                  title="Leave Stream"
+                >
+                  <X className="w-5 h-5 text-white" />
+                </button>
+              </div>
             </div>
           </div>
 
-          {/* Viewer Filter Panel */}
+          {/* Surf Filters Panel */}
           <AnimatePresence>
             {showFilters && (
               <ViewerFilterPanel
-                filters={viewFilters}
-                onFilterChange={handleFilterChange}
+                isOpen={showFilters}
                 onClose={() => setShowFilters(false)}
+                filters={filters}
+                onFilterChange={handleFilterChange}
+                onPresetSelect={handlePresetSelect}
+                colors={colors}
               />
             )}
           </AnimatePresence>
 
-          {/* Bottom Bar Controls for Viewers */}
+          {/* Bottom controls */}
           <div className="absolute bottom-4 left-0 right-0 px-6 flex items-center justify-between pointer-events-none z-10">
             <div className="flex items-center gap-4 pointer-events-auto">
               <button className="p-3 bg-black/40 hover:bg-red-500/20 text-white hover:text-red-400 rounded-full transition-all group backdrop-blur-md">
@@ -333,11 +410,9 @@ const ViewerContent = ({ broadcaster, onLeave, viewerCount, onViewProfile, strea
                 <Share2 className="w-6 h-6 group-active:scale-125 transition-transform" />
               </button>
             </div>
-            
             <div className="pointer-events-auto">
               <Button
-                variant="outline"
-                size="sm"
+                variant="outline" size="sm"
                 className="bg-black/40 border-white/20 text-white hover:bg-white/10 backdrop-blur-md px-6 rounded-full"
                 onClick={onViewProfile}
               >
@@ -346,267 +421,141 @@ const ViewerContent = ({ broadcaster, onLeave, viewerCount, onViewProfile, strea
               </Button>
             </div>
           </div>
+
+          {/* Mobile chat overlay (bottom 40%) */}
+          <div className="sm:hidden absolute bottom-0 left-0 right-0 h-[40%] pointer-events-auto z-20">
+            <LiveChat streamId={streamId} userId={userId} userName={userName} userAvatar={userAvatar} />
+          </div>
         </div>
       </div>
 
-      {/* ── Desktop Sidebar: Live Chat ── */}
+      {/* ── Right: Desktop Chat Sidebar (animated slide) ── */}
       <AnimatePresence>
         {isChatOpen && (
-          <motion.div 
+          <motion.div
             initial={{ width: 0, opacity: 0 }}
-            animate={{ width: '350px', opacity: 1 }}
+            animate={{ width: 310, opacity: 1 }}
             exit={{ width: 0, opacity: 0 }}
             transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-            className="hidden sm:flex flex-col h-full bg-zinc-900 border-l border-zinc-800 shrink-0"
+            className="hidden sm:flex flex-col h-full bg-zinc-900 border-l border-zinc-800 shrink-0 overflow-hidden"
           >
-            <LiveComments
-              streamId={streamId}
-              userId={userId}
-              userName={userName}
-              userAvatar={userAvatar}
-            />
+            <LiveChat streamId={streamId} userId={userId} userName={userName} userAvatar={userAvatar} />
           </motion.div>
         )}
       </AnimatePresence>
-
-      {/* Mobile-only overlay elements for chat */}
-      <div className="sm:hidden absolute bottom-0 left-0 right-0 h-[40%] pointer-events-auto z-20">
-        <LiveComments
-          streamId={streamId}
-          userId={userId}
-          userName={userName}
-          userAvatar={userAvatar}
-        />
-      </div>
 
       <RoomAudioRenderer />
     </div>
   );
 };
 
-/**
- * Viewer Controls - Legacy/Proxy wrapper
- */
-const ViewerControls = (props) => {
-  return <ViewerContent {...props} />;
-};
-
-
-/**
- * Stream Unavailable Fallback
- */
-const StreamUnavailable = ({ onBackToFeed, broadcasterName, onRefresh }) => (
-  <div className="absolute inset-0 flex items-center justify-center bg-zinc-950">
-    <div className="text-center p-6 max-w-md">
-      <div className="w-20 h-20 rounded-full bg-zinc-800 flex items-center justify-center mx-auto mb-4">
-        <WifiOff className="w-10 h-10 text-gray-500" />
-      </div>
-      <h3 className="text-white text-xl font-bold mb-2">Stream Ended</h3>
-      <p className="text-gray-400 mb-6">
-        {broadcasterName ? `${broadcasterName}'s live stream` : 'This stream'} has ended or is no longer available.
-      </p>
-      <div className="flex flex-col sm:flex-row gap-3 justify-center">
-        <Button 
-          onClick={onRefresh}
-          variant="outline"
-          className="border-zinc-700 text-white hover:bg-zinc-800 gap-2"
-        >
-          <Radio className="w-4 h-4" />
-          Try Again
-        </Button>
-        <Button 
-          onClick={onBackToFeed} 
-          className="bg-white text-black hover:bg-gray-200 gap-2"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          Back to Feed
-        </Button>
-      </div>
-    </div>
-  </div>
-);
-
-/**
- * LiveStreamViewer - Full-screen viewer for watching someone's live stream
- */
+// ─── Main LiveStreamViewer ────────────────────────────────────────────────────
 const LiveStreamViewer = ({ isOpen, onClose, streamInfo }) => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  
-  const [isLoading, setIsLoading] = useState(true);
-  const [connectionTimedOut, setConnectionTimedOut] = useState(false);
-  const [viewerToken, setViewerToken] = useState(null);
-  const [viewerCount, setViewerCount] = useState(streamInfo?.viewer_count || 0);
-  const [isConnected, setIsConnected] = useState(false);
-  
-  const timeoutRef = useRef(null);
-  const isMountedRef = useRef(true);
-  const hasFetchedTokenRef = useRef(false);
+  const { theme } = useTheme();
+  const colors = useMemo(() => getThemeColors(theme), [theme]);
 
-  // Reset state when component mounts/unmounts
+  const [isLoading, setIsLoading]             = useState(true);
+  const [connectionTimedOut, setTimedOut]     = useState(false);
+  const [viewerToken, setViewerToken]         = useState(null);
+  const [viewerCount, setViewerCount]         = useState(streamInfo?.viewer_count || 0);
+  const [isConnected, setIsConnected]         = useState(false);
+
+  const timeoutRef      = useRef(null);
+  const isMountedRef    = useRef(true);
+  const hasFetchedRef   = useRef(false);
+
   useEffect(() => {
     isMountedRef.current = true;
-    
     return () => {
       isMountedRef.current = false;
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-        timeoutRef.current = null;
-      }
+      clearTimeout(timeoutRef.current);
     };
   }, []);
 
-  // Fetch viewer token only once when opening
+  // ── Fetch viewer token ────────────────────────────────────────────────────
   useEffect(() => {
-    if (isOpen && streamInfo?.room_name && user?.id && !hasFetchedTokenRef.current) {
-      hasFetchedTokenRef.current = true;
-      
+    if (isOpen && streamInfo?.room_name && user?.id && !hasFetchedRef.current) {
+      hasFetchedRef.current = true;
+
       const fetchToken = async () => {
         setIsLoading(true);
-        setConnectionTimedOut(false);
+        setTimedOut(false);
 
         timeoutRef.current = setTimeout(() => {
           if (isMountedRef.current && !isConnected) {
-            logger.warn('[LiveStreamViewer] Connection timeout');
-            setConnectionTimedOut(true);
+            logger.warn('[Viewer] Connection timeout');
+            setTimedOut(true);
             setIsLoading(false);
           }
         }, CONNECTION_TIMEOUT);
 
         try {
-          logger.info('[LiveStreamViewer] Fetching viewer token for room:', streamInfo.room_name);
-          
-          const response = await apiClient.get(
+          const res = await apiClient.get(
             `/livekit/viewer-token/${streamInfo.room_name}?viewer_id=${user.id}&viewer_name=${encodeURIComponent(user.full_name || 'Viewer')}`
           );
-
           if (!isMountedRef.current) return;
-
-          if (timeoutRef.current) {
-            clearTimeout(timeoutRef.current);
-            timeoutRef.current = null;
-          }
-
-          logger.info('[LiveStreamViewer] Token received, connecting to:', response.data.server_url);
-          
-          setViewerToken({
-            token: response.data.token,
-            server_url: response.data.server_url
-          });
-          setViewerCount(prev => prev + 1);
+          clearTimeout(timeoutRef.current);
+          setViewerToken({ token: res.data.token, server_url: res.data.server_url });
+          setViewerCount(c => c + 1);
           setIsLoading(false);
-
         } catch (err) {
           if (!isMountedRef.current) return;
-          
-          logger.error('[LiveStreamViewer] Failed to get viewer token:', err);
-          
-          if (timeoutRef.current) {
-            clearTimeout(timeoutRef.current);
-            timeoutRef.current = null;
-          }
-          
-          if (err.response?.status === 404) {
-            toast.info('This stream has ended');
-          }
-          
-          setConnectionTimedOut(true);
+          clearTimeout(timeoutRef.current);
+          if (err.response?.status === 404) toast.info('This stream has ended');
+          setTimedOut(true);
           setIsLoading(false);
         }
       };
-      
+
       fetchToken();
     }
-    
-    // Reset when closing
+
     if (!isOpen) {
-      hasFetchedTokenRef.current = false;
+      hasFetchedRef.current = false;
       setViewerToken(null);
       setIsLoading(true);
-      setConnectionTimedOut(false);
+      setTimedOut(false);
       setIsConnected(false);
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-        timeoutRef.current = null;
-      }
+      clearTimeout(timeoutRef.current);
     }
   }, [isOpen, streamInfo?.room_name, user?.id, user?.full_name, isConnected]);
 
   const handleRetry = useCallback(() => {
-    hasFetchedTokenRef.current = false;
+    hasFetchedRef.current = false;
     setViewerToken(null);
     setIsLoading(true);
-    setConnectionTimedOut(false);
+    setTimedOut(false);
     setIsConnected(false);
-    
-    // Trigger re-fetch
-    setTimeout(() => {
-      if (isOpen && streamInfo?.room_name && user?.id) {
-        hasFetchedTokenRef.current = true;
-        
-        const fetchToken = async () => {
-          try {
-            const response = await apiClient.get(
-              `/livekit/viewer-token/${streamInfo.room_name}?viewer_id=${user.id}&viewer_name=${encodeURIComponent(user.full_name || 'Viewer')}`
-            );
-            
-            if (isMountedRef.current) {
-              setViewerToken({
-                token: response.data.token,
-                server_url: response.data.server_url
-              });
-              setIsLoading(false);
-            }
-          } catch (err) {
-            if (isMountedRef.current) {
-              setConnectionTimedOut(true);
-              setIsLoading(false);
-            }
-          }
-        };
-        
-        fetchToken();
-      }
-    }, 100);
-  }, [isOpen, streamInfo?.room_name, user?.id, user?.full_name]);
+  }, []);
 
   const handleLeave = useCallback(async () => {
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current);
-      timeoutRef.current = null;
-    }
-
+    clearTimeout(timeoutRef.current);
     if (streamInfo?.id && user?.id) {
-      apiClient.post(`/social-live/${streamInfo.id}/leave?viewer_id=${user.id}`).catch(() => {/* fire-and-forget */});
+      apiClient.post(`/social-live/${streamInfo.id}/leave?viewer_id=${user.id}`).catch(() => {});
     }
-    
     onClose();
   }, [streamInfo, user, onClose]);
 
-  const handleBackToFeed = useCallback(() => {
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current);
-      timeoutRef.current = null;
-    }
+  const handleBack = useCallback(() => {
+    clearTimeout(timeoutRef.current);
     onClose();
   }, [onClose]);
 
   const handleConnected = useCallback(() => {
-    logger.info('[LiveStreamViewer] Connected to LiveKit room!');
+    logger.info('[Viewer] Connected to LiveKit room');
     if (isMountedRef.current) {
       setIsConnected(true);
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-        timeoutRef.current = null;
-      }
+      clearTimeout(timeoutRef.current);
     }
   }, []);
 
   const handleDisconnected = useCallback(() => {
-    logger.info('[LiveStreamViewer] Disconnected from room');
+    logger.info('[Viewer] Disconnected');
     if (isMountedRef.current) {
       toast.info('Stream has ended');
-      setConnectionTimedOut(true);
+      setTimedOut(true);
     }
   }, []);
 
@@ -617,14 +566,10 @@ const LiveStreamViewer = ({ isOpen, onClose, streamInfo }) => {
     }
   }, [streamInfo?.broadcaster_id, navigate, onClose]);
 
-  // Prevent body scroll
+  // Lock body scroll
   useEffect(() => {
-    if (isOpen) {
-      document.body.style.overflow = 'hidden';
-    }
-    return () => {
-      document.body.style.overflow = '';
-    };
+    if (isOpen) document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = ''; };
   }, [isOpen]);
 
   if (!isOpen) return null;
@@ -636,61 +581,65 @@ const LiveStreamViewer = ({ isOpen, onClose, streamInfo }) => {
   };
 
   return (
+    /* Fullscreen on mobile │ Centred 1100×720 popup on desktop — matches GoLiveModal exactly */
     <div className="fixed inset-0 z-[100] flex items-center justify-center" data-testid="live-stream-viewer">
-      {/* Desktop Backdrop */}
-      <div 
+      {/* Desktop backdrop */}
+      <div
         className="fixed inset-0 bg-black/80 backdrop-blur-sm hidden sm:block"
         onClick={handleLeave}
       />
-      
-      {/* Modal Container: Fullscreen on mobile, centered modal on desktop */}
+
+      {/* ── Container: fullscreen mobile / 1100×720 desktop ── */}
       <div className="relative w-full h-full sm:w-[1100px] sm:h-[720px] sm:max-h-[90vh] sm:rounded-2xl sm:overflow-hidden bg-black shadow-2xl shadow-black/60">
-      {/* Loading state */}
-      {isLoading && !connectionTimedOut && (
-        <div className="absolute inset-0 flex items-center justify-center bg-zinc-950">
-          <div className="text-center">
-            <div className="relative w-20 h-20 mx-auto mb-6">
-              <div className="absolute inset-0 rounded-full border-4 border-red-500/30 animate-ping" />
-              <div className="absolute inset-0 rounded-full border-4 border-red-500 border-t-transparent animate-spin" />
+
+        {/* Loading */}
+        {isLoading && !connectionTimedOut && (
+          <div className="absolute inset-0 flex items-center justify-center bg-zinc-950 z-20">
+            <div className="text-center">
+              <div className="relative w-20 h-20 mx-auto mb-6">
+                <div className="absolute inset-0 rounded-full border-4 border-red-500/30 animate-ping" />
+                <div className="absolute inset-0 rounded-full border-4 border-red-500 border-t-transparent animate-spin" />
+              </div>
+              <p className="text-white text-lg">Joining live stream...</p>
+              <p className="text-gray-500 text-sm mt-2">{broadcaster?.name}</p>
             </div>
-            <p className="text-white text-lg">Joining live stream...</p>
-            <p className="text-gray-500 text-sm mt-2">{broadcaster?.name}</p>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Stream Unavailable */}
-      {connectionTimedOut && (
-        <StreamUnavailable 
-          onBackToFeed={handleBackToFeed}
-          broadcasterName={broadcaster?.name}
-          onRefresh={handleRetry}
-        />
-      )}
-
-      {/* Main Content - LiveKit Room */}
-      {viewerToken && !connectionTimedOut && (
-        <LiveKitRoom
-          token={viewerToken.token}
-          serverUrl={viewerToken.server_url}
-          video={false}
-          audio={true}
-          connect={true}
-          onConnected={handleConnected}
-          onDisconnected={handleDisconnected}
-        >
-          <ViewerControls
-            broadcaster={broadcaster}
-            onLeave={handleLeave}
-            viewerCount={viewerCount}
-            onViewProfile={handleViewProfile}
-            streamId={streamInfo?.id}
-            userId={user?.id}
-            userName={user?.full_name || user?.username}
-            userAvatar={user?.avatar_url}
+        {/* Unavailable / timed out */}
+        {connectionTimedOut && (
+          <StreamUnavailable
+            onBack={handleBack}
+            broadcasterName={broadcaster?.name}
+            onRetry={handleRetry}
           />
-        </LiveKitRoom>
-      )}
+        )}
+
+        {/* Live viewer content */}
+        {viewerToken && !connectionTimedOut && (
+          <LiveKitRoom
+            token={viewerToken.token}
+            serverUrl={viewerToken.server_url}
+            video={false}
+            audio={true}
+            connect={true}
+            onConnected={handleConnected}
+            onDisconnected={handleDisconnected}
+            style={{ height: '100%', width: '100%' }}
+          >
+            <ViewerRoomContent
+              broadcaster={broadcaster}
+              onLeave={handleLeave}
+              viewerCount={viewerCount}
+              onViewProfile={handleViewProfile}
+              streamId={streamInfo?.id}
+              userId={user?.id}
+              userName={user?.full_name || user?.username}
+              userAvatar={user?.avatar_url}
+              colors={colors}
+            />
+          </LiveKitRoom>
+        )}
       </div>
     </div>
   );
