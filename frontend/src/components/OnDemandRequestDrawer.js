@@ -1696,7 +1696,7 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
                 onClick={() => setStep('split_choice')}
                 className="w-full py-4 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-black font-bold text-base rounded-xl"
               >
-                Continue \u2014 ${totalPrice.toFixed(2)} <ChevronRight className="w-5 h-5 ml-1" />
+                Continue — ${totalPrice.toFixed(2)} <ChevronRight className="w-5 h-5 ml-1" />
               </Button>
             )}
             {step === 'split_choice' && (
