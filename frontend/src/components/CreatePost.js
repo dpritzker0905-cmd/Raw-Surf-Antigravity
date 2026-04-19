@@ -1199,33 +1199,60 @@ export const CreatePost = () => {
                     </div>
                   )}
 
-                  {/* Known Spots (conditions) Dropdown — filtered by selected city */}
+                  {/* Quick Select Dropdown — populated from city spots or knownSpots */}
                   {(() => {
-                    // Get spot names from the selected city in the hierarchy
-                    let citySpotNames = [];
+                    // If a city is selected, show spots from that city directly
                     if (selectedCity && selectedCountry && selectedState) {
                       const country = (locationHierarchy.countries || []).find(c => c.name === selectedCountry);
                       const state = (country?.states || []).find(s => s.name === selectedState);
                       const city = (state?.cities || []).find(c => c.name === selectedCity);
-                      citySpotNames = (city?.spots || []).map(s => s.name.toLowerCase());
+                      const citySpots = city?.spots || [];
+                      
+                      if (citySpots.length > 0) {
+                        return (
+                          <div>
+                            <p className={`text-xs ${labelClass} mb-1`}>
+                              Surf spots in {selectedCity}
+                            </p>
+                            <Select 
+                              value="" 
+                              onValueChange={(spotName) => {
+                                // Find this spot in allSpots for lat/lon to fetch conditions
+                                const fullSpot = allSpots.find(s => s.name === spotName);
+                                setLocation(spotName);
+                                if (fullSpot?.latitude && fullSpot?.longitude) {
+                                  fetchConditions(fullSpot.latitude, fullSpot.longitude, spotName);
+                                }
+                                setShowLocationPicker(false);
+                              }}
+                            >
+                              <SelectTrigger className={`${bgInput} ${borderInput} ${textInput} text-sm`}>
+                                <SelectValue placeholder={`Select from ${citySpots.length} spots...`} />
+                              </SelectTrigger>
+                              <SelectContent className={selectContentBg}>
+                                {citySpots.map(spot => (
+                                  <SelectItem key={spot.id || spot.name} value={spot.name} className={selectItemClass}>
+                                    {spot.name}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        );
+                      }
                     }
-                    // Filter knownSpots to ones in the selected city, or show all if no city selected
-                    const filteredSpots = citySpotNames.length > 0
-                      ? knownSpots.filter(s => citySpotNames.some(csn => s.name.toLowerCase().includes(csn) || csn.includes(s.name.toLowerCase())))
-                      : knownSpots;
                     
-                    if (filteredSpots.length === 0) return null;
+                    // Fallback: show all knownSpots (conditions-enabled)
+                    if (knownSpots.length === 0) return null;
                     return (
                       <div>
-                        <p className={`text-xs ${labelClass} mb-1`}>
-                          {selectedCity ? `Spots near ${selectedCity} (auto-fills conditions)` : 'Quick select (auto-fills conditions)'}
-                        </p>
+                        <p className={`text-xs ${labelClass} mb-1`}>Quick select (auto-fills conditions)</p>
                         <Select value={selectedSpot} onValueChange={handleSpotSelect}>
                           <SelectTrigger className={`${bgInput} ${borderInput} ${textInput} text-sm`}>
                             <SelectValue placeholder="Select a surf spot..." />
                           </SelectTrigger>
                           <SelectContent className={selectContentBg}>
-                            {filteredSpots.map(spot => (
+                            {knownSpots.map(spot => (
                               <SelectItem key={spot.key} value={spot.key} className={selectItemClass}>
                                 {spot.name}
                               </SelectItem>
