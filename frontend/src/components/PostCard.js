@@ -851,16 +851,13 @@ const PostCard = ({
         data-testid={`post-image-container-${post.id}`}
       >
         {isVideoItem ? (
-          // If video is confirmed dead (local ephemeral URL) or errored, show thumbnail as image
-          (isDeadLocalVideo || videoError) && videoFallbackSrc ? (
-            <div className="relative w-full h-full">
-              <img
-                src={videoFallbackSrc}
-                alt={post.caption || 'Video'}
-                className="w-full h-full object-cover"
-                onError={(e) => { e.target.style.display = 'none'; }}
-              />
-              {/* Overlay badge showing it was a video */}
+          // If video source errored (404 / network failure), show fallback
+          (isDeadLocalVideo || videoError) ? (
+            <div className="relative w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-zinc-800 to-zinc-900">
+              <Play className="w-12 h-12 text-zinc-500 mb-2" />
+              <span className="text-zinc-400 text-sm font-medium">Video Unavailable</span>
+              <span className="text-zinc-500 text-xs mt-1">This video is no longer accessible</span>
+              {/* Video duration badge */}
               <div className="absolute top-2 right-2 bg-black/70 px-2 py-1 rounded text-xs text-white flex items-center gap-1">
                 <Play className="w-3 h-3" />
                 {post.video_duration ? `${Math.round(post.video_duration)}s` : 'Video'}
@@ -873,17 +870,17 @@ const PostCard = ({
             controls
             className="w-full h-full object-cover"
             playsInline
-            preload="metadata"
+            preload="auto"
             muted
+            autoPlay
             loop
-            crossOrigin="anonymous"
             onClick={(e) => e.stopPropagation()}
             onPlay={() => { if (!programmaticTarget.current) setUserManuallyPaused(false); }}
             onPause={() => { if (!programmaticTarget.current) setUserManuallyPaused(true); }}
             onError={() => setVideoError(true)}
           >
-            <source src={videoSrc} type={videoMimeType} />
-            {videoMimeType !== 'video/mp4' && <source src={videoSrc} type="video/mp4" />}
+            <source src={videoSrc} type={videoMimeType} onError={() => setVideoError(true)} />
+            {videoMimeType !== 'video/mp4' && <source src={videoSrc} type="video/mp4" onError={() => setVideoError(true)} />}
           </video>
           )
         ) : (
