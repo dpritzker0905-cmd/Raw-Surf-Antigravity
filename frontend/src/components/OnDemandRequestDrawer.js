@@ -617,10 +617,19 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
   
   return (
     <>
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog open={isOpen} onOpenChange={(open) => {
+        if (!open) {
+          // During waiting step, show cancel confirmation instead of closing immediately
+          if (step === 'waiting') {
+            setShowCancelConfirm(true);
+            return; // Don't close
+          }
+          onClose();
+        }
+      }}>
       <DialogContent 
         className={`${bgCard} border-border sm:max-w-lg p-0`}
-        hideCloseButton={step === 'waiting'}
+        hideCloseButton={step === 'waiting' || step === 'success'}
       >
         <DialogTitle className="sr-only">On-Demand Session Booking</DialogTitle>
         {/* DialogContent is flex-col: this div fills remaining space and scrolls */}
@@ -1618,14 +1627,17 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
               <div className="space-y-3">
                 <Button
                   onClick={() => {
-                    toast.success("You're confirmed! We'll notify you when your crew completes payment.");
+                    toast.success("You're all set! Check your Bookings tab for updates.");
                     onClose();
                   }}
                   className="w-full py-4 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white font-bold rounded-xl"
                 >
                   <Check className="w-5 h-5 mr-2" />
-                  I'm Confirmed — Close
+                  I'm Confirmed — Close Window
                 </Button>
+                <p className={`text-xs ${textSecondary} text-center`}>
+                  Your booking is saved. Check the Bookings tab anytime for updates.
+                </p>
                 <Button
                   variant="outline"
                   onClick={() => setShowCancelConfirm(true)}
@@ -1706,7 +1718,7 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
             
             <Button
               onClick={() => {
-                onSuccess?.({ 
+                onSuccess?.({
                   request_id: requestId,
                   photographer_id: acceptedData?.photographer_id,
                   photographer_name: acceptedData?.photographer_name
@@ -1715,8 +1727,11 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
               }}
               className="w-full py-5 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-foreground font-bold rounded-xl"
             >
-              Got it, Let's Surf!
+              Got it, Let's Surf! 🤙
             </Button>
+            <p className={`text-xs ${textSecondary} text-center`}>
+              You can track this session anytime from your Bookings tab
+            </p>
           </div>
         )}
         </div>
