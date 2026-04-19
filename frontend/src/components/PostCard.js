@@ -631,14 +631,9 @@ const PostCard = ({
   const _checkMediaUrl = getFullUrl(post?.media_url || post?.image_url);
   const isVideoItem = post?.media_type === 'video' || (typeof _checkMediaUrl === 'string' && _checkMediaUrl.match(/\.(mp4|webm|ogg|mov)(\?.*)?$/i));
 
-  // Pre-check: Local /api/uploads/ video paths on Render are ephemeral.
-  // If the media_url is a relative local path (not Supabase https://), mark it as
-  // broken immediately to avoid showing the browser's broken video player UI.
-  // Exception: if there's a thumbnail we can show that as a static image.
-  const isDeadLocalVideo = isVideoItem &&
-    post?.media_url &&
-    post.media_url.startsWith('/api/uploads/') &&
-    !post.media_url.startsWith('http');
+  // Local /api/uploads/ paths are served by the backend and are valid during normal operation.
+  // Always render the full video player and let the onError handler deal with broken URLs.
+  const isDeadLocalVideo = false;
 
   useEffect(() => {
     if (!isVideoItem || !videoRef.current) return;
