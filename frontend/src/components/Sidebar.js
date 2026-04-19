@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
@@ -23,6 +23,22 @@ export const Sidebar = () => {
   const [photoToolsOpen, setPhotoToolsOpen] = useState(false);
   const [backpackOpen, setBackpackOpen] = useState(false);
   const [passportOpen, setPassportOpen] = useState(false);
+  const [logoSpinning, setLogoSpinning] = useState(false);
+
+  // Logo click: Instagram-style — on /feed scroll-to-top + trigger refresh;
+  // on any other page navigate to /feed
+  const handleLogoClick = useCallback(() => {
+    if (location.pathname === '/feed') {
+      // Dispatch custom event that Feed.js listens to
+      window.dispatchEvent(new CustomEvent('feed:refresh'));
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } else {
+      navigate('/feed');
+    }
+    // Brief spin animation for haptic feedback
+    setLogoSpinning(true);
+    setTimeout(() => setLogoSpinning(false), 600);
+  }, [location.pathname, navigate]);
   
   // Get effective role for UI rendering (respects God Mode persona masking)
   const effectiveRole = getEffectiveRole(user?.role);
@@ -105,12 +121,21 @@ export const Sidebar = () => {
     if (user?.id) {
       fetchUnreadCount();
       fetchUnreadMessages();
-      // Poll every 30 seconds for new notifications and messages
-      const interval = setInterval(() => {
+      // Poll every 30 seconds for new notifications and messages (sidebar badges)
+      const notifInterval = setInterval(() => {
         fetchUnreadCount();
         fetchUnreadMessages();
       }, 30000);
-      return () => clearInterval(interval);
+      // Auto-refresh feed every 60 seconds when on /feed (Twitter/Instagram pattern)
+      const feedInterval = setInterval(() => {
+        if (window.location.pathname === '/feed') {
+          window.dispatchEvent(new CustomEvent('feed:refresh', { detail: { silent: true } }));
+        }
+      }, 60000);
+      return () => {
+        clearInterval(notifInterval);
+        clearInterval(feedInterval);
+      };
     }
   }, [user?.id]);
 
@@ -228,16 +253,24 @@ export const Sidebar = () => {
 
   return (
     <aside className={`fixed left-0 top-0 h-full w-[200px] ${sidebarBgClass} border-r flex flex-col z-[100] hidden md:flex transition-colors duration-300`}>
-      {/* Logo - Compact */}
+      {/* Logo - Compact, clickable (Instagram-style refresh) */}
       <div className={`p-3 border-b ${borderClass} flex-shrink-0`}>
-        <div className="flex items-center gap-2">
+        <button
+          onClick={handleLogoClick}
+          className="flex items-center gap-2 group cursor-pointer"
+          title={location.pathname === '/feed' ? 'Refresh feed' : 'Go to Feed'}
+          aria-label={location.pathname === '/feed' ? 'Refresh feed' : 'Go to Feed'}
+        >
           <img
             src="https://customer-assets.emergentagent.com/job_raw-surf-os/artifacts/9llcl5mg_Rawig6-500x500.png"
             alt="Raw Surf"
-            className="w-7 h-7"
+            className={`w-7 h-7 transition-transform duration-300 ${
+              logoSpinning ? 'rotate-[360deg]' : ''
+            } group-hover:scale-110`}
+            style={{ transition: logoSpinning ? 'transform 0.6s cubic-bezier(0.34,1.56,0.64,1)' : 'transform 0.2s ease' }}
           />
-          <span className={`text-base font-bold ${textPrimaryClass}`} style={{ fontFamily: 'Oswald' }}>Raw Surf</span>
-        </div>
+          <span className={`text-base font-bold ${textPrimaryClass} group-hover:opacity-80 transition-opacity`} style={{ fontFamily: 'Oswald' }}>Raw Surf</span>
+        </button>
         
         {/* Role badge - shows actual role or persona when masking */}
         {user && (

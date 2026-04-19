@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { usePersona } from '../contexts/PersonaContext';
@@ -68,6 +68,19 @@ export const TopNav = () => {
   const [exclusiveAreaOpen, setExclusiveAreaOpen] = useState(false);
   const [gromHQDrawerOpen, setGromHQDrawerOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [logoSpinning, setLogoSpinning] = useState(false);
+
+  // Instagram-style logo: refresh feed when already on /feed, else navigate there
+  const handleLogoClick = useCallback(() => {
+    if (location.pathname === '/feed') {
+      window.dispatchEvent(new CustomEvent('feed:refresh'));
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } else {
+      navigate('/feed');
+    }
+    setLogoSpinning(true);
+    setTimeout(() => setLogoSpinning(false), 600);
+  }, [location.pathname, navigate]);
 
   // Close all drawers when route changes (e.g., when BottomNav item is clicked)
   useEffect(() => {
@@ -179,14 +192,26 @@ export const TopNav = () => {
         data-testid="top-nav"
       >
         <div className="flex items-center justify-between px-3 py-2.5">
-          {/* Left Side - Logo Only */}
+          {/* Left Side - Logo (tap = refresh feed or go to feed) */}
           <div className="flex items-center shrink-0">
-            {/* Logo - Far Left */}
-            <img
-              src="https://customer-assets.emergentagent.com/job_raw-surf-os/artifacts/9llcl5mg_Rawig6-500x500.png"
-              alt="Raw Surf"
-              className="w-7 h-7"
-            />
+            <button
+              onClick={handleLogoClick}
+              className="group p-0.5"
+              title={location.pathname === '/feed' ? 'Refresh feed' : 'Go to Feed'}
+              aria-label={location.pathname === '/feed' ? 'Refresh feed' : 'Go to Feed'}
+            >
+              <img
+                src="https://customer-assets.emergentagent.com/job_raw-surf-os/artifacts/9llcl5mg_Rawig6-500x500.png"
+                alt="Raw Surf"
+                className="w-7 h-7 group-hover:scale-110"
+                style={{
+                  transition: logoSpinning
+                    ? 'transform 0.6s cubic-bezier(0.34,1.56,0.64,1)'
+                    : 'transform 0.2s ease',
+                  transform: logoSpinning ? 'rotate(360deg)' : 'rotate(0deg)'
+                }}
+              />
+            </button>
           </div>
 
           {/* Icon Layout - Search First, then Map-First with Passport & Persona */}

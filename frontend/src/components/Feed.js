@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import apiClient from '../lib/apiClient';
 import { getNotifications, getUnreadCount, markRead, markAllRead, sendNotification, sendPhotographerAlert, createNotification, markAlertRead } from '../services/notificationService';
@@ -19,7 +19,7 @@ import FeedLineupCard from './FeedLineupCard';
 import SessionCountdownWidget from './SessionCountdownWidget';
 import WavesFeed from './WavesFeed';
 import CreateWaveModal from './CreateWaveModal';
-import { MapPin, Flame, Plus, X, Check, Loader2, Navigation, Play, Users, Sparkles } from 'lucide-react';
+import { MapPin, Flame, Plus, X, Check, Loader2, Navigation, Play, Users, Sparkles, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from './ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from './ui/dialog';
@@ -228,8 +228,13 @@ export const Feed = () => {
   // Live Stream Viewer state - for joining live broadcasts from feed
   const [liveStreamInfo, setLiveStreamInfo] = useState(null);
   const [showLiveViewer, setShowLiveViewer] = useState(false);
-  const [liveUsers, setLiveUsers] = useState([]); // Track users who are currently live
-  const [connectingToStream, setConnectingToStream] = useState(null); // Track which user's stream we're connecting to
+  const [liveUsers, setLiveUsers] = useState([]);
+  const [connectingToStream, setConnectingToStream] = useState(null);
+
+  // ── Instagram-style "new posts" chip state ──────────────────────────────────────
+  const [newPostsChip, setNewPostsChip] = useState(0); // count of new posts waiting to load
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const latestPostIdRef = useRef(null); // track the most-recent post id we've rendered
   
   // Post modal state - Instagram-style popup
   const [postModalOpen, setPostModalOpen] = useState(null);
@@ -313,6 +318,67 @@ export const Feed = () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('focus', handleFocus);
     };
+  }, [user?.id]);
+
+  // ── feed:refresh event listener (logo click + 60s auto-refresh from Sidebar) ──
+  const handleFeedRefresh = useCallback(async (e) => {
+    const silent = e?.detail?.silent === true;
+    setIsRefreshing(true);
+    try {
+      const response = await apiClient.get('/posts', {
+        params: { user_id: user?.id, limit: 10 }
+      });
+      const incoming = response.data || [];
+      if (incoming.length === 0) { setIsRefreshing(false); return; }
+
+      // Snap to new posts immediately on manual tap (non-silent)
+      if (!silent) {
+        setPosts(incoming.map(post => ({ ...post, localLiked: false })));
+        setNewPostsChip(0);
+        latestPostIdRef.current = incoming[0]?.id ?? null;
+      } else {
+        // Silent auto-refresh: show chip only if there are genuinely new posts
+        const currentLatest = latestPostIdRef.current;
+        const newCount = currentLatest
+          ? incoming.filter(p => String(p.id) > String(currentLatest)).length
+          : 0;
+        if (newCount > 0) setNewPostsChip(newCount);
+      }
+    } catch (err) {
+      logger.error('feed:refresh failed', err);
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, [user?.id]);
+
+  useEffect(() => {
+    window.addEventListener('feed:refresh', handleFeedRefresh);
+    return () => window.removeEventListener('feed:refresh', handleFeedRefresh);
+  }, [handleFeedRefresh]);
+
+  // Track the latest rendered post id so we can detect new arrivals
+  useEffect(() => {
+    if (posts.length > 0 && !latestPostIdRef.current) {
+      latestPostIdRef.current = posts[0]?.id ?? null;
+    }
+  }, [posts]);
+
+  // Load new posts when user taps the chip
+  const handleLoadNewPosts = useCallback(async () => {
+    setIsRefreshing(true);
+    try {
+      const response = await apiClient.get('/posts', {
+        params: { user_id: user?.id, limit: 10 }
+      });
+      const incoming = response.data || [];
+      if (incoming.length > 0) {
+        setPosts(incoming.map(post => ({ ...post, localLiked: false })));
+        latestPostIdRef.current = incoming[0]?.id ?? null;
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+    } catch {}
+    setNewPostsChip(0);
+    setIsRefreshing(false);
   }, [user?.id]);
 
   // Fetch feed lineups for display in feed
@@ -1291,6 +1357,26 @@ export const Feed = () => {
         onClose={() => setShowCreateStoryModal(false)}
         onCreated={() => setStoriesKey(k => k + 1)}
       />
+
+      {/* ── Instagram-style "New Posts" chip ── */}
+      {newPostsChip > 0 && (
+        <div className="flex justify-center py-2 sticky top-14 z-20">
+          <button
+            onClick={handleLoadNewPosts}
+            className="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold shadow-lg transition-all active:scale-95
+              bg-yellow-400 text-black hover:bg-yellow-300"
+          >
+            <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+            {newPostsChip} new post{newPostsChip !== 1 ? 's' : ''}
+          </button>
+        </div>
+      )}
+      {/* Subtle spinner on manual refresh (no new posts chip) */}
+      {isRefreshing && newPostsChip === 0 && (
+        <div className="flex justify-center py-1">
+          <RefreshCw className="w-4 h-4 text-yellow-400 animate-spin" />
+        </div>
+      )}
 
       {/* Photographer Session Dashboard - NOT shown to Grom Parents */}
       {canShowSessionDashboard && (
