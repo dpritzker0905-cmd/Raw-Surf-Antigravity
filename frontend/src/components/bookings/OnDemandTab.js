@@ -1,10 +1,10 @@
-﻿/**
+/**
  * OnDemandTab - On-demand photographer requests
  * Extracted from Bookings.js for better maintainability
  */
 
 import React from 'react';
-import { Camera, MapPin, DollarSign, ChevronRight, Star, Radio, Loader2 } from 'lucide-react';
+import { Camera, MapPin, DollarSign, ChevronRight, Star, Radio, Loader2, Users, Zap } from 'lucide-react';
 import { Card, CardContent } from '../ui/card';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
@@ -21,6 +21,8 @@ export const OnDemandTab = ({
   onRefresh,
   onSelectPhotographer,
   onResumeDispatch,
+  crewInvites = [],
+  onPayCrewShare,
   theme
 }) => {
   const isLight = theme === 'light';
@@ -33,6 +35,64 @@ export const OnDemandTab = ({
 
   return (
     <>
+      {/* ─── Crew Session Invites ──────────────────────────────────────────── */}
+      {crewInvites.length > 0 && (
+        <div className="mb-4 space-y-3">
+          <p className={`text-xs font-semibold uppercase tracking-wider ${textSecondaryClass} flex items-center gap-2`}>
+            <Users className="w-3.5 h-3.5 text-cyan-400" />
+            You've been invited to join a session
+          </p>
+          {crewInvites.map((invite) => (
+            <Card
+              key={invite.id}
+              className="bg-gradient-to-r from-cyan-500/20 to-blue-500/20 border-2 border-cyan-400/50 cursor-pointer hover:border-cyan-400 transition-all"
+              onClick={() => onPayCrewShare?.(invite)}
+            >
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  {/* Captain avatar */}
+                  <div className="w-12 h-12 rounded-full overflow-hidden flex-shrink-0 ring-2 ring-cyan-400">
+                    {invite.captain?.avatar_url ? (
+                      <img src={getFullUrl(invite.captain.avatar_url)} alt="" className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full bg-gradient-to-br from-cyan-400 to-blue-500 flex items-center justify-center">
+                        <Users className="w-6 h-6 text-white" />
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex-1 min-w-0">
+                    <p className={`font-bold text-sm ${textPrimaryClass}`}>
+                      {invite.captain?.full_name || 'A friend'} invited you!
+                    </p>
+                    <p className={`text-xs ${textSecondaryClass} truncate`}>
+                      {invite.location_name || 'On-demand session'}
+                      {invite.share_amount && ` · Your share: $${Number(invite.share_amount).toFixed(2)}`}
+                    </p>
+                  </div>
+
+                  <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                    <Badge className="bg-cyan-500/30 text-cyan-300 border-0 text-xs">
+                      <Zap className="w-3 h-3 mr-1" />
+                      Join
+                    </Badge>
+                    <ChevronRight className="w-4 h-4 text-cyan-400" />
+                  </div>
+                </div>
+
+                <Button
+                  className="w-full mt-3 bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-bold py-2 text-sm"
+                  onClick={(e) => { e.stopPropagation(); onPayCrewShare?.(invite); }}
+                >
+                  <Zap className="w-4 h-4 mr-1" />
+                  Join & Pay Your Share
+                </Button>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+
       {/* Active Dispatch Card - Different UI for Captain vs Crew Member */}
       {activeDispatch && ['searching_for_pro', 'pending_payment', 'accepted', 'en_route', 'arrived'].includes(activeDispatch.status) && (
         <Card 

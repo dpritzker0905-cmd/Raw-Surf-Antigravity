@@ -281,18 +281,27 @@ export const getNotificationDeepLink = (notification) => {
       return { route: '/map' };
       
     case 'crew_session_invite':
-      // Navigate to bookings with dispatch ID to auto-open payment modal
+    case 'crew_payment_reminder':
+      // Navigate to on_demand tab (where crew invite cards live) and auto-open payment modal
       return { 
-        route: '/bookings?tab=scheduled', 
+        route: '/bookings?tab=on_demand', 
         state: { 
           openCrewInvite: true,
           dispatchId: data.dispatch_id 
         } 
       };
+
+    case 'dispatch_accepted':
+    case 'dispatch_arrived':
+      // Navigate directly to the session lobby
+      if (data.dispatch_id) {
+        return { route: `/dispatch/${data.dispatch_id}/lobby` };
+      }
+      return { route: '/bookings' };
       
     case 'dispatch_declined':
-      // Navigate to bookings scheduled tab
-      return { route: '/bookings?tab=scheduled' };
+      // Navigate to bookings on_demand tab
+      return { route: '/bookings?tab=on_demand' };
       
     default:
       // For unknown types, try to infer from data

@@ -700,18 +700,35 @@ export const Bookings = () => {
     }
   };
   
-  // Auto-open crew payment modal when coming from notification
+  // Auto-open crew payment modal when coming from notification (fixes race condition)
   useEffect(() => {
-    if (location.state?.openCrewInvite && location.state?.dispatchId && crewInvites.length > 0) {
-      const invite = crewInvites.find(inv => inv.dispatch_id === location.state.dispatchId);
+    if (!location.state?.openCrewInvite || !location.state?.dispatchId) return;
+    const dispatchId = location.state.dispatchId;
+
+    const tryOpen = (invites) => {
+      const invite = invites.find(inv => inv.dispatch_id === dispatchId);
       if (invite) {
+        setActiveTab('on_demand'); // Ensure correct tab is visible
         setSelectedCrewInvite(invite);
         setShowCrewPaymentModal(true);
-        // Clear the state to prevent re-opening on refresh
         navigate(location.pathname + location.search, { replace: true, state: {} });
       }
+    };
+
+    if (crewInvites.length > 0) {
+      // Already loaded — open immediately
+      tryOpen(crewInvites);
+    } else {
+      // Race condition: invites not loaded yet — fetch directly and open
+      apiClient.get(`/dispatch/user/${user?.id}/crew-invites`)
+        .then(res => {
+          const fresh = res.data?.crew_invites || [];
+          setCrewInvites(fresh);
+          tryOpen(fresh);
+        })
+        .catch(() => {/* silent */});
     }
-  }, [location.state, crewInvites, navigate, location.pathname, location.search]);
+  }, [location.state?.openCrewInvite, location.state?.dispatchId]); // eslint-disable-line
 
   const fetchNearbyWithSkillFilter = async (skillLevel) => {
     setSelectedSkillFilter(skillLevel);
@@ -1064,6 +1081,8 @@ export const Bookings = () => {
                 setResumeDispatchId(dispatch.id);
                 setShowOnDemandDrawer(true);
               }}
+              crewInvites={crewInvites}
+              onPayCrewShare={handlePayCrewShare}
               theme={theme}
             />
           )}
