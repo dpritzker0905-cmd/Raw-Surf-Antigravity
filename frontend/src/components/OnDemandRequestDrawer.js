@@ -269,7 +269,7 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
   
   // Calculate crew payment splits (must be before hasEnoughCredits)
   // Crew members who are NOT covered by captain pay their share
-  const crewCoversAmount = crewMembers.reduce((sum, m) => sum + (m.covered_by_captain ? 0 : (m.share_amount || parseFloat(perPersonSplit))), 0);
+  const crewCoversAmount = crewMembers.reduce((sum, m) => sum + (m.covered_by_captain ? 0 : (m.share_amount ?? parseFloat(perPersonSplit))), 0);
   const captainPayAmount = Math.max(0, totalPrice - crewCoversAmount); // Never go negative
   
   const hasEnoughCredits = crewMembers.length > 0 
@@ -449,7 +449,7 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
       // Include captain's share amount and crew shares for split bookings
       const crewSharesPayload = crewMembers.length > 0 ? crewMembers.map(m => ({
         user_id: m.user_id || m.id || m.value,
-        share_amount: m.covered_by_captain ? 0 : (m.share_amount || parseFloat(perPersonSplit)),
+        share_amount: m.covered_by_captain ? 0 : (m.share_amount ?? parseFloat(perPersonSplit)),
         covered_by_captain: m.covered_by_captain || false
       })) : null;
       
@@ -1256,8 +1256,8 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
               <h4 className={`text-sm font-medium ${textSecondary}`}>Crew Payment Controls</h4>
               
               {crewMembers.map((member, idx) => {
-                const memberShare = member.share_amount || parseFloat(perPersonSplit);
-                const memberPercentage = member.share_percentage || (100 / totalParticipants);
+                const memberShare = member.share_amount ?? parseFloat(perPersonSplit);
+                const memberPercentage = member.share_percentage ?? (100 / totalParticipants);
                 const isCovered = member.covered_by_captain || false;
                 
                 return (
@@ -1535,12 +1535,17 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
             </div>
             
             <div>
-              <h3 className={`text-xl font-bold ${textPrimary}`}>Finding Your Photographer</h3>
+              <h3 className={`text-xl font-bold ${textPrimary}`}>Waiting for Confirmation</h3>
               <p className={`${textSecondary} mt-2`}>
-                Waiting for {photographer?.full_name} to accept...
+                {photographer?.full_name} is reviewing your request...
               </p>
+              {crewMembers.length > 0 && (
+                <p className={`text-xs ${textSecondary} mt-1`}>
+                  Also waiting for crew to complete payment
+                </p>
+              )}
               <p className={`text-xs ${textSecondary} mt-1 animate-pulse`}>
-                Checking for response every 3 seconds
+                Auto-checking every 3 seconds
               </p>
             </div>
             

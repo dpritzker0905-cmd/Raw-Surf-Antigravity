@@ -122,7 +122,7 @@ export const OnDemandTab = ({
                   <h3 className={`font-bold ${textPrimaryClass}`}>
                     {isCrewMember ? (
                       <>
-                        {activeDispatch.status === 'searching_for_pro' && 'Session Active - Finding Photographer'}
+                        {activeDispatch.status === 'searching_for_pro' && 'Waiting for Photographer'}
                         {activeDispatch.status === 'pending_payment' && 'Waiting for Captain to Pay'}
                         {activeDispatch.status === 'accepted' && 'Photographer Confirmed!'}
                         {activeDispatch.status === 'en_route' && 'Photographer On The Way!'}
@@ -130,7 +130,7 @@ export const OnDemandTab = ({
                       </>
                     ) : (
                       <>
-                        {activeDispatch.status === 'searching_for_pro' && 'Finding Your Photographer'}
+                        {activeDispatch.status === 'searching_for_pro' && 'Waiting for Confirmation'}
                         {activeDispatch.status === 'pending_payment' && 'Pending Payment'}
                         {activeDispatch.status === 'accepted' && 'Photographer Accepted!'}
                         {activeDispatch.status === 'en_route' && 'Photographer On The Way'}
