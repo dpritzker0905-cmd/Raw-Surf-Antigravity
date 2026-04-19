@@ -1199,24 +1199,42 @@ export const CreatePost = () => {
                     </div>
                   )}
 
-                  {/* Known Spots (conditions) Dropdown */}
-                  {knownSpots.length > 0 && (
-                    <div>
-                      <p className={`text-xs ${labelClass} mb-1`}>Quick select (auto-fills conditions)</p>
-                      <Select value={selectedSpot} onValueChange={handleSpotSelect}>
-                        <SelectTrigger className={`${bgInput} ${borderInput} ${textInput} text-sm`}>
-                          <SelectValue placeholder="Select a surf spot..." />
-                        </SelectTrigger>
-                        <SelectContent className={selectContentBg}>
-                          {knownSpots.map(spot => (
-                            <SelectItem key={spot.key} value={spot.key} className={selectItemClass}>
-                              {spot.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  )}
+                  {/* Known Spots (conditions) Dropdown — filtered by selected city */}
+                  {(() => {
+                    // Get spot names from the selected city in the hierarchy
+                    let citySpotNames = [];
+                    if (selectedCity && selectedCountry && selectedState) {
+                      const country = (locationHierarchy.countries || []).find(c => c.name === selectedCountry);
+                      const state = (country?.states || []).find(s => s.name === selectedState);
+                      const city = (state?.cities || []).find(c => c.name === selectedCity);
+                      citySpotNames = (city?.spots || []).map(s => s.name.toLowerCase());
+                    }
+                    // Filter knownSpots to ones in the selected city, or show all if no city selected
+                    const filteredSpots = citySpotNames.length > 0
+                      ? knownSpots.filter(s => citySpotNames.some(csn => s.name.toLowerCase().includes(csn) || csn.includes(s.name.toLowerCase())))
+                      : knownSpots;
+                    
+                    if (filteredSpots.length === 0) return null;
+                    return (
+                      <div>
+                        <p className={`text-xs ${labelClass} mb-1`}>
+                          {selectedCity ? `Spots near ${selectedCity} (auto-fills conditions)` : 'Quick select (auto-fills conditions)'}
+                        </p>
+                        <Select value={selectedSpot} onValueChange={handleSpotSelect}>
+                          <SelectTrigger className={`${bgInput} ${borderInput} ${textInput} text-sm`}>
+                            <SelectValue placeholder="Select a surf spot..." />
+                          </SelectTrigger>
+                          <SelectContent className={selectContentBg}>
+                            {filteredSpots.map(spot => (
+                              <SelectItem key={spot.key} value={spot.key} className={selectItemClass}>
+                                {spot.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    );
+                  })()}
 
                   {/* Manual input fallback */}
                   <div className="relative">
