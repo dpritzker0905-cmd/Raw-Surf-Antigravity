@@ -70,17 +70,15 @@ export const TopNav = () => {
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [logoSpinning, setLogoSpinning] = useState(false);
 
-  // Instagram-style logo: refresh feed when already on /feed, else navigate there
+  // Logo click: refresh current page in-place (same as Sidebar)
   const handleLogoClick = useCallback(() => {
     if (location.pathname === '/feed') {
       window.dispatchEvent(new CustomEvent('feed:refresh'));
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    } else {
-      navigate('/feed');
     }
+    window.scrollTo({ top: 0, behavior: 'smooth' });
     setLogoSpinning(true);
     setTimeout(() => setLogoSpinning(false), 600);
-  }, [location.pathname, navigate]);
+  }, [location.pathname]);
 
   // Close all drawers when route changes (e.g., when BottomNav item is clicked)
   useEffect(() => {

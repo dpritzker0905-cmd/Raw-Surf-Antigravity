@@ -25,20 +25,18 @@ export const Sidebar = () => {
   const [passportOpen, setPassportOpen] = useState(false);
   const [logoSpinning, setLogoSpinning] = useState(false);
 
-  // Logo click: Instagram-style — on /feed scroll-to-top + trigger refresh;
-  // on any other page navigate to /feed
+  // Logo click: refresh current page in-place
+  // On /feed: triggers full feed refresh + scroll to top
+  // On any other page: just scrolls to top (universal refresh gesture)
+  // The Home nav button is for actually navigating to /feed
   const handleLogoClick = useCallback(() => {
     if (location.pathname === '/feed') {
-      // Dispatch custom event that Feed.js listens to
       window.dispatchEvent(new CustomEvent('feed:refresh'));
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    } else {
-      navigate('/feed');
     }
-    // Brief spin animation for haptic feedback
+    window.scrollTo({ top: 0, behavior: 'smooth' });
     setLogoSpinning(true);
     setTimeout(() => setLogoSpinning(false), 600);
-  }, [location.pathname, navigate]);
+  }, [location.pathname]);
   
   // Get effective role for UI rendering (respects God Mode persona masking)
   const effectiveRole = getEffectiveRole(user?.role);
