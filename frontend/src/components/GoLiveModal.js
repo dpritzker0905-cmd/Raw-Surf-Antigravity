@@ -1,12 +1,11 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-
-import { 
-
+import {
   Radio, Clock, Mic, MicOff, Camera, CameraOff, Loader2, AlertTriangle,
   RefreshCw, MessageCircle, Heart, Send, X, Sparkles, Sun, Contrast,
   Share2, Eye, Wifi, WifiOff, ChevronUp, ChevronDown, Droplets, Thermometer,
-  CircleDot, Sunset, Waves, RotateCcw, Zap, Moon, Grid, Signal, SignalHigh,
-  SignalLow, SignalMedium, Play, ArrowLeft, ChevronRight, Info
+  CircleDot, Sunset, Waves, Film, RotateCcw, Power, Zap, Moon, Grid,
+  Signal, SignalHigh, SignalLow, SignalMedium, Play, ArrowLeft, ChevronRight,
+  Info, TrendingUp, Award, Star
 } from 'lucide-react';
 import { Button } from './ui/button';
 
@@ -25,8 +24,8 @@ import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 
 import {
-
   LiveKitRoom,
+  VideoTrack,
   useLocalParticipant,
   useTracks,
   RoomAudioRenderer,
@@ -355,18 +354,24 @@ const VideoFilterPanel = ({ isOpen, onClose, filters, onFilterChange, onPresetSe
 };
 
 /**
- * Emoji Burst Animation - Theme-aware glow effect
+ * Emoji Burst Animation - Instagram/TikTok style floating emoji burst
+ * Emojis float upward in a slight random arc, fade at top
  */
-const EmojiBurst = ({ emoji, x, y, theme }) => {
-  const glowColor = theme === 'light' ? 'drop-shadow-md' : 'drop-shadow-lg drop-shadow-white/20';
-  
+const EmojiBurst = ({ emoji, x, y, theme, id }) => {
+  // Slight random horizontal drift so emojis don't stack
+  const drift = useMemo(() => (Math.random() - 0.5) * 60, []);
+  const glowClass = theme === 'dark' ? 'drop-shadow-[0_0_8px_rgba(255,255,255,0.6)]'
+    : theme === 'beach' ? 'drop-shadow-[0_0_8px_rgba(251,146,60,0.7)]'
+    : 'drop-shadow-md';
+
   return (
     <motion.div
-      initial={{ opacity: 1, scale: 0.5, y: 0 }}
-      animate={{ opacity: 0, scale: 2, y: -100 }}
+      key={id}
+      initial={{ opacity: 1, scale: 0.6, y: 0, x: 0 }}
+      animate={{ opacity: 0, scale: 1.8, y: -140, x: drift }}
       exit={{ opacity: 0 }}
-      transition={{ duration: 1.5, ease: 'easeOut' }}
-      className={`absolute text-4xl ${glowColor} pointer-events-none`}
+      transition={{ duration: 1.8, ease: [0.16, 1, 0.3, 1] }}
+      className={`absolute text-4xl ${glowClass} pointer-events-none select-none z-50`}
       style={{ left: x, top: y }}
     >
       {emoji}
@@ -515,15 +520,19 @@ const LiveCommentsFeed = ({ streamId, colors, onSendComment, onLikeComment, isEx
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: isExpanded ? '100%' : 'auto', overflow: 'hidden' }}>
-      {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 12px', borderBottom: '1px solid #27272a', flexShrink: 0 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: isExpanded ? '100%' : 'auto', overflow: 'hidden', background: 'rgba(9,9,11,0.92)', backdropFilter: 'blur(12px)' }}>
+      {/* Header — Live pulse + count */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', borderBottom: '1px solid rgba(39,39,42,0.8)', flexShrink: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <MessageCircle style={{ width: 15, height: 15, color: '#f59e0b' }} />
-          <span style={{ fontSize: 13, fontWeight: 600, color: '#fff' }}>Live Chat</span>
-          <span style={{ fontSize: 11, color: '#71717a' }}>({comments.length})</span>
+          {/* Animated live pulse dot */}
+          <div style={{ position: 'relative', width: 10, height: 10, flexShrink: 0 }}>
+            <div className="animate-ping" style={{ position: 'absolute', inset: 0, borderRadius: '50%', background: '#f59e0b', opacity: 0.6 }} />
+            <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', background: '#f59e0b' }} />
+          </div>
+          <span style={{ fontSize: 13, fontWeight: 700, color: '#fff', letterSpacing: '0.02em' }}>LIVE CHAT</span>
+          <span style={{ fontSize: 11, color: '#71717a', background: 'rgba(39,39,42,0.7)', padding: '1px 6px', borderRadius: 8 }}>{comments.length}</span>
         </div>
-        <button onClick={onToggleExpand} className={`sm:hidden p-1 rounded ${colors.buttonBg}`}>
+        <button onClick={onToggleExpand} className={`sm:hidden p-1.5 rounded-lg ${colors.buttonBg} transition-colors`}>
           {isExpanded ? <ChevronDown className={`w-4 h-4 ${colors.secondaryText}`} /> : <ChevronUp className={`w-4 h-4 ${colors.secondaryText}`} />}
         </button>
       </div>
@@ -603,18 +612,27 @@ const LiveCommentsFeed = ({ streamId, colors, onSendComment, onLikeComment, isEx
 };
 
 /**
- * Quick Reaction Buttons - Emoji reactions with burst animation
+ * Quick Reaction Buttons - Surf-themed emoji reactions with haptic burst animation
+ * Best practice: keep to 6 reactions max, most-used first (Instagram Live pattern)
  */
 const QuickReactions = ({ onReact, colors }) => {
-  const reactions = ['❤️', '🔥', '🤙', '🌊', '👏', '😮'];
-  
+  const reactions = [
+    { emoji: '🤙', label: 'shaka' },
+    { emoji: '🌊', label: 'wave' },
+    { emoji: '🔥', label: 'fire' },
+    { emoji: '❤️', label: 'love' },
+    { emoji: '🏄', label: 'surf' },
+    { emoji: '😮', label: 'wow' },
+  ];
+
   return (
-    <div className={`flex items-center gap-1 p-1 rounded-full ${colors.overlayBg}`}>
-      {reactions.map((emoji) => (
+    <div className={`flex items-center gap-1.5 px-2 py-1.5 rounded-full ${colors.overlayBg} backdrop-blur-md border ${colors.border}`}>
+      {reactions.map(({ emoji, label }) => (
         <button
           key={emoji}
           onClick={() => onReact(emoji)}
-          className="text-xl hover:scale-125 transition-transform active:scale-95 p-1"
+          aria-label={label}
+          className="text-lg sm:text-xl hover:scale-130 transition-all duration-150 active:scale-90 p-1 rounded-full hover:bg-white/10"
         >
           {emoji}
         </button>

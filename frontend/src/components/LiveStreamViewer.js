@@ -203,11 +203,15 @@ const LiveChat = ({ streamId, userId, userName, userAvatar }) => {
   };
 
   return (
-    <div className="flex flex-col h-full bg-zinc-900/95">
-      <div className="px-4 py-3 border-b border-zinc-800 flex items-center gap-2">
-        <MessageCircle className="w-4 h-4 text-zinc-400" />
-        <span className="text-sm font-medium text-zinc-300">Live Chat</span>
-        <span className="text-xs text-zinc-500">({comments.length})</span>
+    <div className="flex flex-col h-full" style={{ background: 'rgba(9,9,11,0.92)', backdropFilter: 'blur(12px)' }}>
+      {/* Header — live pulse dot matching broadcaster */}
+      <div className="px-4 py-3 border-b flex items-center gap-2" style={{ borderColor: 'rgba(39,39,42,0.8)', flexShrink: 0 }}>
+        <div style={{ position: 'relative', width: 10, height: 10, flexShrink: 0 }}>
+          <div className="animate-ping" style={{ position: 'absolute', inset: 0, borderRadius: '50%', background: '#f59e0b', opacity: 0.6 }} />
+          <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', background: '#f59e0b' }} />
+        </div>
+        <span style={{ fontSize: 13, fontWeight: 700, color: '#fff', letterSpacing: '0.02em' }}>LIVE CHAT</span>
+        <span style={{ fontSize: 11, color: '#71717a', background: 'rgba(39,39,42,0.7)', padding: '1px 6px', borderRadius: 8 }}>({comments.length})</span>
       </div>
       <div className="flex-1 overflow-y-auto p-3 space-y-3 min-h-0">
         {comments.length === 0 ? (
