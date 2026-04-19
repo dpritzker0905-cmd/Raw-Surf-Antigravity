@@ -147,7 +147,7 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
     const fetchCredits = async () => {
       if (user?.id && isOpen && !creditsFetched) {
         try {
-          const res = await apiClient.get(`/credits/${user.id}/balance`);
+          const res = await apiClient.get(`/credits/balance/${user.id}`);
           if (res.data?.balance !== undefined) {
             const balance = res.data.balance;
             setLocalCredits(balance);
@@ -813,14 +813,7 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
               <span className="text-cyan-400 font-bold">{photosIncluded} photos</span>
             </div>
             
-            {/* Duration step Continue button — moved into scrollable area but also duplicated in sticky footer */}
-            <Button
-              onClick={() => setStep('split_choice')}
-              className="w-full py-6 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-black font-bold text-lg rounded-xl"
-            >
-              Continue - ${totalPrice.toFixed(2)}
-              <ChevronRight className="w-5 h-5 ml-2" />
-            </Button>
+
           </div>
         )}
 
@@ -903,16 +896,7 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
               </p>
             </div>
 
-            <Button
-              onClick={() => {
-                if (splitEnabled) setStep('crew');
-                else setStep('confirm');
-              }}
-              className="w-full py-6 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-black font-bold text-lg rounded-xl"
-            >
-              {splitEnabled ? 'Add My Crew' : 'Continue to Payment'}
-              <ChevronRight className="w-5 h-5 ml-2" />
-            </Button>
+
           </div>
         )}
         
@@ -1151,22 +1135,7 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
               </div>
             </div>
             
-            <Button
-              onClick={() => crewMembers.length > 0 ? setStep('crew_payment') : setStep('confirm')}
-              className="w-full py-6 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-black font-bold text-lg rounded-xl"
-            >
-              {crewMembers.length > 0 ? (
-                <>
-                  <Calculator className="w-5 h-5 mr-2" />
-                  Set Payment Splits
-                </>
-              ) : (
-                <>
-                  <Zap className="w-5 h-5 mr-2" />
-                  Continue to Payment
-                </>
-              )}
-            </Button>
+
           </div>
         )}
         
@@ -1379,13 +1348,7 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
               </button>
             </div>
             
-            <Button
-              onClick={() => setStep('confirm')}
-              className="w-full py-6 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-black font-bold text-lg rounded-xl"
-            >
-              <Zap className="w-5 h-5 mr-2" />
-              Confirm Splits & Pay ${captainPayAmount.toFixed(2)}
-            </Button>
+
           </div>
         )}
         
@@ -1494,23 +1457,7 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
               </button>
             </div>
             
-            <Button
-              onClick={handleSubmitRequest}
-              disabled={loading || (paymentMethod === 'credits' && !hasEnoughCredits)}
-              className="w-full py-6 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-black font-bold text-lg rounded-xl disabled:opacity-50"
-            >
-              {loading ? (
-                <Loader2 className="w-5 h-5 animate-spin" />
-              ) : (
-                <>
-                  <Zap className="w-5 h-5 mr-2" />
-                  {crewMembers.length > 0 
-                    ? `Pay $${captainPayAmount.toFixed(2)} & Send Request`
-                    : 'Send Request'
-                  }
-                </>
-              )}
-            </Button>
+
           </div>
         )}
         
