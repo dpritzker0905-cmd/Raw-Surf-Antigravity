@@ -617,7 +617,7 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
     <>
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent 
-        className={`relative ${bgCard} border-border sm:max-w-lg p-0`}
+        className={`${bgCard} border-border sm:max-w-lg p-0`}
         hideCloseButton={step === 'waiting'}
       >
         <DialogTitle className="sr-only">On-Demand Session Booking</DialogTitle>
