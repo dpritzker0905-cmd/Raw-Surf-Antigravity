@@ -1,4 +1,4 @@
-﻿/**
+/**
  * SinglePost - View a single post with full details
  * Used when navigating directly to /post/:postId
  */
@@ -401,8 +401,8 @@ const SinglePost = () => {
 
   return (
     <div className={`min-h-screen ${bgClass}`}>
-      {/* Header */}
-      <div className={`sticky top-0 z-10 ${isLight ? 'bg-white' : 'bg-zinc-900'} border-b ${borderClass}`}>
+      {/* Header — sticky on mobile for easy back navigation, static on desktop (Instagram pattern) */}
+      <div className={`sticky md:relative top-0 z-20 ${isLight ? 'bg-white/95 backdrop-blur-sm' : 'bg-zinc-900/95 backdrop-blur-sm'} border-b ${borderClass}`}>
         <div className="max-w-2xl mx-auto flex items-center gap-3 px-4 py-3">
           <Button 
             variant="ghost" 
