@@ -5,7 +5,7 @@ import {
   Share2, Eye, Wifi, WifiOff, ChevronUp, ChevronDown, Droplets, Thermometer,
   CircleDot, Sunset, Waves, Film, RotateCcw, Power, Zap, Moon, Grid,
   Signal, SignalHigh, SignalLow, SignalMedium, Play, ArrowLeft, ChevronRight,
-  Info, TrendingUp, Award, Star
+  Info, TrendingUp, Award, Star, Scissors
 } from 'lucide-react';
 import { Button } from './ui/button';
 
@@ -39,6 +39,8 @@ import { Track, ConnectionState } from 'livekit-client';
 
 import logger from '../utils/logger';
 import { getFullUrl } from '../utils/media';
+import { HairFilterEngine } from '../utils/HairFilterEngine';
+import { HairFilterPicker } from './HairFilterPicker';
 
 
 const API = process.env.REACT_APP_BACKEND_URL + '/api';
@@ -724,6 +726,8 @@ const BroadcasterControls = ({
   const [emojiBursts, setEmojiBursts] = useState([]);
   const [likeCount, setLikeCount] = useState(0);
   const [showFilters, setShowFilters] = useState(false);
+  const [showHairPicker, setShowHairPicker] = useState(false);
+  const [activeHairStyle, setActiveHairStyle] = useState(null);
   const [videoFilters, setVideoFilters] = useState({ 
     brightness: 100, 
     contrast: 100,
@@ -733,6 +737,8 @@ const BroadcasterControls = ({
   });
   
   const videoRef = useRef(null);
+  const hairCanvasRef = useRef(null);
+  const hairEngineRef = useRef(null);
 
   const tracks = useTracks([Track.Source.Camera], { onlySubscribed: false });
   const _localVideoTrack = tracks.find(t => t.participant?.isLocal);
@@ -808,6 +814,59 @@ const BroadcasterControls = ({
     setTimeout(() => {
       setEmojiBursts(prev => prev.filter(b => b.id !== id));
     }, 1500);
+  }, []);
+
+  // ── Hair Filter Engine lifecycle ──
+  useEffect(() => {
+    const engine = new HairFilterEngine();
+    hairEngineRef.current = engine;
+    engine.init().catch(() => {});
+    
+    return () => {
+      engine.dispose();
+      hairEngineRef.current = null;
+    };
+  }, []);
+  
+  // Start/stop hair engine when video element changes or camera toggles
+  useEffect(() => {
+    const engine = hairEngineRef.current;
+    if (!engine || !engine._initialized) return;
+    
+    if (isCameraOff) {
+      engine.stop();
+      return;
+    }
+    
+    // Find the video element inside the ref container
+    const videoContainer = videoRef.current;
+    if (!videoContainer) return;
+    
+    const videoEl = videoContainer.querySelector('video');
+    const canvasEl = hairCanvasRef.current;
+    
+    if (videoEl && canvasEl) {
+      // Small delay to ensure video is ready
+      const timer = setTimeout(() => {
+        engine.start(videoEl, canvasEl);
+      }, 500);
+      return () => { clearTimeout(timer); engine.stop(); };
+    }
+  }, [isCameraOff, connectionState]);
+  
+  // Update hair style when selection changes
+  useEffect(() => {
+    const engine = hairEngineRef.current;
+    if (engine) {
+      engine.setHairStyle(activeHairStyle);
+    }
+  }, [activeHairStyle]);
+  
+  const handleSelectHairStyle = useCallback((styleId) => {
+    setActiveHairStyle(styleId);
+    if (styleId) {
+      toast.success('Hair filter applied! 💇');
+    }
   }, []);
 
   const handleSendComment = useCallback(async (text) => {
@@ -907,6 +966,12 @@ const BroadcasterControls = ({
                 isCameraOff={isCameraOff}
                 isFrontCamera={isFrontCamera}
               />
+              {/* Hair filter canvas overlay */}
+              <canvas
+                ref={hairCanvasRef}
+                className="absolute inset-0 w-full h-full pointer-events-none"
+                style={{ zIndex: 5 }}
+              />
               {/* Vignette overlay */}
               {vignetteStyle && <div style={vignetteStyle} />}
             </div>
@@ -988,6 +1053,14 @@ const BroadcasterControls = ({
             >
               <Sparkles className={`w-5 h-5 ${showFilters ? 'text-white' : colors.primaryText}`} />
             </button>
+
+            <button
+              onClick={() => setShowHairPicker(!showHairPicker)}
+              className={`p-3 rounded-full ${colors.overlayBg} ${colors.border} border transition-all active:scale-95 shadow-md ${showHairPicker ? 'bg-yellow-500' : activeHairStyle ? 'bg-yellow-500/30 border-yellow-500/50' : ''}`}
+              title="Hair Filters"
+            >
+              <Scissors className={`w-5 h-5 ${showHairPicker || activeHairStyle ? 'text-white' : colors.primaryText}`} />
+            </button>
           </div>
 
           {/* Video Filter Panel */}
@@ -999,6 +1072,19 @@ const BroadcasterControls = ({
                 filters={videoFilters}
                 onFilterChange={handleFilterChange}
                 onPresetSelect={handlePresetSelect}
+                colors={colors}
+              />
+            )}
+          </AnimatePresence>
+
+          {/* Hair Filter Picker Panel */}
+          <AnimatePresence>
+            {showHairPicker && (
+              <HairFilterPicker
+                isOpen={showHairPicker}
+                onClose={() => setShowHairPicker(false)}
+                activeStyleId={activeHairStyle}
+                onSelectHair={handleSelectHairStyle}
                 colors={colors}
               />
             )}

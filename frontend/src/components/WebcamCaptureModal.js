@@ -2,12 +2,14 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { 
   Camera, X, Loader2, RefreshCcw, Sparkles, SlidersHorizontal, 
   CircleDot, Eye, Grid, Sunset, Waves, Moon, Zap, 
-  Sun, Contrast, Droplets, Thermometer, RotateCcw
+  Sun, Contrast, Droplets, Thermometer, RotateCcw, Scissors
 } from 'lucide-react';
 import { Button } from './ui/button';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 import { WebGLVideoProcessor } from '../utils/WebGLFilterEngine';
+import { HairFilterEngine } from '../utils/HairFilterEngine';
+import { HairFilterPicker } from './HairFilterPicker';
 
 export default function WebcamCaptureModal({ isOpen, onClose, onCapture, maxLength = null }) {
   const [stream, setStream] = useState(null);
@@ -18,12 +20,16 @@ export default function WebcamCaptureModal({ isOpen, onClose, onCapture, maxLeng
   // Filtering Hooks
   const [showPresets, setShowPresets] = useState(false);
   const [showSliders, setShowSliders] = useState(false);
+  const [showHairPicker, setShowHairPicker] = useState(false);
+  const [activeHairStyle, setActiveHairStyle] = useState(null);
   const [videoFilters, setVideoFilters] = useState({ 
     brightness: 100, contrast: 100, saturation: 100, warmth: 100, vignette: 0, presetName: 'None'
   });
   
   const videoRef = useRef(null);
   const canvasRef = useRef(null); // Invisible canvas for WebRTC stream mapping
+  const hairCanvasRef = useRef(null);
+  const hairEngineRef = useRef(null);
   const mediaRecorderRef = useRef(null);
   const chunksRef = useRef([]);
   const timerRef = useRef(null);
@@ -231,6 +237,45 @@ export default function WebcamCaptureModal({ isOpen, onClose, onCapture, maxLeng
     toast.success('Filter active');
   };
 
+  // ── Hair Filter Engine lifecycle ──
+  useEffect(() => {
+    const engine = new HairFilterEngine();
+    hairEngineRef.current = engine;
+    engine.init().catch(() => {});
+    return () => {
+      engine.dispose();
+      hairEngineRef.current = null;
+    };
+  }, []);
+
+  // Start/stop hair engine when camera stream changes
+  useEffect(() => {
+    const engine = hairEngineRef.current;
+    if (!engine || !engine._initialized || !stream) return;
+    
+    const videoEl = videoRef.current;
+    const hairCanvas = hairCanvasRef.current;
+    
+    if (videoEl && hairCanvas) {
+      const timer = setTimeout(() => {
+        engine.start(videoEl, hairCanvas);
+      }, 500);
+      return () => { clearTimeout(timer); engine.stop(); };
+    }
+  }, [stream]);
+  
+  // Update hair style when selection changes
+  useEffect(() => {
+    const engine = hairEngineRef.current;
+    if (engine) engine.setHairStyle(activeHairStyle);
+  }, [activeHairStyle]);
+  
+  const handleSelectHairStyle = useCallback((styleId) => {
+    setActiveHairStyle(styleId);
+    setShowHairPicker(false);
+    if (styleId) toast.success('Hair filter applied! 💇');
+  }, []);
+
   if (!isOpen) return null;
 
   const presets = [
@@ -278,18 +323,25 @@ export default function WebcamCaptureModal({ isOpen, onClose, onCapture, maxLeng
         {/* Floating Side Tools (Exactly like GoLiveModal transparent buttons) */}
         <div className="absolute right-3 top-1/2 -translate-y-1/2 flex flex-col gap-3 z-[60] pointer-events-auto">
           <button
-            onClick={() => { setShowPresets(!showPresets); setShowSliders(false); }}
+            onClick={() => { setShowPresets(!showPresets); setShowSliders(false); setShowHairPicker(false); }}
             className={`p-3 rounded-full bg-black/40 backdrop-blur border border-white/20 transition-all active:scale-95 shadow-md ${showPresets ? 'bg-cyan-500 text-white border-transparent' : 'text-white'}`}
             title="Surf Filters"
           >
             <Sparkles className="w-5 h-5" />
           </button>
           <button
-            onClick={() => { setShowSliders(!showSliders); setShowPresets(false); }}
+            onClick={() => { setShowSliders(!showSliders); setShowPresets(false); setShowHairPicker(false); }}
             className={`p-3 rounded-full bg-black/40 backdrop-blur border border-white/20 transition-all active:scale-95 shadow-md ${showSliders ? 'bg-cyan-500 text-white border-transparent' : 'text-white'}`}
             title="Filter Adjustments"
           >
             <SlidersHorizontal className="w-5 h-5" />
+          </button>
+          <button
+            onClick={() => { setShowHairPicker(!showHairPicker); setShowPresets(false); setShowSliders(false); }}
+            className={`p-3 rounded-full bg-black/40 backdrop-blur border border-white/20 transition-all active:scale-95 shadow-md ${showHairPicker ? 'bg-yellow-500 text-white border-transparent' : activeHairStyle ? 'bg-yellow-500/30 border-yellow-500/50 text-white' : 'text-white'}`}
+            title="Hair Filters"
+          >
+            <Scissors className="w-5 h-5" />
           </button>
         </div>
 
@@ -349,6 +401,24 @@ export default function WebcamCaptureModal({ isOpen, onClose, onCapture, maxLeng
               </Button>
             </motion.div>
           )}
+
+          {/* Hair Filter Picker */}
+          {showHairPicker && (
+            <HairFilterPicker
+              isOpen={showHairPicker}
+              onClose={() => setShowHairPicker(false)}
+              activeStyleId={activeHairStyle}
+              onSelectHair={handleSelectHairStyle}
+              colors={{
+                overlayBg: 'bg-black/70 backdrop-blur-md',
+                primaryText: 'text-white',
+                secondaryText: 'text-zinc-400',
+                accentText: 'text-cyan-400',
+                buttonBg: 'bg-white/10 hover:bg-white/20',
+                border: 'border-zinc-700',
+              }}
+            />
+          )}
         </AnimatePresence>
 
         {/* Viewfinder block physically tracking canvas structure for recording */}
@@ -367,6 +437,8 @@ export default function WebcamCaptureModal({ isOpen, onClose, onCapture, maxLeng
             }
           }} className="absolute inset-0 w-full h-full object-cover opacity-0 pointer-events-none z-0" />
           <canvas ref={canvasRef} className="absolute inset-0 w-full h-full object-cover z-10" />
+          {/* Hair filter canvas overlay */}
+          <canvas ref={hairCanvasRef} className="absolute inset-0 w-full h-full object-cover pointer-events-none z-[15]" />
         </div>
 
         {/* Rule of Thirds */}
