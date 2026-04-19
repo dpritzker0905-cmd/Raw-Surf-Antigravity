@@ -23,8 +23,19 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 STRIPE_API_KEY = os.environ.get('STRIPE_API_KEY')
-if STRIPE_API_KEY:
-    stripe.api_key = STRIPE_API_KEY
+# ── Safety guard: never run live Stripe from this codebase until explicitly approved ──
+# If a live key is accidentally set in the Render env, fall back to test mode.
+STRIPE_TEST_FALLBACK = 'sk_test_Ee0EXjPggntbOEG89DFJiUT4'
+if STRIPE_API_KEY and STRIPE_API_KEY.startswith('sk_live_'):
+    logger.critical(
+        "[STRIPE] ⚠️  LIVE key detected in STRIPE_API_KEY env var! "
+        "Falling back to TEST key. Update STRIPE_API_KEY in Render dashboard to a sk_test_ key."
+    )
+    STRIPE_API_KEY = STRIPE_TEST_FALLBACK
+elif not STRIPE_API_KEY:
+    STRIPE_API_KEY = STRIPE_TEST_FALLBACK
+stripe.api_key = STRIPE_API_KEY
+logger.info(f"[STRIPE] Running in {'TEST' if STRIPE_API_KEY.startswith('sk_test_') else 'LIVE'} mode")
 
 
 async def ensure_database_tables():

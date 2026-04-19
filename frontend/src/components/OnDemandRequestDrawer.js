@@ -606,11 +606,12 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
     <>
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent 
-        className={`${bgCard} border-border sm:max-w-lg w-full max-w-full sm:mx-auto mx-0 p-0 overflow-hidden h-[100dvh] sm:h-auto sm:max-h-[90vh] rounded-none sm:rounded-lg`}
+        className={`relative ${bgCard} border-border sm:max-w-lg w-full max-w-full sm:mx-auto mx-0 p-0 overflow-hidden h-[100dvh] sm:h-auto sm:max-h-[90vh] rounded-none sm:rounded-lg`}
         hideCloseButton={step === 'waiting'}
       >
         <DialogTitle className="sr-only">Dialog</DialogTitle>
-        <div className="overflow-y-auto h-full sm:max-h-[85vh] pb-24 sm:pb-6 overscroll-contain"
+        {/* Scrollable content area — padded bottom so sticky footer never overlaps */}
+        <div className="overflow-y-auto h-full pb-[88px] overscroll-contain"
              style={{ WebkitOverflowScrolling: 'touch' }}>
         {/* ============ STEP 0: START TIME SELECTION ============ */}
         {step === 'timing' && (
@@ -697,14 +698,6 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
                 The photographer will see this timeframe and can accept if they can make it. You'll be notified when they confirm.
               </p>
             </div>
-            
-            <Button
-              onClick={() => setStep('duration')}
-              className="w-full py-6 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-black font-bold text-lg rounded-xl"
-            >
-              Continue
-              <ChevronRight className="w-5 h-5 ml-2" />
-            </Button>
           </div>
         )}
         
@@ -810,6 +803,7 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
               <span className="text-cyan-400 font-bold">{photosIncluded} photos</span>
             </div>
             
+            {/* Duration step Continue button — moved into scrollable area but also duplicated in sticky footer */}
             <Button
               onClick={() => setStep('split_choice')}
               className="w-full py-6 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-black font-bold text-lg rounded-xl"
@@ -1728,8 +1722,72 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
           </div>
         )}
         </div>
+
+        {/* ── Sticky Footer CTA \u2014 always visible above mobile chrome ── */}
+        {!['waiting', 'success'].includes(step) && (
+          <div className={`absolute bottom-0 left-0 right-0 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] border-t ${isLight ? 'bg-white border-gray-200' : 'bg-card border-border'} shadow-[0_-8px_24px_rgba(0,0,0,0.15)]`}>
+            {step === 'timing' && (
+              <Button
+                onClick={() => setStep('duration')}
+                className="w-full py-4 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-black font-bold text-base rounded-xl"
+              >
+                Continue <ChevronRight className="w-5 h-5 ml-1" />
+              </Button>
+            )}
+            {step === 'duration' && (
+              <Button
+                onClick={() => setStep('split_choice')}
+                className="w-full py-4 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-black font-bold text-base rounded-xl"
+              >
+                Continue \u2014 ${totalPrice.toFixed(2)} <ChevronRight className="w-5 h-5 ml-1" />
+              </Button>
+            )}
+            {step === 'split_choice' && (
+              <Button
+                onClick={() => { if (splitEnabled) setStep('crew'); else setStep('confirm'); }}
+                className="w-full py-4 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-black font-bold text-base rounded-xl"
+              >
+                {splitEnabled ? 'Add My Crew' : 'Continue to Payment'} <ChevronRight className="w-5 h-5 ml-1" />
+              </Button>
+            )}
+            {step === 'crew' && (
+              <Button
+                onClick={() => crewMembers.length > 0 ? setStep('crew_payment') : setStep('confirm')}
+                className="w-full py-4 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-black font-bold text-base rounded-xl"
+              >
+                {crewMembers.length > 0 ? (
+                  <><Calculator className="w-5 h-5 mr-2" />Set Payment Splits</>
+                ) : (
+                  <><Zap className="w-5 h-5 mr-2" />Continue Solo</>
+                )}
+              </Button>
+            )}
+            {step === 'crew_payment' && (
+              <Button
+                onClick={() => setStep('confirm')}
+                className="w-full py-4 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-black font-bold text-base rounded-xl"
+              >
+                Review &amp; Confirm <ChevronRight className="w-5 h-5 ml-1" />
+              </Button>
+            )}
+            {step === 'confirm' && (
+              <Button
+                onClick={handleSubmitRequest}
+                disabled={loading || (paymentMethod === 'credits' && !hasEnoughCredits)}
+                className="w-full py-4 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-black font-bold text-base rounded-xl disabled:opacity-50"
+              >
+                {loading ? (
+                  <><Loader2 className="w-5 h-5 mr-2 animate-spin" />Sending Request...</>
+                ) : (
+                  <><Zap className="w-5 h-5 mr-2" />Send Request</>
+                )}
+              </Button>
+            )}
+          </div>
+        )}
       </DialogContent>
     </Dialog>
+
     
     {/* Selfie Modal for photographer identification */}
     <RequestProSelfieModal
