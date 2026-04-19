@@ -681,6 +681,8 @@ async def get_single_post(
         collaborator_count=len(accepted_collaborators),
         # Check-in fields
         is_check_in=post.is_check_in or False,
+        check_in_spot_name=getattr(post, 'check_in_spot_name', None),
+        check_in_conditions=getattr(post, 'check_in_conditions', None),
         # Session Log fields
         is_session_log=post.is_session_log or False,
         session_invite_open=post.session_invite_open or False,
