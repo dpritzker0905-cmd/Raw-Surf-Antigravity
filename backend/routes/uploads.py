@@ -14,12 +14,15 @@ import asyncio
 import logging
 
 # Supabase Storage client for persistent video/thumbnail storage
+# Prefer service_role key (has Storage write access) over anon key (read-only)
 try:
     from supabase import create_client as _create_supabase_client
     _SUPABASE_URL = os.environ.get('SUPABASE_URL', '')
-    _SUPABASE_KEY = os.environ.get('SUPABASE_KEY', '')
+    _SUPABASE_KEY = os.environ.get('SUPABASE_SERVICE_ROLE_KEY') or os.environ.get('SUPABASE_KEY', '')
     _supabase = _create_supabase_client(_SUPABASE_URL, _SUPABASE_KEY) if _SUPABASE_URL and _SUPABASE_KEY else None
     SUPABASE_STORAGE_AVAILABLE = _supabase is not None
+    if SUPABASE_STORAGE_AVAILABLE:
+        logging.getLogger(__name__).info('Supabase Storage client initialized (service_role key available: %s)', bool(os.environ.get('SUPABASE_SERVICE_ROLE_KEY')))
 except Exception:
     _supabase = None
     SUPABASE_STORAGE_AVAILABLE = False
