@@ -18,6 +18,7 @@ import { UploadPhotoModal } from './gallery/UploadPhotoModal';
 import { GalleryItemModal } from './gallery/GalleryItemModal';
 import logger from '../utils/logger';
 import { ROLES } from '../constants/roles';
+import { getFullUrl } from '../utils/media';
 
 
 // Helper function to safely extract error messages from API responses
