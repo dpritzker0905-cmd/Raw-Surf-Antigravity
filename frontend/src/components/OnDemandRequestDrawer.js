@@ -617,13 +617,13 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
     <>
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent 
-        className={`relative ${bgCard} border-border sm:max-w-lg w-full max-w-full sm:mx-auto mx-0 p-0 overflow-hidden h-[100dvh] sm:h-auto sm:max-h-[90vh] rounded-none sm:rounded-lg`}
+        className={`relative ${bgCard} border-border sm:max-w-lg p-0`}
         hideCloseButton={step === 'waiting'}
       >
-        <DialogTitle className="sr-only">Dialog</DialogTitle>
-        {/* Scrollable content area — padded bottom so sticky footer never overlaps */}
-        <div className="overflow-y-auto h-full pb-[88px] overscroll-contain"
-             style={{ WebkitOverflowScrolling: 'touch' }}>
+        <DialogTitle className="sr-only">On-Demand Session Booking</DialogTitle>
+        {/* Scrollable content area — fills bottom-sheet, padded so sticky footer never overlaps */}
+        <div className="overflow-y-auto pb-[88px] overscroll-contain"
+             style={{ WebkitOverflowScrolling: 'touch', maxHeight: 'calc(100dvh - 56px - env(safe-area-inset-bottom, 0px))' }}>
         {/* ============ STEP 0: START TIME SELECTION ============ */}
         {step === 'timing' && (
           <div className="p-4 sm:p-6 space-y-5">

@@ -243,39 +243,22 @@ async def update_profile(profile_id: str, data: ProfileUpdate, db: AsyncSession 
     
     update_data = data.model_dump(exclude_unset=True)
     
-    # Handle base64 avatar - save as file
+    # Handle base64 avatar - store directly in DB as data URL 
+    # (Render's ephemeral filesystem is wiped on every deploy, so we cannot use disk storage)
     if 'avatar_url' in update_data and update_data['avatar_url']:
         avatar_data = update_data['avatar_url']
         if avatar_data.startswith('data:image'):
-            # Extract base64 data
+            # Validate it's a real base64 image (not just garbage) 
             try:
-                # Format: data:image/jpeg;base64,/9j/4AAQ...
                 header, base64_str = avatar_data.split(',', 1)
-                
-                # Determine file extension
-                if 'jpeg' in header or 'jpg' in header:
-                    ext = '.jpg'
-                elif 'png' in header:
-                    ext = '.png'
-                elif 'webp' in header:
-                    ext = '.webp'
-                elif 'gif' in header:
-                    ext = '.gif'
-                else:
-                    ext = '.jpg'
-                
-                # Decode and save
-                image_data = base64.b64decode(base64_str)
-                filename = f"{uuid.uuid4()}{ext}"
-                file_path = UPLOAD_DIR / filename
-                
-                with open(file_path, 'wb') as f:
-                    f.write(image_data)
-                
-                # Update to file URL instead of base64
-                update_data['avatar_url'] = f"/api/uploads/avatars/{filename}"
+                # Sanity check: decode just enough to validate
+                import base64 as b64_module
+                b64_module.b64decode(base64_str[:64])  # Validates encoding
+                # Keep the full data URL as-is in the DB — persistent across deploys
+                # Frontend getFullUrl() handles both /api/uploads/... and data: URLs
+                update_data['avatar_url'] = avatar_data
             except Exception as e:
-                raise HTTPException(status_code=400, detail=f"Failed to process avatar image: {str(e)}")
+                raise HTTPException(status_code=400, detail=f"Invalid image data: {str(e)}")
     
     for field, value in update_data.items():
         setattr(profile, field, value)
