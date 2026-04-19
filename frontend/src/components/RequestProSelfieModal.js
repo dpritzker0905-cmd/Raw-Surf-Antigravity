@@ -1,4 +1,4 @@
-﻿import React, { useState, useRef, useCallback, useEffect } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { Camera, RefreshCw, Loader2, Check } from 'lucide-react';
 import { Button } from './ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
@@ -125,95 +125,98 @@ export const RequestProSelfieModal = ({ dispatchId, isOpen, onClose, onSuccess }
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="bg-zinc-900 border-zinc-800 text-white max-w-md">
-        <DialogHeader>
+      <DialogContent className="bg-zinc-900 border-zinc-800 text-white max-w-md p-0">
+        <DialogHeader className="px-4 pt-5 pb-2">
           <DialogTitle className="text-xl font-bold flex items-center gap-2">
             <Camera className="w-5 h-5 text-cyan-400" />
             Help Your Pro Find You
           </DialogTitle>
         </DialogHeader>
         
-        <div className="space-y-4 pt-2">
-          <p className="text-gray-400 text-sm text-center">
-            Take a quick selfie so your photographer knows who to look for at the beach!
-          </p>
-          
-          {/* Camera Preview */}
-          <div className="relative aspect-[4/3] bg-black rounded-xl overflow-hidden">
-            {!selfieUrl ? (
-              <>
-                <video
-                  ref={videoRef}
-                  autoPlay
-                  playsInline
-                  muted
-                  className="w-full h-full object-cover scale-x-[-1]"
-                />
-                {!cameraActive && (
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <Loader2 className="w-8 h-8 text-cyan-400 animate-spin" />
-                  </div>
-                )}
-              </>
-            ) : (
-              <img src={selfieUrl} alt="Your selfie" className="w-full h-full object-cover" />
-            )}
-            <canvas ref={canvasRef} className="hidden" />
-          </div>
-          
-          {/* Pro Tip - Surfboard Identification */}
-          <div className="px-4 py-3 bg-cyan-500/10 border border-cyan-500/30 rounded-lg text-center">
-            <p className="text-cyan-400 text-sm font-medium">
-              🏄 Hold your surfboard in the frame so your Pro can find you in the lineup!
+        {/* Scrollable content that clears BottomNav */}
+        <div className="modal-body px-4 pb-6" style={{ paddingBottom: 'max(24px, calc(env(safe-area-inset-bottom, 0px) + 16px))' }}>
+          <div className="space-y-4 pt-2">
+            <p className="text-gray-400 text-sm text-center">
+              Take a quick selfie so your photographer knows who to look for at the beach!
             </p>
-          </div>
-          
-          {/* Camera Controls */}
-          <div className="flex gap-3">
-            {!selfieUrl ? (
-              <Button
-                onClick={captureSelfie}
-                disabled={!cameraActive}
-                className="flex-1 bg-gradient-to-r from-cyan-400 to-blue-500 text-black font-bold"
-              >
-                <Camera className="w-4 h-4 mr-2" />
-                Take Selfie
-              </Button>
-            ) : (
-              <>
-                <Button
-                  onClick={retakeSelfie}
-                  variant="outline"
-                  className="flex-1 border-zinc-600 text-white hover:bg-zinc-800"
-                >
-                  <RefreshCw className="w-4 h-4 mr-2" />
-                  Retake
-                </Button>
-                <Button
-                  onClick={uploadSelfie}
-                  disabled={uploading}
-                  className="flex-1 bg-gradient-to-r from-cyan-400 to-blue-500 text-black font-bold"
-                >
-                  {uploading ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <>
-                      <Check className="w-4 h-4 mr-2" />
-                      Confirm
-                    </>
+            
+            {/* Camera Preview — constrained height on mobile */}
+            <div className="relative bg-black rounded-xl overflow-hidden" style={{ aspectRatio: '4/3', maxHeight: '45vh' }}>
+              {!selfieUrl ? (
+                <>
+                  <video
+                    ref={videoRef}
+                    autoPlay
+                    playsInline
+                    muted
+                    className="w-full h-full object-cover scale-x-[-1]"
+                  />
+                  {!cameraActive && (
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <Loader2 className="w-8 h-8 text-cyan-400 animate-spin" />
+                    </div>
                   )}
+                </>
+              ) : (
+                <img src={selfieUrl} alt="Your selfie" className="w-full h-full object-cover" />
+              )}
+              <canvas ref={canvasRef} className="hidden" />
+            </div>
+            
+            {/* Pro Tip - Surfboard Identification */}
+            <div className="px-4 py-3 bg-cyan-500/10 border border-cyan-500/30 rounded-lg text-center">
+              <p className="text-cyan-400 text-sm font-medium">
+                🏄 Hold your surfboard in the frame so your Pro can find you in the lineup!
+              </p>
+            </div>
+            
+            {/* Camera Controls */}
+            <div className="flex gap-3">
+              {!selfieUrl ? (
+                <Button
+                  onClick={captureSelfie}
+                  disabled={!cameraActive}
+                  className="flex-1 py-4 bg-gradient-to-r from-cyan-400 to-blue-500 text-black font-bold rounded-xl"
+                >
+                  <Camera className="w-4 h-4 mr-2" />
+                  Take Selfie
                 </Button>
-              </>
-            )}
+              ) : (
+                <>
+                  <Button
+                    onClick={retakeSelfie}
+                    variant="outline"
+                    className="flex-1 py-4 border-zinc-600 text-white hover:bg-zinc-800 rounded-xl"
+                  >
+                    <RefreshCw className="w-4 h-4 mr-2" />
+                    Retake
+                  </Button>
+                  <Button
+                    onClick={uploadSelfie}
+                    disabled={uploading}
+                    className="flex-1 py-4 bg-gradient-to-r from-cyan-400 to-blue-500 text-black font-bold rounded-xl"
+                  >
+                    {uploading ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <>
+                        <Check className="w-4 h-4 mr-2" />
+                        Confirm
+                      </>
+                    )}
+                  </Button>
+                </>
+              )}
+            </div>
+            
+            {/* Skip option */}
+            <button
+              onClick={skipSelfie}
+              className="w-full text-center text-gray-500 text-sm hover:text-gray-300 py-2"
+            >
+              Skip for now
+            </button>
           </div>
-          
-          {/* Skip option */}
-          <button
-            onClick={skipSelfie}
-            className="w-full text-center text-gray-500 text-sm hover:text-gray-300"
-          >
-            Skip for now
-          </button>
         </div>
       </DialogContent>
     </Dialog>

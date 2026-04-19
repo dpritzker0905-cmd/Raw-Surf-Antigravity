@@ -138,6 +138,7 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
   const [acceptedData, setAcceptedData] = useState(null);
   const [showSelfieModal, setShowSelfieModal] = useState(false);
   const selfieShownRef = useRef(false); // gates selfie modal to open exactly once
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const navigate = useNavigate();
   const [localCredits, setLocalCredits] = useState(0);
   const [creditsFetched, setCreditsFetched] = useState(false);
@@ -170,6 +171,7 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
   useEffect(() => {
     if (!isOpen) {
       setCreditsFetched(false);
+      setShowCancelConfirm(false);
     }
   }, [isOpen]);
   
@@ -268,7 +270,7 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
   // Calculate crew payment splits (must be before hasEnoughCredits)
   // Crew members who are NOT covered by captain pay their share
   const crewCoversAmount = crewMembers.reduce((sum, m) => sum + (m.covered_by_captain ? 0 : (m.share_amount || parseFloat(perPersonSplit))), 0);
-  const captainPayAmount = totalPrice - crewCoversAmount;
+  const captainPayAmount = Math.max(0, totalPrice - crewCoversAmount); // Never go negative
   
   const hasEnoughCredits = crewMembers.length > 0 
     ? (captainPayAmount === 0 || localCredits >= captainPayAmount)  // Allow $0 captain share
@@ -1611,21 +1613,60 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
               </div>
             </div>
             
-            <Button
-              variant="outline"
-              onClick={async () => {
-                try {
-                  await apiClient.post(`/dispatch/${requestId}/cancel?user_id=${user.id}`, { reason: 'User cancelled' });
-                  toast.info('Request cancelled');
-                } catch (e) {
-                  toast.error('Failed to cancel request');
-                }
-                onClose();
-              }}
-              className={`w-full ${isLight ? 'border-gray-300' : 'border-zinc-600'}`}
-            >
-              Cancel Request
-            </Button>
+            {/* Cancel with confirmation + I'm Confirmed button */}
+            {!showCancelConfirm ? (
+              <div className="space-y-3">
+                <Button
+                  onClick={() => {
+                    toast.success("You're confirmed! We'll notify you when your crew completes payment.");
+                    onClose();
+                  }}
+                  className="w-full py-4 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white font-bold rounded-xl"
+                >
+                  <Check className="w-5 h-5 mr-2" />
+                  I'm Confirmed — Close
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => setShowCancelConfirm(true)}
+                  className={`w-full ${isLight ? 'border-gray-300 text-gray-600' : 'border-zinc-600 text-zinc-400'}`}
+                >
+                  Cancel Request
+                </Button>
+              </div>
+            ) : (
+              <div className={`p-4 rounded-xl border-2 ${isLight ? 'bg-red-50 border-red-200' : 'bg-red-500/10 border-red-500/30'} space-y-3`}>
+                <p className={`text-sm font-medium ${textPrimary} text-center`}>
+                  Are you sure you want to cancel this on-demand booking?
+                </p>
+                <p className={`text-xs ${textSecondary} text-center`}>
+                  Your deposit will be refunded to your account credits.
+                </p>
+                <div className="flex gap-3">
+                  <Button
+                    variant="outline"
+                    onClick={() => setShowCancelConfirm(false)}
+                    className={`flex-1 ${isLight ? 'border-gray-300' : 'border-zinc-600'}`}
+                  >
+                    Keep Booking
+                  </Button>
+                  <Button
+                    onClick={async () => {
+                      try {
+                        await apiClient.post(`/dispatch/${requestId}/cancel?user_id=${user.id}`, { reason: 'User cancelled' });
+                        toast.info('Request cancelled. Your deposit will be refunded.');
+                      } catch (e) {
+                        toast.error('Failed to cancel request');
+                      }
+                      onClose();
+                    }}
+                    className="flex-1 bg-red-500 hover:bg-red-600 text-white font-bold"
+                  >
+                    Yes, Cancel
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
         )}
         
