@@ -1,4 +1,4 @@
-﻿import { useState, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import { toast } from 'sonner';
 import logger from '../utils/logger';
@@ -222,21 +222,31 @@ export const useGoLiveFlow = ({ userId, onGoLiveSuccess, onEndSessionSuccess }) 
   const handleEndSessionConfirmed = useCallback(async () => {
     setEndSessionLoading(true);
     try {
-      await apiClient.post(`/photographers/${userId}/stop-live`, {});
+      const response = await apiClient.post(`/photographers/${userId}/stop-live`, {});
       toast.success('Session ended! Check your Impacted dashboard for summary.');
       setShowEndSessionModal(false);
+      
+      // Pass session data to callback for review prompt
+      const sessionData = {
+        live_session_id: response.data?.live_session_id,
+        total_surfers: response.data?.total_surfers || 0,
+        gallery_id: response.data?.gallery_id,
+        participants: currentLiveSession?.participants || [],
+        duration_mins: response.data?.duration_mins || 0
+      };
+      
       setCurrentLiveSession(null);
       setCurrentLiveSpot(null);
       
-      // Callback
-      onEndSessionSuccess?.();
+      // Callback with session data (parent can show ReviewModal if duration >= 20 mins)
+      onEndSessionSuccess?.(sessionData);
       
     } catch (error) {
       toast.error('Failed to end session');
     } finally {
       setEndSessionLoading(false);
     }
-  }, [userId, onEndSessionSuccess]);
+  }, [userId, onEndSessionSuccess, currentLiveSession]);
 
   // Close modals
   const closeConditionsModal = useCallback(() => {

@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../contexts/ThemeContext';
 import { usePersona, getExpandedRoleInfo } from '../contexts/PersonaContext';
 import { useNavigate, useParams } from 'react-router-dom';
 
@@ -7,7 +8,8 @@ import {
   Camera, Settings, DollarSign, MapPin, Flame, 
   Grid3X3, Bookmark, UserSquare2, Play, Waves, ExternalLink,
   Instagram, Globe, Check, Loader2, UserPlus, UserMinus, ArrowLeft, Heart, Award,
-  Zap, CalendarClock, Clock, Calculator, Users, Radio, Image, Shield, Trophy, Pin, MoreHorizontal, Ban, Flag, AlertTriangle
+  Zap, CalendarClock, Clock, Calculator, Users, Radio, Image, Shield, Trophy, Pin, MoreHorizontal, Ban, Flag, AlertTriangle,
+  Star
 } from 'lucide-react';
 
 // Custom Surfboard Icon Component
@@ -47,6 +49,7 @@ import { PhotographerAvailability } from './PhotographerAvailability';
 import { ScheduledBookingDrawer } from './ScheduledBookingDrawer';
 import { SurfboardsTab } from './SurfboardsTab';
 import { FollowersModal } from './FollowersModal';
+import { ProfileReviewsSection } from './ProfileReviewsSection';
 import logger from '../utils/logger';
 import apiClient from '../lib/apiClient';
 import { getFullUrl } from '../utils/media';
@@ -67,6 +70,7 @@ const ProfileRoleBadge = ({ role }) => {
 
 export const Profile = () => {
   const { user, logout, updateUser, loading: authLoading } = useAuth();
+  const { theme } = useTheme();
   const { getEffectiveRole, _isMasked } = usePersona();
   const navigate = useNavigate();
   const { userId } = useParams(); // Get userId from URL if viewing someone else's profile
@@ -719,6 +723,8 @@ export const Profile = () => {
     ),
     // Surfboards tab: Show for all users (custom surfboard icon)
     { id: 'surfboards', icon: SurfboardIcon, label: 'Boards', count: null },
+    // Reviews tab: Show on all profiles
+    { id: 'reviews', icon: Star, label: 'Reviews', count: null },
     // Grom Overview tab: Only for Grom Parent (Shield icon)
     ...(isGromParent ? [{ id: 'grom_overview', icon: Shield, label: 'Groms', count: null }] : []),
     // Stoked tab: Only show for Grom, Comp Surfer, Pro (NOT regular Surfer, NOT photographers)
@@ -1510,6 +1516,15 @@ export const Profile = () => {
         ) : activeTab === 'surfboards' ? (
           // Surfboards Tab
           <SurfboardsTab userId={profileUserId} isOwnProfile={isOwnProfile} />
+        ) : activeTab === 'reviews' ? (
+          // Reviews Tab
+          <div className="p-4">
+            <ProfileReviewsSection
+              profileUserId={profileUserId}
+              isPhotographer={isPhotographer}
+              theme={theme}
+            />
+          </div>
         ) : tabLoading ? (
           <div className="flex items-center justify-center py-12">
             <Loader2 className="w-8 h-8 animate-spin text-yellow-500 dark:text-yellow-400" />

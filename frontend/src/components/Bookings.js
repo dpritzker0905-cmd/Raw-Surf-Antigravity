@@ -33,7 +33,7 @@ import { ScheduledBookingDrawer } from './ScheduledBookingDrawer';
 import LineupManagerDrawer from './LineupManagerDrawer';
 
 // Tab components extracted for maintainability
-import { LiveSessionsTab, OnDemandTab, ScheduledTab, FindBuddiesTab, PastTab, LiveNowTab, LineupTab } from './bookings/index';
+import { LiveSessionsTab, OnDemandTab, ScheduledTab, FindBuddiesTab, PastTab, LiveNowTab, LineupTab, DirectoryTab } from './bookings/index';
 
 import { GoldPassBookingsSection } from './bookings/GoldPassBookingsSection';
 
@@ -857,6 +857,7 @@ export const Bookings = () => {
 
   const tabs = [
     { id: 'lineup', label: 'The Lineup', icon: Users, count: 0, highlight: true },  // New Lineup tab
+    { id: 'directory', label: 'Find Pros', icon: Search, count: 0 },  // Photographer Discovery tab
     { id: 'live_sessions', label: 'Live Sessions', icon: Zap, count: liveSessions.length },
     { id: 'on_demand', label: 'On-Demand', icon: Target, count: onDemandPhotographers.length },
     { id: 'find_buddies', label: 'Open Sessions', icon: Users, count: nearbyBookings.length },
@@ -1134,6 +1135,7 @@ export const Bookings = () => {
             <PastTab
               pastBookings={pastBookings}
               theme={theme}
+              userId={user?.id}
             />
           )}
 
@@ -1146,6 +1148,18 @@ export const Bookings = () => {
               onJumpIn={handleJumpIn}
               onNavigateToMap={() => navigate('/map')}
               theme={theme}
+            />
+          )}
+
+          {activeTab === 'directory' && (
+            <DirectoryTab
+              user={user}
+              theme={theme}
+              subscriptionTier={subscriptionTier}
+              onSelectPhotographer={(photographer) => {
+                setSelectedScheduledPhotographer(photographer);
+                setShowScheduledBookingDrawer(true);
+              }}
             />
           )}
         </div>

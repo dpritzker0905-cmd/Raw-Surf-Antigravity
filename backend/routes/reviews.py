@@ -6,14 +6,14 @@ with AI moderation for vulgarities
 import logging
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, and_, or_
+from sqlalchemy import select, func, and_, or_, text
 from pydantic import BaseModel, Field
 from typing import Optional, List
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 import re
 
 from database import get_db
-from models import Profile, Review, LiveSession, XPTransaction, Badge
+from models import Profile, Review, LiveSession, XPTransaction, Badge, LiveSessionParticipant
 from services.ai_moderation import moderate_review_content
 
 # Import badge check function
@@ -51,12 +51,18 @@ def check_for_vulgarities(text: str) -> List[str]:
 
 class CreateReviewRequest(BaseModel):
     reviewee_id: str
+    # Session linkage — at least one should be provided
+    session_type: Optional[str] = None  # 'live', 'on_demand', 'scheduled'
     live_session_id: Optional[str] = None
+    booking_id: Optional[str] = None
+    dispatch_id: Optional[str] = None
+    # Rating
     rating: int = Field(..., ge=1, le=5)
     comment: Optional[str] = None
-    # Optional specific ratings for photographer-to-surfer
+    # Optional specific ratings
     punctuality_rating: Optional[int] = Field(None, ge=1, le=5)
     communication_rating: Optional[int] = Field(None, ge=1, le=5)
+    photo_quality_rating: Optional[int] = Field(None, ge=1, le=5)
 
 
 class ReviewResponse(BaseModel):
@@ -67,10 +73,12 @@ class ReviewResponse(BaseModel):
     reviewee_id: str
     reviewee_name: str
     review_type: str
+    session_type: Optional[str] = None
     rating: int
     comment: Optional[str]
     punctuality_rating: Optional[int]
     communication_rating: Optional[int]
+    photo_quality_rating: Optional[int] = None
     status: str
     created_at: str
 
@@ -119,7 +127,7 @@ async def create_review(
     reviewer_id: str = Query(..., description="ID of the user leaving the review"),
     db: AsyncSession = Depends(get_db)
 ):
-    """Create a new review (surfer→photographer or photographer→surfer)"""
+    """Create a new review (surfer→photographer or photographer→surfer) for any session type"""
     
     # Get reviewer and reviewee
     reviewer_result = await db.execute(select(Profile).where(Profile.id == reviewer_id))
@@ -145,6 +153,43 @@ async def create_review(
     else:
         review_type = 'peer_review'
     
+    # Determine session type from provided IDs
+    session_type = request.session_type
+    if not session_type:
+        if request.live_session_id:
+            session_type = 'live'
+        elif request.dispatch_id:
+            session_type = 'on_demand'
+        elif request.booking_id:
+            session_type = 'scheduled'
+    
+    # --- 20-minute minimum session length check ---
+    if request.live_session_id:
+        session_result = await db.execute(
+            select(LiveSession).where(LiveSession.id == request.live_session_id)
+        )
+        session = session_result.scalar_one_or_none()
+        if session and session.duration_mins is not None and session.duration_mins < 20:
+            raise HTTPException(
+                status_code=400,
+                detail="Sessions must be at least 20 minutes before reviews can be submitted"
+            )
+    
+    # --- 14-day review window check ---
+    review_window_expires = None
+    if request.live_session_id:
+        session_result2 = await db.execute(
+            select(LiveSession).where(LiveSession.id == request.live_session_id)
+        )
+        session2 = session_result2.scalar_one_or_none()
+        if session2 and session2.ended_at:
+            review_window_expires = session2.ended_at + timedelta(days=14)
+            if datetime.now(timezone.utc) > review_window_expires:
+                raise HTTPException(
+                    status_code=400,
+                    detail="The 14-day review window for this session has expired"
+                )
+    
     # Check for vulgarities and AI moderation
     flagged_words = []
     status = 'approved'  # Default to approved
@@ -168,16 +213,19 @@ async def create_review(
                 # If AI moderation fails, allow the review (fail open)
                 logger.error(f"AI moderation error: {e}")
     
-    # Check for duplicate review
-    existing_result = await db.execute(
-        select(Review).where(
-            and_(
-                Review.reviewer_id == reviewer_id,
-                Review.reviewee_id == request.reviewee_id,
-                Review.live_session_id == request.live_session_id if request.live_session_id else True
-            )
-        )
-    )
+    # Check for duplicate review — check across all session ID types
+    dup_filters = [
+        Review.reviewer_id == reviewer_id,
+        Review.reviewee_id == request.reviewee_id
+    ]
+    if request.live_session_id:
+        dup_filters.append(Review.live_session_id == request.live_session_id)
+    elif request.booking_id:
+        dup_filters.append(Review.booking_id == request.booking_id)
+    elif request.dispatch_id:
+        dup_filters.append(Review.dispatch_id == request.dispatch_id)
+    
+    existing_result = await db.execute(select(Review).where(and_(*dup_filters)))
     existing = existing_result.scalar_one_or_none()
     
     if existing:
@@ -188,11 +236,16 @@ async def create_review(
         reviewer_id=reviewer_id,
         reviewee_id=request.reviewee_id,
         review_type=review_type,
+        session_type=session_type,
         live_session_id=request.live_session_id,
+        booking_id=request.booking_id,
+        dispatch_id=request.dispatch_id,
+        review_window_expires_at=review_window_expires,
         rating=request.rating,
         comment=request.comment,
         punctuality_rating=request.punctuality_rating,
         communication_rating=request.communication_rating,
+        photo_quality_rating=request.photo_quality_rating,
         status=status,
         moderation_notes=moderation_notes,
         flagged_words=','.join(flagged_words) if flagged_words else None
@@ -216,10 +269,12 @@ async def create_review(
         reviewee_id=review.reviewee_id,
         reviewee_name=reviewee.full_name,
         review_type=review.review_type,
+        session_type=review.session_type,
         rating=review.rating,
         comment=review.comment,
         punctuality_rating=review.punctuality_rating,
         communication_rating=review.communication_rating,
+        photo_quality_rating=review.photo_quality_rating,
         status=review.status,
         created_at=review.created_at.isoformat()
     )
@@ -266,10 +321,12 @@ async def get_photographer_reviews(
             reviewee_id=review.reviewee_id,
             reviewee_name=reviewee.full_name if reviewee else 'Unknown',
             review_type=review.review_type,
+            session_type=getattr(review, 'session_type', None),
             rating=review.rating,
             comment=review.comment,
             punctuality_rating=review.punctuality_rating,
             communication_rating=review.communication_rating,
+            photo_quality_rating=getattr(review, 'photo_quality_rating', None),
             status=review.status,
             created_at=review.created_at.isoformat()
         ))
@@ -317,10 +374,12 @@ async def get_surfer_reviews(
             reviewee_id=review.reviewee_id,
             reviewee_name=reviewee.full_name if reviewee else 'Unknown',
             review_type=review.review_type,
+            session_type=getattr(review, 'session_type', None),
             rating=review.rating,
             comment=review.comment,
             punctuality_rating=review.punctuality_rating,
             communication_rating=review.communication_rating,
+            photo_quality_rating=getattr(review, 'photo_quality_rating', None),
             status=review.status,
             created_at=review.created_at.isoformat()
         ))
@@ -397,10 +456,12 @@ async def get_photographer_review_stats(
             reviewee_id=review.reviewee_id,
             reviewee_name=reviewee.full_name if reviewee else 'Unknown',
             review_type=review.review_type,
+            session_type=getattr(review, 'session_type', None),
             rating=review.rating,
             comment=review.comment,
             punctuality_rating=review.punctuality_rating,
             communication_rating=review.communication_rating,
+            photo_quality_rating=getattr(review, 'photo_quality_rating', None),
             status=review.status,
             created_at=review.created_at.isoformat()
         ))
@@ -452,10 +513,12 @@ async def get_pending_reviews(
             reviewee_id=review.reviewee_id,
             reviewee_name=reviewee.full_name if reviewee else 'Unknown',
             review_type=review.review_type,
+            session_type=getattr(review, 'session_type', None),
             rating=review.rating,
             comment=review.comment,
             punctuality_rating=review.punctuality_rating,
             communication_rating=review.communication_rating,
+            photo_quality_rating=getattr(review, 'photo_quality_rating', None),
             status=review.status,
             created_at=review.created_at.isoformat()
         ))
@@ -495,3 +558,227 @@ async def moderate_review(
     await db.commit()
     
     return {"success": True, "status": review.status}
+
+
+# ============ REVIEW CHECK & PENDING ENDPOINTS ============
+
+@router.get("/check")
+async def check_review_status(
+    reviewer_id: str = Query(..., description="User checking if they've reviewed"),
+    live_session_id: Optional[str] = Query(None),
+    booking_id: Optional[str] = Query(None),
+    dispatch_id: Optional[str] = Query(None),
+    db: AsyncSession = Depends(get_db)
+):
+    """Check if a user has already reviewed a specific session"""
+    
+    filters = [Review.reviewer_id == reviewer_id]
+    if live_session_id:
+        filters.append(Review.live_session_id == live_session_id)
+    elif booking_id:
+        filters.append(Review.booking_id == booking_id)
+    elif dispatch_id:
+        filters.append(Review.dispatch_id == dispatch_id)
+    else:
+        return {"has_reviewed": False, "review_id": None}
+    
+    result = await db.execute(select(Review).where(and_(*filters)))
+    review = result.scalar_one_or_none()
+    
+    return {
+        "has_reviewed": review is not None,
+        "review_id": review.id if review else None,
+        "rating": review.rating if review else None
+    }
+
+
+@router.get("/pending-for-user")
+async def get_pending_reviews_for_user(
+    user_id: str = Query(..., description="User to check for unreviewed sessions"),
+    limit: int = Query(default=10, le=50),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Get sessions where the user hasn't left a review yet.
+    Returns completed sessions (from last 14 days) that still need a review.
+    Minimum 20 minute session length required.
+    """
+    
+    # Get user
+    user_result = await db.execute(select(Profile).where(Profile.id == user_id))
+    user = user_result.scalar_one_or_none()
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    cutoff = datetime.now(timezone.utc) - timedelta(days=14)
+    user_is_photographer = is_photographer_role(user.role)
+    
+    pending_reviews = []
+    
+    if user_is_photographer:
+        # Photographer: find ended sessions they ran where they haven't reviewed each surfer
+        sessions_result = await db.execute(
+            select(LiveSession).where(
+                and_(
+                    LiveSession.photographer_id == user_id,
+                    LiveSession.status == 'ended',
+                    LiveSession.ended_at >= cutoff,
+                    or_(
+                        LiveSession.duration_mins >= 20,
+                        LiveSession.duration_mins.is_(None)  # Allow if duration unknown
+                    )
+                )
+            ).order_by(LiveSession.ended_at.desc()).limit(limit)
+        )
+        sessions = sessions_result.scalars().all()
+        
+        for session in sessions:
+            # Get participants
+            participants_result = await db.execute(
+                select(LiveSessionParticipant).where(
+                    and_(
+                        LiveSessionParticipant.session_id == session.id,
+                        LiveSessionParticipant.status == 'completed'
+                    )
+                )
+            )
+            participants = participants_result.scalars().all()
+            
+            for p in participants:
+                # Check if already reviewed
+                review_result = await db.execute(
+                    select(Review).where(
+                        and_(
+                            Review.reviewer_id == user_id,
+                            Review.reviewee_id == p.surfer_id,
+                            Review.live_session_id == session.id
+                        )
+                    )
+                )
+                existing = review_result.scalar_one_or_none()
+                
+                if not existing:
+                    surfer_result = await db.execute(
+                        select(Profile).where(Profile.id == p.surfer_id)
+                    )
+                    surfer = surfer_result.scalar_one_or_none()
+                    
+                    pending_reviews.append({
+                        "session_id": session.id,
+                        "session_type": "live",
+                        "counterpart_id": p.surfer_id,
+                        "counterpart_name": surfer.full_name if surfer else "Surfer",
+                        "counterpart_avatar": surfer.avatar_url if surfer else None,
+                        "session_date": session.ended_at.isoformat() if session.ended_at else None,
+                        "location": session.location_name or "Session"
+                    })
+    else:
+        # Surfer: find completed live sessions they participated in
+        participations_result = await db.execute(
+            select(LiveSessionParticipant).where(
+                and_(
+                    LiveSessionParticipant.surfer_id == user_id,
+                    LiveSessionParticipant.status == 'completed',
+                    LiveSessionParticipant.completed_at >= cutoff
+                )
+            ).order_by(LiveSessionParticipant.completed_at.desc()).limit(limit)
+        )
+        participations = participations_result.scalars().all()
+        
+        for p in participations:
+            # Get the session to check duration
+            session_result = await db.execute(
+                select(LiveSession).where(LiveSession.id == p.session_id)
+            )
+            session = session_result.scalar_one_or_none()
+            
+            if session and session.duration_mins is not None and session.duration_mins < 20:
+                continue  # Skip sessions under 20 minutes
+            
+            # Check if already reviewed
+            review_result = await db.execute(
+                select(Review).where(
+                    and_(
+                        Review.reviewer_id == user_id,
+                        Review.reviewee_id == p.photographer_id,
+                        Review.live_session_id == p.session_id
+                    )
+                )
+            )
+            existing = review_result.scalar_one_or_none()
+            
+            if not existing:
+                photographer_result = await db.execute(
+                    select(Profile).where(Profile.id == p.photographer_id)
+                )
+                photographer = photographer_result.scalar_one_or_none()
+                
+                pending_reviews.append({
+                    "session_id": p.session_id,
+                    "session_type": "live",
+                    "counterpart_id": p.photographer_id,
+                    "counterpart_name": photographer.full_name if photographer else "Photographer",
+                    "counterpart_avatar": photographer.avatar_url if photographer else None,
+                    "session_date": p.completed_at.isoformat() if p.completed_at else None,
+                    "location": session.location_name if session else "Session"
+                })
+    
+    return pending_reviews[:limit]
+
+
+@router.get("/surfer/{surfer_id}/stats")
+async def get_surfer_review_stats(
+    surfer_id: str,
+    db: AsyncSession = Depends(get_db)
+):
+    """Get aggregated review statistics for a surfer (reviews from photographers)"""
+    
+    avg_result = await db.execute(
+        select(func.avg(Review.rating), func.count(Review.id))
+        .where(
+            and_(
+                Review.reviewee_id == surfer_id,
+                Review.review_type == 'photographer_to_surfer',
+                Review.status == 'approved'
+            )
+        )
+    )
+    avg_row = avg_result.first()
+    avg_rating = float(avg_row[0]) if avg_row[0] else 0.0
+    total_reviews = avg_row[1] or 0
+    
+    # Get recent reviews (top 3)
+    recent_result = await db.execute(
+        select(Review)
+        .where(
+            and_(
+                Review.reviewee_id == surfer_id,
+                Review.review_type == 'photographer_to_surfer',
+                Review.status == 'approved'
+            )
+        )
+        .order_by(Review.created_at.desc())
+        .limit(3)
+    )
+    recent_reviews = recent_result.scalars().all()
+    
+    recent_responses = []
+    for review in recent_reviews:
+        reviewer_result = await db.execute(select(Profile).where(Profile.id == review.reviewer_id))
+        reviewer = reviewer_result.scalar_one_or_none()
+        
+        recent_responses.append({
+            "id": review.id,
+            "reviewer_name": reviewer.full_name if reviewer else "Unknown",
+            "reviewer_avatar": reviewer.avatar_url if reviewer else None,
+            "rating": review.rating,
+            "comment": review.comment,
+            "created_at": review.created_at.isoformat()
+        })
+    
+    return {
+        "average_rating": round(avg_rating, 1),
+        "total_reviews": total_reviews,
+        "recent_reviews": recent_responses
+    }

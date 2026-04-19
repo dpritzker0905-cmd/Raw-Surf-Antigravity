@@ -2749,7 +2749,7 @@ class ReviewStatusEnum(enum.Enum):
     HIDDEN = "hidden"         # Hidden by user request
 
 class Review(Base):
-    """Two-way review system for photographers and surfers"""
+    """Two-way review system for photographers and surfers — supports all session types"""
     __tablename__ = 'reviews'
     
     id = Column(String(36), primary_key=True, default=generate_uuid)
@@ -2759,16 +2759,25 @@ class Review(Base):
     reviewee_id = Column(String(36), ForeignKey('profiles.id', ondelete='CASCADE'), nullable=False, index=True)
     review_type = Column(String(30), nullable=False)  # 'surfer_to_photographer', 'photographer_to_surfer'
     
-    # Link to session (required for post-session reviews)
+    # Session type this review is for
+    session_type = Column(String(20), nullable=True)  # 'live', 'on_demand', 'scheduled'
+    
+    # Link to session — supports all 3 session types
     live_session_id = Column(String(36), ForeignKey('live_sessions.id', ondelete='SET NULL'), nullable=True, index=True)
+    booking_id = Column(String(36), nullable=True, index=True)      # For scheduled bookings
+    dispatch_id = Column(String(36), nullable=True, index=True)     # For on-demand dispatch sessions
+    
+    # Review window: 14 days after session ends
+    review_window_expires_at = Column(DateTime(timezone=True), nullable=True)
     
     # Review content
     rating = Column(Integer, nullable=False)  # 1-5 stars
     comment = Column(Text, nullable=True)
     
-    # Specific rating categories (photographer_to_surfer)
+    # Specific rating categories
     punctuality_rating = Column(Integer, nullable=True)  # 1-5
     communication_rating = Column(Integer, nullable=True)  # 1-5
+    photo_quality_rating = Column(Integer, nullable=True)  # 1-5 (surfer rates photographer's photos)
     
     # Moderation
     status = Column(String(20), default='pending')  # pending, approved, rejected, hidden
@@ -2783,8 +2792,8 @@ class Review(Base):
     reviewee = relationship('Profile', foreign_keys=[reviewee_id], backref='reviews_received')
     
     __table_args__ = (
-        # Prevent duplicate reviews for same session
-        Index('ix_review_session_unique', 'reviewer_id', 'reviewee_id', 'live_session_id', unique=True),
+        # Prevent duplicate reviews — uses composite of all session ID columns
+        Index('ix_review_unique_v2', 'reviewer_id', 'reviewee_id', 'live_session_id', 'booking_id', 'dispatch_id', unique=True),
     )
 
 
