@@ -246,7 +246,7 @@ async def create_post(author_id: str, data: PostCreate, db: AsyncSession = Depen
         conditions_source=post.conditions_source
     )
 
-@router.get("/posts", response_model=List[PostResponse])
+@router.get("/posts")
 async def get_feed(limit: int = 50, user_id: Optional[str] = Query(None), db: AsyncSession = Depends(get_db)):
     """
     Get feed posts with privacy enforcement.
