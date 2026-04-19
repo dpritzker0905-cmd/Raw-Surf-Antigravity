@@ -762,19 +762,26 @@ const BroadcasterControls = ({
       try {
         const newFacingMode = isFrontCamera ? 'environment' : 'user';
         
-        // Get the camera publication
-        const cameraPub = localParticipant.getTrackPublication(Track.Source.Camera);
-        if (cameraPub?.track) {
-          // Restart the track with new facing mode
-          await cameraPub.track.restartTrack({
-            facingMode: newFacingMode
-          });
-          setIsFrontCamera(!isFrontCamera);
-          toast.success(isFrontCamera ? 'Switched to back camera' : 'Switched to front camera');
-        }
+        // Stop current camera, then re-enable with new facing mode
+        // This is more reliable on mobile than restartTrack
+        await localParticipant.setCameraEnabled(false);
+        
+        // Small delay to let hardware release
+        await new Promise(r => setTimeout(r, 300));
+        
+        await localParticipant.setCameraEnabled(true, {
+          facingMode: newFacingMode,
+        });
+        
+        setIsFrontCamera(!isFrontCamera);
+        toast.success(isFrontCamera ? 'Switched to back camera' : 'Switched to front camera');
       } catch (err) {
         logger.error('Failed to flip camera:', err);
-        toast.error('Could not switch camera');
+        // Try fallback: just re-enable camera without specifying facing mode
+        try {
+          await localParticipant.setCameraEnabled(true);
+        } catch { /* silent */ }
+        toast.error('Camera switch not supported on this device');
       }
     }
   };
@@ -789,6 +796,7 @@ const BroadcasterControls = ({
       ...preset.values,
       presetName: preset.name
     });
+    setShowFilters(false); // Auto-close panel on selection
     toast.success('AI Filter applied!');
   }, []);
 
@@ -831,7 +839,7 @@ const BroadcasterControls = ({
   // Start/stop hair engine when video element changes or camera toggles
   useEffect(() => {
     const engine = hairEngineRef.current;
-    if (!engine || !engine._initialized) return;
+    if (!engine) return;
     
     if (isCameraOff) {
       engine.stop();
@@ -842,16 +850,30 @@ const BroadcasterControls = ({
     const videoContainer = videoRef.current;
     if (!videoContainer) return;
     
-    const videoEl = videoContainer.querySelector('video');
-    const canvasEl = hairCanvasRef.current;
+    // Retry finding video element (LiveKit may render it async)
+    const tryStart = () => {
+      const videoEl = videoContainer.querySelector('video');
+      const canvasEl = hairCanvasRef.current;
+      
+      if (videoEl && canvasEl && videoEl.readyState >= 1) {
+        engine.start(videoEl, canvasEl); // start() now awaits init internally
+        return true;
+      }
+      return false;
+    };
     
-    if (videoEl && canvasEl) {
-      // Small delay to ensure video is ready
-      const timer = setTimeout(() => {
-        engine.start(videoEl, canvasEl);
+    // Try immediately, then retry a few times
+    if (!tryStart()) {
+      const timer = setInterval(() => {
+        if (tryStart()) clearInterval(timer);
       }, 500);
-      return () => { clearTimeout(timer); engine.stop(); };
+      
+      // Give up after 5 seconds
+      const timeout = setTimeout(() => clearInterval(timer), 5000);
+      return () => { clearInterval(timer); clearTimeout(timeout); engine.stop(); };
     }
+    
+    return () => { engine.stop(); };
   }, [isCameraOff, connectionState]);
   
   // Update hair style when selection changes
@@ -864,6 +886,7 @@ const BroadcasterControls = ({
   
   const handleSelectHairStyle = useCallback((styleId) => {
     setActiveHairStyle(styleId);
+    setShowHairPicker(false); // Auto-close picker on selection
     if (styleId) {
       toast.success('Hair filter applied! 💇');
     }

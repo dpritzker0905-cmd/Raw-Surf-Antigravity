@@ -234,6 +234,7 @@ export default function WebcamCaptureModal({ isOpen, onClose, onCapture, maxLeng
   const handleFilterChange = (key, val) => setVideoFilters(p => ({ ...p, [key]: val }));
   const handlePresetSelect = (preset) => {
     setVideoFilters({ ...preset.values, presetName: preset.name });
+    setShowPresets(false); // Auto-close panel on selection
     toast.success('Filter active');
   };
 
@@ -251,16 +252,30 @@ export default function WebcamCaptureModal({ isOpen, onClose, onCapture, maxLeng
   // Start/stop hair engine when camera stream changes
   useEffect(() => {
     const engine = hairEngineRef.current;
-    if (!engine || !engine._initialized || !stream) return;
+    if (!engine || !stream) return;
     
     const videoEl = videoRef.current;
     const hairCanvas = hairCanvasRef.current;
     
     if (videoEl && hairCanvas) {
-      const timer = setTimeout(() => {
-        engine.start(videoEl, hairCanvas);
-      }, 500);
-      return () => { clearTimeout(timer); engine.stop(); };
+      // Retry pattern: video may not be ready immediately on mobile
+      const tryStart = () => {
+        if (videoEl.readyState >= 1) {
+          engine.start(videoEl, hairCanvas); // start() awaits init internally
+          return true;
+        }
+        return false;
+      };
+      
+      if (!tryStart()) {
+        const timer = setInterval(() => {
+          if (tryStart()) clearInterval(timer);
+        }, 500);
+        const timeout = setTimeout(() => clearInterval(timer), 5000);
+        return () => { clearInterval(timer); clearTimeout(timeout); engine.stop(); };
+      }
+      
+      return () => { engine.stop(); };
     }
   }, [stream]);
   
@@ -272,7 +287,7 @@ export default function WebcamCaptureModal({ isOpen, onClose, onCapture, maxLeng
   
   const handleSelectHairStyle = useCallback((styleId) => {
     setActiveHairStyle(styleId);
-    setShowHairPicker(false);
+    setShowHairPicker(false); // Auto-close picker on selection
     if (styleId) toast.success('Hair filter applied! 💇');
   }, []);
 

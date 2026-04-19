@@ -301,7 +301,17 @@ export class HairFilterEngine {
    * @param {HTMLVideoElement} videoEl - The video source
    * @param {HTMLCanvasElement} canvasEl - Canvas overlay for drawing hair
    */
-  start(videoEl, canvasEl) {
+  async start(videoEl, canvasEl) {
+    // If not yet initialized, wait for init to complete
+    if (!this._initialized && this._initPromise) {
+      try {
+        await this._initPromise;
+      } catch {
+        // init failed — silently bail
+        return;
+      }
+    }
+    
     if (!this._initialized || !this.faceMesh) {
       logger.warn('[HairFilterEngine] Not initialized, cannot start');
       return;
@@ -317,6 +327,7 @@ export class HairFilterEngine {
     
     // Start the render loop
     this._tick();
+    logger.info('[HairFilterEngine] Started rendering');
   }
   
   /**
