@@ -70,6 +70,7 @@ const UsernameSetup               = React.lazy(() => import('./components/Userna
 const ThemePage                   = React.lazy(() => import('./components/ThemePage').then(m => ({ default: m.ThemePage })));
 const SearchPage                  = React.lazy(() => import('./pages/SearchPage'));
 const CreatePost                  = React.lazy(() => import('./components/CreatePost').then(m => ({ default: m.CreatePost })));
+const DispatchLobby               = React.lazy(() => import('./components/DispatchLobby').then(m => ({ default: m.DispatchLobby })));
 
 import './App.css';
 
@@ -191,6 +192,7 @@ function App() {
             <Route path="/bookings/pay/:bookingId" element={<ProtectedRoute><AppLayout><Lazy><CrewPaymentPage /></Lazy></AppLayout></ProtectedRoute>} />
             <Route path="/bookings/success" element={<ProtectedRoute><Lazy><BookingPaymentSuccess /></Lazy></ProtectedRoute>} />
             <Route path="/dispatch/success" element={<ProtectedRoute><Lazy><DispatchPaymentSuccess /></Lazy></ProtectedRoute>} />
+            <Route path="/dispatch/:dispatchId/lobby" element={<ProtectedRoute><AppLayout hideTopNav={false}><Lazy><DispatchLobby /></Lazy></AppLayout></ProtectedRoute>} />
             <Route path="/bookings/:bookingId/chat" element={<ProtectedRoute><Lazy><CrewChat /></Lazy></ProtectedRoute>} />
 
             {/* Fallback */}

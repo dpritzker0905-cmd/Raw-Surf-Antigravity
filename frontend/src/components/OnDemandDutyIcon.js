@@ -472,6 +472,8 @@ export const OnDemandDutyIcon = () => {
       setOnDemandActive(true);
       setShowSpotSelector(false);
       toast.success(`On-Demand activated at ${selectedSpot.name}!`);
+      // Desktop: navigate to hub to see Waiting for Requests dashboard
+      navigate('/photographer/on-demand');
     } catch (error) {
       toast.error(error.response?.data?.detail || 'Failed to activate On-Demand');
     } finally {

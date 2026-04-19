@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 import { useAuth } from '../contexts/AuthContext';
 
@@ -136,6 +137,8 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
   const [requestId, setRequestId] = useState(null);
   const [acceptedData, setAcceptedData] = useState(null);
   const [showSelfieModal, setShowSelfieModal] = useState(false);
+  const selfieShownRef = useRef(false); // gates selfie modal to open exactly once
+  const navigate = useNavigate();
   const [localCredits, setLocalCredits] = useState(0);
   const [creditsFetched, setCreditsFetched] = useState(false);
   
@@ -452,8 +455,16 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
           updateUser({ credit_balance: payResponse.data.remaining_credits });
         }
         
-        toast.success('Payment confirmed! Add a selfie so the photographer can find you.');
-        setShowSelfieModal(true);
+        toast.success('Payment confirmed! 🤙 Setting up your session...');
+        // Navigate to full lobby page — selfie prompt lives there
+        const lobbyState = {
+          crewMembers,
+          photographer,
+          captainPayAmount,
+          needsSelfie: true,
+        };
+        onClose();
+        navigate(`/dispatch/${dispatchId}/lobby`, { state: lobbyState });
       } else {
         // Pay with card - redirect to Stripe Checkout
         const amountToCharge = crewMembers.length > 0 ? captainPayAmount : totalPrice;
@@ -918,8 +929,8 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
             
             {/* Ocean Background with Surfboards */}
             <div className={`relative p-4 sm:p-6 rounded-2xl overflow-visible ${isLight ? 'bg-gradient-to-b from-cyan-100 via-blue-50 to-white' : 'bg-gradient-to-b from-cyan-900/30 via-blue-900/20 to-zinc-900'}`}>
-              {/* Wave pattern background */}
-              <div className="absolute inset-0 opacity-20 overflow-hidden rounded-2xl">
+              {/* Wave pattern background — pointer-events-none so quick-add pills remain clickable */}
+              <div className="absolute inset-0 opacity-20 overflow-hidden rounded-2xl pointer-events-none">
                 <svg viewBox="0 0 400 200" className="w-full h-full" preserveAspectRatio="none">
                   <path d="M0,100 Q50,80 100,100 T200,100 T300,100 T400,100 V200 H0 Z" fill="currentColor" className="text-cyan-500" opacity="0.3" />
                   <path d="M0,120 Q50,100 100,120 T200,120 T300,120 T400,120 V200 H0 Z" fill="currentColor" className="text-blue-500" opacity="0.2" />
