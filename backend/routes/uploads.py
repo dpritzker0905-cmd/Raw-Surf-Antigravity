@@ -296,7 +296,72 @@ async def upload_story_media(
         "size": len(content)
     }
 
+@router.post("/upload/conditions")
+async def upload_conditions_media(
+    file: UploadFile = File(...),
+    user_id: str = Form(...)
+):
+    """
+    Upload conditions check media (photo or video) for a live session go-live.
+    Returns a URL that is then passed to the /photographer/{id}/go-live endpoint
+    as condition_media_url instead of inline base64 (which causes network errors
+    due to large JSON body size).
+    """
+    is_video = file.content_type in ALLOWED_VIDEO_TYPES
+    is_image = file.content_type not in ALLOWED_VIDEO_TYPES and file.content_type in ALLOWED_IMAGE_TYPES
+
+    # Accept both images and videos; also accept unknown types as video/webm from browser MediaRecorder
+    if file.content_type not in ALLOWED_IMAGE_TYPES and file.content_type not in ALLOWED_VIDEO_TYPES:
+        # MediaRecorder on some browsers produces "video/webm" without codec suffix - still accept it
+        if not file.content_type.startswith("video/"):
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid file type. Please upload an image (JPEG, PNG, WebP) or video (MP4, MOV, WebM)."
+            )
+        is_video = True
+
+    content = await file.read()
+
+    max_size = MAX_FILE_SIZE if is_video else MAX_IMAGE_SIZE
+    if len(content) > max_size:
+        raise HTTPException(
+            status_code=400,
+            detail=f"File too large. Max {max_size // (1024 * 1024)}MB for {'video' if is_video else 'image'}."
+        )
+
+    # Use .webm extension for browser-recorded video (content_type may be "video/webm")
+    ext = get_file_extension(file.content_type) if file.content_type in {**dict.fromkeys(ALLOWED_IMAGE_TYPES), **dict.fromkeys(ALLOWED_VIDEO_TYPES)} else ".webm"
+    filename = f"{uuid.uuid4()}{ext}"
+    media_type = "video" if is_video else "image"
+
+    conditions_dir = UPLOAD_DIR / "conditions" / user_id
+    conditions_dir.mkdir(parents=True, exist_ok=True)
+
+    file_path = conditions_dir / filename
+    with open(file_path, "wb") as f:
+        f.write(content)
+
+    media_url = f"/api/uploads/conditions/{user_id}/{filename}"
+
+    return {
+        "media_url": media_url,
+        "media_type": media_type,
+        "filename": filename,
+        "size": len(content)
+    }
+
+
+@router.get("/uploads/conditions/{user_id}/{filename}")
+async def get_conditions_media(user_id: str, filename: str):
+    """Serve conditions check media file"""
+    file_path = UPLOAD_DIR / "conditions" / user_id / filename
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="File not found")
+    return FileResponse(file_path)
+
+
 @router.post("/upload/gallery")
+
 async def upload_gallery_media(
     file: UploadFile = File(...),
     user_id: str = Form(...),

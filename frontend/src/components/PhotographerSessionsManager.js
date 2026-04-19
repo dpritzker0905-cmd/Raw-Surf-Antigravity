@@ -634,28 +634,30 @@ export const PhotographerSessionsManager = () => {
 
       const selectedSpot = surfSpots.find(s => s.id === sessionSettings.surf_spot_id);
 
-      // Convert Blob/File conditions media to base64 for JSON transport
-      let conditionMediaB64 = null;
+      // ─── STEP A: Upload conditions media as multipart file (avoids large JSON body) ───
+      let conditionMediaUrl = null;
       let conditionMediaType = null;
       if (conditionsData.media) {
         try {
-          conditionMediaB64 = await new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onloadend = () => {
-              // result is "data:video/webm;base64,AAAA..." - strip the prefix
-              const base64 = reader.result?.split(',')[1];
-              resolve(base64 || null);
-            };
-            reader.onerror = reject;
-            reader.readAsDataURL(conditionsData.media);
+          toast.info('Uploading conditions photo…', { duration: 2000 });
+          const fd = new FormData();
+          // Name the file appropriately so the server can detect type
+          const ext = conditionsData.mediaType === 'video' ? 'webm' : 'jpg';
+          fd.append('file', conditionsData.media, `conditions.${ext}`);
+          fd.append('user_id', user?.id);
+          const uploadRes = await apiClient.post('/upload/conditions', fd, {
+            headers: { 'Content-Type': 'multipart/form-data' }
           });
-          conditionMediaType = conditionsData.mediaType || 'image';
-        } catch (b64Err) {
-          logger.warn('Failed to encode condition media as base64:', b64Err);
-          // Non-fatal: proceed without media
+          conditionMediaUrl = uploadRes.data.media_url;
+          conditionMediaType = uploadRes.data.media_type;
+          logger.debug('[GoLive] conditions media uploaded:', conditionMediaUrl);
+        } catch (uploadErr) {
+          // Non-fatal: log it, but still allow go-live without media
+          logger.warn('[GoLive] Conditions media upload failed (non-fatal):', uploadErr);
         }
       }
 
+      // ─── STEP B: Go Live (small JSON body — just send the URL, not the file) ───
       const response = await apiClient.post(`/photographer/${user?.id}/go-live`, {
         ...sessionSettings,
         location: selectedSpot?.name || sessionSettings.location,
@@ -667,10 +669,10 @@ export const PhotographerSessionsManager = () => {
         general_photo_price: sessionSettings.general_photo_price,
         estimated_duration: sessionSettings.estimated_duration,
         spot_notes: conditionsData.spotNotes || '',
-        // Conditions media (base64 encoded for JSON transport)
-        condition_media: conditionMediaB64,
+        // Pre-uploaded conditions media URL (preferred over base64)
+        condition_media_url: conditionMediaUrl,
         condition_media_type: conditionMediaType,
-        // Resolution-based pricing (MANDATORY for all workflows)
+        // Resolution-based pricing
         photo_price_web: sessionSettings.photo_price_web,
         photo_price_standard: sessionSettings.photo_price_standard,
         photo_price_high: sessionSettings.photo_price_high,

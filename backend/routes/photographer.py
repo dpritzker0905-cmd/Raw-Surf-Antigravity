@@ -80,8 +80,11 @@ class GoLiveRequest(BaseModel):
     photo_price_standard: Optional[float] = None     # Standard digital delivery
     photo_price_high: Optional[float] = None         # High-res (print quality)
     # Condition capture for Go Live
-    condition_media: Optional[str] = None            # Base64 encoded media (photo/video)
+    # Preferred: pre-uploaded URL from /upload/conditions (avoids large JSON body)
+    condition_media_url: Optional[str] = None        # URL from pre-upload step (preferred)
     condition_media_type: Optional[str] = None       # 'image' or 'video'
+    # Fallback: Base64 encoded media (legacy, kept for backward compat)
+    condition_media: Optional[str] = None            # Base64 encoded media (photo/video)
     spot_notes: Optional[str] = None                 # Notes about current conditions
     is_streaming: Optional[bool] = False             # Whether live streaming is enabled
 
@@ -1883,32 +1886,39 @@ async def go_live(
     
     # Create Condition Report (appears in Spot Hub & Conditions Explorer)
     # Use condition media from request if provided, otherwise leave empty
+    # Condition media - prefer pre-uploaded URL, fall back to base64
     condition_media_url = ""
     condition_media_type = "status"
-    
-    if data.condition_media:
-        # Upload the condition media to storage
+
+    if data.condition_media_url:
+        # ✅ Best path: media was pre-uploaded via /upload/conditions → just use the URL
+        condition_media_url = data.condition_media_url
+        condition_media_type = data.condition_media_type or "image"
+        # Also update the story with the condition media
+        story.media_url = condition_media_url
+        story.media_type = condition_media_type
+    elif data.condition_media:
+        # Fallback: legacy base64 path (only used if condition_media_url not provided)
         try:
             import base64
             import uuid
             from services.media_upload import upload_to_supabase_storage
-            
+
             media_bytes = base64.b64decode(data.condition_media)
             file_ext = "mp4" if data.condition_media_type == "video" else "jpg"
             filename = f"conditions/{photographer_id}/{uuid.uuid4()}.{file_ext}"
-            
+
             condition_media_url = await upload_to_supabase_storage(
-                media_bytes, 
-                filename, 
+                media_bytes,
+                filename,
                 content_type=f"{'video' if data.condition_media_type == 'video' else 'image'}/{file_ext}"
             )
             condition_media_type = data.condition_media_type or "image"
-            
-            # Also update the story with the condition media
+
             story.media_url = condition_media_url
             story.media_type = condition_media_type
         except Exception as e:
-            logger.warning(f"Failed to upload condition media: {e}")
+            logger.warning(f"Failed to upload condition media (base64 path): {e}")
     
     condition_report = ConditionReport(
         photographer_id=photographer_id,
