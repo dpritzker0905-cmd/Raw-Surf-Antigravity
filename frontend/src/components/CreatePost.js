@@ -1,4 +1,4 @@
-﻿/**
+/**
  * CreatePost Page - Uses CreatePostModal component
  * This is a full-page version that renders the modal content directly
  * Provides the same full-featured experience as the Feed's "+ Post" button
@@ -7,6 +7,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../contexts/ThemeContext';
 import { MapPin, Loader2, Navigation, Image, Video, Upload, Camera, Megaphone, Waves, ChevronDown, Wind, ArrowUpDown, X, Check, ChevronLeft, ChevronRight, Smile, AtSign, Play, HelpCircle, Clock, Music, VolumeX, Radio } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from './ui/button';
@@ -26,7 +27,25 @@ import WebcamCaptureModal from './WebcamCaptureModal';
 
 export const CreatePost = () => {
   const { user } = useAuth();
+  const { theme } = useTheme();
   const navigate = useNavigate();
+
+  // Theme-aware classes
+  const isLight = theme === 'light';
+  const isBeach = theme === 'beach';
+  const bgInput = isLight ? 'bg-gray-100' : isBeach ? 'bg-black' : 'bg-zinc-900';
+  const borderInput = isLight ? 'border-gray-300' : isBeach ? 'border-zinc-800' : 'border-zinc-700';
+  const textInput = isLight ? 'text-gray-900' : 'text-white';
+  const labelClass = isLight ? 'text-gray-500' : isBeach ? 'text-zinc-300' : 'text-zinc-400';
+  const cardBg = isLight ? 'bg-gray-50' : isBeach ? 'bg-zinc-950' : 'bg-zinc-800/50';
+  const cardBorder = isLight ? 'border-gray-200' : isBeach ? 'border-zinc-800' : 'border-zinc-700';
+  const pillBg = isLight ? 'bg-gray-100 hover:bg-gray-200 text-gray-800' : 'bg-zinc-700 hover:bg-zinc-600 text-white';
+  const hoverBg = isLight ? 'hover:bg-gray-100' : 'hover:bg-zinc-700';
+  const selectContentBg = isLight ? 'bg-white border-gray-200' : 'bg-zinc-800 border-zinc-700';
+  const selectItemClass = isLight ? 'text-gray-900 hover:bg-gray-100' : 'text-white hover:bg-zinc-700';
+  const toggleInactive = isLight
+    ? 'bg-gray-50 border-gray-200 text-gray-600 hover:border-cyan-400/50'
+    : 'bg-zinc-800/50 border-zinc-700 text-zinc-300 hover:border-cyan-500/30';
   
   // Multi-file support for carousel posts
   const [selectedFiles, setSelectedFiles] = useState([]);
@@ -70,6 +89,18 @@ export const CreatePost = () => {
   const [selectedSpot, setSelectedSpot] = useState('');
   const [recentLocations, setRecentLocations] = useState([]);
   const [showRecentLocations, setShowRecentLocations] = useState(false);
+
+  // GPS + Location hierarchy state (mirrors Feed check-in flow)
+  const [gpsLoading, setGpsLoading] = useState(false);
+  const [userLat, setUserLat] = useState(null);
+  const [userLon, setUserLon] = useState(null);
+  const [nearestSpot, setNearestSpot] = useState(null);
+  const [allSpots, setAllSpots] = useState([]);
+  const [locationHierarchy, setLocationHierarchy] = useState({ countries: [] });
+  const [selectedCountry, setSelectedCountry] = useState('');
+  const [selectedState, setSelectedState] = useState('');
+  const [selectedCity, setSelectedCity] = useState('');
+  const [showLocationPicker, setShowLocationPicker] = useState(false);
   
   // Mention state
   const [mentions, setMentions] = useState([]);
@@ -115,6 +146,91 @@ export const CreatePost = () => {
     };
     if (user?.id) fetchRecentLocations();
   }, [user?.id]);
+
+  // Fetch all spots + location hierarchy for GPS/manual location picker
+  useEffect(() => {
+    const fetchAllSpots = async () => {
+      try {
+        const response = await apiClient.get(`/surf-spots`);
+        setAllSpots(response.data || []);
+      } catch (e) { /* silent */ }
+    };
+    const fetchLocationHierarchy = async () => {
+      try {
+        const response = await apiClient.get(`/surf-spots/locations`);
+        setLocationHierarchy(response.data || { countries: [] });
+      } catch (e) { /* silent */ }
+    };
+    fetchAllSpots();
+    fetchLocationHierarchy();
+  }, []);
+
+  // Calculate distance between two GPS points (km)
+  const calculateDistance = (lat1, lon1, lat2, lon2) => {
+    const R = 6371;
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+              Math.sin(dLon/2) * Math.sin(dLon/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    return R * c;
+  };
+
+  // Get GPS location and find nearest spots
+  const getGpsLocation = () => {
+    if (!navigator.geolocation) {
+      toast.error('Geolocation is not supported by your browser');
+      return;
+    }
+    setGpsLoading(true);
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const { latitude, longitude } = position.coords;
+        setUserLat(latitude);
+        setUserLon(longitude);
+
+        // Find nearest spot
+        let nearest = null;
+        let minDistance = Infinity;
+        allSpots.forEach(spot => {
+          if (!spot.latitude || !spot.longitude) return;
+          const distance = calculateDistance(latitude, longitude, spot.latitude, spot.longitude);
+          if (distance < minDistance) {
+            minDistance = distance;
+            nearest = { ...spot, distance: distance.toFixed(1) };
+          }
+        });
+
+        setNearestSpot(nearest);
+        if (nearest && minDistance < 10) {
+          setLocation(nearest.name);
+          toast.success(`📍 Near ${nearest.name} (${nearest.distance}km)`);
+        } else if (nearest) {
+          toast.success(`📍 Location found. Nearest: ${nearest.name} (${nearest.distance}km)`);
+        } else {
+          toast.success('📍 Location detected — select your spot below');
+        }
+        setGpsLoading(false);
+      },
+      (error) => {
+        toast.error('Could not get your location. Please select manually.');
+        setGpsLoading(false);
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  };
+
+  // Handle spot selection from hierarchy picker
+  const handleHierarchySpotSelect = (spotId) => {
+    const spot = allSpots.find(s => s.id === spotId);
+    if (spot) {
+      setLocation(spot.name);
+      if (spot.latitude && spot.longitude) {
+        fetchConditions(spot.latitude, spot.longitude, spot.name);
+      }
+    }
+  };
 
   const handleRecentLocationSelect = async (recentLoc) => {
     setLocation(recentLoc.location);
@@ -675,7 +791,7 @@ export const CreatePost = () => {
         ) : (
           <div className="space-y-4 max-h-[calc(100vh-200px)] overflow-y-auto pr-1">
             {/* Preview with Carousel Controls */}
-            <div className="relative rounded-xl overflow-hidden bg-zinc-900">
+            <div className={`relative rounded-xl overflow-hidden ${isLight ? 'bg-gray-100' : 'bg-zinc-900'}`}>
               {mediaType === 'video' ? (
                 <video
                   src={previewUrls[0]}
@@ -764,9 +880,9 @@ export const CreatePost = () => {
                 {previewUrls.length < 10 && (
                   <button
                     onClick={() => photoInputRef.current?.click()}
-                    className="w-16 h-16 rounded-lg border-2 border-dashed border-zinc-600 flex items-center justify-center hover:border-zinc-400 flex-shrink-0"
+                    className={`w-16 h-16 rounded-lg border-2 border-dashed ${isLight ? 'border-gray-300 hover:border-gray-500' : 'border-zinc-600 hover:border-zinc-400'} flex items-center justify-center flex-shrink-0`}
                   >
-                    <span className="text-2xl text-zinc-500">+</span>
+                    <span className={`text-2xl ${isLight ? 'text-gray-400' : 'text-zinc-500'}`}>+</span>
                   </button>
                 )}
               </div>
@@ -781,7 +897,7 @@ export const CreatePost = () => {
                 onKeyDown={handleCaptionKeyDown}
                 onSelect={(e) => setCursorPosition(e.target.selectionStart)}
                 placeholder="Write a caption... Use @ to mention someone"
-                className="bg-zinc-900 border-zinc-700 text-white min-h-[80px] resize-none pr-20"
+                className={`${bgInput} ${borderInput} ${textInput} min-h-[80px] resize-none pr-20`}
                 data-testid="caption-input"
               />
               <div className="absolute right-3 top-3 flex items-center gap-1">
@@ -801,7 +917,7 @@ export const CreatePost = () => {
                       }, 0);
                     }
                   }}
-                  className="p-2 rounded-full hover:bg-zinc-700 text-gray-400 hover:text-cyan-400 transition-colors"
+                  className={`p-2 rounded-full ${hoverBg} ${labelClass} hover:text-cyan-400 transition-colors`}
                   title="Mention someone"
                 >
                   <AtSign className="w-4 h-4" />
@@ -810,7 +926,7 @@ export const CreatePost = () => {
                   type="button"
                   onClick={() => setShowEmojiPicker(!showEmojiPicker)}
                   className={`p-2 rounded-full transition-colors ${
-                    showEmojiPicker ? 'bg-yellow-500/20 text-yellow-400' : 'hover:bg-zinc-700 text-gray-400 hover:text-white'
+                    showEmojiPicker ? 'bg-yellow-500/20 text-yellow-400' : `${hoverBg} ${labelClass} hover:text-white`
                   }`}
                 >
                   <Smile className="w-5 h-5" />
@@ -884,52 +1000,237 @@ export const CreatePost = () => {
               )}
             </div>
 
-            {/* Location */}
-            <div className="relative">
-              <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-              <Input
-                value={location}
-                onChange={(e) => setLocation(e.target.value)}
-                placeholder="Add location"
-                className="bg-zinc-900 border-zinc-700 text-white pl-10"
-                data-testid="location-input"
-              />
-            </div>
-
-            {/* Recent Locations */}
-            {showRecentLocations && recentLocations.length > 0 && (
-              <div className="bg-zinc-800/50 rounded-lg p-3">
-                <p className="text-xs text-zinc-400 mb-2">Recent locations</p>
-                <div className="flex flex-wrap gap-2">
-                  {recentLocations.slice(0, 5).map((loc, i) => (
-                    <button
-                      key={i}
-                      onClick={() => handleRecentLocationSelect(loc)}
-                      className="px-3 py-1.5 bg-zinc-700 hover:bg-zinc-600 rounded-full text-sm text-white flex items-center gap-1"
-                    >
-                      <MapPin className="w-3 h-3" />
-                      {loc.location}
-                    </button>
-                  ))}
+            {/* Location Picker */}
+            <div className={`rounded-xl border ${cardBorder} overflow-hidden`}>
+              {/* Location header / selected value */}
+              <button
+                type="button"
+                onClick={() => setShowLocationPicker(!showLocationPicker)}
+                className={`w-full flex items-center justify-between p-3 ${cardBg} transition-all`}
+              >
+                <div className="flex items-center gap-2">
+                  <MapPin className={`w-5 h-5 ${location ? 'text-cyan-500' : labelClass}`} />
+                  <span className={location ? 'text-foreground font-medium' : labelClass}>
+                    {location || 'Add a location'}
+                  </span>
+                  {nearestSpot && userLat && (
+                    <span className="text-xs text-cyan-500 bg-cyan-500/10 px-2 py-0.5 rounded-full">
+                      📍 {nearestSpot.distance}km
+                    </span>
+                  )}
                 </div>
-              </div>
-            )}
+                <ChevronDown className={`w-4 h-4 ${labelClass} transition-transform ${showLocationPicker ? 'rotate-180' : ''}`} />
+              </button>
 
-            {/* Known Spots Dropdown */}
-            {knownSpots.length > 0 && (
-              <Select value={selectedSpot} onValueChange={handleSpotSelect}>
-                <SelectTrigger className="bg-zinc-900 border-zinc-700 text-white">
-                  <SelectValue placeholder="Or select a known surf spot..." />
-                </SelectTrigger>
-                <SelectContent className="bg-zinc-800 border-zinc-700">
-                  {knownSpots.map(spot => (
-                    <SelectItem key={spot.key} value={spot.key} className="text-white hover:bg-zinc-700">
-                      {spot.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
+              {/* Expanded location picker */}
+              {showLocationPicker && (
+                <div className={`p-3 space-y-3 border-t ${cardBorder}`}>
+                  {/* GPS Button */}
+                  <Button
+                    type="button"
+                    onClick={getGpsLocation}
+                    disabled={gpsLoading}
+                    variant="outline"
+                    className={`w-full border-cyan-500/50 text-cyan-500 hover:bg-cyan-500/10 ${isLight ? 'hover:text-cyan-600' : ''}`}
+                  >
+                    {gpsLoading ? (
+                      <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                    ) : (
+                      <Navigation className="w-4 h-4 mr-2" />
+                    )}
+                    {gpsLoading ? 'Finding location...' : 'Use My GPS Location'}
+                  </Button>
+
+                  {/* Nearest spot result */}
+                  {nearestSpot && userLat && (
+                    <div className={`p-3 rounded-lg ${isLight ? 'bg-cyan-50 border border-cyan-200' : 'bg-cyan-500/10 border border-cyan-500/20'}`}>
+                      <p className={`text-xs ${labelClass} mb-1`}>Nearest spot detected</p>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setLocation(nearestSpot.name);
+                          if (nearestSpot.latitude && nearestSpot.longitude) {
+                            fetchConditions(nearestSpot.latitude, nearestSpot.longitude, nearestSpot.name);
+                          }
+                          setShowLocationPicker(false);
+                        }}
+                        className={`flex items-center gap-2 w-full text-left p-2 rounded-lg ${isLight ? 'hover:bg-cyan-100' : 'hover:bg-cyan-500/20'} transition-colors`}
+                      >
+                        <MapPin className="w-4 h-4 text-cyan-500 flex-shrink-0" />
+                        <div>
+                          <p className="text-foreground font-medium text-sm">{nearestSpot.name}</p>
+                          <p className="text-xs text-cyan-500">{nearestSpot.distance}km away</p>
+                        </div>
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Divider */}
+                  <div className="flex items-center gap-3">
+                    <div className={`flex-1 h-px ${isLight ? 'bg-gray-200' : 'bg-zinc-700'}`} />
+                    <span className={`text-xs ${labelClass}`}>or select manually</span>
+                    <div className={`flex-1 h-px ${isLight ? 'bg-gray-200' : 'bg-zinc-700'}`} />
+                  </div>
+
+                  {/* Hierarchical Pickers: Country → State → City → Spot */}
+                  <div className="space-y-2">
+                    {/* Country */}
+                    <Select value={selectedCountry} onValueChange={(val) => { setSelectedCountry(val); setSelectedState(''); setSelectedCity(''); }}>
+                      <SelectTrigger className={`${bgInput} ${borderInput} ${textInput} text-sm`}>
+                        <SelectValue placeholder="Country" />
+                      </SelectTrigger>
+                      <SelectContent className={selectContentBg}>
+                        {(locationHierarchy.countries || []).map(c => (
+                          <SelectItem key={c.name} value={c.name} className={selectItemClass}>{c.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+
+                    {/* State / Region */}
+                    {selectedCountry && (() => {
+                      const country = (locationHierarchy.countries || []).find(c => c.name === selectedCountry);
+                      const states = country?.states || [];
+                      if (states.length === 0) return null;
+                      return (
+                        <Select value={selectedState} onValueChange={(val) => { setSelectedState(val); setSelectedCity(''); }}>
+                          <SelectTrigger className={`${bgInput} ${borderInput} ${textInput} text-sm`}>
+                            <SelectValue placeholder="State / Region" />
+                          </SelectTrigger>
+                          <SelectContent className={selectContentBg}>
+                            {states.map(s => (
+                              <SelectItem key={s.name} value={s.name} className={selectItemClass}>{s.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      );
+                    })()}
+
+                    {/* City / Area */}
+                    {selectedState && (() => {
+                      const country = (locationHierarchy.countries || []).find(c => c.name === selectedCountry);
+                      const state = (country?.states || []).find(s => s.name === selectedState);
+                      const cities = state?.cities || [];
+                      if (cities.length === 0) return null;
+                      return (
+                        <Select value={selectedCity} onValueChange={setSelectedCity}>
+                          <SelectTrigger className={`${bgInput} ${borderInput} ${textInput} text-sm`}>
+                            <SelectValue placeholder="City / Area" />
+                          </SelectTrigger>
+                          <SelectContent className={selectContentBg}>
+                            {cities.map(c => (
+                              <SelectItem key={c.name} value={c.name} className={selectItemClass}>{c.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      );
+                    })()}
+
+                    {/* Spots in selected city */}
+                    {selectedCity && (() => {
+                      const country = (locationHierarchy.countries || []).find(c => c.name === selectedCountry);
+                      const state = (country?.states || []).find(s => s.name === selectedState);
+                      const city = (state?.cities || []).find(c => c.name === selectedCity);
+                      const citySpots = city?.spots || [];
+                      if (citySpots.length === 0) {
+                        // No spots? Set city as location
+                        return (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className="w-full border-cyan-500/50 text-cyan-500"
+                            onClick={() => {
+                              setLocation(`${selectedCity}, ${selectedState}`);
+                              setShowLocationPicker(false);
+                            }}
+                          >
+                            <MapPin className="w-4 h-4 mr-2" />
+                            Use "{selectedCity}, {selectedState}"
+                          </Button>
+                        );
+                      }
+                      return (
+                        <div className={`rounded-lg ${cardBg} p-2 space-y-1`}>
+                          <p className={`text-xs ${labelClass} px-2 py-1`}>Surf spots in {selectedCity}</p>
+                          {citySpots.map(spot => (
+                            <button
+                              key={spot.id || spot.name}
+                              type="button"
+                              onClick={() => {
+                                setLocation(spot.name);
+                                handleHierarchySpotSelect(spot.id);
+                                setShowLocationPicker(false);
+                              }}
+                              className={`w-full text-left px-3 py-2 rounded-lg text-sm text-foreground ${hoverBg} transition-colors flex items-center gap-2`}
+                            >
+                              <MapPin className="w-3.5 h-3.5 text-cyan-500 flex-shrink-0" />
+                              <span>{spot.name}</span>
+                              {userLat && spot.latitude && (
+                                <span className="ml-auto text-xs text-cyan-500">
+                                  {calculateDistance(userLat, userLon, spot.latitude, spot.longitude).toFixed(1)}km
+                                </span>
+                              )}
+                            </button>
+                          ))}
+                        </div>
+                      );
+                    })()}
+                  </div>
+
+                  {/* Recent Locations */}
+                  {recentLocations.length > 0 && (
+                    <div>
+                      <p className={`text-xs ${labelClass} mb-2`}>Recent locations</p>
+                      <div className="flex flex-wrap gap-2">
+                        {recentLocations.slice(0, 5).map((loc, i) => (
+                          <button
+                            key={i}
+                            type="button"
+                            onClick={() => {
+                              handleRecentLocationSelect(loc);
+                              setShowLocationPicker(false);
+                            }}
+                            className={`px-3 py-1.5 ${pillBg} rounded-full text-sm flex items-center gap-1`}
+                          >
+                            <MapPin className="w-3 h-3" />
+                            {loc.location}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Known Spots (conditions) Dropdown */}
+                  {knownSpots.length > 0 && (
+                    <div>
+                      <p className={`text-xs ${labelClass} mb-1`}>Quick select (auto-fills conditions)</p>
+                      <Select value={selectedSpot} onValueChange={handleSpotSelect}>
+                        <SelectTrigger className={`${bgInput} ${borderInput} ${textInput} text-sm`}>
+                          <SelectValue placeholder="Select a surf spot..." />
+                        </SelectTrigger>
+                        <SelectContent className={selectContentBg}>
+                          {knownSpots.map(spot => (
+                            <SelectItem key={spot.key} value={spot.key} className={selectItemClass}>
+                              {spot.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+
+                  {/* Manual input fallback */}
+                  <div className="relative">
+                    <Input
+                      value={location}
+                      onChange={(e) => setLocation(e.target.value)}
+                      placeholder="Or type a location..."
+                      className={`${bgInput} ${borderInput} ${textInput} text-sm`}
+                      data-testid="location-input"
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
 
             {/* Session Conditions Toggle */}
             <button
@@ -937,7 +1238,7 @@ export const CreatePost = () => {
               className={`w-full flex items-center justify-between p-3 rounded-lg border transition-all ${
                 showSessionData 
                   ? 'bg-cyan-500/10 border-cyan-500/50 text-cyan-400' 
-                  : 'bg-zinc-800/50 border-zinc-700 text-zinc-300 hover:border-cyan-500/30'
+                  : toggleInactive
               }`}
             >
               <div className="flex items-center gap-2">
@@ -949,7 +1250,7 @@ export const CreatePost = () => {
 
             {/* Session Data Fields */}
             {showSessionData && (
-              <div className="space-y-4 p-4 bg-zinc-800/50 rounded-lg border border-zinc-700">
+              <div className={`space-y-4 p-4 ${cardBg} rounded-lg border ${cardBorder}`}>
                 {/* Auto-fetch Button */}
                 <Button
                   onClick={fetchConditionsByLocation}
@@ -968,30 +1269,30 @@ export const CreatePost = () => {
                 {/* Session Time */}
                 <div className="grid grid-cols-3 gap-3">
                   <div>
-                    <label className="text-xs text-zinc-400 block mb-1">Date</label>
+                    <label className={`text-xs ${labelClass} block mb-1`}>Date</label>
                     <Input
                       type="date"
                       value={sessionDate}
                       onChange={(e) => setSessionDate(e.target.value)}
-                      className="bg-zinc-900 border-zinc-700 text-white text-sm"
+                      className={`${bgInput} ${borderInput} ${textInput} text-sm`}
                     />
                   </div>
                   <div>
-                    <label className="text-xs text-zinc-400 block mb-1">Start</label>
+                    <label className={`text-xs ${labelClass} block mb-1`}>Start</label>
                     <Input
                       type="time"
                       value={sessionStartTime}
                       onChange={(e) => setSessionStartTime(e.target.value)}
-                      className="bg-zinc-900 border-zinc-700 text-white text-sm"
+                      className={`${bgInput} ${borderInput} ${textInput} text-sm`}
                     />
                   </div>
                   <div>
-                    <label className="text-xs text-zinc-400 block mb-1">End</label>
+                    <label className={`text-xs ${labelClass} block mb-1`}>End</label>
                     <Input
                       type="time"
                       value={sessionEndTime}
                       onChange={(e) => setSessionEndTime(e.target.value)}
-                      className="bg-zinc-900 border-zinc-700 text-white text-sm"
+                      className={`${bgInput} ${borderInput} ${textInput} text-sm`}
                     />
                   </div>
                 </div>
@@ -1004,35 +1305,35 @@ export const CreatePost = () => {
                   </div>
                   <div className="grid grid-cols-3 gap-3">
                     <div>
-                      <label className="text-xs text-zinc-400 block mb-1">Height (ft)</label>
+                      <label className={`text-xs ${labelClass} block mb-1`}>Height (ft)</label>
                       <Input
                         type="number"
                         step="0.5"
                         value={waveHeightFt}
                         onChange={(e) => setWaveHeightFt(e.target.value)}
                         placeholder="3.5"
-                        className="bg-zinc-900 border-zinc-700 text-white text-sm"
+                        className={`${bgInput} ${borderInput} ${textInput} text-sm`}
                       />
                     </div>
                     <div>
-                      <label className="text-xs text-zinc-400 block mb-1">Period (sec)</label>
+                      <label className={`text-xs ${labelClass} block mb-1`}>Period (sec)</label>
                       <Input
                         type="number"
                         value={wavePeriodSec}
                         onChange={(e) => setWavePeriodSec(e.target.value)}
                         placeholder="12"
-                        className="bg-zinc-900 border-zinc-700 text-white text-sm"
+                        className={`${bgInput} ${borderInput} ${textInput} text-sm`}
                       />
                     </div>
                     <div>
-                      <label className="text-xs text-zinc-400 block mb-1">Direction</label>
+                      <label className={`text-xs ${labelClass} block mb-1`}>Direction</label>
                       <Select value={waveDirection} onValueChange={setWaveDirection}>
-                        <SelectTrigger className="bg-zinc-900 border-zinc-700 text-white text-sm h-9">
+                        <SelectTrigger className={`${bgInput} ${borderInput} ${textInput} text-sm h-9`}>
                           <SelectValue placeholder="Dir" />
                         </SelectTrigger>
-                        <SelectContent className="bg-zinc-800 border-zinc-700">
+                        <SelectContent className={selectContentBg}>
                           {['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'].map(dir => (
-                            <SelectItem key={dir} value={dir} className="text-white">{dir}</SelectItem>
+                            <SelectItem key={dir} value={dir} className={textInput}>{dir}</SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
@@ -1048,24 +1349,24 @@ export const CreatePost = () => {
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="text-xs text-zinc-400 block mb-1">Speed (mph)</label>
+                      <label className={`text-xs ${labelClass} block mb-1`}>Speed (mph)</label>
                       <Input
                         type="number"
                         value={windSpeedMph}
                         onChange={(e) => setWindSpeedMph(e.target.value)}
                         placeholder="8"
-                        className="bg-zinc-900 border-zinc-700 text-white text-sm"
+                        className={`${bgInput} ${borderInput} ${textInput} text-sm`}
                       />
                     </div>
                     <div>
-                      <label className="text-xs text-zinc-400 block mb-1">Direction</label>
+                      <label className={`text-xs ${labelClass} block mb-1`}>Direction</label>
                       <Select value={windDirection} onValueChange={setWindDirection}>
-                        <SelectTrigger className="bg-zinc-900 border-zinc-700 text-white text-sm h-9">
+                        <SelectTrigger className={`${bgInput} ${borderInput} ${textInput} text-sm h-9`}>
                           <SelectValue placeholder="Direction" />
                         </SelectTrigger>
-                        <SelectContent className="bg-zinc-800 border-zinc-700">
+                        <SelectContent className={selectContentBg}>
                           {['Offshore', 'Onshore', 'Cross-shore', 'N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'].map(dir => (
-                            <SelectItem key={dir} value={dir} className="text-white">{dir}</SelectItem>
+                            <SelectItem key={dir} value={dir} className={textInput}>{dir}</SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
@@ -1081,27 +1382,27 @@ export const CreatePost = () => {
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="text-xs text-zinc-400 block mb-1">Status</label>
+                      <label className={`text-xs ${labelClass} block mb-1`}>Status</label>
                       <Select value={tideStatus} onValueChange={setTideStatus}>
-                        <SelectTrigger className="bg-zinc-900 border-zinc-700 text-white text-sm h-9">
+                        <SelectTrigger className={`${bgInput} ${borderInput} ${textInput} text-sm h-9`}>
                           <SelectValue placeholder="Status" />
                         </SelectTrigger>
-                        <SelectContent className="bg-zinc-800 border-zinc-700">
+                        <SelectContent className={selectContentBg}>
                           {['High', 'Low', 'Rising', 'Falling', 'Mid'].map(status => (
-                            <SelectItem key={status} value={status} className="text-white">{status}</SelectItem>
+                            <SelectItem key={status} value={status} className={textInput}>{status}</SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
                     </div>
                     <div>
-                      <label className="text-xs text-zinc-400 block mb-1">Height (ft)</label>
+                      <label className={`text-xs ${labelClass} block mb-1`}>Height (ft)</label>
                       <Input
                         type="number"
                         step="0.1"
                         value={tideHeightFt}
                         onChange={(e) => setTideHeightFt(e.target.value)}
                         placeholder="2.5"
-                        className="bg-zinc-900 border-zinc-700 text-white text-sm"
+                        className={`${bgInput} ${borderInput} ${textInput} text-sm`}
                       />
                     </div>
                   </div>
@@ -1119,13 +1420,13 @@ export const CreatePost = () => {
             {/* Progress */}
             {loading && (
               <div className="space-y-2">
-                <div className="h-2 bg-zinc-800 rounded-full overflow-hidden">
+                <div className={`h-2 ${isLight ? 'bg-gray-200' : 'bg-zinc-800'} rounded-full overflow-hidden`}>
                   <div
                     className="h-full bg-gradient-to-r from-yellow-400 to-orange-400 transition-all"
                     style={{ width: `${uploadProgress}%` }}
                   />
                 </div>
-                <p className="text-xs text-gray-400 text-center">{processingStatus}</p>
+                <p className={`text-xs ${labelClass} text-center`}>{processingStatus}</p>
               </div>
             )}
 
