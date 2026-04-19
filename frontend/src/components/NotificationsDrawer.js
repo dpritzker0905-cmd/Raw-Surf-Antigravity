@@ -310,13 +310,13 @@ export const NotificationsDrawer = ({ isOpen, onClose, onCountUpdate }) => {
           ${colors.bg} ${colors.border} border-t
           rounded-t-3xl overflow-hidden flex flex-col
           /* ── FIX 1: clamp height so it never bleeds above viewport on mobile ── */
-          max-h-[80dvh]
+          max-h-[92dvh]
           /* fallback for browsers without dvh */
-          max-h-[80vh]
+          max-h-[92vh]
           /* desktop: float slightly above bottom edge */
-          md:!bottom-4 md:!left-4 md:!right-4 md:rounded-2xl md:max-h-[70vh]
+          md:!bottom-4 md:!left-4 md:!right-4 md:rounded-2xl md:max-h-[78vh]
         `}
-        style={{ maxHeight: 'min(80dvh, 80vh)' }}
+        style={{ maxHeight: 'min(92dvh, 92vh)' }}
       >
         {/* ── Handle bar (mobile drag indicator) ── */}
         <div className="flex justify-center pt-3 pb-1 shrink-0">
@@ -400,9 +400,27 @@ export const NotificationsDrawer = ({ isOpen, onClose, onCountUpdate }) => {
               <p className={`${colors.subtext} text-xs mt-1`}>We'll let you know when something happens</p>
             </div>
           ) : (
-            filteredNotifications.map(notification => (
-              <NotificationItem key={notification.id} notification={notification} />
-            ))
+            <>
+              {filteredNotifications.slice(0, 10).map(notification => (
+                <NotificationItem key={notification.id} notification={notification} />
+              ))}
+              {filteredNotifications.length > 10 && (
+                <button
+                  onClick={handleViewAll}
+                  className={`w-full py-3 text-sm font-semibold flex items-center justify-center gap-2 rounded-xl transition-all mt-1 ${
+                    theme === 'light'
+                      ? 'text-blue-600 bg-blue-50 hover:bg-blue-100 active:bg-blue-200'
+                      : theme === 'beach'
+                      ? 'text-amber-400 bg-amber-900/20 hover:bg-amber-900/30'
+                      : 'text-yellow-400 bg-zinc-800/60 hover:bg-zinc-700/60'
+                  }`}
+                >
+                  <Bell className="w-4 h-4" />
+                  See all {filteredNotifications.length - 10} more notifications
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              )}
+            </>
           )}
         </div>
 
