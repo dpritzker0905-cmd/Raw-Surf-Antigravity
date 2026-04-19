@@ -29,32 +29,91 @@ if STRIPE_API_KEY:
 
 async def ensure_database_tables():
     """
-    Startup health check - ensures all SQLAlchemy model tables exist in PostgreSQL.
-    Creates missing tables without affecting existing ones.
+    Startup schema migration - ensures all SQLAlchemy model tables AND columns
+    exist in PostgreSQL. Runs on every startup (idempotent - safe to run repeatedly).
+
+    This handles two cases:
+    1. New tables: created via create_all()
+    2. New columns on existing tables: ALTER TABLE ADD COLUMN IF NOT EXISTS
+       This is the fix for 'missing column' errors that cause network-level failures
+       when the production DB hasn't had the migration SQL applied manually.
     """
-    from sqlalchemy import text
-    import models  # Import all models to register them with Base
-    
+    from sqlalchemy import text, inspect
+    import models  # registers all models with Base.metadata
+
     async with engine.begin() as conn:
-        # Get existing tables
+        # ── STEP 1: Create any completely missing tables ──────────────────────
         result = await conn.execute(
             text("SELECT tablename FROM pg_tables WHERE schemaname='public'")
         )
         existing_tables = {row[0] for row in result.fetchall()}
-        
-        # Get all model tables
         model_tables = set(Base.metadata.tables.keys())
-        
-        # Find missing tables
         missing_tables = model_tables - existing_tables
-        
+
         if missing_tables:
-            logger.warning(f"[DB Health] Missing tables detected: {missing_tables}")
-            # Create only missing tables
+            logger.warning(f"[DB Migration] Creating {len(missing_tables)} missing tables: {missing_tables}")
             await conn.run_sync(Base.metadata.create_all)
-            logger.info(f"[DB Health] Created {len(missing_tables)} missing tables: {missing_tables}")
+            logger.info(f"[DB Migration] ✓ Tables created: {missing_tables}")
         else:
-            logger.info(f"[DB Health] All {len(model_tables)} tables present ✓")
+            logger.info(f"[DB Migration] ✓ All {len(model_tables)} tables present")
+
+        # ── STEP 2: Add any missing columns to existing tables ────────────────
+        # This handles the case where new columns are added to a model but the
+        # production DB hasn't been manually migrated (ALTER TABLE run).
+        columns_added = 0
+        for table_name, table in Base.metadata.tables.items():
+            if table_name not in existing_tables:
+                continue  # New table was just created above - skip
+
+            # Get columns that actually exist in the DB for this table
+            col_result = await conn.execute(
+                text(
+                    "SELECT column_name FROM information_schema.columns "
+                    "WHERE table_schema='public' AND table_name=:tname"
+                ),
+                {"tname": table_name},
+            )
+            existing_cols = {row[0] for row in col_result.fetchall()}
+
+            for col in table.columns:
+                if col.name in existing_cols:
+                    continue  # Column already exists - skip
+
+                # Build a safe ALTER TABLE statement from the SQLAlchemy column type
+                try:
+                    # Compile the column type to a PostgreSQL type string
+                    col_type = col.type.compile(dialect=conn.dialect)
+                except Exception:
+                    col_type = "TEXT"  # Safe fallback for complex types
+
+                nullable_clause = "" if col.nullable else " NOT NULL"
+                default_clause = ""
+                if col.default is not None and hasattr(col.default, "arg"):
+                    arg = col.default.arg
+                    if isinstance(arg, (int, float)):
+                        default_clause = f" DEFAULT {arg}"
+                    elif isinstance(arg, bool):
+                        default_clause = f" DEFAULT {'TRUE' if arg else 'FALSE'}"
+                    elif isinstance(arg, str):
+                        escaped = arg.replace("'", "''")
+                        default_clause = f" DEFAULT '{escaped}'"
+
+                alter_sql = (
+                    f"ALTER TABLE {table_name} "
+                    f"ADD COLUMN IF NOT EXISTS {col.name} {col_type}"
+                    f"{default_clause}{nullable_clause}"
+                )
+                try:
+                    await conn.execute(text(alter_sql))
+                    columns_added += 1
+                    logger.info(f"[DB Migration] ✓ Added column: {table_name}.{col.name} ({col_type})")
+                except Exception as col_err:
+                    logger.warning(f"[DB Migration] ⚠ Could not add {table_name}.{col.name}: {col_err}")
+
+        if columns_added > 0:
+            logger.info(f"[DB Migration] ✓ Added {columns_added} missing columns to existing tables")
+        else:
+            logger.info("[DB Migration] ✓ All columns present - schema is up to date")
 
 
 @asynccontextmanager
