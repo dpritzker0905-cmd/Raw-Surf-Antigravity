@@ -2563,7 +2563,11 @@ async def get_on_demand_photographers(
     query = select(Profile).where(
         and_(
             Profile.on_demand_available.is_(True),
-            Profile.role.in_([RoleEnum.PHOTOGRAPHER, RoleEnum.APPROVED_PRO])
+            Profile.role.in_([
+                RoleEnum.PHOTOGRAPHER,
+                RoleEnum.PRO,
+                RoleEnum.APPROVED_PRO
+            ])
         )
     )
     
@@ -2635,7 +2639,7 @@ async def get_on_demand_status(
         raise HTTPException(status_code=404, detail="Photographer not found")
     
     # Check if Photographer/Approved Pro (photographer roles that can use On-Demand)
-    if profile.role not in [RoleEnum.PHOTOGRAPHER, RoleEnum.APPROVED_PRO]:
+    if profile.role not in [RoleEnum.PHOTOGRAPHER, RoleEnum.PRO, RoleEnum.APPROVED_PRO]:
         return OnDemandStatusResponse(is_available=False)
     
     # Get spot name if linked to a spot
@@ -2713,7 +2717,7 @@ async def toggle_on_demand(
         raise HTTPException(status_code=404, detail="Photographer not found")
     
     # Check if Photographer/Approved Pro (photographer roles that can use On-Demand)
-    if profile.role not in [RoleEnum.PHOTOGRAPHER, RoleEnum.APPROVED_PRO]:
+    if profile.role not in [RoleEnum.PHOTOGRAPHER, RoleEnum.PRO, RoleEnum.APPROVED_PRO]:
         raise HTTPException(status_code=403, detail="On-Demand is only available for Pro photographers")
     
     # Check mutual exclusivity: cannot enable On-Demand if currently live shooting
