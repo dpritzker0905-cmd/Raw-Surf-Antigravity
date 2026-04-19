@@ -14,7 +14,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   Search, MapPin, Camera, Filter, Star, ChevronRight, Loader2, Plane, CheckCircle,
-  Map, SlidersHorizontal, Waves, ArrowUpDown, Lock, Radio, Crown, Image
+  Map, SlidersHorizontal, Waves, ArrowUpDown, Lock, Radio, Crown, Image, User, CalendarPlus
 } from 'lucide-react';
 import { Card, CardContent } from '../ui/card';
 import { Button } from '../ui/button';
@@ -77,7 +77,7 @@ const TIER_RADIUS = {
 /**
  * Enhanced Photographer Card Component with review snippets and live status
  */
-const DirectoryPhotographerCard = ({ photographer, onSelect, theme, subscriptionTier, userLocation }) => {
+const DirectoryPhotographerCard = ({ photographer, onSelect, onBook, theme, subscriptionTier, userLocation }) => {
   const isLight = theme === 'light';
   const isBeach = theme === 'beach';
   const textPrimary = isLight ? 'text-gray-900' : 'text-white';
@@ -195,7 +195,7 @@ const DirectoryPhotographerCard = ({ photographer, onSelect, theme, subscription
             )}
           </div>
           
-          {/* Price & arrow */}
+          {/* Price & actions */}
           <div className="text-right flex flex-col items-end gap-1 shrink-0">
             {photographer.session_rate && (
               <div>
@@ -203,8 +203,28 @@ const DirectoryPhotographerCard = ({ photographer, onSelect, theme, subscription
                 <p className={`text-[10px] ${textSecondary}`}>/hr</p>
               </div>
             )}
-            <ChevronRight className={`w-4 h-4 ${textSecondary}`} />
           </div>
+        </div>
+        
+        {/* Action buttons */}
+        <div className="flex items-center gap-2 mt-3 pt-3 border-t border-dashed border-zinc-700/50">
+          <Button
+            variant="outline"
+            size="sm"
+            className={`flex-1 ${isLight ? 'border-gray-300 text-gray-700 hover:bg-gray-50' : 'border-zinc-600 text-gray-300 hover:bg-zinc-700'}`}
+            onClick={(e) => { e.stopPropagation(); onSelect(photographer); }}
+          >
+            <User className="w-3.5 h-3.5 mr-1.5" />
+            View Profile
+          </Button>
+          <Button
+            size="sm"
+            className="flex-1 bg-gradient-to-r from-yellow-500 to-amber-500 hover:from-yellow-600 hover:to-amber-600 text-black font-semibold"
+            onClick={(e) => { e.stopPropagation(); onBook(photographer); }}
+          >
+            <CalendarPlus className="w-3.5 h-3.5 mr-1.5" />
+            Book Now
+          </Button>
         </div>
         
         {/* Portfolio preview (locked for Free tier) */}
@@ -470,6 +490,12 @@ export const DirectoryTab = ({
   }, [filters]);
   
   const handleSelectPhotographer = (photographer) => {
+    // Navigate to profile page — user can view gallery, reviews, and book from there
+    navigate(`/profile/${photographer.id}`);
+  };
+
+  const handleBookPhotographer = (photographer) => {
+    // Direct booking flow via callback or navigate with book param
     if (onSelectPhotographer) {
       onSelectPhotographer(photographer);
     } else {
@@ -622,6 +648,7 @@ export const DirectoryTab = ({
                 key={photographer.id}
                 photographer={photographer}
                 onSelect={handleSelectPhotographer}
+                onBook={handleBookPhotographer}
                 theme={theme}
                 subscriptionTier={subscriptionTier}
                 userLocation={userLocation}

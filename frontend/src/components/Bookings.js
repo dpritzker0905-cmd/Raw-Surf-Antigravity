@@ -898,15 +898,25 @@ export const Bookings = () => {
           <h1 className={`text-3xl font-bold ${textPrimaryClass}`} style={{ fontFamily: 'Oswald' }} data-testid="bookings-title">
             Sessions & Bookings
           </h1>
-          <Button
-            onClick={() => setShowJoinCodeModal(true)}
-            variant="outline"
-            size="sm"
-            className={isLight ? 'border-gray-300' : 'border-zinc-700'}
-          >
-            <UserPlus className="w-4 h-4 mr-2" />
-            Join Code
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              onClick={() => setActiveTab('directory')}
+              size="sm"
+              className="bg-gradient-to-r from-yellow-500 to-amber-500 hover:from-yellow-600 hover:to-amber-600 text-black font-semibold"
+            >
+              <Search className="w-4 h-4 mr-1.5" />
+              Find a Pro
+            </Button>
+            <Button
+              onClick={() => setShowJoinCodeModal(true)}
+              variant="outline"
+              size="sm"
+              className={isLight ? 'border-gray-300' : 'border-zinc-700'}
+            >
+              <UserPlus className="w-4 h-4 mr-1.5" />
+              Join Code
+            </Button>
+          </div>
         </div>
 
         {/* Pending Invites Banner */}
