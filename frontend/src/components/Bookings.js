@@ -857,7 +857,7 @@ export const Bookings = () => {
 
   const tabs = [
     { id: 'lineup', label: 'The Lineup', icon: Users, count: 0, highlight: true },  // New Lineup tab
-    { id: 'directory', label: 'Find Pros', icon: Search, count: 0 },  // Photographer Discovery tab
+    { id: 'directory', label: 'Find Photogs', icon: Search, count: 0 },  // Photographer Discovery tab
     { id: 'live_sessions', label: 'Live Sessions', icon: Zap, count: liveSessions.length },
     { id: 'on_demand', label: 'On-Demand', icon: Target, count: onDemandPhotographers.length },
     { id: 'find_buddies', label: 'Open Sessions', icon: Users, count: nearbyBookings.length },
@@ -905,7 +905,7 @@ export const Bookings = () => {
               className="bg-gradient-to-r from-yellow-500 to-amber-500 hover:from-yellow-600 hover:to-amber-600 text-black font-semibold"
             >
               <Search className="w-4 h-4 mr-1.5" />
-              Find a Pro
+              Find Photogs
             </Button>
             <Button
               onClick={() => setShowJoinCodeModal(true)}

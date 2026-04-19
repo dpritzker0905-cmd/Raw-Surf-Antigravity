@@ -490,8 +490,8 @@ export const DirectoryTab = ({
   }, [filters]);
   
   const handleSelectPhotographer = (photographer) => {
-    // Navigate to profile page — user can view gallery, reviews, and book from there
-    navigate(`/profile/${photographer.id}`);
+    // Navigate to profile page with reviews tab pre-selected
+    navigate(`/profile/${photographer.id}?tab=reviews`);
   };
 
   const handleBookPhotographer = (photographer) => {
@@ -509,38 +509,11 @@ export const DirectoryTab = ({
   
   return (
     <div className="space-y-4">
-      {/* Subscription tier banner */}
-      <Card className={`bg-gradient-to-r ${subscriptionTier === 'Premium' ? 'from-yellow-500/20 to-amber-500/20 border-yellow-500/30' : subscriptionTier === 'Basic' ? 'from-blue-500/15 to-cyan-500/15 border-blue-500/25' : 'from-gray-500/10 to-gray-400/10 border-gray-500/20'}`}>
-        <CardContent className="py-3 px-4">
-          <div className="flex items-center gap-3">
-            <div className={`w-10 h-10 rounded-full flex items-center justify-center ${subscriptionTier === 'Premium' ? 'bg-yellow-400/20' : subscriptionTier === 'Basic' ? 'bg-blue-400/20' : isLight ? 'bg-gray-200' : 'bg-zinc-800'}`}>
-              {subscriptionTier === 'Premium' ? (
-                <Crown className="w-5 h-5 text-yellow-400" />
-              ) : subscriptionTier === 'Basic' ? (
-                <Star className="w-5 h-5 text-blue-400" />
-              ) : (
-                <Camera className={`w-5 h-5 ${textSecondary}`} />
-              )}
-            </div>
-            <div className="flex-1">
-              <p className={`text-sm font-medium ${textPrimary}`}>
-                {subscriptionTier} Tier Directory Access
-              </p>
-              <p className={`text-xs ${textSecondary}`}>
-                {subscriptionTier === 'Free' && (
-                  <>Live badges within 1 mi • <span className="text-yellow-400">Upgrade for portfolios & distance sorting</span></>
-                )}
-                {subscriptionTier === 'Basic' && (
-                  <>Live badges within 5 mi • Portfolio previews • Distance sorting</>
-                )}
-                {subscriptionTier === 'Premium' && (
-                  <>Unlimited live visibility • Full portfolio access • Priority discovery</>
-                )}
-              </p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      {/* Directory Hub title */}
+      <div className="flex items-center gap-2">
+        <Camera className={`w-5 h-5 ${isLight ? 'text-yellow-600' : 'text-yellow-400'}`} />
+        <h2 className={`text-lg font-bold ${textPrimary}`}>Directory Hub</h2>
+      </div>
       
       {/* Search bar */}
       <div className="relative">

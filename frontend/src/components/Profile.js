@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { usePersona, getExpandedRoleInfo } from '../contexts/PersonaContext';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 
 import { 
   Camera, Settings, DollarSign, MapPin, Flame, 
@@ -91,8 +91,10 @@ export const Profile = () => {
   const [isFollowing, setIsFollowing] = useState(false);
   const [followLoading, setFollowLoading] = useState(false);
   
-  // Tab state
-  const [activeTab, setActiveTab] = useState('posts');
+  // Tab state — read ?tab= param from URL to deep-link to a specific tab (e.g. reviews)
+  const [searchParams] = useSearchParams();
+  const initialTab = searchParams.get('tab') || 'posts';
+  const [activeTab, setActiveTab] = useState(initialTab);
   const [tabContent, setTabContent] = useState([]);
   const [tabLoading, setTabLoading] = useState(false);
   
