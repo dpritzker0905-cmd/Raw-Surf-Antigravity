@@ -24,3 +24,8 @@ ALTER TABLE profiles ADD COLUMN IF NOT EXISTS live_video_4k           FLOAT DEFA
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS booking_video_720p      FLOAT DEFAULT 8.0;
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS booking_video_1080p     FLOAT DEFAULT 15.0;
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS booking_video_4k        FLOAT DEFAULT 30.0;
+
+-- LIVE SESSIONS table: per-session resolution pricing (needed by go-live endpoint)
+ALTER TABLE live_sessions ADD COLUMN IF NOT EXISTS session_price_web      FLOAT;
+ALTER TABLE live_sessions ADD COLUMN IF NOT EXISTS session_price_standard  FLOAT;
+ALTER TABLE live_sessions ADD COLUMN IF NOT EXISTS session_price_high      FLOAT;

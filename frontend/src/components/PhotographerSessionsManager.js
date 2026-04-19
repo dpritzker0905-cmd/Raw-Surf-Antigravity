@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
@@ -618,57 +618,44 @@ export const PhotographerSessionsManager = () => {
   // STEP 3: Handle final Go Live with conditions data
   const handleGoLiveWithConditions = async (conditionsData) => {
     setGoLiveLoading(true);
-    
+
     try {
       // Request Camera for session selfie (optional)
       setDebugInfo(prev => ({ ...prev, permissionStep: 'camera' }));
-      
+
       try {
         await requestCameraPermission();
         setTimeout(() => stopCameraStream(), 2000);
       } catch (_camError) {
         logger.warn('Camera access denied, continuing without selfie');
       }
-      
+
       setDebugInfo(prev => ({ ...prev, permissionStep: 'ready' }));
-      
+
       const selectedSpot = surfSpots.find(s => s.id === sessionSettings.surf_spot_id);
-      
-      // Prepare form data for media upload
-      const formData = new FormData();
-      formData.append('spot_id', sessionSettings.surf_spot_id);
-      formData.append('location', selectedSpot?.name || sessionSettings.location);
-      formData.append('latitude', debugInfo.latitude || '');
-      formData.append('longitude', debugInfo.longitude || '');
-      formData.append('price_per_join', sessionSettings.price_per_join);
-      formData.append('max_surfers', sessionSettings.max_surfers);
-      formData.append('auto_accept', sessionSettings.auto_accept);
-      formData.append('estimated_duration', sessionSettings.estimated_duration);
-      formData.append('live_photo_price', sessionSettings.live_photo_price);
-      formData.append('photos_included', sessionSettings.photos_included);
-      formData.append('general_photo_price', sessionSettings.general_photo_price);
-      
-      // Add conditions data
-      if (conditionsData.spotNotes) {
-        formData.append('spot_notes', conditionsData.spotNotes);
-      }
+
+      // Convert Blob/File conditions media to base64 for JSON transport
+      let conditionMediaB64 = null;
+      let conditionMediaType = null;
       if (conditionsData.media) {
-        formData.append('condition_media', conditionsData.media);
-        formData.append('condition_media_type', conditionsData.mediaType);
+        try {
+          conditionMediaB64 = await new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+              // result is "data:video/webm;base64,AAAA..." - strip the prefix
+              const base64 = reader.result?.split(',')[1];
+              resolve(base64 || null);
+            };
+            reader.onerror = reject;
+            reader.readAsDataURL(conditionsData.media);
+          });
+          conditionMediaType = conditionsData.mediaType || 'image';
+        } catch (b64Err) {
+          logger.warn('Failed to encode condition media as base64:', b64Err);
+          // Non-fatal: proceed without media
+        }
       }
-      
-      // Hobbyist earnings destination
-      if (sessionSettings.earnings_destination_type) {
-        formData.append('earnings_destination_type', sessionSettings.earnings_destination_type);
-      }
-      if (sessionSettings.earnings_destination_id) {
-        formData.append('earnings_destination_id', sessionSettings.earnings_destination_id);
-      }
-      if (sessionSettings.earnings_cause_name) {
-        formData.append('earnings_cause_name', sessionSettings.earnings_cause_name);
-      }
-      
-      // Use regular JSON call for now (media upload handled separately if needed)
+
       const response = await apiClient.post(`/photographer/${user?.id}/go-live`, {
         ...sessionSettings,
         location: selectedSpot?.name || sessionSettings.location,
@@ -680,6 +667,9 @@ export const PhotographerSessionsManager = () => {
         general_photo_price: sessionSettings.general_photo_price,
         estimated_duration: sessionSettings.estimated_duration,
         spot_notes: conditionsData.spotNotes || '',
+        // Conditions media (base64 encoded for JSON transport)
+        condition_media: conditionMediaB64,
+        condition_media_type: conditionMediaType,
         // Resolution-based pricing (MANDATORY for all workflows)
         photo_price_web: sessionSettings.photo_price_web,
         photo_price_standard: sessionSettings.photo_price_standard,
@@ -689,7 +679,7 @@ export const PhotographerSessionsManager = () => {
         earnings_destination_id: sessionSettings.earnings_destination_id,
         earnings_cause_name: sessionSettings.earnings_cause_name
       });
-      
+
       setIsLive(true);
       setCurrentSession({
         photographer_id: user?.id,
@@ -706,11 +696,13 @@ export const PhotographerSessionsManager = () => {
         live_session_rates: response.data.live_session_rates,
         spot_notes: conditionsData.spotNotes || ''
       });
-      
+
       setShowConditionsModal(false);
       toast.success('You are now live! Surfers can find you on the map.');
     } catch (error) {
-      toast.error(error.response?.data?.detail || 'Failed to start session');
+      logger.error('[GoLive] Failed to start session:', error);
+      const detail = error.response?.data?.detail || error.message || 'Failed to start session';
+      toast.error(detail);
       setDebugInfo(prev => ({ ...prev, permissionStep: 'idle' }));
     } finally {
       setGoLiveLoading(false);

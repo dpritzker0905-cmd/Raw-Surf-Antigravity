@@ -35,6 +35,7 @@ const ConditionsModal = ({
   const [cameraMode, setCameraMode] = useState('photo'); // 'photo' | 'video'
   const [cameraFacing, setCameraFacing] = useState('environment'); // 'environment' = rear, 'user' = front
   const [isRecording, setIsRecording] = useState(false);
+  const [recordingSeconds, setRecordingSeconds] = useState(0); // Recording timer
   const [_uploadMode, setUploadMode] = useState('capture'); // 'capture' | 'upload'
   
   // Refs
@@ -43,6 +44,9 @@ const ConditionsModal = ({
   const mediaRecorderRef = useRef(null);
   const recordedChunksRef = useRef([]);
   const fileInputRef = useRef(null);
+  const recordingTimerRef = useRef(null); // Auto-stop timer
+  const recordingIntervalRef = useRef(null); // Countdown interval
+  const MAX_RECORD_SECONDS = 60;
 
   // Cleanup camera on unmount or modal close
   useEffect(() => {
@@ -191,20 +195,33 @@ const ConditionsModal = ({
       // Start recording
       recordedChunksRef.current = [];
       const stream = streamRef.current;
-      
+
       if (!stream) return;
-      
-      const mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
+
+      // Detect supported mimeType
+      const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp9')
+        ? 'video/webm;codecs=vp9'
+        : MediaRecorder.isTypeSupported('video/webm')
+        ? 'video/webm'
+        : '';
+
+      const mediaRecorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
       mediaRecorderRef.current = mediaRecorder;
-      
+
       mediaRecorder.ondataavailable = (event) => {
         if (event.data.size > 0) {
           recordedChunksRef.current.push(event.data);
         }
       };
-      
+
       mediaRecorder.onstop = () => {
-        const blob = new Blob(recordedChunksRef.current, { type: 'video/webm' });
+        // Clear timers
+        clearTimeout(recordingTimerRef.current);
+        clearInterval(recordingIntervalRef.current);
+        setRecordingSeconds(0);
+
+        const usedMime = mimeType || 'video/webm';
+        const blob = new Blob(recordedChunksRef.current, { type: usedMime });
         const url = URL.createObjectURL(blob);
         setMediaPreview(url);
         setMediaType('video');
@@ -212,11 +229,36 @@ const ConditionsModal = ({
         stopCamera();
         toast.success('Video recorded!');
       };
-      
-      mediaRecorder.start();
+
+      // Use 250ms timeslice so data flows continuously (fixes mobile onstop)
+      mediaRecorder.start(250);
       setIsRecording(true);
+      setRecordingSeconds(0);
+
+      // Auto-stop at MAX_RECORD_SECONDS
+      recordingTimerRef.current = setTimeout(() => {
+        if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+          mediaRecorderRef.current.stop();
+          setIsRecording(false);
+          toast.info('Max recording time reached (60s)');
+        }
+      }, MAX_RECORD_SECONDS * 1000);
+
+      // Countdown interval
+      recordingIntervalRef.current = setInterval(() => {
+        setRecordingSeconds(prev => {
+          if (prev >= MAX_RECORD_SECONDS - 1) {
+            clearInterval(recordingIntervalRef.current);
+            return MAX_RECORD_SECONDS;
+          }
+          return prev + 1;
+        });
+      }, 1000);
+
     } else {
-      // Stop recording
+      // Manual stop
+      clearTimeout(recordingTimerRef.current);
+      clearInterval(recordingIntervalRef.current);
       mediaRecorderRef.current?.stop();
       setIsRecording(false);
     }
@@ -374,7 +416,7 @@ const ConditionsModal = ({
                 {isRecording && (
                   <div className="absolute top-3 left-3 flex items-center gap-2 px-2 py-1 bg-red-500/90 rounded-full">
                     <span className="w-2 h-2 bg-white rounded-full animate-pulse" />
-                    <span className="text-white text-xs font-medium">REC</span>
+                    <span className="text-white text-xs font-medium">REC {recordingSeconds}s / {MAX_RECORD_SECONDS}s</span>
                   </div>
                 )}
                 
@@ -454,7 +496,7 @@ const ConditionsModal = ({
                     <Video className="w-6 h-6 text-purple-400" />
                   </div>
                   <span className="text-white text-sm font-medium">Record Video</span>
-                  <span className="text-gray-500 text-xs">15 sec max</span>
+                  <span className="text-gray-500 text-xs">60 sec max</span>
                 </button>
                 
                 {/* Upload from Gallery */}

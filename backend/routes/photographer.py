@@ -1796,31 +1796,54 @@ async def go_live(
     
     # Create LiveSession record at the START of session
     # This allows us to track earnings destination from the beginning
-    live_session = LiveSession(
-        photographer_id=photographer_id,
-        surf_spot_id=spot_id,
-        location_name=spot_name,
-        buyin_price=data.price_per_join,
-        photo_price=photographer.live_photo_price or 5.0,
-        # Session-specific pricing (for Live Savings display)
-        session_photo_price=data.live_photo_price or photographer.live_photo_price or 5.0,
-        photos_included=data.photos_included or 3,
-        general_photo_price=data.general_photo_price or photographer.photo_price_standard or 10.0,
-        # Resolution-based pricing for this session
-        session_price_web=session_photo_price_web,
-        session_price_standard=session_photo_price_standard,
-        session_price_high=session_photo_price_high,
-        max_surfers=data.max_surfers or 10,
-        estimated_duration_hours=data.estimated_duration or 2,
-        participant_count=0,
-        total_earnings=0.0,
-        started_at=datetime.now(timezone.utc),
-        status='active',
-        # Store per-session earnings destination (for Hobbyists)
-        earnings_destination_type=data.earnings_destination_type,
-        earnings_destination_id=data.earnings_destination_id,
-        earnings_cause_name=data.earnings_cause_name
-    )
+    try:
+        live_session = LiveSession(
+            photographer_id=photographer_id,
+            surf_spot_id=spot_id,
+            location_name=spot_name,
+            buyin_price=data.price_per_join,
+            photo_price=photographer.live_photo_price or 5.0,
+            # Session-specific pricing (for Live Savings display)
+            session_photo_price=data.live_photo_price or photographer.live_photo_price or 5.0,
+            photos_included=data.photos_included or 3,
+            general_photo_price=data.general_photo_price or photographer.photo_price_standard or 10.0,
+            # Resolution-based pricing for this session
+            session_price_web=session_photo_price_web,
+            session_price_standard=session_photo_price_standard,
+            session_price_high=session_photo_price_high,
+            max_surfers=data.max_surfers or 10,
+            estimated_duration_hours=data.estimated_duration or 2,
+            participant_count=0,
+            total_earnings=0.0,
+            started_at=datetime.now(timezone.utc),
+            status='active',
+            # Store per-session earnings destination (for Hobbyists)
+            earnings_destination_type=data.earnings_destination_type,
+            earnings_destination_id=data.earnings_destination_id,
+            earnings_cause_name=data.earnings_cause_name
+        )
+    except Exception as ls_err:
+        # Fallback: create without resolution pricing columns (handles unmigrated DBs)
+        logger.warning(f"LiveSession resolution pricing columns missing, using fallback: {ls_err}")
+        live_session = LiveSession(
+            photographer_id=photographer_id,
+            surf_spot_id=spot_id,
+            location_name=spot_name,
+            buyin_price=data.price_per_join,
+            photo_price=photographer.live_photo_price or 5.0,
+            session_photo_price=data.live_photo_price or photographer.live_photo_price or 5.0,
+            photos_included=data.photos_included or 3,
+            general_photo_price=data.general_photo_price or photographer.photo_price_standard or 10.0,
+            max_surfers=data.max_surfers or 10,
+            estimated_duration_hours=data.estimated_duration or 2,
+            participant_count=0,
+            total_earnings=0.0,
+            started_at=datetime.now(timezone.utc),
+            status='active',
+            earnings_destination_type=data.earnings_destination_type,
+            earnings_destination_id=data.earnings_destination_id,
+            earnings_cause_name=data.earnings_cause_name
+        )
     db.add(live_session)
     await db.flush()
     
