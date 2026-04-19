@@ -1,10 +1,10 @@
-﻿/**
+/**
  * DispatchLobby.js
  * 
  * Full-page "poker room" lobby for on-demand sessions.
  * 
  * Flow:
- *   booking_created â†’ selfie_pending â†’ crew_paying â†’ photographer_pending â†’ accepted â†’ in_session
+ *   booking_created -> selfie_pending -> crew_paying -> photographer_pending -> accepted -> in_session
  * 
  * Uses the surfboard lineup visualization from the booking flow all the way through.
  * Polls /dispatch/{id} every 3s for live state updates.
@@ -18,14 +18,14 @@ import apiClient from '../lib/apiClient';
 import { getFullUrl } from '../utils/media';
 import {
   Check, Clock, MapPin, Radio, Award, Camera, Loader2,
-  Zap, X, ChevronRight, Users, Bell
+  Zap, X, ChevronRight, Users, Bell, ArrowLeft
 } from 'lucide-react';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { toast } from 'sonner';
 import { RequestProSelfieModal } from './RequestProSelfieModal';
 
-// â”€â”€â”€ Constants â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// --- Constants ---
 const SURFBOARD_COLORS = [
   { fill: '#FCD34D', stroke: '#F59E0B' }, // Yellow (captain)
   { fill: '#22D3EE', stroke: '#0891B2' }, // Cyan
@@ -36,7 +36,7 @@ const SURFBOARD_COLORS = [
   { fill: '#60A5FA', stroke: '#2563EB' }, // Blue
 ];
 
-// â”€â”€â”€ Surfboard Avatar (reused from booking flow) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// --- Surfboard Avatar (reused from booking flow) ---
 const SurfboardAvatar = ({ member, index, isCaptain, isPaid, isPending, isLight }) => {
   const boardColor = SURFBOARD_COLORS[index % SURFBOARD_COLORS.length];
   const textPrimary = isLight ? 'text-gray-900' : 'text-white';
@@ -117,14 +117,14 @@ const SurfboardAvatar = ({ member, index, isCaptain, isPaid, isPending, isLight 
           {isCaptain ? 'You' : (member.name || member.value?.split('@')[0] || 'Crew')}
         </p>
         <p className={`text-[9px] ${isPaid ? 'text-green-400' : 'text-amber-400'} truncate`}>
-          {isCaptain ? 'Captain' : isPaid ? 'Paid âœ“' : 'Pendingâ€¦'}
+          {isCaptain ? 'Captain' : isPaid ? 'Paid' : 'Pending...'}
         </p>
       </div>
     </div>
   );
 };
 
-// â”€â”€â”€ Photographer Card â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// --- Photographer Card ---
 const PhotographerCard = ({ photographer, eta, status, isLight }) => {
   const textPrimary = isLight ? 'text-gray-900' : 'text-white';
   const textSecondary = isLight ? 'text-gray-500' : 'text-gray-400';
@@ -161,7 +161,7 @@ const PhotographerCard = ({ photographer, eta, status, isLight }) => {
           {photographer?.full_name || 'Photographer'}
         </p>
         <p className={`text-xs ${textSecondary}`}>
-          {accepted ? 'ðŸ“ En route to you' : 'â³ Reviewing your requestâ€¦'}
+          {accepted ? 'En route to you' : 'Reviewing your request...'}
         </p>
       </div>
 
@@ -180,7 +180,7 @@ const PhotographerCard = ({ photographer, eta, status, isLight }) => {
   );
 };
 
-// â”€â”€â”€ Timeline Step â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// --- Timeline Step ---
 const TimelineStep = ({ icon: Icon, label, sub, done, active, isLight }) => {
   const textPrimary = isLight ? 'text-gray-900' : 'text-white';
   const textSecondary = isLight ? 'text-gray-500' : 'text-gray-400';
@@ -207,7 +207,7 @@ const TimelineStep = ({ icon: Icon, label, sub, done, active, isLight }) => {
   );
 };
 
-// â”€â”€â”€ Main Component â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// --- Main Component ---
 export const DispatchLobby = () => {
   const { dispatchId } = useParams();
   const { state: navState } = useLocation();
@@ -220,12 +220,13 @@ export const DispatchLobby = () => {
   const textSecondary = isLight ? 'text-gray-500' : 'text-gray-400';
   const bgPage = isLight ? 'bg-gray-50' : 'bg-zinc-950';
 
-  // â”€â”€ State â”€â”€
+  // -- State --
   const [dispatch, setDispatch] = useState(null);
   const [crewStatus, setCrewStatus] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showSelfieModal, setShowSelfieModal] = useState(false);
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const selfieShownRef = useRef(false);
   const pollRef = useRef(null);
 
@@ -234,7 +235,7 @@ export const DispatchLobby = () => {
   const photographerFromNav = navState?.photographer || null;
   const captainPayAmount = navState?.captainPayAmount || 0;
 
-  // â”€â”€ Derived state â”€â”€
+  // -- Derived state --
   const photographerAccepted = ['accepted', 'en_route', 'arrived', 'completed'].includes(
     dispatch?.status
   );
@@ -243,7 +244,7 @@ export const DispatchLobby = () => {
   const photographer = dispatch?.photographer || photographerFromNav;
   const eta = dispatch?.gps?.eta_minutes || null;
 
-  // â”€â”€ Poll dispatch state â”€â”€
+  // -- Poll dispatch state --
   const pollDispatch = useCallback(async () => {
     if (!dispatchId) return;
     try {
@@ -268,10 +269,10 @@ export const DispatchLobby = () => {
       if (dispatchRes.data?.status === 'cancelled') {
         toast.error('Session was cancelled.');
         clearInterval(pollRef.current);
-        navigate('/feed');
+        navigate('/bookings');
       }
     } catch (err) {
-      setError('Lost connection â€” retryingâ€¦');
+      setError('Lost connection - retrying...');
     } finally {
       setLoading(false);
     }
@@ -283,7 +284,7 @@ export const DispatchLobby = () => {
     return () => clearInterval(pollRef.current);
   }, [pollDispatch]);
 
-  // â”€â”€ Show selfie prompt once if needed â”€â”€
+  // -- Show selfie prompt once if needed --
   useEffect(() => {
     if (
       dispatch &&
@@ -298,7 +299,21 @@ export const DispatchLobby = () => {
     }
   }, [dispatch, navState?.needsSelfie]);
 
-  // â”€â”€â”€ Build lineup: captain + backend crew (fall back to local) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // -- Handle cancel with confirmation --
+  const handleCancelSession = async () => {
+    try {
+      await apiClient.post(
+        `/dispatch/${dispatchId}/cancel?user_id=${user.id}`,
+        { reason: 'User cancelled from lobby' }
+      );
+      toast.info('Session cancelled. Your deposit will be refunded.');
+      navigate('/bookings');
+    } catch {
+      toast.error('Failed to cancel. Please try again or contact support.');
+    }
+  };
+
+  // --- Build lineup: captain + backend crew (fall back to local) ---
   const captainMember = {
     id: user?.id,
     name: user?.full_name || 'You',
@@ -316,7 +331,7 @@ export const DispatchLobby = () => {
     paid: m.covered_by_captain || false,
   }));
 
-  // â”€â”€â”€ Derive timeline phase â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // --- Derive timeline phase ---
   const captainSelfieUploaded = !!dispatch?.selfie_url;
   const crewAllPaid = crewLineup.length === 0 || crewLineup.every(m => m.paid);
   const photographerPending = !photographerAccepted;
@@ -326,7 +341,7 @@ export const DispatchLobby = () => {
       <div className={`min-h-screen ${bgPage} flex items-center justify-center`}>
         <div className="text-center">
           <Loader2 className="w-12 h-12 text-amber-400 animate-spin mx-auto mb-4" />
-          <p className={textSecondary}>Loading your sessionâ€¦</p>
+          <p className={textSecondary}>Loading your session...</p>
         </div>
       </div>
     );
@@ -345,7 +360,7 @@ export const DispatchLobby = () => {
 
   return (
     <div className={`min-h-screen ${bgPage} pb-safe`}>
-      {/* â”€â”€â”€ Header â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+      {/* --- Header --- */}
       <div
         className={`sticky top-0 z-10 px-4 pt-4 pb-3 border-b ${
           isLight ? 'bg-white border-gray-200' : 'bg-zinc-900 border-zinc-800'
@@ -353,17 +368,15 @@ export const DispatchLobby = () => {
       >
         <div className="flex items-center justify-between max-w-lg mx-auto">
           <div className="flex items-center gap-3">
-            <div
+            {/* Back to Bookings button */}
+            <button
+              onClick={() => navigate('/bookings')}
               className={`w-9 h-9 rounded-xl flex items-center justify-center ${
-                photographerAccepted ? 'bg-green-500/20' : 'bg-amber-500/20'
+                isLight ? 'bg-gray-100 hover:bg-gray-200' : 'bg-zinc-800 hover:bg-zinc-700'
               }`}
             >
-              {photographerAccepted ? (
-                <Check className="w-5 h-5 text-green-400" />
-              ) : (
-                <Radio className="w-5 h-5 text-amber-400 animate-pulse" />
-              )}
-            </div>
+              <ArrowLeft className={`w-5 h-5 ${textPrimary}`} />
+            </button>
             <div>
               <h1 className={`font-bold text-sm ${textPrimary}`}>
                 {photographerAccepted ? 'Photographer Confirmed!' : 'Session Pending'}
@@ -371,7 +384,7 @@ export const DispatchLobby = () => {
               <p className={`text-xs ${textSecondary}`}>
                 {photographerAccepted
                   ? `${photographer?.full_name || 'Photographer'} is on the way`
-                  : 'Waiting for confirmationâ€¦'}
+                  : 'Waiting for confirmation...'}
               </p>
             </div>
           </div>
@@ -382,14 +395,14 @@ export const DispatchLobby = () => {
                 : 'bg-amber-500/20 text-amber-400 border-amber-400/30'
             }`}
           >
-            {photographerAccepted ? 'ðŸ„ Confirmed' : 'â³ Pending'}
+            {photographerAccepted ? 'Confirmed' : 'Pending'}
           </Badge>
         </div>
       </div>
 
       <div className="max-w-lg mx-auto px-4 py-6 space-y-6">
 
-        {/* â”€â”€â”€ Photographer Card â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+        {/* --- Photographer Card --- */}
         <PhotographerCard
           photographer={photographer}
           eta={eta}
@@ -397,7 +410,7 @@ export const DispatchLobby = () => {
           isLight={isLight}
         />
 
-        {/* â”€â”€â”€ THE LINEUP (Surfboard Visualization) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+        {/* --- THE LINEUP (Surfboard Visualization) --- */}
         <div
           className={`relative rounded-3xl overflow-hidden ${
             isLight
@@ -405,7 +418,7 @@ export const DispatchLobby = () => {
               : 'bg-gradient-to-b from-cyan-900/40 via-blue-900/20 to-zinc-950'
           }`}
         >
-          {/* Wave SVG â€” pointer-events-none so it never blocks clicks */}
+          {/* Wave SVG */}
           <div className="absolute inset-0 pointer-events-none overflow-hidden opacity-30">
             <svg viewBox="0 0 400 200" className="w-full h-full" preserveAspectRatio="none">
               <path
@@ -481,14 +494,14 @@ export const DispatchLobby = () => {
               </div>
               {!crewAllPaid && (
                 <p className={`text-xs ${textSecondary} mt-1.5`}>
-                  ðŸ“± Your crew has been notified to pay their share
+                  Your crew has been notified to pay their share
                 </p>
               )}
             </div>
           )}
         </div>
 
-        {/* â”€â”€â”€ Selfie prompt (if missing) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+        {/* --- Selfie prompt (if missing) --- */}
         {!captainSelfieUploaded && (
           <button
             onClick={() => setShowSelfieModal(true)}
@@ -526,7 +539,7 @@ export const DispatchLobby = () => {
             />
             <div className="flex-1">
               <p className={`text-sm font-medium ${textPrimary}`}>
-                Selfie uploaded âœ“
+                Selfie uploaded
               </p>
               <p className={`text-xs ${textSecondary}`}>
                 Photographer can identify you
@@ -536,7 +549,7 @@ export const DispatchLobby = () => {
           </div>
         )}
 
-        {/* â”€â”€â”€ Session Timeline â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+        {/* --- Session Timeline --- */}
         <div
           className={`p-4 rounded-2xl space-y-3 ${
             isLight ? 'bg-white border border-gray-200' : 'bg-zinc-900 border border-zinc-800'
@@ -567,7 +580,7 @@ export const DispatchLobby = () => {
               sub={
                 crewLineup.length > 0
                   ? `${paidCount}/${crewLineup.length} crew members confirmed`
-                  : 'Solo session â€” no crew to wait for'
+                  : 'Solo session - no crew to wait for'
               }
               done={crewAllPaid}
               active={!crewAllPaid && captainSelfieUploaded}
@@ -596,7 +609,7 @@ export const DispatchLobby = () => {
           </div>
         </div>
 
-        {/* â”€â”€â”€ Session Details â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+        {/* --- Session Details --- */}
         <div
           className={`p-4 rounded-2xl grid grid-cols-2 gap-3 ${
             isLight ? 'bg-white border border-gray-200' : 'bg-zinc-900 border border-zinc-800'
@@ -647,7 +660,7 @@ export const DispatchLobby = () => {
           ))}
         </div>
 
-        {/* â”€â”€â”€ Error state â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+        {/* --- Error state --- */}
         {error && (
           <div className="flex items-center gap-2 text-amber-400 text-xs">
             <Bell className="w-4 h-4 animate-pulse" />
@@ -655,33 +668,70 @@ export const DispatchLobby = () => {
           </div>
         )}
 
-        {/* â”€â”€â”€ Cancel â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
-        {!photographerAccepted && (
-          <button
-            onClick={async () => {
-              try {
-                await apiClient.post(
-                  `/dispatch/${dispatchId}/cancel?user_id=${user.id}`,
-                  { reason: 'User cancelled from lobby' }
-                );
-                toast.info('Session cancelled');
-                navigate('/feed');
-              } catch {
-                toast.error('Failed to cancel â€” contact support');
-              }
-            }}
-            className={`w-full text-center text-sm py-3 rounded-xl border transition-colors ${
+        {/* --- Go to Bookings + Cancel --- */}
+        <div className="space-y-3 pt-2">
+          {/* Primary: Go back to Bookings */}
+          <Button
+            onClick={() => navigate('/bookings')}
+            className={`w-full py-4 rounded-xl font-bold ${
               isLight
-                ? 'border-gray-200 text-gray-400 hover:text-red-500 hover:border-red-300'
-                : 'border-zinc-700 text-zinc-500 hover:text-red-400 hover:border-red-500/40'
+                ? 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+                : 'bg-zinc-800 hover:bg-zinc-700 text-white'
             }`}
           >
-            <X className="w-4 h-4 inline mr-1" /> Cancel Session
-          </button>
-        )}
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Go to Bookings
+          </Button>
+          <p className={`text-xs ${textSecondary} text-center`}>
+            Your session is saved. You can check back anytime from the Bookings tab.
+          </p>
+
+          {/* Cancel with confirmation */}
+          {!photographerAccepted && !showCancelConfirm && (
+            <button
+              onClick={() => setShowCancelConfirm(true)}
+              className={`w-full text-center text-sm py-3 rounded-xl border transition-colors ${
+                isLight
+                  ? 'border-gray-200 text-gray-400 hover:text-red-500 hover:border-red-300'
+                  : 'border-zinc-700 text-zinc-500 hover:text-red-400 hover:border-red-500/40'
+              }`}
+            >
+              <X className="w-4 h-4 inline mr-1" /> Cancel Session
+            </button>
+          )}
+
+          {/* Cancel confirmation dialog */}
+          {showCancelConfirm && (
+            <div className={`p-4 rounded-xl border-2 space-y-3 ${
+              isLight ? 'bg-red-50 border-red-200' : 'bg-red-500/10 border-red-500/30'
+            }`}>
+              <p className={`text-sm font-medium ${textPrimary} text-center`}>
+                Are you sure you want to cancel this session?
+              </p>
+              <p className={`text-xs ${textSecondary} text-center`}>
+                Your deposit will be refunded to your account credits.
+              </p>
+              <div className="flex gap-3">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowCancelConfirm(false)}
+                  className={`flex-1 ${isLight ? 'border-gray-300' : 'border-zinc-600'}`}
+                >
+                  Keep Session
+                </Button>
+                <Button
+                  onClick={handleCancelSession}
+                  className="flex-1 bg-red-500 hover:bg-red-600 text-white font-bold"
+                >
+                  Yes, Cancel
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* â”€â”€â”€ Selfie Modal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+      {/* --- Selfie Modal --- */}
       <RequestProSelfieModal
         dispatchId={dispatchId}
         isOpen={showSelfieModal}
@@ -692,7 +742,7 @@ export const DispatchLobby = () => {
         onSuccess={() => {
           setShowSelfieModal(false);
           pollDispatch();
-          toast.success('Selfie added! The photographer can now find you ðŸ¤™');
+          toast.success('Selfie added! The photographer can now find you.');
         }}
       />
     </div>

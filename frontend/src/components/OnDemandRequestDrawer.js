@@ -369,36 +369,47 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
   };
   
   // ============ CREW PAYMENT SPLIT FUNCTIONS ============
+  // Poker-table logic: total pot = 100%. Captain gets the remainder.
+  // Each crew member's slider can only go as high as (100% - sum of OTHER members' %).
   
-  const handleCrewPercentageChange = (memberId, newPercentage) => {
-    // Calculate this member's new dollar amount
-    const newAmount = (newPercentage / 100) * totalPrice;
-    
-    // Update this member, then recalculate all percentages for display consistency
+  const handleCrewPercentageChange = (memberId, requestedPercentage) => {
     setCrewMembers(prev => {
-      const updated = prev.map(m => {
+      // Calculate sum of OTHER members' percentages (excluding the one being changed)
+      const otherMembersTotal = prev.reduce((sum, m) => {
+        if (m.id === memberId || m.covered_by_captain) return sum;
+        return sum + (m.share_percentage || (100 / totalParticipants));
+      }, 0);
+      
+      // Cap: this member can take at most (100% - other members' total)
+      // This ensures captain never goes below $0
+      const maxAllowed = Math.max(0, 100 - otherMembersTotal);
+      const clampedPercentage = Math.min(requestedPercentage, maxAllowed);
+      const newAmount = (clampedPercentage / 100) * totalPrice;
+      
+      return prev.map(m => {
         if (m.id === memberId) {
-          return { ...m, share_percentage: newPercentage, share_amount: newAmount, covered_by_captain: false };
+          return { 
+            ...m, 
+            share_percentage: clampedPercentage, 
+            share_amount: newAmount, 
+            covered_by_captain: false 
+          };
         }
         return m;
       });
-      
-      // Recalculate each member's percentage based on their current share_amount
-      // so the display stays consistent
-      return updated.map(m => ({
-        ...m,
-        share_percentage: m.covered_by_captain ? 0 : ((m.share_amount || 0) / totalPrice) * 100
-      }));
     });
   };
   
   const handleToggleCoverMember = (memberId) => {
+    const equalPercentage = 100 / totalParticipants;
+    const equalAmount = (equalPercentage / 100) * totalPrice;
     setCrewMembers(prev => prev.map(m => 
       m.id === memberId 
         ? { 
             ...m, 
             covered_by_captain: !m.covered_by_captain,
-            share_amount: !m.covered_by_captain ? 0 : parseFloat(perPersonSplit)
+            share_amount: !m.covered_by_captain ? 0 : equalAmount,
+            share_percentage: !m.covered_by_captain ? 0 : equalPercentage
           }
         : m
     ));
@@ -1197,13 +1208,24 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
               </div>
               <div className="space-y-1 text-sm">
                 <div className="flex justify-between">
-                  <span className={textSecondary}>Your Share (Captain)</span>
+                  <span className={textSecondary}>Your Share (Captain) — {totalPrice > 0 ? ((captainPayAmount / totalPrice) * 100).toFixed(0) : 0}%</span>
                   <span className="font-medium text-yellow-400">${captainPayAmount.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className={textSecondary}>Crew Covers</span>
+                  <span className={textSecondary}>Crew Covers — {totalPrice > 0 ? ((crewCoversAmount / totalPrice) * 100).toFixed(0) : 0}%</span>
                   <span className={textPrimary}>${crewCoversAmount.toFixed(2)}</span>
                 </div>
+              </div>
+              {/* Visual percentage bar */}
+              <div className={`mt-2 h-2 rounded-full overflow-hidden ${isLight ? 'bg-gray-200' : 'bg-zinc-800'}`}>
+                <div 
+                  className="h-full bg-gradient-to-r from-yellow-400 to-amber-500 transition-all duration-300 rounded-full"
+                  style={{ width: `${totalPrice > 0 ? (captainPayAmount / totalPrice) * 100 : 0}%` }}
+                />
+              </div>
+              <div className="flex justify-between mt-1">
+                <span className={`text-[10px] ${textSecondary}`}>You</span>
+                <span className={`text-[10px] ${textSecondary}`}>Crew</span>
               </div>
             </div>
             
