@@ -1,10 +1,10 @@
-﻿import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
-
   X, Radio, Users, Heart, MessageCircle, Send, Loader2, WifiOff, 
-  ArrowLeft, Share2, UserPlus
+  ArrowLeft, Share2, UserPlus, Sparkles, SlidersHorizontal
 } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
@@ -29,6 +29,50 @@ import { getFullUrl } from '../utils/media';
 
 const API = process.env.REACT_APP_BACKEND_URL + '/api';
 const CONNECTION_TIMEOUT = 15000;
+
+/**
+ * Viewer Display Filter Panel - local CSS filters for viewer's display only
+ * (not applied to the stream itself - just for their local viewing experience)
+ */
+const ViewerFilterPanel = ({ filters, onFilterChange, onClose }) => (
+  <motion.div
+    initial={{ opacity: 0, x: 20 }}
+    animate={{ opacity: 1, x: 0 }}
+    exit={{ opacity: 0, x: 20 }}
+    className="absolute right-16 top-1/4 z-30 bg-zinc-900/95 backdrop-blur-md border border-zinc-700 rounded-2xl p-4 w-52 shadow-2xl"
+  >
+    <div className="flex items-center justify-between mb-3">
+      <span className="text-white text-sm font-semibold flex items-center gap-1.5">
+        <SlidersHorizontal className="w-4 h-4 text-cyan-400" />
+        View Filters
+      </span>
+      <button onClick={onClose} className="text-zinc-500 hover:text-white text-xs">✕</button>
+    </div>
+    {[
+      { key: 'brightness', label: 'Brightness', min: 50, max: 150 },
+      { key: 'contrast',   label: 'Contrast',   min: 50, max: 150 },
+      { key: 'saturation', label: 'Saturation', min: 0,  max: 200 },
+      { key: 'warmth',     label: 'Warmth',     min: 50, max: 150 },
+    ].map(({ key, label, min, max }) => (
+      <div key={key} className="mb-3">
+        <div className="flex justify-between text-xs text-zinc-400 mb-1">
+          <span>{label}</span>
+          <span className="text-cyan-400">{filters[key]}%</span>
+        </div>
+        <input
+          type="range" min={min} max={max} value={filters[key]}
+          onChange={(e) => onFilterChange(key, parseInt(e.target.value))}
+          className="w-full h-1 bg-zinc-700 rounded-full appearance-none cursor-pointer accent-cyan-400"
+        />
+      </div>
+    ))}
+    <button
+      onClick={() => { onFilterChange('brightness', 100); onFilterChange('contrast', 100); onFilterChange('saturation', 100); onFilterChange('warmth', 100); }}
+      className="w-full text-xs text-zinc-500 hover:text-zinc-300 py-1 transition-colors"
+    >Reset all</button>
+  </motion.div>
+);
+
 
 /**
  * Live Chat Message Component
@@ -174,27 +218,43 @@ const LiveComments = ({ streamId, userId, userName, userAvatar }) => {
  */
 const ViewerContent = ({ broadcaster, onLeave, viewerCount, onViewProfile, streamId, userId, userName, userAvatar }) => {
   const [isChatOpen, setIsChatOpen] = useState(true);
+  const [showFilters, setShowFilters] = useState(false);
+  const [viewFilters, setViewFilters] = useState({ brightness: 100, contrast: 100, saturation: 100, warmth: 100 });
   const tracks = useTracks([Track.Source.Camera], { onlySubscribed: true });
   
   // Find broadcaster's video track
   const broadcasterTrack = tracks.find(t => !t.participant?.isLocal);
+
+  const handleFilterChange = (key, value) => setViewFilters(prev => ({ ...prev, [key]: value }));
+
+  // Build CSS filter string from viewer filter values
+  const videoFilterStyle = useMemo(() => {
+    const warmthDeg = (viewFilters.warmth - 100) * 0.5;
+    return {
+      filter: `brightness(${viewFilters.brightness}%) contrast(${viewFilters.contrast}%) saturate(${viewFilters.saturation}%) hue-rotate(${warmthDeg}deg)`,
+      width: '100%', height: '100%', position: 'relative'
+    };
+  }, [viewFilters]);
 
   return (
     <div className="absolute inset-0 flex flex-col sm:flex-row overflow-hidden">
       {/* ── Main Video Section ── */}
       <div className="flex-1 relative bg-black flex flex-col min-w-0">
         <div className="flex-1 relative overflow-hidden flex items-center justify-center">
-          {broadcasterTrack ? (
-            <VideoTrack 
-              trackRef={broadcasterTrack} 
-              className="max-w-full max-h-full object-contain"
-            />
-          ) : (
-            <div className="text-center">
-              <Loader2 className="w-12 h-12 animate-spin text-red-500 mx-auto mb-4" />
-              <p className="text-gray-400">Waiting for video...</p>
-            </div>
-          )}
+          {/* Video with viewer-side CSS filters applied */}
+          <div style={videoFilterStyle} className="flex items-center justify-center">
+            {broadcasterTrack ? (
+              <VideoTrack 
+                trackRef={broadcasterTrack} 
+                className="max-w-full max-h-full object-contain"
+              />
+            ) : (
+              <div className="text-center">
+                <Loader2 className="w-12 h-12 animate-spin text-red-500 mx-auto mb-4" />
+                <p className="text-gray-400">Waiting for video...</p>
+              </div>
+            )}
+          </div>
 
           {/* Top overlay - Static indicators */}
           <div className="absolute top-0 left-0 right-0 p-4 flex items-center justify-between bg-gradient-to-b from-black/80 to-transparent z-10">
@@ -224,6 +284,15 @@ const ViewerContent = ({ broadcaster, onLeave, viewerCount, onViewProfile, strea
             </div>
 
             <div className="flex items-center gap-2">
+              {/* View Filters Toggle */}
+              <button
+                onClick={() => setShowFilters(!showFilters)}
+                className={`p-2 rounded-full transition-all ${showFilters ? 'bg-cyan-500/30 text-cyan-400' : 'bg-black/40 text-white hover:bg-black/60'}`}
+                title="View Filters"
+              >
+                <Sparkles className="w-5 h-5" />
+              </button>
+
               {/* Desktop Toggle Chat */}
               <button
                 onClick={() => setIsChatOpen(!isChatOpen)}
@@ -242,6 +311,17 @@ const ViewerContent = ({ broadcaster, onLeave, viewerCount, onViewProfile, strea
               </button>
             </div>
           </div>
+
+          {/* Viewer Filter Panel */}
+          <AnimatePresence>
+            {showFilters && (
+              <ViewerFilterPanel
+                filters={viewFilters}
+                onFilterChange={handleFilterChange}
+                onClose={() => setShowFilters(false)}
+              />
+            )}
+          </AnimatePresence>
 
           {/* Bottom Bar Controls for Viewers */}
           <div className="absolute bottom-4 left-0 right-0 px-6 flex items-center justify-between pointer-events-none z-10">
@@ -310,6 +390,7 @@ const ViewerContent = ({ broadcaster, onLeave, viewerCount, onViewProfile, strea
 const ViewerControls = (props) => {
   return <ViewerContent {...props} />;
 };
+
 
 /**
  * Stream Unavailable Fallback
