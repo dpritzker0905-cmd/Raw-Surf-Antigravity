@@ -621,9 +621,8 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
         hideCloseButton={step === 'waiting'}
       >
         <DialogTitle className="sr-only">On-Demand Session Booking</DialogTitle>
-        {/* Scrollable content area — fills bottom-sheet, padded so sticky footer never overlaps */}
-        <div className="overflow-y-auto pb-[88px] overscroll-contain"
-             style={{ WebkitOverflowScrolling: 'touch', maxHeight: 'calc(100dvh - 56px - env(safe-area-inset-bottom, 0px))' }}>
+        {/* Scrollable content area — uses modal-body flex class from index.css */}
+        <div className="modal-body pb-[88px]">
         {/* ============ STEP 0: START TIME SELECTION ============ */}
         {step === 'timing' && (
           <div className="p-4 sm:p-6 space-y-5">

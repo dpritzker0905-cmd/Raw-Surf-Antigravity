@@ -126,6 +126,25 @@ async def ensure_database_tables():
         else:
             logger.info("[DB Migration] ✓ All columns present - schema is up to date")
 
+        # ── STEP 3: Widen specific column types that are too narrow ──────────
+        # Check and widen avatar_url from VARCHAR(500) to TEXT.
+        # VARCHAR(500) cannot store a compressed base64 avatar (~110,000 chars).
+        type_result = await conn.execute(
+            text(
+                "SELECT data_type, character_maximum_length "
+                "FROM information_schema.columns "
+                "WHERE table_name='profiles' AND column_name='avatar_url'"
+            )
+        )
+        avatar_col = type_result.fetchone()
+        if avatar_col and avatar_col[0] == 'character varying':
+            await conn.execute(
+                text("ALTER TABLE profiles ALTER COLUMN avatar_url TYPE TEXT")
+            )
+            logger.info("[DB Migration] ✓ Widened profiles.avatar_url: VARCHAR(500) → TEXT")
+        else:
+            logger.info("[DB Migration] ✓ profiles.avatar_url already TEXT or absent")
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):

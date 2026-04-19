@@ -119,7 +119,7 @@ class Profile(Base):
     parental_controls = Column(JSON, nullable=True)
     
     bio = Column(Text, nullable=True)
-    avatar_url = Column(String(500), nullable=True)
+    avatar_url = Column(Text, nullable=True)  # Text to support base64 data URLs (~110KB)
     is_verified = Column(Boolean, default=False)
     is_live = Column(Boolean, default=False)
     is_private = Column(Boolean, default=False)

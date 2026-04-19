@@ -248,14 +248,14 @@ async def update_profile(profile_id: str, data: ProfileUpdate, db: AsyncSession 
     if 'avatar_url' in update_data and update_data['avatar_url']:
         avatar_data = update_data['avatar_url']
         if avatar_data.startswith('data:image'):
-            # Validate it's a real base64 image (not just garbage) 
+            # Validate it's a real base64 image
             try:
                 header, base64_str = avatar_data.split(',', 1)
-                # Sanity check: decode just enough to validate
+                # Validate format (68 chars = multiple of 4, safe for padding check)
                 import base64 as b64_module
-                b64_module.b64decode(base64_str[:64])  # Validates encoding
+                b64_module.b64decode(base64_str[:68], validate=False)
                 # Keep the full data URL as-is in the DB — persistent across deploys
-                # Frontend getFullUrl() handles both /api/uploads/... and data: URLs
+                # getFullUrl() on the frontend already handles data: URLs transparently
                 update_data['avatar_url'] = avatar_data
             except Exception as e:
                 raise HTTPException(status_code=400, detail=f"Invalid image data: {str(e)}")
