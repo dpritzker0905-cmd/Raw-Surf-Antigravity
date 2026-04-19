@@ -1,10 +1,11 @@
-﻿import React, { useState, useRef } from 'react';
+import React, { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
-import apiClient, { BACKEND_URL } from '../lib/apiClient';
+import apiClient from '../lib/apiClient';
+import { getFullUrl } from '../utils/media';
 import { Users, MapPin, Clock, Camera, CreditCard, Wallet, 
-  Plus, Check, Loader2, ChevronRight, Zap, AlertCircle
+  Plus, Check, Loader2, ChevronRight, Zap, AlertCircle, ExternalLink
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogTitle } from './ui/dialog';
 import { Button } from './ui/button';
@@ -111,7 +112,6 @@ export const CrewPaymentModal = ({
   
   const handleAddCredits = () => {
     onClose();
-    // Navigate to credits page with return URL that will re-open the modal
     navigate('/credits', { 
       state: { 
         returnTo: '/bookings?tab=scheduled',
@@ -121,6 +121,30 @@ export const CrewPaymentModal = ({
         reason: 'crew_session_payment'
       }
     });
+  };
+
+  const handlePayWithCard = async () => {
+    setLoading(true);
+    try {
+      const response = await apiClient.post(
+        `/dispatch/crew-invite/${invite.id}/checkout?payer_id=${user.id}`,
+        {
+          selfie_url: selfieUrl,
+          origin_url: window.location.origin
+        }
+      );
+      if (response.data.checkout_url) {
+        toast.info('Redirecting to secure payment...');
+        window.location.href = response.data.checkout_url;
+      } else {
+        throw new Error('No checkout URL returned');
+      }
+    } catch (error) {
+      const message = error.response?.data?.detail || 'Failed to create payment session';
+      toast.error(message);
+    } finally {
+      setLoading(false);
+    }
   };
   
   if (!invite) return null;
@@ -403,6 +427,33 @@ export const CrewPaymentModal = ({
               )}
             </div>
             
+            {/* Pay with Card — direct Stripe checkout */}
+            <div className={`p-4 rounded-xl border-2 ${isLight ? 'border-gray-200' : 'border-zinc-700'}`}>
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-10 h-10 rounded-full bg-indigo-500/20 flex items-center justify-center">
+                  <CreditCard className="w-5 h-5 text-indigo-400" />
+                </div>
+                <div className="flex-1">
+                  <p className={`font-medium ${textPrimary}`}>Pay with Card</p>
+                  <p className={`text-sm ${textSecondary}`}>Debit or credit card via Stripe</p>
+                </div>
+              </div>
+              <Button
+                onClick={handlePayWithCard}
+                disabled={loading}
+                className="w-full py-5 bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-600 hover:to-purple-600 text-white font-bold rounded-xl"
+              >
+                {loading ? (
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                ) : (
+                  <>
+                    <ExternalLink className="w-5 h-5 mr-2" />
+                    Pay ${shareAmount.toFixed(2)} with Card
+                  </>
+                )}
+              </Button>
+            </div>
+
             {/* Add Credits Option */}
             <div className={`p-4 rounded-xl border-2 ${isLight ? 'border-gray-200' : 'border-zinc-700'}`}>
               <div className="flex items-center gap-3 mb-3">
@@ -410,8 +461,8 @@ export const CrewPaymentModal = ({
                   <Plus className="w-5 h-5 text-cyan-400" />
                 </div>
                 <div>
-                  <p className={`font-medium ${textPrimary}`}>Add Credits</p>
-                  <p className={`text-sm ${textSecondary}`}>Pay with card to add credits</p>
+                  <p className={`font-medium ${textPrimary}`}>Add Credits Instead</p>
+                  <p className={`text-sm ${textSecondary}`}>Top up wallet, then pay from balance</p>
                 </div>
               </div>
               

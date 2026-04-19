@@ -2383,6 +2383,109 @@ async def pay_crew_share(
     }
 
 
+class CrewCheckoutRequest(BaseModel):
+    selfie_url: Optional[str] = None
+    origin_url: str = "https://dev--rawsurf.netlify.app"
+
+
+@router.post("/crew-invite/{participant_id}/checkout")
+async def crew_invite_checkout(
+    participant_id: str,
+    payer_id: str,
+    checkout_data: CrewCheckoutRequest,
+    db: AsyncSession = Depends(get_db)\
+):
+    """
+    Create a Stripe Checkout session for a crew member to pay their share by card.
+    On payment success, the Stripe webhook marks the participant as paid.
+    """
+    import stripe as _stripe
+    import os
+
+    # Resolve participant
+    result = await db.execute(
+        select(DispatchRequestParticipant)
+        .where(DispatchRequestParticipant.id == participant_id)
+        .options(selectinload(DispatchRequestParticipant.dispatch_request))
+    )
+    participant = result.scalar_one_or_none()
+
+    if not participant:
+        raise HTTPException(status_code=404, detail="Invite not found")
+    if participant.participant_id != payer_id:
+        raise HTTPException(status_code=403, detail="You can only pay for your own share")
+    if participant.status == 'paid':
+        raise HTTPException(status_code=400, detail="Already paid")
+
+    dispatch = participant.dispatch_request
+    if dispatch.status in [DispatchRequestStatusEnum.COMPLETED, DispatchRequestStatusEnum.CANCELLED]:
+        raise HTTPException(status_code=400, detail="Session is no longer active")
+
+    # Get payer profile for metadata
+    payer_result = await db.execute(select(Profile).where(Profile.id == payer_id))
+    payer = payer_result.scalar_one_or_none()
+    if not payer:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # Store selfie if supplied before redirect
+    if checkout_data.selfie_url and not participant.selfie_url:
+        participant.selfie_url = checkout_data.selfie_url
+        await db.commit()
+
+    # Create Stripe Checkout session
+    stripe_key = (
+        os.environ.get("STRIPE_API_KEY") or
+        os.environ.get("STRIPE_SECRET_KEY") or
+        "sk_test_Ee0EXjPggntbOEG89DFJiUT4"
+    )
+    # Guard: never use live key
+    if stripe_key.startswith("sk_live_"):
+        stripe_key = "sk_test_Ee0EXjPggntbOEG89DFJiUT4"
+
+    _stripe.api_key = stripe_key
+
+    amount_cents = int(participant.share_amount * 100)
+    origin = checkout_data.origin_url.rstrip("/")
+
+    try:
+        session = _stripe.checkout.Session.create(
+            payment_method_types=["card"],
+            line_items=[{
+                "price_data": {
+                    "currency": "usd",
+                    "product_data": {
+                        "name": f"Crew Session Share — {dispatch.location_name or 'On-Demand'}",
+                        "description": (
+                            f"Your share of a {dispatch.estimated_duration_hours}h surf session "
+                            f"with captain {payer.full_name or 'Unknown'}"
+                        ),
+                    },
+                    "unit_amount": amount_cents,
+                },
+                "quantity": 1,
+            }],
+            mode="payment",
+            success_url=f"{origin}/bookings?tab=scheduled&crew_paid=1&participant={participant_id}",
+            cancel_url=f"{origin}/bookings?tab=scheduled&crew_cancelled=1",
+            metadata={
+                "type": "crew_share",
+                "participant_id": participant_id,
+                "dispatch_id": dispatch.id,
+                "payer_id": payer_id,
+                "payer_name": payer.full_name or "",
+                "payer_username": payer.username or "",
+                "payer_avatar_url": payer.avatar_url or "",
+                "share_amount": str(participant.share_amount),
+            },
+            customer_email=payer.email if hasattr(payer, "email") else None,
+        )
+    except Exception as e:
+        logger.error(f"[CrewCheckout] Stripe error: {e}")
+        raise HTTPException(status_code=500, detail=f"Payment session failed: {str(e)}")
+
+    return {"checkout_url": session.url, "session_id": session.id}
+
+
 
 async def get_pending_dispatch_requests_for_map(
     db: AsyncSession = Depends(get_db)

@@ -181,38 +181,84 @@ async def stripe_webhook(request: Request):
         if event.get('type') == 'checkout.session.completed':
             session = event['data']['object']
             session_id = session.get('id')
-            
-            # Handle in separate session
+            metadata = session.get('metadata', {})
+
             from database import async_session_maker
-            async with async_session_maker() as db:
-                result = await db.execute(
-                    select(PaymentTransaction).where(PaymentTransaction.session_id == session_id)
-                )
-                transaction = result.scalar_one_or_none()
-                
-                if transaction and transaction.payment_status != 'completed':
-                    transaction.payment_status = 'completed'
-                    transaction.status = 'completed'
+
+            # ── Crew share card payment ──────────────────────────────────────────
+            if metadata.get('type') == 'crew_share':
+                participant_id = metadata.get('participant_id')
+                payer_id = metadata.get('payer_id')
+                logger.info(f"[Webhook] crew_share payment: participant={participant_id} payer={payer_id}")
+                if participant_id and payer_id:
+                    from models import DispatchRequestParticipant, DispatchRequest
+                    from sqlalchemy import select as sa_select
+                    from sqlalchemy.orm import selectinload as sa_load
+                    from datetime import datetime, timezone
+
+                    async with async_session_maker() as db:
+                        p_result = await db.execute(
+                            sa_select(DispatchRequestParticipant)
+                            .where(DispatchRequestParticipant.id == participant_id)
+                            .options(sa_load(DispatchRequestParticipant.dispatch_request))
+                        )
+                        participant = p_result.scalar_one_or_none()
+                        if participant and not participant.paid:
+                            participant.status = 'paid'
+                            participant.paid = True
+                            participant.paid_at = datetime.now(timezone.utc)
+                            participant.payer_name = metadata.get('payer_name', '')
+                            participant.payer_username = metadata.get('payer_username', '')
+                            participant.payer_avatar_url = metadata.get('payer_avatar_url', '')
+                            # Check if all crew paid → mark dispatch fully funded
+                            dispatch = participant.dispatch_request
+                            if dispatch:
+                                all_p_result = await db.execute(
+                                    sa_select(DispatchRequestParticipant)
+                                    .where(DispatchRequestParticipant.dispatch_request_id == dispatch.id)
+                                )
+                                all_ps = all_p_result.scalars().all()
+                                paid_count = sum(
+                                    1 for p in all_ps
+                                    if p.paid or p.id == participant_id
+                                )
+                                if paid_count >= len(all_ps) and dispatch.deposit_paid:
+                                    dispatch.all_participants_paid = True
+                                    dispatch.all_participants_paid_at = datetime.now(timezone.utc)
+                            await db.commit()
+                            logger.info(f"[Webhook] crew_share paid: participant {participant_id}")
+
+            # ── Standard credit purchase / subscription ──────────────────────────
+            else:
+                async with async_session_maker() as db:
+                    result = await db.execute(
+                        select(PaymentTransaction).where(PaymentTransaction.session_id == session_id)
+                    )
+                    transaction = result.scalar_one_or_none()
                     
-                    metadata = json.loads(transaction.transaction_metadata) if transaction.transaction_metadata else {}
-                    
-                    if 'credits' in metadata:
-                        credits_to_add = int(metadata.get('credits', 0))
-                        if credits_to_add > 0:
+                    if transaction and transaction.payment_status != 'completed':
+                        transaction.payment_status = 'completed'
+                        transaction.status = 'completed'
+                        
+                        tx_metadata = json.loads(transaction.transaction_metadata) if transaction.transaction_metadata else {}
+                        
+                        if 'credits' in tx_metadata:
+                            credits_to_add = int(tx_metadata.get('credits', 0))
+                            if credits_to_add > 0:
+                                profile_result = await db.execute(select(Profile).where(Profile.id == transaction.user_id))
+                                profile = profile_result.scalar_one_or_none()
+                                if profile:
+                                    profile.credit_balance = (profile.credit_balance or 0) + credits_to_add
+                        
+                        elif 'tier_name' in tx_metadata:
+                            tier_name = tx_metadata.get('tier_name', 'basic')
                             profile_result = await db.execute(select(Profile).where(Profile.id == transaction.user_id))
                             profile = profile_result.scalar_one_or_none()
                             if profile:
-                                profile.credit_balance = (profile.credit_balance or 0) + credits_to_add
-                    
-                    elif 'tier_name' in metadata:
-                        tier_name = metadata.get('tier_name', 'basic')
-                        profile_result = await db.execute(select(Profile).where(Profile.id == transaction.user_id))
-                        profile = profile_result.scalar_one_or_none()
-                        if profile:
-                            profile.subscription_tier = tier_name
-                    
-                    await db.commit()
-                    logger.info(f"Webhook processed: session {session_id} marked as completed")
+                                profile.subscription_tier = tier_name
+                        
+                        await db.commit()
+                        logger.info(f"Webhook processed: session {session_id} marked as completed")
         
         return {"status": "received"}
         
