@@ -383,7 +383,9 @@ export const NotificationsDrawer = ({ isOpen, onClose, onCountUpdate }) => {
           })}
         </div>
 
-        {/* ── Notification List ── */}
+        {/* ── Notification List — no arbitrary cap, natural scroll ── */}
+        {/* Best practice: show all items, let overflow-y-auto + max-h handle it */}
+        {/* "View All" footer still available for full-page experience */}
         <div className="overflow-y-auto flex-1 space-y-1.5 px-3 pb-2 min-h-0">
           {loading ? (
             <div className="flex items-center justify-center py-12">
@@ -392,19 +394,15 @@ export const NotificationsDrawer = ({ isOpen, onClose, onCountUpdate }) => {
           ) : filteredNotifications.length === 0 ? (
             <div className="text-center py-12">
               <Bell className={`w-10 h-10 ${colors.emptyIcon} mx-auto mb-3`} />
-              <p className={`${colors.emptyText} text-sm`}>No notifications</p>
+              <p className={`${colors.emptyText} text-sm font-medium`}>
+                {activeTab === 'all' ? 'No notifications yet' : `No ${activeTab} notifications`}
+              </p>
+              <p className={`${colors.subtext} text-xs mt-1`}>We'll let you know when something happens</p>
             </div>
           ) : (
-            <>
-              {filteredNotifications.slice(0, 10).map(notification => (
-                <NotificationItem key={notification.id} notification={notification} />
-              ))}
-              {filteredNotifications.length > 10 && (
-                <p className={`text-center text-xs ${colors.subtext} py-2`}>
-                  +{filteredNotifications.length - 10} more notifications
-                </p>
-              )}
-            </>
+            filteredNotifications.map(notification => (
+              <NotificationItem key={notification.id} notification={notification} />
+            ))
           )}
         </div>
 
