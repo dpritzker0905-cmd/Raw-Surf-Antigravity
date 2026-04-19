@@ -342,7 +342,7 @@ async def get_feed(limit: int = 50, user_id: Optional[str] = Query(None), db: As
                 user_id=r.user_id,
                 user_name=r.user.full_name if r.user else None,
                 avatar_url=r.user.avatar_url if r.user else None,
-                user_role=r.user.role if r.user else None
+                user_role=r.user.role.value if (r.user and r.user.role) else None
             ) for r in p.reactions
         ]
         
@@ -352,7 +352,7 @@ async def get_feed(limit: int = 50, user_id: Optional[str] = Query(None), db: As
                 user_id=like.user_id,
                 user_name=like.user.full_name if getattr(like, 'user', None) else None,
                 avatar_url=like.user.avatar_url if getattr(like, 'user', None) else None,
-                user_role=like.user.role if getattr(like, 'user', None) else None
+                user_role=like.user.role.value if (getattr(like, "user", None) and like.user.role) else None
             ))
         
         # Get accepted collaborators
@@ -437,6 +437,8 @@ async def get_feed(limit: int = 50, user_id: Optional[str] = Query(None), db: As
             collaborator_count=len(accepted_collaborators),
             # Check-in fields
             is_check_in=p.is_check_in or False,
+            check_in_spot_name=getattr(p, 'check_in_spot_name', None),
+            check_in_conditions=getattr(p, 'check_in_conditions', None),
             # Session Log fields
             is_session_log=p.is_session_log or False,
             session_invite_open=p.session_invite_open or False,
@@ -588,7 +590,7 @@ async def get_single_post(
             user_id=r.user_id,
             user_name=r.user.full_name if r.user else None,
             avatar_url=r.user.avatar_url if r.user else None,
-            user_role=r.user.role if r.user else None
+            user_role=r.user.role.value if (r.user and r.user.role) else None
         ) for r in post.reactions
     ]
     
@@ -598,7 +600,7 @@ async def get_single_post(
             user_id=like.user_id,
             user_name=like.user.full_name if getattr(like, 'user', None) else None,
             avatar_url=like.user.avatar_url if getattr(like, 'user', None) else None,
-            user_role=like.user.role if getattr(like, 'user', None) else None
+            user_role=like.user.role.value if (getattr(like, "user", None) and like.user.role) else None
         ))
     
     # Get accepted collaborators
