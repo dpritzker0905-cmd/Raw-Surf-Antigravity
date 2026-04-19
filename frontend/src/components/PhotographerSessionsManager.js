@@ -620,67 +620,62 @@ export const PhotographerSessionsManager = () => {
     setGoLiveLoading(true);
 
     try {
-      // Request Camera for session selfie (optional)
-      setDebugInfo(prev => ({ ...prev, permissionStep: 'camera' }));
-
-      try {
-        await requestCameraPermission();
-        setTimeout(() => stopCameraStream(), 2000);
-      } catch (_camError) {
-        logger.warn('Camera access denied, continuing without selfie');
-      }
-
       setDebugInfo(prev => ({ ...prev, permissionStep: 'ready' }));
 
       const selectedSpot = surfSpots.find(s => s.id === sessionSettings.surf_spot_id);
 
-      // ─── STEP A: Upload conditions media as multipart file (avoids large JSON body) ───
+      // ─── STEP A: Upload conditions media (multipart — avoids large JSON body) ───
       let conditionMediaUrl = null;
       let conditionMediaType = null;
       if (conditionsData.media) {
         try {
-          toast.info('Uploading conditions photo…', { duration: 2000 });
+          toast.info('Uploading conditions photo…', { id: 'cond-upload', duration: 8000 });
           const fd = new FormData();
-          // Name the file appropriately so the server can detect type
           const ext = conditionsData.mediaType === 'video' ? 'webm' : 'jpg';
           fd.append('file', conditionsData.media, `conditions.${ext}`);
           fd.append('user_id', user?.id);
+          // ⚠️ Do NOT set Content-Type manually — browser must set it with boundary
           const uploadRes = await apiClient.post('/upload/conditions', fd, {
-            headers: { 'Content-Type': 'multipart/form-data' }
+            headers: { 'Content-Type': undefined },
+            timeout: 60000
           });
           conditionMediaUrl = uploadRes.data.media_url;
           conditionMediaType = uploadRes.data.media_type;
+          toast.dismiss('cond-upload');
           logger.debug('[GoLive] conditions media uploaded:', conditionMediaUrl);
         } catch (uploadErr) {
-          // Non-fatal: log it, but still allow go-live without media
+          // Non-fatal: still allow go-live without media
+          toast.dismiss('cond-upload');
           logger.warn('[GoLive] Conditions media upload failed (non-fatal):', uploadErr);
         }
       }
 
-      // ─── STEP B: Go Live (small JSON body — just send the URL, not the file) ───
-      const response = await apiClient.post(`/photographer/${user?.id}/go-live`, {
-        ...sessionSettings,
-        location: selectedSpot?.name || sessionSettings.location,
-        spot_id: sessionSettings.surf_spot_id,
-        latitude: debugInfo.latitude,
-        longitude: debugInfo.longitude,
-        live_photo_price: sessionSettings.live_photo_price,
-        photos_included: sessionSettings.photos_included,
-        general_photo_price: sessionSettings.general_photo_price,
-        estimated_duration: sessionSettings.estimated_duration,
-        spot_notes: conditionsData.spotNotes || '',
-        // Pre-uploaded conditions media URL (preferred over base64)
-        condition_media_url: conditionMediaUrl,
-        condition_media_type: conditionMediaType,
-        // Resolution-based pricing
-        photo_price_web: sessionSettings.photo_price_web,
-        photo_price_standard: sessionSettings.photo_price_standard,
-        photo_price_high: sessionSettings.photo_price_high,
-        // Earnings destination for Hobbyists
-        earnings_destination_type: sessionSettings.earnings_destination_type,
-        earnings_destination_id: sessionSettings.earnings_destination_id,
-        earnings_cause_name: sessionSettings.earnings_cause_name
-      });
+      // ─── STEP B: Go Live — small JSON payload (no media bytes inline) ───
+      // 120s timeout: Render free tier cold starts can take 30-60s
+      const response = await apiClient.post(
+        `/photographer/${user?.id}/go-live`,
+        {
+          ...sessionSettings,
+          location: selectedSpot?.name || sessionSettings.location,
+          spot_id: sessionSettings.surf_spot_id,
+          latitude: debugInfo.latitude,
+          longitude: debugInfo.longitude,
+          live_photo_price: sessionSettings.live_photo_price,
+          photos_included: sessionSettings.photos_included,
+          general_photo_price: sessionSettings.general_photo_price,
+          estimated_duration: sessionSettings.estimated_duration,
+          spot_notes: conditionsData.spotNotes || '',
+          condition_media_url: conditionMediaUrl,
+          condition_media_type: conditionMediaType,
+          photo_price_web: sessionSettings.photo_price_web,
+          photo_price_standard: sessionSettings.photo_price_standard,
+          photo_price_high: sessionSettings.photo_price_high,
+          earnings_destination_type: sessionSettings.earnings_destination_type,
+          earnings_destination_id: sessionSettings.earnings_destination_id,
+          earnings_cause_name: sessionSettings.earnings_cause_name
+        },
+        { timeout: 120000 }
+      );
 
       setIsLive(true);
       setCurrentSession({
@@ -703,7 +698,17 @@ export const PhotographerSessionsManager = () => {
       toast.success('You are now live! Surfers can find you on the map.');
     } catch (error) {
       logger.error('[GoLive] Failed to start session:', error);
-      const detail = error.response?.data?.detail || error.message || 'Failed to start session';
+      // Distinguish timeout / network-level errors from server errors
+      const isTimeout = error.code === 'ECONNABORTED' || error.message?.includes('timeout');
+      const isNetwork = !error.response && !isTimeout;
+      let detail;
+      if (isTimeout) {
+        detail = 'Server is warming up — please wait a moment and try again.';
+      } else if (isNetwork) {
+        detail = 'Network error — check your connection and try again.';
+      } else {
+        detail = error.response?.data?.detail || error.message || 'Failed to start session';
+      }
       toast.error(detail);
       setDebugInfo(prev => ({ ...prev, permissionStep: 'idle' }));
     } finally {
