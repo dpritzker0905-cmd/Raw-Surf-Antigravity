@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
@@ -1521,7 +1521,13 @@ export const Explore = () => {
               {conditionReports.map((report) => (
                 <div
                   key={report.id}
-                  onClick={() => navigate(`/profile/${report.photographer_id}`)}
+                  onClick={() => {
+                    if (report.spot_id) {
+                      navigate(`/spot-hub/${report.spot_id}`);
+                    } else {
+                      navigate(`/profile/${report.photographer_id}`);
+                    }
+                  }}
                   className="flex items-center gap-4 p-4 bg-muted/50 hover:bg-zinc-700/50 rounded-xl cursor-pointer transition-colors group"
                   data-testid={`condition-report-${report.id}`}
                 >

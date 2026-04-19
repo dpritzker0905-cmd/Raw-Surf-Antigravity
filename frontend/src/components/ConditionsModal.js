@@ -39,7 +39,8 @@ const ConditionsModal = ({
   const [_uploadMode, setUploadMode] = useState('capture'); // 'capture' | 'upload'
   
   // Refs
-  const videoRef = useRef(null);
+  const videoRef = useRef(null);         // Live camera feed
+  const previewVideoRef = useRef(null);  // Recorded video preview (separate from live feed)
   const streamRef = useRef(null);
   const mediaRecorderRef = useRef(null);
   const recordedChunksRef = useRef([]);
@@ -53,18 +54,32 @@ const ConditionsModal = ({
     return () => stopCamera();
   }, []);
 
+  // When modal opens/closes, stop camera
   useEffect(() => {
     if (!isOpen) {
       stopCamera();
-      // Reset state when modal closes
-      setConditionMedia(null);
       setMediaPreview(null);
       setMediaType(null);
+      setConditionMedia(null);
       setSpotNotes('');
       setCameraActive(false);
       setUploadMode('capture');
     }
   }, [isOpen]);
+
+  // Set src on the preview <video> element imperatively to avoid srcObject conflicts.
+  // If we use the same videoRef for live feed and preview, the browser may keep
+  // the last srcObject (stopped stream) and show black instead of the blob URL.
+  useEffect(() => {
+    if (mediaType === 'video' && mediaPreview && previewVideoRef.current) {
+      const vid = previewVideoRef.current;
+      // Clear any stale srcObject first
+      vid.srcObject = null;
+      vid.src = mediaPreview;
+      vid.load();
+      vid.play().catch(() => {}); // auto-play (muted not required for recorded blobs)
+    }
+  }, [mediaType, mediaPreview]);
 
   // Camera functions
   const startCamera = async (mode = 'photo', facing = cameraFacing) => {
@@ -302,7 +317,8 @@ const ConditionsModal = ({
   };
 
   // Handle confirm
-  const handleConfirm = () => {
+  const handleConfirm = (e) => {
+    e.preventDefault();
     if (!conditionMedia) {
       toast.error('Please add a condition photo or video first');
       return;
@@ -371,9 +387,12 @@ const ConditionsModal = ({
               <div className="relative aspect-video bg-black rounded-xl overflow-hidden">
                 {mediaType === 'video' ? (
                   <video 
-                    src={mediaPreview} 
+                    ref={previewVideoRef}
                     className="w-full h-full object-cover" 
                     controls
+                    playsInline
+                    autoPlay
+                    muted={false}
                     data-testid="media-preview-video"
                   />
                 ) : (
