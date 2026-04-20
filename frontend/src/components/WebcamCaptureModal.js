@@ -37,30 +37,58 @@ export default function WebcamCaptureModal({ isOpen, onClose, onCapture, maxLeng
 
   const startCamera = useCallback(async () => {
     try {
+      // Stop ALL tracks from the old stream before requesting a new one
       if (stream) {
-        stream.getTracks().forEach(track => track.stop());
+        stream.getTracks().forEach(track => {
+          track.stop();
+          track.enabled = false;
+        });
+      }
+      if (videoRef.current && videoRef.current.srcObject) {
+        videoRef.current.srcObject.getTracks().forEach(t => { t.stop(); t.enabled = false; });
+        videoRef.current.srcObject = null;
       }
       
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
         throw new Error('Camera API not accessible.');
       }
 
+      // Small delay to let hardware fully release the camera
+      await new Promise(r => setTimeout(r, 200));
+
       let newStream;
       try {
+        // Use 'exact' to force the correct camera on Samsung/Android
         newStream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: { ideal: facingMode } },
+          video: { facingMode: { exact: facingMode } },
           audio: true
         });
-      } catch (audioErr) {
-        console.warn("Audio/Video simultaneous hook failed, falling back to Video only.", audioErr);
-        newStream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: { ideal: facingMode } }
-        });
+      } catch (exactErr) {
+        // Fallback 1: try 'exact' without audio
+        try {
+          newStream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: { exact: facingMode } }
+          });
+        } catch (noAudioErr) {
+          // Fallback 2: use 'ideal' (soft hint)
+          console.warn('Exact facingMode failed, falling back to ideal:', noAudioErr);
+          try {
+            newStream = await navigator.mediaDevices.getUserMedia({
+              video: { facingMode: { ideal: facingMode } },
+              audio: true
+            });
+          } catch (idealErr) {
+            newStream = await navigator.mediaDevices.getUserMedia({
+              video: { facingMode: { ideal: facingMode } }
+            });
+          }
+        }
       }
       
       setStream(newStream);
       if (videoRef.current) {
         videoRef.current.srcObject = newStream;
+        await videoRef.current.play().catch(() => {});
       }
     } catch (err) {
       console.error("Camera access error:", err);
@@ -452,8 +480,8 @@ export default function WebcamCaptureModal({ isOpen, onClose, onCapture, maxLeng
             }
           }} className="absolute inset-0 w-full h-full object-cover opacity-0 pointer-events-none z-0" />
           <canvas ref={canvasRef} className="absolute inset-0 w-full h-full object-cover z-10" />
-          {/* Hair filter canvas overlay */}
-          <canvas ref={hairCanvasRef} className="absolute inset-0 w-full h-full object-cover pointer-events-none z-[15]" />
+          {/* Hair filter canvas overlay — NO object-cover, uses display dimensions */}
+          <canvas ref={hairCanvasRef} className="absolute inset-0 w-full h-full pointer-events-none z-[15]" />
         </div>
 
         {/* Rule of Thirds */}

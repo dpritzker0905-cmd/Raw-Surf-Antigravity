@@ -40,9 +40,8 @@ export const HAIR_STYLES = {
     emoji: '🏄‍♂️',
     description: 'Long wavy blonde surfer hair',
     src: blondeFlowImg,
-    // Positioning: offsetY moves hair up/down relative to forehead, scale multiplier
-    offsetY: -0.65, // How far above forehead center
-    scaleMultiplier: 2.2, // How wide relative to face width
+    offsetY: -0.35,
+    scaleMultiplier: 1.6,
   },
   brown_dreads: {
     id: 'brown_dreads',
@@ -51,8 +50,8 @@ export const HAIR_STYLES = {
     emoji: '🌴',
     description: 'Thick brown dreadlocks',
     src: brownDreadsImg,
-    offsetY: -0.6,
-    scaleMultiplier: 2.4,
+    offsetY: -0.30,
+    scaleMultiplier: 1.7,
   },
   messy_bun: {
     id: 'messy_bun',
@@ -61,8 +60,8 @@ export const HAIR_STYLES = {
     emoji: '🤙',
     description: 'Dark hair in messy top bun',
     src: messyBunImg,
-    offsetY: -0.8,
-    scaleMultiplier: 1.8,
+    offsetY: -0.45,
+    scaleMultiplier: 1.4,
   },
   salt_sand: {
     id: 'salt_sand',
@@ -71,8 +70,8 @@ export const HAIR_STYLES = {
     emoji: '☀️',
     description: 'Short bleached sandy buzz',
     src: saltSandImg,
-    offsetY: -0.55,
-    scaleMultiplier: 1.6,
+    offsetY: -0.25,
+    scaleMultiplier: 1.2,
   },
   dark_shag: {
     id: 'dark_shag',
@@ -81,8 +80,8 @@ export const HAIR_STYLES = {
     emoji: '🌊',
     description: 'Medium-length dark shaggy hair',
     src: darkShagImg,
-    offsetY: -0.6,
-    scaleMultiplier: 2.0,
+    offsetY: -0.30,
+    scaleMultiplier: 1.5,
   },
   // Female styles
   beach_waves: {
@@ -92,8 +91,8 @@ export const HAIR_STYLES = {
     emoji: '🧜‍♀️',
     description: 'Long golden beach waves',
     src: beachWavesImg,
-    offsetY: -0.65,
-    scaleMultiplier: 2.4,
+    offsetY: -0.35,
+    scaleMultiplier: 1.7,
   },
   braided_crown: {
     id: 'braided_crown',
@@ -102,8 +101,8 @@ export const HAIR_STYLES = {
     emoji: '🌺',
     description: 'Fishtail crown braid',
     src: braidedCrownImg,
-    offsetY: -0.7,
-    scaleMultiplier: 2.0,
+    offsetY: -0.40,
+    scaleMultiplier: 1.5,
   },
   pink_tips: {
     id: 'pink_tips',
@@ -112,8 +111,8 @@ export const HAIR_STYLES = {
     emoji: '🌸',
     description: 'Dark roots with pink ends',
     src: pinkTipsImg,
-    offsetY: -0.6,
-    scaleMultiplier: 2.2,
+    offsetY: -0.30,
+    scaleMultiplier: 1.6,
   },
   curly_surf: {
     id: 'curly_surf',
@@ -122,8 +121,8 @@ export const HAIR_STYLES = {
     emoji: '🦱',
     description: 'Big voluminous natural curls',
     src: curlySurfImg,
-    offsetY: -0.6,
-    scaleMultiplier: 2.6,
+    offsetY: -0.30,
+    scaleMultiplier: 1.8,
   },
   platinum_bob: {
     id: 'platinum_bob',
@@ -132,13 +131,12 @@ export const HAIR_STYLES = {
     emoji: '⚡',
     description: 'Short platinum blonde bob',
     src: platinumBobImg,
-    offsetY: -0.55,
-    scaleMultiplier: 1.8,
+    offsetY: -0.25,
+    scaleMultiplier: 1.3,
   },
 };
 
 // MediaPipe Face Mesh landmark indices
-// 10 = top of forehead, 234/454 = left/right temple, 1 = nose tip
 const FOREHEAD_TOP = 10;
 const LEFT_EYE_OUTER = 234;
 const RIGHT_EYE_OUTER = 454;
@@ -147,23 +145,19 @@ const RIGHT_EYE_INNER = 362;
 
 /**
  * Loads the MediaPipe Face Mesh library from CDN
- * Returns the FaceMesh class once ready
  */
 const loadMediaPipe = () => {
   return new Promise((resolve, reject) => {
-    // Check if already loaded
     if (window.FaceMesh) {
       resolve(window.FaceMesh);
       return;
     }
 
-    // Load vision bundle
     const script = document.createElement('script');
     script.src = 'https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js';
     script.crossOrigin = 'anonymous';
     
     script.onload = () => {
-      // Also need camera utils for processing
       const script2 = document.createElement('script');
       script2.src = 'https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js';
       script2.crossOrigin = 'anonymous';
@@ -183,15 +177,59 @@ const loadMediaPipe = () => {
   });
 };
 
+/**
+ * Process a loaded image to remove checkered/white backgrounds
+ * and create real alpha transparency.
+ * AI-generated "transparent" PNGs often have a visible checkerboard baked in.
+ */
+function processImageAlpha(img) {
+  const canvas = document.createElement('canvas');
+  canvas.width = img.width;
+  canvas.height = img.height;
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(img, 0, 0);
+  
+  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const data = imageData.data;
+  
+  for (let i = 0; i < data.length; i += 4) {
+    const r = data[i];
+    const g = data[i + 1];
+    const b = data[i + 2];
+    
+    // Detect checkerboard pattern pixels: very light pixels where 
+    // all channels are close to each other (gray/white)
+    const avg = (r + g + b) / 3;
+    const maxDiff = Math.max(Math.abs(r - avg), Math.abs(g - avg), Math.abs(b - avg));
+    
+    if (avg > 200 && maxDiff < 25) {
+      // Near-white/light-gray pixel — make fully transparent
+      data[i + 3] = 0;
+    } else if (avg > 170 && maxDiff < 20) {
+      // Slightly darker gray — fade out gradually (feather edge)
+      data[i + 3] = Math.max(0, Math.round((200 - avg) * 8.5));
+    }
+  }
+  
+  ctx.putImageData(imageData, 0, 0);
+  
+  // Convert back to an Image
+  const processedImg = new window.Image();
+  processedImg.src = canvas.toDataURL('image/png');
+  return new Promise((resolve) => {
+    processedImg.onload = () => resolve(processedImg);
+    processedImg.onerror = () => resolve(img); // fallback to original
+  });
+}
+
 
 export class HairFilterEngine {
   constructor() {
     this.faceMesh = null;
-    this.activeStyle = null;  // Current HAIR_STYLES entry
-    this.hairImages = {};     // Preloaded Image objects keyed by style id
+    this.activeStyle = null;
+    this.hairImages = {};
     this.isRunning = false;
     this.animFrameId = null;
-    this.lastLandmarks = null;
     this.videoEl = null;
     this.canvasEl = null;
     this.ctx = null;
@@ -200,23 +238,18 @@ export class HairFilterEngine {
     
     // Smoothing buffer for landmark positions (reduces jitter)
     this._smoothBuffer = [];
-    this._smoothSize = 3;
+    this._smoothSize = 4;
   }
 
-  /**
-   * Initialize MediaPipe and preload all hair images
-   */
   async init() {
     if (this._initialized) return;
     if (this._initPromise) return this._initPromise;
-    
     this._initPromise = this._doInit();
     return this._initPromise;
   }
   
   async _doInit() {
     try {
-      // Load MediaPipe
       const FaceMeshClass = await loadMediaPipe();
       
       this.faceMesh = new FaceMeshClass({
@@ -230,40 +263,49 @@ export class HairFilterEngine {
         minTrackingConfidence: 0.5,
       });
       
-      // Set up results callback
       this.faceMesh.onResults((results) => {
         this._onFaceResults(results);
       });
       
-      // Preload all hair images
+      // Preload + process all hair images
       await this._preloadImages();
       
       this._initialized = true;
       logger.info('[HairFilterEngine] Initialized successfully');
     } catch (err) {
       logger.error('[HairFilterEngine] Initialization failed:', err);
-      // Don't block the app — hair filters simply won't work
       this._initialized = false;
     }
   }
   
   /**
-   * Preload all hair sprite images into Image objects
+   * Preload all hair sprite images and process them
+   * to have real alpha transparency
    */
   async _preloadImages() {
-    const loadImage = (src) => new Promise((resolve) => {
-      const img = new window.Image();
-      img.crossOrigin = 'anonymous';
-      img.onload = () => resolve(img);
-      img.onerror = () => {
-        logger.warn('[HairFilterEngine] Failed to load hair image:', src);
-        resolve(null);
-      };
-      img.src = src;
-    });
+    const loadAndProcess = async (src) => {
+      return new Promise((resolve) => {
+        const img = new window.Image();
+        img.crossOrigin = 'anonymous';
+        img.onload = async () => {
+          try {
+            // Process the alpha channel to remove checkered backgrounds
+            const processed = await processImageAlpha(img);
+            resolve(processed);
+          } catch {
+            resolve(img);
+          }
+        };
+        img.onerror = () => {
+          logger.warn('[HairFilterEngine] Failed to load hair image:', src);
+          resolve(null);
+        };
+        img.src = src;
+      });
+    };
     
     const entries = Object.entries(HAIR_STYLES);
-    const results = await Promise.all(entries.map(([id, style]) => loadImage(style.src)));
+    const results = await Promise.all(entries.map(([, style]) => loadAndProcess(style.src)));
     
     entries.forEach(([id], idx) => {
       if (results[idx]) {
@@ -274,13 +316,9 @@ export class HairFilterEngine {
     logger.info(`[HairFilterEngine] Preloaded ${Object.keys(this.hairImages).length}/${entries.length} hair images`);
   }
   
-  /**
-   * Set the active hair style (or null to disable)
-   */
   setHairStyle(styleId) {
     if (styleId === null || styleId === 'none') {
       this.activeStyle = null;
-      // Clear canvas if not running detection
       if (this.ctx && this.canvasEl) {
         this.ctx.clearRect(0, 0, this.canvasEl.width, this.canvasEl.height);
       }
@@ -292,22 +330,18 @@ export class HairFilterEngine {
       logger.warn(`[HairFilterEngine] Unknown hair style: ${styleId}`);
       return;
     }
-    
     this.activeStyle = style;
   }
   
   /**
-   * Start the hair filter engine
-   * @param {HTMLVideoElement} videoEl - The video source
-   * @param {HTMLCanvasElement} canvasEl - Canvas overlay for drawing hair
+   * Start the hair filter engine.
+   * Will wait for init if still loading.
    */
   async start(videoEl, canvasEl) {
-    // If not yet initialized, wait for init to complete
     if (!this._initialized && this._initPromise) {
       try {
         await this._initPromise;
       } catch {
-        // init failed — silently bail
         return;
       }
     }
@@ -317,50 +351,37 @@ export class HairFilterEngine {
       return;
     }
     
+    // Stop any existing loop
+    if (this.isRunning) this.stop();
+    
     this.videoEl = videoEl;
     this.canvasEl = canvasEl;
     this.ctx = canvasEl.getContext('2d');
     this.isRunning = true;
     
-    // Match canvas size to video
     this._syncCanvasSize();
-    
-    // Start the render loop
     this._tick();
     logger.info('[HairFilterEngine] Started rendering');
   }
   
-  /**
-   * Stop the engine and clean up
-   */
   stop() {
     this.isRunning = false;
-    
     if (this.animFrameId) {
       cancelAnimationFrame(this.animFrameId);
       this.animFrameId = null;
     }
-    
-    // Clear canvas
     if (this.ctx && this.canvasEl) {
       this.ctx.clearRect(0, 0, this.canvasEl.width, this.canvasEl.height);
     }
-    
-    this.lastLandmarks = null;
     this._smoothBuffer = [];
   }
   
-  /**
-   * Fully dispose the engine (call on unmount)
-   */
   dispose() {
     this.stop();
-    
     if (this.faceMesh) {
       this.faceMesh.close();
       this.faceMesh = null;
     }
-    
     this.hairImages = {};
     this._initialized = false;
     this._initPromise = null;
@@ -368,15 +389,24 @@ export class HairFilterEngine {
   
   // ─── Internal Methods ───────────────────────────────────────────
   
+  /**
+   * Sync canvas internal dimensions to its CSS display size.
+   * This avoids object-cover scaling mismatches on mobile.
+   * MediaPipe returns normalized 0-1 coords so any canvas size works.
+   */
   _syncCanvasSize() {
-    if (!this.videoEl || !this.canvasEl) return;
+    if (!this.canvasEl) return;
     
-    const vw = this.videoEl.videoWidth || this.videoEl.clientWidth;
-    const vh = this.videoEl.videoHeight || this.videoEl.clientHeight;
+    // Use CSS display dimensions, not video native resolution
+    const displayW = this.canvasEl.clientWidth || this.canvasEl.offsetWidth;
+    const displayH = this.canvasEl.clientHeight || this.canvasEl.offsetHeight;
     
-    if (this.canvasEl.width !== vw || this.canvasEl.height !== vh) {
-      this.canvasEl.width = vw;
-      this.canvasEl.height = vh;
+    if (displayW === 0 || displayH === 0) return; // not visible yet
+    
+    // Use display size directly (no DPR scaling — keeps coordinates simple)
+    if (this.canvasEl.width !== displayW || this.canvasEl.height !== displayH) {
+      this.canvasEl.width = displayW;
+      this.canvasEl.height = displayH;
     }
   }
   
@@ -386,11 +416,9 @@ export class HairFilterEngine {
     try {
       this._syncCanvasSize();
       
-      // Only run face detection when a hair style is active
       if (this.activeStyle && this.videoEl && this.videoEl.readyState >= 2) {
         await this.faceMesh.send({ image: this.videoEl });
       } else {
-        // Clear canvas when no style active
         if (this.ctx && this.canvasEl) {
           this.ctx.clearRect(0, 0, this.canvasEl.width, this.canvasEl.height);
         }
@@ -409,14 +437,12 @@ export class HairFilterEngine {
     this.ctx.clearRect(0, 0, width, height);
     
     if (!results.multiFaceLandmarks || results.multiFaceLandmarks.length === 0) {
-      this.lastLandmarks = null;
       this._smoothBuffer = [];
       return;
     }
     
     const landmarks = results.multiFaceLandmarks[0];
     
-    // Key landmark points (normalized 0-1 coordinates)
     const forehead = landmarks[FOREHEAD_TOP];
     const leftTemple = landmarks[LEFT_EYE_OUTER];
     const rightTemple = landmarks[RIGHT_EYE_OUTER];
@@ -425,33 +451,28 @@ export class HairFilterEngine {
     
     if (!forehead || !leftTemple || !rightTemple) return;
     
-    // Calculate face width from temples (in pixels)
+    // Calculate face width from temples (using CANVAS dimensions, not video)
     const faceWidth = Math.sqrt(
       Math.pow((rightTemple.x - leftTemple.x) * width, 2) +
       Math.pow((rightTemple.y - leftTemple.y) * height, 2)
     );
     
-    // Calculate center of forehead (in pixels)
     const foreheadX = forehead.x * width;
     const foreheadY = forehead.y * height;
     
-    // Calculate head tilt angle (from eye line)
     const angle = Math.atan2(
       (rightEye.y - leftEye.y) * height,
       (rightEye.x - leftEye.x) * width
     );
     
-    // Smooth the values to reduce jitter
+    // Smooth values to reduce jitter
     const current = { foreheadX, foreheadY, faceWidth, angle };
     this._smoothBuffer.push(current);
     if (this._smoothBuffer.length > this._smoothSize) {
       this._smoothBuffer.shift();
     }
     
-    const smoothed = this._getSmoothedValues();
-    
-    // Draw hair
-    this._drawHair(smoothed);
+    this._drawHair(this._getSmoothedValues());
   }
   
   _getSmoothedValues() {
@@ -480,15 +501,15 @@ export class HairFilterEngine {
     
     const ctx = this.ctx;
     
-    // Calculate hair sprite dimensions
+    // Calculate hair sprite dimensions (scaled from face width)
     const hairWidth = faceWidth * style.scaleMultiplier;
-    const hairHeight = hairWidth * (img.height / img.width); // Maintain aspect ratio
+    const hairHeight = hairWidth * (img.naturalHeight / img.naturalWidth);
     
-    // Position: center on forehead, offset upward
+    // Position: center on forehead, offset upward by proportion of faceWidth
     const drawX = foreheadX;
     const drawY = foreheadY + (faceWidth * style.offsetY);
     
-    // Draw with rotation
+    // Draw with rotation matching head tilt
     ctx.save();
     ctx.translate(drawX, drawY);
     ctx.rotate(angle);
