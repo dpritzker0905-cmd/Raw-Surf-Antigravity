@@ -36,6 +36,8 @@ export default function WebcamCaptureModal({ isOpen, onClose, onCapture, maxLeng
   const timerStartRef = useRef(null); // Track timer start time for accurate counting
   const processorRef = useRef(null);
   const streamRef = useRef(null); // REF mirror of stream — avoids stale closures on iOS
+  const compositeCanvasRef = useRef(null); // Hidden 2D canvas for compositing WebGL + hair for recording
+  const compositeRafRef = useRef(null); // rAF ID for composite render loop
 
   // ── Reliable track cleanup via refs (avoids iOS stale closure bugs) ──
   const killAllTracks = useCallback(() => {
@@ -210,7 +212,19 @@ export default function WebcamCaptureModal({ isOpen, onClose, onCapture, maxLeng
 
     if (!canvasRef.current) return;
     
-    canvasRef.current.toBlob((blob) => {
+    // Composite WebGL + hair filter onto a temporary 2D canvas for photo capture
+    const webglCanvas = canvasRef.current;
+    const hairCanvas = hairCanvasRef.current;
+    const compositeCanvas = document.createElement('canvas');
+    compositeCanvas.width = webglCanvas.width || 1080;
+    compositeCanvas.height = webglCanvas.height || 1920;
+    const ctx = compositeCanvas.getContext('2d');
+    ctx.drawImage(webglCanvas, 0, 0, compositeCanvas.width, compositeCanvas.height);
+    if (hairCanvas && hairCanvas.width > 0 && hairCanvas.height > 0) {
+      ctx.drawImage(hairCanvas, 0, 0, compositeCanvas.width, compositeCanvas.height);
+    }
+    
+    compositeCanvas.toBlob((blob) => {
       if (blob) {
         const file = new File([blob], `photo_${Date.now()}.jpg`, { type: 'image/jpeg' });
         onCapture([file]);
@@ -231,8 +245,38 @@ export default function WebcamCaptureModal({ isOpen, onClose, onCapture, maxLeng
     
     const mimeType = MediaRecorder.isTypeSupported('video/mp4') ? 'video/mp4' : 'video/webm;codecs=vp8,opus';
     
-    // Get canvas stream for filtered video
-    const capturedStream = canvasRef.current.captureStream(30);
+    // ── Composite Canvas Approach ──
+    // iOS Safari's captureStream() on WebGL canvases is unreliable.
+    // Also, hair filters live on a separate canvas overlay and aren't captured.
+    // Solution: Create a hidden 2D canvas, composite both layers each frame,
+    // and record from that 2D canvas instead.
+    const webglCanvas = canvasRef.current;
+    const hairCanvas = hairCanvasRef.current;
+    
+    // Create or reuse the composite canvas
+    if (!compositeCanvasRef.current) {
+      compositeCanvasRef.current = document.createElement('canvas');
+    }
+    const compositeCanvas = compositeCanvasRef.current;
+    compositeCanvas.width = webglCanvas.width || 1080;
+    compositeCanvas.height = webglCanvas.height || 1920;
+    const ctx = compositeCanvas.getContext('2d');
+    
+    // Start a composite render loop that draws WebGL + hair onto the 2D canvas
+    const compositeLoop = () => {
+      ctx.clearRect(0, 0, compositeCanvas.width, compositeCanvas.height);
+      // Layer 1: WebGL filtered video
+      ctx.drawImage(webglCanvas, 0, 0, compositeCanvas.width, compositeCanvas.height);
+      // Layer 2: Hair filter overlay (if active)
+      if (hairCanvas && hairCanvas.width > 0 && hairCanvas.height > 0) {
+        ctx.drawImage(hairCanvas, 0, 0, compositeCanvas.width, compositeCanvas.height);
+      }
+      compositeRafRef.current = requestAnimationFrame(compositeLoop);
+    };
+    compositeRafRef.current = requestAnimationFrame(compositeLoop);
+    
+    // Capture from the composite 2D canvas (reliable on all platforms)
+    const capturedStream = compositeCanvas.captureStream(30);
     
     // Attach audio track from camera stream
     const audioTracks = currentStream.getAudioTracks();
@@ -248,18 +292,24 @@ export default function WebcamCaptureModal({ isOpen, onClose, onCapture, maxLeng
     };
     
     mediaRecorder.onstop = () => {
-      // 1. Kill timer immediately
+      // 1. Kill composite render loop
+      if (compositeRafRef.current) {
+        cancelAnimationFrame(compositeRafRef.current);
+        compositeRafRef.current = null;
+      }
+      
+      // 2. Kill timer immediately
       if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
       
-      // 2. Build file from chunks
+      // 3. Build file from chunks
       const blob = new Blob(chunksRef.current, { type: mimeType });
       const extension = mimeType.includes('mp4') ? 'mp4' : 'webm';
       const file = new File([blob], `video_${Date.now()}.${extension}`, { type: mimeType });
       
-      // 3. CRITICAL: Kill all hardware tracks via ref (never stale)
+      // 4. CRITICAL: Kill all hardware tracks via ref (never stale)
       killAllTracks();
       
-      // 4. Deliver file + close modal
+      // 5. Deliver file + close modal
       onCapture([file]);
       onClose();
     };
@@ -283,7 +333,13 @@ export default function WebcamCaptureModal({ isOpen, onClose, onCapture, maxLeng
   };
 
   const stopRecording = useCallback(() => {
-    // Kill timer first
+    // Kill composite render loop
+    if (compositeRafRef.current) {
+      cancelAnimationFrame(compositeRafRef.current);
+      compositeRafRef.current = null;
+    }
+    
+    // Kill timer
     if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
     
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {

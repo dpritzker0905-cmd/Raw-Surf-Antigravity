@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import { HairFilterPicker } from '../HairFilterPicker';
 import { WebGLVideoProcessor } from '../../utils/WebGLFilterEngine';
+import { HairFilterEngine } from '../../utils/HairFilterEngine';
 
 // ── Duration formatter ──────────────────────────────────────────────
 function formatDuration(seconds) {
@@ -142,6 +143,10 @@ export default function InCallView({
   const remoteAudioRef = useRef(null);
   const webglCanvasRef = useRef(null);
   const webglProcessorRef = useRef(null);
+  const hairCanvasRef = useRef(null);
+  const hairEngineRef = useRef(null);
+  const compositeCanvasRef = useRef(null);
+  const compositeRafRef = useRef(null);
 
   const [isPipExpanded, setIsPipExpanded] = useState(true);
   const [showFilters, setShowFilters] = useState(false);
@@ -207,17 +212,36 @@ export default function InCallView({
         processor.start(video);
         webglProcessorRef.current = processor;
 
-        // Capture the filtered canvas stream and replace the WebRTC video track
-        // so the remote peer sees filters too
+        // Start a composite canvas that merges WebGL + hair, then send over WebRTC
         if (onReplaceVideoTrack) {
           try {
-            const canvasStream = canvas.captureStream(30);
-            const filteredTrack = canvasStream.getVideoTracks()[0];
+            if (!compositeCanvasRef.current) {
+              compositeCanvasRef.current = document.createElement('canvas');
+            }
+            const comp = compositeCanvasRef.current;
+            comp.width = canvas.width;
+            comp.height = canvas.height;
+            const ctx = comp.getContext('2d');
+
+            // Composite render loop: WebGL canvas + hair canvas → 2D composite
+            const compositeLoop = () => {
+              ctx.clearRect(0, 0, comp.width, comp.height);
+              ctx.drawImage(canvas, 0, 0, comp.width, comp.height);
+              const hc = hairCanvasRef.current;
+              if (hc && hc.width > 0 && hc.height > 0) {
+                ctx.drawImage(hc, 0, 0, comp.width, comp.height);
+              }
+              compositeRafRef.current = requestAnimationFrame(compositeLoop);
+            };
+            compositeRafRef.current = requestAnimationFrame(compositeLoop);
+
+            const compStream = comp.captureStream(30);
+            const filteredTrack = compStream.getVideoTracks()[0];
             if (filteredTrack) {
               onReplaceVideoTrack(filteredTrack);
             }
           } catch (capErr) {
-            console.warn('[InCallView] captureStream failed:', capErr);
+            console.warn('[InCallView] composite captureStream failed:', capErr);
           }
         }
       } catch (err) {
@@ -232,12 +256,58 @@ export default function InCallView({
     }
 
     return () => {
+      if (compositeRafRef.current) {
+        cancelAnimationFrame(compositeRafRef.current);
+        compositeRafRef.current = null;
+      }
       if (webglProcessorRef.current) {
         webglProcessorRef.current.stop();
         webglProcessorRef.current = null;
       }
     };
   }, [localStream, onReplaceVideoTrack]); // Re-init when stream changes
+
+  // ── Hair Filter Engine Lifecycle ──────────────────────────────────
+  useEffect(() => {
+    const engine = new HairFilterEngine();
+    hairEngineRef.current = engine;
+    engine.init().catch(() => {});
+    return () => {
+      engine.dispose();
+      hairEngineRef.current = null;
+    };
+  }, []);
+
+  // Start hair engine when local stream is available
+  useEffect(() => {
+    const engine = hairEngineRef.current;
+    if (!engine || !localStream) return;
+    const videoEl = localVideoRef.current;
+    const hairCanvas = hairCanvasRef.current;
+    if (videoEl && hairCanvas) {
+      const tryStart = () => {
+        if (videoEl.readyState >= 1) {
+          engine.start(videoEl, hairCanvas);
+          return true;
+        }
+        return false;
+      };
+      if (!tryStart()) {
+        const timer = setInterval(() => {
+          if (tryStart()) clearInterval(timer);
+        }, 500);
+        const timeout = setTimeout(() => clearInterval(timer), 5000);
+        return () => { clearInterval(timer); clearTimeout(timeout); engine.stop(); };
+      }
+      return () => { engine.stop(); };
+    }
+  }, [localStream]);
+
+  // Update hair style when selection changes
+  useEffect(() => {
+    const engine = hairEngineRef.current;
+    if (engine) engine.setHairStyle(activeHairStyle);
+  }, [activeHairStyle]);
 
   // ── Update WebGL filter when user selects a new one ───────────────
   useEffect(() => {
@@ -437,6 +507,11 @@ export default function InCallView({
                   <canvas
                     ref={webglCanvasRef}
                     className={`w-full h-full object-cover ${true ? 'scale-x-[-1]' : ''}`}
+                  />
+                  {/* Hair filter overlay canvas */}
+                  <canvas
+                    ref={hairCanvasRef}
+                    className="absolute inset-0 w-full h-full object-cover pointer-events-none scale-x-[-1]"
                   />
                 </div>
                 <div className={`absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded bg-black/50 backdrop-blur-sm ${!isPipExpanded ? 'hidden md:block' : ''}`}>
