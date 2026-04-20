@@ -275,11 +275,28 @@ function processImageAlpha(img) {
   
   ctx.putImageData(imageData, 0, 0);
   
-  const processedImg = new window.Image();
-  processedImg.src = canvas.toDataURL('image/png');
+  // Use toBlob + createObjectURL instead of toDataURL to avoid
+  // holding large base64 strings (~500KB-2MB per sprite) in JS heap.
+  // Blob URLs delegate storage to the browser's blob store.
   return new Promise((resolve) => {
-    processedImg.onload = () => resolve(processedImg);
-    processedImg.onerror = () => resolve(img);
+    canvas.toBlob((blob) => {
+      if (!blob) {
+        resolve(img); // fallback to original if toBlob fails
+        return;
+      }
+      const blobUrl = URL.createObjectURL(blob);
+      const processedImg = new window.Image();
+      processedImg.onload = () => {
+        // Attach the blob URL to the image for later cleanup
+        processedImg._blobUrl = blobUrl;
+        resolve(processedImg);
+      };
+      processedImg.onerror = () => {
+        URL.revokeObjectURL(blobUrl);
+        resolve(img);
+      };
+      processedImg.src = blobUrl;
+    }, 'image/png');
   });
 }
 
@@ -296,6 +313,9 @@ export class HairFilterEngine {
     this.ctx = null;
     this._initialized = false;
     this._initPromise = null;
+    
+    // Track blob URLs for explicit revocation (memory management)
+    this._blobUrls = [];
     
     // Smoothing buffer (reduces landmark jitter)
     this._smoothBuffer = [];
@@ -429,6 +449,16 @@ export class HairFilterEngine {
     if (this.faceMesh) {
       this.faceMesh.close();
       this.faceMesh = null;
+    }
+    // Revoke all blob URLs to free browser blob store memory
+    for (const img of Object.values(this.hairImages)) {
+      if (img?._blobUrl) {
+        URL.revokeObjectURL(img._blobUrl);
+      }
+    }
+    if (this._blobUrls) {
+      this._blobUrls.forEach(url => URL.revokeObjectURL(url));
+      this._blobUrls = [];
     }
     this.hairImages = {};
     this._initialized = false;

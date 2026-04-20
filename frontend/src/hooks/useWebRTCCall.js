@@ -72,9 +72,10 @@ export function useWebRTCCall(userId, userInfo = {}) {
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) return;
     
     // Build WS URL from backend URL
+    // NOTE: WebSocket routes are under /api prefix (api_router in __init__.py)
     const wsProtocol = BACKEND_URL.startsWith('https') ? 'wss' : 'ws';
     const wsHost = BACKEND_URL.replace(/^https?:\/\//, '');
-    const wsUrl = `${wsProtocol}://${wsHost}/ws/call/${userId}`;
+    const wsUrl = `${wsProtocol}://${wsHost}/api/ws/call/${userId}`;
 
     try {
       const ws = new WebSocket(wsUrl);
@@ -356,7 +357,7 @@ export function useWebRTCCall(userId, userInfo = {}) {
 
       // Timeout: auto-end if no answer in 30 seconds
       setTimeout(() => {
-        if (callState === CALL_STATE.OUTGOING) {
+        if (callStateRef.current === CALL_STATE.OUTGOING) {
           toast('No answer', { icon: '📵' });
           endCall();
         }

@@ -453,32 +453,20 @@ export const DirectoryTab = ({
     }
   }, [filters, searchQuery, sortBy, userLocation]);
   
-  // Client-side sort (augments server-side sort)
+  // Client-side sort — only as a defensive fallback.
+  // The server already returns results sorted by `sort_by`, so we skip
+  // re-sorting for server-handled fields to avoid wasted CPU.
+  // Distance is the exception: the server only sorts by distance if
+  // lat/lng were provided, so we re-sort client-side as a safety net.
   const sortedPhotographers = useMemo(() => {
-    let result = [...photographers];
-    
-    switch (sortBy) {
-      case 'rating':
-        result.sort((a, b) => (b.avg_rating || 0) - (a.avg_rating || 0));
-        break;
-      case 'price_asc':
-        result.sort((a, b) => (a.session_rate || 999) - (b.session_rate || 999));
-        break;
-      case 'price_desc':
-        result.sort((a, b) => (b.session_rate || 0) - (a.session_rate || 0));
-        break;
-      case 'sessions':
-        result.sort((a, b) => (b.total_sessions || 0) - (a.total_sessions || 0));
-        break;
-      case 'distance':
-        result.sort((a, b) => (a.distance_miles || 9999) - (b.distance_miles || 9999));
-        break;
-      default:
-        break;
+    if (sortBy === 'distance' && userLocation) {
+      return [...photographers].sort(
+        (a, b) => (a.distance_miles || 9999) - (b.distance_miles || 9999)
+      );
     }
-    
-    return result;
-  }, [photographers, sortBy]);
+    // Server already returned in correct order for rating, price, sessions
+    return photographers;
+  }, [photographers, sortBy, userLocation]);
   
   // Active filter count
   const activeFilterCount = useMemo(() => {

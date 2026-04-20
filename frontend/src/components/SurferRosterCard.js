@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import { Users, Clock, DollarSign, User, Save, Volume2, VolumeX, Footprints, Shirt, Waves, StickyNote, Maximize2 } from 'lucide-react';
 import { Card, CardContent } from './ui/card';
@@ -7,6 +7,7 @@ import { Badge } from './ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import { Textarea } from './ui/textarea';
 import { toast } from 'sonner';
+import { formatTimeAgo } from '../utils/formatTime';
 
 
 // Audio notification for new surfer joins
@@ -29,20 +30,7 @@ const useJoinChime = () => {
   return playChime;
 };
 
-// Time ago formatter
-const formatTimeAgo = (isoString) => {
-  if (!isoString) return '';
-  const now = new Date();
-  const joined = new Date(isoString);
-  const diffMs = now - joined;
-  const diffMins = Math.floor(diffMs / 60000);
-  
-  if (diffMins < 1) return 'Just now';
-  if (diffMins < 60) return `${diffMins}m ago`;
-  const diffHours = Math.floor(diffMins / 60);
-  if (diffHours < 24) return `${diffHours}h ago`;
-  return `${Math.floor(diffHours / 24)}d ago`;
-};
+
 
 // Surfer Detail Modal - Enlarged photo and full info
 const SurferDetailModal = ({ 

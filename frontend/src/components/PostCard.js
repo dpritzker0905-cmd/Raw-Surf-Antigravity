@@ -14,6 +14,7 @@ import { RichText, CommentText } from './RichText';
 import { MapPin, MessageCircle, Send, Bookmark, MoreHorizontal, Loader2, Play, Radio, Heart, ShoppingBag, ChevronRight, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 import { getFullUrl } from '../utils/media';
+import { formatTimeAgo } from '../utils/formatTime';
 
 
 // Comment reaction emojis
@@ -561,24 +562,7 @@ const _ShakaIcon = ({ filled }) => (
   />
 );
 
-// Format time ago helper
-const formatTimeAgo = (dateString) => {
-  if (!dateString) return '';
-  const date = new Date(dateString);
-  const now = new Date();
-  const diffMs = now - date;
-  const diffMins = Math.floor(diffMs / 60000);
-  const diffHours = Math.floor(diffMs / 3600000);
-  const diffDays = Math.floor(diffMs / 86400000);
-  const diffWeeks = Math.floor(diffDays / 7);
 
-  if (diffMins < 1) return 'just now';
-  if (diffMins < 60) return `${diffMins}m`;
-  if (diffHours < 24) return `${diffHours}h`;
-  if (diffDays < 7) return `${diffDays}d`;
-  if (diffWeeks < 52) return `${diffWeeks}w`;
-  return date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
-};
 
 const PostCard = ({
   post,

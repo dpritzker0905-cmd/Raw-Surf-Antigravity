@@ -395,14 +395,24 @@ const ViewNoteModal = ({ isOpen, onClose, note, currentUserId, onReply }) => {
       >
         {/* User info */}
         <div className="flex items-center gap-3 mb-4">
-          <div className="w-12 h-12 rounded-full overflow-hidden bg-muted">
+          <div className="w-12 h-12 rounded-full overflow-hidden bg-muted relative">
             {avatarWithCacheBust ? (
-              <img src={avatarWithCacheBust} alt="" className="w-full h-full object-cover" />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center text-muted-foreground">
-                {note.user_name?.charAt(0)}
-              </div>
-            )}
+              <img 
+                src={avatarWithCacheBust} 
+                alt="" 
+                className="w-full h-full object-cover"
+                onError={(e) => {
+                  e.target.style.display = 'none';
+                  if (e.target.nextSibling) e.target.nextSibling.style.display = 'flex';
+                }}
+              />
+            ) : null}
+            <div 
+              className="w-full h-full flex items-center justify-center text-muted-foreground absolute inset-0"
+              style={{ display: avatarWithCacheBust ? 'none' : 'flex' }}
+            >
+              {note.user_name?.charAt(0)}
+            </div>
           </div>
           <div>
             <p className="font-medium text-foreground">{note.user_name}</p>
@@ -468,21 +478,7 @@ const formatTime = (dateString) => {
   return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 };
 
-const formatTimeAgo = (dateString) => {
-  const date = new Date(dateString);
-  const now = new Date();
-  const diffMs = now - date;
-  const diffMins = Math.floor(diffMs / 60000);
-  const diffHours = Math.floor(diffMs / 3600000);
-  const diffDays = Math.floor(diffMs / 86400000);
-  const diffWeeks = Math.floor(diffDays / 7);
-  
-  if (diffMins < 1) return 'now';
-  if (diffMins < 60) return `${diffMins}m`;
-  if (diffHours < 24) return `${diffHours}h`;
-  if (diffDays < 7) return `${diffDays}d`;
-  return `${diffWeeks}w`;
-};
+
 
 // Main Component
 export const MessagesPage = () => {
@@ -1554,16 +1550,26 @@ export const MessagesPage = () => {
         </button>
         <button
           onClick={() => navigate(`/profile/${conversationDetail?.other_user_id || selectedConversation?.other_user_id}`)}
-          className="w-10 h-10 rounded-full bg-muted overflow-hidden ring-2 ring-cyan-500/30 hover:ring-cyan-400 hover:scale-105 transition-all flex-shrink-0"
+          className="w-10 h-10 rounded-full bg-muted overflow-hidden ring-2 ring-cyan-500/30 hover:ring-cyan-400 hover:scale-105 transition-all flex-shrink-0 relative"
           title="View profile"
         >
           {chatAvatarWithCacheBust ? (
-            <img src={chatAvatarWithCacheBust} className="w-full h-full object-cover" alt="" />
-          ) : (
-            <span className="w-full h-full flex items-center justify-center text-muted-foreground">
-              {(conversationDetail?.other_user_name || selectedConversation?.other_user_name)?.charAt(0)}
-            </span>
-          )}
+            <img 
+              src={chatAvatarWithCacheBust} 
+              className="w-full h-full object-cover" 
+              alt=""
+              onError={(e) => {
+                e.target.style.display = 'none';
+                if (e.target.nextSibling) e.target.nextSibling.style.display = 'flex';
+              }}
+            />
+          ) : null}
+          <span 
+            className="w-full h-full flex items-center justify-center text-muted-foreground absolute inset-0"
+            style={{ display: chatAvatarWithCacheBust ? 'none' : 'flex' }}
+          >
+            {(conversationDetail?.other_user_name || selectedConversation?.other_user_name)?.charAt(0)}
+          </span>
         </button>
         <div className="flex-1 min-w-0">
           <button

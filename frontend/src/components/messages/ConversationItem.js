@@ -1,6 +1,7 @@
 import React from 'react';
 import { Check, CheckCheck, EyeOff, BellOff, Pin, Camera, Play, Mic, Star, Shield, Users, Store, Briefcase } from 'lucide-react';
 import { getFullUrl } from '../../utils/media';
+import { formatTimeAgoCompact as formatTimeAgo } from '../../utils/formatTime';
 
 // Inline role icon helper (mirrors MessagesPage logic for ConversationItem)
 const getRoleIcon = (role, isAdmin = false) => {
@@ -16,17 +17,7 @@ const getRoleIcon = (role, isAdmin = false) => {
   }
 };
 
-// Format relative time (e.g., "2h ago")
-const formatTimeAgo = (ts) => {
-  if (!ts) return '';
-  const diff = Date.now() - new Date(ts).getTime();
-  const m = Math.floor(diff / 60000);
-  if (m < 1) return 'now';
-  if (m < 60) return `${m}m`;
-  const h = Math.floor(m / 60);
-  if (h < 24) return `${h}h`;
-  return `${Math.floor(h / 24)}d`;
-};
+
 
 
 const ConversationItem = ({ conversation, isSelected, onClick }) => {
@@ -68,7 +59,7 @@ const ConversationItem = ({ conversation, isSelected, onClick }) => {
     >
       {/* Avatar with online indicator */}
       <div className="relative flex-shrink-0">
-        <div className={`w-14 h-14 rounded-full overflow-hidden bg-muted ${getRingClass()}`}>
+        <div className={`w-14 h-14 rounded-full overflow-hidden bg-muted relative ${getRingClass()}`}>
           {avatarWithCacheBust ? (
             <img 
               src={avatarWithCacheBust} 
