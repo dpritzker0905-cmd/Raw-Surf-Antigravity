@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { usePricing } from '../contexts/PricingContext';
 import apiClient, { BACKEND_URL } from '../lib/apiClient';
@@ -547,11 +547,11 @@ export const GalleryPage = () => {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-white flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
             <Camera className="w-7 h-7 text-yellow-400" />
             My Gallery
           </h1>
-          <p className="text-gray-400 text-sm mt-1">
+          <p className="text-muted-foreground text-sm mt-1">
             {gallery.length} photos • Watermarked previews for non-buyers
           </p>
         </div>
@@ -721,7 +721,7 @@ export const GalleryPage = () => {
                         {grom.name?.charAt(0) || 'G'}
                       </div>
                     )}
-                    <span className="text-white">{grom.name}</span>
+                    <span className="text-foreground">{grom.name}</span>
                     {grom.is_approved && (
                       <Check className="w-3 h-3 text-green-400" />
                     )}
@@ -775,7 +775,7 @@ export const GalleryPage = () => {
               
               {/* Add photo placeholder */}
               <div 
-                className="aspect-square bg-zinc-800/50 rounded-lg flex items-center justify-center border-2 border-dashed border-cyan-500/30 cursor-pointer hover:border-cyan-500/60 transition-colors"
+                className="aspect-square bg-muted/50 rounded-lg flex items-center justify-center border-2 border-dashed border-cyan-500/30 cursor-pointer hover:border-cyan-500/60 transition-colors"
                 onClick={() => {
                   if (linkedGroms.length === 0) {
                     toast.error('No linked Groms found. Link a Grom first.');
@@ -786,7 +786,7 @@ export const GalleryPage = () => {
               >
                 <div className="text-center p-3">
                   <Plus className="w-6 h-6 text-cyan-500 mx-auto mb-1" />
-                  <span className="text-xs text-gray-400">Tag a photo</span>
+                  <span className="text-xs text-muted-foreground">Tag a photo</span>
                 </div>
               </div>
             </div>
@@ -798,12 +798,12 @@ export const GalleryPage = () => {
       {isPhotographer && !selectedGallery && (
         <div className="mb-8">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-bold text-white flex items-center gap-2">
+            <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
               <Folder className="w-5 h-5 text-cyan-400" />
               {isGromParent ? 'Grom Archive' : 'Folders & Albums'}
             </h2>
             <div className="flex items-center gap-2">
-              <span className="text-gray-400 text-sm">{galleries.length} folders</span>
+              <span className="text-muted-foreground text-sm">{galleries.length} folders</span>
               <Button
                 onClick={() => {
                   setNewFolderName('');
@@ -820,16 +820,16 @@ export const GalleryPage = () => {
           </div>
           
           {galleries.length === 0 ? (
-            <div className="text-center py-8 bg-zinc-800/50 rounded-lg">
-              <Folder className="w-10 h-10 text-gray-600 mx-auto mb-2" />
-              <p className="text-gray-400 text-sm">No folders yet. Create one to organize your photos.</p>
+            <div className="text-center py-8 bg-muted/50 rounded-lg">
+              <Folder className="w-10 h-10 text-muted-foreground/40 mx-auto mb-2" />
+              <p className="text-muted-foreground text-sm">No folders yet. Create one to organize your photos.</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {galleries.map((gal) => (
                 <div 
                   key={gal.id}
-                  className="bg-zinc-800 rounded-lg overflow-hidden cursor-pointer hover:bg-zinc-700 transition-colors group relative"
+                  className="bg-card rounded-lg overflow-hidden cursor-pointer hover:bg-muted transition-colors group relative border border-border"
                   data-testid={`session-gallery-${gal.id}`}
                 >
                   {/* Folder actions - using MediaActionButtons pattern */}
@@ -865,7 +865,7 @@ export const GalleryPage = () => {
                   {/* Folder thumbnail - using MediaCard pattern */}
                   <div 
                     onClick={() => openGalleryDetail(gal)}
-                    className="aspect-video relative bg-zinc-900 overflow-hidden"
+                    className="aspect-video relative bg-background overflow-hidden"
                   >
                     {gal.cover_image_url ? (
                       <img 
@@ -876,7 +876,7 @@ export const GalleryPage = () => {
                       />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center">
-                        <Camera className="w-12 h-12 text-zinc-700" />
+                        <Camera className="w-12 h-12 text-muted-foreground/30" />
                       </div>
                     )}
                     {gal.live_session_id && (
@@ -893,8 +893,8 @@ export const GalleryPage = () => {
                     </div>
                   </div>
                   <div className="p-3" onClick={() => openGalleryDetail(gal)}>
-                    <h3 className="text-white font-medium truncate">{gal.title}</h3>
-                    <div className="flex items-center gap-4 mt-1 text-xs text-gray-400">
+                    <h3 className="text-foreground font-medium truncate">{gal.title}</h3>
+                    <div className="flex items-center gap-4 mt-1 text-xs text-muted-foreground">
                       {gal.surf_spot_name && (
                         <span className="flex items-center gap-1">
                           <MapPin className="w-3 h-3" />
@@ -925,12 +925,12 @@ export const GalleryPage = () => {
               onClick={closeGalleryDetail}
               variant="ghost"
               size="sm"
-              className="text-gray-400 hover:text-white"
+              className="text-muted-foreground hover:text-foreground"
             >
               <X className="w-4 h-4 mr-1" />
               Back
             </Button>
-            <h2 className="text-lg font-bold text-white flex-1">
+            <h2 className="text-lg font-bold text-foreground flex-1">
               {selectedGallery.title}
               {bulkSelectMode && selectedItems.size > 0 && (
                 <Badge className="bg-cyan-500 text-white text-xs ml-2">
@@ -945,7 +945,7 @@ export const GalleryPage = () => {
                 <Button
                   size="sm"
                   variant="outline"
-                  className="border-zinc-700 text-gray-400"
+                  className="border-border text-muted-foreground"
                   onClick={() => {
                     setSelectedItems(new Set(galleryItems.map(item => item.id)));
                   }}
@@ -955,7 +955,7 @@ export const GalleryPage = () => {
                 <Button
                   size="sm"
                   variant="outline"
-                  className="border-zinc-700 text-gray-400"
+                  className="border-border text-muted-foreground"
                   onClick={() => setShowMoveToFolderModal(true)}
                   disabled={selectedItems.size === 0}
                 >
@@ -996,7 +996,7 @@ export const GalleryPage = () => {
                 <Button
                   size="sm"
                   variant="outline"
-                  className="border-zinc-700 text-gray-400"
+                  className="border-border text-muted-foreground"
                   onClick={() => setBulkSelectMode(true)}
                 >
                   <Check className="w-4 h-4 mr-1" />
@@ -1015,7 +1015,7 @@ export const GalleryPage = () => {
           </div>
 
           {/* Gallery info */}
-          <div className="flex items-center gap-4 mb-4 text-sm text-gray-400">
+          <div className="flex items-center gap-4 mb-4 text-sm text-muted-foreground">
             {selectedGallery.surf_spot_name && (
               <span className="flex items-center gap-1">
                 <MapPin className="w-4 h-4" />
@@ -1031,9 +1031,9 @@ export const GalleryPage = () => {
               <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
             </div>
           ) : galleryItems.length === 0 ? (
-            <div className="text-center py-12 bg-zinc-800/50 rounded-lg">
-              <Camera className="w-12 h-12 text-gray-600 mx-auto mb-3" />
-              <p className="text-gray-400">No photos in this gallery yet</p>
+            <div className="text-center py-12 bg-muted/50 rounded-lg">
+              <Camera className="w-12 h-12 text-muted-foreground/40 mx-auto mb-3" />
+              <p className="text-muted-foreground">No photos in this gallery yet</p>
               <Button
                 onClick={() => setShowAddToGalleryModal(true)}
                 className="mt-4 bg-cyan-500 hover:bg-cyan-600 text-black"
@@ -1062,7 +1062,7 @@ export const GalleryPage = () => {
       {/* Individual Photos Header with Bulk Actions */}
       {isPhotographer && (
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-bold text-white flex items-center gap-2">
+          <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
             <Image className="w-5 h-5 text-yellow-400" />
             All Photos
             {bulkSelectMode && selectedItems.size > 0 && (
@@ -1077,7 +1077,7 @@ export const GalleryPage = () => {
                 <Button
                   size="sm"
                   variant="outline"
-                  className="border-zinc-700 text-gray-400"
+                  className="border-border text-muted-foreground"
                   onClick={selectAllItems}
                 >
                   Select All
@@ -1085,7 +1085,7 @@ export const GalleryPage = () => {
                 <Button
                   size="sm"
                   variant="outline"
-                  className="border-zinc-700 text-gray-400"
+                  className="border-border text-muted-foreground"
                   onClick={() => setShowMoveToFolderModal(true)}
                   disabled={selectedItems.size === 0}
                 >
@@ -1115,7 +1115,7 @@ export const GalleryPage = () => {
                 <Button
                   size="sm"
                   variant="ghost"
-                  className="text-gray-400"
+                  className="text-muted-foreground"
                   onClick={clearSelection}
                 >
                   <X className="w-4 h-4" />
@@ -1125,7 +1125,7 @@ export const GalleryPage = () => {
               <Button
                 size="sm"
                 variant="outline"
-                className="border-zinc-700 text-gray-400"
+                className="border-border text-muted-foreground"
                 onClick={() => setBulkSelectMode(true)}
                 data-testid="bulk-select-btn"
               >
@@ -1139,10 +1139,10 @@ export const GalleryPage = () => {
 
       {/* Gallery Grid */}
       {gallery.length === 0 ? (
-        <div className="text-center py-16 bg-zinc-900 rounded-xl">
-          <Camera className="w-16 h-16 text-gray-600 mx-auto mb-4" />
-          <h3 className="text-xl font-bold text-white mb-2">No photos yet</h3>
-          <p className="text-gray-400 mb-4">
+        <div className="text-center py-16 bg-card rounded-xl border border-border">
+          <Camera className="w-16 h-16 text-muted-foreground/40 mx-auto mb-4" />
+          <h3 className="text-xl font-bold text-foreground mb-2">No photos yet</h3>
+          <p className="text-muted-foreground mb-4">
             Start uploading your surf photos to sell them to surfers!
           </p>
           {isPhotographer && (
@@ -1214,30 +1214,30 @@ export const GalleryPage = () => {
 
       {/* Gallery Pricing Modal */}
       <Dialog open={showGalleryPricingModal} onOpenChange={setShowGalleryPricingModal}>
-        <DialogContent className="bg-zinc-900 border-zinc-800 text-white max-h-[90vh] overflow-y-auto">
+        <DialogContent className="bg-background border-border text-foreground max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="text-white">Gallery Pricing (Quality Tiers)</DialogTitle>
+            <DialogTitle className="text-foreground">Gallery Pricing (Quality Tiers)</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
-            <p className="text-sm text-gray-400">
+            <p className="text-sm text-muted-foreground">
               Set pricing for different quality tiers. Customers choose which quality to purchase.
             </p>
             
             {/* Photo Pricing */}
-            <div className="p-4 rounded-lg bg-zinc-800">
-              <h4 className="font-medium text-white mb-3">Photo Pricing (Credits)</h4>
+            <div className="p-4 rounded-lg bg-card border border-border">
+              <h4 className="font-medium text-foreground mb-3">Photo Pricing (Credits)</h4>
               <div className="space-y-3">
                 <div>
-                  <Label className="text-gray-400">Web Quality (800px)</Label>
+                  <Label className="text-muted-foreground">Web Quality (800px)</Label>
                   <Input
                     type="number"
                     value={galleryPricing.photo_price_web}
                     onChange={(e) => setGalleryPricing({ ...galleryPricing, photo_price_web: parseFloat(e.target.value) || 0 })}
-                    className="bg-zinc-900 text-white border-zinc-700"
+                    className="bg-background text-foreground border-border"
                   />
                 </div>
                 <div>
-                  <Label className="text-gray-400">Standard (1920px)</Label>
+                  <Label className="text-muted-foreground">Standard (1920px)</Label>
                   <Input
                     type="number"
                     value={galleryPricing.photo_price_standard}
@@ -1246,7 +1246,7 @@ export const GalleryPage = () => {
                   />
                 </div>
                 <div>
-                  <Label className="text-gray-400">High Resolution (Original)</Label>
+                  <Label className="text-muted-foreground">High Resolution (Original)</Label>
                   <Input
                     type="number"
                     value={galleryPricing.photo_price_high}
@@ -1258,11 +1258,11 @@ export const GalleryPage = () => {
             </div>
             
             {/* Video Pricing */}
-            <div className="p-4 rounded-lg bg-zinc-800">
-              <h4 className="font-medium text-white mb-3">Video Pricing (Credits)</h4>
+            <div className="p-4 rounded-lg bg-card border border-border">
+              <h4 className="font-medium text-foreground mb-3">Video Pricing (Credits)</h4>
               <div className="space-y-3">
                 <div>
-                  <Label className="text-gray-400">720p HD</Label>
+                  <Label className="text-muted-foreground">720p HD</Label>
                   <Input
                     type="number"
                     value={galleryPricing.video_price_720p}
@@ -1271,7 +1271,7 @@ export const GalleryPage = () => {
                   />
                 </div>
                 <div>
-                  <Label className="text-gray-400">1080p Full HD</Label>
+                  <Label className="text-muted-foreground">1080p Full HD</Label>
                   <Input
                     type="number"
                     value={galleryPricing.video_price_1080p}
@@ -1280,7 +1280,7 @@ export const GalleryPage = () => {
                   />
                 </div>
                 <div>
-                  <Label className="text-gray-400">4K Ultra HD</Label>
+                  <Label className="text-muted-foreground">4K Ultra HD</Label>
                   <Input
                     type="number"
                     value={galleryPricing.video_price_4k}
@@ -1296,7 +1296,7 @@ export const GalleryPage = () => {
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
                   <Droplet className="w-4 h-4 text-cyan-400" />
-                  <h4 className="font-medium text-white">Watermark Settings</h4>
+                  <h4 className="font-medium text-foreground">Watermark Settings</h4>
                 </div>
                 <Button
                   variant="outline"
@@ -1309,14 +1309,14 @@ export const GalleryPage = () => {
                   Configure
                 </Button>
               </div>
-              <p className="text-xs text-gray-400 mb-3">
+              <p className="text-xs text-muted-foreground mb-3">
                 Customize how your watermark appears on unpurchased preview images.
               </p>
               
               {/* Quick Preview */}
               <div className="flex items-center gap-3">
                 <div 
-                  className="relative w-24 h-16 rounded-lg overflow-hidden flex-shrink-0 cursor-pointer hover:ring-2 hover:ring-cyan-500/50 transition-all bg-zinc-900"
+                  className="relative w-24 h-16 rounded-lg overflow-hidden flex-shrink-0 cursor-pointer hover:ring-2 hover:ring-cyan-500/50 transition-all bg-background"
                   onClick={() => setShowWatermarkSettings(true)}
                   data-testid="pricing-watermark-preview"
                 >
@@ -1333,11 +1333,11 @@ export const GalleryPage = () => {
                   )}
                 </div>
                 <div className="text-sm">
-                  <p className="text-gray-400">
-                    Style: <span className="text-white">{watermarkSettings.style === 'text' ? 'Text' : watermarkSettings.style === 'logo' ? 'Logo' : 'Logo + Text'}</span>
+                  <p className="text-muted-foreground">
+                    Style: <span className="text-foreground">{watermarkSettings.style === 'text' ? 'Text' : watermarkSettings.style === 'logo' ? 'Logo' : 'Logo + Text'}</span>
                   </p>
-                  <p className="text-gray-400">
-                    Position: <span className="text-white capitalize">{watermarkSettings.position.replace('-', ' ')}</span>
+                  <p className="text-muted-foreground">
+                    Position: <span className="text-foreground capitalize">{watermarkSettings.position.replace('-', ' ')}</span>
                   </p>
                 </div>
               </div>
@@ -1347,27 +1347,27 @@ export const GalleryPage = () => {
             <div className="space-y-4">
               {/* Live Session Resolution Pricing */}
               <div className="p-4 rounded-lg bg-red-500/10 border border-red-500/20">
-                <h4 className="font-medium text-white mb-1 flex items-center gap-2">
+                <h4 className="font-medium text-foreground mb-1 flex items-center gap-2">
                   <Radio className="w-4 h-4 text-red-400" />
                   Live Session Photo Pricing
                 </h4>
-                <p className="text-xs text-gray-400 mb-3">
+                <p className="text-xs text-muted-foreground mb-3">
                   Resolution-based rates for photos taken during live sessions
                 </p>
                 <div className="grid grid-cols-3 gap-3">
                   <div>
-                    <Label className="text-gray-400 text-xs">Web-Res</Label>
-                    <p className="text-xs text-gray-500 mb-1">Social media</p>
+                    <Label className="text-muted-foreground text-xs">Web-Res</Label>
+                    <p className="text-xs text-muted-foreground/60 mb-1">Social media</p>
                     <Input
                       type="number"
                       value={galleryPricing.photo_price_web}
                       onChange={(e) => setGalleryPricing({ ...galleryPricing, photo_price_web: parseFloat(e.target.value) || 0 })}
-                      className="bg-zinc-900 text-white border-zinc-700 h-9"
+                      className="bg-background text-foreground border-border h-9"
                     />
                   </div>
                   <div>
-                    <Label className="text-gray-400 text-xs">Standard</Label>
-                    <p className="text-xs text-gray-500 mb-1">Digital delivery</p>
+                    <Label className="text-muted-foreground text-xs">Standard</Label>
+                    <p className="text-xs text-muted-foreground/60 mb-1">Digital delivery</p>
                     <Input
                       type="number"
                       value={galleryPricing.live_session_photo_price}
@@ -1376,8 +1376,8 @@ export const GalleryPage = () => {
                     />
                   </div>
                   <div>
-                    <Label className="text-gray-400 text-xs">High-Res</Label>
-                    <p className="text-xs text-gray-500 mb-1">Print quality</p>
+                    <Label className="text-muted-foreground text-xs">High-Res</Label>
+                    <p className="text-xs text-muted-foreground/60 mb-1">Print quality</p>
                     <Input
                       type="number"
                       value={galleryPricing.photo_price_high}
@@ -1387,13 +1387,13 @@ export const GalleryPage = () => {
                   </div>
                 </div>
                 <div className="mt-3 pt-3 border-t border-red-500/20">
-                  <Label className="text-gray-400 text-xs">Photos Included in Session Buy-In</Label>
-                  <p className="text-xs text-gray-500 mb-1">Free photos surfers get when joining</p>
+                  <Label className="text-muted-foreground text-xs">Photos Included in Session Buy-In</Label>
+                  <p className="text-xs text-muted-foreground/60 mb-1">Free photos surfers get when joining</p>
                   <Input
                     type="number"
                     value={galleryPricing.live_session_photos_included}
                     onChange={(e) => setGalleryPricing({ ...galleryPricing, live_session_photos_included: parseInt(e.target.value) || 0 })}
-                    className="bg-zinc-900 text-white border-zinc-700 h-9 w-24"
+                    className="bg-background text-foreground border-border h-9 w-24"
                     min="0"
                   />
                 </div>
@@ -1410,8 +1410,8 @@ export const GalleryPage = () => {
                 </p>
                 <div className="grid grid-cols-3 gap-3">
                   <div>
-                    <Label className="text-gray-400 text-xs">Web-Res</Label>
-                    <p className="text-xs text-gray-500 mb-1">Social media</p>
+                    <Label className="text-muted-foreground text-xs">Web-Res</Label>
+                    <p className="text-xs text-muted-foreground/60 mb-1">Social media</p>
                     <Input
                       type="number"
                       value={galleryPricing.photo_price_web}
@@ -1421,8 +1421,8 @@ export const GalleryPage = () => {
                     />
                   </div>
                   <div>
-                    <Label className="text-gray-400 text-xs">Standard</Label>
-                    <p className="text-xs text-gray-500 mb-1">Digital delivery</p>
+                    <Label className="text-muted-foreground text-xs">Standard</Label>
+                    <p className="text-xs text-muted-foreground/60 mb-1">Digital delivery</p>
                     <Input
                       type="number"
                       value={galleryPricing.on_demand_photo_price}
@@ -1431,8 +1431,8 @@ export const GalleryPage = () => {
                     />
                   </div>
                   <div>
-                    <Label className="text-gray-400 text-xs">High-Res</Label>
-                    <p className="text-xs text-gray-500 mb-1">Print quality</p>
+                    <Label className="text-muted-foreground text-xs">High-Res</Label>
+                    <p className="text-xs text-muted-foreground/60 mb-1">Print quality</p>
                     <Input
                       type="number"
                       value={galleryPricing.photo_price_high}
@@ -1443,8 +1443,8 @@ export const GalleryPage = () => {
                   </div>
                 </div>
                 <div className="mt-3 pt-3 border-t border-emerald-500/20">
-                  <Label className="text-gray-400 text-xs">Photos Included in On-Demand Buy-In</Label>
-                  <p className="text-xs text-gray-500 mb-1">Free photos surfers get with on-demand request</p>
+                  <Label className="text-muted-foreground text-xs">Photos Included in On-Demand Buy-In</Label>
+                  <p className="text-xs text-muted-foreground/60 mb-1">Free photos surfers get with on-demand request</p>
                   <Input
                     type="number"
                     value={galleryPricing.on_demand_photos_included}
@@ -1457,13 +1457,13 @@ export const GalleryPage = () => {
             </div>
             
             <div className="p-3 rounded-lg bg-green-500/10">
-              <p className="text-sm text-gray-400">
+              <p className="text-sm text-muted-foreground">
                 <strong className="text-green-400">Platform fee:</strong> 20% is deducted from each sale. You receive 80% of all gallery purchases.
               </p>
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowGalleryPricingModal(false)} className="border-zinc-700">
+            <Button variant="outline" onClick={() => setShowGalleryPricingModal(false)} className="border-border">
               Cancel
             </Button>
             <Button
@@ -1476,39 +1476,54 @@ export const GalleryPage = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Add Photo to Gallery Modal */}
+      {/* Add Photo to Gallery Modal — Upload New + Pick from Library */}
       <Dialog open={showAddToGalleryModal} onOpenChange={setShowAddToGalleryModal}>
-        <DialogContent className="bg-zinc-900 border-zinc-800 text-white max-w-lg max-h-[80vh] overflow-y-auto">
+        <DialogContent className="bg-background border-border text-foreground max-w-lg max-h-[80vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="text-white flex items-center gap-2">
+            <DialogTitle className="text-foreground flex items-center gap-2">
               <Plus className="w-5 h-5 text-cyan-400" />
               Add Photo to {selectedGallery?.title}
             </DialogTitle>
           </DialogHeader>
-          <div className="py-4">
-            <p className="text-gray-400 text-sm mb-4">Select a photo from your library to add to this gallery:</p>
+          <div className="py-4 space-y-4">
+            {/* Upload New — Primary CTA */}
+            <button
+              onClick={() => {
+                setShowAddToGalleryModal(false);
+                setShowUploadModal(true);
+              }}
+              className="w-full flex items-center gap-4 p-4 rounded-xl border-2 border-dashed border-yellow-400/40 hover:border-yellow-400 bg-yellow-400/5 hover:bg-yellow-400/10 transition-all group"
+            >
+              <div className="flex-shrink-0 w-12 h-12 rounded-full bg-gradient-to-br from-yellow-400 to-orange-400 flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
+                <Upload className="w-5 h-5 text-black" />
+              </div>
+              <div className="text-left">
+                <p className="font-semibold text-foreground">Upload from Device</p>
+                <p className="text-xs text-muted-foreground">Camera roll, files, or take a new photo</p>
+              </div>
+            </button>
+
+            {/* Divider */}
+            {gallery.length > 0 && (
+              <div className="flex items-center gap-3">
+                <div className="flex-1 h-px bg-border" />
+                <span className="text-xs text-muted-foreground font-medium uppercase tracking-wider">or pick from library</span>
+                <div className="flex-1 h-px bg-border" />
+              </div>
+            )}
             
             {gallery.length === 0 ? (
-              <div className="text-center py-8 bg-zinc-800/50 rounded-lg">
-                <Camera className="w-10 h-10 text-gray-600 mx-auto mb-3" />
-                <p className="text-gray-400">No photos in your library yet</p>
-                <Button
-                  onClick={() => {
-                    setShowAddToGalleryModal(false);
-                    setShowUploadModal(true);
-                  }}
-                  className="mt-3 bg-yellow-500 hover:bg-yellow-600 text-black"
-                >
-                  Upload New Photo
-                </Button>
+              <div className="text-center py-6 bg-muted/50 rounded-lg">
+                <Camera className="w-10 h-10 text-muted-foreground/40 mx-auto mb-3" />
+                <p className="text-muted-foreground text-sm">Your library is empty — upload your first photo above!</p>
               </div>
             ) : (
-              <div className="grid grid-cols-3 gap-2 max-h-[50vh] overflow-y-auto">
+              <div className="grid grid-cols-3 gap-2 max-h-[40vh] overflow-y-auto rounded-lg">
                 {gallery.filter(item => !galleryItems.find(gi => gi.id === item.id)).map((item) => (
                   <button
                     key={item.id}
                     onClick={() => handleAddToGallery(item.id)}
-                    className="relative aspect-square rounded-lg overflow-hidden bg-zinc-800 hover:ring-2 hover:ring-cyan-400 transition-all"
+                    className="relative aspect-square rounded-lg overflow-hidden bg-muted hover:ring-2 hover:ring-cyan-400 transition-all"
                   >
                     <img
                       src={item.thumbnail_url || item.preview_url}
@@ -1524,7 +1539,7 @@ export const GalleryPage = () => {
             )}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowAddToGalleryModal(false)} className="border-zinc-700">
+            <Button variant="outline" onClick={() => setShowAddToGalleryModal(false)} className="border-border">
               Cancel
             </Button>
           </DialogFooter>
@@ -1533,25 +1548,25 @@ export const GalleryPage = () => {
 
       {/* Create Folder Modal */}
       <Dialog open={showCreateFolderModal} onOpenChange={setShowCreateFolderModal}>
-        <DialogContent className="bg-zinc-900 border-zinc-800 text-white max-w-md">
+        <DialogContent className="bg-background border-border text-foreground max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-white flex items-center gap-2">
+            <DialogTitle className="text-foreground flex items-center gap-2">
               <Folder className="w-5 h-5 text-cyan-400" />
               Create New Folder
             </DialogTitle>
           </DialogHeader>
           <div className="py-4">
-            <Label className="text-gray-400">Folder Name</Label>
+            <Label className="text-muted-foreground">Folder Name</Label>
             <Input
               value={newFolderName}
               onChange={(e) => setNewFolderName(e.target.value)}
               placeholder="e.g., Pipeline Session 2024"
-              className="bg-zinc-800 text-white border-zinc-700 mt-2"
+              className="bg-card text-foreground border-border mt-2"
               onKeyDown={(e) => e.key === 'Enter' && handleCreateFolder()}
             />
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowCreateFolderModal(false)} className="border-zinc-700">
+            <Button variant="outline" onClick={() => setShowCreateFolderModal(false)} className="border-border">
               Cancel
             </Button>
             <Button
@@ -1567,25 +1582,25 @@ export const GalleryPage = () => {
 
       {/* Rename Folder Modal */}
       <Dialog open={showRenameFolderModal} onOpenChange={setShowRenameFolderModal}>
-        <DialogContent className="bg-zinc-900 border-zinc-800 text-white max-w-md">
+        <DialogContent className="bg-background border-border text-foreground max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-white flex items-center gap-2">
+            <DialogTitle className="text-foreground flex items-center gap-2">
               <Edit3 className="w-5 h-5 text-yellow-400" />
               Rename Folder
             </DialogTitle>
           </DialogHeader>
           <div className="py-4">
-            <Label className="text-gray-400">New Folder Name</Label>
+            <Label className="text-muted-foreground">New Folder Name</Label>
             <Input
               value={newFolderName}
               onChange={(e) => setNewFolderName(e.target.value)}
               placeholder="Enter new name"
-              className="bg-zinc-800 text-white border-zinc-700 mt-2"
+              className="bg-card text-foreground border-border mt-2"
               onKeyDown={(e) => e.key === 'Enter' && handleRenameFolder()}
             />
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowRenameFolderModal(false)} className="border-zinc-700">
+            <Button variant="outline" onClick={() => setShowRenameFolderModal(false)} className="border-border">
               Cancel
             </Button>
             <Button
@@ -1601,18 +1616,18 @@ export const GalleryPage = () => {
 
       {/* Delete Folder Confirmation Modal */}
       <Dialog open={showDeleteFolderModal} onOpenChange={setShowDeleteFolderModal}>
-        <DialogContent className="bg-zinc-900 border-zinc-800 text-white max-w-md">
+        <DialogContent className="bg-background border-border text-foreground max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-white flex items-center gap-2">
+            <DialogTitle className="text-foreground flex items-center gap-2">
               <Trash2 className="w-5 h-5 text-red-400" />
               Delete Folder
             </DialogTitle>
           </DialogHeader>
           <div className="py-4">
-            <p className="text-gray-300">
-              Are you sure you want to delete <span className="font-semibold text-white">"{folderToDelete?.name}"</span>?
+            <p className="text-foreground">
+              Are you sure you want to delete <span className="font-semibold">"{folderToDelete?.name}"</span>?
             </p>
-            <p className="text-gray-400 text-sm mt-2">
+            <p className="text-muted-foreground text-sm mt-2">
               Photos will be moved back to your main gallery.
             </p>
           </div>
@@ -1623,7 +1638,7 @@ export const GalleryPage = () => {
                 setShowDeleteFolderModal(false);
                 setFolderToDelete(null);
               }} 
-              className="border-zinc-700 text-white hover:bg-zinc-800"
+              className="border-border text-foreground hover:bg-muted"
             >
               Cancel
             </Button>
@@ -1641,18 +1656,18 @@ export const GalleryPage = () => {
 
       {/* Move to Folder Modal */}
       <Dialog open={showMoveToFolderModal} onOpenChange={setShowMoveToFolderModal}>
-        <DialogContent className="bg-zinc-900 border-zinc-800 text-white max-w-md max-h-[80vh] overflow-y-auto">
+        <DialogContent className="bg-background border-border text-foreground max-w-md max-h-[80vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="text-white flex items-center gap-2">
+            <DialogTitle className="text-foreground flex items-center gap-2">
               <Folder className="w-5 h-5 text-cyan-400" />
               Move {selectedItems.size} item(s) to folder
             </DialogTitle>
           </DialogHeader>
           <div className="py-4 space-y-2">
             {galleries.length === 0 ? (
-              <div className="text-center py-8 bg-zinc-800/50 rounded-lg">
-                <Folder className="w-10 h-10 text-gray-600 mx-auto mb-2" />
-                <p className="text-gray-400 text-sm">No folders yet</p>
+              <div className="text-center py-8 bg-muted/50 rounded-lg">
+                <Folder className="w-10 h-10 text-muted-foreground/40 mx-auto mb-2" />
+                <p className="text-muted-foreground text-sm">No folders yet</p>
                 <Button
                   onClick={() => {
                     setShowMoveToFolderModal(false);
@@ -1671,19 +1686,19 @@ export const GalleryPage = () => {
                   key={folder.id}
                   onClick={() => handleMoveToFolder(folder.id)}
                   disabled={folderActionLoading}
-                  className="w-full flex items-center gap-3 p-3 rounded-lg bg-zinc-800 hover:bg-zinc-700 transition-colors text-left"
+                  className="w-full flex items-center gap-3 p-3 rounded-lg bg-card hover:bg-muted transition-colors text-left border border-border"
                 >
                   <Folder className="w-5 h-5 text-cyan-400" />
                   <div className="flex-1">
-                    <p className="text-white font-medium">{folder.title}</p>
-                    <p className="text-gray-500 text-xs">{folder.item_count || 0} photos</p>
+                    <p className="text-foreground font-medium">{folder.title}</p>
+                    <p className="text-muted-foreground text-xs">{folder.item_count || 0} photos</p>
                   </div>
                 </button>
               ))
             )}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowMoveToFolderModal(false)} className="border-zinc-700">
+            <Button variant="outline" onClick={() => setShowMoveToFolderModal(false)} className="border-border">
               Cancel
             </Button>
           </DialogFooter>
@@ -1692,19 +1707,19 @@ export const GalleryPage = () => {
 
       {/* Copy to Folder Modal */}
       <Dialog open={showCopyToFolderModal} onOpenChange={setShowCopyToFolderModal}>
-        <DialogContent className="bg-zinc-900 border-zinc-800 text-white max-w-md max-h-[80vh] overflow-y-auto">
+        <DialogContent className="bg-background border-border text-foreground max-w-md max-h-[80vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="text-white flex items-center gap-2">
+            <DialogTitle className="text-foreground flex items-center gap-2">
               <Copy className="w-5 h-5 text-cyan-400" />
               Copy {selectedItems.size} item(s) to folder
             </DialogTitle>
           </DialogHeader>
-          <p className="text-gray-400 text-sm">Original photos will remain in your main gallery.</p>
+          <p className="text-muted-foreground text-sm">Original photos will remain in your main gallery.</p>
           <div className="py-4 space-y-2">
             {galleries.length === 0 ? (
-              <div className="text-center py-8 bg-zinc-800/50 rounded-lg">
-                <Folder className="w-10 h-10 text-gray-600 mx-auto mb-2" />
-                <p className="text-gray-400 text-sm">No folders yet</p>
+              <div className="text-center py-8 bg-muted/50 rounded-lg">
+                <Folder className="w-10 h-10 text-muted-foreground/40 mx-auto mb-2" />
+                <p className="text-muted-foreground text-sm">No folders yet</p>
                 <Button
                   onClick={() => {
                     setShowCopyToFolderModal(false);
@@ -1723,19 +1738,19 @@ export const GalleryPage = () => {
                   key={folder.id}
                   onClick={() => handleCopyToFolder(folder.id)}
                   disabled={folderActionLoading}
-                  className="w-full flex items-center gap-3 p-3 rounded-lg bg-zinc-800 hover:bg-zinc-700 transition-colors text-left"
+                  className="w-full flex items-center gap-3 p-3 rounded-lg bg-card hover:bg-muted transition-colors text-left border border-border"
                 >
                   <Folder className="w-5 h-5 text-cyan-400" />
                   <div className="flex-1">
-                    <p className="text-white font-medium">{folder.title}</p>
-                    <p className="text-gray-500 text-xs">{folder.item_count || 0} photos</p>
+                    <p className="text-foreground font-medium">{folder.title}</p>
+                    <p className="text-muted-foreground text-xs">{folder.item_count || 0} photos</p>
                   </div>
                 </button>
               ))
             )}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowCopyToFolderModal(false)} className="border-zinc-700">
+            <Button variant="outline" onClick={() => setShowCopyToFolderModal(false)} className="border-border">
               Cancel
             </Button>
           </DialogFooter>
@@ -1787,7 +1802,7 @@ const GalleryCard = ({ item, onClick, isOwner, isGromParent, linkedGroms, onTagG
   
   return (
     <div
-      className="relative aspect-square rounded-lg overflow-hidden bg-zinc-800 cursor-pointer group"
+      className="relative aspect-square rounded-lg overflow-hidden bg-card cursor-pointer group"
       data-testid={`gallery-item-${item.id}`}
     >
       <div onClick={onClick}>

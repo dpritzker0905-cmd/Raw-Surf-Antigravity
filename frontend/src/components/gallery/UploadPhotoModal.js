@@ -1,4 +1,4 @@
-﻿/**
+/**
  * UploadPhotoModal - Photo/Video upload modal for photographers
  * Extracted from GalleryPage.js for better organization
  */
@@ -135,7 +135,7 @@ export const UploadPhotoModal = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="bg-zinc-900 border-zinc-800 text-white max-w-md max-h-[90vh] overflow-y-auto">
+      <DialogContent className="bg-background border-border text-foreground max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Image className="w-5 h-5 text-yellow-400" />
@@ -149,15 +149,15 @@ export const UploadPhotoModal = ({
         <div className="space-y-4 mt-4">
           {/* Destination Folder Selector */}
           {galleries && galleries.length > 0 && (
-            <div className="p-3 rounded-lg bg-zinc-800/50 border border-zinc-700">
-              <Label className="text-gray-400 text-sm mb-2 block">Upload to:</Label>
+            <div className="p-3 rounded-lg bg-card border border-border">
+              <Label className="text-muted-foreground text-sm mb-2 block">Upload to:</Label>
               <div className="flex flex-wrap gap-2">
                 <button
                   onClick={() => setSelectedFolderId(null)}
                   className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
                     !selectedFolderId 
                       ? 'bg-cyan-500 text-black' 
-                      : 'bg-zinc-700 text-gray-300 hover:bg-zinc-600'
+                      : 'bg-muted text-muted-foreground hover:bg-muted/80'
                   }`}
                 >
                   All Photos (Root)
@@ -169,7 +169,7 @@ export const UploadPhotoModal = ({
                     className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors flex items-center gap-1 ${
                       selectedFolderId === folder.id 
                         ? 'bg-cyan-500 text-black' 
-                        : 'bg-zinc-700 text-gray-300 hover:bg-zinc-600'
+                        : 'bg-muted text-muted-foreground hover:bg-muted/80'
                     }`}
                   >
                     <Folder className="w-3 h-3" />
@@ -192,21 +192,21 @@ export const UploadPhotoModal = ({
           {!selectedFile ? (
             <button
               onClick={() => fileInputRef.current?.click()}
-              className="w-full aspect-video rounded-lg border-2 border-dashed border-zinc-600 flex flex-col items-center justify-center gap-3 hover:border-yellow-400 transition-colors bg-zinc-800/50"
+              className="w-full aspect-video rounded-lg border-2 border-dashed border-border flex flex-col items-center justify-center gap-3 hover:border-yellow-400 transition-colors bg-card"
             >
               <div className="flex gap-4">
                 <div className="flex flex-col items-center">
-                  <Image className="w-10 h-10 text-gray-400" />
-                  <span className="text-xs text-gray-500 mt-1">Photo</span>
+                  <Image className="w-10 h-10 text-muted-foreground" />
+                  <span className="text-xs text-muted-foreground mt-1">Photo</span>
                 </div>
                 <div className="flex flex-col items-center">
-                  <Video className="w-10 h-10 text-gray-400" />
-                  <span className="text-xs text-gray-500 mt-1">Video</span>
+                  <Video className="w-10 h-10 text-muted-foreground" />
+                  <span className="text-xs text-muted-foreground mt-1">Video</span>
                 </div>
               </div>
               <div className="text-center">
-                <p className="text-white font-medium">Select media to upload</p>
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="text-foreground font-medium">Select media to upload</p>
+                <p className="text-xs text-muted-foreground mt-1">
                   {isPaidPhotographer 
                     ? 'Videos up to 4K • Images with watermark' 
                     : 'Videos up to 1080p • Upgrade for 4K'}
@@ -238,7 +238,7 @@ export const UploadPhotoModal = ({
               >
                 <X className="w-4 h-4 text-white" />
               </button>
-              <p className="text-xs text-gray-400 mt-2">
+              <p className="text-xs text-muted-foreground mt-2">
                 {mediaType === 'video' 
                   ? `Video will be processed at ${isPaidPhotographer ? '4K' : '1080p'} max` 
                   : 'A watermarked preview will be created automatically'}
@@ -248,42 +248,42 @@ export const UploadPhotoModal = ({
 
           {/* Title */}
           <div>
-            <label className="text-sm text-gray-400 mb-2 block">Title (optional)</label>
+            <label className="text-sm text-muted-foreground mb-2 block">Title (optional)</label>
             <Input
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="e.g., Dawn Patrol at Sebastian Inlet"
-              className="bg-zinc-800 border-zinc-700 text-white"
+              className="bg-card border-border text-foreground"
             />
           </div>
 
           {/* Description */}
           <div>
-            <label className="text-sm text-gray-400 mb-2 block">Description (optional)</label>
+            <label className="text-sm text-muted-foreground mb-2 block">Description (optional)</label>
             <Textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Describe the shot..."
-              className="bg-zinc-800 border-zinc-700 text-white"
+              className="bg-card border-border text-foreground"
               rows={2}
             />
           </div>
 
           {/* Price */}
           <div>
-            <label className="text-sm text-gray-400 mb-2 block">Price (credits)</label>
+            <label className="text-sm text-muted-foreground mb-2 block">Price (credits)</label>
             <div className="relative">
-              <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input
                 type="number"
                 min="1"
                 step="0.5"
                 value={price}
                 onChange={(e) => setPrice(e.target.value)}
-                className="bg-zinc-800 border-zinc-700 text-white pl-8"
+                className="bg-card border-border text-foreground pl-8"
               />
             </div>
-            <p className="text-xs text-gray-500 mt-1">
+            <p className="text-xs text-muted-foreground mt-1">
               You earn 80% (${(parseFloat(price || 0) * 0.8).toFixed(2)}) per sale
             </p>
           </div>
@@ -291,13 +291,13 @@ export const UploadPhotoModal = ({
           {/* Progress */}
           {loading && (
             <div className="space-y-2">
-              <div className="h-2 bg-zinc-800 rounded-full overflow-hidden">
+              <div className="h-2 bg-muted rounded-full overflow-hidden">
                 <div
                   className="h-full bg-yellow-400 transition-all"
                   style={{ width: `${uploadProgress}%` }}
                 />
               </div>
-              <p className="text-xs text-gray-400 text-center">{processingStatus || `Uploading... ${uploadProgress}%`}</p>
+              <p className="text-xs text-muted-foreground text-center">{processingStatus || `Uploading... ${uploadProgress}%`}</p>
             </div>
           )}
 
