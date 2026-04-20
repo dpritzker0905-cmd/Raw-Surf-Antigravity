@@ -243,8 +243,15 @@ export const TopNav = () => {
             {/* Position 3 (or 2): Exclusive Area Icon - Grom/Grom Parent/Comp/Pro only */}
             {hasExclusiveAccess && ExclusiveIcon && (
               <button 
-                onClick={() => setExclusiveAreaOpen(!exclusiveAreaOpen)}
-                className={`${exclusiveIconColor} hover:opacity-80 transition-colors p-1`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setBackpackOpen(false);
+                  setStokedOpen(false);
+                  setGromHQDrawerOpen(false);
+                  setNotificationsOpen(false);
+                  setExclusiveAreaOpen(prev => !prev);
+                }}
+                className={`${exclusiveIconColor} hover:opacity-80 transition-colors p-1 relative z-[101]`}
                 data-testid="topnav-exclusive-area"
                 aria-label={
                   exclusiveAreaType === 'grom' ? 'The Inside' :
@@ -294,8 +301,15 @@ export const TopNav = () => {
             {/* Position 5.5: Grom HQ Shield Icon - for Grom Parents */}
             {isGromParent && (
               <button 
-                onClick={() => setGromHQDrawerOpen(!gromHQDrawerOpen)}
-                className="text-cyan-400 hover:text-cyan-300 transition-colors p-1"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setBackpackOpen(false);
+                  setStokedOpen(false);
+                  setExclusiveAreaOpen(false);
+                  setNotificationsOpen(false);
+                  setGromHQDrawerOpen(prev => !prev);
+                }}
+                className="text-cyan-400 hover:text-cyan-300 transition-colors p-1 relative z-[101]"
                 data-testid="topnav-grom-hq"
                 aria-label="Grom HQ"
               >

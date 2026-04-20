@@ -171,6 +171,8 @@ export default function InCallView({
   const localVideoRef = useRef(null);
   const remoteVideoRef = useRef(null);
   const remoteAudioRef = useRef(null);
+  const canvasRef = useRef(null);
+  const animFrameRef = useRef(null);
 
   const [isPipExpanded, setIsPipExpanded] = useState(true);
   const [showFilters, setShowFilters] = useState(false);
@@ -178,6 +180,7 @@ export default function InCallView({
   const [showControls, setShowControls] = useState(true);
   const [activeFilter, setActiveFilter] = useState('none');
   const [activeHairStyle, setActiveHairStyle] = useState(null);
+  const [useCanvasFallback, setUseCanvasFallback] = useState(false);
   const controlsTimeoutRef = useRef(null);
 
   // ── Attach local stream to video element ──────────────────────────
@@ -215,6 +218,48 @@ export default function InCallView({
     resetControlsTimer();
     return () => clearTimeout(controlsTimeoutRef.current);
   }, []);
+
+  // ── Detect if CSS filter works on video (mobile fallback) ────────
+  useEffect(() => {
+    // Mobile Safari and some Android browsers ignore CSS filter on <video>
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    setUseCanvasFallback(isMobile);
+  }, []);
+
+  // ── Canvas fallback: draw filtered frames when a filter is active ──
+  useEffect(() => {
+    if (!useCanvasFallback || activeFilter === 'none' || !localVideoRef.current || !canvasRef.current) {
+      if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
+      return;
+    }
+
+    const video = localVideoRef.current;
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const preset = FILTER_PRESETS.find(p => p.key === activeFilter);
+    const filterStr = preset ? buildCSSFilter(preset.values) : 'none';
+
+    const drawFrame = () => {
+      if (video.readyState >= 2) {
+        canvas.width = video.videoWidth || 320;
+        canvas.height = video.videoHeight || 240;
+        ctx.filter = filterStr;
+        ctx.save();
+        ctx.scale(-1, 1); // Mirror
+        ctx.drawImage(video, -canvas.width, 0, canvas.width, canvas.height);
+        ctx.restore();
+      }
+      animFrameRef.current = requestAnimationFrame(drawFrame);
+    };
+
+    drawFrame();
+
+    return () => {
+      if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
+    };
+  }, [useCanvasFallback, activeFilter, localStream]);
 
   // ── Filter selection handler (auto-closes picker) ─────────────────
   const handleSelectFilter = useCallback((key) => {
@@ -397,18 +442,33 @@ export default function InCallView({
                   <VideoOff className="w-5 h-5 text-zinc-500" />
                 </div>
               ) : (
-                /* Local video with CSS filter on WRAPPER DIV — matches GoLive pattern.
-                   Mobile browsers ignore CSS filter on <video> elements directly. */
+                /* Local video with dual filter strategy:
+                   - Desktop: CSS filter applied directly on <video> element
+                   - Mobile: Canvas fallback draws filtered frames (mobile browsers
+                     ignore CSS filter on video elements due to hardware compositing) */
                 <>
-                <div className="w-full h-full relative" style={videoFilterStyle}>
+                <div className="w-full h-full relative">
+                  {/* Hidden video source — always rendering for canvas capture */}
                   <video
                     ref={localVideoRef}
                     autoPlay
                     playsInline
                     muted
-                    className="w-full h-full object-cover"
-                    style={{ transform: 'scaleX(-1)' }}
+                    className={`w-full h-full object-cover ${
+                      useCanvasFallback && activeFilter !== 'none' ? 'opacity-0 absolute' : ''
+                    }`}
+                    style={{
+                      transform: 'scaleX(-1)',
+                      ...((!useCanvasFallback && activeFilter !== 'none') ? videoFilterStyle : {}),
+                    }}
                   />
+                  {/* Canvas overlay — only visible on mobile when filter is active */}
+                  {useCanvasFallback && activeFilter !== 'none' && (
+                    <canvas
+                      ref={canvasRef}
+                      className="w-full h-full object-cover"
+                    />
+                  )}
                 </div>
                 <div className={`absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded bg-black/50 backdrop-blur-sm ${!isPipExpanded ? 'hidden md:block' : ''}`}>
                   <span className="text-[9px] text-white/70 font-medium">You</span>
