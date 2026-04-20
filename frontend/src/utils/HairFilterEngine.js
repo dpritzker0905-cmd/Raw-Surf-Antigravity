@@ -29,12 +29,12 @@ import platinumBobImg from '../assets/hair/platinum_bob.png';
  * 
  * scaleMultiplier: size relative to estimated HEAD width (not face width)
  *   - 1.0 = exact head width
- *   - 1.2 = 20% wider than head (typical for flowing/voluminous styles)
+ *   - 1.5 = 50% wider than head (typical for flowing/voluminous styles)
  * 
- * verticalAnchor: where the hair center sits relative to the crown
- *   - 0.0 = centered exactly at estimated crown
- *   - negative = higher above head, positive = lower toward forehead
- *   - Values are in multiples of faceHeight
+ * capPosition: what fraction of the hair sprite sits ABOVE the anchor (forehead/hairline)
+ *   - 0.10 = only 10% above anchor, 90% drapes below (long hair)
+ *   - 0.35 = 35% above anchor (short spiky hair with volume on top)
+ *   - Think of it as: where is the "wig cap" in the sprite image?
  */
 export const HAIR_STYLES = {
   // Male styles
@@ -46,7 +46,7 @@ export const HAIR_STYLES = {
     description: 'Long wavy blonde surfer hair',
     src: blondeFlowImg,
     scaleMultiplier: 1.5,
-    verticalAnchor: 0.05,
+    capPosition: 0.20,  // medium-length, some volume on top
   },
   brown_dreads: {
     id: 'brown_dreads',
@@ -56,7 +56,7 @@ export const HAIR_STYLES = {
     description: 'Thick brown dreadlocks',
     src: brownDreadsImg,
     scaleMultiplier: 1.6,
-    verticalAnchor: 0.05,
+    capPosition: 0.12,  // long draping dreads, minimal above head
   },
   messy_bun: {
     id: 'messy_bun',
@@ -66,7 +66,7 @@ export const HAIR_STYLES = {
     description: 'Dark hair in messy top bun',
     src: messyBunImg,
     scaleMultiplier: 1.5,
-    verticalAnchor: -0.05,
+    capPosition: 0.35,  // bun extends above head
   },
   salt_sand: {
     id: 'salt_sand',
@@ -75,8 +75,8 @@ export const HAIR_STYLES = {
     emoji: '☀️',
     description: 'Short bleached sandy buzz',
     src: saltSandImg,
-    scaleMultiplier: 1.2,
-    verticalAnchor: 0.1,
+    scaleMultiplier: 1.3,
+    capPosition: 0.30,  // short style, most volume is on top
   },
   dark_shag: {
     id: 'dark_shag',
@@ -86,7 +86,7 @@ export const HAIR_STYLES = {
     description: 'Medium-length dark shaggy hair',
     src: darkShagImg,
     scaleMultiplier: 1.5,
-    verticalAnchor: 0.05,
+    capPosition: 0.22,  // medium length
   },
   // Female styles
   beach_waves: {
@@ -97,7 +97,7 @@ export const HAIR_STYLES = {
     description: 'Long golden beach waves',
     src: beachWavesImg,
     scaleMultiplier: 1.6,
-    verticalAnchor: 0.05,
+    capPosition: 0.10,  // very long, almost all drapes down
   },
   braided_crown: {
     id: 'braided_crown',
@@ -107,7 +107,7 @@ export const HAIR_STYLES = {
     description: 'Fishtail crown braid',
     src: braidedCrownImg,
     scaleMultiplier: 1.5,
-    verticalAnchor: 0.0,
+    capPosition: 0.25,  // braid sits on top
   },
   pink_tips: {
     id: 'pink_tips',
@@ -117,7 +117,7 @@ export const HAIR_STYLES = {
     description: 'Dark roots with pink ends',
     src: pinkTipsImg,
     scaleMultiplier: 1.5,
-    verticalAnchor: 0.05,
+    capPosition: 0.15,  // long style, drapes down
   },
   curly_surf: {
     id: 'curly_surf',
@@ -127,7 +127,7 @@ export const HAIR_STYLES = {
     description: 'Big voluminous natural curls',
     src: curlySurfImg,
     scaleMultiplier: 1.6,
-    verticalAnchor: 0.05,
+    capPosition: 0.18,  // voluminous but drapes
   },
   platinum_bob: {
     id: 'platinum_bob',
@@ -137,7 +137,7 @@ export const HAIR_STYLES = {
     description: 'Short platinum blonde bob',
     src: platinumBobImg,
     scaleMultiplier: 1.3,
-    verticalAnchor: 0.1,
+    capPosition: 0.28,  // short bob, volume on top
   },
 };
 
@@ -154,7 +154,7 @@ const LANDMARK = {
 
 // Anthropometric constants — tuned from real-world mobile testing
 const HEAD_WIDTH_RATIO = 1.8;    // Head/skull ~80% wider than temple-to-temple face landmarks
-const CROWN_OFFSET_RATIO = 0.3;  // Crown is ~30% of face-height above landmark 10 (hairline)
+const CROWN_OFFSET_RATIO = 0.12; // Crown is JUST above landmark 10 (hairline) — 12% of face height
 
 /**
  * Loads the MediaPipe Face Mesh library from CDN
@@ -534,18 +534,23 @@ export class HairFilterEngine {
     const hairWidth = headWidth * style.scaleMultiplier;
     const hairHeight = hairWidth * (img.naturalHeight / img.naturalWidth);
     
-    // Anchor: center of hair at estimated crown, with per-style fine-tuning
+    // Anchor point is at the estimated crown/hairline
     const drawX = centerX;
-    const drawY = crownY + (faceHeight * style.verticalAnchor);
+    const drawY = crownY;
     
-    // Draw centered at anchor point, rotated with head tilt
+    // capPosition controls what fraction of the sprite is ABOVE the anchor.
+    // Long draping hair: low capPosition (0.10) → 10% above, 90% below
+    // Short spiky hair: high capPosition (0.35) → 35% above, 65% below
+    const capOffset = hairHeight * (style.capPosition || 0.20);
+    
+    // Draw with rotation matching head tilt
     ctx.save();
     ctx.translate(drawX, drawY);
     ctx.rotate(angle);
     ctx.drawImage(
       img,
-      -hairWidth / 2,    // center horizontally
-      -hairHeight * 0.4, // anchor point is ~40% from top (hair sits lower, covering head)
+      -hairWidth / 2,  // center horizontally on head
+      -capOffset,       // sprite top is capPosition fraction above anchor
       hairWidth,
       hairHeight
     );
