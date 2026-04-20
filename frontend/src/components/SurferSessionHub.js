@@ -41,15 +41,15 @@ const SurferHubContent = ({ onClose, navigate, liveCount, upcomingBookings, aiMa
           navigate('/bookings?tab=live_now');
           onClose?.();
         }}
-        className="w-full flex items-center gap-3 p-4 bg-zinc-800/30 hover:bg-zinc-700/50 rounded-xl border border-zinc-700/50 transition-colors active:scale-[0.98]"
+        className="w-full flex items-center gap-3 p-4 bg-muted/30 hover:bg-muted/50 rounded-xl border border-border/50 transition-colors active:scale-[0.98]"
         data-testid="session-hub-live"
       >
         <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-500/30 to-green-600/30 flex items-center justify-center">
           <Radio className="w-6 h-6 text-emerald-400" />
         </div>
         <div className="flex-1 text-left">
-          <p className="text-white font-semibold">Live Sessions</p>
-          <p className="text-gray-400 text-xs">Browse photographers shooting now</p>
+          <p className="text-foreground font-semibold">Live Sessions</p>
+          <p className="text-muted-foreground text-xs">Browse photographers shooting now</p>
         </div>
         <div className="flex items-center gap-2">
           {liveCount > 0 && (
@@ -57,7 +57,7 @@ const SurferHubContent = ({ onClose, navigate, liveCount, upcomingBookings, aiMa
               {liveCount} live
             </Badge>
           )}
-          <ChevronRight className="w-5 h-5 text-gray-400" />
+          <ChevronRight className="w-5 h-5 text-muted-foreground" />
         </div>
       </button>
 
@@ -67,17 +67,17 @@ const SurferHubContent = ({ onClose, navigate, liveCount, upcomingBookings, aiMa
           navigate('/bookings?tab=on_demand');
           onClose?.();
         }}
-        className="w-full flex items-center gap-3 p-4 bg-zinc-800/30 hover:bg-zinc-700/50 rounded-xl border border-zinc-700/50 transition-colors active:scale-[0.98]"
+        className="w-full flex items-center gap-3 p-4 bg-muted/30 hover:bg-muted/50 rounded-xl border border-border/50 transition-colors active:scale-[0.98]"
         data-testid="session-hub-request-pro"
       >
         <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-500/30 to-orange-600/30 flex items-center justify-center">
           <Zap className="w-6 h-6 text-amber-400" />
         </div>
         <div className="flex-1 text-left">
-          <p className="text-white font-semibold">Request a Pro</p>
-          <p className="text-gray-400 text-xs">Find on-demand photographers near you</p>
+          <p className="text-foreground font-semibold">Request a Pro</p>
+          <p className="text-muted-foreground text-xs">Find on-demand photographers near you</p>
         </div>
-        <ChevronRight className="w-5 h-5 text-gray-400" />
+        <ChevronRight className="w-5 h-5 text-muted-foreground" />
       </button>
 
       {/* ============ MY BOOKINGS ============ */}
@@ -86,15 +86,15 @@ const SurferHubContent = ({ onClose, navigate, liveCount, upcomingBookings, aiMa
           navigate('/bookings?tab=scheduled');
           onClose?.();
         }}
-        className="w-full flex items-center gap-3 p-4 bg-zinc-800/30 hover:bg-zinc-700/50 rounded-xl border border-zinc-700/50 transition-colors active:scale-[0.98]"
+        className="w-full flex items-center gap-3 p-4 bg-muted/30 hover:bg-muted/50 rounded-xl border border-border/50 transition-colors active:scale-[0.98]"
         data-testid="session-hub-bookings"
       >
         <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500/30 to-violet-600/30 flex items-center justify-center">
           <Calendar className="w-6 h-6 text-purple-400" />
         </div>
         <div className="flex-1 text-left">
-          <p className="text-white font-semibold">My Bookings</p>
-          <p className="text-gray-400 text-xs">Upcoming sessions & receipts</p>
+          <p className="text-foreground font-semibold">My Bookings</p>
+          <p className="text-muted-foreground text-xs">Upcoming sessions & receipts</p>
         </div>
         <div className="flex items-center gap-2">
           {upcomingBookings > 0 && (
@@ -102,7 +102,7 @@ const SurferHubContent = ({ onClose, navigate, liveCount, upcomingBookings, aiMa
               {upcomingBookings}
             </Badge>
           )}
-          <ChevronRight className="w-5 h-5 text-gray-400" />
+          <ChevronRight className="w-5 h-5 text-muted-foreground" />
         </div>
       </button>
     
@@ -115,7 +115,7 @@ const SurferHubContent = ({ onClose, navigate, liveCount, upcomingBookings, aiMa
         className={`w-full flex items-center gap-3 p-4 rounded-xl border transition-colors active:scale-[0.98] ${
           aiMatchCount > 0 
             ? 'bg-gradient-to-r from-purple-500/20 to-cyan-500/20 border-purple-500/40 hover:border-purple-500/60' 
-            : 'bg-zinc-800/30 hover:bg-zinc-700/50 border-zinc-700/50'
+            : 'bg-muted/30 hover:bg-muted/50 border-border/50'
         }`}
         data-testid="session-hub-my-gallery"
       >
@@ -132,7 +132,7 @@ const SurferHubContent = ({ onClose, navigate, liveCount, upcomingBookings, aiMa
           )}
         </div>
         <div className="flex-1 text-left">
-          <p className="text-white font-semibold flex items-center gap-2">
+          <p className="text-foreground font-semibold flex items-center gap-2">
             My Gallery
             {aiMatchCount > 0 && (
               <Badge className="bg-purple-500/30 text-purple-300 border-purple-500/40 text-[10px] px-1.5 py-0">
@@ -141,7 +141,7 @@ const SurferHubContent = ({ onClose, navigate, liveCount, upcomingBookings, aiMa
               </Badge>
             )}
           </p>
-          <p className="text-gray-400 text-xs">
+          <p className="text-muted-foreground text-xs">
             {aiMatchCount > 0 
               ? `${aiMatchCount} AI-detected photo${aiMatchCount > 1 ? 's' : ''} to review` 
               : 'Your private media locker'
@@ -486,11 +486,11 @@ const MobileSessionHub = ({
       </SheetTrigger>
       <SheetContent 
         side="bottom" 
-        className="bg-zinc-900 border-zinc-700 rounded-t-3xl h-auto sheet-safe-bottom md:max-h-[85vh] md:!bottom-4 overflow-hidden flex flex-col"
+        className="bg-background border-border rounded-t-3xl h-auto sheet-safe-bottom overflow-hidden flex flex-col"
       >
         <SheetHeader className="pb-3 shrink-0">
           <div className="flex items-center justify-between">
-            <SheetTitle className="text-white flex items-center gap-2 text-base">
+            <SheetTitle className="text-foreground flex items-center gap-2 text-base">
               {isPhotographer ? (
                 <>
                   <Activity className="w-5 h-5 text-yellow-400" />
@@ -586,11 +586,11 @@ const DesktopSessionHub = ({
         {children}
       </PopoverTrigger>
       <PopoverContent 
-        className="w-96 bg-zinc-900 border-zinc-700 p-3 max-h-[calc(100dvh-6rem)] md:max-h-[70vh] overflow-y-auto"
+        className="w-96 bg-background border-border p-3 max-h-[calc(100dvh-6rem)] md:max-h-[70vh] overflow-y-auto"
         align="end"
       >
         <div className="flex items-center justify-between mb-3">
-          <h3 className="text-white font-medium flex items-center gap-2 text-sm">
+          <h3 className="text-foreground font-medium flex items-center gap-2 text-sm">
             {isPhotographer ? (
               <>
                 <Activity className="w-4 h-4 text-yellow-400" />
