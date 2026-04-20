@@ -45,8 +45,8 @@ export const HAIR_STYLES = {
     emoji: '🏄‍♂️',
     description: 'Long wavy blonde surfer hair',
     src: blondeFlowImg,
-    scaleMultiplier: 1.3,
-    verticalAnchor: 0.0,
+    scaleMultiplier: 1.5,
+    verticalAnchor: 0.05,
   },
   brown_dreads: {
     id: 'brown_dreads',
@@ -55,7 +55,7 @@ export const HAIR_STYLES = {
     emoji: '🌴',
     description: 'Thick brown dreadlocks',
     src: brownDreadsImg,
-    scaleMultiplier: 1.3,
+    scaleMultiplier: 1.6,
     verticalAnchor: 0.05,
   },
   messy_bun: {
@@ -65,8 +65,8 @@ export const HAIR_STYLES = {
     emoji: '🤙',
     description: 'Dark hair in messy top bun',
     src: messyBunImg,
-    scaleMultiplier: 1.1,
-    verticalAnchor: -0.1,
+    scaleMultiplier: 1.5,
+    verticalAnchor: -0.05,
   },
   salt_sand: {
     id: 'salt_sand',
@@ -75,7 +75,7 @@ export const HAIR_STYLES = {
     emoji: '☀️',
     description: 'Short bleached sandy buzz',
     src: saltSandImg,
-    scaleMultiplier: 1.0,
+    scaleMultiplier: 1.2,
     verticalAnchor: 0.1,
   },
   dark_shag: {
@@ -85,8 +85,8 @@ export const HAIR_STYLES = {
     emoji: '🌊',
     description: 'Medium-length dark shaggy hair',
     src: darkShagImg,
-    scaleMultiplier: 1.2,
-    verticalAnchor: 0.0,
+    scaleMultiplier: 1.5,
+    verticalAnchor: 0.05,
   },
   // Female styles
   beach_waves: {
@@ -96,8 +96,8 @@ export const HAIR_STYLES = {
     emoji: '🧜‍♀️',
     description: 'Long golden beach waves',
     src: beachWavesImg,
-    scaleMultiplier: 1.4,
-    verticalAnchor: 0.0,
+    scaleMultiplier: 1.6,
+    verticalAnchor: 0.05,
   },
   braided_crown: {
     id: 'braided_crown',
@@ -106,8 +106,8 @@ export const HAIR_STYLES = {
     emoji: '🌺',
     description: 'Fishtail crown braid',
     src: braidedCrownImg,
-    scaleMultiplier: 1.2,
-    verticalAnchor: -0.05,
+    scaleMultiplier: 1.5,
+    verticalAnchor: 0.0,
   },
   pink_tips: {
     id: 'pink_tips',
@@ -116,8 +116,8 @@ export const HAIR_STYLES = {
     emoji: '🌸',
     description: 'Dark roots with pink ends',
     src: pinkTipsImg,
-    scaleMultiplier: 1.3,
-    verticalAnchor: 0.0,
+    scaleMultiplier: 1.5,
+    verticalAnchor: 0.05,
   },
   curly_surf: {
     id: 'curly_surf',
@@ -126,8 +126,8 @@ export const HAIR_STYLES = {
     emoji: '🦱',
     description: 'Big voluminous natural curls',
     src: curlySurfImg,
-    scaleMultiplier: 1.5,
-    verticalAnchor: 0.0,
+    scaleMultiplier: 1.6,
+    verticalAnchor: 0.05,
   },
   platinum_bob: {
     id: 'platinum_bob',
@@ -136,8 +136,8 @@ export const HAIR_STYLES = {
     emoji: '⚡',
     description: 'Short platinum blonde bob',
     src: platinumBobImg,
-    scaleMultiplier: 1.1,
-    verticalAnchor: 0.05,
+    scaleMultiplier: 1.3,
+    verticalAnchor: 0.1,
   },
 };
 
@@ -152,9 +152,9 @@ const LANDMARK = {
   NOSE_BRIDGE: 6,       // Very stable center point
 };
 
-// Anthropometric constants
-const HEAD_WIDTH_RATIO = 1.3;    // Head is ~30% wider than temple-to-temple
-const CROWN_OFFSET_RATIO = 0.5;  // Crown is ~50% of face-height above landmark 10
+// Anthropometric constants — tuned from real-world mobile testing
+const HEAD_WIDTH_RATIO = 1.55;   // Head/skull ~55% wider than temple-to-temple face landmarks
+const CROWN_OFFSET_RATIO = 0.35; // Crown is ~35% of face-height above landmark 10 (hairline)
 
 /**
  * Loads the MediaPipe Face Mesh library from CDN
@@ -541,7 +541,7 @@ export class HairFilterEngine {
     ctx.drawImage(
       img,
       -hairWidth / 2,    // center horizontally
-      -hairHeight * 0.3, // anchor point is ~30% from top of sprite (hair cap area)
+      -hairHeight * 0.4, // anchor point is ~40% from top (hair sits lower, covering head)
       hairWidth,
       hairHeight
     );
