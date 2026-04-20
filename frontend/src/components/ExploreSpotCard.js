@@ -2,7 +2,7 @@
  * ExploreSpotCard - Engaging surf spot card with conditions, forecast, and actions
  * Used in the Explore tab's "Surf Spots" section
  */
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   Waves, MapPin, Camera, Users, ChevronDown, ChevronUp, 
@@ -78,6 +78,62 @@ const ExploreSpotCard = ({ spot, userSubscriptionTier = 'free' }) => {
   const forecastDaysAllowed = spot.forecast_days_allowed || 3;
   const forecast = spot.forecast || [];
   
+  // ============ GALLERY ROTATION ============
+  const gallery = spot.gallery || [];
+  const hasGallery = gallery.length > 1;
+  const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
+  const [isTransitioning, setIsTransitioning] = useState(false);
+  const rotationTimer = useRef(null);
+  
+  // Rotation algorithm: cycle through gallery photos with crossfade
+  // Weighted toward newer photos (most recent show more often)
+  const getNextPhotoIndex = useCallback(() => {
+    if (gallery.length <= 1) return 0;
+    // Weighted random: newer photos (lower index) get higher probability
+    const weights = gallery.map((_, i) => Math.max(1, gallery.length - i));
+    const totalWeight = weights.reduce((a, b) => a + b, 0);
+    let random = Math.random() * totalWeight;
+    for (let i = 0; i < weights.length; i++) {
+      random -= weights[i];
+      if (random <= 0 && i !== currentPhotoIndex) return i;
+    }
+    // Fallback: just go to next in sequence
+    return (currentPhotoIndex + 1) % gallery.length;
+  }, [gallery, currentPhotoIndex]);
+  
+  useEffect(() => {
+    if (!hasGallery) return;
+    
+    // Rotate every 5 seconds with crossfade
+    rotationTimer.current = setInterval(() => {
+      setIsTransitioning(true);
+      setTimeout(() => {
+        setCurrentPhotoIndex(getNextPhotoIndex());
+        setIsTransitioning(false);
+      }, 300); // 300ms crossfade
+    }, 5000);
+    
+    return () => {
+      if (rotationTimer.current) clearInterval(rotationTimer.current);
+    };
+  }, [hasGallery, getNextPhotoIndex]);
+  
+  // Determine what to show in the image header
+  const getCurrentDisplayImage = () => {
+    if (hasGallery && gallery[currentPhotoIndex]) {
+      const photo = gallery[currentPhotoIndex];
+      return photo.media_type === 'video' 
+        ? (photo.thumbnail_url || photo.media_url) 
+        : photo.media_url;
+    }
+    if (spot.image_url) return getFullUrl(spot.image_url);
+    return null;
+  };
+  
+  const displayImage = getCurrentDisplayImage();
+  const currentContributor = hasGallery ? gallery[currentPhotoIndex] : null;
+  const hasMapFallback = !displayImage && spot.latitude && spot.longitude;
+  
   const handleViewSpot = () => {
     navigate(`/spot-hub/${spot.id}`);
   };
@@ -94,12 +150,26 @@ const ExploreSpotCard = ({ spot, userSubscriptionTier = 'free' }) => {
     >
       {/* Image Header */}
       <div className="relative h-32 overflow-hidden">
-        {spot.image_url ? (
+        {displayImage ? (
           <img 
-            src={getFullUrl(spot.image_url)} 
+            src={displayImage.startsWith('http') ? displayImage : getFullUrl(displayImage)} 
             alt={spot.name}
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+            className={`w-full h-full object-cover group-hover:scale-105 transition-all duration-500 ${
+              isTransitioning ? 'opacity-0' : 'opacity-100'
+            }`}
           />
+        ) : hasMapFallback ? (
+          /* Map satellite fallback — same as Popular Spots on All tab */
+          <div className="w-full h-full bg-muted relative">
+            <img 
+              src={`https://static-maps.yandex.ru/1.x/?lang=en_US&ll=${spot.longitude},${spot.latitude}&z=12&l=sat&size=400,300`}
+              alt={`Map of ${spot.name}`}
+              className="w-full h-full object-cover opacity-60 group-hover:opacity-80 transition-opacity"
+            />
+            <div className="absolute inset-0 flex items-center justify-center">
+              <MapPin className="w-8 h-8 text-cyan-400 drop-shadow-lg" />
+            </div>
+          </div>
         ) : (
           <div className="w-full h-full bg-gradient-to-br from-cyan-600 to-blue-800 flex items-center justify-center">
             <Waves className="w-12 h-12 text-white/30" />
@@ -108,6 +178,33 @@ const ExploreSpotCard = ({ spot, userSubscriptionTier = 'free' }) => {
         
         {/* Overlay gradient */}
         <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent" />
+        
+        {/* Gallery indicator dots */}
+        {hasGallery && (
+          <div className="absolute bottom-12 left-0 right-0 flex justify-center gap-1 z-20">
+            {gallery.slice(0, 5).map((_, idx) => (
+              <div 
+                key={idx}
+                className={`w-1.5 h-1.5 rounded-full transition-all ${
+                  idx === currentPhotoIndex 
+                    ? 'bg-white scale-110' 
+                    : 'bg-white/40'
+                }`}
+              />
+            ))}
+          </div>
+        )}
+        
+        {/* Contributor credit badge */}
+        {currentContributor?.contributor_name && (
+          <div className="absolute top-2 left-2 z-20 flex items-center gap-1 px-2 py-0.5 bg-black/50 backdrop-blur-sm rounded-full">
+            <Camera className="w-2.5 h-2.5 text-cyan-400" />
+            <span className="text-[9px] text-gray-300 truncate max-w-[80px]">
+              {currentContributor.contributor_name.split(' ')[0]}
+            </span>
+          </div>
+        )}
+        
         
         {/* Live Photographers Badge */}
         {hasPhotographers && (

@@ -395,8 +395,9 @@ async def get_surf_spots_with_conditions(
     
     # ============ Fetch spot thumbnails from tagged posts ============
     thumbnails_by_spot = {}
+    gallery_by_spot = {}
     if spot_ids:
-        # Get the most recent post with media for each spot
+        # Get the most recent posts with media for each spot (up to 5 for gallery rotation)
         for spot_id in spot_ids:
             post_result = await db.execute(
                 select(Post)
@@ -407,18 +408,32 @@ async def get_surf_spots_with_conditions(
                     Post.media_url != ''
                 )
                 .order_by(Post.created_at.desc())
-                .limit(1)
+                .limit(5)
             )
-            tagged_post = post_result.scalar_one_or_none()
+            tagged_posts = post_result.scalars().all()
             
-            if tagged_post and tagged_post.media_url:
+            if tagged_posts:
+                # First post is the primary thumbnail
+                primary = tagged_posts[0]
                 thumbnails_by_spot[spot_id] = {
-                    "media_url": tagged_post.media_url,
-                    "media_type": tagged_post.media_type or 'image',
-                    "thumbnail_url": tagged_post.thumbnail_url,
-                    "contributor_name": tagged_post.author.full_name if tagged_post.author else None,
-                    "contributor_role": tagged_post.author.role.value if tagged_post.author and tagged_post.author.role else None
+                    "media_url": primary.media_url,
+                    "media_type": primary.media_type or 'image',
+                    "thumbnail_url": primary.thumbnail_url,
+                    "contributor_name": primary.author.full_name if primary.author else None,
+                    "contributor_role": primary.author.role.value if primary.author and primary.author.role else None
                 }
+                
+                # Build gallery for photo rotation
+                gallery_by_spot[spot_id] = [{
+                    "media_url": p.media_url,
+                    "media_type": p.media_type or 'image',
+                    "thumbnail_url": p.thumbnail_url,
+                    "contributor_name": p.author.full_name if p.author else None,
+                    "contributor_avatar": p.author.avatar_url if p.author else None,
+                    "contributor_role": p.author.role.value if p.author and p.author.role else None,
+                    "post_id": p.id,
+                    "created_at": p.created_at.isoformat() if p.created_at else None
+                } for p in tagged_posts]
     
     # Now build the response for each spot
     for spot in spots:
@@ -434,6 +449,7 @@ async def get_surf_spots_with_conditions(
             "image_url": display_image,  # Use thumbnail if available
             "original_image_url": spot.image_url,  # Keep original for fallback
             "thumbnail": thumbnail_data,  # Full thumbnail data with contributor info
+            "gallery": gallery_by_spot.get(spot.id, []),  # Multiple photos for rotation
             "latitude": spot.latitude,
             "longitude": spot.longitude,
             "description": spot.description,
