@@ -98,8 +98,8 @@ async def get_moderation_queue(
 @router.post("/admin/content-moderation/{item_id}/moderate")
 async def moderate_content(
     item_id: str,
-    admin: Profile = Depends(get_current_admin),
     request: ModerateContentRequest,
+    admin: Profile = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db)
 ):
     """Approve, reject, or escalate a content item"""
@@ -154,8 +154,8 @@ async def moderate_content(
 
 @router.post("/admin/content-moderation/bulk-moderate")
 async def bulk_moderate_content(
-    admin: Profile = Depends(get_current_admin),
     request: BulkModerateRequest,
+    admin: Profile = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db)
 ):
     """Bulk approve or reject multiple content items"""

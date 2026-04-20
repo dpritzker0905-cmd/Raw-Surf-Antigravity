@@ -91,8 +91,8 @@ async def get_announcements(
 
 @router.post("/admin/announcements")
 async def create_announcement(
-    admin: Profile = Depends(get_current_admin),
     request: CreateAnnouncementRequest,
+    admin: Profile = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db)
 ):
     """Create a new announcement"""
@@ -213,8 +213,8 @@ async def get_message_templates(
 
 @router.post("/admin/message-templates")
 async def create_message_template(
-    admin: Profile = Depends(get_current_admin),
     request: CreateTemplateRequest,
+    admin: Profile = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db)
 ):
     """Create a message template"""
@@ -294,8 +294,8 @@ async def get_bulk_campaigns(
 
 @router.post("/admin/bulk-campaigns")
 async def create_bulk_campaign(
-    admin: Profile = Depends(get_current_admin),
     request: CreateBulkCampaignRequest,
+    admin: Profile = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db)
 ):
     """Create a bulk message campaign"""

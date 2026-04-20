@@ -373,8 +373,8 @@ async def add_dispute_message(
 @router.post("/admin/disputes/{dispute_id}/refund-stripe")
 async def process_stripe_refund(
     dispute_id: str,
-    admin: Profile = Depends(get_current_admin),
     amount: float,
+    admin: Profile = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db)
 ):
     """Process actual Stripe refund for escalated disputes"""

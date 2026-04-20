@@ -24,7 +24,7 @@ class UserUpdateRequest(BaseModel):
 
 async def log_admin_action(
     db: AsyncSession,
-    admin: Profile = Depends(get_current_admin),
+    admin_id: str,
     action: str,
     target_type: str,
     target_id: str = None,
@@ -32,7 +32,7 @@ async def log_admin_action(
 ):
     """Log an admin action"""
     log = AdminLog(
-        admin_id=admin.id,
+        admin_id=admin_id,
         action=action,
         target_type=target_type,
         target_id=target_id,
@@ -222,8 +222,8 @@ async def get_user_detail(user_id: str, admin_id: str, db: AsyncSession = Depend
 @router.patch("/admin/users/{user_id}")
 async def update_user(
     user_id: str,
-    admin: Profile = Depends(get_current_admin),
     data: UserUpdateRequest,
+    admin: Profile = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db)
 ):
     """Update user properties"""
@@ -270,8 +270,8 @@ class BulkUpdateRequest(BaseModel):
 
 @router.post("/admin/users/bulk-update")
 async def bulk_update_users(
-    admin: Profile = Depends(get_current_admin),
     data: BulkUpdateRequest,
+    admin: Profile = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db)
 ):
     """Bulk update role or subscription for multiple users"""
@@ -328,8 +328,8 @@ async def bulk_update_users(
 @router.post("/admin/users/{user_id}/suspend")
 async def suspend_user(
     user_id: str,
-    admin: Profile = Depends(get_current_admin),
     data: UserSuspendRequest,
+    admin: Profile = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db)
 ):
     """Suspend a user"""
@@ -379,8 +379,8 @@ class AdminResetPasswordRequest(BaseModel):
 @router.post("/admin/users/{user_id}/reset-password")
 async def admin_reset_password(
     user_id: str,
-    admin: Profile = Depends(get_current_admin),
     data: AdminResetPasswordRequest,
+    admin: Profile = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db)
 ):
     """Admin-only: manually reset a user's password"""
@@ -416,8 +416,8 @@ class BulkDeleteRequest(BaseModel):
 
 @router.post("/admin/users/bulk-delete")
 async def bulk_delete_users(
-    admin: Profile = Depends(get_current_admin),
     data: BulkDeleteRequest,
+    admin: Profile = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db)
 ):
     """Bulk delete multiple users (admin only) - excludes admins"""

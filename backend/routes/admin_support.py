@@ -208,8 +208,8 @@ async def get_ticket_detail(
 @router.put("/admin/support/tickets/{ticket_id}")
 async def update_ticket(
     ticket_id: str,
-    admin: Profile = Depends(get_current_admin),
     request: UpdateTicketRequest,
+    admin: Profile = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db)
 ):
     """Update ticket status, priority, assignment"""
@@ -246,8 +246,8 @@ async def update_ticket(
 @router.post("/admin/support/tickets/{ticket_id}/reply")
 async def reply_to_ticket(
     ticket_id: str,
-    admin: Profile = Depends(get_current_admin),
     request: TicketMessageRequest,
+    admin: Profile = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db)
 ):
     """Add a reply or internal note to a ticket"""

@@ -79,8 +79,8 @@ class CreateChangelogRequest(BaseModel):
 # --- GLOBAL SEARCH ---
 @router.get("/admin/search")
 async def global_search(
-    admin: Profile = Depends(get_current_admin),
     query: str,
+    admin: Profile = Depends(get_current_admin),
     types: Optional[str] = None,  # comma-separated: 'users,bookings,spots'
     limit: int = 20,
     db: AsyncSession = Depends(get_db)
@@ -193,8 +193,8 @@ async def get_featured_content(
 
 @router.post("/admin/content/featured")
 async def create_featured_content(
-    admin: Profile = Depends(get_current_admin),
     request: CreateFeaturedContentRequest,
+    admin: Profile = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db)
 ):
     """Create featured content"""
@@ -295,8 +295,8 @@ async def get_homepage_banners(
 
 @router.post("/admin/content/banners")
 async def create_banner(
-    admin: Profile = Depends(get_current_admin),
     request: CreateBannerRequest,
+    admin: Profile = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db)
 ):
     """Create homepage banner"""
@@ -411,8 +411,8 @@ async def get_spots_seo(
 @router.put("/admin/content/seo/spots/{spot_id}")
 async def update_spot_seo(
     spot_id: str,
-    admin: Profile = Depends(get_current_admin),
     request: UpdateSEORequest,
+    admin: Profile = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db)
 ):
     """Update spot SEO metadata"""
@@ -483,8 +483,8 @@ async def get_api_keys(
 
 @router.post("/admin/tools/api-keys")
 async def create_api_key(
-    admin: Profile = Depends(get_current_admin),
     request: CreateAPIKeyRequest,
+    admin: Profile = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db)
 ):
     """Create a new API key"""
@@ -570,8 +570,8 @@ async def get_automated_reports(
 
 @router.post("/admin/tools/reports")
 async def create_automated_report(
-    admin: Profile = Depends(get_current_admin),
     request: CreateReportRequest,
+    admin: Profile = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db)
 ):
     """Create an automated report"""
@@ -648,8 +648,8 @@ async def get_changelog(
 
 @router.post("/admin/tools/changelog")
 async def create_changelog_entry(
-    admin: Profile = Depends(get_current_admin),
     request: CreateChangelogRequest,
+    admin: Profile = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db)
 ):
     """Create a changelog entry"""

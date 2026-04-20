@@ -232,8 +232,8 @@ async def get_system_alerts(
 
 @router.post("/admin/system/alerts/acknowledge")
 async def acknowledge_alerts(
-    admin: Profile = Depends(get_current_admin),
     request: AcknowledgeAlertRequest,
+    admin: Profile = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db)
 ):
     """Acknowledge one or more alerts"""

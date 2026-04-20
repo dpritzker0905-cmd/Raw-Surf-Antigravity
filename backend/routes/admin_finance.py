@@ -96,8 +96,8 @@ async def get_refund_requests(
 
 @router.post("/admin/finance/refunds")
 async def create_refund_request(
-    admin: Profile = Depends(get_current_admin),
     request: CreateRefundRequest,
+    admin: Profile = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db)
 ):
     """Create a refund request (admin-initiated)"""
@@ -121,8 +121,8 @@ async def create_refund_request(
 @router.post("/admin/finance/refunds/{refund_id}/process")
 async def process_refund(
     refund_id: str,
-    admin: Profile = Depends(get_current_admin),
     request: ProcessRefundRequest,
+    admin: Profile = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db)
 ):
     """Approve or reject a refund request"""
@@ -251,8 +251,8 @@ async def get_pending_payouts(
 
 @router.post("/admin/finance/payouts/create-batch")
 async def create_payout_batch(
-    admin: Profile = Depends(get_current_admin),
     request: CreatePayoutBatchRequest,
+    admin: Profile = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db)
 ):
     """Create a new payout batch"""
@@ -426,8 +426,8 @@ async def retry_failed_payment(
 # --- TAX REPORTING ---
 @router.get("/admin/finance/tax-report")
 async def get_tax_report(
-    admin: Profile = Depends(get_current_admin),
     year: int,
+    admin: Profile = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db)
 ):
     """Get tax report data for a year"""
