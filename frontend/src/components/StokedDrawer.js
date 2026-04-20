@@ -1,4 +1,4 @@
-﻿/**
+/**
  * StokedDrawer - Mobile bottom sheet drawer for Stoked credits/impact
  * Opens from the lightning bolt icon in mobile TopNav
  */
@@ -83,11 +83,11 @@ export const StokedDrawer = ({ isOpen, onClose }) => {
   };
 
   return (
-    <Sheet open={isOpen} onOpenChange={onClose}>
+    <Sheet open={isOpen} onOpenChange={(open) => { if (!open) onClose(); }}>
       <SheetContent 
         side="bottom" 
         hideCloseButton
-        className="bg-zinc-900 border-zinc-700 rounded-t-3xl h-auto sheet-safe-bottom md:max-h-[65vh] md:!bottom-4 overflow-hidden flex flex-col"
+        className="bg-zinc-900 border-zinc-700 rounded-t-3xl max-h-[75vh] sheet-safe-bottom md:max-h-[65vh] md:!bottom-4 overflow-hidden flex flex-col !p-4 !pt-5"
       >
         <SheetHeader className="pb-3 shrink-0">
           <div className="flex items-center justify-between">

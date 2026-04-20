@@ -76,11 +76,11 @@ export const BackpackDrawer = ({ isOpen, onClose, onReopen }) => {
 
   return (
     <>
-      <Sheet open={isOpen} onOpenChange={onClose}>
+      <Sheet open={isOpen} onOpenChange={(open) => { if (!open) onClose(); }}>
         <SheetContent 
           side="bottom"
           hideCloseButton
-          className="bg-zinc-900 border-zinc-700 rounded-t-3xl h-auto sheet-safe-bottom md:max-h-[70vh] md:!bottom-4 overflow-hidden flex flex-col"
+          className="bg-zinc-900 border-zinc-700 rounded-t-3xl max-h-[75vh] sheet-safe-bottom md:max-h-[70vh] md:!bottom-4 overflow-hidden flex flex-col !p-4 !pt-5"
         >
           <SheetHeader className="pb-3 shrink-0 pt-2">
             <div className="flex items-center justify-between">

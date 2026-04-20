@@ -243,7 +243,7 @@ export const TopNav = () => {
             {/* Position 3 (or 2): Exclusive Area Icon - Grom/Grom Parent/Comp/Pro only */}
             {hasExclusiveAccess && ExclusiveIcon && (
               <button 
-                onClick={() => setExclusiveAreaOpen(true)}
+                onClick={() => setExclusiveAreaOpen(!exclusiveAreaOpen)}
                 className={`${exclusiveIconColor} hover:opacity-80 transition-colors p-1`}
                 data-testid="topnav-exclusive-area"
                 aria-label={
@@ -258,7 +258,7 @@ export const TopNav = () => {
             
             {/* Position 4 (or 3): Backpack Icon - Opens Backpack Drawer (Passport, Wallet, Alerts) */}
             <button 
-              onClick={() => setBackpackOpen(true)}
+              onClick={() => setBackpackOpen(!backpackOpen)}
               className="text-amber-400 hover:text-amber-300 transition-colors p-1"
               data-testid="topnav-backpack"
               aria-label="Backpack"
@@ -310,13 +310,13 @@ export const TopNav = () => {
                 onClick={() => {
                   if (effectiveRole === ROLES.GROM_PARENT) {
                     // Fallback for purely dedicated Grom Parents if they tap Gear
-                    setStokedOpen(true);
+                    setStokedOpen(!stokedOpen);
                   } else if (isPhotographer) {
                     navigate('/impacted');  // Photographers → Impact Dashboard
                   } else if (isCompetitive) {
-                    setStokedOpen(true);  // Comp/Pro → Stoked Drawer
+                    setStokedOpen(!stokedOpen);  // Comp/Pro → Stoked Drawer
                   } else {
-                    setStokedOpen(true);  // Regular Surfers → Stoked/Gear Drawer
+                    setStokedOpen(!stokedOpen);  // Regular Surfers → Stoked/Gear Drawer
                   }
                 }}
                 className={`${personaConfig.color} ${personaConfig.hoverColor} transition-colors p-1`}
