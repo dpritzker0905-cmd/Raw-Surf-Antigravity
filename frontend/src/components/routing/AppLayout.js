@@ -101,7 +101,7 @@ const CallManager = () => {
           callerAvatar={call.remoteUserInfo?.avatar}
           callType={call.callType}
           onAccept={call.answerCall}
-          onDecline={call.declineCall}
+          onReject={call.declineCall}
         />
       )}
 

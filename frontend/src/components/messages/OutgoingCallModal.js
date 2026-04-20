@@ -1,13 +1,13 @@
 /**
  * OutgoingCallModal — Full-screen overlay shown to the CALLER while ringing.
  * 
- * Uses the global AudioUnlock system for ringback tone.
- * Since the user clicked "Call" to trigger this, the gesture is available.
+ * Uses HTML Audio with generated WAV for ringback tone.
+ * User already clicked "Call", so the gesture requirement is satisfied.
  */
 
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { PhoneOff, Phone, Video } from 'lucide-react';
-import { playRingtone, unlockAudioNow } from '../../utils/audioUnlock';
+import { playRingtone } from '../../utils/audioUnlock';
 
 export default function OutgoingCallModal({ 
   targetName, 
@@ -29,24 +29,28 @@ export default function OutgoingCallModal({
   // Auto-cancel after 30 seconds (no answer)
   useEffect(() => {
     const timeout = setTimeout(() => {
-      onCancel?.();
+      if (onCancel) onCancel();
     }, 30000);
     return () => clearTimeout(timeout);
   }, [onCancel]);
 
-  // Play ringback tone — user just clicked "Call", so AudioContext should be unlocked
+  // Play ringback tone
   useEffect(() => {
-    unlockAudioNow(); // Extra guarantee since user just tapped
     stopRingRef.current = playRingtone('ringback');
-    
     return () => {
-      if (stopRingRef.current) stopRingRef.current();
+      if (stopRingRef.current) {
+        stopRingRef.current();
+        stopRingRef.current = null;
+      }
     };
   }, []);
 
   const handleCancel = useCallback(() => {
-    if (stopRingRef.current) stopRingRef.current();
-    onCancel?.();
+    if (stopRingRef.current) {
+      stopRingRef.current();
+      stopRingRef.current = null;
+    }
+    if (onCancel) onCancel();
   }, [onCancel]);
 
   return (

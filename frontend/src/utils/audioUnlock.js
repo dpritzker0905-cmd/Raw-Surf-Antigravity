@@ -1,178 +1,208 @@
 /**
- * AudioUnlock — Global audio context manager for ringtone playback.
+ * AudioUnlock — Ringtone manager using HTML Audio elements.
  * 
- * Browsers block AudioContext until a user gesture occurs on the page.
- * This utility "unlocks" audio by creating and resuming an AudioContext
- * on the very first user interaction (click/tap/keydown), then keeps it
- * alive for the entire session so ringtones can play immediately.
+ * WHY HTML Audio instead of AudioContext:
+ * - AudioContext requires a user gesture AND .resume() to work
+ * - HTML Audio elements with data URIs work after ANY prior user gesture
+ * - More reliable across Chrome, Safari, Firefox, and mobile browsers
+ * - The user clicking "Call" or any UI element counts as the gesture
  * 
- * Usage:
- *   import { getUnlockedAudioContext, ensureAudioUnlocked } from './audioUnlock';
- *   
- *   // Call once at app startup (e.g., in App.js):
- *   ensureAudioUnlocked();
- *   
- *   // Later, in any component that needs to play audio:
- *   const ctx = getUnlockedAudioContext();
- *   if (ctx) { // use oscillator, etc. }
+ * This module generates small WAV files in-memory as base64 data URIs,
+ * then plays them using new Audio(). No network requests needed.
  */
 
-let globalAudioContext = null;
-let isUnlocked = false;
+// ── Generate a WAV file as a data URI from raw PCM samples ──────────
+function generateWavDataUri(samples, sampleRate = 22050) {
+  const numChannels = 1;
+  const bitsPerSample = 16;
+  const byteRate = sampleRate * numChannels * bitsPerSample / 8;
+  const blockAlign = numChannels * bitsPerSample / 8;
+  const dataSize = samples.length * 2; // 16-bit = 2 bytes per sample
+  const totalSize = 44 + dataSize;
 
-/**
- * Get the global unlocked AudioContext (or null if not yet unlocked).
- */
-export function getUnlockedAudioContext() {
-  if (globalAudioContext && globalAudioContext.state === 'closed') {
-    globalAudioContext = null;
-    isUnlocked = false;
+  const buffer = new ArrayBuffer(totalSize);
+  const view = new DataView(buffer);
+
+  // RIFF header
+  writeString(view, 0, 'RIFF');
+  view.setUint32(4, totalSize - 8, true);
+  writeString(view, 8, 'WAVE');
+
+  // fmt chunk
+  writeString(view, 12, 'fmt ');
+  view.setUint32(16, 16, true); // chunk size
+  view.setUint16(20, 1, true);  // PCM
+  view.setUint16(22, numChannels, true);
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, byteRate, true);
+  view.setUint16(32, blockAlign, true);
+  view.setUint16(34, bitsPerSample, true);
+
+  // data chunk
+  writeString(view, 36, 'data');
+  view.setUint32(40, dataSize, true);
+
+  // PCM samples
+  for (let i = 0; i < samples.length; i++) {
+    const s = Math.max(-1, Math.min(1, samples[i]));
+    view.setInt16(44 + i * 2, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
   }
-  return globalAudioContext;
+
+  // Convert to base64
+  const bytes = new Uint8Array(buffer);
+  let binary = '';
+  for (let i = 0; i < bytes.length; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  return 'data:audio/wav;base64,' + btoa(binary);
 }
 
-/**
- * Try to unlock audio NOW (e.g., called from a click handler).
- */
-export function unlockAudioNow() {
-  if (isUnlocked && globalAudioContext && globalAudioContext.state === 'running') return;
+function writeString(view, offset, str) {
+  for (let i = 0; i < str.length; i++) {
+    view.setUint8(offset + i, str.charCodeAt(i));
+  }
+}
+
+// ── Generate ringtone samples ───────────────────────────────────────
+function generateIncomingRing() {
+  const sampleRate = 22050;
+  const duration = 2.0; // 2 seconds: ring-ring-pause
+  const samples = new Float32Array(sampleRate * duration);
   
-  try {
-    if (!globalAudioContext) {
-      globalAudioContext = new (window.AudioContext || window.webkitAudioContext)();
+  for (let i = 0; i < samples.length; i++) {
+    const t = i / sampleRate;
+    
+    // Two bursts: 0-0.4s and 0.5-0.9s, then silence
+    let amplitude = 0;
+    if (t < 0.4) {
+      amplitude = 0.25;
+    } else if (t >= 0.5 && t < 0.9) {
+      amplitude = 0.25;
     }
     
-    if (globalAudioContext.state === 'suspended') {
-      globalAudioContext.resume().then(() => {
-        isUnlocked = true;
-        console.debug('[AudioUnlock] AudioContext resumed to:', globalAudioContext.state);
-      }).catch(() => {});
-    } else {
-      isUnlocked = true;
+    if (amplitude > 0) {
+      // Dual-tone: 440Hz + 480Hz (standard US ring)
+      samples[i] = amplitude * (
+        Math.sin(2 * Math.PI * 440 * t) * 0.5 +
+        Math.sin(2 * Math.PI * 480 * t) * 0.5
+      );
     }
-    
-    // Play a silent buffer to fully activate the context
-    const buffer = globalAudioContext.createBuffer(1, 1, 22050);
-    const source = globalAudioContext.createBufferSource();
-    source.buffer = buffer;
-    source.connect(globalAudioContext.destination);
-    source.start(0);
-  } catch (e) {
-    console.debug('[AudioUnlock] Failed to unlock:', e);
   }
+  
+  return generateWavDataUri(samples, sampleRate);
 }
 
-/**
- * Install global listeners that will unlock audio on first user interaction.
- * Safe to call multiple times — only installs once.
- */
-let listenersInstalled = false;
-export function ensureAudioUnlocked() {
-  if (listenersInstalled) return;
-  listenersInstalled = true;
+function generateRingbackTone() {
+  const sampleRate = 22050;
+  const duration = 3.0; // 3 seconds: 1s tone, 2s silence
+  const samples = new Float32Array(sampleRate * duration);
   
-  const events = ['click', 'touchstart', 'keydown'];
-  const handler = () => {
-    unlockAudioNow();
-    // Remove listeners after first unlock
-    if (isUnlocked) {
-      events.forEach(e => document.removeEventListener(e, handler, true));
-      console.debug('[AudioUnlock] Listeners removed — audio unlocked');
+  for (let i = 0; i < samples.length; i++) {
+    const t = i / sampleRate;
+    
+    // Ringback: 1s tone, 2s silence
+    if (t < 1.0) {
+      samples[i] = 0.12 * Math.sin(2 * Math.PI * 425 * t);
     }
-  };
+  }
   
-  events.forEach(e => document.addEventListener(e, handler, { capture: true, passive: true }));
-  console.debug('[AudioUnlock] Listeners installed — waiting for first user gesture');
+  return generateWavDataUri(samples, sampleRate);
+}
+
+// ── Pre-generate the WAV data URIs ──────────────────────────────────
+let incomingRingUri = null;
+let ringbackUri = null;
+
+function getIncomingRingUri() {
+  if (!incomingRingUri) incomingRingUri = generateIncomingRing();
+  return incomingRingUri;
+}
+
+function getRingbackUri() {
+  if (!ringbackUri) ringbackUri = generateRingbackTone();
+  return ringbackUri;
 }
 
 /**
- * Play a ringtone using the unlocked AudioContext.
- * Returns a stop() function to cancel the ring.
- * Falls back to Vibration API if audio is unavailable.
+ * Play a ringtone. Returns a stop() function.
+ * Uses HTML Audio element with generated WAV — most reliable cross-browser.
  */
 export function playRingtone(type = 'incoming') {
-  const ctx = getUnlockedAudioContext();
-  let intervalId = null;
   let stopped = false;
+  let currentAudio = null;
+  let intervalId = null;
+
+  const uri = type === 'incoming' ? getIncomingRingUri() : getRingbackUri();
+  const interval = type === 'incoming' ? 2500 : 3500;
 
   const playOnce = () => {
-    if (stopped || !ctx || ctx.state === 'closed') return;
-    
-    // Try to resume if suspended
-    if (ctx.state === 'suspended') {
-      ctx.resume().catch(() => {});
-    }
-    
+    if (stopped) return;
     try {
-      if (type === 'incoming') {
-        // Dual-tone ring: 440Hz + 480Hz
-        const osc1 = ctx.createOscillator();
-        const osc2 = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc1.frequency.value = 440;
-        osc2.frequency.value = 480;
-        gain.gain.value = 0.15;
-        osc1.connect(gain);
-        osc2.connect(gain);
-        gain.connect(ctx.destination);
-        osc1.start(ctx.currentTime);
-        osc2.start(ctx.currentTime);
-        osc1.stop(ctx.currentTime + 0.4);
-        osc2.stop(ctx.currentTime + 0.4);
-        // Second burst
-        const osc3 = ctx.createOscillator();
-        const osc4 = ctx.createOscillator();
-        const gain2 = ctx.createGain();
-        osc3.frequency.value = 440;
-        osc4.frequency.value = 480;
-        gain2.gain.value = 0.15;
-        osc3.connect(gain2);
-        osc4.connect(gain2);
-        gain2.connect(ctx.destination);
-        osc3.start(ctx.currentTime + 0.5);
-        osc4.start(ctx.currentTime + 0.5);
-        osc3.stop(ctx.currentTime + 0.9);
-        osc4.stop(ctx.currentTime + 0.9);
-      } else {
-        // Ringback: single 425Hz tone
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.frequency.value = 425;
-        gain.gain.value = 0.08;
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.start(ctx.currentTime);
-        osc.stop(ctx.currentTime + 1.0);
-      }
+      currentAudio = new Audio(uri);
+      currentAudio.volume = type === 'incoming' ? 0.7 : 0.4;
+      const p = currentAudio.play();
+      if (p && p.catch) p.catch(() => {});
     } catch (e) {
-      console.debug('[AudioUnlock] Ring playback error:', e);
+      console.debug('[Ringtone] play error:', e);
     }
   };
 
-  // Start ringing
+  // Start immediately
   playOnce();
-  const interval = type === 'incoming' ? 2500 : 3000;
   intervalId = setInterval(playOnce, interval);
 
-  // Vibration fallback for mobile
-  if (navigator.vibrate) {
-    const vibratePattern = type === 'incoming' ? [200, 100, 200, 500] : [100, 200];
-    const vibrateInterval = setInterval(() => {
-      if (!stopped) navigator.vibrate(vibratePattern);
-    }, interval);
-    
-    return () => {
-      stopped = true;
-      clearInterval(intervalId);
-      clearInterval(vibrateInterval);
-      navigator.vibrate(0); // Stop vibration
-    };
+  // Vibration fallback on mobile
+  let vibrateId = null;
+  if (type === 'incoming' && navigator.vibrate) {
+    navigator.vibrate([200, 100, 200, 500]);
+    vibrateId = setInterval(() => {
+      if (!stopped) navigator.vibrate([200, 100, 200, 500]);
+    }, 2500);
   }
 
   return () => {
     stopped = true;
     clearInterval(intervalId);
+    if (vibrateId) clearInterval(vibrateId);
+    if (currentAudio) {
+      currentAudio.pause();
+      currentAudio.currentTime = 0;
+      currentAudio = null;
+    }
+    if (navigator.vibrate) navigator.vibrate(0);
   };
 }
 
-export default { getUnlockedAudioContext, ensureAudioUnlocked, unlockAudioNow, playRingtone };
+/**
+ * Unlock audio on user gesture. Call this from click handlers.
+ * For HTML Audio approach, this creates and plays a silent audio to "warm up".
+ */
+export function unlockAudioNow() {
+  try {
+    const a = new Audio('data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YQAAAAA=');
+    a.volume = 0;
+    const p = a.play();
+    if (p && p.then) p.then(() => a.pause()).catch(() => {});
+  } catch (e) {
+    // Silent fail
+  }
+}
+
+/**
+ * Install global listeners to unlock audio on first user gesture.
+ */
+let listenersInstalled = false;
+export function ensureAudioUnlocked() {
+  if (listenersInstalled) return;
+  listenersInstalled = true;
+
+  const handler = () => {
+    unlockAudioNow();
+    ['click', 'touchstart', 'keydown'].forEach(e =>
+      document.removeEventListener(e, handler, true)
+    );
+  };
+  ['click', 'touchstart', 'keydown'].forEach(e =>
+    document.addEventListener(e, handler, { capture: true, passive: true })
+  );
+}

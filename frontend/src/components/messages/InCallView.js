@@ -1,14 +1,21 @@
 /**
  * InCallView — Premium active call overlay.
  * 
- * KEY DESIGN DECISIONS:
- * 1. CSS filters on local PIP for instant, reliable visual effects (no WebGL teardown issues)
- * 2. Remote video uses object-contain (not object-cover) to avoid cropping faces
- * 3. Filters auto-close on selection (GoLive pattern)
- * 4. Desktop: contained panel with dark surround. Mobile: full-screen.
+ * FILTER IMPLEMENTATION — Matches GoLive exactly:
+ *   - Uses CSS filter property (brightness/contrast/saturate/hue-rotate)
+ *   - Presets map to slider values (same as GoLive VideoFilterPanel)
+ *   - Applied via inline style={{ filter: '...' }} on the video element
+ *   - No WebGL, no canvas, no pipeline teardown issues
+ *
+ * REMOTE VIDEO:
+ *   - object-contain to prevent face cropping
+ *   - Dark background for letterboxing
+ * 
+ * HAIR FILTERS:
+ *   - Uses HairFilterPicker component (same as GoLive)
  */
 
-import React, { useRef, useEffect, useState, useCallback } from 'react';
+import React, { useRef, useEffect, useState, useCallback, useMemo } from 'react';
 import { 
   Mic, MicOff, Video, VideoOff, PhoneOff, 
   Volume2, Maximize2, Minimize2, Signal, SignalLow, SignalZero,
@@ -43,28 +50,49 @@ function ConnectionQualityBadge({ quality }) {
   );
 }
 
-// ── CSS Filter Map — maps preset keys to CSS filter strings ─────────
-// These apply instantly to the <video> element with zero setup overhead.
-const CSS_FILTER_MAP = {
-  none:             'none',
-  goldenhour:       'sepia(0.35) saturate(1.6) brightness(1.1) hue-rotate(-10deg)',
-  nightvision:      'brightness(1.4) contrast(1.3) saturate(0) sepia(1) hue-rotate(70deg) brightness(0.7)',
-  pixelate:         'contrast(1.8) saturate(0.3) brightness(0.95)',  // Harsh lo-fi
-  gopro:            'contrast(1.35) saturate(1.25) brightness(0.85)',
-  bioluminescence:  'contrast(1.3) brightness(1.15) hue-rotate(180deg) saturate(1.8)',
-  cyber:            'contrast(1.25) brightness(0.85) hue-rotate(210deg) saturate(2.2)',
-};
-
-// ── GPU Filter Presets list ─────────────────────────────────────────
+// ── Filter Presets (same values as GoLive VideoFilterPanel) ─────────
 const FILTER_PRESETS = [
-  { name: 'None',         key: 'none',             icon: CircleDot, description: 'Original camera' },
-  { name: 'Golden Hour',  key: 'goldenhour',       icon: Sunset,    description: 'Warm sunset vibes' },
-  { name: 'Night Vision', key: 'nightvision',      icon: Eye,       description: 'Tactical green overlay' },
-  { name: 'Pixelate',     key: 'pixelate',         icon: Grid,      description: 'Retro lo-fi aesthetic' },
-  { name: 'Pipeline',     key: 'gopro',            icon: Waves,     description: 'Deep barrel shadows' },
-  { name: 'Bio-Lum',      key: 'bioluminescence',  icon: Moon,      description: 'Neon glowing edges' },
-  { name: 'Cyber-Surf',   key: 'cyber',            icon: Zap,       description: 'Hyper-cold glitch lens' },
+  { 
+    name: 'None', key: 'none', icon: CircleDot, description: 'Original camera',
+    values: { brightness: 100, contrast: 100, saturation: 100, warmth: 100 }
+  },
+  { 
+    name: 'Golden Hour', key: 'goldenhour', icon: Sunset, description: 'Warm sunset vibes',
+    values: { brightness: 105, contrast: 110, saturation: 120, warmth: 120 }
+  },
+  { 
+    name: 'Pipeline', key: 'pipeline', icon: Waves, description: 'Deep barrel shadows',
+    values: { brightness: 90, contrast: 130, saturation: 90, warmth: 110 }
+  },
+  { 
+    name: 'Night Vision', key: 'nightvision', icon: Eye, description: 'Tactical green overlay',
+    values: { brightness: 140, contrast: 130, saturation: 0, warmth: 170 }
+  },
+  { 
+    name: 'Pixelate', key: 'pixelate', icon: Grid, description: 'Retro lo-fi aesthetic',
+    values: { brightness: 95, contrast: 180, saturation: 30, warmth: 100 }
+  },
+  { 
+    name: 'Bio-Lum', key: 'bioluminescence', icon: Moon, description: 'Neon glowing edges',
+    values: { brightness: 85, contrast: 140, saturation: 150, warmth: 160 }
+  },
+  { 
+    name: 'Cyber-Surf', key: 'cyber', icon: Zap, description: 'Hyper-cold glitch lens',
+    values: { brightness: 110, contrast: 125, saturation: 140, warmth: 40 }
+  },
 ];
+
+// ── Build CSS filter string from preset values (same logic as GoLive) ──
+function buildCSSFilter(values) {
+  if (!values) return 'none';
+  
+  // Warmth → hue-rotate mapping (exact GoLive logic)
+  let warmthDegrees = (values.warmth - 100) * 0.8;
+  if (values.warmth >= 150) warmthDegrees = 300; // Neon blue/purple
+  if (values.warmth <= 50) warmthDegrees = 180;  // Negative inversion
+  
+  return `brightness(${values.brightness}%) contrast(${values.contrast}%) saturate(${values.saturation}%) hue-rotate(${warmthDegrees}deg)`;
+}
 
 // ── Theme colors for HairFilterPicker ───────────────────────────────
 const CALL_COLORS = {
@@ -77,7 +105,7 @@ const CALL_COLORS = {
   accentBg: 'bg-cyan-500/20',
 };
 
-// ── GPU Filter Picker panel ─────────────────────────────────────────
+// ── Filter Picker panel ─────────────────────────────────────────────
 const FilterPicker = ({ isOpen, onClose, activeFilter, onSelectFilter }) => {
   if (!isOpen) return null;
   return (
@@ -170,7 +198,7 @@ export default function InCallView({
   useEffect(() => {
     if (remoteAudioRef.current && remoteStream) {
       remoteAudioRef.current.srcObject = remoteStream;
-      remoteAudioRef.current.play().catch(e => console.debug('[InCallView] Audio autoplay blocked:', e));
+      remoteAudioRef.current.play().catch(() => {});
     }
   }, [remoteStream]);
 
@@ -200,8 +228,12 @@ export default function InCallView({
     setShowHairPicker(false);
   }, []);
 
-  // Get the CSS filter string for the active preset
-  const cssFilterStyle = CSS_FILTER_MAP[activeFilter] || 'none';
+  // ── Build CSS filter style — exact GoLive pattern ─────────────────
+  const videoFilterStyle = useMemo(() => {
+    const preset = FILTER_PRESETS.find(p => p.key === activeFilter);
+    if (!preset || activeFilter === 'none') return {};
+    return { filter: buildCSSFilter(preset.values) };
+  }, [activeFilter]);
 
   // ── Control Button Component ──────────────────────────────────────
   const ControlButton = ({ onClick, active, danger, icon: Icon, label, size = 'normal' }) => {
@@ -234,13 +266,11 @@ export default function InCallView({
       {/* Hidden audio element for remote stream */}
       <audio ref={remoteAudioRef} autoPlay playsInline />
 
-      {/* ═══ Desktop: Contained panel. Mobile: Full-screen ═══ */}
       <div className="relative w-full h-full md:w-[calc(100%-48px)] md:h-[calc(100%-48px)] md:max-w-[1100px] md:max-h-[700px] md:rounded-2xl overflow-hidden flex flex-col shadow-2xl shadow-black/50">
 
         {/* ── Video Area ── */}
         <div className="flex-1 relative overflow-hidden bg-black">
           {callType === 'video' && remoteStream ? (
-            /* Remote video — object-contain prevents face cropping */
             <video
               ref={remoteVideoRef}
               autoPlay
@@ -288,7 +318,7 @@ export default function InCallView({
 
           {/* ── Top Overlay ── */}
           <div 
-            className={`absolute top-0 left-0 right-0 transition-opacity duration-300 ${showControls ? 'opacity-100' : 'opacity-0'}`}
+            className={`absolute top-0 left-0 right-0 transition-opacity duration-300 ${showControls ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
             style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.3) 60%, transparent 100%)' }}
           >
             <div className="flex items-center justify-between px-3 md:px-4 py-2.5 md:py-3">
@@ -325,12 +355,11 @@ export default function InCallView({
             </div>
           </div>
 
-          {/* ── Side Buttons (GoLive-style floating on right) ── */}
+          {/* ── Side Buttons (video calls only) ── */}
           {callType === 'video' && (
-            <div className={`absolute right-3 top-1/2 -translate-y-1/2 flex flex-col gap-2 z-10 transition-opacity duration-300 ${showControls ? 'opacity-100' : 'opacity-0'}`}>
-              {/* Filters button */}
+            <div className={`absolute right-3 top-1/2 -translate-y-1/2 flex flex-col gap-2 z-10 transition-opacity duration-300 ${showControls ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
               <button
-                onClick={(e) => { e.stopPropagation(); setShowFilters(!showFilters); setShowHairPicker(false); }}
+                onClick={(e) => { e.stopPropagation(); setShowFilters(f => !f); setShowHairPicker(false); }}
                 className={`p-2.5 md:p-3 rounded-full bg-black/40 backdrop-blur-md border border-white/10 transition-all active:scale-95 shadow-md ${
                   showFilters ? 'bg-cyan-500/30 border-cyan-500/50' : activeFilter !== 'none' ? 'bg-cyan-500/20 border-cyan-500/30' : ''
                 }`}
@@ -339,15 +368,14 @@ export default function InCallView({
                 <Sparkles className={`w-5 h-5 ${showFilters || activeFilter !== 'none' ? 'text-cyan-300' : 'text-white/80'}`} />
               </button>
 
-              {/* Hair filter button */}
               <button
-                onClick={(e) => { e.stopPropagation(); setShowHairPicker(!showHairPicker); setShowFilters(false); }}
+                onClick={(e) => { e.stopPropagation(); setShowHairPicker(h => !h); setShowFilters(false); }}
                 className={`p-2.5 md:p-3 rounded-full bg-black/40 backdrop-blur-md border border-white/10 transition-all active:scale-95 shadow-md ${
-                  showHairPicker ? 'bg-yellow-500' : activeHairStyle ? 'bg-yellow-500/30 border-yellow-500/50' : ''
+                  showHairPicker ? 'bg-yellow-500/30 border-yellow-500/50' : activeHairStyle ? 'bg-yellow-500/20 border-yellow-500/30' : ''
                 }`}
                 title="Surfer Hair"
               >
-                <Scissors className={`w-5 h-5 ${showHairPicker || activeHairStyle ? 'text-white' : 'text-white/80'}`} />
+                <Scissors className={`w-5 h-5 ${showHairPicker || activeHairStyle ? 'text-yellow-300' : 'text-white/80'}`} />
               </button>
             </div>
           )}
@@ -369,7 +397,7 @@ export default function InCallView({
                   <VideoOff className="w-5 h-5 text-zinc-500" />
                 </div>
               ) : (
-                /* Local video with CSS filter applied directly */
+                /* Local video with CSS filter applied directly — same as GoLive */
                 <video
                   ref={localVideoRef}
                   autoPlay
@@ -378,7 +406,7 @@ export default function InCallView({
                   className="w-full h-full object-cover"
                   style={{ 
                     transform: 'scaleX(-1)',
-                    filter: cssFilterStyle,
+                    ...videoFilterStyle,
                   }}
                 />
               )}

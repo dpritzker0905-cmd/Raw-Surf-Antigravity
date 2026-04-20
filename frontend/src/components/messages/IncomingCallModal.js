@@ -1,14 +1,13 @@
 /**
  * IncomingCallModal — Full-screen overlay for INCOMING calls.
  * 
- * Uses the global AudioUnlock system (unlocked on first user gesture in App.js)
- * to play a reliable ringtone via the Web Audio API oscillator.
- * Falls back to Vibration API on mobile.
+ * Ringer: Uses HTML Audio with generated WAV data URI.
+ * No AudioContext needed — works reliably after any prior user gesture.
  */
 
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { PhoneOff, Phone, Video, PhoneIncoming } from 'lucide-react';
-import { playRingtone, unlockAudioNow } from '../../utils/audioUnlock';
+import { playRingtone } from '../../utils/audioUnlock';
 
 export default function IncomingCallModal({ 
   callerName,
@@ -26,31 +25,39 @@ export default function IncomingCallModal({
     return () => clearInterval(t);
   }, []);
 
-  // Play ringtone using the global AudioUnlock system
+  // Play ringtone
   useEffect(() => {
-    // Try to play ringtone immediately (requires prior user gesture for AudioContext)
     stopRingRef.current = playRingtone('incoming');
-    
     return () => {
-      if (stopRingRef.current) stopRingRef.current();
+      if (stopRingRef.current) {
+        stopRingRef.current();
+        stopRingRef.current = null;
+      }
     };
   }, []);
 
   // Auto-reject after 30 seconds
   useEffect(() => {
-    const timeout = setTimeout(() => onReject?.(), 30000);
+    const timeout = setTimeout(() => {
+      if (onReject) onReject();
+    }, 30000);
     return () => clearTimeout(timeout);
   }, [onReject]);
 
   const handleAccept = useCallback(() => {
-    if (stopRingRef.current) stopRingRef.current();
-    unlockAudioNow(); // Accepting = user gesture, unlock audio for the call
-    onAccept?.();
+    if (stopRingRef.current) {
+      stopRingRef.current();
+      stopRingRef.current = null;
+    }
+    if (onAccept) onAccept();
   }, [onAccept]);
 
   const handleReject = useCallback(() => {
-    if (stopRingRef.current) stopRingRef.current();
-    onReject?.();
+    if (stopRingRef.current) {
+      stopRingRef.current();
+      stopRingRef.current = null;
+    }
+    if (onReject) onReject();
   }, [onReject]);
 
   return (
@@ -96,7 +103,11 @@ export default function IncomingCallModal({
       {/* Accept / Reject buttons */}
       <div className="flex items-center gap-16">
         {/* Reject */}
-        <button onClick={handleReject} className="group flex flex-col items-center gap-2">
+        <button 
+          onClick={handleReject} 
+          className="group flex flex-col items-center gap-2"
+          data-testid="reject-call-btn"
+        >
           <div className="w-16 h-16 rounded-full bg-red-500 hover:bg-red-400 flex items-center justify-center shadow-lg shadow-red-500/30 transition-all hover:scale-110 active:scale-95">
             <PhoneOff className="w-7 h-7 text-white" />
           </div>
@@ -104,7 +115,11 @@ export default function IncomingCallModal({
         </button>
 
         {/* Accept */}
-        <button onClick={handleAccept} className="group flex flex-col items-center gap-2">
+        <button 
+          onClick={handleAccept} 
+          className="group flex flex-col items-center gap-2"
+          data-testid="accept-call-btn"
+        >
           <div className="w-16 h-16 rounded-full bg-green-500 hover:bg-green-400 flex items-center justify-center shadow-lg shadow-green-500/30 transition-all hover:scale-110 active:scale-95 animate-pulse" style={{ animationDuration: '2s' }}>
             {callType === 'video' ? (
               <Video className="w-7 h-7 text-white" />
