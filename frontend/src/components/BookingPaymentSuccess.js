@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Booking Payment Success Page
  * Handles Stripe payment confirmation for scheduled bookings
  */
@@ -137,7 +137,7 @@ const BookingPaymentSuccess = () => {
             {/* Action Buttons */}
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
               <Button
-                onClick={() => navigate('/bookings?tab=scheduled')}
+                onClick={() => navigate(`/bookings?tab=scheduled&highlight=${bookingId}`)}
                 className="bg-yellow-500 hover:bg-yellow-600 text-black font-bold"
               >
                 View My Bookings
@@ -188,7 +188,7 @@ const BookingPaymentSuccess = () => {
             </p>
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
               <Button
-                onClick={() => navigate('/bookings?tab=scheduled')}
+                onClick={() => navigate(`/bookings?tab=scheduled${bookingId ? `&highlight=${bookingId}` : ''}`)}
                 className="bg-yellow-500 hover:bg-yellow-600 text-black"
               >
                 View Bookings

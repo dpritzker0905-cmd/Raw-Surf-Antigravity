@@ -70,11 +70,22 @@ module.exports = {
   				to: {
   					height: '0'
   				}
+  			},
+  			'booking-flash': {
+  				'0%, 100%': {
+  					boxShadow: '0 0 0 0 rgba(34, 211, 238, 0)',
+  					borderColor: 'rgba(34, 211, 238, 0.3)'
+  				},
+  				'50%': {
+  					boxShadow: '0 0 20px 4px rgba(34, 211, 238, 0.4)',
+  					borderColor: 'rgba(34, 211, 238, 1)'
+  				}
   			}
   		},
   		animation: {
   			'accordion-down': 'accordion-down 0.2s ease-out',
-  			'accordion-up': 'accordion-up 0.2s ease-out'
+  			'accordion-up': 'accordion-up 0.2s ease-out',
+  			'booking-flash': 'booking-flash 1s ease-in-out 4'
   		}
   	}
   },

@@ -2466,8 +2466,9 @@ export const ScheduledBookingDrawer = ({
                 onClose={onClose}
                 onViewBookings={() => {
                   onClose();
-                  // Navigate to scheduled bookings tab
-                  window.location.href = '/bookings?tab=scheduled';
+                  // Navigate to scheduled bookings tab with highlight on the new booking
+                  const newBookingId = bookingResult?.booking?.id || bookingResult?.id || '';
+                  window.location.href = `/bookings?tab=scheduled${newBookingId ? `&highlight=${newBookingId}` : ''}`;
                 }}
                 onAddAnotherSpot={() => {
                   setStep('time');

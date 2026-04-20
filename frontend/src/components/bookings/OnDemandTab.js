@@ -3,7 +3,8 @@
  * Extracted from Bookings.js for better maintainability
  */
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Camera, MapPin, DollarSign, ChevronRight, Star, Radio, Loader2, Users, Zap } from 'lucide-react';
 import { Card, CardContent } from '../ui/card';
 import { Button } from '../ui/button';
@@ -29,6 +30,19 @@ export const OnDemandTab = ({
   const cardBgClass = isLight ? 'bg-white border-gray-200' : 'bg-zinc-800/50 border-zinc-700';
   const textPrimaryClass = isLight ? 'text-gray-900' : 'text-white';
   const textSecondaryClass = isLight ? 'text-gray-600' : 'text-gray-400';
+  
+  // Highlight flash for newly created dispatches
+  const [searchParams] = useSearchParams();
+  const highlightId = searchParams.get('highlight');
+  const [flashingDispatch, setFlashingDispatch] = useState(false);
+  
+  useEffect(() => {
+    if (highlightId && activeDispatch?.id === highlightId) {
+      setFlashingDispatch(true);
+      const timer = setTimeout(() => setFlashingDispatch(false), 4000);
+      return () => clearTimeout(timer);
+    }
+  }, [highlightId, activeDispatch?.id]);
   
   // Determine if user is crew member vs captain
   const isCrewMember = activeDispatch?.role === 'crew_member';
@@ -97,6 +111,8 @@ export const OnDemandTab = ({
       {activeDispatch && ['searching_for_pro', 'pending_payment', 'accepted', 'en_route', 'arrived'].includes(activeDispatch.status) && (
         <Card 
           className={`border-2 cursor-pointer transition-all mb-4 ${
+            flashingDispatch ? 'animate-booking-flash ' : ''
+          }${
             isCrewMember 
               ? 'bg-gradient-to-r from-cyan-500/20 to-blue-500/20 border-cyan-400/50 hover:border-cyan-400'
               : 'bg-gradient-to-r from-amber-500/20 to-orange-500/20 border-amber-400/50 hover:border-amber-400'

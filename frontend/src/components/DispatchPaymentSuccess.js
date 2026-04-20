@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Dispatch Payment Success Page
  * Handles Stripe payment confirmation for on-demand dispatch sessions
  * Shows selfie upload modal after payment confirmation
@@ -109,13 +109,13 @@ const DispatchPaymentSuccess = () => {
     setShowSelfieModal(false);
     toast.success('Selfie uploaded! The photographer can now find you.');
     // Navigate to bookings page where they can track the request
-    navigate('/bookings?tab=live_now');
+    navigate(`/bookings?tab=on_demand&highlight=${dispatchId}`);
   };
 
   const handleSkipSelfie = () => {
     setShowSelfieModal(false);
     toast.info('You can add a selfie later from the booking screen.');
-    navigate('/bookings?tab=live_now');
+    navigate(`/bookings?tab=on_demand&highlight=${dispatchId}`);
   };
 
   const renderContent = () => {
@@ -220,7 +220,7 @@ const DispatchPaymentSuccess = () => {
             </p>
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
               <Button
-                onClick={() => navigate('/bookings?tab=live_now')}
+                onClick={() => navigate(`/bookings?tab=on_demand&highlight=${dispatchId}`)}
                 className="bg-amber-500 hover:bg-amber-600 text-black"
               >
                 View Bookings

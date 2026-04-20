@@ -1,4 +1,4 @@
-﻿/**
+/**
  * ScheduledTab - Booking Command Center for managing confirmed/pending bookings
  * 
  * This tab is strictly for MANAGING existing bookings (Modify, Cancel, Split, Invite Crew).
@@ -57,19 +57,32 @@ export const ScheduledTab = ({
   
   const [searchParams] = useSearchParams();
   const highlightedSessionId = searchParams.get('session');
+  const highlightedBookingId = searchParams.get('highlight');
   const sessionRefs = useRef({});
+  const [flashingId, setFlashingId] = useState(null);
   
   // Auto-scroll to highlighted session
   useEffect(() => {
-    if (highlightedSessionId && sessionRefs.current[highlightedSessionId]) {
+    const targetId = highlightedSessionId || highlightedBookingId;
+    if (targetId && sessionRefs.current[targetId]) {
       setTimeout(() => {
-        sessionRefs.current[highlightedSessionId]?.scrollIntoView({ 
+        sessionRefs.current[targetId]?.scrollIntoView({ 
           behavior: 'smooth', 
           block: 'center' 
         });
       }, 300);
     }
-  }, [highlightedSessionId, scheduledBookings]);
+  }, [highlightedSessionId, highlightedBookingId, scheduledBookings]);
+  
+  // Flash animation for newly created bookings
+  useEffect(() => {
+    if (highlightedBookingId) {
+      setFlashingId(highlightedBookingId);
+      // Auto-clear flash after 4 seconds
+      const timer = setTimeout(() => setFlashingId(null), 4000);
+      return () => clearTimeout(timer);
+    }
+  }, [highlightedBookingId]);
 
   return (
     <>
@@ -256,10 +269,12 @@ export const ScheduledTab = ({
             <div 
               key={booking.id}
               ref={(el) => sessionRefs.current[booking.id] = el}
-              className={`transition-all duration-500 ${
-                highlightedSessionId === booking.id 
-                  ? 'ring-2 ring-cyan-400 ring-offset-2 ring-offset-zinc-900 rounded-xl' 
-                  : ''
+              className={`transition-all duration-500 rounded-xl ${
+                flashingId === booking.id 
+                  ? 'animate-booking-flash ring-2 ring-cyan-400 ring-offset-2 ring-offset-zinc-900' 
+                  : highlightedSessionId === booking.id 
+                    ? 'ring-2 ring-cyan-400 ring-offset-2 ring-offset-zinc-900' 
+                    : ''
               }`}
             >
               <BookingCard

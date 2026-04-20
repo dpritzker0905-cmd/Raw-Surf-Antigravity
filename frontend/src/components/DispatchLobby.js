@@ -269,7 +269,7 @@ export const DispatchLobby = () => {
       if (dispatchRes.data?.status === 'cancelled') {
         toast.error('Session was cancelled.');
         clearInterval(pollRef.current);
-        navigate('/bookings');
+        navigate(`/bookings?tab=on_demand&highlight=${dispatchId}`);
       }
     } catch (err) {
       setError('Lost connection - retrying...');
@@ -307,7 +307,7 @@ export const DispatchLobby = () => {
         { reason: 'User cancelled from lobby' }
       );
       toast.info('Session cancelled. Your deposit will be refunded.');
-      navigate('/bookings');
+      navigate(`/bookings?tab=on_demand&highlight=${dispatchId}`);
     } catch {
       toast.error('Failed to cancel. Please try again or contact support.');
     }
@@ -370,7 +370,7 @@ export const DispatchLobby = () => {
           <div className="flex items-center gap-3">
             {/* Back to Bookings button */}
             <button
-              onClick={() => navigate('/bookings')}
+              onClick={() => navigate(`/bookings?tab=on_demand&highlight=${dispatchId}`)}
               className={`w-9 h-9 rounded-xl flex items-center justify-center ${
                 isLight ? 'bg-gray-100 hover:bg-gray-200' : 'bg-zinc-800 hover:bg-zinc-700'
               }`}
@@ -672,7 +672,7 @@ export const DispatchLobby = () => {
         <div className="space-y-3 pt-2">
           {/* Primary: Go back to Bookings */}
           <Button
-            onClick={() => navigate('/bookings')}
+            onClick={() => navigate(`/bookings?tab=on_demand&highlight=${dispatchId}`)}
             className={`w-full py-4 rounded-xl font-bold ${
               isLight
                 ? 'bg-gray-100 hover:bg-gray-200 text-gray-700'
