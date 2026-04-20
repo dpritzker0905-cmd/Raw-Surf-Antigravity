@@ -1,10 +1,66 @@
 /**
  * OutgoingCallModal — Full-screen overlay shown to the CALLER while ringing.
  * Displays "Calling..." with the target's info and a Cancel button.
+ * 
+ * Uses a generated WAV ringback tone via HTML Audio element for maximum
+ * browser compatibility (Web Audio API requires user gesture to unmute).
  */
 
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { PhoneOff, Phone, Video } from 'lucide-react';
+
+// ── Generate a ringback tone as a WAV data URI ──────────────────────
+// Standard 425Hz ringback tone: 1s on, 2s off
+function generateRingbackWAV() {
+  const sampleRate = 44100;
+  const duration = 1.0; // 1 second of tone (silence handled by loop gap)
+  const numSamples = Math.floor(sampleRate * duration);
+  
+  const buffer = new ArrayBuffer(44 + numSamples * 2);
+  const view = new DataView(buffer);
+  
+  // RIFF header
+  writeString(view, 0, 'RIFF');
+  view.setUint32(4, 36 + numSamples * 2, true);
+  writeString(view, 8, 'WAVE');
+  
+  // fmt chunk
+  writeString(view, 12, 'fmt ');
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true);  // PCM
+  view.setUint16(22, 1, true);  // mono
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, sampleRate * 2, true);
+  view.setUint16(32, 2, true);
+  view.setUint16(34, 16, true);
+  
+  // data chunk
+  writeString(view, 36, 'data');
+  view.setUint32(40, numSamples * 2, true);
+  
+  // Generate 425Hz tone (softer than incoming ring)
+  for (let i = 0; i < numSamples; i++) {
+    const t = i / sampleRate;
+    const amplitude = 0.08 * Math.sin(2 * Math.PI * 425 * t);
+    const sample = Math.max(-1, Math.min(1, amplitude));
+    view.setInt16(44 + i * 2, sample * 0x7FFF, true);
+  }
+  
+  const blob = new Blob([buffer], { type: 'audio/wav' });
+  return URL.createObjectURL(blob);
+}
+
+function writeString(view, offset, str) {
+  for (let i = 0; i < str.length; i++) {
+    view.setUint8(offset + i, str.charCodeAt(i));
+  }
+}
+
+let ringbackUrl = null;
+function getRingbackUrl() {
+  if (!ringbackUrl) ringbackUrl = generateRingbackWAV();
+  return ringbackUrl;
+}
 
 export default function OutgoingCallModal({ 
   targetName, 
@@ -13,8 +69,8 @@ export default function OutgoingCallModal({
   onCancel,
 }) {
   const [dots, setDots] = useState('');
-  const ringIntervalRef = useRef(null);
-  const audioContextRef = useRef(null);
+  const audioRef = useRef(null);
+  const intervalRef = useRef(null);
 
   // Animated "Calling..." dots
   useEffect(() => {
@@ -32,53 +88,35 @@ export default function OutgoingCallModal({
     return () => clearTimeout(timeout);
   }, [onCancel]);
 
-  // Play ringback tone
+  // Play ringback tone using HTML Audio element
   useEffect(() => {
-    let intervalId = null;
-    
-    const startRingback = async () => {
-      try {
-        const ctx = new (window.AudioContext || window.webkitAudioContext)();
-        audioContextRef.current = ctx;
-        
-        // CRITICAL: Resume AudioContext — browsers suspend it until user gesture.
-        if (ctx.state === 'suspended') {
-          await ctx.resume().catch(() => {});
-        }
-        
-        const playRingback = async () => {
-          if (ctx.state === 'closed') return;
-          if (ctx.state === 'suspended') {
-            await ctx.resume().catch(() => {});
-          }
-          const osc = ctx.createOscillator();
-          const gain = ctx.createGain();
-          osc.frequency.value = 425; // Standard ringback tone
-          gain.gain.value = 0.08; // Softer than incoming
-          osc.connect(gain);
-          gain.connect(ctx.destination);
-          osc.start(ctx.currentTime);
-          osc.stop(ctx.currentTime + 1.0); // 1 second on
-        };
-        
-        playRingback();
-        intervalId = setInterval(playRingback, 3000); // 1s on, 2s off
-        ringIntervalRef.current = intervalId;
-      } catch (e) {
-        console.debug('[OutgoingCall] Audio ringback failed:', e);
-      }
+    const url = getRingbackUrl();
+    const audio = new Audio(url);
+    audio.volume = 0.3;
+    audioRef.current = audio;
+
+    const playOnce = () => {
+      audio.currentTime = 0;
+      audio.play().catch(() => {});
     };
-    
-    startRingback();
+
+    // Play immediately, then repeat every 3s (1s tone + 2s silence)
+    playOnce();
+    intervalRef.current = setInterval(playOnce, 3000);
     
     return () => {
-      clearInterval(intervalId);
-      clearInterval(ringIntervalRef.current);
-      if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
-        audioContextRef.current.close().catch(() => {});
-      }
+      clearInterval(intervalRef.current);
+      audio.pause();
+      audio.src = '';
+      audioRef.current = null;
     };
   }, []);
+
+  const handleCancel = useCallback(() => {
+    clearInterval(intervalRef.current);
+    if (audioRef.current) { audioRef.current.pause(); audioRef.current.src = ''; }
+    onCancel?.();
+  }, [onCancel]);
 
   return (
     <div className="fixed inset-0 z-[9999] flex flex-col items-center justify-center"
@@ -129,7 +167,7 @@ export default function OutgoingCallModal({
 
       {/* Cancel button */}
       <button
-        onClick={onCancel}
+        onClick={handleCancel}
         className="group flex flex-col items-center gap-2"
         data-testid="cancel-call-btn"
       >

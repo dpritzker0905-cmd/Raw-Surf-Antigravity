@@ -9,11 +9,11 @@
  * - Connection quality badge, auto-hiding controls
  */
 
-import React, { useRef, useEffect, useState, useCallback, useMemo } from 'react';
+import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { 
   Mic, MicOff, Video, VideoOff, PhoneOff, 
   Volume2, Maximize2, Minimize2, Signal, SignalLow, SignalZero,
-  Sparkles, Film, RotateCcw, X, Scissors,
+  Sparkles, X, Scissors,
   Sunset, Waves, Moon, Zap, Eye, Grid, CircleDot
 } from 'lucide-react';
 import { WebGLVideoProcessor } from '../../utils/WebGLFilterEngine';
@@ -45,7 +45,7 @@ function ConnectionQualityBadge({ quality }) {
   );
 }
 
-// ── GPU Filter Presets (same as GoLive WebGL pipeline) ───────────────
+// ── GPU Filter Presets (same keys as WebGLFilterEngine) ──────────────
 const FILTER_PRESETS = [
   { name: 'None',         key: 'none',             icon: CircleDot, description: 'Original camera' },
   { name: 'Golden Hour',  key: 'goldenhour',       icon: Sunset,    description: 'Warm sunset vibes' },
@@ -56,7 +56,7 @@ const FILTER_PRESETS = [
   { name: 'Cyber-Surf',   key: 'cyber',            icon: Zap,       description: 'Hyper-cold glitch lens' },
 ];
 
-// ── Theme colors for picker panels ──────────────────────────────────
+// ── Theme colors for HairFilterPicker ───────────────────────────────
 const CALL_COLORS = {
   overlayBg: 'bg-black/80 backdrop-blur-xl',
   border: 'border-white/10',
@@ -67,13 +67,14 @@ const CALL_COLORS = {
   accentBg: 'bg-cyan-500/20',
 };
 
-// ── GPU Filter Picker ───────────────────────────────────────────────
+// ── GPU Filter Picker panel ─────────────────────────────────────────
 const FilterPicker = ({ isOpen, onClose, activeFilter, onSelectFilter }) => {
   if (!isOpen) return null;
   return (
     <div 
       className="absolute left-3 top-20 w-60 max-h-[55vh] overflow-y-auto p-3 rounded-2xl bg-black/80 backdrop-blur-xl border border-white/10 z-50"
       style={{ animation: 'slideInLeft 0.25s ease-out' }}
+      onClick={(e) => e.stopPropagation()}
     >
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
@@ -135,6 +136,7 @@ export default function InCallView({
   const localCanvasRef = useRef(null);
   const localHiddenVideoRef = useRef(null);
   const webglProcessorRef = useRef(null);
+  const webglReadyRef = useRef(false);
 
   const [isPipExpanded, setIsPipExpanded] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
@@ -144,21 +146,21 @@ export default function InCallView({
   const [activeHairStyle, setActiveHairStyle] = useState(null);
   const controlsTimeoutRef = useRef(null);
 
-  // Attach local stream to video element
+  // ── Attach local stream to video element ──────────────────────────
   useEffect(() => {
     if (localVideoRef.current && localStream) {
       localVideoRef.current.srcObject = localStream;
     }
   }, [localStream]);
 
-  // Attach remote stream to video element
+  // ── Attach remote stream to video element ─────────────────────────
   useEffect(() => {
     if (remoteVideoRef.current && remoteStream) {
       remoteVideoRef.current.srcObject = remoteStream;
     }
   }, [remoteStream]);
 
-  // CRITICAL: Always attach remote stream to hidden <audio> for audio playback
+  // ── Always attach remote stream to hidden <audio> for sound ───────
   useEffect(() => {
     if (remoteAudioRef.current && remoteStream) {
       remoteAudioRef.current.srcObject = remoteStream;
@@ -166,55 +168,73 @@ export default function InCallView({
     }
   }, [remoteStream]);
 
-  // ── WebGL GPU Filter Pipeline for LOCAL video ─────────────────────
+  // ── WebGL GPU Filter Pipeline ─────────────────────────────────────
+  // Step 1: Initialize the pipeline once when we have a local video stream
   useEffect(() => {
-    if (callType !== 'video' || !localStream || activeFilter === 'none' || isCameraOff) {
-      if (webglProcessorRef.current) {
-        webglProcessorRef.current.stop();
-        webglProcessorRef.current = null;
+    if (callType !== 'video' || !localStream || isCameraOff) return;
+
+    const video = localHiddenVideoRef.current;
+    const canvas = localCanvasRef.current;
+    if (!video || !canvas) return;
+
+    // Feed the hidden video element with the local camera stream
+    video.srcObject = localStream;
+    video.muted = true;
+
+    const initPipeline = () => {
+      try {
+        // Set canvas to match video dimensions
+        const w = video.videoWidth || 640;
+        const h = video.videoHeight || 480;
+        canvas.width = w;
+        canvas.height = h;
+
+        // Create the WebGL processor
+        if (webglProcessorRef.current) {
+          webglProcessorRef.current.stop();
+        }
+        const processor = new WebGLVideoProcessor(canvas);
+        processor.setFilter(activeFilter !== 'none' ? activeFilter : 'none');
+        processor.start(video);
+        webglProcessorRef.current = processor;
+        webglReadyRef.current = true;
+        console.debug('[InCallView] WebGL pipeline initialized:', w, 'x', h);
+      } catch (err) {
+        console.error('[InCallView] WebGL pipeline error:', err);
       }
-      return;
+    };
+
+    // Wait for the video to have metadata so we know the resolution
+    const handleLoadedMetadata = () => {
+      video.play().then(initPipeline).catch(e => console.debug('[InCallView] Hidden video play failed:', e));
+    };
+
+    if (video.readyState >= 1) {
+      // Already has metadata
+      video.play().then(initPipeline).catch(e => console.debug('[InCallView] Hidden video play failed:', e));
+    } else {
+      video.addEventListener('loadedmetadata', handleLoadedMetadata, { once: true });
     }
 
-    const setupWebGL = async () => {
-      try {
-        const video = localHiddenVideoRef.current;
-        const canvas = localCanvasRef.current;
-        if (!video || !canvas) return;
-
-        video.srcObject = localStream;
-        video.muted = true;
-        await video.play();
-
-        canvas.width = video.videoWidth || 640;
-        canvas.height = video.videoHeight || 480;
-
-        webglProcessorRef.current = new WebGLVideoProcessor(canvas);
-        webglProcessorRef.current.setFilter(activeFilter);
-        webglProcessorRef.current.start(video);
-      } catch (err) {
-        console.debug('[InCallView] WebGL pipeline error:', err);
-      }
-    };
-
-    setupWebGL();
-
     return () => {
+      video.removeEventListener('loadedmetadata', handleLoadedMetadata);
       if (webglProcessorRef.current) {
         webglProcessorRef.current.stop();
         webglProcessorRef.current = null;
+        webglReadyRef.current = false;
       }
     };
-  }, [callType, localStream, activeFilter, isCameraOff]);
+  }, [callType, localStream, isCameraOff]); // Intentionally excludes activeFilter to avoid teardown on filter switch
 
-  // Update WebGL filter dynamically
+  // Step 2: Update filter on existing pipeline (no teardown/rebuild)
   useEffect(() => {
-    if (webglProcessorRef.current && activeFilter !== 'none') {
+    if (webglProcessorRef.current && webglReadyRef.current) {
       webglProcessorRef.current.setFilter(activeFilter);
+      console.debug('[InCallView] Filter switched to:', activeFilter);
     }
   }, [activeFilter]);
 
-  // Auto-hide controls after 4s
+  // ── Auto-hide controls after 4s ───────────────────────────────────
   const resetControlsTimer = useCallback(() => {
     setShowControls(true);
     clearTimeout(controlsTimeoutRef.current);
@@ -228,13 +248,16 @@ export default function InCallView({
     return () => clearTimeout(controlsTimeoutRef.current);
   }, []);
 
+  // ── Filter selection handler (auto-closes picker) ─────────────────
   const handleSelectFilter = useCallback((key) => {
     setActiveFilter(key);
+    setShowFilters(false); // Auto-close on selection (like GoLive)
   }, []);
 
+  // ── Hair selection handler (auto-closes picker) ───────────────────
   const handleSelectHairStyle = useCallback((styleId) => {
     setActiveHairStyle(styleId);
-    setShowHairPicker(false);
+    setShowHairPicker(false); // Auto-close on selection (like GoLive)
   }, []);
 
   // ── Control Button Component ──────────────────────────────────────
@@ -260,6 +283,9 @@ export default function InCallView({
     );
   };
 
+  // Determine if we should show the WebGL canvas or a plain video for local PIP
+  const showWebGLCanvas = callType === 'video' && activeFilter !== 'none' && webglReadyRef.current;
+
   return (
     <div 
       className="fixed inset-0 z-[9998] flex items-center justify-center bg-zinc-950 select-none"
@@ -268,7 +294,7 @@ export default function InCallView({
       {/* Hidden audio element for remote stream */}
       <audio ref={remoteAudioRef} autoPlay playsInline />
       
-      {/* Hidden elements for WebGL pipeline */}
+      {/* Hidden video element feeds the WebGL pipeline */}
       <video ref={localHiddenVideoRef} style={{ display: 'none' }} playsInline muted autoPlay />
 
       {/* ═══ Desktop: Contained panel. Mobile: Full-screen ═══ */}
@@ -366,7 +392,7 @@ export default function InCallView({
             <div className={`absolute right-3 top-1/2 -translate-y-1/2 flex flex-col gap-2 z-10 transition-opacity duration-300 ${showControls ? 'opacity-100' : 'opacity-0'}`}>
               {/* Filters button */}
               <button
-                onClick={() => { setShowFilters(!showFilters); setShowHairPicker(false); }}
+                onClick={(e) => { e.stopPropagation(); setShowFilters(!showFilters); setShowHairPicker(false); }}
                 className={`p-2.5 md:p-3 rounded-full bg-black/40 backdrop-blur-md border border-white/10 transition-all active:scale-95 shadow-md ${
                   showFilters ? 'bg-cyan-500/30 border-cyan-500/50' : activeFilter !== 'none' ? 'bg-cyan-500/20 border-cyan-500/30' : ''
                 }`}
@@ -377,7 +403,7 @@ export default function InCallView({
 
               {/* Hair filter button */}
               <button
-                onClick={() => { setShowHairPicker(!showHairPicker); setShowFilters(false); }}
+                onClick={(e) => { e.stopPropagation(); setShowHairPicker(!showHairPicker); setShowFilters(false); }}
                 className={`p-2.5 md:p-3 rounded-full bg-black/40 backdrop-blur-md border border-white/10 transition-all active:scale-95 shadow-md ${
                   showHairPicker ? 'bg-yellow-500' : activeHairStyle ? 'bg-yellow-500/30 border-yellow-500/50' : ''
                 }`}
@@ -405,8 +431,10 @@ export default function InCallView({
                   <VideoOff className="w-5 h-5 text-zinc-500" />
                 </div>
               ) : activeFilter !== 'none' ? (
+                /* WebGL filtered canvas */
                 <canvas ref={localCanvasRef} className="w-full h-full object-cover" style={{ transform: 'scaleX(-1)' }} />
               ) : (
+                /* Plain local video */
                 <video
                   ref={localVideoRef}
                   autoPlay
@@ -425,7 +453,7 @@ export default function InCallView({
             </div>
           )}
 
-          {/* ── Filter Picker Panel ── */}
+          {/* ── Filter Picker Panel (auto-closes on selection) ── */}
           <FilterPicker
             isOpen={showFilters}
             onClose={() => setShowFilters(false)}
@@ -433,15 +461,17 @@ export default function InCallView({
             onSelectFilter={handleSelectFilter}
           />
 
-          {/* ── Hair Filter Picker Panel ── */}
+          {/* ── Hair Filter Picker Panel (auto-closes on selection) ── */}
           {showHairPicker && (
-            <HairFilterPicker
-              isOpen={showHairPicker}
-              onClose={() => setShowHairPicker(false)}
-              activeStyleId={activeHairStyle}
-              onSelectHair={handleSelectHairStyle}
-              colors={CALL_COLORS}
-            />
+            <div className="absolute left-3 top-20 z-50" onClick={(e) => e.stopPropagation()}>
+              <HairFilterPicker
+                isOpen={showHairPicker}
+                onClose={() => setShowHairPicker(false)}
+                activeStyleId={activeHairStyle}
+                onSelectHair={handleSelectHairStyle}
+                colors={CALL_COLORS}
+              />
+            </div>
           )}
         </div>
 
