@@ -21,7 +21,7 @@ import VoiceRecorder from './VoiceRecorder';
 import WebcamCaptureModal from './WebcamCaptureModal';
 import { supabase } from '../lib/supabase';
 import logger from '../utils/logger';
-import { getFullUrl } from '../utils/media';
+import { getFullUrl, cacheBustUrl } from '../utils/media';
 import GifPicker from './messages/GifPicker';
 import EmojiPicker from './messages/EmojiPicker';
 import EphemeralCountdown from './messages/EphemeralCountdown';
@@ -385,9 +385,7 @@ const ViewNoteModal = ({ isOpen, onClose, note, currentUserId, onReply }) => {
   if (!isOpen || !note) return null;
   
   const resolvedNoteAvatar = note.user_avatar ? getFullUrl(note.user_avatar) : null;
-  const avatarWithCacheBust = resolvedNoteAvatar 
-    ? `${resolvedNoteAvatar}${resolvedNoteAvatar.includes('?') ? '&' : '?'}t=${Date.now()}`
-    : null;
+  const avatarWithCacheBust = cacheBustUrl(resolvedNoteAvatar);
   
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm" onClick={onClose}>
@@ -812,9 +810,7 @@ export const MessagesPage = () => {
       }
       
       // Cache-busting with current timestamp ensures browser fetches fresh image
-      const avatarWithCacheBust = freshAvatarUrl 
-        ? `${freshAvatarUrl}${freshAvatarUrl.includes('?') ? '&' : '?'}v=${Date.now()}`
-        : null;
+      const avatarWithCacheBust = cacheBustUrl(freshAvatarUrl);
       
       // Set my note state
       setMyNote(own_note);
@@ -839,9 +835,7 @@ export const MessagesPage = () => {
       // Add notes from followed users
       for (const note of (feed || [])) {
         const resolvedNoteAvatar = note.user_avatar ? getFullUrl(note.user_avatar) : null;
-        const noteAvatar = resolvedNoteAvatar 
-          ? `${resolvedNoteAvatar}${resolvedNoteAvatar.includes('?') ? '&' : '?'}t=${Date.now()}`
-          : null;
+        const noteAvatar = cacheBustUrl(resolvedNoteAvatar);
         
         storiesArray.push({
           id: note.id,
@@ -866,9 +860,7 @@ export const MessagesPage = () => {
         fallbackAvatar = profileResp.data.avatar_url ? getFullUrl(profileResp.data.avatar_url) : null;
       } catch (e) { /* fallback avatar fetch failed - use cached value */ }
       
-      const avatarWithCacheBust = fallbackAvatar 
-        ? `${fallbackAvatar}${fallbackAvatar.includes('?') ? '&' : '?'}v=${Date.now()}`
-        : null;
+      const avatarWithCacheBust = cacheBustUrl(fallbackAvatar);
       setStories([{
         id: 'own',
         name: 'Your note',
@@ -1537,9 +1529,7 @@ export const MessagesPage = () => {
     // Cache-bust avatar URL to prevent stale images
     const rawChatAvatarUrl = conversationDetail?.other_user_avatar || selectedConversation?.other_user_avatar;
     const chatAvatarUrl = rawChatAvatarUrl ? getFullUrl(rawChatAvatarUrl) : null;
-    const chatAvatarWithCacheBust = chatAvatarUrl
-      ? `${chatAvatarUrl}${chatAvatarUrl.includes('?') ? '&' : '?'}t=${conversationDetail?.last_message_at || Date.now()}`
-      : null;
+    const chatAvatarWithCacheBust = cacheBustUrl(chatAvatarUrl, conversationDetail?.last_message_at);
     
     return (
     <div className="flex flex-col h-full bg-background">

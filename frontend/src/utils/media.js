@@ -35,6 +35,16 @@ export const getFullUrl = (url) => {
 };
 
 /**
+ * Safely appends a cache-busting query parameter to a URL.
+ * Skips data: and blob: URIs since query params corrupt them.
+ */
+export const cacheBustUrl = (url, bustValue) => {
+  if (!url) return url;
+  if (url.startsWith('data:') || url.startsWith('blob:')) return url;
+  return `${url}${url.includes('?') ? '&' : '?'}v=${bustValue || Date.now()}`;
+};
+
+/**
  * Safely returns a thumbnail URL, falling back to the full URL if no thumb.
  * Used in gallery grids where backend may provide `thumbnail_url` separately.
  *

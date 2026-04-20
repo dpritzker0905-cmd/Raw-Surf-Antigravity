@@ -1,6 +1,6 @@
 import React from 'react';
 import { Check, CheckCheck, EyeOff, BellOff, Pin, Camera, Play, Mic, Star, Shield, Users, Store, Briefcase } from 'lucide-react';
-import { getFullUrl } from '../../utils/media';
+import { getFullUrl, cacheBustUrl } from '../../utils/media';
 import { formatTimeAgoCompact as formatTimeAgo } from '../../utils/formatTime';
 
 // Inline role icon helper (mirrors MessagesPage logic for ConversationItem)
@@ -29,9 +29,7 @@ const ConversationItem = ({ conversation, isSelected, onClick }) => {
   // Add cache-busting to avatar URL to fix stale profile pictures
   // Use user's updated_at timestamp if available, else use current time for fresh fetch
   const rawAvatarUrl = conversation.other_user_avatar ? getFullUrl(conversation.other_user_avatar) : null;
-  const avatarWithCacheBust = rawAvatarUrl
-    ? `${rawAvatarUrl}${rawAvatarUrl.includes('?') ? '&' : '?'}v=${conversation.other_user_updated_at || Date.now()}`
-    : null;
+  const avatarWithCacheBust = cacheBustUrl(rawAvatarUrl, conversation.other_user_updated_at);
   
   // Determine ring color based on folder/role
   const getRingClass = () => {
