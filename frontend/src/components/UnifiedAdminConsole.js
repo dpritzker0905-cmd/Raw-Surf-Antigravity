@@ -17,7 +17,7 @@ import {
   Crown, Trophy, Radio, MapPin, Camera, Play, Square, Image, Video, 
   Upload, X, Check, User, FileText, ArrowLeft, Settings, Activity,
   Megaphone, History, RefreshCw, TrendingUp, PieChart, BarChart3, Wallet, AlertCircle, Edit, BarChart2,
-  Headphones, Server, Flag, Mail, Layout, Lock
+  Headphones, Server, Flag, Mail, Layout, Lock, KeyRound
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from './ui/card';
 
@@ -1248,6 +1248,10 @@ const UsersTabContent = ({
   const [showBulkRoleDropdown, setShowBulkRoleDropdown] = useState(false);
   const [showBulkSubDropdown, setShowBulkSubDropdown] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showResetPasswordModal, setShowResetPasswordModal] = useState(false);
+  const [resetPasswordUser, setResetPasswordUser] = useState(null);
+  const [newPassword, setNewPassword] = useState('');
+  const [resetPasswordLoading, setResetPasswordLoading] = useState(false);
   const bulkRoleRef = useRef(null);
   const bulkSubRef = useRef(null);
   const roleDropdownRef = useRef(null);
@@ -1407,6 +1411,26 @@ const UsersTabContent = ({
       toast.error(error.response?.data?.detail || 'Bulk delete failed');
     } finally {
       setBulkLoading(false);
+    }
+  };
+  
+  // Admin password reset handler
+  const handleResetPassword = async () => {
+    if (!resetPasswordUser || !newPassword) return;
+    setResetPasswordLoading(true);
+    try {
+      await apiClient.post(
+        `/admin/users/${resetPasswordUser.id}/reset-password?admin_id=${adminId}`,
+        { new_password: newPassword }
+      );
+      toast.success(`Password reset for ${resetPasswordUser.email}`);
+      setShowResetPasswordModal(false);
+      setResetPasswordUser(null);
+      setNewPassword('');
+    } catch (error) {
+      toast.error(error.response?.data?.detail || 'Failed to reset password');
+    } finally {
+      setResetPasswordLoading(false);
     }
   };
   
@@ -1627,6 +1651,19 @@ const UsersTabContent = ({
                     >
                       <CheckCircle className="w-4 h-4" />
                     </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => {
+                        setResetPasswordUser(u);
+                        setNewPassword('');
+                        setShowResetPasswordModal(true);
+                      }}
+                      className="h-8 w-8 p-0 text-amber-400 hover:text-amber-300 hover:bg-amber-500/10"
+                      title="Reset Password"
+                    >
+                      <KeyRound className="w-4 h-4" />
+                    </Button>
                     {u.is_suspended ? (
                       <Button
                         size="sm"
@@ -1712,6 +1749,60 @@ const UsersTabContent = ({
             >
               Delete Users
             </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Reset Password Modal */}
+      <Dialog open={showResetPasswordModal} onOpenChange={setShowResetPasswordModal}>
+        <DialogContent className="bg-zinc-900 border-zinc-800 text-white max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-amber-400">
+              <KeyRound className="w-5 h-5" />
+              Reset Password
+            </DialogTitle>
+          </DialogHeader>
+          <div className="modal-body px-4 sm:px-6 space-y-4 py-4">
+            <p className="text-gray-400 text-sm">
+              Set a new password for{' '}
+              <span className="text-white font-medium">{resetPasswordUser?.full_name || resetPasswordUser?.email}</span>
+            </p>
+            <p className="text-gray-500 text-xs">{resetPasswordUser?.email}</p>
+            <Input
+              type="text"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              placeholder="Enter new password (min 6 characters)"
+              className="bg-zinc-800 border-zinc-700 text-white"
+              autoComplete="new-password"
+            />
+            {newPassword && newPassword.length < 6 && (
+              <p className="text-red-400 text-xs">Password must be at least 6 characters</p>
+            )}
+            <div className="flex gap-3">
+              <Button
+                variant="outline"
+                onClick={() => { setShowResetPasswordModal(false); setNewPassword(''); }}
+                className="flex-1 border-zinc-700 text-white"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleResetPassword}
+                disabled={!newPassword || newPassword.length < 6 || resetPasswordLoading}
+                className="flex-1 bg-amber-500 hover:bg-amber-600 text-black font-semibold"
+              >
+                {resetPasswordLoading ? (
+                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                ) : (
+                  <KeyRound className="w-4 h-4 mr-2" />
+                )}
+                Reset Password
+              </Button>
+            </div>
+            <p className="text-yellow-500/60 text-xs text-center">
+              ⚠️ The user will need to log in with this new password
+            </p>
           </div>
         </DialogContent>
       </Dialog>

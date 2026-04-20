@@ -386,6 +386,45 @@ async def unsuspend_user(user_id: str, admin_id: str, db: AsyncSession = Depends
     return {"message": f"User {user.email} unsuspended"}
 
 
+class AdminResetPasswordRequest(BaseModel):
+    new_password: str
+
+
+@router.post("/admin/users/{user_id}/reset-password")
+async def admin_reset_password(
+    user_id: str,
+    admin_id: str,
+    data: AdminResetPasswordRequest,
+    db: AsyncSession = Depends(get_db)
+):
+    """Admin-only: manually reset a user's password"""
+    admin = await require_admin(admin_id, db)
+
+    if len(data.new_password) < 6:
+        raise HTTPException(status_code=400, detail="Password must be at least 6 characters")
+
+    result = await db.execute(select(Profile).where(Profile.id == user_id))
+    user = result.scalar_one_or_none()
+
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # Safety: don't allow resetting another admin's password
+    if user.is_admin and user.id != admin_id:
+        raise HTTPException(status_code=403, detail="Cannot reset another admin's password")
+
+    from passlib.context import CryptContext
+    pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+    user.password_hash = pwd_context.hash(data.new_password)
+
+    await log_admin_action(db, admin_id, "reset_password", "user", user_id, {
+        "target_email": user.email
+    })
+    await db.commit()
+
+    return {"message": f"Password reset for {user.email}", "success": True}
+
+
 class BulkDeleteRequest(BaseModel):
     user_ids: List[str]
 
