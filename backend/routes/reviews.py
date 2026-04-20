@@ -625,50 +625,57 @@ async def get_pending_reviews_for_user(
         )
         sessions = sessions_result.scalars().all()
         
-        for session in sessions:
-            # Get participants
+        if sessions:
+            session_ids = [s.id for s in sessions]
+            session_map = {s.id: s for s in sessions}
+            
+            # Batch-load all completed participants for these sessions,
+            # eagerly loading surfer profiles to avoid N+1
             participants_result = await db.execute(
-                select(LiveSessionParticipant).where(
+                select(LiveSessionParticipant)
+                .options(selectinload(LiveSessionParticipant.surfer))
+                .where(
                     and_(
-                        LiveSessionParticipant.session_id == session.id,
+                        LiveSessionParticipant.session_id.in_(session_ids),
                         LiveSessionParticipant.status == 'completed'
                     )
                 )
             )
-            participants = participants_result.scalars().all()
+            all_participants = participants_result.scalars().all()
             
-            for p in participants:
-                # Check if already reviewed
-                review_result = await db.execute(
-                    select(Review).where(
-                        and_(
-                            Review.reviewer_id == user_id,
-                            Review.reviewee_id == p.surfer_id,
-                            Review.live_session_id == session.id
-                        )
+            # Batch-load all existing reviews by this user for these sessions
+            existing_reviews_result = await db.execute(
+                select(Review.reviewee_id, Review.live_session_id).where(
+                    and_(
+                        Review.reviewer_id == user_id,
+                        Review.live_session_id.in_(session_ids)
                     )
                 )
-                existing = review_result.scalar_one_or_none()
-                
-                if not existing:
-                    surfer_result = await db.execute(
-                        select(Profile).where(Profile.id == p.surfer_id)
-                    )
-                    surfer = surfer_result.scalar_one_or_none()
-                    
+            )
+            reviewed_pairs = set(
+                (row[0], row[1]) for row in existing_reviews_result.all()
+            )
+            
+            for p in all_participants:
+                if (p.surfer_id, p.session_id) not in reviewed_pairs:
+                    session = session_map.get(p.session_id)
+                    surfer = p.surfer
                     pending_reviews.append({
-                        "session_id": session.id,
+                        "session_id": p.session_id,
                         "session_type": "live",
                         "counterpart_id": p.surfer_id,
                         "counterpart_name": surfer.full_name if surfer else "Surfer",
                         "counterpart_avatar": surfer.avatar_url if surfer else None,
-                        "session_date": session.ended_at.isoformat() if session.ended_at else None,
-                        "location": session.location_name or "Session"
+                        "session_date": session.ended_at.isoformat() if session and session.ended_at else None,
+                        "location": session.location_name or "Session" if session else "Session"
                     })
     else:
-        # Surfer: find completed live sessions they participated in
+        # Surfer: find completed live sessions they participated in,
+        # eagerly loading photographer profiles
         participations_result = await db.execute(
-            select(LiveSessionParticipant).where(
+            select(LiveSessionParticipant)
+            .options(selectinload(LiveSessionParticipant.photographer))
+            .where(
                 and_(
                     LiveSessionParticipant.surfer_id == user_id,
                     LiveSessionParticipant.status == 'completed',
@@ -678,43 +685,46 @@ async def get_pending_reviews_for_user(
         )
         participations = participations_result.scalars().all()
         
-        for p in participations:
-            # Get the session to check duration
-            session_result = await db.execute(
-                select(LiveSession).where(LiveSession.id == p.session_id)
+        if participations:
+            session_ids = [p.session_id for p in participations]
+            
+            # Batch-load sessions (for duration check and location name)
+            sessions_result = await db.execute(
+                select(LiveSession).where(LiveSession.id.in_(session_ids))
             )
-            session = session_result.scalar_one_or_none()
+            session_map = {s.id: s for s in sessions_result.scalars().all()}
             
-            if session and session.duration_mins is not None and session.duration_mins < 20:
-                continue  # Skip sessions under 20 minutes
-            
-            # Check if already reviewed
-            review_result = await db.execute(
-                select(Review).where(
+            # Batch-load existing reviews
+            existing_reviews_result = await db.execute(
+                select(Review.reviewee_id, Review.live_session_id).where(
                     and_(
                         Review.reviewer_id == user_id,
-                        Review.reviewee_id == p.photographer_id,
-                        Review.live_session_id == p.session_id
+                        Review.live_session_id.in_(session_ids)
                     )
                 )
             )
-            existing = review_result.scalar_one_or_none()
+            reviewed_pairs = set(
+                (row[0], row[1]) for row in existing_reviews_result.all()
+            )
             
-            if not existing:
-                photographer_result = await db.execute(
-                    select(Profile).where(Profile.id == p.photographer_id)
-                )
-                photographer = photographer_result.scalar_one_or_none()
+            for p in participations:
+                session = session_map.get(p.session_id)
                 
-                pending_reviews.append({
-                    "session_id": p.session_id,
-                    "session_type": "live",
-                    "counterpart_id": p.photographer_id,
-                    "counterpart_name": photographer.full_name if photographer else "Photographer",
-                    "counterpart_avatar": photographer.avatar_url if photographer else None,
-                    "session_date": p.completed_at.isoformat() if p.completed_at else None,
-                    "location": session.location_name if session else "Session"
-                })
+                # Skip sessions under 20 minutes
+                if session and session.duration_mins is not None and session.duration_mins < 20:
+                    continue
+                
+                if (p.photographer_id, p.session_id) not in reviewed_pairs:
+                    photographer = p.photographer
+                    pending_reviews.append({
+                        "session_id": p.session_id,
+                        "session_type": "live",
+                        "counterpart_id": p.photographer_id,
+                        "counterpart_name": photographer.full_name if photographer else "Photographer",
+                        "counterpart_avatar": photographer.avatar_url if photographer else None,
+                        "session_date": p.completed_at.isoformat() if p.completed_at else None,
+                        "location": session.location_name if session else "Session"
+                    })
     
     return pending_reviews[:limit]
 
@@ -740,9 +750,10 @@ async def get_surfer_review_stats(
     avg_rating = float(avg_row[0]) if avg_row[0] else 0.0
     total_reviews = avg_row[1] or 0
     
-    # Get recent reviews (top 3)
+    # Get recent reviews (top 3) — eagerly load reviewer profile to avoid N+1
     recent_result = await db.execute(
         select(Review)
+        .options(selectinload(Review.reviewer))
         .where(
             and_(
                 Review.reviewee_id == surfer_id,
@@ -757,8 +768,7 @@ async def get_surfer_review_stats(
     
     recent_responses = []
     for review in recent_reviews:
-        reviewer_result = await db.execute(select(Profile).where(Profile.id == review.reviewer_id))
-        reviewer = reviewer_result.scalar_one_or_none()
+        reviewer = review.reviewer
         
         recent_responses.append({
             "id": review.id,

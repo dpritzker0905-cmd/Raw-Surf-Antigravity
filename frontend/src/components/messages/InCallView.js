@@ -397,18 +397,18 @@ export default function InCallView({
                   <VideoOff className="w-5 h-5 text-zinc-500" />
                 </div>
               ) : (
-                /* Local video with CSS filter applied directly — same as GoLive */
-                <video
-                  ref={localVideoRef}
-                  autoPlay
-                  playsInline
-                  muted
-                  className="w-full h-full object-cover"
-                  style={{ 
-                    transform: 'scaleX(-1)',
-                    ...videoFilterStyle,
-                  }}
-                />
+                /* Local video with CSS filter on WRAPPER DIV — matches GoLive pattern.
+                   Mobile browsers ignore CSS filter on <video> elements directly. */
+                <div className="w-full h-full relative" style={videoFilterStyle}>
+                  <video
+                    ref={localVideoRef}
+                    autoPlay
+                    playsInline
+                    muted
+                    className="w-full h-full object-cover"
+                    style={{ transform: 'scaleX(-1)' }}
+                  />
+                </div>
               )}
               <div className={`absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded bg-black/50 backdrop-blur-sm ${!isPipExpanded ? 'hidden md:block' : ''}`}>
                 <span className="text-[9px] text-white/70 font-medium">You</span>

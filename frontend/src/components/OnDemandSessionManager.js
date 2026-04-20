@@ -925,6 +925,8 @@ export const OnDemandSessionManager = () => {
     fetchActiveSession();
     
     pollIntervalRef.current = setInterval(() => {
+      // Skip polling when browser tab is hidden (saves battery & bandwidth)
+      if (document.visibilityState === 'hidden') return;
       fetchIncomingRequests();
       fetchActiveSession();
     }, 5000);

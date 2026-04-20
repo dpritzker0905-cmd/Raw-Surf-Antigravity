@@ -148,10 +148,10 @@ export const Sidebar = () => {
 
   const fetchUnreadMessages = async () => {
     try {
-      const response = await apiClient.get(`/messages/conversations/${user.id}`);
-      const convs = response.data.conversations || response.data || [];
-      const total = convs.reduce((sum, c) => sum + (c.unread_count || 0), 0);
-      setUnreadMessages(total);
+      // Use the lightweight unread-counts endpoint instead of downloading
+      // the full conversation list (which eagerly loads all messages).
+      const response = await apiClient.get(`/messages/unread-counts/${user.id}`);
+      setUnreadMessages(response.data.total || 0);
     } catch (error) {
       logger.error('Failed to fetch message count:', error);
     }

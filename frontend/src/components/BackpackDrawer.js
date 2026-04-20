@@ -80,8 +80,7 @@ export const BackpackDrawer = ({ isOpen, onClose, onReopen }) => {
         <SheetContent 
           side="bottom"
           hideCloseButton
-          className="bg-zinc-900 border-zinc-700 rounded-t-3xl sheet-safe-bottom overflow-hidden flex flex-col"
-          style={{ maxHeight: '65vh', padding: '20px 16px 16px 16px' }}
+          className="bg-background border-border rounded-t-3xl sheet-safe-bottom overflow-hidden flex flex-col"
         >
           <SheetHeader className="pb-3 shrink-0 pt-2">
             <div className="flex items-center justify-between">
@@ -90,13 +89,13 @@ export const BackpackDrawer = ({ isOpen, onClose, onReopen }) => {
                   <Backpack className="w-5 h-5 text-amber-400" />
                 </div>
                 <div>
-                  <SheetTitle className="text-lg font-bold text-white">Backpack</SheetTitle>
-                  <p className="text-xs text-gray-400">Your surf essentials</p>
+                  <SheetTitle className="text-lg font-bold text-foreground">Backpack</SheetTitle>
+                  <p className="text-xs text-muted-foreground">Your surf essentials</p>
                 </div>
               </div>
               <button 
                 onClick={onClose}
-                className="text-gray-400 hover:text-white p-2"
+                className="text-muted-foreground hover:text-foreground p-2"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -118,31 +117,31 @@ export const BackpackDrawer = ({ isOpen, onClose, onReopen }) => {
                   </div>
                   <div className="flex-1 text-left min-w-0">
                     <p className={`font-semibold ${item.color}`}>{item.label}</p>
-                    <p className="text-xs text-gray-400 truncate">{item.description}</p>
+                    <p className="text-xs text-muted-foreground truncate">{item.description}</p>
                   </div>
-                  <ChevronRight className="w-5 h-5 text-gray-500 group-hover:translate-x-1 transition-transform shrink-0" />
+                  <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:translate-x-1 transition-transform shrink-0" />
                 </button>
               );
             })}
 
             {/* Quick Stats Section */}
-            <div className="mt-4 pt-4 border-t border-zinc-800">
-              <p className="text-xs text-gray-500 mb-3 uppercase tracking-wider">Quick Stats</p>
+            <div className="mt-4 pt-4 border-t border-border">
+              <p className="text-xs text-muted-foreground mb-3 uppercase tracking-wider">Quick Stats</p>
               <div className="grid grid-cols-3 gap-2">
-                <div className="text-center p-3 rounded-lg bg-zinc-800/50">
+                <div className="text-center p-3 rounded-lg bg-muted/50">
                   <Stamp className="w-4 h-4 text-emerald-400 mx-auto mb-1" />
-                  <p className="text-lg font-bold text-white">{user?.stamps_count || 0}</p>
-                  <p className="text-[10px] text-gray-500">Stamps</p>
+                  <p className="text-lg font-bold text-foreground">{user?.stamps_count || 0}</p>
+                  <p className="text-[10px] text-muted-foreground">Stamps</p>
                 </div>
-                <div className="text-center p-3 rounded-lg bg-zinc-800/50">
+                <div className="text-center p-3 rounded-lg bg-muted/50">
                   <CreditCard className="w-4 h-4 text-yellow-400 mx-auto mb-1" />
-                  <p className="text-lg font-bold text-white">{user?.credits || 0}</p>
-                  <p className="text-[10px] text-gray-500">Credits</p>
+                  <p className="text-lg font-bold text-foreground">{user?.credits || 0}</p>
+                  <p className="text-[10px] text-muted-foreground">Credits</p>
                 </div>
-                <div className="text-center p-3 rounded-lg bg-zinc-800/50">
+                <div className="text-center p-3 rounded-lg bg-muted/50">
                   <BellRing className="w-4 h-4 text-orange-400 mx-auto mb-1" />
-                  <p className="text-lg font-bold text-white">{user?.alerts_count || 0}</p>
-                  <p className="text-[10px] text-gray-500">Alerts</p>
+                  <p className="text-lg font-bold text-foreground">{user?.alerts_count || 0}</p>
+                  <p className="text-[10px] text-muted-foreground">Alerts</p>
                 </div>
               </div>
             </div>

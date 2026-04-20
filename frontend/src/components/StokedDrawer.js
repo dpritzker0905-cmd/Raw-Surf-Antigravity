@@ -87,18 +87,17 @@ export const StokedDrawer = ({ isOpen, onClose }) => {
       <SheetContent 
         side="bottom" 
         hideCloseButton
-        className="bg-zinc-900 border-zinc-700 rounded-t-3xl sheet-safe-bottom overflow-hidden flex flex-col"
-        style={{ maxHeight: '65vh', padding: '20px 16px 16px 16px' }}
+        className="bg-background border-border rounded-t-3xl sheet-safe-bottom overflow-hidden flex flex-col"
       >
         <SheetHeader className="pb-3 shrink-0">
           <div className="flex items-center justify-between">
-            <SheetTitle className="text-white flex items-center gap-2 text-base">
+            <SheetTitle className="text-foreground flex items-center gap-2 text-base">
               <Zap className="w-5 h-5 text-yellow-400" />
               {getTitle()}
             </SheetTitle>
             <button 
               onClick={onClose}
-              className="text-gray-400 hover:text-white p-1"
+              className="text-muted-foreground hover:text-foreground p-1"
             >
               <X className="w-5 h-5" />
             </button>
@@ -110,9 +109,9 @@ export const StokedDrawer = ({ isOpen, onClose }) => {
           <div className="bg-gradient-to-br from-yellow-500/20 to-orange-500/20 border border-yellow-500/30 rounded-xl p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-gray-400 text-xs uppercase tracking-wider">Your Balance</p>
-                <p className="text-2xl font-bold text-white">${creditBalance.toFixed(2)}</p>
-                <p className="text-xs text-gray-400">Stoked Credits</p>
+                <p className="text-muted-foreground text-xs uppercase tracking-wider">Your Balance</p>
+                <p className="text-2xl font-bold text-foreground">${creditBalance.toFixed(2)}</p>
+                <p className="text-xs text-muted-foreground">Stoked Credits</p>
               </div>
               <div className="w-12 h-12 rounded-full bg-yellow-500/30 flex items-center justify-center">
                 <Zap className="w-6 h-6 text-yellow-400" />
@@ -125,7 +124,7 @@ export const StokedDrawer = ({ isOpen, onClose }) => {
           
           {/* Credit Options */}
           <div className="space-y-2">
-            <p className="text-xs text-gray-400 uppercase tracking-wider px-1">Use Your Credits</p>
+            <p className="text-xs text-muted-foreground uppercase tracking-wider px-1">Use Your Credits</p>
             
             {creditOptions.map((option, idx) => {
               const colors = colorMap[option.color] || colorMap.cyan;
@@ -142,8 +141,8 @@ export const StokedDrawer = ({ isOpen, onClose }) => {
                     <Icon className={`w-4 h-4 ${colors.text}`} />
                   </div>
                   <div className="text-left flex-1">
-                    <div className="font-semibold text-white text-sm">{option.title}</div>
-                    <div className="text-xs text-gray-400">{option.description}</div>
+                    <div className="font-semibold text-foreground text-sm">{option.title}</div>
+                    <div className="text-xs text-muted-foreground">{option.description}</div>
                   </div>
                   <ArrowRight className={`w-4 h-4 ${colors.text}`} />
                 </Button>

@@ -179,18 +179,17 @@ export const ExclusiveAreaDrawer = ({ isOpen, onClose, areaType }) => {
       <SheetContent 
         side="bottom" 
         hideCloseButton
-        className="bg-zinc-900 border-zinc-700 rounded-t-3xl sheet-safe-bottom overflow-hidden flex flex-col"
-        style={{ maxHeight: '65vh', padding: '20px 16px 16px 16px' }}
+        className="bg-background border-border rounded-t-3xl sheet-safe-bottom overflow-hidden flex flex-col"
       >
         <SheetHeader className="pb-3 shrink-0">
           <div className="flex items-center justify-between">
-            <SheetTitle className="text-white flex items-center gap-2 text-base">
+            <SheetTitle className="text-foreground flex items-center gap-2 text-base">
               <AreaIcon className={`w-5 h-5 ${config.textColor}`} />
               {config.name}
             </SheetTitle>
             <button 
               onClick={onClose}
-              className="text-gray-400 hover:text-white p-1"
+              className="text-muted-foreground hover:text-foreground p-1"
             >
               <X className="w-5 h-5" />
             </button>
@@ -203,7 +202,7 @@ export const ExclusiveAreaDrawer = ({ isOpen, onClose, areaType }) => {
             <div className="flex items-center justify-between">
               <div>
                 <p className={`${config.textColor} text-sm font-semibold`}>{config.tagline}</p>
-                <p className="text-xs text-gray-400 mt-1">
+                <p className="text-xs text-muted-foreground mt-1">
                   {memberCount.toLocaleString()} members online
                 </p>
               </div>
@@ -213,8 +212,8 @@ export const ExclusiveAreaDrawer = ({ isOpen, onClose, areaType }) => {
             </div>
             
             {/* Welcome message */}
-            <div className="mt-3 pt-3 border-t border-white/10">
-              <p className="text-xs text-gray-300">
+            <div className="mt-3 pt-3 border-t border-border/30">
+              <p className="text-xs text-muted-foreground">
                 Welcome to <span className={config.textColor}>{config.name}</span>, {user?.full_name?.split(' ')[0] || 'surfer'}! 
                 This is your exclusive space.
               </p>
@@ -239,8 +238,8 @@ export const ExclusiveAreaDrawer = ({ isOpen, onClose, areaType }) => {
                     <Icon className={`w-4 h-4 ${colors.text}`} />
                   </div>
                   <div className="text-left flex-1">
-                    <div className="font-semibold text-white text-sm">{option.title}</div>
-                    <div className="text-xs text-gray-400">{option.description}</div>
+                    <div className="font-semibold text-foreground text-sm">{option.title}</div>
+                    <div className="text-xs text-muted-foreground">{option.description}</div>
                   </div>
                   <ArrowRight className={`w-4 h-4 ${colors.text}`} />
                 </Button>
@@ -250,7 +249,7 @@ export const ExclusiveAreaDrawer = ({ isOpen, onClose, areaType }) => {
           
           {/* Coming Soon Note */}
           <div className="text-center pt-2">
-            <p className="text-xs text-gray-500">
+            <p className="text-xs text-muted-foreground">
               More exclusive features coming soon
             </p>
           </div>
