@@ -102,7 +102,7 @@ const IncomingRequestCard = ({
                 </div>
               ) : request.requester_avatar ? (
                 <div className="w-14 h-14 rounded-xl overflow-hidden ring-2 ring-amber-400/50 flex-shrink-0">
-                  <img src={getImageUrl(request.requester_avatar)} alt="Surfer" className="w-full h-full object-cover" />
+                  <img src={getFullUrl(getImageUrl(request.requester_avatar))} alt="Surfer" className="w-full h-full object-cover" />
                 </div>
               ) : (
                 <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center">
@@ -155,7 +155,7 @@ const IncomingRequestCard = ({
                   {request.requester_selfie ? (
                     <img src={getImageUrl(request.requester_selfie)} alt="" className="w-full h-full object-cover" />
                   ) : request.requester_avatar ? (
-                    <img src={getImageUrl(request.requester_avatar)} alt="" className="w-full h-full object-cover" />
+                    <img src={getFullUrl(getImageUrl(request.requester_avatar))} alt="" className="w-full h-full object-cover" />
                   ) : (
                     <div className="w-full h-full bg-cyan-500/30 flex items-center justify-center text-[8px] text-cyan-300">
                       {request.requester_name?.[0]?.toUpperCase() || '?'}
@@ -332,7 +332,7 @@ const IncomingRequestCard = ({
             {/* Name & Basic Info */}
             <div className="flex items-center gap-4">
               {request.requester_avatar ? (
-                <img src={getImageUrl(request.requester_avatar)} alt="" className="w-14 h-14 rounded-full object-cover ring-2 ring-cyan-400" />
+                <img src={getFullUrl(getImageUrl(request.requester_avatar))} alt="" className="w-14 h-14 rounded-full object-cover ring-2 ring-cyan-400" />
               ) : (
                 <div className="w-14 h-14 rounded-full bg-cyan-500/20 flex items-center justify-center">
                   <User className="w-7 h-7 text-cyan-400" />
@@ -395,7 +395,7 @@ const IncomingRequestCard = ({
                           onClick={() => window.open(getImageUrl(request.requester_selfie), '_blank')}
                         />
                       ) : request.requester_avatar ? (
-                        <img src={getImageUrl(request.requester_avatar)} alt="" className="w-12 h-12 rounded-full object-cover ring-2 ring-cyan-400/50" />
+                        <img src={getFullUrl(getImageUrl(request.requester_avatar))} alt="" className="w-12 h-12 rounded-full object-cover ring-2 ring-cyan-400/50" />
                       ) : (
                         <div className="w-12 h-12 rounded-full bg-cyan-500/30 flex items-center justify-center text-lg text-cyan-300 ring-2 ring-cyan-400/30">
                           {request.requester_name?.[0]?.toUpperCase() || '?'}
@@ -622,7 +622,7 @@ const ActiveSessionCard = ({
             {session.requester_selfie ? (
               <img src={getImageUrl(session.requester_selfie)} alt="Surfer" className="w-full h-full object-cover" />
             ) : session.requester_avatar ? (
-              <img src={getImageUrl(session.requester_avatar)} alt="Surfer" className="w-full h-full object-cover" />
+              <img src={getFullUrl(getImageUrl(session.requester_avatar))} alt="Surfer" className="w-full h-full object-cover" />
             ) : (
               <div className="w-full h-full flex items-center justify-center">
                 <User className="w-8 h-8 text-zinc-500" />
@@ -666,7 +666,7 @@ const ActiveSessionCard = ({
                   {session.requester_selfie ? (
                     <img src={getImageUrl(session.requester_selfie)} alt="" className="w-full h-full object-cover" />
                   ) : session.requester_avatar ? (
-                    <img src={getImageUrl(session.requester_avatar)} alt="" className="w-full h-full object-cover" />
+                    <img src={getFullUrl(getImageUrl(session.requester_avatar))} alt="" className="w-full h-full object-cover" />
                   ) : (
                     <div className="w-full h-full bg-amber-500/30 flex items-center justify-center">
                       <User className="w-6 h-6 text-amber-400" />

@@ -526,14 +526,14 @@ const StatusCard = ({
         {/* Toggle Switch */}
         <button
           onClick={onToggle}
-          disabled={loading || (!canActivate && !isActive)}
+          disabled={loading}
           className={`
             w-14 h-7 rounded-full transition-all duration-300 relative flex-shrink-0
             ${isActive 
               ? config.colors.primary 
               : canActivate 
-                ? 'bg-muted hover:bg-muted/80' 
-                : 'bg-muted opacity-50 cursor-not-allowed'
+                ? 'bg-muted hover:bg-muted/80 cursor-pointer' 
+                : 'bg-muted hover:bg-muted/80 cursor-pointer opacity-70'
             }
           `}
           data-testid="duty-toggle"

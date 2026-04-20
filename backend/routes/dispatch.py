@@ -1246,21 +1246,21 @@ async def mark_arrived(
     dispatch.arrived_at = now
     
     # Auto-create a Private Booking
+    # NOTE: Booking model requires 'location' (String, non-nullable) and 'session_date' (DateTime, non-nullable)
     booking = Booking(
         photographer_id=photographer_id,
-        surf_spot_id=dispatch.spot_id,  # Fixed: Booking uses surf_spot_id not spot_id
+        creator_id=dispatch.requester_id,
+        surf_spot_id=dispatch.spot_id,
         latitude=dispatch.latitude,
         longitude=dispatch.longitude,
-        location_name=dispatch.location_name,
-        booking_type='private',
-        scheduled_date=now.date(),
-        scheduled_time=now.time(),
-        duration_hours=dispatch.estimated_duration_hours,
+        location=dispatch.location_name or "On-Demand Meeting Point",  # Required non-nullable field
+        session_date=now,  # Required non-nullable DateTime
+        booking_type='on_demand',
+        duration=int((dispatch.estimated_duration_hours or 1) * 60),  # Convert hours to minutes
         status='in_progress',
-        total_price=dispatch.estimated_total,
-        deposit_amount=dispatch.deposit_amount,
-        is_on_demand=True,
-        dispatch_request_id=dispatch.id
+        total_price=dispatch.estimated_total or 0,
+        escrow_amount=dispatch.deposit_amount or 0,
+        escrow_status='held'
     )
     
     db.add(booking)
@@ -1594,6 +1594,48 @@ async def cancel_dispatch(
             )
             db.add(tx)
             requester.credit_balance += refund_amount
+    
+    # ============ NOTIFICATION: Alert the other party about cancellation ============
+    # Determine who to notify (the party that didn't cancel)
+    if user_id == dispatch.photographer_id:
+        # Photographer cancelled → notify surfer/requester
+        notify_user_id = dispatch.requester_id
+        # Get photographer name for the notification
+        photographer_result = await db.execute(
+            select(Profile).where(Profile.id == dispatch.photographer_id)
+        )
+        photographer = photographer_result.scalar_one_or_none()
+        cancel_actor_name = photographer.full_name if photographer else "The photographer"
+        
+        refund_msg = f" ${refund_amount:.2f} has been refunded to your wallet." if refund_amount > 0 else ""
+        cancel_notification = Notification(
+            user_id=notify_user_id,
+            type='dispatch_cancelled',
+            title='Session Cancelled',
+            body=f'{cancel_actor_name} has cancelled your on-demand session.{refund_msg}',
+            data=json.dumps({
+                'dispatch_id': dispatch_id,
+                'action': 'cancelled',
+                'cancelled_by': 'photographer',
+                'refund_amount': refund_amount,
+                'refund_type': refund_type
+            })
+        )
+        db.add(cancel_notification)
+    elif user_id == dispatch.requester_id and dispatch.photographer_id:
+        # Surfer cancelled → notify photographer (if one was assigned)
+        cancel_notification = Notification(
+            user_id=dispatch.photographer_id,
+            type='dispatch_cancelled',
+            title='Session Cancelled',
+            body=f'The surfer has cancelled the on-demand session.',
+            data=json.dumps({
+                'dispatch_id': dispatch_id,
+                'action': 'cancelled',
+                'cancelled_by': 'requester'
+            })
+        )
+        db.add(cancel_notification)
     
     await db.commit()
     
