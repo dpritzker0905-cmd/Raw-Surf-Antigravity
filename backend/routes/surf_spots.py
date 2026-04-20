@@ -301,12 +301,15 @@ async def get_surf_spot_locations(
     Get unique countries, states/provinces, and city/area regions for location filtering.
     Returns a three-level hierarchical structure: Country → State/Province → City/Area.
     The 'region' field on SurfSpot is used as the city/municipality level.
+    Includes average lat/lng for map thumbnail rendering at each level.
     """
-    # Get unique countries with count
+    # Get unique countries with count + avg coordinates for map thumbnails
     countries_query = await db.execute(
         select(
             SurfSpot.country,
-            func.count(SurfSpot.id).label('spot_count')
+            func.count(SurfSpot.id).label('spot_count'),
+            func.avg(SurfSpot.latitude).label('avg_lat'),
+            func.avg(SurfSpot.longitude).label('avg_lng')
         )
         .where(SurfSpot.is_active.is_(True))
         .where(SurfSpot.country.isnot(None))
@@ -315,12 +318,14 @@ async def get_surf_spot_locations(
     )
     countries = countries_query.fetchall()
 
-    # Get states/provinces grouped by country
+    # Get states/provinces grouped by country + avg coordinates
     states_query = await db.execute(
         select(
             SurfSpot.country,
             SurfSpot.state_province,
-            func.count(SurfSpot.id).label('spot_count')
+            func.count(SurfSpot.id).label('spot_count'),
+            func.avg(SurfSpot.latitude).label('avg_lat'),
+            func.avg(SurfSpot.longitude).label('avg_lng')
         )
         .where(SurfSpot.is_active.is_(True))
         .where(SurfSpot.country.isnot(None))
@@ -330,13 +335,15 @@ async def get_surf_spot_locations(
     )
     states = states_query.fetchall()
 
-    # Get city/area (region) grouped by country + state
+    # Get city/area (region) grouped by country + state + avg coordinates
     cities_query = await db.execute(
         select(
             SurfSpot.country,
             SurfSpot.state_province,
             SurfSpot.region,
-            func.count(SurfSpot.id).label('spot_count')
+            func.count(SurfSpot.id).label('spot_count'),
+            func.avg(SurfSpot.latitude).label('avg_lat'),
+            func.avg(SurfSpot.longitude).label('avg_lng')
         )
         .where(SurfSpot.is_active.is_(True))
         .where(SurfSpot.country.isnot(None))
@@ -348,35 +355,41 @@ async def get_surf_spot_locations(
 
     # Build hierarchical response: country → state → city/area
     location_map = {}
-    for country, count in countries:
+    for country, count, avg_lat, avg_lng in countries:
         if country:
             location_map[country] = {
                 "name": country,
                 "spot_count": count,
+                "latitude": round(float(avg_lat), 4) if avg_lat else None,
+                "longitude": round(float(avg_lng), 4) if avg_lng else None,
                 "states": []
             }
 
     # Index states for easy city attachment
     state_map = {}  # (country, state) -> state dict
-    for country, state, count in states:
+    for country, state, count, avg_lat, avg_lng in states:
         if country and state and country in location_map:
             state_entry = {
                 "name": state,
                 "spot_count": count,
+                "latitude": round(float(avg_lat), 4) if avg_lat else None,
+                "longitude": round(float(avg_lng), 4) if avg_lng else None,
                 "cities": []
             }
             location_map[country]["states"].append(state_entry)
             state_map[(country, state)] = state_entry
 
     # Attach cities to their state
-    for country, state, region, count in cities:
+    for country, state, region, count, avg_lat, avg_lng in cities:
         if not (country and region):
             continue
         key = (country, state) if state else None
         if key and key in state_map:
             state_map[key]["cities"].append({
                 "name": region,
-                "spot_count": count
+                "spot_count": count,
+                "latitude": round(float(avg_lat), 4) if avg_lat else None,
+                "longitude": round(float(avg_lng), 4) if avg_lng else None
             })
         elif country in location_map:
             # Region exists but no state — attach to country level under a None-state placeholder

@@ -1323,36 +1323,65 @@ export const Explore = () => {
                     
                     return (
                       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                        {items.map((item, idx) => (
+                        {items.map((item, idx) => {
+                          // Zoom level based on hierarchy depth
+                          const mapZoom = level === 'country' ? 4 : level === 'state' ? 6 : 9;
+                          const hasCoords = item.latitude && item.longitude;
+                          
+                          return (
                           <button
                             key={item.name || idx}
                             onClick={() => pushLocation(level, item.name, item)}
-                            className="group relative flex flex-col items-start p-4 bg-zinc-900/80 border border-zinc-800 rounded-xl hover:border-cyan-500/40 hover:bg-zinc-800/80 transition-all text-left overflow-hidden"
+                            className="group relative flex flex-col justify-end overflow-hidden rounded-xl border border-zinc-800 hover:border-cyan-500/40 transition-all text-left"
+                            style={{ aspectRatio: '4/3', minHeight: '100px' }}
                             data-testid={`loc-${level}-${idx}`}
                           >
-                            {/* Decorative gradient */}
-                            <div className={`absolute top-0 right-0 w-16 h-16 rounded-bl-full opacity-10 group-hover:opacity-20 transition-opacity ${
-                              level === 'country' ? 'bg-cyan-400' : level === 'state' ? 'bg-blue-400' : 'bg-emerald-400'
-                            }`} />
+                            {/* Map satellite background */}
+                            {hasCoords ? (
+                              <img 
+                                src={`https://static-maps.yandex.ru/1.x/?lang=en_US&ll=${item.longitude},${item.latitude}&z=${mapZoom}&l=sat&size=400,300`}
+                                alt={`Map of ${item.name}`}
+                                className="absolute inset-0 w-full h-full object-cover opacity-60 group-hover:opacity-80 transition-opacity duration-300"
+                                loading="lazy"
+                              />
+                            ) : (
+                              <div className="absolute inset-0 w-full h-full bg-gradient-to-br from-zinc-800 to-zinc-900" />
+                            )}
                             
-                            <div className="flex items-center gap-2 mb-1">
-                              {level === 'country' && <span className="text-xl">{getCountryFlag(item.name)}</span>}
-                              {level === 'state' && <MapPin className="w-4 h-4 text-blue-400" />}
-                              {level === 'city' && <Navigation className="w-4 h-4 text-emerald-400" />}
-                            </div>
+                            {/* Gradient overlay */}
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-black/10 z-10" />
                             
-                            <span className="text-sm font-medium text-white truncate w-full">{item.name}</span>
+                            {/* Map pin indicator */}
+                            {hasCoords && (
+                              <div className="absolute top-2 right-2 z-20">
+                                <MapPin className={`w-4 h-4 drop-shadow-lg ${
+                                  level === 'country' ? 'text-cyan-400' : level === 'state' ? 'text-blue-400' : 'text-emerald-400'
+                                }`} />
+                              </div>
+                            )}
                             
-                            <div className="flex items-center gap-1 mt-1">
-                              <span className="text-xs text-gray-500">
-                                {item.spot_count} {item.spot_count === 1 ? 'spot' : 'spots'}
-                              </span>
-                              {level !== 'city' && (item.states?.length > 0 || item.cities?.length > 0) && (
-                                <ChevronRight className="w-3 h-3 text-gray-600 group-hover:text-cyan-400 transition-colors" />
-                              )}
+                            {/* Content overlay */}
+                            <div className="relative z-20 p-3">
+                              <div className="flex items-center gap-1.5 mb-0.5">
+                                {level === 'country' && <span className="text-lg leading-none">{getCountryFlag(item.name)}</span>}
+                                {level === 'state' && <MapPin className="w-3.5 h-3.5 text-blue-400" />}
+                                {level === 'city' && <Navigation className="w-3.5 h-3.5 text-emerald-400" />}
+                              </div>
+                              
+                              <span className="text-sm font-semibold text-white truncate block drop-shadow-md">{item.name}</span>
+                              
+                              <div className="flex items-center gap-1 mt-0.5">
+                                <span className="text-[11px] text-gray-300 drop-shadow">
+                                  {item.spot_count} {item.spot_count === 1 ? 'spot' : 'spots'}
+                                </span>
+                                {level !== 'city' && (item.states?.length > 0 || item.cities?.length > 0) && (
+                                  <ChevronRight className="w-3 h-3 text-gray-400 group-hover:text-cyan-400 transition-colors" />
+                                )}
+                              </div>
                             </div>
                           </button>
-                        ))}
+                          );
+                        })}
                       </div>
                     );
                   })()}
