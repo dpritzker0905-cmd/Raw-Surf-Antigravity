@@ -34,29 +34,45 @@ export default function OutgoingCallModal({
 
   // Play ringback tone
   useEffect(() => {
-    try {
-      const ctx = new (window.AudioContext || window.webkitAudioContext)();
-      audioContextRef.current = ctx;
-      
-      const playRingback = () => {
-        if (ctx.state === 'closed') return;
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.frequency.value = 425; // Standard ringback tone
-        gain.gain.value = 0.08; // Softer than incoming
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.start(ctx.currentTime);
-        osc.stop(ctx.currentTime + 1.0); // 1 second on
-      };
-      
-      playRingback();
-      ringIntervalRef.current = setInterval(playRingback, 3000); // 1s on, 2s off
-    } catch (e) {
-      console.debug('[OutgoingCall] Audio ringback failed:', e);
-    }
+    let intervalId = null;
+    
+    const startRingback = async () => {
+      try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        audioContextRef.current = ctx;
+        
+        // CRITICAL: Resume AudioContext — browsers suspend it until user gesture.
+        if (ctx.state === 'suspended') {
+          await ctx.resume().catch(() => {});
+        }
+        
+        const playRingback = async () => {
+          if (ctx.state === 'closed') return;
+          if (ctx.state === 'suspended') {
+            await ctx.resume().catch(() => {});
+          }
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.frequency.value = 425; // Standard ringback tone
+          gain.gain.value = 0.08; // Softer than incoming
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(ctx.currentTime);
+          osc.stop(ctx.currentTime + 1.0); // 1 second on
+        };
+        
+        playRingback();
+        intervalId = setInterval(playRingback, 3000); // 1s on, 2s off
+        ringIntervalRef.current = intervalId;
+      } catch (e) {
+        console.debug('[OutgoingCall] Audio ringback failed:', e);
+      }
+    };
+    
+    startRingback();
     
     return () => {
+      clearInterval(intervalId);
       clearInterval(ringIntervalRef.current);
       if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
         audioContextRef.current.close().catch(() => {});
