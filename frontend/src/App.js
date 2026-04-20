@@ -74,6 +74,10 @@ const DispatchLobby               = React.lazy(() => import('./components/Dispat
 
 import './App.css';
 
+// ─── Audio: Unlock AudioContext on first user gesture for reliable ringtones ──
+import { ensureAudioUnlocked } from './utils/audioUnlock';
+ensureAudioUnlocked();
+
 // ─── Full-screen loading spinner while lazy chunk loads ────────────────────────
 const PageLoader = () => (
   <div style={{

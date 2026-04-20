@@ -1,66 +1,13 @@
 /**
  * OutgoingCallModal — Full-screen overlay shown to the CALLER while ringing.
- * Displays "Calling..." with the target's info and a Cancel button.
  * 
- * Uses a generated WAV ringback tone via HTML Audio element for maximum
- * browser compatibility (Web Audio API requires user gesture to unmute).
+ * Uses the global AudioUnlock system for ringback tone.
+ * Since the user clicked "Call" to trigger this, the gesture is available.
  */
 
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { PhoneOff, Phone, Video } from 'lucide-react';
-
-// ── Generate a ringback tone as a WAV data URI ──────────────────────
-// Standard 425Hz ringback tone: 1s on, 2s off
-function generateRingbackWAV() {
-  const sampleRate = 44100;
-  const duration = 1.0; // 1 second of tone (silence handled by loop gap)
-  const numSamples = Math.floor(sampleRate * duration);
-  
-  const buffer = new ArrayBuffer(44 + numSamples * 2);
-  const view = new DataView(buffer);
-  
-  // RIFF header
-  writeString(view, 0, 'RIFF');
-  view.setUint32(4, 36 + numSamples * 2, true);
-  writeString(view, 8, 'WAVE');
-  
-  // fmt chunk
-  writeString(view, 12, 'fmt ');
-  view.setUint32(16, 16, true);
-  view.setUint16(20, 1, true);  // PCM
-  view.setUint16(22, 1, true);  // mono
-  view.setUint32(24, sampleRate, true);
-  view.setUint32(28, sampleRate * 2, true);
-  view.setUint16(32, 2, true);
-  view.setUint16(34, 16, true);
-  
-  // data chunk
-  writeString(view, 36, 'data');
-  view.setUint32(40, numSamples * 2, true);
-  
-  // Generate 425Hz tone (softer than incoming ring)
-  for (let i = 0; i < numSamples; i++) {
-    const t = i / sampleRate;
-    const amplitude = 0.08 * Math.sin(2 * Math.PI * 425 * t);
-    const sample = Math.max(-1, Math.min(1, amplitude));
-    view.setInt16(44 + i * 2, sample * 0x7FFF, true);
-  }
-  
-  const blob = new Blob([buffer], { type: 'audio/wav' });
-  return URL.createObjectURL(blob);
-}
-
-function writeString(view, offset, str) {
-  for (let i = 0; i < str.length; i++) {
-    view.setUint8(offset + i, str.charCodeAt(i));
-  }
-}
-
-let ringbackUrl = null;
-function getRingbackUrl() {
-  if (!ringbackUrl) ringbackUrl = generateRingbackWAV();
-  return ringbackUrl;
-}
+import { playRingtone, unlockAudioNow } from '../../utils/audioUnlock';
 
 export default function OutgoingCallModal({ 
   targetName, 
@@ -69,8 +16,7 @@ export default function OutgoingCallModal({
   onCancel,
 }) {
   const [dots, setDots] = useState('');
-  const audioRef = useRef(null);
-  const intervalRef = useRef(null);
+  const stopRingRef = useRef(null);
 
   // Animated "Calling..." dots
   useEffect(() => {
@@ -88,33 +34,18 @@ export default function OutgoingCallModal({
     return () => clearTimeout(timeout);
   }, [onCancel]);
 
-  // Play ringback tone using HTML Audio element
+  // Play ringback tone — user just clicked "Call", so AudioContext should be unlocked
   useEffect(() => {
-    const url = getRingbackUrl();
-    const audio = new Audio(url);
-    audio.volume = 0.3;
-    audioRef.current = audio;
-
-    const playOnce = () => {
-      audio.currentTime = 0;
-      audio.play().catch(() => {});
-    };
-
-    // Play immediately, then repeat every 3s (1s tone + 2s silence)
-    playOnce();
-    intervalRef.current = setInterval(playOnce, 3000);
+    unlockAudioNow(); // Extra guarantee since user just tapped
+    stopRingRef.current = playRingtone('ringback');
     
     return () => {
-      clearInterval(intervalRef.current);
-      audio.pause();
-      audio.src = '';
-      audioRef.current = null;
+      if (stopRingRef.current) stopRingRef.current();
     };
   }, []);
 
   const handleCancel = useCallback(() => {
-    clearInterval(intervalRef.current);
-    if (audioRef.current) { audioRef.current.pause(); audioRef.current.src = ''; }
+    if (stopRingRef.current) stopRingRef.current();
     onCancel?.();
   }, [onCancel]);
 

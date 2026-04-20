@@ -1,12 +1,11 @@
 /**
- * InCallView — Premium active call overlay with WebGL GPU filters + Hair AR.
+ * InCallView — Premium active call overlay.
  * 
- * Matches the GoLiveModal's production design:
- * - WebGL GPU filters (Golden Hour, Night Vision, Bio-Lum, Cyber-Surf, Pixelate, Pipeline)
- * - HairFilterPicker AR overlays (male/female surfer hair styles)  
- * - Contained desktop panel with dark surround (like GoLive)
- * - Small bottom-left PIP on mobile, bottom-right on desktop
- * - Connection quality badge, auto-hiding controls
+ * KEY DESIGN DECISIONS:
+ * 1. CSS filters on local PIP for instant, reliable visual effects (no WebGL teardown issues)
+ * 2. Remote video uses object-contain (not object-cover) to avoid cropping faces
+ * 3. Filters auto-close on selection (GoLive pattern)
+ * 4. Desktop: contained panel with dark surround. Mobile: full-screen.
  */
 
 import React, { useRef, useEffect, useState, useCallback } from 'react';
@@ -16,7 +15,6 @@ import {
   Sparkles, X, Scissors,
   Sunset, Waves, Moon, Zap, Eye, Grid, CircleDot
 } from 'lucide-react';
-import { WebGLVideoProcessor } from '../../utils/WebGLFilterEngine';
 import { HairFilterPicker } from '../HairFilterPicker';
 
 // ── Duration formatter ──────────────────────────────────────────────
@@ -45,12 +43,24 @@ function ConnectionQualityBadge({ quality }) {
   );
 }
 
-// ── GPU Filter Presets (same keys as WebGLFilterEngine) ──────────────
+// ── CSS Filter Map — maps preset keys to CSS filter strings ─────────
+// These apply instantly to the <video> element with zero setup overhead.
+const CSS_FILTER_MAP = {
+  none:             'none',
+  goldenhour:       'sepia(0.35) saturate(1.6) brightness(1.1) hue-rotate(-10deg)',
+  nightvision:      'brightness(1.4) contrast(1.3) saturate(0) sepia(1) hue-rotate(70deg) brightness(0.7)',
+  pixelate:         'contrast(1.8) saturate(0.3) brightness(0.95)',  // Harsh lo-fi
+  gopro:            'contrast(1.35) saturate(1.25) brightness(0.85)',
+  bioluminescence:  'contrast(1.3) brightness(1.15) hue-rotate(180deg) saturate(1.8)',
+  cyber:            'contrast(1.25) brightness(0.85) hue-rotate(210deg) saturate(2.2)',
+};
+
+// ── GPU Filter Presets list ─────────────────────────────────────────
 const FILTER_PRESETS = [
   { name: 'None',         key: 'none',             icon: CircleDot, description: 'Original camera' },
   { name: 'Golden Hour',  key: 'goldenhour',       icon: Sunset,    description: 'Warm sunset vibes' },
   { name: 'Night Vision', key: 'nightvision',      icon: Eye,       description: 'Tactical green overlay' },
-  { name: 'Pixelate',     key: 'pixelate',         icon: Grid,      description: 'Retro 8-bit aesthetic' },
+  { name: 'Pixelate',     key: 'pixelate',         icon: Grid,      description: 'Retro lo-fi aesthetic' },
   { name: 'Pipeline',     key: 'gopro',            icon: Waves,     description: 'Deep barrel shadows' },
   { name: 'Bio-Lum',      key: 'bioluminescence',  icon: Moon,      description: 'Neon glowing edges' },
   { name: 'Cyber-Surf',   key: 'cyber',            icon: Zap,       description: 'Hyper-cold glitch lens' },
@@ -133,12 +143,8 @@ export default function InCallView({
   const localVideoRef = useRef(null);
   const remoteVideoRef = useRef(null);
   const remoteAudioRef = useRef(null);
-  const localCanvasRef = useRef(null);
-  const localHiddenVideoRef = useRef(null);
-  const webglProcessorRef = useRef(null);
-  const webglReadyRef = useRef(false);
 
-  const [isPipExpanded, setIsPipExpanded] = useState(false);
+  const [isPipExpanded, setIsPipExpanded] = useState(true);
   const [showFilters, setShowFilters] = useState(false);
   const [showHairPicker, setShowHairPicker] = useState(false);
   const [showControls, setShowControls] = useState(true);
@@ -168,72 +174,6 @@ export default function InCallView({
     }
   }, [remoteStream]);
 
-  // ── WebGL GPU Filter Pipeline ─────────────────────────────────────
-  // Step 1: Initialize the pipeline once when we have a local video stream
-  useEffect(() => {
-    if (callType !== 'video' || !localStream || isCameraOff) return;
-
-    const video = localHiddenVideoRef.current;
-    const canvas = localCanvasRef.current;
-    if (!video || !canvas) return;
-
-    // Feed the hidden video element with the local camera stream
-    video.srcObject = localStream;
-    video.muted = true;
-
-    const initPipeline = () => {
-      try {
-        // Set canvas to match video dimensions
-        const w = video.videoWidth || 640;
-        const h = video.videoHeight || 480;
-        canvas.width = w;
-        canvas.height = h;
-
-        // Create the WebGL processor
-        if (webglProcessorRef.current) {
-          webglProcessorRef.current.stop();
-        }
-        const processor = new WebGLVideoProcessor(canvas);
-        processor.setFilter(activeFilter !== 'none' ? activeFilter : 'none');
-        processor.start(video);
-        webglProcessorRef.current = processor;
-        webglReadyRef.current = true;
-        console.debug('[InCallView] WebGL pipeline initialized:', w, 'x', h);
-      } catch (err) {
-        console.error('[InCallView] WebGL pipeline error:', err);
-      }
-    };
-
-    // Wait for the video to have metadata so we know the resolution
-    const handleLoadedMetadata = () => {
-      video.play().then(initPipeline).catch(e => console.debug('[InCallView] Hidden video play failed:', e));
-    };
-
-    if (video.readyState >= 1) {
-      // Already has metadata
-      video.play().then(initPipeline).catch(e => console.debug('[InCallView] Hidden video play failed:', e));
-    } else {
-      video.addEventListener('loadedmetadata', handleLoadedMetadata, { once: true });
-    }
-
-    return () => {
-      video.removeEventListener('loadedmetadata', handleLoadedMetadata);
-      if (webglProcessorRef.current) {
-        webglProcessorRef.current.stop();
-        webglProcessorRef.current = null;
-        webglReadyRef.current = false;
-      }
-    };
-  }, [callType, localStream, isCameraOff]); // Intentionally excludes activeFilter to avoid teardown on filter switch
-
-  // Step 2: Update filter on existing pipeline (no teardown/rebuild)
-  useEffect(() => {
-    if (webglProcessorRef.current && webglReadyRef.current) {
-      webglProcessorRef.current.setFilter(activeFilter);
-      console.debug('[InCallView] Filter switched to:', activeFilter);
-    }
-  }, [activeFilter]);
-
   // ── Auto-hide controls after 4s ───────────────────────────────────
   const resetControlsTimer = useCallback(() => {
     setShowControls(true);
@@ -251,14 +191,17 @@ export default function InCallView({
   // ── Filter selection handler (auto-closes picker) ─────────────────
   const handleSelectFilter = useCallback((key) => {
     setActiveFilter(key);
-    setShowFilters(false); // Auto-close on selection (like GoLive)
+    setShowFilters(false);
   }, []);
 
   // ── Hair selection handler (auto-closes picker) ───────────────────
   const handleSelectHairStyle = useCallback((styleId) => {
     setActiveHairStyle(styleId);
-    setShowHairPicker(false); // Auto-close on selection (like GoLive)
+    setShowHairPicker(false);
   }, []);
+
+  // Get the CSS filter string for the active preset
+  const cssFilterStyle = CSS_FILTER_MAP[activeFilter] || 'none';
 
   // ── Control Button Component ──────────────────────────────────────
   const ControlButton = ({ onClick, active, danger, icon: Icon, label, size = 'normal' }) => {
@@ -283,9 +226,6 @@ export default function InCallView({
     );
   };
 
-  // Determine if we should show the WebGL canvas or a plain video for local PIP
-  const showWebGLCanvas = callType === 'video' && activeFilter !== 'none' && webglReadyRef.current;
-
   return (
     <div 
       className="fixed inset-0 z-[9998] flex items-center justify-center bg-zinc-950 select-none"
@@ -293,9 +233,6 @@ export default function InCallView({
     >
       {/* Hidden audio element for remote stream */}
       <audio ref={remoteAudioRef} autoPlay playsInline />
-      
-      {/* Hidden video element feeds the WebGL pipeline */}
-      <video ref={localHiddenVideoRef} style={{ display: 'none' }} playsInline muted autoPlay />
 
       {/* ═══ Desktop: Contained panel. Mobile: Full-screen ═══ */}
       <div className="relative w-full h-full md:w-[calc(100%-48px)] md:h-[calc(100%-48px)] md:max-w-[1100px] md:max-h-[700px] md:rounded-2xl overflow-hidden flex flex-col shadow-2xl shadow-black/50">
@@ -303,11 +240,12 @@ export default function InCallView({
         {/* ── Video Area ── */}
         <div className="flex-1 relative overflow-hidden bg-black">
           {callType === 'video' && remoteStream ? (
+            /* Remote video — object-contain prevents face cropping */
             <video
               ref={remoteVideoRef}
               autoPlay
               playsInline
-              className="w-full h-full object-cover"
+              className="w-full h-full object-contain bg-zinc-950"
             />
           ) : (
             /* Audio-only: avatar + waveform */
@@ -417,11 +355,11 @@ export default function InCallView({
           {/* ── Local Video PIP ── */}
           {callType === 'video' && localStream && (
             <div 
-              className={`absolute transition-all duration-300 overflow-hidden shadow-2xl cursor-pointer ${
-                showControls ? 'opacity-100' : 'opacity-60'
+              className={`absolute transition-all duration-300 overflow-hidden shadow-2xl cursor-pointer z-10 ${
+                showControls ? 'opacity-100' : 'opacity-70'
               } ${
                 isPipExpanded 
-                  ? 'bottom-3 left-3 md:bottom-4 md:right-4 md:left-auto w-28 h-36 md:w-44 md:h-56 rounded-2xl border-2 border-white/20' 
+                  ? 'bottom-3 left-3 md:bottom-4 md:right-4 md:left-auto w-[120px] h-[160px] md:w-44 md:h-56 rounded-2xl border-2 border-white/20' 
                   : 'bottom-3 left-3 md:bottom-4 md:right-4 md:left-auto w-16 h-16 md:w-28 md:h-36 rounded-full md:rounded-2xl border-2 border-white/20'
               }`}
               onClick={(e) => { e.stopPropagation(); setIsPipExpanded(!isPipExpanded); }}
@@ -430,30 +368,37 @@ export default function InCallView({
                 <div className="w-full h-full bg-zinc-800 flex items-center justify-center">
                   <VideoOff className="w-5 h-5 text-zinc-500" />
                 </div>
-              ) : activeFilter !== 'none' ? (
-                /* WebGL filtered canvas */
-                <canvas ref={localCanvasRef} className="w-full h-full object-cover" style={{ transform: 'scaleX(-1)' }} />
               ) : (
-                /* Plain local video */
+                /* Local video with CSS filter applied directly */
                 <video
                   ref={localVideoRef}
                   autoPlay
                   playsInline
                   muted
                   className="w-full h-full object-cover"
-                  style={{ transform: 'scaleX(-1)' }}
+                  style={{ 
+                    transform: 'scaleX(-1)',
+                    filter: cssFilterStyle,
+                  }}
                 />
               )}
               <div className={`absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded bg-black/50 backdrop-blur-sm ${!isPipExpanded ? 'hidden md:block' : ''}`}>
                 <span className="text-[9px] text-white/70 font-medium">You</span>
               </div>
+              {activeFilter !== 'none' && isPipExpanded && (
+                <div className="absolute bottom-1.5 left-1.5 px-1.5 py-0.5 rounded bg-cyan-500/30 backdrop-blur-sm">
+                  <span className="text-[8px] text-cyan-300 font-medium">
+                    {FILTER_PRESETS.find(f => f.key === activeFilter)?.name || ''}
+                  </span>
+                </div>
+              )}
               <div className={`absolute bottom-1.5 right-1.5 ${!isPipExpanded ? 'hidden md:block' : ''}`}>
                 {isPipExpanded ? <Minimize2 className="w-3 h-3 text-white/60" /> : <Maximize2 className="w-3 h-3 text-white/60" />}
               </div>
             </div>
           )}
 
-          {/* ── Filter Picker Panel (auto-closes on selection) ── */}
+          {/* ── Filter Picker Panel ── */}
           <FilterPicker
             isOpen={showFilters}
             onClose={() => setShowFilters(false)}
@@ -461,7 +406,7 @@ export default function InCallView({
             onSelectFilter={handleSelectFilter}
           />
 
-          {/* ── Hair Filter Picker Panel (auto-closes on selection) ── */}
+          {/* ── Hair Filter Picker Panel ── */}
           {showHairPicker && (
             <div className="absolute left-3 top-20 z-50" onClick={(e) => e.stopPropagation()}>
               <HairFilterPicker
