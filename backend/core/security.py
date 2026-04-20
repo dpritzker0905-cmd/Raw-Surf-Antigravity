@@ -85,7 +85,7 @@ def verify_token(token: str) -> dict:
 # ── FastAPI Dependency ────────────────────────────────────────────────────────
 async def get_current_user_id(
     authorization: Optional[str] = Header(None),
-    user_id: Optional[str] = Query(None),
+    auth_user_id: Optional[str] = Query(None, alias="user_id"),
 ) -> str:
     """
     FastAPI dependency that extracts the authenticated user's ID.
@@ -109,8 +109,8 @@ async def get_current_user_id(
         return sub
 
     # Fallback: query param (existing routes still work during migration)
-    if user_id:
-        return user_id
+    if auth_user_id:
+        return auth_user_id
 
     raise HTTPException(
         status_code=401,
@@ -120,12 +120,12 @@ async def get_current_user_id(
 
 async def get_optional_user_id(
     authorization: Optional[str] = Header(None),
-    user_id: Optional[str] = Query(None),
+    auth_user_id: Optional[str] = Query(None, alias="user_id"),
 ) -> Optional[str]:
     """
     Like get_current_user_id but returns None instead of raising for public routes.
     """
     try:
-        return await get_current_user_id(authorization=authorization, user_id=user_id)
+        return await get_current_user_id(authorization=authorization, auth_user_id=auth_user_id)
     except HTTPException:
         return None
