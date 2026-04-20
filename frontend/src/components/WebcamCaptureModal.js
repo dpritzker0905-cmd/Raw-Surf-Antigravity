@@ -199,8 +199,33 @@ export default function WebcamCaptureModal({ isOpen, onClose, onCapture, maxLeng
     }, 'image/jpeg', 0.9);
   };
 
+  // Force-stop all media tracks (camera + mic) — prevents hardware lock on mobile
+  const forceStopAllTracks = useCallback(() => {
+    // Stop stream state
+    if (stream) {
+      stream.getTracks().forEach(t => { t.stop(); t.enabled = false; });
+    }
+    // Stop video element source
+    if (videoRef.current && videoRef.current.srcObject) {
+      videoRef.current.srcObject.getTracks().forEach(t => { t.stop(); t.enabled = false; });
+      videoRef.current.srcObject = null;
+    }
+    // Stop WebGL processor
+    if (processorRef.current) {
+      processorRef.current.stop();
+      processorRef.current = null;
+    }
+    setStream(null);
+  }, [stream]);
+
   const startRecording = () => {
     if (!stream || !canvasRef.current) return;
+    
+    // Clear any stale timer to prevent double-counting
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
     
     chunksRef.current = [];
     const mimeType = MediaRecorder.isTypeSupported('video/mp4') ? 'video/mp4' : 'video/webm;codecs=vp8,opus';
@@ -221,9 +246,20 @@ export default function WebcamCaptureModal({ isOpen, onClose, onCapture, maxLeng
     };
     
     mediaRecorder.onstop = () => {
+      // Clear timer immediately
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+      
       const blob = new Blob(chunksRef.current, { type: mimeType });
       const extension = mimeType.includes('mp4') ? 'mp4' : 'webm';
       const file = new File([blob], `video_${Date.now()}.${extension}`, { type: mimeType });
+      
+      // CRITICAL: Stop all tracks BEFORE calling onCapture/onClose
+      // This prevents camera/audio staying on after send on iPhone
+      forceStopAllTracks();
+      
       onCapture([file]);
       onClose();
     };
@@ -241,15 +277,20 @@ export default function WebcamCaptureModal({ isOpen, onClose, onCapture, maxLeng
         if (mediaRecorder.state !== 'inactive') mediaRecorder.stop();
         setIsRecording(false);
         clearInterval(timerRef.current);
+        timerRef.current = null;
       }
     }, 1000);
   };
 
   const stopRecording = () => {
     if (mediaRecorderRef.current && isRecording) {
-      mediaRecorderRef.current.stop();
+      // Clear timer first to prevent stacking
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+      mediaRecorderRef.current.stop(); // triggers onstop which handles cleanup
       setIsRecording(false);
-      clearInterval(timerRef.current);
     }
   };
 
@@ -472,14 +513,33 @@ export default function WebcamCaptureModal({ isOpen, onClose, onCapture, maxLeng
               <p>Accessing camera...</p>
             </div>
           )}
-          {/* Expand core hardware view bounding securely ensuring background decoding maps accurately unblocking Mobile processors safely */}
-          <video ref={videoRef} autoPlay playsInline muted onLoadedMetadata={(e) => { 
-            if (e.target) {
-              e.target.play().catch(() => {});
-              initProcessor(e.target);
-            }
-          }} className="absolute inset-0 w-full h-full object-cover opacity-0 pointer-events-none z-0" />
-          <canvas ref={canvasRef} className="absolute inset-0 w-full h-full object-cover z-10" />
+          {/* 
+            Video element: shown as VISIBLE fallback when WebGL canvas isn't rendering (iPhone front camera).
+            Front camera ('user') is mirrored via scaleX(-1) for natural selfie view.
+          */}
+          <video 
+            ref={videoRef} 
+            autoPlay 
+            playsInline 
+            muted 
+            onLoadedMetadata={(e) => { 
+              if (e.target) {
+                e.target.play().catch(() => {});
+                initProcessor(e.target);
+              }
+            }} 
+            className="absolute inset-0 w-full h-full object-cover z-0" 
+            style={{ 
+              transform: facingMode === 'user' ? 'scaleX(-1)' : 'none',
+              opacity: 1,
+            }}
+          />
+          {/* WebGL filtered canvas sits on top — if it renders, it covers the raw video */}
+          <canvas 
+            ref={canvasRef} 
+            className="absolute inset-0 w-full h-full object-cover z-10" 
+            style={{ transform: facingMode === 'user' ? 'scaleX(-1)' : 'none' }}
+          />
           {/* Hair filter canvas overlay — video-resolution buffer + object-cover to match video canvas */}
           <canvas ref={hairCanvasRef} className="absolute inset-0 w-full h-full object-cover pointer-events-none z-[15]" />
         </div>
