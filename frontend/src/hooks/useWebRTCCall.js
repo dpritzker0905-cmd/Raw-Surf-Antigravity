@@ -57,10 +57,19 @@ export function useWebRTCCall(userId, userInfo = {}) {
   const statsIntervalRef = useRef(null);
   const pendingCandidatesRef = useRef([]);
   const callStartTimeRef = useRef(null);
+  const keepaliveRef = useRef(null);
+  const reconnectAttemptsRef = useRef(0);
+
+  // Track call state in ref to avoid stale closures in WS handlers
+  const callStateRef = useRef(callState);
+  useEffect(() => { callStateRef.current = callState; }, [callState]);
 
   // ── WebSocket Connection ──────────────────────────────────────────
   const connectSignaling = useCallback(() => {
     if (!userId) return;
+    
+    // Don't reconnect if already open
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) return;
     
     // Build WS URL from backend URL
     const wsProtocol = BACKEND_URL.startsWith('https') ? 'wss' : 'ws';
@@ -73,6 +82,8 @@ export function useWebRTCCall(userId, userInfo = {}) {
 
       ws.onopen = () => {
         console.debug('[WebRTC] Signaling WS connected');
+        // Reset reconnect backoff on success
+        reconnectAttemptsRef.current = 0;
         // Flush any pending ICE candidates
         if (pendingCandidatesRef.current.length > 0) {
           pendingCandidatesRef.current.forEach(c => {
@@ -80,6 +91,13 @@ export function useWebRTCCall(userId, userInfo = {}) {
           });
           pendingCandidatesRef.current = [];
         }
+        // Start keepalive ping every 25s (Render.com drops idle WS at ~60s)
+        if (keepaliveRef.current) clearInterval(keepaliveRef.current);
+        keepaliveRef.current = setInterval(() => {
+          if (ws.readyState === WebSocket.OPEN) {
+            ws.send('ping');
+          }
+        }, 25000);
       };
 
       ws.onmessage = (event) => {
@@ -87,16 +105,22 @@ export function useWebRTCCall(userId, userInfo = {}) {
           const data = JSON.parse(event.data);
           handleSignalingMessage(data);
         } catch (e) {
-          console.error('[WebRTC] Failed to parse signaling message:', e);
+          // Ignore pong responses and parse errors for non-JSON
+          if (event.data !== '{"type":"pong"}') {
+            console.error('[WebRTC] Failed to parse signaling message:', e);
+          }
         }
       };
 
       ws.onclose = () => {
         console.debug('[WebRTC] Signaling WS closed');
-        // Reconnect if we're in a call
-        if (callState === CALL_STATE.IN_CALL || callState === CALL_STATE.CONNECTING) {
-          reconnectTimerRef.current = setTimeout(() => connectSignaling(), 2000);
-        }
+        if (keepaliveRef.current) clearInterval(keepaliveRef.current);
+        // ALWAYS reconnect — the receiver must stay connected to receive incoming calls
+        const attempts = reconnectAttemptsRef.current || 0;
+        const delay = Math.min(2000 * Math.pow(1.5, attempts), 30000); // 2s → 3s → 4.5s → ... max 30s
+        reconnectAttemptsRef.current = attempts + 1;
+        console.debug(`[WebRTC] Reconnecting in ${delay}ms (attempt ${attempts + 1})`);
+        reconnectTimerRef.current = setTimeout(() => connectSignaling(), delay);
       };
 
       ws.onerror = (err) => {
@@ -111,8 +135,11 @@ export function useWebRTCCall(userId, userInfo = {}) {
   useEffect(() => {
     connectSignaling();
     return () => {
-      wsRef.current?.close();
+      // Prevent reconnect on unmount
       clearTimeout(reconnectTimerRef.current);
+      clearInterval(keepaliveRef.current);
+      reconnectAttemptsRef.current = 999; // prevent further reconnects
+      wsRef.current?.close();
     };
   }, [connectSignaling]);
 

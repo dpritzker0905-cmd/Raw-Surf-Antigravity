@@ -7,6 +7,7 @@ import logging
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, and_, or_, text
+from sqlalchemy.orm import selectinload
 from pydantic import BaseModel, Field
 from typing import Optional, List
 from datetime import datetime, timezone, timedelta
@@ -289,7 +290,10 @@ async def get_photographer_reviews(
 ):
     """Get reviews for a photographer"""
     
-    query = select(Review).where(
+    query = select(Review).options(
+        selectinload(Review.reviewer),
+        selectinload(Review.reviewee)
+    ).where(
         and_(
             Review.reviewee_id == photographer_id,
             Review.review_type == 'surfer_to_photographer'
@@ -304,22 +308,16 @@ async def get_photographer_reviews(
     result = await db.execute(query)
     reviews = result.scalars().all()
     
-    # Fetch reviewer profiles
+    # Profiles already eager-loaded via selectinload — no N+1
     responses = []
     for review in reviews:
-        reviewer_result = await db.execute(select(Profile).where(Profile.id == review.reviewer_id))
-        reviewer = reviewer_result.scalar_one_or_none()
-        
-        reviewee_result = await db.execute(select(Profile).where(Profile.id == review.reviewee_id))
-        reviewee = reviewee_result.scalar_one_or_none()
-        
         responses.append(ReviewResponse(
             id=review.id,
             reviewer_id=review.reviewer_id,
-            reviewer_name=reviewer.full_name if reviewer else 'Unknown',
-            reviewer_avatar=reviewer.avatar_url if reviewer else None,
+            reviewer_name=review.reviewer.full_name if review.reviewer else 'Unknown',
+            reviewer_avatar=review.reviewer.avatar_url if review.reviewer else None,
             reviewee_id=review.reviewee_id,
-            reviewee_name=reviewee.full_name if reviewee else 'Unknown',
+            reviewee_name=review.reviewee.full_name if review.reviewee else 'Unknown',
             review_type=review.review_type,
             session_type=getattr(review, 'session_type', None),
             rating=review.rating,
@@ -343,7 +341,10 @@ async def get_surfer_reviews(
 ):
     """Get reviews for a surfer (from photographers)"""
     
-    query = select(Review).where(
+    query = select(Review).options(
+        selectinload(Review.reviewer),
+        selectinload(Review.reviewee)
+    ).where(
         and_(
             Review.reviewee_id == surfer_id,
             Review.review_type == 'photographer_to_surfer'
@@ -358,21 +359,16 @@ async def get_surfer_reviews(
     result = await db.execute(query)
     reviews = result.scalars().all()
     
+    # Profiles already eager-loaded via selectinload — no N+1
     responses = []
     for review in reviews:
-        reviewer_result = await db.execute(select(Profile).where(Profile.id == review.reviewer_id))
-        reviewer = reviewer_result.scalar_one_or_none()
-        
-        reviewee_result = await db.execute(select(Profile).where(Profile.id == review.reviewee_id))
-        reviewee = reviewee_result.scalar_one_or_none()
-        
         responses.append(ReviewResponse(
             id=review.id,
             reviewer_id=review.reviewer_id,
-            reviewer_name=reviewer.full_name if reviewer else 'Unknown',
-            reviewer_avatar=reviewer.avatar_url if reviewer else None,
+            reviewer_name=review.reviewer.full_name if review.reviewer else 'Unknown',
+            reviewer_avatar=review.reviewer.avatar_url if review.reviewer else None,
             reviewee_id=review.reviewee_id,
-            reviewee_name=reviewee.full_name if reviewee else 'Unknown',
+            reviewee_name=review.reviewee.full_name if review.reviewee else 'Unknown',
             review_type=review.review_type,
             session_type=getattr(review, 'session_type', None),
             rating=review.rating,
@@ -409,25 +405,28 @@ async def get_photographer_review_stats(
     avg_rating = float(avg_row[0]) if avg_row[0] else 0.0
     total_reviews = avg_row[1] or 0
     
-    # Get rating breakdown
-    breakdown = {}
-    for star in range(1, 6):
-        count_result = await db.execute(
-            select(func.count(Review.id))
-            .where(
-                and_(
-                    Review.reviewee_id == photographer_id,
-                    Review.review_type == 'surfer_to_photographer',
-                    Review.status == 'approved',
-                    Review.rating == star
-                )
+    # Get rating breakdown in a single grouped query (replaces 5 individual queries)
+    breakdown_result = await db.execute(
+        select(Review.rating, func.count(Review.id))
+        .where(
+            and_(
+                Review.reviewee_id == photographer_id,
+                Review.review_type == 'surfer_to_photographer',
+                Review.status == 'approved'
             )
         )
-        breakdown[str(star)] = count_result.scalar() or 0
+        .group_by(Review.rating)
+    )
+    breakdown = {str(star): 0 for star in range(1, 6)}
+    for rating, count in breakdown_result.all():
+        breakdown[str(rating)] = count
     
-    # Get recent reviews (top 5)
+    # Get recent reviews (top 5) with eager-loaded profiles
     recent_result = await db.execute(
-        select(Review)
+        select(Review).options(
+            selectinload(Review.reviewer),
+            selectinload(Review.reviewee)
+        )
         .where(
             and_(
                 Review.reviewee_id == photographer_id,
@@ -440,21 +439,16 @@ async def get_photographer_review_stats(
     )
     recent_reviews = recent_result.scalars().all()
     
+    # Profiles already eager-loaded via selectinload — no N+1
     recent_responses = []
     for review in recent_reviews:
-        reviewer_result = await db.execute(select(Profile).where(Profile.id == review.reviewer_id))
-        reviewer = reviewer_result.scalar_one_or_none()
-        
-        reviewee_result = await db.execute(select(Profile).where(Profile.id == review.reviewee_id))
-        reviewee = reviewee_result.scalar_one_or_none()
-        
         recent_responses.append(ReviewResponse(
             id=review.id,
             reviewer_id=review.reviewer_id,
-            reviewer_name=reviewer.full_name if reviewer else 'Unknown',
-            reviewer_avatar=reviewer.avatar_url if reviewer else None,
+            reviewer_name=review.reviewer.full_name if review.reviewer else 'Unknown',
+            reviewer_avatar=review.reviewer.avatar_url if review.reviewer else None,
             reviewee_id=review.reviewee_id,
-            reviewee_name=reviewee.full_name if reviewee else 'Unknown',
+            reviewee_name=review.reviewee.full_name if review.reviewee else 'Unknown',
             review_type=review.review_type,
             session_type=getattr(review, 'session_type', None),
             rating=review.rating,
@@ -490,28 +484,26 @@ async def get_pending_reviews(
         raise HTTPException(status_code=403, detail="Admin access required")
     
     result = await db.execute(
-        select(Review)
+        select(Review).options(
+            selectinload(Review.reviewer),
+            selectinload(Review.reviewee)
+        )
         .where(Review.status == 'pending')
         .order_by(Review.created_at.asc())
         .limit(limit)
     )
     reviews = result.scalars().all()
     
+    # Profiles already eager-loaded via selectinload — no N+1
     responses = []
     for review in reviews:
-        reviewer_result = await db.execute(select(Profile).where(Profile.id == review.reviewer_id))
-        reviewer = reviewer_result.scalar_one_or_none()
-        
-        reviewee_result = await db.execute(select(Profile).where(Profile.id == review.reviewee_id))
-        reviewee = reviewee_result.scalar_one_or_none()
-        
         responses.append(ReviewResponse(
             id=review.id,
             reviewer_id=review.reviewer_id,
-            reviewer_name=reviewer.full_name if reviewer else 'Unknown',
-            reviewer_avatar=reviewer.avatar_url if reviewer else None,
+            reviewer_name=review.reviewer.full_name if review.reviewer else 'Unknown',
+            reviewer_avatar=review.reviewer.avatar_url if review.reviewer else None,
             reviewee_id=review.reviewee_id,
-            reviewee_name=reviewee.full_name if reviewee else 'Unknown',
+            reviewee_name=review.reviewee.full_name if review.reviewee else 'Unknown',
             review_type=review.review_type,
             session_type=getattr(review, 'session_type', None),
             rating=review.rating,

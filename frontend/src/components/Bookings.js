@@ -452,11 +452,14 @@ export const Bookings = () => {
     }
   }, [bookings]);
 
-  // Poll for active dispatch and crew invites updates (for real-time sync)
+  // Poll for active dispatch and crew invites updates (only when On-Demand tab is active)
   useEffect(() => {
-    if (!user?.id) return;
+    if (!user?.id || activeTab !== 'on_demand') return;
     
     const pollInterval = setInterval(async () => {
+      // Skip polling when browser tab is hidden (saves battery & bandwidth)
+      if (document.visibilityState === 'hidden') return;
+      
       // Refresh active dispatch
       try {
         const activeRes = await apiClient.get(`/dispatch/user/${user.id}/active`);
@@ -481,7 +484,7 @@ export const Bookings = () => {
     }, 5000); // Poll every 5 seconds
     
     return () => clearInterval(pollInterval);
-  }, [user?.id]);
+  }, [user?.id, activeTab]);
 
   // Ref to prevent duplicate Stripe payment completion calls (race condition fix)
   const paymentProcessedRef = useRef(false);
@@ -536,72 +539,51 @@ export const Bookings = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      // Fetch user's credit balance first
-      try {
-        const creditsRes = await apiClient.get(`/credits/${user.id}/balance`);
-        if (creditsRes.data?.balance !== undefined) {
-          setUserCreditBalance(creditsRes.data.balance);
-          updateUser({ credit_balance: creditsRes.data.balance });
-        }
-      } catch (e) {
-        // Silent fail for credits
-      }
-      
-      // Fetch user's bookings
-      try {
-        const bookingsRes = await apiClient.get(`/bookings/user/${user.id}`);
-        setBookings(bookingsRes.data || []);
-      } catch (e) {
-        setBookings([]);
+      // Fire all independent API calls in parallel for ~2-3x faster load
+      const [creditsRes, bookingsRes, sessionsRes, liveRes, invitesRes, crewRes, activeRes] = await Promise.allSettled([
+        apiClient.get(`/credits/${user.id}/balance`),
+        apiClient.get(`/bookings/user/${user.id}`),
+        apiClient.get(`/sessions/user/${user.id}`),
+        apiClient.get(`/photographers/live`),
+        apiClient.get(`/bookings/invites/${user.id}`),
+        apiClient.get(`/dispatch/user/${user.id}/crew-invites`),
+        apiClient.get(`/dispatch/user/${user.id}/active`),
+      ]);
+
+      // Credits
+      if (creditsRes.status === 'fulfilled' && creditsRes.value.data?.balance !== undefined) {
+        setUserCreditBalance(creditsRes.value.data.balance);
+        updateUser({ credit_balance: creditsRes.value.data.balance });
       }
 
-      // Fetch live sessions user is part of
-      try {
-        const sessionsRes = await apiClient.get(`/sessions/user/${user.id}`);
-        setLiveSessions(sessionsRes.data || []);
-      } catch (e) {
-        setLiveSessions([]);
-      }
+      // Bookings
+      setBookings(bookingsRes.status === 'fulfilled' ? (bookingsRes.value.data || []) : []);
 
-      // Fetch live photographers nearby
-      try {
-        const liveRes = await apiClient.get(`/photographers/live`);
-        setLivePhotographers(liveRes.data || []);
-      } catch (e) {
-        setLivePhotographers([]);
-      }
+      // Live sessions
+      setLiveSessions(sessionsRes.status === 'fulfilled' ? (sessionsRes.value.data || []) : []);
 
-      // Fetch pending invites
-      try {
-        const invitesRes = await apiClient.get(`/bookings/invites/${user.id}`);
-        setPendingInvites(invitesRes.data || []);
-      } catch (e) {
-        setPendingInvites([]);
-      }
-      
-      // Fetch on-demand crew invites (shared sessions)
-      try {
-        const crewRes = await apiClient.get(`/dispatch/user/${user.id}/crew-invites`);
-        setCrewInvites(crewRes.data.crew_invites || []);
-      } catch (e) {
-        setCrewInvites([]);
-      }
-      
-      // Fetch active dispatch request (for returning to "Finding Your Photographer")
-      try {
-        const activeRes = await apiClient.get(`/dispatch/user/${user.id}/active`);
-        // Show dispatch for requester, crew_member, or photographer roles
-        if (activeRes.data.active_dispatch && 
-            ['requester', 'crew_member', 'photographer'].includes(activeRes.data.active_dispatch.role)) {
-          setActiveDispatch(activeRes.data.active_dispatch);
+      // Live photographers
+      setLivePhotographers(liveRes.status === 'fulfilled' ? (liveRes.value.data || []) : []);
+
+      // Pending invites
+      setPendingInvites(invitesRes.status === 'fulfilled' ? (invitesRes.value.data || []) : []);
+
+      // Crew invites
+      setCrewInvites(crewRes.status === 'fulfilled' ? (crewRes.value.data?.crew_invites || []) : []);
+
+      // Active dispatch
+      if (activeRes.status === 'fulfilled') {
+        const dispatch = activeRes.value.data?.active_dispatch;
+        if (dispatch && ['requester', 'crew_member', 'photographer'].includes(dispatch.role)) {
+          setActiveDispatch(dispatch);
         } else {
           setActiveDispatch(null);
         }
-      } catch (e) {
+      } else {
         setActiveDispatch(null);
       }
       
-      // Fetch nearby splittable bookings (if user has location)
+      // Fetch nearby splittable bookings (if user has location) — kept async since geolocation is callback-based
       try {
         if (navigator.geolocation) {
           navigator.geolocation.getCurrentPosition(async (position) => {

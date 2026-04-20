@@ -37,8 +37,9 @@ const ConversationItem = ({ conversation, isSelected, onClick }) => {
   
   // Add cache-busting to avatar URL to fix stale profile pictures
   // Use user's updated_at timestamp if available, else use current time for fresh fetch
-  const avatarWithCacheBust = conversation.other_user_avatar 
-    ? `${conversation.other_user_avatar}${conversation.other_user_avatar.includes('?') ? '&' : '?'}v=${conversation.other_user_updated_at || Date.now()}`
+  const rawAvatarUrl = conversation.other_user_avatar ? getFullUrl(conversation.other_user_avatar) : null;
+  const avatarWithCacheBust = rawAvatarUrl
+    ? `${rawAvatarUrl}${rawAvatarUrl.includes('?') ? '&' : '?'}v=${conversation.other_user_updated_at || Date.now()}`
     : null;
   
   // Determine ring color based on folder/role
@@ -67,14 +68,24 @@ const ConversationItem = ({ conversation, isSelected, onClick }) => {
     >
       {/* Avatar with online indicator */}
       <div className="relative flex-shrink-0">
-        <div className={`w-14 h-14 rounded-full overflow-hidden ${getRingClass()}`}>
+        <div className={`w-14 h-14 rounded-full overflow-hidden bg-muted ${getRingClass()}`}>
           {avatarWithCacheBust ? (
-            <img src={avatarWithCacheBust} alt="" className="w-full h-full object-cover" />
-          ) : (
-            <div className="w-full h-full bg-muted flex items-center justify-center text-muted-foreground text-xl">
-              {conversation.other_user_name?.charAt(0)}
-            </div>
-          )}
+            <img 
+              src={avatarWithCacheBust} 
+              alt="" 
+              className="w-full h-full object-cover" 
+              onError={(e) => { 
+                e.target.style.display = 'none';
+                if (e.target.nextSibling) e.target.nextSibling.style.display = 'flex';
+              }}
+            />
+          ) : null}
+          <div 
+            className="w-full h-full flex items-center justify-center text-muted-foreground text-xl absolute inset-0"
+            style={{ display: avatarWithCacheBust ? 'none' : 'flex' }}
+          >
+            {conversation.other_user_name?.charAt(0)}
+          </div>
         </div>
         {/* Online indicator - green dot only if they sent a message in this chat within last 5 min */}
         {conversation.other_user_last_active &&

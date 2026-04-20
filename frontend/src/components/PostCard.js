@@ -11,7 +11,7 @@ import { CommentInputWithEmoji } from './EmojiPicker';
 import WhoReactedModal from './WhoReactedModal';
 import SessionJoinCard from './SessionJoinCard';
 import { RichText, CommentText } from './RichText';
-import { MapPin, MessageCircle, Send, Bookmark, MoreHorizontal, Loader2, Play, Radio, Heart, ShoppingBag, ChevronRight } from 'lucide-react';
+import { MapPin, MessageCircle, Send, Bookmark, MoreHorizontal, Loader2, Play, Radio, Heart, ShoppingBag, ChevronRight, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 import { getFullUrl } from '../utils/media';
 
@@ -857,6 +857,30 @@ const PostCard = ({
               <Play className="w-12 h-12 text-zinc-500 mb-2" />
               <span className="text-zinc-400 text-sm font-medium">Video Unavailable</span>
               <span className="text-zinc-500 text-xs mt-1">This video is no longer accessible</span>
+              {/* Retry button — clears error to re-attempt load */}
+              {videoError && !isDeadLocalVideo && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setVideoError(false);
+                    // Force a fresh network fetch by appending cache-bust param
+                    if (videoRef.current) {
+                      const src = videoRef.current.querySelector('source');
+                      if (src) {
+                        const url = new URL(src.src, window.location.origin);
+                        url.searchParams.set('_retry', Date.now());
+                        src.src = url.toString();
+                      }
+                      videoRef.current.load();
+                    }
+                  }}
+                  className="mt-3 flex items-center gap-1.5 px-4 py-2 rounded-lg bg-zinc-700 hover:bg-zinc-600 text-zinc-300 text-sm font-medium transition-colors"
+                  data-testid={`video-retry-${post.id}`}
+                >
+                  <RefreshCw className="w-4 h-4" />
+                  Tap to retry
+                </button>
+              )}
               {/* Video duration badge */}
               <div className="absolute top-2 right-2 bg-black/70 px-2 py-1 rounded text-xs text-white flex items-center gap-1">
                 <Play className="w-3 h-3" />
