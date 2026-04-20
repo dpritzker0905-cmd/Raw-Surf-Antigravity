@@ -368,7 +368,7 @@ export default function InCallView({
 
   return (
     <div 
-      className="fixed inset-0 z-[9998] flex flex-col bg-black select-none"
+      className="fixed inset-0 z-[9998] flex items-center justify-center bg-zinc-950 select-none"
       onClick={resetControlsTimer}
     >
       {/* Hidden audio element for remote stream */}
@@ -377,225 +377,232 @@ export default function InCallView({
       {/* Hidden elements for WebGL pipeline */}
       <video ref={localHiddenVideoRef} style={{ display: 'none' }} playsInline muted autoPlay />
 
-      {/* ── Remote Video / Audio Avatar ── */}
-      <div className="flex-1 relative overflow-hidden">
-        {callType === 'video' && remoteStream ? (
-          <>
-            <video
-              ref={remoteVideoRef}
-              autoPlay
-              playsInline
-              className="w-full h-full object-cover"
-              style={{ filter: cssFilterString }}
-            />
-            {/* Vignette overlay */}
-            {cssFilters.vignette > 0 && (
-              <div className="absolute inset-0" style={vignetteStyle} />
-            )}
-          </>
-        ) : (
-          /* Audio-only: premium avatar display with animated waveform */
-          <div className="w-full h-full flex flex-col items-center justify-center"
-            style={{
-              background: 'radial-gradient(ellipse at 30% 20%, rgba(6,182,212,0.08) 0%, transparent 50%), radial-gradient(ellipse at 70% 80%, rgba(99,102,241,0.06) 0%, transparent 50%), linear-gradient(135deg, #0a0e1a 0%, #0d1f3c 40%, #0a1628 100%)',
-            }}
-          >
-            {/* Pulsing ring behind avatar */}
-            <div className="relative">
-              <div className="absolute inset-0 -m-4 rounded-full border-2 border-cyan-400/20 animate-ping" style={{ animationDuration: '2s' }} />
-              <div className="absolute inset-0 -m-2 rounded-full border border-cyan-400/10" />
-              <div className="w-32 h-32 rounded-full overflow-hidden ring-4 ring-cyan-400/30 shadow-[0_0_60px_rgba(6,182,212,0.2)]">
-                {remoteUserInfo.avatar ? (
-                  <img src={remoteUserInfo.avatar} className="w-full h-full object-cover" alt="" />
-                ) : (
-                  <div className="w-full h-full bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center">
-                    <span className="text-4xl text-white font-bold">
-                      {remoteUserInfo.name?.charAt(0)?.toUpperCase() || '?'}
-                    </span>
-                  </div>
-                )}
-              </div>
-            </div>
-            <h3 className="text-white text-xl font-semibold mt-5 mb-1">{remoteUserInfo.name || 'User'}</h3>
-            <p className="text-white/40 text-sm mb-4">Audio Call</p>
-            
-            {/* Audio waveform animation */}
-            <div className="flex items-end gap-[3px] h-8">
-              {[...Array(9)].map((_, i) => (
-                <div
-                  key={i}
-                  className="w-[3px] bg-gradient-to-t from-cyan-500 to-cyan-300 rounded-full"
-                  style={{
-                    height: `${8 + Math.random() * 24}px`,
-                    animation: `waveform 0.6s ease-in-out ${i * 0.08}s infinite alternate`,
-                  }}
-                />
-              ))}
-            </div>
-          </div>
-        )}
+      {/* ═══ Desktop: Contained video panel like GoLive ═══ */}
+      {/* ═══ Mobile: Full-screen edge-to-edge              ═══ */}
+      <div className="relative w-full h-full md:w-[calc(100%-48px)] md:h-[calc(100%-48px)] md:max-w-[1100px] md:max-h-[700px] md:rounded-2xl overflow-hidden flex flex-col shadow-2xl shadow-black/50">
 
-        {/* ── Top Overlay ── */}
-        <div 
-          className={`absolute top-0 left-0 right-0 transition-opacity duration-300 ${showControls ? 'opacity-100' : 'opacity-0'}`}
-          style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.3) 60%, transparent 100%)' }}
-        >
-          <div className="flex items-center justify-between px-4 py-3">
-            <div className="flex items-center gap-3">
-              {/* Duration pill */}
-              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/10 backdrop-blur-md">
-                <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
-                <span className="text-white text-xs font-mono tabular-nums">
-                  {formatDuration(callDuration)}
-                </span>
-              </div>
-              <ConnectionQualityBadge quality={connectionQuality} />
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-white/60 text-xs px-2.5 py-1 rounded-full bg-white/5 backdrop-blur-md">
-                {callType === 'video' ? '📹 Video Call' : '🎙️ Audio Call'}
-              </span>
-            </div>
-          </div>
-
-          {/* Remote user name bar */}
-          <div className="px-4 pb-2">
-            <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-full overflow-hidden ring-2 ring-white/20">
-                {remoteUserInfo.avatar ? (
-                  <img src={remoteUserInfo.avatar} className="w-full h-full object-cover" alt="" />
-                ) : (
-                  <div className="w-full h-full bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center">
-                    <span className="text-xs text-white font-bold">
-                      {remoteUserInfo.name?.charAt(0)?.toUpperCase() || '?'}
-                    </span>
-                  </div>
-                )}
-              </div>
-              <span className="text-white text-sm font-medium">{remoteUserInfo.name || 'User'}</span>
-            </div>
-          </div>
-        </div>
-
-        {/* ── Local Video PIP ── */}
-        {callType === 'video' && localStream && (
-          <div 
-            className={`absolute transition-all duration-300 rounded-2xl overflow-hidden border-2 border-white/20 shadow-2xl cursor-pointer ${
-              showControls ? 'opacity-100' : 'opacity-70'
-            } ${
-              isPipExpanded 
-                ? 'bottom-32 right-4 w-52 h-72' 
-                : 'bottom-32 right-4 w-32 h-44'
-            }`}
-            onClick={(e) => { e.stopPropagation(); setIsPipExpanded(!isPipExpanded); }}
-          >
-            {isCameraOff ? (
-              <div className="w-full h-full bg-zinc-800 flex items-center justify-center">
-                <VideoOff className="w-6 h-6 text-zinc-500" />
-              </div>
-            ) : activeGPUFilter !== 'none' ? (
-              /* WebGL filtered local video */
-              <canvas ref={localCanvasRef} className="w-full h-full object-cover" style={{ transform: 'scaleX(-1)' }} />
-            ) : (
+        {/* ── Remote Video / Audio Avatar ── */}
+        <div className="flex-1 relative overflow-hidden bg-black">
+          {callType === 'video' && remoteStream ? (
+            <>
               <video
-                ref={localVideoRef}
+                ref={remoteVideoRef}
                 autoPlay
                 playsInline
-                muted
                 className="w-full h-full object-cover"
-                style={{ transform: 'scaleX(-1)', filter: cssFilterString }}
+                style={{ filter: cssFilterString }}
               />
-            )}
-            {/* PIP label */}
-            <div className="absolute top-2 left-2 px-1.5 py-0.5 rounded bg-black/50 backdrop-blur-sm">
-              <span className="text-[9px] text-white/70 font-medium">You</span>
-            </div>
-            <div className="absolute bottom-2 right-2">
-              {isPipExpanded ? (
-                <Minimize2 className="w-3 h-3 text-white/60" />
-              ) : (
-                <Maximize2 className="w-3 h-3 text-white/60" />
+              {/* Vignette overlay */}
+              {cssFilters.vignette > 0 && (
+                <div className="absolute inset-0" style={vignetteStyle} />
               )}
+            </>
+          ) : (
+            /* Audio-only: premium avatar display with animated waveform */
+            <div className="w-full h-full flex flex-col items-center justify-center"
+              style={{
+                background: 'radial-gradient(ellipse at 30% 20%, rgba(6,182,212,0.08) 0%, transparent 50%), radial-gradient(ellipse at 70% 80%, rgba(99,102,241,0.06) 0%, transparent 50%), linear-gradient(135deg, #0a0e1a 0%, #0d1f3c 40%, #0a1628 100%)',
+              }}
+            >
+              {/* Pulsing ring behind avatar */}
+              <div className="relative">
+                <div className="absolute inset-0 -m-4 rounded-full border-2 border-cyan-400/20 animate-ping" style={{ animationDuration: '2s' }} />
+                <div className="absolute inset-0 -m-2 rounded-full border border-cyan-400/10" />
+                <div className="w-32 h-32 rounded-full overflow-hidden ring-4 ring-cyan-400/30 shadow-[0_0_60px_rgba(6,182,212,0.2)]">
+                  {remoteUserInfo.avatar ? (
+                    <img src={remoteUserInfo.avatar} className="w-full h-full object-cover" alt="" />
+                  ) : (
+                    <div className="w-full h-full bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center">
+                      <span className="text-4xl text-white font-bold">
+                        {remoteUserInfo.name?.charAt(0)?.toUpperCase() || '?'}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+              <h3 className="text-white text-xl font-semibold mt-5 mb-1">{remoteUserInfo.name || 'User'}</h3>
+              <p className="text-white/40 text-sm mb-4">Audio Call</p>
+              
+              {/* Audio waveform animation */}
+              <div className="flex items-end gap-[3px] h-8">
+                {[...Array(9)].map((_, i) => (
+                  <div
+                    key={i}
+                    className="w-[3px] bg-gradient-to-t from-cyan-500 to-cyan-300 rounded-full"
+                    style={{
+                      height: `${8 + Math.random() * 24}px`,
+                      animation: `waveform 0.6s ease-in-out ${i * 0.08}s infinite alternate`,
+                    }}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* ── Top Overlay ── */}
+          <div 
+            className={`absolute top-0 left-0 right-0 transition-opacity duration-300 ${showControls ? 'opacity-100' : 'opacity-0'}`}
+            style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.3) 60%, transparent 100%)' }}
+          >
+            <div className="flex items-center justify-between px-4 py-3">
+              <div className="flex items-center gap-3">
+                {/* Duration pill */}
+                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/10 backdrop-blur-md">
+                  <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
+                  <span className="text-white text-xs font-mono tabular-nums">
+                    {formatDuration(callDuration)}
+                  </span>
+                </div>
+                <ConnectionQualityBadge quality={connectionQuality} />
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-white/60 text-xs px-2.5 py-1 rounded-full bg-white/5 backdrop-blur-md">
+                  {callType === 'video' ? '📹 Video Call' : '🎙️ Audio Call'}
+                </span>
+              </div>
+            </div>
+
+            {/* Remote user name bar */}
+            <div className="px-4 pb-2">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-full overflow-hidden ring-2 ring-white/20">
+                  {remoteUserInfo.avatar ? (
+                    <img src={remoteUserInfo.avatar} className="w-full h-full object-cover" alt="" />
+                  ) : (
+                    <div className="w-full h-full bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center">
+                      <span className="text-xs text-white font-bold">
+                        {remoteUserInfo.name?.charAt(0)?.toUpperCase() || '?'}
+                      </span>
+                    </div>
+                  )}
+                </div>
+                <span className="text-white text-sm font-medium">{remoteUserInfo.name || 'User'}</span>
+              </div>
             </div>
           </div>
-        )}
 
-        {/* ── Filter Panels ── */}
-        <FilterSliderPanel 
-          isOpen={showFilters}
-          onClose={() => setShowFilters(false)}
-          filters={cssFilters}
-          onFilterChange={handleFilterChange}
-          onPresetSelect={handlePresetSelect}
-        />
-        <GPUFilterPicker
-          isOpen={showGPUFilters}
-          onClose={() => setShowGPUFilters(false)}
-          activeFilter={activeGPUFilter}
-          onSelectFilter={setActiveGPUFilter}
-        />
-      </div>
-
-      {/* ── Bottom Controls Bar ── */}
-      <div 
-        className={`flex-shrink-0 transition-all duration-300 ${showControls ? 'translate-y-0 opacity-100' : 'translate-y-full opacity-0'}`}
-        style={{
-          background: 'linear-gradient(to top, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.7) 80%, transparent 100%)',
-        }}
-      >
-        <div className="flex items-end justify-center gap-4 md:gap-6 py-5 px-4">
-          {/* Mute */}
-          <ControlButton
-            onClick={onToggleMute}
-            active={isMuted}
-            icon={isMuted ? MicOff : Mic}
-            label={isMuted ? 'Unmute' : 'Mute'}
-          />
-
-          {/* Camera toggle (video only) */}
-          {callType === 'video' && (
-            <ControlButton
-              onClick={onToggleCamera}
-              active={isCameraOff}
-              icon={isCameraOff ? VideoOff : Video}
-              label={isCameraOff ? 'Start Video' : 'Stop Video'}
-            />
+          {/* ── Local Video PIP ── */}
+          {/* Mobile: bottom-left, tiny. Desktop: bottom-right, compact */}
+          {callType === 'video' && localStream && (
+            <div 
+              className={`absolute transition-all duration-300 overflow-hidden shadow-2xl cursor-pointer ${
+                showControls ? 'opacity-100' : 'opacity-60'
+              } ${
+                isPipExpanded 
+                  ? 'bottom-3 left-3 md:bottom-4 md:right-4 md:left-auto w-28 h-36 md:w-44 md:h-56 rounded-2xl border-2 border-white/20' 
+                  : 'bottom-3 left-3 md:bottom-4 md:right-4 md:left-auto w-16 h-16 md:w-28 md:h-36 rounded-full md:rounded-2xl border-2 border-white/20'
+              }`}
+              onClick={(e) => { e.stopPropagation(); setIsPipExpanded(!isPipExpanded); }}
+            >
+              {isCameraOff ? (
+                <div className="w-full h-full bg-zinc-800 flex items-center justify-center">
+                  <VideoOff className="w-5 h-5 text-zinc-500" />
+                </div>
+              ) : activeGPUFilter !== 'none' ? (
+                <canvas ref={localCanvasRef} className="w-full h-full object-cover" style={{ transform: 'scaleX(-1)' }} />
+              ) : (
+                <video
+                  ref={localVideoRef}
+                  autoPlay
+                  playsInline
+                  muted
+                  className="w-full h-full object-cover"
+                  style={{ transform: 'scaleX(-1)', filter: cssFilterString }}
+                />
+              )}
+              {/* PIP label — hidden when collapsed on mobile */}
+              <div className={`absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded bg-black/50 backdrop-blur-sm ${
+                !isPipExpanded ? 'hidden md:block' : ''
+              }`}>
+                <span className="text-[9px] text-white/70 font-medium">You</span>
+              </div>
+              {/* Expand/collapse hint — only on desktop or when expanded */}
+              <div className={`absolute bottom-1.5 right-1.5 ${!isPipExpanded ? 'hidden md:block' : ''}`}>
+                {isPipExpanded ? (
+                  <Minimize2 className="w-3 h-3 text-white/60" />
+                ) : (
+                  <Maximize2 className="w-3 h-3 text-white/60" />
+                )}
+              </div>
+            </div>
           )}
 
-          {/* CSS Filters */}
-          <ControlButton
-            onClick={() => { setShowFilters(!showFilters); setShowGPUFilters(false); }}
-            active={showFilters}
-            icon={Sparkles}
-            label="Filters"
+          {/* ── Filter Panels ── */}
+          <FilterSliderPanel 
+            isOpen={showFilters}
+            onClose={() => setShowFilters(false)}
+            filters={cssFilters}
+            onFilterChange={handleFilterChange}
+            onPresetSelect={handlePresetSelect}
           />
-
-          {/* GPU Effects (video only) */}
-          {callType === 'video' && (
-            <ControlButton
-              onClick={() => { setShowGPUFilters(!showGPUFilters); setShowFilters(false); }}
-              active={showGPUFilters || activeGPUFilter !== 'none'}
-              icon={Film}
-              label="Effects"
-            />
-          )}
-
-          {/* Speaker */}
-          <ControlButton
-            onClick={() => {}}
-            icon={Volume2}
-            label="Speaker"
-          />
-
-          {/* End Call */}
-          <ControlButton
-            onClick={onEndCall}
-            danger
-            icon={PhoneOff}
-            label="End"
-            size="large"
+          <GPUFilterPicker
+            isOpen={showGPUFilters}
+            onClose={() => setShowGPUFilters(false)}
+            activeFilter={activeGPUFilter}
+            onSelectFilter={setActiveGPUFilter}
           />
         </div>
+
+        {/* ── Bottom Controls Bar (inside the contained panel) ── */}
+        <div 
+          className={`flex-shrink-0 transition-all duration-300 bg-zinc-950 border-t border-zinc-800 ${showControls ? 'translate-y-0 opacity-100' : 'translate-y-full opacity-0'}`}
+        >
+          <div className="flex items-end justify-center gap-3 md:gap-5 py-4 px-4">
+            {/* Mute */}
+            <ControlButton
+              onClick={onToggleMute}
+              active={isMuted}
+              icon={isMuted ? MicOff : Mic}
+              label={isMuted ? 'Unmute' : 'Mute'}
+            />
+
+            {/* Camera toggle (video only) */}
+            {callType === 'video' && (
+              <ControlButton
+                onClick={onToggleCamera}
+                active={isCameraOff}
+                icon={isCameraOff ? VideoOff : Video}
+                label={isCameraOff ? 'Start Video' : 'Stop Video'}
+              />
+            )}
+
+            {/* CSS Filters */}
+            <ControlButton
+              onClick={() => { setShowFilters(!showFilters); setShowGPUFilters(false); }}
+              active={showFilters}
+              icon={Sparkles}
+              label="Filters"
+            />
+
+            {/* GPU Effects (video only) */}
+            {callType === 'video' && (
+              <ControlButton
+                onClick={() => { setShowGPUFilters(!showGPUFilters); setShowFilters(false); }}
+                active={showGPUFilters || activeGPUFilter !== 'none'}
+                icon={Film}
+                label="Effects"
+              />
+            )}
+
+            {/* Speaker */}
+            <ControlButton
+              onClick={() => {}}
+              icon={Volume2}
+              label="Speaker"
+            />
+
+            {/* End Call */}
+            <ControlButton
+              onClick={onEndCall}
+              danger
+              icon={PhoneOff}
+              label="End"
+              size="large"
+            />
+          </div>
+        </div>
+
+      {/* Close the contained panel div */}
       </div>
 
       {/* ── CSS Animations ── */}
