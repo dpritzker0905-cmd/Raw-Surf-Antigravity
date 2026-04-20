@@ -153,8 +153,8 @@ const LANDMARK = {
 };
 
 // Anthropometric constants — tuned from real-world mobile testing
-const HEAD_WIDTH_RATIO = 1.55;   // Head/skull ~55% wider than temple-to-temple face landmarks
-const CROWN_OFFSET_RATIO = 0.35; // Crown is ~35% of face-height above landmark 10 (hairline)
+const HEAD_WIDTH_RATIO = 1.8;    // Head/skull ~80% wider than temple-to-temple face landmarks
+const CROWN_OFFSET_RATIO = 0.3;  // Crown is ~30% of face-height above landmark 10 (hairline)
 
 /**
  * Loads the MediaPipe Face Mesh library from CDN
@@ -391,20 +391,22 @@ export class HairFilterEngine {
   // ─── Internal Methods ───────────────────────────────────────────
   
   /**
-   * Size canvas to CSS display dimensions (not video native resolution).
-   * MediaPipe returns normalized 0-1 coords so any canvas size works.
+   * Sync canvas buffer to VIDEO native resolution (not CSS display size).
+   * The canvas CSS must use object-cover to match the video display scaling.
+   * This ensures MediaPipe coords (normalized 0-1) × videoWidth/Height
+   * map perfectly to the same positions as the video frame.
    */
   _syncCanvasSize() {
-    if (!this.canvasEl) return;
+    if (!this.canvasEl || !this.videoEl) return;
     
-    const displayW = this.canvasEl.clientWidth || this.canvasEl.offsetWidth;
-    const displayH = this.canvasEl.clientHeight || this.canvasEl.offsetHeight;
+    const vw = this.videoEl.videoWidth;
+    const vh = this.videoEl.videoHeight;
     
-    if (displayW === 0 || displayH === 0) return;
+    if (!vw || !vh) return;
     
-    if (this.canvasEl.width !== displayW || this.canvasEl.height !== displayH) {
-      this.canvasEl.width = displayW;
-      this.canvasEl.height = displayH;
+    if (this.canvasEl.width !== vw || this.canvasEl.height !== vh) {
+      this.canvasEl.width = vw;
+      this.canvasEl.height = vh;
     }
   }
   
@@ -474,8 +476,10 @@ export class HairFilterEngine {
     // Crown is above landmark 10 by ~50% of the face height
     const crownOffsetPx = faceHeight * CROWN_OFFSET_RATIO;
     
-    // Midpoint X from temples (more stable than single landmark)
-    const centerX = ((leftTemple.x + rightTemple.x) / 2) * width;
+    // Use NOSE BRIDGE (landmark 6) for X center — most stable point on rigid
+    // bone structure, stays centered even when head turns slightly
+    const noseBridge = lm[LANDMARK.NOSE_BRIDGE];
+    const centerX = noseBridge ? (noseBridge.x * width) : (((leftTemple.x + rightTemple.x) / 2) * width);
     
     // Crown Y: glabella position minus the cranium offset
     const glabellaY = glabella.y * height;

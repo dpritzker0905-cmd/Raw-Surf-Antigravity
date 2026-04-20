@@ -480,8 +480,8 @@ export default function WebcamCaptureModal({ isOpen, onClose, onCapture, maxLeng
             }
           }} className="absolute inset-0 w-full h-full object-cover opacity-0 pointer-events-none z-0" />
           <canvas ref={canvasRef} className="absolute inset-0 w-full h-full object-cover z-10" />
-          {/* Hair filter canvas overlay — NO object-cover, uses display dimensions */}
-          <canvas ref={hairCanvasRef} className="absolute inset-0 w-full h-full pointer-events-none z-[15]" />
+          {/* Hair filter canvas overlay — video-resolution buffer + object-cover to match video canvas */}
+          <canvas ref={hairCanvasRef} className="absolute inset-0 w-full h-full object-cover pointer-events-none z-[15]" />
         </div>
 
         {/* Rule of Thirds */}
