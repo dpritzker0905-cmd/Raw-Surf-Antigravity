@@ -1,11 +1,11 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 
 import { useParams, useNavigate } from 'react-router-dom';
 
 import { 
 
   MapPin, Waves, Camera, Clock, Users, X, TrendingUp, Loader2, Radio, Calendar, MessageCircle, Compass,
-  Sun, Lock, Crown, Eye, Heart,
+  Sun, Lock, Crown, Eye, Heart, ChevronLeft,
   Navigation, AlertCircle, Zap, CalendarClock, ChevronRight,
   Bell, Send, DollarSign
 } from 'lucide-react';
@@ -467,6 +467,10 @@ const SpotHub = () => {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('conditions');
   const [_userLocation, setUserLocation] = useState(null);
+  
+  // Collapsible header state
+  const heroRef = useRef(null);
+  const [isHeroVisible, setIsHeroVisible] = useState(true);
   const [isWithinProximity, setIsWithinProximity] = useState(false);
   
   // Live Pulse state - shows active shooting photographers based on user permissions
@@ -545,6 +549,22 @@ const SpotHub = () => {
       return () => clearInterval(pulseInterval);
     }
   }, [spotId, user?.id]);
+  
+  // IntersectionObserver for collapsible header — detects when hero scrolls out of view
+  useEffect(() => {
+    const heroEl = heroRef.current;
+    if (!heroEl) return;
+    
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        setIsHeroVisible(entry.isIntersecting);
+      },
+      { threshold: 0.1 } // Compact bar appears when <10% of hero is visible
+    );
+    
+    observer.observe(heroEl);
+    return () => observer.disconnect();
+  }, [spot]);
 
   const fetchAllSpotData = async () => {
     setLoading(true);
@@ -659,8 +679,47 @@ const SpotHub = () => {
 
   return (
     <div className={`max-w-xl mx-auto pb-4 ${isLight ? 'bg-gray-50/50 min-h-screen' : ''}`}>
-      {/* Immersive Hero Header */}
-      <div className="sticky top-0 z-20 overflow-hidden min-h-[140px] flex items-end">
+      {/* ===== COMPACT STICKY BAR — appears when hero scrolls out ===== */}
+      <div 
+        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ease-out ${
+          isHeroVisible 
+            ? 'opacity-0 -translate-y-full pointer-events-none' 
+            : 'opacity-100 translate-y-0'
+        }`}
+      >
+        <div className="max-w-xl mx-auto">
+          <div className={`flex items-center gap-3 px-3 py-2.5 backdrop-blur-xl border-b ${
+            isLight 
+              ? 'bg-white/90 border-gray-200 shadow-sm' 
+              : 'bg-zinc-900/95 border-zinc-800 shadow-lg shadow-black/20'
+          }`}>
+            <button 
+              onClick={handleClose}
+              className={`p-1.5 rounded-full transition-colors ${
+                isLight ? 'hover:bg-gray-100 text-gray-700' : 'hover:bg-zinc-800 text-gray-300'
+              }`}
+              data-testid="compact-back-btn"
+            >
+              <ChevronLeft className="w-5 h-5" />
+            </button>
+            <div className="flex-1 min-w-0">
+              <h2 className={`text-sm font-bold truncate ${textPrimary}`}>{spot.name}</h2>
+              <div className="flex items-center gap-1.5 text-[10px]">
+                <MapPin className="w-2.5 h-2.5 text-cyan-400" />
+                <span className={textSecondary}>{spot.region}</span>
+              </div>
+            </div>
+            {currentConditions && (
+              <Badge className={`${conditionColors[currentConditions.label]?.bg || 'bg-cyan-500'} border-none text-white font-bold text-xs shrink-0`}>
+                {currentConditions.wave_height_ft}ft
+              </Badge>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* ===== FULL HERO HEADER — scrolls away naturally ===== */}
+      <div ref={heroRef} className="relative overflow-hidden min-h-[180px] flex items-end">
         <div 
           className="absolute inset-0 bg-cover bg-center"
           style={{ backgroundImage: `url(${spot.image_url || `https://static-maps.yandex.ru/1.x/?lang=en_US&ll=${spot.longitude},${spot.latitude}&z=12&l=sat&size=400,300`})` }}
