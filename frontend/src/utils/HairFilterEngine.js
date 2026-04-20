@@ -1,13 +1,13 @@
 /**
  * HairFilterEngine — Real-time AR hair overlay using MediaPipe Face Mesh
  * 
- * Best practices followed (per Google/MediaPipe docs):
- * 1. Video + overlay canvas both get CSS scaleX(-1) for front camera mirroring
- * 2. MediaPipe processes raw (unmirrored) frames
- * 3. Drawing uses raw coordinates — CSS flip handles visual mirroring
- * 4. Canvas sized to CSS display dimensions (not video native resolution)
- * 5. requestAnimationFrame for render loop
- * 6. Landmark smoothing buffer to reduce jitter
+ * Positioning algorithm (per AR best practices):
+ * 1. MediaPipe landmark 10 is at the GLABELLA (between eyebrows), not the skull top
+ * 2. Crown position is estimated: crownY = landmark10.y - (faceHeight * 0.5)
+ *    because the cranium extends ~50% of face height above the glabella
+ * 3. Head width ≈ temple-to-temple * 1.3 (actual head is wider than face)
+ * 4. Hair sized relative to HEAD width (not face width)
+ * 5. CSS scaleX(-1) on both video and canvas handles front-camera mirroring
  */
 
 import logger from './logger';
@@ -24,7 +24,18 @@ import pinkTipsImg from '../assets/hair/pink_tips.png';
 import curlySurfImg from '../assets/hair/curly_surf.png';
 import platinumBobImg from '../assets/hair/platinum_bob.png';
 
-// Hair style catalog — scale/offset tuned for mobile (face fills ~50-60% of frame)
+/**
+ * Hair style catalog
+ * 
+ * scaleMultiplier: size relative to estimated HEAD width (not face width)
+ *   - 1.0 = exact head width
+ *   - 1.2 = 20% wider than head (typical for flowing/voluminous styles)
+ * 
+ * verticalAnchor: where the hair center sits relative to the crown
+ *   - 0.0 = centered exactly at estimated crown
+ *   - negative = higher above head, positive = lower toward forehead
+ *   - Values are in multiples of faceHeight
+ */
 export const HAIR_STYLES = {
   // Male styles
   blonde_flow: {
@@ -34,8 +45,8 @@ export const HAIR_STYLES = {
     emoji: '🏄‍♂️',
     description: 'Long wavy blonde surfer hair',
     src: blondeFlowImg,
-    offsetY: -0.45,
-    scaleMultiplier: 2.0,
+    scaleMultiplier: 1.3,
+    verticalAnchor: 0.0,
   },
   brown_dreads: {
     id: 'brown_dreads',
@@ -44,8 +55,8 @@ export const HAIR_STYLES = {
     emoji: '🌴',
     description: 'Thick brown dreadlocks',
     src: brownDreadsImg,
-    offsetY: -0.40,
-    scaleMultiplier: 2.2,
+    scaleMultiplier: 1.3,
+    verticalAnchor: 0.05,
   },
   messy_bun: {
     id: 'messy_bun',
@@ -54,8 +65,8 @@ export const HAIR_STYLES = {
     emoji: '🤙',
     description: 'Dark hair in messy top bun',
     src: messyBunImg,
-    offsetY: -0.55,
-    scaleMultiplier: 1.8,
+    scaleMultiplier: 1.1,
+    verticalAnchor: -0.1,
   },
   salt_sand: {
     id: 'salt_sand',
@@ -64,8 +75,8 @@ export const HAIR_STYLES = {
     emoji: '☀️',
     description: 'Short bleached sandy buzz',
     src: saltSandImg,
-    offsetY: -0.35,
-    scaleMultiplier: 1.5,
+    scaleMultiplier: 1.0,
+    verticalAnchor: 0.1,
   },
   dark_shag: {
     id: 'dark_shag',
@@ -74,8 +85,8 @@ export const HAIR_STYLES = {
     emoji: '🌊',
     description: 'Medium-length dark shaggy hair',
     src: darkShagImg,
-    offsetY: -0.40,
-    scaleMultiplier: 1.8,
+    scaleMultiplier: 1.2,
+    verticalAnchor: 0.0,
   },
   // Female styles
   beach_waves: {
@@ -85,8 +96,8 @@ export const HAIR_STYLES = {
     emoji: '🧜‍♀️',
     description: 'Long golden beach waves',
     src: beachWavesImg,
-    offsetY: -0.45,
-    scaleMultiplier: 2.2,
+    scaleMultiplier: 1.4,
+    verticalAnchor: 0.0,
   },
   braided_crown: {
     id: 'braided_crown',
@@ -95,8 +106,8 @@ export const HAIR_STYLES = {
     emoji: '🌺',
     description: 'Fishtail crown braid',
     src: braidedCrownImg,
-    offsetY: -0.50,
-    scaleMultiplier: 1.8,
+    scaleMultiplier: 1.2,
+    verticalAnchor: -0.05,
   },
   pink_tips: {
     id: 'pink_tips',
@@ -105,8 +116,8 @@ export const HAIR_STYLES = {
     emoji: '🌸',
     description: 'Dark roots with pink ends',
     src: pinkTipsImg,
-    offsetY: -0.40,
-    scaleMultiplier: 2.0,
+    scaleMultiplier: 1.3,
+    verticalAnchor: 0.0,
   },
   curly_surf: {
     id: 'curly_surf',
@@ -115,8 +126,8 @@ export const HAIR_STYLES = {
     emoji: '🦱',
     description: 'Big voluminous natural curls',
     src: curlySurfImg,
-    offsetY: -0.40,
-    scaleMultiplier: 2.4,
+    scaleMultiplier: 1.5,
+    verticalAnchor: 0.0,
   },
   platinum_bob: {
     id: 'platinum_bob',
@@ -125,18 +136,25 @@ export const HAIR_STYLES = {
     emoji: '⚡',
     description: 'Short platinum blonde bob',
     src: platinumBobImg,
-    offsetY: -0.30,
-    scaleMultiplier: 1.5,
+    scaleMultiplier: 1.1,
+    verticalAnchor: 0.05,
   },
 };
 
-// MediaPipe Face Mesh landmark indices
-const FOREHEAD_TOP = 10;
-const LEFT_EYE_OUTER = 234;
-const RIGHT_EYE_OUTER = 454;
-const LEFT_EYE_INNER = 133;
-const RIGHT_EYE_INNER = 362;
-const CHIN_BOTTOM = 152; // Used for head height measurement
+// ── MediaPipe Face Mesh Landmark Indices ──
+const LANDMARK = {
+  FOREHEAD_TOP: 10,     // Glabella area (between eyebrows — NOT top of skull!)
+  CHIN: 152,            // Bottom of chin
+  LEFT_TEMPLE: 234,     // Left side of face
+  RIGHT_TEMPLE: 454,    // Right side of face
+  LEFT_EYE_INNER: 133,
+  RIGHT_EYE_INNER: 362,
+  NOSE_BRIDGE: 6,       // Very stable center point
+};
+
+// Anthropometric constants
+const HEAD_WIDTH_RATIO = 1.3;    // Head is ~30% wider than temple-to-temple
+const CROWN_OFFSET_RATIO = 0.5;  // Crown is ~50% of face-height above landmark 10
 
 /**
  * Loads the MediaPipe Face Mesh library from CDN
@@ -175,10 +193,6 @@ const loadMediaPipe = () => {
 /**
  * Process a loaded image to remove checkered/white/gray backgrounds
  * and create real alpha transparency.
- * 
- * AI-generated "transparent" PNGs bake a visible checkerboard into the RGB data.
- * This function detects near-white and near-gray pixels (low color saturation, 
- * high brightness) and zeroes out their alpha channel.
  */
 function processImageAlpha(img) {
   const canvas = document.createElement('canvas');
@@ -195,35 +209,30 @@ function processImageAlpha(img) {
     const g = data[i + 1];
     const b = data[i + 2];
     
-    // Calculate brightness and color saturation
     const avg = (r + g + b) / 3;
     const maxChannel = Math.max(r, g, b);
     const minChannel = Math.min(r, g, b);
-    const colorRange = maxChannel - minChannel; // low = gray/white, high = colorful
+    const colorRange = maxChannel - minChannel;
     
-    // Aggressive removal: any pixel that is bright AND has low color saturation
-    // is likely part of the checkered background
-    if (avg > 150 && colorRange < 40) {
-      // Fully transparent for clearly white/gray pixels
-      data[i + 3] = 0;
-    } else if (avg > 130 && colorRange < 35) {
-      // Feathered transparency for edge pixels (smooth blend)
-      const fade = Math.max(0, (avg - 130) / 20);
+    // Aggressive: bright pixels with low color saturation = background
+    if (avg > 145 && colorRange < 45) {
+      data[i + 3] = 0; // fully transparent
+    } else if (avg > 125 && colorRange < 35) {
+      // Feathered edge
+      const fade = Math.max(0, (avg - 125) / 20);
       data[i + 3] = Math.round(255 * (1 - fade));
-    } else if (avg > 120 && colorRange < 25) {
-      // Very light fade for borderline pixels
-      data[i + 3] = Math.round(255 * 0.7);
+    } else if (avg > 115 && colorRange < 25) {
+      data[i + 3] = Math.round(255 * 0.6);
     }
   }
   
   ctx.putImageData(imageData, 0, 0);
   
-  // Convert back to an Image
   const processedImg = new window.Image();
   processedImg.src = canvas.toDataURL('image/png');
   return new Promise((resolve) => {
     processedImg.onload = () => resolve(processedImg);
-    processedImg.onerror = () => resolve(img); // fallback to original
+    processedImg.onerror = () => resolve(img);
   });
 }
 
@@ -241,7 +250,7 @@ export class HairFilterEngine {
     this._initialized = false;
     this._initPromise = null;
     
-    // Smoothing buffer (4 frames reduces jitter while staying responsive)
+    // Smoothing buffer (reduces landmark jitter)
     this._smoothBuffer = [];
     this._smoothSize = 4;
   }
@@ -268,9 +277,7 @@ export class HairFilterEngine {
         minTrackingConfidence: 0.5,
       });
       
-      this.faceMesh.onResults((results) => {
-        this._onFaceResults(results);
-      });
+      this.faceMesh.onResults((results) => this._onFaceResults(results));
       
       await this._preloadImages();
       
@@ -282,9 +289,6 @@ export class HairFilterEngine {
     }
   }
   
-  /**
-   * Preload all hair sprite images and process them for real alpha transparency
-   */
   async _preloadImages() {
     const loadAndProcess = async (src) => {
       return new Promise((resolve) => {
@@ -335,10 +339,6 @@ export class HairFilterEngine {
     this.activeStyle = style;
   }
   
-  /**
-   * Start the hair filter engine.
-   * Will wait for init if still loading.
-   */
   async start(videoEl, canvasEl) {
     if (!this._initialized && this._initPromise) {
       try {
@@ -353,7 +353,6 @@ export class HairFilterEngine {
       return;
     }
     
-    // Stop any existing loop
     if (this.isRunning) this.stop();
     
     this.videoEl = videoEl;
@@ -392,9 +391,8 @@ export class HairFilterEngine {
   // ─── Internal Methods ───────────────────────────────────────────
   
   /**
-   * Sync canvas internal resolution to its CSS display size.
-   * This ensures 1:1 pixel mapping with the on-screen display.
-   * MediaPipe returns normalized 0-1 coords, so any canvas size works.
+   * Size canvas to CSS display dimensions (not video native resolution).
+   * MediaPipe returns normalized 0-1 coords so any canvas size works.
    */
   _syncCanvasSize() {
     if (!this.canvasEl) return;
@@ -424,12 +422,18 @@ export class HairFilterEngine {
         }
       }
     } catch (err) {
-      // Silent fail on individual frames — don't break the render loop
+      // Silent fail per frame
     }
     
     this.animFrameId = requestAnimationFrame(() => this._tick());
   }
   
+  /**
+   * Process face detection results and draw hair overlay.
+   * 
+   * Key insight: Landmark 10 is at the GLABELLA (between eyebrows),
+   * NOT the top of the skull. We must extrapolate upward to find the crown.
+   */
   _onFaceResults(results) {
     if (!this.ctx || !this.canvasEl || !this.activeStyle) return;
     
@@ -441,42 +445,50 @@ export class HairFilterEngine {
       return;
     }
     
-    const landmarks = results.multiFaceLandmarks[0];
+    const lm = results.multiFaceLandmarks[0];
     
-    const forehead = landmarks[FOREHEAD_TOP];
-    const leftTemple = landmarks[LEFT_EYE_OUTER];
-    const rightTemple = landmarks[RIGHT_EYE_OUTER];
-    const leftEye = landmarks[LEFT_EYE_INNER];
-    const rightEye = landmarks[RIGHT_EYE_INNER];
-    const chin = landmarks[CHIN_BOTTOM];
+    const glabella = lm[LANDMARK.FOREHEAD_TOP]; // landmark 10 — between eyebrows
+    const chin = lm[LANDMARK.CHIN];
+    const leftTemple = lm[LANDMARK.LEFT_TEMPLE];
+    const rightTemple = lm[LANDMARK.RIGHT_TEMPLE];
+    const leftEye = lm[LANDMARK.LEFT_EYE_INNER];
+    const rightEye = lm[LANDMARK.RIGHT_EYE_INNER];
     
-    if (!forehead || !leftTemple || !rightTemple || !chin) return;
+    if (!glabella || !chin || !leftTemple || !rightTemple) return;
     
-    // Face width from temples (in canvas pixel space)
+    // ── Step 1: Measure face dimensions in canvas pixels ──
     const faceWidth = Math.sqrt(
       Math.pow((rightTemple.x - leftTemple.x) * width, 2) +
       Math.pow((rightTemple.y - leftTemple.y) * height, 2)
     );
     
-    // Face height from forehead to chin (used for better scaling)
     const faceHeight = Math.sqrt(
-      Math.pow((chin.x - forehead.x) * width, 2) +
-      Math.pow((chin.y - forehead.y) * height, 2)
+      Math.pow((chin.x - glabella.x) * width, 2) +
+      Math.pow((chin.y - glabella.y) * height, 2)
     );
     
-    // Use raw MediaPipe coordinates directly.
-    // The CSS scaleX(-1) on the canvas handles mirroring to match the video.
-    const foreheadX = forehead.x * width;
-    const foreheadY = forehead.y * height;
+    // ── Step 2: Estimate HEAD dimensions (larger than face) ──
+    const headWidth = faceWidth * HEAD_WIDTH_RATIO;
     
-    // Head tilt angle from eye line
+    // ── Step 3: Estimate CROWN position ──
+    // Crown is above landmark 10 by ~50% of the face height
+    const crownOffsetPx = faceHeight * CROWN_OFFSET_RATIO;
+    
+    // Midpoint X from temples (more stable than single landmark)
+    const centerX = ((leftTemple.x + rightTemple.x) / 2) * width;
+    
+    // Crown Y: glabella position minus the cranium offset
+    const glabellaY = glabella.y * height;
+    const crownY = glabellaY - crownOffsetPx;
+    
+    // ── Step 4: Head rotation angle ──
     const angle = Math.atan2(
       (rightEye.y - leftEye.y) * height,
       (rightEye.x - leftEye.x) * width
     );
     
-    // Push to smoothing buffer
-    const current = { foreheadX, foreheadY, faceWidth, faceHeight, angle };
+    // ── Step 5: Smooth values ──
+    const current = { centerX, crownY, headWidth, faceHeight, angle };
     this._smoothBuffer.push(current);
     if (this._smoothBuffer.length > this._smoothSize) {
       this._smoothBuffer.shift();
@@ -487,48 +499,49 @@ export class HairFilterEngine {
   
   _getSmoothedValues() {
     const buf = this._smoothBuffer;
-    if (buf.length === 0) return { foreheadX: 0, foreheadY: 0, faceWidth: 100, faceHeight: 150, angle: 0 };
+    if (buf.length === 0) return { centerX: 0, crownY: 0, headWidth: 100, faceHeight: 150, angle: 0 };
     
     const sum = buf.reduce((acc, v) => ({
-      foreheadX: acc.foreheadX + v.foreheadX,
-      foreheadY: acc.foreheadY + v.foreheadY,
-      faceWidth: acc.faceWidth + v.faceWidth,
+      centerX: acc.centerX + v.centerX,
+      crownY: acc.crownY + v.crownY,
+      headWidth: acc.headWidth + v.headWidth,
       faceHeight: acc.faceHeight + v.faceHeight,
       angle: acc.angle + v.angle,
-    }), { foreheadX: 0, foreheadY: 0, faceWidth: 0, faceHeight: 0, angle: 0 });
+    }), { centerX: 0, crownY: 0, headWidth: 0, faceHeight: 0, angle: 0 });
     
+    const n = buf.length;
     return {
-      foreheadX: sum.foreheadX / buf.length,
-      foreheadY: sum.foreheadY / buf.length,
-      faceWidth: sum.faceWidth / buf.length,
-      faceHeight: sum.faceHeight / buf.length,
-      angle: sum.angle / buf.length,
+      centerX: sum.centerX / n,
+      crownY: sum.crownY / n,
+      headWidth: sum.headWidth / n,
+      faceHeight: sum.faceHeight / n,
+      angle: sum.angle / n,
     };
   }
   
-  _drawHair({ foreheadX, foreheadY, faceWidth, faceHeight, angle }) {
+  _drawHair({ centerX, crownY, headWidth, faceHeight, angle }) {
     const style = this.activeStyle;
     const img = this.hairImages[style.id];
     if (!img || !this.ctx) return;
     
     const ctx = this.ctx;
     
-    // Scale hair width from face width
-    const hairWidth = faceWidth * style.scaleMultiplier;
+    // Hair width is relative to estimated HEAD width
+    const hairWidth = headWidth * style.scaleMultiplier;
     const hairHeight = hairWidth * (img.naturalHeight / img.naturalWidth);
     
-    // Position: centered on forehead, offset upward by a fraction of faceWidth
-    const drawX = foreheadX;
-    const drawY = foreheadY + (faceWidth * style.offsetY);
+    // Anchor: center of hair at estimated crown, with per-style fine-tuning
+    const drawX = centerX;
+    const drawY = crownY + (faceHeight * style.verticalAnchor);
     
-    // Draw with rotation matching head tilt
+    // Draw centered at anchor point, rotated with head tilt
     ctx.save();
     ctx.translate(drawX, drawY);
     ctx.rotate(angle);
     ctx.drawImage(
       img,
-      -hairWidth / 2,
-      -hairHeight / 2,
+      -hairWidth / 2,    // center horizontally
+      -hairHeight * 0.3, // anchor point is ~30% from top of sprite (hair cap area)
       hairWidth,
       hairHeight
     );
