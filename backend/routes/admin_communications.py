@@ -18,7 +18,7 @@ from models import (
     Profile, Announcement, AnnouncementTypeEnum, MessageTemplate, 
     BulkMessageCampaign, RoleEnum
 )
-from routes.admin_moderation import require_admin, log_audit
+from routes.admin_moderation import log_audit
 
 router = APIRouter()
 

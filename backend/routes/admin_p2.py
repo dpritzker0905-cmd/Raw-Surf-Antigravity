@@ -18,7 +18,7 @@ from models import (
     Profile, PromoCode, PromoCodeRedemption, FeatureFlag, NotificationCampaign,
     CohortAnalysis, PaymentTransaction, CreditTransaction, Booking, RoleEnum, AuditLog
 )
-from routes.admin_moderation import require_admin, log_audit
+from routes.admin_moderation import log_audit
 
 router = APIRouter()
 

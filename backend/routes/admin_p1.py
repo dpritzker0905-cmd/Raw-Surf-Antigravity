@@ -16,7 +16,7 @@ from models import (
     Profile, VerificationRequest, ImpersonationSession, FraudAlert, 
     UserActivityLog, AuditLog, RoleEnum
 )
-from routes.admin_moderation import require_admin, log_audit
+from routes.admin_moderation import log_audit
 
 router = APIRouter()
 

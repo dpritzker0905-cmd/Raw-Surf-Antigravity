@@ -16,7 +16,7 @@ from models import (
     Profile, Booking, CreditTransaction, PaymentTransaction, 
     SurfSpot, RoleEnum, GalleryItem, Review
 )
-from routes.admin_moderation import require_admin
+# require_admin replaced by get_current_admin dependency
 
 router = APIRouter()
 

@@ -20,7 +20,7 @@ from models import (
     Profile, CreditTransaction, PaymentTransaction, Booking,
     RefundRequest, RefundStatusEnum, PayoutBatch, FailedPayment
 )
-from routes.admin_moderation import require_admin, log_audit
+from routes.admin_moderation import log_audit
 
 router = APIRouter()
 
