@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
-import { Search, MapPin, Users, Image, TrendingUp, Radio, X, Waves, Heart, Trophy, MessageCircle, Camera, Clock, ChevronDown, ChevronRight, ChevronLeft, Navigation, Compass, Filter, Loader2, Play, Hash } from 'lucide-react';
+import { Search, MapPin, Users, Image, TrendingUp, Radio, X, Waves, Heart, Trophy, MessageCircle, Camera, Clock, ChevronDown, ChevronRight, ChevronLeft, Navigation, Compass, Filter, Loader2, Play, Hash, Globe, ArrowLeft } from 'lucide-react';
 
 import { Input } from './ui/input';
 
@@ -143,6 +143,16 @@ export const Explore = () => {
   const [selectedSpotsRegion, setSelectedSpotsRegion] = useState('All');
   const [showSpotsRegionDropdown, setShowSpotsRegionDropdown] = useState(false);
   const [userLocation, setUserLocation] = useState(null);
+  
+  // Location Discovery state
+  const [locationHierarchy, setLocationHierarchy] = useState(null);
+  const [locationHierarchyLoading, setLocationHierarchyLoading] = useState(false);
+  const [discoveryMode, setDiscoveryMode] = useState('browse'); // 'nearby' | 'browse'
+  const [locationPath, setLocationPath] = useState([]); // breadcrumb path: [{type, name, data}]
+  const [spotSearchQuery, setSpotSearchQuery] = useState('');
+  const [nearbySpots, setNearbySpots] = useState([]);
+  const [nearbyLoading, setNearbyLoading] = useState(false);
+  const [nearbyRadius, setNearbyRadius] = useState(25);
 
   // WebSocket: Real-time conditions updates
   const handleNewCondition = useCallback((newCondition) => {
@@ -199,6 +209,7 @@ export const Explore = () => {
     }
     if (activeTab === 'surfspots') {
       fetchSurfSpots();
+      fetchLocationHierarchy();
     }
     if (activeTab === 'trending') {
       fetchTrendingHashtags();
@@ -598,6 +609,173 @@ export const Explore = () => {
       toast.error('Geolocation is not supported by your browser');
     }
   };
+  
+  // ============ LOCATION DISCOVERY ============
+  
+  // Fetch the hierarchical location tree
+  const fetchLocationHierarchy = async () => {
+    if (locationHierarchy) return; // Already loaded
+    setLocationHierarchyLoading(true);
+    try {
+      const response = await apiClient.get('/surf-spots/locations');
+      setLocationHierarchy(response.data);
+    } catch (error) {
+      logger.error('Error fetching location hierarchy:', error);
+    } finally {
+      setLocationHierarchyLoading(false);
+    }
+  };
+  
+  // Fetch nearby spots using GPS
+  const fetchNearbySpots = (lat, lng, radius = nearbyRadius) => {
+    setNearbyLoading(true);
+    apiClient.get('/explore/surf-spots', {
+      params: {
+        user_lat: lat,
+        user_lng: lng,
+        limit: 30,
+        subscription_tier: user?.subscription_tier || 'free'
+      }
+    }).then(response => {
+      setNearbySpots(response.data.spots || []);
+    }).catch(error => {
+      logger.error('Error fetching nearby spots:', error);
+      setNearbySpots([]);
+    }).finally(() => {
+      setNearbyLoading(false);
+    });
+  };
+  
+  // Activate GPS nearby mode
+  const activateNearbyMode = () => {
+    setDiscoveryMode('nearby');
+    if (userLocation) {
+      fetchNearbySpots(userLocation.lat, userLocation.lng);
+      return;
+    }
+    if (navigator.geolocation) {
+      setNearbyLoading(true);
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const loc = { lat: position.coords.latitude, lng: position.coords.longitude };
+          setUserLocation(loc);
+          fetchNearbySpots(loc.lat, loc.lng);
+          toast.success('Found your location!');
+        },
+        (error) => {
+          logger.error('Geolocation error:', error);
+          setNearbyLoading(false);
+          toast.error('Could not get your location. Please enable location services.');
+          setDiscoveryMode('browse');
+        },
+        { enableHighAccuracy: true, timeout: 10000 }
+      );
+    } else {
+      toast.error('Geolocation is not supported by your browser');
+      setDiscoveryMode('browse');
+    }
+  };
+  
+  // Navigate location hierarchy — push a level
+  const pushLocation = (type, name, data) => {
+    setLocationPath(prev => [...prev, { type, name, data }]);
+    // When we reach the city/region level, fetch spots for that region
+    if (type === 'city') {
+      setSelectedSpotsRegion(name);
+      fetchSurfSpots(name);
+    }
+  };
+  
+  // Navigate back to a specific breadcrumb level
+  const popLocationTo = (index) => {
+    if (index < 0) {
+      setLocationPath([]);
+      return;
+    }
+    setLocationPath(prev => prev.slice(0, index + 1));
+  };
+  
+  // Get current browse level items
+  const getCurrentBrowseItems = () => {
+    if (!locationHierarchy) return [];
+    const countries = locationHierarchy.countries || [];
+    
+    if (locationPath.length === 0) {
+      // Top level — show countries
+      return { level: 'country', items: countries };
+    }
+    if (locationPath.length === 1) {
+      // Country selected — show states
+      const country = locationPath[0];
+      const countryData = countries.find(c => c.name === country.name);
+      const states = countryData?.states || [];
+      return { level: 'state', items: states, parent: country.name };
+    }
+    if (locationPath.length === 2) {
+      // State selected — show cities
+      const country = locationPath[0];
+      const state = locationPath[1];
+      const countryData = countries.find(c => c.name === country.name);
+      const stateData = countryData?.states?.find(s => s.name === state.name);
+      const cities = stateData?.cities || [];
+      return { level: 'city', items: cities, parent: state.name };
+    }
+    return { level: 'spots', items: [] };
+  };
+  
+  // Filter browse items by search query
+  const getFilteredBrowseItems = () => {
+    const browseData = getCurrentBrowseItems();
+    if (!spotSearchQuery.trim() || locationPath.length === 3) return browseData;
+    
+    const q = spotSearchQuery.toLowerCase().trim();
+    const filtered = browseData.items.filter(item =>
+      item.name?.toLowerCase().includes(q)
+    );
+    return { ...browseData, items: filtered };
+  };
+  
+  // Country flag emoji helper
+  const getCountryFlag = (countryName) => {
+    const flags = {
+      'United States': '🇺🇸', 'USA': '🇺🇸', 'Australia': '🇦🇺', 'Indonesia': '🇮🇩',
+      'Brazil': '🇧🇷', 'Portugal': '🇵🇹', 'South Africa': '🇿🇦', 'France': '🇫🇷',
+      'Spain': '🇪🇸', 'Mexico': '🇲🇽', 'Costa Rica': '🇨🇷', 'Japan': '🇯🇵',
+      'New Zealand': '🇳🇿', 'Peru': '🇵🇪', 'Morocco': '🇲🇦', 'United Kingdom': '🇬🇧',
+      'UK': '🇬🇧', 'Canada': '🇨🇦', 'Chile': '🇨🇱', 'Hawaii': '🏝️',
+      'Fiji': '🇫🇯', 'Tahiti': '🇵🇫', 'Maldives': '🇲🇻', 'Philippines': '🇵🇭',
+      'Sri Lanka': '🇱🇰', 'Nicaragua': '🇳🇮', 'Panama': '🇵🇦', 'El Salvador': '🇸🇻',
+      'Ecuador': '🇪🇨', 'Ireland': '🇮🇪', 'Italy': '🇮🇹', 'Thailand': '🇹🇭'
+    };
+    return flags[countryName] || '🌊';
+  };
+  
+  // Popular quick-access locations
+  const popularLocations = [
+    { label: '🇺🇸 Florida', country: 'United States', state: 'Florida' },
+    { label: '🇺🇸 California', country: 'United States', state: 'California' },
+    { label: '🇺🇸 Hawaii', country: 'United States', state: 'Hawaii' },
+    { label: '🇦🇺 Australia', country: 'Australia' },
+    { label: '🇮🇩 Indonesia', country: 'Indonesia' },
+    { label: '🇧🇷 Brazil', country: 'Brazil' },
+    { label: '🇵🇹 Portugal', country: 'Portugal' },
+    { label: '🇨🇷 Costa Rica', country: 'Costa Rica' },
+    { label: '🇲🇽 Mexico', country: 'Mexico' },
+    { label: '🇿🇦 South Africa', country: 'South Africa' },
+  ];
+  
+  // Quick jump to a popular location
+  const jumpToLocation = (loc) => {
+    setDiscoveryMode('browse');
+    if (loc.state) {
+      setLocationPath([
+        { type: 'country', name: loc.country },
+        { type: 'state', name: loc.state }
+      ]);
+    } else {
+      setLocationPath([{ type: 'country', name: loc.country }]);
+    }
+  };
 
   const tabs = [
     { id: 'all', label: 'All', icon: Search },
@@ -979,127 +1157,384 @@ export const Explore = () => {
         </div>
       )}
 
-      {/* Surf Spots Tab - Spots with Forecasts, Reports & GPS */}
+      {/* Surf Spots Tab - Comprehensive Location Discovery */}
       {activeTab === 'surfspots' && (
         <div className="space-y-4" data-testid="surf-spots-tab">
-          {/* Header with actions */}
+          {/* Header */}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Navigation className="w-5 h-5 text-cyan-400" />
               <h2 className="font-bold text-foreground">Surf Spots</h2>
-              <Badge className="bg-cyan-500/20 text-cyan-400 text-xs">
-                {surfSpots.length} spots
-              </Badge>
+              {locationHierarchy && (
+                <Badge className="bg-cyan-500/20 text-cyan-400 text-xs">
+                  {locationHierarchy.total_countries || 0} countries
+                </Badge>
+              )}
             </div>
+          </div>
+          
+          {/* Discovery Mode Toggle */}
+          <div className="flex gap-2 p-1 bg-zinc-900 rounded-xl border border-zinc-800">
             <button
-              onClick={getUserLocation}
-              className="flex items-center gap-1 px-3 py-1.5 bg-muted hover:bg-zinc-700 rounded-full text-xs text-gray-300 transition-colors"
-              data-testid="use-gps-btn"
+              onClick={() => { setDiscoveryMode('browse'); setSpotSearchQuery(''); }}
+              className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                discoveryMode === 'browse'
+                  ? 'bg-gradient-to-r from-cyan-500 to-blue-500 text-white shadow-lg shadow-cyan-500/20'
+                  : 'text-gray-400 hover:text-gray-200 hover:bg-zinc-800'
+              }`}
+              data-testid="browse-mode-btn"
             >
-              <Compass className="w-3 h-3" />
+              <Globe className="w-4 h-4" />
+              Browse
+            </button>
+            <button
+              onClick={activateNearbyMode}
+              className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                discoveryMode === 'nearby'
+                  ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-lg shadow-emerald-500/20'
+                  : 'text-gray-400 hover:text-gray-200 hover:bg-zinc-800'
+              }`}
+              data-testid="nearby-mode-btn"
+            >
+              <Compass className="w-4 h-4" />
               Nearby
+              {userLocation && <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />}
             </button>
           </div>
           
-          {/* Region Filter */}
+          {/* Search Bar */}
           <div className="relative">
-            <button
-              onClick={() => setShowSpotsRegionDropdown(!showSpotsRegionDropdown)}
-              className="flex items-center justify-between w-full px-4 py-3 bg-muted rounded-lg text-foreground hover:bg-zinc-700 transition-colors"
-              data-testid="spots-region-filter-btn"
-            >
-              <span className="flex items-center gap-2">
-                <Filter className="w-4 h-4 text-cyan-400" />
-                <span className="font-medium">{selectedSpotsRegion === 'All' ? 'All Regions' : selectedSpotsRegion}</span>
-              </span>
-              <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${showSpotsRegionDropdown ? 'rotate-180' : ''}`} />
-            </button>
-            
-            {showSpotsRegionDropdown && (
-              <div className="absolute top-full left-0 right-0 mt-1 bg-muted border border-zinc-700 rounded-lg shadow-xl z-20 max-h-64 overflow-y-auto">
-                {surfSpotsRegions.map((region) => (
-                  <button
-                    key={region}
-                    onClick={() => handleSpotsRegionChange(region)}
-                    className={`w-full px-4 py-2 text-left text-sm transition-colors ${
-                      selectedSpotsRegion === region 
-                        ? 'bg-cyan-500/20 text-cyan-400' 
-                        : 'text-gray-300 hover:bg-zinc-700'
-                    }`}
-                  >
-                    {region === 'All' ? 'All Regions' : region}
-                  </button>
-                ))}
-              </div>
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+            <input
+              type="text"
+              placeholder={discoveryMode === 'browse' 
+                ? (locationPath.length === 0 ? 'Search countries...' : locationPath.length === 1 ? 'Search states/provinces...' : 'Search cities/regions...')
+                : 'Search nearby spots...'}
+              value={spotSearchQuery}
+              onChange={(e) => setSpotSearchQuery(e.target.value)}
+              className="w-full pl-10 pr-10 py-3 bg-zinc-900 border border-zinc-700 rounded-xl text-foreground placeholder-gray-500 text-sm focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/20 transition-all"
+              data-testid="spot-search-input"
+            />
+            {spotSearchQuery && (
+              <button
+                onClick={() => setSpotSearchQuery('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300"
+              >
+                <X className="w-4 h-4" />
+              </button>
             )}
           </div>
           
-          {/* Tiered Forecast Info Banner */}
-          <div className="p-3 bg-gradient-to-r from-cyan-500/10 to-blue-500/10 border border-cyan-500/20 rounded-lg">
-            <div className="flex items-center gap-2 text-xs text-cyan-400">
-              <Waves className="w-4 h-4" />
-              <span>
-                <strong>Today</strong> = Current Conditions • <strong>Forecast:</strong> 3 days free, 7 paid, 10 premium
-              </span>
-            </div>
-          </div>
-          
-          {/* Loading State - Skeleton Cards */}
-          {surfSpotsLoading ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Skeleton spot cards */}
-              {[1, 2, 3, 4].map((i) => (
-                <div key={i} className="bg-card/80 border border-border rounded-xl overflow-hidden animate-pulse">
-                  {/* Skeleton Image */}
-                  <div className="h-32 bg-muted" />
-                  {/* Skeleton Conditions Bar */}
-                  <div className="px-3 py-2 border-b border-border flex items-center gap-3">
-                    <div className="h-5 w-12 bg-zinc-700 rounded" />
-                    <div className="h-4 w-16 bg-zinc-700 rounded" />
-                    <div className="h-4 w-10 bg-zinc-700 rounded" />
-                  </div>
-                  {/* Skeleton Forecast */}
-                  <div className="px-3 py-2 border-b border-border">
-                    <div className="h-3 w-16 bg-zinc-700 rounded mb-2" />
-                    <div className="flex gap-1">
-                      {[1, 2, 3].map((j) => (
-                        <div key={j} className="h-12 w-12 bg-muted rounded-lg" />
-                      ))}
-                    </div>
-                  </div>
-                  {/* Skeleton Buttons */}
-                  <div className="px-3 py-2 flex gap-2">
-                    <div className="flex-1 h-9 bg-zinc-700 rounded-lg" />
-                    <div className="h-9 w-16 bg-muted rounded-lg" />
+          {/* ============ BROWSE MODE ============ */}
+          {discoveryMode === 'browse' && (
+            <>
+              {/* Breadcrumb Navigation */}
+              {locationPath.length > 0 && (
+                <div className="flex items-center gap-1 flex-wrap text-sm">
+                  <button
+                    onClick={() => popLocationTo(-1)}
+                    className="flex items-center gap-1 px-2 py-1 rounded-md text-cyan-400 hover:bg-cyan-500/10 transition-colors"
+                  >
+                    <Globe className="w-3.5 h-3.5" />
+                    All
+                  </button>
+                  {locationPath.map((crumb, idx) => (
+                    <React.Fragment key={idx}>
+                      <ChevronRight className="w-3.5 h-3.5 text-gray-600 flex-shrink-0" />
+                      <button
+                        onClick={() => idx < locationPath.length - 1 ? popLocationTo(idx) : null}
+                        className={`flex items-center gap-1 px-2 py-1 rounded-md transition-colors ${
+                          idx === locationPath.length - 1
+                            ? 'text-white font-medium bg-zinc-800'
+                            : 'text-cyan-400 hover:bg-cyan-500/10'
+                        }`}
+                      >
+                        {crumb.type === 'country' && <span className="text-base">{getCountryFlag(crumb.name)}</span>}
+                        {crumb.type === 'state' && <MapPin className="w-3 h-3" />}
+                        {crumb.type === 'city' && <Navigation className="w-3 h-3" />}
+                        <span className="truncate max-w-[120px]">{crumb.name}</span>
+                      </button>
+                    </React.Fragment>
+                  ))}
+                  
+                  {/* Back button */}
+                  <button
+                    onClick={() => popLocationTo(locationPath.length - 2)}
+                    className="ml-auto flex items-center gap-1 px-2 py-1 text-xs text-gray-400 hover:text-gray-200 hover:bg-zinc-800 rounded-md transition-colors"
+                  >
+                    <ArrowLeft className="w-3 h-3" />
+                    Back
+                  </button>
+                </div>
+              )}
+              
+              {/* Popular Quick Chips — show only at top level with no search */}
+              {locationPath.length === 0 && !spotSearchQuery && (
+                <div>
+                  <p className="text-xs text-gray-500 uppercase tracking-wider font-medium mb-2">Popular Destinations</p>
+                  <div className="flex flex-wrap gap-2">
+                    {popularLocations.map((loc, i) => (
+                      <button
+                        key={i}
+                        onClick={() => jumpToLocation(loc)}
+                        className="px-3 py-1.5 bg-zinc-800/80 hover:bg-zinc-700 border border-zinc-700 hover:border-cyan-500/30 rounded-full text-xs text-gray-300 hover:text-white transition-all"
+                        data-testid={`quick-loc-${i}`}
+                      >
+                        {loc.label}
+                      </button>
+                    ))}
                   </div>
                 </div>
-              ))}
-            </div>
-          ) : surfSpots.length === 0 ? (
-            /* Empty State */
-            <div className="text-center py-16 text-muted-foreground">
-              <Navigation className="w-16 h-16 mx-auto mb-4 opacity-30" />
-              <p className="font-medium mb-1">No surf spots found</p>
-              <p className="text-sm text-gray-500">Try a different region or check back later</p>
-            </div>
-          ) : (
-            /* Spots Grid */
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {surfSpots.map((spot) => (
-                <ExploreSpotCard 
-                  key={spot.id} 
-                  spot={spot} 
-                  userSubscriptionTier={user?.subscription_tier || 'free'}
-                />
-              ))}
-            </div>
+              )}
+              
+              {/* Location Hierarchy Cards */}
+              {locationPath.length < 3 && (
+                <>
+                  {locationHierarchyLoading ? (
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                      {[1,2,3,4,5,6].map(i => (
+                        <div key={i} className="h-20 bg-zinc-800 rounded-xl animate-pulse" />
+                      ))}
+                    </div>
+                  ) : (() => {
+                    const browseData = getFilteredBrowseItems();
+                    if (!browseData?.items) return null;
+                    const items = browseData.items;
+                    const level = browseData.level;
+                    
+                    if (items.length === 0 && spotSearchQuery) {
+                      return (
+                        <div className="text-center py-10 text-muted-foreground">
+                          <Search className="w-10 h-10 mx-auto mb-2 opacity-30" />
+                          <p className="text-sm">No {level === 'country' ? 'countries' : level === 'state' ? 'states' : 'cities'} matching "{spotSearchQuery}"</p>
+                        </div>
+                      );
+                    }
+                    
+                    if (items.length === 0) {
+                      return (
+                        <div className="text-center py-10 text-muted-foreground">
+                          <Navigation className="w-10 h-10 mx-auto mb-2 opacity-30" />
+                          <p className="text-sm">No {level === 'state' ? 'states/provinces' : 'cities/regions'} available at this level</p>
+                          <p className="text-xs text-gray-600 mt-1">Spots may be listed directly without sub-regions</p>
+                        </div>
+                      );
+                    }
+                    
+                    return (
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                        {items.map((item, idx) => (
+                          <button
+                            key={item.name || idx}
+                            onClick={() => pushLocation(level, item.name, item)}
+                            className="group relative flex flex-col items-start p-4 bg-zinc-900/80 border border-zinc-800 rounded-xl hover:border-cyan-500/40 hover:bg-zinc-800/80 transition-all text-left overflow-hidden"
+                            data-testid={`loc-${level}-${idx}`}
+                          >
+                            {/* Decorative gradient */}
+                            <div className={`absolute top-0 right-0 w-16 h-16 rounded-bl-full opacity-10 group-hover:opacity-20 transition-opacity ${
+                              level === 'country' ? 'bg-cyan-400' : level === 'state' ? 'bg-blue-400' : 'bg-emerald-400'
+                            }`} />
+                            
+                            <div className="flex items-center gap-2 mb-1">
+                              {level === 'country' && <span className="text-xl">{getCountryFlag(item.name)}</span>}
+                              {level === 'state' && <MapPin className="w-4 h-4 text-blue-400" />}
+                              {level === 'city' && <Navigation className="w-4 h-4 text-emerald-400" />}
+                            </div>
+                            
+                            <span className="text-sm font-medium text-white truncate w-full">{item.name}</span>
+                            
+                            <div className="flex items-center gap-1 mt-1">
+                              <span className="text-xs text-gray-500">
+                                {item.spot_count} {item.spot_count === 1 ? 'spot' : 'spots'}
+                              </span>
+                              {level !== 'city' && (item.states?.length > 0 || item.cities?.length > 0) && (
+                                <ChevronRight className="w-3 h-3 text-gray-600 group-hover:text-cyan-400 transition-colors" />
+                              )}
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    );
+                  })()}
+                </>
+              )}
+              
+              {/* Spot Cards — show when at city/region level */}
+              {locationPath.length === 3 && (
+                <>
+                  {/* Tiered Forecast Info Banner */}
+                  <div className="p-3 bg-gradient-to-r from-cyan-500/10 to-blue-500/10 border border-cyan-500/20 rounded-lg">
+                    <div className="flex items-center gap-2 text-xs text-cyan-400">
+                      <Waves className="w-4 h-4" />
+                      <span>
+                        <strong>Today</strong> = Current Conditions • <strong>Forecast:</strong> 3 days free, 7 paid, 10 premium
+                      </span>
+                    </div>
+                  </div>
+                  
+                  {surfSpotsLoading ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {[1, 2, 3, 4].map((i) => (
+                        <div key={i} className="bg-card/80 border border-border rounded-xl overflow-hidden animate-pulse">
+                          <div className="h-32 bg-muted" />
+                          <div className="px-3 py-2 border-b border-border flex items-center gap-3">
+                            <div className="h-5 w-12 bg-zinc-700 rounded" />
+                            <div className="h-4 w-16 bg-zinc-700 rounded" />
+                          </div>
+                          <div className="px-3 py-2 flex gap-2">
+                            <div className="flex-1 h-9 bg-zinc-700 rounded-lg" />
+                            <div className="h-9 w-16 bg-muted rounded-lg" />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : surfSpots.length === 0 ? (
+                    <div className="text-center py-12 text-muted-foreground">
+                      <Navigation className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                      <p className="font-medium mb-1">No spots found in {locationPath[2]?.name}</p>
+                      <p className="text-sm text-gray-500">Try selecting a different area</p>
+                    </div>
+                  ) : (
+                    <>
+                      <Badge className="bg-cyan-500/20 text-cyan-400 text-xs">{surfSpots.length} spots in {locationPath[2]?.name}</Badge>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {surfSpots
+                          .filter(s => !spotSearchQuery || s.name?.toLowerCase().includes(spotSearchQuery.toLowerCase()))
+                          .map((spot) => (
+                          <ExploreSpotCard 
+                            key={spot.id} 
+                            spot={spot} 
+                            userSubscriptionTier={user?.subscription_tier || 'free'}
+                          />
+                        ))}
+                      </div>
+                    </>
+                  )}
+                </>
+              )}
+              
+              {/* Fallback: Show all spots if at top browse level with no hierarchy */}
+              {locationPath.length === 0 && !locationHierarchy && !locationHierarchyLoading && (
+                <>
+                  <div className="p-3 bg-gradient-to-r from-cyan-500/10 to-blue-500/10 border border-cyan-500/20 rounded-lg">
+                    <div className="flex items-center gap-2 text-xs text-cyan-400">
+                      <Waves className="w-4 h-4" />
+                      <span>
+                        <strong>Today</strong> = Current Conditions • <strong>Forecast:</strong> 3 days free, 7 paid, 10 premium
+                      </span>
+                    </div>
+                  </div>
+                  
+                  {surfSpotsLoading ? (
+                    <div className="flex justify-center py-10">
+                      <Loader2 className="w-8 h-8 animate-spin text-cyan-400" />
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {surfSpots.map((spot) => (
+                        <ExploreSpotCard 
+                          key={spot.id} 
+                          spot={spot} 
+                          userSubscriptionTier={user?.subscription_tier || 'free'}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </>
+              )}
+            </>
           )}
           
-          {/* Map View CTA */}
+          {/* ============ NEARBY MODE ============ */}
+          {discoveryMode === 'nearby' && (
+            <>
+              {/* GPS Status */}
+              {userLocation && (
+                <div className="flex items-center gap-2 p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl">
+                  <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                  <span className="text-xs text-emerald-400">
+                    Located: {userLocation.lat.toFixed(4)}, {userLocation.lng.toFixed(4)}
+                  </span>
+                  <button
+                    onClick={() => fetchNearbySpots(userLocation.lat, userLocation.lng)}
+                    className="ml-auto text-xs text-emerald-400 hover:text-emerald-300 underline"
+                  >
+                    Refresh
+                  </button>
+                </div>
+              )}
+              
+              {/* Tiered Forecast Info Banner */}
+              <div className="p-3 bg-gradient-to-r from-cyan-500/10 to-blue-500/10 border border-cyan-500/20 rounded-lg">
+                <div className="flex items-center gap-2 text-xs text-cyan-400">
+                  <Waves className="w-4 h-4" />
+                  <span>
+                    <strong>Today</strong> = Current Conditions • <strong>Forecast:</strong> 3 days free, 7 paid, 10 premium
+                  </span>
+                </div>
+              </div>
+              
+              {/* Nearby Spots Results */}
+              {nearbyLoading ? (
+                <div className="flex flex-col items-center justify-center py-16 gap-3">
+                  <div className="relative">
+                    <Compass className="w-10 h-10 text-emerald-400 animate-spin" />
+                    <div className="absolute inset-0 w-10 h-10 rounded-full border-2 border-emerald-400/20 animate-ping" />
+                  </div>
+                  <p className="text-sm text-gray-400">Finding spots near you...</p>
+                </div>
+              ) : nearbySpots.length === 0 && userLocation ? (
+                <div className="text-center py-16 text-muted-foreground">
+                  <MapPin className="w-16 h-16 mx-auto mb-4 opacity-30" />
+                  <p className="font-medium mb-1">No spots found nearby</p>
+                  <p className="text-sm text-gray-500 mb-4">Try browsing by location instead</p>
+                  <button
+                    onClick={() => setDiscoveryMode('browse')}
+                    className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 rounded-lg text-sm text-gray-300 transition-colors"
+                  >
+                    <Globe className="w-4 h-4 inline mr-2" />
+                    Browse All Locations
+                  </button>
+                </div>
+              ) : nearbySpots.length > 0 ? (
+                <>
+                  <Badge className="bg-emerald-500/20 text-emerald-400 text-xs">
+                    {nearbySpots.filter(s => !spotSearchQuery || s.name?.toLowerCase().includes(spotSearchQuery.toLowerCase())).length} spots near you
+                  </Badge>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {nearbySpots
+                      .filter(s => !spotSearchQuery || s.name?.toLowerCase().includes(spotSearchQuery.toLowerCase()))
+                      .map((spot) => (
+                      <ExploreSpotCard 
+                        key={spot.id} 
+                        spot={spot} 
+                        userSubscriptionTier={user?.subscription_tier || 'free'}
+                      />
+                    ))}
+                  </div>
+                </>
+              ) : !userLocation ? (
+                <div className="text-center py-16 text-muted-foreground">
+                  <Compass className="w-16 h-16 mx-auto mb-4 opacity-30" />
+                  <p className="font-medium mb-1">Enable Location Access</p>
+                  <p className="text-sm text-gray-500 mb-4">Allow location access to find surf spots near you</p>
+                  <button
+                    onClick={activateNearbyMode}
+                    className="px-5 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 rounded-xl text-white text-sm font-medium transition-all shadow-lg shadow-emerald-500/20"
+                  >
+                    <Compass className="w-4 h-4 inline mr-2" />
+                    Use My Location
+                  </button>
+                </div>
+              ) : null}
+            </>
+          )}
+          
+          {/* Map View CTA — always visible */}
           <div className="mt-6">
             <button
               onClick={() => navigate('/map')}
-              className="w-full flex items-center justify-center gap-2 py-3 bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 rounded-xl text-foreground font-medium transition-all"
+              className="w-full flex items-center justify-center gap-2 py-3 bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 rounded-xl text-white font-medium transition-all shadow-lg shadow-cyan-500/10"
               data-testid="view-all-on-map"
             >
               <MapPin className="w-5 h-5" />
