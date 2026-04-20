@@ -31,7 +31,7 @@ const sheetVariants = cva(
       side: {
         top: "inset-x-0 top-0 border-b p-6 data-[state=closed]:slide-out-to-top data-[state=open]:slide-in-from-top",
         bottom:
-          "inset-x-0 bottom-0 border-t p-4 pt-5 max-h-[50vh] overflow-hidden flex flex-col data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom md:inset-x-auto md:left-1/2 md:-translate-x-1/2 md:bottom-4 md:max-w-lg md:rounded-2xl",
+          "inset-x-0 bottom-0 border-t p-4 pt-7 max-h-[50vh] overflow-hidden flex flex-col data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom md:inset-x-auto md:left-1/2 md:-translate-x-1/2 md:bottom-4 md:max-w-lg md:rounded-2xl",
         left: "inset-y-0 left-0 h-full w-3/4 border-r p-6 data-[state=closed]:slide-out-to-left data-[state=open]:slide-in-from-left sm:max-w-sm",
         right:
           "inset-y-0 right-0 h-full w-3/4 border-l p-6 data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right sm:max-w-sm",

@@ -1,11 +1,11 @@
 /**
  * InCallView — Premium active call overlay.
  * 
- * FILTER IMPLEMENTATION — Matches GoLive exactly:
- *   - Uses CSS filter property (brightness/contrast/saturate/hue-rotate)
- *   - Presets map to slider values (same as GoLive VideoFilterPanel)
- *   - Applied via inline style={{ filter: '...' }} on the video element
- *   - No WebGL, no canvas, no pipeline teardown issues
+ * FILTER IMPLEMENTATION — Uses the SAME WebGL GPU shader pipeline as GoLive:
+ *   - WebGLVideoProcessor from WebGLFilterEngine.js
+ *   - Real GLSL fragment shaders running on the GPU
+ *   - Hidden <video> feeds into WebGL <canvas> for filtered display
+ *   - Works reliably on all platforms including mobile (bypasses CSS filter limitations)
  *
  * REMOTE VIDEO:
  *   - object-contain to prevent face cropping
@@ -15,7 +15,7 @@
  *   - Uses HairFilterPicker component (same as GoLive)
  */
 
-import React, { useRef, useEffect, useState, useCallback, useMemo } from 'react';
+import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { 
   Mic, MicOff, Video, VideoOff, PhoneOff, 
   Volume2, Maximize2, Minimize2, Signal, SignalLow, SignalZero,
@@ -23,6 +23,7 @@ import {
   Sunset, Waves, Moon, Zap, Eye, Grid, CircleDot
 } from 'lucide-react';
 import { HairFilterPicker } from '../HairFilterPicker';
+import { WebGLVideoProcessor } from '../../utils/WebGLFilterEngine';
 
 // ── Duration formatter ──────────────────────────────────────────────
 function formatDuration(seconds) {
@@ -50,49 +51,16 @@ function ConnectionQualityBadge({ quality }) {
   );
 }
 
-// ── Filter Presets (same values as GoLive VideoFilterPanel) ─────────
+// ── Filter Presets — maps to WebGL shader keys in WebGLFilterEngine ──
 const FILTER_PRESETS = [
-  { 
-    name: 'None', key: 'none', icon: CircleDot, description: 'Original camera',
-    values: { brightness: 100, contrast: 100, saturation: 100, warmth: 100 }
-  },
-  { 
-    name: 'Golden Hour', key: 'goldenhour', icon: Sunset, description: 'Warm sunset vibes',
-    values: { brightness: 105, contrast: 110, saturation: 120, warmth: 120 }
-  },
-  { 
-    name: 'Pipeline', key: 'pipeline', icon: Waves, description: 'Deep barrel shadows',
-    values: { brightness: 90, contrast: 130, saturation: 90, warmth: 110 }
-  },
-  { 
-    name: 'Night Vision', key: 'nightvision', icon: Eye, description: 'Tactical green overlay',
-    values: { brightness: 140, contrast: 130, saturation: 0, warmth: 170 }
-  },
-  { 
-    name: 'Pixelate', key: 'pixelate', icon: Grid, description: 'Retro lo-fi aesthetic',
-    values: { brightness: 95, contrast: 180, saturation: 30, warmth: 100 }
-  },
-  { 
-    name: 'Bio-Lum', key: 'bioluminescence', icon: Moon, description: 'Neon glowing edges',
-    values: { brightness: 85, contrast: 140, saturation: 150, warmth: 160 }
-  },
-  { 
-    name: 'Cyber-Surf', key: 'cyber', icon: Zap, description: 'Hyper-cold glitch lens',
-    values: { brightness: 110, contrast: 125, saturation: 140, warmth: 40 }
-  },
+  { name: 'None',         key: 'none',             icon: CircleDot, description: 'Original camera' },
+  { name: 'Golden Hour',  key: 'goldenhour',        icon: Sunset,    description: 'Warm sunset vibes' },
+  { name: 'Pipeline',     key: 'gopro',             icon: Waves,     description: 'Deep barrel shadows' },
+  { name: 'Night Vision', key: 'nightvision',        icon: Eye,       description: 'Tactical green overlay' },
+  { name: 'Pixelate',     key: 'pixelate',           icon: Grid,      description: 'Retro lo-fi aesthetic' },
+  { name: 'Bio-Lum',      key: 'bioluminescence',    icon: Moon,      description: 'Neon glowing edges' },
+  { name: 'Cyber-Surf',   key: 'cyber',              icon: Zap,       description: 'Hyper-cold glitch lens' },
 ];
-
-// ── Build CSS filter string from preset values (same logic as GoLive) ──
-function buildCSSFilter(values) {
-  if (!values) return 'none';
-  
-  // Warmth → hue-rotate mapping (exact GoLive logic)
-  let warmthDegrees = (values.warmth - 100) * 0.8;
-  if (values.warmth >= 150) warmthDegrees = 300; // Neon blue/purple
-  if (values.warmth <= 50) warmthDegrees = 180;  // Negative inversion
-  
-  return `brightness(${values.brightness}%) contrast(${values.contrast}%) saturate(${values.saturation}%) hue-rotate(${warmthDegrees}deg)`;
-}
 
 // ── Theme colors for HairFilterPicker ───────────────────────────────
 const CALL_COLORS = {
@@ -171,8 +139,8 @@ export default function InCallView({
   const localVideoRef = useRef(null);
   const remoteVideoRef = useRef(null);
   const remoteAudioRef = useRef(null);
-  const canvasRef = useRef(null);
-  const animFrameRef = useRef(null);
+  const webglCanvasRef = useRef(null);
+  const webglProcessorRef = useRef(null);
 
   const [isPipExpanded, setIsPipExpanded] = useState(true);
   const [showFilters, setShowFilters] = useState(false);
@@ -180,13 +148,13 @@ export default function InCallView({
   const [showControls, setShowControls] = useState(true);
   const [activeFilter, setActiveFilter] = useState('none');
   const [activeHairStyle, setActiveHairStyle] = useState(null);
-  const [useCanvasFallback, setUseCanvasFallback] = useState(false);
   const controlsTimeoutRef = useRef(null);
 
-  // ── Attach local stream to video element ──────────────────────────
+  // ── Attach local stream to hidden video element ───────────────────
   useEffect(() => {
     if (localVideoRef.current && localStream) {
       localVideoRef.current.srcObject = localStream;
+      localVideoRef.current.play().catch(() => {});
     }
   }, [localStream]);
 
@@ -219,47 +187,49 @@ export default function InCallView({
     return () => clearTimeout(controlsTimeoutRef.current);
   }, []);
 
-  // ── Detect if CSS filter works on video (mobile fallback) ────────
+  // ── WebGL Filter Engine Lifecycle (same as GoLive) ────────────────
+  // Initialize WebGL processor when local stream is available
   useEffect(() => {
-    // Mobile Safari and some Android browsers ignore CSS filter on <video>
-    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-    setUseCanvasFallback(isMobile);
-  }, []);
-
-  // ── Canvas fallback: draw filtered frames when a filter is active ──
-  useEffect(() => {
-    if (!useCanvasFallback || activeFilter === 'none' || !localVideoRef.current || !canvasRef.current) {
-      if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
-      return;
-    }
+    if (!localVideoRef.current || !webglCanvasRef.current || !localStream) return;
 
     const video = localVideoRef.current;
-    const canvas = canvasRef.current;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
+    const canvas = webglCanvasRef.current;
 
-    const preset = FILTER_PRESETS.find(p => p.key === activeFilter);
-    const filterStr = preset ? buildCSSFilter(preset.values) : 'none';
+    // Wait for video metadata to load so we know dimensions
+    const initWebGL = () => {
+      canvas.width = video.videoWidth || 640;
+      canvas.height = video.videoHeight || 480;
 
-    const drawFrame = () => {
-      if (video.readyState >= 2) {
-        canvas.width = video.videoWidth || 320;
-        canvas.height = video.videoHeight || 240;
-        ctx.filter = filterStr;
-        ctx.save();
-        ctx.scale(-1, 1); // Mirror
-        ctx.drawImage(video, -canvas.width, 0, canvas.width, canvas.height);
-        ctx.restore();
+      try {
+        const processor = new WebGLVideoProcessor(canvas);
+        processor.setFilter(activeFilter === 'none' ? 'none' : activeFilter);
+        processor.start(video);
+        webglProcessorRef.current = processor;
+      } catch (err) {
+        console.error('[InCallView] WebGL init failed:', err);
       }
-      animFrameRef.current = requestAnimationFrame(drawFrame);
     };
 
-    drawFrame();
+    if (video.readyState >= 2) {
+      initWebGL();
+    } else {
+      video.addEventListener('loadeddata', initWebGL, { once: true });
+    }
 
     return () => {
-      if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
+      if (webglProcessorRef.current) {
+        webglProcessorRef.current.stop();
+        webglProcessorRef.current = null;
+      }
     };
-  }, [useCanvasFallback, activeFilter, localStream]);
+  }, [localStream]); // Only re-init when stream changes
+
+  // ── Update WebGL filter when user selects a new one ───────────────
+  useEffect(() => {
+    if (webglProcessorRef.current) {
+      webglProcessorRef.current.setFilter(activeFilter === 'none' ? 'none' : activeFilter);
+    }
+  }, [activeFilter]);
 
   // ── Filter selection handler (auto-closes picker) ─────────────────
   const handleSelectFilter = useCallback((key) => {
@@ -272,13 +242,6 @@ export default function InCallView({
     setActiveHairStyle(styleId);
     setShowHairPicker(false);
   }, []);
-
-  // ── Build CSS filter style — exact GoLive pattern ─────────────────
-  const videoFilterStyle = useMemo(() => {
-    const preset = FILTER_PRESETS.find(p => p.key === activeFilter);
-    if (!preset || activeFilter === 'none') return {};
-    return { filter: buildCSSFilter(preset.values) };
-  }, [activeFilter]);
 
   // ── Control Button Component ──────────────────────────────────────
   const ControlButton = ({ onClick, active, danger, icon: Icon, label, size = 'normal' }) => {
@@ -442,33 +405,24 @@ export default function InCallView({
                   <VideoOff className="w-5 h-5 text-zinc-500" />
                 </div>
               ) : (
-                /* Local video with dual filter strategy:
-                   - Desktop: CSS filter applied directly on <video> element
-                   - Mobile: Canvas fallback draws filtered frames (mobile browsers
-                     ignore CSS filter on video elements due to hardware compositing) */
+                /* WebGL GPU shader pipeline — same engine as GoLive.
+                   Hidden <video> feeds frames into WebGL <canvas> for real-time
+                   GPU-processed filter rendering. Works on all platforms. */
                 <>
                 <div className="w-full h-full relative">
-                  {/* Hidden video source — always rendering for canvas capture */}
+                  {/* Hidden video source — feeds WebGL pipeline */}
                   <video
                     ref={localVideoRef}
                     autoPlay
                     playsInline
                     muted
-                    className={`w-full h-full object-cover ${
-                      useCanvasFallback && activeFilter !== 'none' ? 'opacity-0 absolute' : ''
-                    }`}
-                    style={{
-                      transform: 'scaleX(-1)',
-                      ...((!useCanvasFallback && activeFilter !== 'none') ? videoFilterStyle : {}),
-                    }}
+                    style={{ display: 'none' }}
                   />
-                  {/* Canvas overlay — only visible on mobile when filter is active */}
-                  {useCanvasFallback && activeFilter !== 'none' && (
-                    <canvas
-                      ref={canvasRef}
-                      className="w-full h-full object-cover"
-                    />
-                  )}
+                  {/* WebGL filtered canvas — this is what the user sees */}
+                  <canvas
+                    ref={webglCanvasRef}
+                    className={`w-full h-full object-cover ${true ? 'scale-x-[-1]' : ''}`}
+                  />
                 </div>
                 <div className={`absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded bg-black/50 backdrop-blur-sm ${!isPipExpanded ? 'hidden md:block' : ''}`}>
                   <span className="text-[9px] text-white/70 font-medium">You</span>

@@ -9,7 +9,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from './ui/sheet';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from './ui/sheet';
 import { Trophy, Target, Users, Calendar, MessageSquare, 
   Video, Star, Zap, Gift, ArrowRight, X, Crown,
   GraduationCap, Gamepad2, Shield, Award, TrendingUp, Sparkles
@@ -181,6 +181,10 @@ export const ExclusiveAreaDrawer = ({ isOpen, onClose, areaType }) => {
         hideCloseButton
         className="bg-background border-border rounded-t-3xl sheet-safe-bottom overflow-hidden flex flex-col"
       >
+        {/* Drag handle indicator */}
+        <div className="flex justify-center pt-1 pb-2 shrink-0">
+          <div className="w-10 h-1 rounded-full bg-muted-foreground/30" />
+        </div>
         <SheetHeader className="pb-3 shrink-0">
           <div className="flex items-center justify-between">
             <SheetTitle className="text-foreground flex items-center gap-2 text-base">
@@ -194,6 +198,9 @@ export const ExclusiveAreaDrawer = ({ isOpen, onClose, areaType }) => {
               <X className="w-5 h-5" />
             </button>
           </div>
+          <SheetDescription className="sr-only">
+            Exclusive area navigation for {config.name}
+          </SheetDescription>
         </SheetHeader>
         
         <div className="overflow-y-auto flex-1 pb-6 space-y-4">
