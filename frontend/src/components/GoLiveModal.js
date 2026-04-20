@@ -469,10 +469,12 @@ const LiveCommentsFeed = ({ streamId, colors, onSendComment, onLikeComment, isEx
       try {
         const response = await apiClient.get(`/social-live/${streamId}/comments`);
         if (response.data?.comments) {
-          // Memoized update - only update if there are new comments
+          // Lightweight update check — compare length + latest ID instead of full JSON serialize
           setComments(prev => {
             const newComments = response.data.comments;
-            if (JSON.stringify(prev) !== JSON.stringify(newComments)) {
+            const lastPrevId = prev.length > 0 ? prev[prev.length - 1]?.id : null;
+            const lastNewId = newComments.length > 0 ? newComments[newComments.length - 1]?.id : null;
+            if (prev.length !== newComments.length || lastPrevId !== lastNewId) {
               return newComments;
             }
             return prev;
@@ -1237,10 +1239,16 @@ const GoLiveModal = ({ isOpen, onClose, onStreamEnded }) => {
   const durationIntervalRef = useRef(null);
   const viewerPollRef = useRef(null);
   const streamDataRef = useRef(null);
+  const userIdRef = useRef(user?.id);
 
   useEffect(() => {
     streamDataRef.current = streamData;
   }, [streamData]);
+
+  // Keep userIdRef in sync to avoid stale closure in cleanup
+  useEffect(() => {
+    userIdRef.current = user?.id;
+  }, [user?.id]);
 
   // ── Reset phase when modal opens/closes ──
   useEffect(() => {
@@ -1261,9 +1269,9 @@ const GoLiveModal = ({ isOpen, onClose, onStreamEnded }) => {
       if (durationIntervalRef.current) clearInterval(durationIntervalRef.current);
       if (viewerPollRef.current) clearInterval(viewerPollRef.current);
       // Auto-teardown orphan stream if user force-closes while live
-      if (streamDataRef.current?.id && user?.id) {
+      if (streamDataRef.current?.id && userIdRef.current) {
         logger.info('[GoLiveModal] Unmount trapped active stream. Firing orphan teardown.');
-        apiClient.post(`/livekit/end-stream/${streamDataRef.current.id}?broadcaster_id=${user.id}`).catch(() => {});
+        apiClient.post(`/livekit/end-stream/${streamDataRef.current.id}?broadcaster_id=${userIdRef.current}`).catch(() => {});
       }
     };
   }, [isOpen]);

@@ -538,8 +538,12 @@ export default function WebcamCaptureModal({ isOpen, onClose, onCapture, maxLeng
             className="absolute inset-0 w-full h-full object-cover z-10" 
             style={{ transform: facingMode === 'user' ? 'scaleX(-1)' : 'none' }}
           />
-          {/* Hair filter canvas overlay — video-resolution buffer + object-cover to match video canvas */}
-          <canvas ref={hairCanvasRef} className="absolute inset-0 w-full h-full object-cover pointer-events-none z-[15]" />
+          {/* Hair filter canvas overlay — must mirror when front camera is active (matching GoLiveModal) */}
+          <canvas 
+            ref={hairCanvasRef} 
+            className="absolute inset-0 w-full h-full object-cover pointer-events-none z-[15]" 
+            style={{ transform: facingMode === 'user' ? 'scaleX(-1)' : 'none' }}
+          />
         </div>
 
         {/* Rule of Thirds */}

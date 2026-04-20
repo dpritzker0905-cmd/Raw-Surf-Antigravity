@@ -100,8 +100,9 @@ def is_photographer_role(role):
     return role_str in ['Photographer', 'Approved Pro', 'Hobbyist', 'Grom Parent']
 
 
-async def award_xp(db: AsyncSession, user_id: str, amount: int, reason: str, reference_type: str = None, reference_id: str = None):
-    """Award XP to a user and check for badge awards"""
+async def award_xp(db: AsyncSession, user_id: str, amount: int, reason: str, reference_type: str = None, reference_id: str = None, auto_commit: bool = True):
+    """Award XP to a user and check for badge awards.
+    Set auto_commit=False when caller manages its own transaction."""
     # Create XP transaction
     xp_tx = XPTransaction(
         user_id=user_id,
@@ -116,7 +117,8 @@ async def award_xp(db: AsyncSession, user_id: str, amount: int, reason: str, ref
     # Auto-check badges after XP is awarded
     await check_badge_milestones(user_id, db)
     
-    await db.commit()
+    if auto_commit:
+        await db.commit()
 
 
 # ============ ENDPOINTS ============
@@ -163,27 +165,22 @@ async def create_review(
         elif request.booking_id:
             session_type = 'scheduled'
     
-    # --- 20-minute minimum session length check ---
+    # --- Session validation (single query for both checks) ---
+    review_window_expires = None
     if request.live_session_id:
         session_result = await db.execute(
             select(LiveSession).where(LiveSession.id == request.live_session_id)
         )
         session = session_result.scalar_one_or_none()
+        # 20-minute minimum session length check
         if session and session.duration_mins is not None and session.duration_mins < 20:
             raise HTTPException(
                 status_code=400,
                 detail="Sessions must be at least 20 minutes before reviews can be submitted"
             )
-    
-    # --- 14-day review window check ---
-    review_window_expires = None
-    if request.live_session_id:
-        session_result2 = await db.execute(
-            select(LiveSession).where(LiveSession.id == request.live_session_id)
-        )
-        session2 = session_result2.scalar_one_or_none()
-        if session2 and session2.ended_at:
-            review_window_expires = session2.ended_at + timedelta(days=14)
+        # 14-day review window check (reuse same session object)
+        if session and session.ended_at:
+            review_window_expires = session.ended_at + timedelta(days=14)
             if datetime.now(timezone.utc) > review_window_expires:
                 raise HTTPException(
                     status_code=400,
@@ -252,14 +249,17 @@ async def create_review(
     )
     
     db.add(review)
-    await db.commit()
-    await db.refresh(review)
+    await db.flush()  # Get review.id without committing
     
-    # Award XP for leaving a review
+    # Award XP in same transaction (atomic with review creation)
     await award_xp(
         db, reviewer_id, 10, 'review_given',
-        reference_type='review', reference_id=review.id
+        reference_type='review', reference_id=review.id,
+        auto_commit=False
     )
+    
+    await db.commit()
+    await db.refresh(review)
     
     return ReviewResponse(
         id=review.id,
