@@ -989,10 +989,10 @@ const BroadcasterControls = ({
                 isCameraOff={isCameraOff}
                 isFrontCamera={isFrontCamera}
               />
-              {/* Hair filter canvas overlay */}
+              {/* Hair filter canvas overlay — mirrors with video via CSS scaleX(-1) */}
               <canvas
                 ref={hairCanvasRef}
-                className="absolute inset-0 w-full h-full pointer-events-none"
+                className={`absolute inset-0 w-full h-full pointer-events-none ${isFrontCamera ? 'scale-x-[-1]' : ''}`}
                 style={{ zIndex: 5 }}
               />
               {/* Vignette overlay */}
