@@ -27,14 +27,19 @@ import platinumBobImg from '../assets/hair/platinum_bob.png';
 /**
  * Hair style catalog
  * 
- * scaleMultiplier: size relative to estimated HEAD width (not face width)
- *   - 1.0 = exact head width
- *   - 1.5 = 50% wider than head (typical for flowing/voluminous styles)
+ * scaleMultiplier: size relative to base width (headWidth or face-framed width)
+ *   - 1.0 = exact base width
+ *   - 1.5 = 50% wider than base (typical for flowing/voluminous styles)
  * 
  * capPosition: what fraction of the hair sprite sits ABOVE the anchor (forehead/hairline)
  *   - 0.10 = only 10% above anchor, 90% drapes below (long hair)
  *   - 0.35 = 35% above anchor (short spiky hair with volume on top)
  *   - Think of it as: where is the "wig cap" in the sprite image?
+ * 
+ * faceFrameRatio: (optional) minimum hair width as a fraction of face HEIGHT
+ *   - Ensures long draping hair is wide enough to frame the jaw/chin
+ *   - e.g. 0.85 = hair width is at least 85% of faceHeight
+ *   - Only used for long styles that drape past the jaw
  */
 export const HAIR_STYLES = {
   // Male styles
@@ -46,7 +51,8 @@ export const HAIR_STYLES = {
     description: 'Long wavy blonde surfer hair',
     src: blondeFlowImg,
     scaleMultiplier: 1.5,
-    capPosition: 0.20,  // medium-length, some volume on top
+    capPosition: 0.20,
+    faceFrameRatio: 0.7,  // medium-length, frames face slightly
   },
   brown_dreads: {
     id: 'brown_dreads',
@@ -56,7 +62,8 @@ export const HAIR_STYLES = {
     description: 'Thick brown dreadlocks',
     src: brownDreadsImg,
     scaleMultiplier: 1.6,
-    capPosition: 0.12,  // long draping dreads, minimal above head
+    capPosition: 0.12,
+    faceFrameRatio: 0.85, // long draping dreads, frame the face/jaw
   },
   messy_bun: {
     id: 'messy_bun',
@@ -97,7 +104,8 @@ export const HAIR_STYLES = {
     description: 'Long golden beach waves',
     src: beachWavesImg,
     scaleMultiplier: 1.6,
-    capPosition: 0.10,  // very long, almost all drapes down
+    capPosition: 0.10,
+    faceFrameRatio: 0.9,  // very long, must frame full face width
   },
   braided_crown: {
     id: 'braided_crown',
@@ -117,7 +125,8 @@ export const HAIR_STYLES = {
     description: 'Dark roots with pink ends',
     src: pinkTipsImg,
     scaleMultiplier: 1.5,
-    capPosition: 0.15,  // long style, drapes down
+    capPosition: 0.15,
+    faceFrameRatio: 0.8,  // long, frames face
   },
   curly_surf: {
     id: 'curly_surf',
@@ -127,7 +136,8 @@ export const HAIR_STYLES = {
     description: 'Big voluminous natural curls',
     src: curlySurfImg,
     scaleMultiplier: 1.6,
-    capPosition: 0.18,  // voluminous but drapes
+    capPosition: 0.18,
+    faceFrameRatio: 0.85, // big curls, frames face
   },
   platinum_bob: {
     id: 'platinum_bob',
@@ -154,7 +164,7 @@ const LANDMARK = {
 
 // Anthropometric constants — tuned from real-world mobile testing
 const HEAD_WIDTH_RATIO = 1.8;    // Head/skull ~80% wider than temple-to-temple face landmarks
-const CROWN_OFFSET_RATIO = 0.20; // Crown is ~20% of face-height above landmark 10 (hairline)
+const CROWN_OFFSET_RATIO = 0.23; // Crown is ~23% of face-height above landmark 10 (hairline)
 
 /**
  * Loads the MediaPipe Face Mesh library from CDN
@@ -530,8 +540,12 @@ export class HairFilterEngine {
     
     const ctx = this.ctx;
     
-    // Hair width is relative to estimated HEAD width
-    const hairWidth = headWidth * style.scaleMultiplier;
+    // Hair width: use the LARGER of headWidth or face-frame-based width
+    // faceFrameRatio ensures long hair is wide enough to frame the jaw/chin
+    const baseWidth = style.faceFrameRatio
+      ? Math.max(headWidth, faceHeight * style.faceFrameRatio)
+      : headWidth;
+    const hairWidth = baseWidth * style.scaleMultiplier;
     const hairHeight = hairWidth * (img.naturalHeight / img.naturalWidth);
     
     // Anchor point is at the estimated crown/hairline
