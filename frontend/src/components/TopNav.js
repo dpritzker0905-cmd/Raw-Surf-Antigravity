@@ -294,7 +294,7 @@ export const TopNav = () => {
             {/* Position 5.5: Grom HQ Shield Icon - for Grom Parents */}
             {isGromParent && (
               <button 
-                onClick={() => setGromHQDrawerOpen(true)}
+                onClick={() => setGromHQDrawerOpen(!gromHQDrawerOpen)}
                 className="text-cyan-400 hover:text-cyan-300 transition-colors p-1"
                 data-testid="topnav-grom-hq"
                 aria-label="Grom HQ"
