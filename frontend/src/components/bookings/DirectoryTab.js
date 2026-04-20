@@ -77,7 +77,7 @@ const TIER_RADIUS = {
 /**
  * Enhanced Photographer Card Component with review snippets and live status
  */
-const DirectoryPhotographerCard = ({ photographer, onSelect, onBook, theme, subscriptionTier, userLocation }) => {
+const DirectoryPhotographerCard = ({ photographer, onSelect, onBook, onViewGallery, theme, subscriptionTier, userLocation }) => {
   const isLight = theme === 'light';
   const isBeach = theme === 'beach';
   const textPrimary = isLight ? 'text-gray-900' : 'text-white';
@@ -215,7 +215,16 @@ const DirectoryPhotographerCard = ({ photographer, onSelect, onBook, theme, subs
             onClick={(e) => { e.stopPropagation(); onSelect(photographer); }}
           >
             <User className="w-3.5 h-3.5 mr-1.5" />
-            View Profile
+            Reviews
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className={`flex-1 ${isLight ? 'border-blue-300 text-blue-700 hover:bg-blue-50' : 'border-cyan-600/50 text-cyan-300 hover:bg-cyan-900/30'}`}
+            onClick={(e) => { e.stopPropagation(); onViewGallery(photographer); }}
+          >
+            <Image className="w-3.5 h-3.5 mr-1.5" />
+            Gallery
           </Button>
           <Button
             size="sm"
@@ -490,6 +499,10 @@ export const DirectoryTab = ({
       navigate(`/profile/${photographer.id}?book=scheduled`);
     }
   };
+
+  const handleViewGallery = (photographer) => {
+    navigate(`/photographer/${photographer.id}/gallery`);
+  };
   
   const handleViewOnMap = () => {
     navigate('/map?filter=photographers');
@@ -647,6 +660,7 @@ export const DirectoryTab = ({
                 photographer={photographer}
                 onSelect={handleSelectPhotographer}
                 onBook={handleBookPhotographer}
+                onViewGallery={handleViewGallery}
                 theme={theme}
                 subscriptionTier={subscriptionTier}
                 userLocation={userLocation}
