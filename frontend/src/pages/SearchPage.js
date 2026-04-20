@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, TrendingUp, Clock, Hash, User, MapPin } from 'lucide-react';
 import { GlobalSearchBar } from '../components/GlobalSearchBar';
@@ -89,7 +89,6 @@ const SearchPage = () => {
         <div className="flex-1">
           <GlobalSearchBar 
             variant="mobile-expanded" 
-            onClose={() => navigate(-1)}
             onSearchStateChange={setIsSearchActive}
             className="w-full"
           />

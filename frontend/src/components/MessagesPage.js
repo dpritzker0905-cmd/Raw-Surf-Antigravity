@@ -230,12 +230,22 @@ const StoryBubble = ({ story, onClick, isOwnNote = false, _showCreateOption = fa
           <div className="p-0.5 bg-background rounded-full">
             <div className="w-14 h-14 rounded-full overflow-hidden bg-muted relative">
               {story.avatar ? (
-                <img src={story.avatar} alt="" className="w-full h-full object-cover" />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center text-muted-foreground text-lg">
-                  {story.name?.charAt(0) || '?'}
-                </div>
-              )}
+                <img 
+                  src={story.avatar} 
+                  alt="" 
+                  className="w-full h-full object-cover" 
+                  onError={(e) => { 
+                    e.target.style.display = 'none'; 
+                    e.target.nextSibling && (e.target.nextSibling.style.display = 'flex');
+                  }}
+                />
+              ) : null}
+              <div 
+                className="w-full h-full flex items-center justify-center text-muted-foreground text-lg absolute inset-0"
+                style={{ display: story.avatar ? 'none' : 'flex' }}
+              >
+                {story.name?.charAt(0) || '?'}
+              </div>
             </div>
           </div>
         </div>
