@@ -167,6 +167,8 @@ def add_watermark(image_path: str, output_path: str, text: str = "RAW SURF OS") 
                     break
             if font is None:
                 font = ImageFont.load_default()
+        except Exception:
+            font = ImageFont.load_default()
         
         # Get text bounding box
         bbox = draw.textbbox((0, 0), text, font=font)
@@ -1229,6 +1231,8 @@ async def upload_session_photo(
                         break
                 if font is None:
                     font = ImageFont.load_default()
+            except Exception:
+                font = ImageFont.load_default()
             
             # Calculate position (center)
             bbox = draw.textbbox((0, 0), watermark_text, font=font)
