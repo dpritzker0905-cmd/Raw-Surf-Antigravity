@@ -361,7 +361,7 @@ async def update_parental_controls(
         raise HTTPException(status_code=403, detail="Not authorized to update this Grom's controls")
     
     # Validate controls
-    valid_keys = ["can_post", "can_stream", "can_message", "can_comment", "view_only"]
+    valid_keys = ["can_post", "can_stream", "can_message", "can_comment", "view_only", "can_call", "approved_callers"]
     filtered_controls = {k: v for k, v in controls.items() if k in valid_keys}
     
     # Merge with existing controls
@@ -1235,3 +1235,76 @@ async def get_family_activity_feed(
         "groms": groms_info
     }
 
+
+# ============ CALL PERMISSION CHECK ============
+
+@router.get("/call-permission/{caller_id}/{target_id}")
+async def check_call_permission(
+    caller_id: str,
+    target_id: str,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Check if a call is allowed between two users.
+    
+    Grom restrictions:
+    - Groms can CALL: other Groms, their linked parent
+    - Groms can RECEIVE calls from: other Groms, their linked parent, 
+      or users in parent's approved_callers whitelist
+    - All other roles: unrestricted
+    """
+    # Fetch both profiles
+    caller_result = await db.execute(select(Profile).where(Profile.id == caller_id))
+    caller = caller_result.scalar_one_or_none()
+    
+    target_result = await db.execute(select(Profile).where(Profile.id == target_id))
+    target = target_result.scalar_one_or_none()
+    
+    if not caller or not target:
+        return {"allowed": False, "reason": "User not found"}
+    
+    # Check if caller is a Grom
+    if caller.role == RoleEnum.GROM:
+        controls = caller.parental_controls or {}
+        
+        # Check if calling is disabled by parental controls
+        if controls.get("can_call") is False:
+            return {"allowed": False, "reason": "Calling is disabled by your parent"}
+        
+        # Groms can call their linked parent
+        if target_id == caller.parent_id:
+            return {"allowed": True, "reason": "Calling linked parent"}
+        
+        # Groms can call other Groms
+        if target.role == RoleEnum.GROM:
+            return {"allowed": True, "reason": "Grom-to-Grom call"}
+        
+        # Not allowed otherwise
+        return {"allowed": False, "reason": "Groms can only call other Groms or their parent"}
+    
+    # Check if target is a Grom (incoming call to a Grom)
+    if target.role == RoleEnum.GROM:
+        controls = target.parental_controls or {}
+        
+        # Check if calling is disabled by parental controls
+        if controls.get("can_call") is False:
+            return {"allowed": False, "reason": "This user has calling disabled"}
+        
+        # Their linked parent can always call
+        if caller_id == target.parent_id:
+            return {"allowed": True, "reason": "Parent calling linked Grom"}
+        
+        # Other Groms can call
+        if caller.role == RoleEnum.GROM:
+            return {"allowed": True, "reason": "Grom-to-Grom call"}
+        
+        # Check approved_callers whitelist set by parent
+        approved_callers = controls.get("approved_callers", [])
+        if isinstance(approved_callers, list) and caller_id in approved_callers:
+            return {"allowed": True, "reason": "Caller is on parent-approved list"}
+        
+        # Not on approved list
+        return {"allowed": False, "reason": "Caller not authorized for this Grom account"}
+    
+    # Non-Grom to Non-Grom: always allowed
+    return {"allowed": True, "reason": "Standard call"}

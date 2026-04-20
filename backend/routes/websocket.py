@@ -217,3 +217,78 @@ async def websocket_photographer_activity(websocket: WebSocket, photographer_id:
         logger.error(f"Photographer activity WebSocket error for {photographer_id}: {e}")
     finally:
         ws_manager.disconnect(websocket, room=room)
+
+
+@router.websocket("/ws/call/{user_id}")
+async def websocket_call(websocket: WebSocket, user_id: str):
+    """
+    WebSocket endpoint for WebRTC call signaling.
+    
+    Handles:
+    - call_offer: Caller sends SDP offer to target
+    - call_answer: Callee sends SDP answer back  
+    - ice_candidate: Exchange ICE candidates for NAT traversal
+    - call_decline: Callee rejects the call
+    - call_end: Either party ends the call
+    - call_busy: Target is already in a call
+    
+    Each user connects to their own room: call_{user_id}
+    Messages are forwarded to the target user's room.
+    """
+    room = f"call_{user_id}"
+    await ws_manager.connect(websocket, room=room)
+    
+    try:
+        await ws_manager.send_personal(websocket, {
+            "type": "connected",
+            "room": "call",
+            "user_id": user_id,
+            "message": "Connected to call signaling"
+        })
+        
+        while True:
+            try:
+                import json
+                data = await websocket.receive_text()
+                
+                if data == "ping":
+                    await ws_manager.send_personal(websocket, {"type": "pong"})
+                    continue
+                
+                message = json.loads(data)
+                msg_type = message.get("type")
+                target_user_id = message.get("target_user_id")
+                
+                if not target_user_id:
+                    await ws_manager.send_personal(websocket, {
+                        "type": "error",
+                        "message": "target_user_id required"
+                    })
+                    continue
+                
+                # Forward signaling messages to target user's call room
+                target_room = f"call_{target_user_id}"
+                
+                if msg_type in ("call_offer", "call_answer", "ice_candidate", 
+                                "call_decline", "call_end", "call_busy"):
+                    # Forward the message to the target user
+                    await ws_manager.broadcast(message, room=target_room)
+                    logger.info(f"Call signal '{msg_type}' from {user_id} -> {target_user_id}")
+                else:
+                    await ws_manager.send_personal(websocket, {
+                        "type": "error",
+                        "message": f"Unknown message type: {msg_type}"
+                    })
+                    
+            except WebSocketDisconnect:
+                break
+            except json.JSONDecodeError:
+                await ws_manager.send_personal(websocket, {
+                    "type": "error", 
+                    "message": "Invalid JSON"
+                })
+                
+    except Exception as e:
+        logger.error(f"Call WebSocket error for {user_id}: {e}")
+    finally:
+        ws_manager.disconnect(websocket, room=room)

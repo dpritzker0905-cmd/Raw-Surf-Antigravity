@@ -20,6 +20,9 @@ import { BottomNav } from '../BottomNav';
 import ImpersonationBanner from '../ImpersonationBanner';
 import PersonaMaskBanner from '../PersonaMaskBanner';
 import { usePushNotifications } from '../../hooks/usePushNotifications';
+import { useWebRTCCall, CALL_STATE } from '../../hooks/useWebRTCCall';
+import IncomingCallModal from '../messages/IncomingCallModal';
+import InCallView from '../messages/InCallView';
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
@@ -78,6 +81,60 @@ const BackButtonHandler = () => {
   return null;
 };
 
+/** Global WebRTC Call Manager — renders incoming call + in-call overlays. */
+const CallManager = () => {
+  const { user } = useAuth();
+  const call = useWebRTCCall(user?.id, {
+    name: user?.full_name || user?.username,
+    avatar: user?.avatar_url,
+  });
+
+  if (!user?.id) return null;
+
+  return (
+    <>
+      {/* Incoming call overlay */}
+      {call.callState === CALL_STATE.INCOMING && (
+        <IncomingCallModal
+          callerName={call.remoteUserInfo?.name}
+          callerAvatar={call.remoteUserInfo?.avatar}
+          callType={call.callType}
+          onAccept={call.answerCall}
+          onDecline={call.declineCall}
+        />
+      )}
+
+      {/* Outgoing call (ringing) overlay */}
+      {call.callState === CALL_STATE.OUTGOING && (
+        <IncomingCallModal
+          callerName={call.remoteUserInfo?.name}
+          callerAvatar={call.remoteUserInfo?.avatar}
+          callType={call.callType}
+          onAccept={null}
+          onDecline={call.endCall}
+        />
+      )}
+
+      {/* Active call overlay */}
+      {(call.callState === CALL_STATE.IN_CALL || call.callState === CALL_STATE.CONNECTING) && (
+        <InCallView
+          callType={call.callType}
+          localStream={call.localStream}
+          remoteStream={call.remoteStream}
+          isMuted={call.isMuted}
+          isCameraOff={call.isCameraOff}
+          callDuration={call.callDuration}
+          remoteUserInfo={call.remoteUserInfo}
+          connectionQuality={call.connectionQuality}
+          onToggleMute={call.toggleMute}
+          onToggleCamera={call.toggleCamera}
+          onEndCall={call.endCall}
+        />
+      )}
+    </>
+  );
+};
+
 // ─── Main AppLayout ───────────────────────────────────────────────────────────
 
 /**
@@ -108,6 +165,7 @@ const AppLayout = ({ children, hideNav = false, hideTopNav = false }) => {
       <PersonaMaskBannerWrapper />
       <PushNotificationInit />
       <BackButtonHandler />
+      <CallManager />
 
       {/* Navigation chrome */}
       {showSidebar && <Sidebar />}

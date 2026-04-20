@@ -5,7 +5,7 @@ import { usePersona, getExpandedRoleInfo, isProLevelRole, isBusinessRole as isBu
 import { useSearchParams, useNavigate, useParams, useLocation } from 'react-router-dom';
 import { 
   Search, Send, ChevronLeft, MoreHorizontal, Check, CheckCheck, 
-  X, Mic, Image, Camera, Play, Edit3, Video,
+  X, Mic, Image, Camera, Play, Edit3, Video, Phone, PhoneCall,
   Reply, Smile, Heart, Shield, Users, EyeOff, Filter, Star, Store, Briefcase, Pin, BellOff, Mail, Trash2, Clock
 } from 'lucide-react';
 import { Input } from './ui/input';
@@ -598,18 +598,43 @@ export const MessagesPage = () => {
     scrollToBottom();
   }, [conversationDetail?.messages]);
 
-  // Real-time subscriptions
+  // Real-time subscriptions — FAST: directly append new messages to state
   useEffect(() => {
     if (!user?.id) return;
 
     const messagesChannel = supabase
       .channel('inbox-messages')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload) => {
-        if (selectedConversation && payload.new.conversation_id === selectedConversation.id) {
-          if (payload.new.sender_id !== user.id) {
-            fetchConversationDetail(selectedConversation.id);
+        const msg = payload.new;
+        // If this message is in the currently open conversation, append it directly
+        if (selectedConversation && msg.conversation_id === selectedConversation.id) {
+          if (msg.sender_id !== user.id) {
+            // Append the incoming message directly to local state — no API refetch
+            setConversationDetail(prev => {
+              if (!prev?.messages) return prev;
+              // Deduplicate: don't add if already present (e.g., from optimistic insert)
+              const exists = prev.messages.some(m => m.id === msg.id);
+              if (exists) return prev;
+              return {
+                ...prev,
+                messages: [...prev.messages, {
+                  id: msg.id,
+                  sender_id: msg.sender_id,
+                  content: msg.content,
+                  message_type: msg.message_type || 'text',
+                  media_url: msg.media_url,
+                  created_at: msg.created_at,
+                  reply_to_id: msg.reply_to_id,
+                  is_read: false,
+                  reactions: [],
+                  sender_name: conversationDetail?.other_user_name || 'User',
+                  sender_avatar: conversationDetail?.other_user_avatar,
+                }]
+              };
+            });
           }
         }
+        // Refresh conversation list (lightweight — just sidebar)
         fetchConversations();
       })
       .subscribe();
@@ -619,9 +644,6 @@ export const MessagesPage = () => {
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'conversations' }, (payload) => {
         if (payload.new.participant_one_id === user.id || payload.new.participant_two_id === user.id) {
           fetchConversations();
-          if (selectedConversation?.id === payload.new.id) {
-            fetchConversationDetail(payload.new.id);
-          }
         }
       })
       .subscribe();
@@ -960,14 +982,53 @@ export const MessagesPage = () => {
     e.preventDefault();
     if (!newMessage.trim() || !selectedConversation) return;
 
+    const messageContent = newMessage.trim();
+    const tempId = `temp_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+    
+    // ── Optimistic insert: show message instantly ──
+    setConversationDetail(prev => {
+      if (!prev?.messages) return prev;
+      return {
+        ...prev,
+        messages: [...prev.messages, {
+          id: tempId,
+          sender_id: user.id,
+          content: messageContent,
+          message_type: 'text',
+          created_at: new Date().toISOString(),
+          reply_to_id: replyingTo?.id || null,
+          is_read: false,
+          reactions: [],
+          sender_name: user.full_name || 'You',
+          sender_avatar: user.avatar_url,
+          _optimistic: true,
+        }]
+      };
+    });
+    
+    setNewMessage('');
+    setReplyingTo(null);
     setSendingMessage(true);
     sendTypingIndicator(false);
     
     try {
       const response = await apiClient.post(`/messages/send?sender_id=${user.id}`, {
         recipient_id: selectedConversation.other_user_id,
-        content: newMessage.trim(),
+        content: messageContent,
         reply_to_id: replyingTo?.id || null
+      });
+      
+      // Replace optimistic message with real one
+      setConversationDetail(prev => {
+        if (!prev?.messages) return prev;
+        return {
+          ...prev,
+          messages: prev.messages.map(m => 
+            m.id === tempId 
+              ? { ...m, id: response.data.message_id || m.id, _optimistic: false }
+              : m
+          )
+        };
       });
       
       if (selectedConversation.is_new_chat && response.data.conversation_id) {
@@ -980,13 +1041,16 @@ export const MessagesPage = () => {
         navigate(`/messages/${response.data.conversation_id}`, { replace: true, state: { fromProfile: fromProfileId } });
       }
       
-      setNewMessage('');
-      setReplyingTo(null);
-      
-      const convId = response.data.conversation_id || selectedConversation.id;
-      if (convId) fetchConversationDetail(convId);
       fetchConversations();
     } catch (error) {
+      // Remove optimistic message on failure
+      setConversationDetail(prev => {
+        if (!prev?.messages) return prev;
+        return {
+          ...prev,
+          messages: prev.messages.filter(m => m.id !== tempId)
+        };
+      });
       toast.error('Failed to send message');
     } finally {
       setSendingMessage(false);
@@ -1514,6 +1578,48 @@ export const MessagesPage = () => {
             })()}
           </div>
         </div>
+        
+        {/* Call Buttons — Audio & Video */}
+        {!selectedConversation?.is_new_chat && !selectedConversation?.is_request && (
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => {
+                const callEvent = new CustomEvent('rawsurf:startCall', { 
+                  detail: { 
+                    targetUserId: selectedConversation?.other_user_id, 
+                    callType: 'audio',
+                    targetUserName: conversationDetail?.other_user_name || selectedConversation?.other_user_name,
+                    targetUserAvatar: chatAvatarUrl,
+                  }
+                });
+                window.dispatchEvent(callEvent);
+              }}
+              className="text-muted-foreground hover:text-cyan-400 p-2 rounded-lg hover:bg-muted/50 transition-colors"
+              title="Audio call"
+              data-testid="audio-call-btn"
+            >
+              <Phone className="w-5 h-5" />
+            </button>
+            <button
+              onClick={() => {
+                const callEvent = new CustomEvent('rawsurf:startCall', { 
+                  detail: { 
+                    targetUserId: selectedConversation?.other_user_id, 
+                    callType: 'video',
+                    targetUserName: conversationDetail?.other_user_name || selectedConversation?.other_user_name,
+                    targetUserAvatar: chatAvatarUrl,
+                  }
+                });
+                window.dispatchEvent(callEvent);
+              }}
+              className="text-muted-foreground hover:text-cyan-400 p-2 rounded-lg hover:bg-muted/50 transition-colors"
+              title="Video call"
+              data-testid="video-call-btn"
+            >
+              <Video className="w-5 h-5" />
+            </button>
+          </div>
+        )}
         
         {/* Conversation Controls Dropdown */}
         <DropdownMenu>
