@@ -188,7 +188,7 @@ const FRAGMENT_SHADERS = {
 export class WebGLVideoProcessor {
   constructor(canvas) {
     this.canvas = canvas;
-    this.gl = this.canvas.getContext('webgl', { preserveDrawingBuffer: false });
+    this.gl = this.canvas.getContext('webgl', { preserveDrawingBuffer: true });
     if (!this.gl) throw new Error('WebGL not natively supported on this device.');
     
     this.animationFrameId = null;

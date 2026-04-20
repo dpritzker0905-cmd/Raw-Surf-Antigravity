@@ -529,6 +529,22 @@ export function useWebRTCCall(userId, userInfo = {}) {
     setConnectionQuality('good');
   }, []);
 
+  // Replace the video track on the peer connection (for WebGL filtered canvas stream)
+  const replaceVideoTrack = useCallback((newVideoTrack) => {
+    const pc = peerConnection.current;
+    if (!pc || !newVideoTrack) return;
+    
+    const senders = pc.getSenders();
+    const videoSender = senders.find(s => s.track && s.track.kind === 'video');
+    if (videoSender) {
+      videoSender.replaceTrack(newVideoTrack)
+        .then(() => console.log('[WebRTC] ✅ Video track replaced with filtered canvas track'))
+        .catch(err => console.error('[WebRTC] Failed to replace video track:', err));
+    } else {
+      console.warn('[WebRTC] No video sender found to replace track on');
+    }
+  }, []);
+
   // Cleanup on unmount
   useEffect(() => {
     return cleanup;
@@ -562,5 +578,6 @@ export function useWebRTCCall(userId, userInfo = {}) {
     endCall,
     toggleMute,
     toggleCamera,
+    replaceVideoTrack,
   };
 }

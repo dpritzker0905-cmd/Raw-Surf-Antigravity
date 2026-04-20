@@ -129,6 +129,7 @@ const CallManager = () => {
           onToggleMute={call.toggleMute}
           onToggleCamera={call.toggleCamera}
           onEndCall={call.endCall}
+          onReplaceVideoTrack={call.replaceVideoTrack}
         />
       )}
     </>

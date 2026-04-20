@@ -135,6 +135,7 @@ export default function InCallView({
   onToggleMute,
   onToggleCamera,
   onEndCall,
+  onReplaceVideoTrack,
 }) {
   const localVideoRef = useRef(null);
   const remoteVideoRef = useRef(null);
@@ -205,6 +206,20 @@ export default function InCallView({
         processor.setFilter(activeFilter === 'none' ? 'none' : activeFilter);
         processor.start(video);
         webglProcessorRef.current = processor;
+
+        // Capture the filtered canvas stream and replace the WebRTC video track
+        // so the remote peer sees filters too
+        if (onReplaceVideoTrack) {
+          try {
+            const canvasStream = canvas.captureStream(30);
+            const filteredTrack = canvasStream.getVideoTracks()[0];
+            if (filteredTrack) {
+              onReplaceVideoTrack(filteredTrack);
+            }
+          } catch (capErr) {
+            console.warn('[InCallView] captureStream failed:', capErr);
+          }
+        }
       } catch (err) {
         console.error('[InCallView] WebGL init failed:', err);
       }
@@ -222,7 +237,7 @@ export default function InCallView({
         webglProcessorRef.current = null;
       }
     };
-  }, [localStream]); // Only re-init when stream changes
+  }, [localStream, onReplaceVideoTrack]); // Re-init when stream changes
 
   // ── Update WebGL filter when user selects a new one ───────────────
   useEffect(() => {
