@@ -243,15 +243,14 @@ export const TopNav = () => {
             {/* Position 3 (or 2): Exclusive Area Icon - Grom/Grom Parent/Comp/Pro only */}
             {hasExclusiveAccess && ExclusiveIcon && (
               <button 
-                onClick={(e) => {
-                  e.stopPropagation();
+                onClick={() => {
                   setBackpackOpen(false);
                   setStokedOpen(false);
                   setGromHQDrawerOpen(false);
                   setNotificationsOpen(false);
                   setExclusiveAreaOpen(prev => !prev);
                 }}
-                className={`${exclusiveIconColor} hover:opacity-80 transition-colors p-1 relative z-[101]`}
+                className={`${exclusiveIconColor} hover:opacity-80 transition-colors p-1`}
                 data-testid="topnav-exclusive-area"
                 aria-label={
                   exclusiveAreaType === 'grom' ? 'The Inside' :
@@ -301,15 +300,14 @@ export const TopNav = () => {
             {/* Position 5.5: Grom HQ Shield Icon - for Grom Parents */}
             {isGromParent && (
               <button 
-                onClick={(e) => {
-                  e.stopPropagation();
+                onClick={() => {
                   setBackpackOpen(false);
                   setStokedOpen(false);
                   setExclusiveAreaOpen(false);
                   setNotificationsOpen(false);
                   setGromHQDrawerOpen(prev => !prev);
                 }}
-                className="text-cyan-400 hover:text-cyan-300 transition-colors p-1 relative z-[101]"
+                className="text-cyan-400 hover:text-cyan-300 transition-colors p-1"
                 data-testid="topnav-grom-hq"
                 aria-label="Grom HQ"
               >
@@ -394,6 +392,7 @@ export const TopNav = () => {
         <ExclusiveAreaDrawer
           isOpen={exclusiveAreaOpen}
           onClose={() => setExclusiveAreaOpen(false)}
+          onOpenChange={setExclusiveAreaOpen}
           areaType={exclusiveAreaType}
         />
       )}
@@ -403,6 +402,7 @@ export const TopNav = () => {
         <ExclusiveAreaDrawer
           isOpen={gromHQDrawerOpen}
           onClose={() => setGromHQDrawerOpen(false)}
+          onOpenChange={setGromHQDrawerOpen}
           areaType="grom_parent"
         />
       )}

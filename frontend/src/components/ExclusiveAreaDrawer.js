@@ -140,7 +140,7 @@ export const getAreaColor = (role) => {
   return AREA_CONFIG[areaType].textColor;
 };
 
-export const ExclusiveAreaDrawer = ({ isOpen, onClose, areaType }) => {
+export const ExclusiveAreaDrawer = ({ isOpen, onClose, onOpenChange, areaType }) => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [memberCount, setMemberCount] = useState(0);
@@ -175,7 +175,7 @@ export const ExclusiveAreaDrawer = ({ isOpen, onClose, areaType }) => {
   };
 
   return (
-    <Sheet open={isOpen} onOpenChange={(open) => { if (!open) onClose(); }}>
+    <Sheet open={isOpen} onOpenChange={onOpenChange || ((open) => { if (!open) onClose(); })}>
       <SheetContent 
         side="bottom" 
         hideCloseButton

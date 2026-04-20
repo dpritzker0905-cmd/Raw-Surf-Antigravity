@@ -86,7 +86,7 @@ export function useWebRTCCall(userId, userInfo = {}) {
       wsRef.current = ws;
 
       ws.onopen = () => {
-        console.debug('[WebRTC] Signaling WS connected');
+        console.log('[WebRTC] ✅ Signaling WS connected to:', wsUrl);
         // Reset reconnect backoff on success
         reconnectAttemptsRef.current = 0;
         // Flush any pending ICE candidates
@@ -96,13 +96,13 @@ export function useWebRTCCall(userId, userInfo = {}) {
           });
           pendingCandidatesRef.current = [];
         }
-        // Start keepalive ping every 25s (Render.com drops idle WS at ~60s)
+        // Start keepalive ping every 20s (Render.com drops idle WS at ~60s)
         if (keepaliveRef.current) clearInterval(keepaliveRef.current);
         keepaliveRef.current = setInterval(() => {
           if (ws.readyState === WebSocket.OPEN) {
             ws.send('ping');
           }
-        }, 25000);
+        }, 20000);
       };
 
       ws.onmessage = (event) => {
