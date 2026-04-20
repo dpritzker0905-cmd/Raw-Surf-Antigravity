@@ -63,6 +63,10 @@ export function useWebRTCCall(userId, userInfo = {}) {
   // Track call state in ref to avoid stale closures in WS handlers
   const callStateRef = useRef(callState);
   useEffect(() => { callStateRef.current = callState; }, [callState]);
+  
+  // Track remoteUserInfo in ref to avoid stale closures in ICE candidate handler
+  const remoteUserInfoRef = useRef(remoteUserInfo);
+  useEffect(() => { remoteUserInfoRef.current = remoteUserInfo; }, [remoteUserInfo]);
 
   // ── WebSocket Connection ──────────────────────────────────────────
   const connectSignaling = useCallback(() => {
@@ -234,13 +238,13 @@ export function useWebRTCCall(userId, userInfo = {}) {
   const createPeerConnection = useCallback((isVideo = false) => {
     const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
 
-    // Handle ICE candidates
+    // Handle ICE candidates — use ref to avoid stale closure
     pc.onicecandidate = (event) => {
       if (event.candidate) {
         sendSignaling({
           type: 'ice_candidate',
           candidate: event.candidate,
-          target_user_id: remoteUserInfo?.id,
+          target_user_id: remoteUserInfoRef.current?.id,
         });
       }
     };
@@ -280,7 +284,7 @@ export function useWebRTCCall(userId, userInfo = {}) {
     };
 
     return pc;
-  }, [remoteUserInfo]);
+  }, []); // remoteUserInfo accessed via ref, sendSignaling via ref
 
   // ── Send Signaling Message ────────────────────────────────────────
   const sendSignaling = useCallback((message) => {

@@ -40,6 +40,7 @@ export default function InCallView({
 }) {
   const localVideoRef = useRef(null);
   const remoteVideoRef = useRef(null);
+  const remoteAudioRef = useRef(null);
   const [isPipExpanded, setIsPipExpanded] = useState(false);
 
   // Attach local stream to video element
@@ -56,8 +57,19 @@ export default function InCallView({
     }
   }, [remoteStream]);
 
+  // CRITICAL: Always attach remote stream to a hidden <audio> element
+  // For audio calls, the <video> element doesn't render, so audio would be silent
+  useEffect(() => {
+    if (remoteAudioRef.current && remoteStream) {
+      remoteAudioRef.current.srcObject = remoteStream;
+      remoteAudioRef.current.play().catch(e => console.debug('[InCallView] Audio autoplay blocked:', e));
+    }
+  }, [remoteStream]);
+
   return (
     <div className="fixed inset-0 z-[9998] flex flex-col bg-black">
+      {/* Hidden audio element to play remote stream audio — critical for audio calls */}
+      <audio ref={remoteAudioRef} autoPlay playsInline />
       {/* Remote Video / Audio Avatar */}
       <div className="flex-1 relative overflow-hidden">
         {callType === 'video' && remoteStream ? (

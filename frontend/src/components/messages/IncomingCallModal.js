@@ -14,6 +14,7 @@ export default function IncomingCallModal({
   onDecline 
 }) {
   const ringIntervalRef = useRef(null);
+  const audioContextRef = useRef(null);
   
   // Auto-decline after 30 seconds
   useEffect(() => {
@@ -23,9 +24,56 @@ export default function IncomingCallModal({
     return () => clearTimeout(timeout);
   }, [onDecline]);
 
-  // Pulse ring animation via CSS class
+  // Play ringtone sound using Web Audio API
   useEffect(() => {
-    return () => clearInterval(ringIntervalRef.current);
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      audioContextRef.current = ctx;
+      
+      const playRing = () => {
+        if (ctx.state === 'closed') return;
+        // Two-tone ring: 440Hz then 480Hz
+        const osc1 = ctx.createOscillator();
+        const osc2 = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc1.frequency.value = 440;
+        osc2.frequency.value = 480;
+        gain.gain.value = 0.15;
+        osc1.connect(gain);
+        osc2.connect(gain);
+        gain.connect(ctx.destination);
+        osc1.start(ctx.currentTime);
+        osc2.start(ctx.currentTime);
+        osc1.stop(ctx.currentTime + 0.4);
+        osc2.stop(ctx.currentTime + 0.4);
+        // Second ring after brief pause
+        const osc3 = ctx.createOscillator();
+        const osc4 = ctx.createOscillator();
+        const gain2 = ctx.createGain();
+        osc3.frequency.value = 440;
+        osc4.frequency.value = 480;
+        gain2.gain.value = 0.15;
+        osc3.connect(gain2);
+        osc4.connect(gain2);
+        gain2.connect(ctx.destination);
+        osc3.start(ctx.currentTime + 0.5);
+        osc4.start(ctx.currentTime + 0.5);
+        osc3.stop(ctx.currentTime + 0.9);
+        osc4.stop(ctx.currentTime + 0.9);
+      };
+      
+      playRing(); // Play immediately
+      ringIntervalRef.current = setInterval(playRing, 2500); // Ring every 2.5s
+    } catch (e) {
+      console.debug('[IncomingCall] Audio ring failed:', e);
+    }
+    
+    return () => {
+      clearInterval(ringIntervalRef.current);
+      if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
+        audioContextRef.current.close().catch(() => {});
+      }
+    };
   }, []);
 
   return (

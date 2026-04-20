@@ -21,6 +21,7 @@ import VoiceRecorder from './VoiceRecorder';
 import WebcamCaptureModal from './WebcamCaptureModal';
 import { supabase } from '../lib/supabase';
 import logger from '../utils/logger';
+import { getFullUrl } from '../utils/media';
 import GifPicker from './messages/GifPicker';
 import EmojiPicker from './messages/EmojiPicker';
 import EphemeralCountdown from './messages/EphemeralCountdown';
@@ -383,8 +384,9 @@ const ViewNoteModal = ({ isOpen, onClose, note, currentUserId, onReply }) => {
   
   if (!isOpen || !note) return null;
   
-  const avatarWithCacheBust = note.user_avatar 
-    ? `${note.user_avatar}${note.user_avatar.includes('?') ? '&' : '?'}t=${Date.now()}`
+  const resolvedNoteAvatar = note.user_avatar ? getFullUrl(note.user_avatar) : null;
+  const avatarWithCacheBust = resolvedNoteAvatar 
+    ? `${resolvedNoteAvatar}${resolvedNoteAvatar.includes('?') ? '&' : '?'}t=${Date.now()}`
     : null;
   
   return (
@@ -801,10 +803,10 @@ export const MessagesPage = () => {
       
       // CRITICAL: Fetch fresh profile data to get current avatar_url
       // The user context may have stale data from login
-      let freshAvatarUrl = user?.avatar_url;
+      let freshAvatarUrl = user?.avatar_url ? getFullUrl(user.avatar_url) : null;
       try {
         const profileResp = await apiClient.get(`/profiles/${user.id}`);
-        freshAvatarUrl = profileResp.data.avatar_url;
+        freshAvatarUrl = profileResp.data.avatar_url ? getFullUrl(profileResp.data.avatar_url) : null;
       } catch (e) {
         logger.debug('Could not fetch fresh profile, using context avatar');
       }
@@ -836,8 +838,9 @@ export const MessagesPage = () => {
       
       // Add notes from followed users
       for (const note of (feed || [])) {
-        const noteAvatar = note.user_avatar 
-          ? `${note.user_avatar}${note.user_avatar.includes('?') ? '&' : '?'}t=${Date.now()}`
+        const resolvedNoteAvatar = note.user_avatar ? getFullUrl(note.user_avatar) : null;
+        const noteAvatar = resolvedNoteAvatar 
+          ? `${resolvedNoteAvatar}${resolvedNoteAvatar.includes('?') ? '&' : '?'}t=${Date.now()}`
           : null;
         
         storiesArray.push({
@@ -857,10 +860,10 @@ export const MessagesPage = () => {
     } catch (error) {
       logger.error('Failed to fetch notes:', error);
       // Fallback to basic own note bubble - try to fetch fresh avatar
-      let fallbackAvatar = user?.avatar_url;
+      let fallbackAvatar = user?.avatar_url ? getFullUrl(user.avatar_url) : null;
       try {
         const profileResp = await apiClient.get(`/profiles/${user.id}`);
-        fallbackAvatar = profileResp.data.avatar_url;
+        fallbackAvatar = profileResp.data.avatar_url ? getFullUrl(profileResp.data.avatar_url) : null;
       } catch (e) { /* fallback avatar fetch failed - use cached value */ }
       
       const avatarWithCacheBust = fallbackAvatar 
@@ -1532,7 +1535,8 @@ export const MessagesPage = () => {
   // Render chat view
   const renderChatView = () => {
     // Cache-bust avatar URL to prevent stale images
-    const chatAvatarUrl = conversationDetail?.other_user_avatar || selectedConversation?.other_user_avatar;
+    const rawChatAvatarUrl = conversationDetail?.other_user_avatar || selectedConversation?.other_user_avatar;
+    const chatAvatarUrl = rawChatAvatarUrl ? getFullUrl(rawChatAvatarUrl) : null;
     const chatAvatarWithCacheBust = chatAvatarUrl
       ? `${chatAvatarUrl}${chatAvatarUrl.includes('?') ? '&' : '?'}t=${conversationDetail?.last_message_at || Date.now()}`
       : null;

@@ -3,7 +3,7 @@
  * Displays "Calling..." with the target's info and a Cancel button.
  */
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { PhoneOff, Phone, Video } from 'lucide-react';
 
 export default function OutgoingCallModal({ 
@@ -13,6 +13,8 @@ export default function OutgoingCallModal({
   onCancel,
 }) {
   const [dots, setDots] = useState('');
+  const ringIntervalRef = useRef(null);
+  const audioContextRef = useRef(null);
 
   // Animated "Calling..." dots
   useEffect(() => {
@@ -29,6 +31,38 @@ export default function OutgoingCallModal({
     }, 30000);
     return () => clearTimeout(timeout);
   }, [onCancel]);
+
+  // Play ringback tone
+  useEffect(() => {
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      audioContextRef.current = ctx;
+      
+      const playRingback = () => {
+        if (ctx.state === 'closed') return;
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.frequency.value = 425; // Standard ringback tone
+        gain.gain.value = 0.08; // Softer than incoming
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(ctx.currentTime);
+        osc.stop(ctx.currentTime + 1.0); // 1 second on
+      };
+      
+      playRingback();
+      ringIntervalRef.current = setInterval(playRingback, 3000); // 1s on, 2s off
+    } catch (e) {
+      console.debug('[OutgoingCall] Audio ringback failed:', e);
+    }
+    
+    return () => {
+      clearInterval(ringIntervalRef.current);
+      if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
+        audioContextRef.current.close().catch(() => {});
+      }
+    };
+  }, []);
 
   return (
     <div className="fixed inset-0 z-[9999] flex flex-col items-center justify-center"
