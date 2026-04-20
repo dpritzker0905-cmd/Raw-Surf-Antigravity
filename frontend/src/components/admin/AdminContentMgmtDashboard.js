@@ -85,20 +85,20 @@ export const AdminContentMgmtDashboard = () => {
     setLoading(true);
     try {
       if (activeTab === 'featured') {
-        const response = await apiClient.get(`/admin/content/featured?admin_id=${user.id}`);
+        const response = await apiClient.get(`/admin/content/featured`);
         setFeaturedContent(response.data.items || []);
       } else if (activeTab === 'banners') {
-        const response = await apiClient.get(`/admin/content/banners?admin_id=${user.id}`);
+        const response = await apiClient.get(`/admin/content/banners`);
         setBanners(response.data.banners || []);
       } else if (activeTab === 'seo') {
-        const response = await apiClient.get(`/admin/content/seo/spots?admin_id=${user.id}&limit=${SEO_PAGE_SIZE}&offset=${seoPage * SEO_PAGE_SIZE}${seoSearch ? `&search=${encodeURIComponent(seoSearch)}` : ''}`);
+        const response = await apiClient.get(`/admin/content/seo/spots?limit=${SEO_PAGE_SIZE}&offset=${seoPage * SEO_PAGE_SIZE}${seoSearch ? `&search=${encodeURIComponent(seoSearch)}` : ''}`);
         setSeoSpots(response.data.spots || []);
         setSeoTotal(response.data.total || 0);
       } else if (activeTab === 'api-keys') {
-        const response = await apiClient.get(`/admin/tools/api-keys?admin_id=${user.id}`);
+        const response = await apiClient.get(`/admin/tools/api-keys`);
         setApiKeys(response.data.api_keys || []);
       } else if (activeTab === 'changelog') {
-        const response = await apiClient.get(`/admin/tools/changelog?admin_id=${user.id}`);
+        const response = await apiClient.get(`/admin/tools/changelog`);
         setChangelog(response.data.entries || []);
       }
     } catch (error) {
@@ -116,7 +116,7 @@ export const AdminContentMgmtDashboard = () => {
     }
     setActionLoading(true);
     try {
-      await apiClient.post(`/admin/content/featured?admin_id=${user.id}`, featuredForm);
+      await apiClient.post(`/admin/content/featured`, featuredForm);
       toast.success('Featured content added');
       setShowFeaturedForm(false);
       setFeaturedForm({ content_type: 'post', content_id: '', display_position: 'homepage', priority: 1 });
@@ -136,7 +136,7 @@ export const AdminContentMgmtDashboard = () => {
     }
     setActionLoading(true);
     try {
-      await apiClient.post(`/admin/content/banners?admin_id=${user.id}`, bannerForm);
+      await apiClient.post(`/admin/content/banners`, bannerForm);
       toast.success('Banner created');
       setShowBannerForm(false);
       setBannerForm({ title: '', image_url: '', link_url: '', position: 'top', target_audience: 'all' });
@@ -150,7 +150,7 @@ export const AdminContentMgmtDashboard = () => {
 
   const handleToggleBanner = async (bannerId) => {
     try {
-      await apiClient.put(`/admin/content/banners/${bannerId}/toggle?admin_id=${user.id}`);
+      await apiClient.put(`/admin/content/banners/${bannerId}/toggle`);
       fetchDataForTab();
     } catch (error) {
       toast.error('Failed to toggle banner');
@@ -162,7 +162,7 @@ export const AdminContentMgmtDashboard = () => {
     if (!selectedSeoSpot) return;
     setActionLoading(true);
     try {
-      await apiClient.put(`/admin/content/seo/spots/${selectedSeoSpot.id}?admin_id=${user.id}`, seoForm);
+      await apiClient.put(`/admin/content/seo/spots/${selectedSeoSpot.id}`, seoForm);
       toast.success('SEO updated');
       setSelectedSeoSpot(null);
       fetchDataForTab();
@@ -181,7 +181,7 @@ export const AdminContentMgmtDashboard = () => {
     }
     setActionLoading(true);
     try {
-      const response = await apiClient.post(`/admin/tools/api-keys?admin_id=${user.id}`, apiKeyForm);
+      const response = await apiClient.post(`/admin/tools/api-keys`, apiKeyForm);
       toast.success('API key created');
       // Show the key once
       navigator.clipboard.writeText(response.data.key);
@@ -204,7 +204,7 @@ export const AdminContentMgmtDashboard = () => {
     }
     setActionLoading(true);
     try {
-      await apiClient.post(`/admin/tools/changelog?admin_id=${user.id}`, changelogForm);
+      await apiClient.post(`/admin/tools/changelog`, changelogForm);
       toast.success('Changelog entry created');
       setShowChangelogForm(false);
       setChangelogForm({ version: '', title: '', description: '', change_type: 'feature' });
@@ -218,7 +218,7 @@ export const AdminContentMgmtDashboard = () => {
 
   const handlePublishChangelog = async (entryId) => {
     try {
-      await apiClient.put(`/admin/tools/changelog/${entryId}/publish?admin_id=${user.id}`);
+      await apiClient.put(`/admin/tools/changelog/${entryId}/publish`);
       toast.success('Published');
       fetchDataForTab();
     } catch (error) {

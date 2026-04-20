@@ -12,6 +12,7 @@ from typing import Optional, List
 from datetime import datetime, timezone, timedelta
 
 from database import get_db
+from deps.admin_auth import get_current_admin
 from models import (
     Profile, ContentModerationItem, ContentModerationStatusEnum,
     GalleryItem, Post
@@ -33,7 +34,7 @@ class BulkModerateRequest(BaseModel):
 
 @router.get("/admin/content-moderation/queue")
 async def get_moderation_queue(
-    admin_id: str,
+    admin: Profile = Depends(get_current_admin),
     status: Optional[str] = "pending",
     content_type: Optional[str] = None,
     ai_flagged: Optional[bool] = None,
@@ -42,7 +43,6 @@ async def get_moderation_queue(
     db: AsyncSession = Depends(get_db)
 ):
     """Get content moderation queue with filters"""
-    await require_admin(admin_id, db)
     
     query = select(ContentModerationItem).order_by(
         desc(ContentModerationItem.ai_flagged),
@@ -98,12 +98,11 @@ async def get_moderation_queue(
 @router.post("/admin/content-moderation/{item_id}/moderate")
 async def moderate_content(
     item_id: str,
-    admin_id: str,
+    admin: Profile = Depends(get_current_admin),
     request: ModerateContentRequest,
     db: AsyncSession = Depends(get_db)
 ):
     """Approve, reject, or escalate a content item"""
-    await require_admin(admin_id, db)
     
     result = await db.execute(select(ContentModerationItem).where(ContentModerationItem.id == item_id))
     item = result.scalar_one_or_none()
@@ -126,7 +125,7 @@ async def moderate_content(
         .where(ContentModerationItem.id == item_id)
         .values(
             status=new_status,
-            reviewed_by=admin_id,
+            reviewed_by=admin.id,
             reviewed_at=datetime.now(timezone.utc),
             rejection_reason=request.rejection_reason if request.action == "reject" else None
         )
@@ -155,12 +154,11 @@ async def moderate_content(
 
 @router.post("/admin/content-moderation/bulk-moderate")
 async def bulk_moderate_content(
-    admin_id: str,
+    admin: Profile = Depends(get_current_admin),
     request: BulkModerateRequest,
     db: AsyncSession = Depends(get_db)
 ):
     """Bulk approve or reject multiple content items"""
-    await require_admin(admin_id, db)
     
     if request.action not in ["approve", "reject"]:
         raise HTTPException(status_code=400, detail="Bulk action must be 'approve' or 'reject'")
@@ -177,7 +175,7 @@ async def bulk_moderate_content(
         .where(ContentModerationItem.id.in_(request.item_ids))
         .values(
             status=new_status,
-            reviewed_by=admin_id,
+            reviewed_by=admin.id,
             reviewed_at=datetime.now(timezone.utc),
             rejection_reason=request.rejection_reason if request.action == "reject" else None
         )
@@ -203,12 +201,11 @@ async def bulk_moderate_content(
 
 @router.get("/admin/content-moderation/stats")
 async def get_moderation_stats(
-    admin_id: str,
+    admin: Profile = Depends(get_current_admin),
     days: int = 30,
     db: AsyncSession = Depends(get_db)
 ):
     """Get content moderation statistics"""
-    await require_admin(admin_id, db)
     
     start_date = datetime.now(timezone.utc) - timedelta(days=days)
     

@@ -13,6 +13,7 @@ from dateutil.relativedelta import relativedelta
 import hashlib
 
 from database import get_db
+from deps.admin_auth import get_current_admin
 from models import (
     Profile, PromoCode, PromoCodeRedemption, FeatureFlag, NotificationCampaign,
     CohortAnalysis, PaymentTransaction, CreditTransaction, Booking, RoleEnum, AuditLog
@@ -26,7 +27,7 @@ router = APIRouter()
 
 @router.get("/admin/revenue/overview")
 async def get_revenue_overview(
-    admin_id: str,
+    admin: Profile = Depends(get_current_admin),
     days: int = 30,
     db: AsyncSession = Depends(get_db)
 ):
@@ -34,7 +35,6 @@ async def get_revenue_overview(
     Comprehensive revenue overview - GMV, Take Rate, MRR
     Delta sync: Adds to existing financial analytics
     """
-    await require_admin(admin_id, db)
     
     start_date = datetime.now(timezone.utc) - timedelta(days=days)
     prev_start = start_date - timedelta(days=days)
@@ -129,7 +129,7 @@ async def get_revenue_overview(
 
 @router.get("/admin/revenue/cohort")
 async def get_cohort_analysis(
-    admin_id: str,
+    admin: Profile = Depends(get_current_admin),
     months: int = 6,
     cohort_type: str = "signup",
     db: AsyncSession = Depends(get_db)
@@ -138,7 +138,6 @@ async def get_cohort_analysis(
     Cohort retention and revenue analysis
     Shows user retention and LTV by signup month
     """
-    await require_admin(admin_id, db)
     
     # Generate cohort data for the last N months
     cohorts = []
@@ -225,13 +224,12 @@ class CreatePromoCodeRequest(BaseModel):
 
 @router.get("/admin/promo-codes")
 async def get_promo_codes(
-    admin_id: str,
+    admin: Profile = Depends(get_current_admin),
     is_active: Optional[bool] = None,
     limit: int = 50,
     db: AsyncSession = Depends(get_db)
 ):
     """Get all promo codes with usage stats"""
-    await require_admin(admin_id, db)
     
     query = select(PromoCode)
     if is_active is not None:
@@ -267,11 +265,10 @@ async def get_promo_codes(
 @router.post("/admin/promo-codes")
 async def create_promo_code(
     data: CreatePromoCodeRequest,
-    admin_id: str,
+    admin: Profile = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db)
 ):
     """Create a new promo code"""
-    admin = await require_admin(admin_id, db)
     
     # Check for duplicate code
     existing = await db.execute(
@@ -312,11 +309,10 @@ async def create_promo_code(
 @router.put("/admin/promo-codes/{code_id}/toggle")
 async def toggle_promo_code(
     code_id: str,
-    admin_id: str,
+    admin: Profile = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db)
 ):
     """Activate/deactivate a promo code"""
-    await require_admin(admin_id, db)
     
     result = await db.execute(select(PromoCode).where(PromoCode.id == code_id))
     promo = result.scalar_one_or_none()
@@ -421,12 +417,11 @@ class CreateFeatureFlagRequest(BaseModel):
 
 @router.get("/admin/feature-flags")
 async def get_feature_flags(
-    admin_id: str,
+    admin: Profile = Depends(get_current_admin),
     category: Optional[str] = None,
     db: AsyncSession = Depends(get_db)
 ):
     """Get all feature flags"""
-    await require_admin(admin_id, db)
     
     query = select(FeatureFlag)
     if category:
@@ -457,11 +452,10 @@ async def get_feature_flags(
 @router.post("/admin/feature-flags")
 async def create_feature_flag(
     data: CreateFeatureFlagRequest,
-    admin_id: str,
+    admin: Profile = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db)
 ):
     """Create a new feature flag"""
-    admin = await require_admin(admin_id, db)
     
     # Check for duplicate key
     existing = await db.execute(
@@ -498,14 +492,13 @@ async def create_feature_flag(
 @router.put("/admin/feature-flags/{flag_id}")
 async def update_feature_flag(
     flag_id: str,
-    admin_id: str,
+    admin: Profile = Depends(get_current_admin),
     is_enabled: Optional[bool] = None,
     rollout_percentage: Optional[int] = None,
     kill_switch: Optional[bool] = None,
     db: AsyncSession = Depends(get_db)
 ):
     """Update a feature flag"""
-    await require_admin(admin_id, db)
     
     result = await db.execute(select(FeatureFlag).where(FeatureFlag.id == flag_id))
     flag = result.scalar_one_or_none()
@@ -612,13 +605,12 @@ class CreateCampaignRequest(BaseModel):
 
 @router.get("/admin/notification-campaigns")
 async def get_notification_campaigns(
-    admin_id: str,
+    admin: Profile = Depends(get_current_admin),
     status: Optional[str] = None,
     limit: int = 50,
     db: AsyncSession = Depends(get_db)
 ):
     """Get all notification campaigns"""
-    await require_admin(admin_id, db)
     
     query = select(NotificationCampaign)
     if status:
@@ -657,11 +649,10 @@ async def get_notification_campaigns(
 @router.post("/admin/notification-campaigns")
 async def create_notification_campaign(
     data: CreateCampaignRequest,
-    admin_id: str,
+    admin: Profile = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db)
 ):
     """Create a new notification campaign"""
-    admin = await require_admin(admin_id, db)
     
     campaign = NotificationCampaign(
         name=data.name,
@@ -704,11 +695,10 @@ async def create_notification_campaign(
 @router.post("/admin/notification-campaigns/{campaign_id}/send")
 async def send_notification_campaign(
     campaign_id: str,
-    admin_id: str,
+    admin: Profile = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db)
 ):
     """Send a notification campaign immediately"""
-    await require_admin(admin_id, db)
     
     result = await db.execute(
         select(NotificationCampaign).where(NotificationCampaign.id == campaign_id)
@@ -746,11 +736,10 @@ async def send_notification_campaign(
 @router.put("/admin/notification-campaigns/{campaign_id}/cancel")
 async def cancel_notification_campaign(
     campaign_id: str,
-    admin_id: str,
+    admin: Profile = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db)
 ):
     """Cancel a scheduled notification campaign"""
-    await require_admin(admin_id, db)
     
     result = await db.execute(
         select(NotificationCampaign).where(NotificationCampaign.id == campaign_id)
@@ -774,7 +763,7 @@ async def cancel_notification_campaign(
 
 @router.get("/admin/funnel/detailed")
 async def get_detailed_funnel(
-    admin_id: str,
+    admin: Profile = Depends(get_current_admin),
     days: int = 30,
     db: AsyncSession = Depends(get_db)
 ):
@@ -782,7 +771,6 @@ async def get_detailed_funnel(
     Detailed booking funnel with drop-off analysis
     Delta sync: Enhances existing funnel endpoint
     """
-    await require_admin(admin_id, db)
     
     start_date = datetime.now(timezone.utc) - timedelta(days=days)
     

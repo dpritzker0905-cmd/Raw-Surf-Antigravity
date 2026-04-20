@@ -152,9 +152,21 @@ def add_watermark(image_path: str, output_path: str, text: str = "RAW SURF OS") 
         font_size = max(20, min(img.width, img.height) // 25)
         
         try:
-            font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", font_size)
-        except Exception:
-            font = ImageFont.load_default()
+            # Try common font paths (Linux, macOS, Windows, bundled)
+            font_paths = [
+                "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+                "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",
+                "/System/Library/Fonts/Helvetica.ttc",
+                "C:/Windows/Fonts/arial.ttf",
+                os.path.join(os.path.dirname(__file__), "..", "assets", "DejaVuSans-Bold.ttf"),
+            ]
+            font = None
+            for fp in font_paths:
+                if os.path.exists(fp):
+                    font = ImageFont.truetype(fp, font_size)
+                    break
+            if font is None:
+                font = ImageFont.load_default()
         
         # Get text bounding box
         bbox = draw.textbbox((0, 0), text, font=font)
@@ -1203,9 +1215,20 @@ async def upload_session_photo(
             watermark_text = "RAW SURF OS"
             
             try:
-                font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 48)
-            except Exception:
-                font = ImageFont.load_default()
+                font_paths = [
+                    "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+                    "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",
+                    "/System/Library/Fonts/Helvetica.ttc",
+                    "C:/Windows/Fonts/arial.ttf",
+                    os.path.join(os.path.dirname(__file__), "..", "assets", "DejaVuSans-Bold.ttf"),
+                ]
+                font = None
+                for fp in font_paths:
+                    if os.path.exists(fp):
+                        font = ImageFont.truetype(fp, 48)
+                        break
+                if font is None:
+                    font = ImageFont.load_default()
             
             # Calculate position (center)
             bbox = draw.textbbox((0, 0), watermark_text, font=font)

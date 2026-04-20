@@ -187,7 +187,7 @@ export const AdminP1Dashboard = () => {
   const fetchImpersonationHistory = async () => {
     setLoading(true);
     try {
-      const response = await apiClient.get(`/admin/impersonate/history?admin_id=${user.id}`);
+      const response = await apiClient.get(`/admin/impersonate/history`);
       setImpersonationHistory(response.data || []);
     } catch (error) {
       toast.error('Failed to load impersonation history');
@@ -217,7 +217,7 @@ export const AdminP1Dashboard = () => {
   const fetchComplianceData = async () => {
     setLoading(true);
     try {
-      const response = await apiClient.get(`/compliance/dashboard?admin_id=${user.id}`);
+      const response = await apiClient.get(`/compliance/dashboard`);
       setComplianceStats(response.data.stats);
       setRecentViolations(response.data.recent_violations || []);
       setLocationFraudMapData(response.data.location_fraud_map_data || []);
@@ -237,7 +237,7 @@ export const AdminP1Dashboard = () => {
   const handleReviewAppeal = async (violationId, approved) => {
     setActionLoading(true);
     try {
-      await apiClient.put(`/compliance/violations/${violationId}/appeal/review?admin_id=${user.id}`, {
+      await apiClient.put(`/compliance/violations/${violationId}/appeal/review`, {
         approved,
         notes: appealNotes
       });
@@ -261,7 +261,7 @@ export const AdminP1Dashboard = () => {
     setBulkProcessing(true);
     try {
       const response = await apiClient.post(
-        `/compliance/violations/bulk-review-appeals?admin_id=${user.id}`,
+        `/compliance/violations/bulk-review-appeals`,
         {
           violation_ids: Array.from(selectedAppeals),
           approved,
@@ -304,7 +304,7 @@ export const AdminP1Dashboard = () => {
   const fetchTestAccounts = async () => {
     setLoading(true);
     try {
-      const response = await apiClient.get(`/admin/test-accounts?admin_id=${user.id}`);
+      const response = await apiClient.get(`/admin/test-accounts`);
       setTestAccounts(response.data.accounts || []);
     } catch (error) {
       toast.error('Failed to load test accounts');
@@ -316,7 +316,7 @@ export const AdminP1Dashboard = () => {
   const seedAllRoleAccounts = async () => {
     setSeedingAccounts(true);
     try {
-      const response = await apiClient.post(`/admin/seed-test-accounts?admin_id=${user.id}`, {
+      const response = await apiClient.post(`/admin/seed-test-accounts`, {
         seed_all_roles: true,
         password: testAccountPassword
       });
@@ -332,7 +332,7 @@ export const AdminP1Dashboard = () => {
   const cleanupOldTestAccounts = async () => {
     setActionLoading(true);
     try {
-      const response = await apiClient.delete(`/admin/test-accounts/cleanup?admin_id=${user.id}&older_than_days=7`);
+      const response = await apiClient.delete(`/admin/test-accounts/cleanup?older_than_days=7`);
       toast.success(response.data.message);
       fetchTestAccounts();
     } catch (error) {
@@ -354,7 +354,7 @@ export const AdminP1Dashboard = () => {
       return;
     }
     try {
-      const response = await apiClient.get(`/admin/users/search?admin_id=${user.id}&q=${query}&limit=10`);
+      const response = await apiClient.get(`/admin/users/search?q=${query}&limit=10`);
       setSearchResults(response.data.users || []);
     } catch (error) {
       logger.error('Search failed:', error);
@@ -368,7 +368,7 @@ export const AdminP1Dashboard = () => {
     }
     setActionLoading(true);
     try {
-      await apiClient.put(`/admin/verification/${requestId}/review?admin_id=${user.id}`, {
+      await apiClient.put(`/admin/verification/${requestId}/review`, {
         status: reviewStatus,
         admin_notes: adminNotes,
         rejection_reason: rejectionReason
@@ -389,7 +389,7 @@ export const AdminP1Dashboard = () => {
   const startImpersonation = async (targetUserId) => {
     setActionLoading(true);
     try {
-      const response = await apiClient.post(`/admin/impersonate/start?admin_id=${user.id}`, {
+      const response = await apiClient.post(`/admin/impersonate/start`, {
         target_user_id: targetUserId,
         reason: impersonationReason,
         is_read_only: true
@@ -433,7 +433,7 @@ export const AdminP1Dashboard = () => {
     }
     setActionLoading(true);
     try {
-      await apiClient.put(`/admin/fraud/alerts/${alertId}/resolve?admin_id=${user.id}`, {
+      await apiClient.put(`/admin/fraud/alerts/${alertId}/resolve`, {
         resolution_notes: resolutionNotes,
         action_taken: actionTaken
       });
@@ -453,8 +453,8 @@ export const AdminP1Dashboard = () => {
     setLoading(true);
     try {
       const [summaryRes, activitiesRes] = await Promise.all([
-        apiClient.get(`/admin/user-journey/${userId}/summary?admin_id=${user.id}`),
-        apiClient.get(`/admin/user-journey/${userId}?admin_id=${user.id}&limit=50`)
+        apiClient.get(`/admin/user-journey/${userId}/summary`),
+        apiClient.get(`/admin/user-journey/${userId}?limit=50`)
       ]);
       setJourneySummary(summaryRes.data);
       setJourneyUser(summaryRes.data.user);

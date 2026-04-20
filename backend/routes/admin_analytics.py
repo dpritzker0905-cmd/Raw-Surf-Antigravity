@@ -10,6 +10,7 @@ from pydantic import BaseModel
 from typing import Optional, List, Dict, Any
 from datetime import datetime, timezone, timedelta
 from database import get_db
+from deps.admin_auth import get_current_admin
 from models import (
     Profile, Booking, PaymentTransaction, CreditTransaction,
     SurfSpot, GalleryItem, Post, AdminLog, RoleEnum
@@ -19,32 +20,17 @@ import json
 router = APIRouter()
 
 
-async def require_admin(admin_id: str, db: AsyncSession) -> Profile:
-    """Verify the requester is an admin"""
-    result = await db.execute(
-        select(Profile).where(Profile.id == admin_id)
-    )
-    admin = result.scalar_one_or_none()
-    if not admin or not admin.is_admin:
-        raise HTTPException(status_code=403, detail="Admin access required")
-    return admin
-
-
 # ============ FINANCIAL OVERSIGHT ============
 
 @router.get("/admin/analytics/financial")
 async def get_financial_analytics(
-    admin_id: str,
     days: int = 30,
+    admin: Profile = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db)
 ):
     """
-    Financial Oversight Dashboard - Sitewide metrics
-    - Total Stoked Credits Liability
-    - Revenue by subscription tier
-    - Ad revenue tracking
+    Financial Oversight Dashboard - Sitewide metrics (JWT verified)
     """
-    await require_admin(admin_id, db)
     
     # 1. TOTAL STOKED CREDITS LIABILITY
     # Sum of all credits currently in user wallets
@@ -164,16 +150,12 @@ async def get_financial_analytics(
 
 @router.get("/admin/analytics/ecosystem")
 async def get_ecosystem_analytics(
-    admin_id: str,
+    admin: Profile = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db)
 ):
     """
-    Ecosystem Health Dashboard
-    - Role distribution ratios
-    - Booking efficiency (On-Demand vs Scheduled)
-    - Spot activity heatmap
+    Ecosystem Health Dashboard (JWT verified)
     """
-    await require_admin(admin_id, db)
     
     # 1. ROLE DISTRIBUTION with categorization
     role_counts = {}
@@ -290,15 +272,13 @@ async def get_ecosystem_analytics(
 
 @router.get("/admin/analytics/price-impact")
 async def get_price_impact_data(
-    admin_id: str,
     days: int = 90,
+    admin: Profile = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db)
 ):
     """
-    Price Impact Tracking - Correlate pricing changes with signup/churn
-    Returns pricing change markers with signup/churn data for visual overlay
+    Price Impact Tracking (JWT verified)
     """
-    await require_admin(admin_id, db)
     
     start_date = datetime.now(timezone.utc) - timedelta(days=days)
     
@@ -381,14 +361,13 @@ class AdApprovalAction(BaseModel):
 
 @router.get("/admin/ads/queue")
 async def get_ad_approval_queue(
-    admin_id: str,
     status: str = "pending",
+    admin: Profile = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db)
 ):
     """
-    Get ads pending approval from the Self-Serve Ad Engine
+    Get ads pending approval (JWT verified)
     """
-    await require_admin(admin_id, db)
     
     # For now, use the ad_config system - in production this would be a separate table
     from routes.ad_controls import get_ad_config
@@ -420,14 +399,13 @@ async def get_ad_approval_queue(
 @router.post("/admin/ads/queue/{variant_id}/action")
 async def process_ad_approval(
     variant_id: str,
-    admin_id: str,
     data: AdApprovalAction,
+    admin: Profile = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db)
 ):
     """
-    Approve, Reject, or Edit a user-submitted ad creative
+    Approve, Reject, or Edit a user-submitted ad creative (JWT verified)
     """
-    await require_admin(admin_id, db)
     
     from routes.ad_controls import get_ad_config, save_ad_config
     
@@ -449,14 +427,14 @@ async def process_ad_approval(
     if data.action == "approve":
         variant["approval_status"] = "approved"
         variant["is_active"] = True
-        variant["approved_by"] = admin_id
+        variant["approved_by"] = admin.id
         variant["approved_at"] = datetime.now(timezone.utc).isoformat()
         message = "Ad approved and activated"
         
     elif data.action == "reject":
         variant["approval_status"] = "rejected"
         variant["is_active"] = False
-        variant["rejected_by"] = admin_id
+        variant["rejected_by"] = admin.id
         variant["rejected_at"] = datetime.now(timezone.utc).isoformat()
         variant["rejection_reason"] = data.reason
         message = "Ad rejected"
@@ -466,7 +444,7 @@ async def process_ad_approval(
             for key, value in data.edited_content.items():
                 if key in ["headline", "body", "cta", "image_url", "type"]:
                     variant[key] = value
-        variant["edited_by"] = admin_id
+        variant["edited_by"] = admin.id
         variant["edited_at"] = datetime.now(timezone.utc).isoformat()
         message = "Ad content updated"
         
@@ -476,11 +454,11 @@ async def process_ad_approval(
     variants[variant_index] = variant
     config["variants"] = variants
     
-    await save_ad_config(config, admin_id, db)
+    await save_ad_config(config, admin.id, db)
     
     # Log the action
     log = AdminLog(
-        admin_id=admin_id,
+        admin_id=admin.id,
         action=f"ad_{data.action}",
         target_type="ad_variant",
         target_id=variant_id,
@@ -503,14 +481,13 @@ async def process_ad_approval(
 
 @router.get("/admin/analytics/cached-metrics")
 async def get_cached_platform_metrics(
-    admin_id: str,
+    admin: Profile = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db)
 ):
     """
-    Get pre-aggregated platform metrics from the platform_metrics cache table.
+    Get pre-aggregated platform metrics (JWT verified).
     Falls back to live calculation if cache is stale (>6 hours).
     """
-    await require_admin(admin_id, db)
     
     # Check if platform_metrics table exists and has recent data
     try:
@@ -539,8 +516,8 @@ async def get_cached_platform_metrics(
         pass
     
     # Fall back to live calculation
-    financial = await get_financial_analytics(admin_id, 30, db)
-    ecosystem = await get_ecosystem_analytics(admin_id, db)
+    financial = await get_financial_analytics(30, admin, db)
+    ecosystem = await get_ecosystem_analytics(admin, db)
     
     return {
         "source": "live",
@@ -554,18 +531,16 @@ async def get_cached_platform_metrics(
 
 @router.post("/admin/analytics/refresh-cache")
 async def refresh_platform_metrics_cache(
-    admin_id: str,
+    admin: Profile = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db)
 ):
     """
-    Manually trigger a refresh of the platform metrics cache.
-    Normally runs every 6 hours via scheduler.
+    Manually trigger a refresh of the platform metrics cache (JWT verified).
     """
-    await require_admin(admin_id, db)
     
     # Compute fresh metrics
-    financial = await get_financial_analytics(admin_id, 30, db)
-    ecosystem = await get_ecosystem_analytics(admin_id, db)
+    financial = await get_financial_analytics(30, admin, db)
+    ecosystem = await get_ecosystem_analytics(admin, db)
     
     try:
         from models import PlatformMetrics
@@ -717,17 +692,11 @@ class UpdatePlatformSettingsRequest(BaseModel):
 @router.put("/admin/platform-settings")
 async def update_platform_settings(
     data: UpdatePlatformSettingsRequest,
-    admin_id: str = Query(...),
+    admin: Profile = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db)
 ):
-    """Update platform settings (admin only)"""
+    """Update platform settings (admin only — JWT verified)"""
     from models import PlatformSettings
-    
-    # Verify admin using is_admin boolean
-    admin = await db.execute(select(Profile).where(Profile.id == admin_id))
-    admin = admin.scalar_one_or_none()
-    if not admin or not admin.is_admin:
-        raise HTTPException(status_code=403, detail="Admin access required")
     
     try:
         result = await db.execute(select(PlatformSettings).limit(1))
@@ -761,7 +730,7 @@ async def update_platform_settings(
         if data.live_nearby_radius_miles is not None:
             settings.live_nearby_radius_miles = data.live_nearby_radius_miles
         
-        settings.updated_by = admin_id
+        settings.updated_by = admin.id
         settings.updated_at = datetime.now(timezone.utc)
         
         await db.commit()

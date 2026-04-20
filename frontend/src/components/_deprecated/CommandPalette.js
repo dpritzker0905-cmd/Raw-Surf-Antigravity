@@ -54,7 +54,7 @@ export const CommandPalette = ({ isOpen, onClose }) => {
       if (query.length >= 2 && user?.is_admin) {
         setLoading(true);
         try {
-          const response = await apiClient.get(`/admin/search?admin_id=${user.id}&query=${encodeURIComponent(query)}&limit=10`);
+          const response = await apiClient.get(`/admin/search?query=${encodeURIComponent(query)}&limit=10`);
           setResults(response.data);
           setSelectedIndex(0);
         } catch (error) {

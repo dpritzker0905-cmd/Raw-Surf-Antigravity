@@ -53,7 +53,7 @@ export const AdminContentModDashboard = () => {
   const fetchQueue = async () => {
     setLoading(true);
     try {
-      let url = `/admin/content-moderation/queue?admin_id=${user.id}&status=${status}&limit=50`;
+      let url = `/admin/content-moderation/queue?status=${status}&limit=50`;
       if (contentType && contentType !== 'all') url += `&content_type=${contentType}`;
       const response = await apiClient.get(url);
       setItems(response.data.items || []);
@@ -66,7 +66,7 @@ export const AdminContentModDashboard = () => {
 
   const fetchStats = async () => {
     try {
-      const response = await apiClient.get(`/admin/content-moderation/stats?admin_id=${user.id}&days=30`);
+      const response = await apiClient.get(`/admin/content-moderation/stats?days=30`);
       setStats(response.data);
     } catch (error) {
       logger.error('Failed to load stats:', error);
@@ -76,7 +76,7 @@ export const AdminContentModDashboard = () => {
   const handleModerate = async (itemId, decision) => {
     setActionLoading(true);
     try {
-      await apiClient.post(`/admin/content-moderation/${itemId}/moderate?admin_id=${user.id}`, {
+      await apiClient.post(`/admin/content-moderation/${itemId}/moderate`, {
         decision,
         notes: moderationNote
       });
@@ -96,7 +96,7 @@ export const AdminContentModDashboard = () => {
     if (selectedItems.size === 0) return;
     setActionLoading(true);
     try {
-      await apiClient.post(`/admin/content-moderation/bulk-moderate?admin_id=${user.id}`, {
+      await apiClient.post(`/admin/content-moderation/bulk-moderate`, {
         item_ids: Array.from(selectedItems),
         decision
       });

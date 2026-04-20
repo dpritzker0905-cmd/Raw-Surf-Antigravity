@@ -11,6 +11,7 @@ from datetime import datetime, timezone, timedelta
 import json
 
 from database import get_db
+from deps.admin_auth import get_current_admin
 from models import (
     Profile, VerificationRequest, ImpersonationSession, FraudAlert, 
     UserActivityLog, AuditLog, RoleEnum
@@ -185,7 +186,7 @@ async def get_my_verification_requests(
 
 @router.get("/admin/verification/queue")
 async def get_verification_queue(
-    admin_id: str,
+    admin: Profile = Depends(get_current_admin),
     status: Optional[str] = None,
     verification_type: Optional[str] = None,
     limit: int = 50,
@@ -193,7 +194,6 @@ async def get_verification_queue(
     db: AsyncSession = Depends(get_db)
 ):
     """Get verification requests queue for admin review"""
-    await require_admin(admin_id, db)
     
     query = select(VerificationRequest).options(selectinload(VerificationRequest.user))
     
@@ -256,11 +256,10 @@ async def get_verification_queue(
 async def review_verification_request(
     request_id: str,
     data: ReviewVerificationRequest,
-    admin_id: str,
+    admin: Profile = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db)
 ):
     """Review and approve/reject a verification request"""
-    admin = await require_admin(admin_id, db)
     
     result = await db.execute(
         select(VerificationRequest)
@@ -343,11 +342,10 @@ class StartImpersonationRequest(BaseModel):
 @router.post("/admin/impersonate/start")
 async def start_impersonation(
     data: StartImpersonationRequest,
-    admin_id: str,
+    admin: Profile = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db)
 ):
     """Start an impersonation session to view app as another user"""
-    admin = await require_admin(admin_id, db)
     
     # Get target user
     result = await db.execute(
@@ -364,7 +362,7 @@ async def start_impersonation(
     
     # Create impersonation session
     session = ImpersonationSession(
-        admin_id=admin_id,
+        admin_id=admin.id,
         target_user_id=data.target_user_id,
         reason=data.reason,
         is_read_only=data.is_read_only,
@@ -404,11 +402,10 @@ async def start_impersonation(
 @router.post("/admin/impersonate/{session_id}/end")
 async def end_impersonation(
     session_id: str,
-    admin_id: str,
+    admin: Profile = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db)
 ):
     """End an impersonation session"""
-    admin = await require_admin(admin_id, db)
     
     result = await db.execute(
         select(ImpersonationSession)
@@ -440,13 +437,12 @@ async def end_impersonation(
 
 @router.get("/admin/impersonate/history")
 async def get_impersonation_history(
-    admin_id: str,
+    admin: Profile = Depends(get_current_admin),
     target_user_id: Optional[str] = None,
     limit: int = 50,
     db: AsyncSession = Depends(get_db)
 ):
     """Get impersonation session history"""
-    await require_admin(admin_id, db)
     
     query = select(ImpersonationSession).options(
         selectinload(ImpersonationSession.admin),
@@ -501,7 +497,7 @@ class ResolveFraudAlertRequest(BaseModel):
 
 @router.get("/admin/fraud/alerts")
 async def get_fraud_alerts(
-    admin_id: str,
+    admin: Profile = Depends(get_current_admin),
     status: Optional[str] = None,
     severity: Optional[str] = None,
     alert_type: Optional[str] = None,
@@ -510,7 +506,6 @@ async def get_fraud_alerts(
     db: AsyncSession = Depends(get_db)
 ):
     """Get fraud alerts dashboard"""
-    await require_admin(admin_id, db)
     
     query = select(FraudAlert).options(selectinload(FraudAlert.user))
     
@@ -575,11 +570,10 @@ async def get_fraud_alerts(
 @router.post("/admin/fraud/alerts")
 async def create_fraud_alert(
     data: CreateFraudAlertRequest,
-    admin_id: str,
+    admin: Profile = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db)
 ):
     """Manually create a fraud alert"""
-    admin = await require_admin(admin_id, db)
     
     alert = FraudAlert(
         user_id=data.user_id,
@@ -612,11 +606,10 @@ async def create_fraud_alert(
 async def resolve_fraud_alert(
     alert_id: str,
     data: ResolveFraudAlertRequest,
-    admin_id: str,
+    admin: Profile = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db)
 ):
     """Resolve a fraud alert with action"""
-    admin = await require_admin(admin_id, db)
     
     result = await db.execute(
         select(FraudAlert)
@@ -654,11 +647,10 @@ async def resolve_fraud_alert(
 @router.get("/admin/fraud/user-risk/{user_id}")
 async def get_user_risk_profile(
     user_id: str,
-    admin_id: str,
+    admin: Profile = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db)
 ):
     """Get comprehensive risk profile for a user"""
-    await require_admin(admin_id, db)
     
     # Get user
     user_result = await db.execute(select(Profile).where(Profile.id == user_id))
@@ -718,7 +710,7 @@ async def get_user_risk_profile(
 @router.get("/admin/user-journey/{user_id}")
 async def get_user_journey(
     user_id: str,
-    admin_id: str,
+    admin: Profile = Depends(get_current_admin),
     activity_type: Optional[str] = None,
     category: Optional[str] = None,
     start_date: Optional[str] = None,
@@ -728,7 +720,6 @@ async def get_user_journey(
     db: AsyncSession = Depends(get_db)
 ):
     """Get complete user journey timeline for support debugging"""
-    await require_admin(admin_id, db)
     
     # Get user info
     user_result = await db.execute(select(Profile).where(Profile.id == user_id))
@@ -789,11 +780,10 @@ async def get_user_journey(
 @router.get("/admin/user-journey/{user_id}/summary")
 async def get_user_journey_summary(
     user_id: str,
-    admin_id: str,
+    admin: Profile = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db)
 ):
     """Get quick summary of user's journey for support"""
-    await require_admin(admin_id, db)
     
     # Get user with related data
     user_result = await db.execute(select(Profile).where(Profile.id == user_id))
@@ -914,7 +904,7 @@ class SeedTestAccountsRequest(BaseModel):
 @router.post("/admin/seed-test-accounts")
 async def seed_test_accounts(
     request: SeedTestAccountsRequest,
-    admin_id: str,
+    admin: Profile = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -926,7 +916,6 @@ async def seed_test_accounts(
     All accounts use the same password (default: Test123!)
     """
     # Verify admin
-    admin = await require_admin(admin_id, db)
     
     import hashlib
     import uuid
@@ -1078,11 +1067,10 @@ async def seed_test_accounts(
 
 @router.get("/admin/test-accounts")
 async def list_test_accounts(
-    admin_id: str,
+    admin: Profile = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db)
 ):
     """List all test accounts (accounts with @test.rawsurf.io email)"""
-    await require_admin(admin_id, db)
     
     result = await db.execute(
         select(Profile)
@@ -1112,12 +1100,11 @@ async def list_test_accounts(
 
 @router.delete("/admin/test-accounts/cleanup")
 async def cleanup_test_accounts(
-    admin_id: str,
+    admin: Profile = Depends(get_current_admin),
     older_than_days: int = 7,
     db: AsyncSession = Depends(get_db)
 ):
     """Delete test accounts older than specified days"""
-    await require_admin(admin_id, db)
     
     cutoff_date = datetime.now(timezone.utc) - timedelta(days=older_than_days)
     

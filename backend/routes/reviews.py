@@ -13,6 +13,7 @@ from typing import Optional, List
 from datetime import datetime, timezone, timedelta
 import re
 
+from deps.admin_auth import get_current_admin
 from database import get_db
 from models import Profile, Review, LiveSession, XPTransaction, Badge, LiveSessionParticipant
 from services.ai_moderation import moderate_review_content
@@ -470,18 +471,11 @@ async def get_photographer_review_stats(
 
 @router.get("/pending", response_model=List[ReviewResponse])
 async def get_pending_reviews(
-    admin_id: str = Query(..., description="Admin user ID for authorization"),
     limit: int = Query(default=20, le=100),
+    admin: Profile = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db)
 ):
-    """Get reviews pending moderation (admin only)"""
-    
-    # Verify admin
-    admin_result = await db.execute(select(Profile).where(Profile.id == admin_id))
-    admin = admin_result.scalar_one_or_none()
-    
-    if not admin or not admin.is_admin:
-        raise HTTPException(status_code=403, detail="Admin access required")
+    """Get reviews pending moderation (admin only — JWT verified)"""
     
     result = await db.execute(
         select(Review).options(
@@ -521,18 +515,11 @@ async def get_pending_reviews(
 @router.put("/{review_id}/moderate")
 async def moderate_review(
     review_id: str,
-    admin_id: str = Query(..., description="Admin user ID"),
     action: str = Query(..., description="approve or reject"),
+    admin: Profile = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db)
 ):
-    """Approve or reject a pending review (admin only)"""
-    
-    # Verify admin
-    admin_result = await db.execute(select(Profile).where(Profile.id == admin_id))
-    admin = admin_result.scalar_one_or_none()
-    
-    if not admin or not admin.is_admin:
-        raise HTTPException(status_code=403, detail="Admin access required")
+    """Approve or reject a pending review (admin only — JWT verified)"""
     
     # Get review
     review_result = await db.execute(select(Review).where(Review.id == review_id))

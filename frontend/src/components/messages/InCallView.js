@@ -399,6 +399,7 @@ export default function InCallView({
               ) : (
                 /* Local video with CSS filter on WRAPPER DIV — matches GoLive pattern.
                    Mobile browsers ignore CSS filter on <video> elements directly. */
+                <>
                 <div className="w-full h-full relative" style={videoFilterStyle}>
                   <video
                     ref={localVideoRef}
@@ -409,20 +410,21 @@ export default function InCallView({
                     style={{ transform: 'scaleX(-1)' }}
                   />
                 </div>
-              )}
-              <div className={`absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded bg-black/50 backdrop-blur-sm ${!isPipExpanded ? 'hidden md:block' : ''}`}>
-                <span className="text-[9px] text-white/70 font-medium">You</span>
-              </div>
-              {activeFilter !== 'none' && isPipExpanded && (
-                <div className="absolute bottom-1.5 left-1.5 px-1.5 py-0.5 rounded bg-cyan-500/30 backdrop-blur-sm">
-                  <span className="text-[8px] text-cyan-300 font-medium">
-                    {FILTER_PRESETS.find(f => f.key === activeFilter)?.name || ''}
-                  </span>
+                <div className={`absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded bg-black/50 backdrop-blur-sm ${!isPipExpanded ? 'hidden md:block' : ''}`}>
+                  <span className="text-[9px] text-white/70 font-medium">You</span>
                 </div>
+                {activeFilter !== 'none' && isPipExpanded && (
+                  <div className="absolute bottom-1.5 left-1.5 px-1.5 py-0.5 rounded bg-cyan-500/30 backdrop-blur-sm">
+                    <span className="text-[8px] text-cyan-300 font-medium">
+                      {FILTER_PRESETS.find(f => f.key === activeFilter)?.name || ''}
+                    </span>
+                  </div>
+                )}
+                <div className={`absolute bottom-1.5 right-1.5 ${!isPipExpanded ? 'hidden md:block' : ''}`}>
+                  {isPipExpanded ? <Minimize2 className="w-3 h-3 text-white/60" /> : <Maximize2 className="w-3 h-3 text-white/60" />}
+                </div>
+                </>
               )}
-              <div className={`absolute bottom-1.5 right-1.5 ${!isPipExpanded ? 'hidden md:block' : ''}`}>
-                {isPipExpanded ? <Minimize2 className="w-3 h-3 text-white/60" /> : <Maximize2 className="w-3 h-3 text-white/60" />}
-              </div>
             </div>
           )}
 

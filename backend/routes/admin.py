@@ -8,6 +8,7 @@ from datetime import datetime, timezone, timedelta
 import json
 
 from database import get_db
+from deps.admin_auth import get_current_admin
 from models import Profile, Post, GalleryItem, Story, PaymentTransaction, AdminLog, RoleEnum
 
 router = APIRouter()
@@ -21,17 +22,9 @@ class UserUpdateRequest(BaseModel):
     subscription_tier: Optional[str] = None
     role: Optional[str] = None
 
-async def require_admin(admin_id: str, db: AsyncSession):
-    """Check if user is an admin"""
-    result = await db.execute(select(Profile).where(Profile.id == admin_id))
-    admin = result.scalar_one_or_none()
-    if not admin or not admin.is_admin:
-        raise HTTPException(status_code=403, detail="Admin access required")
-    return admin
-
 async def log_admin_action(
     db: AsyncSession,
-    admin_id: str,
+    admin: Profile = Depends(get_current_admin),
     action: str,
     target_type: str,
     target_id: str = None,
@@ -39,7 +32,7 @@ async def log_admin_action(
 ):
     """Log an admin action"""
     log = AdminLog(
-        admin_id=admin_id,
+        admin_id=admin.id,
         action=action,
         target_type=target_type,
         target_id=target_id,
@@ -50,7 +43,6 @@ async def log_admin_action(
 @router.get("/admin/stats")
 async def get_admin_stats(admin_id: str, db: AsyncSession = Depends(get_db)):
     """Get platform-wide statistics"""
-    await require_admin(admin_id, db)
     
     # User stats
     total_users = await db.execute(select(func.count(Profile.id)))
@@ -119,7 +111,7 @@ async def get_admin_stats(admin_id: str, db: AsyncSession = Depends(get_db)):
 
 @router.get("/admin/users")
 async def get_all_users(
-    admin_id: str,
+    admin: Profile = Depends(get_current_admin),
     search: Optional[str] = None,
     role: Optional[str] = None,
     subscription: Optional[str] = None,
@@ -129,7 +121,6 @@ async def get_all_users(
     db: AsyncSession = Depends(get_db)
 ):
     """Get all users with filtering"""
-    await require_admin(admin_id, db)
     
     query = select(Profile).order_by(Profile.created_at.desc())
     
@@ -185,7 +176,6 @@ async def get_all_users(
 @router.get("/admin/users/{user_id}")
 async def get_user_detail(user_id: str, admin_id: str, db: AsyncSession = Depends(get_db)):
     """Get detailed user information"""
-    await require_admin(admin_id, db)
     
     result = await db.execute(select(Profile).where(Profile.id == user_id))
     user = result.scalar_one_or_none()
@@ -232,12 +222,11 @@ async def get_user_detail(user_id: str, admin_id: str, db: AsyncSession = Depend
 @router.patch("/admin/users/{user_id}")
 async def update_user(
     user_id: str,
-    admin_id: str,
+    admin: Profile = Depends(get_current_admin),
     data: UserUpdateRequest,
     db: AsyncSession = Depends(get_db)
 ):
     """Update user properties"""
-    admin = await require_admin(admin_id, db)
     
     result = await db.execute(select(Profile).where(Profile.id == user_id))
     user = result.scalar_one_or_none()
@@ -281,12 +270,11 @@ class BulkUpdateRequest(BaseModel):
 
 @router.post("/admin/users/bulk-update")
 async def bulk_update_users(
-    admin_id: str,
+    admin: Profile = Depends(get_current_admin),
     data: BulkUpdateRequest,
     db: AsyncSession = Depends(get_db)
 ):
     """Bulk update role or subscription for multiple users"""
-    admin = await require_admin(admin_id, db)
     
     if not data.user_ids:
         raise HTTPException(status_code=400, detail="No users specified")
@@ -340,12 +328,11 @@ async def bulk_update_users(
 @router.post("/admin/users/{user_id}/suspend")
 async def suspend_user(
     user_id: str,
-    admin_id: str,
+    admin: Profile = Depends(get_current_admin),
     data: UserSuspendRequest,
     db: AsyncSession = Depends(get_db)
 ):
     """Suspend a user"""
-    admin = await require_admin(admin_id, db)
     
     result = await db.execute(select(Profile).where(Profile.id == user_id))
     user = result.scalar_one_or_none()
@@ -368,7 +355,6 @@ async def suspend_user(
 @router.post("/admin/users/{user_id}/unsuspend")
 async def unsuspend_user(user_id: str, admin_id: str, db: AsyncSession = Depends(get_db)):
     """Unsuspend a user"""
-    admin = await require_admin(admin_id, db)
     
     result = await db.execute(select(Profile).where(Profile.id == user_id))
     user = result.scalar_one_or_none()
@@ -393,12 +379,11 @@ class AdminResetPasswordRequest(BaseModel):
 @router.post("/admin/users/{user_id}/reset-password")
 async def admin_reset_password(
     user_id: str,
-    admin_id: str,
+    admin: Profile = Depends(get_current_admin),
     data: AdminResetPasswordRequest,
     db: AsyncSession = Depends(get_db)
 ):
     """Admin-only: manually reset a user's password"""
-    admin = await require_admin(admin_id, db)
 
     if len(data.new_password) < 6:
         raise HTTPException(status_code=400, detail="Password must be at least 6 characters")
@@ -431,12 +416,11 @@ class BulkDeleteRequest(BaseModel):
 
 @router.post("/admin/users/bulk-delete")
 async def bulk_delete_users(
-    admin_id: str,
+    admin: Profile = Depends(get_current_admin),
     data: BulkDeleteRequest,
     db: AsyncSession = Depends(get_db)
 ):
     """Bulk delete multiple users (admin only) - excludes admins"""
-    admin = await require_admin(admin_id, db)
     
     if not data.user_ids:
         raise HTTPException(status_code=400, detail="No users specified")
@@ -535,7 +519,6 @@ async def bulk_delete_users(
 @router.delete("/admin/posts/{post_id}")
 async def delete_post(post_id: str, admin_id: str, db: AsyncSession = Depends(get_db)):
     """Delete a post (admin moderation)"""
-    admin = await require_admin(admin_id, db)
     
     result = await db.execute(select(Post).where(Post.id == post_id))
     post = result.scalar_one_or_none()
@@ -556,7 +539,6 @@ async def delete_post(post_id: str, admin_id: str, db: AsyncSession = Depends(ge
 @router.delete("/admin/gallery/{item_id}")
 async def delete_gallery_item(item_id: str, admin_id: str, db: AsyncSession = Depends(get_db)):
     """Delete a gallery item (admin moderation)"""
-    admin = await require_admin(admin_id, db)
     
     result = await db.execute(select(GalleryItem).where(GalleryItem.id == item_id))
     item = result.scalar_one_or_none()
@@ -575,13 +557,12 @@ async def delete_gallery_item(item_id: str, admin_id: str, db: AsyncSession = De
 
 @router.get("/admin/logs")
 async def get_admin_logs(
-    admin_id: str,
+    admin: Profile = Depends(get_current_admin),
     limit: int = 100,
     offset: int = 0,
     db: AsyncSession = Depends(get_db)
 ):
     """Get admin action logs"""
-    await require_admin(admin_id, db)
     
     result = await db.execute(
         select(AdminLog)
@@ -606,7 +587,6 @@ async def get_admin_logs(
 @router.post("/admin/make-admin/{user_id}")
 async def make_user_admin(user_id: str, admin_id: str, db: AsyncSession = Depends(get_db)):
     """Grant admin privileges to a user"""
-    admin = await require_admin(admin_id, db)
     
     result = await db.execute(select(Profile).where(Profile.id == user_id))
     user = result.scalar_one_or_none()
@@ -624,7 +604,6 @@ async def make_user_admin(user_id: str, admin_id: str, db: AsyncSession = Depend
 @router.post("/admin/revoke-admin/{user_id}")
 async def revoke_user_admin(user_id: str, admin_id: str, db: AsyncSession = Depends(get_db)):
     """Revoke admin privileges from a user"""
-    admin = await require_admin(admin_id, db)
     
     if user_id == admin_id:
         raise HTTPException(status_code=400, detail="Cannot revoke your own admin status")

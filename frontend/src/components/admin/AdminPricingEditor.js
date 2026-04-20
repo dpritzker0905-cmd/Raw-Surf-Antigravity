@@ -72,7 +72,7 @@ export const AdminPricingEditor = () => {
 
   const fetchPricing = useCallback(async () => {
     try {
-      const response = await apiClient.get(`/admin/pricing/config?admin_id=${user.id}`);
+      const response = await apiClient.get(`/admin/pricing/config`);
       setPricing(response.data.pricing);
       setOriginalPricing(JSON.parse(JSON.stringify(response.data.pricing)));
       setVersion(response.data.version);
@@ -89,7 +89,7 @@ export const AdminPricingEditor = () => {
 
   const fetchHistory = async () => {
     try {
-      const response = await apiClient.get(`/admin/pricing/history?admin_id=${user.id}&limit=10`);
+      const response = await apiClient.get(`/admin/pricing/history?limit=10`);
       setHistory(response.data.history);
     } catch (error) {
       logger.error('Failed to fetch history:', error);
@@ -202,7 +202,7 @@ export const AdminPricingEditor = () => {
     setSaving(true);
     try {
       const response = await apiClient.post(
-        `/admin/pricing/update?admin_id=${user.id}`,
+        `/admin/pricing/update`,
         pricing
       );
       
@@ -234,7 +234,7 @@ export const AdminPricingEditor = () => {
     
     setSaving(true);
     try {
-      const response = await apiClient.post(`/admin/pricing/reset?admin_id=${user.id}`);
+      const response = await apiClient.post(`/admin/pricing/reset`);
       
       setPricing(response.data.pricing);
       setOriginalPricing(JSON.parse(JSON.stringify(response.data.pricing)));

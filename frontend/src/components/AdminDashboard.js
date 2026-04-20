@@ -67,10 +67,10 @@ export const AdminDashboard = () => {
   const fetchData = async () => {
     try {
       const [statsRes, usersRes, logsRes, settingsRes] = await Promise.all([
-        apiClient.get(`/admin/stats?admin_id=${user.id}`),
-        apiClient.get(`/admin/users?admin_id=${user.id}&limit=50`),
-        apiClient.get(`/admin/logs?admin_id=${user.id}&limit=50`),
-        apiClient.get(`/admin/platform-settings?admin_id=${user.id}`).catch(() => ({ data: null }))
+        apiClient.get(`/admin/stats`),
+        apiClient.get(`/admin/users?limit=50`),
+        apiClient.get(`/admin/logs?limit=50`),
+        apiClient.get(`/admin/platform-settings`).catch(() => ({ data: null }))
       ]);
       
       setStats(statsRes.data);
@@ -91,7 +91,7 @@ export const AdminDashboard = () => {
   const updateSiteSettings = async (updates) => {
     setSavingSettings(true);
     try {
-      await apiClient.put(`/admin/platform-settings?admin_id=${user.id}`, updates);
+      await apiClient.put(`/admin/platform-settings`, updates);
       setSiteSettings(prev => ({ ...prev, ...updates }));
       toast.success('Settings saved');
     } catch (error) {
@@ -104,7 +104,7 @@ export const AdminDashboard = () => {
   const handleSearch = async () => {
     try {
       const response = await apiClient.get(
-        `/admin/users?admin_id=${user.id}&search=${searchQuery}&limit=50`
+        `/admin/users?search=${searchQuery}&limit=50`
       );
       setUsers(response.data.users);
     } catch (error) {
@@ -117,7 +117,7 @@ export const AdminDashboard = () => {
     
     try {
       await apiClient.post(
-        `/admin/users/${userToSuspend.id}/suspend?admin_id=${user.id}`,
+        `/admin/users/${userToSuspend.id}/suspend`,
         { reason: suspendReason }
       );
       toast.success(`${userToSuspend.email} suspended`);
@@ -133,7 +133,7 @@ export const AdminDashboard = () => {
   const handleUnsuspend = async (targetUser) => {
     try {
       await apiClient.post(
-        `/admin/users/${targetUser.id}/unsuspend?admin_id=${user.id}`
+        `/admin/users/${targetUser.id}/unsuspend`
       );
       toast.success(`${targetUser.email} unsuspended`);
       fetchData();
@@ -145,7 +145,7 @@ export const AdminDashboard = () => {
   const handleVerify = async (targetUser) => {
     try {
       await apiClient.patch(
-        `/admin/users/${targetUser.id}?admin_id=${user.id}`,
+        `/admin/users/${targetUser.id}`,
         { is_verified: !targetUser.is_verified }
       );
       toast.success(`Verification ${targetUser.is_verified ? 'removed' : 'added'}`);
@@ -159,11 +159,11 @@ export const AdminDashboard = () => {
     try {
       if (targetUser.is_admin) {
         await apiClient.post(
-          `/admin/revoke-admin/${targetUser.id}?admin_id=${user.id}`
+          `/admin/revoke-admin/${targetUser.id}`
         );
       } else {
         await apiClient.post(
-          `/admin/make-admin/${targetUser.id}?admin_id=${user.id}`
+          `/admin/make-admin/${targetUser.id}`
         );
       }
       toast.success(`Admin status updated`);

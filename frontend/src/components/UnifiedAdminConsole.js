@@ -153,10 +153,10 @@ const UnifiedAdminConsole = () => {
     setLoading(true);
     try {
       const [statsRes, usersRes, logsRes, settingsRes] = await Promise.all([
-        apiClient.get(`/admin/stats?admin_id=${user.id}`).catch(() => ({ data: null })),
-        apiClient.get(`/admin/users?admin_id=${user.id}&limit=50`).catch(() => ({ data: { users: [] } })),
-        apiClient.get(`/admin/logs?admin_id=${user.id}&limit=50`).catch(() => ({ data: [] })),
-        apiClient.get(`/admin/platform-settings?admin_id=${user.id}`).catch(() => ({ data: null }))
+        apiClient.get(`/admin/stats`).catch(() => ({ data: null })),
+        apiClient.get(`/admin/users?limit=50`).catch(() => ({ data: { users: [] } })),
+        apiClient.get(`/admin/logs?limit=50`).catch(() => ({ data: [] })),
+        apiClient.get(`/admin/platform-settings`).catch(() => ({ data: null }))
       ]);
       
       setStats(statsRes.data);
@@ -201,7 +201,7 @@ const UnifiedAdminConsole = () => {
   const handleSearch = async () => {
     try {
       const response = await apiClient.get(
-        `/admin/users?admin_id=${user.id}&search=${searchQuery}&limit=50`
+        `/admin/users?search=${searchQuery}&limit=50`
       );
       setUsers(response.data.users);
     } catch (error) {
@@ -213,7 +213,7 @@ const UnifiedAdminConsole = () => {
     if (!userToSuspend || !suspendReason) return;
     try {
       await apiClient.post(
-        `/admin/users/${userToSuspend.id}/suspend?admin_id=${user.id}`,
+        `/admin/users/${userToSuspend.id}/suspend`,
         { reason: suspendReason }
       );
       toast.success(`${userToSuspend.email} suspended`);
@@ -229,7 +229,7 @@ const UnifiedAdminConsole = () => {
   const handleUnsuspend = async (targetUser) => {
     try {
       await apiClient.post(
-        `/admin/users/${targetUser.id}/unsuspend?admin_id=${user.id}`
+        `/admin/users/${targetUser.id}/unsuspend`
       );
       toast.success(`${targetUser.email} unsuspended`);
       fetchData();
@@ -241,7 +241,7 @@ const UnifiedAdminConsole = () => {
   const handleVerify = async (targetUser) => {
     try {
       await apiClient.patch(
-        `/admin/users/${targetUser.id}?admin_id=${user.id}`,
+        `/admin/users/${targetUser.id}`,
         { is_verified: !targetUser.is_verified }
       );
       toast.success(`Verification ${targetUser.is_verified ? 'removed' : 'added'}`);
@@ -254,9 +254,9 @@ const UnifiedAdminConsole = () => {
   const handleToggleAdmin = async (targetUser) => {
     try {
       if (targetUser.is_admin) {
-        await apiClient.post(`/admin/revoke-admin/${targetUser.id}?admin_id=${user.id}`);
+        await apiClient.post(`/admin/revoke-admin/${targetUser.id}`);
       } else {
-        await apiClient.post(`/admin/make-admin/${targetUser.id}?admin_id=${user.id}`);
+        await apiClient.post(`/admin/make-admin/${targetUser.id}`);
       }
       toast.success('Admin status updated');
       fetchData();
@@ -269,7 +269,7 @@ const UnifiedAdminConsole = () => {
   const updateSiteSettings = async (updates) => {
     setSavingSettings(true);
     try {
-      await apiClient.put(`/admin/platform-settings?admin_id=${user.id}`, updates);
+      await apiClient.put(`/admin/platform-settings`, updates);
       setSiteSettings(prev => ({ ...prev, ...updates }));
       toast.success('Settings saved');
     } catch (error) {
@@ -1283,7 +1283,7 @@ const UsersTabContent = ({
     setLoadingField('role');
     try {
       await apiClient.patch(
-        `/admin/users/${userId}?admin_id=${adminId}`,
+        `/admin/users/${userId}`,
         { role: newRole }
       );
       toast.success(`Role updated to ${newRole}`);
@@ -1301,7 +1301,7 @@ const UsersTabContent = ({
     setLoadingField('subscription');
     try {
       await apiClient.patch(
-        `/admin/users/${userId}?admin_id=${adminId}`,
+        `/admin/users/${userId}`,
         { subscription_tier: newTier }
       );
       toast.success(`Subscription updated to ${newTier}`);
@@ -1346,7 +1346,7 @@ const UsersTabContent = ({
     try {
       const userIds = Array.from(selectedUsers);
       await apiClient.post(
-        `/admin/users/bulk-update?admin_id=${adminId}`,
+        `/admin/users/bulk-update`,
         { user_ids: userIds, role: newRole }
       );
       toast.success(`Updated ${userIds.length} users to ${newRole}`);
@@ -1369,7 +1369,7 @@ const UsersTabContent = ({
     try {
       const userIds = Array.from(selectedUsers);
       await apiClient.post(
-        `/admin/users/bulk-update?admin_id=${adminId}`,
+        `/admin/users/bulk-update`,
         { user_ids: userIds, subscription_tier: newTier }
       );
       toast.success(`Updated ${userIds.length} users to ${newTier}`);
@@ -1398,7 +1398,7 @@ const UsersTabContent = ({
     try {
       const userIds = Array.from(selectedUsers);
       const response = await apiClient.post(
-        `/admin/users/bulk-delete?admin_id=${adminId}`,
+        `/admin/users/bulk-delete`,
         { user_ids: userIds }
       );
       toast.success(response.data.message || `Deleted ${count} users`);
@@ -1420,7 +1420,7 @@ const UsersTabContent = ({
     setResetPasswordLoading(true);
     try {
       await apiClient.post(
-        `/admin/users/${resetPasswordUser.id}/reset-password?admin_id=${adminId}`,
+        `/admin/users/${resetPasswordUser.id}/reset-password`,
         { new_password: newPassword }
       );
       toast.success(`Password reset for ${resetPasswordUser.email}`);
@@ -1827,9 +1827,9 @@ const AnalyticsTabContent = ({ user, cardBgClass, textClass, textSecondary }) =>
     setLoading(true);
     try {
       const [financialRes, ecosystemRes, priceRes] = await Promise.all([
-        apiClient.get(`/admin/analytics/financial?admin_id=${user.id}&days=30`).catch(() => ({ data: null })),
-        apiClient.get(`/admin/analytics/ecosystem?admin_id=${user.id}`).catch(() => ({ data: null })),
-        apiClient.get(`/admin/analytics/price-impact?admin_id=${user.id}&days=90`).catch(() => ({ data: null }))
+        apiClient.get(`/admin/analytics/financial?days=30`).catch(() => ({ data: null })),
+        apiClient.get(`/admin/analytics/ecosystem`).catch(() => ({ data: null })),
+        apiClient.get(`/admin/analytics/price-impact?days=90`).catch(() => ({ data: null }))
       ]);
       setFinancial(financialRes.data);
       setEcosystem(ecosystemRes.data);
@@ -1844,7 +1844,7 @@ const AnalyticsTabContent = ({ user, cardBgClass, textClass, textSecondary }) =>
   const handleRefreshCache = async () => {
     setRefreshing(true);
     try {
-      await apiClient.post(`/admin/analytics/refresh-cache?admin_id=${user.id}`);
+      await apiClient.post(`/admin/analytics/refresh-cache`);
       toast.success('Metrics cache refreshed');
       fetchAnalytics();
     } catch (error) {

@@ -12,6 +12,7 @@ from typing import Optional, List
 from datetime import datetime, timezone, timedelta
 
 from database import get_db
+from deps.admin_auth import get_current_admin
 from models import (
     Profile, SupportTicket, TicketMessage, 
     TicketCategoryEnum, TicketPriorityEnum, TicketStatusEnum
@@ -61,7 +62,7 @@ def calculate_sla_due(priority: TicketPriorityEnum) -> datetime:
 # --- Endpoints ---
 @router.get("/admin/support/tickets")
 async def get_support_tickets(
-    admin_id: str,
+    admin: Profile = Depends(get_current_admin),
     status: Optional[str] = None,
     priority: Optional[str] = None,
     category: Optional[str] = None,
@@ -72,7 +73,6 @@ async def get_support_tickets(
     db: AsyncSession = Depends(get_db)
 ):
     """Get all support tickets with filters"""
-    await require_admin(admin_id, db)
     
     query = select(SupportTicket).order_by(desc(SupportTicket.created_at))
     
@@ -140,11 +140,10 @@ async def get_support_tickets(
 @router.get("/admin/support/tickets/{ticket_id}")
 async def get_ticket_detail(
     ticket_id: str,
-    admin_id: str,
+    admin: Profile = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db)
 ):
     """Get ticket details with messages"""
-    await require_admin(admin_id, db)
     
     result = await db.execute(select(SupportTicket).where(SupportTicket.id == ticket_id))
     ticket = result.scalar_one_or_none()
@@ -209,12 +208,11 @@ async def get_ticket_detail(
 @router.put("/admin/support/tickets/{ticket_id}")
 async def update_ticket(
     ticket_id: str,
-    admin_id: str,
+    admin: Profile = Depends(get_current_admin),
     request: UpdateTicketRequest,
     db: AsyncSession = Depends(get_db)
 ):
     """Update ticket status, priority, assignment"""
-    await require_admin(admin_id, db)
     
     result = await db.execute(select(SupportTicket).where(SupportTicket.id == ticket_id))
     ticket = result.scalar_one_or_none()
@@ -248,12 +246,11 @@ async def update_ticket(
 @router.post("/admin/support/tickets/{ticket_id}/reply")
 async def reply_to_ticket(
     ticket_id: str,
-    admin_id: str,
+    admin: Profile = Depends(get_current_admin),
     request: TicketMessageRequest,
     db: AsyncSession = Depends(get_db)
 ):
     """Add a reply or internal note to a ticket"""
-    await require_admin(admin_id, db)
     
     result = await db.execute(select(SupportTicket).where(SupportTicket.id == ticket_id))
     ticket = result.scalar_one_or_none()
@@ -289,12 +286,11 @@ async def reply_to_ticket(
 
 @router.get("/admin/support/metrics")
 async def get_support_metrics(
-    admin_id: str,
+    admin: Profile = Depends(get_current_admin),
     days: int = 30,
     db: AsyncSession = Depends(get_db)
 ):
     """Get support metrics: response times, resolution rates, CSAT"""
-    await require_admin(admin_id, db)
     
     start_date = datetime.now(timezone.utc) - timedelta(days=days)
     

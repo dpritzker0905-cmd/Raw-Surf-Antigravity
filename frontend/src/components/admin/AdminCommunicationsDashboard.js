@@ -70,7 +70,7 @@ export const AdminCommunicationsDashboard = () => {
 
   const fetchStats = async () => {
     try {
-      const response = await apiClient.get(`/admin/communication/stats?admin_id=${user.id}&days=30`);
+      const response = await apiClient.get(`/admin/communication/stats?days=30`);
       setStats(response.data);
     } catch (error) {
       logger.error('Failed to load stats:', error);
@@ -81,13 +81,13 @@ export const AdminCommunicationsDashboard = () => {
     setLoading(true);
     try {
       if (activeTab === 'announcements') {
-        const response = await apiClient.get(`/admin/announcements?admin_id=${user.id}`);
+        const response = await apiClient.get(`/admin/announcements`);
         setAnnouncements(response.data.announcements || []);
       } else if (activeTab === 'templates') {
-        const response = await apiClient.get(`/admin/message-templates?admin_id=${user.id}`);
+        const response = await apiClient.get(`/admin/message-templates`);
         setTemplates(response.data.templates || []);
       } else if (activeTab === 'campaigns') {
-        const response = await apiClient.get(`/admin/bulk-campaigns?admin_id=${user.id}`);
+        const response = await apiClient.get(`/admin/bulk-campaigns`);
         setCampaigns(response.data.campaigns || []);
       }
     } catch (error) {
@@ -105,7 +105,7 @@ export const AdminCommunicationsDashboard = () => {
     }
     setActionLoading(true);
     try {
-      await apiClient.post(`/admin/announcements?admin_id=${user.id}`, announcementForm);
+      await apiClient.post(`/admin/announcements`, announcementForm);
       toast.success('Announcement created');
       setShowAnnouncementForm(false);
       setAnnouncementForm({ title: '', content: '', type: 'info', target_audience: 'all', priority: 1 });
@@ -119,7 +119,7 @@ export const AdminCommunicationsDashboard = () => {
 
   const handleToggleAnnouncement = async (id) => {
     try {
-      await apiClient.put(`/admin/announcements/${id}/toggle?admin_id=${user.id}`);
+      await apiClient.put(`/admin/announcements/${id}/toggle`);
       fetchDataForTab();
     } catch (error) {
       toast.error('Failed to toggle announcement');
@@ -134,7 +134,7 @@ export const AdminCommunicationsDashboard = () => {
     }
     setActionLoading(true);
     try {
-      await apiClient.post(`/admin/message-templates?admin_id=${user.id}`, templateForm);
+      await apiClient.post(`/admin/message-templates`, templateForm);
       toast.success('Template created');
       setShowTemplateForm(false);
       setTemplateForm({ name: '', subject: '', body: '', template_type: 'email', category: 'general' });
@@ -154,7 +154,7 @@ export const AdminCommunicationsDashboard = () => {
     }
     setActionLoading(true);
     try {
-      await apiClient.post(`/admin/bulk-campaigns?admin_id=${user.id}`, campaignForm);
+      await apiClient.post(`/admin/bulk-campaigns`, campaignForm);
       toast.success('Campaign created');
       setShowCampaignForm(false);
       setCampaignForm({ name: '', subject: '', body: '', channel: 'email', target_audience: 'all', template_id: '' });
@@ -170,7 +170,7 @@ export const AdminCommunicationsDashboard = () => {
     if (!confirm('Send this campaign to all target users?')) return;
     setActionLoading(true);
     try {
-      const response = await apiClient.post(`/admin/bulk-campaigns/${campaignId}/send?admin_id=${user.id}`);
+      const response = await apiClient.post(`/admin/bulk-campaigns/${campaignId}/send`);
       toast.success(`Sent to ${response.data.total_sent} users`);
       fetchDataForTab();
       fetchStats();

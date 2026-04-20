@@ -17,6 +17,7 @@ import hashlib
 import secrets
 
 from database import get_db
+from deps.admin_auth import get_current_admin
 from models import (
     Profile, SurfSpot, Booking, GalleryItem,
     FeaturedContent, HomepageBanner, SpotSEOMetadata,
@@ -78,14 +79,13 @@ class CreateChangelogRequest(BaseModel):
 # --- GLOBAL SEARCH ---
 @router.get("/admin/search")
 async def global_search(
-    admin_id: str,
+    admin: Profile = Depends(get_current_admin),
     query: str,
     types: Optional[str] = None,  # comma-separated: 'users,bookings,spots'
     limit: int = 20,
     db: AsyncSession = Depends(get_db)
 ):
     """Global search across users, bookings, spots"""
-    await require_admin(admin_id, db)
     
     if len(query) < 2:
         raise HTTPException(status_code=400, detail="Query must be at least 2 characters")
@@ -160,12 +160,11 @@ async def global_search(
 # --- FEATURED CONTENT ---
 @router.get("/admin/content/featured")
 async def get_featured_content(
-    admin_id: str,
+    admin: Profile = Depends(get_current_admin),
     placement: Optional[str] = None,
     db: AsyncSession = Depends(get_db)
 ):
     """Get featured content"""
-    await require_admin(admin_id, db)
     
     query = select(FeaturedContent).where(FeaturedContent.is_active == True).order_by(FeaturedContent.position)
     if placement:
@@ -194,12 +193,11 @@ async def get_featured_content(
 
 @router.post("/admin/content/featured")
 async def create_featured_content(
-    admin_id: str,
+    admin: Profile = Depends(get_current_admin),
     request: CreateFeaturedContentRequest,
     db: AsyncSession = Depends(get_db)
 ):
     """Create featured content"""
-    await require_admin(admin_id, db)
     
     # Get content details for title/image
     title = request.title
@@ -243,11 +241,10 @@ async def create_featured_content(
 @router.delete("/admin/content/featured/{featured_id}")
 async def remove_featured_content(
     featured_id: str,
-    admin_id: str,
+    admin: Profile = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db)
 ):
     """Remove featured content"""
-    await require_admin(admin_id, db)
     
     await db.execute(
         update(FeaturedContent)
@@ -262,12 +259,11 @@ async def remove_featured_content(
 # --- HOMEPAGE BANNERS ---
 @router.get("/admin/content/banners")
 async def get_homepage_banners(
-    admin_id: str,
+    admin: Profile = Depends(get_current_admin),
     include_inactive: bool = False,
     db: AsyncSession = Depends(get_db)
 ):
     """Get homepage banners"""
-    await require_admin(admin_id, db)
     
     query = select(HomepageBanner).order_by(HomepageBanner.position)
     if not include_inactive:
@@ -299,12 +295,11 @@ async def get_homepage_banners(
 
 @router.post("/admin/content/banners")
 async def create_banner(
-    admin_id: str,
+    admin: Profile = Depends(get_current_admin),
     request: CreateBannerRequest,
     db: AsyncSession = Depends(get_db)
 ):
     """Create homepage banner"""
-    await require_admin(admin_id, db)
     
     # Get max position
     max_pos = await db.execute(select(func.max(HomepageBanner.position)))
@@ -333,11 +328,10 @@ async def create_banner(
 @router.put("/admin/content/banners/{banner_id}/toggle")
 async def toggle_banner(
     banner_id: str,
-    admin_id: str,
+    admin: Profile = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db)
 ):
     """Toggle banner active status"""
-    await require_admin(admin_id, db)
     
     result = await db.execute(select(HomepageBanner).where(HomepageBanner.id == banner_id))
     banner = result.scalar_one_or_none()
@@ -358,14 +352,13 @@ async def toggle_banner(
 # --- SEO METADATA ---
 @router.get("/admin/content/seo/spots")
 async def get_spots_seo(
-    admin_id: str,
+    admin: Profile = Depends(get_current_admin),
     search: Optional[str] = None,
     limit: int = 20,
     offset: int = 0,
     db: AsyncSession = Depends(get_db)
 ):
     """Get spots with their SEO metadata, with pagination and search"""
-    await require_admin(admin_id, db)
     
     # Base query
     query = select(SurfSpot.id, SurfSpot.name, SurfSpot.region, SurfSpot.country)
@@ -418,12 +411,11 @@ async def get_spots_seo(
 @router.put("/admin/content/seo/spots/{spot_id}")
 async def update_spot_seo(
     spot_id: str,
-    admin_id: str,
+    admin: Profile = Depends(get_current_admin),
     request: UpdateSEORequest,
     db: AsyncSession = Depends(get_db)
 ):
     """Update spot SEO metadata"""
-    await require_admin(admin_id, db)
     
     # Check if SEO record exists
     existing = await db.execute(select(SpotSEOMetadata).where(SpotSEOMetadata.spot_id == spot_id))
@@ -440,7 +432,7 @@ async def update_spot_seo(
                 og_description=request.og_description,
                 og_image_url=request.og_image_url,
                 keywords=request.keywords or [],
-                updated_by=admin_id,
+                updated_by=admin.id,
                 updated_at=datetime.now(timezone.utc)
             )
         )
@@ -453,7 +445,7 @@ async def update_spot_seo(
             og_description=request.og_description,
             og_image_url=request.og_image_url,
             keywords=request.keywords or [],
-            updated_by=admin_id
+            updated_by=admin.id
         )
         db.add(new_seo)
     
@@ -465,11 +457,10 @@ async def update_spot_seo(
 # --- API KEY MANAGEMENT ---
 @router.get("/admin/tools/api-keys")
 async def get_api_keys(
-    admin_id: str,
+    admin: Profile = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db)
 ):
     """Get all API keys"""
-    await require_admin(admin_id, db)
     
     result = await db.execute(select(APIKey).where(APIKey.is_active == True).order_by(desc(APIKey.created_at)))
     keys = result.scalars().all()
@@ -492,12 +483,11 @@ async def get_api_keys(
 
 @router.post("/admin/tools/api-keys")
 async def create_api_key(
-    admin_id: str,
+    admin: Profile = Depends(get_current_admin),
     request: CreateAPIKeyRequest,
     db: AsyncSession = Depends(get_db)
 ):
     """Create a new API key"""
-    await require_admin(admin_id, db)
     
     # Generate key
     raw_key = secrets.token_urlsafe(32)
@@ -535,11 +525,10 @@ async def create_api_key(
 @router.delete("/admin/tools/api-keys/{key_id}")
 async def revoke_api_key(
     key_id: str,
-    admin_id: str,
+    admin: Profile = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db)
 ):
     """Revoke an API key"""
-    await require_admin(admin_id, db)
     
     await db.execute(
         update(APIKey)
@@ -555,11 +544,10 @@ async def revoke_api_key(
 # --- AUTOMATED REPORTS ---
 @router.get("/admin/tools/reports")
 async def get_automated_reports(
-    admin_id: str,
+    admin: Profile = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db)
 ):
     """Get automated reports"""
-    await require_admin(admin_id, db)
     
     result = await db.execute(select(AutomatedReport).order_by(AutomatedReport.name))
     reports = result.scalars().all()
@@ -582,12 +570,11 @@ async def get_automated_reports(
 
 @router.post("/admin/tools/reports")
 async def create_automated_report(
-    admin_id: str,
+    admin: Profile = Depends(get_current_admin),
     request: CreateReportRequest,
     db: AsyncSession = Depends(get_db)
 ):
     """Create an automated report"""
-    await require_admin(admin_id, db)
     
     report = AutomatedReport(
         name=request.name,
@@ -607,11 +594,10 @@ async def create_automated_report(
 @router.put("/admin/tools/reports/{report_id}/toggle")
 async def toggle_report(
     report_id: str,
-    admin_id: str,
+    admin: Profile = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db)
 ):
     """Toggle automated report active status"""
-    await require_admin(admin_id, db)
     
     result = await db.execute(select(AutomatedReport).where(AutomatedReport.id == report_id))
     report = result.scalar_one_or_none()
@@ -632,12 +618,11 @@ async def toggle_report(
 # --- CHANGELOG ---
 @router.get("/admin/tools/changelog")
 async def get_changelog(
-    admin_id: str,
+    admin: Profile = Depends(get_current_admin),
     include_unpublished: bool = False,
     db: AsyncSession = Depends(get_db)
 ):
     """Get changelog entries"""
-    await require_admin(admin_id, db)
     
     query = select(ChangelogEntry).order_by(desc(ChangelogEntry.created_at))
     if not include_unpublished:
@@ -663,12 +648,11 @@ async def get_changelog(
 
 @router.post("/admin/tools/changelog")
 async def create_changelog_entry(
-    admin_id: str,
+    admin: Profile = Depends(get_current_admin),
     request: CreateChangelogRequest,
     db: AsyncSession = Depends(get_db)
 ):
     """Create a changelog entry"""
-    await require_admin(admin_id, db)
     
     entry = ChangelogEntry(
         version=request.version,
@@ -688,11 +672,10 @@ async def create_changelog_entry(
 @router.put("/admin/tools/changelog/{entry_id}/publish")
 async def publish_changelog_entry(
     entry_id: str,
-    admin_id: str,
+    admin: Profile = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db)
 ):
     """Publish a changelog entry"""
-    await require_admin(admin_id, db)
     
     await db.execute(
         update(ChangelogEntry)

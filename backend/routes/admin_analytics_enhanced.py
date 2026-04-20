@@ -11,6 +11,7 @@ from datetime import datetime, timezone, timedelta
 from dateutil.relativedelta import relativedelta
 
 from database import get_db
+from deps.admin_auth import get_current_admin
 from models import (
     Profile, Booking, CreditTransaction, PaymentTransaction, 
     SurfSpot, RoleEnum, GalleryItem, Review
@@ -24,7 +25,7 @@ router = APIRouter()
 
 @router.get("/admin/analytics/ltv-cac")
 async def get_ltv_cac_metrics(
-    admin_id: str,
+    admin: Profile = Depends(get_current_admin),
     days: int = 90,
     db: AsyncSession = Depends(get_db)
 ):
@@ -33,7 +34,6 @@ async def get_ltv_cac_metrics(
     - LTV = Average Revenue Per User * Gross Margin / Churn Rate
     - CAC = Marketing Spend / New Customers (estimated from credit transactions)
     """
-    await require_admin(admin_id, db)
     
     start_date = datetime.now(timezone.utc) - timedelta(days=days)
     prev_start = start_date - timedelta(days=days)
@@ -154,7 +154,7 @@ async def get_ltv_cac_metrics(
 
 @router.get("/admin/analytics/liquidity")
 async def get_marketplace_liquidity(
-    admin_id: str,
+    admin: Profile = Depends(get_current_admin),
     days: int = 30,
     db: AsyncSession = Depends(get_db)
 ):
@@ -163,7 +163,6 @@ async def get_marketplace_liquidity(
     - Buyer Liquidity: Search-to-booking conversion
     - Seller Liquidity: Photographer utilization rate
     """
-    await require_admin(admin_id, db)
     
     start_date = datetime.now(timezone.utc) - timedelta(days=days)
     
@@ -270,7 +269,7 @@ async def get_marketplace_liquidity(
 
 @router.get("/admin/analytics/supply-demand")
 async def get_supply_demand_balance(
-    admin_id: str,
+    admin: Profile = Depends(get_current_admin),
     days: int = 30,
     limit: int = 10,
     db: AsyncSession = Depends(get_db)
@@ -279,7 +278,6 @@ async def get_supply_demand_balance(
     Supply/Demand balance by surf spot location
     Identifies underserved and oversupplied markets
     """
-    await require_admin(admin_id, db)
     
     start_date = datetime.now(timezone.utc) - timedelta(days=days)
     
@@ -367,7 +365,7 @@ async def get_supply_demand_balance(
 
 @router.get("/admin/analytics/top-performers")
 async def get_top_performers(
-    admin_id: str,
+    admin: Profile = Depends(get_current_admin),
     days: int = 30,
     limit: int = 10,
     db: AsyncSession = Depends(get_db)
@@ -375,7 +373,6 @@ async def get_top_performers(
     """
     Top performing photographers and spots by revenue/bookings
     """
-    await require_admin(admin_id, db)
     
     start_date = datetime.now(timezone.utc) - timedelta(days=days)
     
@@ -456,7 +453,7 @@ async def get_top_performers(
 
 @router.get("/admin/analytics/retention-curve")
 async def get_retention_curve(
-    admin_id: str,
+    admin: Profile = Depends(get_current_admin),
     cohort_months: int = 6,
     db: AsyncSession = Depends(get_db)
 ):
@@ -464,7 +461,6 @@ async def get_retention_curve(
     Generates retention curve data for visualization
     Returns weekly retention percentages for line chart
     """
-    await require_admin(admin_id, db)
     
     now = datetime.now(timezone.utc)
     curves = []
@@ -531,13 +527,12 @@ async def get_retention_curve(
 
 @router.get("/admin/analytics/health-score")
 async def get_platform_health_score(
-    admin_id: str,
+    admin: Profile = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db)
 ):
     """
     Overall platform health score combining multiple metrics
     """
-    await require_admin(admin_id, db)
     
     # Get component scores
     ltv_cac = await get_ltv_cac_metrics(admin_id, 90, db)

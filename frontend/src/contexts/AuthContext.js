@@ -182,7 +182,7 @@ export const AuthProvider = ({ children }) => {
     
     try {
       // Call API to end session
-      await apiClient.post(`/admin/impersonate/${impersonation.session_id}/end?admin_id=${originalUser.id}`);
+      await apiClient.post(`/admin/impersonate/${impersonation.session_id}/end`);
     } catch (e) {
       // Continue anyway - session cleanup is important
     }

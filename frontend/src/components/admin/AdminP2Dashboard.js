@@ -89,7 +89,7 @@ export const AdminP2Dashboard = () => {
   const fetchRevenueData = async () => {
     setLoading(true);
     try {
-      const response = await apiClient.get(`/admin/revenue/overview?admin_id=${user.id}&days=30`);
+      const response = await apiClient.get(`/admin/revenue/overview?days=30`);
       setRevenueData(response.data);
     } catch (error) {
       logger.error('Failed to load revenue data:', error);
@@ -100,7 +100,7 @@ export const AdminP2Dashboard = () => {
 
   const fetchCohortData = async () => {
     try {
-      const response = await apiClient.get(`/admin/revenue/cohort?admin_id=${user.id}&months=6`);
+      const response = await apiClient.get(`/admin/revenue/cohort?months=6`);
       setCohortData(response.data);
     } catch (error) {
       logger.error('Failed to load cohort data:', error);
@@ -109,7 +109,7 @@ export const AdminP2Dashboard = () => {
 
   const fetchFunnelData = async () => {
     try {
-      const response = await apiClient.get(`/admin/funnel/detailed?admin_id=${user.id}&days=30`);
+      const response = await apiClient.get(`/admin/funnel/detailed?days=30`);
       setFunnelData(response.data);
     } catch (error) {
       logger.error('Failed to load funnel data:', error);
@@ -119,7 +119,7 @@ export const AdminP2Dashboard = () => {
   const fetchPromoCodes = async () => {
     setLoading(true);
     try {
-      const response = await apiClient.get(`/admin/promo-codes?admin_id=${user.id}`);
+      const response = await apiClient.get(`/admin/promo-codes`);
       setPromoCodes(response.data.promo_codes || []);
     } catch (error) {
       toast.error('Failed to load promo codes');
@@ -131,7 +131,7 @@ export const AdminP2Dashboard = () => {
   const fetchFeatureFlags = async () => {
     setLoading(true);
     try {
-      const response = await apiClient.get(`/admin/feature-flags?admin_id=${user.id}`);
+      const response = await apiClient.get(`/admin/feature-flags`);
       setFeatureFlags(response.data.feature_flags || []);
     } catch (error) {
       toast.error('Failed to load feature flags');
@@ -143,7 +143,7 @@ export const AdminP2Dashboard = () => {
   const fetchCampaigns = async () => {
     setLoading(true);
     try {
-      const response = await apiClient.get(`/admin/notification-campaigns?admin_id=${user.id}`);
+      const response = await apiClient.get(`/admin/notification-campaigns`);
       setCampaigns(response.data.campaigns || []);
     } catch (error) {
       toast.error('Failed to load campaigns');
@@ -159,7 +159,7 @@ export const AdminP2Dashboard = () => {
     }
     setActionLoading(true);
     try {
-      await apiClient.post(`/admin/promo-codes?admin_id=${user.id}`, newPromo);
+      await apiClient.post(`/admin/promo-codes`, newPromo);
       toast.success('Promo code created');
       setShowCreatePromo(false);
       setNewPromo({ code: '', code_type: 'percentage', discount_value: 10, max_uses: null, campaign_name: '' });
@@ -173,7 +173,7 @@ export const AdminP2Dashboard = () => {
 
   const handleTogglePromo = async (codeId) => {
     try {
-      await apiClient.put(`/admin/promo-codes/${codeId}/toggle?admin_id=${user.id}`);
+      await apiClient.put(`/admin/promo-codes/${codeId}/toggle`);
       toast.success('Promo code updated');
       fetchPromoCodes();
     } catch (error) {
@@ -188,7 +188,7 @@ export const AdminP2Dashboard = () => {
     }
     setActionLoading(true);
     try {
-      await apiClient.post(`/admin/feature-flags?admin_id=${user.id}`, newFlag);
+      await apiClient.post(`/admin/feature-flags`, newFlag);
       toast.success('Feature flag created');
       setShowCreateFlag(false);
       setNewFlag({ key: '', name: '', description: '', rollout_percentage: 0, category: 'general' });
@@ -202,7 +202,7 @@ export const AdminP2Dashboard = () => {
 
   const handleToggleFlag = async (flagId, currentState) => {
     try {
-      await apiClient.put(`/admin/feature-flags/${flagId}?admin_id=${user.id}&is_enabled=${!currentState}`);
+      await apiClient.put(`/admin/feature-flags/${flagId}?is_enabled=${!currentState}`);
       toast.success('Feature flag updated');
       fetchFeatureFlags();
     } catch (error) {
@@ -212,7 +212,7 @@ export const AdminP2Dashboard = () => {
 
   const handleUpdateRollout = async (flagId, percentage) => {
     try {
-      await apiClient.put(`/admin/feature-flags/${flagId}?admin_id=${user.id}&rollout_percentage=${percentage}`);
+      await apiClient.put(`/admin/feature-flags/${flagId}?rollout_percentage=${percentage}`);
       toast.success('Rollout updated');
       fetchFeatureFlags();
     } catch (error) {
@@ -227,7 +227,7 @@ export const AdminP2Dashboard = () => {
     }
     setActionLoading(true);
     try {
-      await apiClient.post(`/admin/notification-campaigns?admin_id=${user.id}`, newCampaign);
+      await apiClient.post(`/admin/notification-campaigns`, newCampaign);
       toast.success('Campaign created');
       setShowCreateCampaign(false);
       setNewCampaign({ name: '', title: '', body: '', target_all_users: false, target_roles: [] });
@@ -243,7 +243,7 @@ export const AdminP2Dashboard = () => {
     if (!confirm('Are you sure you want to send this campaign now?')) return;
     setActionLoading(true);
     try {
-      const response = await apiClient.post(`/admin/notification-campaigns/${campaignId}/send?admin_id=${user.id}`);
+      const response = await apiClient.post(`/admin/notification-campaigns/${campaignId}/send`);
       toast.success(`Sent to ${response.data.total_sent} users`);
       fetchCampaigns();
     } catch (error) {

@@ -15,6 +15,7 @@ import csv
 import io
 
 from database import get_db
+from deps.admin_auth import get_current_admin
 from models import (
     Profile, CreditTransaction, PaymentTransaction, Booking,
     RefundRequest, RefundStatusEnum, PayoutBatch, FailedPayment
@@ -44,14 +45,13 @@ class CreatePayoutBatchRequest(BaseModel):
 # --- REFUND PROCESSING ---
 @router.get("/admin/finance/refunds")
 async def get_refund_requests(
-    admin_id: str,
+    admin: Profile = Depends(get_current_admin),
     status: Optional[str] = None,
     limit: int = 50,
     offset: int = 0,
     db: AsyncSession = Depends(get_db)
 ):
     """Get refund requests with filters"""
-    await require_admin(admin_id, db)
     
     query = select(RefundRequest).order_by(desc(RefundRequest.created_at))
     if status:
@@ -96,12 +96,11 @@ async def get_refund_requests(
 
 @router.post("/admin/finance/refunds")
 async def create_refund_request(
-    admin_id: str,
+    admin: Profile = Depends(get_current_admin),
     request: CreateRefundRequest,
     db: AsyncSession = Depends(get_db)
 ):
     """Create a refund request (admin-initiated)"""
-    await require_admin(admin_id, db)
     
     refund = RefundRequest(
         user_id=request.user_id,
@@ -122,12 +121,11 @@ async def create_refund_request(
 @router.post("/admin/finance/refunds/{refund_id}/process")
 async def process_refund(
     refund_id: str,
-    admin_id: str,
+    admin: Profile = Depends(get_current_admin),
     request: ProcessRefundRequest,
     db: AsyncSession = Depends(get_db)
 ):
     """Approve or reject a refund request"""
-    await require_admin(admin_id, db)
     
     result = await db.execute(select(RefundRequest).where(RefundRequest.id == refund_id))
     refund = result.scalar_one_or_none()
@@ -182,13 +180,12 @@ async def process_refund(
 # --- PAYOUT BATCH MANAGEMENT ---
 @router.get("/admin/finance/payouts")
 async def get_payout_batches(
-    admin_id: str,
+    admin: Profile = Depends(get_current_admin),
     status: Optional[str] = None,
     limit: int = 20,
     db: AsyncSession = Depends(get_db)
 ):
     """Get payout batches"""
-    await require_admin(admin_id, db)
     
     query = select(PayoutBatch).order_by(desc(PayoutBatch.created_at))
     if status:
@@ -216,11 +213,10 @@ async def get_payout_batches(
 
 @router.get("/admin/finance/payouts/pending")
 async def get_pending_payouts(
-    admin_id: str,
+    admin: Profile = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db)
 ):
     """Get photographers with pending payouts"""
-    await require_admin(admin_id, db)
     
     # Get photographers with positive credit balance
     result = await db.execute(
@@ -255,12 +251,11 @@ async def get_pending_payouts(
 
 @router.post("/admin/finance/payouts/create-batch")
 async def create_payout_batch(
-    admin_id: str,
+    admin: Profile = Depends(get_current_admin),
     request: CreatePayoutBatchRequest,
     db: AsyncSession = Depends(get_db)
 ):
     """Create a new payout batch"""
-    await require_admin(admin_id, db)
     
     # Generate batch number
     count = await db.execute(select(func.count(PayoutBatch.id)))
@@ -303,11 +298,10 @@ async def create_payout_batch(
 @router.post("/admin/finance/payouts/{batch_id}/process")
 async def process_payout_batch(
     batch_id: str,
-    admin_id: str,
+    admin: Profile = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db)
 ):
     """Process a payout batch"""
-    await require_admin(admin_id, db)
     
     result = await db.execute(select(PayoutBatch).where(PayoutBatch.id == batch_id))
     batch = result.scalar_one_or_none()
@@ -341,13 +335,12 @@ async def process_payout_batch(
 # --- FAILED PAYMENT RECOVERY ---
 @router.get("/admin/finance/failed-payments")
 async def get_failed_payments(
-    admin_id: str,
+    admin: Profile = Depends(get_current_admin),
     include_recovered: bool = False,
     limit: int = 50,
     db: AsyncSession = Depends(get_db)
 ):
     """Get failed payments for recovery"""
-    await require_admin(admin_id, db)
     
     query = select(FailedPayment).order_by(desc(FailedPayment.created_at))
     if not include_recovered:
@@ -386,11 +379,10 @@ async def get_failed_payments(
 @router.post("/admin/finance/failed-payments/{payment_id}/retry")
 async def retry_failed_payment(
     payment_id: str,
-    admin_id: str,
+    admin: Profile = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db)
 ):
     """Retry a failed payment"""
-    await require_admin(admin_id, db)
     
     result = await db.execute(select(FailedPayment).where(FailedPayment.id == payment_id))
     failed = result.scalar_one_or_none()
@@ -434,12 +426,11 @@ async def retry_failed_payment(
 # --- TAX REPORTING ---
 @router.get("/admin/finance/tax-report")
 async def get_tax_report(
-    admin_id: str,
+    admin: Profile = Depends(get_current_admin),
     year: int,
     db: AsyncSession = Depends(get_db)
 ):
     """Get tax report data for a year"""
-    await require_admin(admin_id, db)
     
     start_date = datetime(year, 1, 1, tzinfo=timezone.utc)
     end_date = datetime(year + 1, 1, 1, tzinfo=timezone.utc)
@@ -491,12 +482,11 @@ async def get_tax_report(
 
 @router.get("/admin/finance/stats")
 async def get_finance_stats(
-    admin_id: str,
+    admin: Profile = Depends(get_current_admin),
     days: int = 30,
     db: AsyncSession = Depends(get_db)
 ):
     """Get financial statistics"""
-    await require_admin(admin_id, db)
     
     start_date = datetime.now(timezone.utc) - timedelta(days=days)
     

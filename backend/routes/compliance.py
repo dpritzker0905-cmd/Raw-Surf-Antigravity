@@ -19,6 +19,7 @@ from utils.geo import haversine_distance
 import json
 
 from database import get_db
+from deps.admin_auth import get_current_admin
 from models import (
     Profile, TosViolation, TosAcknowledgement, FraudAlert,
     Notification, Booking, DispatchRequest, LiveSession
@@ -227,18 +228,10 @@ async def report_location_fraud(
 @router.post("/violations")
 async def create_tos_violation(
     data: CreateTosViolationRequest,
-    admin_id: str = Query(...),
+    admin: Profile = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db)
 ):
-    """Admin creates a ToS violation manually"""
-    # Verify admin
-    admin_result = await db.execute(
-        select(Profile).where(Profile.id == admin_id)
-    )
-    admin = admin_result.scalar_one_or_none()
-    
-    if not admin or not admin.is_admin:
-        raise HTTPException(status_code=403, detail="Admin access required")
+    """Admin creates a ToS violation manually (JWT verified)"""
     
     # Get the user
     user_result = await db.execute(
@@ -265,7 +258,7 @@ async def create_tos_violation(
         related_id=data.related_id,
         action_taken=action,
         suspension_until=suspension_until,
-        reviewed_by=admin_id
+        reviewed_by=admin.id
     )
     db.add(violation)
     
@@ -391,18 +384,10 @@ async def appeal_violation(
 async def review_appeal(
     violation_id: str,
     data: ReviewAppealRequest,
-    admin_id: str = Query(...),
+    admin: Profile = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db)
 ):
-    """Admin reviews a violation appeal"""
-    # Verify admin
-    admin_result = await db.execute(
-        select(Profile).where(Profile.id == admin_id)
-    )
-    admin = admin_result.scalar_one_or_none()
-    
-    if not admin or not admin.is_admin:
-        raise HTTPException(status_code=403, detail="Admin access required")
+    """Admin reviews a violation appeal (JWT verified)"""
     
     result = await db.execute(
         select(TosViolation).where(TosViolation.id == violation_id)
@@ -416,7 +401,7 @@ async def review_appeal(
         raise HTTPException(status_code=400, detail="No pending appeal for this violation")
     
     violation.appeal_status = 'approved' if data.approved else 'denied'
-    violation.appeal_reviewed_by = admin_id
+    violation.appeal_reviewed_by = admin.id
     violation.appeal_reviewed_at = datetime.now(timezone.utc)
     
     if data.approved:
@@ -535,18 +520,10 @@ async def get_tos_status(
 
 @router.get("/dashboard")
 async def get_compliance_dashboard(
-    admin_id: str = Query(...),
+    admin: Profile = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db)
 ):
-    """Get compliance dashboard stats for admin"""
-    # Verify admin
-    admin_result = await db.execute(
-        select(Profile).where(Profile.id == admin_id)
-    )
-    admin = admin_result.scalar_one_or_none()
-    
-    if not admin or not admin.is_admin:
-        raise HTTPException(status_code=403, detail="Admin access required")
+    """Get compliance dashboard stats for admin (JWT verified)"""
     
     now = datetime.now(timezone.utc)
     week_ago = now - timedelta(days=7)
@@ -638,24 +615,15 @@ async def get_compliance_dashboard(
 @router.post("/violations/bulk-review-appeals")
 async def bulk_review_appeals(
     data: BulkReviewAppealsRequest,
-    admin_id: str = Query(...),
+    admin: Profile = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db)
 ):
-    """Bulk approve or deny multiple appeals at once"""
+    """Bulk approve or deny multiple appeals at once (JWT verified)"""
     import json
     
     violation_ids = data.violation_ids
     approved = data.approved
     notes = data.notes
-    
-    # Verify admin
-    admin_result = await db.execute(
-        select(Profile).where(Profile.id == admin_id)
-    )
-    admin = admin_result.scalar_one_or_none()
-    
-    if not admin or not admin.is_admin:
-        raise HTTPException(status_code=403, detail="Admin access required")
     
     processed = 0
     errors = []
@@ -676,7 +644,7 @@ async def bulk_review_appeals(
                 continue
             
             violation.appeal_status = 'approved' if approved else 'denied'
-            violation.appeal_reviewed_by = admin_id
+            violation.appeal_reviewed_by = admin.id
             violation.appeal_reviewed_at = datetime.now(timezone.utc)
             
             if approved:

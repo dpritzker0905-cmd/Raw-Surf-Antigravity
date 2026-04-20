@@ -105,55 +105,55 @@ export const AdminUnifiedAnalytics = () => {
 
   const fetchOverviewData = async () => {
     const [revenueRes, ltvCacRes] = await Promise.all([
-      apiClient.get(`/admin/revenue/overview?admin_id=${user.id}&days=${getDays()}`),
-      apiClient.get(`/admin/analytics/ltv-cac?admin_id=${user.id}&days=${getDays() * 3}`)
+      apiClient.get(`/admin/revenue/overview?days=${getDays()}`),
+      apiClient.get(`/admin/analytics/ltv-cac?days=${getDays() * 3}`)
     ]);
     setRevenueData(revenueRes.data);
     setLtvCacData(ltvCacRes.data);
   };
 
   const fetchHealthScore = async () => {
-    const res = await apiClient.get(`/admin/analytics/health-score?admin_id=${user.id}`);
+    const res = await apiClient.get(`/admin/analytics/health-score`);
     setHealthScore(res.data);
   };
 
   const fetchLiquidityData = async () => {
-    const res = await apiClient.get(`/admin/analytics/liquidity?admin_id=${user.id}&days=${getDays()}`);
+    const res = await apiClient.get(`/admin/analytics/liquidity?days=${getDays()}`);
     setLiquidityData(res.data);
   };
 
   const fetchSupplyDemandData = async () => {
-    const res = await apiClient.get(`/admin/analytics/supply-demand?admin_id=${user.id}&days=${getDays()}&limit=8`);
+    const res = await apiClient.get(`/admin/analytics/supply-demand?days=${getDays()}&limit=8`);
     setSupplyDemandData(res.data);
   };
 
   const fetchTopPerformers = async () => {
-    const res = await apiClient.get(`/admin/analytics/top-performers?admin_id=${user.id}&days=${getDays()}&limit=5`);
+    const res = await apiClient.get(`/admin/analytics/top-performers?days=${getDays()}&limit=5`);
     setTopPerformers(res.data);
   };
 
   const fetchFunnelData = async () => {
-    const res = await apiClient.get(`/admin/funnel/detailed?admin_id=${user.id}&days=${getDays()}`);
+    const res = await apiClient.get(`/admin/funnel/detailed?days=${getDays()}`);
     setFunnelData(res.data);
   };
 
   const fetchCohortData = async () => {
-    const res = await apiClient.get(`/admin/revenue/cohort?admin_id=${user.id}&months=6`);
+    const res = await apiClient.get(`/admin/revenue/cohort?months=6`);
     setCohortData(res.data);
   };
 
   const fetchPromoCodes = async () => {
-    const res = await apiClient.get(`/admin/promo-codes?admin_id=${user.id}`);
+    const res = await apiClient.get(`/admin/promo-codes`);
     setPromoCodes(res.data.promo_codes || []);
   };
 
   const fetchFeatureFlags = async () => {
-    const res = await apiClient.get(`/admin/feature-flags?admin_id=${user.id}`);
+    const res = await apiClient.get(`/admin/feature-flags`);
     setFeatureFlags(res.data.feature_flags || []);
   };
 
   const fetchCampaigns = async () => {
-    const res = await apiClient.get(`/admin/notification-campaigns?admin_id=${user.id}`);
+    const res = await apiClient.get(`/admin/notification-campaigns`);
     setCampaigns(res.data.campaigns || []);
   };
 
@@ -162,7 +162,7 @@ export const AdminUnifiedAnalytics = () => {
     if (!newPromo.code) { toast.error('Please enter a code'); return; }
     setActionLoading(true);
     try {
-      await apiClient.post(`/admin/promo-codes?admin_id=${user.id}`, newPromo);
+      await apiClient.post(`/admin/promo-codes`, newPromo);
       toast.success('Promo code created');
       setShowCreatePromo(false);
       setNewPromo({ code: '', code_type: 'percentage', discount_value: 10, max_uses: null, campaign_name: '' });
@@ -176,7 +176,7 @@ export const AdminUnifiedAnalytics = () => {
 
   const handleTogglePromo = async (codeId) => {
     try {
-      await apiClient.put(`/admin/promo-codes/${codeId}/toggle?admin_id=${user.id}`);
+      await apiClient.put(`/admin/promo-codes/${codeId}/toggle`);
       fetchPromoCodes();
     } catch (error) {
       toast.error('Failed to toggle');
@@ -187,7 +187,7 @@ export const AdminUnifiedAnalytics = () => {
     if (!newFlag.key || !newFlag.name) { toast.error('Please fill required fields'); return; }
     setActionLoading(true);
     try {
-      await apiClient.post(`/admin/feature-flags?admin_id=${user.id}`, newFlag);
+      await apiClient.post(`/admin/feature-flags`, newFlag);
       toast.success('Feature flag created');
       setShowCreateFlag(false);
       setNewFlag({ key: '', name: '', description: '', rollout_percentage: 0, is_experiment: false });
@@ -201,7 +201,7 @@ export const AdminUnifiedAnalytics = () => {
 
   const handleToggleFlag = async (flagId, currentState) => {
     try {
-      await apiClient.put(`/admin/feature-flags/${flagId}?admin_id=${user.id}&is_enabled=${!currentState}`);
+      await apiClient.put(`/admin/feature-flags/${flagId}?is_enabled=${!currentState}`);
       fetchFeatureFlags();
     } catch (error) {
       toast.error('Failed to toggle');
@@ -212,7 +212,7 @@ export const AdminUnifiedAnalytics = () => {
     if (!newCampaign.name || !newCampaign.title) { toast.error('Please fill required fields'); return; }
     setActionLoading(true);
     try {
-      await apiClient.post(`/admin/notification-campaigns?admin_id=${user.id}`, newCampaign);
+      await apiClient.post(`/admin/notification-campaigns`, newCampaign);
       toast.success('Campaign created');
       setShowCreateCampaign(false);
       setNewCampaign({ name: '', title: '', body: '', target_all_users: true });
@@ -227,7 +227,7 @@ export const AdminUnifiedAnalytics = () => {
   const handleSendCampaign = async (campaignId) => {
     if (!confirm('Send this campaign now?')) return;
     try {
-      const res = await apiClient.post(`/admin/notification-campaigns/${campaignId}/send?admin_id=${user.id}`);
+      const res = await apiClient.post(`/admin/notification-campaigns/${campaignId}/send`);
       toast.success(`Sent to ${res.data.total_sent} users`);
       fetchCampaigns();
     } catch (error) {

@@ -15,6 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, and_, or_, desc
 from sqlalchemy.orm import selectinload
 from database import get_db
+from deps.admin_auth import get_current_admin
 from models import SurfSpot, SpotVerification, SpotEditLog, SpotRefinement, Profile
 from pydantic import BaseModel
 from typing import Optional, List
@@ -59,16 +60,6 @@ class SpotVerificationRequest(BaseModel):
 
 
 # ============ HELPER FUNCTIONS ============
-
-async def check_is_admin(admin_id: str, db: AsyncSession) -> Profile:
-    """Verify user is an admin"""
-    result = await db.execute(
-        select(Profile).where(Profile.id == admin_id)
-    )
-    admin = result.scalar_one_or_none()
-    if not admin or not admin.is_admin:
-        raise HTTPException(status_code=403, detail="Admin access required")
-    return admin
 
 async def check_is_on_land(latitude: float, longitude: float) -> dict:
     """
@@ -127,7 +118,7 @@ async def check_is_on_land(latitude: float, longitude: float) -> dict:
 
 @router.get("/list")
 async def admin_list_spots(
-    admin_id: str = Query(...),
+    admin: Profile = Depends(get_current_admin),
     page: int = Query(1, ge=1),
     limit: int = Query(50, le=5000),  # Allow up to 5000 for map editor
     search: Optional[str] = None,
@@ -136,7 +127,6 @@ async def admin_list_spots(
     db: AsyncSession = Depends(get_db)
 ):
     """List all spots with admin metadata"""
-    await check_is_admin(admin_id, db)
     
     query = select(SurfSpot)
     
@@ -193,11 +183,10 @@ async def admin_list_spots(
 @router.post("/create")
 async def admin_create_spot(
     request: SpotCreateRequest,
-    admin_id: str = Query(...),
+    admin: Profile = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db)
 ):
     """Create a new spot with precision pin-drop"""
-    admin = await check_is_admin(admin_id, db)
     
     # Check if on land
     land_check = await check_is_on_land(request.latitude, request.longitude)
@@ -237,7 +226,7 @@ async def admin_create_spot(
     log = SpotEditLog(
         id=str(uuid.uuid4()),
         spot_id=spot_id,
-        admin_id=admin_id,
+        admin_id=admin.id,
         action="create",
         new_latitude=request.latitude,
         new_longitude=request.longitude,
@@ -264,11 +253,10 @@ async def admin_create_spot(
 async def admin_move_spot(
     spot_id: str,
     request: SpotMoveRequest,
-    admin_id: str = Query(...),
+    admin: Profile = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db)
 ):
     """Move an existing spot to new coordinates"""
-    admin = await check_is_admin(admin_id, db)
     
     # Get spot
     result = await db.execute(select(SurfSpot).where(SurfSpot.id == spot_id))
@@ -291,7 +279,7 @@ async def admin_move_spot(
     log = SpotEditLog(
         id=str(uuid.uuid4()),
         spot_id=spot_id,
-        admin_id=admin_id,
+        admin_id=admin.id,
         action="move",
         old_latitude=spot.latitude,
         old_longitude=spot.longitude,
@@ -329,11 +317,10 @@ async def admin_move_spot(
 async def admin_update_spot(
     spot_id: str,
     request: SpotUpdateRequest,
-    admin_id: str = Query(...),
+    admin: Profile = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db)
 ):
     """Update spot metadata (name, region, difficulty, etc.)"""
-    admin = await check_is_admin(admin_id, db)
     
     result = await db.execute(select(SurfSpot).where(SurfSpot.id == spot_id))
     spot = result.scalar_one_or_none()
@@ -344,7 +331,7 @@ async def admin_update_spot(
     log = SpotEditLog(
         id=str(uuid.uuid4()),
         spot_id=spot_id,
-        admin_id=admin_id,
+        admin_id=admin.id,
         action="update",
         old_name=spot.name if request.name else None,
         new_name=request.name,
@@ -377,11 +364,10 @@ async def admin_update_spot(
 @router.delete("/{spot_id}")
 async def admin_delete_spot(
     spot_id: str,
-    admin_id: str = Query(...),
+    admin: Profile = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db)
 ):
     """Delete a spot from the map"""
-    admin = await check_is_admin(admin_id, db)
     
     result = await db.execute(select(SurfSpot).where(SurfSpot.id == spot_id))
     spot = result.scalar_one_or_none()
@@ -392,7 +378,7 @@ async def admin_delete_spot(
     log = SpotEditLog(
         id=str(uuid.uuid4()),
         spot_id=spot_id,
-        admin_id=admin_id,
+        admin_id=admin.id,
         action="delete",
         old_latitude=spot.latitude,
         old_longitude=spot.longitude,
@@ -411,13 +397,12 @@ async def admin_delete_spot(
 
 @router.get("/queue")
 async def admin_get_precision_queue(
-    admin_id: str = Query(...),
+    admin: Profile = Depends(get_current_admin),
     page: int = Query(1, ge=1),
     limit: int = Query(20, le=100),
     db: AsyncSession = Depends(get_db)
 ):
     """Get spots flagged for review (>150m from water or unverified)"""
-    await check_is_admin(admin_id, db)
     
     # Get flagged spots or spots with low accuracy
     query = select(SurfSpot).where(
@@ -460,13 +445,12 @@ async def admin_get_precision_queue(
 
 @router.get("/suggestions")
 async def admin_get_relocation_suggestions(
-    admin_id: str = Query(...),
+    admin: Profile = Depends(get_current_admin),
     status: str = Query("pending"),
     limit: int = Query(50, le=100),
     db: AsyncSession = Depends(get_db)
 ):
     """Get photographer relocation suggestions from verification feedback"""
-    await check_is_admin(admin_id, db)
     
     # Get verifications where photographer suggested a move
     query = select(SpotVerification).where(
@@ -507,11 +491,10 @@ async def admin_get_relocation_suggestions(
 @router.get("/edit-history/{spot_id}")
 async def admin_get_spot_edit_history(
     spot_id: str,
-    admin_id: str = Query(...),
+    admin: Profile = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db)
 ):
     """Get edit history for a specific spot"""
-    await check_is_admin(admin_id, db)
     
     result = await db.execute(
         select(SpotEditLog)

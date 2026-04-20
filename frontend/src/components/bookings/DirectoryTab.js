@@ -535,6 +535,15 @@ export const DirectoryTab = ({
             variant="outline"
             size="sm"
             onClick={() => setShowSortMenu(!showSortMenu)}
+            aria-haspopup="listbox"
+            aria-expanded={showSortMenu}
+            aria-label={`Sort by: ${SORT_OPTIONS.find(s => s.id === sortBy)?.label || 'Sort'}`}
+            onKeyDown={(e) => {
+              if (e.key === 'ArrowDown' || e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                setShowSortMenu(true);
+              }
+            }}
             className={`${isLight ? 'border-gray-300 text-gray-600' : 'border-zinc-700 text-gray-300'}`}
           >
             <ArrowUpDown className="w-4 h-4 mr-1.5" />
@@ -542,13 +551,41 @@ export const DirectoryTab = ({
           </Button>
           
           {showSortMenu && (
-            <div className={`absolute top-full left-0 mt-1 z-50 w-48 rounded-lg border shadow-xl ${isLight ? 'bg-white border-gray-200' : isBeach ? 'bg-zinc-900 border-zinc-700' : 'bg-zinc-800 border-zinc-700'}`}>
+            <div
+              role="listbox"
+              aria-label="Sort options"
+              tabIndex={-1}
+              onKeyDown={(e) => {
+                const options = SORT_OPTIONS.filter(o => !(o.id === 'distance' && subscriptionTier === 'Free'));
+                const currentIdx = options.findIndex(o => o.id === sortBy);
+                if (e.key === 'ArrowDown') {
+                  e.preventDefault();
+                  const next = options[(currentIdx + 1) % options.length];
+                  setSortBy(next.id);
+                } else if (e.key === 'ArrowUp') {
+                  e.preventDefault();
+                  const prev = options[(currentIdx - 1 + options.length) % options.length];
+                  setSortBy(prev.id);
+                } else if (e.key === 'Escape') {
+                  e.preventDefault();
+                  setShowSortMenu(false);
+                } else if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  setShowSortMenu(false);
+                }
+              }}
+              ref={(el) => el && el.focus()}
+              className={`absolute top-full left-0 mt-1 z-50 w-48 rounded-lg border shadow-xl ${isLight ? 'bg-white border-gray-200' : isBeach ? 'bg-zinc-900 border-zinc-700' : 'bg-zinc-800 border-zinc-700'}`}
+            >
               {SORT_OPTIONS.map((option) => {
                 // Block distance sort for Free tier
                 const isDisabled = option.id === 'distance' && subscriptionTier === 'Free';
                 return (
                   <button
                     key={option.id}
+                    role="option"
+                    aria-selected={sortBy === option.id}
+                    aria-disabled={isDisabled}
                     onClick={() => {
                       if (!isDisabled) {
                         setSortBy(option.id);

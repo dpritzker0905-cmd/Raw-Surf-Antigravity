@@ -15,6 +15,7 @@ import psutil
 import time
 
 from database import get_db
+from deps.admin_auth import get_current_admin
 from models import (
     Profile, ScheduledJobStatus, SystemAlert, SystemHealthMetric
 )
@@ -30,11 +31,10 @@ class AcknowledgeAlertRequest(BaseModel):
 # --- SYSTEM HEALTH OVERVIEW ---
 @router.get("/admin/system/health")
 async def get_system_health(
-    admin_id: str,
+    admin: Profile = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db)
 ):
     """Get overall system health dashboard"""
-    await require_admin(admin_id, db)
     
     # CPU and Memory usage
     cpu_percent = psutil.cpu_percent(interval=0.1)
@@ -119,11 +119,10 @@ async def get_system_health(
 # --- BACKGROUND JOBS STATUS ---
 @router.get("/admin/system/jobs")
 async def get_job_statuses(
-    admin_id: str,
+    admin: Profile = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db)
 ):
     """Get status of all scheduled background jobs"""
-    await require_admin(admin_id, db)
     
     result = await db.execute(select(ScheduledJobStatus).order_by(ScheduledJobStatus.job_name))
     jobs = result.scalars().all()
@@ -177,11 +176,10 @@ async def get_job_statuses(
 @router.put("/admin/system/jobs/{job_name}/toggle")
 async def toggle_job(
     job_name: str,
-    admin_id: str,
+    admin: Profile = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db)
 ):
     """Enable/disable a background job"""
-    await require_admin(admin_id, db)
     
     result = await db.execute(select(ScheduledJobStatus).where(ScheduledJobStatus.job_name == job_name))
     job = result.scalar_one_or_none()
@@ -202,13 +200,12 @@ async def toggle_job(
 # --- SYSTEM ALERTS ---
 @router.get("/admin/system/alerts")
 async def get_system_alerts(
-    admin_id: str,
+    admin: Profile = Depends(get_current_admin),
     include_resolved: bool = False,
     limit: int = 50,
     db: AsyncSession = Depends(get_db)
 ):
     """Get system alerts"""
-    await require_admin(admin_id, db)
     
     query = select(SystemAlert).order_by(desc(SystemAlert.created_at))
     if not include_resolved:
@@ -235,12 +232,11 @@ async def get_system_alerts(
 
 @router.post("/admin/system/alerts/acknowledge")
 async def acknowledge_alerts(
-    admin_id: str,
+    admin: Profile = Depends(get_current_admin),
     request: AcknowledgeAlertRequest,
     db: AsyncSession = Depends(get_db)
 ):
     """Acknowledge one or more alerts"""
-    await require_admin(admin_id, db)
     
     await db.execute(
         update(SystemAlert)
@@ -259,11 +255,10 @@ async def acknowledge_alerts(
 @router.post("/admin/system/alerts/{alert_id}/resolve")
 async def resolve_alert(
     alert_id: str,
-    admin_id: str,
+    admin: Profile = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db)
 ):
     """Mark an alert as resolved"""
-    await require_admin(admin_id, db)
     
     await db.execute(
         update(SystemAlert)
@@ -281,12 +276,11 @@ async def resolve_alert(
 # --- API METRICS ---
 @router.get("/admin/system/api-metrics")
 async def get_api_metrics(
-    admin_id: str,
+    admin: Profile = Depends(get_current_admin),
     hours: int = 24,
     db: AsyncSession = Depends(get_db)
 ):
     """Get API performance metrics"""
-    await require_admin(admin_id, db)
     
     start_time = datetime.now(timezone.utc) - timedelta(hours=hours)
     

@@ -55,7 +55,7 @@ export const AdminSupportDashboard = () => {
   const fetchTickets = async () => {
     setLoading(true);
     try {
-      let url = `/admin/support/tickets?admin_id=${user.id}&limit=50`;
+      let url = `/admin/support/tickets?limit=50`;
       if (statusFilter) url += `&status=${statusFilter}`;
       if (priorityFilter) url += `&priority=${priorityFilter}`;
       if (searchQuery) url += `&search=${encodeURIComponent(searchQuery)}`;
@@ -71,7 +71,7 @@ export const AdminSupportDashboard = () => {
 
   const fetchMetrics = async () => {
     try {
-      const response = await apiClient.get(`/admin/support/metrics?admin_id=${user.id}&days=30`);
+      const response = await apiClient.get(`/admin/support/metrics?days=30`);
       setMetrics(response.data);
     } catch (error) {
       logger.error('Failed to load metrics:', error);
@@ -80,7 +80,7 @@ export const AdminSupportDashboard = () => {
 
   const fetchTicketDetail = async (ticketId) => {
     try {
-      const response = await apiClient.get(`/admin/support/tickets/${ticketId}?admin_id=${user.id}`);
+      const response = await apiClient.get(`/admin/support/tickets/${ticketId}`);
       setTicketDetail(response.data);
     } catch (error) {
       toast.error('Failed to load ticket details');
@@ -90,7 +90,7 @@ export const AdminSupportDashboard = () => {
   const handleUpdateTicket = async (ticketId, updates) => {
     setActionLoading(true);
     try {
-      await apiClient.put(`/admin/support/tickets/${ticketId}?admin_id=${user.id}`, updates);
+      await apiClient.put(`/admin/support/tickets/${ticketId}`, updates);
       toast.success('Ticket updated');
       fetchTickets();
       if (ticketDetail?.id === ticketId) {
@@ -107,7 +107,7 @@ export const AdminSupportDashboard = () => {
     if (!replyText.trim() || !ticketDetail) return;
     setActionLoading(true);
     try {
-      await apiClient.post(`/admin/support/tickets/${ticketDetail.id}/reply?admin_id=${user.id}`, {
+      await apiClient.post(`/admin/support/tickets/${ticketDetail.id}/reply`, {
         message: replyText,
         is_internal_note: isInternalNote
       });

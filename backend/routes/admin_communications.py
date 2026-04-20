@@ -13,6 +13,7 @@ from typing import Optional, List
 from datetime import datetime, timezone, timedelta
 
 from database import get_db
+from deps.admin_auth import get_current_admin
 from models import (
     Profile, Announcement, AnnouncementTypeEnum, MessageTemplate, 
     BulkMessageCampaign, RoleEnum
@@ -54,12 +55,11 @@ class CreateBulkCampaignRequest(BaseModel):
 # --- ANNOUNCEMENTS ---
 @router.get("/admin/announcements")
 async def get_announcements(
-    admin_id: str,
+    admin: Profile = Depends(get_current_admin),
     include_inactive: bool = False,
     db: AsyncSession = Depends(get_db)
 ):
     """Get all announcements"""
-    await require_admin(admin_id, db)
     
     query = select(Announcement).order_by(desc(Announcement.created_at))
     if not include_inactive:
@@ -91,12 +91,11 @@ async def get_announcements(
 
 @router.post("/admin/announcements")
 async def create_announcement(
-    admin_id: str,
+    admin: Profile = Depends(get_current_admin),
     request: CreateAnnouncementRequest,
     db: AsyncSession = Depends(get_db)
 ):
     """Create a new announcement"""
-    await require_admin(admin_id, db)
     
     announcement = Announcement(
         title=request.title,
@@ -121,11 +120,10 @@ async def create_announcement(
 @router.put("/admin/announcements/{announcement_id}/toggle")
 async def toggle_announcement(
     announcement_id: str,
-    admin_id: str,
+    admin: Profile = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db)
 ):
     """Toggle announcement active status"""
-    await require_admin(admin_id, db)
     
     result = await db.execute(select(Announcement).where(Announcement.id == announcement_id))
     announcement = result.scalar_one_or_none()
@@ -187,12 +185,11 @@ async def get_active_announcements(
 # --- MESSAGE TEMPLATES ---
 @router.get("/admin/message-templates")
 async def get_message_templates(
-    admin_id: str,
+    admin: Profile = Depends(get_current_admin),
     template_type: Optional[str] = None,
     db: AsyncSession = Depends(get_db)
 ):
     """Get all message templates"""
-    await require_admin(admin_id, db)
     
     query = select(MessageTemplate).where(MessageTemplate.is_active == True)
     if template_type:
@@ -216,12 +213,11 @@ async def get_message_templates(
 
 @router.post("/admin/message-templates")
 async def create_message_template(
-    admin_id: str,
+    admin: Profile = Depends(get_current_admin),
     request: CreateTemplateRequest,
     db: AsyncSession = Depends(get_db)
 ):
     """Create a message template"""
-    await require_admin(admin_id, db)
     
     template = MessageTemplate(
         name=request.name,
@@ -240,11 +236,10 @@ async def create_message_template(
 @router.delete("/admin/message-templates/{template_id}")
 async def delete_message_template(
     template_id: str,
-    admin_id: str,
+    admin: Profile = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db)
 ):
     """Soft delete a message template"""
-    await require_admin(admin_id, db)
     
     await db.execute(
         update(MessageTemplate)
@@ -259,13 +254,12 @@ async def delete_message_template(
 # --- BULK MESSAGE CAMPAIGNS ---
 @router.get("/admin/bulk-campaigns")
 async def get_bulk_campaigns(
-    admin_id: str,
+    admin: Profile = Depends(get_current_admin),
     status: Optional[str] = None,
     limit: int = 50,
     db: AsyncSession = Depends(get_db)
 ):
     """Get bulk message campaigns"""
-    await require_admin(admin_id, db)
     
     query = select(BulkMessageCampaign).order_by(desc(BulkMessageCampaign.created_at))
     if status:
@@ -300,12 +294,11 @@ async def get_bulk_campaigns(
 
 @router.post("/admin/bulk-campaigns")
 async def create_bulk_campaign(
-    admin_id: str,
+    admin: Profile = Depends(get_current_admin),
     request: CreateBulkCampaignRequest,
     db: AsyncSession = Depends(get_db)
 ):
     """Create a bulk message campaign"""
-    await require_admin(admin_id, db)
     
     # Calculate target recipients
     query = select(func.count(Profile.id))
@@ -347,11 +340,10 @@ async def create_bulk_campaign(
 @router.post("/admin/bulk-campaigns/{campaign_id}/send")
 async def send_bulk_campaign(
     campaign_id: str,
-    admin_id: str,
+    admin: Profile = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db)
 ):
     """Send a bulk campaign immediately"""
-    await require_admin(admin_id, db)
     
     result = await db.execute(select(BulkMessageCampaign).where(BulkMessageCampaign.id == campaign_id))
     campaign = result.scalar_one_or_none()
@@ -383,12 +375,11 @@ async def send_bulk_campaign(
 
 @router.get("/admin/communication/stats")
 async def get_communication_stats(
-    admin_id: str,
+    admin: Profile = Depends(get_current_admin),
     days: int = 30,
     db: AsyncSession = Depends(get_db)
 ):
     """Get communication statistics"""
-    await require_admin(admin_id, db)
     
     start_date = datetime.now(timezone.utc) - timedelta(days=days)
     

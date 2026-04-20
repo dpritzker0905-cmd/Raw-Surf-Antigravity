@@ -64,7 +64,7 @@ export const AdminFinanceDashboard = () => {
 
   const fetchStats = async () => {
     try {
-      const response = await apiClient.get(`/admin/finance/stats?admin_id=${user.id}&days=30`);
+      const response = await apiClient.get(`/admin/finance/stats?days=30`);
       setStats(response.data);
     } catch (error) {
       logger.error('Failed to load stats:', error);
@@ -75,20 +75,20 @@ export const AdminFinanceDashboard = () => {
     setLoading(true);
     try {
       if (activeTab === 'refunds') {
-        const response = await apiClient.get(`/admin/finance/refunds?admin_id=${user.id}&status=${refundFilter}&limit=50`);
+        const response = await apiClient.get(`/admin/finance/refunds?status=${refundFilter}&limit=50`);
         setRefunds(response.data.refunds || []);
       } else if (activeTab === 'payouts') {
         const [batchesRes, pendingRes] = await Promise.all([
-          apiClient.get(`/admin/finance/payouts?admin_id=${user.id}&limit=20`),
-          apiClient.get(`/admin/finance/payouts/pending?admin_id=${user.id}`)
+          apiClient.get(`/admin/finance/payouts?limit=20`),
+          apiClient.get(`/admin/finance/payouts/pending`)
         ]);
         setPayoutBatches(batchesRes.data.batches || []);
         setPendingPayouts(pendingRes.data);
       } else if (activeTab === 'failed') {
-        const response = await apiClient.get(`/admin/finance/failed-payments?admin_id=${user.id}&limit=50`);
+        const response = await apiClient.get(`/admin/finance/failed-payments?limit=50`);
         setFailedPayments(response.data.failed_payments || []);
       } else if (activeTab === 'tax') {
-        const response = await apiClient.get(`/admin/finance/tax-report?admin_id=${user.id}&year=${taxYear}`);
+        const response = await apiClient.get(`/admin/finance/tax-report?year=${taxYear}`);
         setTaxReport(response.data);
       }
     } catch (error) {
@@ -101,7 +101,7 @@ export const AdminFinanceDashboard = () => {
   const handleProcessRefund = async (refundId, action) => {
     setActionLoading(true);
     try {
-      await apiClient.post(`/admin/finance/refunds/${refundId}/process?admin_id=${user.id}`, {
+      await apiClient.post(`/admin/finance/refunds/${refundId}/process`, {
         action,
         rejection_reason: action === 'reject' ? rejectionReason : null
       });
@@ -121,7 +121,7 @@ export const AdminFinanceDashboard = () => {
   const handleCreatePayoutBatch = async () => {
     setActionLoading(true);
     try {
-      const response = await apiClient.post(`/admin/finance/payouts/create-batch?admin_id=${user.id}`, {});
+      const response = await apiClient.post(`/admin/finance/payouts/create-batch`, {});
       toast.success(`Batch ${response.data.batch_number} created`);
       fetchDataForTab();
     } catch (error) {
@@ -134,7 +134,7 @@ export const AdminFinanceDashboard = () => {
   const handleProcessBatch = async (batchId) => {
     setActionLoading(true);
     try {
-      await apiClient.post(`/admin/finance/payouts/${batchId}/process?admin_id=${user.id}`);
+      await apiClient.post(`/admin/finance/payouts/${batchId}/process`);
       toast.success('Batch processed');
       fetchDataForTab();
     } catch (error) {
@@ -147,7 +147,7 @@ export const AdminFinanceDashboard = () => {
   const handleRetryPayment = async (paymentId) => {
     setActionLoading(true);
     try {
-      const response = await apiClient.post(`/admin/finance/failed-payments/${paymentId}/retry?admin_id=${user.id}`);
+      const response = await apiClient.post(`/admin/finance/failed-payments/${paymentId}/retry`);
       toast.success(response.data.recovered ? 'Payment recovered!' : 'Retry failed');
       fetchDataForTab();
       fetchStats();

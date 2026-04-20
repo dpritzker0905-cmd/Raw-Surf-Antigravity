@@ -43,9 +43,9 @@ const AdControlsPanel = ({ user }) => {
   const fetchAdData = async () => {
     try {
       const [configRes, analyticsRes, queueRes] = await Promise.all([
-        apiClient.get(`/admin/ads/config?admin_id=${user.id}`).catch(() => ({ data: { config: null } })),
-        apiClient.get(`/admin/ads/analytics?admin_id=${user.id}`).catch(() => ({ data: null })),
-        apiClient.get(`/admin/ads/queue?admin_id=${user.id}&status=pending`).catch(() => ({ data: { queue: [], counts: {} } }))
+        apiClient.get(`/admin/ads/config`).catch(() => ({ data: { config: null } })),
+        apiClient.get(`/admin/ads/analytics`).catch(() => ({ data: null })),
+        apiClient.get(`/admin/ads/queue?status=pending`).catch(() => ({ data: { queue: [], counts: {} } }))
       ]);
       setConfig(configRes.data?.config);
       setAnalytics(analyticsRes.data);
@@ -60,7 +60,7 @@ const AdControlsPanel = ({ user }) => {
   const handleFrequencyChange = async (newFreq) => {
     setSaving(true);
     try {
-      await apiClient.patch(`/admin/ads/frequency?admin_id=${user.id}&frequency=${newFreq}`);
+      await apiClient.patch(`/admin/ads/frequency?frequency=${newFreq}`);
       setConfig(prev => ({ ...prev, frequency: newFreq }));
       toast.success(`Ad frequency updated to 1 per ${newFreq} posts`);
     } catch (error) {
@@ -72,7 +72,7 @@ const AdControlsPanel = ({ user }) => {
 
   const toggleVariant = async (variantId, isActive) => {
     try {
-      await apiClient.patch(`/admin/ads/variant/${variantId}/toggle?admin_id=${user.id}&is_active=${isActive}`);
+      await apiClient.patch(`/admin/ads/variant/${variantId}/toggle?is_active=${isActive}`);
       setConfig(prev => ({
         ...prev,
         variants: prev.variants.map(v => v.id === variantId ? { ...v, is_active: isActive } : v)
@@ -86,7 +86,7 @@ const AdControlsPanel = ({ user }) => {
   const handleApproveAd = async (adId) => {
     setProcessingAd(adId);
     try {
-      await apiClient.post(`/admin/ads/queue/${adId}/action?admin_id=${user.id}`, {
+      await apiClient.post(`/admin/ads/queue/${adId}/action`, {
         action: 'approve'
       });
       toast.success('Ad approved and activated!');
@@ -101,7 +101,7 @@ const AdControlsPanel = ({ user }) => {
   const handleRejectAd = async (adId, reason) => {
     setProcessingAd(adId);
     try {
-      await apiClient.post(`/admin/ads/queue/${adId}/action?admin_id=${user.id}`, {
+      await apiClient.post(`/admin/ads/queue/${adId}/action`, {
         action: 'reject',
         reason: reason || 'Does not meet advertising guidelines'
       });
@@ -117,7 +117,7 @@ const AdControlsPanel = ({ user }) => {
   const handleEditAd = async (adId) => {
     setProcessingAd(adId);
     try {
-      await apiClient.post(`/admin/ads/queue/${adId}/action?admin_id=${user.id}`, {
+      await apiClient.post(`/admin/ads/queue/${adId}/action`, {
         action: 'edit',
         edited_content: editForm
       });

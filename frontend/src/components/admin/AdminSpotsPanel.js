@@ -45,7 +45,7 @@ const AdminSpotsPanel = ({ userId }) => {
 
   const fetchStats = useCallback(async () => {
     try {
-      const response = await apiClient.get(`/admin/spots/stats?admin_id=${userId}`);
+      const response = await apiClient.get(`/admin/spots/stats`);
       setStats(response.data);
     } catch (error) {
       logger.error('Error fetching spot stats:', error);
@@ -172,7 +172,7 @@ const AdminSpotsPanel = ({ userId }) => {
 
   const handleUpdateSpot = async (spotId, updates) => {
     try {
-      await apiClient.put(`/admin/spots/${spotId}?admin_id=${userId}`, null, { params: updates });
+      await apiClient.put(`/admin/spots/${spotId}`, null, { params: updates });
       toast.success('Spot updated');
       setEditingSpot(null);
       fetchSpots();
@@ -184,7 +184,7 @@ const AdminSpotsPanel = ({ userId }) => {
   const handleDeleteSpot = async (spotId, spotName) => {
     if (!window.confirm(`Delete "${spotName}"? This cannot be undone.`)) return;
     try {
-      await apiClient.delete(`/admin/spots/${spotId}?admin_id=${userId}`);
+      await apiClient.delete(`/admin/spots/${spotId}`);
       toast.success('Spot deleted');
       fetchSpots();
       fetchStats();
@@ -305,7 +305,7 @@ const AdminSpotsPanel = ({ userId }) => {
     
     try {
       await apiClient.post(
-        `/admin/spots/${pinMapSpot.id}/apply-refinement?admin_id=${userId}`,
+        `/admin/spots/${pinMapSpot.id}/apply-refinement`,
         null,
         { params: { new_latitude: draggedPosition.lat, new_longitude: draggedPosition.lng } }
       );

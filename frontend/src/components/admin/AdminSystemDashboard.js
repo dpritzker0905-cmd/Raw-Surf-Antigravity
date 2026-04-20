@@ -45,9 +45,9 @@ export const AdminSystemDashboard = () => {
   const fetchAllData = async () => {
     try {
       const [healthRes, jobsRes, alertsRes] = await Promise.all([
-        apiClient.get(`/admin/system/health?admin_id=${user.id}`),
-        apiClient.get(`/admin/system/jobs?admin_id=${user.id}`),
-        apiClient.get(`/admin/system/alerts?admin_id=${user.id}`)
+        apiClient.get(`/admin/system/health`),
+        apiClient.get(`/admin/system/jobs`),
+        apiClient.get(`/admin/system/alerts`)
       ]);
       setHealthData(healthRes.data);
       setJobs(jobsRes.data.jobs || []);
@@ -61,7 +61,7 @@ export const AdminSystemDashboard = () => {
 
   const handleToggleJob = async (jobName, currentState) => {
     try {
-      await apiClient.put(`/admin/system/jobs/${jobName}/toggle?admin_id=${user.id}`);
+      await apiClient.put(`/admin/system/jobs/${jobName}/toggle`);
       toast.success(`Job ${currentState ? 'disabled' : 'enabled'}`);
       fetchAllData();
     } catch (error) {
@@ -71,7 +71,7 @@ export const AdminSystemDashboard = () => {
 
   const handleAcknowledgeAlert = async (alertId) => {
     try {
-      await apiClient.post(`/admin/system/alerts/acknowledge?admin_id=${user.id}`, {
+      await apiClient.post(`/admin/system/alerts/acknowledge`, {
         alert_ids: [alertId]
       });
       toast.success('Alert acknowledged');
@@ -83,7 +83,7 @@ export const AdminSystemDashboard = () => {
 
   const handleResolveAlert = async (alertId) => {
     try {
-      await apiClient.post(`/admin/system/alerts/${alertId}/resolve?admin_id=${user.id}`);
+      await apiClient.post(`/admin/system/alerts/${alertId}/resolve`);
       toast.success('Alert resolved');
       fetchAllData();
     } catch (error) {

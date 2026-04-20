@@ -13,6 +13,7 @@ from fastapi import APIRouter, HTTPException, Query, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, and_, text
 from database import get_db
+from deps.admin_auth import get_current_admin
 from models import Profile, PaymentTransaction, LiveSession, SurfSpot
 from datetime import datetime, timezone, timedelta
 from typing import Optional
@@ -21,15 +22,6 @@ router = APIRouter(prefix="/admin/analytics", tags=["Admin Analytics"])
 
 
 logger = logging.getLogger(__name__)
-async def check_is_admin(admin_id: str, db: AsyncSession) -> Profile:
-    """Verify user is an admin"""
-    result = await db.execute(
-        select(Profile).where(Profile.id == admin_id)
-    )
-    admin = result.scalar_one_or_none()
-    if not admin or not admin.is_admin:
-        raise HTTPException(status_code=403, detail="Admin access required")
-    return admin
 
 
 def get_date_range(range_str: str):
@@ -50,12 +42,11 @@ def get_date_range(range_str: str):
 
 @router.get("/metrics")
 async def get_analytics_metrics(
-    admin_id: str = Query(...),
     range: str = Query("7d"),
+    admin: Profile = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db)
 ):
-    """Get key performance metrics for the dashboard"""
-    await check_is_admin(admin_id, db)
+    """Get key performance metrics for the dashboard (JWT verified)"""
     
     start_date, end_date = get_date_range(range)
     prev_start = start_date - (end_date - start_date)
@@ -131,12 +122,11 @@ async def get_analytics_metrics(
 
 @router.get("/funnel")
 async def get_conversion_funnel(
-    admin_id: str = Query(...),
     range: str = Query("7d"),
+    admin: Profile = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db)
 ):
-    """Get booking conversion funnel data"""
-    await check_is_admin(admin_id, db)
+    """Get booking conversion funnel data (JWT verified)"""
     
     start_date, end_date = get_date_range(range)
     
@@ -193,11 +183,10 @@ async def get_conversion_funnel(
 
 @router.get("/ab-tests")
 async def get_ab_tests(
-    admin_id: str = Query(...),
+    admin: Profile = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db)
 ):
-    """Get active A/B tests"""
-    await check_is_admin(admin_id, db)
+    """Get active A/B tests (JWT verified)"""
     
     # Mock A/B test data - in production this would come from a dedicated table
     return {
@@ -232,12 +221,11 @@ async def get_ab_tests(
 
 @router.get("/revenue-by-source")
 async def get_revenue_by_source(
-    admin_id: str = Query(...),
     range: str = Query("7d"),
+    admin: Profile = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db)
 ):
-    """Get revenue breakdown by source"""
-    await check_is_admin(admin_id, db)
+    """Get revenue breakdown by source (JWT verified)"""
     
     start_date, _ = get_date_range(range)
     

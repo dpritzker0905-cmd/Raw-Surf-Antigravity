@@ -157,7 +157,7 @@ export const AdminModerationDashboard = () => {
   const fetchPayoutHolds = async () => {
     setLoading(true);
     try {
-      const response = await apiClient.get(`/admin/payout-holds?admin_id=${user.id}`);
+      const response = await apiClient.get(`/admin/payout-holds`);
       setPayoutHolds(response.data.holds || []);
       setTotalHeldAmount(response.data.total_held_amount || 0);
     } catch (error) {
@@ -184,7 +184,7 @@ export const AdminModerationDashboard = () => {
 
   const fetchDisputeDetail = async (disputeId) => {
     try {
-      const response = await apiClient.get(`/admin/disputes/${disputeId}?admin_id=${user.id}`);
+      const response = await apiClient.get(`/admin/disputes/${disputeId}`);
       setSelectedDispute(response.data);
       setShowDisputeDetail(true);
     } catch (error) {
@@ -195,7 +195,7 @@ export const AdminModerationDashboard = () => {
   const handleUpdateDispute = async (disputeId, updates) => {
     setActionLoading(true);
     try {
-      await apiClient.put(`/admin/disputes/${disputeId}?admin_id=${user.id}`, updates);
+      await apiClient.put(`/admin/disputes/${disputeId}`, updates);
       toast.success('Dispute updated');
       fetchDisputes();
       if (selectedDispute?.id === disputeId) {
@@ -212,7 +212,7 @@ export const AdminModerationDashboard = () => {
     if (!newMessage.trim()) return;
     setActionLoading(true);
     try {
-      await apiClient.post(`/admin/disputes/${disputeId}/messages?admin_id=${user.id}`, {
+      await apiClient.post(`/admin/disputes/${disputeId}/messages`, {
         message: newMessage,
         is_internal: false
       });
@@ -233,7 +233,7 @@ export const AdminModerationDashboard = () => {
     }
     setActionLoading(true);
     try {
-      await apiClient.put(`/admin/reports/${reportId}/review?admin_id=${user.id}`, {
+      await apiClient.put(`/admin/reports/${reportId}/review`, {
         action_taken: reviewAction,
         admin_notes: adminNotes,
         escalate_to_dispute: reviewAction === 'escalate'
@@ -253,7 +253,7 @@ export const AdminModerationDashboard = () => {
   const handleReleaseHold = async (holdId) => {
     setActionLoading(true);
     try {
-      await apiClient.post(`/admin/payout-holds/${holdId}/release?admin_id=${user.id}`, {
+      await apiClient.post(`/admin/payout-holds/${holdId}/release`, {
         release_notes: 'Admin released hold'
       });
       toast.success('Hold released');

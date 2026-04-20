@@ -11,6 +11,7 @@ from datetime import datetime, timezone, timedelta
 import json
 
 from database import get_db
+from deps.admin_auth import get_current_admin
 from models import (
     Profile, Dispute, DisputeMessage, UserReport, PayoutHold, AuditLog,
     CreditTransaction, Booking, LiveSession, RoleEnum
@@ -19,14 +20,6 @@ from models import (
 router = APIRouter()
 
 # ============ HELPER FUNCTIONS ============
-
-async def require_admin(admin_id: str, db: AsyncSession):
-    """Check if user is an admin"""
-    result = await db.execute(select(Profile).where(Profile.id == admin_id))
-    admin = result.scalar_one_or_none()
-    if not admin or not admin.is_admin:
-        raise HTTPException(status_code=403, detail="Admin access required")
-    return admin
 
 async def log_audit(
     db: AsyncSession,
@@ -101,7 +94,7 @@ class DisputeMessageRequest(BaseModel):
 
 @router.get("/admin/disputes")
 async def get_disputes(
-    admin_id: str,
+    admin: Profile = Depends(get_current_admin),
     status: Optional[str] = None,
     dispute_type: Optional[str] = None,
     priority: Optional[str] = None,
@@ -110,7 +103,6 @@ async def get_disputes(
     db: AsyncSession = Depends(get_db)
 ):
     """Get all disputes with filters"""
-    await require_admin(admin_id, db)
     
     query = select(Dispute).options(
         selectinload(Dispute.complainant),
@@ -167,11 +159,10 @@ async def get_disputes(
 @router.get("/admin/disputes/{dispute_id}")
 async def get_dispute_detail(
     dispute_id: str,
-    admin_id: str,
+    admin: Profile = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db)
 ):
     """Get detailed dispute info with messages"""
-    await require_admin(admin_id, db)
     
     result = await db.execute(
         select(Dispute)
@@ -246,11 +237,10 @@ async def get_dispute_detail(
 @router.post("/admin/disputes")
 async def create_dispute(
     data: CreateDisputeRequest,
-    admin_id: str,
+    admin: Profile = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db)
 ):
     """Create a new dispute (admin-initiated or auto-created from report)"""
-    admin = await require_admin(admin_id, db)
     
     dispute = Dispute(
         complainant_id=data.complainant_id,
@@ -286,11 +276,10 @@ async def create_dispute(
 async def update_dispute(
     dispute_id: str,
     data: UpdateDisputeRequest,
-    admin_id: str,
+    admin: Profile = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db)
 ):
     """Update dispute status or resolution"""
-    admin = await require_admin(admin_id, db)
     
     result = await db.execute(
         select(Dispute)
@@ -356,11 +345,10 @@ async def update_dispute(
 async def add_dispute_message(
     dispute_id: str,
     data: DisputeMessageRequest,
-    admin_id: str,
+    admin: Profile = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db)
 ):
     """Add a message to a dispute thread"""
-    admin = await require_admin(admin_id, db)
     
     # Verify dispute exists
     result = await db.execute(select(Dispute).where(Dispute.id == dispute_id))
@@ -385,14 +373,13 @@ async def add_dispute_message(
 @router.post("/admin/disputes/{dispute_id}/refund-stripe")
 async def process_stripe_refund(
     dispute_id: str,
-    admin_id: str,
+    admin: Profile = Depends(get_current_admin),
     amount: float,
     db: AsyncSession = Depends(get_db)
 ):
     """Process actual Stripe refund for escalated disputes"""
     import stripe
     
-    admin = await require_admin(admin_id, db)
     
     result = await db.execute(
         select(Dispute)
@@ -449,7 +436,7 @@ class ReviewReportRequest(BaseModel):
 
 @router.get("/admin/reports")
 async def get_reports(
-    admin_id: str,
+    admin: Profile = Depends(get_current_admin),
     status: Optional[str] = None,
     report_type: Optional[str] = None,
     reason: Optional[str] = None,
@@ -459,7 +446,6 @@ async def get_reports(
     db: AsyncSession = Depends(get_db)
 ):
     """Get all user reports with filters"""
-    await require_admin(admin_id, db)
     
     query = select(UserReport).options(
         selectinload(UserReport.reporter),
@@ -543,11 +529,10 @@ async def create_report(
 async def review_report(
     report_id: str,
     data: ReviewReportRequest,
-    admin_id: str,
+    admin: Profile = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db)
 ):
     """Review and take action on a report"""
-    admin = await require_admin(admin_id, db)
     
     result = await db.execute(
         select(UserReport)
@@ -619,7 +604,7 @@ class ReleaseHoldRequest(BaseModel):
 
 @router.get("/admin/payout-holds")
 async def get_payout_holds(
-    admin_id: str,
+    admin: Profile = Depends(get_current_admin),
     is_active: Optional[bool] = True,
     photographer_id: Optional[str] = None,
     limit: int = 50,
@@ -627,7 +612,6 @@ async def get_payout_holds(
     db: AsyncSession = Depends(get_db)
 ):
     """Get all payout holds"""
-    await require_admin(admin_id, db)
     
     query = select(PayoutHold).options(selectinload(PayoutHold.photographer))
     
@@ -671,11 +655,10 @@ async def get_payout_holds(
 @router.post("/admin/payout-holds")
 async def create_payout_hold(
     data: CreatePayoutHoldRequest,
-    admin_id: str,
+    admin: Profile = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db)
 ):
     """Create a hold on photographer payouts"""
-    admin = await require_admin(admin_id, db)
     
     # Verify photographer exists
     result = await db.execute(select(Profile).where(Profile.id == data.photographer_id))
@@ -716,11 +699,10 @@ async def create_payout_hold(
 async def release_payout_hold(
     hold_id: str,
     data: ReleaseHoldRequest,
-    admin_id: str,
+    admin: Profile = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db)
 ):
     """Release a payout hold"""
-    admin = await require_admin(admin_id, db)
     
     result = await db.execute(
         select(PayoutHold)
@@ -757,7 +739,7 @@ async def release_payout_hold(
 
 @router.get("/admin/audit-logs")
 async def get_audit_logs(
-    admin_id: str,
+    admin: Profile = Depends(get_current_admin),
     category: Optional[str] = None,
     actor_id: Optional[str] = None,
     target_type: Optional[str] = None,
@@ -770,7 +752,6 @@ async def get_audit_logs(
     db: AsyncSession = Depends(get_db)
 ):
     """Get audit logs with comprehensive filters"""
-    await require_admin(admin_id, db)
     
     query = select(AuditLog).options(selectinload(AuditLog.actor))
     
@@ -821,12 +802,11 @@ async def get_audit_logs(
 
 @router.get("/admin/audit-logs/stats")
 async def get_audit_stats(
-    admin_id: str,
+    admin: Profile = Depends(get_current_admin),
     days: int = 30,
     db: AsyncSession = Depends(get_db)
 ):
     """Get audit log statistics"""
-    await require_admin(admin_id, db)
     
     since = datetime.now(timezone.utc) - timedelta(days=days)
     
