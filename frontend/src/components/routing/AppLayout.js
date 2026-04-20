@@ -22,6 +22,7 @@ import PersonaMaskBanner from '../PersonaMaskBanner';
 import { usePushNotifications } from '../../hooks/usePushNotifications';
 import { useWebRTCCall, CALL_STATE } from '../../hooks/useWebRTCCall';
 import IncomingCallModal from '../messages/IncomingCallModal';
+import OutgoingCallModal from '../messages/OutgoingCallModal';
 import InCallView from '../messages/InCallView';
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
@@ -106,12 +107,11 @@ const CallManager = () => {
 
       {/* Outgoing call (ringing) overlay */}
       {call.callState === CALL_STATE.OUTGOING && (
-        <IncomingCallModal
-          callerName={call.remoteUserInfo?.name}
-          callerAvatar={call.remoteUserInfo?.avatar}
+        <OutgoingCallModal
+          targetName={call.remoteUserInfo?.name}
+          targetAvatar={call.remoteUserInfo?.avatar}
           callType={call.callType}
-          onAccept={null}
-          onDecline={call.endCall}
+          onCancel={call.endCall}
         />
       )}
 
