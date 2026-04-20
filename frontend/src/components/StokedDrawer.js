@@ -83,7 +83,7 @@ export const StokedDrawer = ({ isOpen, onClose }) => {
   };
 
   return (
-    <Sheet open={isOpen} onOpenChange={(open) => { if (!open) onClose(); }}>
+    <Sheet open={isOpen} modal={false} onOpenChange={(open) => { if (!open) onClose(); }}>
       <SheetContent 
         side="bottom" 
         hideCloseButton

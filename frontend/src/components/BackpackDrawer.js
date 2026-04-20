@@ -76,7 +76,7 @@ export const BackpackDrawer = ({ isOpen, onClose, onReopen }) => {
 
   return (
     <>
-      <Sheet open={isOpen} onOpenChange={(open) => { if (!open) onClose(); }}>
+      <Sheet open={isOpen} modal={false} onOpenChange={(open) => { if (!open) onClose(); }}>
         <SheetContent 
           side="bottom"
           hideCloseButton

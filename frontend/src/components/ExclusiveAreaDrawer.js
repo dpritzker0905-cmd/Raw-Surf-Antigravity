@@ -175,7 +175,7 @@ export const ExclusiveAreaDrawer = ({ isOpen, onClose, onOpenChange, areaType })
   };
 
   return (
-    <Sheet open={isOpen} onOpenChange={onOpenChange || ((open) => { if (!open) onClose(); })}>
+    <Sheet open={isOpen} modal={false} onOpenChange={onOpenChange || ((open) => { if (!open) onClose(); })}>
       <SheetContent 
         side="bottom" 
         hideCloseButton

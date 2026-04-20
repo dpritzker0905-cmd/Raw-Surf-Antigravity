@@ -1,4 +1,4 @@
-﻿/**
+/**
  * DutyStationDrawer - Unified Photographer Duty Management
  * 
  * Features:
@@ -968,7 +968,7 @@ export const DutyStationDrawer = ({ isOpen, onClose }) => {
   const Icon = config.icon;
   
   return (
-    <Sheet open={isOpen} onOpenChange={onClose}>
+    <Sheet open={isOpen} modal={false} onOpenChange={onClose}>
       <SheetContent 
         side="bottom"
         hideCloseButton

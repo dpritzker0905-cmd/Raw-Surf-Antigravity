@@ -302,7 +302,7 @@ export const NotificationsDrawer = ({ isOpen, onClose, onCountUpdate }) => {
   };
 
   return (
-    <Sheet open={isOpen} onOpenChange={(open) => { if (!open) onClose(); }}>
+    <Sheet open={isOpen} modal={false} onOpenChange={(open) => { if (!open) onClose(); }}>
       <SheetContent
         side="bottom"
         hideCloseButton
