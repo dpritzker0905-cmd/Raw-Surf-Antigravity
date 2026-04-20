@@ -154,7 +154,7 @@ const LANDMARK = {
 
 // Anthropometric constants — tuned from real-world mobile testing
 const HEAD_WIDTH_RATIO = 1.8;    // Head/skull ~80% wider than temple-to-temple face landmarks
-const CROWN_OFFSET_RATIO = 0.12; // Crown is JUST above landmark 10 (hairline) — 12% of face height
+const CROWN_OFFSET_RATIO = 0.20; // Crown is ~20% of face-height above landmark 10 (hairline)
 
 /**
  * Loads the MediaPipe Face Mesh library from CDN
