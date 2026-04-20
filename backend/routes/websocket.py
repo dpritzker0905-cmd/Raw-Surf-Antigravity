@@ -276,6 +276,13 @@ async def websocket_call(websocket: WebSocket, user_id: str):
                     logger.info(f"Call signal '{msg_type}' from {user_id} -> {target_user_id} (target room '{target_room}' has {target_conn_count} connections)")
                     if target_conn_count == 0:
                         logger.warning(f"⚠️ Target user {target_user_id} has NO active call WebSocket connection! Call will not be delivered.")
+                        # Notify caller so they can retry
+                        if msg_type == "call_offer":
+                            await ws_manager.send_personal(websocket, {
+                                "type": "call_target_offline",
+                                "target_user_id": target_user_id,
+                                "message": "Target user not connected"
+                            })
                     await ws_manager.broadcast(message, room=target_room)
                 else:
                     await ws_manager.send_personal(websocket, {

@@ -59,6 +59,9 @@ export function useWebRTCCall(userId, userInfo = {}) {
   const callStartTimeRef = useRef(null);
   const keepaliveRef = useRef(null);
   const reconnectAttemptsRef = useRef(0);
+  const callRetryRef = useRef(null); // Timer for auto-retrying call offers
+  const callRetryCountRef = useRef(0);
+  const pendingOfferRef = useRef(null); // Store the last call_offer for retrying
 
   // Track call state in ref to avoid stale closures in WS handlers
   const callStateRef = useRef(callState);
@@ -216,6 +219,26 @@ export function useWebRTCCall(userId, userInfo = {}) {
         break;
       }
 
+      case 'call_target_offline': {
+        // Target user's WS is not connected — auto-retry the offer
+        const retryCount = callRetryCountRef.current || 0;
+        const MAX_RETRIES = 5;
+        if (retryCount < MAX_RETRIES && callStateRef.current === CALL_STATE.OUTGOING && pendingOfferRef.current) {
+          console.debug(`[WebRTC] Target offline, retrying offer (${retryCount + 1}/${MAX_RETRIES})...`);
+          callRetryCountRef.current = retryCount + 1;
+          callRetryRef.current = setTimeout(() => {
+            if (callStateRef.current === CALL_STATE.OUTGOING && pendingOfferRef.current) {
+              sendSignaling(pendingOfferRef.current);
+            }
+          }, 2000);
+        } else if (retryCount >= MAX_RETRIES) {
+          console.debug('[WebRTC] Max retries reached, target appears offline');
+          toast('User is currently unavailable', { icon: '📵' });
+          cleanup();
+        }
+        break;
+      }
+
       default:
         break;
     }
@@ -358,6 +381,18 @@ export function useWebRTCCall(userId, userInfo = {}) {
         call_type: type,
         sdp: offer,
       });
+
+      // Store the offer so we can auto-retry if target is offline
+      pendingOfferRef.current = {
+        type: 'call_offer',
+        target_user_id: targetUserId,
+        caller_id: userId,
+        caller_name: userInfo.name || 'User',
+        caller_avatar: userInfo.avatar,
+        call_type: type,
+        sdp: offer,
+      };
+      callRetryCountRef.current = 0;
 
       // Timeout: auto-end if no answer in 30 seconds
       setTimeout(() => {
@@ -516,6 +551,9 @@ export function useWebRTCCall(userId, userInfo = {}) {
     // Clear timers
     clearInterval(callTimerRef.current);
     clearInterval(statsIntervalRef.current);
+    if (callRetryRef.current) { clearTimeout(callRetryRef.current); callRetryRef.current = null; }
+    pendingOfferRef.current = null;
+    callRetryCountRef.current = 0;
 
     // Reset state
     setCallState(CALL_STATE.IDLE);
