@@ -555,7 +555,13 @@ export class HairFilterEngine {
     );
     
     // ── Step 5: Smooth values ──
-    const current = { centerX, crownY, headWidth, faceHeight, angle };
+    // Include face center/dimensions for face masking
+    const faceCenterX = centerX; // nose bridge X
+    const faceCenterY = ((glabella.y + chin.y) / 2) * height;
+    const faceMaskW = faceWidth * 1.05;  // slightly wider than detected face
+    const faceMaskH = faceHeight * 0.92; // slightly shorter to keep forehead visible for bangs
+    
+    const current = { centerX, crownY, headWidth, faceHeight, angle, faceCenterX, faceCenterY, faceMaskW, faceMaskH };
     this._smoothBuffer.push(current);
     if (this._smoothBuffer.length > this._smoothSize) {
       this._smoothBuffer.shift();
@@ -566,7 +572,7 @@ export class HairFilterEngine {
   
   _getSmoothedValues() {
     const buf = this._smoothBuffer;
-    if (buf.length === 0) return { centerX: 0, crownY: 0, headWidth: 100, faceHeight: 150, angle: 0 };
+    if (buf.length === 0) return { centerX: 0, crownY: 0, headWidth: 100, faceHeight: 150, angle: 0, faceCenterX: 0, faceCenterY: 0, faceMaskW: 100, faceMaskH: 150 };
     
     const sum = buf.reduce((acc, v) => ({
       centerX: acc.centerX + v.centerX,
@@ -574,7 +580,11 @@ export class HairFilterEngine {
       headWidth: acc.headWidth + v.headWidth,
       faceHeight: acc.faceHeight + v.faceHeight,
       angle: acc.angle + v.angle,
-    }), { centerX: 0, crownY: 0, headWidth: 0, faceHeight: 0, angle: 0 });
+      faceCenterX: acc.faceCenterX + v.faceCenterX,
+      faceCenterY: acc.faceCenterY + v.faceCenterY,
+      faceMaskW: acc.faceMaskW + v.faceMaskW,
+      faceMaskH: acc.faceMaskH + v.faceMaskH,
+    }), { centerX: 0, crownY: 0, headWidth: 0, faceHeight: 0, angle: 0, faceCenterX: 0, faceCenterY: 0, faceMaskW: 0, faceMaskH: 0 });
     
     const n = buf.length;
     return {
@@ -583,10 +593,14 @@ export class HairFilterEngine {
       headWidth: sum.headWidth / n,
       faceHeight: sum.faceHeight / n,
       angle: sum.angle / n,
+      faceCenterX: sum.faceCenterX / n,
+      faceCenterY: sum.faceCenterY / n,
+      faceMaskW: sum.faceMaskW / n,
+      faceMaskH: sum.faceMaskH / n,
     };
   }
   
-  _drawHair({ centerX, crownY, headWidth, faceHeight, angle }) {
+  _drawHair({ centerX, crownY, headWidth, faceHeight, angle, faceCenterX, faceCenterY, faceMaskW, faceMaskH }) {
     const style = this.activeStyle;
     const img = this.hairImages[style.id];
     if (!img || !this.ctx) return;
@@ -622,6 +636,31 @@ export class HairFilterEngine {
       hairHeight
     );
     ctx.restore();
+    
+    // ── Face Mask: erase the face area so hair never covers the face ──
+    // Uses 'destination-out' compositing to punch a soft elliptical hole
+    if (faceCenterX && faceCenterY && faceMaskW > 0 && faceMaskH > 0) {
+      ctx.save();
+      ctx.globalCompositeOperation = 'destination-out';
+      
+      // Create a radial gradient for soft edges (feathered mask)
+      const rx = faceMaskW / 2;
+      const ry = faceMaskH / 2;
+      const gradient = ctx.createRadialGradient(
+        faceCenterX, faceCenterY, Math.min(rx, ry) * 0.65,  // inner: fully opaque erase
+        faceCenterX, faceCenterY, Math.max(rx, ry)           // outer: feathered edge
+      );
+      gradient.addColorStop(0, 'rgba(0,0,0,1)');   // full erase in center
+      gradient.addColorStop(0.7, 'rgba(0,0,0,0.8)'); // mostly erased
+      gradient.addColorStop(1, 'rgba(0,0,0,0)');   // no erase at edge (smooth blend)
+      
+      ctx.fillStyle = gradient;
+      ctx.beginPath();
+      ctx.ellipse(faceCenterX, faceCenterY, rx, ry, angle, 0, Math.PI * 2);
+      ctx.fill();
+      
+      ctx.restore();
+    }
   }
 }
 
