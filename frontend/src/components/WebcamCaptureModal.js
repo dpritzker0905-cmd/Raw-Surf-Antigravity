@@ -27,106 +27,121 @@ export default function WebcamCaptureModal({ isOpen, onClose, onCapture, maxLeng
   });
   
   const videoRef = useRef(null);
-  const canvasRef = useRef(null); // Invisible canvas for WebRTC stream mapping
+  const canvasRef = useRef(null);
   const hairCanvasRef = useRef(null);
   const hairEngineRef = useRef(null);
   const mediaRecorderRef = useRef(null);
   const chunksRef = useRef([]);
   const timerRef = useRef(null);
-  const processorRef = useRef(null); // Explicit binding for high-resolution dynamic shader engine
+  const timerStartRef = useRef(null); // Track timer start time for accurate counting
+  const processorRef = useRef(null);
+  const streamRef = useRef(null); // REF mirror of stream — avoids stale closures on iOS
+
+  // ── Reliable track cleanup via refs (avoids iOS stale closure bugs) ──
+  const killAllTracks = useCallback(() => {
+    // 1. Stop the ref-tracked stream (always current)
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(t => { t.stop(); t.enabled = false; });
+      streamRef.current = null;
+    }
+    // 2. Stop whatever the video element is showing
+    if (videoRef.current && videoRef.current.srcObject) {
+      videoRef.current.srcObject.getTracks().forEach(t => { t.stop(); t.enabled = false; });
+      videoRef.current.srcObject = null;
+    }
+    // 3. Destroy WebGL processor (must recreate for new stream dimensions)
+    if (processorRef.current) {
+      try { processorRef.current.stop(); } catch (_) {}
+      processorRef.current = null;
+    }
+    // 4. Clear timer
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+    setStream(null);
+  }, []);
 
   const startCamera = useCallback(async () => {
     try {
-      // Stop ALL tracks from the old stream before requesting a new one
-      if (stream) {
-        stream.getTracks().forEach(track => {
-          track.stop();
-          track.enabled = false;
-        });
-      }
-      if (videoRef.current && videoRef.current.srcObject) {
-        videoRef.current.srcObject.getTracks().forEach(t => { t.stop(); t.enabled = false; });
-        videoRef.current.srcObject = null;
-      }
+      // CRITICAL: Kill ALL existing tracks before requesting new hardware access
+      // iOS Safari will NOT release the camera unless every track is explicitly stopped
+      killAllTracks();
       
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
         throw new Error('Camera API not accessible.');
       }
 
-      // Small delay to let hardware fully release the camera
-      await new Promise(r => setTimeout(r, 200));
+      // iOS Safari needs 300ms+ to fully release camera hardware between switches
+      await new Promise(r => setTimeout(r, 350));
 
       let newStream;
       try {
-        // Use 'exact' to force the correct camera on Samsung/Android
+        // Try exact facingMode first (reliable on most devices)
         newStream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: { exact: facingMode } },
+          video: { facingMode: { exact: facingMode }, width: { ideal: 1280 }, height: { ideal: 720 } },
           audio: true
         });
       } catch (exactErr) {
-        // Fallback 1: try 'exact' without audio
+        // Fallback: use 'ideal' (soft hint) — works better on some iPhones
+        console.warn('Exact facingMode failed, falling back to ideal:', exactErr.message);
         try {
           newStream = await navigator.mediaDevices.getUserMedia({
-            video: { facingMode: { exact: facingMode } }
+            video: { facingMode: { ideal: facingMode }, width: { ideal: 1280 }, height: { ideal: 720 } },
+            audio: true
           });
-        } catch (noAudioErr) {
-          // Fallback 2: use 'ideal' (soft hint)
-          console.warn('Exact facingMode failed, falling back to ideal:', noAudioErr);
-          try {
-            newStream = await navigator.mediaDevices.getUserMedia({
-              video: { facingMode: { ideal: facingMode } },
-              audio: true
-            });
-          } catch (idealErr) {
-            newStream = await navigator.mediaDevices.getUserMedia({
-              video: { facingMode: { ideal: facingMode } }
-            });
-          }
+        } catch (idealErr) {
+          // Last resort: any camera, any config
+          newStream = await navigator.mediaDevices.getUserMedia({
+            video: true,
+            audio: true
+          });
         }
       }
       
+      // Store in both state and ref
+      streamRef.current = newStream;
       setStream(newStream);
+      
       if (videoRef.current) {
         videoRef.current.srcObject = newStream;
         await videoRef.current.play().catch(() => {});
       }
     } catch (err) {
-      console.error("Camera access error:", err);
-      toast.error("Could not access camera/microphone. Please check permissions.");
-      // Ensure we immediately purge pending bindings if a hardware error is detected natively
-      if (videoRef.current && videoRef.current.srcObject) {
-         videoRef.current.srcObject.getTracks().forEach(t => t.stop());
-      }
+      console.error('Camera access error:', err);
+      toast.error('Could not access camera/microphone. Please check permissions.');
+      killAllTracks();
       onClose();
     }
-  }, [facingMode, onClose]);
+  }, [facingMode, onClose, killAllTracks]);
 
+  // Open/close + camera switch effect
   useEffect(() => {
     if (isOpen) {
       startCamera();
     } else {
-      // Escape stale closure scope relying strictly on the active DOM source mapping
-      if (videoRef.current && videoRef.current.srcObject) {
-        videoRef.current.srcObject.getTracks().forEach(track => track.stop());
-      }
-      if (isRecording) stopRecording();
+      killAllTracks();
     }
     
     return () => {
-      // Critical cleanup executing safely circumventing React closures to prevent Mobile WebRTC hardware freeze locks!
+      // Unmount safety net — uses refs so never stale
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(t => t.stop());
+        streamRef.current = null;
+      }
       if (videoRef.current && videoRef.current.srcObject) {
-         videoRef.current.srcObject.getTracks().forEach(t => t.stop());
+        videoRef.current.srcObject.getTracks().forEach(t => t.stop());
+        videoRef.current.srcObject = null;
       }
       if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
-         mediaRecorderRef.current.stop();
+        try { mediaRecorderRef.current.stop(); } catch (_) {}
       }
       if (processorRef.current) {
-         processorRef.current.stop();
-         processorRef.current = null;
+        try { processorRef.current.stop(); } catch (_) {}
+        processorRef.current = null;
       }
-      if (timerRef.current) clearInterval(timerRef.current);
+      if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
     };
-    // Intentionally limited deps: only trigger on modal open/close and camera switch
   }, [isOpen, facingMode]);
 
   // Utilize the exact identical hardware shader mapped in the Live broadcast resolving highest tier filter deployments
@@ -161,9 +176,14 @@ export default function WebcamCaptureModal({ isOpen, onClose, onCapture, maxLeng
     }
   }, [stream, videoFilters.presetName, initProcessor]);
 
-  const toggleCamera = () => {
+  const toggleCamera = useCallback(() => {
+    // Kill processor before switching — iOS needs full hardware release
+    if (processorRef.current) {
+      try { processorRef.current.stop(); } catch (_) {}
+      processorRef.current = null;
+    }
     setFacingMode(prev => prev === 'user' ? 'environment' : 'user');
-  };
+  }, []);
 
   const takePhoto = () => {
     // If our invisible canvas stalled drawing (e.g. 1x1 width or missing dimensions), forcefully execute raw hardware buffer snapshot to secure fallback reliability ensuring no Black Photos
@@ -199,43 +219,25 @@ export default function WebcamCaptureModal({ isOpen, onClose, onCapture, maxLeng
     }, 'image/jpeg', 0.9);
   };
 
-  // Force-stop all media tracks (camera + mic) — prevents hardware lock on mobile
-  const forceStopAllTracks = useCallback(() => {
-    // Stop stream state
-    if (stream) {
-      stream.getTracks().forEach(t => { t.stop(); t.enabled = false; });
-    }
-    // Stop video element source
-    if (videoRef.current && videoRef.current.srcObject) {
-      videoRef.current.srcObject.getTracks().forEach(t => { t.stop(); t.enabled = false; });
-      videoRef.current.srcObject = null;
-    }
-    // Stop WebGL processor
-    if (processorRef.current) {
-      processorRef.current.stop();
-      processorRef.current = null;
-    }
-    setStream(null);
-  }, [stream]);
-
   const startRecording = () => {
-    if (!stream || !canvasRef.current) return;
+    const currentStream = streamRef.current;
+    if (!currentStream || !canvasRef.current) return;
     
-    // Clear any stale timer to prevent double-counting
-    if (timerRef.current) {
-      clearInterval(timerRef.current);
-      timerRef.current = null;
-    }
+    // Kill any stale timer FIRST
+    if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
     
     chunksRef.current = [];
+    setRecordingTime(0);
+    
     const mimeType = MediaRecorder.isTypeSupported('video/mp4') ? 'video/mp4' : 'video/webm;codecs=vp8,opus';
     
-    // Pull the active canvas drawing stream structurally embedding the visual aesthetic!
+    // Get canvas stream for filtered video
     const capturedStream = canvasRef.current.captureStream(30);
     
-    // Reattach the hardware mic track into the isolated WebGL canvas stream
-    if (stream.getAudioTracks().length > 0) {
-       capturedStream.addTrack(stream.getAudioTracks()[0]);
+    // Attach audio track from camera stream
+    const audioTracks = currentStream.getAudioTracks();
+    if (audioTracks.length > 0) {
+      capturedStream.addTrack(audioTracks[0]);
     }
 
     const mediaRecorder = new MediaRecorder(capturedStream, { mimeType });
@@ -246,53 +248,49 @@ export default function WebcamCaptureModal({ isOpen, onClose, onCapture, maxLeng
     };
     
     mediaRecorder.onstop = () => {
-      // Clear timer immediately
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-        timerRef.current = null;
-      }
+      // 1. Kill timer immediately
+      if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
       
+      // 2. Build file from chunks
       const blob = new Blob(chunksRef.current, { type: mimeType });
       const extension = mimeType.includes('mp4') ? 'mp4' : 'webm';
       const file = new File([blob], `video_${Date.now()}.${extension}`, { type: mimeType });
       
-      // CRITICAL: Stop all tracks BEFORE calling onCapture/onClose
-      // This prevents camera/audio staying on after send on iPhone
-      forceStopAllTracks();
+      // 3. CRITICAL: Kill all hardware tracks via ref (never stale)
+      killAllTracks();
       
+      // 4. Deliver file + close modal
       onCapture([file]);
       onClose();
     };
     
     mediaRecorder.start(100);
     setIsRecording(true);
-    setRecordingTime(0);
     
-    let currentSeconds = 0;
+    // Simple, reliable timer using Date.now() — immune to iOS Safari setInterval throttling
+    timerStartRef.current = Date.now();
     timerRef.current = setInterval(() => {
-      currentSeconds += 1;
-      setRecordingTime(currentSeconds);
+      const elapsed = Math.floor((Date.now() - timerStartRef.current) / 1000);
+      setRecordingTime(elapsed);
       
-      if (maxLength && currentSeconds >= maxLength) {
+      if (maxLength && elapsed >= maxLength) {
         if (mediaRecorder.state !== 'inactive') mediaRecorder.stop();
         setIsRecording(false);
         clearInterval(timerRef.current);
         timerRef.current = null;
       }
-    }, 1000);
+    }, 500); // 500ms intervals for smoother updates + iOS throttle resistance
   };
 
-  const stopRecording = () => {
-    if (mediaRecorderRef.current && isRecording) {
-      // Clear timer first to prevent stacking
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-        timerRef.current = null;
-      }
-      mediaRecorderRef.current.stop(); // triggers onstop which handles cleanup
-      setIsRecording(false);
+  const stopRecording = useCallback(() => {
+    // Kill timer first
+    if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
+    
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      mediaRecorderRef.current.stop(); // triggers onstop → killAllTracks → onCapture → onClose
     }
-  };
+    setIsRecording(false);
+  }, []);
 
   const formatTime = (seconds) => {
     const m = Math.floor(seconds / 60).toString().padStart(2, '0');
