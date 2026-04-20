@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import { toast } from 'sonner';
 import { ScanFace, RefreshCw } from 'lucide-react';
@@ -62,7 +62,9 @@ export const LockerSelfieModal = ({ isOpen, onClose, user, fetchClaimQueue, spot
             <p className="text-white">Mapping Neural Networks...</p>
           </div>
         ) : (
-          <SelfieCapture onCapture={handleCapture} onSkip={onClose} skipAllowed={false} />
+          <div className="flex-1 min-h-0 overflow-y-auto px-4 pb-4">
+            <SelfieCapture onCapture={handleCapture} onSkip={onClose} skipAllowed={false} />
+          </div>
         )}
       </DialogContent>
     </Dialog>
