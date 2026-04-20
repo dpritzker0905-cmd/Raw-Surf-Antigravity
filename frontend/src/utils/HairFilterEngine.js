@@ -155,8 +155,10 @@ export const HAIR_STYLES = {
 const LANDMARK = {
   FOREHEAD_TOP: 10,     // Glabella area (between eyebrows — NOT top of skull!)
   CHIN: 152,            // Bottom of chin
-  LEFT_TEMPLE: 234,     // Left side of face
-  RIGHT_TEMPLE: 454,    // Right side of face
+  LEFT_TEMPLE: 234,     // Left side of face (upper)
+  RIGHT_TEMPLE: 454,    // Right side of face (upper)
+  LEFT_JAW: 132,        // Left jawline — widest point of lower face
+  RIGHT_JAW: 361,       // Right jawline — widest point of lower face
   LEFT_EYE_INNER: 133,
   RIGHT_EYE_INNER: 362,
   NOSE_BRIDGE: 6,       // Very stable center point
@@ -164,7 +166,7 @@ const LANDMARK = {
 
 // Anthropometric constants — tuned from real-world mobile testing
 const HEAD_WIDTH_RATIO = 1.8;    // Head/skull ~80% wider than temple-to-temple face landmarks
-const CROWN_OFFSET_RATIO = 0.23; // Crown is ~23% of face-height above landmark 10 (hairline)
+const CROWN_OFFSET_RATIO = 0.25; // Crown is ~25% of face-height above landmark 10 (hairline)
 
 /**
  * Loads the MediaPipe Face Mesh library from CDN
@@ -201,8 +203,12 @@ const loadMediaPipe = () => {
 };
 
 /**
- * Process a loaded image to remove checkered/white/gray backgrounds
- * and create real alpha transparency.
+ * Process a loaded image to remove backgrounds and create real alpha transparency.
+ * Handles TWO background types:
+ *   1. Checkered pattern (gray/white alternating squares) — common in AI sprites
+ *   2. Solid black (#000000) backgrounds — preferred for light-colored hair
+ * 
+ * Strategy: Detect which background type dominates, then remove accordingly.
  */
 function processImageAlpha(img) {
   const canvas = document.createElement('canvas');
@@ -214,6 +220,25 @@ function processImageAlpha(img) {
   const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
   const data = imageData.data;
   
+  // ── Auto-detect background type by sampling corner pixels ──
+  const w = canvas.width;
+  const corners = [
+    0,                          // top-left
+    (w - 1) * 4,                // top-right
+    ((canvas.height - 1) * w) * 4,     // bottom-left
+    ((canvas.height - 1) * w + w - 1) * 4, // bottom-right
+  ];
+  
+  let darkCorners = 0;
+  for (const idx of corners) {
+    if (idx >= 0 && idx < data.length) {
+      const avg = (data[idx] + data[idx + 1] + data[idx + 2]) / 3;
+      if (avg < 30) darkCorners++;
+    }
+  }
+  
+  const isBlackBackground = darkCorners >= 3;
+  
   for (let i = 0; i < data.length; i += 4) {
     const r = data[i];
     const g = data[i + 1];
@@ -224,15 +249,27 @@ function processImageAlpha(img) {
     const minChannel = Math.min(r, g, b);
     const colorRange = maxChannel - minChannel;
     
-    // Aggressive: bright pixels with low color saturation = background
-    if (avg > 145 && colorRange < 45) {
-      data[i + 3] = 0; // fully transparent
-    } else if (avg > 125 && colorRange < 35) {
-      // Feathered edge
-      const fade = Math.max(0, (avg - 125) / 20);
-      data[i + 3] = Math.round(255 * (1 - fade));
-    } else if (avg > 115 && colorRange < 25) {
-      data[i + 3] = Math.round(255 * 0.6);
+    if (isBlackBackground) {
+      // ── BLACK BACKGROUND mode ──
+      // Remove dark pixels with low saturation (pure black/near-black)
+      if (avg < 20 && colorRange < 15) {
+        data[i + 3] = 0; // fully transparent
+      } else if (avg < 40 && colorRange < 20) {
+        // Feathered edge for smooth transition
+        const fade = avg / 40;
+        data[i + 3] = Math.round(255 * fade);
+      }
+    } else {
+      // ── CHECKERED BACKGROUND mode ──
+      // Remove bright pixels with low color saturation (gray/white)
+      if (avg > 145 && colorRange < 45) {
+        data[i + 3] = 0;
+      } else if (avg > 125 && colorRange < 35) {
+        const fade = Math.max(0, (avg - 125) / 20);
+        data[i + 3] = Math.round(255 * (1 - fade));
+      } else if (avg > 115 && colorRange < 25) {
+        data[i + 3] = Math.round(255 * 0.6);
+      }
     }
   }
   
@@ -463,16 +500,32 @@ export class HairFilterEngine {
     const chin = lm[LANDMARK.CHIN];
     const leftTemple = lm[LANDMARK.LEFT_TEMPLE];
     const rightTemple = lm[LANDMARK.RIGHT_TEMPLE];
+    const leftJaw = lm[LANDMARK.LEFT_JAW];
+    const rightJaw = lm[LANDMARK.RIGHT_JAW];
     const leftEye = lm[LANDMARK.LEFT_EYE_INNER];
     const rightEye = lm[LANDMARK.RIGHT_EYE_INNER];
     
     if (!glabella || !chin || !leftTemple || !rightTemple) return;
     
     // ── Step 1: Measure face dimensions in canvas pixels ──
-    const faceWidth = Math.sqrt(
+    // Temple width (upper face)
+    const templeWidth = Math.sqrt(
       Math.pow((rightTemple.x - leftTemple.x) * width, 2) +
       Math.pow((rightTemple.y - leftTemple.y) * height, 2)
     );
+    
+    // Jaw width (lower face) — for face-shape-adaptive sizing
+    let jawWidth = templeWidth; // fallback
+    if (leftJaw && rightJaw) {
+      jawWidth = Math.sqrt(
+        Math.pow((rightJaw.x - leftJaw.x) * width, 2) +
+        Math.pow((rightJaw.y - leftJaw.y) * height, 2)
+      );
+    }
+    
+    // Use the WIDER of temple/jaw as the face width baseline
+    // This makes wider jaws produce wider hair, narrow faces produce narrower hair
+    const faceWidth = Math.max(templeWidth, jawWidth);
     
     const faceHeight = Math.sqrt(
       Math.pow((chin.x - glabella.x) * width, 2) +
