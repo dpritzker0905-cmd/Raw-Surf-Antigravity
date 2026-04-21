@@ -3511,14 +3511,15 @@ async def recalculate_gallery_counts(
             first_item_result = await db.execute(
                 select(GalleryItem)
                 .where(GalleryItem.gallery_id == gallery_id)
-                .where(GalleryItem.media_type == 'image')
                 .order_by(GalleryItem.created_at.desc())
                 .limit(1)
             )
             first_item = first_item_result.scalar_one_or_none()
-            if first_item and first_item.thumbnail_url:
-                gallery.cover_image_url = first_item.thumbnail_url
-                cover_fixed = True
+            if first_item:
+                cover_url = first_item.thumbnail_url or first_item.preview_url
+                if cover_url and cover_url.startswith('https://'):
+                    gallery.cover_image_url = cover_url
+                    cover_fixed = True
         
         await db.commit()
         
