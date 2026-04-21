@@ -223,8 +223,7 @@ export const UploadPhotoModal = ({
 
       // Step 2: Create gallery item with auto pricing
       const filePrice = fileEntry.type === 'video' ? pricing.videoPrice : pricing.photoPrice;
-      await apiClient.post('/gallery/items', {
-        photographer_id: user.id,
+      const createRes = await apiClient.post(`/gallery?photographer_id=${encodeURIComponent(user.id)}`, {
         title: fileEntry.name.replace(/\.[^/.]+$/, ''),
         description: '',
         media_type: fileEntry.type,
@@ -232,9 +231,19 @@ export const UploadPhotoModal = ({
         preview_url: uploadResponse.data.preview_url || uploadResponse.data.original_url,
         thumbnail_url: uploadResponse.data.thumbnail_url || uploadResponse.data.preview_url,
         price: filePrice,
-        is_for_sale: true,
-        gallery_id: selectedFolderId || null
+        is_for_sale: true
       });
+
+      // Step 3: Move item to selected folder if one is chosen
+      if (selectedFolderId && createRes.data?.id) {
+        try {
+          await apiClient.patch(`/gallery/item/${createRes.data.id}/move?photographer_id=${encodeURIComponent(user.id)}`, {
+            target_gallery_id: selectedFolderId
+          });
+        } catch (moveErr) {
+          logger.warn('Could not move item to folder:', moveErr);
+        }
+      }
 
       setFiles(prev => prev.map(f => 
         f.id === fileEntry.id ? { ...f, status: STATUS.DONE, progress: 100 } : f
@@ -375,9 +384,8 @@ export const UploadPhotoModal = ({
           <input
             ref={fileInputRef}
             type="file"
-            accept="image/*,video/*"
+            accept="image/*,video/*,.mp4,.mov,.webm,.m4v,.mpeg,.jpg,.jpeg,.png,.gif,.webp"
             multiple
-            capture={undefined}
             onChange={handleFileSelect}
             className="hidden"
           />
