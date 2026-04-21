@@ -448,41 +448,19 @@ export default function InCallView({
             </div>
           </div>
 
-          {/* ── Side Buttons (video calls only) ── */}
-          {callType === 'video' && (
-            <div className={`absolute right-3 top-1/2 -translate-y-1/2 flex flex-col gap-2 z-10 transition-opacity duration-300 ${showControls ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
-              <button
-                onClick={(e) => { e.stopPropagation(); setShowFilters(f => !f); setShowHairPicker(false); }}
-                className={`p-2.5 md:p-3 rounded-full bg-black/40 backdrop-blur-md border border-white/10 transition-all active:scale-95 shadow-md ${
-                  showFilters ? 'bg-cyan-500/30 border-cyan-500/50' : activeFilter !== 'none' ? 'bg-cyan-500/20 border-cyan-500/30' : ''
-                }`}
-                title="Surf Filters"
-              >
-                <Sparkles className={`w-5 h-5 ${showFilters || activeFilter !== 'none' ? 'text-cyan-300' : 'text-white/80'}`} />
-              </button>
+          {/* Side buttons removed — filter/hair toggles moved to bottom bar for always-visible access */}
 
-              <button
-                onClick={(e) => { e.stopPropagation(); setShowHairPicker(h => !h); setShowFilters(false); }}
-                className={`p-2.5 md:p-3 rounded-full bg-black/40 backdrop-blur-md border border-white/10 transition-all active:scale-95 shadow-md ${
-                  showHairPicker ? 'bg-yellow-500/30 border-yellow-500/50' : activeHairStyle ? 'bg-yellow-500/20 border-yellow-500/30' : ''
-                }`}
-                title="Surfer Hair"
-              >
-                <Scissors className={`w-5 h-5 ${showHairPicker || activeHairStyle ? 'text-yellow-300' : 'text-white/80'}`} />
-              </button>
-            </div>
-          )}
-
-          {/* ── Local Video PIP ── */}
+          {/* ── Local Video PIP — positioned top-right to avoid overlap with controls on iPhone 16 ── */}
           {callType === 'video' && localStream && (
             <div 
               className={`absolute transition-all duration-300 overflow-hidden shadow-2xl cursor-pointer z-10 ${
                 showControls ? 'opacity-100' : 'opacity-70'
               } ${
                 isPipExpanded 
-                  ? 'bottom-3 left-3 md:bottom-4 md:right-4 md:left-auto w-[120px] h-[160px] md:w-44 md:h-56 rounded-2xl border-2 border-white/20' 
-                  : 'bottom-3 left-3 md:bottom-4 md:right-4 md:left-auto w-16 h-16 md:w-28 md:h-36 rounded-full md:rounded-2xl border-2 border-white/20'
+                  ? 'top-[env(safe-area-inset-top,44px)] right-3 md:top-4 md:right-4 w-[100px] h-[140px] md:w-40 md:h-52 rounded-2xl border-2 border-white/20' 
+                  : 'top-[env(safe-area-inset-top,44px)] right-3 md:top-4 md:right-4 w-14 h-14 md:w-24 md:h-32 rounded-full md:rounded-2xl border-2 border-white/20'
               }`}
+              style={{ marginTop: isPipExpanded ? '52px' : '52px' }}
               onClick={(e) => { e.stopPropagation(); setIsPipExpanded(!isPipExpanded); }}
             >
               {isCameraOff ? (
@@ -490,12 +468,8 @@ export default function InCallView({
                   <VideoOff className="w-5 h-5 text-zinc-500" />
                 </div>
               ) : (
-                /* WebGL GPU shader pipeline — same engine as GoLive.
-                   Hidden <video> feeds frames into WebGL <canvas> for real-time
-                   GPU-processed filter rendering. Works on all platforms. */
                 <>
                 <div className="w-full h-full relative">
-                  {/* Hidden video source — feeds WebGL pipeline */}
                   <video
                     ref={localVideoRef}
                     autoPlay
@@ -503,12 +477,10 @@ export default function InCallView({
                     muted
                     style={{ display: 'none' }}
                   />
-                  {/* WebGL filtered canvas — this is what the user sees */}
                   <canvas
                     ref={webglCanvasRef}
                     className={`w-full h-full object-cover ${true ? 'scale-x-[-1]' : ''}`}
                   />
-                  {/* Hair filter overlay canvas */}
                   <canvas
                     ref={hairCanvasRef}
                     className="absolute inset-0 w-full h-full object-cover pointer-events-none scale-x-[-1]"
@@ -554,9 +526,10 @@ export default function InCallView({
           )}
         </div>
 
-        {/* ── Bottom Controls Bar ── */}
+        {/* ── Bottom Controls Bar — always visible, includes filter toggles ── */}
         <div 
-          className={`flex-shrink-0 transition-all duration-300 bg-zinc-950 border-t border-zinc-800 ${showControls ? 'translate-y-0 opacity-100' : 'translate-y-full opacity-0'}`}
+          className="flex-shrink-0 bg-zinc-950/95 backdrop-blur-md border-t border-zinc-800"
+          style={{ paddingBottom: 'env(safe-area-inset-bottom, 8px)' }}
         >
           <div className="flex items-end justify-center gap-3 md:gap-5 py-3 md:py-4 px-3 md:px-4">
             <ControlButton
@@ -572,6 +545,26 @@ export default function InCallView({
                 active={isCameraOff}
                 icon={isCameraOff ? VideoOff : Video}
                 label={isCameraOff ? 'Camera On' : 'Camera Off'}
+              />
+            )}
+
+            {/* Filter toggle — always visible in bottom bar */}
+            {callType === 'video' && (
+              <ControlButton
+                onClick={() => { setShowFilters(f => !f); setShowHairPicker(false); }}
+                active={showFilters || activeFilter !== 'none'}
+                icon={Sparkles}
+                label="Filters"
+              />
+            )}
+
+            {/* Hair toggle — always visible in bottom bar */}
+            {callType === 'video' && (
+              <ControlButton
+                onClick={() => { setShowHairPicker(h => !h); setShowFilters(false); }}
+                active={showHairPicker || !!activeHairStyle}
+                icon={Scissors}
+                label="Hair"
               />
             )}
 
