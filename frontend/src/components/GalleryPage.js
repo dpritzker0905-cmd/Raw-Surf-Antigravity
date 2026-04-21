@@ -263,16 +263,25 @@ export const GalleryPage = () => {
 
   // Delete item from gallery
   const handleDeleteFromGallery = async (itemId) => {
-    if (!selectedGallery || !window.confirm('Delete this photo from the gallery?')) return;
+    if (!selectedGallery || !window.confirm('Delete this item from the gallery?')) return;
     
     setDeletingItemId(itemId);
     try {
-      await apiClient.delete(`/galleries/${selectedGallery.id}/items/${itemId}?photographer_id=${user.id}`);
-      toast.success('Photo deleted from gallery');
+      // Try gallery-scoped delete first, fall back to direct item delete
+      try {
+        await apiClient.delete(`/galleries/${selectedGallery.id}/items/${itemId}?photographer_id=${user.id}`);
+      } catch (galleryErr) {
+        if (galleryErr.response?.status === 404) {
+          await apiClient.delete(`/gallery/item/${itemId}?photographer_id=${user.id}`);
+        } else {
+          throw galleryErr;
+        }
+      }
+      toast.success('Item deleted');
       fetchGalleryItems(selectedGallery.id);
-      fetchGalleries(); // Refresh gallery count
+      fetchGalleries();
     } catch (error) {
-      toast.error(getErrorMessage(error, 'Failed to delete photo'));
+      toast.error(getErrorMessage(error, 'Failed to delete item'));
     } finally {
       setDeletingItemId(null);
     }
@@ -520,7 +529,7 @@ export const GalleryPage = () => {
     try {
       const itemIds = Array.from(selectedItems);
       await Promise.all(itemIds.map(itemId => 
-        apiClient.delete(`/gallery/${itemId}?photographer_id=${user.id}`)
+        apiClient.delete(`/gallery/item/${itemId}?photographer_id=${user.id}`)
       ));
       toast.success(`Deleted ${itemIds.length} items`);
       clearSelection();
@@ -554,7 +563,7 @@ export const GalleryPage = () => {
             My Gallery
           </h1>
           <p className="text-muted-foreground text-sm mt-1">
-            {gallery.length} photos • Watermarked previews for non-buyers
+            {gallery.length} items • Watermarked previews for non-buyers
           </p>
         </div>
         
@@ -564,7 +573,7 @@ export const GalleryPage = () => {
             className="bg-gradient-to-r from-yellow-400 to-orange-400 text-black font-bold"
           >
             <Plus className="w-4 h-4 mr-2" />
-            Upload Photo
+            Upload
           </Button>
         )}
       </div>
@@ -827,7 +836,7 @@ export const GalleryPage = () => {
           {galleries.length === 0 ? (
             <div className="text-center py-8 bg-muted/50 rounded-lg">
               <Folder className="w-10 h-10 text-muted-foreground/40 mx-auto mb-2" />
-              <p className="text-muted-foreground text-sm">No folders yet. Create one to organize your photos.</p>
+              <p className="text-muted-foreground text-sm">No folders yet. Create one to organize your photos & videos.</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
@@ -853,7 +862,7 @@ export const GalleryPage = () => {
                         <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-cyan-500/20 to-blue-500/20 flex items-center justify-center">
                           <Camera className="w-7 h-7 text-cyan-500/60" />
                         </div>
-                        <span className="text-xs text-muted-foreground/60 font-medium">No photos yet</span>
+                        <span className="text-xs text-muted-foreground/60 font-medium">No items yet</span>
                       </div>
                     )}
                     {/* Badges overlay */}
@@ -948,7 +957,7 @@ export const GalleryPage = () => {
                       <span className="truncate">{selectedGallery.surf_spot_name}</span>
                     </span>
                   )}
-                  <span className="flex-shrink-0">{galleryItems.length} photos</span>
+                  <span className="flex-shrink-0">{galleryItems.length} items</span>
                   {bulkSelectMode && selectedItems.size > 0 && (
                     <Badge className="bg-cyan-500 text-white text-xs">
                       {selectedItems.size} selected
@@ -1021,7 +1030,7 @@ export const GalleryPage = () => {
                     size="sm"
                   >
                     <Plus className="w-4 h-4 mr-1" />
-                    Add Photo
+                    Upload
                   </Button>
                   <Button
                     size="sm"
@@ -1045,13 +1054,13 @@ export const GalleryPage = () => {
           ) : galleryItems.length === 0 ? (
             <div className="text-center py-12 bg-muted/50 rounded-lg">
               <Camera className="w-12 h-12 text-muted-foreground/40 mx-auto mb-3" />
-              <p className="text-muted-foreground">No photos in this gallery yet</p>
+              <p className="text-muted-foreground">No items in this gallery yet</p>
               <Button
                 onClick={() => setShowAddToGalleryModal(true)}
                 className="mt-4 bg-cyan-500 hover:bg-cyan-600 text-black"
               >
                 <Plus className="w-4 h-4 mr-1" />
-                Add Photo
+                Upload
               </Button>
             </div>
           ) : (
@@ -1064,7 +1073,7 @@ export const GalleryPage = () => {
               onItemClick={(item) => setSelectedItem(item)}
               onItemEdit={(item) => setSelectedItem(item)}
               onItemDelete={handleDeleteFromGallery}
-              emptyMessage="No photos in gallery"
+              emptyMessage="No items in gallery"
               theme="dark"
             />
           )}
@@ -1077,7 +1086,7 @@ export const GalleryPage = () => {
           <div className="flex items-center justify-between mb-2">
             <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
               <Image className="w-5 h-5 text-yellow-400" />
-              All Photos
+              All Media
               {bulkSelectMode && selectedItems.size > 0 && (
                 <Badge className="bg-cyan-500 text-white text-xs ml-2">
                   {selectedItems.size} selected
@@ -1157,9 +1166,9 @@ export const GalleryPage = () => {
       {gallery.length === 0 ? (
         <div className="text-center py-16 bg-card rounded-xl border border-border">
           <Camera className="w-16 h-16 text-muted-foreground/40 mx-auto mb-4" />
-          <h3 className="text-xl font-bold text-foreground mb-2">No photos yet</h3>
+          <h3 className="text-xl font-bold text-foreground mb-2">No photos or videos yet</h3>
           <p className="text-muted-foreground mb-4">
-            Start uploading your surf photos to sell them to surfers!
+            Start uploading your surf photos & videos to sell them to surfers!
           </p>
           {isPhotographer && (
             <Button
@@ -1167,7 +1176,7 @@ export const GalleryPage = () => {
               className="bg-yellow-400 text-black font-bold"
             >
               <Upload className="w-4 h-4 mr-2" />
-              Upload Your First Photo
+              Upload Your First Media
             </Button>
           )}
         </div>
@@ -1499,7 +1508,7 @@ export const GalleryPage = () => {
           <DialogHeader>
             <DialogTitle className="text-foreground flex items-center gap-2">
               <Plus className="w-5 h-5 text-cyan-400" />
-              Add Photo to {selectedGallery?.title}
+              Add Media to {selectedGallery?.title}
             </DialogTitle>
           </DialogHeader>
           <div className="py-4 space-y-4">
@@ -1516,7 +1525,7 @@ export const GalleryPage = () => {
               </div>
               <div className="text-left">
                 <p className="font-semibold text-foreground">Upload from Device</p>
-                <p className="text-xs text-muted-foreground">Camera roll, files, or take a new photo</p>
+                <p className="text-xs text-muted-foreground">Camera roll, files, or take a new photo/video</p>
               </div>
             </button>
 
