@@ -3457,13 +3457,43 @@ async def recalculate_gallery_counts(
     db: AsyncSession = Depends(get_db)
 ):
     """Admin: Recalculate the cached item_count column and optionally fix the cover image.
-    Use this when items were deleted but the count wasn't decremented."""
+    Use this when items were deleted but the count wasn't decremented.
+    Also cleans up stale items with broken local/ephemeral URLs."""
     gallery = await db.get(Gallery, gallery_id)
     if not gallery:
         raise HTTPException(status_code=404, detail="Gallery not found")
     
-    # Count actual items
-    from sqlalchemy import func
+    # Find and delete stale items with ephemeral local URLs
+    from sqlalchemy import func, and_, or_, not_
+    stale_result = await db.execute(
+        select(GalleryItem).where(
+            and_(
+                GalleryItem.gallery_id == gallery_id,
+                or_(
+                    # Items with local/ephemeral URLs that won't survive redeploy
+                    GalleryItem.preview_url.like('/api/uploads/%'),
+                    GalleryItem.preview_url.is_(None),
+                    # Items without any valid thumbnail
+                    and_(
+                        GalleryItem.thumbnail_url.is_(None),
+                        GalleryItem.preview_url.is_(None)
+                    )
+                ),
+                # Only delete items that DON'T have Supabase URLs
+                not_(GalleryItem.thumbnail_url.like('https://%')),
+            )
+        )
+    )
+    stale_items = stale_result.scalars().all()
+    stale_count = len(stale_items)
+    
+    for item in stale_items:
+        await db.delete(item)
+    
+    if stale_count > 0:
+        await db.flush()
+    
+    # Count actual remaining items
     count_result = await db.execute(
         select(func.count(GalleryItem.id)).where(GalleryItem.gallery_id == gallery_id)
     )
@@ -3498,6 +3528,7 @@ async def recalculate_gallery_counts(
         "gallery_id": gallery_id,
         "old_item_count": old_count,
         "new_item_count": actual_count,
+        "stale_items_purged": stale_count,
         "cover_fixed": cover_fixed,
         "old_cover": old_cover,
         "new_cover": gallery.cover_image_url
