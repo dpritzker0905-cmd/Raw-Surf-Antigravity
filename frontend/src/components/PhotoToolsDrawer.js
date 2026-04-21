@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
@@ -167,7 +167,7 @@ export const PhotoToolsDrawer = ({ isOpen, onClose }) => {
   };
   
   // ============ MOBILE PHOTO HUB - FINAL HIERARCHY (Clean Vertical Menu) ============
-  // Order: My Gallery → Bookings Manager → Live Sessions → Earnings Dashboard → On-Demand Settings
+  // Order: Gallery Hub → Bookings Manager → Live Sessions → Earnings Dashboard → On-Demand Settings
   // GROM PARENT: ONLY sees "Grom Archive" - NO Bookings, Live Sessions, Earnings, On-Demand
   
   const getMenuItems = () => {
@@ -194,7 +194,7 @@ export const PhotoToolsDrawer = ({ isOpen, onClose }) => {
         {
           id: 'gallery',
           icon: Image,
-          label: 'My Gallery',
+          label: 'Gallery Hub',
           description: 'Upload, tag, and manage your photos',
           path: '/gallery',
           color: 'text-cyan-400',
@@ -223,8 +223,8 @@ export const PhotoToolsDrawer = ({ isOpen, onClose }) => {
       {
         id: 'gallery',
         icon: Image,
-        label: 'My Gallery',
-        description: 'Upload, tag, and manage your photos',
+        label: 'Gallery Hub',
+        description: 'Folders, sessions & distribution',
         path: '/gallery',
         color: 'text-cyan-400',
         bgColor: 'bg-cyan-500/10',

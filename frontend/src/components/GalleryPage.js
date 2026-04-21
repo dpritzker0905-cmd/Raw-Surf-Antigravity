@@ -556,10 +556,10 @@ export const GalleryPage = () => {
         <div>
           <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
             <Camera className="w-7 h-7 text-yellow-400" />
-            My Gallery
+            Gallery Hub
           </h1>
           <p className="text-muted-foreground text-sm mt-1">
-            {gallery.length} items • Watermarked previews for non-buyers
+            {gallery.length} items • Manage your sessions, folders & distribution
           </p>
         </div>
         
@@ -897,19 +897,39 @@ export const GalleryPage = () => {
                         </div>
                       );
                     })()}
-                    {/* Badges overlay */}
+                    {/* Session type badges — Phase 5 integration */}
                     <div className="absolute top-2 left-2 flex gap-1.5">
                       {gal.live_session_id && (
-                        <Badge className="bg-cyan-500/90 text-white text-xs shadow-sm">
-                          Live Session
+                        <Badge className="bg-emerald-500/90 text-white text-[10px] shadow-sm px-1.5">
+                          🟢 Live
+                        </Badge>
+                      )}
+                      {gal.session_type === 'booking' && !gal.live_session_id && (
+                        <Badge className="bg-blue-500/90 text-white text-[10px] shadow-sm px-1.5">
+                          📅 Booking
+                        </Badge>
+                      )}
+                      {gal.session_type === 'on_demand' && !gal.live_session_id && (
+                        <Badge className="bg-orange-500/90 text-white text-[10px] shadow-sm px-1.5">
+                          ⚡ On-Demand
+                        </Badge>
+                      )}
+                      {gal.session_type === 'manual' && !gal.live_session_id && (
+                        <Badge className="bg-zinc-600/90 text-white text-[10px] shadow-sm px-1.5">
+                          📋 Manual
                         </Badge>
                       )}
                     </div>
-                    <div className="absolute bottom-2 left-2">
+                    <div className="absolute bottom-2 left-2 flex gap-1.5">
                       <Badge className="bg-black/60 backdrop-blur-sm text-white text-xs">
                         <Image className="w-3 h-3 mr-1" />
                         {gal.item_count || 0}
                       </Badge>
+                      {(gal.purchase_count || 0) > 0 && (
+                        <Badge className="bg-green-500/80 backdrop-blur-sm text-white text-[10px]">
+                          💰 {gal.purchase_count} sold
+                        </Badge>
+                      )}
                     </div>
                     {/* Folder actions — visible on hover (desktop) or always via overflow menu (mobile) */}
                     <div className="absolute top-2 right-2 z-10">
@@ -979,9 +999,24 @@ export const GalleryPage = () => {
                 <ChevronLeft className="w-5 h-5" />
               </button>
               <div className="flex-1 min-w-0">
-                <h2 className="text-base sm:text-lg font-bold text-foreground truncate">
-                  {selectedGallery.title}
-                </h2>
+                <div className="flex items-center gap-2">
+                  <h2 className="text-base sm:text-lg font-bold text-foreground truncate">
+                    {selectedGallery.title}
+                  </h2>
+                  {/* Session type badge */}
+                  {selectedGallery.live_session_id && (
+                    <Badge className="bg-emerald-500/90 text-white text-[10px] px-1.5 flex-shrink-0">🟢 Live</Badge>
+                  )}
+                  {selectedGallery.session_type === 'booking' && !selectedGallery.live_session_id && (
+                    <Badge className="bg-blue-500/90 text-white text-[10px] px-1.5 flex-shrink-0">📅 Booking</Badge>
+                  )}
+                  {selectedGallery.session_type === 'on_demand' && !selectedGallery.live_session_id && (
+                    <Badge className="bg-orange-500/90 text-white text-[10px] px-1.5 flex-shrink-0">⚡ On-Demand</Badge>
+                  )}
+                  {selectedGallery.session_type === 'manual' && !selectedGallery.live_session_id && (
+                    <Badge className="bg-zinc-600/90 text-white text-[10px] px-1.5 flex-shrink-0">📋 Manual</Badge>
+                  )}
+                </div>
                 <div className="flex items-center gap-3 text-xs text-muted-foreground mt-0.5">
                   {selectedGallery.surf_spot_name && (
                     <span className="flex items-center gap-1 truncate">
@@ -1063,6 +1098,17 @@ export const GalleryPage = () => {
                   >
                     <Plus className="w-4 h-4 mr-1" />
                     Upload
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="border-purple-600 text-purple-400 hover:bg-purple-500/10 flex-shrink-0"
+                    onClick={() => {
+                      toast.info('Select individual items below, then use the ✨ Tag & Assign option from each item\'s menu to distribute to surfers.');
+                    }}
+                  >
+                    <Sparkles className="w-4 h-4 mr-1" />
+                    Tag & Assign
                   </Button>
                   <Button
                     size="sm"

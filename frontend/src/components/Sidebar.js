@@ -210,13 +210,13 @@ export const Sidebar = () => {
     if (effectiveRole === ROLES.HOBBYIST) {
       // Hobbyist: Can spend but not earn - no earnings/bookings/sessions
       return [
-        { path: '/gallery', icon: Image, label: 'My Gallery' },
+        { path: '/gallery', icon: Image, label: 'Gallery Hub' },
       ];
     }
     
     // Professional photographers: Full access
     return [
-      { path: '/gallery', icon: Image, label: 'My Gallery' },
+      { path: '/gallery', icon: Image, label: 'Gallery Hub' },
       { path: '/photographer/bookings', icon: CalendarCheck, label: 'Bookings Manager' },
       { path: '/photographer/sessions', icon: Radio, label: 'Live Sessions' },
       { path: '/photographer/on-demand', icon: Zap, label: 'On-Demand Hub' },
