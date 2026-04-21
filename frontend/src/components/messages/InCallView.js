@@ -79,7 +79,7 @@ const FilterPicker = ({ isOpen, onClose, activeFilter, onSelectFilter }) => {
   if (!isOpen) return null;
   return (
     <div 
-      className="absolute left-3 top-20 w-60 max-h-[55vh] overflow-y-auto p-3 rounded-2xl bg-black/80 backdrop-blur-xl border border-white/10 z-50"
+      className="fixed left-3 top-20 w-60 max-h-[55vh] overflow-y-auto p-3 rounded-2xl bg-black/80 backdrop-blur-xl border border-white/10 z-[9999]"
       style={{ animation: 'slideInLeft 0.25s ease-out' }}
       onClick={(e) => e.stopPropagation()}
     >
