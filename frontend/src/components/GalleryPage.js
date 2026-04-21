@@ -964,7 +964,7 @@ export const GalleryPage = () => {
                       {gal.session_date && (
                         <span className="flex items-center gap-1 flex-shrink-0">
                           <Calendar className="w-3 h-3" />
-                          {new Date(gal.session_date).toLocaleDateString()}
+                          {new Date(gal.session_date).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}
                         </span>
                       )}
                     </div>

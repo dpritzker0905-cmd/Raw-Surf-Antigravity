@@ -78,7 +78,12 @@ async def create_session_gallery(
     
     # Determine gallery title and pricing based on session type
     now = datetime.now(timezone.utc)
-    date_str = session_start.strftime("%B %d, %Y") if session_start else now.strftime("%B %d, %Y")
+    try:
+        # Linux/macOS: %-I removes leading zero from hour
+        date_str = (session_start or now).strftime("%B %d, %Y at %-I:%M %p")
+    except ValueError:
+        # Windows: %#I removes leading zero
+        date_str = (session_start or now).strftime("%B %d, %Y at %#I:%M %p")
     
     if session_type == 'live':
         title = f"Live Session at {spot_name} - {date_str}"

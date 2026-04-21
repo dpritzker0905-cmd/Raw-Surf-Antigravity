@@ -253,11 +253,15 @@ export const UploadPhotoModal = ({
     } catch (error) {
       logger.error('Upload error:', error);
       const detail = error.response?.data?.detail;
+      const status = error.response?.status;
       let msg = 'Upload failed';
       if (typeof detail === 'string') msg = detail;
       else if (detail?.msg) msg = detail.msg;
-      else if (error.code === 'ECONNABORTED') msg = 'Upload timed out — try a smaller file';
-      else if (error.message?.includes('Network')) msg = 'Network error — check your connection';
+      else if (status === 503) msg = 'Server starting up — tap retry in 30s';
+      else if (status === 413) msg = 'File too large for server';
+      else if (error.code === 'ECONNABORTED') msg = 'Upload timed out — try a smaller file or retry';
+      else if (!error.response && error.message?.includes('Network')) msg = 'Server may be restarting — tap retry in 30s';
+      else if (!error.response) msg = `Connection failed (${error.code || 'network'}) — retry shortly`;
 
       setFiles(prev => prev.map(f => 
         f.id === fileEntry.id ? { ...f, status: STATUS.ERROR, error: msg } : f
