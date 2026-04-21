@@ -1212,7 +1212,6 @@ export const GalleryPage = () => {
         onUploaded={() => {
           fetchGallery();
           fetchGalleries();
-          setShowUploadModal(false);
         }}
         targetFolderId={selectedGallery?.id || null}
         targetFolderName={selectedGallery?.title || null}

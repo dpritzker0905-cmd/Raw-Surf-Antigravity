@@ -131,7 +131,7 @@ export const UploadPhotoModal = ({
   // Get selected folder name for dropdown label
   const selectedFolderLabel = selectedFolderId 
     ? galleries.find(g => g.id === selectedFolderId)?.title || 'Selected Folder'
-    : 'All Photos (Root)';
+    : 'All Media (Root)';
 
   const addFiles = useCallback((newFiles) => {
     const entries = [];
@@ -342,7 +342,7 @@ export const UploadPhotoModal = ({
                       }`}
                     >
                       <Image className="w-4 h-4" />
-                      All Photos (Root)
+                      All Media (Root)
                     </button>
                     {galleries.map((folder) => (
                       <button
@@ -368,11 +368,11 @@ export const UploadPhotoModal = ({
             <div className="flex items-center gap-3 text-xs flex-wrap">
               <span className="flex items-center gap-1 text-muted-foreground">
                 <Camera className="w-3.5 h-3.5 text-cyan-400" />
-                Photos: <strong className="text-foreground">${pricing.photoPrice.toFixed(2)}</strong>
+                Photo: <strong className="text-foreground">${pricing.photoPrice.toFixed(2)}</strong>
               </span>
               <span className="flex items-center gap-1 text-muted-foreground">
                 <Film className="w-3.5 h-3.5 text-purple-400" />
-                Videos: <strong className="text-foreground">${pricing.videoPrice.toFixed(2)}</strong>
+                Video: <strong className="text-foreground">${pricing.videoPrice.toFixed(2)}</strong>
               </span>
               <span className="text-muted-foreground/60">
                 ({pricing.source})
