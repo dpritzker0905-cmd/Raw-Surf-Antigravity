@@ -2478,11 +2478,13 @@ async def crew_invite_checkout(
     stripe_key = (
         os.environ.get("STRIPE_API_KEY") or
         os.environ.get("STRIPE_SECRET_KEY") or
-        "sk_test_Ee0EXjPggntbOEG89DFJiUT4"
+        ""
     )
     # Guard: never use live key
     if stripe_key.startswith("sk_live_"):
-        stripe_key = "sk_test_Ee0EXjPggntbOEG89DFJiUT4"
+        raise HTTPException(status_code=500, detail="Stripe live key detected — refusing to process. Set a test key in STRIPE_API_KEY.")
+    if not stripe_key:
+        raise HTTPException(status_code=500, detail="Stripe API key not configured. Set STRIPE_API_KEY in environment.")
 
     _stripe.api_key = stripe_key
 

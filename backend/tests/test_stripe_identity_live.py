@@ -9,7 +9,7 @@ import stripe
 from datetime import datetime
 
 # Configure Stripe
-stripe.api_key = os.environ.get('STRIPE_API_KEY', 'sk_test_Ee0EXjPggntbOEG89DFJiUT4')
+stripe.api_key = os.environ.get('STRIPE_API_KEY', '')
 
 BASE_URL = os.environ.get('TEST_API_URL', 'https://raw-surf-os.preview.emergentagent.com')
 

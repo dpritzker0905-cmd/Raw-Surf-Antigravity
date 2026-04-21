@@ -20,7 +20,7 @@ import logging
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
-from fastapi import Depends, Header, HTTPException, Query
+from fastapi import Depends, Header, HTTPException
 from jose import JWTError, jwt
 
 logger = logging.getLogger(__name__)
@@ -85,21 +85,16 @@ def verify_token(token: str) -> dict:
 # ── FastAPI Dependency ────────────────────────────────────────────────────────
 async def get_current_user_id(
     authorization: Optional[str] = Header(None),
-    auth_user_id: Optional[str] = Query(None, alias="user_id"),
 ) -> str:
     """
-    FastAPI dependency that extracts the authenticated user's ID.
-
-    Priority:
-    1. Bearer token in Authorization header (preferred — cryptographically verified)
-    2. user_id query parameter (legacy fallback — backward compatible during migration)
+    FastAPI dependency that extracts the authenticated user's ID
+    from a verified JWT Bearer token.
 
     Usage:
         @router.get("/my-route")
         async def my_route(current_user_id: str = Depends(get_current_user_id)):
             ...
     """
-    # Try Bearer token first
     if authorization and authorization.startswith("Bearer "):
         token = authorization.split(" ", 1)[1]
         payload = verify_token(token)
@@ -107,10 +102,6 @@ async def get_current_user_id(
         if not sub:
             raise HTTPException(status_code=401, detail="Invalid token payload.")
         return sub
-
-    # Fallback: query param (existing routes still work during migration)
-    if auth_user_id:
-        return auth_user_id
 
     raise HTTPException(
         status_code=401,
@@ -120,12 +111,11 @@ async def get_current_user_id(
 
 async def get_optional_user_id(
     authorization: Optional[str] = Header(None),
-    auth_user_id: Optional[str] = Query(None, alias="user_id"),
 ) -> Optional[str]:
     """
     Like get_current_user_id but returns None instead of raising for public routes.
     """
     try:
-        return await get_current_user_id(authorization=authorization, auth_user_id=auth_user_id)
+        return await get_current_user_id(authorization=authorization)
     except HTTPException:
         return None
