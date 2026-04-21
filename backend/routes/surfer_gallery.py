@@ -707,7 +707,6 @@ async def get_claim_queue_count(
     Lightweight endpoint to get just the pending AI match count
     Used for navigation badge display (TICKET-007)
     """
-    from sqlalchemy import func
     
     result = await db.execute(
         select(func.count(SurferGalleryClaimQueue.id))

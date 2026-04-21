@@ -1519,7 +1519,6 @@ async def create_gallery(
     db: AsyncSession = Depends(get_db)
 ):
     """Create a new gallery (collection)"""
-    # Gallery already imported
     
     # Verify photographer
     result = await db.execute(select(Profile).where(Profile.id == photographer_id))
@@ -1562,7 +1561,6 @@ async def get_photographer_galleries(
     db: AsyncSession = Depends(get_db)
 ):
     """Get all galleries for a photographer"""
-    # Gallery already imported
     
     result = await db.execute(
         select(Gallery)
@@ -1651,7 +1649,6 @@ async def get_gallery(
     db: AsyncSession = Depends(get_db)
 ):
     """Get a single gallery with items"""
-    # Gallery already imported
     
     result = await db.execute(
         select(Gallery)
@@ -1745,7 +1742,6 @@ async def update_gallery(
     db: AsyncSession = Depends(get_db)
 ):
     """Update gallery details and pricing"""
-    # Gallery already imported
     
     result = await db.execute(select(Gallery).where(Gallery.id == gallery_id))
     gallery = result.scalar_one_or_none()
@@ -1808,7 +1804,6 @@ async def delete_gallery(
     db: AsyncSession = Depends(get_db)
 ):
     """Delete a gallery and its items"""
-    # Gallery already imported
     
     result = await db.execute(select(Gallery).where(Gallery.id == gallery_id))
     gallery = result.scalar_one_or_none()
@@ -1896,7 +1891,6 @@ async def add_item_to_gallery(
     db: AsyncSession = Depends(get_db)
 ):
     """Add an item to a specific gallery"""
-    # Gallery already imported
     
     # Verify gallery ownership
     result = await db.execute(select(Gallery).where(Gallery.id == gallery_id))

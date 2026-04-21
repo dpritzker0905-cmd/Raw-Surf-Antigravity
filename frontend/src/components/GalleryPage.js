@@ -21,19 +21,7 @@ import { ROLES } from '../constants/roles';
 import { getFullUrl } from '../utils/media';
 
 
-// Helper function to safely extract error messages from API responses
-const getErrorMessage = (error, fallback = 'An error occurred') => {
-  const detail = error?.response?.data?.detail;
-  if (!detail) return fallback;
-  if (typeof detail === 'string') return detail;
-  if (Array.isArray(detail)) {
-    return detail.map(e => e.msg || e.message || JSON.stringify(e)).join(', ');
-  }
-  if (typeof detail === 'object') {
-    return detail.msg || detail.message || JSON.stringify(detail);
-  }
-  return fallback;
-};
+import { getErrorMessage } from '../utils/errors';
 
 export const GalleryPage = () => {
   const { user } = useAuth();

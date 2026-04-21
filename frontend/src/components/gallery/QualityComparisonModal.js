@@ -1,4 +1,4 @@
-﻿/**
+/**
  * QualityComparisonModal - TICKET-004
  * Side-by-side quality tier comparison for photo/video purchases
  * Shows resolution differences and helps surfers choose the right tier
@@ -13,9 +13,8 @@ import { Badge } from '../ui/badge';
 import { Tabs, TabsList, TabsTrigger } from '../ui/tabs';
 
 
-import apiClient, { BACKEND_URL } from '../../lib/apiClient';
-
-const API = process.env.REACT_APP_BACKEND_URL;
+import apiClient from '../../lib/apiClient';
+import logger from '../../utils/logger';
 
 // Photo tier configurations
 const PHOTO_TIERS = {
@@ -276,7 +275,7 @@ export const QualityComparisonModal = ({
         const response = await apiClient.get(`/gallery/item/${itemId}/quality-previews`);
         setPreviewUrls(response.data.previews || {});
       } catch (error) {
-        console.error('Failed to fetch quality previews:', error);
+        logger.error('Failed to fetch quality previews:', error);
         // Use placeholder or main preview
         setPreviewUrls({});
       } finally {

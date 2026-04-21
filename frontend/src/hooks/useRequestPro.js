@@ -7,7 +7,7 @@
 import { useState, useCallback } from 'react';
 import apiClient from '../lib/apiClient';
 import { toast } from 'sonner';
-import { getErrorMessage } from '../components/map/mapUtils';
+import { getErrorMessage } from '../utils/errors';
 import logger from '../utils/logger';
 
 export const useRequestPro = ({ user, userLocation, getUserLocation }) => {

@@ -11,19 +11,8 @@ export const ELECTRIC_CYAN = '#00CCFF';
 // Default map center (Florida)
 export const FLORIDA_CENTER = { lat: 28.0, lng: -81.5 };
 
-/**
- * Extract error message from axios error response
- */
-export const getErrorMessage = (error, fallback = 'An error occurred') => {
-  const detail = error?.response?.data?.detail;
-  if (typeof detail === 'string') return detail;
-  if (Array.isArray(detail)) {
-    return detail.map(d => d.msg || d.message || JSON.stringify(d)).join(', ');
-  }
-  if (detail?.message) return detail.message;
-  if (error?.message) return error.message;
-  return fallback;
-};
+// Re-exported from shared utility for backwards compatibility
+export { getErrorMessage } from '../../utils/errors';
 
 /**
  * Debounce function for performance optimization

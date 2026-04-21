@@ -11,6 +11,7 @@ from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
 import io
 import asyncio
+import json
 import logging
 
 # Supabase Storage client for persistent video/thumbnail storage
@@ -36,7 +37,7 @@ except ImportError:
     HEIF_SUPPORT = False
 
 from database import get_db
-from models import Profile
+from models import Profile, GalleryItem
 from utils.video_processor import (
     get_video_info, 
     needs_transcoding, 
@@ -325,7 +326,6 @@ async def upload_conditions_media(
     due to large JSON body size).
     """
     is_video = file.content_type in ALLOWED_VIDEO_TYPES
-    is_image = file.content_type not in ALLOWED_VIDEO_TYPES and file.content_type in ALLOWED_IMAGE_TYPES
 
     # Accept both images and videos; also accept unknown types as video/webm from browser MediaRecorder
     if file.content_type not in ALLOWED_IMAGE_TYPES and file.content_type not in ALLOWED_VIDEO_TYPES:
@@ -378,7 +378,6 @@ async def get_conditions_media(user_id: str, filename: str):
 
 
 @router.post("/upload/gallery")
-
 async def upload_gallery_media(
     file: UploadFile = File(...),
     user_id: str = Form(...),
@@ -949,8 +948,7 @@ async def upload_photographer_gallery_media(
         
         if not success:
             # Fallback: save raw video file when processing fails (e.g. no ffmpeg)
-            import uuid as _uuid
-            fallback_filename = f"{_uuid.uuid4()}.mp4"
+            fallback_filename = f"{uuid.uuid4()}.mp4"
             fallback_path = gallery_dir / fallback_filename
             with open(fallback_path, "wb") as fb:
                 fb.write(content)
@@ -1229,8 +1227,6 @@ async def upload_session_photo(
     Upload a photo or video from a live session with optional surfer tagging.
     Media is added to the photographer's gallery and tagged surfers get notified.
     """
-    import json
-    
     # Verify photographer
     result = await db.execute(select(Profile).where(Profile.id == photographer_id))
     photographer = result.scalar_one_or_none()
@@ -1349,7 +1345,7 @@ async def upload_session_photo(
         final_media_type = media_type
     
     # Create gallery item record
-    from models import GalleryItem, generate_uuid
+    from models import generate_uuid
     
     gallery_item = GalleryItem(
         id=generate_uuid(),
