@@ -3,7 +3,7 @@ God Mode Ad Controls - Admin UI for managing ad configuration
 Allows admins to configure ad frequency, content, and targeting.
 Now using PostgreSQL for persistent storage.
 """
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Body, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, update
 from pydantic import BaseModel
@@ -222,7 +222,7 @@ async def get_ad_configuration(
 @router.put("/admin/ads/config")
 async def update_ad_configuration(
     admin: Profile = Depends(get_current_admin),
-    config: AdConfigSchema,
+    config: AdConfigSchema = Body(...),
     db: AsyncSession = Depends(get_db)
 ):
     """Update ad configuration (God Mode only)"""
@@ -236,7 +236,7 @@ async def update_ad_configuration(
 @router.patch("/admin/ads/frequency")
 async def update_ad_frequency(
     admin: Profile = Depends(get_current_admin),
-    frequency: int,
+    frequency: int = Query(..., description="Ad frequency between 3 and 20"),
     db: AsyncSession = Depends(get_db)
 ):
     """Quick update ad frequency"""
@@ -254,7 +254,7 @@ async def update_ad_frequency(
 async def toggle_ad_variant(
     variant_id: str,
     admin: Profile = Depends(get_current_admin),
-    is_active: bool,
+    is_active: bool = Query(..., description="Whether the variant is active"),
     db: AsyncSession = Depends(get_db)
 ):
     """Enable/disable a specific ad variant"""
@@ -277,7 +277,7 @@ async def toggle_ad_variant(
 @router.post("/admin/ads/variant")
 async def add_ad_variant(
     admin: Profile = Depends(get_current_admin),
-    variant: AdVariant,
+    variant: AdVariant = Body(...),
     db: AsyncSession = Depends(get_db)
 ):
     """Add a new ad variant"""

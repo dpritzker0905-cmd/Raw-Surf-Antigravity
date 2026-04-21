@@ -2,7 +2,7 @@
 Admin Pricing Configuration API
 God Mode - Real-time pricing editor
 """
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Body
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from pydantic import BaseModel
@@ -385,7 +385,7 @@ async def admin_get_pricing_config(
 @router.post("/admin/pricing/update")
 async def admin_update_pricing_config(
     admin: Profile = Depends(get_current_admin),
-    data: PricingConfigUpdate,
+    data: PricingConfigUpdate = Body(...),
     db: AsyncSession = Depends(get_db)
 ):
     """

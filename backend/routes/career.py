@@ -2,7 +2,7 @@
 Career Hub API Routes
 Handles competition results, sponsorships, and career progression
 """
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, and_, or_, Integer
 from pydantic import BaseModel
@@ -199,10 +199,10 @@ async def get_pending_verifications(
 async def verify_competition_result(
     result_id: str,
     admin: Profile = Depends(get_current_admin),
-    approved: bool,
+    approved: bool = Query(..., description="Whether to approve or reject the result"),
     db: AsyncSession = Depends(get_db)
 ):
-    \"\"\"Admin/AI verifies a competition result and awards XP\"\"\"\n    
+    """Admin/AI verifies a competition result and awards XP"""
     # Get result
     result = await db.execute(select(CompetitionResult).where(CompetitionResult.id == result_id))
     comp_result = result.scalar_one_or_none()
