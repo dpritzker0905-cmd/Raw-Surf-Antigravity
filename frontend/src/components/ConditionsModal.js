@@ -337,13 +337,13 @@ const ConditionsModal = ({
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent 
-        className="bg-zinc-900 border-zinc-700 text-white sm:max-w-md"
+        className="bg-background border-border text-foreground sm:max-w-md"
         overlayClassName="z-[9998]"
         data-testid="conditions-modal"
         style={{ zIndex: 9999 }}
       >
-        <DialogHeader className="border-b border-zinc-800">
-          <DialogTitle className="text-xl font-bold flex items-center gap-2">
+        <DialogHeader className="border-b border-border">
+          <DialogTitle className="text-xl font-bold flex items-center gap-2 text-foreground">
             <CloudSun className="w-5 h-5 text-cyan-400" />
             Conditions Check
           </DialogTitle>
@@ -353,15 +353,15 @@ const ConditionsModal = ({
         <div className="flex-1 overflow-y-auto px-4 sm:px-6">
           <div className="space-y-4 py-4">
           {/* Spot Info */}
-          <div className="flex items-center gap-2 p-3 bg-zinc-800/50 rounded-lg">
+          <div className="flex items-center gap-2 p-3 bg-muted/50 rounded-lg">
             <Waves className="w-4 h-4 text-blue-400" />
-            <span className="text-gray-300 text-sm">Going live at</span>
-            <span className="text-white font-medium">{spotName}</span>
+            <span className="text-muted-foreground text-sm">Going live at</span>
+            <span className="text-foreground font-medium">{spotName}</span>
           </div>
 
           {/* Instructions */}
           <div className="p-3 bg-cyan-500/10 border border-cyan-500/30 rounded-lg">
-            <p className="text-cyan-300 text-sm">
+            <p className="text-cyan-600 dark:text-cyan-300 text-sm">
               <span className="font-medium">Required:</span> Share current conditions with surfers 
               by taking a quick photo or video of the waves.
             </p>
@@ -370,7 +370,7 @@ const ConditionsModal = ({
           {/* Media Capture/Upload Section */}
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <label className="text-gray-400 text-sm flex items-center gap-2">
+              <label className="text-muted-foreground text-sm flex items-center gap-2">
                 <Camera className="w-4 h-4" />
                 Condition Media <span className="text-red-400">*</span>
               </label>
@@ -445,7 +445,7 @@ const ConditionsModal = ({
                   <Button
                     onClick={flipCamera}
                     variant="outline"
-                    className="w-10 h-10 rounded-full border-zinc-600 text-white hover:bg-zinc-800 p-0"
+                    className="w-10 h-10 rounded-full border-border text-white hover:bg-black/50 p-0"
                     data-testid="flip-camera-btn"
                   >
                     <RefreshCw className="w-5 h-5" />
@@ -478,7 +478,7 @@ const ConditionsModal = ({
                   <Button
                     onClick={stopCamera}
                     variant="outline"
-                    className="border-zinc-600 text-white hover:bg-zinc-800"
+                    className="border-border text-white hover:bg-black/50"
                     data-testid="cancel-camera-btn"
                   >
                     Cancel
@@ -495,37 +495,37 @@ const ConditionsModal = ({
                 {/* Capture Photo */}
                 <button
                   onClick={() => startCamera('photo')}
-                  className="flex flex-col items-center justify-center gap-2 p-4 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 hover:border-cyan-500/50 rounded-xl transition-all"
+                  className="flex flex-col items-center justify-center gap-2 p-4 bg-card hover:bg-muted border border-border hover:border-cyan-500/50 rounded-xl transition-all"
                   data-testid="start-photo-capture"
                 >
                   <div className="w-12 h-12 rounded-full bg-cyan-500/20 flex items-center justify-center">
                     <Camera className="w-6 h-6 text-cyan-400" />
                   </div>
-                  <span className="text-white text-sm font-medium">Take Photo</span>
-                  <span className="text-gray-500 text-xs">Use camera</span>
+                  <span className="text-foreground text-sm font-medium">Take Photo</span>
+                  <span className="text-muted-foreground text-xs">Use camera</span>
                 </button>
                 
                 {/* Capture Video */}
                 <button
                   onClick={() => startCamera('video')}
-                  className="flex flex-col items-center justify-center gap-2 p-4 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 hover:border-purple-500/50 rounded-xl transition-all"
+                  className="flex flex-col items-center justify-center gap-2 p-4 bg-card hover:bg-muted border border-border hover:border-purple-500/50 rounded-xl transition-all"
                   data-testid="start-video-capture"
                 >
                   <div className="w-12 h-12 rounded-full bg-purple-500/20 flex items-center justify-center">
                     <Video className="w-6 h-6 text-purple-400" />
                   </div>
-                  <span className="text-white text-sm font-medium">Record Video</span>
-                  <span className="text-gray-500 text-xs">60 sec max</span>
+                  <span className="text-foreground text-sm font-medium">Record Video</span>
+                  <span className="text-muted-foreground text-xs">60 sec max</span>
                 </button>
                 
                 {/* Upload from Gallery */}
                 <button
                   onClick={() => fileInputRef.current?.click()}
-                  className="col-span-2 flex items-center justify-center gap-3 p-3 bg-zinc-800/50 hover:bg-zinc-800 border border-dashed border-zinc-700 hover:border-zinc-500 rounded-xl transition-all"
+                  className="col-span-2 flex items-center justify-center gap-3 p-3 bg-muted/50 hover:bg-muted border border-dashed border-border hover:border-muted-foreground rounded-xl transition-all"
                   data-testid="upload-media-btn"
                 >
-                  <Upload className="w-5 h-5 text-gray-400" />
-                  <span className="text-gray-400 text-sm">Upload from gallery</span>
+                  <Upload className="w-5 h-5 text-muted-foreground" />
+                  <span className="text-muted-foreground text-sm">Upload from gallery</span>
                 </button>
                 
                 <input
@@ -542,26 +542,26 @@ const ConditionsModal = ({
 
           {/* Spot Notes */}
           <div className="space-y-2">
-            <label className="text-gray-400 text-sm flex items-center gap-2">
+            <label className="text-muted-foreground text-sm flex items-center gap-2">
               <FileText className="w-4 h-4" />
-              Spot Notes <span className="text-gray-600">(optional)</span>
+              Spot Notes <span className="text-muted-foreground/60">(optional)</span>
             </label>
             <Textarea
               value={spotNotes}
               onChange={(e) => setSpotNotes(e.target.value)}
               placeholder="E.g., Clean 3-4ft sets, offshore winds, best at mid-tide..."
-              className="bg-zinc-800 border-zinc-700 text-white placeholder-gray-500 resize-none h-20"
+              className="bg-card border-border text-foreground placeholder-muted-foreground resize-none h-20"
               maxLength={200}
               data-testid="spot-notes-input"
             />
-            <p className="text-gray-600 text-xs text-right">{spotNotes.length}/200</p>
+            <p className="text-muted-foreground/60 text-xs text-right">{spotNotes.length}/200</p>
           </div>
 
           {/* Requirement Notice */}
           {!conditionMedia && (
             <div className="flex items-center gap-2 p-2 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
-              <AlertCircle className="w-4 h-4 text-yellow-400 shrink-0" />
-              <p className="text-yellow-300 text-xs">
+              <AlertCircle className="w-4 h-4 text-yellow-500 dark:text-yellow-400 shrink-0" />
+              <p className="text-yellow-600 dark:text-yellow-300 text-xs">
                 Add a condition photo or video to enable Go Live
               </p>
             </div>
@@ -569,11 +569,11 @@ const ConditionsModal = ({
           </div>
         </div>
 
-        <DialogFooter className="flex flex-row gap-3 border-t border-zinc-800">
+        <DialogFooter className="flex flex-row gap-3 border-t border-border">
           <Button
             variant="outline"
             onClick={onClose}
-            className="flex-1 border-zinc-700 text-white hover:bg-zinc-800"
+            className="flex-1 border-border text-foreground hover:bg-muted"
             disabled={isLoading}
             data-testid="cancel-conditions-btn"
           >
@@ -585,7 +585,7 @@ const ConditionsModal = ({
             className={`flex-1 font-bold transition-all ${
               canGoLive 
                 ? 'bg-gradient-to-r from-green-400 to-emerald-500 text-black hover:from-green-500 hover:to-emerald-600' 
-                : 'bg-zinc-700 text-zinc-500 cursor-not-allowed'
+                : 'bg-muted text-muted-foreground cursor-not-allowed'
             }`}
             data-testid="go-live-final-btn"
           >
