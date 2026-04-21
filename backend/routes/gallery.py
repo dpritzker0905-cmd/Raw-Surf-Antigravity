@@ -3448,3 +3448,57 @@ async def remove_surfer_gallery_item(
     await db.delete(item)
     await db.commit()
     return {"deleted": True, "surfer_gallery_item_id": surfer_gallery_item_id}
+
+
+@router.post("/gallery/{gallery_id}/recalculate-counts")
+async def recalculate_gallery_counts(
+    gallery_id: str,
+    fix_cover: bool = True,
+    db: AsyncSession = Depends(get_db)
+):
+    """Admin: Recalculate the cached item_count column and optionally fix the cover image.
+    Use this when items were deleted but the count wasn't decremented."""
+    gallery = await db.get(Gallery, gallery_id)
+    if not gallery:
+        raise HTTPException(status_code=404, detail="Gallery not found")
+    
+    # Count actual items
+    from sqlalchemy import func
+    count_result = await db.execute(
+        select(func.count(GalleryItem.id)).where(GalleryItem.gallery_id == gallery_id)
+    )
+    actual_count = count_result.scalar() or 0
+    old_count = gallery.item_count
+    gallery.item_count = actual_count
+    
+    cover_fixed = False
+    old_cover = gallery.cover_image_url
+    
+    # Fix cover image if it's a local path
+    if fix_cover and (
+        not gallery.cover_image_url or 
+        gallery.cover_image_url.startswith('/api/uploads/')
+    ):
+        # Use the first item's thumbnail as cover
+        first_item_result = await db.execute(
+            select(GalleryItem)
+            .where(GalleryItem.gallery_id == gallery_id)
+            .where(GalleryItem.media_type == 'image')
+            .order_by(GalleryItem.created_at.desc())
+            .limit(1)
+        )
+        first_item = first_item_result.scalar_one_or_none()
+        if first_item and first_item.thumbnail_url:
+            gallery.cover_image_url = first_item.thumbnail_url
+            cover_fixed = True
+    
+    await db.commit()
+    
+    return {
+        "gallery_id": gallery_id,
+        "old_item_count": old_count,
+        "new_item_count": actual_count,
+        "cover_fixed": cover_fixed,
+        "old_cover": old_cover,
+        "new_cover": gallery.cover_image_url
+    }

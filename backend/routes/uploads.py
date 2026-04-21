@@ -809,7 +809,22 @@ async def upload_wave_video(
     )
     
     if not success:
-        raise HTTPException(status_code=400, detail=f"Video processing failed: {error}")
+        # Fallback: save raw video without transcoding
+        logger.warning(f"Wave transcoding failed ({error}), saving raw video instead")
+        raw_filename = f"{uuid.uuid4()}.mp4"
+        raw_path = waves_dir / raw_filename
+        with open(raw_path, "wb") as f:
+            f.write(content)
+        result = {
+            'filename': raw_filename,
+            'original_width': width,
+            'original_height': height,
+            'final_width': width,
+            'final_height': height,
+            'duration': video_info.get('duration', 0),
+            'was_transcoded': False,
+            'size': len(content),
+        }
     
     media_url = f"/api/uploads/waves/{result['filename']}"
     
@@ -828,6 +843,20 @@ async def upload_wave_video(
     
     if thumb_success:
         thumbnail_url = f"/api/uploads/waves/{thumbnail_filename}"
+    
+    # ── Upload to Supabase for persistence ──
+    if SUPABASE_STORAGE_AVAILABLE:
+        wave_remote_key = f"waves/{user_id}/{result['filename']}"
+        supa_media = upload_to_supabase_storage(video_path, 'feed', wave_remote_key, content_type='video/mp4')
+        if supa_media:
+            media_url = supa_media
+            logger.info(f'Wave video uploaded to Supabase: {supa_media}')
+        
+        if thumb_success and thumbnail_path.exists():
+            thumb_remote_key = f"waves/{user_id}/{thumbnail_filename}"
+            supa_thumb = upload_to_supabase_storage(thumbnail_path, 'feed', thumb_remote_key, content_type='image/jpeg')
+            if supa_thumb:
+                thumbnail_url = supa_thumb
     
     return {
         "media_url": media_url,
