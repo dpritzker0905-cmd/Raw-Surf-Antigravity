@@ -767,16 +767,24 @@ async def upload_wave_video(
     video_info = get_video_info(str(temp_path))
     
     if not video_info:
-        os.remove(temp_path)
-        raise HTTPException(status_code=400, detail="Could not read video metadata")
-    
-    # ENFORCE 60-SECOND LIMIT for music label compliance
-    if video_info.get('duration', 0) > MAX_WAVE_DURATION:
-        os.remove(temp_path)
-        raise HTTPException(
-            status_code=400,
-            detail=f"Waves must be {MAX_WAVE_DURATION} seconds or less. Your video is {video_info['duration']:.1f} seconds."
-        )
+        # ffprobe not available or video unreadable — proceed with fallback metadata
+        logger.warning("Could not read video metadata (ffprobe missing?), proceeding with defaults")
+        video_info = {
+            'width': 0,
+            'height': 0,
+            'duration': 0,
+            'codec': 'unknown',
+            'bitrate': 0,
+            'size': len(content)
+        }
+    else:
+        # ENFORCE 60-SECOND LIMIT for music label compliance (only if we have real metadata)
+        if video_info.get('duration', 0) > MAX_WAVE_DURATION:
+            os.remove(temp_path)
+            raise HTTPException(
+                status_code=400,
+                detail=f"Waves must be {MAX_WAVE_DURATION} seconds or less. Your video is {video_info['duration']:.1f} seconds."
+            )
     
     # Calculate aspect ratio
     width = video_info.get('width', 0)
