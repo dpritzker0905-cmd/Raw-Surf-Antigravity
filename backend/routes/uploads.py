@@ -988,10 +988,31 @@ async def upload_photographer_gallery_media(
         
         max_res = "4K" if is_paid else "1080p"
         
+        # Upload video + thumbnail to Supabase for persistence
+        supabase_original = upload_to_supabase_storage(
+            gallery_dir / result_data['filename'],
+            'gallery',
+            f"{user_id}/{result_data['filename']}",
+            content_type=file.content_type or 'video/mp4'
+        )
+        supabase_thumb = None
+        if thumbnail_url and thumbnail_filename:
+            supabase_thumb = upload_to_supabase_storage(
+                gallery_dir / thumbnail_filename,
+                'gallery',
+                f"{user_id}/{thumbnail_filename}",
+                content_type='image/jpeg'
+            )
+        
+        # Use Supabase URLs if available, otherwise fall back to local
+        final_original = supabase_original or original_url
+        final_preview = supabase_original or preview_url
+        final_thumbnail = supabase_thumb or thumbnail_url
+        
         return {
-            "original_url": original_url,
-            "preview_url": preview_url,
-            "thumbnail_url": thumbnail_url,
+            "original_url": final_original,
+            "preview_url": final_preview,
+            "thumbnail_url": final_thumbnail,
             "media_type": "video",
             "filename": result_data['filename'],
             "original_width": result_data['original_width'],
@@ -1042,9 +1063,24 @@ async def upload_photographer_gallery_media(
         else:
             shutil.copy(original_path, preview_path)
         
+        # Upload images to Supabase for persistence
+        local_original_url = f"/api/uploads/gallery/{user_id}/{original_filename}"
+        local_preview_url = f"/api/uploads/gallery/{user_id}/{preview_filename}"
+        
+        supabase_original = upload_to_supabase_storage(
+            original_path, 'gallery',
+            f"{user_id}/{original_filename}",
+            content_type=file.content_type or 'image/jpeg'
+        )
+        supabase_preview = upload_to_supabase_storage(
+            preview_path, 'gallery',
+            f"{user_id}/{preview_filename}",
+            content_type=file.content_type or 'image/jpeg'
+        )
+        
         return {
-            "original_url": f"/api/uploads/gallery/{user_id}/{original_filename}",
-            "preview_url": f"/api/uploads/gallery/{user_id}/{preview_filename}",
+            "original_url": supabase_original or local_original_url,
+            "preview_url": supabase_preview or local_preview_url,
             "media_type": "image",
             "filename": base_filename,
             "size": len(content),
