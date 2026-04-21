@@ -1217,6 +1217,8 @@ export const GalleryPage = () => {
         targetFolderId={selectedGallery?.id || null}
         targetFolderName={selectedGallery?.title || null}
         galleries={galleries}
+        galleryPricing={galleryPricing}
+        selectedGallery={selectedGallery}
       />
 
       {/* View/Purchase Modal */}
