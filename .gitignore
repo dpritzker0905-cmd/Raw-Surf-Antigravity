@@ -294,3 +294,6 @@ credentials.json
 *.pem
 *.key
 .credentials
+
+# Local Netlify folder
+.netlify

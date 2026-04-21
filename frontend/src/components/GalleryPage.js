@@ -857,22 +857,58 @@ export const GalleryPage = () => {
                 >
                   {/* Folder thumbnail */}
                   <div className="aspect-[16/10] relative overflow-hidden">
-                    {gal.cover_image_url && !brokenCoverImages.has(gal.id) ? (
-                      <img 
-                        src={getFullUrl(gal.cover_image_url)} 
-                        alt={gal.title}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                        loading="lazy"
-                        onError={() => setBrokenCoverImages(prev => new Set([...prev, gal.id]))}
-                      />
-                    ) : (
-                      <div className="w-full h-full bg-gradient-to-br from-cyan-500/10 via-blue-500/5 to-purple-500/10 flex flex-col items-center justify-center gap-2">
-                        <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-cyan-500/20 to-blue-500/20 flex items-center justify-center">
-                          <Camera className="w-7 h-7 text-cyan-500/60" />
+                    {(() => {
+                      // Try cover image first, then fall back to first item preview
+                      const coverUrl = (!brokenCoverImages.has(gal.id) && gal.cover_image_url) 
+                        ? getFullUrl(gal.cover_image_url) 
+                        : null;
+                      
+                      if (coverUrl) {
+                        return (
+                          <img 
+                            src={coverUrl} 
+                            alt={gal.title}
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                            loading="lazy"
+                            onError={() => setBrokenCoverImages(prev => new Set([...prev, gal.id]))}
+                          />
+                        );
+                      }
+                      
+                      // Fallback 2: use first_item_preview from API as real thumbnail
+                      if (gal.first_item_preview && !brokenCoverImages.has(`${gal.id}_fallback`)) {
+                        return (
+                          <img 
+                            src={getFullUrl(gal.first_item_preview)} 
+                            alt={gal.title}
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                            loading="lazy"
+                            onError={() => setBrokenCoverImages(prev => new Set([...prev, `${gal.id}_fallback`]))}
+                          />
+                        );
+                      }
+                      
+                      // Fallback 3: show item count indicator when gallery has items but images failed
+                      if (gal.item_count > 0) {
+                        return (
+                          <div className="w-full h-full bg-gradient-to-br from-cyan-500/15 via-blue-500/10 to-purple-500/15 flex flex-col items-center justify-center gap-2">
+                            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-cyan-500/30 to-blue-500/30 flex items-center justify-center">
+                              <Camera className="w-7 h-7 text-cyan-400" />
+                            </div>
+                            <span className="text-xs text-muted-foreground font-medium">{gal.item_count} {gal.item_count === 1 ? 'item' : 'items'} inside</span>
+                          </div>
+                        );
+                      }
+                      
+                      return (
+                        <div className="w-full h-full bg-gradient-to-br from-cyan-500/10 via-blue-500/5 to-purple-500/10 flex flex-col items-center justify-center gap-2">
+                          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-cyan-500/20 to-blue-500/20 flex items-center justify-center">
+                            <Camera className="w-7 h-7 text-cyan-500/60" />
+                          </div>
+                          <span className="text-xs text-muted-foreground/60 font-medium">No items yet</span>
                         </div>
-                        <span className="text-xs text-muted-foreground/60 font-medium">No items yet</span>
-                      </div>
-                    )}
+                      );
+                    })()}
                     {/* Badges overlay */}
                     <div className="absolute top-2 left-2 flex gap-1.5">
                       {gal.live_session_id && (

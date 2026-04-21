@@ -1458,11 +1458,21 @@ async def get_photographer_galleries(
             g.item_count = actual_count
             needs_commit = True
         
+        # Compute a fallback preview from items for frontend
+        first_item_preview = None
+        if g.items:
+            for item in sorted(g.items, key=lambda i: i.created_at or datetime.min):
+                candidate = item.preview_url or item.thumbnail_url
+                if candidate:
+                    first_item_preview = candidate
+                    break
+        
         gallery_data.append({
             "id": g.id,
             "title": g.title,
             "description": g.description,
             "cover_image_url": cover_url,
+            "first_item_preview": first_item_preview,
             "surf_spot_id": g.surf_spot_id,
             "surf_spot_name": g.surf_spot.name if g.surf_spot else None,
             "live_session_id": g.live_session_id,
