@@ -317,12 +317,6 @@ async def create_gear_item(
     db: AsyncSession = Depends(get_db)
 ):
     """Admin: Create a new gear catalog item"""
-    # Verify admin
-    admin_result = await db.execute(select(Profile).where(Profile.id == admin.id))
-    admin = admin_result.scalar_one_or_none()
-    
-    if not admin or not admin.is_admin:
-        raise HTTPException(status_code=403, detail="Admin access required")
     
     try:
         category = GearCategory(data.category)
@@ -361,12 +355,6 @@ async def update_gear_item(
     db: AsyncSession = Depends(get_db)
 ):
     """Admin: Update a gear catalog item"""
-    # Verify admin
-    admin_result = await db.execute(select(Profile).where(Profile.id == admin.id))
-    admin = admin_result.scalar_one_or_none()
-    
-    if not admin or not admin.is_admin:
-        raise HTTPException(status_code=403, detail="Admin access required")
     
     result = await db.execute(select(GearCatalog).where(GearCatalog.id == item_id))
     item = result.scalar_one_or_none()

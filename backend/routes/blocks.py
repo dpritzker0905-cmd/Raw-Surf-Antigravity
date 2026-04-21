@@ -315,11 +315,6 @@ async def get_flagged_users(
     These users may need TOS review
     """
     try:
-        # Verify admin
-        admin_result = await db.execute(select(Profile).where(Profile.id == admin.id))
-        admin = admin_result.scalar_one_or_none()
-        if not admin or not admin.is_admin:
-            raise HTTPException(status_code=403, detail="Admin access required")
         
         # Get users with block counts
         query = (
@@ -398,11 +393,6 @@ async def admin_review_blocks(
     Can optionally create a TOS violation.
     """
     try:
-        # Verify admin
-        admin_result = await db.execute(select(Profile).where(Profile.id == admin.id))
-        admin = admin_result.scalar_one_or_none()
-        if not admin or not admin.is_admin:
-            raise HTTPException(status_code=403, detail="Admin access required")
         
         # Mark all blocks as reviewed
         await db.execute(

@@ -22,7 +22,7 @@ export const GalleryGridItem = ({
 
   return (
     <div
-      className="relative aspect-square rounded-lg overflow-hidden bg-zinc-800 group cursor-pointer"
+      className="relative aspect-square rounded-lg overflow-hidden bg-card group cursor-pointer"
       onClick={(_e) => {
         if (bulkSelectMode) {
           onSelect?.(item.id);

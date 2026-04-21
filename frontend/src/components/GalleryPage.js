@@ -1073,31 +1073,34 @@ export const GalleryPage = () => {
 
       {/* Individual Photos Header with Bulk Actions */}
       {isPhotographer && (
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
-            <Image className="w-5 h-5 text-yellow-400" />
-            All Photos
-            {bulkSelectMode && selectedItems.size > 0 && (
-              <Badge className="bg-cyan-500 text-white text-xs ml-2">
-                {selectedItems.size} selected
-              </Badge>
-            )}
-          </h2>
-          <div className="flex items-center gap-2">
+        <div className="mb-4">
+          <div className="flex items-center justify-between mb-2">
+            <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
+              <Image className="w-5 h-5 text-yellow-400" />
+              All Photos
+              {bulkSelectMode && selectedItems.size > 0 && (
+                <Badge className="bg-cyan-500 text-white text-xs ml-2">
+                  {selectedItems.size} selected
+                </Badge>
+              )}
+            </h2>
+          </div>
+          <div className="flex items-center gap-2 overflow-x-auto pb-1">
             {bulkSelectMode ? (
               <>
                 <Button
                   size="sm"
                   variant="outline"
-                  className="border-border text-muted-foreground"
+                  className="border-border text-muted-foreground flex-shrink-0"
                   onClick={selectAllItems}
                 >
-                  Select All
+                  <Check className="w-4 h-4 mr-1" />
+                  All
                 </Button>
                 <Button
                   size="sm"
                   variant="outline"
-                  className="border-border text-muted-foreground"
+                  className="border-border text-muted-foreground flex-shrink-0"
                   onClick={() => setShowMoveToFolderModal(true)}
                   disabled={selectedItems.size === 0}
                 >
@@ -1107,7 +1110,7 @@ export const GalleryPage = () => {
                 <Button
                   size="sm"
                   variant="outline"
-                  className="border-cyan-700 text-cyan-400 hover:bg-cyan-500/10"
+                  className="border-cyan-700 text-cyan-400 hover:bg-cyan-500/10 flex-shrink-0"
                   onClick={() => setShowCopyToFolderModal(true)}
                   disabled={selectedItems.size === 0}
                 >
@@ -1117,7 +1120,7 @@ export const GalleryPage = () => {
                 <Button
                   size="sm"
                   variant="destructive"
-                  className="bg-red-500/20 text-red-400 hover:bg-red-500/30"
+                  className="bg-red-500/20 text-red-400 hover:bg-red-500/30 flex-shrink-0"
                   onClick={handleBulkDelete}
                   disabled={selectedItems.size === 0}
                 >
@@ -1127,17 +1130,18 @@ export const GalleryPage = () => {
                 <Button
                   size="sm"
                   variant="ghost"
-                  className="text-muted-foreground"
+                  className="text-muted-foreground flex-shrink-0"
                   onClick={clearSelection}
                 >
                   <X className="w-4 h-4" />
+                  Cancel
                 </Button>
               </>
             ) : (
               <Button
                 size="sm"
                 variant="outline"
-                className="border-border text-muted-foreground"
+                className="border-border text-muted-foreground flex-shrink-0"
                 onClick={() => setBulkSelectMode(true)}
                 data-testid="bulk-select-btn"
               >

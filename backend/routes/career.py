@@ -202,14 +202,7 @@ async def verify_competition_result(
     approved: bool,
     db: AsyncSession = Depends(get_db)
 ):
-    """Admin/AI verifies a competition result and awards XP"""
-    
-    # Check admin
-    admin_result = await db.execute(select(Profile).where(Profile.id == admin.id))
-    admin = admin_result.scalar_one_or_none()
-    if not admin or not admin.is_admin:
-        raise HTTPException(status_code=403, detail="Admin access required")
-    
+    \"\"\"Admin/AI verifies a competition result and awards XP\"\"\"\n    
     # Get result
     result = await db.execute(select(CompetitionResult).where(CompetitionResult.id == result_id))
     comp_result = result.scalar_one_or_none()
