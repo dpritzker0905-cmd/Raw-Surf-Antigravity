@@ -29,7 +29,7 @@ logger = logging.getLogger(__name__)
 VULGAR_WORDS = [
     'fuck', 'shit', 'ass', 'bitch', 'damn', 'crap', 'bastard', 'dick', 'cock',
     'pussy', 'whore', 'slut', 'fag', 'nigger', 'cunt', 'asshole', 'motherfucker',
-    'bullshit', 'piss', 'douche', 'retard', 'idiot', 'stupid', 'dumb'
+    'bullshit', 'piss', 'douche', 'retard'
 ]
 
 def check_for_vulgarities(text: str) -> List[str]:
