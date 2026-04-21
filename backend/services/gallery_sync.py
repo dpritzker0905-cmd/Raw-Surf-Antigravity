@@ -13,8 +13,9 @@ from models import (
     Gallery, GalleryItem, Profile, SurfSpot, Booking, DispatchRequest,
     LiveSession, SurferSelectionQuota, SurferGalleryItem, GalleryTierEnum,
     ConditionReport, LiveSessionParticipant, BookingParticipant,
-    Notification, SurferGalleryClaimQueue
+    Notification, SurferGalleryClaimQueue, Surfboard
 )
+import json as _json
 import logging
 
 logger = logging.getLogger(__name__)
@@ -337,11 +338,11 @@ async def distribute_gallery_item_to_participants(
     session_type = gallery.session_type or 'manual'
     
     if gallery.live_session_id:
-        # Live session participants
+        # Live session participants — include 'confirmed' to catch pre-start joins
         result = await db.execute(
             select(LiveSessionParticipant)
             .where(LiveSessionParticipant.live_session_id == gallery.live_session_id)
-            .where(LiveSessionParticipant.status.in_(['active', 'completed']))
+            .where(LiveSessionParticipant.status.in_(['active', 'completed', 'confirmed']))
         )
         participants = result.scalars().all()
         
@@ -433,7 +434,67 @@ async def distribute_gallery_item_to_participants(
         if existing.scalar_one_or_none():
             continue
         
-        # Create the locker item
+        # ============ AI IDENTIFICATION DATA GATHERING ============
+        # Collect all available identification signals for this surfer
+        identification_signals = []
+        ai_match_reasons = []
+        
+        # 1. Session selfie (highest priority — taken specifically for this session)
+        participant_selfie = getattr(participant, 'selfie_url', None)
+        if participant_selfie:
+            identification_signals.append('selfie')
+            ai_match_reasons.append('session_selfie_available')
+        
+        # 2. Profile data (avatar, wetsuit, rash guard, social)
+        profile_result = await db.execute(
+            select(Profile).where(Profile.id == surfer_id)
+        )
+        surfer_profile = profile_result.scalar_one_or_none()
+        
+        if surfer_profile:
+            if surfer_profile.avatar_url:
+                identification_signals.append('avatar')
+                ai_match_reasons.append('profile_avatar_available')
+            if surfer_profile.wetsuit_color:
+                identification_signals.append('wetsuit')
+                ai_match_reasons.append(f'wetsuit_color:{surfer_profile.wetsuit_color}')
+            if surfer_profile.rash_guard_color:
+                identification_signals.append('rash_guard')
+                ai_match_reasons.append(f'rash_guard_color:{surfer_profile.rash_guard_color}')
+            if surfer_profile.instagram_url:
+                identification_signals.append('social')
+                ai_match_reasons.append('instagram_profile_linked')
+        
+        # 3. Surfboard data (board color/type for visual matching)
+        boards_result = await db.execute(
+            select(Surfboard).where(Surfboard.user_id == surfer_id)
+        )
+        user_boards = boards_result.scalars().all()
+        if user_boards:
+            identification_signals.append('board')
+            board_types = [b.board_type for b in user_boards if b.board_type]
+            if board_types:
+                ai_match_reasons.append(f'board_types:{"|".join(board_types)}')
+            boards_with_photos = [b for b in user_boards if b.photo_urls]
+            if boards_with_photos:
+                ai_match_reasons.append(f'board_photos:{len(boards_with_photos)}')
+        
+        # AI confidence baseline: session participant = 0.7, with boosts per signal
+        ai_confidence = 0.7
+        if participant_selfie:
+            ai_confidence += 0.15  # Selfie is strongest signal
+        if surfer_profile and surfer_profile.avatar_url:
+            ai_confidence += 0.05
+        if user_boards:
+            ai_confidence += 0.05
+        ai_confidence = min(ai_confidence, 0.95)  # Cap below face-match threshold
+        
+        logger.info(
+            f"Surfer {surfer_id} identification signals: {identification_signals} "
+            f"(confidence={ai_confidence:.2f})"
+        )
+        
+        # Create the locker item with AI metadata
         surfer_item = SurferGalleryItem(
             surfer_id=surfer_id,
             gallery_item_id=gallery_item_id,
@@ -448,6 +509,10 @@ async def distribute_gallery_item_to_participants(
             is_paid=False,
             access_type='pending_selection',
             selection_eligible=True,
+            # AI identification metadata
+            ai_suggested=True,
+            ai_confidence=ai_confidence,
+            ai_match_method='session_participant',
             # Session metadata
             session_date=gallery.session_date or (live_session.started_at if live_session else None),
             spot_name=spot_name,
@@ -457,9 +522,28 @@ async def distribute_gallery_item_to_participants(
         db.add(surfer_item)
         distributed_count += 1
         
+        # Also populate the AI Claim Queue for surfer review
+        try:
+            claim_entry = SurferGalleryClaimQueue(
+                surfer_id=surfer_id,
+                gallery_item_id=gallery_item_id,
+                photographer_id=gallery.photographer_id,
+                ai_confidence=ai_confidence,
+                ai_match_reasons=_json.dumps(ai_match_reasons),
+                passport_board_color=None,  # Will be populated by vision service
+                passport_wetsuit_color=surfer_profile.wetsuit_color if surfer_profile else None,
+                live_session_id=gallery.live_session_id,
+                booking_id=gallery.booking_id,
+                status='pending',
+            )
+            db.add(claim_entry)
+        except Exception as claim_err:
+            logger.warning(f"Failed to create claim queue entry for surfer {surfer_id}: {claim_err}")
+        
         logger.info(
             f"Distributed gallery item {gallery_item_id} to surfer {surfer_id} "
-            f"(session_type={session_type}, tier={gallery_tier.value})"
+            f"(session_type={session_type}, tier={gallery_tier.value}, "
+            f"ai_confidence={ai_confidence:.2f}, signals={identification_signals})"
         )
     
     # Send notification to participants about new content

@@ -358,13 +358,25 @@ async def upload_conditions_media(
     with open(file_path, "wb") as f:
         f.write(content)
 
-    media_url = f"/api/uploads/conditions/{user_id}/{filename}"
+    # Upload to Supabase for persistence (Render disk is ephemeral)
+    local_url = f"/api/uploads/conditions/{user_id}/{filename}"
+    supabase_url = upload_to_supabase_storage(
+        file_path, 'conditions',
+        f"{user_id}/{filename}",
+        content_type=file.content_type or ('video/webm' if is_video else 'image/jpeg')
+    )
+    media_url = supabase_url or local_url
+    if supabase_url:
+        logger.info(f"Condition media persisted to Supabase: {supabase_url}")
+    else:
+        logger.warning(f"Condition media saved to ephemeral disk only: {local_url}")
 
     return {
         "media_url": media_url,
         "media_type": media_type,
         "filename": filename,
-        "size": len(content)
+        "size": len(content),
+        "persistent": bool(supabase_url)
     }
 
 

@@ -7,6 +7,9 @@ from typing import Optional, List
 from datetime import datetime, timezone, timedelta
 import json
 import uuid
+import logging
+
+gallery_logger = logging.getLogger(__name__)
 
 from database import get_db
 from models import Profile, SurfSpot, GalleryItem, GalleryPurchase, Notification, RoleEnum, Gallery, LiveSession, LiveSessionParticipant, XPTransaction, SurferGalleryItem, SurferSelectionQuota, GalleryTierEnum, Booking, BookingParticipant
@@ -3152,4 +3155,278 @@ async def get_quality_previews(
         "item_id": item_id,
         "media_type": item.media_type,
         "previews": previews
+    }
+
+
+# ============ OPERATIONAL ENDPOINTS ============
+
+@router.post("/gallery/{gallery_id}/distribute")
+async def trigger_gallery_distribution(
+    gallery_id: str,
+    photographer_id: str,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Manually trigger distribution of all items in a gallery to session participants.
+    Used for:
+    - Re-running distribution after fixing participant status issues
+    - Verifying the auto-distribution pipeline works end-to-end
+    - Backfilling locker items for galleries uploaded before distribution was wired
+    
+    Idempotent: won't create duplicate SurferGalleryItems.
+    """
+    # Verify gallery exists and belongs to photographer
+    result = await db.execute(
+        select(Gallery).where(Gallery.id == gallery_id)
+    )
+    gallery = result.scalar_one_or_none()
+    
+    if not gallery:
+        raise HTTPException(status_code=404, detail="Gallery not found")
+    if gallery.photographer_id != photographer_id:
+        raise HTTPException(status_code=403, detail="Not authorized")
+    
+    # Must be a session-linked gallery
+    if not gallery.live_session_id and not gallery.booking_id and not gallery.dispatch_id:
+        raise HTTPException(
+            status_code=400, 
+            detail="Gallery is not linked to a session. Distribution only works for session galleries."
+        )
+    
+    # Get all items in this gallery
+    items_result = await db.execute(
+        select(GalleryItem).where(
+            GalleryItem.gallery_id == gallery_id,
+            GalleryItem.is_deleted == False
+        )
+    )
+    items = items_result.scalars().all()
+    
+    if not items:
+        return {
+            "message": "No items to distribute",
+            "gallery_id": gallery_id,
+            "total_items": 0,
+            "total_distributed": 0
+        }
+    
+    total_distributed = 0
+    distribution_details = []
+    
+    for item in items:
+        try:
+            count = await distribute_gallery_item_to_participants(db, item.id, gallery)
+            total_distributed += count
+            distribution_details.append({
+                "item_id": item.id,
+                "media_type": item.media_type,
+                "distributed_to": count
+            })
+        except Exception as e:
+            gallery_logger.warning(f"Distribution failed for item {item.id}: {e}")
+            distribution_details.append({
+                "item_id": item.id,
+                "error": str(e)
+            })
+    
+    await db.commit()
+    
+    return {
+        "message": f"Distributed {total_distributed} locker items across {len(items)} gallery items",
+        "gallery_id": gallery_id,
+        "session_type": gallery.session_type,
+        "live_session_id": gallery.live_session_id,
+        "total_items": len(items),
+        "total_distributed": total_distributed,
+        "details": distribution_details
+    }
+
+
+@router.delete("/gallery/cleanup-empty")
+async def cleanup_empty_galleries(
+    photographer_id: str,
+    protect_gallery_id: Optional[str] = None,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Delete all empty galleries (item_count=0) for a photographer.
+    Protects any gallery specified by protect_gallery_id.
+    
+    Designed to clean up leftover test galleries from development.
+    """
+    # Verify photographer exists
+    profile_result = await db.execute(select(Profile).where(Profile.id == photographer_id))
+    photographer = profile_result.scalar_one_or_none()
+    if not photographer:
+        raise HTTPException(status_code=404, detail="Photographer not found")
+    
+    # Find all empty galleries for this photographer
+    query = select(Gallery).where(
+        Gallery.photographer_id == photographer_id,
+        Gallery.item_count == 0
+    )
+    
+    result = await db.execute(query)
+    empty_galleries = result.scalars().all()
+    
+    deleted_ids = []
+    protected_ids = []
+    
+    for gallery in empty_galleries:
+        # Protect specified gallery
+        if protect_gallery_id and gallery.id == protect_gallery_id:
+            protected_ids.append(gallery.id)
+            continue
+        
+        deleted_ids.append({
+            "id": gallery.id,
+            "title": gallery.title,
+            "created_at": gallery.created_at.isoformat() if gallery.created_at else None
+        })
+        await db.delete(gallery)
+    
+    await db.commit()
+    
+    return {
+        "message": f"Deleted {len(deleted_ids)} empty galleries",
+        "deleted": deleted_ids,
+        "protected": protected_ids,
+        "remaining_empty": len(protected_ids)
+    }
+
+
+@router.post("/gallery/{gallery_id}/heal-urls")
+async def heal_gallery_item_urls(
+    gallery_id: str,
+    photographer_id: str,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Re-upload gallery items with ephemeral local URLs (/api/uploads/...) to Supabase.
+    Fixes items that were uploaded before Supabase integration was working or
+    when Supabase was temporarily unavailable.
+    
+    For each item with a local URL:
+    1. Read the file from local disk (if it still exists)
+    2. Upload to Supabase storage
+    3. Update the GalleryItem URLs to point to Supabase
+    """
+    import os
+    from pathlib import Path
+    
+    # Verify gallery ownership
+    result = await db.execute(select(Gallery).where(Gallery.id == gallery_id))
+    gallery = result.scalar_one_or_none()
+    if not gallery:
+        raise HTTPException(status_code=404, detail="Gallery not found")
+    if gallery.photographer_id != photographer_id:
+        raise HTTPException(status_code=403, detail="Not authorized")
+    
+    # Get all items with local URLs
+    items_result = await db.execute(
+        select(GalleryItem).where(
+            GalleryItem.gallery_id == gallery_id,
+            GalleryItem.is_deleted == False
+        )
+    )
+    items = items_result.scalars().all()
+    
+    # Try to import Supabase upload function
+    try:
+        from routes.uploads import upload_to_supabase_storage, UPLOAD_DIR
+    except ImportError:
+        raise HTTPException(status_code=500, detail="Supabase upload not available")
+    
+    healed = []
+    failed = []
+    skipped = []
+    
+    for item in items:
+        # Check if URLs are local (ephemeral)
+        urls_to_heal = {}
+        if item.original_url and item.original_url.startswith('/api/uploads/'):
+            urls_to_heal['original_url'] = item.original_url
+        if item.preview_url and item.preview_url.startswith('/api/uploads/'):
+            urls_to_heal['preview_url'] = item.preview_url
+        if item.thumbnail_url and item.thumbnail_url.startswith('/api/uploads/'):
+            urls_to_heal['thumbnail_url'] = item.thumbnail_url
+        
+        if not urls_to_heal:
+            skipped.append({"item_id": item.id, "reason": "Already using persistent URLs"})
+            continue
+        
+        item_healed = {"item_id": item.id, "healed_urls": {}}
+        item_failed = False
+        
+        for field, local_url in urls_to_heal.items():
+            # Convert API URL to filesystem path
+            # /api/uploads/gallery/USER_ID/filename -> UPLOAD_DIR/gallery/USER_ID/filename
+            relative_path = local_url.replace('/api/uploads/', '')
+            local_path = UPLOAD_DIR / relative_path
+            
+            if not local_path.exists():
+                failed.append({
+                    "item_id": item.id,
+                    "field": field,
+                    "reason": f"Local file not found: {relative_path}"
+                })
+                item_failed = True
+                continue
+            
+            # Determine content type
+            ext = local_path.suffix.lower()
+            content_types = {
+                '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg',
+                '.png': 'image/png', '.webp': 'image/webp',
+                '.gif': 'image/gif', '.mp4': 'video/mp4',
+                '.mov': 'video/mp4', '.webm': 'video/webm'
+            }
+            content_type = content_types.get(ext, 'application/octet-stream')
+            
+            # Upload to Supabase
+            supabase_url = upload_to_supabase_storage(
+                local_path, 'gallery',
+                relative_path.replace('gallery/', '', 1) if relative_path.startswith('gallery/') else relative_path,
+                content_type=content_type
+            )
+            
+            if supabase_url:
+                setattr(item, field, supabase_url)
+                item_healed["healed_urls"][field] = supabase_url
+            else:
+                failed.append({
+                    "item_id": item.id,
+                    "field": field,
+                    "reason": "Supabase upload failed"
+                })
+                item_failed = True
+        
+        if item_healed["healed_urls"]:
+            healed.append(item_healed)
+    
+    # Also heal gallery cover image if it's local
+    if gallery.cover_image_url and gallery.cover_image_url.startswith('/api/uploads/'):
+        relative_path = gallery.cover_image_url.replace('/api/uploads/', '')
+        local_path = UPLOAD_DIR / relative_path
+        
+        if local_path.exists():
+            ext = local_path.suffix.lower()
+            ct = 'image/jpeg' if ext in ('.jpg', '.jpeg') else 'image/png'
+            supabase_url = upload_to_supabase_storage(
+                local_path, 'conditions',
+                relative_path.replace('conditions/', '', 1) if relative_path.startswith('conditions/') else relative_path,
+                content_type=ct
+            )
+            if supabase_url:
+                gallery.cover_image_url = supabase_url
+                healed.append({"field": "gallery_cover", "healed_url": supabase_url})
+    
+    await db.commit()
+    
+    return {
+        "message": f"Healed {len(healed)} items, {len(failed)} failed, {len(skipped)} already persistent",
+        "gallery_id": gallery_id,
+        "healed": healed,
+        "failed": failed,
+        "skipped": skipped
     }
