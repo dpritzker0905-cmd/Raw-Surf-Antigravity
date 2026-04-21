@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { usePricing } from '../contexts/PricingContext';
 import apiClient, { BACKEND_URL } from '../lib/apiClient';
-import { Camera, Upload, X, DollarSign, Eye, ShoppingCart, Plus, Loader2, Image, Check, Lock, Video, Play, Settings, Edit3, Sparkles, RotateCcw, Folder, MapPin, Calendar, Trash2, Copy, Radio, UserPlus, Droplet, ChevronLeft, ChevronDown, ChevronUp, MoreHorizontal } from 'lucide-react';
+import { Camera, Upload, X, DollarSign, Eye, ShoppingCart, Plus, Loader2, Image, Check, Lock, Video, Play, Settings, Edit3, Sparkles, RotateCcw, Folder, MapPin, Calendar, Trash2, Copy, Radio, UserPlus, Droplet, ChevronLeft, ChevronDown, ChevronUp, MoreHorizontal, Users, Send, CheckCircle } from 'lucide-react';
 import { Button } from './ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from './ui/dialog';
 import { Input } from './ui/input';
@@ -81,6 +81,17 @@ export const GalleryPage = () => {
   const [selectedItems, setSelectedItems] = useState(new Set());
   const [showMoveToFolderModal, setShowMoveToFolderModal] = useState(false);
   const [showCopyToFolderModal, setShowCopyToFolderModal] = useState(false);
+  
+  // Tag & Assign modal state
+  const [showTagAssignModal, setShowTagAssignModal] = useState(false);
+  const [participants, setParticipants] = useState([]);
+  const [participantsLoading, setParticipantsLoading] = useState(false);
+  const [sessionInfo, setSessionInfo] = useState(null);
+  const [distributeLoading, setDistributeLoading] = useState({});
+  const [distributeAllLoading, setDistributeAllLoading] = useState(false);
+  const [manualSurferSearch, setManualSurferSearch] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
+  const [searchLoading, setSearchLoading] = useState(false);
   
   // Grom Highlights state (for Grom Parents)
   const [gromHighlights, setGromHighlights] = useState([]);
@@ -509,6 +520,112 @@ export const GalleryPage = () => {
     } finally {
       setFolderActionLoading(false);
     }
+  };
+
+  // ============ TAG & ASSIGN HANDLERS ============
+  
+  // Open Tag & Assign modal and fetch participants
+  const handleOpenTagAssign = async () => {
+    if (!selectedGallery) {
+      toast.error('Please select a gallery folder first');
+      return;
+    }
+    setShowTagAssignModal(true);
+    setManualSurferSearch('');
+    setSearchResults([]);
+    await fetchParticipants(selectedGallery.id);
+  };
+
+  // Fetch session participants for the gallery
+  const fetchParticipants = async (galleryId) => {
+    setParticipantsLoading(true);
+    try {
+      const response = await apiClient.get(
+        `/gallery/${galleryId}/session-participants?photographer_id=${user.id}`
+      );
+      setParticipants(response.data.participants || []);
+      setSessionInfo(response.data.session || null);
+    } catch (error) {
+      logger.error('Failed to fetch participants:', error);
+      setParticipants([]);
+      setSessionInfo({ is_linked: false });
+    } finally {
+      setParticipantsLoading(false);
+    }
+  };
+
+  // Distribute ALL gallery items to a specific surfer
+  const handleDistributeToSurfer = async (surferId, surferName) => {
+    if (!selectedGallery) return;
+    setDistributeLoading(prev => ({ ...prev, [surferId]: true }));
+    try {
+      const response = await apiClient.post(
+        `/gallery/${selectedGallery.id}/distribute-to-surfer?photographer_id=${user.id}`,
+        { surfer_id: surferId, access_type: 'watermarked' }
+      );
+      const count = response.data.items_distributed || 0;
+      const skipped = response.data.skipped_count || 0;
+      
+      if (count > 0) {
+        toast.success(`✅ Sent ${count} items to ${surferName}'s Locker!`);
+      } else if (skipped > 0) {
+        toast.info(`All items already in ${surferName}'s Locker`);
+      } else {
+        toast.info('No items to distribute');
+      }
+      
+      // Refresh participant list to update counts
+      await fetchParticipants(selectedGallery.id);
+    } catch (error) {
+      toast.error(getErrorMessage(error, `Failed to distribute to ${surferName}`));
+    } finally {
+      setDistributeLoading(prev => ({ ...prev, [surferId]: false }));
+    }
+  };
+
+  // Distribute ALL items to ALL session participants at once
+  const handleDistributeAll = async () => {
+    if (!selectedGallery || participants.length === 0) return;
+    setDistributeAllLoading(true);
+    
+    try {
+      const response = await apiClient.post(
+        `/gallery/${selectedGallery.id}/distribute?photographer_id=${user.id}`
+      );
+      const total = response.data.total_distributed || 0;
+      toast.success(`✅ Distributed ${total} locker items to all participants!`);
+      
+      // Refresh to update counts
+      await fetchParticipants(selectedGallery.id);
+    } catch (error) {
+      toast.error(getErrorMessage(error, 'Failed to distribute to all participants'));
+    } finally {
+      setDistributeAllLoading(false);
+    }
+  };
+
+  // Search surfers by name/username for manual assignment
+  let searchTimeout = null;
+  const handleSearchSurfers = (query) => {
+    if (searchTimeout) clearTimeout(searchTimeout);
+    if (!query || query.length < 2) {
+      setSearchResults([]);
+      return;
+    }
+    setSearchLoading(true);
+    searchTimeout = setTimeout(async () => {
+      try {
+        const response = await apiClient.get(`/profiles/search?q=${encodeURIComponent(query)}&limit=10`);
+        // Filter out current user
+        const results = (response.data || []).filter(p => p.id !== user.id);
+        setSearchResults(results);
+      } catch (error) {
+        logger.error('Search failed:', error);
+        setSearchResults([]);
+      } finally {
+        setSearchLoading(false);
+      }
+    }, 400);
   };
 
   // NEW: Bulk delete selected items
@@ -1103,9 +1220,7 @@ export const GalleryPage = () => {
                     size="sm"
                     variant="outline"
                     className="border-purple-600 text-purple-400 hover:bg-purple-500/10 flex-shrink-0"
-                    onClick={() => {
-                      toast.info('Select individual items below, then use the ✨ Tag & Assign option from each item\'s menu to distribute to surfers.');
-                    }}
+                    onClick={() => handleOpenTagAssign()}
                   >
                     <Sparkles className="w-4 h-4 mr-1" />
                     Tag & Assign
@@ -1899,6 +2014,238 @@ export const GalleryPage = () => {
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowCopyToFolderModal(false)} className="border-border">
               Cancel
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ============ TAG & ASSIGN MODAL ============ */}
+      <Dialog open={showTagAssignModal} onOpenChange={setShowTagAssignModal}>
+        <DialogContent className="max-w-lg bg-background border-border max-h-[85vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="text-foreground flex items-center gap-2">
+              <Sparkles className="w-5 h-5 text-purple-400" />
+              Tag & Assign — {selectedGallery?.title || 'Gallery'}
+            </DialogTitle>
+          </DialogHeader>
+          
+          <div className="flex-1 overflow-y-auto space-y-4 pr-1">
+            {/* Session Info Banner */}
+            {sessionInfo && (
+              <div className={`p-3 rounded-lg border ${
+                sessionInfo.is_linked
+                  ? 'bg-emerald-500/10 border-emerald-500/30'
+                  : 'bg-amber-500/10 border-amber-500/30'
+              }`}>
+                <div className="flex items-center gap-2 text-sm">
+                  {sessionInfo.is_linked ? (
+                    <>
+                      <CheckCircle className="w-4 h-4 text-emerald-400" />
+                      <span className="text-emerald-400 font-medium">
+                        Session linked — {sessionInfo.session_type === 'live' || sessionInfo.live_session_id ? '🟢 Live Session' 
+                          : sessionInfo.session_type === 'booking' ? '📅 Booking' 
+                          : sessionInfo.session_type === 'on_demand' ? '⚡ On-Demand' : '📋 Manual'}
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <Radio className="w-4 h-4 text-amber-400" />
+                      <span className="text-amber-400 font-medium">No session linked — use manual assignment below</span>
+                    </>
+                  )}
+                </div>
+                {sessionInfo.session_date && (
+                  <p className="text-xs text-muted-foreground mt-1 ml-6">
+                    {new Date(sessionInfo.session_date).toLocaleDateString()}
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* Session Participants Section */}
+            {participantsLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="w-6 h-6 animate-spin text-purple-400" />
+                <span className="ml-2 text-muted-foreground text-sm">Loading participants...</span>
+              </div>
+            ) : participants.length > 0 ? (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                    <Users className="w-4 h-4 text-purple-400" />
+                    Session Participants ({participants.length})
+                  </h3>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="border-emerald-600 text-emerald-400 hover:bg-emerald-500/10 text-xs h-7"
+                    onClick={handleDistributeAll}
+                    disabled={distributeAllLoading || galleryItems.length === 0}
+                  >
+                    {distributeAllLoading ? (
+                      <Loader2 className="w-3 h-3 animate-spin mr-1" />
+                    ) : (
+                      <Send className="w-3 h-3 mr-1" />
+                    )}
+                    Distribute All
+                  </Button>
+                </div>
+                
+                {participants.map((p) => {
+                  const isFullyDistributed = p.items_distributed >= galleryItems.length && galleryItems.length > 0;
+                  const isLoading = distributeLoading[p.surfer_id];
+                  return (
+                    <div
+                      key={p.surfer_id}
+                      className={`flex items-center gap-3 p-3 rounded-lg border transition-all ${
+                        isFullyDistributed
+                          ? 'bg-emerald-500/10 border-emerald-500/30'
+                          : 'bg-muted/30 border-border/50 hover:border-purple-500/50'
+                      }`}
+                    >
+                      {/* Avatar */}
+                      {p.avatar_url || p.selfie_url ? (
+                        <img
+                          src={getFullUrl(p.selfie_url || p.avatar_url)}
+                          alt={p.full_name}
+                          className="w-10 h-10 rounded-full object-cover border-2 border-border"
+                        />
+                      ) : (
+                        <div className="w-10 h-10 rounded-full bg-purple-500/20 flex items-center justify-center text-purple-400 font-bold text-sm">
+                          {(p.full_name || p.username || '?').charAt(0).toUpperCase()}
+                        </div>
+                      )}
+                      
+                      {/* Name + status */}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-foreground truncate">
+                          {p.full_name || p.username || 'Unknown'}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {p.items_distributed > 0
+                            ? `${p.items_distributed}/${galleryItems.length} items sent`
+                            : 'No items sent yet'
+                          }
+                          {p.amount_paid > 0 && ` · $${p.amount_paid} paid`}
+                        </p>
+                      </div>
+                      
+                      {/* Action button */}
+                      {isFullyDistributed ? (
+                        <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30 text-xs">
+                          <CheckCircle className="w-3 h-3 mr-1" /> Done
+                        </Badge>
+                      ) : (
+                        <Button
+                          size="sm"
+                          className="bg-purple-500 hover:bg-purple-600 text-white text-xs h-8"
+                          onClick={() => handleDistributeToSurfer(p.surfer_id, p.full_name || p.username)}
+                          disabled={isLoading || galleryItems.length === 0}
+                        >
+                          {isLoading ? (
+                            <Loader2 className="w-3 h-3 animate-spin" />
+                          ) : (
+                            <>
+                              <Send className="w-3 h-3 mr-1" />
+                              Send All
+                            </>
+                          )}
+                        </Button>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            ) : sessionInfo && !sessionInfo.is_linked ? null : (
+              <div className="text-center py-6">
+                <Users className="w-8 h-8 text-muted-foreground/40 mx-auto mb-2" />
+                <p className="text-sm text-muted-foreground">No session participants found</p>
+                <p className="text-xs text-muted-foreground mt-1">Use manual assignment below to send items to any surfer</p>
+              </div>
+            )}
+
+            {/* Divider */}
+            <div className="flex items-center gap-3">
+              <div className="flex-1 h-px bg-border" />
+              <span className="text-xs text-muted-foreground">or assign manually</span>
+              <div className="flex-1 h-px bg-border" />
+            </div>
+
+            {/* Manual Surfer Search */}
+            <div className="space-y-2">
+              <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                <UserPlus className="w-4 h-4 text-amber-400" />
+                Manual Assignment
+              </h3>
+              <div className="relative">
+                <Input
+                  placeholder="Search surfer by name or username..."
+                  value={manualSurferSearch}
+                  onChange={(e) => {
+                    setManualSurferSearch(e.target.value);
+                    handleSearchSurfers(e.target.value);
+                  }}
+                  className="bg-muted border-border text-foreground"
+                />
+                {searchLoading && (
+                  <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-muted-foreground" />
+                )}
+              </div>
+              
+              {/* Search Results */}
+              {searchResults.length > 0 && (
+                <div className="space-y-1 max-h-48 overflow-y-auto">
+                  {searchResults.map((surfer) => (
+                    <div
+                      key={surfer.id}
+                      className="flex items-center gap-3 p-2 rounded-lg bg-muted/30 border border-border/50 hover:border-amber-500/50 transition-all"
+                    >
+                      {surfer.avatar_url ? (
+                        <img src={getFullUrl(surfer.avatar_url)} alt={surfer.full_name} className="w-8 h-8 rounded-full object-cover" />
+                      ) : (
+                        <div className="w-8 h-8 rounded-full bg-amber-500/20 flex items-center justify-center text-amber-400 font-bold text-xs">
+                          {(surfer.full_name || surfer.username || '?').charAt(0).toUpperCase()}
+                        </div>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-foreground truncate">{surfer.full_name || surfer.username}</p>
+                        <p className="text-xs text-muted-foreground">@{surfer.username}</p>
+                      </div>
+                      <Button
+                        size="sm"
+                        className="bg-amber-500 hover:bg-amber-600 text-black text-xs h-7"
+                        onClick={() => handleDistributeToSurfer(surfer.id, surfer.full_name || surfer.username)}
+                        disabled={distributeLoading[surfer.id]}
+                      >
+                        {distributeLoading[surfer.id] ? (
+                          <Loader2 className="w-3 h-3 animate-spin" />
+                        ) : (
+                          <>
+                            <Send className="w-3 h-3 mr-1" /> Send
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {manualSurferSearch.length >= 2 && !searchLoading && searchResults.length === 0 && (
+                <p className="text-xs text-muted-foreground text-center py-2">No surfers found for "{manualSurferSearch}"</p>
+              )}
+            </div>
+            
+            {/* Gallery Items Summary */}
+            <div className="p-3 rounded-lg bg-muted/30 border border-border/50">
+              <p className="text-xs text-muted-foreground">
+                📦 <strong>{galleryItems.length}</strong> items in this gallery will be distributed as watermarked previews. 
+                Surfers can then purchase full-resolution versions from their Locker.
+              </p>
+            </div>
+          </div>
+          
+          <DialogFooter className="pt-3 border-t border-border">
+            <Button variant="outline" onClick={() => setShowTagAssignModal(false)} className="border-border">
+              Close
             </Button>
           </DialogFooter>
         </DialogContent>
