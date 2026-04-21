@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { AlertTriangle, MapPin, Check, X, Loader2, RefreshCw, ExternalLink, MessageSquare } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
@@ -29,8 +29,8 @@ export const AdminPrecisionQueue = () => {
     try {
       setLoading(true);
       const [queueRes, suggestionsRes] = await Promise.all([
-        apiClient.get(`/admin/spots/queue`, { params: { admin_id: user.id } }),
-        apiClient.get(`/admin/spots/suggestions`, { params: { admin_id: user.id } })
+        apiClient.get(`/admin/spots/queue`),
+        apiClient.get(`/admin/spots/suggestions`)
       ]);
       setQueue(queueRes.data.queue);
       setSuggestions(suggestionsRes.data.suggestions);
@@ -62,8 +62,7 @@ export const AdminPrecisionQueue = () => {
           latitude: spot.latitude + offsetLat, 
           longitude: spot.longitude + offsetLng,
           override_land_warning: true 
-        },
-        { params: { admin_id: user.id } }
+        }
       );
       
       toast.success(`Snapped ${spot.name} offshore`);
@@ -85,8 +84,7 @@ export const AdminPrecisionQueue = () => {
           latitude: suggestion.suggested_coords.latitude, 
           longitude: suggestion.suggested_coords.longitude,
           override_land_warning: true 
-        },
-        { params: { admin_id: user.id } }
+        }
       );
       
       toast.success(`Applied suggestion for ${suggestion.spot_name}`);

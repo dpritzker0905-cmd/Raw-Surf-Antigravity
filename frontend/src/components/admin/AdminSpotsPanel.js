@@ -144,8 +144,7 @@ const AdminSpotsPanel = ({ userId }) => {
               // Fallback: If RLS blocked, attempt proxying through the Python backend loop
               await apiClient.post(
                 `/admin/spots/create`,
-                { ...spot, override_land_warning: true },
-                { params: { admin_id: userId } }
+                { ...spot, override_land_warning: true }
               );
             }
             successCount++;

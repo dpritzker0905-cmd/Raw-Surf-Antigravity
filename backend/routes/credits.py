@@ -99,10 +99,17 @@ async def check_credit_status(session_id: str, db: AsyncSession = Depends(get_db
         profile = profile_result.scalar_one_or_none()
         if profile:
             # Log the credit transaction
-            balance_before = profile.credit_balance
-            profile.credit_balance += transaction.amount
+            balance_before = profile.credit_balance or 0
+            profile.credit_balance = balance_before + transaction.amount
             credits_added = transaction.amount
             new_balance = profile.credit_balance
+            
+            # Keep withdrawable_credits in sync for Pro roles (unified wallet)
+            from utils.revenue_routing import is_pro_creator, is_hobbyist_creator
+            if is_pro_creator(profile.role):
+                profile.withdrawable_credits = profile.credit_balance
+            elif is_hobbyist_creator(profile.role):
+                profile.gear_only_credits = profile.credit_balance
             
             credit_tx = CreditTransaction(
                 user_id=transaction.user_id,

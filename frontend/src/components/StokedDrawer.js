@@ -1,12 +1,8 @@
-/**
- * StokedDrawer - Mobile bottom sheet drawer for Stoked credits/impact
- * Opens from the lightning bolt icon in mobile TopNav
- */
-
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { usePersona } from '../contexts/PersonaContext';
+import apiClient from '../lib/apiClient';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from './ui/sheet';
 import { Zap, Gift, Plane, ShoppingBag, GraduationCap, ArrowRight, X } from 'lucide-react';
 import { Button } from './ui/button';
@@ -51,19 +47,21 @@ const colorMap = {
 
 export const StokedDrawer = ({ isOpen, onClose }) => {
   const navigate = useNavigate();
-  const { user, refreshUser } = useAuth();
+  const { user } = useAuth();
   const { getEffectiveRole } = usePersona();
+  const [creditBalance, setCreditBalance] = useState(user?.credit_balance || 0);
   
-  // Refresh user data when drawer opens
-  React.useEffect(() => {
-    if (isOpen && refreshUser) {
-      refreshUser();
+  // Fetch fresh balance from API when drawer opens (same source as Credit Wallet)
+  useEffect(() => {
+    if (isOpen && user?.id) {
+      apiClient.get(`/credits/balance/${user.id}`)
+        .then(res => setCreditBalance(res.data.balance || 0))
+        .catch(() => setCreditBalance(user?.credit_balance || 0));
     }
-  }, [isOpen, refreshUser]);
+  }, [isOpen, user?.id]);
   
   const effectiveRole = getEffectiveRole(user?.role);
   const creditOptions = getCreditOptions(effectiveRole);
-  const creditBalance = user?.credit_balance || 0;
   
   // Determine title based on role
   const getTitle = () => {
@@ -111,7 +109,7 @@ export const StokedDrawer = ({ isOpen, onClose }) => {
               <div>
                 <p className="text-muted-foreground text-xs uppercase tracking-wider">Your Balance</p>
                 <p className="text-2xl font-bold text-foreground">${creditBalance.toFixed(2)}</p>
-                <p className="text-xs text-muted-foreground">Stoked Credits</p>
+                <p className="text-xs text-muted-foreground">Credits</p>
               </div>
               <div className="w-12 h-12 rounded-full bg-yellow-500/30 flex items-center justify-center">
                 <Zap className="w-6 h-6 text-yellow-400" />

@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -123,7 +123,7 @@ export const AdminModerationDashboard = () => {
   const fetchDisputes = async () => {
     setLoading(true);
     try {
-      const params = new URLSearchParams({ admin_id: user.id });
+      const params = new URLSearchParams();
       if (disputeFilter.status) params.append('status', disputeFilter.status);
       if (disputeFilter.type) params.append('dispute_type', disputeFilter.type);
       
@@ -140,7 +140,7 @@ export const AdminModerationDashboard = () => {
   const fetchReports = async () => {
     setLoading(true);
     try {
-      const params = new URLSearchParams({ admin_id: user.id });
+      const params = new URLSearchParams();
       if (reportFilter.status) params.append('status', reportFilter.status);
       if (reportFilter.reason) params.append('reason', reportFilter.reason);
       
@@ -170,7 +170,7 @@ export const AdminModerationDashboard = () => {
   const fetchAuditLogs = async () => {
     setLoading(true);
     try {
-      const params = new URLSearchParams({ admin_id: user.id, limit: '100' });
+      const params = new URLSearchParams({ limit: '100' });
       if (auditFilter.category) params.append('category', auditFilter.category);
       
       const response = await apiClient.get(`/admin/audit-logs?${params}`);

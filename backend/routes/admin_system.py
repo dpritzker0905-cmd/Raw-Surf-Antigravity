@@ -19,7 +19,8 @@ from deps.admin_auth import get_current_admin
 from models import (
     Profile, ScheduledJobStatus, SystemAlert, SystemHealthMetric
 )
-# require_admin replaced by get_current_admin dependency
+
+
 
 router = APIRouter()
 

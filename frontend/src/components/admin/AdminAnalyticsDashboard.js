@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { DollarSign, ShoppingCart, 
   Target, BarChart3, PieChart, RefreshCw, Loader2, Calendar,
   ArrowUpRight, ArrowDownRight, Eye, MousePointer, CreditCard
@@ -34,8 +34,8 @@ export const AdminAnalyticsDashboard = () => {
     setLoading(true);
     try {
       const [metricsRes, funnelRes] = await Promise.all([
-        apiClient.get(`/admin/analytics/metrics`, { params: { admin_id: user?.id, range: timeRange } }),
-        apiClient.get(`/admin/analytics/funnel`, { params: { admin_id: user?.id, range: timeRange } })
+        apiClient.get(`/admin/analytics/metrics`, { params: { range: timeRange } }),
+        apiClient.get(`/admin/analytics/funnel`, { params: { range: timeRange } })
       ]);
       
       setMetrics(metricsRes.data);

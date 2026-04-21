@@ -1426,39 +1426,71 @@ async def get_photographer_galleries(
     result = await db.execute(
         select(Gallery)
         .where(Gallery.photographer_id == photographer_id)
-        .options(selectinload(Gallery.surf_spot), selectinload(Gallery.live_session))
+        .options(
+            selectinload(Gallery.surf_spot),
+            selectinload(Gallery.live_session),
+            selectinload(Gallery.items)
+        )
         .order_by(Gallery.created_at.desc())
     )
     galleries = result.scalars().all()
     
-    return [{
-        "id": g.id,
-        "title": g.title,
-        "description": g.description,
-        "cover_image_url": g.cover_image_url,
-        "surf_spot_id": g.surf_spot_id,
-        "surf_spot_name": g.surf_spot.name if g.surf_spot else None,
-        "live_session_id": g.live_session_id,
-        "item_count": g.item_count,
-        "view_count": g.view_count,
-        "purchase_count": g.purchase_count,
-        "is_public": g.is_public,
-        "is_featured": g.is_featured,
-        "session_date": g.session_date.isoformat() if g.session_date else None,
-        "created_at": g.created_at.isoformat(),
-        "pricing": {
-            "photo": {
-                "web": g.price_web,
-                "standard": g.price_standard,
-                "high": g.price_high
-            },
-            "video": {
-                "720p": g.price_720p,
-                "1080p": g.price_1080p,
-                "4k": g.price_4k
+    # Auto-heal: if a gallery has items but no cover_image_url, set it from the first item
+    needs_commit = False
+    gallery_data = []
+    for g in galleries:
+        cover_url = g.cover_image_url
+        
+        # If no cover but has items, use the first item's preview/thumbnail
+        if not cover_url and g.items:
+            for item in sorted(g.items, key=lambda i: i.created_at or datetime.min):
+                candidate = item.preview_url or item.thumbnail_url
+                if candidate:
+                    cover_url = candidate
+                    # Persist so this only needs to compute once
+                    g.cover_image_url = cover_url
+                    needs_commit = True
+                    break
+        
+        # Also fix accurate item_count while we're here
+        actual_count = len(g.items) if g.items else 0
+        if g.item_count != actual_count:
+            g.item_count = actual_count
+            needs_commit = True
+        
+        gallery_data.append({
+            "id": g.id,
+            "title": g.title,
+            "description": g.description,
+            "cover_image_url": cover_url,
+            "surf_spot_id": g.surf_spot_id,
+            "surf_spot_name": g.surf_spot.name if g.surf_spot else None,
+            "live_session_id": g.live_session_id,
+            "item_count": actual_count,
+            "view_count": g.view_count,
+            "purchase_count": g.purchase_count,
+            "is_public": g.is_public,
+            "is_featured": g.is_featured,
+            "session_date": g.session_date.isoformat() if g.session_date else None,
+            "created_at": g.created_at.isoformat(),
+            "pricing": {
+                "photo": {
+                    "web": g.price_web,
+                    "standard": g.price_standard,
+                    "high": g.price_high
+                },
+                "video": {
+                    "720p": g.price_720p,
+                    "1080p": g.price_1080p,
+                    "4k": g.price_4k
+                }
             }
-        }
-    } for g in galleries]
+        })
+    
+    if needs_commit:
+        await db.commit()
+    
+    return gallery_data
 
 
 @router.get("/galleries/{gallery_id}")

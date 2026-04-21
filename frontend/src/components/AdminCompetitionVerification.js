@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { 
@@ -57,8 +57,7 @@ export const AdminCompetitionVerification = () => {
     try {
       const _res = await apiClient.post(`/career/competition-results/${resultId}/verify`, null, {
         params: {
-          approved,
-          admin_id: user.id
+          approved
         }
       });
       

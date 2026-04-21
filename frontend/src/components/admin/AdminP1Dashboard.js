@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -169,7 +169,7 @@ export const AdminP1Dashboard = () => {
   const fetchVerificationQueue = async () => {
     setLoading(true);
     try {
-      const params = new URLSearchParams({ admin_id: user.id });
+      const params = new URLSearchParams();
       if (verificationFilter.type && verificationFilter.type !== 'all') {
         params.append('verification_type', verificationFilter.type);
       }
@@ -199,7 +199,7 @@ export const AdminP1Dashboard = () => {
   const fetchFraudAlerts = async () => {
     setLoading(true);
     try {
-      const params = new URLSearchParams({ admin_id: user.id });
+      const params = new URLSearchParams();
       if (fraudFilter.severity && fraudFilter.severity !== 'all') {
         params.append('severity', fraudFilter.severity);
       }

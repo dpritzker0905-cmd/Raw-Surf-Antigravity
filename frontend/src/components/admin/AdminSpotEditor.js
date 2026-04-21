@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { MapPin, Plus, Trash2, AlertTriangle, Search, RefreshCw, Loader2, Eye, X, Edit2 } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
@@ -159,7 +159,7 @@ export const AdminSpotEditor = () => {
   const fetchSpots = useCallback(async () => {
     try {
       const response = await apiClient.get(`/admin/spots/list`, {
-        params: { admin_id: user.id, limit: 5000 }  // High limit to fetch all spots
+        params: { limit: 5000 }  // High limit to fetch all spots
       });
       setSpots(response.data.spots || []);
     } catch (error) {
@@ -331,8 +331,7 @@ export const AdminSpotEditor = () => {
           setSaving(true);
           const response = await apiClient.put(
             `/admin/spots/${spot.id}/move`,
-            { latitude: newPos.lat, longitude: newPos.lng, override_land_warning: false },
-            { params: { admin_id: user.id } }
+            { latitude: newPos.lat, longitude: newPos.lng, override_land_warning: false }
           );
           
           if (response.data.warning === 'land_detected') {
@@ -386,8 +385,7 @@ export const AdminSpotEditor = () => {
           latitude: pendingCoords.lat,
           longitude: pendingCoords.lng,
           override_land_warning: overrideLandWarning
-        },
-        { params: { admin_id: user.id } }
+        }
       );
 
       if (response.data.warning === 'land_detected') {
@@ -418,8 +416,7 @@ export const AdminSpotEditor = () => {
     try {
       await apiClient.put(
         `/admin/spots/${selectedSpot.id}/update`,
-        formData,
-        { params: { admin_id: user.id } }
+        formData
       );
       toast.success(`Updated ${selectedSpot.name}`);
       setShowEditModal(false);
@@ -437,9 +434,7 @@ export const AdminSpotEditor = () => {
 
     setSaving(true);
     try {
-      await apiClient.delete(`/admin/spots/${selectedSpot.id}`, {
-        params: { admin_id: user.id }
-      });
+      await apiClient.delete(`/admin/spots/${selectedSpot.id}`);
       toast.success(`Deleted ${selectedSpot.name}`);
       setShowDeleteConfirm(false);
       setSelectedSpot(null);
@@ -461,8 +456,7 @@ export const AdminSpotEditor = () => {
         setSaving(true);
         await apiClient.put(
           `/admin/spots/${landWarning.spotId}/move`,
-          { ...landWarning.coords, override_land_warning: true },
-          { params: { admin_id: user.id } }
+          { ...landWarning.coords, override_land_warning: true }
         );
         toast.success('Spot moved (land warning overridden)');
         fetchSpots();

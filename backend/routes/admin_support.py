@@ -17,7 +17,8 @@ from models import (
     Profile, SupportTicket, TicketMessage, 
     TicketCategoryEnum, TicketPriorityEnum, TicketStatusEnum
 )
-# require_admin replaced by get_current_admin dependency
+
+
 
 router = APIRouter()
 
