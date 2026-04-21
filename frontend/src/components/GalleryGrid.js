@@ -1,6 +1,7 @@
 import React from 'react';
 import { Edit3, Trash2, Check, Loader2, Play, Image } from 'lucide-react';
 import { Button } from './ui/button';
+import { getFullUrl } from '../utils/media';
 
 /**
  * GalleryGrid - Extracted from GalleryPage.js for modularity
@@ -53,10 +54,14 @@ export const GalleryGridItem = ({
       {isVideo ? (
         <div className="relative w-full h-full">
           <img
-            src={item.thumbnail_url || item.preview_url}
+            src={getFullUrl(item.thumbnail_url || item.preview_url)}
             alt={item.title || 'Video thumbnail'}
             className="w-full h-full object-cover"
+            onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling && (e.target.nextSibling.style.display = 'flex'); }}
           />
+          <div className="absolute inset-0 flex items-center justify-center bg-gray-800/40" style={{ display: 'none' }}>
+            <Play className="w-10 h-10 text-white/60" />
+          </div>
           <div className="absolute inset-0 flex items-center justify-center">
             <div className="w-12 h-12 rounded-full bg-black/70 flex items-center justify-center">
               <Play className="w-6 h-6 text-white ml-1" />
@@ -65,9 +70,11 @@ export const GalleryGridItem = ({
         </div>
       ) : (
         <img
-          src={item.preview_url || item.thumbnail_url}
+          src={getFullUrl(item.preview_url || item.thumbnail_url)}
           alt={item.title || 'Gallery photo'}
           className="w-full h-full object-cover"
+          loading="lazy"
+          onError={(e) => { e.target.onerror = null; e.target.src = ''; e.target.className = 'w-full h-full bg-gray-800 flex items-center justify-center'; }}
         />
       )}
       

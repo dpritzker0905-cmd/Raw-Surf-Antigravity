@@ -759,7 +759,7 @@ export const GalleryPage = () => {
                     />
                   ) : (
                     <img 
-                      src={item.thumbnail_url || item.preview_url} 
+                      src={getFullUrl(item.thumbnail_url || item.preview_url)} 
                       alt={item.title || 'Grom photo'} 
                       className="w-full h-full object-cover"
                     />
@@ -851,7 +851,7 @@ export const GalleryPage = () => {
                   <div className="aspect-[16/10] relative overflow-hidden">
                     {gal.cover_image_url && !brokenCoverImages.has(gal.id) ? (
                       <img 
-                        src={gal.cover_image_url} 
+                        src={getFullUrl(gal.cover_image_url)} 
                         alt={gal.title}
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                         loading="lazy"
@@ -1217,10 +1217,17 @@ export const GalleryPage = () => {
       {/* Upload Modal */}
       <UploadPhotoModal
         isOpen={showUploadModal}
-        onClose={() => setShowUploadModal(false)}
+        onClose={() => {
+          setShowUploadModal(false);
+          // Refresh data so freshly uploaded items appear immediately
+          fetchGallery();
+          fetchGalleries();
+          if (selectedGallery) fetchGalleryItems(selectedGallery.id);
+        }}
         onUploaded={() => {
           fetchGallery();
           fetchGalleries();
+          if (selectedGallery) fetchGalleryItems(selectedGallery.id);
         }}
         targetFolderId={selectedGallery?.id || null}
         targetFolderName={selectedGallery?.title || null}
@@ -1552,7 +1559,7 @@ export const GalleryPage = () => {
                     className="relative aspect-square rounded-lg overflow-hidden bg-muted hover:ring-2 hover:ring-cyan-400 transition-all"
                   >
                     <img
-                      src={item.thumbnail_url || item.preview_url}
+                      src={getFullUrl(item.thumbnail_url || item.preview_url)}
                       alt={item.title || 'Photo'}
                       className="w-full h-full object-cover"
                     />
