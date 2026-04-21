@@ -166,9 +166,23 @@ export default function InCallView({
 
   // ── Attach remote stream to video element ─────────────────────────
   useEffect(() => {
-    if (remoteVideoRef.current && remoteStream) {
-      remoteVideoRef.current.srcObject = remoteStream;
-    }
+    const videoEl = remoteVideoRef.current;
+    if (!videoEl || !remoteStream) return;
+
+    videoEl.srcObject = remoteStream;
+    // Explicitly play — browsers may pause video when tracks are replaced
+    videoEl.play().catch(() => {});
+
+    // When remote replaces their video track, the video element may stall.
+    // Listen for track additions and nudge playback.
+    const handleTrackAdded = () => {
+      videoEl.play().catch(() => {});
+    };
+    remoteStream.addEventListener('addtrack', handleTrackAdded);
+
+    return () => {
+      remoteStream.removeEventListener('addtrack', handleTrackAdded);
+    };
   }, [remoteStream]);
 
   // ── Always attach remote stream to hidden <audio> for sound ───────

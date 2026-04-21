@@ -298,12 +298,17 @@ export function useWebRTCCall(userId, userInfo = {}) {
       }
     };
 
-    // Handle incoming streams
+    // Handle incoming streams — when remote user replaces a track (e.g. camera
+    // toggle off→on), ontrack fires with the same stream object.  Creating a new
+    // MediaStream reference ensures React re-renders and re-attaches srcObject.
     pc.ontrack = (event) => {
       console.debug('[WebRTC] Remote track received:', event.track.kind);
-      const stream = event.streams[0];
-      remoteStreamRef.current = stream;
-      setRemoteStream(stream);
+      const incomingStream = event.streams[0] || new MediaStream([event.track]);
+
+      // Always publish a fresh reference so React's useEffect([remoteStream]) fires
+      const freshRemote = new MediaStream(incomingStream.getTracks());
+      remoteStreamRef.current = freshRemote;
+      setRemoteStream(freshRemote);
     };
 
     return pc;
@@ -509,14 +514,72 @@ export function useWebRTCCall(userId, userInfo = {}) {
   }, []);
 
   // ── Toggle Camera ────────────────────────────────────────────────
-  const toggleCamera = useCallback(() => {
+  // When turning OFF: disable the video track (fast, no renegotiation needed)
+  // When turning ON: re-acquire camera via getUserMedia to get a fresh track,
+  //   then replace it on the stream AND peer connection sender so InCallView's
+  //   WebGL pipeline restarts and the remote peer receives live frames again.
+  const toggleCamera = useCallback(async () => {
     const stream = localStreamRef.current;
     if (!stream) return;
-    stream.getVideoTracks().forEach(track => {
-      track.enabled = !track.enabled;
-    });
-    setIsCameraOff(prev => !prev);
-  }, []);
+
+    if (!isCameraOff) {
+      // ── Turning camera OFF ──
+      stream.getVideoTracks().forEach(track => {
+        track.enabled = false;
+      });
+      setIsCameraOff(true);
+    } else {
+      // ── Turning camera back ON ──
+      try {
+        // Re-acquire a fresh video track from the camera hardware
+        const freshMedia = await navigator.mediaDevices.getUserMedia({
+          video: { width: { ideal: 640 }, height: { ideal: 480 } }
+        });
+        const freshVideoTrack = freshMedia.getVideoTracks()[0];
+
+        if (!freshVideoTrack) {
+          toast.error('Could not access camera');
+          return;
+        }
+
+        // Swap the track on the existing stream
+        const oldVideoTrack = stream.getVideoTracks()[0];
+        if (oldVideoTrack) {
+          stream.removeTrack(oldVideoTrack);
+          oldVideoTrack.stop(); // Release old camera handle
+        }
+        stream.addTrack(freshVideoTrack);
+
+        // Replace track on the peer connection sender for immediate remote visibility
+        const pc = peerConnection.current;
+        if (pc) {
+          const videoSender = pc.getSenders().find(s =>
+            s.track?.kind === 'video' || (s._trackKind === 'video')
+          );
+          if (videoSender) {
+            await videoSender.replaceTrack(freshVideoTrack);
+            console.log('[WebRTC] ✅ Replaced sender track with fresh camera track');
+          }
+        }
+
+        // Create a new MediaStream reference so React re-renders InCallView
+        // which triggers the WebGL pipeline re-init (useEffect([localStream]))
+        const updatedStream = new MediaStream(stream.getTracks());
+        localStreamRef.current = updatedStream;
+        setLocalStream(updatedStream);
+        setIsCameraOff(false);
+
+        console.log('[WebRTC] ✅ Camera re-enabled with fresh track');
+      } catch (err) {
+        console.error('[WebRTC] Failed to re-enable camera:', err);
+        if (err.name === 'NotAllowedError') {
+          toast.error('Camera access denied. Check your permissions.');
+        } else {
+          toast.error('Could not re-enable camera');
+        }
+      }
+    }
+  }, [isCameraOff]);
 
   // ── Call Timer ────────────────────────────────────────────────────
   const startCallTimer = () => {
