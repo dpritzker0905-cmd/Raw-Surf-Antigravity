@@ -3430,3 +3430,21 @@ async def heal_gallery_item_urls(
         "failed": failed,
         "skipped": skipped
     }
+
+
+@router.delete("/surfer-gallery/item/{surfer_gallery_item_id}")
+async def remove_surfer_gallery_item(
+    surfer_gallery_item_id: str,
+    db: AsyncSession = Depends(get_db)
+):
+    """Admin: Remove a specific item from a surfer's locker by its surfer_gallery_item ID."""
+    result = await db.execute(
+        select(SurferGalleryItem).where(SurferGalleryItem.id == surfer_gallery_item_id)
+    )
+    item = result.scalar_one_or_none()
+    if not item:
+        raise HTTPException(status_code=404, detail="Surfer gallery item not found")
+    
+    await db.delete(item)
+    await db.commit()
+    return {"deleted": True, "surfer_gallery_item_id": surfer_gallery_item_id}
