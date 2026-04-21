@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { usePricing } from '../contexts/PricingContext';
 import apiClient, { BACKEND_URL } from '../lib/apiClient';
-import { Camera, Upload, X, DollarSign, Eye, ShoppingCart, Plus, Loader2, Image, Check, Lock, Video, Play, Settings, Edit3, Sparkles, RotateCcw, Folder, MapPin, Calendar, Trash2, Copy, Radio, UserPlus, Droplet } from 'lucide-react';
+import { Camera, Upload, X, DollarSign, Eye, ShoppingCart, Plus, Loader2, Image, Check, Lock, Video, Play, Settings, Edit3, Sparkles, RotateCcw, Folder, MapPin, Calendar, Trash2, Copy, Radio, UserPlus, Droplet, ChevronLeft, ChevronDown, ChevronUp, MoreHorizontal } from 'lucide-react';
 import { Button } from './ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from './ui/dialog';
 import { Input } from './ui/input';
@@ -58,6 +58,7 @@ export const GalleryPage = () => {
   const [showAddToGalleryModal, setShowAddToGalleryModal] = useState(false);
   const [deletingItemId, setDeletingItemId] = useState(null);
   const [showGalleryPricingModal, setShowGalleryPricingModal] = useState(false);
+  const [pricingCollapsed, setPricingCollapsed] = useState(true); // Collapsed by default on mobile
   const [galleryPricing, setGalleryPricing] = useState({
     photo_price_web: 3,
     photo_price_standard: 5,
@@ -567,19 +568,22 @@ export const GalleryPage = () => {
         )}
       </div>
 
-      {/* Gallery Pricing Card (SmugMug-style quality tiers) - Only for sellers */}
+      {/* Gallery Pricing Card - Collapsible on mobile */}
       {showPricing && (
         <Card className="mb-6 bg-card border-border">
-          <CardHeader>
+          <CardHeader className="cursor-pointer md:cursor-default" onClick={() => setPricingCollapsed(!pricingCollapsed)}>
             <div className="flex items-center justify-between">
               <CardTitle className="text-lg text-foreground flex items-center gap-2">
                 <DollarSign className="w-5 h-5 text-green-400" />
                 Gallery Pricing
+                <button className="md:hidden ml-1 text-muted-foreground">
+                  {pricingCollapsed ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
+                </button>
               </CardTitle>
               <Button 
                 variant="outline" 
                 size="sm"
-                onClick={() => setShowGalleryPricingModal(true)}
+                onClick={(e) => { e.stopPropagation(); setShowGalleryPricingModal(true); }}
                 className="border-border"
                 data-testid="edit-gallery-pricing-btn"
               >
@@ -588,7 +592,7 @@ export const GalleryPage = () => {
               </Button>
             </div>
           </CardHeader>
-          <CardContent>
+          <CardContent className={`${pricingCollapsed ? 'hidden md:block' : ''}`}>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               {/* General Gallery Photos */}
               <div>
@@ -825,48 +829,16 @@ export const GalleryPage = () => {
               <p className="text-muted-foreground text-sm">No folders yet. Create one to organize your photos.</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
               {galleries.map((gal) => (
                 <div 
                   key={gal.id}
-                  className="bg-card rounded-lg overflow-hidden cursor-pointer hover:bg-muted transition-colors group relative border border-border"
+                  className="bg-card rounded-xl overflow-hidden cursor-pointer active:scale-[0.98] hover:shadow-lg transition-all group relative border border-border"
                   data-testid={`session-gallery-${gal.id}`}
+                  onClick={() => openGalleryDetail(gal)}
                 >
-                  {/* Folder actions - using MediaActionButtons pattern */}
-                  <div className="absolute top-2 right-2 z-10 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="h-7 w-7 p-0 bg-black/50 hover:bg-black/70 text-white"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setFolderToRename(gal);
-                        setNewFolderName(gal.title);
-                        setShowRenameFolderModal(true);
-                      }}
-                      data-testid={`rename-folder-${gal.id}`}
-                    >
-                      <Edit3 className="w-3.5 h-3.5" />
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="h-7 w-7 p-0 bg-red-500/50 hover:bg-red-500/70 text-white"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDeleteFolder(gal.id, gal.title);
-                      }}
-                      data-testid={`delete-folder-${gal.id}`}
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </Button>
-                  </div>
-                  
-                  {/* Folder thumbnail - using MediaCard pattern */}
-                  <div 
-                    onClick={() => openGalleryDetail(gal)}
-                    className="aspect-video relative bg-background overflow-hidden"
-                  >
+                  {/* Folder thumbnail */}
+                  <div className="aspect-[16/10] relative overflow-hidden">
                     {gal.cover_image_url ? (
                       <img 
                         src={gal.cover_image_url} 
@@ -875,34 +847,67 @@ export const GalleryPage = () => {
                         loading="lazy"
                       />
                     ) : (
-                      <div className="w-full h-full flex items-center justify-center">
-                        <Camera className="w-12 h-12 text-muted-foreground/30" />
+                      <div className="w-full h-full bg-gradient-to-br from-cyan-500/10 via-blue-500/5 to-purple-500/10 flex flex-col items-center justify-center gap-2">
+                        <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-cyan-500/20 to-blue-500/20 flex items-center justify-center">
+                          <Camera className="w-7 h-7 text-cyan-500/60" />
+                        </div>
+                        <span className="text-xs text-muted-foreground/60 font-medium">No photos yet</span>
                       </div>
                     )}
-                    {gal.live_session_id && (
-                      <div className="absolute top-2 left-2">
-                        <Badge className="bg-cyan-500/90 text-white text-xs">
+                    {/* Badges overlay */}
+                    <div className="absolute top-2 left-2 flex gap-1.5">
+                      {gal.live_session_id && (
+                        <Badge className="bg-cyan-500/90 text-white text-xs shadow-sm">
                           Live Session
                         </Badge>
-                      </div>
-                    )}
+                      )}
+                    </div>
                     <div className="absolute bottom-2 left-2">
-                      <Badge className="bg-black/70 text-white text-xs">
-                        {gal.item_count || 0} photos
+                      <Badge className="bg-black/60 backdrop-blur-sm text-white text-xs">
+                        <Image className="w-3 h-3 mr-1" />
+                        {gal.item_count || 0}
                       </Badge>
                     </div>
+                    {/* Folder actions — visible on hover (desktop) or always via overflow menu (mobile) */}
+                    <div className="absolute top-2 right-2 z-10">
+                      <div className="hidden group-hover:flex gap-1">
+                        <button
+                          className="h-8 w-8 rounded-full bg-black/50 backdrop-blur-sm hover:bg-black/70 text-white flex items-center justify-center transition-colors"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setFolderToRename(gal);
+                            setNewFolderName(gal.title);
+                            setShowRenameFolderModal(true);
+                          }}
+                          data-testid={`rename-folder-${gal.id}`}
+                        >
+                          <Edit3 className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          className="h-8 w-8 rounded-full bg-red-500/60 backdrop-blur-sm hover:bg-red-500/80 text-white flex items-center justify-center transition-colors"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteFolder(gal.id, gal.title);
+                          }}
+                          data-testid={`delete-folder-${gal.id}`}
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
                   </div>
-                  <div className="p-3" onClick={() => openGalleryDetail(gal)}>
-                    <h3 className="text-foreground font-medium truncate">{gal.title}</h3>
-                    <div className="flex items-center gap-4 mt-1 text-xs text-muted-foreground">
+                  {/* Folder info */}
+                  <div className="p-3">
+                    <h3 className="text-foreground font-semibold text-sm truncate">{gal.title}</h3>
+                    <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
                       {gal.surf_spot_name && (
-                        <span className="flex items-center gap-1">
-                          <MapPin className="w-3 h-3" />
-                          {gal.surf_spot_name}
+                        <span className="flex items-center gap-1 truncate">
+                          <MapPin className="w-3 h-3 flex-shrink-0" />
+                          <span className="truncate">{gal.surf_spot_name}</span>
                         </span>
                       )}
                       {gal.session_date && (
-                        <span className="flex items-center gap-1">
+                        <span className="flex items-center gap-1 flex-shrink-0">
                           <Calendar className="w-3 h-3" />
                           {new Date(gal.session_date).toLocaleDateString()}
                         </span>
@@ -919,110 +924,115 @@ export const GalleryPage = () => {
       {/* Gallery Detail View - When a gallery is selected */}
       {selectedGallery && (
         <div className="mb-8">
-          {/* Header with back button */}
-          <div className="flex items-center gap-4 mb-4">
-            <Button
-              onClick={closeGalleryDetail}
-              variant="ghost"
-              size="sm"
-              className="text-muted-foreground hover:text-foreground"
-            >
-              <X className="w-4 h-4 mr-1" />
-              Back
-            </Button>
-            <h2 className="text-lg font-bold text-foreground flex-1">
-              {selectedGallery.title}
-              {bulkSelectMode && selectedItems.size > 0 && (
-                <Badge className="bg-cyan-500 text-white text-xs ml-2">
-                  {selectedItems.size} selected
-                </Badge>
-              )}
-            </h2>
+          {/* Mobile-optimized stacked header */}
+          <div className="mb-4">
+            {/* Row 1: Back + Title */}
+            <div className="flex items-center gap-2 mb-3">
+              <button
+                onClick={closeGalleryDetail}
+                className="flex items-center justify-center w-10 h-10 rounded-full bg-muted hover:bg-muted/80 text-foreground transition-colors flex-shrink-0"
+                aria-label="Go back"
+              >
+                <ChevronLeft className="w-5 h-5" />
+              </button>
+              <div className="flex-1 min-w-0">
+                <h2 className="text-base sm:text-lg font-bold text-foreground truncate">
+                  {selectedGallery.title}
+                </h2>
+                <div className="flex items-center gap-3 text-xs text-muted-foreground mt-0.5">
+                  {selectedGallery.surf_spot_name && (
+                    <span className="flex items-center gap-1 truncate">
+                      <MapPin className="w-3 h-3 flex-shrink-0" />
+                      <span className="truncate">{selectedGallery.surf_spot_name}</span>
+                    </span>
+                  )}
+                  <span className="flex-shrink-0">{galleryItems.length} photos</span>
+                  {bulkSelectMode && selectedItems.size > 0 && (
+                    <Badge className="bg-cyan-500 text-white text-xs">
+                      {selectedItems.size} selected
+                    </Badge>
+                  )}
+                </div>
+              </div>
+            </div>
             
-            {/* Bulk actions or Add Photo button */}
-            {bulkSelectMode ? (
-              <div className="flex items-center gap-2">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="border-border text-muted-foreground"
-                  onClick={() => {
-                    setSelectedItems(new Set(galleryItems.map(item => item.id)));
-                  }}
-                >
-                  Select All
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="border-border text-muted-foreground"
-                  onClick={() => setShowMoveToFolderModal(true)}
-                  disabled={selectedItems.size === 0}
-                >
-                  <Folder className="w-4 h-4 mr-1" />
-                  Move
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="border-cyan-700 text-cyan-400 hover:bg-cyan-500/10"
-                  onClick={() => setShowCopyToFolderModal(true)}
-                  disabled={selectedItems.size === 0}
-                >
-                  <Copy className="w-4 h-4 mr-1" />
-                  Copy
-                </Button>
-                <Button
-                  size="sm"
-                  variant="destructive"
-                  className="bg-red-500/20 text-red-400 hover:bg-red-500/30"
-                  onClick={handleBulkDelete}
-                  disabled={selectedItems.size === 0}
-                >
-                  <Trash2 className="w-4 h-4 mr-1" />
-                  Delete
-                </Button>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className="text-gray-400"
-                  onClick={clearSelection}
-                >
-                  <X className="w-4 h-4" />
-                </Button>
-              </div>
-            ) : (
-              <div className="flex items-center gap-2">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="border-border text-muted-foreground"
-                  onClick={() => setBulkSelectMode(true)}
-                >
-                  <Check className="w-4 h-4 mr-1" />
-                  Select
-                </Button>
-                <Button
-                  onClick={() => setShowAddToGalleryModal(true)}
-                  className="bg-cyan-500 hover:bg-cyan-600 text-black"
-                  size="sm"
-                >
-                  <Plus className="w-4 h-4 mr-1" />
-                  Add Photo
-                </Button>
-              </div>
-            )}
-          </div>
-
-          {/* Gallery info */}
-          <div className="flex items-center gap-4 mb-4 text-sm text-muted-foreground">
-            {selectedGallery.surf_spot_name && (
-              <span className="flex items-center gap-1">
-                <MapPin className="w-4 h-4" />
-                {selectedGallery.surf_spot_name}
-              </span>
-            )}
-            <span>{galleryItems.length} photos</span>
+            {/* Row 2: Action buttons — scrollable on mobile */}
+            <div className="flex items-center gap-2 overflow-x-auto pb-1 -mx-1 px-1">
+              {bulkSelectMode ? (
+                <>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="border-border text-muted-foreground flex-shrink-0"
+                    onClick={() => {
+                      setSelectedItems(new Set(galleryItems.map(item => item.id)));
+                    }}
+                  >
+                    <Check className="w-4 h-4 mr-1" />
+                    All
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="border-border text-muted-foreground flex-shrink-0"
+                    onClick={() => setShowMoveToFolderModal(true)}
+                    disabled={selectedItems.size === 0}
+                  >
+                    <Folder className="w-4 h-4 mr-1" />
+                    Move
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="border-cyan-700 text-cyan-400 hover:bg-cyan-500/10 flex-shrink-0"
+                    onClick={() => setShowCopyToFolderModal(true)}
+                    disabled={selectedItems.size === 0}
+                  >
+                    <Copy className="w-4 h-4 mr-1" />
+                    Copy
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    className="bg-red-500/20 text-red-400 hover:bg-red-500/30 flex-shrink-0"
+                    onClick={handleBulkDelete}
+                    disabled={selectedItems.size === 0}
+                  >
+                    <Trash2 className="w-4 h-4 mr-1" />
+                    Delete
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="text-muted-foreground flex-shrink-0"
+                    onClick={clearSelection}
+                  >
+                    <X className="w-4 h-4" />
+                    Cancel
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <Button
+                    onClick={() => setShowAddToGalleryModal(true)}
+                    className="bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-400 hover:to-blue-400 text-white font-semibold flex-shrink-0 shadow-sm"
+                    size="sm"
+                  >
+                    <Plus className="w-4 h-4 mr-1" />
+                    Add Photo
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="border-border text-muted-foreground flex-shrink-0"
+                    onClick={() => setBulkSelectMode(true)}
+                  >
+                    <Check className="w-4 h-4 mr-1" />
+                    Select
+                  </Button>
+                </>
+              )}
+            </div>
           </div>
 
           {/* Gallery items grid */}
