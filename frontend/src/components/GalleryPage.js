@@ -16,6 +16,7 @@ import WatermarkSettings from './WatermarkSettings';
 // Extracted gallery components
 import { UploadPhotoModal } from './gallery/UploadPhotoModal';
 import { GalleryItemModal } from './gallery/GalleryItemModal';
+import { SessionRosterCard } from './gallery/SessionRosterCard';
 import logger from '../utils/logger';
 import { ROLES } from '../constants/roles';
 import { getFullUrl } from '../utils/media';
@@ -1102,6 +1103,15 @@ export const GalleryPage = () => {
                       )}
                     </div>
                   </div>
+                  {/* Session Roster: Compact surfer delivery tracker */}
+                  {gal.session_roster && gal.session_roster.length > 0 && (
+                    <SessionRosterCard 
+                      roster={gal.session_roster}
+                      sessionType={gal.session_type}
+                      itemCount={gal.item_count}
+                      compact={true}
+                    />
+                  )}
                 </div>
               ))}
             </div>
@@ -1246,6 +1256,18 @@ export const GalleryPage = () => {
               )}
             </div>
           </div>
+
+          {/* ── Session Roster: Full surfer delivery tracker ── */}
+          {selectedGallery.session_roster && selectedGallery.session_roster.length > 0 && (
+            <div className="mb-4">
+              <SessionRosterCard 
+                roster={selectedGallery.session_roster}
+                sessionType={selectedGallery.session_type}
+                itemCount={galleryItems.length}
+                compact={false}
+              />
+            </div>
+          )}
 
           {/* Gallery items grid */}
           {galleryItemsLoading ? (

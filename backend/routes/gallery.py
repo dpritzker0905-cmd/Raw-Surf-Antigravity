@@ -1568,6 +1568,72 @@ async def create_gallery(
     }
 
 
+def _build_session_roster(gallery, live_map, booking_map, dispatch_map, dist_map):
+    """
+    Build a unified session roster for a gallery folder.
+    Returns a list of surfer objects with delivery progress data.
+    Works across Live Sessions, Regular Bookings, and On-Demand Dispatch.
+    """
+    participants = []
+    
+    # Get the right participant list based on session type
+    if gallery.live_session_id and gallery.live_session_id in live_map:
+        participants = live_map[gallery.live_session_id]
+        # Live sessions store photos_credit_remaining directly on the participant
+        # Get photos_included from the live session settings
+        photos_included = 3  # Default
+        if gallery.live_session:
+            photos_included = getattr(gallery.live_session, 'photos_included', 3) or 3
+        for p in participants:
+            p["photos_included"] = photos_included
+    
+    elif gallery.booking_id and gallery.booking_id in booking_map:
+        participants = booking_map[gallery.booking_id]
+        # Booking photos_included comes from the Booking model
+        photos_included = 3  # Default
+        # We'll use the gallery's locked pricing or defaults
+        for p in participants:
+            p["photos_included"] = photos_included
+    
+    elif gallery.dispatch_id and gallery.dispatch_id in dispatch_map:
+        participants = dispatch_map[gallery.dispatch_id]
+        for p in participants:
+            p["photos_included"] = 3  # Default for on-demand
+    
+    else:
+        return []  # Manual gallery — no session roster
+    
+    # Merge distribution progress data
+    gallery_dist = dist_map.get(gallery.id, {})
+    roster = []
+    for p in participants:
+        surfer_id = p["surfer_id"]
+        dist_data = gallery_dist.get(surfer_id, {"total": 0, "included": 0})
+        photos_included = p.get("photos_included", 3)
+        items_delivered = dist_data["total"]
+        items_included = dist_data["included"]
+        
+        # Compute remaining credits
+        remaining = max(0, photos_included - items_included)
+        
+        roster.append({
+            "surfer_id": surfer_id,
+            "full_name": p["full_name"],
+            "username": p["username"],
+            "avatar_url": p["avatar_url"],
+            "selfie_url": p.get("selfie_url"),
+            "amount_paid": p["amount_paid"],
+            "payment_method": p.get("payment_method"),
+            "photos_included": photos_included,
+            "items_delivered": items_delivered,
+            "items_included": items_included,
+            "credits_remaining": remaining,
+            "progress_pct": min(100, int((items_delivered / photos_included * 100) if photos_included > 0 else 0))
+        })
+    
+    return roster
+
+
 @router.get("/galleries/photographer/{photographer_id}")
 async def get_photographer_galleries(
     photographer_id: str,
@@ -1590,6 +1656,164 @@ async def get_photographer_galleries(
     # Auto-heal: if a gallery has items but no cover_image_url, set it from the first item
     needs_commit = False
     gallery_data = []
+    
+    # ── Session Roster: Batch-load participants for all galleries ──
+    # This powers the "surfer delivery progress" cards on each folder
+    gallery_ids = [g.id for g in galleries]
+    
+    # Build maps of session references for batch queries
+    live_session_ids = [g.live_session_id for g in galleries if g.live_session_id]
+    booking_ids = [g.booking_id for g in galleries if g.booking_id]
+    dispatch_ids = [g.dispatch_id for g in galleries if g.dispatch_id]
+    
+    # ── Live Session Participants ──
+    live_participants_map = {}  # live_session_id -> [participants]
+    if live_session_ids:
+        lsp_result = await db.execute(
+            select(LiveSessionParticipant, Profile)
+            .join(Profile, LiveSessionParticipant.surfer_id == Profile.id)
+            .where(LiveSessionParticipant.live_session_id.in_(live_session_ids))
+            .where(LiveSessionParticipant.status.in_(['active', 'completed']))
+        )
+        for lsp, profile in lsp_result.fetchall():
+            sid = lsp.live_session_id
+            if sid not in live_participants_map:
+                live_participants_map[sid] = []
+            live_participants_map[sid].append({
+                "surfer_id": profile.id,
+                "full_name": profile.full_name,
+                "username": profile.username,
+                "avatar_url": profile.avatar_url,
+                "selfie_url": lsp.selfie_url,
+                "amount_paid": lsp.amount_paid or 0,
+                "photos_credit_remaining": lsp.photos_credit_remaining or 0,
+                "payment_method": lsp.payment_method
+            })
+    
+    # ── Booking Participants ──
+    booking_participants_map = {}  # booking_id -> [participants]
+    booking_settings_map = {}  # booking_id -> {photos_included}
+    if booking_ids:
+        # Load booking settings for photos_included
+        bk_result = await db.execute(
+            select(Booking).where(Booking.id.in_(booking_ids))
+        )
+        for bk in bk_result.scalars().all():
+            booking_settings_map[bk.id] = {
+                "photos_included": bk.booking_photos_included or 3
+            }
+        
+        bp_result = await db.execute(
+            select(BookingParticipant, Profile)
+            .join(Profile, BookingParticipant.participant_id == Profile.id)
+            .where(BookingParticipant.booking_id.in_(booking_ids))
+            .where(BookingParticipant.status.in_(['confirmed', 'completed', 'pending']))
+        )
+        for bp, profile in bp_result.fetchall():
+            bid = bp.booking_id
+            if bid not in booking_participants_map:
+                booking_participants_map[bid] = []
+            bk_settings = booking_settings_map.get(bid, {})
+            booking_participants_map[bid].append({
+                "surfer_id": profile.id,
+                "full_name": profile.full_name,
+                "username": profile.username,
+                "avatar_url": profile.avatar_url,
+                "selfie_url": bp.selfie_url,
+                "amount_paid": bp.paid_amount or 0,
+                "photos_credit_remaining": 0,
+                "payment_method": bp.payment_method,
+                "photos_included": bk_settings.get("photos_included", 3)
+            })
+    
+    # ── On-Demand (Dispatch) Participants ──
+    from models import DispatchRequestParticipant
+    dispatch_participants_map = {}  # dispatch_id -> [participants]
+    if dispatch_ids:
+        # Get dispatch requests to find requesters
+        dr_result = await db.execute(
+            select(DispatchRequest, Profile)
+            .join(Profile, DispatchRequest.requester_id == Profile.id)
+            .where(DispatchRequest.id.in_(dispatch_ids))
+        )
+        for dr, profile in dr_result.fetchall():
+            did = dr.id
+            if did not in dispatch_participants_map:
+                dispatch_participants_map[did] = []
+            dispatch_participants_map[did].append({
+                "surfer_id": profile.id,
+                "full_name": profile.full_name,
+                "username": profile.username,
+                "avatar_url": profile.avatar_url,
+                "selfie_url": dr.selfie_url,
+                "amount_paid": dr.deposit_amount or 0,
+                "photos_credit_remaining": 0,
+                "payment_method": "card"
+            })
+        # Also get additional crew participants
+        try:
+            drp_result = await db.execute(
+                select(DispatchRequestParticipant, Profile)
+                .join(Profile, DispatchRequestParticipant.participant_id == Profile.id)
+                .where(DispatchRequestParticipant.dispatch_request_id.in_(dispatch_ids))
+                .where(DispatchRequestParticipant.paid == True)
+            )
+            for drp, profile in drp_result.fetchall():
+                did = drp.dispatch_request_id
+                if did not in dispatch_participants_map:
+                    dispatch_participants_map[did] = []
+                # Avoid duplicates
+                existing_ids = [p["surfer_id"] for p in dispatch_participants_map[did]]
+                if profile.id not in existing_ids:
+                    dispatch_participants_map[did].append({
+                        "surfer_id": profile.id,
+                        "full_name": profile.full_name,
+                        "username": profile.username,
+                        "avatar_url": profile.avatar_url,
+                        "selfie_url": drp.selfie_url,
+                        "amount_paid": drp.share_amount or 0,
+                        "photos_credit_remaining": 0,
+                        "payment_method": "card"
+                    })
+        except Exception:
+            pass  # DispatchRequestParticipant may not exist yet
+    
+    # ── Distribution counts per surfer per gallery (for progress bars) ──
+    dist_per_surfer_map = {}  # gallery_id -> {surfer_id -> count}
+    if gallery_ids:
+        # Get all item IDs for these galleries
+        all_item_ids = []
+        gallery_item_map = {}  # gallery_id -> [item_ids]
+        for g in galleries:
+            g_item_ids = [item.id for item in (g.items or [])]
+            all_item_ids.extend(g_item_ids)
+            gallery_item_map[g.id] = g_item_ids
+        
+        if all_item_ids:
+            dist_result = await db.execute(
+                select(
+                    SurferGalleryItem.gallery_item_id,
+                    SurferGalleryItem.surfer_id,
+                    SurferGalleryItem.access_type
+                ).where(SurferGalleryItem.gallery_item_id.in_(all_item_ids))
+            )
+            # Build reverse lookup: item_id -> gallery_id
+            item_to_gallery = {}
+            for gid, item_ids in gallery_item_map.items():
+                for iid in item_ids:
+                    item_to_gallery[iid] = gid
+            
+            for row in dist_result.fetchall():
+                gid = item_to_gallery.get(row[0])
+                if gid:
+                    if gid not in dist_per_surfer_map:
+                        dist_per_surfer_map[gid] = {}
+                    sid = row[1]
+                    if sid not in dist_per_surfer_map[gid]:
+                        dist_per_surfer_map[gid][sid] = {"total": 0, "included": 0}
+                    dist_per_surfer_map[gid][sid]["total"] += 1
+                    if row[2] == 'included':
+                        dist_per_surfer_map[gid][sid]["included"] += 1
     for g in galleries:
         cover_url = g.cover_image_url
         
@@ -1628,6 +1852,9 @@ async def get_photographer_galleries(
             "surf_spot_id": g.surf_spot_id,
             "surf_spot_name": g.surf_spot.name if g.surf_spot else None,
             "live_session_id": g.live_session_id,
+            "booking_id": g.booking_id,
+            "dispatch_id": g.dispatch_id,
+            "session_type": g.session_type or ("live" if g.live_session_id else "manual"),
             "item_count": actual_count,
             "view_count": g.view_count,
             "purchase_count": g.purchase_count,
@@ -1646,7 +1873,12 @@ async def get_photographer_galleries(
                     "1080p": g.price_1080p,
                     "4k": g.price_4k
                 }
-            }
+            },
+            # ── SESSION ROSTER: Surfer delivery progress ──
+            "session_roster": _build_session_roster(
+                g, live_participants_map, booking_participants_map,
+                dispatch_participants_map, dist_per_surfer_map
+            )
         })
     
     if needs_commit:
