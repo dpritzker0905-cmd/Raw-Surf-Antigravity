@@ -514,7 +514,7 @@ export default function InCallView({
 
           {/* ── Hair Filter Picker Panel ── */}
           {showHairPicker && (
-            <div className="absolute left-3 top-20 z-50" onClick={(e) => e.stopPropagation()}>
+            <div className="fixed left-3 top-20 bottom-auto z-[9999]" onClick={(e) => e.stopPropagation()}>
               <HairFilterPicker
                 isOpen={showHairPicker}
                 onClose={() => setShowHairPicker(false)}
