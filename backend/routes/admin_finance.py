@@ -112,7 +112,7 @@ async def create_refund_request(
     )
     
     db.add(refund)
-    await log_audit(db, admin_id, "finance", f"Created refund request for ${request.amount}")
+    await log_audit(db, admin.id, "finance", f"Created refund request for ${request.amount}")
     await db.commit()
     
     return {"success": True, "refund_id": refund.id}
@@ -143,7 +143,7 @@ async def process_refund(
             .where(RefundRequest.id == refund_id)
             .values(
                 status=RefundStatusEnum.COMPLETED,
-                processed_by=admin_id,
+                processed_by=admin.id,
                 processed_at=datetime.now(timezone.utc)
             )
         )
@@ -163,7 +163,7 @@ async def process_refund(
             .where(RefundRequest.id == refund_id)
             .values(
                 status=RefundStatusEnum.REJECTED,
-                processed_by=admin_id,
+                processed_by=admin.id,
                 processed_at=datetime.now(timezone.utc),
                 rejection_reason=request.rejection_reason
             )
@@ -171,7 +171,7 @@ async def process_refund(
     else:
         raise HTTPException(status_code=400, detail="Invalid action")
     
-    await log_audit(db, admin_id, "finance", f"{request.action}d refund {refund_id}")
+    await log_audit(db, admin.id, "finance", f"{request.action}d refund {refund_id}")
     await db.commit()
     
     return {"success": True, "status": request.action + "d"}
@@ -279,11 +279,11 @@ async def create_payout_batch(
         total_amount=float(totals[1] or 0),
         total_recipients=totals[0] or 0,
         status="pending",
-        initiated_by=admin_id
+        initiated_by=admin.id
     )
     
     db.add(batch)
-    await log_audit(db, admin_id, "finance", f"Created payout batch {batch_number}")
+    await log_audit(db, admin.id, "finance", f"Created payout batch {batch_number}")
     await db.commit()
     
     return {
@@ -326,7 +326,7 @@ async def process_payout_batch(
         )
     )
     
-    await log_audit(db, admin_id, "finance", f"Processed payout batch {batch.batch_number}")
+    await log_audit(db, admin.id, "finance", f"Processed payout batch {batch.batch_number}")
     await db.commit()
     
     return {"success": True, "status": "completed"}

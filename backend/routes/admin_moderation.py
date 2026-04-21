@@ -261,7 +261,7 @@ async def create_dispute(
     
     # Log audit
     await log_audit(
-        db, admin_id, "dispute", "dispute_created",
+        db, admin.id, "dispute", "dispute_created",
         f"Dispute created: {data.subject}",
         "dispute", dispute.id, None,
         extra_data={"dispute_type": data.dispute_type, "amount": data.amount_disputed}
@@ -300,7 +300,7 @@ async def update_dispute(
         # If resolving, set resolved_at and resolved_by
         if data.status.startswith("resolved") or data.status == "closed":
             dispute.resolved_at = datetime.now(timezone.utc)
-            dispute.resolved_by = admin_id
+            dispute.resolved_by = admin.id
             
             # If refunding to account credit
             if data.amount_refunded and data.amount_refunded > 0:
@@ -329,7 +329,7 @@ async def update_dispute(
     
     # Log audit
     await log_audit(
-        db, admin_id, "dispute", "dispute_updated",
+        db, admin.id, "dispute", "dispute_updated",
         f"Dispute updated: {dispute.subject}",
         "dispute", dispute.id, None,
         old_value=old_values,
@@ -358,7 +358,7 @@ async def add_dispute_message(
     
     message = DisputeMessage(
         dispute_id=dispute_id,
-        sender_id=admin_id,
+        sender_id=admin.id,
         message=data.message,
         attachment_urls=data.attachment_urls or [],
         is_admin=True,
@@ -400,7 +400,7 @@ async def process_stripe_refund(
     
     # Log the action
     await log_audit(
-        db, admin_id, "financial", "stripe_refund_issued",
+        db, admin.id, "financial", "stripe_refund_issued",
         f"Stripe refund of ${amount} issued for dispute",
         "dispute", dispute.id, None,
         new_value={"amount": amount}
@@ -409,7 +409,7 @@ async def process_stripe_refund(
     dispute.amount_stripe_refunded = (dispute.amount_stripe_refunded or 0) + amount
     dispute.status = "resolved_refund"
     dispute.resolved_at = datetime.now(timezone.utc)
-    dispute.resolved_by = admin_id
+    dispute.resolved_by = admin.id
     
     await db.commit()
     
@@ -547,7 +547,7 @@ async def review_report(
     report.status = "action_taken" if data.action_taken != "no_action" else "no_violation"
     report.action_taken = data.action_taken
     report.admin_notes = data.admin_notes
-    report.reviewed_by = admin_id
+    report.reviewed_by = admin.id
     report.reviewed_at = datetime.now(timezone.utc)
     
     # Take action on reported user
@@ -577,7 +577,7 @@ async def review_report(
     
     # Log audit
     await log_audit(
-        db, admin_id, "report", "report_reviewed",
+        db, admin.id, "report", "report_reviewed",
         f"Report reviewed: {data.action_taken}",
         "report", report.id, report.reported_user.email if report.reported_user else None,
         new_value={"action": data.action_taken}
@@ -672,7 +672,7 @@ async def create_payout_hold(
         reason=data.reason,
         description=data.description,
         dispute_id=data.dispute_id,
-        created_by=admin_id,
+        created_by=admin.id,
         is_active=True
     )
     
@@ -684,7 +684,7 @@ async def create_payout_hold(
     
     # Log audit
     await log_audit(
-        db, admin_id, "financial", "payout_hold_created",
+        db, admin.id, "financial", "payout_hold_created",
         f"Payout hold of ${data.amount} created for {photographer.full_name}",
         "payout_hold", hold.id, photographer.email,
         new_value={"amount": data.amount, "reason": data.reason}
@@ -719,12 +719,12 @@ async def release_payout_hold(
     
     hold.is_active = False
     hold.released_at = datetime.now(timezone.utc)
-    hold.released_by = admin_id
+    hold.released_by = admin.id
     hold.release_notes = data.release_notes
     
     # Log audit
     await log_audit(
-        db, admin_id, "financial", "payout_hold_released",
+        db, admin.id, "financial", "payout_hold_released",
         f"Payout hold of ${hold.amount} released for {hold.photographer.full_name if hold.photographer else 'unknown'}",
         "payout_hold", hold.id, hold.photographer.email if hold.photographer else None,
         new_value={"release_notes": data.release_notes}
@@ -858,7 +858,7 @@ async def auto_create_payout_hold_for_dispute(
         reason="dispute_pending",
         description=f"Auto-hold for dispute: {dispute.subject}",
         dispute_id=dispute.id,
-        created_by=admin_id,
+        created_by=admin.id,
         is_active=True,
         auto_release_date=datetime.now(timezone.utc) + timedelta(days=30)  # Auto-release after 30 days if unresolved
     )

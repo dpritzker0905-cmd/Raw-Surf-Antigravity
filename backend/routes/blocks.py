@@ -14,6 +14,7 @@ import logging
 import uuid
 
 from database import get_db
+from deps.admin_auth import get_current_admin
 from models import Profile, UserBlock, UserReport, TosViolation, Follow
 
 router = APIRouter()
@@ -304,7 +305,7 @@ async def get_blocked_user_ids(
 
 @router.get("/admin/blocks/flagged")
 async def get_flagged_users(
-    admin_id: str,
+    admin: Profile = Depends(get_current_admin),
     min_blocks: int = Query(5, ge=1),
     limit: int = Query(50, le=100),
     db: AsyncSession = Depends(get_db)
@@ -315,7 +316,7 @@ async def get_flagged_users(
     """
     try:
         # Verify admin
-        admin_result = await db.execute(select(Profile).where(Profile.id == admin_id))
+        admin_result = await db.execute(select(Profile).where(Profile.id == admin.id))
         admin = admin_result.scalar_one_or_none()
         if not admin or not admin.is_admin:
             raise HTTPException(status_code=403, detail="Admin access required")
@@ -385,7 +386,7 @@ async def get_flagged_users(
 @router.post("/admin/blocks/{user_id}/review")
 async def admin_review_blocks(
     user_id: str,
-    admin_id: str,
+    admin: Profile = Depends(get_current_admin),
     notes: Optional[str] = None,
     create_violation: bool = False,
     violation_type: Optional[str] = None,
@@ -398,7 +399,7 @@ async def admin_review_blocks(
     """
     try:
         # Verify admin
-        admin_result = await db.execute(select(Profile).where(Profile.id == admin_id))
+        admin_result = await db.execute(select(Profile).where(Profile.id == admin.id))
         admin = admin_result.scalar_one_or_none()
         if not admin or not admin.is_admin:
             raise HTTPException(status_code=403, detail="Admin access required")
@@ -436,9 +437,9 @@ async def admin_review_blocks(
                 strike_points=strike_points,
                 title=f"Multiple user blocks ({block_count} users)",
                 description=f"User has been blocked by {block_count} users. Admin review notes: {notes or 'None'}",
-                evidence={"block_count": block_count, "reviewed_by": admin_id},
+                evidence={"block_count": block_count, "reviewed_by": admin.id},
                 action_taken='warning',
-                reviewed_by=admin_id
+                reviewed_by=admin.id
             )
             db.add(violation)
             await db.flush()
@@ -449,7 +450,7 @@ async def admin_review_blocks(
         return {
             "success": True,
             "user_id": user_id,
-            "reviewed_by": admin_id,
+            "reviewed_by": admin.id,
             "violation_created": violation_id is not None,
             "violation_id": violation_id
         }

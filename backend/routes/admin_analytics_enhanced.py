@@ -535,8 +535,8 @@ async def get_platform_health_score(
     """
     
     # Get component scores
-    ltv_cac = await get_ltv_cac_metrics(admin_id, 90, db)
-    liquidity = await get_marketplace_liquidity(admin_id, 30, db)
+    ltv_cac = await get_ltv_cac_metrics(admin, 90, db)
+    liquidity = await get_marketplace_liquidity(admin, 30, db)
     
     # Calculate health components (0-100 each)
     ltv_cac_score = min(ltv_cac['ltv_cac_ratio'] / 3 * 100, 100)  # 3:1 = 100%

@@ -11,6 +11,7 @@ from utils.geo import haversine_distance
 
 
 from database import get_db
+from deps.admin_auth import get_current_admin
 from models import Profile, SurfSpot, RoleEnum, LiveSession, SpotRefinement, SpotOfTheDay, Booking
 from utils.grom_parent import is_grom_parent_eligible
 
@@ -1221,16 +1222,10 @@ async def cleanup_stale_sessions(db: AsyncSession = Depends(get_db)):
 
 @router.get("/admin/spots/stats")
 async def get_spot_stats(
-    admin_id: str,
+    admin: Profile = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db)
 ):
     """Get global spot statistics for admin dashboard."""
-    # Verify admin
-    result = await db.execute(select(Profile).where(Profile.id == admin_id))
-    admin = result.scalar_one_or_none()
-    if not admin or not admin.is_admin:
-        raise HTTPException(status_code=403, detail="Admin access required")
-    
     # Total spots
     total_result = await db.execute(select(func.count(SurfSpot.id)))
     total = total_result.scalar()
@@ -1259,7 +1254,7 @@ async def get_spot_stats(
 
 @router.post("/admin/spots/import")
 async def trigger_spot_import(
-    admin_id: str,
+    admin: Profile = Depends(get_current_admin),
     tier: int = Query(default=0, description="Import tier: 0=all, 1=East Coast, 2=West Coast/Islands, 3=Global"),
     include_osm: bool = Query(default=False, description="Include OSM Overpass data"),
     db: AsyncSession = Depends(get_db)
@@ -1272,12 +1267,6 @@ async def trigger_spot_import(
     - Tier 3: Global (Australia, Indonesia, Europe, etc.)
     - include_osm: Also fetch from OSM Overpass API (slower)
     """
-    # Verify admin
-    result = await db.execute(select(Profile).where(Profile.id == admin_id))
-    admin = result.scalar_one_or_none()
-    if not admin or not admin.is_admin:
-        raise HTTPException(status_code=403, detail="Admin access required")
-    
     from scripts.import_global_spots import import_curated_spots, import_osm_spots, CURATED_SPOTS
     
     # Filter curated spots by tier if specified
@@ -1327,16 +1316,10 @@ class CreateSpotRequest(BaseModel):
 @router.post("/admin/spots/create")
 async def create_spot(
     data: CreateSpotRequest,
-    admin_id: str,
+    admin: Profile = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db)
 ):
     """Create a new surf spot (admin only)."""
-    # Verify admin
-    result = await db.execute(select(Profile).where(Profile.id == admin_id))
-    admin = result.scalar_one_or_none()
-    if not admin or not admin.is_admin:
-        raise HTTPException(status_code=403, detail="Admin access required")
-    
     # Create spot
     spot = SurfSpot(
         name=data.name,
@@ -1350,7 +1333,7 @@ async def create_spot(
         is_active=True,
         is_verified_peak=True,
         accuracy_flag='verified',
-        verified_by=admin_id,
+        verified_by=admin.id,
         verified_at=datetime.now(timezone.utc)
     )
     
@@ -1364,7 +1347,7 @@ async def create_spot(
 @router.put("/admin/spots/{spot_id}")
 async def update_spot(
     spot_id: str,
-    admin_id: str,
+    admin: Profile = Depends(get_current_admin),
     name: Optional[str] = None,
     country: Optional[str] = None,
     state_province: Optional[str] = None,
@@ -1377,12 +1360,6 @@ async def update_spot(
     db: AsyncSession = Depends(get_db)
 ):
     """Update a surf spot (admin only)."""
-    # Verify admin
-    result = await db.execute(select(Profile).where(Profile.id == admin_id))
-    admin = result.scalar_one_or_none()
-    if not admin or not admin.is_admin:
-        raise HTTPException(status_code=403, detail="Admin access required")
-    
     result = await db.execute(select(SurfSpot).where(SurfSpot.id == spot_id))
     spot = result.scalar_one_or_none()
     if not spot:
@@ -1414,7 +1391,7 @@ async def update_spot(
         spot.is_verified_peak = is_verified_peak
         if is_verified_peak:
             spot.accuracy_flag = 'verified'
-            spot.verified_by = admin_id
+            spot.verified_by = admin.id
             spot.verified_at = datetime.now(timezone.utc)
     
     await db.commit()
@@ -1425,16 +1402,10 @@ async def update_spot(
 @router.delete("/admin/spots/{spot_id}")
 async def delete_spot(
     spot_id: str,
-    admin_id: str,
+    admin: Profile = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db)
 ):
     """Delete a surf spot (admin only)."""
-    # Verify admin
-    result = await db.execute(select(Profile).where(Profile.id == admin_id))
-    admin = result.scalar_one_or_none()
-    if not admin or not admin.is_admin:
-        raise HTTPException(status_code=403, detail="Admin access required")
-    
     result = await db.execute(select(SurfSpot).where(SurfSpot.id == spot_id))
     spot = result.scalar_one_or_none()
     if not spot:
@@ -1548,16 +1519,10 @@ async def refine_spot_location(
 
 @router.get("/admin/spots/refinement-queue")
 async def get_refinement_queue(
-    admin_id: str,
+    admin: Profile = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db)
 ):
     """Get spots with pending refinements for admin review."""
-    # Verify admin
-    result = await db.execute(select(Profile).where(Profile.id == admin_id))
-    admin = result.scalar_one_or_none()
-    if not admin or not admin.is_admin:
-        raise HTTPException(status_code=403, detail="Admin access required")
-    
     # Get spots with crowdsourced_pending flag or pending refinements
     result = await db.execute(
         select(SurfSpot).where(
@@ -1605,18 +1570,12 @@ async def get_refinement_queue(
 @router.post("/admin/spots/{spot_id}/apply-refinement")
 async def apply_spot_refinement(
     spot_id: str,
-    admin_id: str,
+    admin: Profile = Depends(get_current_admin),
     new_latitude: float,
     new_longitude: float,
     db: AsyncSession = Depends(get_db)
 ):
     """Admin applies a refinement to update spot location."""
-    # Verify admin
-    result = await db.execute(select(Profile).where(Profile.id == admin_id))
-    admin = result.scalar_one_or_none()
-    if not admin or not admin.is_admin:
-        raise HTTPException(status_code=403, detail="Admin access required")
-    
     # Get spot
     result = await db.execute(select(SurfSpot).where(SurfSpot.id == spot_id))
     spot = result.scalar_one_or_none()
@@ -1633,14 +1592,14 @@ async def apply_spot_refinement(
     spot.longitude = new_longitude
     spot.is_verified_peak = True
     spot.accuracy_flag = 'verified'
-    spot.verified_by = admin_id
+    spot.verified_by = admin.id
     spot.verified_at = datetime.now(timezone.utc)
     
     # Clear pending refinements
     await db.execute(
         SpotRefinement.__table__.update()
         .where(SpotRefinement.spot_id == spot_id)
-        .values(status='approved', reviewed_at=datetime.now(timezone.utc), reviewed_by=admin_id)
+        .values(status='approved', reviewed_at=datetime.now(timezone.utc), reviewed_by=admin.id)
     )
     
     await db.commit()
@@ -1655,17 +1614,11 @@ async def apply_spot_refinement(
 @router.post("/admin/spots/{spot_id}/offset-seaward")
 async def offset_spot_seaward(
     spot_id: str,
-    admin_id: str,
+    admin: Profile = Depends(get_current_admin),
     offset_meters: float = 100,
     db: AsyncSession = Depends(get_db)
 ):
     """Automatically offset a spot seaward using the coastline algorithm."""
-    # Verify admin
-    result = await db.execute(select(Profile).where(Profile.id == admin_id))
-    admin = result.scalar_one_or_none()
-    if not admin or not admin.is_admin:
-        raise HTTPException(status_code=403, detail="Admin access required")
-    
     # Get spot
     result = await db.execute(select(SurfSpot).where(SurfSpot.id == spot_id))
     spot = result.scalar_one_or_none()
@@ -1684,7 +1637,7 @@ async def offset_spot_seaward(
     spot.latitude = new_lat
     spot.longitude = new_lon
     spot.accuracy_flag = 'offset_adjusted'
-    spot.verified_by = admin_id
+    spot.verified_by = admin.id
     spot.verified_at = datetime.now(timezone.utc)
     
     await db.commit()
@@ -1893,17 +1846,11 @@ async def trigger_spot_of_the_day(
 
 @router.get("/admin/spot-of-the-day/history")
 async def get_spot_of_the_day_history(
-    admin_id: str,
+    admin: Profile = Depends(get_current_admin),
     days: int = 30,
     db: AsyncSession = Depends(get_db)
 ):
     """Get Spot of the Day history for admin review."""
-    # Verify admin
-    result = await db.execute(select(Profile).where(Profile.id == admin_id))
-    admin = result.scalar_one_or_none()
-    if not admin or not admin.is_admin:
-        raise HTTPException(status_code=403, detail="Admin access required")
-    
     from_date = date.today() - datetime.timedelta(days=days)
     
     result = await db.execute(

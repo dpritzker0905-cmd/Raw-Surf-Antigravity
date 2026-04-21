@@ -243,7 +243,7 @@ async def acknowledge_alerts(
         .where(SystemAlert.id.in_(request.alert_ids))
         .values(
             is_acknowledged=True,
-            acknowledged_by=admin_id,
+            acknowledged_by=admin.id,
             acknowledged_at=datetime.now(timezone.utc)
         )
     )

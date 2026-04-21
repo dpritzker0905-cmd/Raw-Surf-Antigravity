@@ -290,12 +290,12 @@ async def create_promo_code(
         target_user_roles=data.target_user_roles or [],
         campaign_name=data.campaign_name,
         campaign_source=data.campaign_source,
-        created_by=admin_id
+        created_by=admin.id
     )
     db.add(promo)
     
     await log_audit(
-        db, admin_id, "admin", "promo_code_created",
+        db, admin.id, "admin", "promo_code_created",
         f"Created promo code: {data.code.upper()}",
         "promo_code", promo.id, None,
         extra_data={"code_type": data.code_type, "discount": data.discount_value}
@@ -323,7 +323,7 @@ async def toggle_promo_code(
     promo.is_active = not promo.is_active
     
     await log_audit(
-        db, admin_id, "admin", "promo_code_toggled",
+        db, admin.id, "admin", "promo_code_toggled",
         f"Promo code {promo.code} {'activated' if promo.is_active else 'deactivated'}",
         "promo_code", code_id, None
     )
@@ -474,12 +474,12 @@ async def create_feature_flag(
         is_experiment=data.is_experiment,
         experiment_variants=data.experiment_variants or [],
         category=data.category,
-        created_by=admin_id
+        created_by=admin.id
     )
     db.add(flag)
     
     await log_audit(
-        db, admin_id, "admin", "feature_flag_created",
+        db, admin.id, "admin", "feature_flag_created",
         f"Created feature flag: {data.key}",
         "feature_flag", flag.id, None
     )
@@ -518,7 +518,7 @@ async def update_feature_flag(
             flag.is_enabled = False  # Kill switch disables the flag
     
     await log_audit(
-        db, admin_id, "admin", "feature_flag_updated",
+        db, admin.id, "admin", "feature_flag_updated",
         f"Updated feature flag: {flag.key}",
         "feature_flag", flag.id, None,
         old_value=old_values,
@@ -666,7 +666,7 @@ async def create_notification_campaign(
         target_segments=data.target_segments or [],
         scheduled_at=datetime.fromisoformat(data.scheduled_at) if data.scheduled_at else None,
         status='draft' if not data.scheduled_at else 'scheduled',
-        created_by=admin_id
+        created_by=admin.id
     )
     db.add(campaign)
     
@@ -682,7 +682,7 @@ async def create_notification_campaign(
         campaign.total_targeted = count_result.scalar() or 0
     
     await log_audit(
-        db, admin_id, "admin", "notification_campaign_created",
+        db, admin.id, "admin", "notification_campaign_created",
         f"Created notification campaign: {data.name}",
         "notification_campaign", campaign.id, None
     )
@@ -719,7 +719,7 @@ async def send_notification_campaign(
     campaign.total_delivered = int(campaign.total_targeted * 0.95)  # 95% delivery rate simulated
     
     await log_audit(
-        db, admin_id, "admin", "notification_campaign_sent",
+        db, admin.id, "admin", "notification_campaign_sent",
         f"Sent notification campaign: {campaign.name} to {campaign.total_targeted} users",
         "notification_campaign", campaign.id, None
     )

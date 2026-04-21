@@ -59,6 +59,7 @@ export const GalleryPage = () => {
   const [deletingItemId, setDeletingItemId] = useState(null);
   const [showGalleryPricingModal, setShowGalleryPricingModal] = useState(false);
   const [pricingCollapsed, setPricingCollapsed] = useState(true); // Collapsed by default on mobile
+  const [brokenCoverImages, setBrokenCoverImages] = useState(new Set()); // Track failed cover images
   const [galleryPricing, setGalleryPricing] = useState({
     photo_price_web: 3,
     photo_price_standard: 5,
@@ -839,12 +840,13 @@ export const GalleryPage = () => {
                 >
                   {/* Folder thumbnail */}
                   <div className="aspect-[16/10] relative overflow-hidden">
-                    {gal.cover_image_url ? (
+                    {gal.cover_image_url && !brokenCoverImages.has(gal.id) ? (
                       <img 
                         src={gal.cover_image_url} 
                         alt={gal.title}
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                         loading="lazy"
+                        onError={() => setBrokenCoverImages(prev => new Set([...prev, gal.id]))}
                       />
                     ) : (
                       <div className="w-full h-full bg-gradient-to-br from-cyan-500/10 via-blue-500/5 to-purple-500/10 flex flex-col items-center justify-center gap-2">

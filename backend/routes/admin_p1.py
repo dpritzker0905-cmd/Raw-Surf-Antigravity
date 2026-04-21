@@ -273,7 +273,7 @@ async def review_verification_request(
     
     old_status = request.status
     request.status = data.status
-    request.reviewed_by = admin_id
+    request.reviewed_by = admin.id
     request.reviewed_at = datetime.now(timezone.utc)
     request.admin_notes = data.admin_notes
     
@@ -308,7 +308,7 @@ async def review_verification_request(
     
     # Log audit
     await log_audit(
-        db, admin_id, "user_mgmt", "verification_reviewed",
+        db, admin.id, "user_mgmt", "verification_reviewed",
         f"Verification {data.status}: {request.verification_type} for {request.user.full_name if request.user else 'unknown'}",
         "verification", request.id, request.user.email if request.user else None,
         old_value={"status": old_status},
@@ -373,7 +373,7 @@ async def start_impersonation(
     
     # Log audit
     await log_audit(
-        db, admin_id, "admin", "impersonation_started",
+        db, admin.id, "admin", "impersonation_started",
         f"Started impersonating user: {target_user.full_name}",
         "user", target_user.id, target_user.email,
         extra_data={"reason": data.reason, "read_only": data.is_read_only}
@@ -411,7 +411,7 @@ async def end_impersonation(
         select(ImpersonationSession)
         .where(and_(
             ImpersonationSession.id == session_id,
-            ImpersonationSession.admin_id == admin_id,
+            ImpersonationSession.admin_id == admin.id,
             ImpersonationSession.ended_at.is_(None)
         ))
         .options(selectinload(ImpersonationSession.target_user))
@@ -425,7 +425,7 @@ async def end_impersonation(
     
     # Log audit
     await log_audit(
-        db, admin_id, "admin", "impersonation_ended",
+        db, admin.id, "admin", "impersonation_ended",
         f"Ended impersonation of: {session.target_user.full_name if session.target_user else 'unknown'}",
         "user", session.target_user_id, session.target_user.email if session.target_user else None
     )
@@ -591,7 +591,7 @@ async def create_fraud_alert(
     
     # Log audit
     await log_audit(
-        db, admin_id, "admin", "fraud_alert_created",
+        db, admin.id, "admin", "fraud_alert_created",
         f"Created fraud alert: {data.title}",
         "fraud_alert", alert.id, None,
         extra_data={"alert_type": data.alert_type, "severity": data.severity}
@@ -622,7 +622,7 @@ async def resolve_fraud_alert(
         raise HTTPException(status_code=404, detail="Fraud alert not found")
     
     alert.status = 'resolved'
-    alert.resolved_by = admin_id
+    alert.resolved_by = admin.id
     alert.resolved_at = datetime.now(timezone.utc)
     alert.resolution_notes = data.resolution_notes
     alert.action_taken = data.action_taken
@@ -633,7 +633,7 @@ async def resolve_fraud_alert(
     
     # Log audit
     await log_audit(
-        db, admin_id, "admin", "fraud_alert_resolved",
+        db, admin.id, "admin", "fraud_alert_resolved",
         f"Resolved fraud alert with action: {data.action_taken}",
         "fraud_alert", alert.id, alert.user.email if alert.user else None,
         new_value={"action": data.action_taken}
@@ -1051,7 +1051,7 @@ async def seed_test_accounts(
     
     # Log the action
     await log_audit(
-        db, admin_id, "system", "seed_test_accounts",
+        db, admin.id, "system", "seed_test_accounts",
         f"Created {len(created_accounts)} test accounts",
         "test_accounts", "system", None,
         new_value={"accounts_created": len(created_accounts), "roles": [a["role"] for a in created_accounts]}
@@ -1127,7 +1127,7 @@ async def cleanup_test_accounts(
     await db.commit()
     
     await log_audit(
-        db, admin_id, "system", "cleanup_test_accounts",
+        db, admin.id, "system", "cleanup_test_accounts",
         f"Deleted {deleted_count} test accounts older than {older_than_days} days",
         "test_accounts", "system", None
     )

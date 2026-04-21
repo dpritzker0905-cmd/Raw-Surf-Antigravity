@@ -15,6 +15,7 @@ from datetime import datetime, timezone
 import json
 
 from database import get_db
+from deps.admin_auth import get_current_admin
 from models import (
     Profile, GearCatalog, GearPurchase, GearCategory, 
     Notification, RoleEnum
@@ -312,12 +313,12 @@ async def get_user_gear_purchases(
 @router.post("/gear-hub/admin/items")
 async def create_gear_item(
     data: GearItemCreate,
-    admin_id: str,
+    admin: Profile = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db)
 ):
     """Admin: Create a new gear catalog item"""
     # Verify admin
-    admin_result = await db.execute(select(Profile).where(Profile.id == admin_id))
+    admin_result = await db.execute(select(Profile).where(Profile.id == admin.id))
     admin = admin_result.scalar_one_or_none()
     
     if not admin or not admin.is_admin:
@@ -356,12 +357,12 @@ async def create_gear_item(
 async def update_gear_item(
     item_id: str,
     data: GearItemUpdate,
-    admin_id: str,
+    admin: Profile = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db)
 ):
     """Admin: Update a gear catalog item"""
     # Verify admin
-    admin_result = await db.execute(select(Profile).where(Profile.id == admin_id))
+    admin_result = await db.execute(select(Profile).where(Profile.id == admin.id))
     admin = admin_result.scalar_one_or_none()
     
     if not admin or not admin.is_admin:

@@ -261,7 +261,7 @@ async def reply_to_ticket(
     # Create message
     message = TicketMessage(
         ticket_id=ticket_id,
-        sender_id=admin_id,
+        sender_id=admin.id,
         message=request.message,
         is_internal_note=request.is_internal_note
     )

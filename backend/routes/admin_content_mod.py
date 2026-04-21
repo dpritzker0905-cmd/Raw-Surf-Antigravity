@@ -146,7 +146,7 @@ async def moderate_content(
                 .values(is_hidden=True)
             )
     
-    await log_audit(db, admin_id, "content_moderation", f"{request.action} content {item.content_type}:{item.content_id}")
+    await log_audit(db, admin.id, "content_moderation", f"{request.action} content {item.content_type}:{item.content_id}")
     await db.commit()
     
     return {"success": True, "message": f"Content {request.action}d"}
@@ -193,7 +193,7 @@ async def bulk_moderate_content(
             elif item.content_type == "post":
                 await db.execute(update(Post).where(Post.id == item.content_id).values(is_hidden=True))
     
-    await log_audit(db, admin_id, "content_moderation", f"bulk_{request.action} {len(request.item_ids)} items")
+    await log_audit(db, admin.id, "content_moderation", f"bulk_{request.action} {len(request.item_ids)} items")
     await db.commit()
     
     return {"success": True, "processed": len(request.item_ids)}

@@ -228,11 +228,11 @@ async def create_featured_content(
         image_url=image_url,
         placement=request.placement or "homepage",
         position=request.position or 0,
-        created_by=admin_id
+        created_by=admin.id
     )
     
     db.add(featured)
-    await log_audit(db, admin_id, "content", f"Featured {request.content_type}: {title}")
+    await log_audit(db, admin.id, "content", f"Featured {request.content_type}: {title}")
     await db.commit()
     
     return {"success": True, "featured_id": featured.id}
@@ -315,11 +315,11 @@ async def create_banner(
         position=position,
         start_at=datetime.fromisoformat(request.start_at) if request.start_at else None,
         end_at=datetime.fromisoformat(request.end_at) if request.end_at else None,
-        created_by=admin_id
+        created_by=admin.id
     )
     
     db.add(banner)
-    await log_audit(db, admin_id, "content", f"Created banner: {request.title}")
+    await log_audit(db, admin.id, "content", f"Created banner: {request.title}")
     await db.commit()
     
     return {"success": True, "banner_id": banner.id}
@@ -505,11 +505,11 @@ async def create_api_key(
         permissions=request.permissions or [],
         rate_limit=request.rate_limit or 1000,
         expires_at=expires_at,
-        created_by=admin_id
+        created_by=admin.id
     )
     
     db.add(api_key)
-    await log_audit(db, admin_id, "api_key", f"Created API key: {request.name}")
+    await log_audit(db, admin.id, "api_key", f"Created API key: {request.name}")
     await db.commit()
     
     # Return the full key only once
@@ -535,7 +535,7 @@ async def revoke_api_key(
         .where(APIKey.id == key_id)
         .values(is_active=False)
     )
-    await log_audit(db, admin_id, "api_key", f"Revoked API key {key_id}")
+    await log_audit(db, admin.id, "api_key", f"Revoked API key {key_id}")
     await db.commit()
     
     return {"success": True}
@@ -582,7 +582,7 @@ async def create_automated_report(
         schedule=request.schedule,
         recipient_emails=request.recipient_emails,
         config=request.config or {},
-        created_by=admin_id
+        created_by=admin.id
     )
     
     db.add(report)
@@ -660,7 +660,7 @@ async def create_changelog_entry(
         summary=request.summary,
         changes=request.changes or [],
         is_major=request.is_major or False,
-        created_by=admin_id
+        created_by=admin.id
     )
     
     db.add(entry)

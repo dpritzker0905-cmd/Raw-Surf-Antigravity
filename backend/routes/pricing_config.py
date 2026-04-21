@@ -11,6 +11,7 @@ from datetime import datetime, timezone
 import logging
 
 from database import get_db
+from deps.admin_auth import get_current_admin
 from models import Profile, GlobalPricingConfig
 
 router = APIRouter()
@@ -350,16 +351,10 @@ async def get_pricing_config(db: AsyncSession = Depends(get_db)):
 
 @router.get("/admin/pricing/config")
 async def admin_get_pricing_config(
-    admin_id: str,
+    admin: Profile = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db)
 ):
     """Admin endpoint to get full pricing config with metadata"""
-    # Verify admin
-    result = await db.execute(select(Profile).where(Profile.id == admin_id))
-    admin = result.scalar_one_or_none()
-    if not admin or not admin.is_admin:
-        raise HTTPException(status_code=403, detail="Admin access required")
-    
     # Get active config
     config_result = await db.execute(
         select(GlobalPricingConfig)
@@ -389,7 +384,7 @@ async def admin_get_pricing_config(
 
 @router.post("/admin/pricing/update")
 async def admin_update_pricing_config(
-    admin_id: str,
+    admin: Profile = Depends(get_current_admin),
     data: PricingConfigUpdate,
     db: AsyncSession = Depends(get_db)
 ):
@@ -397,12 +392,6 @@ async def admin_update_pricing_config(
     Admin endpoint to update pricing configuration
     Creates a new versioned config entry
     """
-    # Verify admin
-    result = await db.execute(select(Profile).where(Profile.id == admin_id))
-    admin = result.scalar_one_or_none()
-    if not admin or not admin.is_admin:
-        raise HTTPException(status_code=403, detail="Admin access required")
-    
     # Get current config
     current_pricing = await get_active_pricing_config(db)
     
@@ -443,14 +432,14 @@ async def admin_update_pricing_config(
     new_config = GlobalPricingConfig(
         pricing_data=updated_pricing,
         version=new_version,
-        updated_by=admin_id,
+        updated_by=admin.id,
         updated_at=datetime.now(timezone.utc),
         is_active=True
     )
     db.add(new_config)
     await db.commit()
     
-    logger.info(f"Pricing config updated to v{new_version} by admin {admin_id}")
+    logger.info(f"Pricing config updated to v{new_version} by admin {admin.id}")
     
     return {
         "success": True,
@@ -462,16 +451,10 @@ async def admin_update_pricing_config(
 
 @router.post("/admin/pricing/reset")
 async def admin_reset_pricing_config(
-    admin_id: str,
+    admin: Profile = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db)
 ):
     """Reset pricing to default values"""
-    # Verify admin
-    result = await db.execute(select(Profile).where(Profile.id == admin_id))
-    admin = result.scalar_one_or_none()
-    if not admin or not admin.is_admin:
-        raise HTTPException(status_code=403, detail="Admin access required")
-    
     # Deactivate old configs
     old_configs = await db.execute(
         select(GlobalPricingConfig).where(GlobalPricingConfig.is_active == True)
@@ -490,14 +473,14 @@ async def admin_reset_pricing_config(
     new_config = GlobalPricingConfig(
         pricing_data=DEFAULT_PRICING_DATA,
         version=new_version,
-        updated_by=admin_id,
+        updated_by=admin.id,
         updated_at=datetime.now(timezone.utc),
         is_active=True
     )
     db.add(new_config)
     await db.commit()
     
-    logger.info(f"Pricing config reset to defaults (v{new_version}) by admin {admin_id}")
+    logger.info(f"Pricing config reset to defaults (v{new_version}) by admin {admin.id}")
     
     return {
         "success": True,
@@ -509,17 +492,11 @@ async def admin_reset_pricing_config(
 
 @router.get("/admin/pricing/history")
 async def admin_get_pricing_history(
-    admin_id: str,
+    admin: Profile = Depends(get_current_admin),
     limit: int = 10,
     db: AsyncSession = Depends(get_db)
 ):
     """Get pricing configuration history"""
-    # Verify admin
-    result = await db.execute(select(Profile).where(Profile.id == admin_id))
-    admin = result.scalar_one_or_none()
-    if not admin or not admin.is_admin:
-        raise HTTPException(status_code=403, detail="Admin access required")
-    
     configs_result = await db.execute(
         select(GlobalPricingConfig)
         .order_by(GlobalPricingConfig.version.desc())
@@ -546,7 +523,7 @@ async def admin_get_pricing_history(
 
 @router.get("/admin/pricing/audit-log")
 async def get_pricing_audit_log(
-    admin_id: str,
+    admin: Profile = Depends(get_current_admin),
     limit: int = 50,
     db: AsyncSession = Depends(get_db)
 ):
@@ -554,12 +531,6 @@ async def get_pricing_audit_log(
     Get detailed audit log of all pricing changes.
     Shows: Admin UID, Old Price, New Price, Timestamp, Field Changed
     """
-    # Verify admin
-    result = await db.execute(select(Profile).where(Profile.id == admin_id))
-    admin = result.scalar_one_or_none()
-    if not admin or not admin.is_admin:
-        raise HTTPException(status_code=403, detail="Admin access required")
-    
     # Get all config versions ordered by time
     configs_result = await db.execute(
         select(GlobalPricingConfig)

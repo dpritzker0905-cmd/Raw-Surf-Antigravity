@@ -216,7 +216,7 @@ async def admin_create_spot(
         noaa_buoy_id=request.noaa_buoy_id,
         is_verified_peak=True,
         accuracy_flag="admin_verified",
-        verified_by=admin_id,
+        verified_by=admin.id,
         verified_at=datetime.now(timezone.utc),
         is_active=True
     )
@@ -300,7 +300,7 @@ async def admin_move_spot(
     spot.longitude = request.longitude
     spot.is_verified_peak = True
     spot.accuracy_flag = "admin_verified"
-    spot.verified_by = admin_id
+    spot.verified_by = admin.id
     spot.verified_at = datetime.now(timezone.utc)
     spot.flagged_for_review = False  # Clear review flag
     
@@ -507,12 +507,12 @@ async def admin_get_spot_edit_history(
     for log in logs:
         # Get admin name
         admin_result = await db.execute(select(Profile).where(Profile.id == log.admin_id))
-        admin = admin_result.scalar_one_or_none()
+        log_admin = admin_result.scalar_one_or_none()
         
         history.append({
             "id": log.id,
             "action": log.action,
-            "admin_name": admin.full_name if admin else "Unknown",
+            "admin_name": log_admin.full_name if log_admin else "Unknown",
             "old_coords": {"latitude": log.old_latitude, "longitude": log.old_longitude} if log.old_latitude else None,
             "new_coords": {"latitude": log.new_latitude, "longitude": log.new_longitude} if log.new_latitude else None,
             "was_on_land": log.was_on_land,

@@ -10,6 +10,7 @@ from typing import Optional, List
 from datetime import datetime, timezone, timedelta, date
 
 from database import get_db
+from deps.admin_auth import get_current_admin
 from models import (
     Profile, CompetitionResult, Sponsorship, GoldPassBooking,
     EliteTierEnum, XPTransaction, Badge, RoleEnum,
@@ -197,14 +198,14 @@ async def get_pending_verifications(
 @router.post("/competition-results/{result_id}/verify")
 async def verify_competition_result(
     result_id: str,
-    admin_id: str,
+    admin: Profile = Depends(get_current_admin),
     approved: bool,
     db: AsyncSession = Depends(get_db)
 ):
     """Admin/AI verifies a competition result and awards XP"""
     
     # Check admin
-    admin_result = await db.execute(select(Profile).where(Profile.id == admin_id))
+    admin_result = await db.execute(select(Profile).where(Profile.id == admin.id))
     admin = admin_result.scalar_one_or_none()
     if not admin or not admin.is_admin:
         raise HTTPException(status_code=403, detail="Admin access required")
@@ -217,7 +218,7 @@ async def verify_competition_result(
     
     if approved:
         comp_result.verification_status = 'community_verified'
-        comp_result.verified_by = admin_id
+        comp_result.verified_by = admin.id
         comp_result.verified_at = datetime.now(timezone.utc)
         
         # Calculate and award XP based on placing

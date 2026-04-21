@@ -107,11 +107,11 @@ async def create_announcement(
         action_text=request.action_text,
         start_at=datetime.fromisoformat(request.start_at) if request.start_at else None,
         end_at=datetime.fromisoformat(request.end_at) if request.end_at else None,
-        created_by=admin_id
+        created_by=admin.id
     )
     
     db.add(announcement)
-    await log_audit(db, admin_id, "communication", f"Created announcement: {request.title}")
+    await log_audit(db, admin.id, "communication", f"Created announcement: {request.title}")
     await db.commit()
     
     return {"success": True, "announcement_id": announcement.id}
@@ -327,11 +327,11 @@ async def create_bulk_campaign(
         status="scheduled" if request.scheduled_at else "draft",
         scheduled_at=datetime.fromisoformat(request.scheduled_at) if request.scheduled_at else None,
         total_recipients=total,
-        created_by=admin_id
+        created_by=admin.id
     )
     
     db.add(campaign)
-    await log_audit(db, admin_id, "communication", f"Created bulk campaign: {request.name}")
+    await log_audit(db, admin.id, "communication", f"Created bulk campaign: {request.name}")
     await db.commit()
     
     return {"success": True, "campaign_id": campaign.id, "total_recipients": total}
@@ -367,7 +367,7 @@ async def send_bulk_campaign(
         )
     )
     
-    await log_audit(db, admin_id, "communication", f"Sent bulk campaign: {campaign.name}")
+    await log_audit(db, admin.id, "communication", f"Sent bulk campaign: {campaign.name}")
     await db.commit()
     
     return {"success": True, "sent_count": campaign.total_recipients}

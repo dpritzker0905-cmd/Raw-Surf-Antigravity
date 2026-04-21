@@ -41,7 +41,7 @@ async def log_admin_action(
     db.add(log)
 
 @router.get("/admin/stats")
-async def get_admin_stats(admin_id: str, db: AsyncSession = Depends(get_db)):
+async def get_admin_stats(admin: Profile = Depends(get_current_admin), db: AsyncSession = Depends(get_db)):
     """Get platform-wide statistics"""
     
     # User stats
@@ -174,7 +174,7 @@ async def get_all_users(
     }
 
 @router.get("/admin/users/{user_id}")
-async def get_user_detail(user_id: str, admin_id: str, db: AsyncSession = Depends(get_db)):
+async def get_user_detail(user_id: str, admin: Profile = Depends(get_current_admin), db: AsyncSession = Depends(get_db)):
     """Get detailed user information"""
     
     result = await db.execute(select(Profile).where(Profile.id == user_id))
@@ -257,7 +257,7 @@ async def update_user(
         except KeyError:
             raise HTTPException(status_code=400, detail=f"Invalid role: {data.role}")
     
-    await log_admin_action(db, admin_id, "update_user", "user", user_id, changes)
+    await log_admin_action(db, admin.id, "update_user", "user", user_id, changes)
     await db.commit()
     
     return {"message": "User updated", "changes": changes}
@@ -310,7 +310,7 @@ async def bulk_update_users(
                 user.subscription_tier = data.subscription_tier
                 changes["subscription_tier"] = data.subscription_tier
             
-            await log_admin_action(db, admin_id, "bulk_update_user", "user", user_id, changes)
+            await log_admin_action(db, admin.id, "bulk_update_user", "user", user_id, changes)
             updated_count += 1
             
         except Exception as e:
@@ -347,13 +347,13 @@ async def suspend_user(
     user.suspended_at = datetime.now(timezone.utc)
     user.suspended_reason = data.reason
     
-    await log_admin_action(db, admin_id, "suspend_user", "user", user_id, {"reason": data.reason})
+    await log_admin_action(db, admin.id, "suspend_user", "user", user_id, {"reason": data.reason})
     await db.commit()
     
     return {"message": f"User {user.email} suspended", "reason": data.reason}
 
 @router.post("/admin/users/{user_id}/unsuspend")
-async def unsuspend_user(user_id: str, admin_id: str, db: AsyncSession = Depends(get_db)):
+async def unsuspend_user(user_id: str, admin: Profile = Depends(get_current_admin), db: AsyncSession = Depends(get_db)):
     """Unsuspend a user"""
     
     result = await db.execute(select(Profile).where(Profile.id == user_id))
@@ -366,7 +366,7 @@ async def unsuspend_user(user_id: str, admin_id: str, db: AsyncSession = Depends
     user.suspended_at = None
     user.suspended_reason = None
     
-    await log_admin_action(db, admin_id, "unsuspend_user", "user", user_id)
+    await log_admin_action(db, admin.id, "unsuspend_user", "user", user_id)
     await db.commit()
     
     return {"message": f"User {user.email} unsuspended"}
@@ -395,14 +395,14 @@ async def admin_reset_password(
         raise HTTPException(status_code=404, detail="User not found")
 
     # Safety: don't allow resetting another admin's password
-    if user.is_admin and user.id != admin_id:
+    if user.is_admin and user.id != admin.id:
         raise HTTPException(status_code=403, detail="Cannot reset another admin's password")
 
     from passlib.context import CryptContext
     pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
     user.password_hash = pwd_context.hash(data.new_password)
 
-    await log_admin_action(db, admin_id, "reset_password", "user", user_id, {
+    await log_admin_action(db, admin.id, "reset_password", "user", user_id, {
         "target_email": user.email
     })
     await db.commit()
@@ -517,7 +517,7 @@ async def bulk_delete_users(
 
 
 @router.delete("/admin/posts/{post_id}")
-async def delete_post(post_id: str, admin_id: str, db: AsyncSession = Depends(get_db)):
+async def delete_post(post_id: str, admin: Profile = Depends(get_current_admin), db: AsyncSession = Depends(get_db)):
     """Delete a post (admin moderation)"""
     
     result = await db.execute(select(Post).where(Post.id == post_id))
@@ -526,7 +526,7 @@ async def delete_post(post_id: str, admin_id: str, db: AsyncSession = Depends(ge
     if not post:
         raise HTTPException(status_code=404, detail="Post not found")
     
-    await log_admin_action(db, admin_id, "delete_post", "post", post_id, {
+    await log_admin_action(db, admin.id, "delete_post", "post", post_id, {
         "author_id": post.author_id,
         "caption": post.caption[:100] if post.caption else None
     })
@@ -537,7 +537,7 @@ async def delete_post(post_id: str, admin_id: str, db: AsyncSession = Depends(ge
     return {"message": "Post deleted"}
 
 @router.delete("/admin/gallery/{item_id}")
-async def delete_gallery_item(item_id: str, admin_id: str, db: AsyncSession = Depends(get_db)):
+async def delete_gallery_item(item_id: str, admin: Profile = Depends(get_current_admin), db: AsyncSession = Depends(get_db)):
     """Delete a gallery item (admin moderation)"""
     
     result = await db.execute(select(GalleryItem).where(GalleryItem.id == item_id))
@@ -546,7 +546,7 @@ async def delete_gallery_item(item_id: str, admin_id: str, db: AsyncSession = De
     if not item:
         raise HTTPException(status_code=404, detail="Gallery item not found")
     
-    await log_admin_action(db, admin_id, "delete_gallery_item", "gallery_item", item_id, {
+    await log_admin_action(db, admin.id, "delete_gallery_item", "gallery_item", item_id, {
         "photographer_id": item.photographer_id
     })
     
@@ -585,7 +585,7 @@ async def get_admin_logs(
     } for log in logs]
 
 @router.post("/admin/make-admin/{user_id}")
-async def make_user_admin(user_id: str, admin_id: str, db: AsyncSession = Depends(get_db)):
+async def make_user_admin(user_id: str, admin: Profile = Depends(get_current_admin), db: AsyncSession = Depends(get_db)):
     """Grant admin privileges to a user"""
     
     result = await db.execute(select(Profile).where(Profile.id == user_id))
@@ -596,16 +596,16 @@ async def make_user_admin(user_id: str, admin_id: str, db: AsyncSession = Depend
     
     user.is_admin = True
     
-    await log_admin_action(db, admin_id, "grant_admin", "user", user_id)
+    await log_admin_action(db, admin.id, "grant_admin", "user", user_id)
     await db.commit()
     
     return {"message": f"{user.email} is now an admin"}
 
 @router.post("/admin/revoke-admin/{user_id}")
-async def revoke_user_admin(user_id: str, admin_id: str, db: AsyncSession = Depends(get_db)):
+async def revoke_user_admin(user_id: str, admin: Profile = Depends(get_current_admin), db: AsyncSession = Depends(get_db)):
     """Revoke admin privileges from a user"""
     
-    if user_id == admin_id:
+    if user_id == admin.id:
         raise HTTPException(status_code=400, detail="Cannot revoke your own admin status")
     
     result = await db.execute(select(Profile).where(Profile.id == user_id))
@@ -616,7 +616,7 @@ async def revoke_user_admin(user_id: str, admin_id: str, db: AsyncSession = Depe
     
     user.is_admin = False
     
-    await log_admin_action(db, admin_id, "revoke_admin", "user", user_id)
+    await log_admin_action(db, admin.id, "revoke_admin", "user", user_id)
     await db.commit()
     
     return {"message": f"{user.email} admin privileges revoked"}

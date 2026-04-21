@@ -13,6 +13,7 @@ import json
 import logging
 
 from database import get_db
+from deps.admin_auth import get_current_admin
 from models import Profile, AdConfig as AdConfigModel, CreditTransaction, Notification
 
 logger = logging.getLogger(__name__)
@@ -193,7 +194,7 @@ async def save_ad_config(config: dict, admin_id: str, db: AsyncSession) -> dict:
         # Create new config
         new_config = AdConfigModel(
             config_data=config,
-            updated_by=admin_id,
+            updated_by=admin.id,
             is_active=True,
             version=1
         )
@@ -210,41 +211,31 @@ async def save_ad_config(config: dict, admin_id: str, db: AsyncSession) -> dict:
 
 @router.get("/admin/ads/config")
 async def get_ad_configuration(
-    admin_id: str,
+    admin: Profile = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db)
 ):
     """Get current ad configuration (God Mode only)"""
-    result = await db.execute(select(Profile).where(Profile.id == admin_id))
-    admin = result.scalar_one_or_none()
-    if not admin or not admin.is_admin:
-        raise HTTPException(status_code=403, detail="Admin access required")
-    
     config = await get_ad_config(db)
     return {"config": config}
 
 
 @router.put("/admin/ads/config")
 async def update_ad_configuration(
-    admin_id: str,
+    admin: Profile = Depends(get_current_admin),
     config: AdConfigSchema,
     db: AsyncSession = Depends(get_db)
 ):
     """Update ad configuration (God Mode only)"""
-    result = await db.execute(select(Profile).where(Profile.id == admin_id))
-    admin = result.scalar_one_or_none()
-    if not admin or not admin.is_admin:
-        raise HTTPException(status_code=403, detail="Admin access required")
-    
     config_dict = config.model_dump()
-    saved_config = await save_ad_config(config_dict, admin_id, db)
+    saved_config = await save_ad_config(config_dict, admin.id, db)
     
-    logger.info(f"Ad config updated by admin {admin_id}")
+    logger.info(f"Ad config updated by admin {admin.id}")
     return {"success": True, "config": saved_config}
 
 
 @router.patch("/admin/ads/frequency")
 async def update_ad_frequency(
-    admin_id: str,
+    admin: Profile = Depends(get_current_admin),
     frequency: int,
     db: AsyncSession = Depends(get_db)
 ):
@@ -252,14 +243,9 @@ async def update_ad_frequency(
     if frequency < 3 or frequency > 20:
         raise HTTPException(status_code=400, detail="Frequency must be between 3 and 20")
     
-    result = await db.execute(select(Profile).where(Profile.id == admin_id))
-    admin = result.scalar_one_or_none()
-    if not admin or not admin.is_admin:
-        raise HTTPException(status_code=403, detail="Admin access required")
-    
     config = await get_ad_config(db)
     config["frequency"] = frequency
-    await save_ad_config(config, admin_id, db)
+    await save_ad_config(config, admin.id, db)
     
     return {"success": True, "frequency": frequency}
 
@@ -267,16 +253,11 @@ async def update_ad_frequency(
 @router.patch("/admin/ads/variant/{variant_id}/toggle")
 async def toggle_ad_variant(
     variant_id: str,
-    admin_id: str,
+    admin: Profile = Depends(get_current_admin),
     is_active: bool,
     db: AsyncSession = Depends(get_db)
 ):
     """Enable/disable a specific ad variant"""
-    result = await db.execute(select(Profile).where(Profile.id == admin_id))
-    admin = result.scalar_one_or_none()
-    if not admin or not admin.is_admin:
-        raise HTTPException(status_code=403, detail="Admin access required")
-    
     config = await get_ad_config(db)
     
     found = False
@@ -289,22 +270,17 @@ async def toggle_ad_variant(
     if not found:
         raise HTTPException(status_code=404, detail="Variant not found")
     
-    await save_ad_config(config, admin_id, db)
+    await save_ad_config(config, admin.id, db)
     return {"success": True, "variant_id": variant_id, "is_active": is_active}
 
 
 @router.post("/admin/ads/variant")
 async def add_ad_variant(
-    admin_id: str,
+    admin: Profile = Depends(get_current_admin),
     variant: AdVariant,
     db: AsyncSession = Depends(get_db)
 ):
     """Add a new ad variant"""
-    result = await db.execute(select(Profile).where(Profile.id == admin_id))
-    admin = result.scalar_one_or_none()
-    if not admin or not admin.is_admin:
-        raise HTTPException(status_code=403, detail="Admin access required")
-    
     config = await get_ad_config(db)
     
     for existing in config.get("variants", []):
@@ -312,7 +288,7 @@ async def add_ad_variant(
             raise HTTPException(status_code=400, detail="Variant ID already exists")
     
     config["variants"].append(variant.model_dump())
-    await save_ad_config(config, admin_id, db)
+    await save_ad_config(config, admin.id, db)
     
     return {"success": True, "variant": variant.model_dump()}
 
@@ -320,15 +296,10 @@ async def add_ad_variant(
 @router.delete("/admin/ads/variant/{variant_id}")
 async def delete_ad_variant(
     variant_id: str,
-    admin_id: str,
+    admin: Profile = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db)
 ):
     """Delete an ad variant"""
-    result = await db.execute(select(Profile).where(Profile.id == admin_id))
-    admin = result.scalar_one_or_none()
-    if not admin or not admin.is_admin:
-        raise HTTPException(status_code=403, detail="Admin access required")
-    
     config = await get_ad_config(db)
     
     original_len = len(config.get("variants", []))
@@ -337,21 +308,16 @@ async def delete_ad_variant(
     if len(config["variants"]) == original_len:
         raise HTTPException(status_code=404, detail="Variant not found")
     
-    await save_ad_config(config, admin_id, db)
+    await save_ad_config(config, admin.id, db)
     return {"success": True, "deleted_id": variant_id}
 
 
 @router.get("/admin/ads/analytics")
 async def get_ad_analytics(
-    admin_id: str,
+    admin: Profile = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db)
 ):
     """Get ad performance analytics"""
-    result = await db.execute(select(Profile).where(Profile.id == admin_id))
-    admin = result.scalar_one_or_none()
-    if not admin or not admin.is_admin:
-        raise HTTPException(status_code=403, detail="Admin access required")
-    
     config = await get_ad_config(db)
     
     # Count ad-supported users
@@ -667,15 +633,10 @@ async def cancel_ad_submission(
 
 @router.get("/admin/ads/queue")
 async def get_ad_approval_queue(
-    admin_id: str,
+    admin: Profile = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db)
 ):
     """Get pending ads waiting for approval"""
-    result = await db.execute(select(Profile).where(Profile.id == admin_id))
-    admin = result.scalar_one_or_none()
-    if not admin or not admin.is_admin:
-        raise HTTPException(status_code=403, detail="Admin access required")
-    
     config = await get_ad_config(db)
     variants = config.get("variants", [])
     
@@ -698,15 +659,10 @@ async def get_ad_approval_queue(
 @router.post("/admin/ads/queue/{ad_id}/approve")
 async def approve_ad(
     ad_id: str,
-    admin_id: str,
+    admin: Profile = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db)
 ):
     """Approve a pending ad submission"""
-    result = await db.execute(select(Profile).where(Profile.id == admin_id))
-    admin = result.scalar_one_or_none()
-    if not admin or not admin.is_admin:
-        raise HTTPException(status_code=403, detail="Admin access required")
-    
     config = await get_ad_config(db)
     variants = config.get("variants", [])
     
@@ -717,7 +673,7 @@ async def approve_ad(
             variant["approval_status"] = "approved"
             variant["is_active"] = True
             variant["approved_at"] = datetime.now(timezone.utc).isoformat()
-            variant["approved_by"] = admin_id
+            variant["approved_by"] = admin.id
             ad = variant
             found = True
             break
@@ -726,7 +682,7 @@ async def approve_ad(
         raise HTTPException(status_code=404, detail="Ad not found")
     
     config["variants"] = variants
-    await save_ad_config(config, admin_id, db)
+    await save_ad_config(config, admin.id, db)
     
     # Send push notification to the ad submitter
     submitter_id = ad.get("submitted_by")
@@ -747,16 +703,11 @@ async def approve_ad(
 @router.post("/admin/ads/queue/{ad_id}/reject")
 async def reject_ad(
     ad_id: str,
-    admin_id: str,
+    admin: Profile = Depends(get_current_admin),
     reason: Optional[str] = None,
     db: AsyncSession = Depends(get_db)
 ):
     """Reject a pending ad submission and refund credits"""
-    result = await db.execute(select(Profile).where(Profile.id == admin_id))
-    admin = result.scalar_one_or_none()
-    if not admin or not admin.is_admin:
-        raise HTTPException(status_code=403, detail="Admin access required")
-    
     config = await get_ad_config(db)
     variants = config.get("variants", [])
     
@@ -766,7 +717,7 @@ async def reject_ad(
             variant["approval_status"] = "rejected"
             variant["is_active"] = False
             variant["rejected_at"] = datetime.now(timezone.utc).isoformat()
-            variant["rejected_by"] = admin_id
+            variant["rejected_by"] = admin.id
             variant["rejection_reason"] = reason
             ad = variant
             break
@@ -798,7 +749,7 @@ async def reject_ad(
             db.add(tx)
     
     config["variants"] = variants
-    await save_ad_config(config, admin_id, db)
+    await save_ad_config(config, admin.id, db)
     
     # Send push notification to the ad submitter about rejection
     if submitter_id:
