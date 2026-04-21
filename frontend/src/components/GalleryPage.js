@@ -554,20 +554,28 @@ export const GalleryPage = () => {
     }
   };
 
-  // Distribute ALL gallery items to a specific surfer
+  // Distribute ALL gallery items to a specific surfer (respects payment tiers)
   const handleDistributeToSurfer = async (surferId, surferName) => {
     if (!selectedGallery) return;
     setDistributeLoading(prev => ({ ...prev, [surferId]: true }));
     try {
+      // Find participant to check credits
+      const participant = participants.find(p => p.surfer_id === surferId);
+      const hasCredits = participant && participant.photos_credit_remaining > 0;
+      const accessType = hasCredits ? 'included' : 'pending_selection';
+      
       const response = await apiClient.post(
         `/gallery/${selectedGallery.id}/distribute-to-surfer?photographer_id=${user.id}`,
-        { surfer_id: surferId, access_type: 'watermarked' }
+        { surfer_id: surferId, access_type: accessType }
       );
       const count = response.data.items_distributed || 0;
       const skipped = response.data.skipped_count || 0;
       
       if (count > 0) {
-        toast.success(`✅ Sent ${count} items to ${surferName}'s Locker!`);
+        const tierMsg = hasCredits 
+          ? `${Math.min(count, participant.photos_credit_remaining)} included (full-res)` 
+          : 'as previews';
+        toast.success(`✅ Pushed ${count} items to ${surferName}'s Locker ${tierMsg}!`);
       } else if (skipped > 0) {
         toast.info(`All items already in ${surferName}'s Locker`);
       } else {
@@ -1469,6 +1477,7 @@ export const GalleryPage = () => {
       {selectedItem && (
         <GalleryItemModal
           item={selectedItem}
+          galleryId={selectedGallery?.id}
           onClose={() => setSelectedItem(null)}
           onPurchased={fetchGallery}
         />
@@ -2075,10 +2084,97 @@ export const GalleryPage = () => {
                     <Users className="w-4 h-4 text-purple-400" />
                     Session Participants ({participants.length})
                   </h3>
+                </div>
+                
+                {participants.map((p) => {
+                  const isFullyDistributed = p.items_distributed >= galleryItems.length && galleryItems.length > 0;
+                  const isLoading = distributeLoading[p.surfer_id];
+                  const hasCredits = p.photos_credit_remaining > 0;
+                  return (
+                    <div
+                      key={p.surfer_id}
+                      className={`p-3 rounded-lg border transition-all ${
+                        isFullyDistributed
+                          ? 'bg-emerald-500/10 border-emerald-500/30'
+                          : 'bg-muted/30 border-border/50 hover:border-purple-500/50'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        {/* Avatar */}
+                        {p.avatar_url || p.selfie_url ? (
+                          <img
+                            src={getFullUrl(p.selfie_url || p.avatar_url)}
+                            alt={p.full_name}
+                            className="w-10 h-10 rounded-full object-cover border-2 border-border"
+                          />
+                        ) : (
+                          <div className="w-10 h-10 rounded-full bg-purple-500/20 flex items-center justify-center text-purple-400 font-bold text-sm">
+                            {(p.full_name || p.username || '?').charAt(0).toUpperCase()}
+                          </div>
+                        )}
+                        
+                        {/* Name + payment info */}
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-foreground truncate">
+                            {p.full_name || p.username || 'Unknown'}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            ${p.amount_paid || 0} paid via {p.payment_method || 'credits'}
+                          </p>
+                        </div>
+                        
+                        {/* Action button */}
+                        {isFullyDistributed ? (
+                          <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30 text-xs">
+                            <CheckCircle className="w-3 h-3 mr-1" /> Delivered
+                          </Badge>
+                        ) : (
+                          <Button
+                            size="sm"
+                            className="bg-purple-500 hover:bg-purple-600 text-white text-xs h-8"
+                            onClick={() => handleDistributeToSurfer(p.surfer_id, p.full_name || p.username)}
+                            disabled={isLoading || galleryItems.length === 0}
+                          >
+                            {isLoading ? (
+                              <Loader2 className="w-3 h-3 animate-spin" />
+                            ) : (
+                              <>
+                                <Send className="w-3 h-3 mr-1" />
+                                Push to Locker
+                              </>
+                            )}
+                          </Button>
+                        )}
+                      </div>
+                      
+                      {/* Delivery details row */}
+                      <div className="mt-2 flex items-center gap-2 flex-wrap">
+                        {hasCredits && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                            🎟️ {p.photos_credit_remaining} included (full-res)
+                          </span>
+                        )}
+                        {p.items_distributed > 0 && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-blue-500/20 text-blue-400 border border-blue-500/30">
+                            📤 {p.items_distributed}/{galleryItems.length} sent
+                          </span>
+                        )}
+                        {p.resolution_preference && p.resolution_preference !== 'standard' && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-amber-500/20 text-amber-400 border border-amber-500/30">
+                            📐 {p.resolution_preference}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+                
+                {/* Batch action for all participants */}
+                {participants.length > 1 && (
                   <Button
                     size="sm"
                     variant="outline"
-                    className="border-emerald-600 text-emerald-400 hover:bg-emerald-500/10 text-xs h-7"
+                    className="w-full border-emerald-600 text-emerald-400 hover:bg-emerald-500/10 text-xs h-8 mt-1"
                     onClick={handleDistributeAll}
                     disabled={distributeAllLoading || galleryItems.length === 0}
                   >
@@ -2087,74 +2183,9 @@ export const GalleryPage = () => {
                     ) : (
                       <Send className="w-3 h-3 mr-1" />
                     )}
-                    Distribute All
+                    Push All {galleryItems.length} Items to All {participants.length} Participants
                   </Button>
-                </div>
-                
-                {participants.map((p) => {
-                  const isFullyDistributed = p.items_distributed >= galleryItems.length && galleryItems.length > 0;
-                  const isLoading = distributeLoading[p.surfer_id];
-                  return (
-                    <div
-                      key={p.surfer_id}
-                      className={`flex items-center gap-3 p-3 rounded-lg border transition-all ${
-                        isFullyDistributed
-                          ? 'bg-emerald-500/10 border-emerald-500/30'
-                          : 'bg-muted/30 border-border/50 hover:border-purple-500/50'
-                      }`}
-                    >
-                      {/* Avatar */}
-                      {p.avatar_url || p.selfie_url ? (
-                        <img
-                          src={getFullUrl(p.selfie_url || p.avatar_url)}
-                          alt={p.full_name}
-                          className="w-10 h-10 rounded-full object-cover border-2 border-border"
-                        />
-                      ) : (
-                        <div className="w-10 h-10 rounded-full bg-purple-500/20 flex items-center justify-center text-purple-400 font-bold text-sm">
-                          {(p.full_name || p.username || '?').charAt(0).toUpperCase()}
-                        </div>
-                      )}
-                      
-                      {/* Name + status */}
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-foreground truncate">
-                          {p.full_name || p.username || 'Unknown'}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {p.items_distributed > 0
-                            ? `${p.items_distributed}/${galleryItems.length} items sent`
-                            : 'No items sent yet'
-                          }
-                          {p.amount_paid > 0 && ` · $${p.amount_paid} paid`}
-                        </p>
-                      </div>
-                      
-                      {/* Action button */}
-                      {isFullyDistributed ? (
-                        <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30 text-xs">
-                          <CheckCircle className="w-3 h-3 mr-1" /> Done
-                        </Badge>
-                      ) : (
-                        <Button
-                          size="sm"
-                          className="bg-purple-500 hover:bg-purple-600 text-white text-xs h-8"
-                          onClick={() => handleDistributeToSurfer(p.surfer_id, p.full_name || p.username)}
-                          disabled={isLoading || galleryItems.length === 0}
-                        >
-                          {isLoading ? (
-                            <Loader2 className="w-3 h-3 animate-spin" />
-                          ) : (
-                            <>
-                              <Send className="w-3 h-3 mr-1" />
-                              Send All
-                            </>
-                          )}
-                        </Button>
-                      )}
-                    </div>
-                  );
-                })}
+                )}
               </div>
             ) : sessionInfo && !sessionInfo.is_linked ? null : (
               <div className="text-center py-6">
@@ -2221,7 +2252,7 @@ export const GalleryPage = () => {
                           <Loader2 className="w-3 h-3 animate-spin" />
                         ) : (
                           <>
-                            <Send className="w-3 h-3 mr-1" /> Send
+                            <Send className="w-3 h-3 mr-1" /> Push
                           </>
                         )}
                       </Button>
@@ -2234,12 +2265,21 @@ export const GalleryPage = () => {
               )}
             </div>
             
-            {/* Gallery Items Summary */}
-            <div className="p-3 rounded-lg bg-muted/30 border border-border/50">
+            {/* Gallery Items Summary — Smart Delivery Info */}
+            <div className="p-3 rounded-lg bg-muted/30 border border-border/50 space-y-1">
               <p className="text-xs text-muted-foreground">
-                📦 <strong>{galleryItems.length}</strong> items in this gallery will be distributed as watermarked previews. 
-                Surfers can then purchase full-resolution versions from their Locker.
+                📦 <strong>{galleryItems.length}</strong> items in this gallery
               </p>
+              {participants.some(p => p.photos_credit_remaining > 0) ? (
+                <p className="text-xs text-emerald-400">
+                  🎟️ Participants with included photos will receive <strong>full-resolution</strong> items up to their credit. 
+                  Additional items are delivered as previews.
+                </p>
+              ) : (
+                <p className="text-xs text-muted-foreground">
+                  Items will be pushed to surfer Lockers. Surfers can then purchase full-resolution versions.
+                </p>
+              )}
             </div>
           </div>
           

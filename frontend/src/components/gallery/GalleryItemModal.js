@@ -8,7 +8,7 @@ import apiClient from '../../lib/apiClient';
 import { getFullUrl } from '../../utils/media';
 import { 
   Lock, Eye, ShoppingCart, Download, DollarSign, Edit3, Loader2, Check,
-  Play, Image as ImageIcon, X
+  Play, Image as ImageIcon, X, Send, UserPlus
 } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Dialog, DialogContent, DialogTitle } from '../ui/dialog';
@@ -21,7 +21,7 @@ import { PriceSourceBadge } from './PriceSourceBadge';
 
 import { getErrorMessage } from '../../utils/errors';
 
-export const GalleryItemModal = ({ item, onClose, onPurchased }) => {
+export const GalleryItemModal = ({ item, onClose, onPurchased, galleryId }) => {
   const { user } = useAuth();
   const [purchasing, setPurchasing] = useState(false);
   const [pricingInfo, setPricingInfo] = useState(null);
@@ -30,6 +30,11 @@ export const GalleryItemModal = ({ item, onClose, onPurchased }) => {
   const [customPrice, setCustomPrice] = useState(item.custom_price || item.price || 5);
   const [saving, setSaving] = useState(false);
   const [imgError, setImgError] = useState(false);
+  
+  // Per-image tagging state (photographer only)
+  const [tagParticipants, setTagParticipants] = useState([]);
+  const [tagLoading, setTagLoading] = useState({});
+  const [loadingTagParticipants, setLoadingTagParticipants] = useState(false);
   
   // Check if current user is the owner
   const isOwner = user?.id === item.photographer_id;
@@ -58,6 +63,58 @@ export const GalleryItemModal = ({ item, onClose, onPurchased }) => {
     };
     fetchPricing();
   }, [item.id, user?.id]);
+
+  // Fetch session participants for per-image tagging (owner only)
+  useEffect(() => {
+    if (!isOwner || !galleryId) return;
+    const fetchTagParticipants = async () => {
+      setLoadingTagParticipants(true);
+      try {
+        const response = await apiClient.get(
+          `/gallery/${galleryId}/session-participants?photographer_id=${user.id}`
+        );
+        setTagParticipants(response.data.participants || []);
+      } catch (error) {
+        logger.error('Failed to fetch tag participants:', error);
+      } finally {
+        setLoadingTagParticipants(false);
+      }
+    };
+    fetchTagParticipants();
+  }, [isOwner, galleryId, user?.id]);
+
+  // Tag single item to a surfer
+  const handleTagToSurfer = async (surferId, surferName) => {
+    if (!galleryId) return;
+    setTagLoading(prev => ({ ...prev, [surferId]: true }));
+    try {
+      const response = await apiClient.post(
+        `/gallery/${galleryId}/tag-item?photographer_id=${user.id}`,
+        { surfer_id: surferId, item_id: item.id }
+      );
+      
+      if (response.data.already_tagged) {
+        toast.info(`Already tagged to ${surferName}`);
+      } else {
+        const accessLabel = response.data.access_type === 'included' 
+          ? '(full-res — included in buy-in)' 
+          : '(preview — purchase to unlock)';
+        toast.success(`✅ Tagged to ${surferName} ${accessLabel}`);
+        if (response.data.credits_remaining >= 0) {
+          // Update participant credits in local state
+          setTagParticipants(prev => prev.map(p => 
+            p.surfer_id === surferId 
+              ? { ...p, photos_credit_remaining: response.data.credits_remaining, items_distributed: (p.items_distributed || 0) + 1 }
+              : p
+          ));
+        }
+      }
+    } catch (error) {
+      toast.error(getErrorMessage(error, `Failed to tag to ${surferName}`));
+    } finally {
+      setTagLoading(prev => ({ ...prev, [surferId]: false }));
+    }
+  };
 
   const handlePurchase = async () => {
     setPurchasing(true);
@@ -315,6 +372,68 @@ export const GalleryItemModal = ({ item, onClose, onPurchased }) => {
               )}
             </div>
           )}
+
+          {/* ── Per-Image Tag to Surfer (Owner Only) ── */}
+          {isOwner && galleryId && (
+            <div className="mt-4 p-4 bg-zinc-800/80 rounded-lg border border-purple-500/20">
+              <h4 className="font-medium text-white flex items-center gap-2 mb-3">
+                <Send className="w-4 h-4 text-purple-400" />
+                Tag to Surfer
+              </h4>
+              
+              {loadingTagParticipants ? (
+                <div className="flex items-center justify-center py-3">
+                  <Loader2 className="w-4 h-4 animate-spin text-purple-400" />
+                  <span className="ml-2 text-gray-400 text-xs">Loading participants...</span>
+                </div>
+              ) : tagParticipants.length > 0 ? (
+                <div className="space-y-2">
+                  <p className="text-xs text-gray-400 mb-2">Select a surfer to tag this item to their Locker:</p>
+                  <div className="flex flex-wrap gap-2">
+                    {tagParticipants.map((p) => {
+                      const isLoading = tagLoading[p.surfer_id];
+                      const hasCredits = p.photos_credit_remaining > 0;
+                      return (
+                        <button
+                          key={p.surfer_id}
+                          onClick={() => handleTagToSurfer(p.surfer_id, p.full_name || p.username)}
+                          disabled={isLoading}
+                          className={`flex items-center gap-2 px-3 py-2 rounded-lg border transition-all text-left ${
+                            hasCredits 
+                              ? 'border-emerald-500/40 bg-emerald-500/10 hover:bg-emerald-500/20'
+                              : 'border-zinc-600 bg-zinc-700/50 hover:bg-zinc-700'
+                          }`}
+                        >
+                          {isLoading ? (
+                            <Loader2 className="w-6 h-6 animate-spin text-purple-400" />
+                          ) : p.avatar_url || p.selfie_url ? (
+                            <img
+                              src={getFullUrl(p.selfie_url || p.avatar_url)}
+                              alt={p.full_name}
+                              className="w-6 h-6 rounded-full object-cover"
+                            />
+                          ) : (
+                            <div className="w-6 h-6 rounded-full bg-purple-500/30 flex items-center justify-center text-purple-400 text-xs font-bold">
+                              {(p.full_name || p.username || '?').charAt(0).toUpperCase()}
+                            </div>
+                          )}
+                          <div className="min-w-0">
+                            <p className="text-xs font-medium text-white truncate">{p.full_name || p.username}</p>
+                            <p className="text-[10px] text-gray-400">
+                              {hasCredits ? `${p.photos_credit_remaining} free remaining` : 'Preview'}
+                            </p>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : (
+                <p className="text-xs text-gray-500">No session participants. Use the gallery-level Tag & Assign to search for surfers.</p>
+              )}
+            </div>
+          )}
+
 
           {/* Session Deal Banner - Only for non-owners */}
           {!isOwner && pricingInfo?.is_session_participant && (

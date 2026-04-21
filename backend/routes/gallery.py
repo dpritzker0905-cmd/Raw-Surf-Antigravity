@@ -3380,7 +3380,10 @@ async def get_gallery_session_participants(
                 "amount_paid": participant.amount_paid,
                 "joined_at": participant.joined_at.isoformat() if participant.joined_at else None,
                 "status": participant.status,
-                "items_distributed": distributed_count
+                "items_distributed": distributed_count,
+                "photos_credit_remaining": participant.photos_credit_remaining or 0,
+                "resolution_preference": participant.resolution_preference or 'standard',
+                "payment_method": participant.payment_method
             })
     
     elif gallery.booking_id:
@@ -3665,6 +3668,106 @@ async def distribute_gallery_to_surfer(
         "items_skipped": skipped_count,
         "total_items": len(items)
     }
+
+
+class TagItemToSurferRequest(BaseModel):
+    surfer_id: str
+    item_id: str
+
+
+@router.post("/gallery/{gallery_id}/tag-item")
+async def tag_single_item_to_surfer(
+    gallery_id: str,
+    photographer_id: str,
+    data: TagItemToSurferRequest,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Tag a single gallery item to a specific surfer's locker.
+    
+    Access type is determined automatically based on payment:
+    - If surfer has remaining photos_credit from buy-in → 'included' (full-res)
+    - Otherwise → 'pending_selection' (watermarked preview, purchase to unlock)
+    
+    Idempotent: won't create duplicates.
+    """
+    from services.gallery_sync import manually_assign_item_to_surfer
+    
+    # Verify gallery ownership
+    result = await db.execute(select(Gallery).where(Gallery.id == gallery_id))
+    gallery = result.scalar_one_or_none()
+    if not gallery:
+        raise HTTPException(status_code=404, detail="Gallery not found")
+    if gallery.photographer_id != photographer_id:
+        raise HTTPException(status_code=403, detail="Not authorized")
+    
+    # Verify item belongs to gallery
+    item_result = await db.execute(
+        select(GalleryItem).where(
+            GalleryItem.id == data.item_id,
+            GalleryItem.gallery_id == gallery_id
+        )
+    )
+    item = item_result.scalar_one_or_none()
+    if not item:
+        raise HTTPException(status_code=404, detail="Item not found in this gallery")
+    
+    # Check if already tagged
+    existing = await db.execute(
+        select(SurferGalleryItem).where(
+            SurferGalleryItem.surfer_id == data.surfer_id,
+            SurferGalleryItem.gallery_item_id == data.item_id
+        )
+    )
+    if existing.scalar_one_or_none():
+        return {
+            "message": "Already tagged to this surfer",
+            "item_id": data.item_id,
+            "surfer_id": data.surfer_id,
+            "already_tagged": True
+        }
+    
+    # Determine access_type based on payment credits
+    access_type = 'pending_selection'  # default: watermarked preview
+    
+    # Check if surfer has included photos from their session buy-in
+    participant_result = await db.execute(
+        select(LiveSessionParticipant).where(
+            LiveSessionParticipant.surfer_id == data.surfer_id,
+            LiveSessionParticipant.photographer_id == photographer_id,
+            LiveSessionParticipant.status.notin_(['cancelled', 'refunded'])
+        ).order_by(LiveSessionParticipant.joined_at.desc()).limit(1)
+    )
+    participant = participant_result.scalar_one_or_none()
+    
+    if participant and participant.photos_credit_remaining and participant.photos_credit_remaining > 0:
+        access_type = 'included'  # Full resolution — covered by buy-in
+        # Decrement the credit
+        participant.photos_credit_remaining -= 1
+    
+    try:
+        await manually_assign_item_to_surfer(
+            db=db,
+            gallery_item_id=data.item_id,
+            surfer_id=data.surfer_id,
+            photographer_id=photographer_id,
+            access_type=access_type,
+            gallery=gallery
+        )
+        await db.commit()
+        
+        return {
+            "message": f"Tagged to surfer as {access_type}",
+            "item_id": data.item_id,
+            "surfer_id": data.surfer_id,
+            "access_type": access_type,
+            "credits_remaining": participant.photos_credit_remaining if participant else 0,
+            "already_tagged": False
+        }
+    except Exception as e:
+        gallery_logger.error(f"Failed to tag item {data.item_id} to surfer {data.surfer_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to tag item: {str(e)}")
+
 
 
 @router.get("/gallery/{gallery_id}/distribution-status")
