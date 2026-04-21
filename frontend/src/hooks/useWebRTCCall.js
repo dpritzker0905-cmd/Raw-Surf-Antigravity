@@ -473,16 +473,21 @@ export function useWebRTCCall(userId, userInfo = {}) {
     // Use ref to avoid stale closure — callState may be outdated in the callback
     if (callStateRef.current !== CALL_STATE.INCOMING) {
       console.debug('[WebRTC] declineCall ignored — state is', callStateRef.current);
-      // Even if not INCOMING, force cleanup to dismiss the modal
-      cleanup();
+      // Force reset to dismiss the modal even if state is stale
+      setCallState(CALL_STATE.IDLE);
+      setCallType(null);
+      setRemoteUserInfo(null);
       return;
     }
     sendSignaling({
       type: 'call_decline',
       target_user_id: remoteUserInfoRef.current?.id,
     });
-    cleanup();
-  }, [sendSignaling, cleanup]);
+    // Reset state directly (cleanup is defined later, can't be in deps)
+    setCallState(CALL_STATE.IDLE);
+    setCallType(null);
+    setRemoteUserInfo(null);
+  }, [sendSignaling]);
 
   // ── End Call ──────────────────────────────────────────────────────
   const endCall = useCallback(() => {
