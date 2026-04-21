@@ -1,12 +1,14 @@
-﻿/**
+/**
  * GalleryItemModal - View/Purchase modal for gallery items
- * Extracted from GalleryPage.js for cleaner architecture
+ * Shows full-size photo preview or playable video with pricing and actions.
  */
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import apiClient, { BACKEND_URL } from '../../lib/apiClient';
+import apiClient from '../../lib/apiClient';
+import { getFullUrl } from '../../utils/media';
 import { 
-  Lock, Eye, ShoppingCart, Download, DollarSign, Edit3, Loader2, Check
+  Lock, Eye, ShoppingCart, Download, DollarSign, Edit3, Loader2, Check,
+  Play, Image as ImageIcon, X
 } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Dialog, DialogContent, DialogTitle } from '../ui/dialog';
@@ -39,9 +41,18 @@ export const GalleryItemModal = ({ item, onClose, onPurchased }) => {
   const [editMode, setEditMode] = useState(false);
   const [customPrice, setCustomPrice] = useState(item.custom_price || item.price || 5);
   const [saving, setSaving] = useState(false);
+  const [imgError, setImgError] = useState(false);
   
   // Check if current user is the owner
   const isOwner = user?.id === item.photographer_id;
+  const isVideo = item.media_type === 'video' || item.type === 'video';
+  
+  // Resolve the correct preview URL  
+  const mediaUrl = getFullUrl(
+    isOwner 
+      ? (item.original_url || item.preview_url) 
+      : (item.is_purchased ? item.original_url : item.preview_url)
+  );
 
   // Fetch pricing info including session deals
   useEffect(() => {
@@ -127,35 +138,78 @@ export const GalleryItemModal = ({ item, onClose, onPurchased }) => {
 
   return (
     <Dialog open={true} onOpenChange={onClose}>
-      <DialogContent className="bg-zinc-900 border-zinc-800 text-white max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogTitle className="sr-only">Dialog</DialogTitle>
-        <div className="relative">
-          <img
-            src={isOwner ? (item.original_url || item.preview_url) : (item.is_purchased ? item.original_url : item.preview_url)}
-            alt={item.title || 'Gallery photo'}
-            className="w-full rounded-lg"
-          />
+      <DialogContent className="bg-zinc-900 border-zinc-800 text-white max-w-2xl max-h-[95vh] overflow-y-auto p-0">
+        <DialogTitle className="sr-only">{item.title || 'Gallery Item'}</DialogTitle>
+        
+        {/* Close button */}
+        <button
+          onClick={onClose}
+          className="absolute top-3 right-3 z-30 w-9 h-9 rounded-full bg-black/60 backdrop-blur-sm flex items-center justify-center text-white hover:bg-black/80 transition-colors"
+        >
+          <X className="w-5 h-5" />
+        </button>
+
+        {/* ── Media Preview ── */}
+        <div className="relative bg-black w-full">
+          {isVideo ? (
+            // Video player
+            mediaUrl && !imgError ? (
+              <video
+                src={mediaUrl}
+                controls
+                playsInline
+                preload="metadata"
+                poster={getFullUrl(item.thumbnail_url)}
+                className="w-full max-h-[50vh] object-contain"
+                onError={() => setImgError(true)}
+              >
+                Your browser does not support video playback.
+              </video>
+            ) : (
+              <div className="w-full h-48 flex flex-col items-center justify-center bg-gradient-to-br from-zinc-800 to-zinc-900 text-zinc-500">
+                <Play className="w-12 h-12 mb-2 opacity-50" />
+                <span className="text-sm">Video preview unavailable</span>
+              </div>
+            )
+          ) : (
+            // Image preview
+            mediaUrl && !imgError ? (
+              <img
+                src={mediaUrl}
+                alt={item.title || 'Gallery photo'}
+                className="w-full max-h-[50vh] object-contain"
+                onError={() => setImgError(true)}
+              />
+            ) : (
+              <div className="w-full h-48 flex flex-col items-center justify-center bg-gradient-to-br from-zinc-800 to-zinc-900 text-zinc-500">
+                <ImageIcon className="w-12 h-12 mb-2 opacity-50" />
+                <span className="text-sm">Photo preview unavailable</span>
+              </div>
+            )
+          )}
           
-          {!isOwner && !item.is_purchased && (
-            <div className="absolute inset-0 flex items-center justify-center bg-black/30 rounded-lg">
-              <div className="text-center p-6 bg-black/70 rounded-xl">
-                <Lock className="w-10 h-10 text-yellow-400 mx-auto mb-3" />
-                <p className="text-white font-medium mb-1">Watermarked Preview</p>
-                <p className="text-gray-400 text-sm">Purchase to get high-res original</p>
+          {/* Watermark overlay for non-owners who haven't purchased */}
+          {!isOwner && !item.is_purchased && !imgError && mediaUrl && (
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+              <div className="text-center p-4 bg-black/60 rounded-xl backdrop-blur-sm">
+                <Lock className="w-8 h-8 text-yellow-400 mx-auto mb-2" />
+                <p className="text-white font-medium text-sm">Watermarked Preview</p>
+                <p className="text-gray-400 text-xs">Purchase for full resolution</p>
               </div>
             </div>
           )}
         </div>
 
-        <div className="pt-4">
+        {/* ── Item Info ── */}
+        <div className="px-5 pb-5 pt-3">
           {item.title && (
-            <h3 className="text-xl font-bold text-white">{item.title}</h3>
+            <h3 className="text-lg font-bold text-white">{item.title}</h3>
           )}
           {item.description && (
-            <p className="text-gray-400 mt-2">{item.description}</p>
+            <p className="text-gray-400 mt-1 text-sm">{item.description}</p>
           )}
 
-          <div className="flex items-center gap-4 mt-4 text-sm text-gray-400">
+          <div className="flex items-center gap-4 mt-3 text-sm text-gray-400">
             <span className="flex items-center gap-1">
               <Eye className="w-4 h-4" />
               {item.view_count || 0} views
@@ -171,7 +225,7 @@ export const GalleryItemModal = ({ item, onClose, onPurchased }) => {
 
           {/* Owner: Price Editing Section */}
           {isOwner && (
-            <div className="mt-6 p-4 bg-zinc-800 rounded-lg">
+            <div className="mt-4 p-4 bg-zinc-800 rounded-lg">
               <div className="flex items-center justify-between mb-3">
                 <h4 className="font-medium text-white flex items-center gap-2">
                   <DollarSign className="w-4 h-4 text-green-400" />
@@ -300,11 +354,11 @@ export const GalleryItemModal = ({ item, onClose, onPurchased }) => {
             </div>
           )}
 
-          <div className="flex gap-3 mt-6">
+          <div className="flex gap-3 mt-5">
             {isOwner ? (
               <>
                 <Button
-                  onClick={() => window.open(item.original_url, '_blank')}
+                  onClick={() => window.open(getFullUrl(item.original_url), '_blank')}
                   className="flex-1 bg-cyan-500 hover:bg-cyan-600 text-black"
                 >
                   <Download className="w-4 h-4 mr-2" />

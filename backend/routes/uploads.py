@@ -1014,9 +1014,26 @@ async def upload_photographer_gallery_media(
         original_path = gallery_dir / original_filename
         preview_path = gallery_dir / preview_filename
         
-        # Save original (high-res)
-        with open(original_path, "wb") as f:
-            f.write(content)
+        # Auto-rotate based on EXIF orientation (fixes sideways mobile photos)
+        try:
+            from PIL import Image as PILImage, ImageOps
+            from io import BytesIO
+            img = PILImage.open(BytesIO(content))
+            img = ImageOps.exif_transpose(img)
+            # Save the corrected original
+            save_kwargs = {}
+            if ext.lower() in ('.jpg', '.jpeg'):
+                save_kwargs = {'quality': 95, 'exif': b''}  # Strip EXIF after applying rotation
+            elif ext.lower() == '.png':
+                save_kwargs = {'optimize': True}
+            elif ext.lower() == '.webp':
+                save_kwargs = {'quality': 95}
+            img.save(str(original_path), **save_kwargs)
+            logger.info(f"Saved EXIF-corrected image: {original_filename}")
+        except Exception as exif_err:
+            logger.warning(f"EXIF auto-rotate failed ({exif_err}), saving raw file")
+            with open(original_path, "wb") as f:
+                f.write(content)
         
         # Create watermarked preview
         watermark_time_ms = 0

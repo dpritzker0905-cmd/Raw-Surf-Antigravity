@@ -85,6 +85,9 @@ export const GalleryPage = () => {
   const [showDeleteFolderModal, setShowDeleteFolderModal] = useState(false);
   const [folderToDelete, setFolderToDelete] = useState(null);
   
+  // Delete item confirmation dialog (replaces window.confirm)
+  const [deleteConfirm, setDeleteConfirm] = useState(null); // { type: 'single'|'bulk', itemId?, count? }
+  
   // NEW: Bulk select state
   const [bulkSelectMode, setBulkSelectMode] = useState(false);
   const [selectedItems, setSelectedItems] = useState(new Set());
@@ -263,8 +266,11 @@ export const GalleryPage = () => {
 
   // Delete item from gallery
   const handleDeleteFromGallery = async (itemId) => {
-    if (!selectedGallery || !window.confirm('Delete this item from the gallery?')) return;
-    
+    if (!selectedGallery) return;
+    setDeleteConfirm({ type: 'single', itemId });
+  };
+
+  const executeDeleteFromGallery = async (itemId) => {
     setDeletingItemId(itemId);
     try {
       // Try gallery-scoped delete first, fall back to direct item delete
@@ -523,8 +529,10 @@ export const GalleryPage = () => {
       toast.error('No items selected');
       return;
     }
-    if (!window.confirm(`Delete ${selectedItems.size} selected items? This cannot be undone.`)) return;
-    
+    setDeleteConfirm({ type: 'bulk', count: selectedItems.size });
+  };
+
+  const executeBulkDelete = async () => {
     setFolderActionLoading(true);
     try {
       const itemIds = Array.from(selectedItems);
@@ -1235,6 +1243,42 @@ export const GalleryPage = () => {
         galleryPricing={galleryPricing}
         selectedGallery={selectedGallery}
       />
+
+      {/* Delete Confirmation Dialog (replaces browser confirm) */}
+      <Dialog open={!!deleteConfirm} onOpenChange={(open) => { if (!open) setDeleteConfirm(null); }}>
+        <DialogContent className="bg-background border-border text-foreground max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-foreground">Confirm Delete</DialogTitle>
+          </DialogHeader>
+          <p className="text-muted-foreground py-2">
+            {deleteConfirm?.type === 'bulk'
+              ? `Delete ${deleteConfirm?.count} selected items? This cannot be undone.`
+              : 'Delete this item from the gallery? This cannot be undone.'}
+          </p>
+          <div className="flex gap-3 justify-end pt-2">
+            <Button
+              variant="outline"
+              className="border-border"
+              onClick={() => setDeleteConfirm(null)}
+            >
+              Cancel
+            </Button>
+            <Button
+              className="bg-red-500 hover:bg-red-600 text-white"
+              onClick={() => {
+                if (deleteConfirm?.type === 'bulk') {
+                  executeBulkDelete();
+                } else if (deleteConfirm?.itemId) {
+                  executeDeleteFromGallery(deleteConfirm.itemId);
+                }
+                setDeleteConfirm(null);
+              }}
+            >
+              Delete
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* View/Purchase Modal */}
       {selectedItem && (
