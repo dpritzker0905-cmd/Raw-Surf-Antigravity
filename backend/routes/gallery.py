@@ -1262,7 +1262,7 @@ class BulkAssignRequest(BaseModel):
     photographer_id: str
     surfer_id: str
     item_ids: Optional[List[str]] = None  # If None, assigns all items in gallery
-    access_type: str = 'pending_selection'
+    access_type: str = 'included'  # Default to 'included' for session-purchased content
 
 @router.post("/gallery/{gallery_id}/assign-all-to-surfer")
 async def bulk_assign_to_surfer(

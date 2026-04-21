@@ -395,7 +395,8 @@ async def upload_gallery_media(
     user_id: str = Form(...),
     add_watermark_preview: bool = Form(True)
 ):
-    """Upload media for gallery (creates watermarked preview)"""
+    """Upload media for gallery (creates watermarked preview).
+    Persists to Supabase Storage for durable URLs; falls back to local disk."""
     # Validate file type - gallery only accepts images
     if file.content_type not in ALLOWED_IMAGE_TYPES:
         raise HTTPException(status_code=400, detail="Gallery only accepts images: JPEG, PNG, WebP, GIF")
@@ -411,14 +412,14 @@ async def upload_gallery_media(
     original_filename = f"{base_filename}_original{ext}"
     preview_filename = f"{base_filename}_preview{ext}"
     
-    # Create gallery subdirectory
+    # Create gallery subdirectory (local working copy)
     gallery_dir = UPLOAD_DIR / "gallery" / user_id
     gallery_dir.mkdir(parents=True, exist_ok=True)
     
     original_path = gallery_dir / original_filename
     preview_path = gallery_dir / preview_filename
     
-    # Save original (high-res)
+    # Save original (high-res) locally first
     with open(original_path, "wb") as f:
         f.write(content)
     
@@ -429,13 +430,27 @@ async def upload_gallery_media(
     else:
         shutil.copy(original_path, preview_path)
     
+    # --- Persist to Supabase Storage for durable URLs ---
+    content_type_img = file.content_type or 'image/jpeg'
+    supabase_original = upload_to_supabase_storage(
+        original_path, 'gallery', f'{user_id}/{original_filename}', content_type_img
+    )
+    supabase_preview = upload_to_supabase_storage(
+        preview_path, 'gallery', f'{user_id}/{preview_filename}', content_type_img
+    )
+    
+    # Use Supabase URLs if available, otherwise fall back to ephemeral local paths
+    final_original = supabase_original or f"/api/uploads/gallery/{user_id}/{original_filename}"
+    final_preview = supabase_preview or f"/api/uploads/gallery/{user_id}/{preview_filename}"
+    
     return {
-        "original_url": f"/api/uploads/gallery/{user_id}/{original_filename}",
-        "preview_url": f"/api/uploads/gallery/{user_id}/{preview_filename}",
+        "original_url": final_original,
+        "preview_url": final_preview,
         "filename": base_filename,
         "size": len(content),
         "has_watermark": add_watermark_preview,
-        "watermark_time_ms": watermark_time_ms
+        "watermark_time_ms": watermark_time_ms,
+        "storage": "supabase" if supabase_original else "local"
     }
 
 @router.post("/upload/avatar")
