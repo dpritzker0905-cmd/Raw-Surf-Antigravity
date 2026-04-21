@@ -948,26 +948,43 @@ async def upload_photographer_gallery_media(
         )
         
         if not success:
-            raise HTTPException(status_code=400, detail=f"Video processing failed: {error}")
+            # Fallback: save raw video file when processing fails (e.g. no ffmpeg)
+            import uuid as _uuid
+            fallback_filename = f"{_uuid.uuid4()}.mp4"
+            fallback_path = gallery_dir / fallback_filename
+            with open(fallback_path, "wb") as fb:
+                fb.write(content)
+            logger.warning(f"Video processing failed ({error}), saved raw file: {fallback_filename}")
+            result_data = {
+                'filename': fallback_filename,
+                'original_width': 0,
+                'original_height': 0,
+                'duration': 0,
+                'was_transcoded': False,
+                'size': len(content)
+            }
         
         original_url = f"/api/uploads/gallery/{user_id}/{result_data['filename']}"
         preview_url = original_url  # For videos, preview is same as original
         
-        # Generate smart thumbnail
+        # Generate smart thumbnail (graceful if ffmpeg unavailable)
         thumbnail_url = None
-        video_path = gallery_dir / result_data['filename']
-        thumbnail_filename = f"{result_data['filename'].rsplit('.', 1)[0]}_thumb.jpg"
-        thumbnail_path = gallery_dir / thumbnail_filename
-        
-        thumb_success, _ = await asyncio.to_thread(
-            generate_video_thumbnail,
-            str(video_path),
-            str(thumbnail_path),
-            'smart'
-        )
-        
-        if thumb_success:
-            thumbnail_url = f"/api/uploads/gallery/{user_id}/{thumbnail_filename}"
+        try:
+            video_path = gallery_dir / result_data['filename']
+            thumbnail_filename = f"{result_data['filename'].rsplit('.', 1)[0]}_thumb.jpg"
+            thumbnail_path = gallery_dir / thumbnail_filename
+            
+            thumb_success, _ = await asyncio.to_thread(
+                generate_video_thumbnail,
+                str(video_path),
+                str(thumbnail_path),
+                'smart'
+            )
+            
+            if thumb_success:
+                thumbnail_url = f"/api/uploads/gallery/{user_id}/{thumbnail_filename}"
+        except Exception as thumb_err:
+            logger.warning(f"Thumbnail generation skipped: {thumb_err}")
         
         max_res = "4K" if is_paid else "1080p"
         
