@@ -1822,6 +1822,11 @@ class GalleryItem(Base):
     is_public = Column(Boolean, default=True)
     is_featured = Column(Boolean, default=False)
     
+    # Soft-delete: When photographer "deletes" an item that surfers have paid for,
+    # we hide it from photographer's gallery but keep media alive for paid locker items
+    is_deleted = Column(Boolean, default=False)
+    deleted_at = Column(DateTime(timezone=True), nullable=True)
+    
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True)
     shot_at = Column(DateTime(timezone=True), nullable=True)  # When the photo was taken
     
@@ -1976,6 +1981,14 @@ class SurferGalleryItem(Base):
     swell_period = Column(Float, nullable=True)
     swell_direction = Column(String(20), nullable=True)
     tide_height = Column(Float, nullable=True)
+    
+    # ============ PRESERVED MEDIA URLs ============
+    # When a photographer deletes a GalleryItem, these URLs are baked in
+    # so surfers never lose access to media they've paid for
+    preserved_original_url = Column(String(500), nullable=True)
+    preserved_preview_url = Column(String(500), nullable=True)
+    preserved_thumbnail_url = Column(String(500), nullable=True)
+    preserved_media_type = Column(String(20), nullable=True)
     
     # Timestamps
     added_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True)

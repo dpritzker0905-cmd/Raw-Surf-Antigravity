@@ -304,9 +304,10 @@ async def get_surfer_gallery_main(
         items.append({
             "id": str(sgi.id),
             "gallery_item_id": str(gi.id),
-            "url": gi.preview_url or gi.original_url,
-            "thumbnail_url": gi.thumbnail_url,
-            "media_type": gi.media_type,
+            # Use preserved URLs if the gallery item was soft-deleted by photographer
+            "url": (sgi.preserved_preview_url or gi.preview_url or gi.original_url) if getattr(gi, 'is_deleted', False) else (gi.preview_url or gi.original_url),
+            "thumbnail_url": (sgi.preserved_thumbnail_url or gi.thumbnail_url) if getattr(gi, 'is_deleted', False) else gi.thumbnail_url,
+            "media_type": sgi.preserved_media_type or gi.media_type,
             "photographer_id": str(gi.photographer_id) if gi.photographer_id else None,
             "photographer_name": photographer.full_name if photographer else None,
             "photographer_avatar": photographer.avatar_url if photographer else None,

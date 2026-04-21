@@ -14,6 +14,13 @@ from models import Profile, SurfSpot, GalleryItem, GalleryPurchase, Notification
 # Import badge check function
 from routes.gamification import check_badge_milestones
 
+# Import gallery sync services for auto-distribution & safe deletion
+from services.gallery_sync import (
+    distribute_gallery_item_to_participants,
+    manually_assign_item_to_surfer,
+    safe_delete_gallery_item
+)
+
 # Import WebSocket broadcast for real-time earnings updates
 from websocket_manager import broadcast_earnings_update
 
@@ -210,7 +217,8 @@ async def get_photographer_gallery(
     """Get a photographer's gallery. By default excludes items that are in folders."""
     query = select(GalleryItem)\
         .where(GalleryItem.photographer_id == photographer_id)\
-        .where(GalleryItem.is_public == True)
+        .where(GalleryItem.is_public == True)\
+        .where(GalleryItem.is_deleted == False)
     
     # By default, exclude items that are in folders (gallery_id is not null)
     if not include_in_folders:
@@ -1178,8 +1186,146 @@ async def move_item_to_gallery(
     if not target_gallery.cover_image_url and item.media_type == 'image':
         target_gallery.cover_image_url = item.preview_url
     
+    # AUTO-DISTRIBUTE: If target gallery is session-linked, push to participants' lockers
+    distributed = 0
+    if target_gallery.live_session_id or target_gallery.booking_id or target_gallery.dispatch_id:
+        try:
+            distributed = await distribute_gallery_item_to_participants(
+                db, item.id, target_gallery
+            )
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).warning(f"Auto-distribution failed for item {item.id}: {e}")
+    
     await db.commit()
-    return {"message": "Item moved to folder", "gallery_id": data.target_gallery_id}
+    return {
+        "message": "Item moved to folder", 
+        "gallery_id": data.target_gallery_id,
+        "distributed_to_surfers": distributed
+    }
+
+
+# ============ MANUAL SURFER ASSIGNMENT (Photographer Fallback) ============
+
+class AssignSurferRequest(BaseModel):
+    photographer_id: str
+    surfer_id: str
+    access_type: str = 'pending_selection'  # 'pending_selection', 'included', 'gifted'
+
+@router.post("/gallery/item/{item_id}/assign-surfer")
+async def assign_item_to_surfer(
+    item_id: str,
+    data: AssignSurferRequest,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Manual photographer fallback: assign a specific item to a specific surfer's locker.
+    Also records the assignment as AI training data for future matching.
+    
+    access_type:
+    - 'pending_selection': Surfer sees watermarked, must select or purchase
+    - 'included': Free — counts toward session allocation
+    - 'gifted': Photographer gift — free download
+    """
+    # Verify photographer owns the item
+    item_result = await db.execute(select(GalleryItem).where(GalleryItem.id == item_id))
+    item = item_result.scalar_one_or_none()
+    if not item:
+        raise HTTPException(status_code=404, detail="Gallery item not found")
+    if item.photographer_id != data.photographer_id:
+        raise HTTPException(status_code=403, detail="Not authorized")
+    
+    # Verify surfer exists
+    surfer_result = await db.execute(select(Profile).where(Profile.id == data.surfer_id))
+    if not surfer_result.scalar_one_or_none():
+        raise HTTPException(status_code=404, detail="Surfer not found")
+    
+    result = await manually_assign_item_to_surfer(
+        db=db,
+        gallery_item_id=item_id,
+        surfer_id=data.surfer_id,
+        photographer_id=data.photographer_id,
+        access_type=data.access_type
+    )
+    
+    if "error" in result and not result.get("already_exists"):
+        raise HTTPException(status_code=400, detail=result["error"])
+    
+    await db.commit()
+    return result
+
+
+class BulkAssignRequest(BaseModel):
+    photographer_id: str
+    surfer_id: str
+    item_ids: Optional[List[str]] = None  # If None, assigns all items in gallery
+    access_type: str = 'pending_selection'
+
+@router.post("/gallery/{gallery_id}/assign-all-to-surfer")
+async def bulk_assign_to_surfer(
+    gallery_id: str,
+    data: BulkAssignRequest,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Bulk assign multiple gallery items to a surfer's locker.
+    If item_ids not provided, assigns ALL items in the gallery.
+    """
+    # Verify gallery ownership
+    gallery_result = await db.execute(select(Gallery).where(Gallery.id == gallery_id))
+    gallery = gallery_result.scalar_one_or_none()
+    if not gallery:
+        raise HTTPException(status_code=404, detail="Gallery not found")
+    if gallery.photographer_id != data.photographer_id:
+        raise HTTPException(status_code=403, detail="Not authorized")
+    
+    # Verify surfer exists
+    surfer_result = await db.execute(select(Profile).where(Profile.id == data.surfer_id))
+    if not surfer_result.scalar_one_or_none():
+        raise HTTPException(status_code=404, detail="Surfer not found")
+    
+    # Get items to assign
+    if data.item_ids:
+        items_result = await db.execute(
+            select(GalleryItem).where(
+                GalleryItem.id.in_(data.item_ids),
+                GalleryItem.gallery_id == gallery_id
+            )
+        )
+    else:
+        items_result = await db.execute(
+            select(GalleryItem).where(
+                GalleryItem.gallery_id == gallery_id,
+                GalleryItem.is_deleted == False
+            )
+        )
+    
+    items = items_result.scalars().all()
+    
+    assigned_count = 0
+    skipped_count = 0
+    
+    for item in items:
+        result = await manually_assign_item_to_surfer(
+            db=db,
+            gallery_item_id=item.id,
+            surfer_id=data.surfer_id,
+            photographer_id=data.photographer_id,
+            access_type=data.access_type,
+            gallery=gallery
+        )
+        if result.get("success"):
+            assigned_count += 1
+        else:
+            skipped_count += 1
+    
+    await db.commit()
+    return {
+        "message": f"Assigned {assigned_count} items to surfer's locker",
+        "assigned": assigned_count,
+        "skipped": skipped_count,
+        "total_items": len(items)
+    }
 
 
 @router.post("/gallery/item/{item_id}/copy")
@@ -1300,19 +1446,14 @@ async def delete_gallery_item(
     photographer_id: str,
     db: AsyncSession = Depends(get_db)
 ):
-    """Delete gallery item"""
-    result = await db.execute(select(GalleryItem).where(GalleryItem.id == item_id))
-    item = result.scalar_one_or_none()
+    """Delete gallery item (soft-deletes if surfers have paid for it)"""
+    result = await safe_delete_gallery_item(db, item_id, photographer_id)
     
-    if not item:
-        raise HTTPException(status_code=404, detail="Gallery item not found")
+    if "error" in result:
+        raise HTTPException(status_code=404, detail=result["error"])
     
-    if item.photographer_id != photographer_id:
-        raise HTTPException(status_code=403, detail="Not authorized")
-    
-    await db.delete(item)
     await db.commit()
-    return {"message": "Gallery item deleted"}
+    return result
 
 @router.get("/gallery/my-purchases/{buyer_id}")
 async def get_my_purchases(buyer_id: str, db: AsyncSession = Depends(get_db)):
@@ -1703,6 +1844,7 @@ async def get_gallery_items(
         select(GalleryItem)
         .where(GalleryItem.gallery_id == gallery_id)
         .where(GalleryItem.is_public == True)
+        .where(GalleryItem.is_deleted == False)
         .options(selectinload(GalleryItem.photographer), selectinload(GalleryItem.spot))
         .order_by(GalleryItem.created_at.desc())
     )
@@ -1850,27 +1992,29 @@ async def remove_item_from_gallery(
     if gallery.photographer_id != photographer_id:
         raise HTTPException(status_code=403, detail="Not authorized to modify this gallery")
     
-    # Find and delete the item
-    result = await db.execute(
+    # Verify item exists in this gallery
+    item_check = await db.execute(
         select(GalleryItem).where(
             GalleryItem.id == item_id,
             GalleryItem.gallery_id == gallery_id
         )
     )
-    item = result.scalar_one_or_none()
-    
+    item = item_check.scalar_one_or_none()
     if not item:
         raise HTTPException(status_code=404, detail="Item not found in this gallery")
     
-    # Delete the item
-    await db.delete(item)
+    # Safe delete (protects paid surfer locker items)
+    result = await safe_delete_gallery_item(db, item_id, photographer_id)
+    
+    if "error" in result:
+        raise HTTPException(status_code=404, detail=result["error"])
     
     # Update gallery stats
     gallery.item_count = max(0, gallery.item_count - 1)
     
     await db.commit()
     
-    return {"message": "Item deleted from gallery", "gallery_id": gallery_id, "item_id": item_id}
+    return {**result, "gallery_id": gallery_id, "item_id": item_id}
 
 
 # ============ CROSS-PROFILE TAGGING (Parent → Grom) ============
