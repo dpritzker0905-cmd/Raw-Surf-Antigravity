@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
@@ -10,7 +10,8 @@ import {
   Settings, Trash2, Eye, Tag, X, Users,
   MapPin, Calendar, Sparkles, UserCheck, Loader2,
   Search, Filter, Check, MoreVertical,
-  TrendingUp, ShoppingBag, BarChart3
+  TrendingUp, ShoppingBag, BarChart3,
+  Link2, Send, CheckCircle, AlertCircle, ArrowRight, UserPlus, RefreshCw
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from './ui/card';
 import { Button } from './ui/button';
@@ -69,6 +70,18 @@ export const PhotographerGalleryManager = () => {
   const [itemCustomPrice, setItemCustomPrice] = useState('');
   const [lightboxItem, setLightboxItem] = useState(null); // Phase 2: Lightbox
   
+  // Distribution Panel State
+  const [sessionParticipants, setSessionParticipants] = useState([]);
+  const [sessionInfo, setSessionInfo] = useState(null);
+  const [totalGalleryItems, setTotalGalleryItems] = useState(0);
+  const [loadingParticipants, setLoadingParticipants] = useState(false);
+  const [distributing, setDistributing] = useState(null); // surfer_id being distributed to
+  const [showLinkSessionModal, setShowLinkSessionModal] = useState(false);
+  const [recentSessions, setRecentSessions] = useState([]);
+  const [loadingSessions, setLoadingSessions] = useState(false);
+  const [showAssignDrawer, setShowAssignDrawer] = useState(false);
+  const [assigningItem, setAssigningItem] = useState(null);
+
   // Phase 3: Sales Intelligence
   const [showSalesDashboard, setShowSalesDashboard] = useState(false);
   const [showClientActivity, setShowClientActivity] = useState(false);
@@ -106,6 +119,13 @@ export const PhotographerGalleryManager = () => {
     }
   }, [galleryId]);
 
+  // Fetch session participants when gallery loads
+  useEffect(() => {
+    if (gallery && user?.id) {
+      fetchSessionParticipants();
+    }
+  }, [gallery?.id]);
+
   const fetchGallery = async () => {
     try {
       const res = await apiClient.get(`/galleries/${galleryId}?viewer_id=${user?.id}`);
@@ -127,6 +147,93 @@ export const PhotographerGalleryManager = () => {
       navigate('/photographer/sessions');
     } finally {
       setLoading(false);
+    }
+  };
+
+  // ============ DISTRIBUTION HANDLERS ============
+  const fetchSessionParticipants = async () => {
+    if (!galleryId || !user?.id) return;
+    setLoadingParticipants(true);
+    try {
+      const res = await apiClient.get(`/gallery/${galleryId}/session-participants?photographer_id=${user.id}`);
+      setSessionParticipants(res.data.participants || []);
+      setSessionInfo(res.data.session || {});
+      setTotalGalleryItems(res.data.total_gallery_items || 0);
+    } catch (error) {
+      logger.warn('Failed to load session participants:', error);
+    } finally {
+      setLoadingParticipants(false);
+    }
+  };
+
+  const fetchRecentSessions = async () => {
+    if (!user?.id) return;
+    setLoadingSessions(true);
+    try {
+      const res = await apiClient.get(`/photographer/${user.id}/recent-sessions`);
+      setRecentSessions(res.data || []);
+    } catch (error) {
+      toast.error('Failed to load recent sessions');
+    } finally {
+      setLoadingSessions(false);
+    }
+  };
+
+  const handleLinkSession = async (sessionId) => {
+    try {
+      await apiClient.post(`/gallery/${galleryId}/link-session?photographer_id=${user.id}`, {
+        live_session_id: sessionId
+      });
+      toast.success('Gallery linked to session!');
+      setShowLinkSessionModal(false);
+      fetchGallery();
+      fetchSessionParticipants();
+    } catch (error) {
+      toast.error(error.response?.data?.detail || 'Failed to link session');
+    }
+  };
+
+  const handleDistributeAll = async () => {
+    try {
+      setDistributing('all');
+      const res = await apiClient.post(`/gallery/${galleryId}/distribute?photographer_id=${user.id}`);
+      toast.success(res.data.message || 'Distribution complete!');
+      fetchSessionParticipants();
+    } catch (error) {
+      toast.error(error.response?.data?.detail || 'Distribution failed');
+    } finally {
+      setDistributing(null);
+    }
+  };
+
+  const handleDistributeToSurfer = async (surferId, surferName) => {
+    try {
+      setDistributing(surferId);
+      const res = await apiClient.post(`/gallery/${galleryId}/distribute-to-surfer?photographer_id=${user.id}`, {
+        surfer_id: surferId,
+        access_type: 'pending_selection'
+      });
+      toast.success(res.data.message || `Distributed to ${surferName}!`);
+      fetchSessionParticipants();
+    } catch (error) {
+      toast.error(error.response?.data?.detail || 'Distribution failed');
+    } finally {
+      setDistributing(null);
+    }
+  };
+
+  const handleAssignItemToSurfer = async (itemId, surferId) => {
+    try {
+      await apiClient.post(`/gallery/item/${itemId}/assign-surfer`, {
+        photographer_id: user.id,
+        surfer_id: surferId,
+        access_type: 'pending_selection'
+      });
+      toast.success('Item assigned to surfer!');
+      setShowAssignDrawer(false);
+      setAssigningItem(null);
+    } catch (error) {
+      toast.error(error.response?.data?.detail || 'Assignment failed');
     }
   };
 
@@ -521,6 +628,175 @@ export const PhotographerGalleryManager = () => {
           )}
         </div>
 
+        {/* ============ SESSION CONTEXT PANEL ============ */}
+        <Card className={`mb-6 ${cardBgClass} overflow-hidden`}>
+          <CardContent className="p-0">
+            {/* Session Header Banner */}
+            {sessionInfo?.is_linked ? (
+              <div className="bg-gradient-to-r from-emerald-500/20 to-cyan-500/20 border-b border-emerald-500/30 px-4 py-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle className="w-5 h-5 text-emerald-400" />
+                    <span className={`font-medium ${textPrimaryClass}`}>
+                      {sessionInfo.session_type === 'live' ? 'Live Session' : 
+                       sessionInfo.session_type === 'booking' ? 'Booked Session' : 
+                       sessionInfo.session_type === 'on_demand' ? 'On-Demand' : 'Session'} Linked
+                    </span>
+                    <Badge variant="outline" className="border-emerald-500/50 text-emerald-400 text-[10px]">
+                      {sessionInfo.session_type}
+                    </Badge>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="text-emerald-400 hover:text-emerald-300 h-7 px-2"
+                      onClick={fetchSessionParticipants}
+                      disabled={loadingParticipants}
+                    >
+                      <RefreshCw className={`w-3.5 h-3.5 ${loadingParticipants ? 'animate-spin' : ''}`} />
+                    </Button>
+                    {sessionParticipants.length > 0 && totalGalleryItems > 0 && (
+                      <Button
+                        size="sm"
+                        onClick={handleDistributeAll}
+                        disabled={distributing === 'all'}
+                        className="bg-gradient-to-r from-emerald-400 to-cyan-500 text-black h-7 px-3 text-xs font-medium"
+                      >
+                        {distributing === 'all' ? (
+                          <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" />
+                        ) : (
+                          <Send className="w-3.5 h-3.5 mr-1" />
+                        )}
+                        Distribute All
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="bg-gradient-to-r from-amber-500/15 to-orange-500/15 border-b border-amber-500/30 px-4 py-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <AlertCircle className="w-5 h-5 text-amber-400" />
+                    <span className={`font-medium ${textPrimaryClass}`}>No Session Linked</span>
+                    <span className={`text-xs ${textSecondaryClass}`}>Distribution unavailable</span>
+                  </div>
+                  <Button
+                    size="sm"
+                    onClick={() => { setShowLinkSessionModal(true); fetchRecentSessions(); }}
+                    className="bg-gradient-to-r from-amber-400 to-orange-500 text-black h-7 px-3 text-xs font-medium"
+                  >
+                    <Link2 className="w-3.5 h-3.5 mr-1" /> Link Session
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {/* Participant Roster */}
+            {loadingParticipants ? (
+              <div className="flex items-center justify-center py-6">
+                <Loader2 className="w-5 h-5 animate-spin text-cyan-400" />
+                <span className={`ml-2 text-sm ${textSecondaryClass}`}>Loading participants...</span>
+              </div>
+            ) : sessionParticipants.length > 0 ? (
+              <div className="px-4 py-3">
+                <div className="flex items-center justify-between mb-3">
+                  <p className={`text-xs font-medium uppercase tracking-wider ${textSecondaryClass}`}>
+                    Participants ({sessionParticipants.length})
+                  </p>
+                  <p className={`text-xs ${textSecondaryClass}`}>
+                    {totalGalleryItems} items in gallery
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  {sessionParticipants.map((participant) => {
+                    const progress = totalGalleryItems > 0 
+                      ? Math.round((participant.items_distributed / totalGalleryItems) * 100) 
+                      : 0;
+                    const isFullyDistributed = participant.items_distributed >= totalGalleryItems && totalGalleryItems > 0;
+                    
+                    return (
+                      <div
+                        key={participant.surfer_id}
+                        className={`flex items-center gap-3 p-2.5 rounded-lg transition-colors ${
+                          isLight ? 'bg-gray-50 hover:bg-gray-100' : 'bg-zinc-800/50 hover:bg-zinc-800'
+                        }`}
+                      >
+                        {/* Avatar */}
+                        <div className="w-9 h-9 rounded-full overflow-hidden bg-zinc-700 flex-shrink-0 ring-2 ring-offset-1 ring-offset-transparent ring-cyan-500/30">
+                          {participant.avatar_url ? (
+                            <img
+                              src={getFullUrl(participant.avatar_url)}
+                              alt={participant.full_name}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <Users className="w-4 h-4 m-auto mt-2.5 text-zinc-500" />
+                          )}
+                        </div>
+
+                        {/* Name + Status */}
+                        <div className="flex-1 min-w-0">
+                          <p className={`text-sm font-medium truncate ${textPrimaryClass}`}>
+                            {participant.full_name}
+                          </p>
+                          <div className="flex items-center gap-2 mt-0.5">
+                            {/* Distribution progress bar */}
+                            <div className={`flex-1 h-1.5 rounded-full ${isLight ? 'bg-gray-200' : 'bg-zinc-700'} max-w-[100px]`}>
+                              <div
+                                className={`h-full rounded-full transition-all duration-500 ${
+                                  isFullyDistributed ? 'bg-emerald-400' : progress > 0 ? 'bg-cyan-400' : 'bg-zinc-600'
+                                }`}
+                                style={{ width: `${Math.min(progress, 100)}%` }}
+                              />
+                            </div>
+                            <span className={`text-[10px] ${textSecondaryClass}`}>
+                              {participant.items_distributed}/{totalGalleryItems}
+                            </span>
+                            {isFullyDistributed && (
+                              <CheckCircle className="w-3 h-3 text-emerald-400" />
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Action Button */}
+                        {!isFullyDistributed ? (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => handleDistributeToSurfer(participant.surfer_id, participant.full_name)}
+                            disabled={distributing === participant.surfer_id || totalGalleryItems === 0}
+                            className="h-7 px-2 text-cyan-400 hover:text-cyan-300 hover:bg-cyan-500/10"
+                          >
+                            {distributing === participant.surfer_id ? (
+                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            ) : (
+                              <>
+                                <Send className="w-3.5 h-3.5 mr-1" />
+                                <span className="text-xs">Push</span>
+                              </>
+                            )}
+                          </Button>
+                        ) : (
+                          <Badge variant="outline" className="border-emerald-500/50 text-emerald-400 text-[10px] h-7">
+                            ✓ Delivered
+                          </Badge>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : sessionInfo?.is_linked ? (
+              <div className={`text-center py-6 ${textSecondaryClass}`}>
+                <Users className="w-8 h-8 mx-auto mb-2 opacity-40" />
+                <p className="text-sm">No participants found for this session</p>
+              </div>
+            ) : null}
+          </CardContent>
+        </Card>
+
         {/* Current Pricing Summary - Only for sellers */}
         {showPricing && (
           <Card className={`mb-6 ${cardBgClass}`}>
@@ -727,6 +1003,9 @@ export const PhotographerGalleryManager = () => {
                           <Tag className="w-4 h-4 mr-2" /> AI Tag Surfers
                         </DropdownMenuItem>
                       )}
+                      <DropdownMenuItem onClick={() => { setAssigningItem(item); setShowAssignDrawer(true); }}>
+                        <UserPlus className="w-4 h-4 mr-2" /> Assign to Surfer
+                      </DropdownMenuItem>
                       {showPricing && (
                         <DropdownMenuItem onClick={() => openItemPricing(item)}>
                           <DollarSign className="w-4 h-4 mr-2" /> Set Custom Price
@@ -1269,6 +1548,148 @@ export const PhotographerGalleryManager = () => {
               </div>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+      {/* ============ LINK SESSION MODAL ============ */}
+      <Dialog open={showLinkSessionModal} onOpenChange={setShowLinkSessionModal}>
+        <DialogContent className={`${isLight ? 'bg-white' : 'bg-zinc-900'} border ${borderClass} max-w-lg`}>
+          <DialogHeader>
+            <DialogTitle className={`${textPrimaryClass} flex items-center gap-2`}>
+              <Link2 className="w-5 h-5 text-amber-400" />
+              Link Gallery to Session
+            </DialogTitle>
+          </DialogHeader>
+          <div className="py-4 space-y-3">
+            <p className={`text-sm ${textSecondaryClass}`}>
+              Select a recent session to link to this gallery. This enables automatic distribution of photos to surfers who participated.
+            </p>
+            
+            {loadingSessions ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="w-6 h-6 animate-spin text-amber-400" />
+              </div>
+            ) : recentSessions.length > 0 ? (
+              <div className="space-y-2 max-h-[400px] overflow-y-auto">
+                {recentSessions.map((session) => (
+                  <div
+                    key={session.id}
+                    onClick={() => session.is_available && handleLinkSession(session.id)}
+                    className={`flex items-center gap-3 p-3 rounded-lg transition-colors cursor-pointer ${
+                      session.is_available
+                        ? isLight ? 'bg-gray-50 hover:bg-gray-100 hover:ring-2 hover:ring-amber-500/30' : 'bg-zinc-800 hover:bg-zinc-700 hover:ring-2 hover:ring-amber-500/30'
+                        : isLight ? 'bg-gray-100 opacity-50 cursor-not-allowed' : 'bg-zinc-800/30 opacity-50 cursor-not-allowed'
+                    }`}
+                  >
+                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                      session.is_available ? 'bg-amber-500/20' : 'bg-zinc-700'
+                    }`}>
+                      <MapPin className={`w-5 h-5 ${session.is_available ? 'text-amber-400' : 'text-zinc-500'}`} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className={`text-sm font-medium truncate ${textPrimaryClass}`}>
+                        {session.location_name || 'Unknown Location'}
+                      </p>
+                      <div className="flex items-center gap-2 text-xs">
+                        <Calendar className="w-3 h-3" />
+                        <span className={textSecondaryClass}>
+                          {session.started_at ? new Date(session.started_at).toLocaleDateString('en-US', { 
+                            month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit'
+                          }) : 'Unknown date'}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="flex items-center gap-1">
+                        <Users className="w-3 h-3 text-cyan-400" />
+                        <span className={`text-xs ${textPrimaryClass}`}>{session.participant_count}</span>
+                      </div>
+                      {session.is_available ? (
+                        <Badge variant="outline" className="border-amber-500/50 text-amber-400 text-[10px] mt-1">
+                          Available
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className="border-zinc-600 text-zinc-500 text-[10px] mt-1">
+                          Linked
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className={`text-center py-8 ${textSecondaryClass}`}>
+                <Calendar className="w-10 h-10 mx-auto mb-2 opacity-40" />
+                <p className="text-sm">No recent sessions found</p>
+                <p className="text-xs mt-1">Start a live session or create a booking first</p>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowLinkSessionModal(false)}>Cancel</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ============ ASSIGN DRAWER (Individual Item → Surfer) ============ */}
+      <Dialog open={showAssignDrawer} onOpenChange={setShowAssignDrawer}>
+        <DialogContent className={`${isLight ? 'bg-white' : 'bg-zinc-900'} border ${borderClass} max-w-md`}>
+          <DialogHeader>
+            <DialogTitle className={`${textPrimaryClass} flex items-center gap-2`}>
+              <UserPlus className="w-5 h-5 text-purple-400" />
+              Assign to Surfer
+            </DialogTitle>
+          </DialogHeader>
+          <div className="py-4 space-y-4">
+            {assigningItem && (
+              <div className="flex justify-center mb-4">
+                <img 
+                  src={getFullUrl(assigningItem.preview_url)} 
+                  alt="Item to assign" 
+                  className="max-h-32 rounded-lg object-contain"
+                />
+              </div>
+            )}
+            
+            <p className={`text-sm ${textSecondaryClass}`}>
+              Select a session participant to assign this photo to their Locker:
+            </p>
+            
+            {sessionParticipants.length > 0 ? (
+              <div className="space-y-2 max-h-[300px] overflow-y-auto">
+                {sessionParticipants.map((participant) => (
+                  <div
+                    key={participant.surfer_id}
+                    onClick={() => assigningItem && handleAssignItemToSurfer(assigningItem.id, participant.surfer_id)}
+                    className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-colors ${
+                      isLight ? 'bg-gray-50 hover:bg-purple-50 hover:ring-2 hover:ring-purple-500/30' : 'bg-zinc-800 hover:bg-zinc-700 hover:ring-2 hover:ring-purple-500/30'
+                    }`}
+                  >
+                    <div className="w-9 h-9 rounded-full overflow-hidden bg-zinc-700 flex-shrink-0">
+                      {participant.avatar_url ? (
+                        <img src={getFullUrl(participant.avatar_url)} alt={participant.full_name} className="w-full h-full object-cover" />
+                      ) : (
+                        <Users className="w-4 h-4 m-auto mt-2.5 text-zinc-500" />
+                      )}
+                    </div>
+                    <div className="flex-1">
+                      <p className={`text-sm font-medium ${textPrimaryClass}`}>{participant.full_name}</p>
+                      <p className={`text-xs ${textSecondaryClass}`}>{participant.items_distributed} items in locker</p>
+                    </div>
+                    <ArrowRight className="w-4 h-4 text-purple-400" />
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className={`text-center py-6 ${textSecondaryClass}`}>
+                <Users className="w-8 h-8 mx-auto mb-2 opacity-40" />
+                <p className="text-sm">No session participants available</p>
+                <p className="text-xs mt-1">Link this gallery to a session first</p>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setShowAssignDrawer(false); setAssigningItem(null); }}>Cancel</Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

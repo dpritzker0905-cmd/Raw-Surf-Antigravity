@@ -1720,6 +1720,10 @@ async def get_gallery(
         "purchase_count": gallery.purchase_count,
         "is_public": gallery.is_public,
         "session_date": gallery.session_date.isoformat() if gallery.session_date else None,
+        "session_type": gallery.session_type,
+        "live_session_id": gallery.live_session_id,
+        "booking_id": gallery.booking_id,
+        "dispatch_id": gallery.dispatch_id,
         "created_at": gallery.created_at.isoformat(),
         "pricing": {
             "photo": {
