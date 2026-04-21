@@ -1571,8 +1571,8 @@ async def get_refinement_queue(
 async def apply_spot_refinement(
     spot_id: str,
     admin: Profile = Depends(get_current_admin),
-    new_latitude: float,
-    new_longitude: float,
+    new_latitude: float = Query(..., description="New latitude for the spot"),
+    new_longitude: float = Query(..., description="New longitude for the spot"),
     db: AsyncSession = Depends(get_db)
 ):
     """Admin applies a refinement to update spot location."""
