@@ -3316,13 +3316,49 @@ async def get_gallery_session_participants(
     
     if gallery.live_session_id:
         # Get live session participants with profiles
+        # Try matching by live_session_id first
         part_result = await db.execute(
             select(LiveSessionParticipant, Profile)
             .join(Profile, LiveSessionParticipant.surfer_id == Profile.id)
             .where(LiveSessionParticipant.live_session_id == gallery.live_session_id)
-            .where(LiveSessionParticipant.status.in_(['active', 'completed', 'confirmed']))
+            .where(LiveSessionParticipant.status.notin_(['cancelled', 'refunded']))
         )
-        for participant, profile in part_result.fetchall():
+        rows = part_result.fetchall()
+        
+        # FALLBACK: If no participants found by live_session_id, some may have been
+        # created via card payment path which doesn't set live_session_id.
+        # Fall back to matching by photographer_id + approximate time window.
+        if not rows:
+            # Get the live session to find the photographer and time range
+            from models import LiveSession as LS
+            ls_result = await db.execute(
+                select(LS).where(LS.id == gallery.live_session_id)
+            )
+            live_session = ls_result.scalar_one_or_none()
+            
+            if live_session:
+                from datetime import timedelta
+                # Look for participants of this photographer around the session time
+                session_start = live_session.created_at
+                if session_start:
+                    time_start = session_start - timedelta(hours=1)
+                    time_end = (live_session.ended_at or session_start) + timedelta(hours=6)
+                    
+                    part_result = await db.execute(
+                        select(LiveSessionParticipant, Profile)
+                        .join(Profile, LiveSessionParticipant.surfer_id == Profile.id)
+                        .where(LiveSessionParticipant.photographer_id == live_session.photographer_id)
+                        .where(LiveSessionParticipant.status.notin_(['cancelled', 'refunded']))
+                        .where(LiveSessionParticipant.joined_at >= time_start)
+                        .where(LiveSessionParticipant.joined_at <= time_end)
+                    )
+                    rows = part_result.fetchall()
+        
+        seen_surfer_ids = set()
+        for participant, profile in rows:
+            if profile.id in seen_surfer_ids:
+                continue  # Skip duplicates
+            seen_surfer_ids.add(profile.id)
             # Count how many items are distributed to this surfer from this gallery
             dist_count_result = await db.execute(
                 select(func.count(SurferGalleryItem.id))

@@ -624,11 +624,22 @@ async def complete_session_payment(data: CompletePaymentRequest, db: AsyncSessio
             tx_data = json.loads(tx.transaction_metadata)
             selfie_url = tx_data.get('selfie_url')
         
+        # Find the active live session for this photographer to link the participant
+        active_ls_result = await db.execute(
+            select(LiveSession)
+            .where(LiveSession.photographer_id == photographer_id)
+            .where(LiveSession.status == 'active')
+            .order_by(LiveSession.created_at.desc())
+            .limit(1)
+        )
+        active_live_session = active_ls_result.scalar_one_or_none()
+        
         # Create the session participant
         participant = LiveSessionParticipant(
             surfer_id=surfer_id,
             photographer_id=photographer_id,
             spot_id=photographer.current_spot_id,
+            live_session_id=active_live_session.id if active_live_session else None,
             selfie_url=selfie_url,
             participant_role='participant',
             status='active',
