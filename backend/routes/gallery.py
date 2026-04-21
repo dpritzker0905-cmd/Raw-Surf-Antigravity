@@ -1491,6 +1491,11 @@ class GalleryCreate(BaseModel):
     description: Optional[str] = None
     surf_spot_id: Optional[str] = None
     cover_image_url: Optional[str] = None
+    # Session linking at creation (Phase 5 — eliminates orphaned galleries)
+    session_type: Optional[str] = None  # 'live', 'on_demand', 'booking', 'manual'
+    live_session_id: Optional[str] = None
+    booking_id: Optional[str] = None
+    dispatch_id: Optional[str] = None
     # Per-gallery pricing (optional)
     price_web: Optional[float] = None
     price_standard: Optional[float] = None
@@ -1539,6 +1544,11 @@ async def create_gallery(
         description=data.description,
         surf_spot_id=data.surf_spot_id,
         cover_image_url=data.cover_image_url,
+        # Phase 5: Session linking at creation — prevent orphaned galleries
+        session_type=data.session_type or 'manual',
+        live_session_id=data.live_session_id,
+        booking_id=data.booking_id,
+        dispatch_id=data.dispatch_id,
         price_web=data.price_web,
         price_standard=data.price_standard,
         price_high=data.price_high,
@@ -1680,12 +1690,35 @@ async def get_gallery(
         )
         purchased_ids = set(row[0] for row in purchase_result.fetchall())
     
-    items = []
+    
+    # Phase 4: Pre-fetch per-item distribution counts for status badges
     is_owner = viewer_id and viewer_id == gallery.photographer_id
+    item_ids = [item.id for item in gallery.items]
+    distribution_map = {}  # item_id -> {count, has_ai_suggestion}
+    if item_ids and is_owner:
+        dist_result = await db.execute(
+            select(
+                SurferGalleryItem.gallery_item_id,
+                func.count(SurferGalleryItem.id).label('count'),
+                func.sum(case((SurferGalleryItem.ai_suggested == True, 1), else_=0)).label('ai_count'),
+                func.sum(case((SurferGalleryItem.surfer_confirmed == True, 1), else_=0)).label('confirmed_count')
+            )
+            .where(SurferGalleryItem.gallery_item_id.in_(item_ids))
+            .group_by(SurferGalleryItem.gallery_item_id)
+        )
+        for row in dist_result.fetchall():
+            distribution_map[row[0]] = {
+                "distributed_count": row[1],
+                "ai_suggested_count": row[2],
+                "confirmed_count": row[3]
+            }
+    
+    items = []
     for item in gallery.items:
         # Gallery owner can always see all items (including private/draft ones)
         # Public viewers only see items marked is_public
         if is_owner or item.is_public:
+            item_dist = distribution_map.get(item.id, {})
             items.append({
                 "id": item.id,
                 "preview_url": item.preview_url,
@@ -1703,7 +1736,11 @@ async def get_gallery(
                 "purchase_count": item.purchase_count,
                 "tagged_surfer_ids": item.tagged_surfer_ids,
                 "is_purchased": item.id in purchased_ids,
-                "created_at": item.created_at.isoformat()
+                "created_at": item.created_at.isoformat(),
+                # Phase 4: Distribution status per item
+                "distributed_count": item_dist.get('distributed_count', 0),
+                "ai_suggested_count": item_dist.get('ai_suggested_count', 0),
+                "confirmed_count": item_dist.get('confirmed_count', 0)
             })
     
     return {
