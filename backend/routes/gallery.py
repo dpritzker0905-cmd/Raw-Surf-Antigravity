@@ -3459,69 +3459,83 @@ async def recalculate_gallery_counts(
     """Admin: Recalculate the cached item_count column and optionally fix the cover image.
     Use this when items were deleted but the count wasn't decremented.
     Also cleans up stale items with broken local/ephemeral URLs."""
-    gallery = await db.get(Gallery, gallery_id)
-    if not gallery:
-        raise HTTPException(status_code=404, detail="Gallery not found")
-    
-    # Find and delete stale items with ephemeral local URLs
-    from sqlalchemy import func
-    all_items_result = await db.execute(
-        select(GalleryItem).where(GalleryItem.gallery_id == gallery_id)
-    )
-    all_items = all_items_result.scalars().all()
-    
-    stale_items = []
-    for item in all_items:
-        has_supabase_thumb = item.thumbnail_url and item.thumbnail_url.startswith('https://')
-        has_supabase_preview = item.preview_url and item.preview_url.startswith('https://')
-        if not has_supabase_thumb and not has_supabase_preview:
-            # This item has no persistent URLs — it's stale
-            stale_items.append(item)
-    
-    stale_count = len(stale_items)
-    for item in stale_items:
-        await db.delete(item)
-    
-    if stale_count > 0:
-        await db.flush()
-    
-    # Count actual remaining items
-    count_result = await db.execute(
-        select(func.count(GalleryItem.id)).where(GalleryItem.gallery_id == gallery_id)
-    )
-    actual_count = count_result.scalar() or 0
-    old_count = gallery.item_count
-    gallery.item_count = actual_count
-    
-    cover_fixed = False
-    old_cover = gallery.cover_image_url
-    
-    # Fix cover image if it's a local path
-    if fix_cover and (
-        not gallery.cover_image_url or 
-        gallery.cover_image_url.startswith('/api/uploads/')
-    ):
-        # Use the first item's thumbnail as cover
-        first_item_result = await db.execute(
-            select(GalleryItem)
-            .where(GalleryItem.gallery_id == gallery_id)
-            .where(GalleryItem.media_type == 'image')
-            .order_by(GalleryItem.created_at.desc())
-            .limit(1)
+    try:
+        gallery = await db.get(Gallery, gallery_id)
+        if not gallery:
+            raise HTTPException(status_code=404, detail="Gallery not found")
+        
+        # Find and delete stale items with ephemeral local URLs
+        from sqlalchemy import func, delete
+        all_items_result = await db.execute(
+            select(GalleryItem).where(GalleryItem.gallery_id == gallery_id)
         )
-        first_item = first_item_result.scalar_one_or_none()
-        if first_item and first_item.thumbnail_url:
-            gallery.cover_image_url = first_item.thumbnail_url
-            cover_fixed = True
-    
-    await db.commit()
-    
-    return {
-        "gallery_id": gallery_id,
-        "old_item_count": old_count,
-        "new_item_count": actual_count,
-        "stale_items_purged": stale_count,
-        "cover_fixed": cover_fixed,
-        "old_cover": old_cover,
-        "new_cover": gallery.cover_image_url
-    }
+        all_items = all_items_result.scalars().all()
+        
+        stale_ids = []
+        for item in all_items:
+            has_supabase_thumb = item.thumbnail_url and item.thumbnail_url.startswith('https://')
+            has_supabase_preview = item.preview_url and item.preview_url.startswith('https://')
+            if not has_supabase_thumb and not has_supabase_preview:
+                stale_ids.append(item.id)
+        
+        stale_count = 0
+        delete_errors = []
+        for item_id in stale_ids:
+            try:
+                await db.execute(
+                    delete(GalleryItem).where(GalleryItem.id == item_id)
+                )
+                stale_count += 1
+            except Exception as del_err:
+                delete_errors.append(f"{item_id[:8]}: {str(del_err)[:50]}")
+        
+        if stale_count > 0:
+            await db.flush()
+        
+        # Count actual remaining items
+        count_result = await db.execute(
+            select(func.count(GalleryItem.id)).where(GalleryItem.gallery_id == gallery_id)
+        )
+        actual_count = count_result.scalar() or 0
+        old_count = gallery.item_count
+        gallery.item_count = actual_count
+        
+        cover_fixed = False
+        old_cover = gallery.cover_image_url
+        
+        # Fix cover image if it's a local path
+        if fix_cover and (
+            not gallery.cover_image_url or 
+            gallery.cover_image_url.startswith('/api/uploads/')
+        ):
+            first_item_result = await db.execute(
+                select(GalleryItem)
+                .where(GalleryItem.gallery_id == gallery_id)
+                .where(GalleryItem.media_type == 'image')
+                .order_by(GalleryItem.created_at.desc())
+                .limit(1)
+            )
+            first_item = first_item_result.scalar_one_or_none()
+            if first_item and first_item.thumbnail_url:
+                gallery.cover_image_url = first_item.thumbnail_url
+                cover_fixed = True
+        
+        await db.commit()
+        
+        result = {
+            "gallery_id": gallery_id,
+            "old_item_count": old_count,
+            "new_item_count": actual_count,
+            "stale_items_purged": stale_count,
+            "cover_fixed": cover_fixed,
+            "old_cover": old_cover,
+            "new_cover": gallery.cover_image_url
+        }
+        if delete_errors:
+            result["delete_errors"] = delete_errors
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        import traceback
+        return {"error": str(e), "traceback": traceback.format_exc()}
