@@ -3464,29 +3464,21 @@ async def recalculate_gallery_counts(
         raise HTTPException(status_code=404, detail="Gallery not found")
     
     # Find and delete stale items with ephemeral local URLs
-    from sqlalchemy import func, and_, or_, not_
-    stale_result = await db.execute(
-        select(GalleryItem).where(
-            and_(
-                GalleryItem.gallery_id == gallery_id,
-                or_(
-                    # Items with local/ephemeral URLs that won't survive redeploy
-                    GalleryItem.preview_url.like('/api/uploads/%'),
-                    GalleryItem.preview_url.is_(None),
-                    # Items without any valid thumbnail
-                    and_(
-                        GalleryItem.thumbnail_url.is_(None),
-                        GalleryItem.preview_url.is_(None)
-                    )
-                ),
-                # Only delete items that DON'T have Supabase URLs
-                not_(GalleryItem.thumbnail_url.like('https://%')),
-            )
-        )
+    from sqlalchemy import func
+    all_items_result = await db.execute(
+        select(GalleryItem).where(GalleryItem.gallery_id == gallery_id)
     )
-    stale_items = stale_result.scalars().all()
-    stale_count = len(stale_items)
+    all_items = all_items_result.scalars().all()
     
+    stale_items = []
+    for item in all_items:
+        has_supabase_thumb = item.thumbnail_url and item.thumbnail_url.startswith('https://')
+        has_supabase_preview = item.preview_url and item.preview_url.startswith('https://')
+        if not has_supabase_thumb and not has_supabase_preview:
+            # This item has no persistent URLs — it's stale
+            stale_items.append(item)
+    
+    stale_count = len(stale_items)
     for item in stale_items:
         await db.delete(item)
     
