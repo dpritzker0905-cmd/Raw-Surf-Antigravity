@@ -66,11 +66,14 @@ MAX_IMAGE_SIZE = 50 * 1024 * 1024  # 50MB for images
 def upload_to_supabase_storage(local_path: Path, bucket: str, remote_key: str, content_type: str = 'video/mp4') -> str | None:
     """Upload a local file to Supabase Storage and return the public URL.
     Returns None if Supabase is unavailable or upload fails."""
+    _log = logging.getLogger(__name__)
     if not SUPABASE_STORAGE_AVAILABLE or _supabase is None:
+        _log.warning('Supabase Storage not available (client=%s, available=%s)', _supabase is not None, SUPABASE_STORAGE_AVAILABLE)
         return None
     try:
         with open(local_path, 'rb') as f:
             data = f.read()
+        _log.info('Uploading %d bytes to Supabase bucket=%s key=%s', len(data), bucket, remote_key)
         # Ensure bucket exists (ignore error if already exists)
         try:
             _supabase.storage.create_bucket(bucket, options={'public': True})
@@ -81,12 +84,42 @@ def upload_to_supabase_storage(local_path: Path, bucket: str, remote_key: str, c
             file_options={'content-type': content_type, 'upsert': 'true'}
         )
         if hasattr(res, 'error') and res.error:
+            _log.warning('Supabase upload returned error: %s', res.error)
             return None
         public_url = _supabase.storage.from_(bucket).get_public_url(remote_key)
+        _log.info('Supabase upload success: %s', public_url)
         return public_url
     except Exception as e:
-        logging.getLogger(__name__).warning(f'Supabase upload failed: {e}')
+        _log.error('Supabase upload exception for bucket=%s key=%s: %s', bucket, remote_key, e, exc_info=True)
         return None
+
+
+@router.get("/uploads/supabase-diagnostic")
+async def supabase_diagnostic():
+    """Test Supabase Storage connectivity and bucket availability."""
+    import os
+    diag = {
+        "supabase_storage_available": SUPABASE_STORAGE_AVAILABLE,
+        "supabase_url_set": bool(os.environ.get('SUPABASE_URL')),
+        "supabase_service_role_key_set": bool(os.environ.get('SUPABASE_SERVICE_ROLE_KEY')),
+        "supabase_key_set": bool(os.environ.get('SUPABASE_KEY')),
+        "client_initialized": _supabase is not None,
+    }
+    if _supabase:
+        try:
+            buckets = _supabase.storage.list_buckets()
+            diag["buckets"] = [b.name if hasattr(b, 'name') else str(b) for b in buckets]
+            # Test gallery bucket
+            try:
+                files = _supabase.storage.from_('gallery').list(limit=1)
+                diag["gallery_bucket_accessible"] = True
+                diag["gallery_file_count_sample"] = len(files) if files else 0
+            except Exception as e:
+                diag["gallery_bucket_accessible"] = False
+                diag["gallery_bucket_error"] = str(e)
+        except Exception as e:
+            diag["bucket_list_error"] = str(e)
+    return diag
 
 
 def convert_heic_to_jpeg(content: bytes) -> tuple[bytes, str]:
