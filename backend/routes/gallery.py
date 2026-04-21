@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
+from sqlalchemy import select, func, case
 from sqlalchemy.orm import selectinload
 from pydantic import BaseModel
 from typing import Optional, List
@@ -12,7 +12,7 @@ import logging
 gallery_logger = logging.getLogger(__name__)
 
 from database import get_db
-from models import Profile, SurfSpot, GalleryItem, GalleryPurchase, Notification, RoleEnum, Gallery, LiveSession, LiveSessionParticipant, XPTransaction, SurferGalleryItem, SurferSelectionQuota, GalleryTierEnum, Booking, BookingParticipant
+from models import Profile, SurfSpot, GalleryItem, GalleryPurchase, Notification, RoleEnum, Gallery, LiveSession, LiveSessionParticipant, XPTransaction, SurferGalleryItem, SurferSelectionQuota, GalleryTierEnum, Booking, BookingParticipant, DispatchRequest
 
 # Import badge check function
 from routes.gamification import check_badge_milestones
@@ -3240,6 +3240,497 @@ async def trigger_gallery_distribution(
         "total_distributed": total_distributed,
         "details": distribution_details
     }
+
+
+@router.get("/gallery/{gallery_id}/session-participants")
+async def get_gallery_session_participants(
+    gallery_id: str,
+    photographer_id: str,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Get all session participants for a gallery's linked session.
+    Returns participant profiles with distribution status for each.
+    Used by the photographer's distribution UI.
+    """
+    result = await db.execute(
+        select(Gallery).where(Gallery.id == gallery_id)
+    )
+    gallery = result.scalar_one_or_none()
+    
+    if not gallery:
+        raise HTTPException(status_code=404, detail="Gallery not found")
+    if gallery.photographer_id != photographer_id:
+        raise HTTPException(status_code=403, detail="Not authorized")
+    
+    participants = []
+    session_info = {
+        "session_type": gallery.session_type,
+        "live_session_id": gallery.live_session_id,
+        "booking_id": gallery.booking_id,
+        "dispatch_id": gallery.dispatch_id,
+        "session_date": gallery.session_date.isoformat() if gallery.session_date else None,
+        "is_linked": bool(gallery.live_session_id or gallery.booking_id or gallery.dispatch_id)
+    }
+    
+    if gallery.live_session_id:
+        # Get live session participants with profiles
+        part_result = await db.execute(
+            select(LiveSessionParticipant, Profile)
+            .join(Profile, LiveSessionParticipant.surfer_id == Profile.id)
+            .where(LiveSessionParticipant.live_session_id == gallery.live_session_id)
+            .where(LiveSessionParticipant.status.in_(['active', 'completed', 'confirmed']))
+        )
+        for participant, profile in part_result.fetchall():
+            # Count how many items are distributed to this surfer from this gallery
+            dist_count_result = await db.execute(
+                select(func.count(SurferGalleryItem.id))
+                .where(
+                    SurferGalleryItem.surfer_id == profile.id,
+                    SurferGalleryItem.gallery_item_id.in_(
+                        select(GalleryItem.id).where(GalleryItem.gallery_id == gallery_id)
+                    )
+                )
+            )
+            distributed_count = dist_count_result.scalar() or 0
+            
+            participants.append({
+                "surfer_id": profile.id,
+                "full_name": profile.full_name,
+                "username": profile.username,
+                "avatar_url": profile.avatar_url,
+                "selfie_url": participant.selfie_url,
+                "amount_paid": participant.amount_paid,
+                "joined_at": participant.joined_at.isoformat() if participant.joined_at else None,
+                "status": participant.status,
+                "items_distributed": distributed_count
+            })
+    
+    elif gallery.booking_id:
+        part_result = await db.execute(
+            select(BookingParticipant, Profile)
+            .join(Profile, BookingParticipant.participant_id == Profile.id)
+            .where(BookingParticipant.booking_id == gallery.booking_id)
+            .where(BookingParticipant.status.in_(['confirmed', 'completed']))
+        )
+        for participant, profile in part_result.fetchall():
+            dist_count_result = await db.execute(
+                select(func.count(SurferGalleryItem.id))
+                .where(
+                    SurferGalleryItem.surfer_id == profile.id,
+                    SurferGalleryItem.gallery_item_id.in_(
+                        select(GalleryItem.id).where(GalleryItem.gallery_id == gallery_id)
+                    )
+                )
+            )
+            distributed_count = dist_count_result.scalar() or 0
+            
+            participants.append({
+                "surfer_id": profile.id,
+                "full_name": profile.full_name,
+                "username": profile.username,
+                "avatar_url": profile.avatar_url,
+                "selfie_url": None,
+                "amount_paid": getattr(participant, 'amount_paid', 0),
+                "joined_at": participant.created_at.isoformat() if hasattr(participant, 'created_at') and participant.created_at else None,
+                "status": participant.status,
+                "items_distributed": distributed_count
+            })
+    
+    elif gallery.dispatch_id:
+        dispatch_result = await db.execute(
+            select(DispatchRequest, Profile)
+            .join(Profile, DispatchRequest.requester_id == Profile.id)
+            .where(DispatchRequest.id == gallery.dispatch_id)
+        )
+        row = dispatch_result.first()
+        if row:
+            dispatch, profile = row
+            dist_count_result = await db.execute(
+                select(func.count(SurferGalleryItem.id))
+                .where(
+                    SurferGalleryItem.surfer_id == profile.id,
+                    SurferGalleryItem.gallery_item_id.in_(
+                        select(GalleryItem.id).where(GalleryItem.gallery_id == gallery_id)
+                    )
+                )
+            )
+            distributed_count = dist_count_result.scalar() or 0
+            
+            participants.append({
+                "surfer_id": profile.id,
+                "full_name": profile.full_name,
+                "username": profile.username,
+                "avatar_url": profile.avatar_url,
+                "selfie_url": None,
+                "amount_paid": getattr(dispatch, 'price', 0),
+                "joined_at": dispatch.created_at.isoformat() if dispatch.created_at else None,
+                "status": dispatch.status,
+                "items_distributed": distributed_count
+            })
+    
+    # Get total gallery items for distribution progress calculation
+    item_count_result = await db.execute(
+        select(func.count(GalleryItem.id)).where(
+            GalleryItem.gallery_id == gallery_id,
+            GalleryItem.is_deleted == False
+        )
+    )
+    total_items = item_count_result.scalar() or 0
+    
+    return {
+        "session": session_info,
+        "participants": participants,
+        "total_gallery_items": total_items
+    }
+
+
+class LinkSessionRequest(BaseModel):
+    live_session_id: Optional[str] = None
+    booking_id: Optional[str] = None
+    dispatch_id: Optional[str] = None
+
+
+@router.post("/gallery/{gallery_id}/link-session")
+async def link_gallery_to_session(
+    gallery_id: str,
+    photographer_id: str,
+    data: LinkSessionRequest,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Retroactively link a gallery to a session (live, booking, or dispatch).
+    This enables auto-distribution for galleries that were created manually
+    or whose session link was lost.
+    """
+    result = await db.execute(
+        select(Gallery).where(Gallery.id == gallery_id)
+    )
+    gallery = result.scalar_one_or_none()
+    
+    if not gallery:
+        raise HTTPException(status_code=404, detail="Gallery not found")
+    if gallery.photographer_id != photographer_id:
+        raise HTTPException(status_code=403, detail="Not authorized")
+    
+    if not data.live_session_id and not data.booking_id and not data.dispatch_id:
+        raise HTTPException(status_code=400, detail="Must provide live_session_id, booking_id, or dispatch_id")
+    
+    # Validate the session exists and belongs to this photographer
+    if data.live_session_id:
+        ls_result = await db.execute(
+            select(LiveSession).where(
+                LiveSession.id == data.live_session_id,
+                LiveSession.photographer_id == photographer_id
+            )
+        )
+        ls = ls_result.scalar_one_or_none()
+        if not ls:
+            raise HTTPException(status_code=404, detail="Live session not found or not yours")
+        gallery.live_session_id = data.live_session_id
+        gallery.session_type = 'live'
+        if ls.surf_spot_id and not gallery.surf_spot_id:
+            gallery.surf_spot_id = ls.surf_spot_id
+        if ls.started_at and not gallery.session_date:
+            gallery.session_date = ls.started_at
+    
+    elif data.booking_id:
+        bk_result = await db.execute(
+            select(Booking).where(
+                Booking.id == data.booking_id,
+                Booking.photographer_id == photographer_id
+            )
+        )
+        bk = bk_result.scalar_one_or_none()
+        if not bk:
+            raise HTTPException(status_code=404, detail="Booking not found or not yours")
+        gallery.booking_id = data.booking_id
+        gallery.session_type = 'booking'
+    
+    elif data.dispatch_id:
+        dp_result = await db.execute(
+            select(DispatchRequest).where(
+                DispatchRequest.id == data.dispatch_id,
+                DispatchRequest.photographer_id == photographer_id
+            )
+        )
+        dp = dp_result.scalar_one_or_none()
+        if not dp:
+            raise HTTPException(status_code=404, detail="Dispatch request not found or not yours")
+        gallery.dispatch_id = data.dispatch_id
+        gallery.session_type = 'on_demand'
+    
+    await db.commit()
+    
+    return {
+        "message": "Gallery linked to session successfully",
+        "gallery_id": gallery_id,
+        "session_type": gallery.session_type,
+        "live_session_id": gallery.live_session_id,
+        "booking_id": gallery.booking_id,
+        "dispatch_id": gallery.dispatch_id
+    }
+
+
+class DistributeToSurferRequest(BaseModel):
+    surfer_id: str
+    access_type: str = 'pending_selection'  # 'pending_selection', 'included', 'gifted'
+
+
+@router.post("/gallery/{gallery_id}/distribute-to-surfer")
+async def distribute_gallery_to_surfer(
+    gallery_id: str,
+    photographer_id: str,
+    data: DistributeToSurferRequest,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Distribute ALL items in a gallery to a specific surfer's locker.
+    Used for manual assignment when photographers want to push entire gallery
+    contents to a surfer who was in the session.
+    
+    Idempotent: won't create duplicates for already-distributed items.
+    """
+    from services.gallery_sync import manually_assign_item_to_surfer
+    
+    result = await db.execute(
+        select(Gallery).where(Gallery.id == gallery_id)
+    )
+    gallery = result.scalar_one_or_none()
+    
+    if not gallery:
+        raise HTTPException(status_code=404, detail="Gallery not found")
+    if gallery.photographer_id != photographer_id:
+        raise HTTPException(status_code=403, detail="Not authorized")
+    
+    # Verify surfer exists
+    surfer_result = await db.execute(select(Profile).where(Profile.id == data.surfer_id))
+    surfer = surfer_result.scalar_one_or_none()
+    if not surfer:
+        raise HTTPException(status_code=404, detail="Surfer not found")
+    
+    # Get all items in the gallery
+    items_result = await db.execute(
+        select(GalleryItem).where(
+            GalleryItem.gallery_id == gallery_id,
+            GalleryItem.is_deleted == False
+        )
+    )
+    items = items_result.scalars().all()
+    
+    if not items:
+        return {
+            "message": "No items to distribute",
+            "gallery_id": gallery_id,
+            "surfer_id": data.surfer_id,
+            "items_distributed": 0
+        }
+    
+    distributed_count = 0
+    skipped_count = 0
+    
+    for item in items:
+        # Check if already distributed
+        existing = await db.execute(
+            select(SurferGalleryItem).where(
+                SurferGalleryItem.surfer_id == data.surfer_id,
+                SurferGalleryItem.gallery_item_id == item.id
+            )
+        )
+        if existing.scalar_one_or_none():
+            skipped_count += 1
+            continue
+        
+        try:
+            result = await manually_assign_item_to_surfer(
+                db=db,
+                gallery_item_id=item.id,
+                surfer_id=data.surfer_id,
+                photographer_id=photographer_id,
+                access_type=data.access_type,
+                gallery=gallery
+            )
+            distributed_count += 1
+        except Exception as e:
+            gallery_logger.warning(f"Failed to distribute item {item.id} to surfer {data.surfer_id}: {e}")
+    
+    await db.commit()
+    
+    # Send notification
+    try:
+        photographer_result = await db.execute(select(Profile).where(Profile.id == photographer_id))
+        photographer = photographer_result.scalar_one_or_none()
+        photographer_name = photographer.full_name if photographer else "Your photographer"
+        
+        notification = Notification(
+            user_id=data.surfer_id,
+            type='gallery_distributed',
+            title=f'{distributed_count} new photos in your Locker!',
+            body=f'{photographer_name} shared {distributed_count} photos/videos from your session. Check your Locker!',
+            data=json.dumps({
+                "type": "gallery_distributed",
+                "gallery_id": gallery_id,
+                "photographer_id": photographer_id,
+                "items_count": distributed_count
+            })
+        )
+        db.add(notification)
+        await db.commit()
+    except Exception as e:
+        gallery_logger.warning(f"Failed to send distribution notification: {e}")
+    
+    return {
+        "message": f"Distributed {distributed_count} items to {surfer.full_name}'s Locker",
+        "gallery_id": gallery_id,
+        "surfer_id": data.surfer_id,
+        "surfer_name": surfer.full_name,
+        "items_distributed": distributed_count,
+        "items_skipped": skipped_count,
+        "total_items": len(items)
+    }
+
+
+@router.get("/gallery/{gallery_id}/distribution-status")
+async def get_gallery_distribution_status(
+    gallery_id: str,
+    photographer_id: str,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Get per-item distribution status for all items in a gallery.
+    Shows how many surfers each item has been distributed to.
+    """
+    result = await db.execute(
+        select(Gallery).where(Gallery.id == gallery_id)
+    )
+    gallery = result.scalar_one_or_none()
+    
+    if not gallery:
+        raise HTTPException(status_code=404, detail="Gallery not found")
+    if gallery.photographer_id != photographer_id:
+        raise HTTPException(status_code=403, detail="Not authorized")
+    
+    # Get all items with their distribution counts
+    items_result = await db.execute(
+        select(GalleryItem).where(
+            GalleryItem.gallery_id == gallery_id,
+            GalleryItem.is_deleted == False
+        )
+    )
+    items = items_result.scalars().all()
+    
+    item_statuses = []
+    for item in items:
+        # Count distributions for this item
+        dist_result = await db.execute(
+            select(
+                func.count(SurferGalleryItem.id),
+                func.count(case(
+                    (SurferGalleryItem.ai_suggested == True, 1),
+                    else_=None
+                )),
+                func.count(case(
+                    (SurferGalleryItem.surfer_confirmed == True, 1),
+                    else_=None
+                ))
+            )
+            .where(SurferGalleryItem.gallery_item_id == item.id)
+        )
+        row = dist_result.first()
+        total_dist = row[0] if row else 0
+        ai_suggested = row[1] if row else 0
+        confirmed = row[2] if row else 0
+        
+        # Get surfer names who received this item
+        surfers_result = await db.execute(
+            select(SurferGalleryItem.surfer_id, Profile.full_name, Profile.avatar_url)
+            .join(Profile, SurferGalleryItem.surfer_id == Profile.id)
+            .where(SurferGalleryItem.gallery_item_id == item.id)
+        )
+        surfer_list = [
+            {"surfer_id": r[0], "name": r[1], "avatar_url": r[2]}
+            for r in surfers_result.fetchall()
+        ]
+        
+        # Determine distribution status
+        if total_dist == 0:
+            status = "unassigned"
+        elif confirmed > 0:
+            status = "confirmed"
+        elif ai_suggested > 0:
+            status = "ai_suggested"
+        else:
+            status = "distributed"
+        
+        # Check tagged_surfer_ids for tag info
+        tagged_ids = json.loads(item.tagged_surfer_ids) if item.tagged_surfer_ids else []
+        
+        item_statuses.append({
+            "item_id": item.id,
+            "media_type": item.media_type,
+            "preview_url": item.preview_url,
+            "status": status,
+            "distributed_to": total_dist,
+            "ai_suggested": ai_suggested,
+            "confirmed": confirmed,
+            "tagged_surfer_ids": tagged_ids,
+            "surfers": surfer_list
+        })
+    
+    return {
+        "gallery_id": gallery_id,
+        "session_type": gallery.session_type,
+        "is_linked": bool(gallery.live_session_id or gallery.booking_id or gallery.dispatch_id),
+        "items": item_statuses
+    }
+
+
+@router.get("/photographer/{photographer_id}/recent-sessions")
+async def get_photographer_recent_sessions(
+    photographer_id: str,
+    limit: int = 10,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Get recent live sessions for a photographer.
+    Used by the link-session UI to show available sessions to link to a gallery.
+    """
+    result = await db.execute(
+        select(LiveSession)
+        .where(LiveSession.photographer_id == photographer_id)
+        .order_by(LiveSession.started_at.desc())
+        .limit(limit)
+    )
+    sessions = result.scalars().all()
+    
+    session_list = []
+    for s in sessions:
+        # Check if already linked to a gallery
+        gallery_result = await db.execute(
+            select(Gallery.id).where(Gallery.live_session_id == s.id)
+        )
+        linked_gallery = gallery_result.scalar_one_or_none()
+        
+        # Count participants
+        part_count_result = await db.execute(
+            select(func.count(LiveSessionParticipant.id))
+            .where(LiveSessionParticipant.live_session_id == s.id)
+        )
+        part_count = part_count_result.scalar() or 0
+        
+        session_list.append({
+            "id": s.id,
+            "location_name": s.location_name,
+            "started_at": s.started_at.isoformat() if s.started_at else None,
+            "ended_at": s.ended_at.isoformat() if s.ended_at else None,
+            "status": s.status,
+            "participant_count": part_count,
+            "total_earnings": s.total_earnings or 0,
+            "linked_gallery_id": linked_gallery,
+            "is_available": linked_gallery is None  # Available if not linked to any gallery
+        })
+    
+    return session_list
 
 
 @router.delete("/gallery/cleanup-empty")
