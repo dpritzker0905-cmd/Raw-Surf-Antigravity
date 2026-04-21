@@ -634,6 +634,23 @@ async def complete_session_payment(data: CompletePaymentRequest, db: AsyncSessio
         )
         active_live_session = active_ls_result.scalar_one_or_none()
         
+        # CaptureSession: Calculate photos included in buy-in
+        photos_included = 0
+        if active_live_session and active_live_session.photos_included:
+            photos_included = active_live_session.photos_included
+        else:
+            photos_included = photographer.live_session_photos_included or 3
+        
+        # Lock pricing at join time (same as credit path)
+        if active_live_session:
+            locked_web = active_live_session.session_price_web or photographer.photo_price_web or photographer.live_photo_price_web or 3.0
+            locked_standard = active_live_session.session_price_standard or photographer.photo_price_standard or photographer.live_photo_price_standard or 5.0
+            locked_high = active_live_session.session_price_high or photographer.photo_price_high or photographer.live_photo_price_high or 10.0
+        else:
+            locked_web = photographer.photo_price_web or photographer.live_photo_price_web or 3.0
+            locked_standard = photographer.photo_price_standard or photographer.live_photo_price_standard or 5.0
+            locked_high = photographer.photo_price_high or photographer.live_photo_price_high or 10.0
+        
         # Create the session participant
         participant = LiveSessionParticipant(
             surfer_id=surfer_id,
@@ -644,7 +661,13 @@ async def complete_session_payment(data: CompletePaymentRequest, db: AsyncSessio
             participant_role='participant',
             status='active',
             amount_paid=amount,
-            payment_method='card'
+            payment_method='card',
+            # CaptureSession fields (previously missing for card payments!)
+            photos_credit_remaining=photos_included,
+            resolution_preference='standard',
+            locked_price_web=locked_web,
+            locked_price_standard=locked_standard,
+            locked_price_high=locked_high,
         )
         db.add(participant)
         

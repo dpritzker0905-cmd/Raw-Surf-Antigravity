@@ -138,7 +138,7 @@ export const GalleryGridItem = ({
 
       {/* Video badge */}
       {isVideo && (
-        <div className="absolute bottom-2 left-2 px-2 py-0.5 rounded-md bg-black/70 backdrop-blur-sm text-[11px] text-white font-medium flex items-center gap-1">
+        <div className="absolute bottom-2 left-2 px-2 py-0.5 rounded-md bg-black/70 backdrop-blur-sm text-[11px] text-white font-medium flex items-center gap-1 z-[3]">
           <Play className="w-3 h-3" fill="white" />
           Video
           {item.video_duration && (
@@ -149,9 +149,48 @@ export const GalleryGridItem = ({
         </div>
       )}
 
+      {/* Tagged surfer avatar chips - shows who this photo is tagged to */}
+      {item.tagged_surfers && item.tagged_surfers.length > 0 && (
+        <div className="absolute bottom-2 left-2 z-[4] flex items-center -space-x-1.5">
+          {item.tagged_surfers.slice(0, 3).map((s, idx) => (
+            <div
+              key={s.surfer_id}
+              className="w-6 h-6 rounded-full border-2 border-white/90 overflow-hidden bg-emerald-500/80 shadow-md"
+              title={`${s.full_name} (${s.access_type === 'included' ? 'Full-res' : 'Preview'})`}
+              style={{ zIndex: 10 - idx }}
+            >
+              {s.avatar_url ? (
+                <img
+                  src={getFullUrl(s.avatar_url)}
+                  alt={s.full_name}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center text-white text-[9px] font-bold bg-purple-500">
+                  {(s.full_name || '?').charAt(0).toUpperCase()}
+                </div>
+              )}
+            </div>
+          ))}
+          {item.tagged_surfers.length > 3 && (
+            <div className="w-6 h-6 rounded-full border-2 border-white/90 bg-zinc-600 flex items-center justify-center text-white text-[9px] font-bold shadow-md">
+              +{item.tagged_surfers.length - 3}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Distribution status indicator (top-left, non-bulk mode) */}
+      {!bulkSelectMode && item.distributed_count > 0 && (
+        <div className="absolute top-2 left-2 z-[3] px-1.5 py-0.5 rounded-full bg-emerald-500/90 backdrop-blur-sm text-[9px] text-white font-bold flex items-center gap-0.5">
+          <Check className="w-2.5 h-2.5" />
+          {item.distributed_count}
+        </div>
+      )}
+
       {/* Price badge */}
       {item.price > 0 && item.is_for_sale && !bulkSelectMode && (
-        <div className="absolute bottom-2 right-2 px-2 py-0.5 rounded-md bg-emerald-500/90 backdrop-blur-sm text-[11px] text-white font-bold">
+        <div className="absolute bottom-2 right-2 px-2 py-0.5 rounded-md bg-emerald-500/90 backdrop-blur-sm text-[11px] text-white font-bold z-[3]">
           ${(item.custom_price || item.price).toFixed(0)}
         </div>
       )}

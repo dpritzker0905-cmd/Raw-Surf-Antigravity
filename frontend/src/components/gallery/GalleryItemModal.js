@@ -35,6 +35,11 @@ export const GalleryItemModal = ({ item, onClose, onPurchased, galleryId }) => {
   const [tagParticipants, setTagParticipants] = useState([]);
   const [tagLoading, setTagLoading] = useState({});
   const [loadingTagParticipants, setLoadingTagParticipants] = useState(false);
+  // Track which surfers this item is already tagged to (from item data + live tags)
+  const [taggedIds, setTaggedIds] = useState(() => {
+    const existing = item.tagged_surfers?.map(s => s.surfer_id) || [];
+    return new Set(existing);
+  });
   
   // Check if current user is the owner
   const isOwner = user?.id === item.photographer_id;
@@ -95,19 +100,28 @@ export const GalleryItemModal = ({ item, onClose, onPurchased, galleryId }) => {
       
       if (response.data.already_tagged) {
         toast.info(`Already tagged to ${surferName}`);
+        setTaggedIds(prev => new Set([...prev, surferId]));
       } else {
-        const accessLabel = response.data.access_type === 'included' 
-          ? '(full-res — included in buy-in)' 
-          : '(preview — purchase to unlock)';
+        const accessType = response.data.access_type;
+        const accessLabel = accessType === 'included' 
+          ? '— Full resolution (included in buy-in 🌟)' 
+          : '— Added to Locker';
         toast.success(`✅ Tagged to ${surferName} ${accessLabel}`);
+        
+        // Mark as tagged in local state
+        setTaggedIds(prev => new Set([...prev, surferId]));
+        
+        // Update participant credits
         if (response.data.credits_remaining >= 0) {
-          // Update participant credits in local state
           setTagParticipants(prev => prev.map(p => 
             p.surfer_id === surferId 
               ? { ...p, photos_credit_remaining: response.data.credits_remaining, items_distributed: (p.items_distributed || 0) + 1 }
               : p
           ));
         }
+        
+        // Trigger gallery refresh so grid shows avatar chips
+        if (onPurchased) onPurchased();
       }
     } catch (error) {
       toast.error(getErrorMessage(error, `Failed to tag to ${surferName}`));
@@ -388,45 +402,68 @@ export const GalleryItemModal = ({ item, onClose, onPurchased, galleryId }) => {
                 </div>
               ) : tagParticipants.length > 0 ? (
                 <div className="space-y-2">
-                  <p className="text-xs text-gray-400 mb-2">Select a surfer to tag this item to their Locker:</p>
-                  <div className="flex flex-wrap gap-2">
-                    {tagParticipants.map((p) => {
-                      const isLoading = tagLoading[p.surfer_id];
-                      const hasCredits = p.photos_credit_remaining > 0;
-                      return (
-                        <button
-                          key={p.surfer_id}
-                          onClick={() => handleTagToSurfer(p.surfer_id, p.full_name || p.username)}
-                          disabled={isLoading}
-                          className={`flex items-center gap-2 px-3 py-2 rounded-lg border transition-all text-left ${
-                            hasCredits 
-                              ? 'border-emerald-500/40 bg-emerald-500/10 hover:bg-emerald-500/20'
-                              : 'border-zinc-600 bg-zinc-700/50 hover:bg-zinc-700'
-                          }`}
-                        >
-                          {isLoading ? (
-                            <Loader2 className="w-6 h-6 animate-spin text-purple-400" />
-                          ) : p.avatar_url || p.selfie_url ? (
-                            <img
-                              src={getFullUrl(p.selfie_url || p.avatar_url)}
-                              alt={p.full_name}
-                              className="w-6 h-6 rounded-full object-cover"
-                            />
-                          ) : (
-                            <div className="w-6 h-6 rounded-full bg-purple-500/30 flex items-center justify-center text-purple-400 text-xs font-bold">
-                              {(p.full_name || p.username || '?').charAt(0).toUpperCase()}
-                            </div>
-                          )}
-                          <div className="min-w-0">
-                            <p className="text-xs font-medium text-white truncate">{p.full_name || p.username}</p>
-                            <p className="text-[10px] text-gray-400">
-                              {hasCredits ? `${p.photos_credit_remaining} free remaining` : 'Preview'}
-                            </p>
+                  {tagParticipants.map((p) => {
+                    const isLoading = tagLoading[p.surfer_id];
+                    const isTagged = taggedIds.has(p.surfer_id);
+                    const hasCredits = p.photos_credit_remaining > 0;
+                    const selfieOrAvatar = getFullUrl(p.selfie_url || p.avatar_url);
+                    return (
+                      <button
+                        key={p.surfer_id}
+                        onClick={() => !isTagged && handleTagToSurfer(p.surfer_id, p.full_name || p.username)}
+                        disabled={isLoading || isTagged}
+                        className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg border transition-all text-left ${
+                          isTagged
+                            ? 'border-emerald-500/50 bg-emerald-500/15 cursor-default'
+                            : hasCredits 
+                              ? 'border-emerald-500/40 bg-emerald-500/10 hover:bg-emerald-500/20 hover:border-emerald-400/60'
+                              : 'border-zinc-600 bg-zinc-700/50 hover:bg-zinc-700 hover:border-purple-500/50'
+                        }`}
+                      >
+                        {/* Selfie / Avatar — shown larger as reference */}
+                        {isLoading ? (
+                          <Loader2 className="w-10 h-10 animate-spin text-purple-400 shrink-0" />
+                        ) : selfieOrAvatar ? (
+                          <img
+                            src={selfieOrAvatar}
+                            alt={`Reference: ${p.full_name}`}
+                            className={`w-10 h-10 rounded-full object-cover shrink-0 border-2 ${
+                              isTagged ? 'border-emerald-400' : 'border-zinc-500'
+                            }`}
+                          />
+                        ) : (
+                          <div className="w-10 h-10 rounded-full bg-purple-500/30 flex items-center justify-center text-purple-400 text-sm font-bold shrink-0">
+                            {(p.full_name || p.username || '?').charAt(0).toUpperCase()}
                           </div>
-                        </button>
-                      );
-                    })}
-                  </div>
+                        )}
+                        
+                        {/* Name + status */}
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-white truncate">
+                            {p.full_name || p.username}
+                          </p>
+                          <p className="text-[11px] text-gray-400">
+                            {isTagged ? (
+                              <span className="text-emerald-400 font-medium">✅ Tagged to this photo</span>
+                            ) : hasCredits ? (
+                              <span className="text-emerald-400">🎟️ {p.photos_credit_remaining} included photos remaining</span>
+                            ) : (
+                              <span>${p.amount_paid || 0} paid</span>
+                            )}
+                          </p>
+                        </div>
+                        
+                        {/* Action indicator */}
+                        <div className="shrink-0">
+                          {isTagged ? (
+                            <Check className="w-5 h-5 text-emerald-400" />
+                          ) : (
+                            <Send className="w-4 h-4 text-gray-400" />
+                          )}
+                        </div>
+                      </button>
+                    );
+                  })}
                 </div>
               ) : (
                 <p className="text-xs text-gray-500">No session participants. Use the gallery-level Tag & Assign to search for surfers.</p>

@@ -1713,12 +1713,33 @@ async def get_gallery(
                 "confirmed_count": row[3]
             }
     
+    # Batch-load tagged surfer profiles for avatar chips on grid
+    tagged_surfers_map = {}
+    if is_owner and item_ids:
+        tagged_result = await db.execute(
+            select(SurferGalleryItem.gallery_item_id, SurferGalleryItem.surfer_id, 
+                   SurferGalleryItem.access_type, Profile.full_name, Profile.avatar_url)
+            .join(Profile, SurferGalleryItem.surfer_id == Profile.id)
+            .where(SurferGalleryItem.gallery_item_id.in_(item_ids))
+        )
+        for row in tagged_result.fetchall():
+            item_id = row[0]
+            if item_id not in tagged_surfers_map:
+                tagged_surfers_map[item_id] = []
+            tagged_surfers_map[item_id].append({
+                "surfer_id": row[1],
+                "access_type": row[2],
+                "full_name": row[3],
+                "avatar_url": row[4]
+            })
+    
     items = []
     for item in gallery.items:
         # Gallery owner can always see all items (including private/draft ones)
         # Public viewers only see items marked is_public
         if is_owner or item.is_public:
             item_dist = distribution_map.get(item.id, {})
+            item_tagged = tagged_surfers_map.get(item.id, [])
             items.append({
                 "id": item.id,
                 "preview_url": item.preview_url,
@@ -1735,6 +1756,7 @@ async def get_gallery(
                 "view_count": item.view_count,
                 "purchase_count": item.purchase_count,
                 "tagged_surfer_ids": item.tagged_surfer_ids,
+                "tagged_surfers": item_tagged,  # Full surfer profiles for avatar chips
                 "is_purchased": item.id in purchased_ids,
                 "created_at": item.created_at.isoformat(),
                 # Phase 4: Distribution status per item
@@ -3371,6 +3393,30 @@ async def get_gallery_session_participants(
             )
             distributed_count = dist_count_result.scalar() or 0
             
+            # Retroactive credit fix: if 0 but participant paid, calculate from session
+            effective_credits = participant.photos_credit_remaining or 0
+            if effective_credits == 0 and participant.amount_paid and participant.amount_paid > 0:
+                included_dist_result = await db.execute(
+                    select(func.count(SurferGalleryItem.id)).where(
+                        SurferGalleryItem.surfer_id == profile.id,
+                        SurferGalleryItem.photographer_id == gallery.photographer_id,
+                        SurferGalleryItem.access_type == 'included'
+                    )
+                )
+                already_included = included_dist_result.scalar() or 0
+                photos_included_setting = 3  # default
+                if gallery.live_session_id:
+                    ls_result2 = await db.execute(
+                        select(LiveSession).where(LiveSession.id == gallery.live_session_id)
+                    )
+                    ls2 = ls_result2.scalar_one_or_none()
+                    if ls2 and ls2.photos_included:
+                        photos_included_setting = ls2.photos_included
+                effective_credits = max(0, photos_included_setting - already_included)
+                # Repair the record
+                if effective_credits > 0:
+                    participant.photos_credit_remaining = effective_credits
+            
             participants.append({
                 "surfer_id": profile.id,
                 "full_name": profile.full_name,
@@ -3381,7 +3427,7 @@ async def get_gallery_session_participants(
                 "joined_at": participant.joined_at.isoformat() if participant.joined_at else None,
                 "status": participant.status,
                 "items_distributed": distributed_count,
-                "photos_credit_remaining": participant.photos_credit_remaining or 0,
+                "photos_credit_remaining": effective_credits,
                 "resolution_preference": participant.resolution_preference or 'standard',
                 "payment_method": participant.payment_method
             })
@@ -3740,10 +3786,44 @@ async def tag_single_item_to_surfer(
     )
     participant = participant_result.scalar_one_or_none()
     
-    if participant and participant.photos_credit_remaining and participant.photos_credit_remaining > 0:
+    credits_remaining = 0
+    if participant:
+        credits_remaining = participant.photos_credit_remaining or 0
+        
+        # Retroactive fix: if credits are 0 but participant paid and no items distributed yet,
+        # calculate from session's photos_included (handles legacy card-payment records)
+        if credits_remaining == 0 and participant.amount_paid and participant.amount_paid > 0:
+            # Count how many items already distributed to this surfer from this photographer
+            dist_count_result = await db.execute(
+                select(func.count(SurferGalleryItem.id)).where(
+                    SurferGalleryItem.surfer_id == data.surfer_id,
+                    SurferGalleryItem.photographer_id == photographer_id,
+                    SurferGalleryItem.access_type == 'included'
+                )
+            )
+            already_included = dist_count_result.scalar() or 0
+            
+            # Get photos_included from session or photographer settings
+            photos_included = 3  # default
+            if gallery.live_session_id:
+                ls_result = await db.execute(
+                    select(LiveSession).where(LiveSession.id == gallery.live_session_id)
+                )
+                ls = ls_result.scalar_one_or_none()
+                if ls and ls.photos_included:
+                    photos_included = ls.photos_included
+            
+            retroactive_credits = max(0, photos_included - already_included)
+            if retroactive_credits > 0:
+                credits_remaining = retroactive_credits
+                # Repair the record for future calls
+                participant.photos_credit_remaining = credits_remaining
+    
+    if credits_remaining > 0:
         access_type = 'included'  # Full resolution — covered by buy-in
         # Decrement the credit
-        participant.photos_credit_remaining -= 1
+        if participant:
+            participant.photos_credit_remaining = max(0, credits_remaining - 1)
     
     try:
         await manually_assign_item_to_surfer(
@@ -3754,12 +3834,25 @@ async def tag_single_item_to_surfer(
             access_type=access_type,
             gallery=gallery
         )
+        
+        # Update tagged_surfer_ids on the GalleryItem for grid display
+        tagged_ids = json.loads(item.tagged_surfer_ids) if item.tagged_surfer_ids else []
+        if data.surfer_id not in tagged_ids:
+            tagged_ids.append(data.surfer_id)
+            item.tagged_surfer_ids = json.dumps(tagged_ids)
+        
         await db.commit()
+        
+        # Get surfer profile for response
+        surfer_result = await db.execute(select(Profile).where(Profile.id == data.surfer_id))
+        surfer = surfer_result.scalar_one_or_none()
         
         return {
             "message": f"Tagged to surfer as {access_type}",
             "item_id": data.item_id,
             "surfer_id": data.surfer_id,
+            "surfer_name": surfer.full_name if surfer else "Unknown",
+            "surfer_avatar": surfer.avatar_url if surfer else None,
             "access_type": access_type,
             "credits_remaining": participant.photos_credit_remaining if participant else 0,
             "already_tagged": False
