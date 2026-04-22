@@ -177,7 +177,7 @@ const SurferPanel = ({ surfer, itemCount, galleryId, photographerId, onRosterUpd
     setLoadingItems(true);
     try {
       const resp = await apiClient.get(
-        `/api/gallery/${galleryId}/surfer-items/${surfer.surfer_id}?photographer_id=${photographerId}`
+        `/gallery/${galleryId}/surfer-items/${surfer.surfer_id}?photographer_id=${photographerId}`
       );
       setTaggedItems(resp.data.tagged_items || []);
       setItemsLoaded(true);
@@ -201,7 +201,7 @@ const SurferPanel = ({ surfer, itemCount, galleryId, photographerId, onRosterUpd
     setUntagging(item.gallery_item_id);
     try {
       await apiClient.post(
-        `/api/gallery/${galleryId}/untag-item?photographer_id=${photographerId}`,
+        `/gallery/${galleryId}/untag-item?photographer_id=${photographerId}`,
         { surfer_id: surfer.surfer_id, item_id: item.gallery_item_id }
       );
       setTaggedItems(prev => prev.filter(i => i.gallery_item_id !== item.gallery_item_id));
