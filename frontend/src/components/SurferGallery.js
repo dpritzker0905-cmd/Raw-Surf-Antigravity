@@ -1,4 +1,4 @@
-﻿/**
+/**
  * SurferGallery - "My Gallery" / "The Locker"
  * Private media collection for surfers with full controls
  * 
@@ -43,7 +43,7 @@ import { LockerSelfieModal } from './LockerSelfieModal';
 import { BulkPurchaseBar, MultiSelectToggle } from './gallery/BulkPurchaseBar';
 import { VisibilityOnboarding } from './gallery/DownloadVisibility';
 import logger from '../utils/logger';
-
+import { getFullUrl } from '../utils/media';
 
 /**
  * Gallery Item Card Component - Enhanced with favorites and sharing

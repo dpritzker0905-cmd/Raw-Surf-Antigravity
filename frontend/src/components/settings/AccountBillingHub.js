@@ -1,4 +1,4 @@
-﻿/**
+/**
  * AccountBillingHub - Subscription & Status Management
  * Location: Settings > Account & Billing
  * 
@@ -33,6 +33,7 @@ import {
 } from '../../config/subscriptionPlans.config';
 import logger from '../../utils/logger';
 import { ROLES } from '../../constants/roles';
+import { getFullUrl } from '../../utils/media';
 
 const API = process.env.REACT_APP_BACKEND_URL;
 

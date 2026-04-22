@@ -1669,26 +1669,31 @@ async def get_photographer_galleries(
     # ── Live Session Participants ──
     live_participants_map = {}  # live_session_id -> [participants]
     if live_session_ids:
-        lsp_result = await db.execute(
-            select(LiveSessionParticipant, Profile)
-            .join(Profile, LiveSessionParticipant.surfer_id == Profile.id)
-            .where(LiveSessionParticipant.live_session_id.in_(live_session_ids))
-            .where(LiveSessionParticipant.status.in_(['active', 'completed']))
-        )
-        for lsp, profile in lsp_result.fetchall():
-            sid = lsp.live_session_id
-            if sid not in live_participants_map:
-                live_participants_map[sid] = []
-            live_participants_map[sid].append({
-                "surfer_id": profile.id,
-                "full_name": profile.full_name,
-                "username": profile.username,
-                "avatar_url": profile.avatar_url,
-                "selfie_url": lsp.selfie_url,
-                "amount_paid": lsp.amount_paid or 0,
-                "photos_credit_remaining": lsp.photos_credit_remaining or 0,
-                "payment_method": lsp.payment_method
-            })
+        try:
+            lsp_result = await db.execute(
+                select(LiveSessionParticipant, Profile)
+                .join(Profile, LiveSessionParticipant.surfer_id == Profile.id)
+                .where(LiveSessionParticipant.live_session_id.in_(live_session_ids))
+            )
+            rows = lsp_result.all()
+            gallery_logger.info(f"Session Roster: Found {len(rows)} live participants for {len(live_session_ids)} sessions")
+            for row in rows:
+                lsp, profile = row[0], row[1]
+                sid = lsp.live_session_id
+                if sid not in live_participants_map:
+                    live_participants_map[sid] = []
+                live_participants_map[sid].append({
+                    "surfer_id": profile.id,
+                    "full_name": profile.full_name,
+                    "username": profile.username,
+                    "avatar_url": profile.avatar_url,
+                    "selfie_url": lsp.selfie_url,
+                    "amount_paid": lsp.amount_paid or 0,
+                    "photos_credit_remaining": lsp.photos_credit_remaining or 0,
+                    "payment_method": lsp.payment_method
+                })
+        except Exception as e:
+            gallery_logger.error(f"Session Roster live query error: {e}")
     
     # ── Booking Participants ──
     booking_participants_map = {}  # booking_id -> [participants]
@@ -1703,53 +1708,60 @@ async def get_photographer_galleries(
                 "photos_included": bk.booking_photos_included or 3
             }
         
-        bp_result = await db.execute(
-            select(BookingParticipant, Profile)
-            .join(Profile, BookingParticipant.participant_id == Profile.id)
-            .where(BookingParticipant.booking_id.in_(booking_ids))
-            .where(BookingParticipant.status.in_(['confirmed', 'completed', 'pending']))
-        )
-        for bp, profile in bp_result.fetchall():
-            bid = bp.booking_id
-            if bid not in booking_participants_map:
-                booking_participants_map[bid] = []
-            bk_settings = booking_settings_map.get(bid, {})
-            booking_participants_map[bid].append({
-                "surfer_id": profile.id,
-                "full_name": profile.full_name,
-                "username": profile.username,
-                "avatar_url": profile.avatar_url,
-                "selfie_url": bp.selfie_url,
-                "amount_paid": bp.paid_amount or 0,
-                "photos_credit_remaining": 0,
-                "payment_method": bp.payment_method,
-                "photos_included": bk_settings.get("photos_included", 3)
-            })
+        try:
+            bp_result = await db.execute(
+                select(BookingParticipant, Profile)
+                .join(Profile, BookingParticipant.participant_id == Profile.id)
+                .where(BookingParticipant.booking_id.in_(booking_ids))
+            )
+            for row in bp_result.all():
+                bp, profile = row[0], row[1]
+                bid = bp.booking_id
+                if bid not in booking_participants_map:
+                    booking_participants_map[bid] = []
+                bk_settings = booking_settings_map.get(bid, {})
+                booking_participants_map[bid].append({
+                    "surfer_id": profile.id,
+                    "full_name": profile.full_name,
+                    "username": profile.username,
+                    "avatar_url": profile.avatar_url,
+                    "selfie_url": bp.selfie_url,
+                    "amount_paid": bp.paid_amount or 0,
+                    "photos_credit_remaining": 0,
+                    "payment_method": bp.payment_method,
+                    "photos_included": bk_settings.get("photos_included", 3)
+                })
+        except Exception as e:
+            gallery_logger.error(f"Session Roster booking query error: {e}")
     
     # ── On-Demand (Dispatch) Participants ──
     from models import DispatchRequestParticipant
     dispatch_participants_map = {}  # dispatch_id -> [participants]
     if dispatch_ids:
         # Get dispatch requests to find requesters
-        dr_result = await db.execute(
-            select(DispatchRequest, Profile)
-            .join(Profile, DispatchRequest.requester_id == Profile.id)
-            .where(DispatchRequest.id.in_(dispatch_ids))
-        )
-        for dr, profile in dr_result.fetchall():
-            did = dr.id
-            if did not in dispatch_participants_map:
-                dispatch_participants_map[did] = []
-            dispatch_participants_map[did].append({
-                "surfer_id": profile.id,
-                "full_name": profile.full_name,
-                "username": profile.username,
-                "avatar_url": profile.avatar_url,
-                "selfie_url": dr.selfie_url,
-                "amount_paid": dr.deposit_amount or 0,
-                "photos_credit_remaining": 0,
-                "payment_method": "card"
-            })
+        try:
+            dr_result = await db.execute(
+                select(DispatchRequest, Profile)
+                .join(Profile, DispatchRequest.requester_id == Profile.id)
+                .where(DispatchRequest.id.in_(dispatch_ids))
+            )
+            for row in dr_result.all():
+                dr, profile = row[0], row[1]
+                did = dr.id
+                if did not in dispatch_participants_map:
+                    dispatch_participants_map[did] = []
+                dispatch_participants_map[did].append({
+                    "surfer_id": profile.id,
+                    "full_name": profile.full_name,
+                    "username": profile.username,
+                    "avatar_url": profile.avatar_url,
+                    "selfie_url": dr.selfie_url,
+                    "amount_paid": dr.deposit_amount or 0,
+                    "photos_credit_remaining": 0,
+                    "payment_method": "card"
+                })
+        except Exception as e:
+            gallery_logger.error(f"Session Roster dispatch query error: {e}")
         # Also get additional crew participants
         try:
             drp_result = await db.execute(
@@ -1758,7 +1770,8 @@ async def get_photographer_galleries(
                 .where(DispatchRequestParticipant.dispatch_request_id.in_(dispatch_ids))
                 .where(DispatchRequestParticipant.paid == True)
             )
-            for drp, profile in drp_result.fetchall():
+            for row in drp_result.all():
+                drp, profile = row[0], row[1]
                 did = drp.dispatch_request_id
                 if did not in dispatch_participants_map:
                     dispatch_participants_map[did] = []
@@ -1803,7 +1816,7 @@ async def get_photographer_galleries(
                 for iid in item_ids:
                     item_to_gallery[iid] = gid
             
-            for row in dist_result.fetchall():
+            for row in dist_result.all():
                 gid = item_to_gallery.get(row[0])
                 if gid:
                     if gid not in dist_per_surfer_map:

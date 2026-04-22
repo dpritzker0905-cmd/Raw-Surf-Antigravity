@@ -5,6 +5,7 @@
 import React from 'react';
 import { Folder, Image, Video, MapPin, Calendar, Edit3, Trash2 } from 'lucide-react';
 import { Badge } from '../ui/badge';
+import { getFullUrl } from '../../utils/media';
 
 export const GalleryFolderCard = ({ 
   folder, 

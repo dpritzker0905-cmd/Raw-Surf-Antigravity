@@ -19,6 +19,7 @@ import { getFullUrl } from '../../utils/media';
 import logger from '../../utils/logger';
 import { AdminSpotEditor } from './AdminSpotEditor';
 import { AdminPrecisionQueue } from './AdminPrecisionQueue';
+import { supabase } from '../../lib/supabase';
 
 /**
  * AdminSpotsPanel — Extracted from UnifiedAdminConsole
