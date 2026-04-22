@@ -1,4 +1,4 @@
-﻿import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useAuth } from './AuthContext';
 import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import logger from '../utils/logger';
@@ -114,18 +114,57 @@ export const PricingProvider = ({ children }) => {
 
     try {
       const res = await apiClient.get(`/photographer/${user.id}/gallery-pricing`);
+      const sp = res.data.session_pricing || {};
+      const od = res.data.on_demand_pricing || {};
+      const ls = res.data.live_session_pricing || {};
+      const bk = res.data.booking_pricing || {};
+
       setGeneralSettings({
+        // ── Gallery (general) pricing ──
         photo_price_web: res.data.photo_pricing?.web || 3,
         photo_price_standard: res.data.photo_pricing?.standard || 5,
         photo_price_high: res.data.photo_pricing?.high || 10,
         video_price_720p: res.data.video_pricing?.['720p'] || 8,
         video_price_1080p: res.data.video_pricing?.['1080p'] || 15,
         video_price_4k: res.data.video_pricing?.['4k'] || 30,
-        // Multi-tiered session pricing
-        on_demand_photo_price: res.data.session_pricing?.on_demand_photo_price || 10,
-        on_demand_photos_included: res.data.session_pricing?.on_demand_photos_included || 3,
-        live_session_photo_price: res.data.session_pricing?.live_session_photo_price || 5,
-        live_session_photos_included: res.data.session_pricing?.live_session_photos_included || 3
+
+        // ── Session-level metadata (included counts, buy-in, etc.) ──
+        on_demand_photo_price: sp.on_demand_photo_price || 10,
+        on_demand_photos_included: sp.on_demand_photos_included || 3,
+        on_demand_videos_included: sp.on_demand_videos_included || 0,
+        on_demand_full_gallery: sp.on_demand_full_gallery || false,
+        live_session_photo_price: sp.live_session_photo_price || 5,
+        live_session_photos_included: sp.live_session_photos_included || 3,
+        live_session_videos_included: sp.live_session_videos_included || 0,
+        live_session_full_gallery: sp.live_session_full_gallery || false,
+        booking_hourly_rate: sp.booking_hourly_rate || 50,
+        booking_photos_included: sp.booking_photos_included || 3,
+        booking_videos_included: sp.booking_videos_included || 0,
+        booking_full_gallery: sp.booking_full_gallery || false,
+
+        // ── On-Demand independent resolution pricing ──
+        on_demand_price_web: od.photo_web || 5,
+        on_demand_price_standard: od.photo_standard || 10,
+        on_demand_price_high: od.photo_high || 18,
+        on_demand_video_720p: od.video_720p || 12,
+        on_demand_video_1080p: od.video_1080p || 20,
+        on_demand_video_4k: od.video_4k || 40,
+
+        // ── Live Session independent resolution pricing ──
+        live_price_web: ls.photo_web || 3,
+        live_price_standard: ls.photo_standard || 6,
+        live_price_high: ls.photo_high || 12,
+        live_video_720p: ls.video_720p || 8,
+        live_video_1080p: ls.video_1080p || 15,
+        live_video_4k: ls.video_4k || 30,
+
+        // ── Booking independent resolution pricing ──
+        booking_price_web: bk.photo_web || 3,
+        booking_price_standard: bk.photo_standard || 5,
+        booking_price_high: bk.photo_high || 10,
+        booking_video_720p: bk.video_720p || 8,
+        booking_video_1080p: bk.video_1080p || 15,
+        booking_video_4k: bk.video_4k || 30,
       });
       setLastUpdated(Date.now());
     } catch (e) {
@@ -165,19 +204,8 @@ export const PricingProvider = ({ children }) => {
   const updateGeneralSettings = useCallback(async (newSettings) => {
     try {
       await apiClient.put(`/photographer/${user.id}/gallery-pricing`, newSettings);
-      setGeneralSettings({
-        photo_price_web: newSettings.photo_price_web,
-        photo_price_standard: newSettings.photo_price_standard,
-        photo_price_high: newSettings.photo_price_high,
-        video_price_720p: newSettings.video_price_720p,
-        video_price_1080p: newSettings.video_price_1080p,
-        video_price_4k: newSettings.video_price_4k,
-        // Multi-tiered session pricing
-        on_demand_photo_price: newSettings.on_demand_photo_price,
-        on_demand_photos_included: newSettings.on_demand_photos_included,
-        live_session_photo_price: newSettings.live_session_photo_price,
-        live_session_photos_included: newSettings.live_session_photos_included
-      });
+      // Merge new settings into existing state
+      setGeneralSettings(prev => ({ ...prev, ...newSettings }));
       setLastUpdated(Date.now());
       return { success: true };
     } catch (error) {
@@ -225,6 +253,7 @@ export const PricingProvider = ({ children }) => {
     clearItemCustomPrice,
     getDisplayPrice,
     refreshPricing,
+    _refreshPricing: refreshPricing,
     calculateDisplayPrice: (item, tier) => calculateDisplayPrice(item, sessionPricing, generalSettings, tier)
   };
 

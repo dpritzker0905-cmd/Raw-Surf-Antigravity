@@ -896,7 +896,7 @@ export const PhotographerGalleryManager = () => {
                           onClick={async () => {
                             const val = Math.max(0, (gallery.session_settings?.photos_included || 3) - 1);
                             try {
-                              await apiClient.patch(`/galleries/${galleryId}/session-settings?photographer_id=${user?.profile_id}`, { photos_included: val });
+                              await apiClient.patch(`/galleries/${galleryId}/session-settings?photographer_id=${user?.id}`, { photos_included: val });
                               setGallery(prev => ({...prev, session_settings: {...prev.session_settings, photos_included: val}}));
                               toast.success(`Photos included updated to ${val}`);
                               fetchSessionParticipants();
@@ -910,7 +910,7 @@ export const PhotographerGalleryManager = () => {
                           onClick={async () => {
                             const val = (gallery.session_settings?.photos_included || 3) + 1;
                             try {
-                              await apiClient.patch(`/galleries/${galleryId}/session-settings?photographer_id=${user?.profile_id}`, { photos_included: val });
+                              await apiClient.patch(`/galleries/${galleryId}/session-settings?photographer_id=${user?.id}`, { photos_included: val });
                               setGallery(prev => ({...prev, session_settings: {...prev.session_settings, photos_included: val}}));
                               toast.success(`Photos included updated to ${val}`);
                               fetchSessionParticipants();
@@ -932,7 +932,7 @@ export const PhotographerGalleryManager = () => {
                           onClick={async () => {
                             const val = Math.max(0, (gallery.session_settings?.videos_included || 0) - 1);
                             try {
-                              await apiClient.patch(`/galleries/${galleryId}/session-settings?photographer_id=${user?.profile_id}`, { videos_included: val });
+                              await apiClient.patch(`/galleries/${galleryId}/session-settings?photographer_id=${user?.id}`, { videos_included: val });
                               setGallery(prev => ({...prev, session_settings: {...prev.session_settings, videos_included: val}}));
                               toast.success(`Videos included updated to ${val}`);
                               fetchSessionParticipants();
@@ -946,7 +946,7 @@ export const PhotographerGalleryManager = () => {
                           onClick={async () => {
                             const val = (gallery.session_settings?.videos_included || 0) + 1;
                             try {
-                              await apiClient.patch(`/galleries/${galleryId}/session-settings?photographer_id=${user?.profile_id}`, { videos_included: val });
+                              await apiClient.patch(`/galleries/${galleryId}/session-settings?photographer_id=${user?.id}`, { videos_included: val });
                               setGallery(prev => ({...prev, session_settings: {...prev.session_settings, videos_included: val}}));
                               toast.success(`Videos included updated to ${val}`);
                               fetchSessionParticipants();

@@ -684,8 +684,16 @@ async def get_gallery_pricing(
         "session_pricing": {
             "on_demand_photo_price": photographer.on_demand_photo_price or 10.0,
             "on_demand_photos_included": photographer.on_demand_photos_included or 3,
+            "on_demand_videos_included": photographer.on_demand_videos_included or 0,
             "live_session_photo_price": photographer.live_session_photo_price or 5.0,
-            "live_session_photos_included": photographer.live_session_photos_included or 3
+            "live_session_photos_included": photographer.live_session_photos_included or 3,
+            "live_session_videos_included": photographer.live_session_videos_included or 0,
+            "booking_hourly_rate": photographer.booking_hourly_rate or 50.0,
+            "booking_photos_included": photographer.booking_photos_included or 3,
+            "booking_videos_included": photographer.booking_videos_included or 0,
+            "booking_full_gallery": photographer.booking_full_gallery or False,
+            "on_demand_full_gallery": photographer.on_demand_full_gallery or False,
+            "live_session_full_gallery": photographer.live_session_full_gallery or False
         },
         # Independent per-session-type resolution pricing
         "on_demand_pricing": {

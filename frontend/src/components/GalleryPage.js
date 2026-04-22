@@ -49,24 +49,27 @@ export const GalleryPage = () => {
   const [showGalleryPricingModal, setShowGalleryPricingModal] = useState(false);
   const [pricingCollapsed, setPricingCollapsed] = useState(true); // Collapsed by default on mobile
   const [brokenCoverImages, setBrokenCoverImages] = useState(new Set()); // Track failed cover images
+  const [pricingTab, setPricingTab] = useState('gallery'); // 'gallery' | 'live' | 'booking' | 'ondemand'
   const [galleryPricing, setGalleryPricing] = useState({
-    photo_price_web: 3,
-    photo_price_standard: 5,
-    photo_price_high: 10,
-    video_price_720p: 8,
-    video_price_1080p: 15,
-    video_price_4k: 30,
-    // Multi-tiered session pricing
-    on_demand_photo_price: 10,
-    on_demand_photos_included: 3,
-    on_demand_videos_included: 0,
-    live_session_photo_price: 5,
-    live_session_photos_included: 3,
-    live_session_videos_included: 0,
-    // Booking pricing
+    // Gallery (general) photo pricing
+    photo_price_web: 3, photo_price_standard: 5, photo_price_high: 10,
+    // Gallery (general) video pricing
+    video_price_720p: 8, video_price_1080p: 15, video_price_4k: 30,
+    // Live Session independent pricing
+    live_price_web: 3, live_price_standard: 6, live_price_high: 12,
+    live_video_720p: 8, live_video_1080p: 15, live_video_4k: 30,
+    live_session_photos_included: 3, live_session_videos_included: 0,
+    // On-Demand independent pricing
+    on_demand_price_web: 5, on_demand_price_standard: 10, on_demand_price_high: 18,
+    on_demand_video_720p: 12, on_demand_video_1080p: 20, on_demand_video_4k: 40,
+    on_demand_photos_included: 3, on_demand_videos_included: 0,
+    // Booking independent pricing
     booking_hourly_rate: 50,
-    booking_photos_included: 3,
-    booking_videos_included: 0
+    booking_price_web: 3, booking_price_standard: 5, booking_price_high: 10,
+    booking_video_720p: 8, booking_video_1080p: 15, booking_video_4k: 30,
+    booking_photos_included: 3, booking_videos_included: 0,
+    // Legacy fields
+    on_demand_photo_price: 10, live_session_photo_price: 5
   });
   
   // NEW: Folder management state
@@ -130,25 +133,7 @@ export const GalleryPage = () => {
   // Sync local state with context when context updates
   useEffect(() => {
     if (generalSettings) {
-      setGalleryPricing({
-        photo_price_web: generalSettings.photo_price_web || 3,
-        photo_price_standard: generalSettings.photo_price_standard || 5,
-        photo_price_high: generalSettings.photo_price_high || 10,
-        video_price_720p: generalSettings.video_price_720p || 8,
-        video_price_1080p: generalSettings.video_price_1080p || 15,
-        video_price_4k: generalSettings.video_price_4k || 30,
-        // Multi-tiered session pricing
-        on_demand_photo_price: generalSettings.on_demand_photo_price || 10,
-        on_demand_photos_included: generalSettings.on_demand_photos_included || 3,
-        on_demand_videos_included: generalSettings.on_demand_videos_included || 0,
-        live_session_photo_price: generalSettings.live_session_photo_price || 5,
-        live_session_photos_included: generalSettings.live_session_photos_included || 3,
-        live_session_videos_included: generalSettings.live_session_videos_included || 0,
-        // Booking pricing
-        booking_hourly_rate: generalSettings.booking_hourly_rate || 50,
-        booking_photos_included: generalSettings.booking_photos_included || 3,
-        booking_videos_included: generalSettings.booking_videos_included || 0
-      });
+      setGalleryPricing(prev => ({ ...prev, ...generalSettings }));
     }
   }, [generalSettings, lastUpdated]);
 
@@ -712,7 +697,7 @@ export const GalleryPage = () => {
         )}
       </div>
 
-      {/* Gallery Pricing Card - Collapsible on mobile */}
+      {/* Gallery Pricing Card – Tabbed Per-Service Pricing */}
       {showPricing && (
         <Card className="mb-6 bg-card border-border">
           <CardHeader className="cursor-pointer md:cursor-default" onClick={() => setPricingCollapsed(!pricingCollapsed)}>
@@ -737,117 +722,225 @@ export const GalleryPage = () => {
             </div>
           </CardHeader>
           <CardContent className={`${pricingCollapsed ? 'hidden md:block' : ''}`}>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-              {/* General Gallery Photos */}
-              <div>
-                <p className="text-sm font-medium text-foreground mb-2 flex items-center gap-2">
-                  <Image className="w-4 h-4 text-cyan-400" />
-                  Gallery Photos
-                </p>
-                <div className="space-y-2">
-                  <div className="p-2 rounded bg-muted/50 flex justify-between">
-                    <span className="text-xs text-muted-foreground">Web (800px)</span>
-                    <span className="text-xs text-cyan-500 dark:text-cyan-400">${galleryPricing.photo_price_web}</span>
-                  </div>
-                  <div className="p-2 rounded bg-muted/50 flex justify-between">
-                    <span className="text-xs text-muted-foreground">Standard (1920px)</span>
-                    <span className="text-xs text-cyan-500 dark:text-cyan-400">${galleryPricing.photo_price_standard}</span>
-                  </div>
-                  <div className="p-2 rounded bg-muted/50 flex justify-between">
-                    <span className="text-xs text-muted-foreground">High Res (Original)</span>
-                    <span className="text-xs text-cyan-500 dark:text-cyan-400">${galleryPricing.photo_price_high}</span>
-                  </div>
-                </div>
-              </div>
-              
-              {/* Videos */}
-              <div>
-                <p className="text-sm font-medium text-foreground mb-2 flex items-center gap-2">
-                  <Video className="w-4 h-4 text-purple-400" />
-                  Videos
-                </p>
-                <div className="space-y-2">
-                  <div className="p-2 rounded bg-muted/50 flex justify-between">
-                    <span className="text-xs text-muted-foreground">720p HD</span>
-                    <span className="text-xs text-purple-500 dark:text-purple-400">${galleryPricing.video_price_720p}</span>
-                  </div>
-                  <div className="p-2 rounded bg-muted/50 flex justify-between">
-                    <span className="text-xs text-muted-foreground">1080p Full HD</span>
-                    <span className="text-xs text-purple-500 dark:text-purple-400">${galleryPricing.video_price_1080p}</span>
-                  </div>
-                  <div className="p-2 rounded bg-muted/50 flex justify-between">
-                    <span className="text-xs text-muted-foreground">4K Ultra HD</span>
-                    <span className="text-xs text-purple-500 dark:text-purple-400">${galleryPricing.video_price_4k}</span>
-                  </div>
-                </div>
-              </div>
-              
-              {/* Live Session Rates */}
-              <div>
-                <p className="text-sm font-medium text-foreground mb-2 flex items-center gap-2">
-                  <Radio className="w-4 h-4 text-red-400" />
-                  Live Session
-                </p>
-                <div className="space-y-2">
-                  <div className="p-2 rounded bg-red-500/10 border border-red-500/20 flex justify-between">
-                    <span className="text-xs text-muted-foreground">Photo Prices</span>
-                    <span className="text-xs text-red-500 dark:text-red-400">${galleryPricing.live_session_photo_price || galleryPricing.photo_price_web}</span>
-                  </div>
-                  <div className="p-2 rounded bg-red-500/10 border border-red-500/20 flex justify-between">
-                    <span className="text-xs text-muted-foreground">📷 Photos Included</span>
-                    <span className="text-xs font-semibold text-red-500 dark:text-red-400">{galleryPricing.live_session_photos_included || 3}</span>
-                  </div>
-                  <div className="p-2 rounded bg-red-500/10 border border-red-500/20 flex justify-between">
-                    <span className="text-xs text-muted-foreground">🎬 Videos Included</span>
-                    <span className="text-xs font-semibold text-red-500 dark:text-red-400">{galleryPricing.live_session_videos_included || 0}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Booking Rates */}
-              <div>
-                <p className="text-sm font-medium text-foreground mb-2 flex items-center gap-2">
-                  <Calendar className="w-4 h-4 text-blue-400" />
-                  Booking
-                </p>
-                <div className="space-y-2">
-                  <div className="p-2 rounded bg-blue-500/10 border border-blue-500/20 flex justify-between">
-                    <span className="text-xs text-muted-foreground">Hourly Rate</span>
-                    <span className="text-xs text-blue-500 dark:text-blue-400">${galleryPricing.booking_hourly_rate || 50}</span>
-                  </div>
-                  <div className="p-2 rounded bg-blue-500/10 border border-blue-500/20 flex justify-between">
-                    <span className="text-xs text-muted-foreground">📷 Photos Included</span>
-                    <span className="text-xs font-semibold text-blue-500 dark:text-blue-400">{galleryPricing.booking_photos_included || 3}</span>
-                  </div>
-                  <div className="p-2 rounded bg-blue-500/10 border border-blue-500/20 flex justify-between">
-                    <span className="text-xs text-muted-foreground">🎬 Videos Included</span>
-                    <span className="text-xs font-semibold text-blue-500 dark:text-blue-400">{galleryPricing.booking_videos_included || 0}</span>
-                  </div>
-                </div>
-              </div>
-              
-              {/* On-Demand Rates */}
-              <div>
-                <p className="text-sm font-medium text-foreground mb-2 flex items-center gap-2">
-                  <MapPin className="w-4 h-4 text-emerald-400" />
-                  On-Demand
-                </p>
-                <div className="space-y-2">
-                  <div className="p-2 rounded bg-emerald-500/10 border border-emerald-500/20 flex justify-between">
-                    <span className="text-xs text-muted-foreground">Photo Prices</span>
-                    <span className="text-xs text-emerald-500 dark:text-emerald-400">${galleryPricing.on_demand_photo_price || galleryPricing.photo_price_web}</span>
-                  </div>
-                  <div className="p-2 rounded bg-emerald-500/10 border border-emerald-500/20 flex justify-between">
-                    <span className="text-xs text-muted-foreground">📷 Photos Included</span>
-                    <span className="text-xs font-semibold text-emerald-500 dark:text-emerald-400">{galleryPricing.on_demand_photos_included || 3}</span>
-                  </div>
-                  <div className="p-2 rounded bg-emerald-500/10 border border-emerald-500/20 flex justify-between">
-                    <span className="text-xs text-muted-foreground">🎬 Videos Included</span>
-                    <span className="text-xs font-semibold text-emerald-500 dark:text-emerald-400">{galleryPricing.on_demand_videos_included || 0}</span>
-                  </div>
-                </div>
-              </div>
+            {/* Service Type Tabs */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-4">
+              {[
+                { key: 'gallery', label: 'Gallery', icon: <Image className="w-3.5 h-3.5" />, color: 'cyan' },
+                { key: 'live', label: 'Live Session', icon: <Radio className="w-3.5 h-3.5" />, color: 'red' },
+                { key: 'booking', label: 'Booking', icon: <Calendar className="w-3.5 h-3.5" />, color: 'blue' },
+                { key: 'ondemand', label: 'On-Demand', icon: <MapPin className="w-3.5 h-3.5" />, color: 'emerald' },
+              ].map(tab => (
+                <button
+                  key={tab.key}
+                  onClick={() => setPricingTab?.(tab.key)}
+                  className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold transition-all ${
+                    (pricingTab || 'gallery') === tab.key
+                      ? `bg-${tab.color}-500/20 text-${tab.color}-400 ring-1 ring-${tab.color}-500/40`
+                      : 'bg-muted/50 text-muted-foreground hover:bg-muted'
+                  }`}
+                  style={(pricingTab || 'gallery') === tab.key ? {
+                    background: tab.color === 'cyan' ? 'rgba(6,182,212,0.15)' :
+                                tab.color === 'red' ? 'rgba(239,68,68,0.15)' :
+                                tab.color === 'blue' ? 'rgba(59,130,246,0.15)' :
+                                'rgba(16,185,129,0.15)',
+                    color: tab.color === 'cyan' ? '#06b6d4' :
+                           tab.color === 'red' ? '#ef4444' :
+                           tab.color === 'blue' ? '#3b82f6' :
+                           '#10b981',
+                    boxShadow: `inset 0 0 0 1px ${tab.color === 'cyan' ? 'rgba(6,182,212,0.4)' :
+                                tab.color === 'red' ? 'rgba(239,68,68,0.4)' :
+                                tab.color === 'blue' ? 'rgba(59,130,246,0.4)' :
+                                'rgba(16,185,129,0.4)'}`
+                  } : {}}
+                >
+                  {tab.icon} {tab.label}
+                </button>
+              ))}
             </div>
+
+            {/* ─── Gallery Tab ─── */}
+            {(pricingTab || 'gallery') === 'gallery' && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">📷 Photo Pricing</p>
+                  <div className="space-y-1.5">
+                    {[
+                      { label: 'Web (800px)', val: galleryPricing.photo_price_web },
+                      { label: 'Standard (1920px)', val: galleryPricing.photo_price_standard },
+                      { label: 'High Res (Original)', val: galleryPricing.photo_price_high },
+                    ].map(r => (
+                      <div key={r.label} className="p-2 rounded bg-muted/50 flex justify-between items-center">
+                        <span className="text-xs text-muted-foreground">{r.label}</span>
+                        <span className="text-xs font-semibold text-cyan-400">${r.val}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">🎬 Video Pricing</p>
+                  <div className="space-y-1.5">
+                    {[
+                      { label: '720p HD', val: galleryPricing.video_price_720p },
+                      { label: '1080p Full HD', val: galleryPricing.video_price_1080p },
+                      { label: '4K Ultra HD', val: galleryPricing.video_price_4k },
+                    ].map(r => (
+                      <div key={r.label} className="p-2 rounded bg-muted/50 flex justify-between items-center">
+                        <span className="text-xs text-muted-foreground">{r.label}</span>
+                        <span className="text-xs font-semibold text-purple-400">${r.val}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ─── Live Session Tab ─── */}
+            {pricingTab === 'live' && (
+              <div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-3">
+                  <div>
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">📷 Photo Pricing</p>
+                    <div className="space-y-1.5">
+                      {[
+                        { label: 'Web (800px)', val: galleryPricing.live_price_web },
+                        { label: 'Standard (1920px)', val: galleryPricing.live_price_standard },
+                        { label: 'High Res (Original)', val: galleryPricing.live_price_high },
+                      ].map(r => (
+                        <div key={r.label} className="p-2 rounded flex justify-between items-center" style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.15)' }}>
+                          <span className="text-xs text-muted-foreground">{r.label}</span>
+                          <span className="text-xs font-semibold text-red-400">${r.val}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">🎬 Video Pricing</p>
+                    <div className="space-y-1.5">
+                      {[
+                        { label: '720p HD', val: galleryPricing.live_video_720p },
+                        { label: '1080p Full HD', val: galleryPricing.live_video_1080p },
+                        { label: '4K Ultra HD', val: galleryPricing.live_video_4k },
+                      ].map(r => (
+                        <div key={r.label} className="p-2 rounded flex justify-between items-center" style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.15)' }}>
+                          <span className="text-xs text-muted-foreground">{r.label}</span>
+                          <span className="text-xs font-semibold text-red-400">${r.val}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+                <div className="flex gap-4 pt-2 border-t border-red-500/20">
+                  <div className="p-2 rounded flex-1 text-center" style={{ background: 'rgba(239,68,68,0.1)' }}>
+                    <p className="text-[10px] text-muted-foreground uppercase">Photos Included</p>
+                    <p className="text-lg font-bold text-red-400">{galleryPricing.live_session_photos_included}</p>
+                  </div>
+                  <div className="p-2 rounded flex-1 text-center" style={{ background: 'rgba(239,68,68,0.1)' }}>
+                    <p className="text-[10px] text-muted-foreground uppercase">Videos Included</p>
+                    <p className="text-lg font-bold text-red-400">{galleryPricing.live_session_videos_included}</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ─── Booking Tab ─── */}
+            {pricingTab === 'booking' && (
+              <div>
+                <div className="p-2.5 rounded-lg mb-3 flex items-center justify-between" style={{ background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.2)' }}>
+                  <span className="text-xs text-muted-foreground">⏱ Hourly Rate</span>
+                  <span className="text-sm font-bold text-blue-400">${galleryPricing.booking_hourly_rate}/hr</span>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-3">
+                  <div>
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">📷 Photo Pricing</p>
+                    <div className="space-y-1.5">
+                      {[
+                        { label: 'Web (800px)', val: galleryPricing.booking_price_web },
+                        { label: 'Standard (1920px)', val: galleryPricing.booking_price_standard },
+                        { label: 'High Res (Original)', val: galleryPricing.booking_price_high },
+                      ].map(r => (
+                        <div key={r.label} className="p-2 rounded flex justify-between items-center" style={{ background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.15)' }}>
+                          <span className="text-xs text-muted-foreground">{r.label}</span>
+                          <span className="text-xs font-semibold text-blue-400">${r.val}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">🎬 Video Pricing</p>
+                    <div className="space-y-1.5">
+                      {[
+                        { label: '720p HD', val: galleryPricing.booking_video_720p },
+                        { label: '1080p Full HD', val: galleryPricing.booking_video_1080p },
+                        { label: '4K Ultra HD', val: galleryPricing.booking_video_4k },
+                      ].map(r => (
+                        <div key={r.label} className="p-2 rounded flex justify-between items-center" style={{ background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.15)' }}>
+                          <span className="text-xs text-muted-foreground">{r.label}</span>
+                          <span className="text-xs font-semibold text-blue-400">${r.val}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+                <div className="flex gap-4 pt-2 border-t border-blue-500/20">
+                  <div className="p-2 rounded flex-1 text-center" style={{ background: 'rgba(59,130,246,0.1)' }}>
+                    <p className="text-[10px] text-muted-foreground uppercase">Photos Included</p>
+                    <p className="text-lg font-bold text-blue-400">{galleryPricing.booking_photos_included}</p>
+                  </div>
+                  <div className="p-2 rounded flex-1 text-center" style={{ background: 'rgba(59,130,246,0.1)' }}>
+                    <p className="text-[10px] text-muted-foreground uppercase">Videos Included</p>
+                    <p className="text-lg font-bold text-blue-400">{galleryPricing.booking_videos_included}</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ─── On-Demand Tab ─── */}
+            {pricingTab === 'ondemand' && (
+              <div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-3">
+                  <div>
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">📷 Photo Pricing</p>
+                    <div className="space-y-1.5">
+                      {[
+                        { label: 'Web (800px)', val: galleryPricing.on_demand_price_web },
+                        { label: 'Standard (1920px)', val: galleryPricing.on_demand_price_standard },
+                        { label: 'High Res (Original)', val: galleryPricing.on_demand_price_high },
+                      ].map(r => (
+                        <div key={r.label} className="p-2 rounded flex justify-between items-center" style={{ background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.15)' }}>
+                          <span className="text-xs text-muted-foreground">{r.label}</span>
+                          <span className="text-xs font-semibold text-emerald-400">${r.val}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">🎬 Video Pricing</p>
+                    <div className="space-y-1.5">
+                      {[
+                        { label: '720p HD', val: galleryPricing.on_demand_video_720p },
+                        { label: '1080p Full HD', val: galleryPricing.on_demand_video_1080p },
+                        { label: '4K Ultra HD', val: galleryPricing.on_demand_video_4k },
+                      ].map(r => (
+                        <div key={r.label} className="p-2 rounded flex justify-between items-center" style={{ background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.15)' }}>
+                          <span className="text-xs text-muted-foreground">{r.label}</span>
+                          <span className="text-xs font-semibold text-emerald-400">${r.val}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+                <div className="flex gap-4 pt-2 border-t border-emerald-500/20">
+                  <div className="p-2 rounded flex-1 text-center" style={{ background: 'rgba(16,185,129,0.1)' }}>
+                    <p className="text-[10px] text-muted-foreground uppercase">Photos Included</p>
+                    <p className="text-lg font-bold text-emerald-400">{galleryPricing.on_demand_photos_included}</p>
+                  </div>
+                  <div className="p-2 rounded flex-1 text-center" style={{ background: 'rgba(16,185,129,0.1)' }}>
+                    <p className="text-[10px] text-muted-foreground uppercase">Videos Included</p>
+                    <p className="text-lg font-bold text-emerald-400">{galleryPricing.on_demand_videos_included}</p>
+                  </div>
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
       )}
@@ -1539,118 +1632,204 @@ export const GalleryPage = () => {
 
       {/* Gallery Pricing Modal */}
       <Dialog open={showGalleryPricingModal} onOpenChange={setShowGalleryPricingModal}>
-        <DialogContent className="bg-background border-border text-foreground max-h-[90vh] overflow-y-auto">
+        <DialogContent className="bg-background border-border text-foreground max-h-[90vh] overflow-y-auto max-w-2xl">
           <DialogHeader>
-            <DialogTitle className="text-foreground">Gallery Pricing (Quality Tiers)</DialogTitle>
+            <DialogTitle className="text-foreground">Gallery Pricing — All Service Types</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4 py-4">
-            <p className="text-sm text-muted-foreground">
-              Set pricing for different quality tiers. Customers choose which quality to purchase.
+          <div className="space-y-4 py-2">
+            <p className="text-xs text-muted-foreground">
+              Each service type has <strong>independent</strong> resolution pricing. Changes here update your photographer profile defaults.
             </p>
-            
-            {/* Photo Pricing */}
+
+            {/* ─── GALLERY (General) ─── */}
             <div className="p-4 rounded-lg bg-card border border-border">
-              <h4 className="font-medium text-foreground mb-3">Photo Pricing (Credits)</h4>
-              <div className="space-y-3">
-                <div>
-                  <Label className="text-muted-foreground">Web Quality (800px)</Label>
-                  <Input
-                    type="number"
-                    value={galleryPricing.photo_price_web}
-                    onChange={(e) => setGalleryPricing({ ...galleryPricing, photo_price_web: parseFloat(e.target.value) || 0 })}
-                    className="bg-background text-foreground border-border"
-                  />
+              <h4 className="font-medium text-foreground mb-3 flex items-center gap-2 text-sm">
+                <Image className="w-4 h-4 text-cyan-400" /> Gallery — General Pricing
+              </h4>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <p className="text-[10px] font-semibold text-muted-foreground uppercase">📷 Photos</p>
+                  {[
+                    { label: 'Web (800px)', field: 'photo_price_web' },
+                    { label: 'Standard (1920px)', field: 'photo_price_standard' },
+                    { label: 'High Res', field: 'photo_price_high' },
+                  ].map(r => (
+                    <div key={r.field}>
+                      <Label className="text-muted-foreground text-xs">{r.label}</Label>
+                      <Input type="number" value={galleryPricing[r.field]} onChange={(e) => setGalleryPricing({ ...galleryPricing, [r.field]: parseFloat(e.target.value) || 0 })} className="bg-background text-foreground border-border h-8" />
+                    </div>
+                  ))}
                 </div>
-                <div>
-                  <Label className="text-muted-foreground">Standard (1920px)</Label>
-                  <Input
-                    type="number"
-                    value={galleryPricing.photo_price_standard}
-                    onChange={(e) => setGalleryPricing({ ...galleryPricing, photo_price_standard: parseFloat(e.target.value) || 0 })}
-                    className="bg-zinc-900 text-white border-zinc-700"
-                  />
-                </div>
-                <div>
-                  <Label className="text-muted-foreground">High Resolution (Original)</Label>
-                  <Input
-                    type="number"
-                    value={galleryPricing.photo_price_high}
-                    onChange={(e) => setGalleryPricing({ ...galleryPricing, photo_price_high: parseFloat(e.target.value) || 0 })}
-                    className="bg-zinc-900 text-white border-zinc-700"
-                  />
+                <div className="space-y-2">
+                  <p className="text-[10px] font-semibold text-muted-foreground uppercase">🎬 Videos</p>
+                  {[
+                    { label: '720p HD', field: 'video_price_720p' },
+                    { label: '1080p Full HD', field: 'video_price_1080p' },
+                    { label: '4K Ultra HD', field: 'video_price_4k' },
+                  ].map(r => (
+                    <div key={r.field}>
+                      <Label className="text-muted-foreground text-xs">{r.label}</Label>
+                      <Input type="number" value={galleryPricing[r.field]} onChange={(e) => setGalleryPricing({ ...galleryPricing, [r.field]: parseFloat(e.target.value) || 0 })} className="bg-background text-foreground border-border h-8" />
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>
-            
-            {/* Video Pricing */}
-            <div className="p-4 rounded-lg bg-card border border-border">
-              <h4 className="font-medium text-foreground mb-3">Video Pricing (Credits)</h4>
-              <div className="space-y-3">
+
+            {/* ─── LIVE SESSION ─── */}
+            <div className="p-4 rounded-lg border" style={{ background: 'rgba(239,68,68,0.05)', borderColor: 'rgba(239,68,68,0.2)' }}>
+              <h4 className="font-medium text-foreground mb-3 flex items-center gap-2 text-sm">
+                <Radio className="w-4 h-4 text-red-400" /> Live Session Pricing
+              </h4>
+              <div className="grid grid-cols-2 gap-4 mb-3">
+                <div className="space-y-2">
+                  <p className="text-[10px] font-semibold text-muted-foreground uppercase">📷 Photos</p>
+                  {[
+                    { label: 'Web (800px)', field: 'live_price_web' },
+                    { label: 'Standard (1920px)', field: 'live_price_standard' },
+                    { label: 'High Res', field: 'live_price_high' },
+                  ].map(r => (
+                    <div key={r.field}>
+                      <Label className="text-muted-foreground text-xs">{r.label}</Label>
+                      <Input type="number" value={galleryPricing[r.field]} onChange={(e) => setGalleryPricing({ ...galleryPricing, [r.field]: parseFloat(e.target.value) || 0 })} className="bg-background text-foreground border-border h-8" />
+                    </div>
+                  ))}
+                </div>
+                <div className="space-y-2">
+                  <p className="text-[10px] font-semibold text-muted-foreground uppercase">🎬 Videos</p>
+                  {[
+                    { label: '720p HD', field: 'live_video_720p' },
+                    { label: '1080p Full HD', field: 'live_video_1080p' },
+                    { label: '4K Ultra HD', field: 'live_video_4k' },
+                  ].map(r => (
+                    <div key={r.field}>
+                      <Label className="text-muted-foreground text-xs">{r.label}</Label>
+                      <Input type="number" value={galleryPricing[r.field]} onChange={(e) => setGalleryPricing({ ...galleryPricing, [r.field]: parseFloat(e.target.value) || 0 })} className="bg-background text-foreground border-border h-8" />
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4 pt-3 border-t" style={{ borderColor: 'rgba(239,68,68,0.2)' }}>
                 <div>
-                  <Label className="text-muted-foreground">720p HD</Label>
-                  <Input
-                    type="number"
-                    value={galleryPricing.video_price_720p}
-                    onChange={(e) => setGalleryPricing({ ...galleryPricing, video_price_720p: parseFloat(e.target.value) || 0 })}
-                    className="bg-zinc-900 text-white border-zinc-700"
-                  />
+                  <Label className="text-muted-foreground text-xs">Photos Included in Buy-In</Label>
+                  <Input type="number" min="0" value={galleryPricing.live_session_photos_included} onChange={(e) => setGalleryPricing({ ...galleryPricing, live_session_photos_included: parseInt(e.target.value) || 0 })} className="bg-background text-foreground border-border h-8 w-20" />
                 </div>
                 <div>
-                  <Label className="text-muted-foreground">1080p Full HD</Label>
-                  <Input
-                    type="number"
-                    value={galleryPricing.video_price_1080p}
-                    onChange={(e) => setGalleryPricing({ ...galleryPricing, video_price_1080p: parseFloat(e.target.value) || 0 })}
-                    className="bg-zinc-900 text-white border-zinc-700"
-                  />
-                </div>
-                <div>
-                  <Label className="text-muted-foreground">4K Ultra HD</Label>
-                  <Input
-                    type="number"
-                    value={galleryPricing.video_price_4k}
-                    onChange={(e) => setGalleryPricing({ ...galleryPricing, video_price_4k: parseFloat(e.target.value) || 0 })}
-                    className="bg-zinc-900 text-white border-zinc-700"
-                  />
+                  <Label className="text-muted-foreground text-xs">Videos Included in Buy-In</Label>
+                  <Input type="number" min="0" value={galleryPricing.live_session_videos_included} onChange={(e) => setGalleryPricing({ ...galleryPricing, live_session_videos_included: parseInt(e.target.value) || 0 })} className="bg-background text-foreground border-border h-8 w-20" />
                 </div>
               </div>
             </div>
-            
+
+            {/* ─── ON-DEMAND ─── */}
+            <div className="p-4 rounded-lg border" style={{ background: 'rgba(16,185,129,0.05)', borderColor: 'rgba(16,185,129,0.2)' }}>
+              <h4 className="font-medium text-foreground mb-3 flex items-center gap-2 text-sm">
+                <MapPin className="w-4 h-4 text-emerald-400" /> On-Demand Pricing
+              </h4>
+              <div className="grid grid-cols-2 gap-4 mb-3">
+                <div className="space-y-2">
+                  <p className="text-[10px] font-semibold text-muted-foreground uppercase">📷 Photos</p>
+                  {[
+                    { label: 'Web (800px)', field: 'on_demand_price_web' },
+                    { label: 'Standard (1920px)', field: 'on_demand_price_standard' },
+                    { label: 'High Res', field: 'on_demand_price_high' },
+                  ].map(r => (
+                    <div key={r.field}>
+                      <Label className="text-muted-foreground text-xs">{r.label}</Label>
+                      <Input type="number" value={galleryPricing[r.field]} onChange={(e) => setGalleryPricing({ ...galleryPricing, [r.field]: parseFloat(e.target.value) || 0 })} className="bg-background text-foreground border-border h-8" />
+                    </div>
+                  ))}
+                </div>
+                <div className="space-y-2">
+                  <p className="text-[10px] font-semibold text-muted-foreground uppercase">🎬 Videos</p>
+                  {[
+                    { label: '720p HD', field: 'on_demand_video_720p' },
+                    { label: '1080p Full HD', field: 'on_demand_video_1080p' },
+                    { label: '4K Ultra HD', field: 'on_demand_video_4k' },
+                  ].map(r => (
+                    <div key={r.field}>
+                      <Label className="text-muted-foreground text-xs">{r.label}</Label>
+                      <Input type="number" value={galleryPricing[r.field]} onChange={(e) => setGalleryPricing({ ...galleryPricing, [r.field]: parseFloat(e.target.value) || 0 })} className="bg-background text-foreground border-border h-8" />
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4 pt-3 border-t" style={{ borderColor: 'rgba(16,185,129,0.2)' }}>
+                <div>
+                  <Label className="text-muted-foreground text-xs">Photos Included</Label>
+                  <Input type="number" min="0" value={galleryPricing.on_demand_photos_included} onChange={(e) => setGalleryPricing({ ...galleryPricing, on_demand_photos_included: parseInt(e.target.value) || 0 })} className="bg-background text-foreground border-border h-8 w-20" />
+                </div>
+                <div>
+                  <Label className="text-muted-foreground text-xs">Videos Included</Label>
+                  <Input type="number" min="0" value={galleryPricing.on_demand_videos_included} onChange={(e) => setGalleryPricing({ ...galleryPricing, on_demand_videos_included: parseInt(e.target.value) || 0 })} className="bg-background text-foreground border-border h-8 w-20" />
+                </div>
+              </div>
+            </div>
+
+            {/* ─── BOOKING ─── */}
+            <div className="p-4 rounded-lg border" style={{ background: 'rgba(59,130,246,0.05)', borderColor: 'rgba(59,130,246,0.2)' }}>
+              <h4 className="font-medium text-foreground mb-3 flex items-center gap-2 text-sm">
+                <Calendar className="w-4 h-4 text-blue-400" /> Booking Pricing
+              </h4>
+              <div className="mb-3">
+                <Label className="text-muted-foreground text-xs">Hourly Rate ($)</Label>
+                <Input type="number" value={galleryPricing.booking_hourly_rate} onChange={(e) => setGalleryPricing({ ...galleryPricing, booking_hourly_rate: parseFloat(e.target.value) || 0 })} className="bg-background text-foreground border-border h-8 w-28" />
+              </div>
+              <div className="grid grid-cols-2 gap-4 mb-3">
+                <div className="space-y-2">
+                  <p className="text-[10px] font-semibold text-muted-foreground uppercase">📷 Photos</p>
+                  {[
+                    { label: 'Web (800px)', field: 'booking_price_web' },
+                    { label: 'Standard (1920px)', field: 'booking_price_standard' },
+                    { label: 'High Res', field: 'booking_price_high' },
+                  ].map(r => (
+                    <div key={r.field}>
+                      <Label className="text-muted-foreground text-xs">{r.label}</Label>
+                      <Input type="number" value={galleryPricing[r.field]} onChange={(e) => setGalleryPricing({ ...galleryPricing, [r.field]: parseFloat(e.target.value) || 0 })} className="bg-background text-foreground border-border h-8" />
+                    </div>
+                  ))}
+                </div>
+                <div className="space-y-2">
+                  <p className="text-[10px] font-semibold text-muted-foreground uppercase">🎬 Videos</p>
+                  {[
+                    { label: '720p HD', field: 'booking_video_720p' },
+                    { label: '1080p Full HD', field: 'booking_video_1080p' },
+                    { label: '4K Ultra HD', field: 'booking_video_4k' },
+                  ].map(r => (
+                    <div key={r.field}>
+                      <Label className="text-muted-foreground text-xs">{r.label}</Label>
+                      <Input type="number" value={galleryPricing[r.field]} onChange={(e) => setGalleryPricing({ ...galleryPricing, [r.field]: parseFloat(e.target.value) || 0 })} className="bg-background text-foreground border-border h-8" />
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4 pt-3 border-t" style={{ borderColor: 'rgba(59,130,246,0.2)' }}>
+                <div>
+                  <Label className="text-muted-foreground text-xs">Photos Included</Label>
+                  <Input type="number" min="0" value={galleryPricing.booking_photos_included} onChange={(e) => setGalleryPricing({ ...galleryPricing, booking_photos_included: parseInt(e.target.value) || 0 })} className="bg-background text-foreground border-border h-8 w-20" />
+                </div>
+                <div>
+                  <Label className="text-muted-foreground text-xs">Videos Included</Label>
+                  <Input type="number" min="0" value={galleryPricing.booking_videos_included} onChange={(e) => setGalleryPricing({ ...galleryPricing, booking_videos_included: parseInt(e.target.value) || 0 })} className="bg-background text-foreground border-border h-8 w-20" />
+                </div>
+              </div>
+            </div>
+
             {/* Watermark Settings */}
             <div className="p-4 rounded-lg bg-cyan-500/10 border border-cyan-500/20">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
                   <Droplet className="w-4 h-4 text-cyan-400" />
-                  <h4 className="font-medium text-foreground">Watermark Settings</h4>
+                  <h4 className="font-medium text-foreground text-sm">Watermark Settings</h4>
                 </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowWatermarkSettings(true)}
-                  className="border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/10"
-                  data-testid="pricing-modal-watermark-btn"
-                >
-                  <Settings className="w-3 h-3 mr-1" />
-                  Configure
+                <Button variant="outline" size="sm" onClick={() => setShowWatermarkSettings(true)} className="border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/10" data-testid="pricing-modal-watermark-btn">
+                  <Settings className="w-3 h-3 mr-1" /> Configure
                 </Button>
               </div>
-              <p className="text-xs text-muted-foreground mb-3">
-                Customize how your watermark appears on unpurchased preview images.
-              </p>
-              
-              {/* Quick Preview */}
               <div className="flex items-center gap-3">
-                <div 
-                  className="relative w-24 h-16 rounded-lg overflow-hidden flex-shrink-0 cursor-pointer hover:ring-2 hover:ring-cyan-500/50 transition-all bg-background"
-                  onClick={() => setShowWatermarkSettings(true)}
-                  data-testid="pricing-watermark-preview"
-                >
+                <div className="relative w-24 h-16 rounded-lg overflow-hidden flex-shrink-0 cursor-pointer hover:ring-2 hover:ring-cyan-500/50 transition-all bg-background" onClick={() => setShowWatermarkSettings(true)} data-testid="pricing-watermark-preview">
                   {watermarkPreviewUrl ? (
-                    <img 
-                      src={watermarkPreviewUrl} 
-                      alt="Watermark preview"
-                      className="w-full h-full object-cover"
-                    />
+                    <img src={watermarkPreviewUrl} alt="Watermark preview" className="w-full h-full object-cover" />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center">
                       <Droplet className="w-6 h-6 text-cyan-400/30" />
@@ -1658,129 +1837,12 @@ export const GalleryPage = () => {
                   )}
                 </div>
                 <div className="text-sm">
-                  <p className="text-muted-foreground">
-                    Style: <span className="text-foreground">{watermarkSettings.style === 'text' ? 'Text' : watermarkSettings.style === 'logo' ? 'Logo' : 'Logo + Text'}</span>
-                  </p>
-                  <p className="text-muted-foreground">
-                    Position: <span className="text-foreground capitalize">{watermarkSettings.position.replace('-', ' ')}</span>
-                  </p>
+                  <p className="text-muted-foreground">Style: <span className="text-foreground">{watermarkSettings.style === 'text' ? 'Text' : watermarkSettings.style === 'logo' ? 'Logo' : 'Logo + Text'}</span></p>
+                  <p className="text-muted-foreground">Position: <span className="text-foreground capitalize">{watermarkSettings.position.replace('-', ' ')}</span></p>
                 </div>
               </div>
             </div>
-            
-            {/* Session-Specific Pricing (Multi-tiered) */}
-            <div className="space-y-4">
-              {/* Live Session Resolution Pricing */}
-              <div className="p-4 rounded-lg bg-red-500/10 border border-red-500/20">
-                <h4 className="font-medium text-foreground mb-1 flex items-center gap-2">
-                  <Radio className="w-4 h-4 text-red-400" />
-                  Live Session Photo Pricing
-                </h4>
-                <p className="text-xs text-muted-foreground mb-3">
-                  Resolution-based rates for photos taken during live sessions
-                </p>
-                <div className="grid grid-cols-3 gap-3">
-                  <div>
-                    <Label className="text-muted-foreground text-xs">Web-Res</Label>
-                    <p className="text-xs text-muted-foreground/60 mb-1">Social media</p>
-                    <Input
-                      type="number"
-                      value={galleryPricing.photo_price_web}
-                      onChange={(e) => setGalleryPricing({ ...galleryPricing, photo_price_web: parseFloat(e.target.value) || 0 })}
-                      className="bg-background text-foreground border-border h-9"
-                    />
-                  </div>
-                  <div>
-                    <Label className="text-muted-foreground text-xs">Standard</Label>
-                    <p className="text-xs text-muted-foreground/60 mb-1">Digital delivery</p>
-                    <Input
-                      type="number"
-                      value={galleryPricing.live_session_photo_price}
-                      onChange={(e) => setGalleryPricing({ ...galleryPricing, live_session_photo_price: parseFloat(e.target.value) || 0 })}
-                      className="bg-zinc-900 text-white border-zinc-700 h-9"
-                    />
-                  </div>
-                  <div>
-                    <Label className="text-muted-foreground text-xs">High-Res</Label>
-                    <p className="text-xs text-muted-foreground/60 mb-1">Print quality</p>
-                    <Input
-                      type="number"
-                      value={galleryPricing.photo_price_high}
-                      onChange={(e) => setGalleryPricing({ ...galleryPricing, photo_price_high: parseFloat(e.target.value) || 0 })}
-                      className="bg-zinc-900 text-white border-zinc-700 h-9"
-                    />
-                  </div>
-                </div>
-                <div className="mt-3 pt-3 border-t border-red-500/20">
-                  <Label className="text-muted-foreground text-xs">Photos Included in Session Buy-In</Label>
-                  <p className="text-xs text-muted-foreground/60 mb-1">Free photos surfers get when joining</p>
-                  <Input
-                    type="number"
-                    value={galleryPricing.live_session_photos_included}
-                    onChange={(e) => setGalleryPricing({ ...galleryPricing, live_session_photos_included: parseInt(e.target.value) || 0 })}
-                    className="bg-background text-foreground border-border h-9 w-24"
-                    min="0"
-                  />
-                </div>
-              </div>
-              
-              {/* On-Demand Resolution Pricing */}
-              <div className="p-4 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
-                <h4 className="font-medium text-white mb-1 flex items-center gap-2">
-                  <MapPin className="w-4 h-4 text-emerald-400" />
-                  On-Demand Photo Pricing
-                </h4>
-                <p className="text-xs text-gray-400 mb-3">
-                  Resolution-based rates for on-demand request photos
-                </p>
-                <div className="grid grid-cols-3 gap-3">
-                  <div>
-                    <Label className="text-muted-foreground text-xs">Web-Res</Label>
-                    <p className="text-xs text-muted-foreground/60 mb-1">Social media</p>
-                    <Input
-                      type="number"
-                      value={galleryPricing.photo_price_web}
-                      onChange={(e) => setGalleryPricing({ ...galleryPricing, photo_price_web: parseFloat(e.target.value) || 0 })}
-                      className="bg-zinc-900 text-white border-zinc-700 h-9"
-                      disabled
-                    />
-                  </div>
-                  <div>
-                    <Label className="text-muted-foreground text-xs">Standard</Label>
-                    <p className="text-xs text-muted-foreground/60 mb-1">Digital delivery</p>
-                    <Input
-                      type="number"
-                      value={galleryPricing.on_demand_photo_price}
-                      onChange={(e) => setGalleryPricing({ ...galleryPricing, on_demand_photo_price: parseFloat(e.target.value) || 0 })}
-                      className="bg-zinc-900 text-white border-zinc-700 h-9"
-                    />
-                  </div>
-                  <div>
-                    <Label className="text-muted-foreground text-xs">High-Res</Label>
-                    <p className="text-xs text-muted-foreground/60 mb-1">Print quality</p>
-                    <Input
-                      type="number"
-                      value={galleryPricing.photo_price_high}
-                      onChange={(e) => setGalleryPricing({ ...galleryPricing, photo_price_high: parseFloat(e.target.value) || 0 })}
-                      className="bg-zinc-900 text-white border-zinc-700 h-9"
-                      disabled
-                    />
-                  </div>
-                </div>
-                <div className="mt-3 pt-3 border-t border-emerald-500/20">
-                  <Label className="text-muted-foreground text-xs">Photos Included in On-Demand Buy-In</Label>
-                  <p className="text-xs text-muted-foreground/60 mb-1">Free photos surfers get with on-demand request</p>
-                  <Input
-                    type="number"
-                    value={galleryPricing.on_demand_photos_included}
-                    onChange={(e) => setGalleryPricing({ ...galleryPricing, on_demand_photos_included: parseInt(e.target.value) || 0 })}
-                    className="bg-zinc-900 text-white border-zinc-700 h-9 w-24"
-                    min="0"
-                  />
-                </div>
-              </div>
-            </div>
-            
+
             <div className="p-3 rounded-lg bg-green-500/10">
               <p className="text-sm text-muted-foreground">
                 <strong className="text-green-400">Platform fee:</strong> 20% is deducted from each sale. You receive 80% of all gallery purchases.
@@ -1795,11 +1857,12 @@ export const GalleryPage = () => {
               onClick={handleSaveGalleryPricing}
               className="bg-gradient-to-r from-purple-400 to-pink-500 text-black"
             >
-              Save Gallery Pricing
+              Save All Pricing
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
 
       {/* Add Photo to Gallery Modal — Upload New + Pick from Library */}
       <Dialog open={showAddToGalleryModal} onOpenChange={setShowAddToGalleryModal}>
