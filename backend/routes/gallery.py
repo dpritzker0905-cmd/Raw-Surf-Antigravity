@@ -4164,6 +4164,150 @@ async def tag_single_item_to_surfer(
 
 
 
+@router.get("/gallery/{gallery_id}/surfer-items/{surfer_id}")
+async def get_surfer_tagged_items(
+    gallery_id: str,
+    surfer_id: str,
+    photographer_id: str,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Get all items tagged/distributed to a specific surfer in a gallery.
+    Returns thumbnails, access_type, and surfer_gallery_item IDs for untag support.
+    """
+    # Verify gallery ownership
+    result = await db.execute(select(Gallery).where(Gallery.id == gallery_id))
+    gallery = result.scalar_one_or_none()
+    if not gallery:
+        raise HTTPException(status_code=404, detail="Gallery not found")
+    if gallery.photographer_id != photographer_id:
+        raise HTTPException(status_code=403, detail="Not authorized")
+    
+    # Get all gallery items for this gallery
+    items_result = await db.execute(
+        select(GalleryItem).where(
+            GalleryItem.gallery_id == gallery_id,
+            GalleryItem.is_deleted == False
+        )
+    )
+    gallery_items = items_result.scalars().all()
+    gallery_item_ids = [i.id for i in gallery_items]
+    gallery_item_lookup = {i.id: i for i in gallery_items}
+    
+    if not gallery_item_ids:
+        return {"gallery_id": gallery_id, "surfer_id": surfer_id, "tagged_items": []}
+    
+    # Get all SurferGalleryItem records for this surfer in this gallery
+    sgi_result = await db.execute(
+        select(SurferGalleryItem).where(
+            SurferGalleryItem.surfer_id == surfer_id,
+            SurferGalleryItem.gallery_item_id.in_(gallery_item_ids)
+        )
+    )
+    surfer_items = sgi_result.scalars().all()
+    
+    tagged_items = []
+    for sgi in surfer_items:
+        gi = gallery_item_lookup.get(sgi.gallery_item_id)
+        if gi:
+            tagged_items.append({
+                "surfer_gallery_item_id": sgi.id,
+                "gallery_item_id": gi.id,
+                "preview_url": gi.preview_url,
+                "thumbnail_url": gi.thumbnail_url,
+                "original_url": gi.original_url,
+                "media_type": gi.media_type,
+                "access_type": sgi.access_type,
+                "ai_suggested": sgi.ai_suggested,
+                "surfer_confirmed": sgi.surfer_confirmed,
+                "added_at": sgi.added_at.isoformat() if sgi.added_at else None
+            })
+    
+    return {
+        "gallery_id": gallery_id,
+        "surfer_id": surfer_id,
+        "tagged_items": tagged_items
+    }
+
+
+class UntagItemRequest(BaseModel):
+    surfer_id: str
+    item_id: str
+
+
+@router.post("/gallery/{gallery_id}/untag-item")
+async def untag_item_from_surfer(
+    gallery_id: str,
+    photographer_id: str,
+    data: UntagItemRequest,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Remove a tagged item from a surfer's locker.
+    Restores the surfer's photo credit if the item was 'included' access.
+    Also removes the surfer from the item's tagged_surfer_ids JSON.
+    """
+    # Verify gallery ownership
+    result = await db.execute(select(Gallery).where(Gallery.id == gallery_id))
+    gallery = result.scalar_one_or_none()
+    if not gallery:
+        raise HTTPException(status_code=404, detail="Gallery not found")
+    if gallery.photographer_id != photographer_id:
+        raise HTTPException(status_code=403, detail="Not authorized")
+    
+    # Find the SurferGalleryItem
+    sgi_result = await db.execute(
+        select(SurferGalleryItem).where(
+            SurferGalleryItem.surfer_id == data.surfer_id,
+            SurferGalleryItem.gallery_item_id == data.item_id
+        )
+    )
+    sgi = sgi_result.scalar_one_or_none()
+    if not sgi:
+        raise HTTPException(status_code=404, detail="Item not tagged to this surfer")
+    
+    was_included = sgi.access_type == 'included'
+    
+    # Delete the SurferGalleryItem
+    await db.delete(sgi)
+    
+    # Remove surfer from tagged_surfer_ids on GalleryItem
+    item_result = await db.execute(
+        select(GalleryItem).where(GalleryItem.id == data.item_id)
+    )
+    item = item_result.scalar_one_or_none()
+    if item and item.tagged_surfer_ids:
+        tagged_ids = json.loads(item.tagged_surfer_ids)
+        if data.surfer_id in tagged_ids:
+            tagged_ids.remove(data.surfer_id)
+            item.tagged_surfer_ids = json.dumps(tagged_ids) if tagged_ids else None
+    
+    # Restore credit if the item was 'included' (covered by buy-in)
+    credits_restored = False
+    if was_included:
+        participant_result = await db.execute(
+            select(LiveSessionParticipant).where(
+                LiveSessionParticipant.surfer_id == data.surfer_id,
+                LiveSessionParticipant.photographer_id == photographer_id,
+                LiveSessionParticipant.status.notin_(['cancelled', 'refunded'])
+            ).order_by(LiveSessionParticipant.joined_at.desc()).limit(1)
+        )
+        participant = participant_result.scalar_one_or_none()
+        if participant:
+            participant.photos_credit_remaining = (participant.photos_credit_remaining or 0) + 1
+            credits_restored = True
+    
+    await db.commit()
+    
+    return {
+        "message": "Item untagged from surfer",
+        "item_id": data.item_id,
+        "surfer_id": data.surfer_id,
+        "credit_restored": credits_restored,
+        "was_included": was_included
+    }
+
+
 @router.get("/gallery/{gallery_id}/distribution-status")
 async def get_gallery_distribution_status(
     gallery_id: str,

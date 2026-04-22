@@ -1110,6 +1110,9 @@ export const GalleryPage = () => {
                       sessionType={gal.session_type}
                       itemCount={gal.item_count}
                       compact={true}
+                      galleryId={gal.id}
+                      photographerId={user?.id}
+                      onRosterUpdate={fetchGalleries}
                     />
                   )}
                 </div>
@@ -1265,6 +1268,9 @@ export const GalleryPage = () => {
                 sessionType={selectedGallery.session_type}
                 itemCount={galleryItems.length}
                 compact={false}
+                galleryId={selectedGallery.id}
+                photographerId={user?.id}
+                onRosterUpdate={fetchGalleries}
               />
             </div>
           )}
