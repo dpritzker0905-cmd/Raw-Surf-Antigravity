@@ -18,7 +18,7 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { 
   Mic, MicOff, Video, VideoOff, PhoneOff, 
-  Volume2, Maximize2, Minimize2, Signal, SignalLow, SignalZero,
+  Volume2, VolumeX, Maximize2, Minimize2, Signal, SignalLow, SignalZero,
   Sparkles, X, Scissors,
   Sunset, Waves, Moon, Zap, Eye, Grid, CircleDot
 } from 'lucide-react';
@@ -154,6 +154,7 @@ export default function InCallView({
   const [showControls, setShowControls] = useState(true);
   const [activeFilter, setActiveFilter] = useState('none');
   const [activeHairStyle, setActiveHairStyle] = useState(null);
+  const [speakerOff, setSpeakerOff] = useState(false);
   const controlsTimeoutRef = useRef(null);
 
   // ── Attach local stream to hidden video element ───────────────────
@@ -583,9 +584,19 @@ export default function InCallView({
             )}
 
             <ControlButton
-              onClick={() => {}}
-              icon={Volume2}
-              label="Speaker"
+              onClick={() => {
+                const newMuted = !speakerOff;
+                if (remoteAudioRef.current) {
+                  remoteAudioRef.current.muted = newMuted;
+                }
+                if (remoteVideoRef.current) {
+                  remoteVideoRef.current.muted = newMuted;
+                }
+                setSpeakerOff(newMuted);
+              }}
+              active={speakerOff}
+              icon={speakerOff ? VolumeX : Volume2}
+              label={speakerOff ? 'Speaker On' : 'Speaker'}
             />
 
             <ControlButton
