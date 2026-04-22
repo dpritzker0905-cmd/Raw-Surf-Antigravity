@@ -358,6 +358,7 @@ export const PhotographerSessionsManager = () => {
         const highPrice = galleryPricingRes.data.photo_pricing?.high || 10;
         const liveSessionPrice = galleryPricingRes.data.session_pricing?.live_session_photo_price || 5;
         const photosIncluded = galleryPricingRes.data.session_pricing?.live_session_photos_included || 3;
+        const videosIncluded = galleryPricingRes.data.session_pricing?.live_session_videos_included ?? 1;
         
         setPricing(prev => ({ ...prev, gallery_photo_price: standardPrice }));
         setSessionSettings(prev => ({ 
@@ -368,7 +369,8 @@ export const PhotographerSessionsManager = () => {
           photo_price_standard: standardPrice,
           photo_price_high: highPrice,
           live_photo_price: liveSessionPrice,
-          photos_included: photosIncluded
+          photos_included: photosIncluded,
+          videos_included: videosIncluded
         }));
       } catch (e) {
         logger.error('Error fetching gallery pricing:', e);
@@ -662,6 +664,7 @@ export const PhotographerSessionsManager = () => {
           longitude: debugInfo.longitude,
           live_photo_price: sessionSettings.live_photo_price,
           photos_included: sessionSettings.photos_included,
+          videos_included: sessionSettings.videos_included,
           general_photo_price: sessionSettings.general_photo_price,
           estimated_duration: sessionSettings.estimated_duration,
           spot_notes: conditionsData.spotNotes || '',

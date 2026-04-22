@@ -1743,11 +1743,18 @@ def _build_session_roster(gallery, live_map, booking_map, dispatch_map, dist_map
         videos_included_used = dist_data.get("videos_included", 0)
         total_delivered = dist_data.get("total", 0)
         
-        # Credit calculation: count ALL tagged items (photos_total, videos_total)
-        # not just items with access_type='included', because items may be tagged
-        # but still have access_type='pending_selection' until confirmed
-        photos_credits_left = max(0, ph_included - photos_delivered)
-        videos_credits_left = max(0, vid_included - videos_delivered)
+        # Credit calculation: When videos_included=0, photos_included covers ALL
+        # content types (photos + videos from a unified pool). When videos_included > 0,
+        # photos and videos have separate credit pools.
+        if vid_included == 0:
+            # Unified pool: photos_included covers ALL items (photos + videos)
+            total_from_pool = photos_delivered + videos_delivered
+            photos_credits_left = max(0, ph_included - total_from_pool)
+            videos_credits_left = 0
+        else:
+            # Separate pools: photos and videos have independent credit allocations
+            photos_credits_left = max(0, ph_included - photos_delivered)
+            videos_credits_left = max(0, vid_included - videos_delivered)
         total_credits_left = photos_credits_left + videos_credits_left
         
         progress = min(100, int((total_delivered / total_included_slots * 100) if total_included_slots > 0 else 0))
@@ -3924,6 +3931,8 @@ async def get_gallery_session_participants(
             # Retroactive credit fix: if 0 but participant paid, calculate from session
             effective_credits = participant.photos_credit_remaining or 0
             if effective_credits == 0 and participant.amount_paid and participant.amount_paid > 0:
+                # Count ALL included items (photos + videos) since photos_included
+                # covers all content types when videos_included is 0
                 included_dist_result = await db.execute(
                     select(func.count(SurferGalleryItem.id)).where(
                         SurferGalleryItem.surfer_id == profile.id,
@@ -3933,14 +3942,19 @@ async def get_gallery_session_participants(
                 )
                 already_included = included_dist_result.scalar() or 0
                 photos_included_setting = 3  # default
+                videos_included_setting = 0  # default
                 if gallery.live_session_id:
                     ls_result2 = await db.execute(
                         select(LiveSession).where(LiveSession.id == gallery.live_session_id)
                     )
                     ls2 = ls_result2.scalar_one_or_none()
-                    if ls2 and ls2.photos_included:
-                        photos_included_setting = ls2.photos_included
-                effective_credits = max(0, photos_included_setting - already_included)
+                    if ls2:
+                        photos_included_setting = ls2.photos_included or 3
+                        raw_vid = getattr(ls2, 'videos_included', None)
+                        videos_included_setting = raw_vid if raw_vid and raw_vid > 0 else 0
+                # When videos_included=0, photos_included is a unified pool
+                total_pool = photos_included_setting + videos_included_setting
+                effective_credits = max(0, total_pool - already_included)
                 # Repair the record
                 if effective_credits > 0:
                     participant.photos_credit_remaining = effective_credits
@@ -4182,6 +4196,55 @@ async def distribute_gallery_to_surfer(
     
     distributed_count = 0
     skipped_count = 0
+    included_count = 0
+    preview_count = 0
+    
+    # ── Credit-aware distribution ──
+    # Look up participant's credit pool to determine access_type per item
+    participant = None
+    photos_included_setting = 3
+    videos_included_setting = 0
+    
+    # Check if surfer is a session participant
+    for Model, session_id_field in [
+        (LiveSessionParticipant, 'live_session_id'),
+        (BookingParticipant, 'booking_id'),
+    ]:
+        session_id = getattr(gallery, session_id_field, None)
+        if session_id:
+            p_result = await db.execute(
+                select(Model).where(
+                    Model.session_id == session_id if hasattr(Model, 'session_id') else getattr(Model, session_id_field.replace('_id', '_id')) == session_id,
+                    Model.surfer_id == data.surfer_id
+                )
+            )
+            participant = p_result.scalar_one_or_none()
+            if participant:
+                break
+    
+    # Get session settings for credit pool
+    if gallery.live_session_id:
+        ls_result = await db.execute(
+            select(LiveSession).where(LiveSession.id == gallery.live_session_id)
+        )
+        ls = ls_result.scalar_one_or_none()
+        if ls:
+            photos_included_setting = ls.photos_included or 3
+            raw_vid = getattr(ls, 'videos_included', None)
+            videos_included_setting = raw_vid if raw_vid and raw_vid > 0 else 0
+    
+    total_credit_pool = photos_included_setting + videos_included_setting
+    
+    # Count already-included items for this surfer
+    already_included_result = await db.execute(
+        select(func.count(SurferGalleryItem.id)).where(
+            SurferGalleryItem.surfer_id == data.surfer_id,
+            SurferGalleryItem.photographer_id == photographer_id,
+            SurferGalleryItem.access_type == 'included'
+        )
+    )
+    already_included_count = already_included_result.scalar() or 0
+    credits_available = max(0, total_credit_pool - already_included_count) if participant else 0
     
     for item in items:
         # Check if already distributed
@@ -4195,13 +4258,22 @@ async def distribute_gallery_to_surfer(
             skipped_count += 1
             continue
         
+        # Determine access_type based on remaining credits
+        if credits_available > 0:
+            item_access_type = 'included'
+            credits_available -= 1
+            included_count += 1
+        else:
+            item_access_type = data.access_type  # fallback to request default (pending_selection)
+            preview_count += 1
+        
         try:
             result = await manually_assign_item_to_surfer(
                 db=db,
                 gallery_item_id=item.id,
                 surfer_id=data.surfer_id,
                 photographer_id=photographer_id,
-                access_type=data.access_type,
+                access_type=item_access_type,
                 gallery=gallery
             )
             distributed_count += 1
@@ -4234,11 +4306,13 @@ async def distribute_gallery_to_surfer(
         gallery_logger.warning(f"Failed to send distribution notification: {e}")
     
     return {
-        "message": f"Distributed {distributed_count} items to {surfer.full_name}'s Locker",
+        "message": f"Distributed {distributed_count} items to {surfer.full_name}'s Locker ({included_count} included, {preview_count} preview)",
         "gallery_id": gallery_id,
         "surfer_id": data.surfer_id,
         "surfer_name": surfer.full_name,
         "items_distributed": distributed_count,
+        "items_included": included_count,
+        "items_preview": preview_count,
         "items_skipped": skipped_count,
         "total_items": len(items)
     }
@@ -4287,18 +4361,22 @@ async def tag_single_item_to_surfer(
         raise HTTPException(status_code=404, detail="Item not found in this gallery")
     
     # Check if already tagged
-    existing = await db.execute(
+    existing_result = await db.execute(
         select(SurferGalleryItem).where(
             SurferGalleryItem.surfer_id == data.surfer_id,
             SurferGalleryItem.gallery_item_id == data.item_id
         )
     )
-    if existing.scalar_one_or_none():
+    existing_item = existing_result.scalar_one_or_none()
+    if existing_item:
+        is_delivered = existing_item.access_type in ('included', 'purchased', 'gifted')
         return {
-            "message": "Already tagged to this surfer",
+            "message": "Already delivered to this surfer" if is_delivered else "Already tagged to this surfer",
             "item_id": data.item_id,
             "surfer_id": data.surfer_id,
-            "already_tagged": True
+            "already_tagged": True,
+            "is_delivered": is_delivered,
+            "access_type": existing_item.access_type
         }
     
     # Determine access_type based on payment credits
@@ -4326,42 +4404,37 @@ async def tag_single_item_to_surfer(
         # Retroactive fix: if credits are 0 but participant paid and no items distributed yet,
         # calculate from session's photos/videos_included (handles legacy records)
         if credits_remaining == 0 and participant.amount_paid and participant.amount_paid > 0:
-            # Count already distributed items of this media type
+            # Count ALL already-included items (unified pool approach)
             dist_count_result = await db.execute(
                 select(func.count(SurferGalleryItem.id))
-                .join(GalleryItem, SurferGalleryItem.gallery_item_id == GalleryItem.id)
                 .where(
                     SurferGalleryItem.surfer_id == data.surfer_id,
                     SurferGalleryItem.photographer_id == photographer_id,
-                    SurferGalleryItem.access_type == 'included',
-                    GalleryItem.media_type == ('video' if is_video else 'image')
+                    SurferGalleryItem.access_type == 'included'
                 )
             )
-            already_included = dist_count_result.scalar() or 0
+            already_included_total = dist_count_result.scalar() or 0
             
-            # Get included count from session settings
-            # Default video to 0 (pre-migration: photos_included covers all content)
-            type_included = 3 if not is_video else 0  # defaults
+            # Get included counts from session settings
+            photos_included_setting = 3  # default
+            videos_included_setting = 0  # default
             if gallery.live_session_id:
                 ls_result = await db.execute(
                     select(LiveSession).where(LiveSession.id == gallery.live_session_id)
                 )
                 ls = ls_result.scalar_one_or_none()
                 if ls:
-                    if is_video:
-                        raw_vid = getattr(ls, 'videos_included', None)
-                        type_included = raw_vid if raw_vid and raw_vid > 0 else 0
-                    else:
-                        type_included = getattr(ls, 'photos_included', 3) or 3
+                    photos_included_setting = getattr(ls, 'photos_included', 3) or 3
+                    raw_vid = getattr(ls, 'videos_included', None)
+                    videos_included_setting = raw_vid if raw_vid and raw_vid > 0 else 0
             
-            retroactive_credits = max(0, type_included - already_included)
+            # When videos_included=0, photos_included is a unified pool for all content
+            total_pool = photos_included_setting + videos_included_setting
+            retroactive_credits = max(0, total_pool - already_included_total)
             if retroactive_credits > 0:
                 credits_remaining = retroactive_credits
                 # Repair the record for future calls
-                if is_video:
-                    participant.videos_credit_remaining = credits_remaining
-                else:
-                    participant.photos_credit_remaining = credits_remaining
+                participant.photos_credit_remaining = credits_remaining
     
     if credits_remaining > 0:
         access_type = 'included'  # Full resolution — covered by buy-in
@@ -5212,3 +5285,78 @@ async def recalculate_gallery_counts(
     except Exception as e:
         import traceback
         return {"error": str(e), "traceback": traceback.format_exc()}
+
+
+# ═══════════════════════════════════════════════════════════════════
+# ADMIN: Correct Session Content Settings
+# ═══════════════════════════════════════════════════════════════════
+
+class UpdateSessionSettingsRequest(BaseModel):
+    photos_included: Optional[int] = None
+    videos_included: Optional[int] = None
+
+
+@router.patch("/gallery/{gallery_id}/session-settings")
+async def update_session_settings(
+    gallery_id: str,
+    photographer_id: str,
+    data: UpdateSessionSettingsRequest,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Correct the photos_included / videos_included for a session's gallery.
+    Updates the linked LiveSession, Booking, or DispatchRequest record.
+    Only the gallery owner (photographer) can do this.
+    """
+    gallery_result = await db.execute(
+        select(Gallery)
+        .where(Gallery.id == gallery_id)
+        .options(selectinload(Gallery.live_session))
+    )
+    gallery = gallery_result.scalar_one_or_none()
+    
+    if not gallery:
+        raise HTTPException(status_code=404, detail="Gallery not found")
+    if gallery.photographer_id != photographer_id:
+        raise HTTPException(status_code=403, detail="Not authorized")
+    
+    updated = {}
+    
+    if gallery.live_session_id and gallery.live_session:
+        ls = gallery.live_session
+        if data.photos_included is not None:
+            old_val = ls.photos_included
+            ls.photos_included = data.photos_included
+            updated["photos_included"] = {"old": old_val, "new": data.photos_included}
+        if data.videos_included is not None:
+            old_val = ls.videos_included
+            ls.videos_included = data.videos_included
+            updated["videos_included"] = {"old": old_val, "new": data.videos_included}
+    elif gallery.booking_id:
+        bk_result = await db.execute(
+            select(Booking).where(Booking.id == gallery.booking_id)
+        )
+        booking = bk_result.scalar_one_or_none()
+        if booking and data.photos_included is not None:
+            old_val = booking.booking_photos_included
+            booking.booking_photos_included = data.photos_included
+            updated["photos_included"] = {"old": old_val, "new": data.photos_included}
+    else:
+        raise HTTPException(status_code=400, detail="No linked session to update")
+    
+    if not updated:
+        return {"message": "No changes made", "gallery_id": gallery_id}
+    
+    await db.commit()
+    
+    gallery_logger.info(
+        f"Updated session settings for gallery {gallery_id}: {updated}"
+    )
+    
+    return {
+        "success": True,
+        "gallery_id": gallery_id,
+        "updated": updated,
+        "message": "Session content settings updated. Roster will reflect changes on next load."
+    }
+

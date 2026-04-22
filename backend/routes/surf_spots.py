@@ -156,6 +156,7 @@ class GoLiveRequest(BaseModel):
     # Live Session Rates (for gallery pricing override & savings display)
     live_photo_price: Optional[float] = None      # Session-specific photo price
     photos_included: Optional[int] = None         # Photos included in buy-in
+    videos_included: Optional[int] = None         # Videos included in buy-in
     general_photo_price: Optional[float] = None   # Reference: photographer's general price
     estimated_duration: Optional[int] = None      # Estimated session duration in hours
     # Resolution-based pricing (MANDATORY for all workflows)
@@ -727,6 +728,7 @@ async def photographer_go_live(profile_id: str, data: GoLiveRequest, db: AsyncSe
         # Session-specific pricing (for Live Savings display)
         session_photo_price=data.live_photo_price or profile.live_photo_price or 5.0,
         photos_included=data.photos_included or 3,
+        videos_included=data.videos_included if data.videos_included is not None else 1,
         general_photo_price=data.general_photo_price or profile.photo_price_standard or 10.0,
         # Resolution-based pricing for this session
         session_price_web=session_price_web,

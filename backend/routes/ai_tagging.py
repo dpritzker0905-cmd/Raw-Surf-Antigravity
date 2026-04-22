@@ -24,7 +24,7 @@ load_dotenv()
 router = APIRouter()
 
 logger = logging.getLogger(__name__)
-EMERGENT_LLM_KEY = os.environ.get('EMERGENT_LLM_KEY')
+OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY')
 
 
 class AnalyzePhotoRequest(BaseModel):
@@ -49,11 +49,11 @@ async def analyze_image_with_vision(image_data: str, is_base64: bool = False) ->
     """
     from emergentintegrations.llm.chat import LlmChat, UserMessage, ImageContent
     
-    if not EMERGENT_LLM_KEY:
-        raise HTTPException(status_code=500, detail="AI service not configured")
+    if not OPENAI_API_KEY:
+        raise HTTPException(status_code=500, detail="AI service not configured — OPENAI_API_KEY missing")
     
     chat = LlmChat(
-        api_key=EMERGENT_LLM_KEY,
+        api_key=OPENAI_API_KEY,
         session_id=f"photo-analysis-{datetime.now().timestamp()}",
         system_message="""You are a surf photo analysis AI. Your job is to analyze surf photos and:
 1. Count how many surfers/people are visible in the image
@@ -136,11 +136,11 @@ async def compare_faces(photo_data: str, profile_photos: List[dict]) -> List[dic
     """
     from emergentintegrations.llm.chat import LlmChat, UserMessage, ImageContent
     
-    if not EMERGENT_LLM_KEY:
+    if not OPENAI_API_KEY:
         return []
     
     chat = LlmChat(
-        api_key=EMERGENT_LLM_KEY,
+        api_key=OPENAI_API_KEY,
         session_id=f"face-compare-{datetime.now().timestamp()}",
         system_message="""You are helping identify surfers in photos by comparing with their profile photos.
 Given a surf action photo and profile photos, identify which profile photos might match people in the action shot.

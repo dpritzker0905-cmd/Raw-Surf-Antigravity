@@ -19,8 +19,9 @@ from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
 
-# Emergent LLM Key for OpenAI
-EMERGENT_LLM_KEY = os.environ.get("EMERGENT_LLM_KEY", "")
+# AI API Keys
+OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
 
 
 class IdentityMatchResult(BaseModel):
@@ -60,8 +61,8 @@ async def analyze_image_for_surfer(
     Returns:
         IdentityMatchResult with match confidence and methods
     """
-    if not EMERGENT_LLM_KEY:
-        logger.warning("EMERGENT_LLM_KEY not configured, using fallback matching")
+    if not OPENAI_API_KEY and not GEMINI_API_KEY:
+        logger.warning("No AI API key configured (OPENAI_API_KEY or GEMINI_API_KEY), using fallback matching")
         return _fallback_match()
     
     try:
@@ -181,7 +182,7 @@ async def _call_vision_api(
         
         # Call the API
         response = await chat(
-            api_key=EMERGENT_LLM_KEY,
+            api_key=OPENAI_API_KEY,
             model="gpt-4o",
             messages=[UserMessage(content=content)],
             response_format={"type": "json_object"}
@@ -231,7 +232,7 @@ async def _call_vision_api_rest(
             response = await client.post(
                 "https://api.openai.com/v1/chat/completions",
                 headers={
-                    "Authorization": f"Bearer {EMERGENT_LLM_KEY}",
+                    "Authorization": f"Bearer {OPENAI_API_KEY}",
                     "Content-Type": "application/json"
                 },
                 json={
@@ -334,7 +335,7 @@ async def compare_board_colors(
     Compare board colors in a photo to expected description.
     Useful for identifying surfers by their board when face isn't visible.
     """
-    if not EMERGENT_LLM_KEY:
+    if not OPENAI_API_KEY:
         return {"match": False, "confidence": 0.5, "reason": "AI unavailable"}
     
     prompt = f"""Analyze the surfboard in this image.
@@ -362,7 +363,7 @@ Respond in JSON:
         from emergentintegrations.llm.chat import chat, UserMessage, ImageContent, TextContent
         
         response = await chat(
-            api_key=EMERGENT_LLM_KEY,
+            api_key=OPENAI_API_KEY,
             model="gpt-4o",
             messages=[UserMessage(content=[
                 TextContent(text=prompt),

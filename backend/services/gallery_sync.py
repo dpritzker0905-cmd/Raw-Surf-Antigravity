@@ -242,9 +242,21 @@ async def create_surfer_selection_quota(
         logger.error(f"Cannot create selection quota: photographer_id is required")
         return
     
+    videos_allowed = 0  # Default: no videos included
+    
     if photos_allowed is None:
         if session_type == 'live':
-            photos_allowed = 3
+            photos_allowed = 3  # Default fallback
+            # Read actual values from the LiveSession record
+            if live_session_id:
+                from models import LiveSession as LSModel
+                ls_result = await db.execute(
+                    select(LSModel).where(LSModel.id == live_session_id)
+                )
+                ls = ls_result.scalar_one_or_none()
+                if ls:
+                    photos_allowed = ls.photos_included or 3
+                    videos_allowed = ls.videos_included or 0
         elif session_type == 'on_demand':
             photos_allowed = 10
             # Try to get from dispatch if available
@@ -279,6 +291,8 @@ async def create_surfer_selection_quota(
         booking_id=booking_id,
         photos_allowed=photos_allowed,
         photos_selected=0,
+        videos_allowed=videos_allowed,
+        videos_selected=0,
         status='pending_selection',
         selection_deadline=selection_deadline,
         # Auto-selection preference (default: ask user)
@@ -286,7 +300,7 @@ async def create_surfer_selection_quota(
     )
     
     db.add(quota)
-    logger.info(f"Created selection quota for surfer {surfer_id}: {photos_allowed} photos, deadline {selection_deadline}")
+    logger.info(f"Created selection quota for surfer {surfer_id}: {photos_allowed} photos + {videos_allowed} videos, deadline {selection_deadline}")
 
 
 async def check_gallery_exists_for_session(

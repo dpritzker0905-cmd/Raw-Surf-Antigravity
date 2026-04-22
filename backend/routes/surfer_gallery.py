@@ -1507,3 +1507,108 @@ async def get_selection_deadline_info(
         "photos_remaining": quota.photos_allowed - quota.photos_selected,
         "videos_remaining": quota.videos_allowed - quota.videos_selected
     }
+
+
+# ═══════════════════════════════════════════════════════════════════
+# HYBRID MODEL D: "All Session" Browse Endpoint
+# ═══════════════════════════════════════════════════════════════════
+
+
+@router.get("/browse-session/{session_type}/{session_id}")
+async def browse_session_photos(
+    session_type: str,  # 'live', 'booking', 'on_demand'
+    session_id: str,
+    surfer_id: str = Query(...),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Hybrid Model D: 'All Session' tab.
+    
+    Returns ALL photos from a session, regardless of whether they've been
+    AI-matched to this surfer. Each photo includes:
+    - Whether it's already in the surfer's locker (is_in_locker)
+    - Whether the surfer can self-claim it (can_claim)
+    - AI confidence if it was matched (ai_confidence)
+    
+    This is the fallback browse view — ensures surfers never miss photos.
+    """
+    from models import Gallery, GalleryItem
+    
+    # Find the gallery for this session
+    if session_type == 'live':
+        gallery_result = await db.execute(
+            select(Gallery).where(Gallery.live_session_id == session_id)
+        )
+    elif session_type == 'booking':
+        gallery_result = await db.execute(
+            select(Gallery).where(Gallery.booking_id == session_id)
+        )
+    elif session_type == 'on_demand':
+        gallery_result = await db.execute(
+            select(Gallery).where(Gallery.dispatch_id == session_id)
+        )
+    else:
+        raise HTTPException(status_code=400, detail=f"Invalid session_type: {session_type}")
+    
+    gallery = gallery_result.scalar_one_or_none()
+    if not gallery:
+        return {"items": [], "gallery_id": None, "total": 0}
+    
+    # Get ALL gallery items for this gallery
+    items_result = await db.execute(
+        select(GalleryItem).where(
+            GalleryItem.gallery_id == gallery.id,
+            GalleryItem.is_deleted != True
+        ).order_by(GalleryItem.created_at.desc())
+    )
+    all_items = items_result.scalars().all()
+    
+    # Get surfer's existing locker items for this gallery
+    locker_result = await db.execute(
+        select(SurferGalleryItem).where(
+            SurferGalleryItem.surfer_id == surfer_id,
+            SurferGalleryItem.gallery_item_id.in_([gi.id for gi in all_items])
+        )
+    )
+    locker_items = {str(sgi.gallery_item_id): sgi for sgi in locker_result.scalars().all()}
+    
+    # Get photographer info
+    photographer_result = await db.execute(
+        select(Profile).where(Profile.id == gallery.photographer_id)
+    )
+    photographer = photographer_result.scalar_one_or_none()
+    
+    items = []
+    for gi in all_items:
+        gi_id = str(gi.id)
+        locker_item = locker_items.get(gi_id)
+        
+        items.append({
+            "id": gi_id,
+            "url": gi.preview_url or gi.original_url,
+            "thumbnail_url": gi.thumbnail_url,
+            "media_type": gi.media_type,
+            "created_at": gi.created_at.isoformat() if gi.created_at else None,
+            "title": gi.title,
+            # Hybrid Model D metadata
+            "is_in_locker": locker_item is not None,
+            "can_claim": locker_item is None,  # Can self-claim if not already in locker
+            "locker_item_id": str(locker_item.id) if locker_item else None,
+            "ai_confidence": locker_item.ai_confidence if locker_item else None,
+            "ai_match_method": locker_item.ai_match_method if locker_item else None,
+            "is_paid": locker_item.is_paid if locker_item else False,
+            "access_type": locker_item.access_type if locker_item else None,
+            # Photographer info
+            "photographer_name": photographer.full_name if photographer else None,
+            "photographer_avatar": photographer.avatar_url if photographer else None,
+        })
+    
+    return {
+        "gallery_id": str(gallery.id),
+        "gallery_title": gallery.title,
+        "session_type": session_type,
+        "total": len(items),
+        "in_locker_count": sum(1 for i in items if i["is_in_locker"]),
+        "claimable_count": sum(1 for i in items if i["can_claim"]),
+        "items": items
+    }

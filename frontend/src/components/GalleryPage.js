@@ -655,19 +655,25 @@ export const GalleryPage = () => {
 
   // Batch tag selected items to a specific surfer
   const handleBatchTagToSurfer = async (surferId, surferName) => {
-    if (!selectedGallery || selectedItems.size === 0) return;
+    const itemsToTag = selectedItems.size > 0 ? selectedItems : new Set(galleryItems.map(i => i.id));
+    if (!selectedGallery || itemsToTag.size === 0) return;
     setBatchTagLoading(prev => ({ ...prev, [surferId]: true }));
     try {
       let tagged = 0;
       let alreadyTagged = 0;
-      for (const itemId of selectedItems) {
+      let alreadyDelivered = 0;
+      for (const itemId of itemsToTag) {
         try {
           const response = await apiClient.post(
             `/gallery/${selectedGallery.id}/tag-item?photographer_id=${user.id}`,
             { surfer_id: surferId, item_id: itemId }
           );
           if (response.data.already_tagged) {
-            alreadyTagged++;
+            if (response.data.is_delivered) {
+              alreadyDelivered++;
+            } else {
+              alreadyTagged++;
+            }
           } else {
             tagged++;
           }
@@ -675,15 +681,24 @@ export const GalleryPage = () => {
           // Continue with remaining items
         }
       }
+      // Build descriptive result message
+      const parts = [];
+      if (tagged > 0) parts.push(`${tagged} tagged`);
+      if (alreadyDelivered > 0) parts.push(`${alreadyDelivered} already delivered`);
+      if (alreadyTagged > 0) parts.push(`${alreadyTagged} already pending`);
+      
       if (tagged > 0) {
-        toast.success(`✅ Tagged ${tagged} items to ${surferName}${alreadyTagged > 0 ? ` (${alreadyTagged} already tagged)` : ''}`);
-      } else if (alreadyTagged > 0) {
-        toast.info(`All ${alreadyTagged} selected items already tagged to ${surferName}`);
+        toast.success(`✅ ${parts.join(' • ')} → ${surferName}`);
+      } else {
+        toast.info(`${parts.join(' • ')} for ${surferName}`);
       }
       // Refresh
       await fetchGalleryItems(selectedGallery.id);
       await fetchParticipants(selectedGallery.id);
+      fetchGalleries();
       setShowBatchTagPicker(false);
+      setShowTagAssignModal(false);
+      clearSelection();
     } catch (error) {
       toast.error(getErrorMessage(error, `Failed to batch tag to ${surferName}`));
     } finally {
@@ -1513,12 +1528,12 @@ export const GalleryPage = () => {
                         return;
                       }
                       await fetchParticipants(selectedGallery.id);
-                      setShowBatchTagPicker(true);
+                      setShowTagAssignModal(true);
                     }}
                     disabled={selectedItems.size === 0}
                   >
                     <UserPlus className="w-4 h-4 mr-1" />
-                    Tag
+                    Tag {selectedItems.size > 0 ? `(${selectedItems.size})` : ''}
                   </Button>
                   <Button
                     size="sm"
@@ -2359,48 +2374,55 @@ export const GalleryPage = () => {
 
       {/* ============ TAG & ASSIGN MODAL ============ */}
       <Dialog open={showTagAssignModal} onOpenChange={setShowTagAssignModal}>
-        <DialogContent className="max-w-lg bg-background border-border max-h-[85vh] overflow-hidden flex flex-col">
+        <DialogContent className="max-w-xl bg-background border-border max-h-[90vh] overflow-hidden flex flex-col">
           <DialogHeader>
             <DialogTitle className="text-foreground flex items-center gap-2">
               <Sparkles className="w-5 h-5 text-purple-400" />
               Tag & Assign — {selectedGallery?.title || 'Gallery'}
             </DialogTitle>
+            <p className="text-xs text-muted-foreground">
+              {selectedItems.size > 0 
+                ? `Tagging ${selectedItems.size} selected items` 
+                : `Tagging all ${galleryItems.length} items in this folder`}
+            </p>
           </DialogHeader>
           
           <div className="flex-1 overflow-y-auto space-y-4 pr-1">
-            {/* Session Info Banner */}
-            {sessionInfo && (
-              <div className={`p-3 rounded-lg border ${
-                sessionInfo.is_linked
-                  ? 'bg-emerald-500/10 border-emerald-500/30'
-                  : 'bg-amber-500/10 border-amber-500/30'
-              }`}>
-                <div className="flex items-center gap-2 text-sm">
-                  {sessionInfo.is_linked ? (
-                    <>
-                      <CheckCircle className="w-4 h-4 text-emerald-400" />
-                      <span className="text-emerald-400 font-medium">
-                        Session linked — {sessionInfo.session_type === 'live' || sessionInfo.live_session_id ? '🟢 Live Session' 
-                          : sessionInfo.session_type === 'booking' ? '📅 Booking' 
-                          : sessionInfo.session_type === 'on_demand' ? '⚡ On-Demand' : '📋 Manual'}
-                      </span>
-                    </>
-                  ) : (
-                    <>
-                      <Radio className="w-4 h-4 text-amber-400" />
-                      <span className="text-amber-400 font-medium">No session linked — use manual assignment below</span>
-                    </>
-                  )}
-                </div>
-                {sessionInfo.session_date && (
-                  <p className="text-xs text-muted-foreground mt-1 ml-6">
-                    {new Date(sessionInfo.session_date).toLocaleDateString()}
-                  </p>
+            {/* ── Item Preview Strip ── */}
+            <div className="rounded-lg p-2.5" style={{ background: 'rgba(139,92,246,0.06)', border: '1px solid rgba(139,92,246,0.15)' }}>
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-[11px] font-semibold text-purple-400">
+                  📦 {selectedItems.size > 0 ? `${selectedItems.size} Selected` : `All ${galleryItems.length} Items`}
+                </span>
+                <span className="text-[10px] text-muted-foreground">
+                  {galleryItems.filter(i => i.media_type !== 'video').length} 📷 • {galleryItems.filter(i => i.media_type === 'video').length} 🎬
+                </span>
+              </div>
+              <div className="flex gap-1.5 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
+                {(selectedItems.size > 0 
+                  ? galleryItems.filter(i => selectedItems.has(i.id))
+                  : galleryItems
+                ).slice(0, 12).map(item => (
+                  <div key={item.id} className="w-11 h-11 rounded-lg overflow-hidden flex-shrink-0 relative" style={{ border: '1px solid rgba(255,255,255,0.1)' }}>
+                    {item.media_type === 'video' ? (
+                      <video src={getFullUrl(item.preview_url)} className="w-full h-full object-cover" muted />
+                    ) : (
+                      <img src={getFullUrl(item.preview_url || item.thumbnail_url)} alt="" className="w-full h-full object-cover" />
+                    )}
+                    {item.media_type === 'video' && (
+                      <div className="absolute bottom-0 left-0 right-0 bg-purple-600/80 text-[6px] text-white text-center font-bold">VID</div>
+                    )}
+                  </div>
+                ))}
+                {(selectedItems.size > 0 ? selectedItems.size : galleryItems.length) > 12 && (
+                  <div className="w-11 h-11 rounded-lg flex-shrink-0 flex items-center justify-center text-[10px] font-bold text-muted-foreground" style={{ background: 'rgba(255,255,255,0.05)', border: '1px dashed rgba(255,255,255,0.15)' }}>
+                    +{(selectedItems.size > 0 ? selectedItems.size : galleryItems.length) - 12}
+                  </div>
                 )}
               </div>
-            )}
+            </div>
 
-            {/* Session Participants Section */}
+            {/* ── Session Participants Section ── */}
             {participantsLoading ? (
               <div className="flex items-center justify-center py-8">
                 <Loader2 className="w-6 h-6 animate-spin text-purple-400" />
@@ -2413,106 +2435,121 @@ export const GalleryPage = () => {
                     <Users className="w-4 h-4 text-purple-400" />
                     Session Participants ({participants.length})
                   </h3>
+                  {/* AI Auto-tag shortcut */}
+                  <Button size="sm" variant="ghost" className="text-xs text-cyan-400 hover:text-cyan-300 h-7 px-2"
+                    onClick={() => { setShowTagAssignModal(false); handleAiAutoTag(); }}
+                    disabled={aiAutoTagLoading}>
+                    <Sparkles className="w-3 h-3 mr-1" /> AI Match All
+                  </Button>
                 </div>
                 
                 {participants.map((p) => {
-                  const isFullyDistributed = p.items_distributed >= galleryItems.length && galleryItems.length > 0;
-                  const isLoading = distributeLoading[p.surfer_id];
+                  const isLoading = batchTagLoading[p.surfer_id] || distributeLoading[p.surfer_id];
+                  const totalItems = selectedItems.size > 0 ? selectedItems.size : galleryItems.length;
+                  const isFullyDistributed = p.items_distributed >= totalItems && totalItems > 0;
                   const hasCredits = p.photos_credit_remaining > 0;
+                  const creditsToUse = Math.min(p.photos_credit_remaining || 0, totalItems - (p.items_distributed || 0));
+                  const previewCount = Math.max(0, totalItems - (p.items_distributed || 0) - creditsToUse);
+                  
                   return (
-                    <div
-                      key={p.surfer_id}
-                      className={`p-3 rounded-lg border transition-all ${
-                        isFullyDistributed
-                          ? 'bg-emerald-500/10 border-emerald-500/30'
-                          : 'bg-muted/30 border-border/50 hover:border-purple-500/50'
+                    <div key={p.surfer_id}
+                      className={`rounded-xl overflow-hidden transition-all ${
+                        isFullyDistributed 
+                          ? 'opacity-60' 
+                          : 'hover:border-purple-500/40'
                       }`}
-                    >
-                      <div className="flex items-center gap-3">
+                      style={{
+                        background: isFullyDistributed ? 'rgba(16,185,129,0.06)' : 'rgba(255,255,255,0.02)',
+                        border: `1px solid ${isFullyDistributed ? 'rgba(16,185,129,0.2)' : 'rgba(255,255,255,0.08)'}`
+                      }}>
+                      <div className="flex items-center gap-3 p-3">
                         {/* Avatar */}
-                        {p.avatar_url || p.selfie_url ? (
-                          <img
-                            src={getFullUrl(p.selfie_url || p.avatar_url)}
-                            alt={p.full_name}
-                            className="w-10 h-10 rounded-full object-cover border-2 border-border"
-                          />
-                        ) : (
-                          <div className="w-10 h-10 rounded-full bg-purple-500/20 flex items-center justify-center text-purple-400 font-bold text-sm">
-                            {(p.full_name || p.username || '?').charAt(0).toUpperCase()}
-                          </div>
-                        )}
-                        
-                        {/* Name + payment info */}
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-foreground truncate">
-                            {p.full_name || p.username || 'Unknown'}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            ${p.amount_paid || 0} paid via {p.payment_method || 'credits'}
-                          </p>
+                        <div className="relative flex-shrink-0">
+                          {p.avatar_url || p.selfie_url ? (
+                            <img src={getFullUrl(p.selfie_url || p.avatar_url)} alt={p.full_name}
+                              className="w-11 h-11 rounded-xl object-cover"
+                              style={{ border: `2px solid ${isFullyDistributed ? '#10b981' : hasCredits ? '#f59e0b' : '#6b7280'}` }} />
+                          ) : (
+                            <div className="w-11 h-11 rounded-xl flex items-center justify-center text-sm font-bold text-white"
+                              style={{ background: 'linear-gradient(135deg, #06b6d4, #3b82f6)', border: `2px solid ${isFullyDistributed ? '#10b981' : hasCredits ? '#f59e0b' : '#6b7280'}` }}>
+                              {(p.full_name || '?')[0]}
+                            </div>
+                          )}
+                          {isFullyDistributed && (
+                            <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-emerald-500 flex items-center justify-center shadow-sm">
+                              <CheckCircle className="w-3 h-3 text-white" />
+                            </div>
+                          )}
                         </div>
                         
-                        {/* Action button */}
+                        {/* Name + delivery preview */}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-sm font-semibold text-foreground truncate">{p.full_name || 'Unknown'}</span>
+                            {p.username && <span className="text-[10px] text-muted-foreground">@{p.username}</span>}
+                          </div>
+                          {isFullyDistributed ? (
+                            <p className="text-[11px] text-emerald-400 font-medium mt-0.5">
+                              ✅ All {p.items_distributed} items already delivered
+                            </p>
+                          ) : (
+                            <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                              {p.items_distributed > 0 && (
+                                <span className="text-[10px] px-1.5 py-0.5 rounded-full font-medium" style={{ background: 'rgba(59,130,246,0.15)', color: '#60a5fa' }}>
+                                  📤 {p.items_distributed} sent
+                                </span>
+                              )}
+                              {creditsToUse > 0 && (
+                                <span className="text-[10px] px-1.5 py-0.5 rounded-full font-medium" style={{ background: 'rgba(16,185,129,0.15)', color: '#34d399' }}>
+                                  🎟️ {creditsToUse} included
+                                </span>
+                              )}
+                              {previewCount > 0 && (
+                                <span className="text-[10px] px-1.5 py-0.5 rounded-full font-medium" style={{ background: 'rgba(245,158,11,0.15)', color: '#fbbf24' }}>
+                                  🔒 {previewCount} preview
+                                </span>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                        
+                        {/* Action */}
                         {isFullyDistributed ? (
-                          <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30 text-xs">
-                            <CheckCircle className="w-3 h-3 mr-1" /> Delivered
+                          <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30 text-[10px] flex-shrink-0">
+                            ✓ Done
                           </Badge>
                         ) : (
-                          <Button
-                            size="sm"
-                            className="bg-purple-500 hover:bg-purple-600 text-white text-xs h-8"
-                            onClick={() => handleDistributeToSurfer(p.surfer_id, p.full_name || p.username)}
-                            disabled={isLoading || galleryItems.length === 0}
-                          >
+                          <Button size="sm"
+                            className="bg-purple-500 hover:bg-purple-600 text-white text-xs h-9 px-3 flex-shrink-0 shadow-sm"
+                            onClick={() => handleBatchTagToSurfer(p.surfer_id, p.full_name || p.username)}
+                            disabled={isLoading || galleryItems.length === 0}>
                             {isLoading ? (
-                              <Loader2 className="w-3 h-3 animate-spin" />
+                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
                             ) : (
                               <>
-                                <Send className="w-3 h-3 mr-1" />
-                                Push to Locker
+                                <Send className="w-3.5 h-3.5 mr-1.5" />
+                                Tag & Send
                               </>
                             )}
                           </Button>
-                        )}
-                      </div>
-                      
-                      {/* Delivery details row */}
-                      <div className="mt-2 flex items-center gap-2 flex-wrap">
-                        {hasCredits && (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-                            🎟️ {p.photos_credit_remaining} included (full-res)
-                          </span>
-                        )}
-                        {p.items_distributed > 0 && (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-blue-500/20 text-blue-400 border border-blue-500/30">
-                            📤 {p.items_distributed}/{galleryItems.length} sent
-                          </span>
-                        )}
-                        {p.resolution_preference && p.resolution_preference !== 'standard' && (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-amber-500/20 text-amber-400 border border-amber-500/30">
-                            📐 {p.resolution_preference}
-                          </span>
                         )}
                       </div>
                     </div>
                   );
                 })}
                 
-                {/* Batch action for all participants */}
-                {participants.length > 1 && (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="w-full border-emerald-600 text-emerald-400 hover:bg-emerald-500/10 text-xs h-8 mt-1"
+                {/* Distribute All shortcut */}
+                {participants.length > 1 && participants.some(p => p.items_distributed < galleryItems.length) && (
+                  <Button size="sm" variant="outline"
+                    className="w-full border-emerald-600 text-emerald-400 hover:bg-emerald-500/10 text-xs h-9 mt-1"
                     onClick={handleDistributeAll}
-                    disabled={distributeAllLoading || galleryItems.length === 0}
-                  >
+                    disabled={distributeAllLoading || galleryItems.length === 0}>
                     {distributeAllLoading ? (
                       <Loader2 className="w-3 h-3 animate-spin mr-1" />
                     ) : (
                       <Send className="w-3 h-3 mr-1" />
                     )}
-                    Push All {galleryItems.length} Items to All {participants.length} Participants
+                    Tag All Items → All {participants.length} Participants
                   </Button>
                 )}
               </div>
@@ -2555,38 +2592,35 @@ export const GalleryPage = () => {
               {/* Search Results */}
               {searchResults.length > 0 && (
                 <div className="space-y-1 max-h-48 overflow-y-auto">
-                  {searchResults.map((surfer) => (
-                    <div
-                      key={surfer.id}
-                      className="flex items-center gap-3 p-2 rounded-lg bg-muted/30 border border-border/50 hover:border-amber-500/50 transition-all"
-                    >
-                      {surfer.avatar_url ? (
-                        <img src={getFullUrl(surfer.avatar_url)} alt={surfer.full_name} className="w-8 h-8 rounded-full object-cover" />
-                      ) : (
-                        <div className="w-8 h-8 rounded-full bg-amber-500/20 flex items-center justify-center text-amber-400 font-bold text-xs">
-                          {(surfer.full_name || surfer.username || '?').charAt(0).toUpperCase()}
-                        </div>
-                      )}
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-foreground truncate">{surfer.full_name || surfer.username}</p>
-                        <p className="text-xs text-muted-foreground">@{surfer.username}</p>
-                      </div>
-                      <Button
-                        size="sm"
-                        className="bg-amber-500 hover:bg-amber-600 text-black text-xs h-7"
-                        onClick={() => handleDistributeToSurfer(surfer.id, surfer.full_name || surfer.username)}
-                        disabled={distributeLoading[surfer.id]}
-                      >
-                        {distributeLoading[surfer.id] ? (
-                          <Loader2 className="w-3 h-3 animate-spin" />
+                  {searchResults.map((surfer) => {
+                    const isLoading = batchTagLoading[surfer.id] || distributeLoading[surfer.id];
+                    return (
+                      <div key={surfer.id}
+                        className="flex items-center gap-3 p-2.5 rounded-lg bg-muted/30 border border-border/50 hover:border-amber-500/50 transition-all">
+                        {surfer.avatar_url ? (
+                          <img src={getFullUrl(surfer.avatar_url)} alt={surfer.full_name} className="w-9 h-9 rounded-full object-cover border border-border" />
                         ) : (
-                          <>
-                            <Send className="w-3 h-3 mr-1" /> Push
-                          </>
+                          <div className="w-9 h-9 rounded-full bg-amber-500/20 flex items-center justify-center text-amber-400 font-bold text-xs">
+                            {(surfer.full_name || surfer.username || '?').charAt(0).toUpperCase()}
+                          </div>
                         )}
-                      </Button>
-                    </div>
-                  ))}
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-foreground truncate">{surfer.full_name || surfer.username}</p>
+                          {surfer.username && <p className="text-[10px] text-muted-foreground">@{surfer.username}</p>}
+                        </div>
+                        <Button size="sm"
+                          className="bg-amber-500 hover:bg-amber-600 text-black text-xs h-8 flex-shrink-0"
+                          onClick={() => handleBatchTagToSurfer(surfer.id, surfer.full_name || surfer.username)}
+                          disabled={isLoading}>
+                          {isLoading ? (
+                            <Loader2 className="w-3 h-3 animate-spin" />
+                          ) : (
+                            <><Send className="w-3 h-3 mr-1" /> Tag & Send</>
+                          )}
+                        </Button>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
               {manualSurferSearch.length >= 2 && !searchLoading && searchResults.length === 0 && (
@@ -2594,21 +2628,13 @@ export const GalleryPage = () => {
               )}
             </div>
             
-            {/* Gallery Items Summary — Smart Delivery Info */}
-            <div className="p-3 rounded-lg bg-muted/30 border border-border/50 space-y-1">
-              <p className="text-xs text-muted-foreground">
-                📦 <strong>{galleryItems.length}</strong> items in this gallery
+            {/* Smart Delivery Info */}
+            <div className="p-3 rounded-lg" style={{ background: 'rgba(6,182,212,0.06)', border: '1px solid rgba(6,182,212,0.15)' }}>
+              <p className="text-[11px] text-muted-foreground leading-relaxed">
+                <strong className="text-cyan-400">How it works:</strong> Items tagged to surfers with remaining credits are delivered as <strong className="text-emerald-400">full-resolution included</strong> content. 
+                Once credits are used, additional items are delivered as <strong className="text-amber-400">watermarked previews</strong> that surfers can purchase.
+                Already-delivered items are automatically skipped.
               </p>
-              {participants.some(p => p.photos_credit_remaining > 0) ? (
-                <p className="text-xs text-emerald-400">
-                  🎟️ Participants with included photos will receive <strong>full-resolution</strong> items up to their credit. 
-                  Additional items are delivered as previews.
-                </p>
-              ) : (
-                <p className="text-xs text-muted-foreground">
-                  Items will be pushed to surfer Lockers. Surfers can then purchase full-resolution versions.
-                </p>
-              )}
             </div>
           </div>
           
@@ -2620,85 +2646,7 @@ export const GalleryPage = () => {
         </DialogContent>
       </Dialog>
 
-      {/* ── Batch Tag Picker (bulk select → tag to surfer) ── */}
-      <Dialog open={showBatchTagPicker} onOpenChange={setShowBatchTagPicker}>
-        <DialogContent className="bg-card border-border text-foreground max-w-md max-h-[80vh] overflow-y-auto">
-          <DialogTitle className="text-lg font-bold flex items-center gap-2">
-            <UserPlus className="w-5 h-5 text-purple-400" />
-            Tag {selectedItems.size} Items to Surfer
-          </DialogTitle>
-          
-          <p className="text-xs text-muted-foreground -mt-2">
-            Select a surfer to tag all {selectedItems.size} selected items to their locker.
-          </p>
-
-          {participantsLoading ? (
-            <div className="flex items-center justify-center py-8">
-              <Loader2 className="w-5 h-5 animate-spin text-purple-400" />
-              <span className="ml-2 text-sm text-muted-foreground">Loading participants...</span>
-            </div>
-          ) : participants.length > 0 ? (
-            <div className="space-y-2">
-              {participants.map((p) => {
-                const isLoading = batchTagLoading[p.surfer_id];
-                const hasCredits = p.photos_credit_remaining > 0;
-                const selfieOrAvatar = getFullUrl(p.selfie_url || p.avatar_url);
-                return (
-                  <button
-                    key={p.surfer_id}
-                    onClick={() => handleBatchTagToSurfer(p.surfer_id, p.full_name || p.username)}
-                    disabled={isLoading}
-                    className="w-full flex items-center gap-3 px-3 py-3 rounded-lg border border-border/50 bg-muted/20 hover:bg-purple-500/10 hover:border-purple-500/40 transition-all text-left"
-                  >
-                    {isLoading ? (
-                      <Loader2 className="w-10 h-10 animate-spin text-purple-400 shrink-0" />
-                    ) : selfieOrAvatar ? (
-                      <img
-                        src={selfieOrAvatar}
-                        alt={p.full_name}
-                        className="w-10 h-10 rounded-full object-cover border-2 border-border shrink-0"
-                      />
-                    ) : (
-                      <div className="w-10 h-10 rounded-full bg-purple-500/20 flex items-center justify-center text-purple-400 font-bold text-sm shrink-0">
-                        {(p.full_name || p.username || '?').charAt(0).toUpperCase()}
-                      </div>
-                    )}
-                    
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-foreground truncate">
-                        {p.full_name || p.username}
-                      </p>
-                      <p className="text-[11px] text-muted-foreground">
-                        {hasCredits ? (
-                          <span className="text-emerald-400">🎟️ {p.photos_credit_remaining} included credits</span>
-                        ) : (
-                          <span>💰 ${p.amount_paid || 0} paid</span>
-                        )}
-                      </p>
-                    </div>
-                    
-                    <div className="shrink-0 px-2 py-1 rounded-md bg-purple-500/20 text-purple-400 text-xs font-medium">
-                      Tag {selectedItems.size}
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          ) : (
-            <div className="text-center py-6">
-              <Users className="w-8 h-8 text-muted-foreground/40 mx-auto mb-2" />
-              <p className="text-sm text-muted-foreground">No session participants</p>
-              <p className="text-xs text-muted-foreground mt-1">Use "Tag & Assign" to search for any surfer</p>
-            </div>
-          )}
-          
-          <DialogFooter className="pt-3 border-t border-border">
-            <Button variant="outline" onClick={() => setShowBatchTagPicker(false)} className="border-border">
-              Cancel
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* Batch Tag Picker now unified into Tag & Assign modal above */}
 
       {/* Watermark Settings Modal */}
       <WatermarkSettings

@@ -241,11 +241,16 @@ const SurferPanel = ({ surfer, galleryId, photographerId, onRosterUpdate }) => {
                 </div>
               )}
               <div className="flex-1 space-y-1.5">
-                <CreditRow icon={<Camera className="w-3 h-3" />} label="Photos"
-                  delivered={photos_delivered} included={photos_included} remaining={photos_credits_remaining} color="#06b6d4" />
-                {videos_included > 0 && (
-                  <CreditRow icon={<Film className="w-3 h-3" />} label="Videos"
-                    delivered={videos_delivered} included={videos_included} remaining={videos_credits_remaining} color="#8b5cf6" />
+                {videos_included > 0 ? (
+                  <>
+                    <CreditRow icon={<Camera className="w-3 h-3" />} label="Photos"
+                      delivered={photos_delivered} included={photos_included} remaining={photos_credits_remaining} color="#06b6d4" />
+                    <CreditRow icon={<Film className="w-3 h-3" />} label="Videos"
+                      delivered={videos_delivered} included={videos_included} remaining={videos_credits_remaining} color="#8b5cf6" />
+                  </>
+                ) : (
+                  <CreditRow icon={<Camera className="w-3 h-3" />} label="Content"
+                    delivered={items_delivered} included={photos_included} remaining={credits_remaining} color="#06b6d4" />
                 )}
                 <div className="flex items-center gap-2 mt-1 flex-wrap">
                   <MiniPill icon={payment_method === 'credits' ? '✨' : '💳'}

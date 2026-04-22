@@ -270,7 +270,8 @@ async def websocket_call(websocket: WebSocket, user_id: str):
                 target_room = f"call_{target_user_id}"
                 
                 if msg_type in ("call_offer", "call_answer", "ice_candidate", 
-                                "call_decline", "call_end", "call_busy"):
+                                "call_decline", "call_end", "call_busy",
+                                "call_accepted_elsewhere"):
                     # Forward the message to the target user
                     target_conn_count = ws_manager.get_connection_count(target_room)
                     logger.info(f"Call signal '{msg_type}' from {user_id} -> {target_user_id} (target room '{target_room}' has {target_conn_count} connections)")

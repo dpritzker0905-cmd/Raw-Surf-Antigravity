@@ -18,11 +18,32 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import { toast } from 'sonner';
 
-// Free STUN servers (Google) — handles ~85% of NAT traversal
+// STUN + TURN servers for reliable NAT traversal
+// STUN alone fails ~15-20% of the time (symmetric NAT, mobile carriers, corporate networks)
+// TURN from Metered.ca (rawsurf app) + Google STUN
 const ICE_SERVERS = [
   { urls: 'stun:stun.l.google.com:19302' },
-  { urls: 'stun:stun1.l.google.com:19302' },
-  { urls: 'stun:stun2.l.google.com:19302' },
+  { urls: 'stun:stun.relay.metered.ca:80' },
+  {
+    urls: 'turn:global.relay.metered.ca:80',
+    username: '625f8466354cfa3017779b2b',
+    credential: 'g4h9mvCCyzX7Hk0H',
+  },
+  {
+    urls: 'turn:global.relay.metered.ca:80?transport=tcp',
+    username: '625f8466354cfa3017779b2b',
+    credential: 'g4h9mvCCyzX7Hk0H',
+  },
+  {
+    urls: 'turn:global.relay.metered.ca:443',
+    username: '625f8466354cfa3017779b2b',
+    credential: 'g4h9mvCCyzX7Hk0H',
+  },
+  {
+    urls: 'turn:global.relay.metered.ca:443?transport=tcp',
+    username: '625f8466354cfa3017779b2b',
+    credential: 'g4h9mvCCyzX7Hk0H',
+  },
 ];
 
 // Call states
@@ -155,7 +176,15 @@ export function useWebRTCCall(userId, userInfo = {}) {
   const handleSignalingMessage = useCallback(async (data) => {
     switch (data.type) {
       case 'call_offer': {
-        // Incoming call
+        // Incoming call — check if we're already in a call
+        if (callStateRef.current !== CALL_STATE.IDLE) {
+          // Already in a call or ringing — send busy
+          sendSignaling({
+            type: 'call_busy',
+            target_user_id: data.caller_id,
+          });
+          break;
+        }
         console.debug('[WebRTC] Incoming call from:', data.caller_id);
         setRemoteUserInfo({
           id: data.caller_id,
@@ -216,6 +245,18 @@ export function useWebRTCCall(userId, userInfo = {}) {
         console.debug('[WebRTC] User is busy');
         toast('User is busy on another call', { icon: '📵' });
         cleanup();
+        break;
+      }
+
+      case 'call_accepted_elsewhere': {
+        // Another device/tab answered this call — stop ringing here
+        console.debug('[WebRTC] Call answered on another device');
+        if (callStateRef.current === CALL_STATE.INCOMING) {
+          toast('Call answered on another device', { icon: '📱' });
+          setCallState(CALL_STATE.IDLE);
+          setCallType(null);
+          setRemoteUserInfo(null);
+        }
         break;
       }
 
@@ -460,6 +501,12 @@ export function useWebRTCCall(userId, userInfo = {}) {
         type: 'call_answer',
         target_user_id: remoteUserInfo?.id,
         sdp: answer,
+      });
+
+      // Notify our OTHER devices/tabs to stop ringing
+      sendSignaling({
+        type: 'call_accepted_elsewhere',
+        target_user_id: userId, // Send to our own room
       });
 
     } catch (err) {
