@@ -848,27 +848,187 @@ export const PhotographerGalleryManager = () => {
           </CardContent>
         </Card>
 
+
         {/* Current Pricing Summary - Only for sellers */}
         {showPricing && (
           <Card className={`mb-6 ${cardBgClass}`}>
             <CardHeader className="pb-2">
-              <CardTitle className={`text-sm ${textSecondaryClass}`}>Current Pricing</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex flex-wrap gap-4">
-                <div className="flex items-center gap-2">
-                  <Badge variant="outline" className="border-cyan-500/50 text-cyan-400">Photo</Badge>
-                  <span className={textSecondaryClass}>Web: ${pricing.price_web}</span>
-                  <span className={textSecondaryClass}>HD: ${pricing.price_standard}</span>
-                  <span className={textSecondaryClass}>4K: ${pricing.price_high}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Badge variant="outline" className="border-purple-500/50 text-purple-400">Video</Badge>
-                  <span className={textSecondaryClass}>720p: ${pricing.price_720p}</span>
-                  <span className={textSecondaryClass}>1080p: ${pricing.price_1080p}</span>
-                  <span className={textSecondaryClass}>4K: ${pricing.price_4k}</span>
-                </div>
+              <div className="flex items-center justify-between">
+                <CardTitle className={`text-sm ${textSecondaryClass}`}>Gallery Pricing & Session Settings</CardTitle>
+                {gallery?.session_settings && (
+                  <Badge variant="outline" className={
+                    gallery.session_settings.session_type === 'live' ? 'border-emerald-500/50 text-emerald-400' :
+                    gallery.session_settings.session_type === 'booking' ? 'border-blue-500/50 text-blue-400' :
+                    gallery.session_settings.session_type === 'on_demand' ? 'border-amber-500/50 text-amber-400' :
+                    'border-zinc-500/50 text-zinc-400'
+                  }>
+                    {gallery.session_settings.session_type === 'live' ? '🟢 Live Session' :
+                     gallery.session_settings.session_type === 'booking' ? '📅 Booking' :
+                     gallery.session_settings.session_type === 'on_demand' ? '⚡ On-Demand' : '📁 Manual'}
+                  </Badge>
+                )}
               </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {/* This Session's Included Content — editable */}
+              {gallery?.session_settings && (
+                <div className="rounded-xl p-4" style={{
+                  background: 'linear-gradient(135deg, rgba(6,182,212,0.08), rgba(59,130,246,0.06))',
+                  border: '1px solid rgba(6,182,212,0.2)'
+                }}>
+                  <div className="flex items-center justify-between mb-3">
+                    <h4 className={`text-xs font-bold uppercase tracking-wider ${textSecondaryClass}`}>
+                      This Session — Included Content
+                    </h4>
+                    <span className="text-[10px] text-cyan-400/70">
+                      {gallery.session_settings.buyin_price > 0 ? `$${gallery.session_settings.buyin_price} buy-in` : 'Free'}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    {/* Photos Included */}
+                    <div className="rounded-lg p-3" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                      <div className="flex items-center gap-2 mb-2">
+                        <ImageIcon className="w-4 h-4 text-cyan-400" />
+                        <span className={`text-xs font-semibold ${textPrimaryClass}`}>Photos Included</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={async () => {
+                            const val = Math.max(0, (gallery.session_settings?.photos_included || 3) - 1);
+                            try {
+                              await apiClient.patch(`/galleries/${galleryId}/session-settings?photographer_id=${user?.profile_id}`, { photos_included: val });
+                              setGallery(prev => ({...prev, session_settings: {...prev.session_settings, photos_included: val}}));
+                              toast.success(`Photos included updated to ${val}`);
+                              fetchSessionParticipants();
+                            } catch(e) { toast.error('Failed to update'); }
+                          }}
+                          className="w-7 h-7 rounded-md flex items-center justify-center text-sm font-bold text-white hover:bg-white/10 transition-colors"
+                          style={{ border: '1px solid rgba(255,255,255,0.15)' }}
+                        >−</button>
+                        <span className="text-xl font-bold text-cyan-400 w-8 text-center">{gallery.session_settings?.photos_included ?? 3}</span>
+                        <button
+                          onClick={async () => {
+                            const val = (gallery.session_settings?.photos_included || 3) + 1;
+                            try {
+                              await apiClient.patch(`/galleries/${galleryId}/session-settings?photographer_id=${user?.profile_id}`, { photos_included: val });
+                              setGallery(prev => ({...prev, session_settings: {...prev.session_settings, photos_included: val}}));
+                              toast.success(`Photos included updated to ${val}`);
+                              fetchSessionParticipants();
+                            } catch(e) { toast.error('Failed to update'); }
+                          }}
+                          className="w-7 h-7 rounded-md flex items-center justify-center text-sm font-bold text-white hover:bg-white/10 transition-colors"
+                          style={{ border: '1px solid rgba(255,255,255,0.15)' }}
+                        >+</button>
+                      </div>
+                    </div>
+                    {/* Videos Included */}
+                    <div className="rounded-lg p-3" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                      <div className="flex items-center gap-2 mb-2">
+                        <Video className="w-4 h-4 text-purple-400" />
+                        <span className={`text-xs font-semibold ${textPrimaryClass}`}>Videos Included</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={async () => {
+                            const val = Math.max(0, (gallery.session_settings?.videos_included || 0) - 1);
+                            try {
+                              await apiClient.patch(`/galleries/${galleryId}/session-settings?photographer_id=${user?.profile_id}`, { videos_included: val });
+                              setGallery(prev => ({...prev, session_settings: {...prev.session_settings, videos_included: val}}));
+                              toast.success(`Videos included updated to ${val}`);
+                              fetchSessionParticipants();
+                            } catch(e) { toast.error('Failed to update'); }
+                          }}
+                          className="w-7 h-7 rounded-md flex items-center justify-center text-sm font-bold text-white hover:bg-white/10 transition-colors"
+                          style={{ border: '1px solid rgba(255,255,255,0.15)' }}
+                        >−</button>
+                        <span className="text-xl font-bold text-purple-400 w-8 text-center">{gallery.session_settings?.videos_included ?? 0}</span>
+                        <button
+                          onClick={async () => {
+                            const val = (gallery.session_settings?.videos_included || 0) + 1;
+                            try {
+                              await apiClient.patch(`/galleries/${galleryId}/session-settings?photographer_id=${user?.profile_id}`, { videos_included: val });
+                              setGallery(prev => ({...prev, session_settings: {...prev.session_settings, videos_included: val}}));
+                              toast.success(`Videos included updated to ${val}`);
+                              fetchSessionParticipants();
+                            } catch(e) { toast.error('Failed to update'); }
+                          }}
+                          className="w-7 h-7 rounded-md flex items-center justify-center text-sm font-bold text-white hover:bg-white/10 transition-colors"
+                          style={{ border: '1px solid rgba(255,255,255,0.15)' }}
+                        >+</button>
+                      </div>
+                    </div>
+                  </div>
+                  <p className={`text-[10px] mt-2 ${textSecondaryClass}`}>
+                    Additional items beyond included count are charged per the pricing tiers below
+                  </p>
+                </div>
+              )}
+
+              {/* Per-Service Pricing Tiers */}
+              {gallery?.photographer_pricing && (
+                <div className="space-y-3">
+                  {/* Live Session Pricing */}
+                  <PricingTierRow
+                    label="Live Session"
+                    emoji="🟢"
+                    color="emerald"
+                    photosIncluded={gallery.photographer_pricing.live_session?.photos_included}
+                    videosIncluded={gallery.photographer_pricing.live_session?.videos_included}
+                    buyinPrice={gallery.photographer_pricing.live_session?.buyin_price}
+                    photo={gallery.photographer_pricing.live_session?.photo}
+                    video={gallery.photographer_pricing.live_session?.video}
+                    textSecondaryClass={textSecondaryClass}
+                    textPrimaryClass={textPrimaryClass}
+                    isActive={gallery.session_settings?.session_type === 'live'}
+                  />
+                  {/* Booking Pricing */}
+                  <PricingTierRow
+                    label="Booking"
+                    emoji="📅"
+                    color="blue"
+                    photosIncluded={gallery.photographer_pricing.booking?.photos_included}
+                    videosIncluded={gallery.photographer_pricing.booking?.videos_included}
+                    buyinPrice={gallery.photographer_pricing.booking?.hourly_rate}
+                    buyinLabel="/hr"
+                    photo={gallery.photographer_pricing.booking?.photo}
+                    video={gallery.photographer_pricing.booking?.video}
+                    textSecondaryClass={textSecondaryClass}
+                    textPrimaryClass={textPrimaryClass}
+                    isActive={gallery.session_settings?.session_type === 'booking'}
+                  />
+                  {/* On-Demand Pricing */}
+                  <PricingTierRow
+                    label="On-Demand"
+                    emoji="⚡"
+                    color="amber"
+                    photosIncluded={gallery.photographer_pricing.on_demand?.photos_included}
+                    videosIncluded={gallery.photographer_pricing.on_demand?.videos_included}
+                    photo={gallery.photographer_pricing.on_demand?.photo}
+                    video={gallery.photographer_pricing.on_demand?.video}
+                    textSecondaryClass={textSecondaryClass}
+                    textPrimaryClass={textPrimaryClass}
+                    isActive={gallery.session_settings?.session_type === 'on_demand'}
+                  />
+                </div>
+              )}
+
+              {/* Fallback: Gallery-level pricing if no photographer_pricing */}
+              {!gallery?.photographer_pricing && (
+                <div className="flex flex-wrap gap-4">
+                  <div className="flex items-center gap-2">
+                    <Badge variant="outline" className="border-cyan-500/50 text-cyan-400">Photo</Badge>
+                    <span className={textSecondaryClass}>Web: ${pricing.price_web}</span>
+                    <span className={textSecondaryClass}>HD: ${pricing.price_standard}</span>
+                    <span className={textSecondaryClass}>4K: ${pricing.price_high}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Badge variant="outline" className="border-purple-500/50 text-purple-400">Video</Badge>
+                    <span className={textSecondaryClass}>720p: ${pricing.price_720p}</span>
+                    <span className={textSecondaryClass}>1080p: ${pricing.price_1080p}</span>
+                    <span className={textSecondaryClass}>4K: ${pricing.price_4k}</span>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
         )}
@@ -1872,6 +2032,57 @@ export const PhotographerGalleryManager = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+    </div>
+  );
+};
+
+// ── Pricing Tier Row (for per-service pricing display) ──
+const PricingTierRow = ({
+  label, emoji, color, photosIncluded, videosIncluded,
+  buyinPrice, buyinLabel, photo, video,
+  textSecondaryClass, textPrimaryClass, isActive
+}) => {
+  const colorMap = {
+    emerald: { border: 'rgba(16,185,129,0.25)', bg: 'rgba(16,185,129,0.06)', text: '#10b981' },
+    blue:    { border: 'rgba(59,130,246,0.25)', bg: 'rgba(59,130,246,0.06)', text: '#3b82f6' },
+    amber:   { border: 'rgba(245,158,11,0.25)', bg: 'rgba(245,158,11,0.06)', text: '#f59e0b' }
+  };
+  const c = colorMap[color] || colorMap.blue;
+
+  return (
+    <div className="rounded-lg p-3" style={{
+      background: isActive ? c.bg : 'rgba(255,255,255,0.02)',
+      border: `1px solid ${isActive ? c.border : 'rgba(255,255,255,0.06)'}`,
+      opacity: isActive ? 1 : 0.7
+    }}>
+      <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center gap-2">
+          <span className="text-sm">{emoji}</span>
+          <span className={`text-xs font-semibold ${textPrimaryClass}`}>{label}</span>
+          {isActive && (
+            <span className="text-[9px] px-1.5 py-0.5 rounded-full font-bold" style={{ background: c.border, color: c.text }}>
+              ACTIVE
+            </span>
+          )}
+        </div>
+        <div className="flex items-center gap-3 text-[10px]">
+          {buyinPrice > 0 && (
+            <span className={textSecondaryClass}>${buyinPrice}{buyinLabel || ' buy-in'}</span>
+          )}
+          <span style={{ color: '#06b6d4' }}>📷 {photosIncluded || 0} incl</span>
+          <span style={{ color: '#8b5cf6' }}>🎬 {videosIncluded || 0} incl</span>
+        </div>
+      </div>
+      <div className="flex flex-wrap gap-x-4 gap-y-1 text-[10px]">
+        <span className={textSecondaryClass}>
+          <span className="text-cyan-400/60">Photo:</span>{' '}
+          Web ${photo?.web || '—'} · HD ${photo?.standard || '—'} · 4K ${photo?.high || '—'}
+        </span>
+        <span className={textSecondaryClass}>
+          <span className="text-purple-400/60">Video:</span>{' '}
+          720p ${video?.['720p'] || '—'} · 1080p ${video?.['1080p'] || '—'} · 4K ${video?.['4k'] || '—'}
+        </span>
+      </div>
     </div>
   );
 };

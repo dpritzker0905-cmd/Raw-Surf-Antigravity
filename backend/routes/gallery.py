@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Body
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, case
 from sqlalchemy.orm import selectinload
@@ -1569,6 +1569,117 @@ async def create_gallery(
         "message": "Gallery created successfully"
     }
 
+def _build_session_settings(gallery):
+    """
+    Build session-level content settings (photos/videos included)
+    from the linked LiveSession, Booking, or Dispatch.
+    """
+    settings = {
+        "session_type": gallery.session_type or "manual",
+        "photos_included": 3,
+        "videos_included": 0,
+        "buyin_price": 0,
+        "full_gallery": False
+    }
+    
+    if gallery.live_session_id and gallery.live_session:
+        ls = gallery.live_session
+        settings["photos_included"] = getattr(ls, 'photos_included', 3) or 3
+        raw_vid = getattr(ls, 'videos_included', None)
+        settings["videos_included"] = raw_vid if raw_vid and raw_vid > 0 else 0
+        settings["buyin_price"] = getattr(ls, 'buyin_price', 25.0) or 25.0
+        settings["session_type"] = "live"
+    elif gallery.booking_id:
+        # Pull from photographer profile defaults for bookings
+        if gallery.photographer:
+            p = gallery.photographer
+            settings["photos_included"] = getattr(p, 'booking_photos_included', 3) or 3
+            settings["videos_included"] = getattr(p, 'booking_videos_included', 0) or 0
+            settings["buyin_price"] = getattr(p, 'booking_hourly_rate', 50.0) or 50.0
+            settings["full_gallery"] = getattr(p, 'booking_full_gallery', False) or False
+        settings["session_type"] = "booking"
+    elif gallery.dispatch_id:
+        if gallery.photographer:
+            p = gallery.photographer
+            settings["photos_included"] = getattr(p, 'on_demand_photos_included', 3) or 3
+            settings["videos_included"] = getattr(p, 'on_demand_videos_included', 0) or 0
+            settings["full_gallery"] = getattr(p, 'on_demand_full_gallery', False) or False
+        settings["session_type"] = "on_demand"
+    
+    return settings
+
+
+def _build_photographer_pricing(photographer):
+    """
+    Build full photographer pricing config across all 3 service types.
+    Powers the expanded gallery pricing card showing per-tier rates + included content.
+    """
+    if not photographer:
+        return None
+    
+    p = photographer
+    return {
+        "live_session": {
+            "photos_included": getattr(p, 'live_session_photos_included', 3) or 3,
+            "videos_included": getattr(p, 'live_session_videos_included', 1) or 0,
+            "full_gallery": getattr(p, 'live_session_full_gallery', False) or False,
+            "buyin_price": getattr(p, 'live_buyin_price', 25.0) or 25.0,
+            "photo": {
+                "web": getattr(p, 'live_price_web', 3.0),
+                "standard": getattr(p, 'live_price_standard', 6.0),
+                "high": getattr(p, 'live_price_high', 12.0)
+            },
+            "video": {
+                "720p": getattr(p, 'live_video_720p', 8.0),
+                "1080p": getattr(p, 'live_video_1080p', 15.0),
+                "4k": getattr(p, 'live_video_4k', 30.0)
+            }
+        },
+        "booking": {
+            "photos_included": getattr(p, 'booking_photos_included', 3) or 3,
+            "videos_included": getattr(p, 'booking_videos_included', 1) or 0,
+            "full_gallery": getattr(p, 'booking_full_gallery', False) or False,
+            "hourly_rate": getattr(p, 'booking_hourly_rate', 50.0) or 50.0,
+            "photo": {
+                "web": getattr(p, 'booking_price_web', 3.0),
+                "standard": getattr(p, 'booking_price_standard', 5.0),
+                "high": getattr(p, 'booking_price_high', 10.0)
+            },
+            "video": {
+                "720p": getattr(p, 'booking_video_720p', 8.0),
+                "1080p": getattr(p, 'booking_video_1080p', 15.0),
+                "4k": getattr(p, 'booking_video_4k', 30.0)
+            }
+        },
+        "on_demand": {
+            "photos_included": getattr(p, 'on_demand_photos_included', 3) or 3,
+            "videos_included": getattr(p, 'on_demand_videos_included', 1) or 0,
+            "full_gallery": getattr(p, 'on_demand_full_gallery', False) or False,
+            "photo": {
+                "web": getattr(p, 'on_demand_price_web', 5.0),
+                "standard": getattr(p, 'on_demand_price_standard', 10.0),
+                "high": getattr(p, 'on_demand_price_high', 18.0)
+            },
+            "video": {
+                "720p": getattr(p, 'on_demand_video_720p', 12.0),
+                "1080p": getattr(p, 'on_demand_video_1080p', 20.0),
+                "4k": getattr(p, 'on_demand_video_4k', 40.0)
+            }
+        },
+        "gallery": {
+            "photo": {
+                "web": getattr(p, 'photo_price_web', 3.0),
+                "standard": getattr(p, 'photo_price_standard', 5.0),
+                "high": getattr(p, 'photo_price_high', 10.0)
+            },
+            "video": {
+                "720p": getattr(p, 'video_price_720p', 8.0),
+                "1080p": getattr(p, 'video_price_1080p', 15.0),
+                "4k": getattr(p, 'video_price_4k', 30.0)
+            }
+        }
+    }
+
 
 def _build_session_roster(gallery, live_map, booking_map, dispatch_map, dist_map):
     """
@@ -2013,7 +2124,8 @@ async def get_gallery(
         .options(
             selectinload(Gallery.photographer),
             selectinload(Gallery.surf_spot),
-            selectinload(Gallery.items)
+            selectinload(Gallery.items),
+            selectinload(Gallery.live_session)
         )
     )
     gallery = result.scalar_one_or_none()
@@ -2140,6 +2252,8 @@ async def get_gallery(
                 "4k": gallery.price_4k
             }
         },
+        "session_settings": _build_session_settings(gallery),
+        "photographer_pricing": _build_photographer_pricing(gallery.photographer) if gallery.photographer else None,
         "items": items
     }
 
@@ -2204,6 +2318,70 @@ async def update_gallery(
                 "4k": gallery.price_4k
             }
         }
+    }
+
+
+@router.patch("/galleries/{gallery_id}/session-settings")
+async def update_session_settings(
+    gallery_id: str,
+    photographer_id: str,
+    body: dict = Body(...),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Update session-level content settings (photos/videos included).
+    For live sessions → updates the LiveSession record directly.
+    For bookings/on-demand → updates the photographer profile defaults.
+    """
+    result = await db.execute(
+        select(Gallery)
+        .where(Gallery.id == gallery_id)
+        .options(selectinload(Gallery.live_session), selectinload(Gallery.photographer))
+    )
+    gallery = result.scalar_one_or_none()
+    
+    if not gallery:
+        raise HTTPException(status_code=404, detail="Gallery not found")
+    if gallery.photographer_id != photographer_id:
+        raise HTTPException(status_code=403, detail="Not authorized")
+    
+    photos_included = body.get("photos_included")
+    videos_included = body.get("videos_included")
+    
+    updated_target = "unknown"
+    
+    if gallery.live_session_id and gallery.live_session:
+        # Update the actual LiveSession record
+        ls = gallery.live_session
+        if photos_included is not None:
+            ls.photos_included = int(photos_included)
+        if videos_included is not None:
+            ls.videos_included = int(videos_included)
+        updated_target = "live_session"
+    elif gallery.booking_id and gallery.photographer:
+        p = gallery.photographer
+        if photos_included is not None:
+            p.booking_photos_included = int(photos_included)
+        if videos_included is not None:
+            p.booking_videos_included = int(videos_included)
+        updated_target = "booking_profile"
+    elif gallery.dispatch_id and gallery.photographer:
+        p = gallery.photographer
+        if photos_included is not None:
+            p.on_demand_photos_included = int(photos_included)
+        if videos_included is not None:
+            p.on_demand_videos_included = int(videos_included)
+        updated_target = "on_demand_profile"
+    else:
+        raise HTTPException(status_code=400, detail="No linked session to update")
+    
+    await db.commit()
+    
+    return {
+        "message": "Session settings updated",
+        "updated_target": updated_target,
+        "photos_included": photos_included,
+        "videos_included": videos_included
     }
 
 
