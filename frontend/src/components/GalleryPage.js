@@ -59,8 +59,14 @@ export const GalleryPage = () => {
     // Multi-tiered session pricing
     on_demand_photo_price: 10,
     on_demand_photos_included: 3,
+    on_demand_videos_included: 0,
     live_session_photo_price: 5,
-    live_session_photos_included: 3
+    live_session_photos_included: 3,
+    live_session_videos_included: 0,
+    // Booking pricing
+    booking_hourly_rate: 50,
+    booking_photos_included: 3,
+    booking_videos_included: 0
   });
   
   // NEW: Folder management state
@@ -134,8 +140,14 @@ export const GalleryPage = () => {
         // Multi-tiered session pricing
         on_demand_photo_price: generalSettings.on_demand_photo_price || 10,
         on_demand_photos_included: generalSettings.on_demand_photos_included || 3,
+        on_demand_videos_included: generalSettings.on_demand_videos_included || 0,
         live_session_photo_price: generalSettings.live_session_photo_price || 5,
-        live_session_photos_included: generalSettings.live_session_photos_included || 3
+        live_session_photos_included: generalSettings.live_session_photos_included || 3,
+        live_session_videos_included: generalSettings.live_session_videos_included || 0,
+        // Booking pricing
+        booking_hourly_rate: generalSettings.booking_hourly_rate || 50,
+        booking_photos_included: generalSettings.booking_photos_included || 3,
+        booking_videos_included: generalSettings.booking_videos_included || 0
       });
     }
   }, [generalSettings, lastUpdated]);
@@ -725,7 +737,7 @@ export const GalleryPage = () => {
             </div>
           </CardHeader>
           <CardContent className={`${pricingCollapsed ? 'hidden md:block' : ''}`}>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
               {/* General Gallery Photos */}
               <div>
                 <p className="text-sm font-medium text-foreground mb-2 flex items-center gap-2">
@@ -778,20 +790,38 @@ export const GalleryPage = () => {
                 </p>
                 <div className="space-y-2">
                   <div className="p-2 rounded bg-red-500/10 border border-red-500/20 flex justify-between">
-                    <span className="text-xs text-muted-foreground">Web-Res</span>
-                    <span className="text-xs text-red-500 dark:text-red-400">${galleryPricing.photo_price_web}</span>
+                    <span className="text-xs text-muted-foreground">Photo Prices</span>
+                    <span className="text-xs text-red-500 dark:text-red-400">${galleryPricing.live_session_photo_price || galleryPricing.photo_price_web}</span>
                   </div>
                   <div className="p-2 rounded bg-red-500/10 border border-red-500/20 flex justify-between">
-                    <span className="text-xs text-muted-foreground">Standard</span>
-                    <span className="text-xs text-red-500 dark:text-red-400">${galleryPricing.live_session_photo_price}</span>
+                    <span className="text-xs text-muted-foreground">📷 Photos Included</span>
+                    <span className="text-xs font-semibold text-red-500 dark:text-red-400">{galleryPricing.live_session_photos_included || 3}</span>
                   </div>
                   <div className="p-2 rounded bg-red-500/10 border border-red-500/20 flex justify-between">
-                    <span className="text-xs text-muted-foreground">High-Res</span>
-                    <span className="text-xs text-red-500 dark:text-red-400">${galleryPricing.photo_price_high}</span>
+                    <span className="text-xs text-muted-foreground">🎬 Videos Included</span>
+                    <span className="text-xs font-semibold text-red-500 dark:text-red-400">{galleryPricing.live_session_videos_included || 0}</span>
                   </div>
-                  <div className="p-2 rounded bg-red-500/10 border border-red-500/20 flex justify-between">
-                    <span className="text-xs text-muted-foreground">Included in Buy-in</span>
-                    <span className="text-xs text-red-500 dark:text-red-400">{galleryPricing.live_session_photos_included} photos</span>
+                </div>
+              </div>
+
+              {/* Booking Rates */}
+              <div>
+                <p className="text-sm font-medium text-foreground mb-2 flex items-center gap-2">
+                  <Calendar className="w-4 h-4 text-blue-400" />
+                  Booking
+                </p>
+                <div className="space-y-2">
+                  <div className="p-2 rounded bg-blue-500/10 border border-blue-500/20 flex justify-between">
+                    <span className="text-xs text-muted-foreground">Hourly Rate</span>
+                    <span className="text-xs text-blue-500 dark:text-blue-400">${galleryPricing.booking_hourly_rate || 50}</span>
+                  </div>
+                  <div className="p-2 rounded bg-blue-500/10 border border-blue-500/20 flex justify-between">
+                    <span className="text-xs text-muted-foreground">📷 Photos Included</span>
+                    <span className="text-xs font-semibold text-blue-500 dark:text-blue-400">{galleryPricing.booking_photos_included || 3}</span>
+                  </div>
+                  <div className="p-2 rounded bg-blue-500/10 border border-blue-500/20 flex justify-between">
+                    <span className="text-xs text-muted-foreground">🎬 Videos Included</span>
+                    <span className="text-xs font-semibold text-blue-500 dark:text-blue-400">{galleryPricing.booking_videos_included || 0}</span>
                   </div>
                 </div>
               </div>
@@ -804,20 +834,16 @@ export const GalleryPage = () => {
                 </p>
                 <div className="space-y-2">
                   <div className="p-2 rounded bg-emerald-500/10 border border-emerald-500/20 flex justify-between">
-                    <span className="text-xs text-muted-foreground">Web-Res</span>
-                    <span className="text-xs text-emerald-500 dark:text-emerald-400">${galleryPricing.photo_price_web}</span>
+                    <span className="text-xs text-muted-foreground">Photo Prices</span>
+                    <span className="text-xs text-emerald-500 dark:text-emerald-400">${galleryPricing.on_demand_photo_price || galleryPricing.photo_price_web}</span>
                   </div>
                   <div className="p-2 rounded bg-emerald-500/10 border border-emerald-500/20 flex justify-between">
-                    <span className="text-xs text-muted-foreground">Standard</span>
-                    <span className="text-xs text-emerald-500 dark:text-emerald-400">${galleryPricing.on_demand_photo_price}</span>
+                    <span className="text-xs text-muted-foreground">📷 Photos Included</span>
+                    <span className="text-xs font-semibold text-emerald-500 dark:text-emerald-400">{galleryPricing.on_demand_photos_included || 3}</span>
                   </div>
                   <div className="p-2 rounded bg-emerald-500/10 border border-emerald-500/20 flex justify-between">
-                    <span className="text-xs text-muted-foreground">High-Res</span>
-                    <span className="text-xs text-emerald-500 dark:text-emerald-400">${galleryPricing.photo_price_high}</span>
-                  </div>
-                  <div className="p-2 rounded bg-emerald-500/10 border border-emerald-500/20 flex justify-between">
-                    <span className="text-xs text-muted-foreground">Included in Buy-in</span>
-                    <span className="text-xs text-emerald-500 dark:text-emerald-400">{galleryPricing.on_demand_photos_included} photos</span>
+                    <span className="text-xs text-muted-foreground">🎬 Videos Included</span>
+                    <span className="text-xs font-semibold text-emerald-500 dark:text-emerald-400">{galleryPricing.on_demand_videos_included || 0}</span>
                   </div>
                 </div>
               </div>

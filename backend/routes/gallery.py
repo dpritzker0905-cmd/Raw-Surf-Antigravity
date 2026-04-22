@@ -1743,8 +1743,11 @@ def _build_session_roster(gallery, live_map, booking_map, dispatch_map, dist_map
         videos_included_used = dist_data.get("videos_included", 0)
         total_delivered = dist_data.get("total", 0)
         
-        photos_credits_left = max(0, ph_included - photos_included_used)
-        videos_credits_left = max(0, vid_included - videos_included_used)
+        # Credit calculation: count ALL tagged items (photos_total, videos_total)
+        # not just items with access_type='included', because items may be tagged
+        # but still have access_type='pending_selection' until confirmed
+        photos_credits_left = max(0, ph_included - photos_delivered)
+        videos_credits_left = max(0, vid_included - videos_delivered)
         total_credits_left = photos_credits_left + videos_credits_left
         
         progress = min(100, int((total_delivered / total_included_slots * 100) if total_included_slots > 0 else 0))
@@ -1787,7 +1790,8 @@ async def get_photographer_galleries(
         .options(
             selectinload(Gallery.surf_spot),
             selectinload(Gallery.live_session),
-            selectinload(Gallery.items)
+            selectinload(Gallery.items),
+            selectinload(Gallery.photographer)
         )
         .order_by(Gallery.created_at.desc())
     )
@@ -2097,6 +2101,8 @@ async def get_photographer_galleries(
                     "4k": g.price_4k
                 }
             },
+            "session_settings": _build_session_settings(g),
+            "photographer_pricing": _build_photographer_pricing(g.photographer) if g.photographer else None,
             # ── SESSION ROSTER: Surfer delivery progress ──
             "session_roster": _build_session_roster(
                 g, live_participants_map, booking_participants_map,
