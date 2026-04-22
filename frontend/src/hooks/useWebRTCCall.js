@@ -57,6 +57,42 @@ export const CALL_STATE = {
   ENDED: 'ended',           // call finished
 };
 
+/**
+ * Robust getUserMedia with fallback chain for iOS Safari.
+ * iOS Safari is strict about constraints — specific width/height can fail.
+ * Falls back progressively: ideal constraints → basic → audio-only.
+ */
+async function getMediaStream(type = 'audio', facingMode = 'user') {
+  const constraintChain = type === 'video' ? [
+    // 1. Preferred: specific resolution + facing mode
+    { audio: true, video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode } },
+    // 2. Fallback: just facing mode
+    { audio: true, video: { facingMode } },
+    // 3. Bare minimum: just video = true
+    { audio: true, video: true },
+    // 4. Last resort: audio only (show a message)
+    { audio: true, video: false },
+  ] : [
+    { audio: true, video: false },
+  ];
+
+  let lastError = null;
+  for (const constraints of constraintChain) {
+    try {
+      console.log('[WebRTC] Trying getUserMedia with:', JSON.stringify(constraints));
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      console.log('[WebRTC] ✅ Got media stream:', 
+        stream.getAudioTracks().length, 'audio,', 
+        stream.getVideoTracks().length, 'video tracks');
+      return stream;
+    } catch (err) {
+      console.warn('[WebRTC] getUserMedia failed with constraints:', constraints, err.name, err.message);
+      lastError = err;
+    }
+  }
+  throw lastError;
+}
+
 export function useWebRTCCall(userId, userInfo = {}) {
   // State
   const [callState, setCallState] = useState(CALL_STATE.IDLE);
@@ -341,6 +377,26 @@ export function useWebRTCCall(userId, userInfo = {}) {
       }
     };
 
+    // iOS Safari fallback — it doesn't always fire onconnectionstatechange
+    // but DOES fire oniceconnectionstatechange. Without this, iPhone calls
+    // can connect at the ICE level but the UI stays stuck on "connecting...".
+    pc.oniceconnectionstatechange = () => {
+      console.debug('[WebRTC] ICE connection state:', pc.iceConnectionState);
+      if (pc.iceConnectionState === 'connected' || pc.iceConnectionState === 'completed') {
+        // If connectionState hasn't already handled this, force IN_CALL
+        if (callStateRef.current !== CALL_STATE.IN_CALL) {
+          console.log('[WebRTC] ✅ ICE connected — forcing IN_CALL state (iOS Safari fix)');
+          setCallState(CALL_STATE.IN_CALL);
+          startCallTimer();
+          startStatsMonitor(pc);
+        }
+      } else if (pc.iceConnectionState === 'failed') {
+        console.warn('[WebRTC] ICE failed');
+        toast.error('Call connection failed');
+        cleanup();
+      }
+    };
+
     // Handle incoming streams — when remote user replaces a track (e.g. camera
     // toggle off→on), ontrack fires with the same stream object.  Creating a new
     // MediaStream reference ensures React re-renders and re-attaches srcObject.
@@ -398,13 +454,8 @@ export function useWebRTCCall(userId, userInfo = {}) {
       });
       setCallState(CALL_STATE.OUTGOING);
 
-      // Get local media
-      const constraints = {
-        audio: true,
-        video: type === 'video' ? { width: { ideal: 640 }, height: { ideal: 480 } } : false,
-      };
-
-      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      // Get local media (with iOS Safari fallback chain)
+      const stream = await getMediaStream(type, facingMode);
       localStreamRef.current = stream;
       setLocalStream(stream);
 
@@ -482,13 +533,8 @@ export function useWebRTCCall(userId, userInfo = {}) {
         return;
       }
 
-      // Get local media
-      const constraints = {
-        audio: true,
-        video: callType === 'video' ? { width: { ideal: 640 }, height: { ideal: 480 } } : false,
-      };
-
-      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      // Get local media (with iOS Safari fallback chain)
+      const stream = await getMediaStream(callType, facingMode);
       localStreamRef.current = stream;
       setLocalStream(stream);
 

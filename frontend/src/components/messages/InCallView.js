@@ -565,7 +565,7 @@ export default function InCallView({
               onClick={onToggleMute}
               active={isMuted}
               icon={isMuted ? MicOff : Mic}
-              label={isMuted ? 'Unmute' : 'Mute'}
+              label="Mic"
             />
 
             {callType === 'video' && (
@@ -573,7 +573,7 @@ export default function InCallView({
                 onClick={onToggleCamera}
                 active={isCameraOff}
                 icon={isCameraOff ? VideoOff : Video}
-                label={isCameraOff ? 'Camera On' : 'Camera Off'}
+                label="Camera"
               />
             )}
 
@@ -626,7 +626,7 @@ export default function InCallView({
               }}
               active={speakerOff}
               icon={speakerOff ? VolumeX : Volume2}
-              label={speakerOff ? 'Speaker On' : 'Speaker'}
+              label="Speaker"
             />
 
             <ControlButton
