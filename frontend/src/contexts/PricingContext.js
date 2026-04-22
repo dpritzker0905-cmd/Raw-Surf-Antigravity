@@ -137,6 +137,7 @@ export const PricingProvider = ({ children }) => {
         live_session_photos_included: sp.live_session_photos_included || 3,
         live_session_videos_included: sp.live_session_videos_included || 0,
         live_session_full_gallery: sp.live_session_full_gallery || false,
+        live_buyin_price: sp.live_buyin_price || 25,
         booking_hourly_rate: sp.booking_hourly_rate || 50,
         booking_photos_included: sp.booking_photos_included || 3,
         booking_videos_included: sp.booking_videos_included || 0,

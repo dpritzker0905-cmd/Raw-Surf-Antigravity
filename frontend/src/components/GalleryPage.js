@@ -60,7 +60,7 @@ export const GalleryPage = () => {
     // Live Session independent pricing
     live_price_web: 3, live_price_standard: 6, live_price_high: 12,
     live_video_720p: 8, live_video_1080p: 15, live_video_4k: 30,
-    live_session_photos_included: 3, live_session_videos_included: 0,
+    live_session_photos_included: 3, live_session_videos_included: 0, live_buyin_price: 25,
     // On-Demand independent pricing
     on_demand_price_web: 5, on_demand_price_standard: 10, on_demand_price_high: 18,
     on_demand_video_720p: 12, on_demand_video_1080p: 20, on_demand_video_4k: 40,
@@ -804,6 +804,10 @@ export const GalleryPage = () => {
             {/* ─── Live Session Tab ─── */}
             {pricingTab === 'live' && (
               <div>
+                <div className="p-2.5 rounded-lg mb-3 flex items-center justify-between" style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)' }}>
+                  <span className="text-xs text-muted-foreground">🎟️ Session Buy-In</span>
+                  <span className="text-sm font-bold text-red-400">${galleryPricing.live_buyin_price}</span>
+                </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-3">
                   <div>
                     <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">📷 Photo Pricing</p>
@@ -846,6 +850,21 @@ export const GalleryPage = () => {
                     <p className="text-lg font-bold text-red-400">{galleryPricing.live_session_videos_included}</p>
                   </div>
                 </div>
+                {/* Advanced settings deep-link */}
+                <button
+                  onClick={() => navigate('/photographer/sessions')}
+                  className="w-full mt-3 p-3 rounded-lg flex items-center justify-between group/link transition-all hover:scale-[1.01]"
+                  style={{ background: 'linear-gradient(135deg, rgba(239,68,68,0.08), rgba(245,158,11,0.08))', border: '1px dashed rgba(239,68,68,0.3)' }}
+                >
+                  <div className="flex items-center gap-2">
+                    <Radio className="w-4 h-4 text-red-400" />
+                    <div className="text-left">
+                      <p className="text-xs font-semibold text-foreground">Configure Advanced Session Rates</p>
+                      <p className="text-[10px] text-muted-foreground">Buy-in pricing, full gallery access, session settings</p>
+                    </div>
+                  </div>
+                  <ChevronDown className="w-4 h-4 text-red-400 -rotate-90 group-hover/link:translate-x-0.5 transition-transform" />
+                </button>
               </div>
             )}
 

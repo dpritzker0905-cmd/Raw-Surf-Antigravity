@@ -688,6 +688,7 @@ async def get_gallery_pricing(
             "live_session_photo_price": photographer.live_session_photo_price or 5.0,
             "live_session_photos_included": photographer.live_session_photos_included or 3,
             "live_session_videos_included": photographer.live_session_videos_included or 0,
+            "live_buyin_price": photographer.live_buyin_price or 25.0,
             "booking_hourly_rate": photographer.booking_hourly_rate or 50.0,
             "booking_photos_included": photographer.booking_photos_included or 3,
             "booking_videos_included": photographer.booking_videos_included or 0,
