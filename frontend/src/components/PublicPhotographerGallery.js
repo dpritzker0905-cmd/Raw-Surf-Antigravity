@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useSearchParams, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import apiClient, { BACKEND_URL } from '../lib/apiClient';
@@ -682,15 +682,31 @@ const GalleryItemCard = ({ item, isPurchased, viewMode, onClick }) => {
       onMouseLeave={() => setIsHovered(false)}
       onClick={onClick}
     >
-      <img 
-        src={item.thumbnail_url || item.preview_url}
-        alt={item.title || 'Gallery item'}
-        className={`
-          w-full h-full object-cover transition-transform duration-300
-          ${isHovered ? 'scale-105' : 'scale-100'}
-        `}
-        loading="lazy"
-      />
+      {item.media_type === 'video' ? (
+        <video 
+          src={item.preview_url || item.original_url}
+          className={`
+            w-full h-full object-cover transition-transform duration-300
+            ${isHovered ? 'scale-105' : 'scale-100'}
+          `}
+          muted
+          loop
+          playsInline
+          autoPlay
+          preload="metadata"
+          poster={item.thumbnail_url || undefined}
+        />
+      ) : (
+        <img 
+          src={item.thumbnail_url || item.preview_url}
+          alt={item.title || 'Gallery item'}
+          className={`
+            w-full h-full object-cover transition-transform duration-300
+            ${isHovered ? 'scale-105' : 'scale-100'}
+          `}
+          loading="lazy"
+        />
+      )}
       
       {/* Video indicator */}
       {item.media_type === 'video' && (
