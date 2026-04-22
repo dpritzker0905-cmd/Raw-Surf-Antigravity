@@ -11,7 +11,7 @@ import {
   MapPin, Calendar, Sparkles, UserCheck, Loader2,
   Search, Filter, Check, MoreVertical,
   TrendingUp, ShoppingBag, BarChart3,
-  Link2, Send, CheckCircle, AlertCircle, ArrowRight, UserPlus, RefreshCw
+  Link2, Send, CheckCircle, AlertCircle, ArrowRight, UserPlus, RefreshCw, Globe
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from './ui/card';
 import { Button } from './ui/button';
@@ -88,6 +88,7 @@ export const PhotographerGalleryManager = () => {
   const [salesData, setSalesData] = useState({ sales: [], stats: {} });
   const [clientsData, setClientsData] = useState({ clients: [], stats: {} });
   const [loadingSales, setLoadingSales] = useState(false);
+  const [publishing, setPublishing] = useState(false);
   
   const [pricing, setPricing] = useState({
     price_web: 3,
@@ -598,6 +599,34 @@ export const PhotographerGalleryManager = () => {
               <Settings className="w-4 h-4 mr-2" />
               Edit
             </Button>
+            <Button
+              variant={gallery?.is_public ? 'outline' : 'default'}
+              onClick={async () => {
+                setPublishing(true);
+                try {
+                  const willPublish = !gallery?.is_public;
+                  await apiClient.post(`/gallery/${galleryId}/publish?photographer_id=${user?.profile_id}`, { is_published: willPublish });
+                  setGallery(prev => ({ ...prev, is_public: willPublish, is_featured: willPublish }));
+                  toast.success(willPublish ? '🌐 Gallery published to your Sessions tab!' : 'Gallery unpublished');
+                } catch (err) {
+                  toast.error('Failed to publish gallery');
+                } finally {
+                  setPublishing(false);
+                }
+              }}
+              disabled={publishing}
+              className={gallery?.is_public
+                ? `${borderClass} text-emerald-400 border-emerald-500/50 hover:bg-emerald-500/10`
+                : 'bg-gradient-to-r from-cyan-400 to-blue-500 text-black hover:from-cyan-500 hover:to-blue-600'
+              }
+            >
+              {publishing ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <Globe className="w-4 h-4 mr-2" />
+              )}
+              {gallery?.is_public ? '✓ Published' : 'Publish Gallery'}
+            </Button>
             {showPricing && (
               <Button
                 onClick={() => setShowPricingModal(true)}
@@ -967,9 +996,17 @@ export const PhotographerGalleryManager = () => {
                 )}
                 
                 {item.media_type === 'video' ? (
-                  <div className="w-full h-full bg-zinc-800 flex items-center justify-center">
-                    <Video className="w-12 h-12 text-zinc-600" />
-                  </div>
+                  <video
+                    src={item.preview_url || item.original_url}
+                    className="w-full h-full object-cover"
+                    muted
+                    loop
+                    playsInline
+                    autoPlay
+                    preload="metadata"
+                    poster={item.thumbnail_url || undefined}
+                    onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling && (e.target.nextSibling.style.display = 'flex'); }}
+                  />
                 ) : (
                   <img 
                     src={item.preview_url || item.thumbnail_url} 
@@ -1020,7 +1057,7 @@ export const PhotographerGalleryManager = () => {
                 )}
                 
                 {/* Hover overlay with actions */}
-                {!bulkMode && item.media_type !== 'video' && (
+                {!bulkMode && (
                   <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
                     <Button
                       size="sm"

@@ -1623,7 +1623,7 @@ def _build_session_roster(gallery, live_map, booking_map, dispatch_map, dist_map
         dist_data = gallery_dist.get(surfer_id, empty_dist)
         
         ph_included = p.get("photos_included", 3)
-        vid_included = p.get("videos_included", 1)
+        vid_included = p.get("videos_included", 0)
         total_included_slots = ph_included + vid_included
         
         photos_delivered = dist_data.get("photos_total", 0)
@@ -4469,6 +4469,218 @@ async def get_gallery_distribution_status(
         "items": item_statuses
     }
 
+
+# ============ PUBLISH GALLERY TO PUBLIC ============
+
+class PublishGalleryRequest(BaseModel):
+    is_published: bool = True  # True to publish, False to unpublish
+
+
+@router.post("/gallery/{gallery_id}/publish")
+async def publish_gallery_to_public(
+    gallery_id: str,
+    photographer_id: str,
+    data: PublishGalleryRequest = PublishGalleryRequest(),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Publish or unpublish a gallery to the photographer's public profile.
+    Published galleries appear on the Sessions tab of the photographer's profile
+    and in the public gallery system for users to browse.
+    """
+    result = await db.execute(select(Gallery).where(Gallery.id == gallery_id))
+    gallery = result.scalar_one_or_none()
+    if not gallery:
+        raise HTTPException(status_code=404, detail="Gallery not found")
+    if gallery.photographer_id != photographer_id:
+        raise HTTPException(status_code=403, detail="Not authorized")
+    
+    gallery.is_public = data.is_published
+    gallery.is_featured = data.is_published  # Mark as featured when published
+    
+    await db.commit()
+    
+    action = "published" if data.is_published else "unpublished"
+    gallery_logger.info(f"Gallery {gallery_id} {action} by photographer {photographer_id}")
+    
+    return {
+        "message": f"Gallery {action} successfully",
+        "gallery_id": gallery_id,
+        "is_public": gallery.is_public,
+        "is_featured": gallery.is_featured
+    }
+
+
+@router.get("/photographer/{photographer_id}/public-galleries")
+async def get_photographer_public_galleries(
+    photographer_id: str,
+    limit: int = 20,
+    offset: int = 0,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Get all published/public galleries for a photographer's profile.
+    These show on the photographer's Sessions tab and are browsable by users.
+    Returns gallery metadata, cover images, item counts, and session info.
+    """
+    result = await db.execute(
+        select(Gallery)
+        .where(
+            Gallery.photographer_id == photographer_id,
+            Gallery.is_public == True
+        )
+        .order_by(Gallery.session_date.desc().nullslast(), Gallery.created_at.desc())
+        .offset(offset)
+        .limit(limit)
+    )
+    galleries = result.scalars().all()
+    
+    public_galleries = []
+    for g in galleries:
+        # Get first few preview items for thumbnails
+        items_result = await db.execute(
+            select(GalleryItem)
+            .where(GalleryItem.gallery_id == g.id, GalleryItem.is_deleted == False)
+            .order_by(GalleryItem.created_at.asc())
+            .limit(6)
+        )
+        preview_items = items_result.scalars().all()
+        
+        public_galleries.append({
+            "id": g.id,
+            "title": g.title,
+            "description": g.description,
+            "cover_image_url": g.cover_image_url or (preview_items[0].preview_url if preview_items else None),
+            "session_type": g.session_type,
+            "session_date": g.session_date.isoformat() if g.session_date else None,
+            "item_count": g.item_count or len(preview_items),
+            "is_featured": g.is_featured,
+            "preview_items": [
+                {
+                    "id": item.id,
+                    "preview_url": item.preview_url,
+                    "thumbnail_url": item.thumbnail_url,
+                    "media_type": item.media_type,
+                }
+                for item in preview_items
+            ],
+            "created_at": g.created_at.isoformat() if g.created_at else None,
+        })
+    
+    return {
+        "photographer_id": photographer_id,
+        "galleries": public_galleries,
+        "total": len(public_galleries)
+    }
+
+
+# ============ SURFER LOCKER → PUBLIC SESSIONS TAB ============
+
+class TogglePublicRequest(BaseModel):
+    is_public: bool
+
+
+@router.post("/surfer/locker/{item_id}/toggle-public")
+async def toggle_surfer_item_public(
+    item_id: str,
+    surfer_id: str,
+    data: TogglePublicRequest,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Toggle a surfer's locker item between private and public.
+    Public items appear on the surfer's Sessions tab in their profile.
+    Only paid/included items can be made public (no watermarked previews).
+    """
+    result = await db.execute(
+        select(SurferGalleryItem).where(
+            SurferGalleryItem.id == item_id,
+            SurferGalleryItem.surfer_id == surfer_id
+        )
+    )
+    sgi = result.scalar_one_or_none()
+    if not sgi:
+        raise HTTPException(status_code=404, detail="Locker item not found")
+    
+    # Only allow publishing of paid/included items
+    if data.is_public and sgi.access_type not in ('included', 'purchased', 'gifted'):
+        raise HTTPException(
+            status_code=400,
+            detail="Only paid or included items can be made public. Purchase this item first."
+        )
+    
+    sgi.is_public = data.is_public
+    sgi.visibility_changed_at = datetime.now(timezone.utc)
+    
+    await db.commit()
+    
+    action = "published to Sessions" if data.is_public else "moved to private"
+    return {
+        "message": f"Item {action}",
+        "item_id": item_id,
+        "is_public": sgi.is_public
+    }
+
+
+@router.get("/surfer/{surfer_id}/public-gallery")
+async def get_surfer_public_gallery(
+    surfer_id: str,
+    limit: int = 30,
+    offset: int = 0,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Get a surfer's public gallery items (for their Sessions tab).
+    These are locker items that the surfer has toggled to public.
+    """
+    result = await db.execute(
+        select(SurferGalleryItem)
+        .where(
+            SurferGalleryItem.surfer_id == surfer_id,
+            SurferGalleryItem.is_public == True
+        )
+        .options(selectinload(SurferGalleryItem.gallery_item))
+        .order_by(SurferGalleryItem.session_date.desc().nullslast(), SurferGalleryItem.added_at.desc())
+        .offset(offset)
+        .limit(limit)
+    )
+    items = result.scalars().all()
+    
+    public_items = []
+    for sgi in items:
+        gi = sgi.gallery_item
+        if not gi or gi.is_deleted:
+            # Use preserved URLs if original was soft-deleted
+            public_items.append({
+                "id": sgi.id,
+                "gallery_item_id": sgi.gallery_item_id,
+                "preview_url": sgi.preserved_preview_url,
+                "thumbnail_url": sgi.preserved_thumbnail_url,
+                "media_type": sgi.preserved_media_type or "image",
+                "spot_name": sgi.spot_name,
+                "session_date": sgi.session_date.isoformat() if sgi.session_date else None,
+                "photographer_id": sgi.photographer_id,
+                "is_favorite": sgi.is_favorite,
+            })
+        else:
+            public_items.append({
+                "id": sgi.id,
+                "gallery_item_id": gi.id,
+                "preview_url": gi.preview_url,
+                "thumbnail_url": gi.thumbnail_url,
+                "original_url": gi.original_url if sgi.is_paid else None,
+                "media_type": gi.media_type,
+                "spot_name": sgi.spot_name,
+                "session_date": sgi.session_date.isoformat() if sgi.session_date else None,
+                "photographer_id": sgi.photographer_id,
+                "is_favorite": sgi.is_favorite,
+            })
+    
+    return {
+        "surfer_id": surfer_id,
+        "public_items": public_items,
+        "total": len(public_items)
+    }
 
 @router.get("/photographer/{photographer_id}/recent-sessions")
 async def get_photographer_recent_sessions(
