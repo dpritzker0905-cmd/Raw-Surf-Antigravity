@@ -128,6 +128,8 @@ const CallManager = () => {
           connectionQuality={call.connectionQuality}
           onToggleMute={call.toggleMute}
           onToggleCamera={call.toggleCamera}
+          onFlipCamera={call.flipCamera}
+          facingMode={call.facingMode}
           onEndCall={call.endCall}
           onReplaceVideoTrack={call.replaceVideoTrack}
         />

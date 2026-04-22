@@ -19,7 +19,7 @@ import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { 
   Mic, MicOff, Video, VideoOff, PhoneOff, 
   Volume2, VolumeX, Maximize2, Minimize2, Signal, SignalLow, SignalZero,
-  Sparkles, X, Scissors,
+  Sparkles, X, Scissors, SwitchCamera,
   Sunset, Waves, Moon, Zap, Eye, Grid, CircleDot
 } from 'lucide-react';
 import { HairFilterPicker } from '../HairFilterPicker';
@@ -135,6 +135,8 @@ export default function InCallView({
   connectionQuality = 'good',
   onToggleMute,
   onToggleCamera,
+  onFlipCamera,
+  facingMode = 'user',
   onEndCall,
   onReplaceVideoTrack,
 }) {
@@ -494,11 +496,11 @@ export default function InCallView({
                   />
                   <canvas
                     ref={webglCanvasRef}
-                    className={`w-full h-full object-cover ${true ? 'scale-x-[-1]' : ''}`}
+                    className={`w-full h-full object-cover ${facingMode === 'user' ? 'scale-x-[-1]' : ''}`}
                   />
                   <canvas
                     ref={hairCanvasRef}
-                    className="absolute inset-0 w-full h-full object-cover pointer-events-none scale-x-[-1]"
+                    className={`absolute inset-0 w-full h-full object-cover pointer-events-none ${facingMode === 'user' ? 'scale-x-[-1]' : ''}`}
                   />
                 </div>
                 <div className={`absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded bg-black/50 backdrop-blur-sm ${!isPipExpanded ? 'hidden md:block' : ''}`}>
@@ -560,6 +562,16 @@ export default function InCallView({
                 active={isCameraOff}
                 icon={isCameraOff ? VideoOff : Video}
                 label={isCameraOff ? 'Camera On' : 'Camera Off'}
+              />
+            )}
+
+            {/* Flip Camera — only shown during video calls when camera is on */}
+            {callType === 'video' && !isCameraOff && onFlipCamera && (
+              <ControlButton
+                onClick={onFlipCamera}
+                active={facingMode === 'environment'}
+                icon={SwitchCamera}
+                label="Flip"
               />
             )}
 

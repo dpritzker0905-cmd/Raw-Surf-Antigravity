@@ -64,6 +64,7 @@ export function useWebRTCCall(userId, userInfo = {}) {
   const [localStream, setLocalStream] = useState(null);
   const [isMuted, setIsMuted] = useState(false);
   const [isCameraOff, setIsCameraOff] = useState(false);
+  const [facingMode, setFacingMode] = useState('user'); // 'user' = front, 'environment' = rear
   const [callDuration, setCallDuration] = useState(0);
   const [remoteUserInfo, setRemoteUserInfo] = useState(null); // { id, name, avatar }
   const [connectionQuality, setConnectionQuality] = useState('good'); // good, fair, poor
@@ -628,6 +629,88 @@ export function useWebRTCCall(userId, userInfo = {}) {
     }
   }, [isCameraOff]);
 
+  // ── Flip Camera (Front ↔ Rear) ───────────────────────────────────
+  const flipCamera = useCallback(async () => {
+    if (isCameraOff) return; // Can't flip if camera is off
+    const stream = localStreamRef.current;
+    if (!stream) return;
+
+    try {
+      const newFacing = facingMode === 'user' ? 'environment' : 'user';
+      const freshMedia = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: { exact: newFacing },
+          width: { ideal: 640 },
+          height: { ideal: 480 },
+        },
+      });
+      const freshVideoTrack = freshMedia.getVideoTracks()[0];
+
+      if (!freshVideoTrack) {
+        toast.error('Could not access camera');
+        return;
+      }
+
+      // Stop and remove old video track
+      const oldVideoTrack = stream.getVideoTracks()[0];
+      if (oldVideoTrack) {
+        stream.removeTrack(oldVideoTrack);
+        oldVideoTrack.stop();
+      }
+      stream.addTrack(freshVideoTrack);
+
+      // Replace on peer connection sender
+      const pc = peerConnection.current;
+      if (pc) {
+        const videoSender = pc.getSenders().find(s =>
+          s.track?.kind === 'video' || (s._trackKind === 'video')
+        );
+        if (videoSender) {
+          await videoSender.replaceTrack(freshVideoTrack);
+        }
+      }
+
+      // Publish fresh stream reference for React re-render
+      const updatedStream = new MediaStream(stream.getTracks());
+      localStreamRef.current = updatedStream;
+      setLocalStream(updatedStream);
+      setFacingMode(newFacing);
+      console.log(`[WebRTC] ✅ Camera flipped to ${newFacing}`);
+    } catch (err) {
+      console.error('[WebRTC] Failed to flip camera:', err);
+      // Some devices don't support exact facingMode — try without 'exact'
+      try {
+        const fallbackFacing = facingMode === 'user' ? 'environment' : 'user';
+        const fallbackMedia = await navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: fallbackFacing,
+            width: { ideal: 640 },
+            height: { ideal: 480 },
+          },
+        });
+        const fallbackTrack = fallbackMedia.getVideoTracks()[0];
+        if (fallbackTrack) {
+          const oldTrack = stream.getVideoTracks()[0];
+          if (oldTrack) { stream.removeTrack(oldTrack); oldTrack.stop(); }
+          stream.addTrack(fallbackTrack);
+          const pc = peerConnection.current;
+          if (pc) {
+            const sender = pc.getSenders().find(s => s.track?.kind === 'video');
+            if (sender) await sender.replaceTrack(fallbackTrack);
+          }
+          const updated = new MediaStream(stream.getTracks());
+          localStreamRef.current = updated;
+          setLocalStream(updated);
+          setFacingMode(fallbackFacing);
+          console.log(`[WebRTC] ✅ Camera flipped (fallback) to ${fallbackFacing}`);
+        }
+      } catch (fallbackErr) {
+        console.error('[WebRTC] Flip camera fallback also failed:', fallbackErr);
+        toast.error('Could not switch camera');
+      }
+    }
+  }, [isCameraOff, facingMode]);
+
   // ── Call Timer ────────────────────────────────────────────────────
   const startCallTimer = () => {
     callStartTimeRef.current = Date.now();
@@ -737,6 +820,8 @@ export function useWebRTCCall(userId, userInfo = {}) {
     endCall,
     toggleMute,
     toggleCamera,
+    flipCamera,
+    facingMode,
     replaceVideoTrack,
   };
 }
