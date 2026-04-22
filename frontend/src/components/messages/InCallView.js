@@ -586,12 +586,17 @@ export default function InCallView({
             <ControlButton
               onClick={() => {
                 const newMuted = !speakerOff;
-                if (remoteAudioRef.current) {
-                  remoteAudioRef.current.muted = newMuted;
+                // Disable audio tracks on the remote stream — this is the most
+                // reliable cross-browser approach (same pattern as toggleMute
+                // for the mic). Element-level .muted can be reset by .play().
+                if (remoteStream) {
+                  remoteStream.getAudioTracks().forEach(track => {
+                    track.enabled = !newMuted;
+                  });
                 }
-                if (remoteVideoRef.current) {
-                  remoteVideoRef.current.muted = newMuted;
-                }
+                // Also set element-level muted as a belt-and-suspenders fallback
+                if (remoteAudioRef.current) remoteAudioRef.current.muted = newMuted;
+                if (remoteVideoRef.current) remoteVideoRef.current.muted = newMuted;
                 setSpeakerOff(newMuted);
               }}
               active={speakerOff}
