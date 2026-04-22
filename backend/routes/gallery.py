@@ -33,6 +33,48 @@ from utils.grom_parent import is_grom_parent_eligible
 
 router = APIRouter()
 
+@router.get("/debug/session-roster/{live_session_id}")
+async def debug_session_roster(live_session_id: str, db: AsyncSession = Depends(get_db)):
+    """Debug endpoint to diagnose session roster data"""
+    # Check raw participant count
+    raw_result = await db.execute(
+        select(LiveSessionParticipant)
+        .where(LiveSessionParticipant.live_session_id == live_session_id)
+    )
+    raw_participants = raw_result.scalars().all()
+    
+    # Check with profile join
+    join_result = await db.execute(
+        select(LiveSessionParticipant, Profile)
+        .join(Profile, LiveSessionParticipant.surfer_id == Profile.id)
+        .where(LiveSessionParticipant.live_session_id == live_session_id)
+    )
+    joined_rows = join_result.all()
+    
+    return {
+        "live_session_id": live_session_id,
+        "raw_participant_count": len(raw_participants),
+        "joined_participant_count": len(joined_rows),
+        "raw_data": [
+            {
+                "id": p.id,
+                "surfer_id": p.surfer_id,
+                "live_session_id": p.live_session_id,
+                "status": p.status,
+                "amount_paid": p.amount_paid,
+                "payment_method": p.payment_method
+            } for p in raw_participants
+        ],
+        "joined_data": [
+            {
+                "surfer_id": row[0].surfer_id,
+                "profile_id": row[1].id,
+                "full_name": row[1].full_name,
+                "username": row[1].username
+            } for row in joined_rows
+        ]
+    }
+
 class GalleryItemCreate(BaseModel):
     original_url: str
     preview_url: str
