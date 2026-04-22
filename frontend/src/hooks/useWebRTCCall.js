@@ -17,6 +17,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import { toast } from 'sonner';
+import { unlockAudioNow } from '../utils/audioUnlock';
 
 // STUN + TURN servers for reliable NAT traversal
 // STUN alone fails ~15-20% of the time (symmetric NAT, mobile carriers, corporate networks)
@@ -375,6 +376,8 @@ export function useWebRTCCall(userId, userInfo = {}) {
     }
 
     try {
+      // Pre-warm iOS audio pipeline during user gesture
+      unlockAudioNow();
       // ── Grom Permission Check ──
       try {
         const permRes = await apiClient.get(`/grom-hq/call-permission/${userId}/${targetUserId}`);
@@ -465,6 +468,11 @@ export function useWebRTCCall(userId, userInfo = {}) {
     if (callState !== CALL_STATE.INCOMING) return;
 
     try {
+      // iOS Safari fix: Unlock audio pipeline during user gesture (Accept tap).
+      // WebRTC audio arrives later (after ICE), but iOS needs the pipeline
+      // warmed during a gesture context.
+      unlockAudioNow();
+
       setCallState(CALL_STATE.CONNECTING);
 
       const pendingOffer = peerConnection.current?._pendingOffer;

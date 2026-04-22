@@ -157,6 +157,7 @@ export default function InCallView({
   const [activeFilter, setActiveFilter] = useState('none');
   const [activeHairStyle, setActiveHairStyle] = useState(null);
   const [speakerOff, setSpeakerOff] = useState(false);
+  const speakerOffRef = useRef(false); // ref for use in effects without re-triggering
   const controlsTimeoutRef = useRef(null);
 
   // ── Attach local stream to hidden video element ───────────────────
@@ -168,16 +169,31 @@ export default function InCallView({
   }, [localStream]);
 
   // ── Attach remote stream to video element ─────────────────────────
+  // iOS Safari fix: retry play() with backoff, apply muted state
   useEffect(() => {
     const videoEl = remoteVideoRef.current;
     if (!videoEl || !remoteStream) return;
 
     videoEl.srcObject = remoteStream;
-    // Explicitly play — browsers may pause video when tracks are replaced
-    videoEl.play().catch(() => {});
+    videoEl.muted = speakerOffRef.current;
 
-    // When remote replaces their video track, the video element may stall.
-    // Listen for track additions and nudge playback.
+    // Retry play with exponential backoff (iOS Safari sometimes needs a nudge)
+    let retries = 0;
+    const maxRetries = 5;
+    const tryPlay = () => {
+      videoEl.play().then(() => {
+        console.log('[InCallView] ✅ Remote video playing');
+      }).catch((err) => {
+        console.warn(`[InCallView] play() attempt ${retries + 1} failed:`, err.name);
+        if (retries < maxRetries) {
+          retries++;
+          setTimeout(tryPlay, retries * 500);
+        }
+      });
+    };
+    tryPlay();
+
+    // When remote replaces their video track, nudge playback
     const handleTrackAdded = () => {
       videoEl.play().catch(() => {});
     };
@@ -189,11 +205,28 @@ export default function InCallView({
   }, [remoteStream]);
 
   // ── Always attach remote stream to hidden <audio> for sound ───────
+  // Belt-and-suspenders: audio element ensures sound even if video mutes
   useEffect(() => {
-    if (remoteAudioRef.current && remoteStream) {
-      remoteAudioRef.current.srcObject = remoteStream;
-      remoteAudioRef.current.play().catch(() => {});
-    }
+    const audioEl = remoteAudioRef.current;
+    if (!audioEl || !remoteStream) return;
+
+    audioEl.srcObject = remoteStream;
+    audioEl.muted = speakerOffRef.current;
+
+    // iOS Safari: retry play
+    let retries = 0;
+    const tryPlay = () => {
+      audioEl.play().then(() => {
+        console.log('[InCallView] ✅ Remote audio playing');
+      }).catch((err) => {
+        console.warn(`[InCallView] audio play() attempt ${retries + 1} failed:`, err.name);
+        if (retries < 3) {
+          retries++;
+          setTimeout(tryPlay, retries * 500);
+        }
+      });
+    };
+    tryPlay();
   }, [remoteStream]);
 
   // ── Auto-hide controls after 4s ───────────────────────────────────
@@ -373,21 +406,26 @@ export default function InCallView({
       className="fixed inset-0 z-[9998] flex items-center justify-center bg-zinc-950 select-none"
       onClick={resetControlsTimer}
     >
-      {/* Hidden audio element for remote stream */}
+      {/* Hidden audio element for remote stream — webkit-playsinline for iOS */}
       <audio ref={remoteAudioRef} autoPlay playsInline />
 
       <div className="relative w-full h-full md:w-[calc(100%-48px)] md:h-[calc(100%-48px)] md:max-w-[1100px] md:max-h-[700px] md:rounded-2xl overflow-hidden flex flex-col shadow-2xl shadow-black/50">
 
         {/* ── Video Area ── */}
         <div className="flex-1 relative overflow-hidden bg-black">
-          {callType === 'video' && remoteStream ? (
-            <video
-              ref={remoteVideoRef}
-              autoPlay
-              playsInline
-              className="w-full h-full object-contain bg-zinc-950"
-            />
-          ) : (
+          {/* Remote video — ALWAYS rendered so iOS Safari can pre-warm it.
+              Hidden when audio-only or no stream yet. */}
+          <video
+            ref={remoteVideoRef}
+            autoPlay
+            playsInline
+            className="w-full h-full object-contain bg-zinc-950"
+            style={{
+              display: (callType === 'video' && remoteStream) ? 'block' : 'none'
+            }}
+          />
+          {/* Audio-only fallback or waiting state */}
+          {!(callType === 'video' && remoteStream) && (
             /* Audio-only: avatar + waveform */
             <div className="w-full h-full flex flex-col items-center justify-center"
               style={{
@@ -410,7 +448,7 @@ export default function InCallView({
                 </div>
               </div>
               <h3 className="text-white text-lg md:text-xl font-semibold mt-5 mb-1">{remoteUserInfo.name || 'User'}</h3>
-              <p className="text-white/40 text-sm mb-4">Audio Call</p>
+              <p className="text-white/40 text-sm mb-4">{callType === 'video' ? 'Connecting video…' : 'Audio Call'}</p>
               <div className="flex items-end gap-[3px] h-8">
                 {[...Array(9)].map((_, i) => (
                   <div
@@ -598,15 +636,14 @@ export default function InCallView({
             <ControlButton
               onClick={() => {
                 const newMuted = !speakerOff;
-                // Disable audio tracks on the remote stream — this is the most
-                // reliable cross-browser approach (same pattern as toggleMute
-                // for the mic). Element-level .muted can be reset by .play().
+                speakerOffRef.current = newMuted;
+                // Disable audio tracks on the remote stream
                 if (remoteStream) {
                   remoteStream.getAudioTracks().forEach(track => {
                     track.enabled = !newMuted;
                   });
                 }
-                // Also set element-level muted as a belt-and-suspenders fallback
+                // Also set element-level muted for belt-and-suspenders
                 if (remoteAudioRef.current) remoteAudioRef.current.muted = newMuted;
                 if (remoteVideoRef.current) remoteVideoRef.current.muted = newMuted;
                 setSpeakerOff(newMuted);

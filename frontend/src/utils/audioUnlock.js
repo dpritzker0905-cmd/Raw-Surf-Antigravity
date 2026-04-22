@@ -60,16 +60,19 @@ function writeString(view, offset, str) {
 // ── Generate ringtone samples ───────────────────────────────────────
 function generateIncomingRing() {
   const sampleRate = 22050;
-  const duration = 2.0;
+  const duration = 2.5;
   const samples = new Float32Array(sampleRate * duration);
   
   for (let i = 0; i < samples.length; i++) {
     const t = i / sampleRate;
     let amplitude = 0;
-    if (t < 0.4) amplitude = 0.25;
-    else if (t >= 0.5 && t < 0.9) amplitude = 0.25;
+    // Three short bursts for urgency — louder than before (0.6 vs 0.25)
+    if (t < 0.35) amplitude = 0.6;
+    else if (t >= 0.5 && t < 0.85) amplitude = 0.6;
+    else if (t >= 1.0 && t < 1.35) amplitude = 0.6;
     
     if (amplitude > 0) {
+      // Dual-tone ring (like a real phone)
       samples[i] = amplitude * (
         Math.sin(2 * Math.PI * 440 * t) * 0.5 +
         Math.sin(2 * Math.PI * 480 * t) * 0.5
@@ -125,8 +128,8 @@ export function playRingtone(type = 'incoming') {
   let intervalId = null;
 
   const uri = type === 'incoming' ? RING_URI : RINGBACK_URI;
-  const interval = type === 'incoming' ? 2500 : 3500;
-  const volume = type === 'incoming' ? 0.7 : 0.4;
+  const interval = type === 'incoming' ? 2800 : 3500;
+  const volume = type === 'incoming' ? 1.0 : 0.4; // Max volume for incoming
 
   const playOnce = () => {
     if (stopped) return;
@@ -138,7 +141,7 @@ export function playRingtone(type = 'incoming') {
       if (p && p.catch) p.catch(() => {
         // If play fails, try vibration as fallback
         if (type === 'incoming' && navigator.vibrate) {
-          navigator.vibrate([200, 100, 200]);
+          navigator.vibrate([400, 100, 400, 100, 400]);
         }
       });
     } catch (e) {
@@ -150,13 +153,14 @@ export function playRingtone(type = 'incoming') {
   playOnce();
   intervalId = setInterval(playOnce, interval);
 
-  // Vibration fallback on mobile (always try for incoming)
+  // Vibration — always fire alongside audio for incoming calls
+  // Aggressive pattern: long-short-long-short-long (feels like a real phone)
   let vibrateId = null;
   if (type === 'incoming' && navigator.vibrate) {
-    navigator.vibrate([200, 100, 200, 500]);
+    navigator.vibrate([400, 100, 400, 100, 400]);
     vibrateId = setInterval(() => {
-      if (!stopped) navigator.vibrate([200, 100, 200, 500]);
-    }, 2500);
+      if (!stopped) navigator.vibrate([400, 100, 400, 100, 400]);
+    }, 2800);
   }
 
   return () => {
