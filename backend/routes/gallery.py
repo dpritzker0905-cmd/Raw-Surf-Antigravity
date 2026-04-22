@@ -1574,6 +1574,7 @@ def _build_session_roster(gallery, live_map, booking_map, dispatch_map, dist_map
     """
     Build a unified session roster for a gallery folder.
     Returns a list of surfer objects with delivery progress data.
+    Differentiates between photo and video credits/delivery.
     Works across Live Sessions, Regular Bookings, and On-Demand Dispatch.
     """
     participants = []
@@ -1581,42 +1582,57 @@ def _build_session_roster(gallery, live_map, booking_map, dispatch_map, dist_map
     # Get the right participant list based on session type
     if gallery.live_session_id and gallery.live_session_id in live_map:
         participants = live_map[gallery.live_session_id]
-        # Live sessions store photos_credit_remaining directly on the participant
-        # Get photos_included from the live session settings
-        photos_included = 3  # Default
+        photos_included = 3
+        videos_included = 1
         if gallery.live_session:
             photos_included = getattr(gallery.live_session, 'photos_included', 3) or 3
+            videos_included = getattr(gallery.live_session, 'videos_included', 1) or 1
         for p in participants:
             p["photos_included"] = photos_included
+            p["videos_included"] = videos_included
     
     elif gallery.booking_id and gallery.booking_id in booking_map:
         participants = booking_map[gallery.booking_id]
-        # Booking photos_included comes from the Booking model
-        photos_included = 3  # Default
-        # We'll use the gallery's locked pricing or defaults
         for p in participants:
-            p["photos_included"] = photos_included
+            p["photos_included"] = p.get("photos_included", 3)
+            p["videos_included"] = p.get("videos_included", 1)
     
     elif gallery.dispatch_id and gallery.dispatch_id in dispatch_map:
         participants = dispatch_map[gallery.dispatch_id]
         for p in participants:
-            p["photos_included"] = 3  # Default for on-demand
+            p["photos_included"] = 3
+            p["videos_included"] = 1
     
     else:
-        return []  # Manual gallery — no session roster
+        return []
     
-    # Merge distribution progress data
+    # Merge distribution progress data (now split by photo/video)
     gallery_dist = dist_map.get(gallery.id, {})
     roster = []
     for p in participants:
         surfer_id = p["surfer_id"]
-        dist_data = gallery_dist.get(surfer_id, {"total": 0, "included": 0})
-        photos_included = p.get("photos_included", 3)
-        items_delivered = dist_data["total"]
-        items_included = dist_data["included"]
+        empty_dist = {
+            "total": 0, "included": 0,
+            "photos_total": 0, "videos_total": 0,
+            "photos_included": 0, "videos_included": 0
+        }
+        dist_data = gallery_dist.get(surfer_id, empty_dist)
         
-        # Compute remaining credits
-        remaining = max(0, photos_included - items_included)
+        ph_included = p.get("photos_included", 3)
+        vid_included = p.get("videos_included", 1)
+        total_included_slots = ph_included + vid_included
+        
+        photos_delivered = dist_data.get("photos_total", 0)
+        videos_delivered = dist_data.get("videos_total", 0)
+        photos_included_used = dist_data.get("photos_included", 0)
+        videos_included_used = dist_data.get("videos_included", 0)
+        total_delivered = dist_data.get("total", 0)
+        
+        photos_credits_left = max(0, ph_included - photos_included_used)
+        videos_credits_left = max(0, vid_included - videos_included_used)
+        total_credits_left = photos_credits_left + videos_credits_left
+        
+        progress = min(100, int((total_delivered / total_included_slots * 100) if total_included_slots > 0 else 0))
         
         roster.append({
             "surfer_id": surfer_id,
@@ -1626,11 +1642,18 @@ def _build_session_roster(gallery, live_map, booking_map, dispatch_map, dist_map
             "selfie_url": p.get("selfie_url"),
             "amount_paid": p["amount_paid"],
             "payment_method": p.get("payment_method"),
-            "photos_included": photos_included,
-            "items_delivered": items_delivered,
-            "items_included": items_included,
-            "credits_remaining": remaining,
-            "progress_pct": min(100, int((items_delivered / photos_included * 100) if photos_included > 0 else 0))
+            # Photo credits
+            "photos_included": ph_included,
+            "photos_delivered": photos_delivered,
+            "photos_credits_remaining": photos_credits_left,
+            # Video credits
+            "videos_included": vid_included,
+            "videos_delivered": videos_delivered,
+            "videos_credits_remaining": videos_credits_left,
+            # Totals (backward compat)
+            "items_delivered": total_delivered,
+            "credits_remaining": total_credits_left,
+            "progress_pct": progress
         })
     
     return roster
@@ -1848,15 +1871,18 @@ async def get_photographer_galleries(
             pass  # DispatchRequestParticipant may not exist yet
     
     # ── Distribution counts per surfer per gallery (for progress bars) ──
-    dist_per_surfer_map = {}  # gallery_id -> {surfer_id -> count}
+    dist_per_surfer_map = {}  # gallery_id -> {surfer_id -> {photos_total, videos_total, ...}}
     if gallery_ids:
-        # Get all item IDs for these galleries
+        # Get all item IDs for these galleries + media type lookup
         all_item_ids = []
         gallery_item_map = {}  # gallery_id -> [item_ids]
+        item_media_type = {}   # item_id -> 'image' | 'video'
         for g in galleries:
             g_item_ids = [item.id for item in (g.items or [])]
             all_item_ids.extend(g_item_ids)
             gallery_item_map[g.id] = g_item_ids
+            for item in (g.items or []):
+                item_media_type[item.id] = item.media_type or 'image'
         
         if all_item_ids:
             dist_result = await db.execute(
@@ -1879,10 +1905,23 @@ async def get_photographer_galleries(
                         dist_per_surfer_map[gid] = {}
                     sid = row[1]
                     if sid not in dist_per_surfer_map[gid]:
-                        dist_per_surfer_map[gid][sid] = {"total": 0, "included": 0}
+                        dist_per_surfer_map[gid][sid] = {
+                            "total": 0, "included": 0,
+                            "photos_total": 0, "videos_total": 0,
+                            "photos_included": 0, "videos_included": 0
+                        }
                     dist_per_surfer_map[gid][sid]["total"] += 1
+                    is_video = item_media_type.get(row[0], 'image') == 'video'
+                    if is_video:
+                        dist_per_surfer_map[gid][sid]["videos_total"] += 1
+                    else:
+                        dist_per_surfer_map[gid][sid]["photos_total"] += 1
                     if row[2] == 'included':
                         dist_per_surfer_map[gid][sid]["included"] += 1
+                        if is_video:
+                            dist_per_surfer_map[gid][sid]["videos_included"] += 1
+                        else:
+                            dist_per_surfer_map[gid][sid]["photos_included"] += 1
     for g in galleries:
         cover_url = g.cover_image_url
         
@@ -4075,9 +4114,11 @@ async def tag_single_item_to_surfer(
         }
     
     # Determine access_type based on payment credits
+    # Use the correct credit pool: photos vs videos
     access_type = 'pending_selection'  # default: watermarked preview
+    is_video = item.media_type == 'video'
     
-    # Check if surfer has included photos from their session buy-in
+    # Check if surfer has credits from their session buy-in
     participant_result = await db.execute(
         select(LiveSessionParticipant).where(
             LiveSessionParticipant.surfer_id == data.surfer_id,
@@ -4089,42 +4130,57 @@ async def tag_single_item_to_surfer(
     
     credits_remaining = 0
     if participant:
-        credits_remaining = participant.photos_credit_remaining or 0
+        if is_video:
+            credits_remaining = participant.videos_credit_remaining or 0
+        else:
+            credits_remaining = participant.photos_credit_remaining or 0
         
         # Retroactive fix: if credits are 0 but participant paid and no items distributed yet,
-        # calculate from session's photos_included (handles legacy card-payment records)
+        # calculate from session's photos/videos_included (handles legacy records)
         if credits_remaining == 0 and participant.amount_paid and participant.amount_paid > 0:
-            # Count how many items already distributed to this surfer from this photographer
+            # Count already distributed items of this media type
             dist_count_result = await db.execute(
-                select(func.count(SurferGalleryItem.id)).where(
+                select(func.count(SurferGalleryItem.id))
+                .join(GalleryItem, SurferGalleryItem.gallery_item_id == GalleryItem.id)
+                .where(
                     SurferGalleryItem.surfer_id == data.surfer_id,
                     SurferGalleryItem.photographer_id == photographer_id,
-                    SurferGalleryItem.access_type == 'included'
+                    SurferGalleryItem.access_type == 'included',
+                    GalleryItem.media_type == ('video' if is_video else 'image')
                 )
             )
             already_included = dist_count_result.scalar() or 0
             
-            # Get photos_included from session or photographer settings
-            photos_included = 3  # default
+            # Get included count from session settings
+            type_included = 3 if not is_video else 1  # defaults
             if gallery.live_session_id:
                 ls_result = await db.execute(
                     select(LiveSession).where(LiveSession.id == gallery.live_session_id)
                 )
                 ls = ls_result.scalar_one_or_none()
-                if ls and ls.photos_included:
-                    photos_included = ls.photos_included
+                if ls:
+                    if is_video:
+                        type_included = getattr(ls, 'videos_included', 1) or 1
+                    else:
+                        type_included = getattr(ls, 'photos_included', 3) or 3
             
-            retroactive_credits = max(0, photos_included - already_included)
+            retroactive_credits = max(0, type_included - already_included)
             if retroactive_credits > 0:
                 credits_remaining = retroactive_credits
                 # Repair the record for future calls
-                participant.photos_credit_remaining = credits_remaining
+                if is_video:
+                    participant.videos_credit_remaining = credits_remaining
+                else:
+                    participant.photos_credit_remaining = credits_remaining
     
     if credits_remaining > 0:
         access_type = 'included'  # Full resolution — covered by buy-in
-        # Decrement the credit
+        # Decrement the correct credit pool
         if participant:
-            participant.photos_credit_remaining = max(0, credits_remaining - 1)
+            if is_video:
+                participant.videos_credit_remaining = max(0, credits_remaining - 1)
+            else:
+                participant.photos_credit_remaining = max(0, credits_remaining - 1)
     
     try:
         await manually_assign_item_to_surfer(
@@ -4283,7 +4339,9 @@ async def untag_item_from_surfer(
             item.tagged_surfer_ids = json.dumps(tagged_ids) if tagged_ids else None
     
     # Restore credit if the item was 'included' (covered by buy-in)
+    # Use the correct credit pool: photo vs video
     credits_restored = False
+    is_video = item.media_type == 'video' if item else False
     if was_included:
         participant_result = await db.execute(
             select(LiveSessionParticipant).where(
@@ -4294,7 +4352,10 @@ async def untag_item_from_surfer(
         )
         participant = participant_result.scalar_one_or_none()
         if participant:
-            participant.photos_credit_remaining = (participant.photos_credit_remaining or 0) + 1
+            if is_video:
+                participant.videos_credit_remaining = (participant.videos_credit_remaining or 0) + 1
+            else:
+                participant.photos_credit_remaining = (participant.photos_credit_remaining or 0) + 1
             credits_restored = True
     
     await db.commit()

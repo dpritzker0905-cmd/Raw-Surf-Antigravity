@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { Users, ChevronDown, ChevronUp, CheckCircle2, ImageIcon, Video, X, ZoomIn, Tag, Minus, Send, Eye, Sparkles, Clock, Shield } from 'lucide-react';
+import { Users, ChevronDown, ChevronUp, CheckCircle2, ImageIcon, Video, X, ZoomIn, Tag, Minus, Sparkles, Clock, Shield, Camera, Film } from 'lucide-react';
 import apiClient from '../../lib/apiClient';
 import { getFullUrl } from '../../utils/media';
 import { toast } from 'sonner';
@@ -10,9 +10,8 @@ import { toast } from 'sonner';
  * Features:
  *   - Expandable surfer panels with selfie reference photo (zoomable)
  *   - Tagged item thumbnails with untag capability
- *   - Real-time credit/delivery tracking
+ *   - Separate photo/video credit tracking
  *   - AI match confidence indicators
- *   - Quick action buttons (notify, send all)
  * 
  * Props:
  *   roster: Array of participant objects from session_roster
@@ -46,8 +45,10 @@ export const SessionRosterCard = ({
   // ── COMPACT MODE: Mini avatars inline on folder cards ──
   if (compact) {
     const totalDelivered = roster.reduce((sum, r) => sum + (r.items_delivered || 0), 0);
-    const totalIncluded = roster.reduce((sum, r) => sum + (r.photos_included || 0), 0);
-    const allDone = totalDelivered >= totalIncluded && totalIncluded > 0;
+    const totalPhotos = roster.reduce((sum, r) => sum + (r.photos_included || 0), 0);
+    const totalVideos = roster.reduce((sum, r) => sum + (r.videos_included || 0), 0);
+    const totalSlots = totalPhotos + totalVideos;
+    const allDone = totalDelivered >= totalSlots && totalSlots > 0;
     
     return (
       <div className="flex items-center gap-1.5 px-3 pb-2" onClick={(e) => e.stopPropagation()}>
@@ -81,7 +82,7 @@ export const SessionRosterCard = ({
           {allDone ? (
             <span className="text-emerald-500">✓ All delivered</span>
           ) : (
-            <span>{totalDelivered}/{totalIncluded} sent</span>
+            <span>{totalDelivered}/{totalSlots} sent</span>
           )}
         </span>
       </div>
@@ -90,8 +91,10 @@ export const SessionRosterCard = ({
 
   // ── EXPANDED MODE: Full roster with interactive panels ──
   const totalDelivered = roster.reduce((s, r) => s + (r.items_delivered || 0), 0);
-  const totalIncluded = roster.reduce((s, r) => s + (r.photos_included || 0), 0);
-  const allComplete = totalDelivered >= totalIncluded && totalIncluded > 0;
+  const totalPhotos = roster.reduce((s, r) => s + (r.photos_included || 0), 0);
+  const totalVideos = roster.reduce((s, r) => s + (r.videos_included || 0), 0);
+  const totalSlots = totalPhotos + totalVideos;
+  const allComplete = totalDelivered >= totalSlots && totalSlots > 0;
 
   return (
     <div className="rounded-xl overflow-hidden" style={{
@@ -118,7 +121,7 @@ export const SessionRosterCard = ({
             background: allComplete ? 'rgba(16,185,129,0.15)' : 'rgba(245,158,11,0.15)',
             color: allComplete ? '#10b981' : '#f59e0b'
           }}>
-            {totalDelivered}/{totalIncluded} delivered
+            {totalDelivered}/{totalSlots} delivered
           </span>
           {expanded ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
         </div>
@@ -156,10 +159,14 @@ const SurferPanel = ({ surfer, itemCount, galleryId, photographerId, onRosterUpd
 
   const {
     full_name, username, avatar_url, selfie_url,
-    amount_paid, photos_included, items_delivered,
-    credits_remaining, progress_pct, payment_method
+    amount_paid, photos_included = 3, videos_included = 1,
+    photos_delivered = 0, videos_delivered = 0,
+    photos_credits_remaining = 0, videos_credits_remaining = 0,
+    items_delivered = 0, credits_remaining = 0, progress_pct = 0,
+    payment_method
   } = surfer;
 
+  const totalSlots = photos_included + videos_included;
   const isComplete = credits_remaining === 0 && items_delivered > 0;
   const hasCredits = credits_remaining > 0;
   const displayPhoto = selfie_url || avatar_url;
@@ -176,6 +183,7 @@ const SurferPanel = ({ surfer, itemCount, galleryId, photographerId, onRosterUpd
       setItemsLoaded(true);
     } catch (err) {
       console.error('Failed to load tagged items:', err);
+      toast.error('Failed to load tagged items');
     } finally {
       setLoadingItems(false);
     }
@@ -187,7 +195,7 @@ const SurferPanel = ({ surfer, itemCount, galleryId, photographerId, onRosterUpd
     if (willOpen && !itemsLoaded) loadTaggedItems();
   };
 
-  // Untag item
+  // Untag item — restores correct credit pool automatically
   const handleUntag = async (item) => {
     if (untagging) return;
     setUntagging(item.gallery_item_id);
@@ -197,7 +205,8 @@ const SurferPanel = ({ surfer, itemCount, galleryId, photographerId, onRosterUpd
         { surfer_id: surfer.surfer_id, item_id: item.gallery_item_id }
       );
       setTaggedItems(prev => prev.filter(i => i.gallery_item_id !== item.gallery_item_id));
-      toast.success(`Untagged from ${full_name}`);
+      const creditType = item.media_type === 'video' ? 'video' : 'photo';
+      toast.success(`Untagged ${creditType} from ${full_name}${item.access_type === 'included' ? ' — credit restored' : ''}`);
       if (onRosterUpdate) onRosterUpdate();
     } catch (err) {
       toast.error('Failed to untag item');
@@ -248,7 +257,7 @@ const SurferPanel = ({ surfer, itemCount, galleryId, photographerId, onRosterUpd
                 }} />
               </div>
               <span className="text-[10px] font-mono text-muted-foreground flex-shrink-0">
-                {items_delivered || 0}/{photos_included || 0}
+                {items_delivered}/{totalSlots}
               </span>
             </div>
           </div>
@@ -272,7 +281,7 @@ const SurferPanel = ({ surfer, itemCount, galleryId, photographerId, onRosterUpd
         {/* ── Expanded Panel ── */}
         {panelOpen && (
           <div className="px-3 pb-3 space-y-3" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-            {/* Row 1: Selfie Reference + Stats Grid */}
+            {/* Row 1: Selfie Reference + Credit Breakdown */}
             <div className="flex gap-3 pt-3">
               {/* Selfie Reference Photo */}
               {(selfie_url || avatar_url) && (
@@ -289,19 +298,41 @@ const SurferPanel = ({ surfer, itemCount, galleryId, photographerId, onRosterUpd
                 </div>
               )}
 
-              {/* Stats Grid */}
-              <div className="flex-1 grid grid-cols-2 gap-1.5">
-                <StatCard icon={<Tag className="w-3 h-3" />} label="Tagged" value={`${items_delivered}/${photos_included}`}
-                  color={isComplete ? '#10b981' : '#06b6d4'} />
-                <StatCard icon={<Shield className="w-3 h-3" />} label="Access"
-                  value={items_delivered > 0 ? (credits_remaining > 0 ? 'Partial' : 'Full') : 'None'}
-                  color={isComplete ? '#10b981' : '#f59e0b'} />
-                <StatCard icon={payment_method === 'credits' ? <Sparkles className="w-3 h-3" /> : <span className="text-[10px]">💳</span>}
-                  label="Paid" value={amount_paid > 0 ? `$${amount_paid}` : 'Free'}
-                  color={amount_paid > 0 ? '#10b981' : '#6b7280'} />
-                <StatCard icon={<Clock className="w-3 h-3" />} label="Credits"
-                  value={credits_remaining > 0 ? `${credits_remaining} left` : 'Used'}
-                  color={credits_remaining > 0 ? '#f59e0b' : '#10b981'} />
+              {/* Credit Breakdown — Photo + Video separate */}
+              <div className="flex-1 space-y-1.5">
+                {/* Photo Credits */}
+                <CreditRow
+                  icon={<Camera className="w-3 h-3" />}
+                  label="Photos"
+                  delivered={photos_delivered}
+                  included={photos_included}
+                  remaining={photos_credits_remaining}
+                  color="#06b6d4"
+                />
+                {/* Video Credits */}
+                <CreditRow
+                  icon={<Film className="w-3 h-3" />}
+                  label="Videos"
+                  delivered={videos_delivered}
+                  included={videos_included}
+                  remaining={videos_credits_remaining}
+                  color="#8b5cf6"
+                />
+                {/* Payment Info */}
+                <div className="flex items-center gap-2 mt-1">
+                  <div className="flex items-center gap-1 px-2 py-1 rounded-lg" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                    <span className="text-[10px]">{payment_method === 'credits' ? '✨' : '💳'}</span>
+                    <span className="text-[10px] text-muted-foreground">
+                      {amount_paid > 0 ? `$${amount_paid} paid` : 'Free'}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1 px-2 py-1 rounded-lg" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                    <Shield className="w-3 h-3" style={{ color: isComplete ? '#10b981' : '#f59e0b' }} />
+                    <span className="text-[10px] text-muted-foreground">
+                      {isComplete ? 'Fully delivered' : hasCredits ? `${credits_remaining} credit${credits_remaining !== 1 ? 's' : ''} left` : 'Awaiting'}
+                    </span>
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -309,10 +340,12 @@ const SurferPanel = ({ surfer, itemCount, galleryId, photographerId, onRosterUpd
             <div>
               <div className="flex items-center justify-between mb-2">
                 <span className="text-[11px] font-semibold text-muted-foreground flex items-center gap-1">
-                  <ImageIcon className="w-3 h-3" /> Tagged Items
+                  <Tag className="w-3 h-3" /> Tagged Items
                 </span>
                 {taggedItems.length > 0 && (
-                  <span className="text-[10px] text-muted-foreground">{taggedItems.length} item{taggedItems.length !== 1 ? 's' : ''}</span>
+                  <span className="text-[10px] text-muted-foreground">
+                    {taggedItems.filter(i => i.media_type !== 'video').length} 📷 • {taggedItems.filter(i => i.media_type === 'video').length} 🎬
+                  </span>
                 )}
               </div>
 
@@ -360,7 +393,9 @@ const SurferPanel = ({ surfer, itemCount, galleryId, photographerId, onRosterUpd
                   style={{ background: 'rgba(6,182,212,0.3)', color: '#67e8f9' }}>
                   {selfie_url ? '📷 Session Selfie' : '👤 Profile Photo'}
                 </span>
-                <span className="text-[10px] text-white/50">{items_delivered}/{photos_included} tagged</span>
+                <span className="text-[10px] text-white/50">
+                  📷 {photos_delivered}/{photos_included} • 🎬 {videos_delivered}/{videos_included}
+                </span>
               </div>
             </div>
           </div>
@@ -370,16 +405,33 @@ const SurferPanel = ({ surfer, itemCount, galleryId, photographerId, onRosterUpd
   );
 };
 
-/** Stat Card — Mini metric display */
-const StatCard = ({ icon, label, value, color }) => (
-  <div className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)' }}>
-    <div style={{ color }} className="flex-shrink-0">{icon}</div>
-    <div className="min-w-0">
-      <p className="text-[8px] text-muted-foreground uppercase tracking-wider">{label}</p>
-      <p className="text-[11px] font-semibold text-foreground truncate">{value}</p>
+/** Credit Row — Shows one credit pool (photo or video) with mini progress */
+const CreditRow = ({ icon, label, delivered, included, remaining, color }) => {
+  const pct = included > 0 ? Math.min(100, (delivered / included) * 100) : 0;
+  const isDone = remaining === 0 && delivered > 0;
+  
+  return (
+    <div className="flex items-center gap-2 px-2 py-1.5 rounded-lg" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)' }}>
+      <div className="flex-shrink-0" style={{ color }}>{icon}</div>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center justify-between">
+          <span className="text-[10px] font-semibold text-foreground">{label}</span>
+          <span className="text-[10px] font-mono" style={{ color: isDone ? '#10b981' : color }}>
+            {delivered}/{included}
+            {remaining > 0 && <span className="text-muted-foreground ml-1">({remaining} left)</span>}
+            {isDone && ' ✓'}
+          </span>
+        </div>
+        <div className="mt-0.5 h-1 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.08)' }}>
+          <div className="h-full rounded-full transition-all duration-500" style={{
+            width: `${pct}%`,
+            background: isDone ? '#10b981' : color
+          }} />
+        </div>
+      </div>
     </div>
-  </div>
-);
+  );
+};
 
 /** Tagged Item Thumbnail — with untag overlay */
 const TaggedItemThumb = ({ item, onUntag, isUntagging }) => {
@@ -398,7 +450,10 @@ const TaggedItemThumb = ({ item, onUntag, isUntagging }) => {
           </div>
         )}
         {isVideo && (
-          <div className="absolute bottom-0.5 left-0.5 text-[8px] px-1 py-0.5 rounded bg-black/60 text-white font-medium">▶ Vid</div>
+          <div className="absolute bottom-0.5 left-0.5 text-[8px] px-1 py-0.5 rounded bg-purple-500/80 text-white font-medium">🎬 Vid</div>
+        )}
+        {!isVideo && (
+          <div className="absolute bottom-0.5 left-0.5 text-[8px] px-1 py-0.5 rounded bg-cyan-500/80 text-white font-medium">📷</div>
         )}
         {/* Access type indicator */}
         <div className="absolute top-0.5 right-0.5 w-2.5 h-2.5 rounded-full" style={{ background: accessColor, boxShadow: `0 0 4px ${accessColor}` }} />
@@ -413,7 +468,7 @@ const TaggedItemThumb = ({ item, onUntag, isUntagging }) => {
       <button onClick={(e) => { e.stopPropagation(); onUntag(); }}
         disabled={isUntagging}
         className="absolute inset-0 rounded-lg bg-red-500/70 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center cursor-pointer"
-        title="Untag from surfer">
+        title={`Untag ${isVideo ? 'video' : 'photo'} from surfer`}>
         {isUntagging ? (
           <div className="w-4 h-4 border-2 border-white/60 border-t-white rounded-full animate-spin" />
         ) : (

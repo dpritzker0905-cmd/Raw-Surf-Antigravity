@@ -163,12 +163,14 @@ class Profile(Base):
     on_demand_photo_price = Column(Float, default=10.0)
     # On-Demand Photos Included: Free photos surfers get with on-demand buy-in
     on_demand_photos_included = Column(Integer, default=3)
+    on_demand_videos_included = Column(Integer, default=1)
     # On-Demand Full Gallery: All photos included (unlimited) with buy-in
     on_demand_full_gallery = Column(Boolean, default=False)
     # Live Session Photo Price: Per-photo rate for active live sessions (legacy single-tier)
     live_session_photo_price = Column(Float, default=5.0)
     # Photos included in session buy-in (surfers get these free)
     live_session_photos_included = Column(Integer, default=3)
+    live_session_videos_included = Column(Integer, default=1)
     # Live Session Full Gallery: All photos included (unlimited) with buy-in
     live_session_full_gallery = Column(Boolean, default=False)
 
@@ -196,6 +198,7 @@ class Profile(Base):
     booking_price_standard = Column(Float, default=5.0)  # Standard quality price
     booking_price_high = Column(Float, default=10.0)     # High-res quality price
     booking_photos_included = Column(Integer, default=3) # Photos included in booking
+    booking_videos_included = Column(Integer, default=1)  # Videos included in booking
     booking_full_gallery = Column(Boolean, default=False) # Full gallery access toggle
     price_per_additional_surfer = Column(Float, default=15.0)  # Crew split: added per extra surfer
     # Booking video tiers (independent from Gallery video pricing)
@@ -1363,6 +1366,7 @@ class LiveSessionParticipant(Base):
     
     # Photos credit: Track how many "free" photos participant has from their buy-in
     photos_credit_remaining = Column(Integer, default=0)
+    videos_credit_remaining = Column(Integer, default=0)
     
     # Resolution preference: What resolution tier the participant prefers
     resolution_preference = Column(String(20), default='standard')  # 'web', 'standard', 'high'
@@ -2190,6 +2194,7 @@ class LiveSession(Base):
     
     # Live Session Rates (for Live Savings display)
     photos_included = Column(Integer, default=3)        # Photos included in buy-in
+    videos_included = Column(Integer, default=1)        # Videos included in buy-in
     general_photo_price = Column(Float, nullable=True)  # Photographer's general gallery price (for comparison)
     max_surfers = Column(Integer, default=10)           # Max capacity for session
     estimated_duration_hours = Column(Integer, nullable=True)  # Estimated session length
