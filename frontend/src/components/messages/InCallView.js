@@ -142,7 +142,6 @@ export default function InCallView({
 }) {
   const localVideoRef = useRef(null);
   const remoteVideoRef = useRef(null);
-  const remoteAudioRef = useRef(null);
   const webglCanvasRef = useRef(null);
   const webglProcessorRef = useRef(null);
   const hairCanvasRef = useRef(null);
@@ -202,31 +201,6 @@ export default function InCallView({
     return () => {
       remoteStream.removeEventListener('addtrack', handleTrackAdded);
     };
-  }, [remoteStream]);
-
-  // ── Always attach remote stream to hidden <audio> for sound ───────
-  // Belt-and-suspenders: audio element ensures sound even if video mutes
-  useEffect(() => {
-    const audioEl = remoteAudioRef.current;
-    if (!audioEl || !remoteStream) return;
-
-    audioEl.srcObject = remoteStream;
-    audioEl.muted = speakerOffRef.current;
-
-    // iOS Safari: retry play
-    let retries = 0;
-    const tryPlay = () => {
-      audioEl.play().then(() => {
-        console.log('[InCallView] ✅ Remote audio playing');
-      }).catch((err) => {
-        console.warn(`[InCallView] audio play() attempt ${retries + 1} failed:`, err.name);
-        if (retries < 3) {
-          retries++;
-          setTimeout(tryPlay, retries * 500);
-        }
-      });
-    };
-    tryPlay();
   }, [remoteStream]);
 
   // ── Auto-hide controls after 4s ───────────────────────────────────
@@ -406,22 +380,22 @@ export default function InCallView({
       className="fixed inset-0 z-[9998] flex items-center justify-center bg-zinc-950 select-none"
       onClick={resetControlsTimer}
     >
-      {/* Hidden audio element for remote stream — webkit-playsinline for iOS */}
-      <audio ref={remoteAudioRef} autoPlay playsInline />
 
       <div className="relative w-full h-full md:w-[calc(100%-48px)] md:h-[calc(100%-48px)] md:max-w-[1100px] md:max-h-[700px] md:rounded-2xl overflow-hidden flex flex-col shadow-2xl shadow-black/50">
 
         {/* ── Video Area ── */}
         <div className="flex-1 relative overflow-hidden bg-black">
-          {/* Remote video — ALWAYS rendered so iOS Safari can pre-warm it.
-              Hidden when audio-only or no stream yet. */}
+          {/* Remote video — ALWAYS rendered and "playing" so audio works.
+              For audio-only calls: element is tiny/invisible but still decodes audio.
+              display:none would stop audio playback in most browsers. */}
           <video
             ref={remoteVideoRef}
             autoPlay
             playsInline
-            className="w-full h-full object-contain bg-zinc-950"
-            style={{
-              display: (callType === 'video' && remoteStream) ? 'block' : 'none'
+            className={`${(callType === 'video' && remoteStream) ? 'w-full h-full object-contain bg-zinc-950' : 'absolute'}`}
+            style={(callType === 'video' && remoteStream) ? {} : {
+              width: 1, height: 1, opacity: 0, pointerEvents: 'none',
+              position: 'absolute', top: 0, left: 0,
             }}
           />
           {/* Audio-only fallback or waiting state */}
@@ -637,15 +611,17 @@ export default function InCallView({
               onClick={() => {
                 const newMuted = !speakerOff;
                 speakerOffRef.current = newMuted;
-                // Disable audio tracks on the remote stream
+                // Toggle muted on the single remote video element
+                if (remoteVideoRef.current) {
+                  remoteVideoRef.current.muted = newMuted;
+                  console.log('[InCallView] Speaker toggled:', newMuted ? 'OFF' : 'ON');
+                }
+                // Also toggle track.enabled as a backup
                 if (remoteStream) {
                   remoteStream.getAudioTracks().forEach(track => {
                     track.enabled = !newMuted;
                   });
                 }
-                // Also set element-level muted for belt-and-suspenders
-                if (remoteAudioRef.current) remoteAudioRef.current.muted = newMuted;
-                if (remoteVideoRef.current) remoteVideoRef.current.muted = newMuted;
                 setSpeakerOff(newMuted);
               }}
               active={speakerOff}
