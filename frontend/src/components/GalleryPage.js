@@ -110,6 +110,11 @@ export const GalleryPage = () => {
   const [searchResults, setSearchResults] = useState([]);
   const [searchLoading, setSearchLoading] = useState(false);
   
+  // Batch tagging state
+  const [aiAutoTagLoading, setAiAutoTagLoading] = useState(false);
+  const [showBatchTagPicker, setShowBatchTagPicker] = useState(false);
+  const [batchTagLoading, setBatchTagLoading] = useState({});
+  
   // Grom Highlights state (for Grom Parents)
   const [gromHighlights, setGromHighlights] = useState([]);
   const [linkedGroms, setLinkedGroms] = useState([]);
@@ -617,7 +622,75 @@ export const GalleryPage = () => {
     }
   };
 
-  // Search surfers by name/username for manual assignment
+  // Trigger AI auto-tagging for gallery items
+  const handleAiAutoTag = async () => {
+    if (!selectedGallery) return;
+    setAiAutoTagLoading(true);
+    try {
+      const response = await apiClient.post(
+        `/gallery/trigger-ai-match?photographer_id=${user.id}`,
+        { 
+          gallery_id: selectedGallery.id,
+          item_ids: bulkSelectMode && selectedItems.size > 0 ? Array.from(selectedItems) : undefined
+        }
+      );
+      const matched = response.data.matches_found || 0;
+      const processed = response.data.items_processed || 0;
+      if (matched > 0) {
+        toast.success(`🤖 AI matched ${matched} items to surfers! (${processed} processed)`);
+      } else {
+        toast.info(`🤖 AI processed ${processed} items — no confident matches found. Try manual tagging.`);
+      }
+      // Refresh gallery to show updated AI status
+      if (selectedGallery) {
+        await fetchGalleryItems(selectedGallery.id);
+        await fetchParticipants(selectedGallery.id);
+      }
+    } catch (error) {
+      toast.error(getErrorMessage(error, 'AI auto-tag failed'));
+    } finally {
+      setAiAutoTagLoading(false);
+    }
+  };
+
+  // Batch tag selected items to a specific surfer
+  const handleBatchTagToSurfer = async (surferId, surferName) => {
+    if (!selectedGallery || selectedItems.size === 0) return;
+    setBatchTagLoading(prev => ({ ...prev, [surferId]: true }));
+    try {
+      let tagged = 0;
+      let alreadyTagged = 0;
+      for (const itemId of selectedItems) {
+        try {
+          const response = await apiClient.post(
+            `/gallery/${selectedGallery.id}/tag-item?photographer_id=${user.id}`,
+            { surfer_id: surferId, item_id: itemId }
+          );
+          if (response.data.already_tagged) {
+            alreadyTagged++;
+          } else {
+            tagged++;
+          }
+        } catch (_err) {
+          // Continue with remaining items
+        }
+      }
+      if (tagged > 0) {
+        toast.success(`✅ Tagged ${tagged} items to ${surferName}${alreadyTagged > 0 ? ` (${alreadyTagged} already tagged)` : ''}`);
+      } else if (alreadyTagged > 0) {
+        toast.info(`All ${alreadyTagged} selected items already tagged to ${surferName}`);
+      }
+      // Refresh
+      await fetchGalleryItems(selectedGallery.id);
+      await fetchParticipants(selectedGallery.id);
+      setShowBatchTagPicker(false);
+    } catch (error) {
+      toast.error(getErrorMessage(error, `Failed to batch tag to ${surferName}`));
+    } finally {
+      setBatchTagLoading(prev => ({ ...prev, [surferId]: false }));
+    }
+  };
+
   let searchTimeout = null;
   const handleSearchSurfers = (query) => {
     if (searchTimeout) clearTimeout(searchTimeout);
@@ -1418,6 +1491,37 @@ export const GalleryPage = () => {
                   </Button>
                   <Button
                     size="sm"
+                    variant="outline"
+                    className="border-cyan-600 text-cyan-400 hover:bg-cyan-500/10 flex-shrink-0"
+                    onClick={handleAiAutoTag}
+                    disabled={aiAutoTagLoading}
+                  >
+                    {aiAutoTagLoading ? (
+                      <Loader2 className="w-4 h-4 animate-spin mr-1" />
+                    ) : (
+                      <Sparkles className="w-4 h-4 mr-1" />
+                    )}
+                    AI Tag
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="border-purple-600 text-purple-400 hover:bg-purple-500/10 flex-shrink-0"
+                    onClick={async () => {
+                      if (selectedItems.size === 0) {
+                        toast.info('Select items first');
+                        return;
+                      }
+                      await fetchParticipants(selectedGallery.id);
+                      setShowBatchTagPicker(true);
+                    }}
+                    disabled={selectedItems.size === 0}
+                  >
+                    <UserPlus className="w-4 h-4 mr-1" />
+                    Tag
+                  </Button>
+                  <Button
+                    size="sm"
                     variant="destructive"
                     className="bg-red-500/20 text-red-400 hover:bg-red-500/30 flex-shrink-0"
                     onClick={handleBulkDelete}
@@ -1449,10 +1553,24 @@ export const GalleryPage = () => {
                   <Button
                     size="sm"
                     variant="outline"
+                    className="border-cyan-600 text-cyan-400 hover:bg-cyan-500/10 flex-shrink-0"
+                    onClick={handleAiAutoTag}
+                    disabled={aiAutoTagLoading || galleryItems.length === 0}
+                  >
+                    {aiAutoTagLoading ? (
+                      <Loader2 className="w-4 h-4 animate-spin mr-1" />
+                    ) : (
+                      <Sparkles className="w-4 h-4 mr-1" />
+                    )}
+                    AI Tag
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
                     className="border-purple-600 text-purple-400 hover:bg-purple-500/10 flex-shrink-0"
                     onClick={() => handleOpenTagAssign()}
                   >
-                    <Sparkles className="w-4 h-4 mr-1" />
+                    <UserPlus className="w-4 h-4 mr-1" />
                     Tag & Assign
                   </Button>
                   <Button
@@ -2497,6 +2615,86 @@ export const GalleryPage = () => {
           <DialogFooter className="pt-3 border-t border-border">
             <Button variant="outline" onClick={() => setShowTagAssignModal(false)} className="border-border">
               Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Batch Tag Picker (bulk select → tag to surfer) ── */}
+      <Dialog open={showBatchTagPicker} onOpenChange={setShowBatchTagPicker}>
+        <DialogContent className="bg-card border-border text-foreground max-w-md max-h-[80vh] overflow-y-auto">
+          <DialogTitle className="text-lg font-bold flex items-center gap-2">
+            <UserPlus className="w-5 h-5 text-purple-400" />
+            Tag {selectedItems.size} Items to Surfer
+          </DialogTitle>
+          
+          <p className="text-xs text-muted-foreground -mt-2">
+            Select a surfer to tag all {selectedItems.size} selected items to their locker.
+          </p>
+
+          {participantsLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="w-5 h-5 animate-spin text-purple-400" />
+              <span className="ml-2 text-sm text-muted-foreground">Loading participants...</span>
+            </div>
+          ) : participants.length > 0 ? (
+            <div className="space-y-2">
+              {participants.map((p) => {
+                const isLoading = batchTagLoading[p.surfer_id];
+                const hasCredits = p.photos_credit_remaining > 0;
+                const selfieOrAvatar = getFullUrl(p.selfie_url || p.avatar_url);
+                return (
+                  <button
+                    key={p.surfer_id}
+                    onClick={() => handleBatchTagToSurfer(p.surfer_id, p.full_name || p.username)}
+                    disabled={isLoading}
+                    className="w-full flex items-center gap-3 px-3 py-3 rounded-lg border border-border/50 bg-muted/20 hover:bg-purple-500/10 hover:border-purple-500/40 transition-all text-left"
+                  >
+                    {isLoading ? (
+                      <Loader2 className="w-10 h-10 animate-spin text-purple-400 shrink-0" />
+                    ) : selfieOrAvatar ? (
+                      <img
+                        src={selfieOrAvatar}
+                        alt={p.full_name}
+                        className="w-10 h-10 rounded-full object-cover border-2 border-border shrink-0"
+                      />
+                    ) : (
+                      <div className="w-10 h-10 rounded-full bg-purple-500/20 flex items-center justify-center text-purple-400 font-bold text-sm shrink-0">
+                        {(p.full_name || p.username || '?').charAt(0).toUpperCase()}
+                      </div>
+                    )}
+                    
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-foreground truncate">
+                        {p.full_name || p.username}
+                      </p>
+                      <p className="text-[11px] text-muted-foreground">
+                        {hasCredits ? (
+                          <span className="text-emerald-400">🎟️ {p.photos_credit_remaining} included credits</span>
+                        ) : (
+                          <span>💰 ${p.amount_paid || 0} paid</span>
+                        )}
+                      </p>
+                    </div>
+                    
+                    <div className="shrink-0 px-2 py-1 rounded-md bg-purple-500/20 text-purple-400 text-xs font-medium">
+                      Tag {selectedItems.size}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="text-center py-6">
+              <Users className="w-8 h-8 text-muted-foreground/40 mx-auto mb-2" />
+              <p className="text-sm text-muted-foreground">No session participants</p>
+              <p className="text-xs text-muted-foreground mt-1">Use "Tag & Assign" to search for any surfer</p>
+            </div>
+          )}
+          
+          <DialogFooter className="pt-3 border-t border-border">
+            <Button variant="outline" onClick={() => setShowBatchTagPicker(false)} className="border-border">
+              Cancel
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -390,10 +390,27 @@ export const GalleryItemModal = ({ item, onClose, onPurchased, galleryId }) => {
           {/* ── Per-Image Tag to Surfer (Owner Only) ── */}
           {isOwner && galleryId && (
             <div className="mt-4 p-4 bg-zinc-800/80 rounded-lg border border-purple-500/20">
-              <h4 className="font-medium text-white flex items-center gap-2 mb-3">
-                <Send className="w-4 h-4 text-purple-400" />
-                Tag to Surfer
-              </h4>
+              {/* Status header — immediately tells photographer what happened */}
+              <div className="flex items-center justify-between mb-3">
+                <h4 className="font-medium text-white flex items-center gap-2">
+                  <Send className="w-4 h-4 text-purple-400" />
+                  Tag to Surfer
+                </h4>
+                {/* AI status badge */}
+                {item.ai_suggested_count > 0 ? (
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium bg-cyan-500/15 text-cyan-400 border border-cyan-500/30">
+                    🤖 AI matched to {item.ai_suggested_count} surfer{item.ai_suggested_count !== 1 ? 's' : ''}
+                  </span>
+                ) : item.distributed_count > 0 ? (
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                    ✅ Distributed to {item.distributed_count}
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium bg-amber-500/15 text-amber-400 border border-amber-500/30">
+                    👤 Needs manual tagging
+                  </span>
+                )}
+              </div>
               
               {loadingTagParticipants ? (
                 <div className="flex items-center justify-center py-3">
@@ -407,6 +424,9 @@ export const GalleryItemModal = ({ item, onClose, onPurchased, galleryId }) => {
                     const isTagged = taggedIds.has(p.surfer_id);
                     const hasCredits = p.photos_credit_remaining > 0;
                     const selfieOrAvatar = getFullUrl(p.selfie_url || p.avatar_url);
+                    // Determine if this was an AI match or manual tag
+                    const isAiMatch = p.ai_suggested || p.match_method === 'ai';
+                    const matchConfidence = p.match_confidence;
                     return (
                       <button
                         key={p.surfer_id}
@@ -424,31 +444,43 @@ export const GalleryItemModal = ({ item, onClose, onPurchased, galleryId }) => {
                         {isLoading ? (
                           <Loader2 className="w-10 h-10 animate-spin text-purple-400 shrink-0" />
                         ) : selfieOrAvatar ? (
-                          <img
-                            src={selfieOrAvatar}
-                            alt={`Reference: ${p.full_name}`}
-                            className={`w-10 h-10 rounded-full object-cover shrink-0 border-2 ${
-                              isTagged ? 'border-emerald-400' : 'border-zinc-500'
-                            }`}
-                          />
+                          <div className="relative shrink-0">
+                            <img
+                              src={selfieOrAvatar}
+                              alt={`Reference: ${p.full_name}`}
+                              className={`w-10 h-10 rounded-full object-cover border-2 ${
+                                isTagged ? 'border-emerald-400' : isAiMatch ? 'border-cyan-400' : 'border-zinc-500'
+                              }`}
+                            />
+                            {/* Provenance mini-badge on avatar */}
+                            {isTagged && isAiMatch && (
+                              <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-cyan-500 flex items-center justify-center text-[8px]" title="AI matched">🤖</span>
+                            )}
+                            {isTagged && !isAiMatch && (
+                              <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-purple-500 flex items-center justify-center text-[8px]" title="Manually tagged">👤</span>
+                            )}
+                          </div>
                         ) : (
                           <div className="w-10 h-10 rounded-full bg-purple-500/30 flex items-center justify-center text-purple-400 text-sm font-bold shrink-0">
                             {(p.full_name || p.username || '?').charAt(0).toUpperCase()}
                           </div>
                         )}
                         
-                        {/* Name + status */}
+                        {/* Name + status + provenance */}
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium text-white truncate">
                             {p.full_name || p.username}
                           </p>
                           <p className="text-[11px] text-gray-400">
                             {isTagged ? (
-                              <span className="text-emerald-400 font-medium">✅ Tagged to this photo</span>
+                              <span className="text-emerald-400 font-medium">
+                                ✅ Tagged — {isAiMatch ? 'AI matched' : 'manually tagged'}
+                                {matchConfidence ? ` (${Math.round(matchConfidence * 100)}%)` : ''}
+                              </span>
                             ) : hasCredits ? (
-                              <span className="text-emerald-400">🎟️ {p.photos_credit_remaining} included photos remaining</span>
+                              <span className="text-emerald-400">🎟️ {p.photos_credit_remaining} credits left — tap to tag</span>
                             ) : (
-                              <span>${p.amount_paid || 0} paid</span>
+                              <span>💰 Extra item — tap to add to locker</span>
                             )}
                           </p>
                         </div>
@@ -458,7 +490,7 @@ export const GalleryItemModal = ({ item, onClose, onPurchased, galleryId }) => {
                           {isTagged ? (
                             <Check className="w-5 h-5 text-emerald-400" />
                           ) : (
-                            <Send className="w-4 h-4 text-gray-400" />
+                            <UserPlus className="w-4 h-4 text-gray-400" />
                           )}
                         </div>
                       </button>
@@ -466,7 +498,11 @@ export const GalleryItemModal = ({ item, onClose, onPurchased, galleryId }) => {
                   })}
                 </div>
               ) : (
-                <p className="text-xs text-gray-500">No session participants. Use the gallery-level Tag & Assign to search for surfers.</p>
+                <div className="text-center py-4">
+                  <UserPlus className="w-6 h-6 text-zinc-500 mx-auto mb-2" />
+                  <p className="text-xs text-gray-500">No session participants found.</p>
+                  <p className="text-[10px] text-gray-600 mt-1">Use the gallery-level "Tag & Assign" to search all surfers.</p>
+                </div>
               )}
             </div>
           )}
