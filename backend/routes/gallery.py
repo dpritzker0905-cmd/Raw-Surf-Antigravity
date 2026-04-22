@@ -1741,13 +1741,15 @@ async def get_photographer_galleries(
     live_participants_map = {}  # live_session_id -> [participants]
     if live_session_ids:
         try:
+            # Primary query: participants linked by live_session_id
             lsp_result = await db.execute(
                 select(LiveSessionParticipant, Profile)
                 .join(Profile, LiveSessionParticipant.surfer_id == Profile.id)
                 .where(LiveSessionParticipant.live_session_id.in_(live_session_ids))
             )
             rows = lsp_result.all()
-            gallery_logger.info(f"Session Roster: Found {len(rows)} live participants for {len(live_session_ids)} sessions")
+            gallery_logger.info(f"Session Roster: Found {len(rows)} live participants by session_id for {len(live_session_ids)} sessions")
+            
             for row in rows:
                 lsp, profile = row[0], row[1]
                 sid = lsp.live_session_id
@@ -1763,6 +1765,58 @@ async def get_photographer_galleries(
                     "photos_credit_remaining": lsp.photos_credit_remaining or 0,
                     "payment_method": lsp.payment_method
                 })
+            
+            # ── FALLBACK: Query by photographer_id for sessions with no matched participants ──
+            # This handles the case where participants joined the photographer
+            # but their live_session_id was NULL at join time
+            missing_session_ids = [sid for sid in live_session_ids if sid not in live_participants_map]
+            if missing_session_ids:
+                gallery_logger.info(f"Session Roster: {len(missing_session_ids)} sessions have 0 participants, trying photographer_id fallback")
+                for missing_sid in missing_session_ids:
+                    # Find the gallery for this session to get the photographer_id and session date
+                    matching_gallery = next((g for g in galleries if g.live_session_id == missing_sid), None)
+                    if not matching_gallery:
+                        continue
+                    
+                    # Query participants linked to the photographer around the session time
+                    session_date = matching_gallery.session_date
+                    fallback_query = (
+                        select(LiveSessionParticipant, Profile)
+                        .join(Profile, LiveSessionParticipant.surfer_id == Profile.id)
+                        .where(LiveSessionParticipant.photographer_id == photographer_id)
+                        .where(LiveSessionParticipant.live_session_id == None)
+                    )
+                    # Narrow by time window if session_date available
+                    if session_date:
+                        time_before = session_date - timedelta(hours=2)
+                        time_after = session_date + timedelta(hours=6)
+                        fallback_query = fallback_query.where(
+                            LiveSessionParticipant.joined_at.between(time_before, time_after)
+                        )
+                    
+                    fb_result = await db.execute(fallback_query)
+                    fb_rows = fb_result.all()
+                    
+                    if fb_rows:
+                        gallery_logger.info(f"Session Roster FALLBACK: Found {len(fb_rows)} orphaned participants for session {missing_sid}")
+                        live_participants_map[missing_sid] = []
+                        for row in fb_rows:
+                            lsp, profile = row[0], row[1]
+                            live_participants_map[missing_sid].append({
+                                "surfer_id": profile.id,
+                                "full_name": profile.full_name,
+                                "username": profile.username,
+                                "avatar_url": profile.avatar_url,
+                                "selfie_url": lsp.selfie_url,
+                                "amount_paid": lsp.amount_paid or 0,
+                                "photos_credit_remaining": lsp.photos_credit_remaining or 0,
+                                "payment_method": lsp.payment_method
+                            })
+                            
+                            # AUTO-HEAL: Update the participant's live_session_id for future queries
+                            lsp.live_session_id = missing_sid
+                        
+                        needs_commit = True
         except Exception as e:
             gallery_logger.error(f"Session Roster live query error: {e}")
     
