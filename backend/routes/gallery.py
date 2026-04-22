@@ -33,76 +33,7 @@ from utils.grom_parent import is_grom_parent_eligible
 
 router = APIRouter()
 
-@router.get("/debug/session-roster/{live_session_id}")
-async def debug_session_roster(live_session_id: str, db: AsyncSession = Depends(get_db)):
-    """Debug endpoint to diagnose session roster data"""
-    # Check raw participant count by live_session_id
-    raw_result = await db.execute(
-        select(LiveSessionParticipant)
-        .where(LiveSessionParticipant.live_session_id == live_session_id)
-    )
-    raw_participants = raw_result.scalars().all()
-    
-    # Also check: get the photographer from the LiveSession, then find participants by photographer_id
-    ls_result = await db.execute(
-        select(LiveSession).where(LiveSession.id == live_session_id)
-    )
-    live_session = ls_result.scalar_one_or_none()
-    
-    photographer_participants = []
-    null_session_participants = []
-    if live_session:
-        # Find participants linked to the photographer around the session time
-        ph_result = await db.execute(
-            select(LiveSessionParticipant)
-            .where(LiveSessionParticipant.photographer_id == live_session.photographer_id)
-        )
-        photographer_participants = ph_result.scalars().all()
-        
-        # Find participants with null live_session_id for this photographer
-        null_result = await db.execute(
-            select(LiveSessionParticipant)
-            .where(LiveSessionParticipant.photographer_id == live_session.photographer_id)
-            .where(LiveSessionParticipant.live_session_id == None)
-        )
-        null_session_participants = null_result.scalars().all()
-    
-    # Check with profile join
-    join_result = await db.execute(
-        select(LiveSessionParticipant, Profile)
-        .join(Profile, LiveSessionParticipant.surfer_id == Profile.id)
-        .where(LiveSessionParticipant.live_session_id == live_session_id)
-    )
-    joined_rows = join_result.all()
-    
-    return {
-        "live_session_id": live_session_id,
-        "session_exists": live_session is not None,
-        "session_photographer_id": live_session.photographer_id if live_session else None,
-        "raw_participant_count_by_session": len(raw_participants),
-        "photographer_participant_count": len(photographer_participants),
-        "null_session_participant_count": len(null_session_participants),
-        "joined_participant_count": len(joined_rows),
-        "photographer_data": [
-            {
-                "id": p.id,
-                "surfer_id": p.surfer_id,
-                "live_session_id": p.live_session_id,
-                "status": p.status,
-                "amount_paid": p.amount_paid,
-                "joined_at": p.joined_at.isoformat() if p.joined_at else None
-            } for p in photographer_participants[:10]
-        ],
-        "null_session_data": [
-            {
-                "id": p.id,
-                "surfer_id": p.surfer_id,
-                "status": p.status,
-                "amount_paid": p.amount_paid,
-                "joined_at": p.joined_at.isoformat() if p.joined_at else None
-            } for p in null_session_participants[:10]
-        ]
-    }
+
 
 class GalleryItemCreate(BaseModel):
     original_url: str
