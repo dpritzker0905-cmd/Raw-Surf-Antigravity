@@ -141,6 +141,14 @@ export const PricingProvider = ({ children }) => {
         booking_photos_included: sp.booking_photos_included || 3,
         booking_videos_included: sp.booking_videos_included || 0,
         booking_full_gallery: sp.booking_full_gallery || false,
+        on_demand_hourly_rate: sp.on_demand_hourly_rate || 75,
+        // Booking advanced settings (display-only in Gallery Hub)
+        booking_min_hours: sp.booking_min_hours || 1,
+        charges_travel_fees: sp.charges_travel_fees || false,
+        service_radius_miles: sp.service_radius_miles || 25,
+        group_discount_2_plus: sp.group_discount_2_plus || 0,
+        group_discount_3_plus: sp.group_discount_3_plus || 0,
+        group_discount_5_plus: sp.group_discount_5_plus || 0,
 
         // ── On-Demand independent resolution pricing ──
         on_demand_price_web: od.photo_web || 5,

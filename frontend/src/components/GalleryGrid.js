@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Edit3, Trash2, Check, Loader2, Play, Image, MoreVertical, X } from 'lucide-react';
 import { Button } from './ui/button';
 import { getFullUrl } from '../utils/media';
@@ -27,12 +27,21 @@ export const GalleryGridItem = ({
   const isVideo = item.media_type === 'video' || item.type === 'video';
   const [imgError, setImgError] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
+  const videoRef = useRef(null);
 
   const imgSrc = getFullUrl(
     isVideo
       ? (item.thumbnail_url || item.preview_url)
       : (item.preview_url || item.thumbnail_url)
   );
+  const videoSrc = isVideo ? getFullUrl(item.preview_url || item.original_url) : null;
+
+  // Autoplay video on mount (browser requires muted for autoplay)
+  useEffect(() => {
+    if (isVideo && videoRef.current) {
+      videoRef.current.play().catch(() => {});
+    }
+  }, [isVideo]);
 
   const handleTap = () => {
     if (bulkSelectMode) {
@@ -111,7 +120,7 @@ export const GalleryGridItem = ({
         </>
       )}
 
-      {/* Media preview — always render img; background shows through if image fails */}
+      {/* Media preview — video items autoplay muted, photo items show img */}
       <div className="w-full h-full bg-gradient-to-br from-gray-700/80 to-gray-900/80 flex items-center justify-center">
         {/* Fallback icon shows through when image is transparent or fails */}
         {isVideo ? (
@@ -120,7 +129,19 @@ export const GalleryGridItem = ({
           <Image className="w-8 h-8 text-gray-500/40 absolute" />
         )}
         
-        {imgSrc && (
+        {isVideo && videoSrc ? (
+          <video
+            ref={videoRef}
+            src={videoSrc}
+            className={`w-full h-full object-cover transition-transform duration-300 group-hover:scale-105 relative z-[1]`}
+            muted
+            loop
+            playsInline
+            autoPlay
+            preload="metadata"
+            poster={imgSrc || undefined}
+          />
+        ) : imgSrc ? (
           <img
             src={imgSrc}
             alt={item.title || (isVideo ? 'Video' : 'Photo')}
@@ -128,7 +149,7 @@ export const GalleryGridItem = ({
             loading="lazy"
             onError={() => setImgError(true)}
           />
-        )}
+        ) : null}
         
         {/* Selection tint overlay */}
         {bulkSelectMode && isSelected && (

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { usePricing } from '../contexts/PricingContext';
 import apiClient, { BACKEND_URL } from '../lib/apiClient';
@@ -26,6 +27,7 @@ import { getErrorMessage } from '../utils/errors';
 
 export const GalleryPage = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const { 
     generalSettings, 
     updateGeneralSettings, 
@@ -68,6 +70,11 @@ export const GalleryPage = () => {
     booking_price_web: 3, booking_price_standard: 5, booking_price_high: 10,
     booking_video_720p: 8, booking_video_1080p: 15, booking_video_4k: 30,
     booking_photos_included: 3, booking_videos_included: 0,
+    // On-Demand hourly rate
+    on_demand_hourly_rate: 75,
+    // Booking advanced settings (display-only, managed via /photographer/bookings)
+    booking_min_hours: 1, charges_travel_fees: false, service_radius_miles: 25,
+    group_discount_2_plus: 0, group_discount_3_plus: 0, group_discount_5_plus: 0,
     // Legacy fields
     on_demand_photo_price: 10, live_session_photo_price: 5
   });
@@ -891,12 +898,57 @@ export const GalleryPage = () => {
                     <p className="text-lg font-bold text-blue-400">{galleryPricing.booking_videos_included}</p>
                   </div>
                 </div>
+                {/* Advanced settings summary + deep-link */}
+                <div className="mt-3 space-y-2">
+                  {/* Quick-glance pills for advanced settings */}
+                  <div className="flex flex-wrap gap-1.5">
+                    <div className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px]" style={{ background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.15)' }}>
+                      <span className="text-muted-foreground">⏱ Min Hours:</span>
+                      <span className="font-semibold text-blue-400">{galleryPricing.booking_min_hours}h</span>
+                    </div>
+                    <div className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px]" style={{ background: galleryPricing.charges_travel_fees ? 'rgba(245,158,11,0.1)' : 'rgba(59,130,246,0.08)', border: `1px solid ${galleryPricing.charges_travel_fees ? 'rgba(245,158,11,0.2)' : 'rgba(59,130,246,0.15)'}` }}>
+                      <span className="text-muted-foreground">🚗 Travel Fees:</span>
+                      <span className={`font-semibold ${galleryPricing.charges_travel_fees ? 'text-amber-400' : 'text-muted-foreground'}`}>
+                        {galleryPricing.charges_travel_fees ? 'Enabled' : 'Off'}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px]" style={{ background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.15)' }}>
+                      <span className="text-muted-foreground">📍 Radius:</span>
+                      <span className="font-semibold text-blue-400">{galleryPricing.service_radius_miles} mi</span>
+                    </div>
+                    {(galleryPricing.group_discount_2_plus > 0 || galleryPricing.group_discount_3_plus > 0 || galleryPricing.group_discount_5_plus > 0) && (
+                      <div className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px]" style={{ background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.15)' }}>
+                        <span className="text-muted-foreground">👥 Group Discounts:</span>
+                        <span className="font-semibold text-emerald-400">Active</span>
+                      </div>
+                    )}
+                  </div>
+                  {/* Deep-link to full booking settings */}
+                  <button
+                    onClick={() => navigate('/photographer/bookings')}
+                    className="w-full p-3 rounded-lg flex items-center justify-between group/link transition-all hover:scale-[1.01]"
+                    style={{ background: 'linear-gradient(135deg, rgba(59,130,246,0.08), rgba(139,92,246,0.08))', border: '1px dashed rgba(59,130,246,0.3)' }}
+                  >
+                    <div className="flex items-center gap-2">
+                      <Settings className="w-4 h-4 text-blue-400" />
+                      <div className="text-left">
+                        <p className="text-xs font-semibold text-foreground">Configure Advanced Booking Rates</p>
+                        <p className="text-[10px] text-muted-foreground">Group discounts, travel surcharges, cancellation policy, deposit %</p>
+                      </div>
+                    </div>
+                    <ChevronDown className="w-4 h-4 text-blue-400 -rotate-90 group-hover/link:translate-x-0.5 transition-transform" />
+                  </button>
+                </div>
               </div>
             )}
 
             {/* ─── On-Demand Tab ─── */}
             {pricingTab === 'ondemand' && (
               <div>
+                <div className="p-2.5 rounded-lg mb-3 flex items-center justify-between" style={{ background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.2)' }}>
+                  <span className="text-xs text-muted-foreground">⚡ Hourly Rate</span>
+                  <span className="text-sm font-bold text-emerald-400">${galleryPricing.on_demand_hourly_rate}/hr</span>
+                </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-3">
                   <div>
                     <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">📷 Photo Pricing</p>
@@ -939,6 +991,21 @@ export const GalleryPage = () => {
                     <p className="text-lg font-bold text-emerald-400">{galleryPricing.on_demand_videos_included}</p>
                   </div>
                 </div>
+                {/* Advanced settings deep-link */}
+                <button
+                  onClick={() => navigate('/photographer/bookings')}
+                  className="w-full mt-3 p-3 rounded-lg flex items-center justify-between group/link transition-all hover:scale-[1.01]"
+                  style={{ background: 'linear-gradient(135deg, rgba(16,185,129,0.08), rgba(6,182,212,0.08))', border: '1px dashed rgba(16,185,129,0.3)' }}
+                >
+                  <div className="flex items-center gap-2">
+                    <MapPin className="w-4 h-4 text-emerald-400" />
+                    <div className="text-left">
+                      <p className="text-xs font-semibold text-foreground">Advanced On-Demand Settings</p>
+                      <p className="text-[10px] text-muted-foreground">Service radius, peak pricing, availability zone</p>
+                    </div>
+                  </div>
+                  <ChevronDown className="w-4 h-4 text-emerald-400 -rotate-90 group-hover/link:translate-x-0.5 transition-transform" />
+                </button>
               </div>
             )}
           </CardContent>
@@ -997,6 +1064,10 @@ export const GalleryPage = () => {
                       src={getFullUrl(item.preview_url)} 
                       className="w-full h-full object-cover"
                       muted
+                      loop
+                      playsInline
+                      autoPlay
+                      preload="metadata"
                     />
                   ) : (
                     <img 
@@ -1726,6 +1797,10 @@ export const GalleryPage = () => {
               <h4 className="font-medium text-foreground mb-3 flex items-center gap-2 text-sm">
                 <MapPin className="w-4 h-4 text-emerald-400" /> On-Demand Pricing
               </h4>
+              <div className="mb-3">
+                <Label className="text-muted-foreground text-xs">Hourly Rate ($)</Label>
+                <Input type="number" value={galleryPricing.on_demand_hourly_rate} onChange={(e) => setGalleryPricing({ ...galleryPricing, on_demand_hourly_rate: parseFloat(e.target.value) || 0 })} className="bg-background text-foreground border-border h-8 w-28" />
+              </div>
               <div className="grid grid-cols-2 gap-4 mb-3">
                 <div className="space-y-2">
                   <p className="text-[10px] font-semibold text-muted-foreground uppercase">📷 Photos</p>

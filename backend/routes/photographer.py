@@ -693,7 +693,15 @@ async def get_gallery_pricing(
             "booking_videos_included": photographer.booking_videos_included or 0,
             "booking_full_gallery": photographer.booking_full_gallery or False,
             "on_demand_full_gallery": photographer.on_demand_full_gallery or False,
-            "live_session_full_gallery": photographer.live_session_full_gallery or False
+            "live_session_full_gallery": photographer.live_session_full_gallery or False,
+            "on_demand_hourly_rate": photographer.on_demand_hourly_rate or 75.0,
+            # Booking advanced settings (display-only in Gallery Hub)
+            "booking_min_hours": photographer.booking_min_hours or 1.0,
+            "charges_travel_fees": photographer.charges_travel_fees or False,
+            "service_radius_miles": photographer.service_radius_miles or 25.0,
+            "group_discount_2_plus": photographer.group_discount_2_plus or 0.0,
+            "group_discount_3_plus": photographer.group_discount_3_plus or 0.0,
+            "group_discount_5_plus": photographer.group_discount_5_plus or 0.0,
         },
         # Independent per-session-type resolution pricing
         "on_demand_pricing": {
@@ -754,6 +762,8 @@ class UpdateGalleryPricingRequest(BaseModel):
     booking_video_720p: Optional[float] = None
     booking_video_1080p: Optional[float] = None
     booking_video_4k: Optional[float] = None
+    # On-Demand hourly rate
+    on_demand_hourly_rate: Optional[float] = None
 
 
 @router.put("/photographer/{photographer_id}/gallery-pricing")
@@ -831,6 +841,10 @@ async def update_gallery_pricing(
         photographer.booking_video_1080p = max(0, data.booking_video_1080p)
     if data.booking_video_4k is not None:
         photographer.booking_video_4k = max(0, data.booking_video_4k)
+
+    # On-Demand hourly rate
+    if data.on_demand_hourly_rate is not None:
+        photographer.on_demand_hourly_rate = max(0, data.on_demand_hourly_rate)
 
     await db.commit()
     await db.refresh(photographer)
