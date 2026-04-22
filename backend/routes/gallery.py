@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Body
+from fastapi import APIRouter, Depends, HTTPException, Body, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, case
 from sqlalchemy.orm import selectinload
@@ -5299,8 +5299,8 @@ class UpdateSessionSettingsRequest(BaseModel):
 @router.patch("/gallery/{gallery_id}/session-settings")
 async def update_session_settings(
     gallery_id: str,
-    photographer_id: str,
-    data: UpdateSessionSettingsRequest,
+    photographer_id: str = Query(..., description="Photographer ID for authorization"),
+    data: UpdateSessionSettingsRequest = Body(...),
     db: AsyncSession = Depends(get_db)
 ):
     """
