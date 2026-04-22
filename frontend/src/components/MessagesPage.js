@@ -29,6 +29,7 @@ import ComposeModal from './messages/ComposeModal';
 import ConversationItem from './messages/ConversationItem';
 import MessageBubble from './messages/MessageBubble';
 import { ROLES } from '../constants/roles';
+import usePresence from '../hooks/usePresence';
 
 // Role-based icon helper - uses expanded PersonaContext
 const getRoleIcon = (role, isAdmin = false) => {
@@ -491,6 +492,9 @@ export const MessagesPage = () => {
   
   // Get effective role for UI rendering (respects God Mode persona masking)
   const effectiveRole = getEffectiveRole(user?.role);
+  
+  // Real-time presence tracking
+  const { isOnline } = usePresence(user?.id);
   
   // State
   const [activeFolder, setActiveFolder] = useState('primary');
@@ -1512,6 +1516,7 @@ export const MessagesPage = () => {
                 key={conv.id}
                 conversation={conv}
                 isSelected={selectedConversation?.id === conv.id}
+                isOnline={isOnline(conv.other_user_id)}
                 onClick={() => {
                   setSelectedConversation(conv);
                   navigate(`/messages/${conv.id}`);
@@ -1577,11 +1582,12 @@ export const MessagesPage = () => {
               <span className="text-muted-foreground">Start a conversation</span>
             ) : typingUsers.length > 0 ? (
               <span className="text-cyan-400 animate-pulse">typing...</span>
+            ) : isOnline(conversationDetail?.other_user_id || selectedConversation?.other_user_id) ? (
+              <span className="text-green-400">&#x25CF; Active now</span>
             ) : (() => {
               const lastActive = conversationDetail?.other_user_last_active;
               if (!lastActive) return <span className="text-muted-foreground">Active recently</span>;
               const diff = Math.floor((Date.now() - new Date(lastActive).getTime()) / 1000);
-              if (diff < 300) return <span className="text-green-400">&#x25CF; Active now</span>;
               if (diff < 3600) return <span className="text-muted-foreground">Active {Math.floor(diff / 60)}m ago</span>;
               if (diff < 86400) return <span className="text-muted-foreground">Active {Math.floor(diff / 3600)}h ago</span>;
               return <span className="text-muted-foreground">Active {new Date(lastActive).toLocaleDateString()}</span>;

@@ -3,6 +3,8 @@ WebSocket Routes for Real-time Updates
 """
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 import logging
+import json
+import asyncio
 
 from websocket_manager import ws_manager
 
@@ -303,3 +305,92 @@ async def websocket_call(websocket: WebSocket, user_id: str):
         logger.error(f"Call WebSocket error for {user_id}: {e}")
     finally:
         ws_manager.disconnect(websocket, room=room)
+
+
+@router.websocket("/ws/presence/{user_id}")
+async def websocket_presence(websocket: WebSocket, user_id: str):
+    """
+    WebSocket endpoint for real-time presence (online/offline) tracking.
+    
+    Client sends heartbeats every 30s to stay "online".
+    Client can request online user list at any time.
+    On disconnect, user is marked offline.
+    """
+    room = f"presence_{user_id}"
+    await ws_manager.connect(websocket, room=room)
+    ws_manager.mark_online(user_id)
+    
+    try:
+        # Send initial confirmation + current online users
+        online_ids = ws_manager.get_online_user_ids()
+        await ws_manager.send_personal(websocket, {
+            "type": "presence_connected",
+            "user_id": user_id,
+            "online_users": online_ids
+        })
+        
+        # Broadcast to all presence rooms that this user came online
+        for uid in online_ids:
+            if uid != user_id:
+                target_room = f"presence_{uid}"
+                await ws_manager.broadcast({
+                    "type": "user_online",
+                    "user_id": user_id
+                }, room=target_room)
+        
+        while True:
+            try:
+                data = await websocket.receive_text()
+                
+                if data == "ping":
+                    ws_manager.mark_online(user_id)
+                    await ws_manager.send_personal(websocket, {"type": "pong"})
+                    continue
+                    
+                msg = json.loads(data)
+                msg_type = msg.get("type")
+                
+                if msg_type == "heartbeat":
+                    ws_manager.mark_online(user_id)
+                    await ws_manager.send_personal(websocket, {"type": "heartbeat_ack"})
+                    
+                elif msg_type == "get_online":
+                    online_ids = ws_manager.get_online_user_ids()
+                    await ws_manager.send_personal(websocket, {
+                        "type": "online_users",
+                        "users": online_ids
+                    })
+                    
+            except WebSocketDisconnect:
+                break
+            except json.JSONDecodeError:
+                continue
+                
+    except Exception as e:
+        logger.error(f"Presence WebSocket error for {user_id}: {e}")
+    finally:
+        ws_manager.mark_offline(user_id)
+        ws_manager.disconnect(websocket, room=room)
+        
+        # Broadcast offline status to all connected presence rooms
+        try:
+            online_ids = ws_manager.get_online_user_ids()
+            for uid in online_ids:
+                target_room = f"presence_{uid}"
+                await ws_manager.broadcast({
+                    "type": "user_offline",
+                    "user_id": user_id
+                }, room=target_room)
+        except Exception:
+            pass
+
+
+@router.get("/presence/online")
+async def get_online_users():
+    """REST fallback: Get list of currently online user IDs"""
+    online = ws_manager.get_online_user_ids()
+    return {
+        "online_users": online,
+        "count": len(online)
+    }
+

@@ -20,7 +20,7 @@ const getRoleIcon = (role, isAdmin = false) => {
 
 
 
-const ConversationItem = ({ conversation, isSelected, onClick }) => {
+const ConversationItem = ({ conversation, isSelected, isOnline, onClick }) => {
   const hasUnread = conversation.unread_count > 0 || conversation.is_manually_unread;
   const roleInfo = getRoleIcon(conversation.other_user_role);
   const RoleIcon = roleInfo.icon;
@@ -76,9 +76,8 @@ const ConversationItem = ({ conversation, isSelected, onClick }) => {
             {conversation.other_user_name?.charAt(0)}
           </div>
         </div>
-        {/* Online indicator - green dot only if they sent a message in this chat within last 5 min */}
-        {conversation.other_user_last_active &&
-          (Date.now() - new Date(conversation.other_user_last_active).getTime()) < 300000 && (
+        {/* Online indicator — real-time from presence WebSocket */}
+        {isOnline && (
           <div className="absolute bottom-0 right-0 w-4 h-4 bg-green-500 rounded-full border-2 border-background" />
         )}
       </div>

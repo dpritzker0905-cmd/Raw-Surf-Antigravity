@@ -19,6 +19,11 @@ class ConnectionManager:
     def __init__(self):
         # room_name -> set of websockets
         self.active_connections: Dict[str, Set[WebSocket]] = {}
+        # ── Presence tracking ─────────────────────────────────────
+        # user_id -> last heartbeat timestamp (seconds since epoch)
+        self.online_users: Dict[str, float] = {}
+        # user_id -> set of websockets subscribed to presence updates
+        self.presence_subscribers: Dict[str, WebSocket] = {}
     
     async def connect(self, websocket: WebSocket, room: str = "conditions"):
         """Accept and track a new WebSocket connection"""
@@ -63,6 +68,34 @@ class ConnectionManager:
     def get_connection_count(self, room: str = "conditions") -> int:
         """Get the number of active connections in a room"""
         return len(self.active_connections.get(room, set()))
+
+    # ── Presence methods ───────────────────────────────────────────
+    def mark_online(self, user_id: str):
+        """Mark a user as online (called on heartbeat)"""
+        import time
+        self.online_users[user_id] = time.time()
+
+    def mark_offline(self, user_id: str):
+        """Remove a user from online tracking"""
+        self.online_users.pop(user_id, None)
+
+    def get_online_user_ids(self, timeout_seconds: int = 90) -> List[str]:
+        """Get list of user IDs that sent a heartbeat within timeout"""
+        import time
+        now = time.time()
+        # Clean up stale entries
+        stale = [uid for uid, ts in self.online_users.items() if now - ts > timeout_seconds]
+        for uid in stale:
+            del self.online_users[uid]
+        return list(self.online_users.keys())
+
+    def is_user_online(self, user_id: str, timeout_seconds: int = 90) -> bool:
+        """Check if a specific user is currently online"""
+        import time
+        ts = self.online_users.get(user_id)
+        if ts is None:
+            return False
+        return (time.time() - ts) < timeout_seconds
 
 
 # Global connection manager instance
