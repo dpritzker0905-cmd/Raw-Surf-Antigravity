@@ -6,7 +6,7 @@
 import React, { useEffect, useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import apiClient, { BACKEND_URL } from '../lib/apiClient';
+import apiClient from '../lib/apiClient';
 import { CheckCircle, Loader2, XCircle, Camera, Sparkles, Upload } from 'lucide-react';
 import { Button } from './ui/button';
 import { toast } from 'sonner';

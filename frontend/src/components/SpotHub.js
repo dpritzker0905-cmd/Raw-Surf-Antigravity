@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 
 import { useParams, useNavigate } from 'react-router-dom';
 
@@ -548,6 +548,7 @@ const SpotHub = () => {
       const pulseInterval = setInterval(fetchLivePulse, 30000);
       return () => clearInterval(pulseInterval);
     }
+    // eslint-disable-next-line
   }, [spotId, user?.id]);
   
   // IntersectionObserver for collapsible header — detects when hero scrolls out of view

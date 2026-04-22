@@ -12,7 +12,7 @@
  */
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { 
-  X, Image, Video, Loader2, Folder, Upload, CheckCircle2, 
+  X, Image, Loader2, Folder, Upload, CheckCircle2, 
   AlertCircle, Camera, Film, Info, ChevronDown, RotateCcw, Plus
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
@@ -91,7 +91,7 @@ export const UploadPhotoModal = ({
   onClose, 
   onUploaded, 
   targetFolderId = null, 
-  targetFolderName = null, 
+  _targetFolderName = null, 
   galleries = [],
   galleryPricing = null,
   selectedGallery = null
@@ -99,7 +99,7 @@ export const UploadPhotoModal = ({
   const { user } = useAuth();
   const [files, setFiles] = useState([]);
   const [uploading, setUploading] = useState(false);
-  const [currentUploadId, setCurrentUploadId] = useState(null);
+  const [_currentUploadId, setCurrentUploadId] = useState(null);
   const [selectedFolderId, setSelectedFolderId] = useState(targetFolderId);
   const [dragOver, setDragOver] = useState(false);
   const [uploadComplete, setUploadComplete] = useState(false);

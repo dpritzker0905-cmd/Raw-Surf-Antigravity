@@ -1583,10 +1583,14 @@ def _build_session_roster(gallery, live_map, booking_map, dispatch_map, dist_map
     if gallery.live_session_id and gallery.live_session_id in live_map:
         participants = live_map[gallery.live_session_id]
         photos_included = 3
-        videos_included = 1
+        # Default videos_included to 0 until photographer explicitly sets it
+        # The old photos_included covers ALL content types pre-migration
+        videos_included = 0
         if gallery.live_session:
             photos_included = getattr(gallery.live_session, 'photos_included', 3) or 3
-            videos_included = getattr(gallery.live_session, 'videos_included', 1) or 1
+            # Only use videos_included if column exists and was explicitly set (> 0)
+            raw_vid = getattr(gallery.live_session, 'videos_included', None)
+            videos_included = raw_vid if raw_vid and raw_vid > 0 else 0
         for p in participants:
             p["photos_included"] = photos_included
             p["videos_included"] = videos_included
@@ -1595,13 +1599,13 @@ def _build_session_roster(gallery, live_map, booking_map, dispatch_map, dist_map
         participants = booking_map[gallery.booking_id]
         for p in participants:
             p["photos_included"] = p.get("photos_included", 3)
-            p["videos_included"] = p.get("videos_included", 1)
+            p["videos_included"] = p.get("videos_included", 0)
     
     elif gallery.dispatch_id and gallery.dispatch_id in dispatch_map:
         participants = dispatch_map[gallery.dispatch_id]
         for p in participants:
             p["photos_included"] = 3
-            p["videos_included"] = 1
+            p["videos_included"] = 0
     
     else:
         return []
@@ -4152,7 +4156,8 @@ async def tag_single_item_to_surfer(
             already_included = dist_count_result.scalar() or 0
             
             # Get included count from session settings
-            type_included = 3 if not is_video else 1  # defaults
+            # Default video to 0 (pre-migration: photos_included covers all content)
+            type_included = 3 if not is_video else 0  # defaults
             if gallery.live_session_id:
                 ls_result = await db.execute(
                     select(LiveSession).where(LiveSession.id == gallery.live_session_id)
@@ -4160,7 +4165,8 @@ async def tag_single_item_to_surfer(
                 ls = ls_result.scalar_one_or_none()
                 if ls:
                     if is_video:
-                        type_included = getattr(ls, 'videos_included', 1) or 1
+                        raw_vid = getattr(ls, 'videos_included', None)
+                        type_included = raw_vid if raw_vid and raw_vid > 0 else 0
                     else:
                         type_included = getattr(ls, 'photos_included', 3) or 3
             

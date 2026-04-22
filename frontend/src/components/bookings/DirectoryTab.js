@@ -13,8 +13,8 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
-  Search, MapPin, Camera, Filter, Star, ChevronRight, Loader2, Plane, CheckCircle,
-  Map, SlidersHorizontal, Waves, ArrowUpDown, Lock, Radio, Crown, Image, User, CalendarPlus
+  Search, MapPin, Camera, Filter, Star, Loader2, Plane, CheckCircle,
+  Map, SlidersHorizontal, Waves, ArrowUpDown, Lock, Radio, Image, User, CalendarPlus
 } from 'lucide-react';
 import { Card, CardContent } from '../ui/card';
 import { Button } from '../ui/button';
@@ -389,7 +389,7 @@ const DirectoryFilterSheet = ({ isOpen, onClose, filters, onFiltersChange, theme
  * Main DirectoryTab Component
  */
 export const DirectoryTab = ({
-  user,
+  _user,
   theme,
   subscriptionTier = 'Free',
   onSelectPhotographer
