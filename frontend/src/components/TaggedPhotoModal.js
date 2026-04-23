@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
@@ -13,6 +13,7 @@ import { Badge } from './ui/badge';
 import { Avatar, AvatarImage, AvatarFallback } from './ui/avatar';
 import { toast } from 'sonner';
 import logger from '../utils/logger';
+import { isGrom } from '../lib/roles';
 
 
 export const TaggedPhotoModal = ({ 
@@ -97,6 +98,10 @@ export const TaggedPhotoModal = ({
   };
 
   const handlePurchase = async () => {
+    if (isGrom(user)) {
+      toast.info('🤙 Ask your parent to approve this purchase!');
+      return;
+    }
     setPurchasing(true);
     try {
       // Determine price based on user status
@@ -132,6 +137,10 @@ export const TaggedPhotoModal = ({
   };
 
   const handleClaimFreePhoto = async () => {
+    if (isGrom(user)) {
+      toast.info('🤙 Ask your parent to approve this claim!');
+      return;
+    }
     // For session participants with $0 price - claim without payment
     try {
       const response = await apiClient.post(`/gallery/items/${photo.id}/claim`, {

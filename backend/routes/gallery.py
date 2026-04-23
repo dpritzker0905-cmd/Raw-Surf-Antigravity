@@ -556,11 +556,24 @@ async def get_gallery_item_pricing(
         # 1. Item's locked prices (set at upload time for session_origin photos)
         # 2. Participant's locked prices (from when they joined the session)
         # 3. Session override prices
-        # 4. General photographer/gallery prices
+        # 4. Gallery-level snapshot prices (frozen at gallery creation time)
+        # 5. General photographer/gallery prices (LIVE — only for non-session items)
         
-        general_price_web = item.price_web or (photographer.photo_price_web if photographer else 3.0) or 3.0
-        general_price_standard = item.price_standard or (photographer.photo_price_standard if photographer else 5.0) or 5.0
-        general_price_high = item.price_high or (photographer.photo_price_high if photographer else 10.0) or 10.0
+        # Prefer gallery's snapshotted prices over photographer's live profile prices.
+        # This ensures that if a photographer changes rates after a session,
+        # the gallery's items still show the prices from when the session occurred.
+        gallery_obj = item.gallery if item.gallery_id else None
+        
+        if gallery_obj and (gallery_obj.price_web or gallery_obj.price_standard or gallery_obj.price_high):
+            # Gallery has its own price snapshot — use it as the general/fallback price
+            general_price_web = item.price_web or gallery_obj.price_web or (photographer.photo_price_web if photographer else 3.0) or 3.0
+            general_price_standard = item.price_standard or gallery_obj.price_standard or (photographer.photo_price_standard if photographer else 5.0) or 5.0
+            general_price_high = item.price_high or gallery_obj.price_high or (photographer.photo_price_high if photographer else 10.0) or 10.0
+        else:
+            # No gallery snapshot — use photographer's live profile prices
+            general_price_web = item.price_web or (photographer.photo_price_web if photographer else 3.0) or 3.0
+            general_price_standard = item.price_standard or (photographer.photo_price_standard if photographer else 5.0) or 5.0
+            general_price_high = item.price_high or (photographer.photo_price_high if photographer else 10.0) or 10.0
         
         # Determine final prices per tier
         if is_free_from_session:
@@ -1187,6 +1200,19 @@ async def move_item_to_gallery(
     item.gallery_id = data.target_gallery_id
     target_gallery.item_count += 1
     
+    # ============ PRICE SNAPSHOT: Inherit gallery's locked prices ============
+    # When a photo is moved into a session gallery, it should adopt the pricing
+    # that was active at the time of the session — NOT the photographer's current prices.
+    # This ensures price consistency even if the photographer changes rates later.
+    if target_gallery.locked_price_web is not None:
+        item.locked_price_web = target_gallery.locked_price_web
+    if target_gallery.locked_price_standard is not None:
+        item.locked_price_standard = target_gallery.locked_price_standard
+    if target_gallery.locked_price_high is not None:
+        item.locked_price_high = target_gallery.locked_price_high
+    if target_gallery.session_type:
+        item.session_origin_mode = target_gallery.session_type
+    
     # Set cover image if target doesn't have one
     if not target_gallery.cover_image_url and item.media_type == 'image':
         target_gallery.cover_image_url = item.preview_url
@@ -1382,7 +1408,14 @@ async def copy_item_to_gallery(
         video_width=item.video_width,
         video_height=item.video_height,
         video_duration=item.video_duration,
-        shot_at=item.shot_at
+        shot_at=item.shot_at,
+        # ============ PRICE SNAPSHOT: Inherit gallery's locked prices ============
+        # Copy inherits the session-time pricing from the target gallery so
+        # future photographer price changes don't retroactively affect this gallery.
+        locked_price_web=target_gallery.locked_price_web,
+        locked_price_standard=target_gallery.locked_price_standard,
+        locked_price_high=target_gallery.locked_price_high,
+        session_origin_mode=target_gallery.session_type,
     )
     db.add(new_item)
     

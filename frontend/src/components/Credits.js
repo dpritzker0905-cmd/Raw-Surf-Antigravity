@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import apiClient, { BACKEND_URL } from '../lib/apiClient';
@@ -7,6 +7,7 @@ import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { toast } from 'sonner';
 import logger from '../utils/logger';
+import { isGrom } from '../lib/roles';
 
 
 export const Credits = () => {
@@ -88,6 +89,10 @@ export const Credits = () => {
   const handlePurchase = async () => {
     if (!user) {
       toast.error('Please log in to purchase credits');
+      return;
+    }
+    if (isGrom(user)) {
+      toast.info('🤙 Ask your parent to add credits to your account!');
       return;
     }
 

@@ -6,6 +6,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import apiClient from '../../lib/apiClient';
 import { getFullUrl } from '../../utils/media';
+import { isGrom } from '../../lib/roles';
 import { 
   Lock, Eye, ShoppingCart, Download, DollarSign, Edit3, Loader2, Check,
   Play, Image as ImageIcon, X, Send, UserPlus
@@ -30,6 +31,8 @@ export const GalleryItemModal = ({ item, onClose, onPurchased, galleryId }) => {
   const [customPrice, setCustomPrice] = useState(item.custom_price || item.price || 5);
   const [saving, setSaving] = useState(false);
   const [imgError, setImgError] = useState(false);
+  const [unlockAnimation, setUnlockAnimation] = useState(false);
+  const [justPurchased, setJustPurchased] = useState(false);
   
   // Per-image tagging state (photographer only)
   const [tagParticipants, setTagParticipants] = useState([]);
@@ -43,6 +46,7 @@ export const GalleryItemModal = ({ item, onClose, onPurchased, galleryId }) => {
   
   // Check if current user is the owner
   const isOwner = user?.id === item.photographer_id;
+  const userIsGrom = isGrom(user);
   const isVideo = item.media_type === 'video' || item.type === 'video';
   
   // Resolve the correct preview URL  
@@ -131,6 +135,10 @@ export const GalleryItemModal = ({ item, onClose, onPurchased, galleryId }) => {
   };
 
   const handlePurchase = async () => {
+    if (userIsGrom) {
+      toast.info('🤙 Ask your parent to approve this purchase!');
+      return;
+    }
     setPurchasing(true);
     try {
       const _response = await apiClient.post(
@@ -139,8 +147,13 @@ export const GalleryItemModal = ({ item, onClose, onPurchased, galleryId }) => {
       );
       
       toast.success('Photo purchased! Check your downloads.');
-      onPurchased();
-      onClose();
+      // Trigger unlock animation
+      setUnlockAnimation(true);
+      setJustPurchased(true);
+      setTimeout(() => {
+        setUnlockAnimation(false);
+        onPurchased();
+      }, 2000);
     } catch (error) {
       toast.error(getErrorMessage(error, 'Purchase failed'));
     } finally {
@@ -154,9 +167,16 @@ export const GalleryItemModal = ({ item, onClose, onPurchased, galleryId }) => {
         `/gallery/download/${item.id}?buyer_id=${user.id}`
       );
       
-      // Open original URL in new tab
-      window.open(response.data.original_url, '_blank');
-      toast.success(`${response.data.downloads_remaining} downloads remaining`);
+      // Use native download link instead of window.open
+      const url = getFullUrl(response.data.original_url || response.data.download_url);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `rawsurf_${item.id?.slice(-8) || 'photo'}.jpg`;
+      link.target = '_blank';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      toast.success(`📸 Saved! ${response.data.downloads_remaining} downloads remaining`);
     } catch (error) {
       toast.error(getErrorMessage(error, 'Download failed'));
     }
@@ -248,12 +268,25 @@ export const GalleryItemModal = ({ item, onClose, onPurchased, galleryId }) => {
           )}
           
           {/* Watermark overlay for non-owners who haven't purchased */}
-          {!isOwner && !item.is_purchased && !imgError && mediaUrl && (
+          {!isOwner && !item.is_purchased && !justPurchased && !imgError && mediaUrl && (
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
               <div className="text-center p-4 bg-black/60 rounded-xl backdrop-blur-sm">
                 <Lock className="w-8 h-8 text-yellow-400 mx-auto mb-2" />
                 <p className="text-white font-medium text-sm">Watermarked Preview</p>
                 <p className="text-gray-400 text-xs">Purchase for full resolution</p>
+              </div>
+            </div>
+          )}
+          
+          {/* Unlock animation overlay */}
+          {unlockAnimation && (
+            <div className="absolute inset-0 flex items-center justify-center z-20 pointer-events-none">
+              <div className="text-center animate-bounce">
+                <div className="w-20 h-20 rounded-full bg-gradient-to-r from-emerald-400 to-cyan-400 flex items-center justify-center mx-auto mb-3 shadow-lg shadow-emerald-500/50">
+                  <Check className="w-10 h-10 text-white" />
+                </div>
+                <p className="text-white text-xl font-bold">🎉 Unlocked!</p>
+                <p className="text-emerald-400 text-sm mt-1">Full resolution available</p>
               </div>
             </div>
           )}
@@ -560,6 +593,23 @@ export const GalleryItemModal = ({ item, onClose, onPurchased, galleryId }) => {
                 >
                   <Download className="w-4 h-4 mr-2" />
                   Download Original
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={onClose}
+                  className="border-zinc-700 text-white hover:bg-zinc-800"
+                >
+                  Close
+                </Button>
+              </>
+            ) : userIsGrom ? (
+              /* ── GROM: Parent-mediated purchase ── */
+              <>
+                <Button
+                  onClick={handlePurchase}
+                  className="flex-1 font-bold bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white"
+                >
+                  👨‍👧 Ask Parent to Approve
                 </Button>
                 <Button
                   variant="outline"

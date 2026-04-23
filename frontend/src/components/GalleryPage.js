@@ -18,6 +18,7 @@ import WatermarkSettings from './WatermarkSettings';
 import { UploadPhotoModal } from './gallery/UploadPhotoModal';
 import { GalleryItemModal } from './gallery/GalleryItemModal';
 import { SessionRosterCard } from './gallery/SessionRosterCard';
+import { PostSessionSummary } from './gallery/PostSessionSummary';
 import logger from '../utils/logger';
 import { ROLES } from '../constants/roles';
 import { getFullUrl } from '../utils/media';
@@ -106,6 +107,7 @@ export const GalleryPage = () => {
   const [sessionInfo, setSessionInfo] = useState(null);
   const [distributeLoading, setDistributeLoading] = useState({});
   const [distributeAllLoading, setDistributeAllLoading] = useState(false);
+  const [distributeProgress, setDistributeProgress] = useState(null); // { current, total }
   const [manualSurferSearch, setManualSurferSearch] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [searchLoading, setSearchLoading] = useState(false);
@@ -607,10 +609,17 @@ export const GalleryPage = () => {
     setDistributeAllLoading(true);
     
     try {
+      // Track progress by distributing items individually
+      const galleryItemsResponse = await apiClient.get(`/galleries/${selectedGallery.id}/items?viewer_id=${user.id}`);
+      const allItems = galleryItemsResponse.data || [];
+      const totalItems = allItems.length * participants.length;
+      setDistributeProgress({ current: 0, total: totalItems || 1 });
+      
       const response = await apiClient.post(
         `/gallery/${selectedGallery.id}/distribute?photographer_id=${user.id}`
       );
       const total = response.data.total_distributed || 0;
+      setDistributeProgress({ current: totalItems, total: totalItems });
       toast.success(`✅ Distributed ${total} locker items to all participants!`);
       
       // Refresh to update counts
@@ -619,6 +628,7 @@ export const GalleryPage = () => {
       toast.error(getErrorMessage(error, 'Failed to distribute to all participants'));
     } finally {
       setDistributeAllLoading(false);
+      setTimeout(() => setDistributeProgress(null), 2000);
     }
   };
 
@@ -791,6 +801,20 @@ export const GalleryPage = () => {
           </Button>
         )}
       </div>
+
+      {/* Post-Session Summary — shows for recent galleries when inside a gallery folder */}
+      {selectedGallery && (
+        <PostSessionSummary
+          gallery={selectedGallery}
+          participants={participants}
+          onDistributeAll={handleDistributeAll}
+          onOpenTagAssign={handleOpenTagAssign}
+          onAiAutoTag={handleAiAutoTag}
+          isDistributing={distributeAllLoading}
+          distributeProgress={distributeProgress}
+          isAiTagging={aiAutoTagLoading}
+        />
+      )}
 
       {/* Gallery Pricing Card – Tabbed Per-Service Pricing */}
       {showPricing && (

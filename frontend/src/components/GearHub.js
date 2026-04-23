@@ -12,6 +12,8 @@ import {
 } from 'lucide-react';
 import logger from '../utils/logger';
 import { ROLES } from '../constants/roles';
+import { isGrom } from '../lib/roles';
+import { getFullUrl } from '../utils/media';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
@@ -88,6 +90,10 @@ export const GearHub = () => {
   const handlePurchase = async (item) => {
     if (!user?.id) {
       toast.error('Please log in to purchase');
+      return;
+    }
+    if (isGrom(user)) {
+      toast.info('🤙 Ask your parent to approve this purchase!');
       return;
     }
 

@@ -15,6 +15,8 @@ import { LockerSelfieModal } from './LockerSelfieModal';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from './ui/dialog';
 import { toast } from 'sonner';
 import logger from '../utils/logger';
+import { getFullUrl } from '../utils/media';
+import { isGrom } from '../lib/roles';
 
 
 // Gallery View Modes
@@ -154,6 +156,10 @@ export const PublicPhotographerGallery = () => {
       toast.error('Please log in to purchase');
       return;
     }
+    if (isGrom(user)) {
+      toast.info('🤙 Ask your parent to approve this purchase!');
+      return;
+    }
     
     setPurchaseLoading(true);
     try {
@@ -288,7 +294,7 @@ export const PublicPhotographerGallery = () => {
             <div className="w-28 h-28 rounded-full border-4 border-black overflow-hidden bg-zinc-800">
               {photographer?.avatar_url ? (
                 <img 
-                  src={photographer.avatar_url.startsWith('http') ? photographer.avatar_url : `${API}${photographer.avatar_url}`}
+                  src={getFullUrl(photographer.avatar_url)}
                   alt={photographer?.full_name}
                   className="w-full h-full object-cover"
                 />

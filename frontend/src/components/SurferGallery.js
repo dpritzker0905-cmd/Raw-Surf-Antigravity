@@ -42,8 +42,10 @@ import AIProposedMatches from './AIProposedMatches';
 import { LockerSelfieModal } from './LockerSelfieModal';
 import { BulkPurchaseBar, MultiSelectToggle } from './gallery/BulkPurchaseBar';
 import { VisibilityOnboarding } from './gallery/DownloadVisibility';
+import { GalleryLightbox } from './gallery/GalleryLightbox';
 import logger from '../utils/logger';
 import { getFullUrl } from '../utils/media';
+import { isGrom } from '../lib/roles';
 
 /**
  * Gallery Item Card Component - Enhanced with favorites and sharing
@@ -1496,84 +1498,37 @@ export const SurferGallery = () => {
         }}
       />
       
-      {/* Phase 2: Lightbox Modal */}
+      {/* Fullscreen Lightbox */}
       {lightboxItem && (
-        <div 
-          className="fixed inset-0 z-50 bg-black/95 flex items-center justify-center"
-          onClick={() => setLightboxItem(null)}
-        >
-          <button
-            className="absolute top-4 right-4 text-foreground/70 hover:text-foreground p-2"
-            onClick={() => setLightboxItem(null)}
-          >
-            <X className="w-8 h-8" />
-          </button>
-          
-          {/* Navigation arrows */}
-          {filteredItems.findIndex(i => i.id === lightboxItem.id) > 0 && (
-            <button
-              className="absolute left-4 text-foreground/70 hover:text-foreground p-2"
-              onClick={(e) => {
-                e.stopPropagation();
-                const idx = filteredItems.findIndex(i => i.id === lightboxItem.id);
-                setLightboxItem(filteredItems[idx - 1]);
-              }}
-            >
-              <ChevronLeft className="w-10 h-10" />
-            </button>
-          )}
-          {filteredItems.findIndex(i => i.id === lightboxItem.id) < filteredItems.length - 1 && (
-            <button
-              className="absolute right-4 text-foreground/70 hover:text-foreground p-2"
-              onClick={(e) => {
-                e.stopPropagation();
-                const idx = filteredItems.findIndex(i => i.id === lightboxItem.id);
-                setLightboxItem(filteredItems[idx + 1]);
-              }}
-            >
-              <ChevronRight className="w-10 h-10" />
-            </button>
-          )}
-          
-          {/* Image */}
-          <img
-            src={lightboxItem.url || lightboxItem.thumbnail_url}
-            alt={lightboxItem.title || 'Gallery item'}
-            className="max-w-[90vw] max-h-[85vh] object-contain"
-            onClick={(e) => e.stopPropagation()}
-          />
-          
-          {/* Bottom info bar */}
-          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-6">
-            <div className="flex items-center justify-between max-w-4xl mx-auto">
-              <div>
-                <p className="text-foreground font-medium">{lightboxItem.photographer_name || 'Unknown'}</p>
-                <p className="text-foreground/60 text-sm">{lightboxItem.spot_name} • {new Date(lightboxItem.created_at).toLocaleDateString()}</p>
-              </div>
-              <div className="flex gap-2">
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className={`text-foreground ${lightboxItem.is_favorite ? 'text-red-500' : ''}`}
-                  onClick={(e) => { e.stopPropagation(); handleFavoriteToggle(lightboxItem.id); }}
-                >
-                  <Heart className={`w-5 h-5 ${lightboxItem.is_favorite ? 'fill-current' : ''}`} />
-                </Button>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className="text-foreground"
-                  onClick={(e) => { e.stopPropagation(); setDownloadModal({ isOpen: true, item: lightboxItem }); setLightboxItem(null); }}
-                >
-                  <Download className="w-5 h-5" />
-                </Button>
-              </div>
-            </div>
-            <p className="text-center text-foreground/40 text-xs mt-2">← → Navigate • F Favorite • Esc Close</p>
-          </div>
-        </div>
+        <GalleryLightbox
+          item={lightboxItem}
+          items={filteredItems}
+          onClose={() => setLightboxItem(null)}
+          onNavigate={(item) => setLightboxItem(item)}
+          onFavoriteToggle={(id) => {
+            handleFavoriteToggle(id);
+            // Optimistically update lightbox item
+            setLightboxItem(prev => prev ? { ...prev, is_favorite: !prev.is_favorite } : null);
+          }}
+          onDownload={(item) => setDownloadModal({ isOpen: true, item })}
+          onShare={(item) => setShareModal({ isOpen: true, item })}
+          onPurchase={handleSinglePurchase}
+          onMessage={handleMessagePhotographer}
+          isGromUser={isGrom(user)}
+        />
       )}
       
+      {/* Find Me FAB — one-tap selfie scanner access */}
+      {!multiSelectMode && !lightboxItem && (
+        <button
+          onClick={() => setScanModal(true)}
+          className="fixed bottom-24 right-4 z-40 w-14 h-14 rounded-full bg-gradient-to-r from-cyan-500 to-blue-500 text-white shadow-lg shadow-cyan-500/40 flex items-center justify-center hover:scale-110 active:scale-95 transition-transform md:hidden"
+          title="Find My Photos"
+        >
+          <ScanFace className="w-6 h-6" />
+        </button>
+      )}
+
       {/* Bulk Purchase Bar - floating at bottom when items selected */}
       {multiSelectMode && (
         <BulkPurchaseBar
