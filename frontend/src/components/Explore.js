@@ -546,14 +546,21 @@ export const Explore = () => {
   };
   
   // Fetch surf spots with forecasts and conditions
-  const fetchSurfSpots = async (region = selectedSpotsRegion, locationOverride = null) => {
+  // Supports filtering by region, country, and/or state_province for hierarchy browsing
+  const fetchSurfSpots = async (region = selectedSpotsRegion, locationOverride = null, { country, state_province } = {}) => {
     setSurfSpotsLoading(true);
     try {
       const params = new URLSearchParams();
-      if (region && region !== 'All') {
+      if (country && country !== 'All') {
+        params.append('country', country);
+      }
+      if (state_province && state_province !== 'All') {
+        params.append('state_province', state_province);
+      }
+      if (region && region !== 'All' && !country) {
         params.append('region', region);
       }
-      params.append('limit', '20');
+      params.append('limit', '30');
       params.append('subscription_tier', user?.subscription_tier || 'free');
       
       // Add user location if available (use override if provided, otherwise use state)
@@ -678,9 +685,34 @@ export const Explore = () => {
   
   // Navigate location hierarchy — push a level
   const pushLocation = (type, name, data) => {
+    // When clicking a country that has NO real states (only virtual or none), skip straight to spots
+    if (type === 'country' && data) {
+      const hasRealStates = data.has_states === true;
+      const states = data.states || [];
+      const realStates = states.filter(s => !s.is_virtual);
+      
+      if (!hasRealStates && realStates.length === 0) {
+        // Country has no sub-regions — jump directly to showing spots for this country
+        // Push both country and a virtual state level so spots render at locationPath.length === 2
+        if (states.length === 1 && states[0].cities?.length > 0) {
+          // Has virtual state with cities — push to state level and show cities
+          setLocationPath([
+            { type: 'country', name, data },
+            { type: 'state', name: states[0].name, data: states[0] }
+          ]);
+        } else {
+          // No cities either — fetch all spots for this country directly
+          setLocationPath([{ type: 'country', name, data }]);
+          fetchSurfSpots(null, null, { country: name });
+        }
+        return;
+      }
+    }
+    
     setLocationPath(prev => [...prev, { type, name, data }]);
     // When we reach the city/region level, fetch spots for that region
     if (type === 'city') {
+      // Build the full context from the path for accurate filtering
       setSelectedSpotsRegion(name);
       fetchSurfSpots(name);
     }
@@ -705,11 +737,12 @@ export const Explore = () => {
       return { level: 'country', items: countries };
     }
     if (locationPath.length === 1) {
-      // Country selected — show states
+      // Country selected — show states (filter out virtual states for display)
       const country = locationPath[0];
       const countryData = countries.find(c => c.name === country.name);
-      const states = countryData?.states || [];
-      return { level: 'state', items: states, parent: country.name };
+      const allStates = countryData?.states || [];
+      // Show all states including virtual ones — they hold the cities for state-less countries
+      return { level: 'state', items: allStates, parent: country.name };
     }
     if (locationPath.length === 2) {
       // State selected — show cities
@@ -738,23 +771,36 @@ export const Explore = () => {
   // Country flag emoji helper
   const getCountryFlag = (countryName) => {
     const flags = {
-      'United States': '🇺🇸', 'USA': '🇺🇸', 'Australia': '🇦🇺', 'Indonesia': '🇮🇩',
+      'USA': '🇺🇸', 'United States': '🇺🇸', 'Australia': '🇦🇺', 'Indonesia': '🇮🇩',
       'Brazil': '🇧🇷', 'Portugal': '🇵🇹', 'South Africa': '🇿🇦', 'France': '🇫🇷',
       'Spain': '🇪🇸', 'Mexico': '🇲🇽', 'Costa Rica': '🇨🇷', 'Japan': '🇯🇵',
       'New Zealand': '🇳🇿', 'Peru': '🇵🇪', 'Morocco': '🇲🇦', 'United Kingdom': '🇬🇧',
       'UK': '🇬🇧', 'Canada': '🇨🇦', 'Chile': '🇨🇱', 'Hawaii': '🏝️',
-      'Fiji': '🇫🇯', 'Tahiti': '🇵🇫', 'Maldives': '🇲🇻', 'Philippines': '🇵🇭',
-      'Sri Lanka': '🇱🇰', 'Nicaragua': '🇳🇮', 'Panama': '🇵🇦', 'El Salvador': '🇸🇻',
-      'Ecuador': '🇪🇨', 'Ireland': '🇮🇪', 'Italy': '🇮🇹', 'Thailand': '🇹🇭'
+      'Fiji': '🇫🇯', 'French Polynesia': '🇵🇫', 'Tahiti': '🇵🇫', 'Maldives': '🇲🇻',
+      'Philippines': '🇵🇭', 'Sri Lanka': '🇱🇰', 'Nicaragua': '🇳🇮', 'Panama': '🇵🇦',
+      'El Salvador': '🇸🇻', 'Ecuador': '🇪🇨', 'Ireland': '🇮🇪', 'Italy': '🇮🇹',
+      'Thailand': '🇹🇭', 'Colombia': '🇨🇴', 'Dominican Republic': '🇩🇴',
+      'Puerto Rico': '🇵🇷', 'Cuba': '🇨🇺', 'Jamaica': '🇯🇲', 'Barbados': '🇧🇧',
+      'Bahamas': '🇧🇸', 'Bermuda': '🇧🇲', 'Taiwan': '🇹🇼', 'China': '🇨🇳',
+      'India': '🇮🇳', 'Vietnam': '🇻🇳', 'Samoa': '🇼🇸', 'Tonga': '🇹🇴',
+      'Angola': '🇦🇴', 'Senegal': '🇸🇳', 'Ghana': '🇬🇭', 'Madagascar': '🇲🇬',
+      'Mozambique': '🇲🇿', 'Namibia': '🇳🇦', 'Guatemala': '🇬🇹', 'Honduras': '🇭🇳',
+      'Argentina': '🇦🇷', 'Uruguay': '🇺🇾', 'Israel': '🇮🇱', 'Malaysia': '🇲🇾',
+      'Vanuatu': '🇻🇺', 'Papua New Guinea': '🇵🇬', 'Solomon Islands': '🇸🇧',
+      'Saudi Arabia': '🇸🇦', 'United Arab Emirates': '🇦🇪', 'Oman': '🇴🇲',
+      'Qatar': '🇶🇦', 'Norway': '🇳🇴', 'Iceland': '🇮🇸', 'Aruba': '🇦🇼',
+      'Curacao': '🇨🇼', 'Trinidad & Tobago': '🇹🇹', 'Mauritius': '🇲🇺',
+      'Cape Verde': '🇨🇻', 'Cook Islands': '🇨🇰'
     };
     return flags[countryName] || '🌊';
   };
   
-  // Popular quick-access locations
+  // Popular quick-access locations — uses 'USA' to match DB country name
   const popularLocations = [
-    { label: '🇺🇸 Florida', country: 'United States', state: 'Florida' },
-    { label: '🇺🇸 California', country: 'United States', state: 'California' },
-    { label: '🇺🇸 Hawaii', country: 'United States', state: 'Hawaii' },
+    { label: '🇺🇸 Florida', country: 'USA', state: 'Florida' },
+    { label: '🇺🇸 California', country: 'USA', state: 'California' },
+    { label: '🇺🇸 Hawaii', country: 'USA', state: 'Hawaii' },
+    { label: '🇺🇸 North Carolina', country: 'USA', state: 'North Carolina' },
     { label: '🇦🇺 Australia', country: 'Australia' },
     { label: '🇮🇩 Indonesia', country: 'Indonesia' },
     { label: '🇧🇷 Brazil', country: 'Brazil' },
@@ -762,6 +808,7 @@ export const Explore = () => {
     { label: '🇨🇷 Costa Rica', country: 'Costa Rica' },
     { label: '🇲🇽 Mexico', country: 'Mexico' },
     { label: '🇿🇦 South Africa', country: 'South Africa' },
+    { label: '🇯🇵 Japan', country: 'Japan' },
   ];
   
   // Quick jump to a popular location
@@ -1312,6 +1359,52 @@ export const Explore = () => {
                     }
                     
                     if (items.length === 0) {
+                      // If we're at the state level (country selected) and there are no states,
+                      // this means the country has no sub-regions — show spots directly
+                      if (level === 'state' && locationPath.length === 1) {
+                        const countryName = locationPath[0]?.name;
+                        // Auto-fetch spots for this country if not already loading
+                        if (!surfSpotsLoading && surfSpots.length === 0 && countryName) {
+                          fetchSurfSpots(null, null, { country: countryName });
+                        }
+                        // Render spot cards inline
+                        return (
+                          <div className="space-y-4">
+                            {surfSpotsLoading ? (
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                {[1, 2, 3, 4].map((i) => (
+                                  <div key={i} className="bg-card/80 border border-border rounded-xl overflow-hidden animate-pulse">
+                                    <div className="h-32 bg-muted" />
+                                    <div className="px-3 py-2"><div className="h-5 w-12 bg-zinc-700 rounded" /></div>
+                                  </div>
+                                ))}
+                              </div>
+                            ) : surfSpots.length > 0 ? (
+                              <>
+                                <Badge className="bg-cyan-500/20 text-cyan-400 text-xs">
+                                  {surfSpots.length} spots in {countryName}
+                                </Badge>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                  {surfSpots
+                                    .filter(s => !spotSearchQuery || s.name?.toLowerCase().includes(spotSearchQuery.toLowerCase()))
+                                    .map((spot) => (
+                                    <ExploreSpotCard 
+                                      key={spot.id} 
+                                      spot={spot} 
+                                      userSubscriptionTier={user?.subscription_tier || 'free'}
+                                    />
+                                  ))}
+                                </div>
+                              </>
+                            ) : (
+                              <div className="text-center py-10 text-muted-foreground">
+                                <Navigation className="w-10 h-10 mx-auto mb-2 opacity-30" />
+                                <p className="text-sm">No spots found in {countryName}</p>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      }
                       return (
                         <div className="text-center py-10 text-muted-foreground">
                           <Navigation className="w-10 h-10 mx-auto mb-2 opacity-30" />

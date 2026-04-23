@@ -394,9 +394,34 @@ async def get_surf_spot_locations(
                 "longitude": round(float(avg_lng), 4) if avg_lng else None
             })
         elif country in location_map:
-            # Region exists but no state — attach to country level under a None-state placeholder
-            # (handles spots with country+region but no state_province)
-            pass  # Skip — these spots still appear in the unfiltered spot list
+            # Region exists but no state — attach as a direct city under a virtual "General" state
+            # This handles spots with country+region but no state_province (e.g., Bahamas spots)
+            virtual_key = (country, None)
+            if virtual_key not in state_map:
+                # Create a virtual state to hold these orphaned regions
+                virtual_state = {
+                    "name": country,  # Use country name as the state name
+                    "spot_count": 0,
+                    "latitude": location_map[country].get("latitude"),
+                    "longitude": location_map[country].get("longitude"),
+                    "cities": [],
+                    "is_virtual": True
+                }
+                location_map[country]["states"].append(virtual_state)
+                state_map[virtual_key] = virtual_state
+            
+            state_map[virtual_key]["cities"].append({
+                "name": region,
+                "spot_count": count,
+                "latitude": round(float(avg_lat), 4) if avg_lat else None,
+                "longitude": round(float(avg_lng), 4) if avg_lng else None
+            })
+            state_map[virtual_key]["spot_count"] += count
+
+    # Add has_states flag to help frontend decide navigation
+    for country_data in location_map.values():
+        real_states = [s for s in country_data["states"] if not s.get("is_virtual")]
+        country_data["has_states"] = len(real_states) > 0
 
     return {
         "countries": list(location_map.values()),

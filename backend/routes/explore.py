@@ -292,6 +292,8 @@ async def get_trending(db: AsyncSession = Depends(get_db)):
 @router.get("/explore/surf-spots")
 async def get_surf_spots_with_conditions(
     region: Optional[str] = None,
+    country: Optional[str] = None,
+    state_province: Optional[str] = None,
     limit: int = Query(default=20, le=50),
     user_lat: Optional[float] = None,
     user_lng: Optional[float] = None,
@@ -302,11 +304,16 @@ async def get_surf_spots_with_conditions(
     Get surf spots with real-time conditions, forecasts, recent reports, and nearby photographers.
     Tiered forecast access: Free = 3 days, Paid = 7 days, Premium = 10 days.
     
+    Supports filtering by region, country, and/or state_province for location hierarchy browsing.
     OPTIMIZED: Uses caching (10-min TTL) and parallel fetching for faster response.
     """
     # Get spots from database
     query = select(SurfSpot).where(SurfSpot.is_active .is_(True))
     
+    if country and country != "All":
+        query = query.where(SurfSpot.country == country)
+    if state_province and state_province != "All":
+        query = query.where(SurfSpot.state_province == state_province)
     if region and region != "All":
         query = query.where(SurfSpot.region == region)
     
