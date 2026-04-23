@@ -11,7 +11,7 @@ const Avatar = React.forwardRef(({ className, ...props }, ref) => (
 ))
 Avatar.displayName = AvatarPrimitive.Root.displayName
 
-const AvatarImage = React.forwardRef(({ className, src, ...props }, ref) => {
+const AvatarImage = React.forwardRef(({ className, src, objectFit = "cover", ...props }, ref) => {
   const getFullUrl = (url) => {
     if (!url) return url;
     if (url.startsWith('data:')) return url;
@@ -19,11 +19,15 @@ const AvatarImage = React.forwardRef(({ className, src, ...props }, ref) => {
     return `${process.env.REACT_APP_BACKEND_URL || ''}${url}`;
   };
 
+  // objectFit: "cover" (default — fills circle, crops edges — best for headshots)
+  //            "contain" (fits entire image inside circle — best for logos)
+  const fitClass = objectFit === "contain" ? "object-contain" : "object-cover";
+
   return (
     <AvatarPrimitive.Image
       ref={ref}
       src={getFullUrl(src)}
-      className={cn("aspect-square h-full w-full object-cover", className)}
+      className={cn(`aspect-square h-full w-full ${fitClass}`, className)}
       {...props} 
     />
   );

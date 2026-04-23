@@ -829,8 +829,12 @@ export const Profile = () => {
               onClick={() => userNote && setShowNoteModal(true)}
               style={{ cursor: userNote ? 'pointer' : 'default' }}
             >
-              <Avatar className="w-28 h-28 md:w-32 md:h-32 border-4 border-black" data-testid="profile-avatar">
-                <AvatarImage src={getFullUrl(profile.avatar_url)} className="object-cover" />
+              <Avatar className={`w-28 h-28 md:w-32 md:h-32 border-4 border-black ${profile.is_logo_avatar ? 'bg-black' : ''}`} data-testid="profile-avatar">
+                <AvatarImage 
+                  src={getFullUrl(profile.avatar_url)} 
+                  objectFit={profile.is_logo_avatar ? 'contain' : 'cover'}
+                  className={profile.is_logo_avatar ? 'p-2' : ''}
+                />
                 <AvatarFallback className="text-4xl bg-zinc-800 text-white">
                   {profile.full_name?.[0] || 'U'}
                 </AvatarFallback>
@@ -859,6 +863,29 @@ export const Profile = () => {
               onChange={handleAvatarUpload}
               className="hidden"
             />
+
+            {/* Logo / Photo Toggle - Only for own profile with avatar */}
+            {isOwnProfile && profile.avatar_url && (
+              <button
+                onClick={async () => {
+                  try {
+                    const newVal = !profile.is_logo_avatar;
+                    await apiClient.patch(`/profiles/${user.id}`, { is_logo_avatar: newVal });
+                    setProfile({ ...profile, is_logo_avatar: newVal });
+                    toast.success(newVal ? 'Avatar set to Logo mode' : 'Avatar set to Photo mode');
+                  } catch (e) {
+                    toast.error('Failed to update avatar mode');
+                  }
+                }}
+                className="absolute -bottom-1 -right-1 z-20 w-7 h-7 rounded-full bg-zinc-800 border-2 border-zinc-600 hover:border-cyan-400 flex items-center justify-center transition-all group/logo"
+                data-testid="avatar-mode-toggle"
+                title={profile.is_logo_avatar ? 'Switch to Photo mode' : 'Switch to Logo mode'}
+              >
+                <span className="text-[10px] font-bold text-zinc-300 group-hover/logo:text-cyan-400">
+                  {profile.is_logo_avatar ? '📷' : '🏷️'}
+                </span>
+              </button>
+            )}
             
             {/* Status Badge: LIVE or SHOOTING */}
             {profile.is_live ? (

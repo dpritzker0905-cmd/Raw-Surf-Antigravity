@@ -59,6 +59,7 @@ class ProfileResponse(BaseModel):
     # On-Demand fields for Quick Book feature
     on_demand_active: bool = False  # Alias for on_demand_available for frontend compatibility
     on_demand_hourly_rate: Optional[float] = None
+    is_logo_avatar: bool = False  # True = display as logo (object-contain), False = headshot (object-cover)
 
 class ProfileUpdate(BaseModel):
     full_name: Optional[str] = None
@@ -90,6 +91,7 @@ class ProfileUpdate(BaseModel):
     on_demand_longitude: Optional[float] = None
     on_demand_city: Optional[str] = None
     on_demand_hourly_rate: Optional[float] = None
+    is_logo_avatar: Optional[bool] = None  # Toggle avatar display mode: logo vs headshot
 
 class SubscriptionUpdate(BaseModel):
     subscription_tier: str
@@ -142,7 +144,8 @@ def profile_to_response(profile: Profile) -> ProfileResponse:
         created_at=profile.created_at,
         # On-Demand fields for Quick Book feature
         on_demand_active=profile.on_demand_available or False,
-        on_demand_hourly_rate=profile.on_demand_hourly_rate
+        on_demand_hourly_rate=profile.on_demand_hourly_rate,
+        is_logo_avatar=profile.is_logo_avatar or False
     )
 
 

@@ -120,6 +120,7 @@ class Profile(Base):
     
     bio = Column(Text, nullable=True)
     avatar_url = Column(Text, nullable=True)  # Text to support base64 data URLs (~110KB)
+    is_logo_avatar = Column(Boolean, default=False)  # True = display as logo (object-contain), False = headshot (object-cover)
     is_verified = Column(Boolean, default=False)
     is_live = Column(Boolean, default=False)
     is_private = Column(Boolean, default=False)
