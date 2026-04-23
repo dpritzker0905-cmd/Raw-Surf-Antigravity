@@ -2,7 +2,7 @@
  * PostCard - Extracted from Feed.js for better maintainability
  * Renders a single post in the feed with all interactions
  */
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import apiClient from '../lib/apiClient';
 import { getExpandedRoleInfo } from '../contexts/PersonaContext';
@@ -24,6 +24,7 @@ const COMMENT_REACTIONS = ['❤️', '🤙', '🌊', '🔥'];
  * ReplyItem - Simpler component for reply rendering (non-recursive)
  */
 const ReplyItem = ({ reply, userId, _postId, textPrimaryClass, textSecondaryClass, _isLight }) => {
+  const navigate = useNavigate();
   const [reactionCount, setReactionCount] = useState(reply.reaction_count || 0);
   const [viewerReaction, setViewerReaction] = useState(reply.viewer_reaction || null);
   const [loading, setLoading] = useState(false);
@@ -77,7 +78,10 @@ const ReplyItem = ({ reply, userId, _postId, textPrimaryClass, textSecondaryClas
     <div className="ml-6 pl-3 border-l-2 border-zinc-700/50">
       <div className="flex items-start gap-2">
         <div className="flex-1 min-w-0">
-          <span className={`font-medium ${textPrimaryClass} text-sm`}>{reply.author_name}</span>
+          <span className={`font-medium ${textPrimaryClass} text-sm cursor-pointer hover:underline`}
+            onClick={(e) => { e.stopPropagation(); navigate(`/profile/${reply.author_id}`); }}>
+            {reply.author_name}
+          </span>
           <CommentText 
             text={reply.content}
             className={`${textSecondaryClass} text-sm ml-1`}
@@ -116,6 +120,7 @@ const CommentWithReaction = ({
   onReplyAdded,
   onCommentUpdated
 }) => {
+  const navigate = useNavigate();
   const [reactionCount, setReactionCount] = useState(comment.reaction_count || 0);
   const [viewerReaction, setViewerReaction] = useState(comment.viewer_reaction || null);
   const [showReactionPicker, setShowReactionPicker] = useState(false);
@@ -293,7 +298,8 @@ const CommentWithReaction = ({
             </div>
           ) : (
             <>
-              <span className={`font-medium ${textPrimaryClass} text-sm`}>
+              <span className={`font-medium ${textPrimaryClass} text-sm cursor-pointer hover:underline`}
+                onClick={(e) => { e.stopPropagation(); navigate(`/profile/${comment.author_id}`); }}>
                 {comment.author_username ? `@${comment.author_username}` : comment.author_name}
               </span>
               <CommentText 
@@ -615,6 +621,38 @@ const PostCard = ({
   // Track if video is currently playing (for play/pause overlay)
   const [isPlaying, setIsPlaying] = useState(false);
 
+  // Double-tap to like state
+  const [showDoubleTapHeart, setShowDoubleTapHeart] = useState(false);
+  const lastTapRef = useRef(0);
+  const singleTapTimerRef = useRef(null);
+
+  const handleMediaTap = useCallback((e) => {
+    const now = Date.now();
+    if (now - lastTapRef.current < 300) {
+      // Double tap detected — cancel pending single tap, trigger like
+      if (singleTapTimerRef.current) {
+        clearTimeout(singleTapTimerRef.current);
+        singleTapTimerRef.current = null;
+      }
+      e.stopPropagation();
+      e.preventDefault();
+      if (user?.id && post?.id && onLikeStart) {
+        onLikeStart(post, e);
+        setTimeout(() => onLikeEnd && onLikeEnd(post, e), 50);
+      }
+      setShowDoubleTapHeart(true);
+      setTimeout(() => setShowDoubleTapHeart(false), 800);
+      lastTapRef.current = 0;
+    } else {
+      lastTapRef.current = now;
+      // Delay single tap to allow double tap detection
+      singleTapTimerRef.current = setTimeout(() => {
+        onImageClick && onImageClick(post);
+        singleTapTimerRef.current = null;
+      }, 300);
+    }
+  }, [user?.id, post?.id, onLikeStart, onLikeEnd, onImageClick, post]);
+
   // Helper to ensure media paths map to backend directly natively preventing Netlify 404 traps
   const _checkMediaUrl = getFullUrl(post?.media_url || post?.image_url);
   const isVideoItem = post?.media_type === 'video' || (typeof _checkMediaUrl === 'string' && _checkMediaUrl.match(/\.(mp4|webm|ogg|mov)(\?.*)?$/i));
@@ -832,12 +870,24 @@ const PostCard = ({
         </div>
       )}
 
-      {/* Post Image/Video - click to open modal */}
+      {/* Post Image/Video - click to open modal, double-tap to like */}
       <div 
         className={`aspect-[4/5] ${isLight ? 'bg-gray-100' : 'bg-zinc-800'} relative select-none cursor-pointer`}
-        onClick={() => onImageClick && onImageClick(post)}
+        onClick={handleMediaTap}
         data-testid={`post-image-container-${post.id}`}
       >
+        {/* Double-tap shaka animation */}
+        {showDoubleTapHeart && (
+          <div className="absolute inset-0 flex items-center justify-center z-20 pointer-events-none">
+            <img 
+              src="https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/svg/1f919.svg"
+              alt="shaka"
+              className="w-24 h-24 animate-ping"
+              style={{ animationDuration: '0.6s', filter: 'drop-shadow(0 4px 12px rgba(234, 179, 8, 0.5))' }}
+              draggable={false}
+            />
+          </div>
+        )}
         {isVideoItem ? (
           // If video source errored (404 / network failure), show fallback
           (isDeadLocalVideo || videoError) ? (
@@ -1143,7 +1193,10 @@ const PostCard = ({
                   onClick={() => onLoadAllComments(post.id)}
                   title="Click to view all comments and reply"
                 >
-                  <span className={`font-medium ${textPrimaryClass} text-sm`}>{comment.author_name}</span>
+                  <span className={`font-medium ${textPrimaryClass} text-sm cursor-pointer hover:underline`}
+                    onClick={(e) => { e.stopPropagation(); navigate(`/profile/${comment.author_id}`); }}>
+                    {comment.author_name}
+                  </span>
                   <span className={`${textSecondaryClass} text-sm flex-1 truncate`}>{comment.content}</span>
                 </div>
               ))}

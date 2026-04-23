@@ -13,6 +13,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import apiClient from '../lib/apiClient';
+import { toast } from 'sonner';
 
 // Regex patterns for matching
 const HASHTAG_REGEX = /#(\w+)/g;
@@ -151,8 +152,8 @@ export const RichText = ({
       const res = await apiClient.get(`/api/username/lookup/${encodeURIComponent(username)}`);
       navigate(`/profile/${res.data.id}`);
     } catch {
-      // Fallback: navigate with username slug
-      navigate(`/user/${encodeURIComponent(username)}`);
+      // Username not found — show toast instead of navigating to a dead route
+      toast.error(`User @${username} not found`);
     }
   };
   

@@ -2,7 +2,8 @@
  * PostModal - Instagram-style post popup with image on left, details on right
  * Opens when clicking on a post in the feed
  */
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
@@ -267,6 +268,7 @@ const ImageCarousel = ({ images, mediaType }) => {
 
 // Comment Item
 const CommentItem = ({ comment, userId, _onReact }) => {
+  const navigate = useNavigate();
   const [liked, setLiked] = useState(comment.viewer_reaction !== null);
   const [likeCount, setLikeCount] = useState(comment.reaction_count || 0);
   
@@ -305,7 +307,7 @@ const CommentItem = ({ comment, userId, _onReact }) => {
       </div>
       <div className="flex-1 min-w-0">
         <p className="text-sm">
-          <span className="font-semibold text-white mr-1">{comment.author_name}</span>
+          <span className="font-semibold text-white mr-1 cursor-pointer hover:underline" onClick={(e) => { e.stopPropagation(); navigate(`/profile/${comment.author_id}`); }}>{comment.author_name}</span>
           <CommentText 
             text={comment.content}
             className="text-gray-300"
@@ -327,9 +329,10 @@ const CommentItem = ({ comment, userId, _onReact }) => {
   );
 };
 
-const PostModal = ({ post, isOpen, onClose, _onPostUpdated }) => {
+const PostModal = ({ post, isOpen, onClose, _onPostUpdated, posts, onNavigatePost }) => {
   const { user } = useAuth();
   const { theme } = useTheme();
+  const navigate = useNavigate();
   const _isLight = theme === 'light';
   
   const [comments, setComments] = useState([]);
@@ -353,7 +356,46 @@ const PostModal = ({ post, isOpen, onClose, _onPostUpdated }) => {
   const isPressingRef = useRef(false); // Ref for synchronous checking
   const pickerShownRef = useRef(false); // Track if picker was shown during this press
   
+  // Double-tap to like state
+  const [showDoubleTapHeart, setShowDoubleTapHeart] = useState(false);
+  const lastTapRef = useRef(0);
+  
   const modalRef = useRef(null);
+  
+  // Double-tap to like handler
+  const handleDoubleTap = useCallback(() => {
+    const now = Date.now();
+    if (now - lastTapRef.current < 300) {
+      // Double tap detected — like the post
+      if (!liked && user?.id && post?.id) {
+        handleLike();
+      }
+      // Show heart animation
+      setShowDoubleTapHeart(true);
+      setTimeout(() => setShowDoubleTapHeart(false), 800);
+      lastTapRef.current = 0;
+    } else {
+      lastTapRef.current = now;
+    }
+  }, [liked, user?.id, post?.id]);
+  
+  // Keyboard navigation for swipe between posts
+  useEffect(() => {
+    if (!isOpen || !posts || !onNavigatePost) return;
+    const handleKeyDown = (e) => {
+      if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+        e.preventDefault();
+        const idx = posts.findIndex(p => p.id === post?.id);
+        if (idx < posts.length - 1) onNavigatePost(posts[idx + 1]);
+      } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        const idx = posts.findIndex(p => p.id === post?.id);
+        if (idx > 0) onNavigatePost(posts[idx - 1]);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, posts, post?.id, onNavigatePost]);
   
   // Check for mobile viewport
   useEffect(() => {
@@ -864,7 +906,7 @@ const PostModal = ({ post, isOpen, onClose, _onPostUpdated }) => {
               style={{ pointerEvents: 'auto' }}
             >
               <p className="text-white text-sm">
-                <span className="font-semibold mr-1">{post.author_name}</span>
+                <span className="font-semibold mr-1 cursor-pointer hover:underline" onClick={(e) => { e.stopPropagation(); navigate(`/profile/${post.author_id}`); }}>{post.author_name}</span>
                 <RichText 
                   text={captionExpanded ? post.caption : truncatedCaption}
                   hashtagClassName="text-cyan-400 hover:text-cyan-300 cursor-pointer"
@@ -903,7 +945,7 @@ const PostModal = ({ post, isOpen, onClose, _onPostUpdated }) => {
                   <div key={comment.id} className="mb-3 flex items-start gap-2">
                     <div className="flex-1">
                       <p className="text-white text-sm">
-                        <span className="font-semibold mr-1">{comment.author_name}</span>
+                        <span className="font-semibold mr-1 cursor-pointer hover:underline" onClick={(e) => { e.stopPropagation(); navigate(`/profile/${comment.author_id}`); }}>{comment.author_name}</span>
                         <span className="text-white/90">{comment.content}</span>
                       </p>
                       <div className="flex items-center gap-3 mt-1">
@@ -1017,7 +1059,19 @@ const PostModal = ({ post, isOpen, onClose, _onPostUpdated }) => {
         style={{ minHeight: '500px' }}
       >
         {/* Left side - Image/Carousel */}
-        <div className="flex-1 bg-black flex items-center justify-center min-w-0" style={{ maxWidth: '60%' }}>
+        <div className="flex-1 bg-black flex items-center justify-center min-w-0 relative" style={{ maxWidth: '60%' }} onClick={handleDoubleTap}>
+          {/* Double-tap shaka animation */}
+          {showDoubleTapHeart && (
+            <div className="absolute inset-0 flex items-center justify-center z-20 pointer-events-none">
+              <img 
+                src="https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/svg/1f919.svg"
+                alt="shaka"
+                className="w-24 h-24 animate-ping"
+                style={{ animationDuration: '0.6s', filter: 'drop-shadow(0 4px 12px rgba(234, 179, 8, 0.5))' }}
+                draggable={false}
+              />
+            </div>
+          )}
           <ImageCarousel images={mediaItems} mediaType={post.media_type} />
         </div>
         
@@ -1035,12 +1089,12 @@ const PostModal = ({ post, isOpen, onClose, _onPostUpdated }) => {
               )}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="font-semibold text-white text-sm truncate">{post.author_name}</p>
+              <p className="font-semibold text-white text-sm truncate cursor-pointer hover:underline" onClick={(e) => { e.stopPropagation(); navigate(`/profile/${post.author_id}`); }}>{post.author_name}</p>
               {post.location && (
                 <p className="text-xs text-gray-400 truncate">{post.location}</p>
               )}
             </div>
-            <button className="text-gray-400 hover:text-white p-1">
+            <button className="text-gray-400 hover:text-white p-1" onClick={(e) => { e.stopPropagation(); setPostMenuOpen(true); }}>
               <MoreHorizontal className="w-5 h-5" />
             </button>
           </div>
@@ -1079,7 +1133,7 @@ const PostModal = ({ post, isOpen, onClose, _onPostUpdated }) => {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm">
-                    <span className="font-semibold text-white mr-1">{post.author_name}</span>
+                    <span className="font-semibold text-white mr-1 cursor-pointer hover:underline" onClick={(e) => { e.stopPropagation(); navigate(`/profile/${post.author_id}`); }}>{post.author_name}</span>
                     <RichText 
                       text={post.caption}
                       className="text-gray-300"
@@ -1204,6 +1258,44 @@ const PostModal = ({ post, isOpen, onClose, _onPostUpdated }) => {
         open={shareModalOpen}
         onClose={() => setShareModalOpen(false)}
       />
+      
+      {/* Post Menu - Desktop */}
+      <PostMenu
+        post={post}
+        open={postMenuOpen}
+        onClose={() => setPostMenuOpen(false)}
+        isLight={false}
+        onPostUpdated={() => {}}
+        onPostDeleted={() => { onClose(); }}
+      />
+      
+      {/* Swipe navigation arrows — positioned on the viewport edges */}
+      {!isMobile && posts && onNavigatePost && (() => {
+        const idx = posts.findIndex(p => p.id === post?.id);
+        if (idx === -1) return null;
+        return (
+          <>
+            {idx > 0 && (
+              <button
+                onClick={(e) => { e.stopPropagation(); onNavigatePost(posts[idx - 1]); }}
+                className="fixed left-3 top-1/2 -translate-y-1/2 z-[60] w-10 h-10 rounded-full bg-white/20 hover:bg-white/40 backdrop-blur-sm flex items-center justify-center text-white transition-all shadow-lg"
+                data-testid="post-modal-prev"
+              >
+                <ChevronLeft className="w-6 h-6" />
+              </button>
+            )}
+            {idx < posts.length - 1 && (
+              <button
+                onClick={(e) => { e.stopPropagation(); onNavigatePost(posts[idx + 1]); }}
+                className="fixed right-3 top-1/2 -translate-y-1/2 z-[60] w-10 h-10 rounded-full bg-white/20 hover:bg-white/40 backdrop-blur-sm flex items-center justify-center text-white transition-all shadow-lg"
+                data-testid="post-modal-next"
+              >
+                <ChevronRight className="w-6 h-6" />
+              </button>
+            )}
+          </>
+        );
+      })()}
     </div>
   );
 };

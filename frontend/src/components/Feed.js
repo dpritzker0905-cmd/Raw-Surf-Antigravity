@@ -2057,6 +2057,8 @@ export const Feed = () => {
         isOpen={postModalOpen !== null}
         onClose={() => setPostModalOpen(null)}
         onPostUpdated={handlePostUpdated}
+        posts={posts.filter(p => !p.isAd)}
+        onNavigatePost={(nextPost) => setPostModalOpen(nextPost)}
       />
       
       {/* Create Wave Modal */}
