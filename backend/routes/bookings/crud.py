@@ -278,7 +278,8 @@ async def get_photographer_directory(
     Supports filtering by region, gear type, skill level, and search by name/username.
     """
     # Build query for photographer roles
-    photographer_roles = [RoleEnum.HOBBYIST, RoleEnum.PHOTOGRAPHER, RoleEnum.APPROVED_PRO]
+    # Hobbyists are NOT listed in directory — they're found organically (profile visits, existing conversations)
+    photographer_roles = [RoleEnum.PHOTOGRAPHER, RoleEnum.APPROVED_PRO]
     
     query = select(Profile).where(Profile.role.in_(photographer_roles))
     
@@ -556,6 +557,44 @@ async def create_user_booking(
     # Calculate price based on duration - MUST match frontend calculation
     # For scheduled bookings, use booking_hourly_rate as primary
     hourly_rate = photographer.booking_hourly_rate or photographer.hourly_rate or photographer.session_price or 75.0
+    
+    # Default: non-Hobbyist bookings auto-confirm on payment
+    auto_confirm = True
+    
+    # ═══ HOBBYIST BOOKING GUARDRAILS ═══════════════════════════════════════
+    if photographer.role == RoleEnum.HOBBYIST:
+        # Load admin-adjustable settings from PlatformSettings
+        from models import PlatformSettings
+        settings_result = await db.execute(select(PlatformSettings).limit(1))
+        platform_settings = settings_result.scalar_one_or_none()
+        
+        max_bookings_per_week = getattr(platform_settings, 'hobbyist_max_bookings_per_week', 3) if platform_settings else 3
+        max_hourly_rate = getattr(platform_settings, 'hobbyist_max_hourly_rate', 40.0) if platform_settings else 40.0
+        auto_confirm = getattr(platform_settings, 'hobbyist_booking_auto_confirm', False) if platform_settings else False
+        
+        # 1. Price cap: silently cap to admin-configured maximum
+        if hourly_rate > max_hourly_rate:
+            logger.info(f"[Hobbyist Guard] Capping hourly rate from ${hourly_rate} to ${max_hourly_rate} for photographer {photographer.id}")
+            hourly_rate = max_hourly_rate
+        
+        # 2. Weekly booking limit
+        week_ago = datetime.now(timezone.utc) - timedelta(days=7)
+        weekly_count_result = await db.execute(
+            select(func.count(Booking.id)).where(
+                and_(
+                    Booking.photographer_id == photographer.id,
+                    Booking.created_at >= week_ago,
+                    Booking.status.notin_(['Cancelled'])
+                )
+            )
+        )
+        weekly_count = weekly_count_result.scalar() or 0
+        if weekly_count >= max_bookings_per_week:
+            raise HTTPException(
+                status_code=429,
+                detail=f"This photographer has reached their weekly booking limit ({max_bookings_per_week}/week). Try again next week."
+            )
+    # ═══ END HOBBYIST GUARDRAILS ═══════════════════════════════════════════
     # Use duration multipliers for better pricing (same as frontend)
     duration_multipliers = {60: 1, 120: 1.8, 180: 2.5, 240: 3, 480: 5}
     multiplier = duration_multipliers.get(data.duration, data.duration / 60)
@@ -641,7 +680,7 @@ async def create_user_booking(
         split_mode=data.split_mode,
         invite_code=invite_code,
         description=data.description,
-        status='Confirmed' if credits_applied >= total_price else 'Pending'
+        status='Confirmed' if credits_applied >= total_price else ('Pending Acceptance' if photographer.role == RoleEnum.HOBBYIST and not auto_confirm else 'Pending')
     )
     db.add(booking)
     await db.flush()

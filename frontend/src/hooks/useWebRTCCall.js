@@ -121,6 +121,7 @@ export function useWebRTCCall(userId, userInfo = {}) {
   const callRetryRef = useRef(null); // Timer for auto-retrying call offers
   const callRetryCountRef = useRef(0);
   const pendingOfferRef = useRef(null); // Store the last call_offer for retrying
+  const earlyIceCandidatesRef = useRef([]); // Buffer ICE candidates received before answerCall creates real PC
 
   // Track call state in ref to avoid stale closures in WS handlers
   const callStateRef = useRef(callState);
@@ -234,6 +235,8 @@ export function useWebRTCCall(userId, userInfo = {}) {
 
         // Store the offer SDP for when user accepts
         peerConnection.current = { _pendingOffer: data.sdp };
+        // Reset early ICE buffer — candidates arriving before Accept will be queued here
+        earlyIceCandidatesRef.current = [];
         break;
       }
 
@@ -245,6 +248,19 @@ export function useWebRTCCall(userId, userInfo = {}) {
           const pc = peerConnection.current;
           if (pc && pc.setRemoteDescription) {
             await pc.setRemoteDescription(new RTCSessionDescription(data.sdp));
+            
+            // Flush any ICE candidates that arrived before we had the remote description
+            if (earlyIceCandidatesRef.current.length > 0) {
+              console.log(`[WebRTC] Flushing ${earlyIceCandidatesRef.current.length} early ICE candidates after setRemoteDescription`);
+              for (const candidate of earlyIceCandidatesRef.current) {
+                try {
+                  await pc.addIceCandidate(new RTCIceCandidate(candidate));
+                } catch (iceErr) {
+                  console.warn('[WebRTC] Failed to apply queued ICE candidate:', iceErr);
+                }
+              }
+              earlyIceCandidatesRef.current = [];
+            }
           }
         } catch (e) {
           console.error('[WebRTC] Failed to set remote description:', e);
@@ -257,10 +273,28 @@ export function useWebRTCCall(userId, userInfo = {}) {
         try {
           const pc = peerConnection.current;
           if (pc && pc.addIceCandidate && data.candidate) {
-            await pc.addIceCandidate(new RTCIceCandidate(data.candidate));
+            // Real PeerConnection exists — check if remote description is set
+            if (pc.remoteDescription && pc.remoteDescription.type) {
+              // Remote description is set — safe to add directly
+              await pc.addIceCandidate(new RTCIceCandidate(data.candidate));
+            } else {
+              // Remote description not yet set (caller waiting for answer, or callee pre-Accept)
+              // Buffer for later application
+              console.debug('[WebRTC] Buffering ICE candidate (remote description not yet set)');
+              earlyIceCandidatesRef.current.push(data.candidate);
+            }
+          } else if (data.candidate) {
+            // PeerConnection not ready yet (e.g. user hasn't tapped Accept)
+            // Buffer the candidate so answerCall can apply it later
+            console.debug('[WebRTC] Buffering early ICE candidate (PC not ready)');
+            earlyIceCandidatesRef.current.push(data.candidate);
           }
         } catch (e) {
-          console.error('[WebRTC] Failed to add ICE candidate:', e);
+          // If addIceCandidate throws, buffer the candidate instead of losing it
+          if (data.candidate) {
+            console.debug('[WebRTC] addIceCandidate threw, buffering:', e.message);
+            earlyIceCandidatesRef.current.push(data.candidate);
+          }
         }
         break;
       }
@@ -338,7 +372,10 @@ export function useWebRTCCall(userId, userInfo = {}) {
 
   // ── Create Peer Connection ────────────────────────────────────────
   const createPeerConnection = useCallback((isVideo = false) => {
-    const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
+    const pc = new RTCPeerConnection({
+      iceServers: ICE_SERVERS,
+      sdpSemantics: 'unified-plan', // Explicit for Safari/Chrome cross-platform compatibility
+    });
 
     // Handle ICE candidates — use ref to avoid stale closure
     pc.onicecandidate = (event) => {
@@ -557,6 +594,20 @@ export function useWebRTCCall(userId, userInfo = {}) {
         target_user_id: remoteUserInfo?.id,
         sdp: answer,
       });
+
+      // Apply any ICE candidates that arrived before we created the real PeerConnection
+      // (Samsung→iPhone race: caller sends ICE fast, but user hasn't tapped Accept yet)
+      if (earlyIceCandidatesRef.current.length > 0) {
+        console.log(`[WebRTC] Applying ${earlyIceCandidatesRef.current.length} buffered ICE candidates`);
+        for (const candidate of earlyIceCandidatesRef.current) {
+          try {
+            await pc.addIceCandidate(new RTCIceCandidate(candidate));
+          } catch (e) {
+            console.warn('[WebRTC] Failed to apply buffered ICE candidate:', e);
+          }
+        }
+        earlyIceCandidatesRef.current = [];
+      }
 
       // Notify our OTHER devices/tabs to stop ringing
       sendSignaling({
@@ -812,6 +863,7 @@ export function useWebRTCCall(userId, userInfo = {}) {
     if (callRetryRef.current) { clearTimeout(callRetryRef.current); callRetryRef.current = null; }
     pendingOfferRef.current = null;
     callRetryCountRef.current = 0;
+    earlyIceCandidatesRef.current = [];
 
     // Reset state
     setCallState(CALL_STATE.IDLE);

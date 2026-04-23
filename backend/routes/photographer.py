@@ -2131,6 +2131,34 @@ async def end_live_session(
                     data=notification_data
                 )
                 db.add(notification)
+            
+            # ═══ CONDITIONS REPORT → GALLERY THUMBNAIL ═══════════════════
+            # Auto-set gallery cover image from conditions report media
+            # This ensures condition photos/videos become the gallery thumbnail
+            try:
+                from models import ConditionReport, Gallery
+                cr_result = await db.execute(
+                    select(ConditionReport).where(
+                        and_(
+                            ConditionReport.live_session_id == live_session.id,
+                            ConditionReport.media_url.isnot(None),
+                            ConditionReport.media_url != ""
+                        )
+                    ).order_by(ConditionReport.created_at.desc())
+                )
+                conditions_report = cr_result.scalars().first()
+                
+                if conditions_report and conditions_report.media_url:
+                    gallery_obj_result = await db.execute(
+                        select(Gallery).where(Gallery.id == gallery_id)
+                    )
+                    gallery_obj = gallery_obj_result.scalar_one_or_none()
+                    if gallery_obj and not gallery_obj.cover_image_url:
+                        gallery_obj.cover_image_url = conditions_report.media_url
+                        logger.info(f"[Gallery] Auto-set cover image from conditions report for gallery {gallery_id}")
+            except Exception as e:
+                logger.warning(f"[Gallery] Failed to set conditions thumbnail: {e}")
+            # ═══ END CONDITIONS REPORT → GALLERY THUMBNAIL ═══════════════
     
     # Reset photographer status (only reset is_shooting, not is_live)
     # is_live is for social broadcasting and should be separate
@@ -2296,7 +2324,8 @@ async def get_featured_photographers(
     """
     from sqlalchemy import desc
     
-    photographer_roles = [RoleEnum.GROM_PARENT, RoleEnum.HOBBYIST, RoleEnum.PHOTOGRAPHER, RoleEnum.APPROVED_PRO]
+    # Hobbyists are NOT featured — organic discovery only
+    photographer_roles = [RoleEnum.PHOTOGRAPHER, RoleEnum.APPROVED_PRO]
     
     # Get photographers with their stats
     photographers_result = await db.execute(

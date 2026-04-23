@@ -644,7 +644,11 @@ async def get_platform_settings(
                 "lineup_default_visibility": "friends",
                 "lineup_lock_hours_before": 96,
                 "lineup_min_crew_default": 2,
-                "live_nearby_radius_miles": 10.0
+                "live_nearby_radius_miles": 10.0,
+                "hobbyist_max_bookings_per_week": 3,
+                "hobbyist_max_hourly_rate": 40.0,
+                "hobbyist_require_conditions_report": True,
+                "hobbyist_booking_auto_confirm": False
             }
         
         return {
@@ -658,7 +662,11 @@ async def get_platform_settings(
             "lineup_default_visibility": settings.lineup_default_visibility,
             "lineup_lock_hours_before": settings.lineup_lock_hours_before,
             "lineup_min_crew_default": settings.lineup_min_crew_default,
-            "live_nearby_radius_miles": settings.live_nearby_radius_miles
+            "live_nearby_radius_miles": settings.live_nearby_radius_miles,
+            "hobbyist_max_bookings_per_week": getattr(settings, 'hobbyist_max_bookings_per_week', 3),
+            "hobbyist_max_hourly_rate": getattr(settings, 'hobbyist_max_hourly_rate', 40.0),
+            "hobbyist_require_conditions_report": getattr(settings, 'hobbyist_require_conditions_report', True),
+            "hobbyist_booking_auto_confirm": getattr(settings, 'hobbyist_booking_auto_confirm', False)
         }
     except Exception:
         # Table doesn't exist, return defaults
@@ -671,7 +679,11 @@ async def get_platform_settings(
             "lineup_default_visibility": "friends",
             "lineup_lock_hours_before": 96,
             "lineup_min_crew_default": 2,
-            "live_nearby_radius_miles": 10.0
+            "live_nearby_radius_miles": 10.0,
+            "hobbyist_max_bookings_per_week": 3,
+            "hobbyist_max_hourly_rate": 40.0,
+            "hobbyist_require_conditions_report": True,
+            "hobbyist_booking_auto_confirm": False
         }
 
 
@@ -687,6 +699,10 @@ class UpdatePlatformSettingsRequest(BaseModel):
     lineup_lock_hours_before: Optional[int] = None
     lineup_min_crew_default: Optional[int] = None
     live_nearby_radius_miles: Optional[float] = None
+    hobbyist_max_bookings_per_week: Optional[int] = None
+    hobbyist_max_hourly_rate: Optional[float] = None
+    hobbyist_require_conditions_report: Optional[bool] = None
+    hobbyist_booking_auto_confirm: Optional[bool] = None
 
 
 @router.put("/admin/platform-settings")
@@ -729,6 +745,14 @@ async def update_platform_settings(
             settings.lineup_min_crew_default = data.lineup_min_crew_default
         if data.live_nearby_radius_miles is not None:
             settings.live_nearby_radius_miles = data.live_nearby_radius_miles
+        if data.hobbyist_max_bookings_per_week is not None:
+            settings.hobbyist_max_bookings_per_week = data.hobbyist_max_bookings_per_week
+        if data.hobbyist_max_hourly_rate is not None:
+            settings.hobbyist_max_hourly_rate = data.hobbyist_max_hourly_rate
+        if data.hobbyist_require_conditions_report is not None:
+            settings.hobbyist_require_conditions_report = data.hobbyist_require_conditions_report
+        if data.hobbyist_booking_auto_confirm is not None:
+            settings.hobbyist_booking_auto_confirm = data.hobbyist_booking_auto_confirm
         
         settings.updated_by = admin.id
         settings.updated_at = datetime.now(timezone.utc)

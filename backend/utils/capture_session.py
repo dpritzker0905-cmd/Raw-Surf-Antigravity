@@ -77,8 +77,10 @@ def can_create_session(role: RoleEnum, session_mode: str = 'live_join') -> Tuple
     if role in [RoleEnum.PHOTOGRAPHER, RoleEnum.APPROVED_PRO]:
         return True, None
     
-    # Hobbyist with live_join is allowed (proximity check happens separately)
-    if role == RoleEnum.HOBBYIST and session_mode == 'live_join':
+    # Hobbyist with live_join or scheduled is allowed
+    # live_join: proximity check happens separately at go-live time
+    # scheduled: booking guardrails (price cap, weekly limit) checked at booking creation
+    if role == RoleEnum.HOBBYIST and session_mode in ['live_join', 'scheduled']:
         return True, None
     
     return False, f"Role {role.value if hasattr(role, 'value') else role} cannot create sessions."

@@ -3346,6 +3346,12 @@ class PlatformSettings(Base):
     # Live Now Settings
     live_nearby_radius_miles = Column(Float, default=10.0)  # Radius for "nearby" crew invites
     
+    # Hobbyist Booking Guardrails (admin-adjustable)
+    hobbyist_max_bookings_per_week = Column(Integer, default=3)  # Max scheduled bookings per week
+    hobbyist_max_hourly_rate = Column(Float, default=40.0)  # Max hourly rate cap ($)
+    hobbyist_require_conditions_report = Column(Boolean, default=True)  # Must submit conditions before going active
+    hobbyist_booking_auto_confirm = Column(Boolean, default=False)  # False = must manually accept
+    
     # Metadata
     updated_by = Column(String(36), ForeignKey('profiles.id', ondelete='SET NULL'), nullable=True)
     updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
