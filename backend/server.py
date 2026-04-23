@@ -255,6 +255,69 @@ async def stripe_webhook(request: Request):
                             await db.commit()
                             logger.info(f"[Webhook] crew_share paid: participant {participant_id}")
 
+            # ── Photo subscription card payment ──────────────────────────────────
+            elif metadata.get('type') == 'photo_subscription':
+                surfer_id = metadata.get('surfer_id')
+                plan_id = metadata.get('plan_id')
+                photographer_id = metadata.get('photographer_id')
+                logger.info(f"[Webhook] photo_subscription payment: surfer={surfer_id} plan={plan_id}")
+                if surfer_id and plan_id:
+                    from models import PhotographerSubscriptionPlan, SurferPhotoSubscription
+                    from sqlalchemy import select as sa_select
+                    from datetime import datetime, timezone, timedelta
+
+                    async with async_session_maker() as db:
+                        # Check if already activated (idempotency)
+                        tx_result = await db.execute(
+                            sa_select(PaymentTransaction).where(PaymentTransaction.session_id == session_id)
+                        )
+                        tx = tx_result.scalar_one_or_none()
+                        if tx and tx.payment_status == 'completed':
+                            logger.info(f"[Webhook] photo_subscription already completed for session {session_id}")
+                        else:
+                            plan_result = await db.execute(
+                                sa_select(PhotographerSubscriptionPlan).where(PhotographerSubscriptionPlan.id == plan_id)
+                            )
+                            plan = plan_result.scalar_one_or_none()
+                            if plan:
+                                now = datetime.now(timezone.utc)
+                                expires_at = now + (timedelta(weeks=1) if plan.interval == 'weekly' else timedelta(days=30))
+
+                                sub = SurferPhotoSubscription(
+                                    surfer_id=surfer_id,
+                                    photographer_id=photographer_id or plan.photographer_id,
+                                    plan_id=plan.id,
+                                    plan_name=plan.name,
+                                    plan_interval=plan.interval,
+                                    plan_price=plan.price,
+                                    expires_at=expires_at,
+                                    photos_remaining=plan.photos_included,
+                                    videos_remaining=plan.videos_included,
+                                    live_session_buyins_remaining=plan.live_session_buyins,
+                                    sessions_remaining=plan.sessions_included,
+                                    booking_discount_pct=plan.booking_discount_pct,
+                                    on_demand_discount_pct=plan.on_demand_discount_pct,
+                                    amount_paid=plan.price,
+                                    payment_method='card',
+                                    stripe_session_id=session_id,
+                                )
+                                db.add(sub)
+
+                                # Credit photographer
+                                phot_result = await db.execute(sa_select(Profile).where(Profile.id == (photographer_id or plan.photographer_id)))
+                                photographer = phot_result.scalar_one_or_none()
+                                if photographer:
+                                    commission = 0.20 if (photographer.subscription_tier or 'free') != 'premium' else 0.15
+                                    photographer.withdrawable_credits = (photographer.withdrawable_credits or 0) + plan.price * (1 - commission)
+
+                                # Mark transaction completed
+                                if tx:
+                                    tx.payment_status = 'completed'
+                                    tx.status = 'completed'
+
+                                await db.commit()
+                                logger.info(f"[Webhook] photo_subscription activated: surfer {surfer_id} → plan {plan.name}")
+
             # ── Standard credit purchase / subscription ──────────────────────────
             else:
                 async with async_session_maker() as db:

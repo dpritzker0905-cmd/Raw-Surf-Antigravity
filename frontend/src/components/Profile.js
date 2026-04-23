@@ -55,6 +55,7 @@ import apiClient from '../lib/apiClient';
 import { getFullUrl } from '../utils/media';
 import { ROLES } from '../constants/roles';
 import AvatarCropModal from './AvatarCropModal';
+import { PhotographerSubscriptionPlans } from './PhotographerSubscriptionPlans';
 
 // Resolve relative /api/uploads/... paths to backend absolute URLs
 
@@ -1237,6 +1238,14 @@ export const Profile = () => {
               }
             />
           </div>
+        )}
+
+        {/* ============ PHOTOGRAPHER SUBSCRIPTION PLANS ============ */}
+        {!isOwnProfile && isProfilePhotographer && (
+          <PhotographerSubscriptionPlans
+            photographerId={profileUserId}
+            photographerName={profile?.full_name || 'Photographer'}
+          />
         )}
 
         {/* Quick Stats Row - Only for own profile */}

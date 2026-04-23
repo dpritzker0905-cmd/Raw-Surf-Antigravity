@@ -73,6 +73,8 @@ const SearchPage                  = React.lazy(() => import('./pages/SearchPage'
 const CreatePost                  = React.lazy(() => import('./components/CreatePost').then(m => ({ default: m.CreatePost })));
 const DispatchLobby               = React.lazy(() => import('./components/DispatchLobby').then(m => ({ default: m.DispatchLobby })));
 const PostSessionSummary          = React.lazy(() => import('./components/gallery/PostSessionSummary').then(m => ({ default: m.PostSessionSummary })));
+const PhotographerSubscriptionSettings = React.lazy(() => import('./components/PhotographerSubscriptionSettings'));
+const PhotographerSubscribePage = React.lazy(() => import('./components/PhotographerSubscribePage'));
 
 import './App.css';
 
@@ -168,6 +170,7 @@ function App() {
 
             {/* Public photographer gallery */}
             <Route path="/photographer/:photographerId/gallery" element={<AppLayout><Lazy><PublicPhotographerGallery /></Lazy></AppLayout>} />
+            <Route path="/photographer/:photographerId/subscribe" element={<ProtectedRoute><AppLayout><Lazy><PhotographerSubscribePage /></Lazy></AppLayout></ProtectedRoute>} />
             <Route path="/gallery/:username" element={<AppLayout><Lazy><GalleryStorefront /></Lazy></AppLayout>} />
 
             {/* Admin */}
@@ -193,6 +196,7 @@ function App() {
             <Route path="/photographer/sessions" element={<ProtectedRoute><AppLayout><Lazy><PhotographerSessionsManager /></Lazy></AppLayout></ProtectedRoute>} />
             <Route path="/photographer/on-demand" element={<ProtectedRoute><AppLayout><Lazy><OnDemandSessionManager /></Lazy></AppLayout></ProtectedRoute>} />
             <Route path="/photographer/earnings" element={<ProtectedRoute><AppLayout><Lazy><EarningsDashboard /></Lazy></AppLayout></ProtectedRoute>} />
+            <Route path="/photographer/subscription-settings" element={<ProtectedRoute><AppLayout><Lazy><PhotographerSubscriptionSettings /></Lazy></AppLayout></ProtectedRoute>} />
             <Route path="/photographer/galleries/:galleryId" element={<ProtectedRoute><AppLayout><Lazy><PhotographerGalleryManager /></Lazy></AppLayout></ProtectedRoute>} />
 
             {/* Bookings / Crew */}

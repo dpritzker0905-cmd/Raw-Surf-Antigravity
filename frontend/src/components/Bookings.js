@@ -10,7 +10,7 @@ import { usePersona } from '../contexts/PersonaContext';
 
 import apiClient from '../lib/apiClient';
 
-import { Users, Zap, Radio, History, CalendarClock, UserPlus, Copy, Mail, Target, Sparkles, Search, Loader2, AtSign, Send, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Users, Zap, Radio, History, CalendarClock, UserPlus, Copy, Mail, Target, Sparkles, Search, Loader2, AtSign, Send, ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react';
 
 import { Card, CardContent } from './ui/card';
 
@@ -33,7 +33,7 @@ import { ScheduledBookingDrawer } from './ScheduledBookingDrawer';
 import LineupManagerDrawer from './LineupManagerDrawer';
 
 // Tab components extracted for maintainability
-import { LiveSessionsTab, OnDemandTab, ScheduledTab, FindBuddiesTab, PastTab, LiveNowTab, LineupTab, DirectoryTab } from './bookings/index';
+import { LiveSessionsTab, OnDemandTab, ScheduledTab, FindBuddiesTab, PastTab, LiveNowTab, LineupTab, DirectoryTab, SubscriptionsTab } from './bookings/index';
 
 import { GoldPassBookingsSection } from './bookings/GoldPassBookingsSection';
 
@@ -853,6 +853,7 @@ export const Bookings = () => {
     }).length },
     { id: 'past', label: 'Past', icon: History, count: bookings.filter(b => b.status === 'Completed').length },
     { id: 'live_now', label: 'Live Now', icon: Radio, count: livePhotographers.length },
+    { id: 'subscriptions', label: 'Subscriptions', icon: RefreshCw, count: 0 },
   ];
 
   // Scheduled = confirmed bookings + pending bookings that are NOT still in an active lineup lobby
@@ -1153,6 +1154,10 @@ export const Bookings = () => {
                 setShowScheduledBookingDrawer(true);
               }}
             />
+          )}
+
+          {activeTab === 'subscriptions' && (
+            <SubscriptionsTab />
           )}
         </div>
       </div>

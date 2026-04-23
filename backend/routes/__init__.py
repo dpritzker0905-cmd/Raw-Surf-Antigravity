@@ -80,6 +80,7 @@ from .surfer_gallery_review import router as surfer_gallery_review_router
 from .waves import router as waves_router
 from .blocks import router as blocks_router
 from .ai_health import router as ai_health_router
+from .photo_subscriptions import router as photo_subscriptions_router
 
 # Create main API router
 api_router = APIRouter(prefix="/api")
@@ -165,6 +166,7 @@ api_router.include_router(surfer_gallery_review_router, tags=["Surfer Gallery Re
 api_router.include_router(waves_router, tags=["Waves"])
 api_router.include_router(blocks_router, tags=["User Blocks"])
 api_router.include_router(ai_health_router, tags=["AI Health"])
+api_router.include_router(photo_subscriptions_router, tags=["Photo Subscriptions"])
 
 @api_router.get("/")
 async def root():

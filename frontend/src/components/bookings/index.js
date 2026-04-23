@@ -12,3 +12,4 @@ export { LiveNowTab } from './LiveNowTab';
 export { LineupTab } from './LineupTab';
 export { GoldPassBookingsSection } from './GoldPassBookingsSection';
 export { DirectoryTab } from './DirectoryTab';
+export { SubscriptionsTab } from './SubscriptionsTab';

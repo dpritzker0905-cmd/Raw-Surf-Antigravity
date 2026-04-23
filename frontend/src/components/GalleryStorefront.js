@@ -13,9 +13,10 @@ import {
   Camera, MapPin, Star, Users, Image as ImageIcon,
   Calendar, ExternalLink, Share2, ArrowLeft, Loader2,
   CheckCircle, Instagram, Globe, Briefcase, Play,
-  Heart, MessageCircle, ShieldCheck
+  Heart, MessageCircle, ShieldCheck, RefreshCw
 } from 'lucide-react';
 import logger from '../utils/logger';
+import { PhotographerSubscriptionPlans } from './PhotographerSubscriptionPlans';
 
 /**
  * GalleryStorefront — Premium public photographer portfolio page
@@ -275,12 +276,19 @@ export const GalleryStorefront = () => {
                       isFollowing ? 'Following' : 'Follow'}
                   </Button>
                   <Button
-                    onClick={() => navigate(`/messages/new/${photographer.id}`)}
-                    variant="outline"
-                    className={`${borderColor} ${textPrimary}`}
-                  >
-                    <MessageCircle className="w-4 h-4" />
-                  </Button>
+                  onClick={() => navigate(`/messages/new/${photographer.id}`)}
+                  variant="outline"
+                  className={`${borderColor} ${textPrimary}`}
+                >
+                  <MessageCircle className="w-4 h-4" />
+                </Button>
+                <Button
+                  onClick={() => navigate(`/photographer/${photographer.id}/subscribe`)}
+                  variant="outline"
+                  className="border-violet-500/40 text-violet-400 hover:bg-violet-500/10"
+                >
+                  <RefreshCw className="w-4 h-4 mr-1" /> Subscribe
+                </Button>
                 </>
               )}
               {isSelf && (
@@ -343,6 +351,16 @@ export const GalleryStorefront = () => {
               </Button>
             </CardContent>
           </Card>
+        </div>
+      )}
+
+      {/* ── Subscription Plans ── */}
+      {!isSelf && (
+        <div className="max-w-4xl mx-auto px-4 mt-6">
+          <PhotographerSubscriptionPlans
+            photographerId={photographer.id}
+            photographerName={photographer.full_name}
+          />
         </div>
       )}
 

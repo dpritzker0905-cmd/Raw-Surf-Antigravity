@@ -3,7 +3,7 @@ import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { usePersona, getExpandedRoleInfo } from '../contexts/PersonaContext';
-import { Home, Compass, MapPin, Calendar, MessageCircle, Bell, BellRing, User, Settings, LogOut, Camera, Shield, ChevronDown, ChevronRight, Image, CalendarCheck, Radio, ShoppingBag, Heart, Sun, Moon, Waves, Eye, TrendingUp, Zap, Crown, Baby, Lock, Plus, Stamp, Target, Backpack, CreditCard } from 'lucide-react';
+import { Home, Compass, MapPin, Calendar, MessageCircle, Bell, BellRing, User, Settings, LogOut, Camera, Shield, ChevronDown, ChevronRight, Image, CalendarCheck, Radio, ShoppingBag, Heart, Sun, Moon, Waves, Eye, TrendingUp, Zap, Crown, Baby, Lock, Plus, Stamp, Target, Backpack, CreditCard, RefreshCw } from 'lucide-react';
 import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import { getNotifications, getUnreadCount, markRead, markAllRead, sendNotification, sendPhotographerAlert, createNotification, markAlertRead } from '../services/notificationService';
 import { SurfPassport } from './SurfPassport';
@@ -104,7 +104,7 @@ export const Sidebar = () => {
   const isGromParent = effectiveRole === ROLES.GROM_PARENT || user?.is_grom_parent === true;
   
   // Check if current path is a photo tools path
-  const isPhotoToolsPath = ['/gallery', '/photographer/bookings', '/photographer/sessions', '/photographer/on-demand', '/photographer/earnings', '/photographer/on-demand-settings'].some(path => 
+  const isPhotoToolsPath = ['/gallery', '/photographer/bookings', '/photographer/sessions', '/photographer/on-demand', '/photographer/earnings', '/photographer/on-demand-settings', '/photographer/subscription-settings'].some(path => 
     location.pathname.startsWith(path)
   );
   
@@ -221,6 +221,7 @@ export const Sidebar = () => {
       { path: '/photographer/sessions', icon: Radio, label: 'Live Sessions' },
       { path: '/photographer/on-demand', icon: Zap, label: 'On-Demand Hub' },
       { path: '/photographer/earnings', icon: TrendingUp, label: 'Earnings Dashboard' },
+      { path: '/photographer/subscription-settings', icon: RefreshCw, label: 'Subscription Settings' },
     ];
   };
   

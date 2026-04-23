@@ -6,7 +6,7 @@ import { usePersona } from '../contexts/PersonaContext';
 import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import { 
   Radio, Camera, Image, Calendar, DollarSign, MapPin, 
-  ChevronRight, X, Zap, Award, Flame
+  ChevronRight, X, Zap, Award, Flame, RefreshCw
 } from 'lucide-react';
 import { Badge } from './ui/badge';
 import { toast } from 'sonner';
@@ -281,7 +281,18 @@ export const PhotoToolsDrawer = ({ isOpen, onClose }) => {
         color: 'text-amber-400',
         bgColor: 'bg-amber-500/10',
         isPro: true
-      }] : [])
+      }] : []),
+      // 6. PHOTO SUBSCRIPTION SETTINGS - Recurring Plans
+      {
+        id: 'subscription-settings',
+        icon: RefreshCw,
+        label: 'Subscription Settings',
+        description: 'Weekly & monthly bundles for surfers',
+        path: '/photographer/subscription-settings',
+        color: 'text-violet-400',
+        bgColor: 'bg-violet-500/10',
+        hasNew: true
+      }
     ];
   };
   

@@ -14,7 +14,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   Search, MapPin, Camera, Filter, Star, Loader2, Plane, CheckCircle,
-  Map, SlidersHorizontal, Waves, ArrowUpDown, Lock, Radio, Image, User, CalendarPlus
+  Map, SlidersHorizontal, Waves, ArrowUpDown, Lock, Radio, Image, User, CalendarPlus, RefreshCw
 } from 'lucide-react';
 import { Card, CardContent } from '../ui/card';
 import { Button } from '../ui/button';
@@ -77,7 +77,7 @@ const TIER_RADIUS = {
 /**
  * Enhanced Photographer Card Component with review snippets and live status
  */
-const DirectoryPhotographerCard = ({ photographer, onSelect, onBook, onViewGallery, theme, subscriptionTier, userLocation }) => {
+const DirectoryPhotographerCard = ({ photographer, onSelect, onBook, onViewGallery, onSubscribe, theme, subscriptionTier, userLocation }) => {
   const isLight = theme === 'light';
   const isBeach = theme === 'beach';
   const textPrimary = isLight ? 'text-gray-900' : 'text-white';
@@ -232,7 +232,16 @@ const DirectoryPhotographerCard = ({ photographer, onSelect, onBook, onViewGalle
             onClick={(e) => { e.stopPropagation(); onBook(photographer); }}
           >
             <CalendarPlus className="w-3.5 h-3.5 mr-1.5" />
-            Book Now
+            Book
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className={`${isLight ? 'border-violet-300 text-violet-700 hover:bg-violet-50' : 'border-violet-600/50 text-violet-300 hover:bg-violet-900/30'}`}
+            onClick={(e) => { e.stopPropagation(); onSubscribe(photographer); }}
+          >
+            <RefreshCw className="w-3.5 h-3.5 mr-1" />
+            Sub
           </Button>
         </div>
         
@@ -503,6 +512,10 @@ export const DirectoryTab = ({
   const handleViewGallery = (photographer) => {
     navigate(`/photographer/${photographer.id}/gallery`);
   };
+
+  const handleSubscribePhotographer = (photographer) => {
+    navigate(`/photographer/${photographer.id}/subscribe`);
+  };
   
   const handleViewOnMap = () => {
     navigate('/map?filter=photographers');
@@ -661,6 +674,7 @@ export const DirectoryTab = ({
                 onSelect={handleSelectPhotographer}
                 onBook={handleBookPhotographer}
                 onViewGallery={handleViewGallery}
+                onSubscribe={handleSubscribePhotographer}
                 theme={theme}
                 subscriptionTier={subscriptionTier}
                 userLocation={userLocation}
