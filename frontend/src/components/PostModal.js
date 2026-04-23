@@ -6,7 +6,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
-import { X, ChevronLeft, ChevronRight, Heart, MessageCircle, Send, Bookmark, MoreHorizontal, Loader2, Calendar, Waves } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, Heart, MessageCircle, Send, Bookmark, MoreHorizontal, Loader2, Calendar, Waves, Play, Pause, Volume2, VolumeX } from 'lucide-react';
 import { toast } from 'sonner';
 import { RichText, CommentText } from './RichText';
 import { SharePostModal } from './PostMenu';
@@ -36,7 +36,163 @@ const ShakaIcon = ({ filled, size = 28 }) => (
 
 
 
-// Image Carousel Component
+// Custom Video Player for PostModal — TikTok/Instagram style
+// Tap to play/pause, custom progress bar, mute toggle, no native controls
+const ModalVideoPlayer = ({ src, poster, className = '' }) => {
+  const videoRef = useRef(null);
+  const progressRef = useRef(null);
+  const [playing, setPlaying] = useState(false);
+  const [muted, setMuted] = useState(true);
+  const [progress, setProgress] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const [currentTime, setCurrentTimeState] = useState(0);
+  const [showControls, setShowControls] = useState(true);
+  const hideTimerRef = useRef(null);
+
+  // Auto-play when mounted
+  useEffect(() => {
+    if (videoRef.current) {
+      videoRef.current.muted = true; // Required for autoplay
+      videoRef.current.play().then(() => {
+        setPlaying(true);
+        setMuted(true);
+      }).catch(() => {});
+    }
+    return () => {
+      if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
+    };
+  }, [src]);
+
+  // Update progress bar
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+    const onTimeUpdate = () => {
+      setProgress(video.duration ? (video.currentTime / video.duration) * 100 : 0);
+      setCurrentTimeState(video.currentTime);
+    };
+    const onLoaded = () => setDuration(video.duration || 0);
+    video.addEventListener('timeupdate', onTimeUpdate);
+    video.addEventListener('loadedmetadata', onLoaded);
+    return () => {
+      video.removeEventListener('timeupdate', onTimeUpdate);
+      video.removeEventListener('loadedmetadata', onLoaded);
+    };
+  }, []);
+
+  const togglePlay = (e) => {
+    e.stopPropagation();
+    if (!videoRef.current) return;
+    if (playing) {
+      videoRef.current.pause();
+      setPlaying(false);
+    } else {
+      videoRef.current.play().catch(() => {});
+      setPlaying(true);
+    }
+    // Show controls briefly then auto-hide
+    setShowControls(true);
+    if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
+    hideTimerRef.current = setTimeout(() => setShowControls(false), 2500);
+  };
+
+  const toggleMute = (e) => {
+    e.stopPropagation();
+    if (!videoRef.current) return;
+    const newMuted = !muted;
+    videoRef.current.muted = newMuted;
+    setMuted(newMuted);
+  };
+
+  const handleSeek = (e) => {
+    e.stopPropagation();
+    if (!videoRef.current || !progressRef.current) return;
+    const rect = progressRef.current.getBoundingClientRect();
+    const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+    videoRef.current.currentTime = ratio * videoRef.current.duration;
+  };
+
+  const formatTime = (s) => {
+    if (!s || isNaN(s)) return '0:00';
+    const m = Math.floor(s / 60);
+    const sec = Math.floor(s % 60);
+    return `${m}:${sec.toString().padStart(2, '0')}`;
+  };
+
+  return (
+    <div
+      className={`relative w-full h-full bg-black flex items-center justify-center group ${className}`}
+      onClick={togglePlay}
+      onMouseMove={() => {
+        setShowControls(true);
+        if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
+        hideTimerRef.current = setTimeout(() => setShowControls(false), 2500);
+      }}
+    >
+      <video
+        ref={videoRef}
+        src={src}
+        poster={poster}
+        className="max-w-full max-h-full object-contain"
+        playsInline
+        webkit-playsinline="true"
+        loop
+        muted={muted}
+        preload="auto"
+      />
+
+      {/* Play/Pause center overlay — fades in/out */}
+      <div className={`absolute inset-0 flex items-center justify-center pointer-events-none transition-opacity duration-300 ${showControls || !playing ? 'opacity-100' : 'opacity-0'}`}>
+        {!playing && (
+          <div className="w-16 h-16 rounded-full bg-black/50 backdrop-blur-sm flex items-center justify-center">
+            <Play className="w-8 h-8 text-white ml-1" fill="white" />
+          </div>
+        )}
+      </div>
+
+      {/* Bottom control bar */}
+      <div className={`absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-3 flex flex-col gap-2 transition-opacity duration-300 ${showControls || !playing ? 'opacity-100' : 'opacity-0'}`}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Progress bar */}
+        <div
+          ref={progressRef}
+          className="w-full h-1 bg-white/30 rounded-full cursor-pointer relative group/progress"
+          onClick={handleSeek}
+        >
+          <div
+            className="h-full bg-white rounded-full transition-all relative"
+            style={{ width: `${progress}%` }}
+          >
+            <div className="absolute right-0 top-1/2 -translate-y-1/2 w-3 h-3 bg-white rounded-full opacity-0 group-hover/progress:opacity-100 transition-opacity" />
+          </div>
+        </div>
+        {/* Time + controls row */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <button
+              onClick={togglePlay}
+              className="text-white hover:opacity-80 transition-opacity"
+            >
+              {playing ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5" fill="white" />}
+            </button>
+            <span className="text-white/80 text-xs font-mono">
+              {formatTime(currentTime)} / {formatTime(duration)}
+            </span>
+          </div>
+          <button
+            onClick={toggleMute}
+            className="text-white hover:opacity-80 transition-opacity"
+          >
+            {muted ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Image Carousel Component — handles both images and video
 const ImageCarousel = ({ images, mediaType }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
   
@@ -56,15 +212,15 @@ const ImageCarousel = ({ images, mediaType }) => {
   const currentItem = mediaItems[currentIndex];
   const isVideo = mediaType === 'video' || (typeof currentItem === 'object' && currentItem?.type === 'video');
   const mediaUrl = typeof currentItem === 'string' ? currentItem : currentItem?.url;
+  const posterUrl = typeof currentItem === 'object' ? currentItem?.poster : undefined;
   
   return (
     <div className="relative w-full h-full bg-black flex items-center justify-center">
       {isVideo ? (
-        <video
+        <ModalVideoPlayer
           src={mediaUrl}
-          controls
-          className="max-w-full max-h-full object-contain"
-          playsInline
+          poster={posterUrl}
+          className="w-full h-full"
         />
       ) : (
         <img
@@ -80,19 +236,19 @@ const ImageCarousel = ({ images, mediaType }) => {
         <>
           <button
             onClick={goPrev}
-            className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-white/90 rounded-full flex items-center justify-center shadow-lg hover:bg-white transition-colors"
+            className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-white/90 rounded-full flex items-center justify-center shadow-lg hover:bg-white transition-colors z-10"
           >
             <ChevronLeft className="w-5 h-5 text-gray-800" />
           </button>
           <button
             onClick={goNext}
-            className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-white/90 rounded-full flex items-center justify-center shadow-lg hover:bg-white transition-colors"
+            className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-white/90 rounded-full flex items-center justify-center shadow-lg hover:bg-white transition-colors z-10"
           >
             <ChevronRight className="w-5 h-5 text-gray-800" />
           </button>
           
           {/* Dots indicator */}
-          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-1.5">
+          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-1.5 z-10">
             {mediaItems.map((_, idx) => (
               <button
                 key={idx}
@@ -446,6 +602,11 @@ const PostModal = ({ post, isOpen, onClose, _onPostUpdated }) => {
   // Alias for mobile view
   const handleComment = handleSubmitComment;
   
+  // Ref for comment input (mobile)
+  const mobileCommentInputRef = useRef(null);
+  // Ref for comment input (desktop)
+  const desktopCommentInputRef = useRef(null);
+  
   // Like/unlike a comment
   const handleLikeComment = async (commentId) => {
     if (!user?.id) {
@@ -657,7 +818,17 @@ const PostModal = ({ post, isOpen, onClose, _onPostUpdated }) => {
                 </span>
               )}
               
-              <button className="p-3 text-white ml-2">
+              <button
+                className="p-3 text-white ml-2"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowComments(true);
+                  // Focus comment input after expanding
+                  setTimeout(() => {
+                    if (mobileCommentInputRef.current) mobileCommentInputRef.current.focus();
+                  }, 100);
+                }}
+              >
                 <MessageCircle className="w-7 h-7" />
               </button>
               <button 
@@ -767,6 +938,7 @@ const PostModal = ({ post, isOpen, onClose, _onPostUpdated }) => {
           {/* Comment Input */}
           <div className="px-4 pb-2 flex items-center gap-2" style={{ pointerEvents: 'auto' }}>
             <input
+              ref={mobileCommentInputRef}
               type="text"
               placeholder="Add a comment..."
               value={commentInput}
@@ -956,7 +1128,12 @@ const PostModal = ({ post, isOpen, onClose, _onPostUpdated }) => {
                     style={{ filter: liked ? 'none' : 'grayscale(100%) brightness(1.5)' }}
                   />
                 </button>
-                <button className="text-white hover:opacity-70 transition-opacity">
+                <button
+                  className="text-white hover:opacity-70 transition-opacity"
+                  onClick={() => {
+                    if (desktopCommentInputRef.current) desktopCommentInputRef.current.focus();
+                  }}
+                >
                   <MessageCircle className="w-6 h-6" />
                 </button>
                 <button 
@@ -994,6 +1171,7 @@ const PostModal = ({ post, isOpen, onClose, _onPostUpdated }) => {
           <div className="border-t border-zinc-800 p-4">
             <div className="flex items-center gap-2">
               <input
+                ref={desktopCommentInputRef}
                 type="text"
                 value={commentInput}
                 onChange={(e) => setCommentInput(e.target.value)}

@@ -11,7 +11,7 @@ import { CommentInputWithEmoji } from './EmojiPicker';
 import WhoReactedModal from './WhoReactedModal';
 import SessionJoinCard from './SessionJoinCard';
 import { RichText, CommentText } from './RichText';
-import { MapPin, MessageCircle, Send, Bookmark, MoreHorizontal, Loader2, Play, Radio, Heart, ShoppingBag, ChevronRight, RefreshCw } from 'lucide-react';
+import { MapPin, MessageCircle, Send, Bookmark, MoreHorizontal, Loader2, Play, Radio, Heart, ShoppingBag, ChevronRight, RefreshCw, Volume2, VolumeX, Pause } from 'lucide-react';
 import { toast } from 'sonner';
 import { getFullUrl } from '../utils/media';
 import { formatTimeAgo } from '../utils/formatTime';
@@ -610,6 +610,10 @@ const PostCard = ({
   const [userManuallyPaused, setUserManuallyPaused] = useState(false);
   // Track if video source failed to load (dead ephemeral URL or network error)
   const [videoError, setVideoError] = useState(false);
+  // Mute state for in-feed video (defaults muted for autoplay)
+  const [isMuted, setIsMuted] = useState(true);
+  // Track if video is currently playing (for play/pause overlay)
+  const [isPlaying, setIsPlaying] = useState(false);
 
   // Helper to ensure media paths map to backend directly natively preventing Netlify 404 traps
   const _checkMediaUrl = getFullUrl(post?.media_url || post?.image_url);
@@ -872,24 +876,57 @@ const PostCard = ({
               </div>
             </div>
           ) : (
+          /* TikTok/Instagram pattern: video plays as muted preview in feed.
+             NO native controls — tapping opens PostModal for social interaction.
+             Mute toggle is a separate button that stops propagation. */
+          <>
           <video
             ref={videoRef}
             poster={videoPoster}
-            controls
             className="w-full h-full object-cover"
             playsInline
+            webkit-playsinline="true"
             preload="auto"
-            muted
+            muted={isMuted}
             autoPlay
             loop
-            onClick={(e) => e.stopPropagation()}
-            onPlay={() => { if (!programmaticTarget.current) setUserManuallyPaused(false); }}
-            onPause={() => { if (!programmaticTarget.current) setUserManuallyPaused(true); }}
+            onPlay={() => {
+              setIsPlaying(true);
+              if (!programmaticTarget.current) setUserManuallyPaused(false);
+            }}
+            onPause={() => {
+              setIsPlaying(false);
+              if (!programmaticTarget.current) setUserManuallyPaused(true);
+            }}
             onError={() => setVideoError(true)}
           >
             <source src={videoSrc} type={videoMimeType} onError={() => setVideoError(true)} />
             {videoMimeType !== 'video/mp4' && <source src={videoSrc} type="video/mp4" onError={() => setVideoError(true)} />}
           </video>
+          {/* Transparent click overlay — ensures tap opens PostModal, not native player */}
+          <div className="absolute inset-0 z-[1]" />
+          {/* Centered play icon — shows when paused (tap to open modal, not to play) */}
+          {!isPlaying && (
+            <div className="absolute inset-0 z-[2] flex items-center justify-center pointer-events-none">
+              <div className="w-16 h-16 rounded-full bg-black/50 backdrop-blur-sm flex items-center justify-center">
+                <Play className="w-8 h-8 text-white ml-1" fill="white" />
+              </div>
+            </div>
+          )}
+          {/* Mute toggle — bottom-right, TikTok style (stops propagation so it doesn't open modal) */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              const newMuted = !isMuted;
+              setIsMuted(newMuted);
+              if (videoRef.current) videoRef.current.muted = newMuted;
+            }}
+            className="absolute bottom-3 right-3 z-[3] w-8 h-8 rounded-full bg-black/60 backdrop-blur-sm flex items-center justify-center text-white hover:bg-black/80 transition-colors"
+            data-testid={`video-mute-${post.id}`}
+          >
+            {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+          </button>
+          </>
           )
         ) : (
           <img
@@ -902,7 +939,7 @@ const PostCard = ({
           />
         )}
         {isVideoItem && !(isDeadLocalVideo || videoError) && (
-          <div className="absolute top-2 right-2 bg-black/60 px-2 py-1 rounded text-xs text-white flex items-center gap-1">
+          <div className="absolute top-2 right-2 z-[2] bg-black/60 px-2 py-1 rounded text-xs text-white flex items-center gap-1 pointer-events-none">
             <Play className="w-3 h-3" />
             {post.video_duration ? `${Math.round(post.video_duration)}s` : 'Video'}
           </div>
