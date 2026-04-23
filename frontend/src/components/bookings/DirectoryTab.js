@@ -14,7 +14,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   Search, MapPin, Camera, Filter, Star, Loader2, Plane, CheckCircle,
-  Map, SlidersHorizontal, Waves, ArrowUpDown, Lock, Radio, Image, User, CalendarPlus, RefreshCw
+  Map, SlidersHorizontal, Waves, ArrowUpDown, Lock, Radio, Image, User, CalendarPlus, RefreshCw, Bell
 } from 'lucide-react';
 import { Card, CardContent } from '../ui/card';
 import { Button } from '../ui/button';
@@ -206,43 +206,62 @@ const DirectoryPhotographerCard = ({ photographer, onSelect, onBook, onViewGalle
           </div>
         </div>
         
-        {/* Action buttons */}
-        <div className="flex items-center gap-2 mt-3 pt-3 border-t border-dashed border-zinc-700/50">
-          <Button
-            variant="outline"
-            size="sm"
-            className={`flex-1 ${isLight ? 'border-gray-300 text-gray-700 hover:bg-gray-50' : 'border-zinc-600 text-gray-300 hover:bg-zinc-700'}`}
-            onClick={(e) => { e.stopPropagation(); onSelect(photographer); }}
-          >
-            <User className="w-3.5 h-3.5 mr-1.5" />
-            Reviews
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            className={`flex-1 ${isLight ? 'border-blue-300 text-blue-700 hover:bg-blue-50' : 'border-cyan-600/50 text-cyan-300 hover:bg-cyan-900/30'}`}
-            onClick={(e) => { e.stopPropagation(); onViewGallery(photographer); }}
-          >
-            <Image className="w-3.5 h-3.5 mr-1.5" />
-            Gallery
-          </Button>
-          <Button
-            size="sm"
-            className="flex-1 bg-gradient-to-r from-yellow-500 to-amber-500 hover:from-yellow-600 hover:to-amber-600 text-black font-semibold"
-            onClick={(e) => { e.stopPropagation(); onBook(photographer); }}
-          >
-            <CalendarPlus className="w-3.5 h-3.5 mr-1.5" />
-            Book
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            className={`${isLight ? 'border-violet-300 text-violet-700 hover:bg-violet-50' : 'border-violet-600/50 text-violet-300 hover:bg-violet-900/30'}`}
-            onClick={(e) => { e.stopPropagation(); onSubscribe(photographer); }}
-          >
-            <RefreshCw className="w-3.5 h-3.5 mr-1" />
-            Sub
-          </Button>
+        {/* Action buttons — 2-row layout for mobile friendliness */}
+        <div className="mt-3 pt-3 border-t border-dashed border-zinc-700/50 space-y-2">
+          {/* Primary row: Book + Subscribe */}
+          <div className="flex items-stretch gap-2">
+            <Button
+              size="sm"
+              className="flex-1 bg-gradient-to-r from-yellow-500 to-amber-500 hover:from-yellow-600 hover:to-amber-600 text-black font-semibold h-9"
+              onClick={(e) => { e.stopPropagation(); onBook(photographer); }}
+            >
+              <CalendarPlus className="w-3.5 h-3.5 mr-1.5 shrink-0" />
+              Book Session
+            </Button>
+            <Button
+              size="sm"
+              className={`flex-1 h-9 font-semibold ${
+                isLight
+                  ? 'bg-violet-50 border border-violet-300 text-violet-700 hover:bg-violet-100'
+                  : 'bg-violet-500/10 border border-violet-500/30 text-violet-300 hover:bg-violet-500/20'
+              }`}
+              onClick={(e) => { e.stopPropagation(); onSubscribe(photographer); }}
+            >
+              <RefreshCw className="w-3.5 h-3.5 mr-1.5 shrink-0" />
+              Subscribe
+            </Button>
+          </div>
+
+          {/* Subscribe benefit hint */}
+          <div className={`flex items-center gap-1.5 px-1 ${textSecondary}`}>
+            <Bell className="w-3 h-3 shrink-0 text-violet-400" />
+            <span className="text-[10px] leading-tight">
+              Subscribers get notified when this photographer goes live or is available on-demand
+            </span>
+          </div>
+
+          {/* Secondary row: Reviews + Gallery */}
+          <div className="flex items-center gap-2">
+            <button
+              className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                isLight ? 'text-gray-600 hover:bg-gray-100' : 'text-gray-400 hover:bg-zinc-800'
+              }`}
+              onClick={(e) => { e.stopPropagation(); onSelect(photographer); }}
+            >
+              <User className="w-3.5 h-3.5" />
+              Reviews
+            </button>
+            <div className={`w-px h-4 ${isLight ? 'bg-gray-200' : 'bg-zinc-700'}`} />
+            <button
+              className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                isLight ? 'text-blue-600 hover:bg-blue-50' : 'text-cyan-400 hover:bg-cyan-900/20'
+              }`}
+              onClick={(e) => { e.stopPropagation(); onViewGallery(photographer); }}
+            >
+              <Image className="w-3.5 h-3.5" />
+              Gallery
+            </button>
+          </div>
         </div>
         
         {/* Portfolio preview (locked for Free tier) */}

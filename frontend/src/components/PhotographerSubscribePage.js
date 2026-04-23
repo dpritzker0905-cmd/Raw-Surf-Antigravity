@@ -12,7 +12,7 @@ import { getFullUrl } from '../utils/media';
 import {
   ArrowLeft, RefreshCw, Camera, Video, Zap, Calendar,
   Loader2, Check, Percent, Star, MapPin, Shield, CheckCircle,
-  CreditCard, Coins, ChevronRight, Sparkles
+  CreditCard, Coins, ChevronRight, Sparkles, Bell, Radio
 } from 'lucide-react';
 import logger from '../utils/logger';
 
@@ -221,6 +221,28 @@ export const PhotographerSubscribePage = () => {
           <p className={`text-sm ${textSecondary} mt-1 max-w-md mx-auto`}>
             Get recurring content, priority booking, and exclusive discounts with a subscription plan.
           </p>
+        </div>
+
+        {/* ── Subscriber benefits ── */}
+        <div className={`mb-6 p-4 rounded-2xl border ${isLight ? 'bg-violet-50/50 border-violet-200' : 'bg-violet-500/5 border-violet-500/15'}`}>
+          <p className={`text-xs font-semibold ${textPrimary} mb-3`}>What you get as a subscriber:</p>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+            {[
+              { icon: Bell, color: 'text-violet-400', bg: 'bg-violet-500/15', label: 'Instant Notifications', desc: 'Get notified when they go live or are available on-demand' },
+              { icon: Camera, color: 'text-cyan-400', bg: 'bg-cyan-500/15', label: 'Recurring Content', desc: 'Photos & videos delivered to your locker automatically' },
+              { icon: Percent, color: 'text-emerald-400', bg: 'bg-emerald-500/15', label: 'Exclusive Discounts', desc: 'Save on bookings and on-demand sessions' },
+            ].map(({ icon: Icon, color, bg, label, desc }) => (
+              <div key={label} className="flex items-start gap-2.5">
+                <div className={`w-7 h-7 rounded-lg ${bg} flex items-center justify-center shrink-0 mt-0.5`}>
+                  <Icon className={`w-3.5 h-3.5 ${color}`} />
+                </div>
+                <div>
+                  <p className={`text-xs font-semibold ${textPrimary}`}>{label}</p>
+                  <p className={`text-[10px] ${textSecondary} leading-snug`}>{desc}</p>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
 
         {/* ── Plans list ── */}

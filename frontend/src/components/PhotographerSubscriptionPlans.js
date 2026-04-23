@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { RefreshCw, Camera, Video, Zap, Calendar, Loader2, Check, Percent, ChevronDown, ChevronUp } from 'lucide-react';
+import { RefreshCw, Camera, Video, Zap, Calendar, Loader2, Check, Percent, ChevronDown, ChevronUp, Bell } from 'lucide-react';
 import { Button } from './ui/button';
 import { useAuth } from '../contexts/AuthContext';
 import apiClient from '../lib/apiClient';
@@ -77,6 +77,13 @@ export const PhotographerSubscriptionPlans = ({ photographerId, photographerName
       {/* Expanded plans list */}
       {expanded && (
         <div className="mt-2 space-y-2">
+          {/* Notification benefit callout */}
+          <div className="flex items-center gap-2 p-2.5 rounded-lg bg-violet-500/5 border border-violet-500/15">
+            <Bell className="w-3.5 h-3.5 text-violet-400 shrink-0" />
+            <span className="text-[11px] text-violet-300 leading-snug">
+              Subscribers get notified when {photographerName} goes live or is available for on-demand sessions
+            </span>
+          </div>
           {plans.map(plan => (
             <div key={plan.id} className="rounded-xl border border-zinc-700/60 bg-zinc-900/60 overflow-hidden">
               {/* Plan header */}
