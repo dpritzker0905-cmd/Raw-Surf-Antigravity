@@ -262,7 +262,7 @@ export const PublicPhotographerGallery = () => {
           <Camera className="w-16 h-16 text-zinc-600 mx-auto mb-4" />
           <h2 className="text-xl text-white mb-2">No Photographer Selected</h2>
           <p className="text-zinc-400 mb-4">Browse our photographer directory to find amazing surf shots</p>
-          <Button onClick={() => navigate('/find-photographer')} className="bg-gradient-to-r from-emerald-500 to-yellow-500">
+          <Button onClick={() => navigate('/explore')} className="bg-gradient-to-r from-emerald-500 to-yellow-500">
             Find Photographers
           </Button>
         </div>
@@ -334,7 +334,7 @@ export const PublicPhotographerGallery = () => {
                 View Profile
               </Button>
               <Button 
-                onClick={() => navigate(`/book/${photographerId}`)}
+                onClick={() => navigate(`/profile/${photographerId}`)}
                 className="bg-gradient-to-r from-emerald-500 to-yellow-500 text-black font-semibold"
               >
                 <CalendarCheck className="w-4 h-4 mr-2" />

@@ -157,7 +157,7 @@ function App() {
             <Route path="/payment/success" element={<ProtectedRoute><Lazy><PaymentSuccess /></Lazy></ProtectedRoute>} />
             <Route path="/gear-hub" element={<ProtectedRoute><AppLayout><Lazy><GearHub /></Lazy></AppLayout></ProtectedRoute>} />
             <Route path="/impact" element={<ProtectedRoute><AppLayout><Lazy><ImpactDashboard /></Lazy></AppLayout></ProtectedRoute>} />
-            <Route path="/impacted" element={<ProtectedRoute><AppLayout><Lazy><ImpactDashboard /></Lazy></AppLayout></ProtectedRoute>} />
+            <Route path="/impacted" element={<Navigate to="/impact" replace />} />
             <Route path="/create" element={<ProtectedRoute><AppLayout><Lazy><CreatePost /></Lazy></AppLayout></ProtectedRoute>} />
             <Route path="/notifications" element={<ProtectedRoute><AppLayout><Lazy><NotificationsPage /></Lazy></AppLayout></ProtectedRoute>} />
             <Route path="/alerts" element={<ProtectedRoute><AppLayout><Lazy><SurfAlerts /></Lazy></AppLayout></ProtectedRoute>} />

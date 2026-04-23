@@ -644,7 +644,7 @@ export const GromHQ = () => {
             <Button 
               variant="outline" 
               className={`w-full justify-start h-auto py-4 ${borderColor}`}
-              onClick={() => navigate('/grom-hq/invite')}
+              onClick={() => toast.info('Have your Grom sign up with a Grom account, then use the link request from the "Linked Groms" section above.')}
             >
               <div className="w-10 h-10 rounded-full bg-cyan-500/20 flex items-center justify-center mr-3">
                 <UserPlus className="w-5 h-5 text-cyan-400" />
@@ -659,7 +659,7 @@ export const GromHQ = () => {
             <Button 
               variant="outline" 
               className={`w-full justify-start h-auto py-4 ${borderColor}`}
-              onClick={() => navigate('/grom-hq/spending')}
+              onClick={() => { if (linkedGroms.length > 0) { navigate(`/grom-hq/manage/${linkedGroms[0].id}`); } else { toast.info('Link a Grom first to manage spending controls.'); } }}
             >
               <div className="w-10 h-10 rounded-full bg-emerald-500/20 flex items-center justify-center mr-3">
                 <CreditCard className="w-5 h-5 text-emerald-400" />
@@ -674,7 +674,7 @@ export const GromHQ = () => {
             <Button 
               variant="outline" 
               className={`w-full justify-start h-auto py-4 ${borderColor}`}
-              onClick={() => navigate('/grom-hq/activity')}
+              onClick={() => { setShowActivityFeed(true); toast.success('Scroll up to see the Family Activity feed'); }}
             >
               <div className="w-10 h-10 rounded-full bg-yellow-500/20 flex items-center justify-center mr-3">
                 <Activity className="w-5 h-5 text-yellow-400" />
@@ -689,7 +689,7 @@ export const GromHQ = () => {
             <Button 
               variant="outline" 
               className={`w-full justify-start h-auto py-4 ${borderColor}`}
-              onClick={() => navigate('/grom-hq/safety')}
+              onClick={() => navigate('/settings')}
             >
               <div className="w-10 h-10 rounded-full bg-red-500/20 flex items-center justify-center mr-3">
                 <ShieldAlert className="w-5 h-5 text-red-400" />
