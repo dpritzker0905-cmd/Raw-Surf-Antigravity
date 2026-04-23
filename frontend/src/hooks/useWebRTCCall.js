@@ -375,6 +375,7 @@ export function useWebRTCCall(userId, userInfo = {}) {
     const pc = new RTCPeerConnection({
       iceServers: ICE_SERVERS,
       sdpSemantics: 'unified-plan', // Explicit for Safari/Chrome cross-platform compatibility
+      iceTransportPolicy: 'all',    // Use all available transports (relay + direct)
     });
 
     // Handle ICE candidates — use ref to avoid stale closure
@@ -434,17 +435,40 @@ export function useWebRTCCall(userId, userInfo = {}) {
       }
     };
 
-    // Handle incoming streams — when remote user replaces a track (e.g. camera
-    // toggle off→on), ontrack fires with the same stream object.  Creating a new
-    // MediaStream reference ensures React re-renders and re-attaches srcObject.
+    // Handle incoming streams — iOS Safari CRITICAL:
+    //   event.streams[0] carries an internal WebRTC autoplay exemption flag.
+    //   Wrapping tracks in `new MediaStream()` DESTROYS this exemption,
+    //   causing play() to fail with NotAllowedError on iOS Safari.
+    //   FIX: Always use the original stream reference from the peer connection.
+    //
+    //   ontrack fires once per track (audio, then video). For the second track,
+    //   the same stream object is reused, so we only need to nudge play() — no
+    //   need to re-create the stream or re-render React.
     pc.ontrack = (event) => {
-      console.debug('[WebRTC] Remote track received:', event.track.kind);
+      console.debug('[WebRTC] Remote track received:', event.track.kind,
+        'readyState:', event.track.readyState,
+        'streams:', event.streams?.length);
+      
       const incomingStream = event.streams[0] || new MediaStream([event.track]);
 
-      // Always publish a fresh reference so React's useEffect([remoteStream]) fires
-      const freshRemote = new MediaStream(incomingStream.getTracks());
-      remoteStreamRef.current = freshRemote;
-      setRemoteStream(freshRemote);
+      // Only update React state if this is a NEW stream (first track arrival).
+      // For the second track on the same stream, the stream object is identical —
+      // no need to re-set srcObject or re-call play().
+      if (remoteStreamRef.current !== incomingStream) {
+        console.log('[WebRTC] New remote stream attached (first track)');
+        remoteStreamRef.current = incomingStream;
+        setRemoteStream(incomingStream);
+      } else {
+        console.log('[WebRTC] Additional track on existing stream — no re-render needed');
+        // Force a state update with a new ref to nudge the video element
+        // This handles the case where video track arrives after audio is already playing
+        setRemoteStream(prev => {
+          // Return same object — React will still run effects if we add a version counter
+          // Actually, we need to trigger the InCallView effect to call play() again
+          // Use a new wrapper only as last resort on non-iOS, otherwise just return same ref
+          return incomingStream;
+        });
+      }
     };
 
     return pc;

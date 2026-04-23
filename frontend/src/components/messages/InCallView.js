@@ -168,32 +168,57 @@ export default function InCallView({
   }, [localStream]);
 
   // ── Attach remote stream to video element ─────────────────────────
-  // iOS Safari fix: retry play() with backoff, apply muted state
+  // iOS Safari CRITICAL FIX:
+  //   1. Start the video element `muted` — iOS always allows muted autoplay
+  //   2. Call play() — succeeds because muted
+  //   3. Unmute AFTER play() resolves — audio now flows through WebRTC
+  //   Without this sequence, iOS Safari blocks play() with NotAllowedError
+  //   because the user gesture context from answerCall() has expired by the
+  //   time the remote stream arrives via ICE negotiation.
   useEffect(() => {
     const videoEl = remoteVideoRef.current;
     if (!videoEl || !remoteStream) return;
 
-    videoEl.srcObject = remoteStream;
-    videoEl.muted = speakerOffRef.current;
+    // Only re-set srcObject if the stream actually changed
+    // (prevents iOS from interrupting playback on duplicate ontrack events)
+    if (videoEl.srcObject !== remoteStream) {
+      console.log('[InCallView] Attaching remote stream to video element');
+      videoEl.srcObject = remoteStream;
+    }
 
-    // Retry play with exponential backoff (iOS Safari sometimes needs a nudge)
+    // iOS Safari muted-autoplay-then-unmute pattern
+    videoEl.muted = true;
+
     let retries = 0;
-    const maxRetries = 5;
+    const maxRetries = 8;
     const tryPlay = () => {
       videoEl.play().then(() => {
-        console.log('[InCallView] ✅ Remote video playing');
+        console.log('[InCallView] ✅ Remote video playing (muted)');
+        // Now unmute to hear audio — this works even outside user gesture
+        // because the element is already playing
+        setTimeout(() => {
+          videoEl.muted = speakerOffRef.current;
+          console.log('[InCallView] ✅ Remote audio unmuted, speakerOff:', speakerOffRef.current);
+        }, 100); // Small delay ensures iOS processes the play state first
       }).catch((err) => {
-        console.warn(`[InCallView] play() attempt ${retries + 1} failed:`, err.name);
+        console.warn(`[InCallView] play() attempt ${retries + 1} failed:`, err.name, err.message);
         if (retries < maxRetries) {
           retries++;
-          setTimeout(tryPlay, retries * 500);
+          // Exponential backoff: 300, 600, 1200, 2400...
+          setTimeout(tryPlay, Math.min(300 * Math.pow(2, retries - 1), 5000));
+        } else {
+          console.error('[InCallView] ❌ All play() retries exhausted — user may need to tap');
+          // Last resort: unmute anyway, some browsers will start playing
+          // when the user next interacts with the page
+          videoEl.muted = speakerOffRef.current;
         }
       });
     };
     tryPlay();
 
-    // When remote replaces their video track, nudge playback
+    // When remote replaces their video track (camera toggle), nudge playback
     const handleTrackAdded = () => {
+      console.log('[InCallView] Remote track added, nudging play()');
       videoEl.play().catch(() => {});
     };
     remoteStream.addEventListener('addtrack', handleTrackAdded);
@@ -392,6 +417,8 @@ export default function InCallView({
             ref={remoteVideoRef}
             autoPlay
             playsInline
+            webkit-playsinline=""
+            x-webkit-airplay="allow"
             className={`${(callType === 'video' && remoteStream) ? 'w-full h-full object-contain bg-zinc-950' : 'absolute'}`}
             style={(callType === 'video' && remoteStream) ? {} : {
               width: 1, height: 1, opacity: 0, pointerEvents: 'none',
