@@ -532,7 +532,7 @@ async def get_conversations(user_id: str, inbox_type: str = "primary", grom_zone
     # PRO LOUNGE: Only 'Pro' (Verified Pro Surfer) or 'God' has access - NOT Comp Surfer
     # Admin status alone does NOT grant Pro Lounge access - must have Pro or God role
     is_current_user_pro = current_user_role in ['Pro', 'God']
-    is_current_user_business = current_user_role in ['Photographer', 'Approved Pro', 'Shop', 'Shaper', 'Surf School', 'Resort']
+    is_current_user_business = current_user_role in ['Photographer', 'Approved Pro', 'Hobbyist', 'Shop', 'Shaper', 'Surf School', 'Resort']
     
     result = await db.execute(
         select(Conversation)
@@ -577,7 +577,7 @@ async def get_conversations(user_id: str, inbox_type: str = "primary", grom_zone
         # Admin status alone does NOT grant Pro Lounge access - must have Pro or God role
         is_other_pro = other_role in ['Pro', 'God']
         # Business roles route to Channel (includes Photographers)
-        is_other_business = other_role in ['Photographer', 'Approved Pro', 'Shop', 'Shaper', 'Surf School', 'Resort']
+        is_other_business = other_role in ['Photographer', 'Approved Pro', 'Hobbyist', 'Shop', 'Shaper', 'Surf School', 'Resort']
         
         # Determine folder based on roles AND follow status
         folder = 'primary'  # Default
@@ -595,9 +595,10 @@ async def get_conversations(user_id: str, inbox_type: str = "primary", grom_zone
         elif is_current_user_pro and is_other_pro:
             folder = 'pro_lounge'
         
-        # PRIORITY 4: THE CHANNEL - Business/Photographer communication
-        # Note: Admin status alone does NOT route to channel - only explicit business roles do
-        elif is_other_business or is_current_user_business:
+        # PRIORITY 4: THE CHANNEL - Business/Photographer ↔ Surfer communication
+        # Only routes to Channel when ONE side is a business role and the OTHER is not.
+        # Photographer-to-photographer (same-role) stays in Primary — that's colleagues chatting.
+        elif (is_current_user_business and not is_other_business) or (is_other_business and not is_current_user_business):
             folder = 'channel'
         
         # PRIORITY 5: PRIMARY - Standard surfer-to-surfer (default)
