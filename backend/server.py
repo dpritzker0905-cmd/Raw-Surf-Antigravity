@@ -22,23 +22,28 @@ load_dotenv(ROOT_DIR / '.env', override=True)  # Override system env vars with .
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-STRIPE_API_KEY = os.environ.get('STRIPE_API_KEY', '')
+# ── Stripe API key: check both common env var names ──
+# STRIPE_SECRET_KEY is the Stripe standard; STRIPE_API_KEY is the legacy name used in some files.
+STRIPE_API_KEY = (
+    os.environ.get('STRIPE_SECRET_KEY')
+    or os.environ.get('STRIPE_API_KEY')
+    or ''
+)
 # ── Safety guard: never run live Stripe from this codebase until explicitly approved ──
-# If a live key is accidentally set in the Render env, refuse to start with it.
 if STRIPE_API_KEY and STRIPE_API_KEY.startswith('sk_live_'):
     logger.critical(
-        "[STRIPE] ⚠️  LIVE key detected in STRIPE_API_KEY env var! "
-        "Refusing to use it. Update STRIPE_API_KEY in Render dashboard to a sk_test_ key."
+        "[STRIPE] ⚠️  LIVE key detected! "
+        "Refusing to use it. Set a sk_test_ key in Render dashboard."
     )
     STRIPE_API_KEY = ''
 if not STRIPE_API_KEY:
     logger.warning(
-        "[STRIPE] ⚠️  STRIPE_API_KEY not set in environment. "
-        "Stripe operations will fail. Set STRIPE_API_KEY in your Render dashboard."
+        "[STRIPE] ⚠️  No Stripe key found (checked STRIPE_SECRET_KEY and STRIPE_API_KEY). "
+        "Stripe operations will fail."
     )
 else:
     stripe.api_key = STRIPE_API_KEY
-    logger.info(f"[STRIPE] Running in {'TEST' if STRIPE_API_KEY.startswith('sk_test_') else 'UNKNOWN'} mode")
+    logger.info(f"[STRIPE] ✅ Running in {'TEST' if STRIPE_API_KEY.startswith('sk_test_') else 'UNKNOWN'} mode")
 
 
 async def ensure_database_tables():

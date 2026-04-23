@@ -438,7 +438,7 @@ async def convert_to_hobbyist(
         import os
         import stripe
         
-        stripe.api_key = os.environ.get('STRIPE_API_KEY')
+        stripe.api_key = os.environ.get('STRIPE_SECRET_KEY') or os.environ.get('STRIPE_API_KEY')
         
         # Create Stripe checkout session for Hobbyist Basic
         session = stripe.checkout.Session.create(

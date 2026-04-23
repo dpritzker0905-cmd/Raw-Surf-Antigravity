@@ -21,7 +21,7 @@ from utils.grom_parent import is_grom_parent_eligible
 router = APIRouter(prefix="/grom-hq", tags=["grom-hq"])
 
 # Configure Stripe
-stripe.api_key = os.environ.get("STRIPE_API_KEY")
+stripe.api_key = os.environ.get("STRIPE_SECRET_KEY") or os.environ.get("STRIPE_API_KEY")
 
 
 # ============ PYDANTIC MODELS ============

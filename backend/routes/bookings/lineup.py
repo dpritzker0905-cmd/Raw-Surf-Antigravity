@@ -31,7 +31,7 @@ except ImportError:
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
-STRIPE_API_KEY = os.environ.get('STRIPE_API_KEY')
+STRIPE_API_KEY = os.environ.get('STRIPE_SECRET_KEY') or os.environ.get('STRIPE_API_KEY')
 if STRIPE_API_KEY:
     stripe.api_key = STRIPE_API_KEY
 
