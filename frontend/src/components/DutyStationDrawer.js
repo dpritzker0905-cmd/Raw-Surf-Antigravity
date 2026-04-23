@@ -858,9 +858,14 @@ export const DutyStationDrawer = ({ isOpen, onClose }) => {
     setLoading(true);
     try {
       if (onDemandActive) {
-        await apiClient.post(`/photographer/${user.id}/on-demand-toggle`, { is_available: false });
-        setOnDemandActive(false);
-        toast.info('Switching to Live mode. On-Demand disabled.');
+        try {
+          await apiClient.post(`/photographer/${user.id}/on-demand-toggle`, { is_available: false });
+          setOnDemandActive(false);
+          toast.info('Switching to Live mode. On-Demand disabled.');
+        } catch (odErr) {
+          // Don't block go-live if on-demand toggle fails — backend will auto-disable
+          logger.warn('[DutyStation] On-Demand toggle failed, backend will handle:', odErr);
+        }
       }
       
       // Convert media blob to base64 if present
@@ -880,20 +885,24 @@ export const DutyStationDrawer = ({ isOpen, onClose }) => {
       const goLivePayload = {
         spot_id: selectedSpot.id,
         spot_name: selectedSpot.name,
+        location: selectedSpot.name,  // Backend reads data.location for display name
         latitude: selectedSpot.latitude,
         longitude: selectedSpot.longitude,
-        confirmed_at_location: proximityConfirmed,
         // Pass condition media from the modal
         condition_media: mediaBase64,
         condition_media_type: conditionsData?.mediaType || null
       };
+      
+      logger.log('[DutyStation] Go-live payload:', { ...goLivePayload, condition_media: mediaBase64 ? '[base64]' : null });
       
       await apiClient.post(`/photographer/${user.id}/go-live`, goLivePayload);
       setLiveActive(true);
       setShowConditionsModal(false);
       toast.success(`Now live at ${selectedSpot.name}!`);
     } catch (error) {
-      toast.error(error.response?.data?.detail || 'Failed to go live');
+      const detail = error.response?.data?.detail;
+      logger.error('[DutyStation] Go-live failed:', detail || error.message);
+      toast.error(detail || 'Failed to go live. Please try again.');
     } finally {
       setLoading(false);
     }

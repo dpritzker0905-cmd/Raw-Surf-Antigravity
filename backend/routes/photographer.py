@@ -1795,18 +1795,56 @@ async def go_live(
                         )
     
     if photographer.is_shooting:
-        raise HTTPException(status_code=400, detail="Already in a live session")
+        # ── STALE SESSION RECOVERY ──
+        # If shooting_started_at is more than 12 hours ago, the session is stale
+        # (from a previous crash/incomplete end-session). Auto-reset instead of blocking.
+        stale_threshold_hours = 12
+        if photographer.shooting_started_at:
+            started = photographer.shooting_started_at
+            if started.tzinfo is None:
+                started = started.replace(tzinfo=timezone.utc)
+            hours_elapsed = (datetime.now(timezone.utc) - started).total_seconds() / 3600
+            if hours_elapsed > stale_threshold_hours:
+                logger.warning(
+                    f"[go-live] Auto-resetting stale session for {photographer_id} "
+                    f"(started {hours_elapsed:.1f}h ago)"
+                )
+                photographer.is_shooting = False
+                photographer.current_spot_id = None
+                photographer.shooting_started_at = None
+                # Also end any lingering LiveSession records
+                stale_sessions = await db.execute(
+                    select(LiveSession).where(
+                        LiveSession.photographer_id == photographer_id,
+                        LiveSession.status == 'active'
+                    )
+                )
+                for stale_session in stale_sessions.scalars().all():
+                    stale_session.status = 'ended'
+                    stale_session.ended_at = datetime.now(timezone.utc)
+                await db.flush()
+            else:
+                raise HTTPException(status_code=400, detail="Already in a live session")
+        else:
+            # No timestamp — stale state, reset it
+            logger.warning(f"[go-live] Resetting is_shooting with no timestamp for {photographer_id}")
+            photographer.is_shooting = False
+            photographer.current_spot_id = None
+            await db.flush()
     
     # Check mutual exclusivity: cannot go live if On-Demand is active
     if photographer.on_demand_available:
-        raise HTTPException(
-            status_code=400, 
-            detail="Cannot start a live session while On-Demand mode is active. Please disable On-Demand first."
-        )
+        # Auto-disable On-Demand instead of blocking — the frontend already tries
+        # to do this but may fail if state is out of sync
+        logger.warning(f"[go-live] Auto-disabling stale on_demand_available for {photographer_id}")
+        photographer.on_demand_available = False
+        photographer.on_demand_latitude = None
+        photographer.on_demand_longitude = None
+        await db.flush()
     
     # Find or verify spot and derive location
     spot_id = data.spot_id
-    spot_name = data.location or "Unknown Location"
+    spot_name = data.location or data.spot_name or "Unknown Location"
     if spot_id:
         spot_result = await db.execute(select(SurfSpot).where(SurfSpot.id == spot_id))
         spot = spot_result.scalar_one_or_none()

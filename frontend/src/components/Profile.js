@@ -54,6 +54,7 @@ import logger from '../utils/logger';
 import apiClient from '../lib/apiClient';
 import { getFullUrl } from '../utils/media';
 import { ROLES } from '../constants/roles';
+import AvatarCropModal from './AvatarCropModal';
 
 // Resolve relative /api/uploads/... paths to backend absolute URLs
 
@@ -106,8 +107,9 @@ export const Profile = () => {
     stance: '', wetsuit_color: '', rash_guard_color: ''
   });
   
-  // Avatar upload
+  // Avatar upload + crop modal
   const [avatarUploading, setAvatarUploading] = useState(false);
+  const [cropFile, setCropFile] = useState(null); // File pending crop
   const fileInputRef = useRef(null);
   
   // Tagged photo modal
@@ -618,7 +620,8 @@ export const Profile = () => {
     }
   };
 
-  const handleAvatarUpload = async (e) => {
+  // Step 1: User selects file → open crop modal
+  const handleAvatarUpload = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -627,65 +630,31 @@ export const Profile = () => {
       return;
     }
 
+    // Open the crop modal instead of uploading directly
+    setCropFile(file);
+    // Reset file input so the same file can be re-selected
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  // Step 2: Crop confirmed → upload the cropped base64
+  const handleCropConfirm = async (croppedBase64) => {
+    setCropFile(null);
     setAvatarUploading(true);
 
     try {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const img = new window.Image();
-        img.src = event.target.result;
-        img.onload = async () => {
-          // Native Image Compression to max 800px preserving 1:1 aspect ratio structurally
-          const MAX_SIZE = 800;
-          let width = img.width;
-          let height = img.height;
-          
-          if (width > height && width > MAX_SIZE) {
-            height *= MAX_SIZE / width;
-            width = MAX_SIZE;
-          } else if (height > MAX_SIZE) {
-            width *= MAX_SIZE / height;
-            height = MAX_SIZE;
-          }
-          
-          const canvas = document.createElement('canvas');
-          canvas.width = width;
-          canvas.height = height;
-          const ctx = canvas.getContext('2d');
-          ctx.drawImage(img, 0, 0, width, height);
-          
-          // Encodes specifically down optimizing file bytes cleanly
-          const base64 = canvas.toDataURL('image/jpeg', 0.85);
-
-          try {
-            const response = await apiClient.patch(`/profiles/${user.id}`, {
-              avatar_url: base64
-            });
-            setProfile(response.data);
-            updateUser({ 
-              avatar_url: response.data.avatar_url,
-              updated_at: new Date().toISOString()
-            });
-            toast.success('Avatar updated!');
-          } catch (patchError) {
-            toast.error('Failed to upload compressed avatar');
-            console.error(patchError);
-          } finally {
-            setAvatarUploading(false);
-          }
-        };
-        img.onerror = () => {
-          toast.error('Corrupted image format');
-          setAvatarUploading(false);
-        };
-      };
-      reader.onerror = () => {
-        toast.error('Failed to read file locally');
-        setAvatarUploading(false);
-      };
-      reader.readAsDataURL(file);
-    } catch (error) {
-      toast.error('Upload sequence crashed');
+      const response = await apiClient.patch(`/profiles/${user.id}`, {
+        avatar_url: croppedBase64
+      });
+      setProfile(response.data);
+      updateUser({
+        avatar_url: response.data.avatar_url,
+        updated_at: new Date().toISOString()
+      });
+      toast.success('Avatar updated!');
+    } catch (patchError) {
+      toast.error('Failed to upload avatar');
+      console.error(patchError);
+    } finally {
       setAvatarUploading(false);
     }
   };
@@ -1673,6 +1642,15 @@ export const Profile = () => {
               p.id === photoId ? { ...p, is_new: false } : p
             ));
           }}
+        />
+      )}
+
+      {/* Avatar Crop Modal */}
+      {cropFile && (
+        <AvatarCropModal
+          imageFile={cropFile}
+          onConfirm={handleCropConfirm}
+          onCancel={() => setCropFile(null)}
         />
       )}
 
