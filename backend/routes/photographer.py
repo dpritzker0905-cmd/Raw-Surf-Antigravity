@@ -2207,6 +2207,47 @@ async def end_live_session(
     
     await db.commit()
     
+    # ═══ SESSION RECAP EMAILS (async, non-blocking) ═══════════════════════
+    # Send recap emails to all participants after session ends
+    try:
+        from services.email_service import send_session_recap_email
+        
+        # Get photo count for the gallery
+        recap_photo_count = 0
+        if gallery_result and gallery_result.get("gallery_id"):
+            try:
+                from models import GalleryItem
+                photo_count_result = await db.execute(
+                    select(func.count(GalleryItem.id)).where(
+                        GalleryItem.gallery_id == gallery_result["gallery_id"]
+                    )
+                )
+                recap_photo_count = photo_count_result.scalar() or 0
+            except Exception:
+                pass
+        
+        for surfer_id in participant_ids:
+            try:
+                surfer_result = await db.execute(
+                    select(Profile).where(Profile.id == surfer_id)
+                )
+                surfer = surfer_result.scalar_one_or_none()
+                if surfer and surfer.email:
+                    await send_session_recap_email(
+                        to_email=surfer.email,
+                        photographer_name=photographer.full_name or "Photographer",
+                        spot_name=spot_name or "Session",
+                        duration_mins=duration_mins,
+                        photo_count=recap_photo_count,
+                        gallery_id=gallery_result.get("gallery_id") if gallery_result else None,
+                        live_session_id=live_session.id
+                    )
+            except Exception as email_err:
+                logger.warning(f"[SessionRecap] Failed to email {surfer_id}: {email_err}")
+    except Exception as recap_err:
+        logger.warning(f"[SessionRecap] Email service error: {recap_err}")
+    # ═══ END SESSION RECAP EMAILS ═════════════════════════════════════════
+    
     return {
         "message": "Session ended - Gallery created for your photos!",
         "total_surfers": len(participants),

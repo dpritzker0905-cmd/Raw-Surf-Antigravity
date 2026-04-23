@@ -66,11 +66,13 @@ const CrewPaymentPage             = React.lazy(() => import('./components/CrewPa
 const CrewChat                    = React.lazy(() => import('./components/CrewChat'));
 const SurferGallery               = React.lazy(() => import('./components/SurferGallery'));
 const PublicPhotographerGallery   = React.lazy(() => import('./components/PublicPhotographerGallery').then(m => ({ default: m.PublicPhotographerGallery })));
+const GalleryStorefront           = React.lazy(() => import('./components/GalleryStorefront').then(m => ({ default: m.GalleryStorefront })));
 const UsernameSetup               = React.lazy(() => import('./components/UsernameSetup'));
 const ThemePage                   = React.lazy(() => import('./components/ThemePage').then(m => ({ default: m.ThemePage })));
 const SearchPage                  = React.lazy(() => import('./pages/SearchPage'));
 const CreatePost                  = React.lazy(() => import('./components/CreatePost').then(m => ({ default: m.CreatePost })));
 const DispatchLobby               = React.lazy(() => import('./components/DispatchLobby').then(m => ({ default: m.DispatchLobby })));
+const PostSessionSummary          = React.lazy(() => import('./components/gallery/PostSessionSummary').then(m => ({ default: m.PostSessionSummary })));
 
 import './App.css';
 
@@ -166,6 +168,7 @@ function App() {
 
             {/* Public photographer gallery */}
             <Route path="/photographer/:photographerId/gallery" element={<AppLayout><Lazy><PublicPhotographerGallery /></Lazy></AppLayout>} />
+            <Route path="/gallery/:username" element={<AppLayout><Lazy><GalleryStorefront /></Lazy></AppLayout>} />
 
             {/* Admin */}
             <Route path="/admin" element={<ProtectedRoute><AppLayout><Lazy><UnifiedAdminConsole /></Lazy></AppLayout></ProtectedRoute>} />
@@ -198,6 +201,7 @@ function App() {
             <Route path="/dispatch/success" element={<ProtectedRoute><Lazy><DispatchPaymentSuccess /></Lazy></ProtectedRoute>} />
             <Route path="/dispatch/:dispatchId/lobby" element={<ProtectedRoute><AppLayout hideTopNav={false}><Lazy><DispatchLobby /></Lazy></AppLayout></ProtectedRoute>} />
             <Route path="/bookings/:bookingId/chat" element={<ProtectedRoute><Lazy><CrewChat /></Lazy></ProtectedRoute>} />
+            <Route path="/session-recap/:sessionId" element={<ProtectedRoute><AppLayout><Lazy><PostSessionSummary /></Lazy></AppLayout></ProtectedRoute>} />
 
             {/* Fallback */}
             <Route path="*" element={<Home />} />

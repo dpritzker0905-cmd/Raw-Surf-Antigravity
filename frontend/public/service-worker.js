@@ -2,6 +2,7 @@
 const CACHE_NAME = 'rawsurf-v2';
 const SPOT_CACHE_NAME = 'rawsurf-spots-v1';
 const OFFLINE_CACHE_NAME = 'rawsurf-offline-v1';
+const GALLERY_CACHE_NAME = 'rawsurf-gallery-offline-v1';
 
 // Static assets to cache immediately
 const STATIC_ASSETS = [
@@ -36,7 +37,7 @@ self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((keyList) => {
       return Promise.all(keyList.map((key) => {
-        if (key !== CACHE_NAME && key !== SPOT_CACHE_NAME && key !== OFFLINE_CACHE_NAME) {
+        if (key !== CACHE_NAME && key !== SPOT_CACHE_NAME && key !== OFFLINE_CACHE_NAME && key !== GALLERY_CACHE_NAME) {
           console.log('[ServiceWorker] Removing old cache:', key);
           return caches.delete(key);
         }
@@ -86,6 +87,30 @@ self.addEventListener('fetch', (event) => {
     return;
   }
   
+  // Gallery offline cache — serve cached purchased media when offline
+  // This handles Supabase storage URLs that were cached by offlineGallery.js
+  const isGalleryMedia = url.hostname.includes('supabase') && url.pathname.includes('/storage/');
+  if (isGalleryMedia) {
+    event.respondWith(
+      caches.open(GALLERY_CACHE_NAME).then(async (cache) => {
+        const cached = await cache.match(event.request);
+        if (cached) {
+          // Cache hit — serve from cache (works offline)
+          // Also try network in background to refresh
+          fetch(event.request).then((networkResponse) => {
+            if (networkResponse && networkResponse.ok) {
+              cache.put(event.request, networkResponse.clone());
+            }
+          }).catch(() => { /* offline, that's fine */ });
+          return cached;
+        }
+        // Not cached — fetch normally
+        return fetch(event.request);
+      }).catch(() => fetch(event.request))
+    );
+    return;
+  }
+
   // For all other requests, use network-first
   // (don't cache other API calls like messages, posts, etc.)
 });
