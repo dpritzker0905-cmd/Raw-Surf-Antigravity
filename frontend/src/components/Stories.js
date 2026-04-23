@@ -74,10 +74,12 @@ export const StoriesBar = ({ onCreateStory, onTierChange, selectedTier }) => {
   }, [user?.id]);
 
   // Supabase Realtime subscription for new stories
+  // NOTE: Kept as postgres_changes because stories table is low-volume (a few writes/hour)
+  // and instant notifications are important for the social experience.
+  // The real egress savings come from the N+1 query fix in explore.py (30+ queries → 1).
   useEffect(() => {
     if (!user?.id) return;
 
-    // Subscribe to INSERT events on the stories table
     const channel = supabase
       .channel('stories-realtime')
       .on(

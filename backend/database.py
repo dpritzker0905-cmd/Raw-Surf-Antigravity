@@ -12,10 +12,10 @@ ASYNC_DATABASE_URL = DATABASE_URL.replace('postgresql://', 'postgresql+asyncpg:/
 
 engine = create_async_engine(
     ASYNC_DATABASE_URL,
-    pool_size=10,
-    max_overflow=5,
+    pool_size=5,          # Reduced from 10 — response caching means fewer concurrent DB calls
+    max_overflow=3,       # Reduced from 5 — less burst capacity needed with caching
     pool_timeout=30,
-    pool_recycle=1800,
+    pool_recycle=3600,    # Increased from 1800 — recycle connections every 60 min (fewer TLS handshakes)
     pool_pre_ping=True,
     echo=False,
     connect_args={

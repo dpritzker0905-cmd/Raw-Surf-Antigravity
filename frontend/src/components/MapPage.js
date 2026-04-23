@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
+import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 
 import apiClient from '../lib/apiClient';
 
@@ -590,6 +590,9 @@ const MapPageContent = () => {
   };
 
   // Supabase Realtime subscription for "Jump In" events
+  // NOTE: Kept as postgres_changes because live_session_participants is very low-volume
+  // and instant updates are critical for the live shooting experience.
+  // The real egress savings come from the N+1 query fix in explore.py (30+ queries → 1).
   useEffect(() => {
     const channel = supabase
       .channel('live-session-participants')

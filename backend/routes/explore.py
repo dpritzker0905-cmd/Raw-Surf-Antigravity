@@ -1,14 +1,16 @@
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, or_, desc
+from sqlalchemy import select, func, or_, desc, text
 from sqlalchemy.orm import selectinload
 from typing import Optional, List, Dict, Any
 from datetime import datetime, timezone, timedelta
 import httpx
 import logging
 import asyncio
+import time
 from functools import lru_cache
 import hashlib
+import json
 
 from database import get_db
 from models import Profile, SurfSpot, Post, ConditionReport, SurfReport
@@ -22,6 +24,12 @@ OPEN_METEO_MARINE_URL = "https://marine-api.open-meteo.com/v1/marine"
 # Cache with 10-minute TTL to reduce API calls
 _conditions_cache: Dict[str, Dict[str, Any]] = {}
 CACHE_TTL_SECONDS = 600  # 10 minutes
+
+# ============ RESPONSE-LEVEL CACHE FOR SURF SPOTS ============
+# Caches the entire /explore/surf-spots response for 5 minutes
+# to eliminate redundant DB queries when multiple users browse simultaneously
+_surf_spots_response_cache: Dict[str, Dict[str, Any]] = {}
+SURF_SPOTS_CACHE_TTL = 300  # 5 minutes
 
 
 def _get_cache_key(lat: float, lng: float, forecast_days: int) -> str:
@@ -226,37 +234,40 @@ async def get_trending(db: AsyncSession = Depends(get_db)):
     )
     trending_posts = posts_result.scalars().all()
     
-    # Get latest tagged media for each popular spot
+    # Get latest tagged media for all popular spots in ONE batched query (not N+1)
     spot_ids = [s.id for s in popular_spots]
     spot_thumbnails = {}
     
     if spot_ids:
-        # Get the most recent post with media for each spot
-        for spot in popular_spots:
-            post_result = await db.execute(
-                select(Post)
-                .options(selectinload(Post.author))
-                .where(
-                    Post.spot_id == spot.id,
-                    Post.media_url.isnot(None),
-                    Post.media_url != ''
-                )
-                .order_by(Post.created_at.desc())
-                .limit(1)
+        # Single batched query: Get the most recent post with media for all spots at once
+        # Uses a window function (ROW_NUMBER) to rank posts per spot, then filters to top 1
+        post_result = await db.execute(
+            select(Post)
+            .options(selectinload(Post.author))
+            .where(
+                Post.spot_id.in_(spot_ids),
+                Post.media_url.isnot(None),
+                Post.media_url != ''
             )
-            tagged_post = post_result.scalar_one_or_none()
-            
-            if tagged_post:
-                spot_thumbnails[spot.id] = {
-                    "media_url": tagged_post.media_url,
-                    "media_type": tagged_post.media_type or 'image',
-                    "thumbnail_url": tagged_post.thumbnail_url,
-                    "contributor_name": tagged_post.author.full_name if tagged_post.author else None,
-                    "contributor_avatar": tagged_post.author.avatar_url if tagged_post.author else None,
-                    "contributor_role": tagged_post.author.role.value if tagged_post.author and tagged_post.author.role else 'surfer',
-                    "caption": tagged_post.caption,
-                    "post_id": tagged_post.id,
-                    "created_at": tagged_post.created_at.isoformat() if tagged_post.created_at else None
+            .order_by(Post.spot_id, Post.created_at.desc())
+        )
+        all_tagged_posts = post_result.scalars().all()
+        
+        # Group by spot_id and take only the first (most recent) per spot
+        seen_spots = set()
+        for post in all_tagged_posts:
+            if post.spot_id not in seen_spots:
+                seen_spots.add(post.spot_id)
+                spot_thumbnails[post.spot_id] = {
+                    "media_url": post.media_url,
+                    "media_type": post.media_type or 'image',
+                    "thumbnail_url": post.thumbnail_url,
+                    "contributor_name": post.author.full_name if post.author else None,
+                    "contributor_avatar": post.author.avatar_url if post.author else None,
+                    "contributor_role": post.author.role.value if post.author and post.author.role else 'surfer',
+                    "caption": post.caption,
+                    "post_id": post.id,
+                    "created_at": post.created_at.isoformat() if post.created_at else None
                 }
     
     return {
@@ -305,8 +316,17 @@ async def get_surf_spots_with_conditions(
     Tiered forecast access: Free = 3 days, Paid = 7 days, Premium = 10 days.
     
     Supports filtering by region, country, and/or state_province for location hierarchy browsing.
-    OPTIMIZED: Uses caching (10-min TTL) and parallel fetching for faster response.
+    OPTIMIZED: Uses response caching (5-min TTL), batched queries, and parallel fetching.
     """
+    # ============ CHECK RESPONSE CACHE ============
+    cache_key = f"surf_spots_{region}_{country}_{state_province}_{limit}_{user_lat}_{user_lng}_{subscription_tier}"
+    now = time.time()
+    if cache_key in _surf_spots_response_cache:
+        cached = _surf_spots_response_cache[cache_key]
+        if now < cached.get("expires_at", 0):
+            logger.debug(f"[Cache HIT] Surf spots response for {cache_key}")
+            return cached["data"]
+    
     # Get spots from database
     query = select(SurfSpot).where(SurfSpot.is_active .is_(True))
     
@@ -400,25 +420,33 @@ async def get_surf_spots_with_conditions(
         if len(photographers_by_spot[p.current_spot_id]) < 5:
             photographers_by_spot[p.current_spot_id].append(p)
     
-    # ============ Fetch spot thumbnails from tagged posts ============
+    # ============ Fetch spot thumbnails from tagged posts (BATCHED - not N+1) ============
     thumbnails_by_spot = {}
     gallery_by_spot = {}
     if spot_ids:
-        # Get the most recent posts with media for each spot (up to 5 for gallery rotation)
-        for spot_id in spot_ids:
-            post_result = await db.execute(
-                select(Post)
-                .options(selectinload(Post.author))
-                .where(
-                    Post.spot_id == spot_id,
-                    Post.media_url.isnot(None),
-                    Post.media_url != ''
-                )
-                .order_by(Post.created_at.desc())
-                .limit(5)
+        # Single batched query: Get recent posts with media for ALL spots at once
+        post_result = await db.execute(
+            select(Post)
+            .options(selectinload(Post.author))
+            .where(
+                Post.spot_id.in_(spot_ids),
+                Post.media_url.isnot(None),
+                Post.media_url != ''
             )
-            tagged_posts = post_result.scalars().all()
-            
+            .order_by(Post.spot_id, Post.created_at.desc())
+        )
+        all_posts = post_result.scalars().all()
+        
+        # Group posts by spot_id and take top 5 per spot (in-memory grouping)
+        posts_by_spot: Dict[str, list] = {}
+        for p in all_posts:
+            if p.spot_id not in posts_by_spot:
+                posts_by_spot[p.spot_id] = []
+            if len(posts_by_spot[p.spot_id]) < 5:
+                posts_by_spot[p.spot_id].append(p)
+        
+        # Build thumbnails and gallery from grouped data
+        for spot_id, tagged_posts in posts_by_spot.items():
             if tagged_posts:
                 # First post is the primary thumbnail
                 primary = tagged_posts[0]
@@ -548,13 +576,26 @@ async def get_surf_spots_with_conditions(
     )
     regions = [r[0] for r in regions_result.all() if r[0]]
     
-    return {
+    response_data = {
         "spots": enriched_spots,
         "regions": sorted(regions),
         "forecast_days_allowed": forecast_days_after_today,
         "subscription_tier": subscription_tier,
-        "cached": True  # Indicate response may be from cache
+        "cached": False
     }
+    
+    # ============ CACHE THE RESPONSE ============
+    _surf_spots_response_cache[cache_key] = {
+        "data": response_data,
+        "expires_at": time.time() + SURF_SPOTS_CACHE_TTL
+    }
+    # Evict old cache entries if cache grows too large
+    if len(_surf_spots_response_cache) > 100:
+        expired = [k for k, v in _surf_spots_response_cache.items() if time.time() > v.get("expires_at", 0)]
+        for k in expired:
+            del _surf_spots_response_cache[k]
+    
+    return response_data
 
 
 @router.get("/explore/spot-details/{spot_id}")

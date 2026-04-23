@@ -608,61 +608,66 @@ export const MessagesPage = () => {
     scrollToBottom();
   }, [conversationDetail?.messages]);
 
-  // Real-time subscriptions — FAST: directly append new messages to state
+  // Real-time subscription for active conversation messages ONLY
+  // OPTIMIZED: Only subscribes when a specific conversation is open (not globally)
+  // This drastically reduces WAL events received via the shared pooler
   useEffect(() => {
-    if (!user?.id) return;
+    if (!user?.id || !selectedConversation?.id) return;
 
     const messagesChannel = supabase
-      .channel('inbox-messages')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload) => {
+      .channel(`inbox-messages-${selectedConversation.id}`)
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'messages',
+        filter: `conversation_id=eq.${selectedConversation.id}`
+      }, (payload) => {
         const msg = payload.new;
-        // If this message is in the currently open conversation, append it directly
-        if (selectedConversation && msg.conversation_id === selectedConversation.id) {
-          if (msg.sender_id !== user.id) {
-            // Append the incoming message directly to local state — no API refetch
-            setConversationDetail(prev => {
-              if (!prev?.messages) return prev;
-              // Deduplicate: don't add if already present (e.g., from optimistic insert)
-              const exists = prev.messages.some(m => m.id === msg.id);
-              if (exists) return prev;
-              return {
-                ...prev,
-                messages: [...prev.messages, {
-                  id: msg.id,
-                  sender_id: msg.sender_id,
-                  content: msg.content,
-                  message_type: msg.message_type || 'text',
-                  media_url: msg.media_url,
-                  created_at: msg.created_at,
-                  reply_to_id: msg.reply_to_id,
-                  is_read: false,
-                  reactions: [],
-                  sender_name: conversationDetail?.other_user_name || 'User',
-                  sender_avatar: conversationDetail?.other_user_avatar,
-                }]
-              };
-            });
-          }
-        }
-        // Refresh conversation list (lightweight — just sidebar)
-        fetchConversations();
-      })
-      .subscribe();
-
-    const conversationsChannel = supabase
-      .channel('inbox-conversations')
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'conversations' }, (payload) => {
-        if (payload.new.participant_one_id === user.id || payload.new.participant_two_id === user.id) {
-          fetchConversations();
+        if (msg.sender_id !== user.id) {
+          // Append the incoming message directly to local state — no API refetch
+          setConversationDetail(prev => {
+            if (!prev?.messages) return prev;
+            // Deduplicate: don't add if already present (e.g., from optimistic insert)
+            const exists = prev.messages.some(m => m.id === msg.id);
+            if (exists) return prev;
+            return {
+              ...prev,
+              messages: [...prev.messages, {
+                id: msg.id,
+                sender_id: msg.sender_id,
+                content: msg.content,
+                message_type: msg.message_type || 'text',
+                media_url: msg.media_url,
+                created_at: msg.created_at,
+                reply_to_id: msg.reply_to_id,
+                is_read: false,
+                reactions: [],
+                sender_name: conversationDetail?.other_user_name || 'User',
+                sender_avatar: conversationDetail?.other_user_avatar,
+              }]
+            };
+          });
         }
       })
       .subscribe();
 
     return () => {
       supabase.removeChannel(messagesChannel);
-      supabase.removeChannel(conversationsChannel);
     };
   }, [user?.id, selectedConversation?.id]);
+
+  // Lightweight polling for conversation list sidebar (replaces global postgres_changes)
+  // The conversations channel was monitoring ALL conversation updates for ALL users,
+  // generating massive shared pooler egress. Polling every 10s is sufficient for sidebar.
+  useEffect(() => {
+    if (!user?.id) return;
+
+    const pollInterval = setInterval(() => {
+      fetchConversations();
+    }, 10000); // Poll every 10 seconds
+
+    return () => clearInterval(pollInterval);
+  }, [user?.id]);
 
   // Typing indicator polling
   useEffect(() => {
