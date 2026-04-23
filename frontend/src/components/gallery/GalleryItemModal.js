@@ -7,6 +7,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import apiClient from '../../lib/apiClient';
 import { getFullUrl } from '../../utils/media';
 import { isGrom } from '../../lib/roles';
+import { submitPurchaseRequest } from '../../utils/gromPurchase';
 import { 
   Lock, Eye, ShoppingCart, Download, DollarSign, Edit3, Loader2, Check,
   Play, Image as ImageIcon, X, Send, UserPlus
@@ -136,7 +137,14 @@ export const GalleryItemModal = ({ item, onClose, onPurchased, galleryId }) => {
 
   const handlePurchase = async () => {
     if (userIsGrom) {
-      toast.info('🤙 Ask your parent to approve this purchase!');
+      await submitPurchaseRequest({
+        gromId: user.id,
+        itemType: 'gallery_photo',
+        itemId: item.id,
+        itemName: item.title || 'Gallery Photo',
+        amount: pricingInfo?.session_price_override || item.price || 5,
+        qualityTier: 'standard'
+      });
       return;
     }
     setPurchasing(true);

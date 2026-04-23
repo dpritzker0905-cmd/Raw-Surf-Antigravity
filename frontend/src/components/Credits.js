@@ -8,6 +8,7 @@ import { Input } from './ui/input';
 import { toast } from 'sonner';
 import logger from '../utils/logger';
 import { isGrom } from '../lib/roles';
+import { submitPurchaseRequest } from '../utils/gromPurchase';
 
 
 export const Credits = () => {
@@ -92,7 +93,12 @@ export const Credits = () => {
       return;
     }
     if (isGrom(user)) {
-      toast.info('🤙 Ask your parent to add credits to your account!');
+      await submitPurchaseRequest({
+        gromId: user.id,
+        itemType: 'credit_pack',
+        itemName: `${amount} Credit Pack`,
+        amount: amount
+      });
       return;
     }
 

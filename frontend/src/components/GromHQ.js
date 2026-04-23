@@ -29,6 +29,7 @@ import { getNotifications, getUnreadCount, markRead, markAllRead, sendNotificati
 import { toast } from 'sonner';
 import logger from '../utils/logger';
 import { getFullUrl } from '../utils/media';
+import { PurchaseRequestsPanel } from './grom/PurchaseRequestsPanel';
 
 
 
@@ -404,6 +405,9 @@ export const GromHQ = () => {
             </CardContent>
           </Card>
         )}
+
+        {/* Purchase Requests (Grom Purchase Queue) */}
+        <PurchaseRequestsPanel />
 
         {/* Family Activity Feed - Timeline of Grom activities */}
         <Card className={`${cardBg} border-2 border-emerald-500/30`} data-testid="family-activity-feed">

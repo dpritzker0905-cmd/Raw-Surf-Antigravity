@@ -13,6 +13,7 @@ import {
 import logger from '../utils/logger';
 import { ROLES } from '../constants/roles';
 import { isGrom } from '../lib/roles';
+import { submitPurchaseRequest } from '../utils/gromPurchase';
 import { getFullUrl } from '../utils/media';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
@@ -93,7 +94,14 @@ export const GearHub = () => {
       return;
     }
     if (isGrom(user)) {
-      toast.info('🤙 Ask your parent to approve this purchase!');
+      await submitPurchaseRequest({
+        gromId: user.id,
+        itemType: 'gear_item',
+        itemId: item.id,
+        itemName: item.name || 'Gear Item',
+        amount: item.xp_cost || 0,
+        metadata: { gear_type: item.type }
+      });
       return;
     }
 

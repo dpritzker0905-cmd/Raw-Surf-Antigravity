@@ -14,6 +14,7 @@ import { Avatar, AvatarImage, AvatarFallback } from './ui/avatar';
 import { toast } from 'sonner';
 import logger from '../utils/logger';
 import { isGrom } from '../lib/roles';
+import { submitPurchaseRequest } from '../utils/gromPurchase';
 
 
 export const TaggedPhotoModal = ({ 
@@ -99,7 +100,15 @@ export const TaggedPhotoModal = ({
 
   const handlePurchase = async () => {
     if (isGrom(user)) {
-      toast.info('🤙 Ask your parent to approve this purchase!');
+      const tierPrice = galleryPricing?.photo?.[selectedTier] || 5;
+      await submitPurchaseRequest({
+        gromId: user.id,
+        itemType: 'gallery_photo',
+        itemId: photo.id,
+        itemName: photo.title || 'Session Photo',
+        amount: photo.was_session_participant ? (photo.session_photo_price || tierPrice) : tierPrice,
+        qualityTier: selectedTier
+      });
       return;
     }
     setPurchasing(true);
@@ -138,7 +147,14 @@ export const TaggedPhotoModal = ({
 
   const handleClaimFreePhoto = async () => {
     if (isGrom(user)) {
-      toast.info('🤙 Ask your parent to approve this claim!');
+      await submitPurchaseRequest({
+        gromId: user.id,
+        itemType: 'gallery_photo',
+        itemId: photo.id,
+        itemName: photo.title || 'Session Photo (Free Claim)',
+        amount: 0,
+        qualityTier: 'session'
+      });
       return;
     }
     // For session participants with $0 price - claim without payment
