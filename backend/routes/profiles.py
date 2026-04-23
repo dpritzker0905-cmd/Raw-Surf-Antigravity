@@ -229,6 +229,85 @@ async def search_profiles(
     } for p in sorted_profiles]
 
 
+@router.get("/profiles/by-username/{username}")
+async def get_profile_by_username(username: str, db: AsyncSession = Depends(get_db)):
+    """Resolve a username to a full profile. Used by shareable gallery storefront URLs."""
+    from sqlalchemy import func as sql_func
+    result = await db.execute(
+        select(Profile).where(sql_func.lower(Profile.username) == username.lower())
+    )
+    profile = result.scalar_one_or_none()
+    if not profile:
+        raise HTTPException(status_code=404, detail="No user found with that username")
+    return profile_to_response(profile)
+
+
+@router.get("/profiles/{profile_id}/storefront-stats")
+async def get_storefront_stats(profile_id: str, db: AsyncSession = Depends(get_db)):
+    """Get rich stats for a photographer's public gallery storefront.
+    Returns gallery count, total photos, follower count, review stats, and session history."""
+    from models import GalleryItem, Gallery, Follow, LiveSession, Review
+    from sqlalchemy import func as sql_func
+    
+    # Verify profile exists
+    profile_result = await db.execute(select(Profile).where(Profile.id == profile_id))
+    profile = profile_result.scalar_one_or_none()
+    if not profile:
+        raise HTTPException(status_code=404, detail="Profile not found")
+    
+    # Gallery stats
+    gallery_count_result = await db.execute(
+        select(sql_func.count(Gallery.id)).where(Gallery.photographer_id == profile_id)
+    )
+    gallery_count = gallery_count_result.scalar() or 0
+    
+    photo_count_result = await db.execute(
+        select(sql_func.count(GalleryItem.id)).where(GalleryItem.photographer_id == profile_id)
+    )
+    photo_count = photo_count_result.scalar() or 0
+    
+    # Follower count
+    follower_count_result = await db.execute(
+        select(sql_func.count(Follow.id)).where(Follow.following_id == profile_id)
+    )
+    follower_count = follower_count_result.scalar() or 0
+    
+    # Session stats
+    session_count_result = await db.execute(
+        select(sql_func.count(LiveSession.id)).where(
+            LiveSession.photographer_id == profile_id,
+            LiveSession.status == 'ended'
+        )
+    )
+    session_count = session_count_result.scalar() or 0
+    
+    # Review stats
+    try:
+        review_result = await db.execute(
+            select(
+                sql_func.count(Review.id),
+                sql_func.avg(Review.rating)
+            ).where(Review.reviewee_id == profile_id)
+        )
+        row = review_result.one()
+        review_count = row[0] or 0
+        avg_rating = round(float(row[1]), 1) if row[1] else 0
+    except Exception:
+        review_count = 0
+        avg_rating = 0
+    
+    return {
+        "gallery_count": gallery_count,
+        "photo_count": photo_count,
+        "follower_count": follower_count,
+        "session_count": session_count,
+        "review_count": review_count,
+        "avg_rating": avg_rating,
+        "is_shooting": profile.is_shooting or False,
+        "on_demand_active": profile.on_demand_available or False,
+    }
+
+
 @router.get("/profiles/{profile_id}", response_model=ProfileResponse)
 async def get_profile(profile_id: str, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(Profile).where(Profile.id == profile_id))
