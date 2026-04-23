@@ -15,7 +15,7 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from sqlalchemy import select, update, func
-from database import async_engine, get_db, AsyncSessionLocal
+from database import engine, get_db, AsyncSessionLocal
 from models import SurfSpot
 import logging
 

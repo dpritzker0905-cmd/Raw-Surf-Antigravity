@@ -429,6 +429,115 @@ async def get_surf_spot_locations(
     }
 
 
+@router.post("/surf-spots/admin/normalize-hierarchy")
+async def normalize_surf_spot_hierarchy(db: AsyncSession = Depends(get_db)):
+    """
+    One-time migration endpoint to normalize the surf spot hierarchy:
+    1. Consolidates orphan countries (Canary Islands → Spain, Northern Ireland → UK, etc.)
+    2. Populates missing state_province values for spots that have country + region but no state
+    
+    This is safe to run multiple times — it only updates spots that need fixing.
+    """
+    results = {"consolidated": [], "populated": [], "skipped": [], "errors": []}
+    
+    # ===== Step 1: Consolidate orphan countries =====
+    CONSOLIDATION = [
+        ("Canary Islands", "Spain", "Canary Islands"),
+        ("Northern Ireland", "United Kingdom", "Northern Ireland"),
+        ("Wales", "United Kingdom", "Wales"),
+    ]
+    
+    for old_country, new_country, new_state in CONSOLIDATION:
+        try:
+            result = await db.execute(
+                select(SurfSpot).where(SurfSpot.country == old_country).where(SurfSpot.is_active.is_(True))
+            )
+            spots = result.scalars().all()
+            for spot in spots:
+                spot.country = new_country
+                if not spot.state_province:
+                    spot.state_province = new_state
+                results["consolidated"].append(f"{spot.name}: {old_country} → {new_country}/{spot.state_province}")
+        except Exception as e:
+            results["errors"].append(f"Consolidation error for {old_country}: {str(e)}")
+    
+    # Puerto Rico: consolidate standalone → USA, deactivate true duplicates
+    try:
+        pr_result = await db.execute(
+            select(SurfSpot).where(SurfSpot.country == "Puerto Rico").where(SurfSpot.is_active.is_(True))
+        )
+        pr_standalone = pr_result.scalars().all()
+        
+        pr_usa_result = await db.execute(
+            select(SurfSpot.name).where(SurfSpot.country == "USA").where(SurfSpot.state_province == "Puerto Rico").where(SurfSpot.is_active.is_(True))
+        )
+        pr_usa_names = {row[0].strip().lower() for row in pr_usa_result.all()}
+        
+        for spot in pr_standalone:
+            if spot.name.strip().lower() in pr_usa_names:
+                spot.is_active = False
+                results["consolidated"].append(f"DEACTIVATED duplicate: {spot.name}")
+            else:
+                spot.country = "USA"
+                if not spot.state_province:
+                    spot.state_province = "Puerto Rico"
+                results["consolidated"].append(f"{spot.name}: Puerto Rico → USA/Puerto Rico")
+    except Exception as e:
+        results["errors"].append(f"Puerto Rico consolidation error: {str(e)}")
+    
+    # ===== Step 2: Populate missing state_province =====
+    COUNTRY_STATE_MAP = {
+        "Bahamas": "Bahamas",
+        "Bermuda": "Bermuda",
+        "British Virgin Islands": "Tortola",
+        "Canada": "Canada",
+        "Cook Islands": "Rarotonga",
+        "Iceland": "Iceland",
+        "Cape Verde": "Cape Verde",
+        "Channel Islands": "Channel Islands",
+        "Mauritius": "Mauritius",
+        "Norway": "Norway",
+        "Reunion Island": "Reunion",
+        "Trinidad & Tobago": "Trinidad & Tobago",
+        "U.S. Virgin Islands": "U.S. Virgin Islands",
+        "Uruguay": "Uruguay",
+        "Argentina": "Buenos Aires",
+        "Belize": "Belize",
+    }
+    
+    try:
+        null_result = await db.execute(
+            select(SurfSpot)
+            .where(SurfSpot.state_province.is_(None))
+            .where(SurfSpot.country.isnot(None))
+            .where(SurfSpot.is_active.is_(True))
+        )
+        null_spots = null_result.scalars().all()
+        
+        for spot in null_spots:
+            new_state = COUNTRY_STATE_MAP.get(spot.country)
+            if new_state:
+                spot.state_province = new_state
+                results["populated"].append(f"{spot.name} ({spot.country}) → {new_state}")
+            else:
+                results["skipped"].append(f"{spot.name} ({spot.country})")
+    except Exception as e:
+        results["errors"].append(f"Population error: {str(e)}")
+    
+    await db.commit()
+    
+    return {
+        "success": True,
+        "summary": {
+            "consolidated": len(results["consolidated"]),
+            "populated": len(results["populated"]),
+            "skipped": len(results["skipped"]),
+            "errors": len(results["errors"])
+        },
+        "details": results
+    }
+
+
 @router.get("/surf-spots/nearby")
 async def get_nearby_spots(
     latitude: float,
