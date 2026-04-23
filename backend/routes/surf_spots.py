@@ -538,6 +538,24 @@ async def normalize_surf_spot_hierarchy(db: AsyncSession = Depends(get_db)):
     }
 
 
+@router.post("/surf-spots/admin/seed-florida-spots")
+async def seed_florida_spots(db: AsyncSession = Depends(get_db)):
+    """
+    Seed missing Florida surf spots from comprehensive research.
+    Sources: Surfline, Mondo Surf, Visit Space Coast, Visit Indian River County.
+    Covers: Volusia County, Space Coast/Brevard, Treasure Coast, First Coast/NE Florida.
+    
+    Safe to run multiple times — deduplicates by name + region.
+    """
+    try:
+        from scripts.seed_missing_florida_spots import seed_spots
+        result = await seed_spots(db)
+        return {"success": True, **result}
+    except Exception as e:
+        import traceback
+        return {"success": False, "error": str(e), "traceback": traceback.format_exc()}
+
+
 @router.get("/surf-spots/nearby")
 async def get_nearby_spots(
     latitude: float,
