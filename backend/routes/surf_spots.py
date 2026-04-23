@@ -556,6 +556,39 @@ async def seed_florida_spots(db: AsyncSession = Depends(get_db)):
         return {"success": False, "error": str(e), "traceback": traceback.format_exc()}
 
 
+@router.patch("/surf-spots/admin/update-spot")
+async def admin_update_spot(
+    id: str = Query(..., description="Spot UUID"),
+    latitude: Optional[float] = Query(None),
+    longitude: Optional[float] = Query(None),
+    name: Optional[str] = Query(None),
+    region: Optional[str] = Query(None),
+    db: AsyncSession = Depends(get_db)
+):
+    """Admin endpoint to fix spot data (coordinates, name, region)."""
+    result = await db.execute(select(SurfSpot).where(SurfSpot.id == id))
+    spot = result.scalar_one_or_none()
+    if not spot:
+        return {"success": False, "error": "Spot not found"}
+    
+    changes = []
+    if latitude is not None:
+        changes.append(f"latitude: {spot.latitude} → {latitude}")
+        spot.latitude = latitude
+    if longitude is not None:
+        changes.append(f"longitude: {spot.longitude} → {longitude}")
+        spot.longitude = longitude
+    if name is not None:
+        changes.append(f"name: {spot.name} → {name}")
+        spot.name = name
+    if region is not None:
+        changes.append(f"region: {spot.region} → {region}")
+        spot.region = region
+    
+    await db.commit()
+    return {"success": True, "spot": spot.name, "changes": changes}
+
+
 @router.get("/surf-spots/nearby")
 async def get_nearby_spots(
     latitude: float,

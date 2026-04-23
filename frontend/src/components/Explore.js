@@ -983,10 +983,42 @@ export const Explore = () => {
                       >
                         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent z-10" />
                         {spot.image_url ? (
-                          <img src={getFullUrl(spot.image_url)} alt={spot.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+                          <img 
+                            src={getFullUrl(spot.image_url)} 
+                            alt={spot.name} 
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                            onError={(e) => {
+                              if (spot.latitude && spot.longitude) {
+                                e.target.onerror = () => {
+                                  e.target.style.display = 'none';
+                                  e.target.parentElement.classList.add('bg-gradient-to-br', 'from-cyan-600', 'to-blue-800');
+                                };
+                                e.target.src = `https://static-maps.yandex.ru/1.x/?lang=en_US&ll=${spot.longitude},${spot.latitude}&z=12&l=sat&size=400,300`;
+                                e.target.className = 'w-full h-full object-cover opacity-70';
+                              } else {
+                                e.target.style.display = 'none';
+                                e.target.parentElement.classList.add('bg-gradient-to-br', 'from-cyan-600', 'to-blue-800');
+                              }
+                            }}
+                          />
+                        ) : spot.latitude && spot.longitude ? (
+                          <div className="w-full h-full bg-muted relative">
+                            <img 
+                              src={`https://static-maps.yandex.ru/1.x/?lang=en_US&ll=${spot.longitude},${spot.latitude}&z=12&l=sat&size=400,300`}
+                              alt={`Map of ${spot.name}`}
+                              className="w-full h-full object-cover opacity-60"
+                              onError={(e) => {
+                                e.target.style.display = 'none';
+                                e.target.parentElement.classList.add('bg-gradient-to-br', 'from-cyan-600', 'to-blue-800');
+                              }}
+                            />
+                            <div className="absolute inset-0 flex items-center justify-center">
+                              <MapPin className="w-8 h-8 text-cyan-400 drop-shadow-lg" />
+                            </div>
+                          </div>
                         ) : (
-                          <div className="w-full h-full bg-muted flex items-center justify-center">
-                            <MapPin className="w-8 h-8 text-zinc-600" />
+                          <div className="w-full h-full bg-gradient-to-br from-cyan-600 to-blue-800 flex items-center justify-center">
+                            <MapPin className="w-8 h-8 text-white/30" />
                           </div>
                         )}
                         <div className="absolute bottom-0 left-0 right-0 p-3 z-20">
@@ -1093,6 +1125,21 @@ export const Explore = () => {
                           src={displayImage} 
                           alt={spot.name} 
                           className="w-full h-full object-cover group-hover:scale-105 transition-transform" 
+                          onError={(e) => {
+                            // If primary image fails, try map fallback
+                            if (spot.latitude && spot.longitude) {
+                              e.target.onerror = () => {
+                                // Map also failed — show gradient
+                                e.target.style.display = 'none';
+                                e.target.parentElement.classList.add('bg-gradient-to-br', 'from-cyan-600', 'to-blue-800');
+                              };
+                              e.target.src = `https://static-maps.yandex.ru/1.x/?lang=en_US&ll=${spot.longitude},${spot.latitude}&z=12&l=sat&size=400,300`;
+                              e.target.className = 'w-full h-full object-cover opacity-60 group-hover:opacity-80 transition-opacity';
+                            } else {
+                              e.target.style.display = 'none';
+                              e.target.parentElement.classList.add('bg-gradient-to-br', 'from-cyan-600', 'to-blue-800');
+                            }
+                          }}
                         />
                       ) : spot.latitude && spot.longitude ? (
                         // Map fallback with location pin
@@ -1101,14 +1148,18 @@ export const Explore = () => {
                             src={`https://static-maps.yandex.ru/1.x/?lang=en_US&ll=${spot.longitude},${spot.latitude}&z=12&l=sat&size=400,300`}
                             alt={`Map of ${spot.name}`}
                             className="w-full h-full object-cover opacity-60 group-hover:opacity-80 transition-opacity"
+                            onError={(e) => {
+                              e.target.style.display = 'none';
+                              e.target.parentElement.classList.add('bg-gradient-to-br', 'from-cyan-600', 'to-blue-800');
+                            }}
                           />
                           <div className="absolute inset-0 flex items-center justify-center">
                             <MapPin className="w-8 h-8 text-cyan-400 drop-shadow-lg" />
                           </div>
                         </div>
                       ) : (
-                        <div className="w-full h-full bg-muted flex items-center justify-center">
-                          <MapPin className="w-8 h-8 text-zinc-600" />
+                        <div className="w-full h-full bg-gradient-to-br from-cyan-600 to-blue-800 flex items-center justify-center">
+                          <MapPin className="w-8 h-8 text-white/30" />
                         </div>
                       )}
                       
@@ -1436,6 +1487,10 @@ export const Explore = () => {
                                 alt={`Map of ${item.name}`}
                                 className="absolute inset-0 w-full h-full object-cover opacity-60 group-hover:opacity-80 transition-opacity duration-300"
                                 loading="lazy"
+                                onError={(e) => {
+                                  // Gracefully degrade to gradient when map tile fails
+                                  e.target.style.display = 'none';
+                                }}
                               />
                             ) : (
                               <div className="absolute inset-0 w-full h-full bg-gradient-to-br from-zinc-800 to-zinc-900" />

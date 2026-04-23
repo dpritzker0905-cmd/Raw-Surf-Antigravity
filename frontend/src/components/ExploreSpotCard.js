@@ -69,6 +69,8 @@ const ForecastDayBadge = ({ day, index, isLocked = false }) => {
 const ExploreSpotCard = ({ spot, userSubscriptionTier = 'free' }) => {
   const navigate = useNavigate();
   const [expanded, setExpanded] = useState(false);
+  const [imageError, setImageError] = useState(false);
+  const [mapError, setMapError] = useState(false);
   
   const conditions = spot.current_conditions;
   const hasPhotographers = spot.active_photographers?.length > 0;
@@ -132,7 +134,11 @@ const ExploreSpotCard = ({ spot, userSubscriptionTier = 'free' }) => {
   
   const displayImage = getCurrentDisplayImage();
   const currentContributor = hasGallery ? gallery[currentPhotoIndex] : null;
-  const hasMapFallback = !displayImage && spot.latitude && spot.longitude;
+  const hasValidCoords = spot.latitude && spot.longitude;
+  // Show map fallback when no display image (or image failed), AND we have valid coordinates
+  const showMapFallback = (!displayImage || imageError) && hasValidCoords && !mapError;
+  // Show primary image only if we have one and it hasn't errored
+  const showPrimaryImage = displayImage && !imageError;
   
   const handleViewSpot = () => {
     navigate(`/spot-hub/${spot.id}`);
@@ -150,20 +156,22 @@ const ExploreSpotCard = ({ spot, userSubscriptionTier = 'free' }) => {
     >
       {/* Image Header */}
       <div className="relative h-32 overflow-hidden">
-        {displayImage ? (
+        {showPrimaryImage ? (
           <img 
             src={displayImage.startsWith('http') ? displayImage : getFullUrl(displayImage)} 
             alt={spot.name}
+            onError={() => setImageError(true)}
             className={`w-full h-full object-cover group-hover:scale-105 transition-all duration-500 ${
               isTransitioning ? 'opacity-0' : 'opacity-100'
             }`}
           />
-        ) : hasMapFallback ? (
+        ) : showMapFallback ? (
           /* Map satellite fallback — same as Popular Spots on All tab */
           <div className="w-full h-full bg-muted relative">
             <img 
               src={`https://static-maps.yandex.ru/1.x/?lang=en_US&ll=${spot.longitude},${spot.latitude}&z=12&l=sat&size=400,300`}
               alt={`Map of ${spot.name}`}
+              onError={() => setMapError(true)}
               className="w-full h-full object-cover opacity-60 group-hover:opacity-80 transition-opacity"
             />
             <div className="absolute inset-0 flex items-center justify-center">

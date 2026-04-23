@@ -721,10 +721,20 @@ const SpotHub = () => {
 
       {/* ===== FULL HERO HEADER — scrolls away naturally ===== */}
       <div ref={heroRef} className="relative overflow-hidden min-h-[180px] flex items-end">
-        <div 
-          className="absolute inset-0 bg-cover bg-center"
-          style={{ backgroundImage: `url(${spot.image_url || `https://static-maps.yandex.ru/1.x/?lang=en_US&ll=${spot.longitude},${spot.latitude}&z=12&l=sat&size=400,300`})` }}
-        />
+        {/* Background: try spot image → map → gradient */}
+        <div className="absolute inset-0">
+          <img 
+            src={spot.image_url || (spot.longitude && spot.latitude ? `https://static-maps.yandex.ru/1.x/?lang=en_US&ll=${spot.longitude},${spot.latitude}&z=12&l=sat&size=400,300` : '')}
+            alt=""
+            className="w-full h-full object-cover"
+            onError={(e) => {
+              // If map also fails, hide img and let gradient show through
+              e.target.style.display = 'none';
+            }}
+          />
+          {/* Gradient base layer behind img — always visible as ultimate fallback */}
+          <div className="absolute inset-0 bg-gradient-to-br from-cyan-700 to-blue-900 -z-10" />
+        </div>
         {/* Dark gradient overlay to guarantee text legibility */}
         <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-black/20" />
         
