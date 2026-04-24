@@ -954,30 +954,29 @@ export const Bookings = () => {
           />
         )}
 
-        {/* Tabs — sticky orange underline bar, stays on screen like Explore pills */}
+        {/* Tabs — sticky yellow pill buttons, matching Explore pattern */}
         <div
           className={`sticky top-0 z-20 ${mainBgClass}`}
           style={{ backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)' }}
         >
-          <div className="relative">
-            {/* Left arrow — only visible on desktop when scrolled */}
-            {showLeftArrow && (
-              <button
-                onClick={() => scrollTabs(-1)}
-                className={`hidden md:flex absolute left-0 top-0 bottom-0 z-10 items-center justify-center w-8 ${
-                  isLight ? 'bg-gradient-to-r from-gray-50 to-transparent' : 'bg-gradient-to-r from-card to-transparent'
-                } pr-1`}
-                aria-label="Scroll tabs left"
-              >
-                <ChevronLeft className={`w-4 h-4 ${textSecondaryClass}`} />
-              </button>
-            )}
+          <div className="flex items-center gap-2 py-3 px-1">
+            {/* Left Arrow - inline, fades when not needed */}
+            <button
+              onClick={() => scrollTabs(-1)}
+              className={`flex-shrink-0 w-8 h-8 rounded-full border shadow-lg flex items-center justify-center transition-all ${
+                isLight
+                  ? 'bg-white border-gray-300 text-gray-600 hover:bg-gray-100'
+                  : 'bg-zinc-800 border-zinc-600 text-white hover:bg-zinc-700'
+              } ${showLeftArrow ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+              aria-label="Scroll tabs left"
+            >
+              <ChevronLeft className="w-5 h-5" />
+            </button>
 
-            {/* Scrollable tab strip with orange underline indicator */}
+            {/* Tabs Container — Yellow pill buttons (same as Explore) */}
             <div
               ref={tabScrollRef}
               onScroll={updateArrows}
-              // Mouse-drag to scroll (desktop)
               onMouseDown={(e) => {
                 isDraggingRef.current = true;
                 dragStartXRef.current = e.pageX;
@@ -1002,7 +1001,7 @@ export const Bookings = () => {
                   e.currentTarget.style.userSelect = '';
                 }
               }}
-              className={`flex border-b ${borderClass} overflow-x-auto scrollbar-hide cursor-grab select-none`}
+              className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide scroll-smooth flex-1 cursor-grab select-none"
               style={{ scrollbarWidth: 'none', msOverflowStyle: 'none', WebkitOverflowScrolling: 'touch' }}
             >
               {tabs.map((tab) => {
@@ -1013,26 +1012,24 @@ export const Bookings = () => {
                     key={tab.id}
                     data-active={isActive ? 'true' : 'false'}
                     onClick={() => {
-                      // Only fire click if we didn't drag
                       if (Math.abs((tabScrollRef.current?.scrollLeft || 0) - scrollStartRef.current) < 4) {
                         setActiveTab(tab.id);
                       }
                     }}
-                    className={`flex items-center gap-2 px-4 py-3 text-sm font-medium whitespace-nowrap transition-colors flex-shrink-0 ${
-                      isActive ? textPrimaryClass : textSecondaryClass
+                    className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors flex-shrink-0 ${
+                      isActive
+                        ? 'bg-yellow-400 text-black'
+                        : isLight
+                          ? 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                          : 'bg-muted text-gray-300 hover:bg-zinc-700'
                     }`}
-                    style={{
-                      borderBottom: isActive ? '4px solid #f59e0b' : '4px solid transparent',
-                      marginBottom: '-1px',
-                      boxShadow: isActive ? '0 3px 0 0 #f59e0b, 0 4px 8px -2px rgba(245, 158, 11, 0.4)' : 'none',
-                    }}
                     data-testid={`tab-${tab.id}`}
                   >
                     <Icon className="w-4 h-4" />
                     {tab.label}
                     {tab.count > 0 && (
                       <span className={`ml-1 px-1.5 py-0.5 text-xs rounded-full ${
-                        isActive ? 'bg-yellow-400 text-black' : isLight ? 'bg-gray-200 text-gray-600' : 'bg-zinc-700 text-gray-300'
+                        isActive ? 'bg-yellow-600 text-white' : isLight ? 'bg-gray-200 text-gray-600' : 'bg-zinc-700 text-gray-300'
                       }`}>
                         {tab.count}
                       </span>
@@ -1042,18 +1039,18 @@ export const Bookings = () => {
               })}
             </div>
 
-            {/* Right arrow — only visible on desktop when more tabs are hidden */}
-            {showRightArrow && (
-              <button
-                onClick={() => scrollTabs(1)}
-                className={`hidden md:flex absolute right-0 top-0 bottom-0 z-10 items-center justify-center w-8 ${
-                  isLight ? 'bg-gradient-to-l from-gray-50 to-transparent' : 'bg-gradient-to-l from-card to-transparent'
-                } pl-1`}
-                aria-label="Scroll tabs right"
-              >
-                <ChevronRight className={`w-4 h-4 ${textSecondaryClass}`} />
-              </button>
-            )}
+            {/* Right Arrow - inline, fades when not needed */}
+            <button
+              onClick={() => scrollTabs(1)}
+              className={`flex-shrink-0 w-8 h-8 rounded-full border shadow-lg flex items-center justify-center transition-all ${
+                isLight
+                  ? 'bg-white border-gray-300 text-gray-600 hover:bg-gray-100'
+                  : 'bg-zinc-800 border-zinc-600 text-white hover:bg-zinc-700'
+              } ${showRightArrow ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+              aria-label="Scroll tabs right"
+            >
+              <ChevronRight className="w-5 h-5" />
+            </button>
           </div>
         </div>
 
