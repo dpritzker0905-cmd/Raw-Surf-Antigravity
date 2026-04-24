@@ -1022,8 +1022,7 @@ export const Bookings = () => {
                       isActive ? textPrimaryClass : textSecondaryClass
                     }`}
                     style={{
-                      borderBottom: isActive ? '3px solid transparent' : '3px solid transparent',
-                      borderImage: isActive ? 'linear-gradient(to right, #facc15, #fb923c) 1' : 'none',
+                      borderBottom: isActive ? '3px solid #f59e0b' : '3px solid transparent',
                       marginBottom: '-1px',
                     }}
                     data-testid={`tab-${tab.id}`}
