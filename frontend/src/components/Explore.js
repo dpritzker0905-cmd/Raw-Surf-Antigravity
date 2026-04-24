@@ -117,6 +117,7 @@ export const Explore = () => {
   
   // Tabs carousel refs and state
   const tabsContainerRef = useRef(null);
+  const indicatorRef = useRef(null);
   const [showLeftArrow, setShowLeftArrow] = useState(false);
   const [showRightArrow, setShowRightArrow] = useState(true);
 
@@ -259,6 +260,21 @@ export const Explore = () => {
     }
   }, [searchParams]);
 
+  // Sync the sliding indicator bar to the currently active tab button
+  const updateIndicator = useCallback(() => {
+    const container = tabsContainerRef.current;
+    const indicator = indicatorRef.current;
+    if (!container || !indicator) return;
+    const activeBtn = container.querySelector('[data-active="true"]');
+    if (!activeBtn) { indicator.style.opacity = '0'; return; }
+    const containerRect = container.getBoundingClientRect();
+    const btnRect = activeBtn.getBoundingClientRect();
+    indicator.style.transition = 'transform 0.25s ease, width 0.25s ease, opacity 0.2s';
+    indicator.style.width = `${btnRect.width}px`;
+    indicator.style.transform = `translateX(${btnRect.left - containerRect.left + container.scrollLeft}px)`;
+    indicator.style.opacity = '1';
+  }, []);
+
   // Update arrow visibility on scroll
   const updateArrowVisibility = useCallback(() => {
     const container = tabsContainerRef.current;
@@ -285,6 +301,17 @@ export const Explore = () => {
     };
   }, [updateArrowVisibility]);
 
+  // Auto-scroll active tab into view & sync indicator whenever activeTab changes
+  useEffect(() => {
+    const container = tabsContainerRef.current;
+    if (!container) return;
+    const active = container.querySelector('[data-active="true"]');
+    if (active) {
+      active.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' });
+    }
+    setTimeout(() => { updateArrowVisibility(); updateIndicator(); }, 150);
+  }, [activeTab, updateIndicator]); // eslint-disable-line
+
   // Scroll tabs left/right
   const scrollTabs = (direction) => {
     const container = tabsContainerRef.current;
@@ -300,8 +327,8 @@ export const Explore = () => {
       behavior: 'smooth'
     });
     
-    // Update arrow visibility after scroll animation
-    setTimeout(updateArrowVisibility, 350);
+    // Update arrow visibility and indicator after scroll animation
+    setTimeout(() => { updateArrowVisibility(); updateIndicator(); }, 350);
   };
 
   useEffect(() => {
@@ -841,7 +868,6 @@ export const Explore = () => {
     { id: 'trending', label: 'Trending', icon: Hash },
     { id: 'surfspots', label: 'Surf Spots', icon: Navigation },
     { id: 'users', label: 'People', icon: Users },
-    { id: 'spots', label: 'Search', icon: MapPin },
     { id: 'conditions', label: 'Reports', icon: Waves },
     { id: 'sponsors', label: 'Sponsors', icon: Heart },
   ];
@@ -873,56 +899,65 @@ export const Explore = () => {
       </div>
 
       {/* Search Tabs - Horizontally scrollable with arrow navigation */}
-      <div className="flex items-center gap-2 mb-6">
-        {/* Left Arrow - inline, fades when not needed */}
-        <button
-          onClick={() => scrollTabs('left')}
-          className={`flex-shrink-0 w-8 h-8 rounded-full bg-zinc-800 border border-zinc-600 shadow-lg flex items-center justify-center text-white hover:bg-zinc-700 transition-all ${
-            showLeftArrow ? 'opacity-100' : 'opacity-0 pointer-events-none'
-          }`}
-          data-testid="tabs-scroll-left"
-          aria-label="Scroll tabs left"
-        >
-          <ChevronLeft className="w-5 h-5" />
-        </button>
-        
-        {/* Tabs Container */}
-        <div 
-          ref={tabsContainerRef}
-          className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide scroll-smooth flex-1"
-          style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
-        >
-          {tabs.map((tab) => {
-            const Icon = tab.icon;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors flex-shrink-0 ${
-                  activeTab === tab.id
-                    ? 'bg-yellow-400 text-black'
-                    : 'bg-muted text-gray-300 hover:bg-zinc-700'
-                }`}
-                data-testid={`tab-${tab.id}`}
-              >
-                <Icon className="w-4 h-4" />
-                {tab.label}
-              </button>
-            );
-          })}
+      {/* Search Tabs with sliding indicator */}
+      <div className="relative mb-6">
+        <div className="flex items-center gap-2">
+          {/* Left Arrow - inline, fades when not needed */}
+          <button
+            onClick={() => scrollTabs('left')}
+            className={`flex-shrink-0 w-8 h-8 rounded-full bg-zinc-800 border border-zinc-600 shadow-lg flex items-center justify-center text-white hover:bg-zinc-700 transition-all ${
+              showLeftArrow ? 'opacity-100' : 'opacity-0 pointer-events-none'
+            }`}
+            data-testid="tabs-scroll-left"
+            aria-label="Scroll tabs left"
+          >
+            <ChevronLeft className="w-5 h-5" />
+          </button>
+          
+          {/* Tabs Container with sliding indicator */}
+          <div 
+            ref={tabsContainerRef}
+            className="relative flex border-b border-zinc-700 overflow-x-auto pb-0 scrollbar-hide scroll-smooth flex-1"
+            style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+          >
+            {tabs.map((tab) => {
+              const Icon = tab.icon;
+              const isActive = activeTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  data-active={isActive ? 'true' : 'false'}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`flex items-center gap-2 px-4 py-3 text-sm font-medium whitespace-nowrap transition-colors flex-shrink-0 ${
+                    isActive ? 'text-yellow-400' : 'text-gray-400 hover:text-gray-200'
+                  }`}
+                  data-testid={`tab-${tab.id}`}
+                >
+                  <Icon className="w-4 h-4" />
+                  {tab.label}
+                </button>
+              );
+            })}
+            {/* Persistent sliding indicator bar */}
+            <div
+              ref={indicatorRef}
+              className="absolute bottom-0 left-0 h-0.5 bg-gradient-to-r from-yellow-400 to-orange-400 pointer-events-none"
+              style={{ willChange: 'transform, width' }}
+            />
+          </div>
+          
+          {/* Right Arrow - inline, fades when not needed */}
+          <button
+            onClick={() => scrollTabs('right')}
+            className={`flex-shrink-0 w-8 h-8 rounded-full bg-zinc-800 border border-zinc-600 shadow-lg flex items-center justify-center text-white hover:bg-zinc-700 transition-all ${
+              showRightArrow ? 'opacity-100' : 'opacity-0 pointer-events-none'
+            }`}
+            data-testid="tabs-scroll-right"
+            aria-label="Scroll tabs right"
+          >
+            <ChevronRight className="w-5 h-5" />
+          </button>
         </div>
-        
-        {/* Right Arrow - inline, fades when not needed */}
-        <button
-          onClick={() => scrollTabs('right')}
-          className={`flex-shrink-0 w-8 h-8 rounded-full bg-zinc-800 border border-zinc-600 shadow-lg flex items-center justify-center text-white hover:bg-zinc-700 transition-all ${
-            showRightArrow ? 'opacity-100' : 'opacity-0 pointer-events-none'
-          }`}
-          data-testid="tabs-scroll-right"
-          aria-label="Scroll tabs right"
-        >
-          <ChevronRight className="w-5 h-5" />
-        </button>
       </div>
 
       {/* Search Results */}
@@ -1483,111 +1518,7 @@ export const Explore = () => {
       )}
 
       {/* Search (Spots) Tab — pre-search discovery state */}
-      {activeTab === 'spots' && (
-        <div className="space-y-6" data-testid="search-spots-tab">
-          {/* Search Prompt */}
-          <div className={`text-center py-8 rounded-2xl ${isLight ? 'bg-gradient-to-br from-cyan-50 to-blue-50 border border-cyan-200/60' : 'bg-gradient-to-br from-zinc-800/80 to-zinc-900/60 border border-zinc-700/50'}`}>
-            <div className={`w-16 h-16 mx-auto mb-4 rounded-full flex items-center justify-center ${isLight ? 'bg-cyan-100' : 'bg-zinc-700'}`}>
-              <MapPin className={`w-8 h-8 ${isLight ? 'text-cyan-600' : 'text-cyan-400'}`} />
-            </div>
-            <h3 className={`text-lg font-bold mb-1 ${isLight ? 'text-gray-900' : 'text-foreground'}`}>Search Spots</h3>
-            <p className={`text-sm mb-5 ${isLight ? 'text-gray-500' : 'text-muted-foreground'}`}>
-              Find surf breaks by name, region, or location
-            </p>
-            <button
-              onClick={() => {
-                const input = document.querySelector('[data-testid="explore-search-input"]');
-                if (input) input.focus();
-              }}
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-gradient-to-r from-cyan-400 to-blue-500 text-white font-semibold text-sm hover:from-cyan-500 hover:to-blue-600 transition-all shadow-lg shadow-cyan-500/20"
-            >
-              <Search className="w-4 h-4" />
-              Search Spots
-            </button>
-          </div>
-
-          {/* Suggested Searches */}
-          <div>
-            <h4 className={`text-sm font-semibold uppercase tracking-wider mb-3 ${isLight ? 'text-gray-500' : 'text-muted-foreground'}`}>Try Searching</h4>
-            <div className="flex flex-wrap gap-2">
-              {[
-                '🌴 Pipeline', '🏖️ Huntington Beach', '🌊 Trestles',
-                '🦈 Jeffreys Bay', '🌺 Waikiki', '🏝️ Uluwatu',
-                '🌅 Bells Beach', '🌿 Pavones'
-              ].map(suggestion => (
-                <button
-                  key={suggestion}
-                  onClick={() => {
-                    const name = suggestion.replace(/^[^\s]+\s/, '');
-                    setSearchQuery(name);
-                    const input = document.querySelector('[data-testid="explore-search-input"]');
-                    if (input) { input.value = name; input.focus(); }
-                  }}
-                  className={`px-3.5 py-2 rounded-full text-sm font-medium transition-all ${isLight ? 'bg-white border border-gray-200 text-gray-700 hover:border-cyan-400 hover:bg-cyan-50' : 'bg-zinc-800 border border-zinc-700 text-gray-300 hover:border-cyan-500/50 hover:bg-zinc-700'}`}
-                >
-                  {suggestion}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Popular Spots Grid — reuse trending data */}
-          {trending.popular_spots?.length > 0 && (
-            <div>
-              <h4 className={`text-sm font-semibold uppercase tracking-wider mb-3 ${isLight ? 'text-gray-500' : 'text-muted-foreground'}`}>Popular Spots</h4>
-              <div className="grid grid-cols-2 gap-3">
-                {trending.popular_spots.slice(0, 4).map(spot => (
-                  <div
-                    key={spot.id}
-                    onClick={() => navigate(`/spot-hub/${spot.id}`)}
-                    className="relative aspect-[4/3] rounded-xl overflow-hidden cursor-pointer group"
-                  >
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent z-10" />
-                    {spot.image_url ? (
-                      <img src={getFullUrl(spot.image_url)} alt={spot.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform"
-                        onError={(e) => {
-                          if (spot.latitude && spot.longitude) {
-                            e.target.onerror = null;
-                            e.target.src = `https://static-maps.yandex.ru/1.x/?lang=en_US&ll=${spot.longitude},${spot.latitude}&z=12&l=sat&size=400,300`;
-                            e.target.className = 'w-full h-full object-cover opacity-70';
-                          } else {
-                            e.target.style.display = 'none';
-                          }
-                        }}
-                      />
-                    ) : spot.latitude && spot.longitude ? (
-                      <div className="w-full h-full bg-muted relative">
-                        <img
-                          src={`https://static-maps.yandex.ru/1.x/?lang=en_US&ll=${spot.longitude},${spot.latitude}&z=12&l=sat&size=400,300`}
-                          alt={`Map of ${spot.name}`}
-                          className="w-full h-full object-cover opacity-60"
-                          onError={(e) => { e.target.style.display = 'none'; }}
-                        />
-                      </div>
-                    ) : (
-                      <div className="w-full h-full bg-gradient-to-br from-cyan-600 to-blue-800 flex items-center justify-center">
-                        <MapPin className="w-8 h-8 text-white/30" />
-                      </div>
-                    )}
-                    <div className="absolute bottom-0 left-0 right-0 p-3 z-20">
-                      <h4 className="font-medium text-white truncate text-sm">{spot.name}</h4>
-                      <p className="text-xs text-gray-300">{spot.region}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Hint to use Surf Spots tab for deep discovery */}
-          <div className={`flex items-center gap-3 p-3 rounded-xl ${isLight ? 'bg-blue-50 border border-blue-200/60' : 'bg-blue-900/10 border border-blue-800/30'}`}>
-            <Navigation className={`w-5 h-5 flex-shrink-0 ${isLight ? 'text-blue-500' : 'text-blue-400'}`} />
-            <p className={`text-sm ${isLight ? 'text-blue-700' : 'text-blue-300'}`}>
-              Looking for detailed forecasts? Check the <button onClick={() => setActiveTab('surfspots')} className="font-semibold underline underline-offset-2">Surf Spots</button> tab for full spot discovery with conditions.
-            </p>
-          </div>
-        </div>
-      )}
+      {/* "Search" tab removed - redundant with Surf Spots tab */}
 
       {/* Surf Spots Tab - Comprehensive Location Discovery */}
       {activeTab === 'surfspots' && (

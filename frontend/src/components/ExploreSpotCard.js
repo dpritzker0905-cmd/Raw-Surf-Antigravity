@@ -302,7 +302,7 @@ const ExploreSpotCard = ({ spot, userSubscriptionTier = 'free' }) => {
             {forecastDaysAllowed} Days
           </Badge>
         </div>
-        <div className="flex gap-1 overflow-x-auto pb-1">
+        <div className="flex flex-wrap gap-1">
           {/* Show unlocked forecast days */}
           {forecast.slice(0, forecastDaysAllowed).map((day, i) => (
             <ForecastDayBadge 
@@ -323,7 +323,7 @@ const ExploreSpotCard = ({ spot, userSubscriptionTier = 'free' }) => {
           {/* Show upgrade CTA if there are locked days */}
           {forecast.length > forecastDaysAllowed && userSubscriptionTier !== 'premium' && (
             <div 
-              className="flex items-center gap-1 px-2 py-1 bg-gradient-to-r from-purple-500/10 to-pink-500/10 border border-purple-500/30 rounded-lg cursor-pointer hover:border-purple-400/50 flex-shrink-0"
+              className="flex items-center gap-1 px-2 py-1 bg-gradient-to-r from-purple-500/10 to-pink-500/10 border border-purple-500/30 rounded-lg cursor-pointer hover:border-purple-400/50"
               onClick={() => navigate('/settings?tab=billing')}
             >
               <Crown className="w-3 h-3 text-purple-400" />

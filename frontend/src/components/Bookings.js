@@ -1005,7 +1005,7 @@ export const Bookings = () => {
                 e.currentTarget.style.userSelect = '';
               }
             }}
-            className={`flex border-b ${borderClass} overflow-x-auto scrollbar-hide cursor-grab select-none`}
+            className={`relative flex border-b ${borderClass} overflow-x-auto scrollbar-hide cursor-grab select-none`}
             style={{ scrollbarWidth: 'none', msOverflowStyle: 'none', WebkitOverflowScrolling: 'touch' }}
           >
             {tabs.map((tab) => {
