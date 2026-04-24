@@ -1018,9 +1018,14 @@ export const Bookings = () => {
                         setActiveTab(tab.id);
                       }
                     }}
-                    className={`flex items-center gap-2 px-4 py-3 text-sm font-medium whitespace-nowrap transition-colors relative flex-shrink-0 ${
+                    className={`flex items-center gap-2 px-4 py-3 text-sm font-medium whitespace-nowrap transition-colors flex-shrink-0 ${
                       isActive ? textPrimaryClass : textSecondaryClass
                     }`}
+                    style={{
+                      borderBottom: isActive ? '3px solid transparent' : '3px solid transparent',
+                      borderImage: isActive ? 'linear-gradient(to right, #facc15, #fb923c) 1' : 'none',
+                      marginBottom: '-1px',
+                    }}
                     data-testid={`tab-${tab.id}`}
                   >
                     <Icon className="w-4 h-4" />
@@ -1032,13 +1037,6 @@ export const Bookings = () => {
                         {tab.count}
                       </span>
                     )}
-                    {/* Orange indicator bar — always rendered, uses opacity for visibility */}
-                    <span
-                      className={`absolute bottom-[-1px] left-0 right-0 h-[3px] rounded-t-sm bg-gradient-to-r from-yellow-400 to-orange-400 transition-opacity duration-200 ${
-                        isActive ? 'opacity-100' : 'opacity-0'
-                      }`}
-                      style={isActive ? { boxShadow: '0 0 8px rgba(251, 191, 36, 0.7), 0 0 2px rgba(251, 146, 60, 0.5)' } : {}}
-                    />
                   </button>
                 );
               })}
