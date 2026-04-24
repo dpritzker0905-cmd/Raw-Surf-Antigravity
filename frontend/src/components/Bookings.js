@@ -359,16 +359,20 @@ export const Bookings = () => {
     if (!el) return;
     el.scrollBy({ left: dir * 160, behavior: 'smooth' });
   };
-  // Auto-scroll the active tab pill into view whenever activeTab changes (matches Explore.js)
-  // Only handles horizontal centering — no vertical scroll manipulation.
-  // The sticky bar handles its own positioning; fighting with scrollTop causes layout jumps.
+  // Auto-scroll the active tab pill into view whenever activeTab changes.
+  // Uses direct scrollTo math instead of scrollIntoView because scrollIntoView
+  // is unreliable on mobile for horizontal centering in nested scroll containers.
   useEffect(() => {
     const tabStrip = tabScrollRef.current;
     if (!tabStrip) return;
-    // Horizontally center the active tab button in the strip
     const activeBtn = tabStrip.querySelector(`[data-testid="tab-${activeTab}"]`);
     if (activeBtn) {
-      activeBtn.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' });
+      // Calculate scroll position to center the button in the strip
+      const stripWidth = tabStrip.offsetWidth;
+      const btnLeft = activeBtn.offsetLeft;
+      const btnWidth = activeBtn.offsetWidth;
+      const targetScroll = btnLeft - (stripWidth / 2) + (btnWidth / 2);
+      tabStrip.scrollTo({ left: targetScroll, behavior: 'smooth' });
     }
     updateArrows();
     setTimeout(updateArrows, 350);
