@@ -867,7 +867,7 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
                 <p className={`text-sm ${textSecondary}`}>Finding spots near you...</p>
               </div>
             ) : (
-              <div className="space-y-2 max-h-[320px] overflow-y-auto pr-1" style={{ WebkitOverflowScrolling: 'touch' }}>
+              <div className="space-y-2 max-h-[40vh] sm:max-h-[320px] overflow-y-auto pr-1" style={{ WebkitOverflowScrolling: 'touch' }}>
                 {/* Use Current Location option */}
                 <button
                   onClick={() => {
@@ -1048,6 +1048,7 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
                       placeholder="Spot name (e.g. North side of pier)"
                       className={`${isLight ? 'bg-white' : 'bg-card/80'}`}
                       autoFocus
+                      onFocus={(e) => setTimeout(() => e.target.scrollIntoView({ block: 'center', behavior: 'smooth' }), 300)}
                       data-testid="custom-location-input"
                     />
                     <Input
@@ -1055,6 +1056,7 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
                       onChange={(e) => setCustomLocationAddress(e.target.value)}
                       placeholder="Street address (e.g. 401 Meade Ave, Cocoa Beach, FL)"
                       className={`${isLight ? 'bg-white' : 'bg-card/80'}`}
+                      onFocus={(e) => setTimeout(() => e.target.scrollIntoView({ block: 'center', behavior: 'smooth' }), 300)}
                       data-testid="custom-location-address"
                     />
                     <p className={`text-xs ${textSecondary} mt-1`}>
