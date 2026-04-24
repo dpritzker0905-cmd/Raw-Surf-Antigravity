@@ -7,7 +7,7 @@ import { useTheme } from '../contexts/ThemeContext';
 
 import apiClient from '../lib/apiClient';
 
-import { MapPin, Camera, Zap, Clock, ChevronRight, Radio, Award, Plus, X, Calculator, Loader2, Wallet, Check, Bell, CreditCard, Search, Navigation } from 'lucide-react';
+import { MapPin, Camera, Zap, Clock, ChevronRight, Radio, Award, Plus, X, Calculator, Loader2, Wallet, Check, Bell, CreditCard, Search, Navigation, History } from 'lucide-react';
 
 import { Button } from './ui/button';
 
@@ -196,6 +196,45 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
   const [loadingSpots, setLoadingSpots] = useState(false);
   const [spotSearchQuery, setSpotSearchQuery] = useState('');
   const [useCustomLocation, setUseCustomLocation] = useState(false);
+  const [recentSpots, setRecentSpots] = useState([]);
+
+  // Load recently visited spots from localStorage
+  useEffect(() => {
+    if (step === 'location') {
+      try {
+        const stored = localStorage.getItem('rawsurf_recent_spots');
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (Array.isArray(parsed)) setRecentSpots(parsed.slice(0, 5));
+        }
+      } catch (e) { /* silent */ }
+    }
+  }, [step]);
+
+  // Save a spot to recently visited (called when advancing from location step)
+  const saveRecentSpot = (spot) => {
+    if (!spot) return; // Don't save "Use Current Location" (GPS)
+    try {
+      const stored = localStorage.getItem('rawsurf_recent_spots');
+      let existing = stored ? JSON.parse(stored) : [];
+      if (!Array.isArray(existing)) existing = [];
+      // De-duplicate by id (mapped spot) or name (custom location)
+      const key = spot.id || spot.name;
+      existing = existing.filter(s => (s.id || s.name) !== key);
+      // Prepend new selection and cap at 5
+      existing.unshift({
+        id: spot.id || null,
+        name: spot.name,
+        region: spot.region || null,
+        latitude: spot.latitude || null,
+        longitude: spot.longitude || null,
+        image_url: spot.image_url || null,
+        is_custom: !!spot.is_custom,
+        saved_at: Date.now()
+      });
+      localStorage.setItem('rawsurf_recent_spots', JSON.stringify(existing.slice(0, 5)));
+    } catch (e) { /* silent */ }
+  };
 
   // Quick-Add suggestions (recent buddies + following)
   const [recentBuddies, setRecentBuddies] = useState([]);
@@ -854,6 +893,69 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
                     {!selectedSpot && !useCustomLocation && <Check className="w-3 h-3 text-black" />}
                   </div>
                 </button>
+
+                {/* Recently Visited Spots */}
+                {recentSpots.length > 0 && !spotSearchQuery && (
+                  <>
+                    <div className={`flex items-center gap-2 mt-3 mb-1 px-1`}>
+                      <History className={`w-3.5 h-3.5 ${textSecondary}`} />
+                      <span className={`text-xs font-semibold uppercase tracking-wider ${textSecondary}`}>Recently Visited</span>
+                    </div>
+                    {recentSpots.map((spot, idx) => (
+                      <button
+                        key={`recent-${spot.id || spot.name}-${idx}`}
+                        onClick={() => {
+                          if (spot.is_custom) {
+                            setUseCustomLocation(true);
+                            setCustomLocationName(spot.name);
+                            setSelectedSpot(null);
+                          } else {
+                            setSelectedSpot(spot);
+                            setUseCustomLocation(false);
+                            setCustomLocationName('');
+                          }
+                        }}
+                        className={`w-full p-3 rounded-xl border-2 flex items-center gap-3 transition-all text-left ${
+                          (spot.is_custom && useCustomLocation && customLocationName === spot.name) ||
+                          (!spot.is_custom && selectedSpot?.id === spot.id)
+                            ? 'border-teal-400 bg-teal-500/10'
+                            : `${isLight ? 'border-gray-200 bg-gray-50' : 'border-zinc-700 bg-muted/30'} hover:border-teal-400/50`
+                        }`}
+                        data-testid={`spot-recent-${idx}`}
+                      >
+                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${
+                          (spot.is_custom && useCustomLocation && customLocationName === spot.name) ||
+                          (!spot.is_custom && selectedSpot?.id === spot.id)
+                            ? 'bg-teal-500' : isLight ? 'bg-gray-200' : 'bg-zinc-700'
+                        }`}>
+                          <History className={`w-4 h-4 ${
+                            (spot.is_custom && useCustomLocation && customLocationName === spot.name) ||
+                            (!spot.is_custom && selectedSpot?.id === spot.id)
+                              ? 'text-white' : textSecondary
+                          }`} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className={`font-medium text-sm truncate ${textPrimary}`}>{spot.name}</p>
+                          <p className={`text-xs ${textSecondary} truncate`}>
+                            {spot.is_custom ? 'Custom spot' : (spot.region || 'Mapped spot')}
+                          </p>
+                        </div>
+                        <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
+                          (spot.is_custom && useCustomLocation && customLocationName === spot.name) ||
+                          (!spot.is_custom && selectedSpot?.id === spot.id)
+                            ? 'border-teal-400 bg-teal-400' : isLight ? 'border-gray-300' : 'border-zinc-600'
+                        }`}>
+                          {((spot.is_custom && useCustomLocation && customLocationName === spot.name) ||
+                            (!spot.is_custom && selectedSpot?.id === spot.id)) && <Check className="w-3 h-3 text-black" />}
+                        </div>
+                      </button>
+                    ))}
+                    <div className={`flex items-center gap-2 mt-3 mb-1 px-1`}>
+                      <MapPin className={`w-3.5 h-3.5 ${textSecondary}`} />
+                      <span className={`text-xs font-semibold uppercase tracking-wider ${textSecondary}`}>Nearby Spots</span>
+                    </div>
+                  </>
+                )}
 
                 {/* Nearby Mapped Spots */}
                 {nearbySpots
@@ -2022,7 +2124,15 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
             )}
             {step === 'location' && (
               <Button
-                onClick={() => setStep('duration')}
+                onClick={() => {
+                  // Save selection to recently visited
+                  if (selectedSpot) {
+                    saveRecentSpot(selectedSpot);
+                  } else if (useCustomLocation && customLocationName.trim()) {
+                    saveRecentSpot({ name: customLocationName.trim(), is_custom: true });
+                  }
+                  setStep('duration');
+                }}
                 disabled={useCustomLocation && !customLocationName.trim()}
                 className="w-full py-4 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-black font-bold text-base rounded-xl disabled:opacity-50"
               >
