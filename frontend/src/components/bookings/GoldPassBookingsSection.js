@@ -1,4 +1,4 @@
-﻿/**
+/**
  * GoldPassBookingsSection - Exclusive early-access booking slots for Premium subscribers
  * 
  * Gold Pass Feature:
@@ -84,8 +84,10 @@ export const GoldPassBookingsSection = ({ user, theme, onBookingComplete }) => {
     }
   };
 
-  // Don't show section if no slots and user doesn't have gold pass
-  if (!loading && slots.length === 0 && !hasGoldPass) {
+  // Don't show section while loading or if no slots and user doesn't have gold pass.
+  // Returning null during loading prevents the card from "flashing" briefly on every
+  // page render before the API responds with empty data.
+  if (loading || (slots.length === 0 && !hasGoldPass)) {
     return null;
   }
 
