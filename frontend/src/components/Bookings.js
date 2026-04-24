@@ -360,38 +360,47 @@ export const Bookings = () => {
     el.scrollBy({ left: dir * 160, behavior: 'smooth' });
   };
 
-  // Auto-scroll active tab pill into view + scroll page so tab bar is visible with content
+  // Track whether this is the first render (don't scroll on mount)
+  const isFirstTabRender = useRef(true);
+
+  // On tab change: center the active pill horizontally + snap content to top
   useEffect(() => {
-    const el = tabScrollRef.current;
-    if (!el) return;
-    // Horizontally center the active tab button
-    const active = el.querySelector(`[data-testid="tab-${activeTab}"]`);
-    if (active) {
-      active.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' });
+    const tabStrip = tabScrollRef.current;
+    if (!tabStrip) return;
+
+    // 1) Horizontally center the active tab pill (manual scroll, no vertical side-effects)
+    const activeBtn = tabStrip.querySelector(`[data-testid="tab-${activeTab}"]`);
+    if (activeBtn) {
+      const stripW = tabStrip.offsetWidth;
+      const btnL = activeBtn.offsetLeft;
+      const btnW = activeBtn.offsetWidth;
+      tabStrip.scrollTo({
+        left: btnL - stripW / 2 + btnW / 2,
+        behavior: 'smooth',
+      });
     }
-    // Scroll <main> so the tab bar is pinned at its sticky position
-    // This guarantees tab bar + workflow content are visible together after switching
-    if (stickyTabRef.current) {
+
+    // 2) On actual tab switches (not first render), instantly scroll <main>
+    //    so the tab bar is pinned at top and new content starts from the top
+    if (isFirstTabRender.current) {
+      isFirstTabRender.current = false;
+    } else {
       const main = document.querySelector('main');
-      if (main) {
-        // Calculate the tab bar's natural position in the document flow
-        let offsetTop = 0;
-        let node = stickyTabRef.current;
-        while (node && node !== main) {
-          offsetTop += node.offsetTop;
-          node = node.offsetParent;
-        }
-        // Scroll so tab bar pins right below TopNav (56px)
-        const scrollTarget = Math.max(0, offsetTop - 56);
-        if (main.scrollTop < scrollTarget) {
-          // Only scroll down to pin — don't yank upward if user scrolled past
-          main.scrollTo({ top: scrollTarget, behavior: 'smooth' });
-        } else if (main.scrollTop > scrollTarget + 200) {
-          // If user was far down in prev tab, scroll up to show tab bar + new content
-          main.scrollTo({ top: scrollTarget, behavior: 'smooth' });
+      if (main && stickyTabRef.current) {
+        // Use getBoundingClientRect on the element BEFORE the sticky bar
+        // to find its natural document position (not affected by sticky)
+        const prev = stickyTabRef.current.previousElementSibling;
+        if (prev) {
+          const prevRect = prev.getBoundingClientRect();
+          const mainRect = main.getBoundingClientRect();
+          // Bottom of the previous element = top of the tab bar in document flow
+          const tabBarNaturalTop = main.scrollTop + (prevRect.bottom - mainRect.top);
+          // Scroll so tab bar pins at 56px (right below TopNav) — INSTANT, no animation
+          main.scrollTop = Math.max(0, tabBarNaturalTop - 56);
         }
       }
     }
+
     updateArrows();
     const t = setTimeout(updateArrows, 350);
     return () => clearTimeout(t);
