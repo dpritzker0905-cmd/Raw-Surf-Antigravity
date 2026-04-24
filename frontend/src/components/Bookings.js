@@ -360,15 +360,11 @@ export const Bookings = () => {
     el.scrollBy({ left: dir * 160, behavior: 'smooth' });
   };
 
-  // Track whether this is the first render (don't scroll on mount)
-  const isFirstTabRender = useRef(true);
-
-  // On tab change: center the active pill horizontally + snap content to top
+  // Auto-scroll the active tab pill into view whenever activeTab changes (matches Explore.js)
   useEffect(() => {
     const tabStrip = tabScrollRef.current;
     if (!tabStrip) return;
-
-    // 1) Horizontally center the active tab pill (manual scroll, no vertical side-effects)
+    // Horizontally center the active tab button in the strip
     const activeBtn = tabStrip.querySelector(`[data-testid="tab-${activeTab}"]`);
     if (activeBtn) {
       const stripW = tabStrip.offsetWidth;
@@ -379,31 +375,8 @@ export const Bookings = () => {
         behavior: 'smooth',
       });
     }
-
-    // 2) On actual tab switches (not first render), instantly scroll <main>
-    //    so the tab bar is pinned at top and new content starts from the top
-    if (isFirstTabRender.current) {
-      isFirstTabRender.current = false;
-    } else {
-      const main = document.querySelector('main');
-      if (main && stickyTabRef.current) {
-        // Use getBoundingClientRect on the element BEFORE the sticky bar
-        // to find its natural document position (not affected by sticky)
-        const prev = stickyTabRef.current.previousElementSibling;
-        if (prev) {
-          const prevRect = prev.getBoundingClientRect();
-          const mainRect = main.getBoundingClientRect();
-          // Bottom of the previous element = top of the tab bar in document flow
-          const tabBarNaturalTop = main.scrollTop + (prevRect.bottom - mainRect.top);
-          // Scroll so tab bar pins at 56px (right below TopNav) — INSTANT, no animation
-          main.scrollTop = Math.max(0, tabBarNaturalTop - 56);
-        }
-      }
-    }
-
     updateArrows();
-    const t = setTimeout(updateArrows, 350);
-    return () => clearTimeout(t);
+    setTimeout(updateArrows, 350);
   }, [activeTab]);
 
   // Keep arrows synced on resize
