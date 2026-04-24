@@ -107,9 +107,31 @@ export const StoriesBar = ({ onCreateStory, onTierChange, selectedTier }) => {
             description: `${payload.new.author_name || 'Someone'} just posted a new story`,
             action: {
               label: 'View',
-              onClick: () => {
-                fetchStories();
+              onClick: async () => {
                 setNewStoryNotification(null);
+                // Check if the author is currently live — deep-link straight into the viewer
+                try {
+                  const streamsRes = await apiClient.get('/livekit/active-streams');
+                  const liveStream = streamsRes.data.streams?.find(
+                    s => s.broadcaster_id === payload.new.author_id
+                  );
+                  if (liveStream) {
+                    setLiveStreamInfo({
+                      id: liveStream.id,
+                      room_name: liveStream.room_name,
+                      broadcaster_id: liveStream.broadcaster_id,
+                      broadcaster_name: liveStream.broadcaster_name || payload.new.author_name,
+                      broadcaster_avatar: liveStream.broadcaster_avatar,
+                      viewer_count: liveStream.viewer_count,
+                      title: liveStream.title
+                    });
+                    setShowLiveViewer(true);
+                    return; // Skip generic refresh — we're opening the viewer
+                  }
+                } catch {
+                  // Fall through to normal refresh if stream lookup fails
+                }
+                fetchStories();
               }
             }
           });

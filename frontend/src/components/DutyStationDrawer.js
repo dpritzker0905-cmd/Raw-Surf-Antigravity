@@ -910,7 +910,7 @@ export const DutyStationDrawer = ({ isOpen, onClose }) => {
           formData.append('user_id', user.id);
           logger.log('[DutyStation] Pre-uploading condition media…', { size: conditionsData.media.size, type: mimeType });
           const uploadRes = await apiClient.post('/upload/conditions', formData, {
-            headers: { 'Content-Type': 'multipart/form-data' },
+            headers: { 'Content-Type': undefined }, // Let browser set multipart boundary
             timeout: 60000 // 60s for large video uploads
           });
           conditionMediaUrl = uploadRes.data?.media_url;
@@ -953,7 +953,9 @@ export const DutyStationDrawer = ({ isOpen, onClose }) => {
         condition_media_url: goLivePayload.condition_media_url || null
       });
       
-      await apiClient.post(`/photographer/${user.id}/go-live`, goLivePayload);
+      await apiClient.post(`/photographer/${user.id}/go-live`, goLivePayload, {
+        timeout: 120000 // 120s — matches PSM; accommodates Render cold starts
+      });
       setLiveActive(true);
       setShowConditionsModal(false);
       toast.success(`Now live at ${selectedSpot.name}!`);
@@ -979,8 +981,12 @@ export const DutyStationDrawer = ({ isOpen, onClose }) => {
       } else if (detail) {
         // Generic backend error message (covers 403 role errors, etc.)
         toast.error(`Go-live error: ${detail}`);
+      } else if (error.code === 'ECONNABORTED' || error.message?.includes('timeout')) {
+        toast.error('Request timed out. The server may be waking up — please try again in a moment.', { duration: 6000 });
+      } else if (!error.response) {
+        toast.error('Network error — please check your connection and try again.');
       } else {
-        toast.error('Failed to go live. Please check your connection and try again.');
+        toast.error('Failed to go live. Please try again.');
       }
     } finally {
       setLoading(false);

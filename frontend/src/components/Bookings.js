@@ -345,21 +345,18 @@ export const Bookings = () => {
   const [isAnimating, setIsAnimating] = useState(false);
   const indicatorRef = useRef(null);
 
-  // Sync the sliding indicator bar to the currently active tab button
+  // Sync the sliding indicator bar to the currently active tab button.
+  // The indicator lives INSIDE the scroll container so it scrolls with the tabs
+  // naturally — we only need offsetLeft (stable layout value), no scrollLeft math.
   const updateIndicator = useCallback(() => {
     const container = tabScrollRef.current;
     const indicator = indicatorRef.current;
     if (!container || !indicator) return;
     const activeBtn = container.querySelector('[data-active="true"]');
     if (!activeBtn) { indicator.style.opacity = '0'; return; }
-    // Get the outer wrapper (relative parent) for positioning
-    const wrapper = container.parentElement;
-    if (!wrapper) return;
-    const wrapperRect = wrapper.getBoundingClientRect();
-    const btnRect = activeBtn.getBoundingClientRect();
-    indicator.style.transition = 'transform 0.25s ease, width 0.25s ease, opacity 0.2s';
-    indicator.style.width = `${btnRect.width}px`;
-    indicator.style.transform = `translateX(${btnRect.left - wrapperRect.left}px)`;
+    indicator.style.transition = 'left 0.25s ease, width 0.25s ease, opacity 0.2s';
+    indicator.style.width = `${activeBtn.offsetWidth}px`;
+    indicator.style.left = `${activeBtn.offsetLeft}px`;
     indicator.style.opacity = '1';
   }, []);
 
@@ -386,21 +383,24 @@ export const Bookings = () => {
     if (active) {
       active.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' });
     }
-    setTimeout(() => { updateArrows(); updateIndicator(); }, 150);
+    // Sync indicator multiple times to cover the full smooth-scroll duration
+    updateArrows();
+    updateIndicator();
+    const t1 = setTimeout(() => { updateArrows(); updateIndicator(); }, 150);
+    const t2 = setTimeout(() => { updateArrows(); updateIndicator(); }, 400);
+    return () => { clearTimeout(t1); clearTimeout(t2); };
   }, [activeTab, updateIndicator]); // eslint-disable-line
 
-  // Keep indicator synced on scroll and resize
+  // Keep indicator synced on resize (scroll no longer affects it since
+  // the indicator is inside the scroll container and moves with content)
   useEffect(() => {
-    const el = tabScrollRef.current;
-    if (!el) return;
-    const onScroll = () => updateIndicator();
-    el.addEventListener('scroll', onScroll);
     window.addEventListener('resize', updateIndicator);
-    // Initial sync
-    setTimeout(updateIndicator, 250);
+    // Initial sync — run immediately + delayed fallback
+    requestAnimationFrame(updateIndicator);
+    const t = setTimeout(updateIndicator, 300);
     return () => {
-      el.removeEventListener('scroll', onScroll);
       window.removeEventListener('resize', updateIndicator);
+      clearTimeout(t);
     };
   }, [updateIndicator]);
 
@@ -1056,13 +1056,13 @@ export const Bookings = () => {
                 </button>
               );
             })}
+            {/* Sliding indicator bar — INSIDE scroll container so it scrolls with tabs naturally */}
+            <div
+              ref={indicatorRef}
+              className="absolute bottom-[-1px] h-[4px] rounded-t-sm bg-gradient-to-r from-yellow-400 to-orange-400 pointer-events-none z-10"
+              style={{ willChange: 'left, width', boxShadow: '0 0 8px rgba(251, 191, 36, 0.7), 0 0 2px rgba(251, 146, 60, 0.5)' }}
+            />
           </div>
-          {/* Persistent sliding indicator bar — outside scroll container to avoid overflow clipping */}
-          <div
-            ref={indicatorRef}
-            className="absolute bottom-0 left-0 h-[3px] rounded-full bg-gradient-to-r from-yellow-400 to-orange-400 pointer-events-none z-10"
-            style={{ willChange: 'transform, width', boxShadow: '0 0 6px rgba(251, 191, 36, 0.5)' }}
-          />
 
           {/* Right arrow — only visible on desktop when more tabs are hidden */}
           {showRightArrow && (
@@ -1133,36 +1133,35 @@ export const Bookings = () => {
               contentRef.current.style.opacity = `${1 - progress * 0.15}`;
             }
 
-            // Sync indicator bar with swipe drag
+            // Sync indicator bar with swipe drag (uses offsetLeft directly —
+            // indicator is inside the scroll container so no scrollLeft math needed)
             const indicator = indicatorRef.current;
             const container = tabScrollRef.current;
             if (indicator && container) {
-              const wrapper = container.parentElement;
               const activeBtn = container.querySelector('[data-active="true"]');
-              if (activeBtn && wrapper) {
-                const wrapperRect = wrapper.getBoundingClientRect();
-                const btnRect = activeBtn.getBoundingClientRect();
-                const baseX = btnRect.left - wrapperRect.left;
+              if (activeBtn) {
+                const baseX = activeBtn.offsetLeft;
+                const baseW = activeBtn.offsetWidth;
                 // Find the next tab button to interpolate toward
-                const tabIds = tabs.map(t => t.id);
-                const currentIdx = tabIds.indexOf(activeTab);
-                const nextIdx = dampened < 0 ? currentIdx + 1 : currentIdx - 1;
+                const swipeTabIds = tabs.map(t => t.id);
+                const swipeIdx = swipeTabIds.indexOf(activeTab);
+                const nextIdx = dampened < 0 ? swipeIdx + 1 : swipeIdx - 1;
                 const allBtns = container.querySelectorAll('[data-testid^="tab-"]');
                 const nextBtn = nextIdx >= 0 && nextIdx < allBtns.length ? allBtns[nextIdx] : null;
-                const progress = Math.min(Math.abs(dampened) / (window.innerWidth * 0.4), 1);
+                const swipeProgress = Math.min(Math.abs(dampened) / (window.innerWidth * 0.4), 1);
                 if (nextBtn) {
-                  const nextRect = nextBtn.getBoundingClientRect();
-                  const nextX = nextRect.left - wrapperRect.left;
-                  const interpolatedX = baseX + (nextX - baseX) * progress;
-                  const interpolatedW = btnRect.width + (nextRect.width - btnRect.width) * progress;
+                  const nextX = nextBtn.offsetLeft;
+                  const nextW = nextBtn.offsetWidth;
+                  const interpolatedX = baseX + (nextX - baseX) * swipeProgress;
+                  const interpolatedW = baseW + (nextW - baseW) * swipeProgress;
                   indicator.style.transition = 'none';
-                  indicator.style.transform = `translateX(${interpolatedX}px)`;
+                  indicator.style.left = `${interpolatedX}px`;
                   indicator.style.width = `${interpolatedW}px`;
                 } else {
                   // At edge — slight resistance shift
-                  const indicatorShift = (dampened / window.innerWidth) * btnRect.width * 0.5;
+                  const indicatorShift = (dampened / window.innerWidth) * baseW * 0.5;
                   indicator.style.transition = 'none';
-                  indicator.style.transform = `translateX(${baseX + indicatorShift}px)`;
+                  indicator.style.left = `${baseX + indicatorShift}px`;
                 }
               }
             }

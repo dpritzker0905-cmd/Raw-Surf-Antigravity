@@ -2,9 +2,7 @@ import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom';
 import {
   X, Radio, Users, Heart, MessageCircle, Send, Loader2, WifiOff,
-  ArrowLeft, Share2, UserPlus, Sparkles, RotateCcw,
-  Sun, Contrast, Droplets, Thermometer, CircleDot,
-  Eye, Grid, Waves, Moon, Zap, Sunset
+  ArrowLeft, Share2, UserPlus
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from './ui/button';
@@ -55,100 +53,7 @@ const getThemeColors = (theme) => {
   };
 };
 
-// ─── AI Filter presets (identical to GoLiveModal broadcaster) ─────────────────
-const FILTER_PRESETS = [
-  { name: 'None',           icon: CircleDot, values: { brightness: 100, contrast: 100, saturation: 100, warmth: 100, vignette: 0  }, description: 'Original' },
-  { name: 'Golden Hour',    icon: Sunset,    values: { brightness: 105, contrast: 110, saturation: 120, warmth: 120, vignette: 20 }, description: 'Warm sunset vibes' },
-  { name: 'AI Pipeline',    icon: Waves,     values: { brightness: 90,  contrast: 130, saturation: 90,  warmth: 110, vignette: 40 }, description: 'Deep barrel shadows' },
-  { name: 'AI Bio-Lum',     icon: Moon,      values: { brightness: 85,  contrast: 140, saturation: 150, warmth: 160, vignette: 30 }, description: 'Neon glowing night surf' },
-  { name: 'AI Cyber-Surf',  icon: Zap,       values: { brightness: 110, contrast: 125, saturation: 140, warmth: 40,  vignette: 0  }, description: 'Hyper-performance cold lens' },
-  { name: 'AI Night Vision',icon: Eye,       values: { brightness: 100, contrast: 100, saturation: 100, warmth: 100, vignette: 0  }, description: 'Tactical green overlay' },
-  { name: 'AI Pixelate',    icon: Grid,      values: { brightness: 100, contrast: 100, saturation: 100, warmth: 100, vignette: 0  }, description: 'Retro 8-bit aesthetic' },
-];
 
-// ─── Surf Filters Panel (mirrors GoLiveModal VideoFilterPanel) ────────────────
-const ViewerFilterPanel = ({ isOpen, onClose, filters, onFilterChange, onPresetSelect, colors }) => {
-  if (!isOpen) return null;
-  return (
-    <motion.div
-      initial={{ opacity: 0, x: -20 }}
-      animate={{ opacity: 1, x: 0 }}
-      exit={{ opacity: 0, x: -20 }}
-      className={`absolute left-3 top-24 w-64 max-h-[58vh] overflow-y-auto p-3 rounded-2xl ${colors.overlayBg} ${colors.border} border z-50 shadow-2xl`}
-    >
-      {/* Header */}
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-2">
-          <Sparkles className={`w-4 h-4 ${colors.accentText}`} />
-          <span className={`text-sm font-medium ${colors.primaryText}`}>Surf Filters</span>
-        </div>
-        <button onClick={onClose} className={`p-1.5 rounded-full ${colors.buttonBg}`}>
-          <X className={`w-4 h-4 ${colors.secondaryText}`} />
-        </button>
-      </div>
-
-      {/* AI Presets grid */}
-      <div className="mb-3 space-y-1.5">
-        <span className={`text-xs font-medium ${colors.secondaryText}`}>Quick Presets</span>
-        <div className="grid grid-cols-3 gap-1.5">
-          {FILTER_PRESETS.map((preset) => {
-            const Icon = preset.icon;
-            const isActive = filters.presetName === preset.name;
-            return (
-              <button
-                key={preset.name}
-                onClick={() => onPresetSelect(preset)}
-                className={`flex flex-col items-center gap-1 p-2 rounded-lg transition-all hover:scale-105 ${isActive ? colors.accentBg : colors.buttonBg}`}
-                title={preset.description}
-              >
-                <Icon className={`w-4 h-4 ${isActive ? 'text-white' : colors.accentText}`} />
-                <span className={`text-[9px] text-center leading-tight ${isActive ? 'text-white' : colors.primaryText}`}>{preset.name}</span>
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Manual sliders */}
-      {[
-        { key: 'brightness', label: 'Brightness', Icon: Sun,         min: 50,  max: 150 },
-        { key: 'contrast',   label: 'Contrast',   Icon: Contrast,    min: 50,  max: 150 },
-        { key: 'saturation', label: 'Saturation', Icon: Droplets,    min: 50,  max: 200 },
-        { key: 'warmth',     label: 'Warmth',     Icon: Thermometer, min: 50,  max: 150 },
-        { key: 'vignette',   label: 'Vignette',   Icon: CircleDot,   min: 0,   max: 50  },
-      ].map(({ key, label, Icon, min, max }) => (
-        <div key={key} className="mb-2.5">
-          <div className="flex items-center justify-between mb-1">
-            <div className="flex items-center gap-1.5">
-              <Icon className={`w-3 h-3 ${colors.secondaryText}`} />
-              <span className={`text-xs ${colors.secondaryText}`}>{label}</span>
-            </div>
-            <span className={`text-xs ${colors.primaryText}`}>{filters[key]}%</span>
-          </div>
-          <input
-            type="range" min={min} max={max} value={filters[key]}
-            onChange={(e) => onFilterChange(key, parseInt(e.target.value))}
-            className="w-full h-1.5 rounded-full appearance-none cursor-pointer accent-cyan-500"
-          />
-        </div>
-      ))}
-
-      {/* Reset */}
-      <Button
-        onClick={() => {
-          onFilterChange('brightness', 100); onFilterChange('contrast', 100);
-          onFilterChange('saturation', 100); onFilterChange('warmth', 100);
-          onFilterChange('vignette', 0);     onFilterChange('presetName', 'None');
-        }}
-        size="sm" variant="outline"
-        className={`w-full mt-1 ${colors.buttonBg} ${colors.primaryText}`}
-      >
-        <RotateCcw className="w-3 h-3 mr-2" />
-        Reset All
-      </Button>
-    </motion.div>
-  );
-};
 
 // ─── Live Chat ────────────────────────────────────────────────────────────────
 const ChatMessage = ({ message, isOwn }) => (
@@ -275,51 +180,18 @@ const ViewerRoomContent = ({
   streamId, userId, userName, userAvatar, colors
 }) => {
   const [isChatOpen, setIsChatOpen]   = useState(true);
-  const [showFilters, setShowFilters] = useState(false);
-  const [filters, setFilters] = useState({
-    brightness: 100, contrast: 100, saturation: 100, warmth: 100, vignette: 0, presetName: 'None'
-  });
 
   const tracks = useTracks([Track.Source.Camera], { onlySubscribed: true });
   const broadcasterTrack = tracks.find(t => !t.participant?.isLocal);
 
-  const handleFilterChange = useCallback((key, value) => {
-    setFilters(prev => ({ ...prev, [key]: value }));
-  }, []);
-
-  const handlePresetSelect = useCallback((preset) => {
-    setFilters({ ...preset.values, presetName: preset.name });
-    toast.success(`Filter: ${preset.name}`);
-  }, []);
-
-  // CSS filter computed from slider values (mirrors GoLiveModal.videoFilterStyle)
-  const videoFilterStyle = useMemo(() => {
-    let warmthDeg = (filters.warmth - 100) * 0.8;
-    if (filters.warmth >= 150) warmthDeg = 300; // Bio-Lum neon
-    if (filters.warmth <= 50)  warmthDeg = 180; // Cyber cold
-    return {
-      filter: `brightness(${filters.brightness}%) contrast(${filters.contrast}%) saturate(${filters.saturation}%) hue-rotate(${warmthDeg}deg)`,
-      position: 'relative', width: '100%', height: '100%'
-    };
-  }, [filters]);
-
-  const vignetteStyle = useMemo(() => {
-    if (!filters.vignette) return null;
-    return {
-      position: 'absolute', inset: 0, pointerEvents: 'none',
-      background: `radial-gradient(circle, transparent ${100 - filters.vignette}%, rgba(0,0,0,${filters.vignette / 100}) 100%)`
-    };
-  }, [filters.vignette]);
-
   return (
     <div className="w-full h-full flex flex-col sm:flex-row overflow-hidden">
 
-      {/* ── Left: Video ── */}
+      {/* ── Left: Video + Mobile Chat ── */}
       <div className="flex-1 relative bg-black flex flex-col min-w-0">
+        {/* Video area */}
         <div className="flex-1 relative overflow-hidden">
-
-          {/* Video with CSS filters */}
-          <div style={videoFilterStyle} className="absolute inset-0 flex items-center justify-center">
+          <div className="absolute inset-0 flex items-center justify-center" style={{ width: '100%', height: '100%' }}>
             {broadcasterTrack ? (
               <VideoTrack trackRef={broadcasterTrack} className="max-w-full max-h-full object-contain" />
             ) : (
@@ -328,8 +200,6 @@ const ViewerRoomContent = ({
                 <p className="text-gray-400">Waiting for video...</p>
               </div>
             )}
-            {/* Vignette overlay */}
-            {vignetteStyle && <div style={vignetteStyle} />}
           </div>
 
           {/* Top bar */}
@@ -358,17 +228,8 @@ const ViewerRoomContent = ({
                 </div>
               </div>
 
-              {/* Right: controls */}
+              {/* Right: controls (no filter button for viewers) */}
               <div className="flex items-center gap-2">
-                {/* Filters */}
-                <button
-                  onClick={() => setShowFilters(!showFilters)}
-                  className={`p-2 rounded-full transition-all ${showFilters ? `${colors.accentBg} text-white` : `${colors.overlayBg} ${colors.primaryText} hover:opacity-80`}`}
-                  title="Surf Filters"
-                >
-                  <Sparkles className="w-5 h-5" />
-                </button>
-
                 {/* Chat toggle (desktop) */}
                 <button
                   onClick={() => setIsChatOpen(!isChatOpen)}
@@ -390,22 +251,8 @@ const ViewerRoomContent = ({
             </div>
           </div>
 
-          {/* Surf Filters Panel */}
-          <AnimatePresence>
-            {showFilters && (
-              <ViewerFilterPanel
-                isOpen={showFilters}
-                onClose={() => setShowFilters(false)}
-                filters={filters}
-                onFilterChange={handleFilterChange}
-                onPresetSelect={handlePresetSelect}
-                colors={colors}
-              />
-            )}
-          </AnimatePresence>
-
-          {/* Bottom controls */}
-          <div className="absolute bottom-4 left-0 right-0 px-6 flex items-center justify-between pointer-events-none z-10">
+          {/* Bottom controls — above mobile chat */}
+          <div className="absolute bottom-4 sm:bottom-4 left-0 right-0 px-6 flex items-center justify-between pointer-events-none z-10">
             <div className="flex items-center gap-4 pointer-events-auto">
               <button className="p-3 bg-black/40 hover:bg-red-500/20 text-white hover:text-red-400 rounded-full transition-all group backdrop-blur-md">
                 <Heart className="w-6 h-6 group-active:scale-125 transition-transform" />
@@ -425,11 +272,12 @@ const ViewerRoomContent = ({
               </Button>
             </div>
           </div>
+        </div>
 
-          {/* Mobile chat overlay (bottom 40%) */}
-          <div className="sm:hidden absolute bottom-0 left-0 right-0 h-[40%] pointer-events-auto z-20">
-            <LiveChat streamId={streamId} userId={userId} userName={userName} userAvatar={userAvatar} />
-          </div>
+        {/* Mobile chat — OUTSIDE the overflow-hidden video area so it isn't clipped.
+            Uses pb-[env(safe-area-inset-bottom)] + extra padding to clear BottomNav. */}
+        <div className="sm:hidden h-[40%] min-h-[180px] flex-shrink-0" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
+          <LiveChat streamId={streamId} userId={userId} userName={userName} userAvatar={userAvatar} />
         </div>
       </div>
 
@@ -586,7 +434,7 @@ const LiveStreamViewer = ({ isOpen, onClose, streamInfo }) => {
 
   return (
     /* Fullscreen on mobile │ Centred 1100×720 popup on desktop — matches GoLiveModal exactly */
-    <div className="fixed inset-0 z-[100] flex items-center justify-center" data-testid="live-stream-viewer">
+    <div className="fixed inset-0 z-[110] flex items-center justify-center" data-testid="live-stream-viewer">
       {/* Desktop backdrop */}
       <div
         className="fixed inset-0 bg-black/80 backdrop-blur-sm hidden sm:block"
