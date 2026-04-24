@@ -152,15 +152,26 @@ const UnifiedAdminConsole = () => {
     if (!user?.id) return;
     setLoading(true);
     try {
+      const handle401 = (label) => (err) => {
+        if (err?.response?.status === 401) {
+          logger.warn(`[Admin] ${label}: 401 — token may be expired`);
+        }
+        return { data: null };
+      };
       const [statsRes, usersRes, logsRes, settingsRes] = await Promise.all([
-        apiClient.get(`/admin/stats`).catch(() => ({ data: null })),
-        apiClient.get(`/admin/users?limit=50`).catch(() => ({ data: { users: [] } })),
-        apiClient.get(`/admin/logs?limit=50`).catch(() => ({ data: [] })),
-        apiClient.get(`/admin/platform-settings`).catch(() => ({ data: null }))
+        apiClient.get(`/admin/stats`).catch(handle401('stats')),
+        apiClient.get(`/admin/users?limit=50`).catch(handle401('users')),
+        apiClient.get(`/admin/logs?limit=50`).catch(handle401('logs')),
+        apiClient.get(`/admin/platform-settings`).catch(handle401('settings'))
       ]);
       
+      // If ALL admin calls returned null, the token is likely expired
+      if (!statsRes.data && !usersRes.data && !logsRes.data && !settingsRes.data) {
+        toast.error('Admin session may have expired — try logging out and back in.', { duration: 5000 });
+      }
+      
       setStats(statsRes.data);
-      setUsers(usersRes.data.users || []);
+      setUsers(usersRes.data?.users || []);
       setLogs(logsRes.data || []);
       setSiteSettings(settingsRes.data || { access_code_enabled: false, access_code: '' });
     } catch (error) {

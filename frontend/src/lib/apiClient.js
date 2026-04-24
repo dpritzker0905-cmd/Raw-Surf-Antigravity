@@ -81,12 +81,21 @@ apiClient.interceptors.response.use(
 
     // 401 — token expired or invalid.
     // Do NOT redirect if already on /auth (avoids redirect loops).
+    // Do NOT redirect for admin-only endpoints — let the admin console handle
+    // those errors gracefully via its own .catch() handlers. The admin console
+    // fires 7+ parallel API calls on load; a single transient 401 (e.g. Render
+    // cold-start timing) should NOT nuke the entire session.
     if (status === 401 && !_sessionExpiredShown) {
       // Skip if this is an auth call itself (login/signup) — let the caller handle it
-      if (!url.includes('/auth/login') && !url.includes('/auth/signup')) {
+      const isAuthCall = url.includes('/auth/login') || url.includes('/auth/signup');
+      // Skip admin-only endpoints — the admin console handles these errors itself
+      const isAdminCall = url.includes('/admin/');
+      if (!isAuthCall && !isAdminCall) {
         _sessionExpiredShown = true;
-        const isAlreadyOnAuth = window.location.pathname.startsWith('/auth');
-        if (!isAlreadyOnAuth) {
+        const currentPath = window.location.pathname;
+        const isAlreadyOnAuth = currentPath.startsWith('/auth');
+        const isOnAdmin = currentPath.startsWith('/admin');
+        if (!isAlreadyOnAuth && !isOnAdmin) {
           toast.error('Session expired — please sign in again.', { duration: 4000 });
           setTimeout(() => {
             // Clear ALL session data before redirecting
@@ -94,7 +103,7 @@ apiClient.interceptors.response.use(
              'isGodMode', 'isPersonaBarActive', 'activePersona',
              'godModeMinimized', 'godModeDesktopMinimized'].forEach(k => localStorage.removeItem(k));
             window.location.href = '/auth';
-          }, 1200);
+          }, 2000);
         }
       }
       return Promise.reject(error);
