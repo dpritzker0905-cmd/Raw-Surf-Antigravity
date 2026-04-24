@@ -25,7 +25,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '../ui/sheet';
 import apiClient from '../../lib/apiClient';
 import logger from '../../utils/logger';
 import { getFullUrl } from '../../utils/media';
-import { ROLES } from '../../constants/roles';
+import { ROLES, ROLE_SETS } from '../../constants/roles';
 import { useNavigate } from 'react-router-dom';
 
 // Gear type options
@@ -90,6 +90,7 @@ const DirectoryPhotographerCard = ({ photographer, onSelect, onBook, onViewGalle
   
   const isPremium = subscriptionTier === 'Premium';
   const isVerified = photographer.role === ROLES.APPROVED_PRO || photographer.is_approved_pro;
+  const canSubscribe = ROLE_SETS.PHOTOGRAPHERS.includes(photographer.role);
   
   // Check if live badge should show based on subscription radius
   const tierRadius = TIER_RADIUS[subscriptionTier] || TIER_RADIUS.Free;
@@ -208,37 +209,41 @@ const DirectoryPhotographerCard = ({ photographer, onSelect, onBook, onViewGalle
         
         {/* Action buttons — 2-row layout for mobile friendliness */}
         <div className="mt-3 pt-3 border-t border-dashed border-zinc-700/50 space-y-2">
-          {/* Primary row: Book + Subscribe */}
+          {/* Primary row: Book + Subscribe (Subscribe only for Pro photographers) */}
           <div className="flex items-stretch gap-2">
             <Button
               size="sm"
-              className="flex-1 bg-gradient-to-r from-yellow-500 to-amber-500 hover:from-yellow-600 hover:to-amber-600 text-black font-semibold h-9"
+              className={`${canSubscribe ? 'flex-1' : 'w-full'} bg-gradient-to-r from-yellow-500 to-amber-500 hover:from-yellow-600 hover:to-amber-600 text-black font-semibold h-9`}
               onClick={(e) => { e.stopPropagation(); onBook(photographer); }}
             >
               <CalendarPlus className="w-3.5 h-3.5 mr-1.5 shrink-0" />
               Book Session
             </Button>
-            <Button
-              size="sm"
-              className={`flex-1 h-9 font-semibold ${
-                isLight
-                  ? 'bg-violet-50 border border-violet-300 text-violet-700 hover:bg-violet-100'
-                  : 'bg-violet-500/10 border border-violet-500/30 text-violet-300 hover:bg-violet-500/20'
-              }`}
-              onClick={(e) => { e.stopPropagation(); onSubscribe(photographer); }}
-            >
-              <RefreshCw className="w-3.5 h-3.5 mr-1.5 shrink-0" />
-              Subscribe
-            </Button>
+            {canSubscribe && (
+              <Button
+                size="sm"
+                className={`flex-1 h-9 font-semibold ${
+                  isLight
+                    ? 'bg-violet-50 border border-violet-300 text-violet-700 hover:bg-violet-100'
+                    : 'bg-violet-500/10 border border-violet-500/30 text-violet-300 hover:bg-violet-500/20'
+                }`}
+                onClick={(e) => { e.stopPropagation(); onSubscribe(photographer); }}
+              >
+                <RefreshCw className="w-3.5 h-3.5 mr-1.5 shrink-0" />
+                Subscribe
+              </Button>
+            )}
           </div>
 
-          {/* Subscribe benefit hint */}
-          <div className={`flex items-center gap-1.5 px-1 ${textSecondary}`}>
-            <Bell className="w-3 h-3 shrink-0 text-violet-400" />
-            <span className="text-[10px] leading-tight">
-              Subscribers get notified when this photographer goes live or is available on-demand
-            </span>
-          </div>
+          {/* Subscribe benefit hint — only for pro photographers */}
+          {canSubscribe && (
+            <div className={`flex items-center gap-1.5 px-1 ${textSecondary}`}>
+              <Bell className="w-3 h-3 shrink-0 text-violet-400" />
+              <span className="text-[10px] leading-tight">
+                Subscribers get notified when this photographer goes live or is available on-demand
+              </span>
+            </div>
+          )}
 
           {/* Secondary row: Reviews + Gallery */}
           <div className="flex items-center gap-2">

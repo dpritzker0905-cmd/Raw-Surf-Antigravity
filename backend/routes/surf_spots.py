@@ -719,6 +719,177 @@ async def dedup_surf_spots(
         return {"success": False, "error": str(e), "traceback": traceback.format_exc(), **results}
 
 
+@router.post("/surf-spots/admin/merge-near-dupes")
+async def merge_near_duplicate_spots(
+    execute: bool = Query(False, description="Set to true to actually merge. Default is dry-run."),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Merge near-duplicate surf spots that have slightly different names but refer
+    to the same physical location. The exact-name dedup endpoint can't catch these.
+    
+    Examples: 'Jetty Park' vs 'Jetty Park - Cape Canaveral',
+              'Spessard Holland' vs 'Spessard Holland Park'
+    
+    Strategy: For each known pair, keep the survivor (shorter/canonical name),
+    re-parent all FK references from the duplicate, then delete the duplicate.
+    Default is DRY RUN. Pass ?execute=true to apply changes.
+    """
+    from sqlalchemy import text as sa_text
+    
+    # Known near-duplicate pairs: (canonical_name_pattern, duplicate_name_pattern)
+    # We'll search by ILIKE to be resilient to case differences
+    near_dupe_pairs = [
+        # (survivor_name_contains, duplicate_name_contains, same_state_required)
+        ("Jetty Park", "Jetty Park - Cape Canaveral", True),
+        ("Spessard Holland", "Spessard Holland Park", True),
+        ("Picnic Tables", "Tables (Picnic Tables)", True),
+        ("10th Street Folly", "10th Street East Folly", True),
+        ("Melbourne Beach", "Melbourne Beach - Ocean Avenue", True),
+        ("Indialantic", "Indialantic Boardwalk", True),
+        ("Indialantic", "Ocean Avenue (Indialantic)", True),
+        ("RC's", "RC's", False),  # Cross-region dupe (Space Coast vs Satellite Beach)
+        ("Hightower Beach", "Hightower Park", False),  # Cross-region dupe
+    ]
+    
+    fk_refs = [
+        ("profiles", "current_spot_id"),
+        ("spot_refinements", "spot_id"),
+        ("spot_verifications", "spot_id"),
+        ("spot_edit_logs", "spot_id"),
+        ("spot_of_the_day", "spot_id"),
+        ("bookings", "surf_spot_id"),
+        ("dispatch_requests", "spot_id"),
+        ("posts", "spot_id"),
+        ("live_session_participants", "spot_id"),
+        ("check_ins", "spot_id"),
+        ("surf_reports", "spot_id"),
+        ("surf_alerts", "spot_id"),
+        ("photographer_requests", "spot_id"),
+        ("stories", "spot_id"),
+        ("gallery_items", "spot_id"),
+        ("surfer_gallery_items", "spot_id"),
+        ("live_sessions", "surf_spot_id"),
+        ("galleries", "surf_spot_id"),
+        ("condition_reports", "spot_id"),
+        ("social_live_streams", "spot_id"),
+        ("surf_passport_checkins", "spot_id"),
+        ("spot_seo_metadata", "spot_id"),
+    ]
+    
+    results = {"merges": [], "total_merged": 0, "skipped": [], "errors": []}
+    
+    try:
+        for survivor_pattern, dup_pattern, same_state in near_dupe_pairs:
+            # Skip self-referencing patterns (handled differently for cross-region)
+            if survivor_pattern == dup_pattern:
+                # Cross-region dupe: find all spots with this name, keep earliest
+                spots_result = await db.execute(
+                    select(SurfSpot).where(
+                        SurfSpot.name == survivor_pattern,
+                        SurfSpot.is_active.is_(True)
+                    ).order_by(SurfSpot.created_at)
+                )
+                spots = spots_result.scalars().all()
+                if len(spots) < 2:
+                    results["skipped"].append(f"'{survivor_pattern}' - only {len(spots)} found, no merge needed")
+                    continue
+                survivor = spots[0]
+                duplicates = spots[1:]
+            else:
+                # Find survivor (canonical name)
+                survivor_result = await db.execute(
+                    select(SurfSpot).where(
+                        SurfSpot.name == survivor_pattern,
+                        SurfSpot.is_active.is_(True)
+                    ).order_by(SurfSpot.created_at).limit(1)
+                )
+                survivor = survivor_result.scalar_one_or_none()
+                
+                if not survivor:
+                    results["skipped"].append(f"Survivor '{survivor_pattern}' not found")
+                    continue
+                
+                # Find duplicate
+                dup_query = select(SurfSpot).where(
+                    SurfSpot.name == dup_pattern,
+                    SurfSpot.is_active.is_(True)
+                )
+                if same_state and survivor.state_province:
+                    dup_query = dup_query.where(SurfSpot.state_province == survivor.state_province)
+                
+                dup_result = await db.execute(dup_query)
+                duplicates = dup_result.scalars().all()
+                
+                if not duplicates:
+                    results["skipped"].append(f"Duplicate '{dup_pattern}' not found")
+                    continue
+            
+            for dup in duplicates:
+                moved = {}
+                for table, column in fk_refs:
+                    try:
+                        if execute:
+                            if table == "spot_seo_metadata":
+                                existing = await db.execute(
+                                    sa_text(f"SELECT COUNT(*) FROM {table} WHERE {column} = :new_id"),
+                                    {"new_id": str(survivor.id)}
+                                )
+                                if (existing.scalar() or 0) > 0:
+                                    r = await db.execute(
+                                        sa_text(f"DELETE FROM {table} WHERE {column} = :old_id"),
+                                        {"old_id": str(dup.id)}
+                                    )
+                                    if r.rowcount:
+                                        moved[f"{table}.{column}"] = f"{r.rowcount} deleted"
+                                    continue
+                            
+                            r = await db.execute(
+                                sa_text(f"UPDATE {table} SET {column} = :new_id WHERE {column} = :old_id"),
+                                {"new_id": str(survivor.id), "old_id": str(dup.id)}
+                            )
+                            if r.rowcount:
+                                moved[f"{table}.{column}"] = r.rowcount
+                        else:
+                            r = await db.execute(
+                                sa_text(f"SELECT COUNT(*) FROM {table} WHERE {column} = :old_id"),
+                                {"old_id": str(dup.id)}
+                            )
+                            cnt = r.scalar() or 0
+                            if cnt > 0:
+                                moved[f"{table}.{column}"] = cnt
+                    except Exception:
+                        pass
+                
+                if execute:
+                    await db.execute(
+                        sa_text("DELETE FROM surf_spots WHERE id = :dup_id"),
+                        {"dup_id": str(dup.id)}
+                    )
+                
+                results["merges"].append({
+                    "survivor": {"id": str(survivor.id), "name": survivor.name, "region": survivor.region},
+                    "deleted": {"id": str(dup.id), "name": dup.name, "region": dup.region},
+                    "fk_refs_moved": moved,
+                    "action": "MERGED" if execute else "WOULD MERGE"
+                })
+                results["total_merged"] += 1
+        
+        if execute:
+            await db.commit()
+        
+        return {
+            "success": True,
+            "mode": "EXECUTED" if execute else "DRY RUN",
+            "message": f"{'Merged' if execute else 'Would merge'} {results['total_merged']} near-duplicate(s).",
+            **results
+        }
+    except Exception as e:
+        import traceback
+        results["errors"].append(str(e))
+        return {"success": False, "error": str(e), "traceback": traceback.format_exc(), **results}
+
+
 @router.patch("/surf-spots/admin/update-spot")
 async def admin_update_spot(
     id: str = Query(..., description="Spot UUID"),

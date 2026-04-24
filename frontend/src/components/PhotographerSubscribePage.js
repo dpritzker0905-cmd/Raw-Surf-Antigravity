@@ -15,6 +15,7 @@ import {
   CreditCard, Coins, ChevronRight, Sparkles, Bell, Radio
 } from 'lucide-react';
 import logger from '../utils/logger';
+import { ROLE_SETS } from '../constants/roles';
 
 /**
  * PhotographerSubscribePage — Dedicated, polished subscription page
@@ -127,6 +128,24 @@ export const PhotographerSubscribePage = () => {
   }
 
   const isSelf = user?.id === photographerId;
+  const isProPhotographer = photographer.role && ROLE_SETS.PHOTOGRAPHERS.includes(photographer.role);
+
+  // If photographer is not a pro role, show a helpful message
+  if (!isProPhotographer) {
+    return (
+      <div className={`min-h-screen ${pageBg} flex items-center justify-center`}>
+        <div className="text-center max-w-md px-6">
+          <Camera className="w-12 h-12 text-zinc-600 mx-auto mb-3" />
+          <p className={`font-semibold ${textPrimary} mb-1`}>Subscriptions Not Available</p>
+          <p className={`text-sm ${textSecondary}`}>
+            {photographer.full_name} is not currently offering subscription plans.
+            Only professional photographers on paid plans can create subscriptions.
+          </p>
+          <Button onClick={() => navigate(`/profile/${photographerId}`)} variant="outline" className={`mt-4 ${borderColor} ${textPrimary}`}>View Profile</Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={`min-h-screen ${pageBg} pb-24 md:pb-8`}>

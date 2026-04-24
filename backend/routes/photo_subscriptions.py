@@ -165,6 +165,14 @@ async def create_plan(
     if photographer.role.value not in ('Photographer', 'Approved Pro'):
         raise HTTPException(status_code=403, detail="Only professional photographers can create subscription plans")
 
+    # Subscription plans require a paid platform tier (Basic or Premium)
+    tier = (photographer.subscription_tier or 'free').lower()
+    if tier in ('free', ''):
+        raise HTTPException(
+            status_code=403,
+            detail="Subscription plans are available for photographers on paid plans (Basic or Premium). Upgrade your account to unlock this feature."
+        )
+
     _validate_price(data.interval, data.price)
 
     plan = PhotographerSubscriptionPlan(

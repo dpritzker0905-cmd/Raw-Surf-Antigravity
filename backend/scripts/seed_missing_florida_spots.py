@@ -43,24 +43,18 @@ FLORIDA_SPOTS = [
      "Mid tide", "NE-E", "Quiet beach south of NSB. Mellower waves, less crowded, good for learners."),
 
     # ============ BREVARD COUNTY / SPACE COAST ============
+    # Jetty Park already exists in original import — REMOVED "Jetty Park - Cape Canaveral" to prevent dupes
     ("Playalinda Beach", 28.6320, -80.6520, "Space Coast", "Intermediate", "Beach Break",
      "Low to mid", "NE-E", "Undeveloped beach in Canaveral National Seashore. Raw, uncrowded beach breaks."),
-    ("Jetty Park - Cape Canaveral", 28.4080, -80.5910, "Space Coast", "Intermediate", "Jetty Break",
-     "Incoming", "NE-E", "Port Canaveral entrance jetty. Sculpted waves on certain swell conditions."),
     ("Cocoa Beach Pier", 28.3680, -80.6020, "Space Coast", "Beginner", "Beach Break",
      "High tide", "E-NE", "Legendary Florida longboard spot. Long, crumbly lines perfect for all levels."),
     ("Lori Wilson Park", 28.3510, -80.6070, "Space Coast", "Beginner", "Beach Break",
      "All tides", "E-NE", "Family-friendly park in Cocoa Beach. Consistent sandbars, good for beginners."),
-    ("Tables (Picnic Tables)", 28.2290, -80.5960, "Space Coast", "Intermediate", "Beach Break",
-     "Mid tide", "E-NE", "Named for pavilion picnic tables. Peaky, fun waves across from Patrick SFB."),
-    ("RC's", 28.2350, -80.5970, "Space Coast", "Intermediate", "Beach Break",
-     "Low to mid", "E-NE", "Well-known Space Coast local spot with a long history. Consistent beach break."),
-    ("Indialantic Boardwalk", 28.0850, -80.5640, "Space Coast", "Intermediate", "Beach Break",
-     "Low tide", "E-NE", "Famous for intense shorebreak and fun outside sandbars."),
-    ("Melbourne Beach - Ocean Avenue", 28.0680, -80.5580, "Space Coast", "Beginner", "Beach Break",
-     "All tides", "E-NE", "Deeper water prevents closeouts during larger swells. Good all-around beach break."),
-    ("Spessard Holland Park", 28.0340, -80.5420, "Space Coast", "Beginner", "Beach Break",
-     "Mid tide", "E-NE", "Popular local beach break south of Melbourne Beach. Consistent, approachable."),
+    # "Tables (Picnic Tables)" removed — duplicates existing "Picnic Tables"
+    # "RC's" removed — duplicates existing entry from original import
+    # "Indialantic Boardwalk" removed — duplicates existing "Indialantic"
+    # "Melbourne Beach - Ocean Avenue" removed — duplicates existing "Melbourne Beach"
+    # "Spessard Holland Park" removed — duplicates existing "Spessard Holland"
     ("Spanish House", 28.0480, -80.5520, "Space Coast", "Beginner", "Beach Break",
      "Mid tide", "E-NE", "Well-known, consistent Melbourne Beach break. Good for all levels."),
     ("Shark Pit", 27.8650, -80.4590, "Space Coast", "Intermediate", "Beach Break",
@@ -165,6 +159,19 @@ async def seed_spots(db_session):
         if existing:
             skipped += 1
             continue
+        
+        # Also check for base name match (e.g. 'Jetty Park' matches 'Jetty Park - Cape Canaveral')
+        base_name = name.split(' - ')[0].split(' (')[0].strip()
+        if base_name != name:
+            base_check = await db_session.execute(
+                select(SurfSpot).where(
+                    SurfSpot.name == base_name,
+                    SurfSpot.region == region
+                )
+            )
+            if base_check.scalar_one_or_none():
+                skipped += 1
+                continue
         
         spot = SurfSpot(
             id=generate_spot_id(),

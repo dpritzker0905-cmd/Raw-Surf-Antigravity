@@ -334,10 +334,15 @@ export const Bookings = () => {
   const dragStartXRef = useRef(0);
   const scrollStartRef = useRef(0);
 
-  // Swipe-to-navigate refs for mobile tab switching
+  // Swipe-to-navigate state for mobile tab switching
   const swipeStartXRef = useRef(0);
   const swipeStartYRef = useRef(0);
   const swipeActiveRef = useRef(false);
+  const swipeDragRef = useRef(0);
+  const swipeLockedRef = useRef(false); // true once we commit to horizontal swipe
+  const contentRef = useRef(null);
+  const [slideDirection, setSlideDirection] = useState(null); // 'left' | 'right' | null
+  const [isAnimating, setIsAnimating] = useState(false);
 
   // Check if scroll arrows should show (desktop only)
   const updateArrows = () => {
@@ -1036,44 +1041,143 @@ export const Bookings = () => {
           )}
         </div>
 
-        {/* Tab Content — swipeable on mobile */}
+        {/* Tab Content -- swipeable on mobile with slide animation */}
         <div
-          className="space-y-4"
+          className="relative overflow-hidden"
           onTouchStart={(e) => {
+            if (isAnimating) return;
             swipeStartXRef.current = e.touches[0].clientX;
             swipeStartYRef.current = e.touches[0].clientY;
             swipeActiveRef.current = true;
-          }}
-          onTouchMove={(e) => {
-            if (!swipeActiveRef.current) return;
-            const dy = Math.abs(e.touches[0].clientY - swipeStartYRef.current);
-            const dx = Math.abs(e.touches[0].clientX - swipeStartXRef.current);
-            // If vertical movement exceeds horizontal, this is a scroll — cancel swipe
-            if (dy > dx && dy > 10) {
-              swipeActiveRef.current = false;
+            swipeLockedRef.current = false;
+            swipeDragRef.current = 0;
+            // Remove transition during drag for instant response
+            if (contentRef.current) {
+              contentRef.current.style.transition = 'none';
             }
           }}
-          onTouchEnd={(e) => {
-            if (!swipeActiveRef.current) return;
-            swipeActiveRef.current = false;
-            const endX = e.changedTouches[0].clientX;
-            const deltaX = endX - swipeStartXRef.current;
-            const MIN_SWIPE = 60; // minimum px to trigger tab change
-            if (Math.abs(deltaX) < MIN_SWIPE) return;
+          onTouchMove={(e) => {
+            if (!swipeActiveRef.current || isAnimating) return;
+            const dx = e.touches[0].clientX - swipeStartXRef.current;
+            const dy = e.touches[0].clientY - swipeStartYRef.current;
+
+            // Determine direction lock on first significant movement
+            if (!swipeLockedRef.current) {
+              if (Math.abs(dy) > Math.abs(dx) && Math.abs(dy) > 10) {
+                // Vertical scroll -- cancel swipe entirely
+                swipeActiveRef.current = false;
+                if (contentRef.current) {
+                  contentRef.current.style.transform = '';
+                  contentRef.current.style.transition = '';
+                }
+                return;
+              }
+              if (Math.abs(dx) > 10) {
+                swipeLockedRef.current = true;
+              } else {
+                return; // Not enough movement yet
+              }
+            }
+
+            // Prevent vertical scrolling while swiping horizontally
+            e.preventDefault();
 
             const tabIds = tabs.map(t => t.id);
             const currentIdx = tabIds.indexOf(activeTab);
-            if (currentIdx === -1) return;
+            // Add resistance at edges
+            const atEdge = (dx > 0 && currentIdx === 0) || (dx < 0 && currentIdx === tabIds.length - 1);
+            const dampened = atEdge ? dx * 0.2 : dx;
+            swipeDragRef.current = dampened;
 
-            if (deltaX < 0 && currentIdx < tabIds.length - 1) {
-              // Swipe left → next tab
-              setActiveTab(tabIds[currentIdx + 1]);
-            } else if (deltaX > 0 && currentIdx > 0) {
-              // Swipe right → previous tab
-              setActiveTab(tabIds[currentIdx - 1]);
+            if (contentRef.current) {
+              contentRef.current.style.transform = `translateX(${dampened}px)`;
+              // Subtle opacity fade near edges for visual hint
+              const progress = Math.min(Math.abs(dampened) / 200, 1);
+              contentRef.current.style.opacity = `${1 - progress * 0.15}`;
+            }
+          }}
+          onTouchEnd={() => {
+            if (!swipeActiveRef.current || isAnimating) {
+              swipeActiveRef.current = false;
+              return;
+            }
+            swipeActiveRef.current = false;
+
+            const dragX = swipeDragRef.current;
+            const MIN_SWIPE = 50;
+            const tabIds = tabs.map(t => t.id);
+            const currentIdx = tabIds.indexOf(activeTab);
+
+            if (Math.abs(dragX) >= MIN_SWIPE && swipeLockedRef.current) {
+              const goingLeft = dragX < 0;
+              const nextIdx = goingLeft ? currentIdx + 1 : currentIdx - 1;
+
+              if (nextIdx >= 0 && nextIdx < tabIds.length) {
+                setIsAnimating(true);
+                const direction = goingLeft ? 'left' : 'right';
+
+                // Animate current content off-screen
+                if (contentRef.current) {
+                  contentRef.current.style.transition = 'transform 0.22s ease-out, opacity 0.22s ease-out';
+                  contentRef.current.style.transform = `translateX(${goingLeft ? '-100%' : '100%'})`;
+                  contentRef.current.style.opacity = '0';
+                }
+
+                // After exit animation, switch tab and slide in from opposite side
+                setTimeout(() => {
+                  setSlideDirection(direction);
+                  setActiveTab(tabIds[nextIdx]);
+
+                  // Reset position to off-screen on opposite side (no transition)
+                  if (contentRef.current) {
+                    contentRef.current.style.transition = 'none';
+                    contentRef.current.style.transform = `translateX(${goingLeft ? '60%' : '-60%'})`;
+                    contentRef.current.style.opacity = '0.5';
+                  }
+
+                  // Force reflow then animate into view
+                  requestAnimationFrame(() => {
+                    requestAnimationFrame(() => {
+                      if (contentRef.current) {
+                        contentRef.current.style.transition = 'transform 0.25s ease-out, opacity 0.25s ease-out';
+                        contentRef.current.style.transform = 'translateX(0)';
+                        contentRef.current.style.opacity = '1';
+                      }
+                      setTimeout(() => {
+                        setIsAnimating(false);
+                        setSlideDirection(null);
+                        if (contentRef.current) {
+                          contentRef.current.style.transition = '';
+                          contentRef.current.style.transform = '';
+                          contentRef.current.style.opacity = '';
+                        }
+                      }, 260);
+                    });
+                  });
+                }, 200);
+                return;
+              }
+            }
+
+            // Snap back -- didn't meet threshold
+            if (contentRef.current) {
+              contentRef.current.style.transition = 'transform 0.2s ease-out, opacity 0.2s ease-out';
+              contentRef.current.style.transform = 'translateX(0)';
+              contentRef.current.style.opacity = '1';
+              setTimeout(() => {
+                if (contentRef.current) {
+                  contentRef.current.style.transition = '';
+                  contentRef.current.style.transform = '';
+                  contentRef.current.style.opacity = '';
+                }
+              }, 220);
             }
           }}
         >
+          <div
+            ref={contentRef}
+            className="space-y-4 will-change-transform"
+          >
           {/* The Lineup Tab - Surf Session Lobby */}
           {activeTab === 'lineup' && (
             <LineupTab
@@ -1200,6 +1304,7 @@ export const Bookings = () => {
           {activeTab === 'subscriptions' && (
             <SubscriptionsTab />
           )}
+          </div>
         </div>
       </div>
 
