@@ -359,24 +359,29 @@ export const Bookings = () => {
     if (!el) return;
     el.scrollBy({ left: dir * 160, behavior: 'smooth' });
   };
-  // Auto-scroll the active tab pill into view whenever activeTab changes.
+  // Auto-scroll the active tab pill into view whenever activeTab changes
+  // or when loading finishes (so the tab strip DOM is actually available).
   // Uses direct scrollTo math instead of scrollIntoView because scrollIntoView
   // is unreliable on mobile for horizontal centering in nested scroll containers.
   useEffect(() => {
+    if (loading) return; // Tab strip not rendered yet
     const tabStrip = tabScrollRef.current;
     if (!tabStrip) return;
-    const activeBtn = tabStrip.querySelector(`[data-testid="tab-${activeTab}"]`);
-    if (activeBtn) {
-      // Calculate scroll position to center the button in the strip
-      const stripWidth = tabStrip.offsetWidth;
-      const btnLeft = activeBtn.offsetLeft;
-      const btnWidth = activeBtn.offsetWidth;
-      const targetScroll = btnLeft - (stripWidth / 2) + (btnWidth / 2);
-      tabStrip.scrollTo({ left: targetScroll, behavior: 'smooth' });
-    }
-    updateArrows();
+
+    // Wait one frame for DOM layout to complete before measuring
+    requestAnimationFrame(() => {
+      const activeBtn = tabStrip.querySelector(`[data-testid="tab-${activeTab}"]`);
+      if (activeBtn) {
+        const stripWidth = tabStrip.offsetWidth;
+        const btnLeft = activeBtn.offsetLeft;
+        const btnWidth = activeBtn.offsetWidth;
+        const targetScroll = btnLeft - (stripWidth / 2) + (btnWidth / 2);
+        tabStrip.scrollTo({ left: targetScroll, behavior: 'smooth' });
+      }
+      updateArrows();
+    });
     setTimeout(updateArrows, 350);
-  }, [activeTab]);
+  }, [activeTab, loading]);
 
   // Keep arrows synced on resize
   useEffect(() => {
