@@ -343,6 +343,74 @@ async def create_condition_report(
     }
 
 
+@router.get("/condition-reports/spot/{spot_id}")
+async def get_condition_reports_for_spot(
+    spot_id: str,
+    limit: int = Query(default=10, le=50),
+    include_expired: bool = False,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Get condition reports for a specific surf spot.
+    Used by SpotHub to display the Reports tab.
+    Returns both active and optionally expired reports.
+    """
+    now = datetime.now(timezone.utc)
+    
+    # Build query for this spot's condition reports
+    query = select(ConditionReport).where(
+        ConditionReport.spot_id == spot_id
+    ).options(
+        selectinload(ConditionReport.photographer),
+        selectinload(ConditionReport.spot)
+    )
+    
+    if not include_expired:
+        # Only show non-expired reports (last 24h), but also include recently expired (48h)
+        # so the tab isn't empty after reports age out
+        query = query.where(
+            ConditionReport.created_at > now - timedelta(hours=48)
+        )
+    
+    query = query.order_by(desc(ConditionReport.created_at)).limit(limit)
+    
+    result = await db.execute(query)
+    reports = result.scalars().all()
+    
+    response_reports = []
+    for report in reports:
+        photographer = report.photographer
+        response_reports.append(ConditionReportResponse(
+            id=report.id,
+            photographer_id=report.photographer_id,
+            photographer_name=photographer.full_name if photographer else None,
+            photographer_avatar=photographer.avatar_url if photographer else None,
+            photographer_role=photographer.role.value if photographer else "Unknown",
+            spot_id=report.spot_id,
+            spot_name=report.spot_name or (report.spot.name if report.spot else None),
+            region=report.region or (report.spot.region if report.spot else None),
+            media_url=report.media_url,
+            media_type=report.media_type,
+            thumbnail_url=report.thumbnail_url,
+            caption=report.caption,
+            wave_height_ft=report.wave_height_ft,
+            conditions_label=report.conditions_label,
+            wind_conditions=report.wind_conditions,
+            crowd_level=report.crowd_level,
+            view_count=report.view_count,
+            is_active=report.is_active,
+            created_at=report.created_at,
+            expires_at=report.expires_at,
+            time_ago=get_time_ago(report.created_at)
+        ))
+    
+    return {
+        "reports": response_reports,
+        "total": len(response_reports),
+        "spot_id": spot_id
+    }
+
+
 @router.get("/condition-reports/{report_id}")
 async def get_condition_report(
     report_id: str,

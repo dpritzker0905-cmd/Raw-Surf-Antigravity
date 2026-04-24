@@ -556,6 +556,169 @@ async def seed_florida_spots(db: AsyncSession = Depends(get_db)):
         return {"success": False, "error": str(e), "traceback": traceback.format_exc()}
 
 
+@router.post("/surf-spots/admin/dedup")
+async def dedup_surf_spots(
+    execute: bool = Query(False, description="Set to true to actually merge. Default is dry-run."),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Deduplicate surf spots — finds spots with the same name in the same state/country
+    and merges them, re-parenting all FK references to the survivor.
+    
+    Default is DRY RUN. Pass ?execute=true to apply changes.
+    """
+    from sqlalchemy import text as sa_text
+    
+    # FK tables that reference surf_spots.id
+    fk_refs = [
+        ("profiles", "current_spot_id"),
+        ("spot_refinements", "spot_id"),
+        ("spot_verifications", "spot_id"),
+        ("spot_edit_logs", "spot_id"),
+        ("spot_of_the_day", "spot_id"),
+        ("bookings", "surf_spot_id"),
+        ("dispatch_requests", "spot_id"),
+        ("posts", "spot_id"),
+        ("live_session_participants", "spot_id"),
+        ("check_ins", "spot_id"),
+        ("surf_reports", "spot_id"),
+        ("surf_alerts", "spot_id"),
+        ("photographer_requests", "spot_id"),
+        ("stories", "spot_id"),
+        ("gallery_items", "spot_id"),
+        ("surfer_gallery_items", "spot_id"),
+        ("live_sessions", "surf_spot_id"),
+        ("galleries", "surf_spot_id"),
+        ("condition_reports", "spot_id"),
+        ("social_live_streams", "spot_id"),
+        ("surf_passport_checkins", "spot_id"),
+        ("spot_seo_metadata", "spot_id"),
+    ]
+    
+    results = {"groups": [], "total_merged": 0, "errors": []}
+    
+    try:
+        # Find duplicate groups: same name + state_province + country with count > 1
+        dup_result = await db.execute(
+            select(
+                SurfSpot.name,
+                SurfSpot.state_province,
+                SurfSpot.country,
+                func.count(SurfSpot.id).label("cnt")
+            )
+            .where(SurfSpot.is_active.is_(True))
+            .group_by(SurfSpot.name, SurfSpot.state_province, SurfSpot.country)
+            .having(func.count(SurfSpot.id) > 1)
+            .order_by(SurfSpot.name)
+        )
+        groups = dup_result.all()
+        
+        if not groups:
+            return {"success": True, "message": "No duplicate spots found. Database is clean.", "groups": [], "total_merged": 0}
+        
+        for name, state, country, count in groups:
+            # Fetch all spots in this duplicate group
+            spots_result = await db.execute(
+                select(SurfSpot).where(
+                    SurfSpot.name == name,
+                    SurfSpot.state_province == state,
+                    SurfSpot.country == country,
+                    SurfSpot.is_active.is_(True)
+                ).order_by(SurfSpot.created_at)
+            )
+            spots = spots_result.scalars().all()
+            
+            if len(spots) < 2:
+                continue
+            
+            # Pick survivor: prefer spot with more specific region, earliest created
+            survivor = spots[0]
+            for s in spots:
+                if s.region and not survivor.region:
+                    survivor = s
+                elif s.region and survivor.region and len(s.region) > len(survivor.region):
+                    survivor = s
+            
+            duplicates_info = []
+            for dup in spots:
+                if dup.id == survivor.id:
+                    continue
+                
+                moved = {}
+                for table, column in fk_refs:
+                    try:
+                        if execute:
+                            # Handle unique constraint on spot_seo_metadata
+                            if table == "spot_seo_metadata":
+                                existing = await db.execute(
+                                    sa_text(f"SELECT COUNT(*) FROM {table} WHERE {column} = :new_id"),
+                                    {"new_id": str(survivor.id)}
+                                )
+                                if (existing.scalar() or 0) > 0:
+                                    result = await db.execute(
+                                        sa_text(f"DELETE FROM {table} WHERE {column} = :old_id"),
+                                        {"old_id": str(dup.id)}
+                                    )
+                                    if result.rowcount:
+                                        moved[f"{table}.{column}"] = f"{result.rowcount} deleted"
+                                    continue
+                            
+                            result = await db.execute(
+                                sa_text(f"UPDATE {table} SET {column} = :new_id WHERE {column} = :old_id"),
+                                {"new_id": str(survivor.id), "old_id": str(dup.id)}
+                            )
+                            if result.rowcount:
+                                moved[f"{table}.{column}"] = result.rowcount
+                        else:
+                            result = await db.execute(
+                                sa_text(f"SELECT COUNT(*) FROM {table} WHERE {column} = :old_id"),
+                                {"old_id": str(dup.id)}
+                            )
+                            cnt = result.scalar() or 0
+                            if cnt > 0:
+                                moved[f"{table}.{column}"] = cnt
+                    except Exception:
+                        pass
+                
+                if execute:
+                    await db.execute(
+                        sa_text("DELETE FROM surf_spots WHERE id = :dup_id"),
+                        {"dup_id": str(dup.id)}
+                    )
+                
+                duplicates_info.append({
+                    "id": str(dup.id),
+                    "region": dup.region,
+                    "fk_refs": moved,
+                    "action": "DELETED" if execute else "WOULD DELETE"
+                })
+                results["total_merged"] += 1
+            
+            results["groups"].append({
+                "name": name,
+                "state": state,
+                "country": country,
+                "count": count,
+                "survivor_id": str(survivor.id),
+                "survivor_region": survivor.region,
+                "duplicates": duplicates_info
+            })
+        
+        if execute:
+            await db.commit()
+        
+        return {
+            "success": True,
+            "mode": "EXECUTED" if execute else "DRY RUN",
+            "message": f"{'Merged' if execute else 'Would merge'} {results['total_merged']} duplicate(s) across {len(results['groups'])} groups.",
+            **results
+        }
+    except Exception as e:
+        import traceback
+        results["errors"].append(str(e))
+        return {"success": False, "error": str(e), "traceback": traceback.format_exc(), **results}
+
+
 @router.patch("/surf-spots/admin/update-spot")
 async def admin_update_spot(
     id: str = Query(..., description="Spot UUID"),

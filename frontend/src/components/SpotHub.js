@@ -7,7 +7,7 @@ import {
   MapPin, Waves, Camera, Clock, Users, X, TrendingUp, Loader2, Radio, Calendar, MessageCircle, Compass,
   Sun, Lock, Crown, Eye, Heart, ChevronLeft,
   Navigation, AlertCircle, Zap, CalendarClock, ChevronRight,
-  Bell, Send, DollarSign
+  Bell, Send, DollarSign, Star, Wind, CloudRain
 } from 'lucide-react';
 import { Button } from './ui/button';
 
@@ -462,6 +462,7 @@ const SpotHub = () => {
   const [spotDetails, setSpotDetails] = useState(null);
   const [activePhotographers, setActivePhotographers] = useState([]);
   const [conditionReports, setConditionReports] = useState([]);
+  const [surfReports, setSurfReports] = useState([]); // SurfReport data from spot-details
   const [photographerPosts, setPhotographerPosts] = useState([]); // Posts tagged by photographers
   const [userPosts, setUserPosts] = useState([]); // Posts tagged by regular users
   const [loading, setLoading] = useState(true);
@@ -587,6 +588,9 @@ const SpotHub = () => {
       
       // Active photographers come from spot-details response
       setActivePhotographers(detailsResponse.data.active_photographers || []);
+      
+      // Store surf reports from spot-details (SurfReport model - wave height, crowd, rating)
+      setSurfReports(detailsResponse.data.recent_reports || []);
       
       // Fetch additional data in parallel
       const [reportsRes, postsRes] = await Promise.allSettled([
@@ -1047,7 +1051,7 @@ const SpotHub = () => {
       {/* Tab Navigation */}
       <div className="flex border-b border-zinc-800 mt-4 px-4">
         {[
-          { id: 'conditions', label: 'Reports', icon: MessageCircle, count: conditionReports.length },
+          { id: 'conditions', label: 'Reports', icon: MessageCircle, count: conditionReports.length + surfReports.length },
           { id: 'pro', label: 'Pro', icon: Camera, count: photographerPosts.length },
           { id: 'community', label: 'Community', icon: Users, count: userPosts.length },
         ].map((tab) => (
@@ -1074,35 +1078,127 @@ const SpotHub = () => {
       <div className="px-4 py-3">
         {/* Condition Reports Tab */}
         {activeTab === 'conditions' && (
-          <div className="space-y-2">
-            {conditionReports.length > 0 ? (
-              conditionReports.map((report) => (
-                <div key={report.id} className="p-2 bg-zinc-900/50 rounded-lg">
-                  <div className="flex items-center gap-2">
-                    <Avatar className="w-8 h-8">
-                      <AvatarImage src={report.photographer_avatar} />
-                      <AvatarFallback className="text-xs">{report.photographer_name?.[0]}</AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">{report.photographer_name}</p>
-                      <p className="text-[10px] text-gray-400">{report.time_ago}</p>
+          <div className="space-y-3">
+            {/* Photographer Condition Reports (with media) */}
+            {conditionReports.length > 0 && (
+              <div className="space-y-2">
+                <p className={`text-[10px] font-medium ${textSecondary} uppercase tracking-wider flex items-center gap-1`}>
+                  <Camera className="w-3 h-3 text-cyan-400" />
+                  Live Condition Reports
+                </p>
+                {conditionReports.map((report) => (
+                  <div key={report.id} className={`p-2.5 rounded-lg border ${isLight ? 'bg-gray-50 border-gray-200' : 'bg-zinc-900/50 border-zinc-800'}`}>
+                    <div className="flex items-center gap-2">
+                      <Avatar className="w-8 h-8 ring-2 ring-cyan-500">
+                        <AvatarImage src={getFullUrl(report.photographer_avatar)} />
+                        <AvatarFallback className="text-xs">{report.photographer_name?.[0]}</AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1 min-w-0">
+                        <p className={`text-sm font-medium truncate ${textPrimary}`}>{report.photographer_name}</p>
+                        <p className={`text-[10px] ${textSecondary}`}>{report.time_ago}</p>
+                      </div>
+                      {report.conditions_label && (
+                        <Badge className={`text-[10px] ${conditionColors[report.conditions_label]?.bg || 'bg-gray-500'}`}>
+                          {report.conditions_label}
+                        </Badge>
+                      )}
                     </div>
-                    {report.conditions_label && (
-                      <Badge className={`text-[10px] ${conditionColors[report.conditions_label]?.bg || 'bg-gray-500'}`}>
-                        {report.conditions_label}
-                      </Badge>
+                    {report.caption && (
+                      <p className={`text-xs mt-1.5 ${textSecondary}`}>{report.caption}</p>
+                    )}
+                    <div className="flex items-center gap-3 mt-1.5">
+                      {report.wave_height_ft && (
+                        <span className="text-xs flex items-center gap-1">
+                          <Waves className="w-3 h-3 text-cyan-400" />
+                          <span className={textPrimary}>{report.wave_height_ft}ft</span>
+                        </span>
+                      )}
+                      {report.wind_conditions && (
+                        <span className="text-xs flex items-center gap-1">
+                          <Wind className="w-3 h-3 text-emerald-400" />
+                          <span className={textPrimary}>{report.wind_conditions}</span>
+                        </span>
+                      )}
+                      {report.crowd_level && (
+                        <span className="text-xs flex items-center gap-1">
+                          <Users className="w-3 h-3 text-purple-400" />
+                          <span className={textPrimary}>{report.crowd_level}</span>
+                        </span>
+                      )}
+                    </div>
+                    {report.media_url && (
+                      <img 
+                        src={getFullUrl(report.thumbnail_url || report.media_url)} 
+                        alt="" 
+                        className="mt-2 w-full h-32 object-cover rounded-lg"
+                      />
                     )}
                   </div>
-                  {report.media_url && (
-                    <img 
-                      src={report.thumbnail_url || report.media_url} 
-                      alt="" 
-                      className="mt-2 w-full h-32 object-cover rounded-lg"
-                    />
-                  )}
-                </div>
-              ))
-            ) : (
+                ))}
+              </div>
+            )}
+
+            {/* Surf Reports (user-submitted wave data from spot-details) */}
+            {surfReports.length > 0 && (
+              <div className="space-y-2">
+                <p className={`text-[10px] font-medium ${textSecondary} uppercase tracking-wider flex items-center gap-1`}>
+                  <CloudRain className="w-3 h-3 text-emerald-400" />
+                  Community Surf Reports
+                </p>
+                {surfReports.map((report) => (
+                  <div key={report.id} className={`p-2.5 rounded-lg border ${isLight ? 'bg-gray-50 border-gray-200' : 'bg-zinc-900/50 border-zinc-800'}`}>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {report.conditions && (
+                          <Badge className={`text-[10px] ${conditionColors[report.conditions]?.bg || 'bg-emerald-500'}`}>
+                            {report.conditions}
+                          </Badge>
+                        )}
+                        {report.wave_height && (
+                          <Badge variant="outline" className="text-[10px] text-cyan-400 border-cyan-400/30">
+                            <Waves className="w-2.5 h-2.5 mr-0.5" />
+                            {report.wave_height}
+                          </Badge>
+                        )}
+                        {report.crowd_level && (
+                          <Badge variant="outline" className="text-[10px] text-purple-400 border-purple-400/30">
+                            <Users className="w-2.5 h-2.5 mr-0.5" />
+                            {report.crowd_level}
+                          </Badge>
+                        )}
+                        {report.wind_direction && (
+                          <Badge variant="outline" className="text-[10px] text-emerald-400 border-emerald-400/30">
+                            <Wind className="w-2.5 h-2.5 mr-0.5" />
+                            {report.wind_direction}
+                          </Badge>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1">
+                        {report.rating && (
+                          <div className="flex items-center gap-0.5 text-yellow-400">
+                            <Star className="w-3 h-3 fill-current" />
+                            <span className="text-xs font-bold">{report.rating}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    {report.notes && (
+                      <p className={`text-xs mt-1.5 ${textSecondary}`}>{report.notes}</p>
+                    )}
+                    {report.created_at && (
+                      <p className={`text-[10px] mt-1 ${textSecondary}`}>
+                        {new Date(report.created_at).toLocaleDateString('en-US', { 
+                          month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' 
+                        })}
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Empty state - only show if BOTH are empty */}
+            {conditionReports.length === 0 && surfReports.length === 0 && (
               <div className="text-center py-8 text-gray-400">
                 <MessageCircle className="w-10 h-10 mx-auto mb-2 opacity-30" />
                 <p className="text-sm">No condition reports yet</p>
