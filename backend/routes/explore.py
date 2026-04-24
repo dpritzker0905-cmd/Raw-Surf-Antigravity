@@ -361,8 +361,11 @@ async def get_surf_spots_with_conditions(
     elif subscription_tier in ['premium', 'pro', 'gold']:
         forecast_days_after_today = 10
     
-    # Fetch +1 to include today's data for current conditions
-    api_forecast_days = forecast_days_after_today + 1
+    # Always fetch 10 days from the API so we can show locked previews
+    # for upselling lower-tier users. The frontend uses forecast_days_allowed
+    # to determine which days are unlocked vs locked.
+    max_forecast_days = 10
+    api_forecast_days = max_forecast_days + 1  # +1 because index 0 is today
     
     # ============ PARALLEL FETCH: Conditions for all spots at once ============
     async def fetch_spot_conditions(spot):
@@ -527,8 +530,8 @@ async def get_surf_spots_with_conditions(
                 directions = daily.get("wave_direction_dominant", [])
                 periods = daily.get("wave_period_max", [])
                 
-                # Start from index 1 (tomorrow) and take forecast_days_after_today items
-                for i in range(1, min(len(dates), forecast_days_after_today + 1)):
+                # Start from index 1 (tomorrow) and take up to max_forecast_days items
+                for i in range(1, min(len(dates), max_forecast_days + 1)):
                     date = dates[i]
                     max_m = wave_max[i] if i < len(wave_max) else 0
                     max_ft = round(max_m * 3.28084, 1) if max_m else 0
@@ -627,8 +630,9 @@ async def get_spot_details(
     elif subscription_tier in ['premium', 'pro', 'gold']:
         forecast_days_after_today = 10
     
-    # Fetch +1 to include today's data for current conditions
-    api_forecast_days = forecast_days_after_today + 1
+    # Always fetch 10 days from the API so we can show locked previews
+    max_forecast_days = 10
+    api_forecast_days = max_forecast_days + 1  # +1 because index 0 is today
     
     spot_data = {
         "id": spot.id,
@@ -688,7 +692,7 @@ async def get_spot_details(
                 periods = daily.get("wave_period_max", [])
                 swell_max = daily.get("swell_wave_height_max", [])
                 
-                for i in range(1, min(len(dates), forecast_days_after_today + 1)):
+                for i in range(1, min(len(dates), max_forecast_days + 1)):
                     date = dates[i]
                     max_m = wave_max[i] if i < len(wave_max) else 0
                     max_ft = round(max_m * 3.28084, 1) if max_m else 0
