@@ -954,10 +954,9 @@ export const Bookings = () => {
           />
         )}
 
-        {/* Tabs — sticky orange underline bar, stays on screen like Explore */}
+        {/* Tabs — sticky orange underline bar, stays on screen below TopNav */}
         <div
-          className={`sticky top-0 z-20 ${mainBgClass}`}
-          style={{ backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)' }}
+          className={`sticky top-14 z-20 ${mainBgClass}`}
         >
           <div className="relative">
             {/* Scrollable tab strip with orange underline indicator */}
