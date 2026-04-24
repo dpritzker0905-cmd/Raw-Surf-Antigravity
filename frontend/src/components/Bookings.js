@@ -363,6 +363,10 @@ export const Bookings = () => {
   // loading must be declared before the useEffect that depends on it
   const [loading, setLoading] = useState(true);
 
+  // Ref to track whether the very first centering has happened (use instant scroll
+  // on the first render, smooth scroll on subsequent tab changes via tap).
+  const initialCenterDoneRef = useRef(false);
+
   // Auto-scroll the active tab pill into view whenever activeTab changes
   // or when loading finishes (so the tab strip DOM is actually available).
   // Uses direct scrollTo math instead of scrollIntoView because scrollIntoView
@@ -380,7 +384,10 @@ export const Bookings = () => {
         const btnLeft = activeBtn.offsetLeft;
         const btnWidth = activeBtn.offsetWidth;
         const targetScroll = btnLeft - (stripWidth / 2) + (btnWidth / 2);
-        tabStrip.scrollTo({ left: targetScroll, behavior: 'smooth' });
+        // First render or swipe → instant scroll; tap → smooth scroll
+        const useSmooth = initialCenterDoneRef.current && !isAnimating;
+        tabStrip.scrollTo({ left: targetScroll, behavior: useSmooth ? 'smooth' : 'instant' });
+        if (!initialCenterDoneRef.current) initialCenterDoneRef.current = true;
       }
       updateArrows();
     });
@@ -1083,7 +1090,7 @@ export const Bookings = () => {
           </div>
         </div>
 
-        {/* Tab Content -- swipeable on mobile with slide animation */}
+        {/* Tab Content -- swipeable on mobile with simple fast transition */}
         <div
           className="relative overflow-hidden"
           onTouchStart={(e) => {
@@ -1093,10 +1100,6 @@ export const Bookings = () => {
             swipeActiveRef.current = true;
             swipeLockedRef.current = false;
             swipeDragRef.current = 0;
-            // Remove transition during drag for instant response
-            if (contentRef.current) {
-              contentRef.current.style.transition = 'none';
-            }
           }}
           onTouchMove={(e) => {
             if (!swipeActiveRef.current || isAnimating) return;
@@ -1108,10 +1111,6 @@ export const Bookings = () => {
               if (Math.abs(dy) > Math.abs(dx) && Math.abs(dy) > 10) {
                 // Vertical scroll -- cancel swipe entirely
                 swipeActiveRef.current = false;
-                if (contentRef.current) {
-                  contentRef.current.style.transform = '';
-                  contentRef.current.style.transition = '';
-                }
                 return;
               }
               if (Math.abs(dx) > 10) {
@@ -1130,15 +1129,6 @@ export const Bookings = () => {
             const atEdge = (dx > 0 && currentIdx === 0) || (dx < 0 && currentIdx === tabIds.length - 1);
             const dampened = atEdge ? dx * 0.2 : dx;
             swipeDragRef.current = dampened;
-
-            if (contentRef.current) {
-              contentRef.current.style.transform = `translateX(${dampened}px)`;
-              // Subtle opacity fade near edges for visual hint
-              const progress = Math.min(Math.abs(dampened) / 200, 1);
-              contentRef.current.style.opacity = `${1 - progress * 0.15}`;
-            }
-
-
           }}
           onTouchEnd={() => {
             if (!swipeActiveRef.current || isAnimating) {
@@ -1157,71 +1147,16 @@ export const Bookings = () => {
               const nextIdx = goingLeft ? currentIdx + 1 : currentIdx - 1;
 
               if (nextIdx >= 0 && nextIdx < tabIds.length) {
-                setIsAnimating(true);
-                const direction = goingLeft ? 'left' : 'right';
-
-                // Animate current content off-screen
-                if (contentRef.current) {
-                  contentRef.current.style.transition = 'transform 0.22s ease-out, opacity 0.22s ease-out';
-                  contentRef.current.style.transform = `translateX(${goingLeft ? '-100%' : '100%'})`;
-                  contentRef.current.style.opacity = '0';
-                }
-
-                // After exit animation, switch tab and slide in from opposite side
-                setTimeout(() => {
-                  setSlideDirection(direction);
-                  setActiveTab(tabIds[nextIdx]);
-
-                  // Reset position to off-screen on opposite side (no transition)
-                  if (contentRef.current) {
-                    contentRef.current.style.transition = 'none';
-                    contentRef.current.style.transform = `translateX(${goingLeft ? '60%' : '-60%'})`;
-                    contentRef.current.style.opacity = '0.5';
-                  }
-
-                  // Force reflow then animate into view
-                  requestAnimationFrame(() => {
-                    requestAnimationFrame(() => {
-                      if (contentRef.current) {
-                        contentRef.current.style.transition = 'transform 0.25s ease-out, opacity 0.25s ease-out';
-                        contentRef.current.style.transform = 'translateX(0)';
-                        contentRef.current.style.opacity = '1';
-                      }
-                      setTimeout(() => {
-                        setIsAnimating(false);
-                        setSlideDirection(null);
-                        if (contentRef.current) {
-                          contentRef.current.style.transition = '';
-                          contentRef.current.style.transform = '';
-                          contentRef.current.style.opacity = '';
-                        }
-                      }, 260);
-                    });
-                  });
-                }, 200);
+                // Simple instant switch — no multi-stage animation
+                setActiveTab(tabIds[nextIdx]);
                 return;
               }
             }
-
-            // Snap back -- didn't meet threshold
-            if (contentRef.current) {
-              contentRef.current.style.transition = 'transform 0.2s ease-out, opacity 0.2s ease-out';
-              contentRef.current.style.transform = 'translateX(0)';
-              contentRef.current.style.opacity = '1';
-              setTimeout(() => {
-                if (contentRef.current) {
-                  contentRef.current.style.transition = '';
-                  contentRef.current.style.transform = '';
-                  contentRef.current.style.opacity = '';
-                }
-              }, 220);
-            }
-
           }}
         >
           <div
             ref={contentRef}
-            className="space-y-4 will-change-transform"
+            className="space-y-4"
           >
           {/* The Lineup Tab - Surf Session Lobby */}
           {activeTab === 'lineup' && (
