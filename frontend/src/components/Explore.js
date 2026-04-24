@@ -153,6 +153,11 @@ export const Explore = () => {
   const [nearbySpots, setNearbySpots] = useState([]);
   const [nearbyLoading, setNearbyLoading] = useState(false);
   const [nearbyRadius, setNearbyRadius] = useState(25);
+  
+  // Dropdown-based location selection
+  const [selectedCountry, setSelectedCountry] = useState('');
+  const [selectedState, setSelectedState] = useState('');
+  const [selectedCity, setSelectedCity] = useState('');
 
   // WebSocket: Real-time conditions updates
   const handleNewCondition = useCallback((newCondition) => {
@@ -683,89 +688,62 @@ export const Explore = () => {
     }
   };
   
-  // Navigate location hierarchy — push a level
-  const pushLocation = (type, name, data) => {
-    // When clicking a country that has NO real states (only virtual or none), skip straight to spots
-    if (type === 'country' && data) {
-      const hasRealStates = data.has_states === true;
-      const states = data.states || [];
-      const realStates = states.filter(s => !s.is_virtual);
-      
-      if (!hasRealStates && realStates.length === 0) {
-        // Country has no sub-regions — jump directly to showing spots for this country
-        // Push both country and a virtual state level so spots render at locationPath.length === 2
-        if (states.length === 1 && states[0].cities?.length > 0) {
-          // Has virtual state with cities — push to state level and show cities
-          setLocationPath([
-            { type: 'country', name, data },
-            { type: 'state', name: states[0].name, data: states[0] }
-          ]);
-        } else {
-          // No cities either — fetch all spots for this country directly
-          setLocationPath([{ type: 'country', name, data }]);
-          fetchSurfSpots(null, null, { country: name });
-        }
-        return;
+  // ============ DROPDOWN LOCATION DISCOVERY ============
+  
+  // Computed dropdown options from hierarchy
+  const countryOptions = locationHierarchy?.countries?.map(c => c.name).sort() || [];
+  
+  const stateOptions = (() => {
+    if (!selectedCountry || !locationHierarchy) return [];
+    const country = locationHierarchy.countries.find(c => c.name === selectedCountry);
+    if (!country?.states) return [];
+    return country.states.filter(s => !s.is_virtual).map(s => s.name).sort();
+  })();
+  
+  const cityOptions = (() => {
+    if (!selectedCountry || !selectedState || !locationHierarchy) return [];
+    const country = locationHierarchy.countries.find(c => c.name === selectedCountry);
+    const state = country?.states?.find(s => s.name === selectedState);
+    if (!state?.cities) return [];
+    return state.cities.map(c => c.name).sort();
+  })();
+  
+  // Handle dropdown changes with cascading reset
+  const handleCountryChange = (countryName) => {
+    setSelectedCountry(countryName);
+    setSelectedState('');
+    setSelectedCity('');
+    setSurfSpots([]);
+    if (countryName) {
+      const country = locationHierarchy?.countries?.find(c => c.name === countryName);
+      const realStates = country?.states?.filter(s => !s.is_virtual) || [];
+      if (realStates.length === 0) {
+        fetchSurfSpots(null, null, { country: countryName });
       }
     }
-    
-    setLocationPath(prev => [...prev, { type, name, data }]);
-    // When we reach the city/region level, fetch spots for that region
-    if (type === 'city') {
-      // Build the full context from the path for accurate filtering
-      setSelectedSpotsRegion(name);
-      fetchSurfSpots(name);
+  };
+  
+  const handleStateChange = (stateName) => {
+    setSelectedState(stateName);
+    setSelectedCity('');
+    setSurfSpots([]);
+    if (stateName) {
+      const country = locationHierarchy?.countries?.find(c => c.name === selectedCountry);
+      const state = country?.states?.find(s => s.name === stateName);
+      const cities = state?.cities || [];
+      if (cities.length === 0) {
+        fetchSurfSpots(null, null, { country: selectedCountry, state_province: stateName });
+      }
     }
   };
   
-  // Navigate back to a specific breadcrumb level
-  const popLocationTo = (index) => {
-    if (index < 0) {
-      setLocationPath([]);
-      return;
+  const handleCityChange = (cityName) => {
+    setSelectedCity(cityName);
+    if (cityName) {
+      fetchSurfSpots(cityName, null, { country: selectedCountry, state_province: selectedState });
+    } else {
+      setSurfSpots([]);
     }
-    setLocationPath(prev => prev.slice(0, index + 1));
-  };
-  
-  // Get current browse level items
-  const getCurrentBrowseItems = () => {
-    if (!locationHierarchy) return [];
-    const countries = locationHierarchy.countries || [];
-    
-    if (locationPath.length === 0) {
-      // Top level — show countries
-      return { level: 'country', items: countries };
-    }
-    if (locationPath.length === 1) {
-      // Country selected — show states (filter out virtual states for display)
-      const country = locationPath[0];
-      const countryData = countries.find(c => c.name === country.name);
-      const allStates = countryData?.states || [];
-      // Show all states including virtual ones — they hold the cities for state-less countries
-      return { level: 'state', items: allStates, parent: country.name };
-    }
-    if (locationPath.length === 2) {
-      // State selected — show cities
-      const country = locationPath[0];
-      const state = locationPath[1];
-      const countryData = countries.find(c => c.name === country.name);
-      const stateData = countryData?.states?.find(s => s.name === state.name);
-      const cities = stateData?.cities || [];
-      return { level: 'city', items: cities, parent: state.name };
-    }
-    return { level: 'spots', items: [] };
-  };
-  
-  // Filter browse items by search query
-  const getFilteredBrowseItems = () => {
-    const browseData = getCurrentBrowseItems();
-    if (!spotSearchQuery.trim() || locationPath.length === 3) return browseData;
-    
-    const q = spotSearchQuery.toLowerCase().trim();
-    const filtered = browseData.items.filter(item =>
-      item.name?.toLowerCase().includes(q)
-    );
-    return { ...browseData, items: filtered };
   };
   
   // Country flag emoji helper
@@ -814,13 +792,23 @@ export const Explore = () => {
   // Quick jump to a popular location
   const jumpToLocation = (loc) => {
     setDiscoveryMode('browse');
+    setSelectedCountry(loc.country);
+    setSelectedState(loc.state || '');
+    setSelectedCity('');
+    setSurfSpots([]);
     if (loc.state) {
-      setLocationPath([
-        { type: 'country', name: loc.country },
-        { type: 'state', name: loc.state }
-      ]);
+      const country = locationHierarchy?.countries?.find(c => c.name === loc.country);
+      const state = country?.states?.find(s => s.name === loc.state);
+      const cities = state?.cities || [];
+      if (cities.length === 0) {
+        fetchSurfSpots(null, null, { country: loc.country, state_province: loc.state });
+      }
     } else {
-      setLocationPath([{ type: 'country', name: loc.country }]);
+      const country = locationHierarchy?.countries?.find(c => c.name === loc.country);
+      const realStates = country?.states?.filter(s => !s.is_virtual) || [];
+      if (realStates.length === 0) {
+        fetchSurfSpots(null, null, { country: loc.country });
+      }
     }
   };
 
@@ -1300,74 +1288,98 @@ export const Explore = () => {
             </button>
           </div>
           
-          {/* Search Bar */}
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
-            <input
-              type="text"
-              placeholder={discoveryMode === 'browse' 
-                ? (locationPath.length === 0 ? 'Search countries...' : locationPath.length === 1 ? 'Search states/provinces...' : 'Search cities/regions...')
-                : 'Search nearby spots...'}
-              value={spotSearchQuery}
-              onChange={(e) => setSpotSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-10 py-3 bg-zinc-900 border border-zinc-700 rounded-xl text-foreground placeholder-gray-500 text-sm focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/20 transition-all"
-              data-testid="spot-search-input"
-            />
-            {spotSearchQuery && (
-              <button
-                onClick={() => setSpotSearchQuery('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            )}
-          </div>
-          
           {/* ============ BROWSE MODE ============ */}
           {discoveryMode === 'browse' && (
             <>
-              {/* Breadcrumb Navigation */}
-              {locationPath.length > 0 && (
-                <div className="flex items-center gap-1 flex-wrap text-sm">
-                  <button
-                    onClick={() => popLocationTo(-1)}
-                    className="flex items-center gap-1 px-2 py-1 rounded-md text-cyan-400 hover:bg-cyan-500/10 transition-colors"
-                  >
-                    <Globe className="w-3.5 h-3.5" />
-                    All
-                  </button>
-                  {locationPath.map((crumb, idx) => (
-                    <React.Fragment key={idx}>
-                      <ChevronRight className="w-3.5 h-3.5 text-gray-600 flex-shrink-0" />
-                      <button
-                        onClick={() => idx < locationPath.length - 1 ? popLocationTo(idx) : null}
-                        className={`flex items-center gap-1 px-2 py-1 rounded-md transition-colors ${
-                          idx === locationPath.length - 1
-                            ? 'text-white font-medium bg-zinc-800'
-                            : 'text-cyan-400 hover:bg-cyan-500/10'
-                        }`}
+              {/* Cascading Location Dropdowns */}
+              <div className="space-y-3">
+                {/* Country Dropdown */}
+                <div>
+                  <label className="block text-xs text-gray-500 uppercase tracking-wider font-medium mb-1.5">Country</label>
+                  <div className="relative">
+                    <Globe className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-cyan-400 pointer-events-none z-10" />
+                    <select
+                      value={selectedCountry}
+                      onChange={(e) => handleCountryChange(e.target.value)}
+                      className="w-full pl-10 pr-10 py-3 bg-zinc-900 border border-zinc-700 rounded-xl text-foreground text-sm focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/20 transition-all appearance-none cursor-pointer"
+                      data-testid="country-dropdown"
+                    >
+                      <option value="">Select a country...</option>
+                      {countryOptions.map(name => (
+                        <option key={name} value={name}>{getCountryFlag(name)} {name}</option>
+                      ))}
+                    </select>
+                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none" />
+                  </div>
+                </div>
+                
+                {/* State/Province Dropdown — appears when country selected and has states */}
+                {selectedCountry && stateOptions.length > 0 && (
+                  <div>
+                    <label className="block text-xs text-gray-500 uppercase tracking-wider font-medium mb-1.5">State / Province</label>
+                    <div className="relative">
+                      <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-blue-400 pointer-events-none z-10" />
+                      <select
+                        value={selectedState}
+                        onChange={(e) => handleStateChange(e.target.value)}
+                        className="w-full pl-10 pr-10 py-3 bg-zinc-900 border border-zinc-700 rounded-xl text-foreground text-sm focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/20 transition-all appearance-none cursor-pointer"
+                        data-testid="state-dropdown"
                       >
-                        {crumb.type === 'country' && <span className="text-base">{getCountryFlag(crumb.name)}</span>}
-                        {crumb.type === 'state' && <MapPin className="w-3 h-3" />}
-                        {crumb.type === 'city' && <Navigation className="w-3 h-3" />}
-                        <span className="truncate max-w-[120px]">{crumb.name}</span>
-                      </button>
-                    </React.Fragment>
-                  ))}
-                  
-                  {/* Back button */}
-                  <button
-                    onClick={() => popLocationTo(locationPath.length - 2)}
-                    className="ml-auto flex items-center gap-1 px-2 py-1 text-xs text-gray-400 hover:text-gray-200 hover:bg-zinc-800 rounded-md transition-colors"
-                  >
-                    <ArrowLeft className="w-3 h-3" />
-                    Back
-                  </button>
+                        <option value="">Select state / province...</option>
+                        {stateOptions.map(name => (
+                          <option key={name} value={name}>{name}</option>
+                        ))}
+                      </select>
+                      <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none" />
+                    </div>
+                  </div>
+                )}
+                
+                {/* City/Area Dropdown — appears when state selected and has cities */}
+                {selectedState && cityOptions.length > 0 && (
+                  <div>
+                    <label className="block text-xs text-gray-500 uppercase tracking-wider font-medium mb-1.5">City / Area</label>
+                    <div className="relative">
+                      <Navigation className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-emerald-400 pointer-events-none z-10" />
+                      <select
+                        value={selectedCity}
+                        onChange={(e) => handleCityChange(e.target.value)}
+                        className="w-full pl-10 pr-10 py-3 bg-zinc-900 border border-zinc-700 rounded-xl text-foreground text-sm focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/20 transition-all appearance-none cursor-pointer"
+                        data-testid="city-dropdown"
+                      >
+                        <option value="">Select city / area...</option>
+                        {cityOptions.map(name => (
+                          <option key={name} value={name}>{name}</option>
+                        ))}
+                      </select>
+                      <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none" />
+                    </div>
+                  </div>
+                )}
+              </div>
+              
+              {/* Spot Name Search — appears once a country is selected */}
+              {selectedCountry && (
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+                  <input
+                    type="text"
+                    placeholder="Search spots by name..."
+                    value={spotSearchQuery}
+                    onChange={(e) => setSpotSearchQuery(e.target.value)}
+                    className="w-full pl-10 pr-10 py-3 bg-zinc-900 border border-zinc-700 rounded-xl text-foreground placeholder-gray-500 text-sm focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/20 transition-all"
+                    data-testid="spot-search-input"
+                  />
+                  {spotSearchQuery && (
+                    <button onClick={() => setSpotSearchQuery('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300">
+                      <X className="w-4 h-4" />
+                    </button>
+                  )}
                 </div>
               )}
               
-              {/* Popular Quick Chips — show only at top level with no search */}
-              {locationPath.length === 0 && !spotSearchQuery && (
+              {/* Popular Destinations — show only when no country selected */}
+              {!selectedCountry && (
                 <div>
                   <p className="text-xs text-gray-500 uppercase tracking-wider font-medium mb-2">Popular Destinations</p>
                   <div className="flex flex-wrap gap-2">
@@ -1385,213 +1397,53 @@ export const Explore = () => {
                 </div>
               )}
               
-              {/* Location Hierarchy Cards */}
-              {locationPath.length < 3 && (
-                <>
-                  {locationHierarchyLoading ? (
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                      {[1,2,3,4,5,6].map(i => (
-                        <div key={i} className="h-20 bg-zinc-800 rounded-xl animate-pulse" />
-                      ))}
-                    </div>
-                  ) : (() => {
-                    const browseData = getFilteredBrowseItems();
-                    if (!browseData?.items) return null;
-                    const items = browseData.items;
-                    const level = browseData.level;
-                    
-                    if (items.length === 0 && spotSearchQuery) {
-                      return (
-                        <div className="text-center py-10 text-muted-foreground">
-                          <Search className="w-10 h-10 mx-auto mb-2 opacity-30" />
-                          <p className="text-sm">No {level === 'country' ? 'countries' : level === 'state' ? 'states' : 'cities'} matching "{spotSearchQuery}"</p>
-                        </div>
-                      );
-                    }
-                    
-                    if (items.length === 0) {
-                      // If we're at the state level (country selected) and there are no states,
-                      // this means the country has no sub-regions — show spots directly
-                      if (level === 'state' && locationPath.length === 1) {
-                        const countryName = locationPath[0]?.name;
-                        // Auto-fetch spots for this country if not already loading
-                        if (!surfSpotsLoading && surfSpots.length === 0 && countryName) {
-                          fetchSurfSpots(null, null, { country: countryName });
-                        }
-                        // Render spot cards inline
-                        return (
-                          <div className="space-y-4">
-                            {surfSpotsLoading ? (
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                {[1, 2, 3, 4].map((i) => (
-                                  <div key={i} className="bg-card/80 border border-border rounded-xl overflow-hidden animate-pulse">
-                                    <div className="h-32 bg-muted" />
-                                    <div className="px-3 py-2"><div className="h-5 w-12 bg-zinc-700 rounded" /></div>
-                                  </div>
-                                ))}
-                              </div>
-                            ) : surfSpots.length > 0 ? (
-                              <>
-                                <Badge className="bg-cyan-500/20 text-cyan-400 text-xs">
-                                  {surfSpots.length} spots in {countryName}
-                                </Badge>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                  {surfSpots
-                                    .filter(s => !spotSearchQuery || s.name?.toLowerCase().includes(spotSearchQuery.toLowerCase()))
-                                    .map((spot) => (
-                                    <ExploreSpotCard 
-                                      key={spot.id} 
-                                      spot={spot} 
-                                      userSubscriptionTier={user?.subscription_tier || 'free'}
-                                    />
-                                  ))}
-                                </div>
-                              </>
-                            ) : (
-                              <div className="text-center py-10 text-muted-foreground">
-                                <Navigation className="w-10 h-10 mx-auto mb-2 opacity-30" />
-                                <p className="text-sm">No spots found in {countryName}</p>
-                              </div>
-                            )}
-                          </div>
-                        );
-                      }
-                      return (
-                        <div className="text-center py-10 text-muted-foreground">
-                          <Navigation className="w-10 h-10 mx-auto mb-2 opacity-30" />
-                          <p className="text-sm">No {level === 'state' ? 'states/provinces' : 'cities/regions'} available at this level</p>
-                          <p className="text-xs text-gray-600 mt-1">Spots may be listed directly without sub-regions</p>
-                        </div>
-                      );
-                    }
-                    
-                    return (
-                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                        {items.map((item, idx) => {
-                          // Zoom level based on hierarchy depth
-                          const mapZoom = level === 'country' ? 4 : level === 'state' ? 6 : 9;
-                          const hasCoords = item.latitude && item.longitude;
-                          
-                          return (
-                          <button
-                            key={item.name || idx}
-                            onClick={() => pushLocation(level, item.name, item)}
-                            className="group relative flex flex-col justify-end overflow-hidden rounded-xl border border-zinc-800 hover:border-cyan-500/40 transition-all text-left"
-                            style={{ aspectRatio: '4/3', minHeight: '100px' }}
-                            data-testid={`loc-${level}-${idx}`}
-                          >
-                            {/* Map satellite background */}
-                            {hasCoords ? (
-                              <img 
-                                src={`https://static-maps.yandex.ru/1.x/?lang=en_US&ll=${item.longitude},${item.latitude}&z=${mapZoom}&l=sat&size=400,300`}
-                                alt={`Map of ${item.name}`}
-                                className="absolute inset-0 w-full h-full object-cover opacity-60 group-hover:opacity-80 transition-opacity duration-300"
-                                loading="lazy"
-                                onError={(e) => {
-                                  // Gracefully degrade to gradient when map tile fails
-                                  e.target.style.display = 'none';
-                                }}
-                              />
-                            ) : (
-                              <div className="absolute inset-0 w-full h-full bg-gradient-to-br from-zinc-800 to-zinc-900" />
-                            )}
-                            
-                            {/* Gradient overlay */}
-                            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-black/10 z-10" />
-                            
-                            {/* Map pin indicator */}
-                            {hasCoords && (
-                              <div className="absolute top-2 right-2 z-20">
-                                <MapPin className={`w-4 h-4 drop-shadow-lg ${
-                                  level === 'country' ? 'text-cyan-400' : level === 'state' ? 'text-blue-400' : 'text-emerald-400'
-                                }`} />
-                              </div>
-                            )}
-                            
-                            {/* Content overlay */}
-                            <div className="relative z-20 p-3">
-                              <div className="flex items-center gap-1.5 mb-0.5">
-                                {level === 'country' && <span className="text-lg leading-none">{getCountryFlag(item.name)}</span>}
-                                {level === 'state' && <MapPin className="w-3.5 h-3.5 text-blue-400" />}
-                                {level === 'city' && <Navigation className="w-3.5 h-3.5 text-emerald-400" />}
-                              </div>
-                              
-                              <span className="text-sm font-semibold text-white truncate block drop-shadow-md">{item.name}</span>
-                              
-                              <div className="flex items-center gap-1 mt-0.5">
-                                <span className="text-[11px] text-gray-300 drop-shadow">
-                                  {item.spot_count} {item.spot_count === 1 ? 'spot' : 'spots'}
-                                </span>
-                                {level !== 'city' && (item.states?.length > 0 || item.cities?.length > 0) && (
-                                  <ChevronRight className="w-3 h-3 text-gray-400 group-hover:text-cyan-400 transition-colors" />
-                                )}
-                              </div>
-                            </div>
-                          </button>
-                          );
-                        })}
-                      </div>
-                    );
-                  })()}
-                </>
-              )}
-              
-              {/* Spot Cards — show when at city/region level */}
-              {locationPath.length === 3 && (
-                <>
-                  {/* Tiered Forecast Info Banner */}
-                  <div className="p-3 bg-gradient-to-r from-cyan-500/10 to-blue-500/10 border border-cyan-500/20 rounded-lg">
-                    <div className="flex items-center gap-2 text-xs text-cyan-400">
-                      <Waves className="w-4 h-4" />
-                      <span>
-                        <strong>Today</strong> = Current Conditions • <strong>Forecast:</strong> 3 days free, 7 paid, 10 premium
-                      </span>
-                    </div>
-                  </div>
-                  
-                  {surfSpotsLoading ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {[1, 2, 3, 4].map((i) => (
-                        <div key={i} className="bg-card/80 border border-border rounded-xl overflow-hidden animate-pulse">
-                          <div className="h-32 bg-muted" />
-                          <div className="px-3 py-2 border-b border-border flex items-center gap-3">
-                            <div className="h-5 w-12 bg-zinc-700 rounded" />
-                            <div className="h-4 w-16 bg-zinc-700 rounded" />
-                          </div>
-                          <div className="px-3 py-2 flex gap-2">
-                            <div className="flex-1 h-9 bg-zinc-700 rounded-lg" />
-                            <div className="h-9 w-16 bg-muted rounded-lg" />
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : surfSpots.length === 0 ? (
-                    <div className="text-center py-12 text-muted-foreground">
-                      <Navigation className="w-12 h-12 mx-auto mb-3 opacity-30" />
-                      <p className="font-medium mb-1">No spots found in {locationPath[2]?.name}</p>
-                      <p className="text-sm text-gray-500">Try selecting a different area</p>
-                    </div>
-                  ) : (
+              {/* Selection breadcrumb summary + Clear button */}
+              {selectedCountry && (
+                <div className="flex items-center gap-1.5 text-sm flex-wrap">
+                  <span className="text-lg">{getCountryFlag(selectedCountry)}</span>
+                  <span className="text-white font-medium">{selectedCountry}</span>
+                  {selectedState && (
                     <>
-                      <Badge className="bg-cyan-500/20 text-cyan-400 text-xs">{surfSpots.length} spots in {locationPath[2]?.name}</Badge>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {surfSpots
-                          .filter(s => !spotSearchQuery || s.name?.toLowerCase().includes(spotSearchQuery.toLowerCase()))
-                          .map((spot) => (
-                          <ExploreSpotCard 
-                            key={spot.id} 
-                            spot={spot} 
-                            userSubscriptionTier={user?.subscription_tier || 'free'}
-                          />
-                        ))}
-                      </div>
+                      <ChevronRight className="w-3.5 h-3.5 text-gray-600" />
+                      <span className="text-blue-400">{selectedState}</span>
                     </>
                   )}
-                </>
+                  {selectedCity && (
+                    <>
+                      <ChevronRight className="w-3.5 h-3.5 text-gray-600" />
+                      <span className="text-emerald-400">{selectedCity}</span>
+                    </>
+                  )}
+                  <button
+                    onClick={() => { setSelectedCountry(''); setSelectedState(''); setSelectedCity(''); setSurfSpots([]); setSpotSearchQuery(''); }}
+                    className="ml-auto text-xs text-gray-500 hover:text-gray-300 flex items-center gap-1 px-2 py-1 rounded-md hover:bg-zinc-800 transition-colors"
+                  >
+                    <X className="w-3 h-3" /> Clear
+                  </button>
+                </div>
               )}
               
-              {/* Fallback: Show all spots if at top browse level with no hierarchy */}
-              {locationPath.length === 0 && !locationHierarchy && !locationHierarchyLoading && (
+              {/* Loading State */}
+              {surfSpotsLoading && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {[1, 2, 3, 4].map((i) => (
+                    <div key={i} className="bg-card/80 border border-border rounded-xl overflow-hidden animate-pulse">
+                      <div className="h-32 bg-muted" />
+                      <div className="px-3 py-2 border-b border-border flex items-center gap-3">
+                        <div className="h-5 w-12 bg-zinc-700 rounded" />
+                        <div className="h-4 w-16 bg-zinc-700 rounded" />
+                      </div>
+                      <div className="px-3 py-2 flex gap-2">
+                        <div className="flex-1 h-9 bg-zinc-700 rounded-lg" />
+                        <div className="h-9 w-16 bg-muted rounded-lg" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              
+              {/* Spot Cards */}
+              {!surfSpotsLoading && surfSpots.length > 0 && (
                 <>
                   <div className="p-3 bg-gradient-to-r from-cyan-500/10 to-blue-500/10 border border-cyan-500/20 rounded-lg">
                     <div className="flex items-center gap-2 text-xs text-cyan-400">
@@ -1602,22 +1454,31 @@ export const Explore = () => {
                     </div>
                   </div>
                   
-                  {surfSpotsLoading ? (
-                    <div className="flex justify-center py-10">
-                      <Loader2 className="w-8 h-8 animate-spin text-cyan-400" />
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {surfSpots.map((spot) => (
-                        <ExploreSpotCard 
-                          key={spot.id} 
-                          spot={spot} 
-                          userSubscriptionTier={user?.subscription_tier || 'free'}
-                        />
-                      ))}
-                    </div>
-                  )}
+                  <Badge className="bg-cyan-500/20 text-cyan-400 text-xs">
+                    {surfSpots.filter(s => !spotSearchQuery || s.name?.toLowerCase().includes(spotSearchQuery.toLowerCase())).length} spots
+                    {selectedCity ? ` in ${selectedCity}` : selectedState ? ` in ${selectedState}` : ` in ${selectedCountry}`}
+                  </Badge>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {surfSpots
+                      .filter(s => !spotSearchQuery || s.name?.toLowerCase().includes(spotSearchQuery.toLowerCase()))
+                      .map((spot) => (
+                      <ExploreSpotCard 
+                        key={spot.id} 
+                        spot={spot} 
+                        userSubscriptionTier={user?.subscription_tier || 'free'}
+                      />
+                    ))}
+                  </div>
                 </>
+              )}
+              
+              {/* Empty State */}
+              {selectedCountry && !surfSpotsLoading && surfSpots.length === 0 && (selectedCity || (stateOptions.length === 0) || (selectedState && cityOptions.length === 0)) && (
+                <div className="text-center py-12 text-muted-foreground">
+                  <Navigation className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                  <p className="font-medium mb-1">No spots found</p>
+                  <p className="text-sm text-gray-500">Try selecting a different area</p>
+                </div>
               )}
             </>
           )}
