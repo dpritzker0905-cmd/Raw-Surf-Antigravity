@@ -152,6 +152,8 @@ export const AdminSpotEditor = () => {
     country: 'USA',
     difficulty: 'Intermediate',
     wave_type: 'Beach Break',
+    secondary_city: '',
+    secondary_area: '',
     noaa_buoy_id: ''
   });
 
@@ -232,6 +234,8 @@ export const AdminSpotEditor = () => {
           country: 'USA',
           difficulty: 'Intermediate',
           wave_type: 'Beach Break',
+          secondary_city: '',
+          secondary_area: '',
           noaa_buoy_id: ''
         });
         setShowCreateModal(true);
@@ -646,6 +650,8 @@ export const AdminSpotEditor = () => {
                   country: selectedSpot.country || 'USA',
                   difficulty: selectedSpot.difficulty || 'Intermediate',
                   wave_type: selectedSpot.wave_type || 'Beach Break',
+                  secondary_city: selectedSpot.secondary_city || '',
+                  secondary_area: selectedSpot.secondary_area || '',
                   noaa_buoy_id: selectedSpot.noaa_buoy_id || ''
                 });
                 setShowEditModal(true);
@@ -697,6 +703,21 @@ export const AdminSpotEditor = () => {
               onChange={(e) => setFormData({ ...formData, region: e.target.value })}
               className="bg-zinc-800 border-zinc-700"
             />
+            
+            <div className="grid grid-cols-2 gap-4">
+              <Input
+                placeholder="Secondary City (e.g., Cocoa Beach)"
+                value={formData.secondary_city}
+                onChange={(e) => setFormData({ ...formData, secondary_city: e.target.value })}
+                className="bg-zinc-800 border-zinc-700"
+              />
+              <Input
+                placeholder="Secondary Area (e.g., Space Coast)"
+                value={formData.secondary_area}
+                onChange={(e) => setFormData({ ...formData, secondary_area: e.target.value })}
+                className="bg-zinc-800 border-zinc-700"
+              />
+            </div>
             
             <div className="grid grid-cols-2 gap-4">
               <Select value={formData.difficulty} onValueChange={(v) => setFormData({ ...formData, difficulty: v })}>
@@ -780,6 +801,21 @@ export const AdminSpotEditor = () => {
               onChange={(e) => setFormData({ ...formData, region: e.target.value })}
               className="bg-zinc-800 border-zinc-700"
             />
+            
+            <div className="grid grid-cols-2 gap-4">
+              <Input
+                placeholder="Secondary City (e.g., Cocoa Beach)"
+                value={formData.secondary_city}
+                onChange={(e) => setFormData({ ...formData, secondary_city: e.target.value })}
+                className="bg-zinc-800 border-zinc-700"
+              />
+              <Input
+                placeholder="Secondary Area (e.g., Space Coast)"
+                value={formData.secondary_area}
+                onChange={(e) => setFormData({ ...formData, secondary_area: e.target.value })}
+                className="bg-zinc-800 border-zinc-700"
+              />
+            </div>
             
             <div className="grid grid-cols-2 gap-4">
               <Select value={formData.difficulty} onValueChange={(v) => setFormData({ ...formData, difficulty: v })}>

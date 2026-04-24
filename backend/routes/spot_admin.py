@@ -36,6 +36,8 @@ class SpotCreateRequest(BaseModel):
     longitude: float
     difficulty: Optional[str] = "Intermediate"
     wave_type: Optional[str] = None
+    secondary_city: Optional[str] = None
+    secondary_area: Optional[str] = None
     override_land_warning: bool = False
     noaa_buoy_id: Optional[str] = None
 
@@ -50,6 +52,8 @@ class SpotUpdateRequest(BaseModel):
     country: Optional[str] = None
     difficulty: Optional[str] = None
     wave_type: Optional[str] = None
+    secondary_city: Optional[str] = None
+    secondary_area: Optional[str] = None
     noaa_buoy_id: Optional[str] = None
 
 class SpotVerificationRequest(BaseModel):
@@ -165,6 +169,8 @@ async def admin_list_spots(
             "longitude": s.longitude,
             "difficulty": s.difficulty,
             "wave_type": s.wave_type,
+            "secondary_city": s.secondary_city,
+            "secondary_area": s.secondary_area,
             "is_verified_peak": s.is_verified_peak,
             "community_verified": s.community_verified,
             "verification_votes_yes": s.verification_votes_yes or 0,
@@ -213,6 +219,8 @@ async def admin_create_spot(
         original_longitude=request.longitude,
         difficulty=request.difficulty,
         wave_type=request.wave_type,
+        secondary_city=request.secondary_city,
+        secondary_area=request.secondary_area,
         noaa_buoy_id=request.noaa_buoy_id,
         is_verified_peak=True,
         accuracy_flag="admin_verified",
@@ -352,6 +360,11 @@ async def admin_update_spot(
         spot.difficulty = request.difficulty
     if request.wave_type:
         spot.wave_type = request.wave_type
+    # Handle secondary location fields - can be set OR cleared
+    if request.secondary_city is not None:
+        spot.secondary_city = request.secondary_city if request.secondary_city else None
+    if request.secondary_area is not None:
+        spot.secondary_area = request.secondary_area if request.secondary_area else None
     # Handle noaa_buoy_id - can be set OR cleared (empty string/None clears it)
     if request.noaa_buoy_id is not None:
         spot.noaa_buoy_id = request.noaa_buoy_id if request.noaa_buoy_id else None

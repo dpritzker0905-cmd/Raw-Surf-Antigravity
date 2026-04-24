@@ -343,6 +343,22 @@ export const Bookings = () => {
   const contentRef = useRef(null);
   const [slideDirection, setSlideDirection] = useState(null); // 'left' | 'right' | null
   const [isAnimating, setIsAnimating] = useState(false);
+  const indicatorRef = useRef(null);
+
+  // Sync the sliding indicator bar to the currently active tab button
+  const updateIndicator = useCallback(() => {
+    const container = tabScrollRef.current;
+    const indicator = indicatorRef.current;
+    if (!container || !indicator) return;
+    const activeBtn = container.querySelector('[data-active="true"]');
+    if (!activeBtn) { indicator.style.opacity = '0'; return; }
+    const containerRect = container.getBoundingClientRect();
+    const btnRect = activeBtn.getBoundingClientRect();
+    indicator.style.transition = 'transform 0.25s ease, width 0.25s ease, opacity 0.2s';
+    indicator.style.width = `${btnRect.width}px`;
+    indicator.style.transform = `translateX(${btnRect.left - containerRect.left + container.scrollLeft}px)`;
+    indicator.style.opacity = '1';
+  }, []);
 
   // Check if scroll arrows should show (desktop only)
   const updateArrows = () => {
@@ -359,7 +375,7 @@ export const Bookings = () => {
     el.scrollBy({ left: dir * 160, behavior: 'smooth' });
   };
 
-  // Auto-scroll active tab into view whenever activeTab changes
+  // Auto-scroll active tab into view & sync indicator whenever activeTab changes
   useEffect(() => {
     const el = tabScrollRef.current;
     if (!el) return;
@@ -367,8 +383,8 @@ export const Bookings = () => {
     if (active) {
       active.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' });
     }
-    setTimeout(updateArrows, 150);
-  }, [activeTab]); // eslint-disable-line
+    setTimeout(() => { updateArrows(); updateIndicator(); }, 150);
+  }, [activeTab, updateIndicator]); // eslint-disable-line
 
   const [bookings, setBookings] = useState([]);
   const [liveSessions, setLiveSessions] = useState([]);
@@ -1019,12 +1035,15 @@ export const Bookings = () => {
                       {tab.count}
                     </span>
                   )}
-                  {isActive && (
-                    <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-yellow-400 to-orange-400" />
-                  )}
                 </button>
               );
             })}
+            {/* Persistent sliding indicator bar */}
+            <div
+              ref={indicatorRef}
+              className="absolute bottom-0 left-0 h-0.5 bg-gradient-to-r from-yellow-400 to-orange-400 pointer-events-none"
+              style={{ willChange: 'transform, width' }}
+            />
           </div>
 
           {/* Right arrow — only visible on desktop when more tabs are hidden */}
@@ -1094,6 +1113,22 @@ export const Bookings = () => {
               // Subtle opacity fade near edges for visual hint
               const progress = Math.min(Math.abs(dampened) / 200, 1);
               contentRef.current.style.opacity = `${1 - progress * 0.15}`;
+            }
+
+            // Sync indicator bar with swipe drag
+            const indicator = indicatorRef.current;
+            const container = tabScrollRef.current;
+            if (indicator && container) {
+              const activeBtn = container.querySelector('[data-active="true"]');
+              if (activeBtn) {
+                const containerRect = container.getBoundingClientRect();
+                const btnRect = activeBtn.getBoundingClientRect();
+                const baseX = btnRect.left - containerRect.left + container.scrollLeft;
+                // Move indicator proportional to drag (scaled to tab width)
+                const indicatorShift = (dampened / window.innerWidth) * btnRect.width * 1.5;
+                indicator.style.transition = 'none';
+                indicator.style.transform = `translateX(${baseX + indicatorShift}px)`;
+              }
             }
           }}
           onTouchEnd={() => {

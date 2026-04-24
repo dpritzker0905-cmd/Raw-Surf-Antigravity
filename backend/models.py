@@ -356,6 +356,10 @@ class SurfSpot(Base):
     import_tier = Column(Integer, default=1)  # 1=East Coast, 2=West Coast/Hawaii, 3=Global
     wave_type = Column(String(100), nullable=True)  # e.g., "Beach Break", "Point Break", "Reef Break"
     
+    # Secondary location fields for granular tagging
+    secondary_city = Column(String(100), nullable=True)  # e.g., "Cocoa Beach", "Satellite Beach"
+    secondary_area = Column(String(100), nullable=True)  # e.g., "Space Coast", "Treasure Coast"
+    
     # Precision Pin fields (Iteration 135 - Peak-First)
     original_latitude = Column(Float, nullable=True)  # Pre-adjustment coordinates
     original_longitude = Column(Float, nullable=True)
