@@ -329,6 +329,7 @@ export const Bookings = () => {
   const [activeTab, setActiveTab] = useState(tabFromUrl || 'lineup');  // Default to The Lineup tab, or use URL param
   const tabScrollRef = useRef(null);
   const stickyTabRef = useRef(null);
+  const tabAnchorRef = useRef(null);
   const [showLeftArrow, setShowLeftArrow] = useState(false);
   const [showRightArrow, setShowRightArrow] = useState(false);
   const isDraggingRef = useRef(false);
@@ -359,8 +360,11 @@ export const Bookings = () => {
     if (!el) return;
     el.scrollBy({ left: dir * 160, behavior: 'smooth' });
   };
+  // Track first render to avoid scrolling main on initial mount
+  const isFirstTabChange = useRef(true);
 
   // Auto-scroll the active tab pill into view whenever activeTab changes (matches Explore.js)
+  // Also snap <main> to the tab bar's sticky position so the new tab's content shows from top
   useEffect(() => {
     const tabStrip = tabScrollRef.current;
     if (!tabStrip) return;
@@ -375,6 +379,27 @@ export const Bookings = () => {
         behavior: 'smooth',
       });
     }
+    // On actual tab switches (not first render), instantly scroll <main> so
+    // tab bar is at its sticky position and new content starts from the top.
+    // Uses the hidden anchor div (never affected by sticky) for reliable position.
+    if (isFirstTabChange.current) {
+      isFirstTabChange.current = false;
+    } else {
+      const main = document.querySelector('main');
+      if (main && tabAnchorRef.current) {
+        // Anchor's rect gives its true position (unaffected by sticky)
+        const anchorRect = tabAnchorRef.current.getBoundingClientRect();
+        const mainRect = main.getBoundingClientRect();
+        // Calculate where the anchor sits in the scrollable document
+        const anchorDocPos = main.scrollTop + (anchorRect.top - mainRect.top);
+        // Pin position = anchor position minus 56px (sticky top-14)
+        const pinAt = Math.max(0, anchorDocPos - 56);
+        // Only snap if user is scrolled past the pin point
+        if (main.scrollTop > pinAt) {
+          main.scrollTop = pinAt;
+        }
+      }
+    }
     updateArrows();
     setTimeout(updateArrows, 350);
   }, [activeTab]);
@@ -384,6 +409,12 @@ export const Bookings = () => {
     window.addEventListener('resize', updateArrows);
     requestAnimationFrame(updateArrows);
     return () => window.removeEventListener('resize', updateArrows);
+  }, []);
+
+  // Scroll <main> to top on mount so page always loads at the top
+  useEffect(() => {
+    const main = document.querySelector('main');
+    if (main) main.scrollTop = 0;
   }, []);
 
   const [bookings, setBookings] = useState([]);
@@ -960,6 +991,9 @@ export const Bookings = () => {
             onBookingComplete={fetchData}
           />
         )}
+
+        {/* Anchor for reliable scroll position calculation (never affected by sticky) */}
+        <div ref={tabAnchorRef} aria-hidden="true" style={{ height: 0, overflow: 'hidden' }} />
 
         {/* Tabs — sticky orange underline bar, pins below TopNav */}
         <div
