@@ -852,10 +852,10 @@ export const Explore = () => {
     { id: 'waves', label: 'Waves', icon: Play },
     { id: 'posts', label: 'Posts', icon: Image },
     { id: 'trending', label: 'Trending', icon: Hash },
-    { id: 'surfspots', label: 'Surf Spots', icon: Navigation },
     { id: 'users', label: 'People', icon: Users },
     { id: 'conditions', label: 'Reports', icon: Waves },
     { id: 'sponsors', label: 'Sponsors', icon: Heart },
+    { id: 'surfspots', label: 'Surf Spots', icon: Navigation },
   ];
 
   const hasResults = searchResults.users.length > 0 || searchResults.spots.length > 0 || searchResults.posts.length > 0;

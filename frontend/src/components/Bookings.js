@@ -954,104 +954,104 @@ export const Bookings = () => {
           />
         )}
 
-        {/* Tabs — mobile: touch-scroll; desktop: drag-scroll + arrow buttons */}
-        <div className="relative mb-6">
-          {/* Left arrow — only visible on desktop when scrolled */}
-          {showLeftArrow && (
-            <button
-              onClick={() => scrollTabs(-1)}
-              className={`hidden md:flex absolute left-0 top-0 bottom-0 z-10 items-center justify-center w-8 ${
-                isLight ? 'bg-gradient-to-r from-gray-50 to-transparent' : 'bg-gradient-to-r from-card to-transparent'
-              } pr-1`}
-              aria-label="Scroll tabs left"
-            >
-              <ChevronLeft className={`w-4 h-4 ${textSecondaryClass}`} />
-            </button>
-          )}
+        {/* Tabs — sticky pill buttons (matches Explore pattern for reliability) */}
+        <div
+          className={`sticky top-0 z-20 pb-2 pt-2 ${mainBgClass}`}
+          style={{ backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)' }}
+        >
+          <div className="flex items-center gap-2">
+            {/* Left arrow — only visible on desktop when scrolled */}
+            {showLeftArrow && (
+              <button
+                onClick={() => scrollTabs(-1)}
+                className={`hidden md:flex flex-shrink-0 w-8 h-8 rounded-full border shadow-lg items-center justify-center transition-all ${
+                  isLight ? 'bg-white border-gray-300 hover:bg-gray-100' : 'bg-zinc-800 border-zinc-600 hover:bg-zinc-700'
+                }`}
+                aria-label="Scroll tabs left"
+              >
+                <ChevronLeft className={`w-4 h-4 ${textSecondaryClass}`} />
+              </button>
+            )}
 
-          {/* Scrollable tab strip */}
-          <div
-            ref={tabScrollRef}
-            onScroll={updateArrows}
-            // Mouse-drag to scroll (desktop)
-            onMouseDown={(e) => {
-              isDraggingRef.current = true;
-              dragStartXRef.current = e.pageX;
-              scrollStartRef.current = tabScrollRef.current?.scrollLeft || 0;
-              e.currentTarget.style.cursor = 'grabbing';
-              e.currentTarget.style.userSelect = 'none';
-            }}
-            onMouseMove={(e) => {
-              if (!isDraggingRef.current) return;
-              const delta = dragStartXRef.current - e.pageX;
-              if (tabScrollRef.current) tabScrollRef.current.scrollLeft = scrollStartRef.current + delta;
-            }}
-            onMouseUp={(e) => {
-              isDraggingRef.current = false;
-              e.currentTarget.style.cursor = '';
-              e.currentTarget.style.userSelect = '';
-            }}
-            onMouseLeave={(e) => {
-              if (isDraggingRef.current) {
+            {/* Scrollable tab strip — pill buttons like Explore */}
+            <div
+              ref={tabScrollRef}
+              onScroll={updateArrows}
+              // Mouse-drag to scroll (desktop)
+              onMouseDown={(e) => {
+                isDraggingRef.current = true;
+                dragStartXRef.current = e.pageX;
+                scrollStartRef.current = tabScrollRef.current?.scrollLeft || 0;
+                e.currentTarget.style.cursor = 'grabbing';
+                e.currentTarget.style.userSelect = 'none';
+              }}
+              onMouseMove={(e) => {
+                if (!isDraggingRef.current) return;
+                const delta = dragStartXRef.current - e.pageX;
+                if (tabScrollRef.current) tabScrollRef.current.scrollLeft = scrollStartRef.current + delta;
+              }}
+              onMouseUp={(e) => {
                 isDraggingRef.current = false;
                 e.currentTarget.style.cursor = '';
                 e.currentTarget.style.userSelect = '';
-              }
-            }}
-            className={`relative flex border-b ${borderClass} overflow-x-auto scrollbar-hide cursor-grab select-none`}
-            style={{ scrollbarWidth: 'none', msOverflowStyle: 'none', WebkitOverflowScrolling: 'touch' }}
-          >
-            {tabs.map((tab) => {
-              const Icon = tab.icon;
-              const isActive = activeTab === tab.id;
-              return (
-                <button
-                  key={tab.id}
-                  data-active={isActive ? 'true' : 'false'}
-                  onClick={() => {
-                    // Only fire click if we didn't drag
-                    if (Math.abs((tabScrollRef.current?.scrollLeft || 0) - scrollStartRef.current) < 4) {
-                      setActiveTab(tab.id);
-                    }
-                  }}
-                  className={`flex items-center gap-2 px-4 py-3 text-sm font-medium whitespace-nowrap transition-colors relative ${
-                    isActive ? textPrimaryClass : textSecondaryClass
-                  }`}
-                  data-testid={`tab-${tab.id}`}
-                >
-                  <Icon className="w-4 h-4" />
-                  {tab.label}
-                  {tab.count > 0 && (
-                    <span className={`ml-1 px-1.5 py-0.5 text-xs rounded-full ${
-                      isActive ? 'bg-yellow-400 text-black' : isLight ? 'bg-gray-200 text-gray-600' : 'bg-zinc-700 text-gray-300'
-                    }`}>
-                      {tab.count}
-                    </span>
-                  )}
-                  {/* Orange indicator bar — rendered directly inside the active button for reliability */}
-                  {isActive && (
-                    <span
-                      className="absolute bottom-0 left-0 right-0 h-[3px] rounded-t-sm bg-gradient-to-r from-yellow-400 to-orange-400"
-                      style={{ boxShadow: '0 0 8px rgba(251, 191, 36, 0.7), 0 0 2px rgba(251, 146, 60, 0.5)' }}
-                    />
-                  )}
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Right arrow — only visible on desktop when more tabs are hidden */}
-          {showRightArrow && (
-            <button
-              onClick={() => scrollTabs(1)}
-              className={`hidden md:flex absolute right-0 top-0 bottom-0 z-10 items-center justify-center w-8 ${
-                isLight ? 'bg-gradient-to-l from-gray-50 to-transparent' : 'bg-gradient-to-l from-card to-transparent'
-              } pl-1`}
-              aria-label="Scroll tabs right"
+              }}
+              onMouseLeave={(e) => {
+                if (isDraggingRef.current) {
+                  isDraggingRef.current = false;
+                  e.currentTarget.style.cursor = '';
+                  e.currentTarget.style.userSelect = '';
+                }
+              }}
+              className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide cursor-grab select-none flex-1"
+              style={{ scrollbarWidth: 'none', msOverflowStyle: 'none', WebkitOverflowScrolling: 'touch' }}
             >
-              <ChevronRight className={`w-4 h-4 ${textSecondaryClass}`} />
-            </button>
-          )}
+              {tabs.map((tab) => {
+                const Icon = tab.icon;
+                const isActive = activeTab === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    data-active={isActive ? 'true' : 'false'}
+                    onClick={() => {
+                      // Only fire click if we didn't drag
+                      if (Math.abs((tabScrollRef.current?.scrollLeft || 0) - scrollStartRef.current) < 4) {
+                        setActiveTab(tab.id);
+                      }
+                    }}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors flex-shrink-0 ${
+                      isActive
+                        ? 'bg-gradient-to-r from-yellow-400 to-orange-400 text-black'
+                        : isLight ? 'bg-gray-200 text-gray-600 hover:bg-gray-300' : 'bg-muted text-gray-300 hover:bg-zinc-700'
+                    }`}
+                    data-testid={`tab-${tab.id}`}
+                  >
+                    <Icon className="w-4 h-4" />
+                    {tab.label}
+                    {tab.count > 0 && (
+                      <span className={`ml-1 px-1.5 py-0.5 text-xs rounded-full ${
+                        isActive ? 'bg-black/20 text-black' : isLight ? 'bg-gray-300 text-gray-600' : 'bg-zinc-700 text-gray-300'
+                      }`}>
+                        {tab.count}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Right arrow — only visible on desktop when more tabs are hidden */}
+            {showRightArrow && (
+              <button
+                onClick={() => scrollTabs(1)}
+                className={`hidden md:flex flex-shrink-0 w-8 h-8 rounded-full border shadow-lg items-center justify-center transition-all ${
+                  isLight ? 'bg-white border-gray-300 hover:bg-gray-100' : 'bg-zinc-800 border-zinc-600 hover:bg-zinc-700'
+                }`}
+                aria-label="Scroll tabs right"
+              >
+                <ChevronRight className={`w-4 h-4 ${textSecondaryClass}`} />
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Tab Content -- swipeable on mobile with slide animation */}
@@ -1109,38 +1109,7 @@ export const Bookings = () => {
               contentRef.current.style.opacity = `${1 - progress * 0.15}`;
             }
 
-            // Sync indicator bar with swipe drag (uses offsetLeft directly —
-            // indicator is inside the scroll container so no scrollLeft math needed)
-            const indicator = indicatorRef.current;
-            const container = tabScrollRef.current;
-            if (indicator && container) {
-              const activeBtn = container.querySelector('[data-active="true"]');
-              if (activeBtn) {
-                const baseX = activeBtn.offsetLeft;
-                const baseW = activeBtn.offsetWidth;
-                // Find the next tab button to interpolate toward
-                const swipeTabIds = tabs.map(t => t.id);
-                const swipeIdx = swipeTabIds.indexOf(activeTab);
-                const nextIdx = dampened < 0 ? swipeIdx + 1 : swipeIdx - 1;
-                const allBtns = container.querySelectorAll('[data-testid^="tab-"]');
-                const nextBtn = nextIdx >= 0 && nextIdx < allBtns.length ? allBtns[nextIdx] : null;
-                const swipeProgress = Math.min(Math.abs(dampened) / (window.innerWidth * 0.4), 1);
-                if (nextBtn) {
-                  const nextX = nextBtn.offsetLeft;
-                  const nextW = nextBtn.offsetWidth;
-                  const interpolatedX = baseX + (nextX - baseX) * swipeProgress;
-                  const interpolatedW = baseW + (nextW - baseW) * swipeProgress;
-                  indicator.style.transition = 'none';
-                  indicator.style.left = `${interpolatedX}px`;
-                  indicator.style.width = `${interpolatedW}px`;
-                } else {
-                  // At edge — slight resistance shift
-                  const indicatorShift = (dampened / window.innerWidth) * baseW * 0.5;
-                  indicator.style.transition = 'none';
-                  indicator.style.left = `${baseX + indicatorShift}px`;
-                }
-              }
-            }
+
           }}
           onTouchEnd={() => {
             if (!swipeActiveRef.current || isAnimating) {
@@ -1218,8 +1187,7 @@ export const Bookings = () => {
                 }
               }, 220);
             }
-            // Snap indicator back too
-            updateIndicator();
+
           }}
         >
           <div
