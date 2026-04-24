@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef, useCallback } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 
@@ -343,22 +343,6 @@ export const Bookings = () => {
   const contentRef = useRef(null);
   const [slideDirection, setSlideDirection] = useState(null); // 'left' | 'right' | null
   const [isAnimating, setIsAnimating] = useState(false);
-  const indicatorRef = useRef(null);
-
-  // Sync the sliding indicator bar to the currently active tab button.
-  // The indicator lives INSIDE the scroll container so it scrolls with the tabs
-  // naturally — we only need offsetLeft (stable layout value), no scrollLeft math.
-  const updateIndicator = useCallback(() => {
-    const container = tabScrollRef.current;
-    const indicator = indicatorRef.current;
-    if (!container || !indicator) return;
-    const activeBtn = container.querySelector('[data-active="true"]');
-    if (!activeBtn) { indicator.style.opacity = '0'; return; }
-    indicator.style.transition = 'left 0.25s ease, width 0.25s ease, opacity 0.2s';
-    indicator.style.width = `${activeBtn.offsetWidth}px`;
-    indicator.style.left = `${activeBtn.offsetLeft}px`;
-    indicator.style.opacity = '1';
-  }, []);
 
   // Check if scroll arrows should show (desktop only)
   const updateArrows = () => {
@@ -375,34 +359,25 @@ export const Bookings = () => {
     el.scrollBy({ left: dir * 160, behavior: 'smooth' });
   };
 
-  // Auto-scroll active tab into view & sync indicator whenever activeTab changes
+  // Auto-scroll active tab into view whenever activeTab changes (Explore-style)
   useEffect(() => {
     const el = tabScrollRef.current;
     if (!el) return;
-    const active = el.querySelector('[data-active="true"]');
+    const active = el.querySelector(`[data-testid="tab-${activeTab}"]`);
     if (active) {
       active.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' });
     }
-    // Sync indicator multiple times to cover the full smooth-scroll duration
     updateArrows();
-    updateIndicator();
-    const t1 = setTimeout(() => { updateArrows(); updateIndicator(); }, 150);
-    const t2 = setTimeout(() => { updateArrows(); updateIndicator(); }, 400);
-    return () => { clearTimeout(t1); clearTimeout(t2); };
-  }, [activeTab, updateIndicator]); // eslint-disable-line
+    const t = setTimeout(updateArrows, 350);
+    return () => clearTimeout(t);
+  }, [activeTab]);
 
-  // Keep indicator synced on resize (scroll no longer affects it since
-  // the indicator is inside the scroll container and moves with content)
+  // Keep arrows synced on resize
   useEffect(() => {
-    window.addEventListener('resize', updateIndicator);
-    // Initial sync — run immediately + delayed fallback
-    requestAnimationFrame(updateIndicator);
-    const t = setTimeout(updateIndicator, 300);
-    return () => {
-      window.removeEventListener('resize', updateIndicator);
-      clearTimeout(t);
-    };
-  }, [updateIndicator]);
+    window.addEventListener('resize', updateArrows);
+    requestAnimationFrame(updateArrows);
+    return () => window.removeEventListener('resize', updateArrows);
+  }, []);
 
   const [bookings, setBookings] = useState([]);
   const [liveSessions, setLiveSessions] = useState([]);
@@ -1053,15 +1028,16 @@ export const Bookings = () => {
                       {tab.count}
                     </span>
                   )}
+                  {/* Orange indicator bar — rendered directly inside the active button for reliability */}
+                  {isActive && (
+                    <span
+                      className="absolute bottom-0 left-0 right-0 h-[3px] rounded-t-sm bg-gradient-to-r from-yellow-400 to-orange-400"
+                      style={{ boxShadow: '0 0 8px rgba(251, 191, 36, 0.7), 0 0 2px rgba(251, 146, 60, 0.5)' }}
+                    />
+                  )}
                 </button>
               );
             })}
-            {/* Sliding indicator bar — INSIDE scroll container so it scrolls with tabs naturally */}
-            <div
-              ref={indicatorRef}
-              className="absolute bottom-[-1px] h-[4px] rounded-t-sm bg-gradient-to-r from-yellow-400 to-orange-400 pointer-events-none z-10"
-              style={{ willChange: 'left, width', boxShadow: '0 0 8px rgba(251, 191, 36, 0.7), 0 0 2px rgba(251, 146, 60, 0.5)' }}
-            />
           </div>
 
           {/* Right arrow — only visible on desktop when more tabs are hidden */}

@@ -652,6 +652,19 @@ export const DutyStationDrawer = ({ isOpen, onClose }) => {
   const [proximityConfirmed, setProximityConfirmed] = useState(false);
   const [stats, setStats] = useState({ todayEarnings: 0, sessionsToday: 0 });
   const [showConditionsModal, setShowConditionsModal] = useState(false);
+  // Photographer pricing config — fetched on mount, included in go-live payload
+  const [pricingConfig, setPricingConfig] = useState({
+    price_per_join: 25,
+    live_photo_price: 5,
+    photos_included: 3,
+    general_photo_price: 10,
+    photo_price_web: 3,
+    photo_price_standard: 5,
+    photo_price_high: 10,
+    estimated_duration: 2,
+    max_surfers: 10,
+    auto_accept: true
+  });
   
   // Role-based permissions
   const effectiveRole = getEffectiveRole(user?.role);
@@ -692,13 +705,38 @@ export const DutyStationDrawer = ({ isOpen, onClose }) => {
     }
   }, [isOpen]);
   
-  // Fetch statuses on mount
+  // Fetch statuses + pricing on mount
   useEffect(() => {
     if (user?.id && isOpen) {
       fetchStatuses();
       fetchNearbyShooters();
+      fetchPricingConfig();
     }
   }, [user?.id, isOpen]);
+
+  // Fetch photographer pricing to include in go-live payload (mirrors PSM)
+  const fetchPricingConfig = async () => {
+    try {
+      const [pricingRes, galleryRes] = await Promise.allSettled([
+        apiClient.get(`/photographer/${user.id}/pricing`),
+        apiClient.get(`/photographer/${user.id}/gallery-pricing`)
+      ]);
+      const p = pricingRes.status === 'fulfilled' ? pricingRes.value.data : {};
+      const g = galleryRes.status === 'fulfilled' ? galleryRes.value.data : {};
+      setPricingConfig(prev => ({
+        ...prev,
+        price_per_join: p.live_buyin_price ?? prev.price_per_join,
+        live_photo_price: g.session_pricing?.live_session_photo_price ?? p.live_photo_price ?? prev.live_photo_price,
+        photos_included: g.session_pricing?.live_session_photos_included ?? p.photo_package_size ?? prev.photos_included,
+        general_photo_price: g.photo_pricing?.standard ?? p.gallery_photo_price ?? prev.general_photo_price,
+        photo_price_web: g.photo_pricing?.web ?? prev.photo_price_web,
+        photo_price_standard: g.photo_pricing?.standard ?? prev.photo_price_standard,
+        photo_price_high: g.photo_pricing?.high ?? prev.photo_price_high
+      }));
+    } catch (err) {
+      logger.warn('[DutyStation] Could not fetch pricing — using defaults:', err.message);
+    }
+  };
   
   // Fetch spots when location becomes available (for On-Demand)
   useEffect(() => {
@@ -917,39 +955,41 @@ export const DutyStationDrawer = ({ isOpen, onClose }) => {
           conditionMediaType = uploadRes.data?.media_type || conditionMediaType;
           logger.log('[DutyStation] Condition media uploaded:', conditionMediaUrl);
         } catch (uploadErr) {
-          logger.warn('[DutyStation] Condition media pre-upload failed, will try inline:', uploadErr.message);
-          // Fallback: convert to base64 inline (legacy path)
-          const reader = new FileReader();
-          const mediaBase64 = await new Promise((resolve) => {
-            reader.onloadend = () => resolve(reader.result.split(',')[1]);
-            reader.readAsDataURL(conditionsData.media);
-          });
-          // Will use condition_media (base64) below
+          // Non-fatal: proceed without condition media (matches PSM pattern)
+          logger.warn('[DutyStation] Condition media upload failed (non-fatal):', uploadErr.message);
           conditionMediaUrl = null;
-          // Store base64 for fallback
-          conditionsData._base64Fallback = mediaBase64;
+          conditionMediaType = null;
         }
       }
       
-      // Step 2: Build go-live request — prefer URL over base64
+      // Step 2: Build go-live request — clean JSON payload with pricing config
       const goLivePayload = {
+        // Core spot data
         spot_id: selectedSpot.id,
         spot_name: selectedSpot.name,
-        location: selectedSpot.name,  // Backend reads data.location for display name
+        location: selectedSpot.name,
         latitude: selectedSpot.latitude,
         longitude: selectedSpot.longitude,
-        // Preferred: pre-uploaded URL (avoids large JSON body)
+        // Session pricing — mirrors PhotographerSessionsManager
+        price_per_join: pricingConfig.price_per_join,
+        live_photo_price: pricingConfig.live_photo_price,
+        photos_included: pricingConfig.photos_included,
+        general_photo_price: pricingConfig.general_photo_price,
+        photo_price_web: pricingConfig.photo_price_web,
+        photo_price_standard: pricingConfig.photo_price_standard,
+        photo_price_high: pricingConfig.photo_price_high,
+        estimated_duration: pricingConfig.estimated_duration,
+        max_surfers: pricingConfig.max_surfers,
+        auto_accept: pricingConfig.auto_accept,
+        // Condition media (URL only — no base64 fallback)
         condition_media_url: conditionMediaUrl || null,
-        // Fallback: inline base64 (only if pre-upload failed)
-        condition_media: conditionMediaUrl ? null : (conditionsData?._base64Fallback || null),
         condition_media_type: conditionMediaType,
-        // Spot notes from the ConditionsModal
+        // Spot notes
         spot_notes: conditionsData?.spotNotes || null
       };
       
       logger.log('[DutyStation] Go-live payload:', {
         ...goLivePayload,
-        condition_media: goLivePayload.condition_media ? '[base64-fallback]' : null,
         condition_media_url: goLivePayload.condition_media_url || null
       });
       
