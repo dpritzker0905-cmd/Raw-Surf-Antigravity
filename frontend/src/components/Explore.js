@@ -117,7 +117,6 @@ export const Explore = () => {
   
   // Tabs carousel refs and state
   const tabsContainerRef = useRef(null);
-  const indicatorRef = useRef(null);
   const [showLeftArrow, setShowLeftArrow] = useState(false);
   const [showRightArrow, setShowRightArrow] = useState(true);
 
@@ -260,21 +259,6 @@ export const Explore = () => {
     }
   }, [searchParams]);
 
-  // Sync the sliding indicator bar to the currently active tab button
-  const updateIndicator = useCallback(() => {
-    const container = tabsContainerRef.current;
-    const indicator = indicatorRef.current;
-    if (!container || !indicator) return;
-    const activeBtn = container.querySelector('[data-active="true"]');
-    if (!activeBtn) { indicator.style.opacity = '0'; return; }
-    const containerRect = container.getBoundingClientRect();
-    const btnRect = activeBtn.getBoundingClientRect();
-    indicator.style.transition = 'transform 0.25s ease, width 0.25s ease, opacity 0.2s';
-    indicator.style.width = `${btnRect.width}px`;
-    indicator.style.transform = `translateX(${btnRect.left - containerRect.left + container.scrollLeft}px)`;
-    indicator.style.opacity = '1';
-  }, []);
-
   // Update arrow visibility on scroll
   const updateArrowVisibility = useCallback(() => {
     const container = tabsContainerRef.current;
@@ -301,17 +285,6 @@ export const Explore = () => {
     };
   }, [updateArrowVisibility]);
 
-  // Auto-scroll active tab into view & sync indicator whenever activeTab changes
-  useEffect(() => {
-    const container = tabsContainerRef.current;
-    if (!container) return;
-    const active = container.querySelector('[data-active="true"]');
-    if (active) {
-      active.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' });
-    }
-    setTimeout(() => { updateArrowVisibility(); updateIndicator(); }, 150);
-  }, [activeTab, updateIndicator]); // eslint-disable-line
-
   // Scroll tabs left/right
   const scrollTabs = (direction) => {
     const container = tabsContainerRef.current;
@@ -327,8 +300,8 @@ export const Explore = () => {
       behavior: 'smooth'
     });
     
-    // Update arrow visibility and indicator after scroll animation
-    setTimeout(() => { updateArrowVisibility(); updateIndicator(); }, 350);
+    // Update arrow visibility after scroll animation
+    setTimeout(updateArrowVisibility, 350);
   };
 
   useEffect(() => {
@@ -899,65 +872,56 @@ export const Explore = () => {
       </div>
 
       {/* Search Tabs - Horizontally scrollable with arrow navigation */}
-      {/* Search Tabs with sliding indicator */}
-      <div className="relative mb-6">
-        <div className="flex items-center gap-2">
-          {/* Left Arrow - inline, fades when not needed */}
-          <button
-            onClick={() => scrollTabs('left')}
-            className={`flex-shrink-0 w-8 h-8 rounded-full bg-zinc-800 border border-zinc-600 shadow-lg flex items-center justify-center text-white hover:bg-zinc-700 transition-all ${
-              showLeftArrow ? 'opacity-100' : 'opacity-0 pointer-events-none'
-            }`}
-            data-testid="tabs-scroll-left"
-            aria-label="Scroll tabs left"
-          >
-            <ChevronLeft className="w-5 h-5" />
-          </button>
-          
-          {/* Tabs Container with sliding indicator */}
-          <div 
-            ref={tabsContainerRef}
-            className="relative flex border-b border-zinc-700 overflow-x-auto pb-0 scrollbar-hide scroll-smooth flex-1"
-            style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
-          >
-            {tabs.map((tab) => {
-              const Icon = tab.icon;
-              const isActive = activeTab === tab.id;
-              return (
-                <button
-                  key={tab.id}
-                  data-active={isActive ? 'true' : 'false'}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center gap-2 px-4 py-3 text-sm font-medium whitespace-nowrap transition-colors flex-shrink-0 ${
-                    isActive ? 'text-yellow-400' : 'text-gray-400 hover:text-gray-200'
-                  }`}
-                  data-testid={`tab-${tab.id}`}
-                >
-                  <Icon className="w-4 h-4" />
-                  {tab.label}
-                </button>
-              );
-            })}
-            {/* Persistent sliding indicator bar */}
-            <div
-              ref={indicatorRef}
-              className="absolute bottom-0 left-0 h-0.5 bg-gradient-to-r from-yellow-400 to-orange-400 pointer-events-none"
-              style={{ willChange: 'transform, width' }}
-            />
-          </div>
-          
-          {/* Right Arrow - inline, fades when not needed */}
-          <button
-            onClick={() => scrollTabs('right')}
-            className={`flex-shrink-0 w-8 h-8 rounded-full bg-zinc-800 border border-zinc-600 shadow-lg flex items-center justify-center text-white hover:bg-zinc-700 transition-all ${
-              showRightArrow ? 'opacity-100' : 'opacity-0 pointer-events-none'
-            }`}
-            data-testid="tabs-scroll-right"
-            aria-label="Scroll tabs right"
-          >
-            <ChevronRight className="w-5 h-5" />
-          </button>
+      <div className="flex items-center gap-2 mb-6">
+        {/* Left Arrow - inline, fades when not needed */}
+        <button
+          onClick={() => scrollTabs('left')}
+          className={`flex-shrink-0 w-8 h-8 rounded-full bg-zinc-800 border border-zinc-600 shadow-lg flex items-center justify-center text-white hover:bg-zinc-700 transition-all ${
+            showLeftArrow ? 'opacity-100' : 'opacity-0 pointer-events-none'
+          }`}
+          data-testid="tabs-scroll-left"
+          aria-label="Scroll tabs left"
+        >
+          <ChevronLeft className="w-5 h-5" />
+        </button>
+        
+        {/* Tabs Container — Yellow pill buttons */}
+        <div 
+          ref={tabsContainerRef}
+          className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide scroll-smooth flex-1"
+          style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+        >
+          {tabs.map((tab) => {
+            const Icon = tab.icon;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors flex-shrink-0 ${
+                  activeTab === tab.id
+                    ? 'bg-yellow-400 text-black'
+                    : 'bg-muted text-gray-300 hover:bg-zinc-700'
+                }`}
+                data-testid={`tab-${tab.id}`}
+              >
+                <Icon className="w-4 h-4" />
+                {tab.label}
+              </button>
+            );
+          })}
         </div>
+        
+        {/* Right Arrow - inline, fades when not needed */}
+        <button
+          onClick={() => scrollTabs('right')}
+          className={`flex-shrink-0 w-8 h-8 rounded-full bg-zinc-800 border border-zinc-600 shadow-lg flex items-center justify-center text-white hover:bg-zinc-700 transition-all ${
+            showRightArrow ? 'opacity-100' : 'opacity-0 pointer-events-none'
+          }`}
+          data-testid="tabs-scroll-right"
+          aria-label="Scroll tabs right"
+        >
+          <ChevronRight className="w-5 h-5" />
+        </button>
       </div>
 
       {/* Search Results */}

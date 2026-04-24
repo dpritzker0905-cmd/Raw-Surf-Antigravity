@@ -352,11 +352,14 @@ export const Bookings = () => {
     if (!container || !indicator) return;
     const activeBtn = container.querySelector('[data-active="true"]');
     if (!activeBtn) { indicator.style.opacity = '0'; return; }
-    const containerRect = container.getBoundingClientRect();
+    // Get the outer wrapper (relative parent) for positioning
+    const wrapper = container.parentElement;
+    if (!wrapper) return;
+    const wrapperRect = wrapper.getBoundingClientRect();
     const btnRect = activeBtn.getBoundingClientRect();
     indicator.style.transition = 'transform 0.25s ease, width 0.25s ease, opacity 0.2s';
     indicator.style.width = `${btnRect.width}px`;
-    indicator.style.transform = `translateX(${btnRect.left - containerRect.left + container.scrollLeft}px)`;
+    indicator.style.transform = `translateX(${btnRect.left - wrapperRect.left}px)`;
     indicator.style.opacity = '1';
   }, []);
 
@@ -385,6 +388,21 @@ export const Bookings = () => {
     }
     setTimeout(() => { updateArrows(); updateIndicator(); }, 150);
   }, [activeTab, updateIndicator]); // eslint-disable-line
+
+  // Keep indicator synced on scroll and resize
+  useEffect(() => {
+    const el = tabScrollRef.current;
+    if (!el) return;
+    const onScroll = () => updateIndicator();
+    el.addEventListener('scroll', onScroll);
+    window.addEventListener('resize', updateIndicator);
+    // Initial sync
+    setTimeout(updateIndicator, 250);
+    return () => {
+      el.removeEventListener('scroll', onScroll);
+      window.removeEventListener('resize', updateIndicator);
+    };
+  }, [updateIndicator]);
 
   const [bookings, setBookings] = useState([]);
   const [liveSessions, setLiveSessions] = useState([]);
@@ -1038,13 +1056,13 @@ export const Bookings = () => {
                 </button>
               );
             })}
-            {/* Persistent sliding indicator bar */}
-            <div
-              ref={indicatorRef}
-              className="absolute bottom-0 left-0 h-0.5 bg-gradient-to-r from-yellow-400 to-orange-400 pointer-events-none"
-              style={{ willChange: 'transform, width' }}
-            />
           </div>
+          {/* Persistent sliding indicator bar — outside scroll container to avoid overflow clipping */}
+          <div
+            ref={indicatorRef}
+            className="absolute bottom-0 left-0 h-[3px] rounded-full bg-gradient-to-r from-yellow-400 to-orange-400 pointer-events-none z-10"
+            style={{ willChange: 'transform, width', boxShadow: '0 0 6px rgba(251, 191, 36, 0.5)' }}
+          />
 
           {/* Right arrow — only visible on desktop when more tabs are hidden */}
           {showRightArrow && (
