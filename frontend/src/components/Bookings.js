@@ -1176,17 +1176,17 @@ export const Bookings = () => {
             className="space-y-4"
           >
           {/* The Lineup Tab - Surf Session Lobby */}
-          {activeTab === 'lineup' && (
+          <div style={{ display: activeTab === 'lineup' ? 'block' : 'none' }}>
             <LineupTab
               user={user}
               theme={theme}
               onOpenDirectory={() => setShowPhotographerDirectory(true)}
               onRefresh={fetchData}
             />
-          )}
+          </div>
 
           {/* Live Sessions Tab */}
-          {activeTab === 'live_sessions' && (
+          <div style={{ display: activeTab === 'live_sessions' ? 'block' : 'none' }}>
             <LiveSessionsTab
               liveSessions={liveSessions}
               onGoToLiveNow={() => setActiveTab('live_now')}
@@ -1196,10 +1196,10 @@ export const Bookings = () => {
               userId={user?.id}
               theme={theme}
             />
-          )}
+          </div>
 
           {/* On-Demand Tab - Request a Photographer */}
-          {activeTab === 'on_demand' && (
+          <div style={{ display: activeTab === 'on_demand' ? 'block' : 'none' }}>
             <OnDemandTab
               user={user}
               onDemandPhotographers={onDemandPhotographers}
@@ -1221,10 +1221,10 @@ export const Bookings = () => {
               onPayCrewShare={handlePayCrewShare}
               theme={theme}
             />
-          )}
+          </div>
 
           {/* Scheduled Tab */}
-          {activeTab === 'scheduled' && (
+          <div style={{ display: activeTab === 'scheduled' ? 'block' : 'none' }}>
             <ScheduledTab
               user={user}
               scheduledBookings={scheduledBookings}
@@ -1252,10 +1252,10 @@ export const Bookings = () => {
               }}
               theme={theme}
             />
-          )}
+          </div>
 
           {/* Find Buddies Tab */}
-          {activeTab === 'find_buddies' && (
+          <div style={{ display: activeTab === 'find_buddies' ? 'block' : 'none' }}>
             <FindBuddiesTab
               nearbyBookings={nearbyBookings}
               selectedSkillFilter={selectedSkillFilter}
@@ -1263,19 +1263,19 @@ export const Bookings = () => {
               onJoinNearbyBooking={handleJoinNearbyBooking}
               theme={theme}
             />
-          )}
+          </div>
 
           {/* Past Tab */}
-          {activeTab === 'past' && (
+          <div style={{ display: activeTab === 'past' ? 'block' : 'none' }}>
             <PastTab
               pastBookings={pastBookings}
               theme={theme}
               userId={user?.id}
             />
-          )}
+          </div>
 
           {/* Live Now Tab */}
-          {activeTab === 'live_now' && (
+          <div style={{ display: activeTab === 'live_now' ? 'block' : 'none' }}>
             <LiveNowTab
               livePhotographers={livePhotographers}
               subscriptionTier={subscriptionTier}
@@ -1284,9 +1284,10 @@ export const Bookings = () => {
               onNavigateToMap={() => navigate('/map')}
               theme={theme}
             />
-          )}
+          </div>
 
-          {activeTab === 'directory' && (
+          {/* Directory Tab */}
+          <div style={{ display: activeTab === 'directory' ? 'block' : 'none' }}>
             <DirectoryTab
               user={user}
               theme={theme}
@@ -1296,11 +1297,12 @@ export const Bookings = () => {
                 setShowScheduledBookingDrawer(true);
               }}
             />
-          )}
+          </div>
 
-          {activeTab === 'subscriptions' && (
+          {/* Subscriptions Tab */}
+          <div style={{ display: activeTab === 'subscriptions' ? 'block' : 'none' }}>
             <SubscriptionsTab />
-          )}
+          </div>
           </div>
         </div>
       </div>
