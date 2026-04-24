@@ -954,26 +954,26 @@ export const Bookings = () => {
           />
         )}
 
-        {/* Tabs — sticky pill buttons (matches Explore pattern for reliability) */}
+        {/* Tabs — sticky orange underline bar, stays on screen like Explore pills */}
         <div
-          className={`sticky top-0 z-20 pb-2 pt-2 ${mainBgClass}`}
+          className={`sticky top-0 z-20 ${mainBgClass}`}
           style={{ backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)' }}
         >
-          <div className="flex items-center gap-2">
+          <div className="relative">
             {/* Left arrow — only visible on desktop when scrolled */}
             {showLeftArrow && (
               <button
                 onClick={() => scrollTabs(-1)}
-                className={`hidden md:flex flex-shrink-0 w-8 h-8 rounded-full border shadow-lg items-center justify-center transition-all ${
-                  isLight ? 'bg-white border-gray-300 hover:bg-gray-100' : 'bg-zinc-800 border-zinc-600 hover:bg-zinc-700'
-                }`}
+                className={`hidden md:flex absolute left-0 top-0 bottom-0 z-10 items-center justify-center w-8 ${
+                  isLight ? 'bg-gradient-to-r from-gray-50 to-transparent' : 'bg-gradient-to-r from-card to-transparent'
+                } pr-1`}
                 aria-label="Scroll tabs left"
               >
                 <ChevronLeft className={`w-4 h-4 ${textSecondaryClass}`} />
               </button>
             )}
 
-            {/* Scrollable tab strip — pill buttons like Explore */}
+            {/* Scrollable tab strip with orange underline indicator */}
             <div
               ref={tabScrollRef}
               onScroll={updateArrows}
@@ -1002,7 +1002,7 @@ export const Bookings = () => {
                   e.currentTarget.style.userSelect = '';
                 }
               }}
-              className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide cursor-grab select-none flex-1"
+              className={`flex border-b ${borderClass} overflow-x-auto scrollbar-hide cursor-grab select-none`}
               style={{ scrollbarWidth: 'none', msOverflowStyle: 'none', WebkitOverflowScrolling: 'touch' }}
             >
               {tabs.map((tab) => {
@@ -1018,10 +1018,8 @@ export const Bookings = () => {
                         setActiveTab(tab.id);
                       }
                     }}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors flex-shrink-0 ${
-                      isActive
-                        ? 'bg-gradient-to-r from-yellow-400 to-orange-400 text-black'
-                        : isLight ? 'bg-gray-200 text-gray-600 hover:bg-gray-300' : 'bg-muted text-gray-300 hover:bg-zinc-700'
+                    className={`flex items-center gap-2 px-4 py-3 text-sm font-medium whitespace-nowrap transition-colors relative flex-shrink-0 ${
+                      isActive ? textPrimaryClass : textSecondaryClass
                     }`}
                     data-testid={`tab-${tab.id}`}
                   >
@@ -1029,11 +1027,18 @@ export const Bookings = () => {
                     {tab.label}
                     {tab.count > 0 && (
                       <span className={`ml-1 px-1.5 py-0.5 text-xs rounded-full ${
-                        isActive ? 'bg-black/20 text-black' : isLight ? 'bg-gray-300 text-gray-600' : 'bg-zinc-700 text-gray-300'
+                        isActive ? 'bg-yellow-400 text-black' : isLight ? 'bg-gray-200 text-gray-600' : 'bg-zinc-700 text-gray-300'
                       }`}>
                         {tab.count}
                       </span>
                     )}
+                    {/* Orange indicator bar — always rendered, uses opacity for visibility */}
+                    <span
+                      className={`absolute bottom-[-1px] left-0 right-0 h-[3px] rounded-t-sm bg-gradient-to-r from-yellow-400 to-orange-400 transition-opacity duration-200 ${
+                        isActive ? 'opacity-100' : 'opacity-0'
+                      }`}
+                      style={isActive ? { boxShadow: '0 0 8px rgba(251, 191, 36, 0.7), 0 0 2px rgba(251, 146, 60, 0.5)' } : {}}
+                    />
                   </button>
                 );
               })}
@@ -1043,9 +1048,9 @@ export const Bookings = () => {
             {showRightArrow && (
               <button
                 onClick={() => scrollTabs(1)}
-                className={`hidden md:flex flex-shrink-0 w-8 h-8 rounded-full border shadow-lg items-center justify-center transition-all ${
-                  isLight ? 'bg-white border-gray-300 hover:bg-gray-100' : 'bg-zinc-800 border-zinc-600 hover:bg-zinc-700'
-                }`}
+                className={`hidden md:flex absolute right-0 top-0 bottom-0 z-10 items-center justify-center w-8 ${
+                  isLight ? 'bg-gradient-to-l from-gray-50 to-transparent' : 'bg-gradient-to-l from-card to-transparent'
+                } pl-1`}
                 aria-label="Scroll tabs right"
               >
                 <ChevronRight className={`w-4 h-4 ${textSecondaryClass}`} />
