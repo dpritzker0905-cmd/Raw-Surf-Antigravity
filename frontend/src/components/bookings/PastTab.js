@@ -72,8 +72,19 @@ export const PastTab = ({
       full_name: booking.photographer_name || 'Photographer',
       avatar_url: booking.photographer_avatar
     });
-    setReviewSessionId(booking.live_session_id || booking.id);
-    setReviewSessionType(booking.session_type || 'live');
+    // Properly detect session type and ID to avoid FK constraint violations
+    // The Review model's live_session_id has a FK to live_sessions table,
+    // so we must NOT pass a booking UUID as live_session_id
+    if (booking.live_session_id) {
+      setReviewSessionId(booking.live_session_id);
+      setReviewSessionType('live');
+    } else if (booking.dispatch_id) {
+      setReviewSessionId(booking.dispatch_id);
+      setReviewSessionType('on_demand');
+    } else {
+      setReviewSessionId(booking.id);
+      setReviewSessionType('scheduled');
+    }
     setShowReviewModal(true);
   }, []);
   

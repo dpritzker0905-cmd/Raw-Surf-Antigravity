@@ -365,7 +365,7 @@ export const Bookings = () => {
     if (!el) return;
     const active = el.querySelector('[data-active="true"]');
     if (active) {
-      active.scrollIntoView({ inline: 'nearest', block: 'nearest', behavior: 'smooth' });
+      active.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' });
     }
     setTimeout(updateArrows, 150);
   }, [activeTab]); // eslint-disable-line

@@ -16,6 +16,8 @@ import { useConditionsSync, useLiveStreamSync } from '../hooks/useWebSocket';
 
 import { useAuth } from '../contexts/AuthContext';
 
+import { useTheme } from '../contexts/ThemeContext';
+
 import { SocialAdCard } from './SocialAdCard';
 
 import { toast } from 'sonner';
@@ -94,6 +96,17 @@ export const Explore = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { user } = useAuth();
+  const { theme } = useTheme();
+  const isLight = theme === 'light';
+  const isBeach = theme === 'beach';
+  // Theme-conditional classes for dropdowns and inputs
+  const dropdownBg = isLight ? 'bg-white' : isBeach ? 'bg-zinc-900' : 'bg-zinc-900';
+  const dropdownBorder = isLight ? 'border-gray-300' : isBeach ? 'border-zinc-600' : 'border-zinc-700';
+  const dropdownText = isLight ? 'text-gray-900' : 'text-gray-100';
+  const dropdownFocus = isLight ? 'focus:border-cyan-500 focus:ring-cyan-200/30' : 'focus:border-cyan-500/50 focus:ring-cyan-500/20';
+  const labelClass = isLight ? 'text-gray-600' : isBeach ? 'text-gray-400' : 'text-gray-500';
+  const chipBg = isLight ? 'bg-gray-100 hover:bg-gray-200 border-gray-200 hover:border-cyan-400/50 text-gray-700 hover:text-gray-900' : 'bg-zinc-800/80 hover:bg-zinc-700 border-zinc-700 hover:border-cyan-500/30 text-gray-300 hover:text-white';
+  const breadcrumbText = isLight ? 'text-gray-900' : 'text-white';
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState({ users: [], spots: [], posts: [] });
   const [trending, setTrending] = useState({ live_photographers: [], popular_spots: [], trending_posts: [] });
@@ -1295,13 +1308,13 @@ export const Explore = () => {
               <div className="space-y-3">
                 {/* Country Dropdown */}
                 <div>
-                  <label className="block text-xs text-gray-500 uppercase tracking-wider font-medium mb-1.5">Country</label>
+                  <label className={`block text-xs uppercase tracking-wider font-medium mb-1.5 ${labelClass}`}>Country</label>
                   <div className="relative">
                     <Globe className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-cyan-400 pointer-events-none z-10" />
                     <select
                       value={selectedCountry}
                       onChange={(e) => handleCountryChange(e.target.value)}
-                      className="w-full pl-10 pr-10 py-3 bg-zinc-900 border border-zinc-700 rounded-xl text-foreground text-sm focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/20 transition-all appearance-none cursor-pointer"
+                      className={`w-full pl-10 pr-10 py-3 ${dropdownBg} border ${dropdownBorder} rounded-xl ${dropdownText} text-sm focus:outline-none ${dropdownFocus} focus:ring-1 transition-all appearance-none cursor-pointer`}
                       data-testid="country-dropdown"
                     >
                       <option value="">Select a country...</option>
@@ -1309,20 +1322,20 @@ export const Explore = () => {
                         <option key={name} value={name}>{getCountryFlag(name)} {name}</option>
                       ))}
                     </select>
-                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none" />
+                    <ChevronDown className={`absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 ${isLight ? 'text-gray-400' : 'text-gray-500'} pointer-events-none`} />
                   </div>
                 </div>
                 
                 {/* State/Province Dropdown — appears when country selected and has states */}
                 {selectedCountry && stateOptions.length > 0 && (
                   <div>
-                    <label className="block text-xs text-gray-500 uppercase tracking-wider font-medium mb-1.5">State / Province</label>
+                    <label className={`block text-xs uppercase tracking-wider font-medium mb-1.5 ${labelClass}`}>State / Province</label>
                     <div className="relative">
                       <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-blue-400 pointer-events-none z-10" />
                       <select
                         value={selectedState}
                         onChange={(e) => handleStateChange(e.target.value)}
-                        className="w-full pl-10 pr-10 py-3 bg-zinc-900 border border-zinc-700 rounded-xl text-foreground text-sm focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/20 transition-all appearance-none cursor-pointer"
+                        className={`w-full pl-10 pr-10 py-3 ${dropdownBg} border ${dropdownBorder} rounded-xl ${dropdownText} text-sm focus:outline-none ${isLight ? 'focus:border-blue-500 focus:ring-blue-200/30' : 'focus:border-blue-500/50 focus:ring-blue-500/20'} focus:ring-1 transition-all appearance-none cursor-pointer`}
                         data-testid="state-dropdown"
                       >
                         <option value="">Select state / province...</option>
@@ -1330,7 +1343,7 @@ export const Explore = () => {
                           <option key={name} value={name}>{name}</option>
                         ))}
                       </select>
-                      <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none" />
+                      <ChevronDown className={`absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 ${isLight ? 'text-gray-400' : 'text-gray-500'} pointer-events-none`} />
                     </div>
                   </div>
                 )}
@@ -1338,13 +1351,13 @@ export const Explore = () => {
                 {/* City/Area Dropdown — appears when state selected and has cities */}
                 {selectedState && cityOptions.length > 0 && (
                   <div>
-                    <label className="block text-xs text-gray-500 uppercase tracking-wider font-medium mb-1.5">City / Area</label>
+                    <label className={`block text-xs uppercase tracking-wider font-medium mb-1.5 ${labelClass}`}>City / Area</label>
                     <div className="relative">
                       <Navigation className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-emerald-400 pointer-events-none z-10" />
                       <select
                         value={selectedCity}
                         onChange={(e) => handleCityChange(e.target.value)}
-                        className="w-full pl-10 pr-10 py-3 bg-zinc-900 border border-zinc-700 rounded-xl text-foreground text-sm focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/20 transition-all appearance-none cursor-pointer"
+                        className={`w-full pl-10 pr-10 py-3 ${dropdownBg} border ${dropdownBorder} rounded-xl ${dropdownText} text-sm focus:outline-none ${isLight ? 'focus:border-emerald-500 focus:ring-emerald-200/30' : 'focus:border-emerald-500/50 focus:ring-emerald-500/20'} focus:ring-1 transition-all appearance-none cursor-pointer`}
                         data-testid="city-dropdown"
                       >
                         <option value="">Select city / area...</option>
@@ -1352,7 +1365,7 @@ export const Explore = () => {
                           <option key={name} value={name}>{name}</option>
                         ))}
                       </select>
-                      <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none" />
+                      <ChevronDown className={`absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 ${isLight ? 'text-gray-400' : 'text-gray-500'} pointer-events-none`} />
                     </div>
                   </div>
                 )}
@@ -1361,13 +1374,13 @@ export const Explore = () => {
               {/* Spot Name Search — appears once a country is selected */}
               {selectedCountry && (
                 <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+                  <Search className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${isLight ? 'text-gray-400' : 'text-gray-500'}`} />
                   <input
                     type="text"
                     placeholder="Search spots by name..."
                     value={spotSearchQuery}
                     onChange={(e) => setSpotSearchQuery(e.target.value)}
-                    className="w-full pl-10 pr-10 py-3 bg-zinc-900 border border-zinc-700 rounded-xl text-foreground placeholder-gray-500 text-sm focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/20 transition-all"
+                    className={`w-full pl-10 pr-10 py-3 ${dropdownBg} border ${dropdownBorder} rounded-xl ${dropdownText} ${isLight ? 'placeholder-gray-400' : 'placeholder-gray-500'} text-sm focus:outline-none ${dropdownFocus} focus:ring-1 transition-all`}
                     data-testid="spot-search-input"
                   />
                   {spotSearchQuery && (
@@ -1381,13 +1394,13 @@ export const Explore = () => {
               {/* Popular Destinations — show only when no country selected */}
               {!selectedCountry && (
                 <div>
-                  <p className="text-xs text-gray-500 uppercase tracking-wider font-medium mb-2">Popular Destinations</p>
+                  <p className={`text-xs uppercase tracking-wider font-medium mb-2 ${labelClass}`}>Popular Destinations</p>
                   <div className="flex flex-wrap gap-2">
                     {popularLocations.map((loc, i) => (
                       <button
                         key={i}
                         onClick={() => jumpToLocation(loc)}
-                        className="px-3 py-1.5 bg-zinc-800/80 hover:bg-zinc-700 border border-zinc-700 hover:border-cyan-500/30 rounded-full text-xs text-gray-300 hover:text-white transition-all"
+                        className={`px-3 py-1.5 border rounded-full text-xs transition-all ${chipBg}`}
                         data-testid={`quick-loc-${i}`}
                       >
                         {loc.label}
@@ -1401,22 +1414,22 @@ export const Explore = () => {
               {selectedCountry && (
                 <div className="flex items-center gap-1.5 text-sm flex-wrap">
                   <span className="text-lg">{getCountryFlag(selectedCountry)}</span>
-                  <span className="text-white font-medium">{selectedCountry}</span>
+                  <span className={`${breadcrumbText} font-medium`}>{selectedCountry}</span>
                   {selectedState && (
                     <>
                       <ChevronRight className="w-3.5 h-3.5 text-gray-600" />
-                      <span className="text-blue-400">{selectedState}</span>
+                      <span className={isLight ? 'text-blue-600' : 'text-blue-400'}>{selectedState}</span>
                     </>
                   )}
                   {selectedCity && (
                     <>
                       <ChevronRight className="w-3.5 h-3.5 text-gray-600" />
-                      <span className="text-emerald-400">{selectedCity}</span>
+                      <span className={isLight ? 'text-emerald-600' : 'text-emerald-400'}>{selectedCity}</span>
                     </>
                   )}
                   <button
                     onClick={() => { setSelectedCountry(''); setSelectedState(''); setSelectedCity(''); setSurfSpots([]); setSpotSearchQuery(''); }}
-                    className="ml-auto text-xs text-gray-500 hover:text-gray-300 flex items-center gap-1 px-2 py-1 rounded-md hover:bg-zinc-800 transition-colors"
+                    className={`ml-auto text-xs flex items-center gap-1 px-2 py-1 rounded-md transition-colors ${isLight ? 'text-gray-500 hover:text-gray-700 hover:bg-gray-100' : 'text-gray-500 hover:text-gray-300 hover:bg-zinc-800'}`}
                   >
                     <X className="w-3 h-3" /> Clear
                   </button>

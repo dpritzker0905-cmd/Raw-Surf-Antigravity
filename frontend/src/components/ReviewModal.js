@@ -243,8 +243,8 @@ export const ReviewModal = ({
         toast.error('Review window has expired');
         onClose();
       } else {
-        toast.error('Failed to submit review');
-        logger.error('Review submission error:', error);
+        toast.error(detail || 'Failed to submit review');
+        logger.error('Review submission error:', error?.response?.status, detail, error);
       }
     } finally {
       setSubmitting(false);
