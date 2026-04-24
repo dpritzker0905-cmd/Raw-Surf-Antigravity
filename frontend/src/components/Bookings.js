@@ -367,6 +367,9 @@ export const Bookings = () => {
   // on the first render, smooth scroll on subsequent tab changes via tap).
   const initialCenterDoneRef = useRef(false);
 
+  // Sliding indicator bar position (left + width track the active tab button)
+  const [indicatorStyle, setIndicatorStyle] = useState({ left: 0, width: 0 });
+
   // Auto-scroll the active tab pill into view whenever activeTab changes
   // or when loading finishes (so the tab strip DOM is actually available).
   // Uses direct scrollTo math instead of scrollIntoView because scrollIntoView
@@ -384,10 +387,12 @@ export const Bookings = () => {
         const btnLeft = activeBtn.offsetLeft;
         const btnWidth = activeBtn.offsetWidth;
         const targetScroll = btnLeft - (stripWidth / 2) + (btnWidth / 2);
-        // First render or swipe → instant scroll; tap → smooth scroll
-        const useSmooth = initialCenterDoneRef.current && !isAnimating;
+        // First render → instant scroll; subsequent tab changes → smooth scroll
+        const useSmooth = initialCenterDoneRef.current;
         tabStrip.scrollTo({ left: targetScroll, behavior: useSmooth ? 'smooth' : 'instant' });
         if (!initialCenterDoneRef.current) initialCenterDoneRef.current = true;
+        // Update the sliding indicator position
+        setIndicatorStyle({ left: btnLeft, width: btnWidth });
       }
       updateArrows();
     });
@@ -1024,7 +1029,7 @@ export const Bookings = () => {
                   e.currentTarget.style.userSelect = '';
                 }
               }}
-              className={`flex border-b ${borderClass} overflow-x-auto scrollbar-hide cursor-grab select-none`}
+              className={`flex border-b ${borderClass} overflow-x-auto scrollbar-hide cursor-grab select-none relative`}
               style={{ scrollbarWidth: 'none', msOverflowStyle: 'none', WebkitOverflowScrolling: 'touch' }}
             >
               {tabs.map((tab) => {
@@ -1043,7 +1048,7 @@ export const Bookings = () => {
                       isActive ? textPrimaryClass : textSecondaryClass
                     }`}
                     style={{
-                      borderBottom: isActive ? '3px solid #f59e0b' : '3px solid transparent',
+                      borderBottom: '3px solid transparent',
                       marginBottom: '-1px',
                     }}
                     data-testid={`tab-${tab.id}`}
@@ -1060,6 +1065,21 @@ export const Bookings = () => {
                   </button>
                 );
               })}
+              {/* Sliding orange indicator bar */}
+              <div
+                style={{
+                  position: 'absolute',
+                  bottom: 0,
+                  left: 0,
+                  height: 3,
+                  backgroundColor: '#f59e0b',
+                  borderRadius: '2px 2px 0 0',
+                  transform: `translateX(${indicatorStyle.left}px)`,
+                  width: indicatorStyle.width,
+                  transition: 'transform 0.25s ease, width 0.25s ease',
+                  pointerEvents: 'none',
+                }}
+              />
             </div>
 
             {/* Left fade + arrow */}
