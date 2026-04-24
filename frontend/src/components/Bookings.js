@@ -482,7 +482,7 @@ export const Bookings = () => {
     if (user?.id) {
       fetchData();
     }
-  }, [user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [user?.id]);
 
   // Fetch on-demand photographers when On-Demand tab is selected
   useEffect(() => {
