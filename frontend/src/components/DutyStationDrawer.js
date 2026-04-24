@@ -746,6 +746,35 @@ export const DutyStationDrawer = ({ isOpen, onClose }) => {
       } catch (e) { /* daily stats are optional - don't block on failure */ }
     } catch (error) {
       logger.error('Failed to fetch statuses:', error);
+      // If status fetch fails but the user has a stale session, the backend will
+      // still report is_shooting=true.  Fallback: assume not active so the user
+      // can at least attempt to go live (the backend will catch conflicts).
+      setLiveActive(false);
+      setOnDemandActive(false);
+    }
+  };
+  
+  // Force-end a stale session that's blocking new go-live attempts
+  const forceEndStaleSession = async () => {
+    try {
+      setLoading(true);
+      await apiClient.post(`/photographer/${user.id}/end-session`);
+      setLiveActive(false);
+      setSelectedSpot(null);
+      toast.success('Previous session ended. You can now go live again.');
+      // Re-fetch clean status
+      await fetchStatuses();
+    } catch (err) {
+      const errDetail = err.response?.data?.detail;
+      // "No active session to end" means the DB is already clean — clear local state
+      if (errDetail && errDetail.toLowerCase().includes('no active session')) {
+        setLiveActive(false);
+        toast.success('Session already cleared. You can go live now.');
+      } else {
+        toast.error(`Could not end session: ${errDetail || err.message}`);
+      }
+    } finally {
+      setLoading(false);
     }
   };
   
@@ -854,6 +883,7 @@ export const DutyStationDrawer = ({ isOpen, onClose }) => {
   };
   
   // Handle conditions report confirmation - actually goes live
+  // Uses two-step flow: (1) pre-upload media to /upload/conditions, (2) send URL to go-live
   const handleConditionsConfirm = async (conditionsData) => {
     setLoading(true);
     try {
@@ -868,41 +898,90 @@ export const DutyStationDrawer = ({ isOpen, onClose }) => {
         }
       }
       
-      // Convert media blob to base64 if present
-      let mediaBase64 = null;
+      // Step 1: Pre-upload condition media via multipart form to avoid large JSON body
+      let conditionMediaUrl = null;
+      let conditionMediaType = conditionsData?.mediaType || null;
       if (conditionsData?.media instanceof Blob) {
-        const reader = new FileReader();
-        mediaBase64 = await new Promise((resolve) => {
-          reader.onloadend = () => {
-            const base64 = reader.result.split(',')[1]; // Remove data:...;base64, prefix
-            resolve(base64);
-          };
-          reader.readAsDataURL(conditionsData.media);
-        });
+        try {
+          const ext = conditionMediaType === 'video' ? '.webm' : '.jpg';
+          const mimeType = conditionMediaType === 'video' ? 'video/webm' : 'image/jpeg';
+          const formData = new FormData();
+          formData.append('file', conditionsData.media, `conditions${ext}`);
+          formData.append('user_id', user.id);
+          logger.log('[DutyStation] Pre-uploading condition media…', { size: conditionsData.media.size, type: mimeType });
+          const uploadRes = await apiClient.post('/upload/conditions', formData, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+            timeout: 60000 // 60s for large video uploads
+          });
+          conditionMediaUrl = uploadRes.data?.media_url;
+          conditionMediaType = uploadRes.data?.media_type || conditionMediaType;
+          logger.log('[DutyStation] Condition media uploaded:', conditionMediaUrl);
+        } catch (uploadErr) {
+          logger.warn('[DutyStation] Condition media pre-upload failed, will try inline:', uploadErr.message);
+          // Fallback: convert to base64 inline (legacy path)
+          const reader = new FileReader();
+          const mediaBase64 = await new Promise((resolve) => {
+            reader.onloadend = () => resolve(reader.result.split(',')[1]);
+            reader.readAsDataURL(conditionsData.media);
+          });
+          // Will use condition_media (base64) below
+          conditionMediaUrl = null;
+          // Store base64 for fallback
+          conditionsData._base64Fallback = mediaBase64;
+        }
       }
       
-      // Build go-live request with conditions data
+      // Step 2: Build go-live request — prefer URL over base64
       const goLivePayload = {
         spot_id: selectedSpot.id,
         spot_name: selectedSpot.name,
         location: selectedSpot.name,  // Backend reads data.location for display name
         latitude: selectedSpot.latitude,
         longitude: selectedSpot.longitude,
-        // Pass condition media from the modal
-        condition_media: mediaBase64,
-        condition_media_type: conditionsData?.mediaType || null
+        // Preferred: pre-uploaded URL (avoids large JSON body)
+        condition_media_url: conditionMediaUrl || null,
+        // Fallback: inline base64 (only if pre-upload failed)
+        condition_media: conditionMediaUrl ? null : (conditionsData?._base64Fallback || null),
+        condition_media_type: conditionMediaType,
+        // Spot notes from the ConditionsModal
+        spot_notes: conditionsData?.spotNotes || null
       };
       
-      logger.log('[DutyStation] Go-live payload:', { ...goLivePayload, condition_media: mediaBase64 ? '[base64]' : null });
+      logger.log('[DutyStation] Go-live payload:', {
+        ...goLivePayload,
+        condition_media: goLivePayload.condition_media ? '[base64-fallback]' : null,
+        condition_media_url: goLivePayload.condition_media_url || null
+      });
       
       await apiClient.post(`/photographer/${user.id}/go-live`, goLivePayload);
       setLiveActive(true);
       setShowConditionsModal(false);
       toast.success(`Now live at ${selectedSpot.name}!`);
     } catch (error) {
-      const detail = error.response?.data?.detail;
-      logger.error('[DutyStation] Go-live failed:', detail || error.message);
-      toast.error(detail || 'Failed to go live. Please try again.');
+      const detail = error.response?.data?.detail || '';
+      const status = error.response?.status;
+      logger.error('[DutyStation] Go-live failed:', { status, detail, message: error.message });
+      
+      // Check specific statuses FIRST — before the generic detail fallback
+      if (status === 413) {
+        toast.error('Media file too large. Please use a shorter video or lower-quality photo.');
+      } else if (status === 400 && detail.toLowerCase().includes('already')) {
+        // Stale session blocking new go-live — offer recovery action
+        toast.error('You have a stale live session blocking new activations.', {
+          duration: 8000,
+          action: {
+            label: 'End Stale Session',
+            onClick: () => forceEndStaleSession()
+          }
+        });
+      } else if (status === 409) {
+        toast.error('Session conflict detected. Please refresh and try again.');
+      } else if (detail) {
+        // Generic backend error message (covers 403 role errors, etc.)
+        toast.error(`Go-live error: ${detail}`);
+      } else {
+        toast.error('Failed to go live. Please check your connection and try again.');
+      }
     } finally {
       setLoading(false);
     }

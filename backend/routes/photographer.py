@@ -1798,7 +1798,7 @@ async def go_live(
         # ── STALE SESSION RECOVERY ──
         # If shooting_started_at is more than 12 hours ago, the session is stale
         # (from a previous crash/incomplete end-session). Auto-reset instead of blocking.
-        stale_threshold_hours = 12
+        stale_threshold_hours = 4  # No realistic session exceeds 4h; auto-recover faster
         if photographer.shooting_started_at:
             started = photographer.shooting_started_at
             if started.tzinfo is None:
@@ -1981,12 +1981,17 @@ async def go_live(
         except Exception as e:
             logger.warning(f"Failed to upload condition media (base64 path): {e}")
     
+    # Use spot_notes from the photographer for richer condition report + story captions
+    condition_caption = data.spot_notes.strip() if data.spot_notes else f"Live at {spot_name}"
+    if data.spot_notes:
+        story.caption = f"Now shooting at {spot_name}: {data.spot_notes.strip()}"
+    
     condition_report = ConditionReport(
         photographer_id=photographer_id,
         spot_id=spot_id,
         media_url=condition_media_url,
         media_type=condition_media_type,
-        caption=f"Live at {spot_name}",
+        caption=condition_caption,
         spot_name=spot_name,
         region=spot.region if spot_id and spot else None,
         latitude=data.latitude,
