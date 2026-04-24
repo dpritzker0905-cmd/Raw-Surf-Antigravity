@@ -954,26 +954,13 @@ export const Bookings = () => {
           />
         )}
 
-        {/* Tabs — sticky yellow pill buttons, matching Explore pattern */}
+        {/* Tabs — sticky orange underline bar, stays on screen like Explore */}
         <div
           className={`sticky top-0 z-20 ${mainBgClass}`}
           style={{ backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)' }}
         >
-          <div className="flex items-center gap-2 py-3 px-1">
-            {/* Left Arrow - inline, fades when not needed */}
-            <button
-              onClick={() => scrollTabs(-1)}
-              className={`flex-shrink-0 w-8 h-8 rounded-full border shadow-lg flex items-center justify-center transition-all ${
-                isLight
-                  ? 'bg-white border-gray-300 text-gray-600 hover:bg-gray-100'
-                  : 'bg-zinc-800 border-zinc-600 text-white hover:bg-zinc-700'
-              } ${showLeftArrow ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
-              aria-label="Scroll tabs left"
-            >
-              <ChevronLeft className="w-5 h-5" />
-            </button>
-
-            {/* Tabs Container — Yellow pill buttons (same as Explore) */}
+          <div className="relative">
+            {/* Scrollable tab strip with orange underline indicator */}
             <div
               ref={tabScrollRef}
               onScroll={updateArrows}
@@ -1001,7 +988,7 @@ export const Bookings = () => {
                   e.currentTarget.style.userSelect = '';
                 }
               }}
-              className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide scroll-smooth flex-1 cursor-grab select-none"
+              className={`flex border-b ${borderClass} overflow-x-auto scrollbar-hide cursor-grab select-none`}
               style={{ scrollbarWidth: 'none', msOverflowStyle: 'none', WebkitOverflowScrolling: 'touch' }}
             >
               {tabs.map((tab) => {
@@ -1016,20 +1003,20 @@ export const Bookings = () => {
                         setActiveTab(tab.id);
                       }
                     }}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors flex-shrink-0 ${
-                      isActive
-                        ? 'bg-yellow-400 text-black'
-                        : isLight
-                          ? 'bg-gray-100 text-gray-500 hover:bg-gray-200'
-                          : 'bg-muted text-gray-300 hover:bg-zinc-700'
+                    className={`flex items-center gap-2 px-4 py-3 text-sm font-medium whitespace-nowrap transition-colors flex-shrink-0 ${
+                      isActive ? textPrimaryClass : textSecondaryClass
                     }`}
+                    style={{
+                      borderBottom: isActive ? '3px solid #f59e0b' : '3px solid transparent',
+                      marginBottom: '-1px',
+                    }}
                     data-testid={`tab-${tab.id}`}
                   >
                     <Icon className="w-4 h-4" />
                     {tab.label}
                     {tab.count > 0 && (
                       <span className={`ml-1 px-1.5 py-0.5 text-xs rounded-full ${
-                        isActive ? 'bg-yellow-600 text-white' : isLight ? 'bg-gray-200 text-gray-600' : 'bg-zinc-700 text-gray-300'
+                        isActive ? 'bg-amber-500/20 text-amber-500' : isLight ? 'bg-gray-200 text-gray-600' : 'bg-zinc-700 text-gray-300'
                       }`}>
                         {tab.count}
                       </span>
@@ -1039,18 +1026,31 @@ export const Bookings = () => {
               })}
             </div>
 
-            {/* Right Arrow - inline, fades when not needed */}
-            <button
-              onClick={() => scrollTabs(1)}
-              className={`flex-shrink-0 w-8 h-8 rounded-full border shadow-lg flex items-center justify-center transition-all ${
-                isLight
-                  ? 'bg-white border-gray-300 text-gray-600 hover:bg-gray-100'
-                  : 'bg-zinc-800 border-zinc-600 text-white hover:bg-zinc-700'
-              } ${showRightArrow ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
-              aria-label="Scroll tabs right"
-            >
-              <ChevronRight className="w-5 h-5" />
-            </button>
+            {/* Left fade + arrow */}
+            {showLeftArrow && (
+              <button
+                onClick={() => scrollTabs(-1)}
+                className={`absolute left-0 top-0 bottom-0 z-10 flex items-center justify-center w-8 ${
+                  isLight ? 'bg-gradient-to-r from-gray-50 to-transparent' : isBeach ? 'bg-gradient-to-r from-background to-transparent' : 'bg-gradient-to-r from-card to-transparent'
+                }`}
+                aria-label="Scroll tabs left"
+              >
+                <ChevronLeft className={`w-4 h-4 ${textSecondaryClass}`} />
+              </button>
+            )}
+
+            {/* Right fade + arrow */}
+            {showRightArrow && (
+              <button
+                onClick={() => scrollTabs(1)}
+                className={`absolute right-0 top-0 bottom-0 z-10 flex items-center justify-center w-8 ${
+                  isLight ? 'bg-gradient-to-l from-gray-50 to-transparent' : isBeach ? 'bg-gradient-to-l from-background to-transparent' : 'bg-gradient-to-l from-card to-transparent'
+                }`}
+                aria-label="Scroll tabs right"
+              >
+                <ChevronRight className={`w-4 h-4 ${textSecondaryClass}`} />
+              </button>
+            )}
           </div>
         </div>
 
