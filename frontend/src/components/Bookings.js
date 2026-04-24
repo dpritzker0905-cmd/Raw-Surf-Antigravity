@@ -359,6 +359,10 @@ export const Bookings = () => {
     if (!el) return;
     el.scrollBy({ left: dir * 160, behavior: 'smooth' });
   };
+
+  // loading must be declared before the useEffect that depends on it
+  const [loading, setLoading] = useState(true);
+
   // Auto-scroll the active tab pill into view whenever activeTab changes
   // or when loading finishes (so the tab strip DOM is actually available).
   // Uses direct scrollTo math instead of scrollIntoView because scrollIntoView
@@ -404,7 +408,7 @@ export const Bookings = () => {
   const [crewInvites, setCrewInvites] = useState([]);  // On-demand crew invites
   const [nearbyBookings, setNearbyBookings] = useState([]);
   const [selectedSkillFilter, setSelectedSkillFilter] = useState(null);
-  const [loading, setLoading] = useState(true);
+
   const [showJoinCodeModal, setShowJoinCodeModal] = useState(false);
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [selectedBooking, setSelectedBooking] = useState(null);
