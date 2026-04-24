@@ -1375,6 +1375,220 @@ export const Explore = () => {
         </div>
       )}
 
+      {/* People Tab — pre-search discovery state */}
+      {activeTab === 'users' && (
+        <div className="space-y-6" data-testid="people-tab">
+          {/* Search Prompt */}
+          <div className={`text-center py-8 rounded-2xl ${isLight ? 'bg-gradient-to-br from-amber-50 to-yellow-50 border border-amber-200/60' : 'bg-gradient-to-br from-zinc-800/80 to-zinc-900/60 border border-zinc-700/50'}`}>
+            <div className={`w-16 h-16 mx-auto mb-4 rounded-full flex items-center justify-center ${isLight ? 'bg-amber-100' : 'bg-zinc-700'}`}>
+              <Users className={`w-8 h-8 ${isLight ? 'text-amber-600' : 'text-yellow-400'}`} />
+            </div>
+            <h3 className={`text-lg font-bold mb-1 ${isLight ? 'text-gray-900' : 'text-foreground'}`}>Find People</h3>
+            <p className={`text-sm mb-5 ${isLight ? 'text-gray-500' : 'text-muted-foreground'}`}>
+              Search for surfers, photographers, and creators
+            </p>
+            <button
+              onClick={() => {
+                const input = document.querySelector('[data-testid="explore-search-input"]');
+                if (input) input.focus();
+              }}
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-gradient-to-r from-yellow-400 to-amber-500 text-black font-semibold text-sm hover:from-yellow-500 hover:to-amber-600 transition-all shadow-lg shadow-yellow-500/20"
+            >
+              <Search className="w-4 h-4" />
+              Search People
+            </button>
+          </div>
+
+          {/* Quick Categories */}
+          <div>
+            <h4 className={`text-sm font-semibold uppercase tracking-wider mb-3 ${isLight ? 'text-gray-500' : 'text-muted-foreground'}`}>Browse by Role</h4>
+            <div className="flex flex-wrap gap-2">
+              {[
+                { label: '📸 Photographers', query: 'photographer' },
+                { label: '🏄 Surfers', query: 'surfer' },
+                { label: '🎬 Videographers', query: 'videographer' },
+                { label: '🤙 Locals', query: 'local' },
+              ].map(cat => (
+                <button
+                  key={cat.query}
+                  onClick={() => {
+                    setSearchQuery(cat.query);
+                    const input = document.querySelector('[data-testid="explore-search-input"]');
+                    if (input) { input.value = cat.query; input.focus(); }
+                  }}
+                  className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${isLight ? 'bg-white border border-gray-200 text-gray-700 hover:border-amber-400 hover:bg-amber-50' : 'bg-zinc-800 border border-zinc-700 text-gray-300 hover:border-yellow-500/50 hover:bg-zinc-700'}`}
+                >
+                  {cat.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Featured Community — reuse live photographers from trending */}
+          {trending.live_photographers?.length > 0 && (
+            <div>
+              <h4 className={`text-sm font-semibold uppercase tracking-wider mb-3 ${isLight ? 'text-gray-500' : 'text-muted-foreground'}`}>
+                <span className="inline-flex items-center gap-1.5"><Radio className="w-3.5 h-3.5 text-red-500 animate-pulse" /> Live Now</span>
+              </h4>
+              <div className="space-y-2">
+                {trending.live_photographers.slice(0, 5).map(person => (
+                  <div
+                    key={person.id}
+                    onClick={() => navigate(`/profile/${person.id}`)}
+                    className={`flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-colors ${isLight ? 'bg-white border border-gray-100 hover:bg-amber-50' : 'bg-card hover:bg-muted'}`}
+                  >
+                    <div className="w-12 h-12 rounded-full bg-gradient-to-r from-red-500 to-orange-500 p-0.5 flex-shrink-0">
+                      <div className={`w-full h-full rounded-full p-0.5 ${isLight ? 'bg-white' : 'bg-card'}`}>
+                        <div className="w-full h-full rounded-full bg-zinc-700 flex items-center justify-center overflow-hidden">
+                          {person.avatar_url ? (
+                            <img src={getFullUrl(person.avatar_url)} alt={person.full_name} className="w-full h-full object-cover" />
+                          ) : (
+                            <span className="text-lg font-medium text-muted-foreground">{person.full_name?.[0] || '?'}</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <span className={`font-medium truncate block ${isLight ? 'text-gray-900' : 'text-foreground'}`}>{person.full_name}</span>
+                      <span className="text-sm text-muted-foreground">{person.role || 'Community Member'}</span>
+                    </div>
+                    <Badge className="bg-red-500 text-[10px] px-1.5 animate-pulse">LIVE</Badge>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Popular Spots as people discovery hint */}
+          {trending.popular_spots?.length > 0 && (
+            <div>
+              <h4 className={`text-sm font-semibold uppercase tracking-wider mb-3 ${isLight ? 'text-gray-500' : 'text-muted-foreground'}`}>
+                People Near Popular Spots
+              </h4>
+              <div className="flex flex-wrap gap-2">
+                {trending.popular_spots.slice(0, 6).map(spot => (
+                  <button
+                    key={spot.id}
+                    onClick={() => navigate(`/spot-hub/${spot.id}`)}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${isLight ? 'bg-cyan-50 border border-cyan-200 text-cyan-700 hover:bg-cyan-100' : 'bg-cyan-900/20 border border-cyan-800/40 text-cyan-400 hover:bg-cyan-900/40'}`}
+                  >
+                    <MapPin className="w-3 h-3" />
+                    {spot.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Search (Spots) Tab — pre-search discovery state */}
+      {activeTab === 'spots' && (
+        <div className="space-y-6" data-testid="search-spots-tab">
+          {/* Search Prompt */}
+          <div className={`text-center py-8 rounded-2xl ${isLight ? 'bg-gradient-to-br from-cyan-50 to-blue-50 border border-cyan-200/60' : 'bg-gradient-to-br from-zinc-800/80 to-zinc-900/60 border border-zinc-700/50'}`}>
+            <div className={`w-16 h-16 mx-auto mb-4 rounded-full flex items-center justify-center ${isLight ? 'bg-cyan-100' : 'bg-zinc-700'}`}>
+              <MapPin className={`w-8 h-8 ${isLight ? 'text-cyan-600' : 'text-cyan-400'}`} />
+            </div>
+            <h3 className={`text-lg font-bold mb-1 ${isLight ? 'text-gray-900' : 'text-foreground'}`}>Search Spots</h3>
+            <p className={`text-sm mb-5 ${isLight ? 'text-gray-500' : 'text-muted-foreground'}`}>
+              Find surf breaks by name, region, or location
+            </p>
+            <button
+              onClick={() => {
+                const input = document.querySelector('[data-testid="explore-search-input"]');
+                if (input) input.focus();
+              }}
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-gradient-to-r from-cyan-400 to-blue-500 text-white font-semibold text-sm hover:from-cyan-500 hover:to-blue-600 transition-all shadow-lg shadow-cyan-500/20"
+            >
+              <Search className="w-4 h-4" />
+              Search Spots
+            </button>
+          </div>
+
+          {/* Suggested Searches */}
+          <div>
+            <h4 className={`text-sm font-semibold uppercase tracking-wider mb-3 ${isLight ? 'text-gray-500' : 'text-muted-foreground'}`}>Try Searching</h4>
+            <div className="flex flex-wrap gap-2">
+              {[
+                '🌴 Pipeline', '🏖️ Huntington Beach', '🌊 Trestles',
+                '🦈 Jeffreys Bay', '🌺 Waikiki', '🏝️ Uluwatu',
+                '🌅 Bells Beach', '🌿 Pavones'
+              ].map(suggestion => (
+                <button
+                  key={suggestion}
+                  onClick={() => {
+                    const name = suggestion.replace(/^[^\s]+\s/, '');
+                    setSearchQuery(name);
+                    const input = document.querySelector('[data-testid="explore-search-input"]');
+                    if (input) { input.value = name; input.focus(); }
+                  }}
+                  className={`px-3.5 py-2 rounded-full text-sm font-medium transition-all ${isLight ? 'bg-white border border-gray-200 text-gray-700 hover:border-cyan-400 hover:bg-cyan-50' : 'bg-zinc-800 border border-zinc-700 text-gray-300 hover:border-cyan-500/50 hover:bg-zinc-700'}`}
+                >
+                  {suggestion}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Popular Spots Grid — reuse trending data */}
+          {trending.popular_spots?.length > 0 && (
+            <div>
+              <h4 className={`text-sm font-semibold uppercase tracking-wider mb-3 ${isLight ? 'text-gray-500' : 'text-muted-foreground'}`}>Popular Spots</h4>
+              <div className="grid grid-cols-2 gap-3">
+                {trending.popular_spots.slice(0, 4).map(spot => (
+                  <div
+                    key={spot.id}
+                    onClick={() => navigate(`/spot-hub/${spot.id}`)}
+                    className="relative aspect-[4/3] rounded-xl overflow-hidden cursor-pointer group"
+                  >
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent z-10" />
+                    {spot.image_url ? (
+                      <img src={getFullUrl(spot.image_url)} alt={spot.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                        onError={(e) => {
+                          if (spot.latitude && spot.longitude) {
+                            e.target.onerror = null;
+                            e.target.src = `https://static-maps.yandex.ru/1.x/?lang=en_US&ll=${spot.longitude},${spot.latitude}&z=12&l=sat&size=400,300`;
+                            e.target.className = 'w-full h-full object-cover opacity-70';
+                          } else {
+                            e.target.style.display = 'none';
+                          }
+                        }}
+                      />
+                    ) : spot.latitude && spot.longitude ? (
+                      <div className="w-full h-full bg-muted relative">
+                        <img
+                          src={`https://static-maps.yandex.ru/1.x/?lang=en_US&ll=${spot.longitude},${spot.latitude}&z=12&l=sat&size=400,300`}
+                          alt={`Map of ${spot.name}`}
+                          className="w-full h-full object-cover opacity-60"
+                          onError={(e) => { e.target.style.display = 'none'; }}
+                        />
+                      </div>
+                    ) : (
+                      <div className="w-full h-full bg-gradient-to-br from-cyan-600 to-blue-800 flex items-center justify-center">
+                        <MapPin className="w-8 h-8 text-white/30" />
+                      </div>
+                    )}
+                    <div className="absolute bottom-0 left-0 right-0 p-3 z-20">
+                      <h4 className="font-medium text-white truncate text-sm">{spot.name}</h4>
+                      <p className="text-xs text-gray-300">{spot.region}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Hint to use Surf Spots tab for deep discovery */}
+          <div className={`flex items-center gap-3 p-3 rounded-xl ${isLight ? 'bg-blue-50 border border-blue-200/60' : 'bg-blue-900/10 border border-blue-800/30'}`}>
+            <Navigation className={`w-5 h-5 flex-shrink-0 ${isLight ? 'text-blue-500' : 'text-blue-400'}`} />
+            <p className={`text-sm ${isLight ? 'text-blue-700' : 'text-blue-300'}`}>
+              Looking for detailed forecasts? Check the <button onClick={() => setActiveTab('surfspots')} className="font-semibold underline underline-offset-2">Surf Spots</button> tab for full spot discovery with conditions.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Surf Spots Tab - Comprehensive Location Discovery */}
       {activeTab === 'surfspots' && (
         <div className="space-y-4" data-testid="surf-spots-tab">
