@@ -7,7 +7,7 @@ import { useTheme } from '../contexts/ThemeContext';
 
 import apiClient from '../lib/apiClient';
 
-import { MapPin, Camera, Zap, Clock, ChevronRight, Radio, Award, Plus, X, Calculator, Loader2, Wallet, Check, Bell, CreditCard } from 'lucide-react';
+import { MapPin, Camera, Zap, Clock, ChevronRight, Radio, Award, Plus, X, Calculator, Loader2, Wallet, Check, Bell, CreditCard, Search, Navigation } from 'lucide-react';
 
 import { Button } from './ui/button';
 
@@ -128,7 +128,7 @@ const EmptySeat = ({ onClick, isLight }) => {
 export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess, userLocation, _userCredits = 0, resumeDispatchId }) => {
   const { user, updateUser } = useAuth();
   const { theme } = useTheme();
-  // Flow: 'timing' -> 'duration' -> 'crew' -> 'confirm' -> 'selfie' -> 'waiting' -> 'success'
+  // Flow: 'timing' -> 'location' -> 'duration' -> 'crew' -> 'confirm' -> 'selfie' -> 'waiting' -> 'success'
   const [step, setStep] = useState('timing');
   const [_selectedResolution, _setSelectedResolution] = useState('standard');
   const [paymentMethod, setPaymentMethod] = useState('card');
@@ -189,6 +189,14 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
   const [newCrewInput, setNewCrewInput] = useState('');
   const [showAddCrewInput, setShowAddCrewInput] = useState(false);
 
+  // ============ LOCATION STATE ============
+  const [selectedSpot, setSelectedSpot] = useState(null);
+  const [customLocationName, setCustomLocationName] = useState('');
+  const [nearbySpots, setNearbySpots] = useState([]);
+  const [loadingSpots, setLoadingSpots] = useState(false);
+  const [spotSearchQuery, setSpotSearchQuery] = useState('');
+  const [useCustomLocation, setUseCustomLocation] = useState(false);
+
   // Quick-Add suggestions (recent buddies + following)
   const [recentBuddies, setRecentBuddies] = useState([]);
   const [following, setFollowing] = useState([]);
@@ -208,6 +216,26 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
   useEffect(() => {
     if (step === 'crew') loadCrewSuggestions();
   }, [step]); // eslint-disable-line
+
+  // Fetch nearby spots when location step is entered
+  useEffect(() => {
+    const fetchNearbySpots = async () => {
+      if (step !== 'location') return;
+      setLoadingSpots(true);
+      try {
+        const lat = userLocation?.latitude || photographer?.on_demand_latitude || 28.3667;
+        const lng = userLocation?.longitude || photographer?.on_demand_longitude || -80.6067;
+        const response = await apiClient.get(`/surf-spots/nearby?latitude=${lat}&longitude=${lng}&radius_miles=15${user?.id ? `&user_id=${user.id}` : ''}`);
+        setNearbySpots(response.data || []);
+      } catch (e) {
+        console.error('[OnDemandDrawer] Failed to fetch nearby spots:', e);
+        setNearbySpots([]);
+      } finally {
+        setLoadingSpots(false);
+      }
+    };
+    fetchNearbySpots();
+  }, [step, userLocation?.latitude, userLocation?.longitude, photographer?.on_demand_latitude, photographer?.on_demand_longitude, user?.id]);
   
   // ============ FRIEND AUTOCOMPLETE STATE ============
   const [friendSearchResults, setFriendSearchResults] = useState([]);
@@ -439,8 +467,12 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
   const handleSubmitRequest = async () => {
     setLoading(true);
     try {
-      const lat = userLocation?.latitude || photographer?.on_demand_latitude || 28.3667;
-      const lng = userLocation?.longitude || photographer?.on_demand_longitude || -80.6067;
+      // Use selected spot coordinates if available, otherwise fall back to user/photographer location
+      const lat = selectedSpot?.latitude || userLocation?.latitude || photographer?.on_demand_latitude || 28.3667;
+      const lng = selectedSpot?.longitude || userLocation?.longitude || photographer?.on_demand_longitude || -80.6067;
+      
+      // Determine the location name from selection
+      const locationName = selectedSpot?.name || (useCustomLocation && customLocationName ? customLocationName : null) || photographer?.on_demand_city || 'Current Location';
       
       // Calculate requested start time based on user's timing selection
       const requestedStartTime = new Date(Date.now() + startTimeOption * 60000).toISOString();
@@ -456,7 +488,8 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
       const response = await apiClient.post(`/dispatch/request?requester_id=${user.id}`, {
         latitude: lat,
         longitude: lng,
-        location_name: photographer?.on_demand_city || 'Current Location',
+        location_name: locationName,
+        spot_id: selectedSpot?.id || null,
         estimated_duration_hours: requestDuration,
         is_immediate: true,  // On-demand is always immediate (same-day)
         requested_start_time: requestedStartTime,
@@ -755,19 +788,201 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
             </div>
           </div>
         )}
+
+        {/* ============ STEP 0.5: LOCATION SELECTION ============ */}
+        {step === 'location' && (
+          <div className="p-4 sm:p-6 space-y-5">
+            {/* Header */}
+            <div className="flex items-center gap-3 mb-2">
+              <button onClick={() => setStep('timing')} className={`p-2 rounded-lg ${isLight ? 'hover:bg-gray-100' : 'hover:bg-muted'}`}>
+                <ChevronRight className={`w-5 h-5 ${textSecondary} rotate-180`} />
+              </button>
+              <div>
+                <h2 className={`text-xl font-bold ${textPrimary}`}>Where do you want to surf?</h2>
+                <p className={`text-xs ${textSecondary}`}>
+                  Starting in {startTimeOption} min • {photographer?.full_name}
+                </p>
+              </div>
+            </div>
+
+            {/* Search / Filter */}
+            <div className="relative">
+              <Search className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${textSecondary}`} />
+              <Input
+                value={spotSearchQuery}
+                onChange={(e) => setSpotSearchQuery(e.target.value)}
+                placeholder="Search surf spots..."
+                className={`pl-9 ${isLight ? 'bg-gray-50' : 'bg-muted/50'}`}
+                data-testid="spot-search-input"
+              />
+            </div>
+
+            {/* Spots List */}
+            {loadingSpots ? (
+              <div className="flex flex-col items-center justify-center py-8 gap-3">
+                <Loader2 className="w-6 h-6 animate-spin text-cyan-400" />
+                <p className={`text-sm ${textSecondary}`}>Finding spots near you...</p>
+              </div>
+            ) : (
+              <div className="space-y-2 max-h-[320px] overflow-y-auto pr-1" style={{ WebkitOverflowScrolling: 'touch' }}>
+                {/* Use Current Location option */}
+                <button
+                  onClick={() => {
+                    setSelectedSpot(null);
+                    setUseCustomLocation(false);
+                    setCustomLocationName('');
+                  }}
+                  className={`w-full p-3 rounded-xl border-2 flex items-center gap-3 transition-all text-left ${
+                    !selectedSpot && !useCustomLocation
+                      ? 'border-cyan-400 bg-cyan-500/10'
+                      : `${isLight ? 'border-gray-200 bg-gray-50' : 'border-zinc-700 bg-muted/30'} hover:border-cyan-400/50`
+                  }`}
+                  data-testid="spot-current-location"
+                >
+                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${
+                    !selectedSpot && !useCustomLocation ? 'bg-cyan-500' : isLight ? 'bg-gray-200' : 'bg-zinc-700'
+                  }`}>
+                    <Navigation className="w-5 h-5 text-white" />
+                  </div>
+                  <div className="flex-1">
+                    <p className={`font-medium text-sm ${textPrimary}`}>Use Current Location</p>
+                    <p className={`text-xs ${textSecondary}`}>Photographer meets you where you are</p>
+                  </div>
+                  <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
+                    !selectedSpot && !useCustomLocation ? 'border-cyan-400 bg-cyan-400' : isLight ? 'border-gray-300' : 'border-zinc-600'
+                  }`}>
+                    {!selectedSpot && !useCustomLocation && <Check className="w-3 h-3 text-black" />}
+                  </div>
+                </button>
+
+                {/* Nearby Mapped Spots */}
+                {nearbySpots
+                  .filter(s => !spotSearchQuery || s.name?.toLowerCase().includes(spotSearchQuery.toLowerCase()) || s.region?.toLowerCase().includes(spotSearchQuery.toLowerCase()))
+                  .slice(0, 20)
+                  .map((spot) => (
+                    <button
+                      key={spot.id}
+                      onClick={() => {
+                        setSelectedSpot(spot);
+                        setUseCustomLocation(false);
+                        setCustomLocationName('');
+                      }}
+                      className={`w-full p-3 rounded-xl border-2 flex items-center gap-3 transition-all text-left ${
+                        selectedSpot?.id === spot.id
+                          ? 'border-amber-400 bg-amber-500/10'
+                          : `${isLight ? 'border-gray-200 bg-gray-50' : 'border-zinc-700 bg-muted/30'} hover:border-amber-400/50`
+                      }`}
+                      data-testid={`spot-option-${spot.id}`}
+                    >
+                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 overflow-hidden ${
+                        selectedSpot?.id === spot.id ? 'bg-amber-500' : isLight ? 'bg-gray-200' : 'bg-zinc-700'
+                      }`}>
+                        {spot.image_url ? (
+                          <img src={getFullUrl(spot.image_url)} alt="" className="w-full h-full object-cover" />
+                        ) : (
+                          <MapPin className={`w-5 h-5 ${selectedSpot?.id === spot.id ? 'text-black' : textSecondary}`} />
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className={`font-medium text-sm truncate ${textPrimary}`}>{spot.name}</p>
+                        <div className="flex items-center gap-2">
+                          {spot.region && (
+                            <p className={`text-xs ${textSecondary} truncate`}>{spot.region}</p>
+                          )}
+                          {spot.distance_miles != null && (
+                            <span className={`text-xs ${textSecondary} flex-shrink-0`}>
+                              {spot.distance_miles < 1 ? `${(spot.distance_miles * 5280).toFixed(0)} ft` : `${spot.distance_miles.toFixed(1)} mi`}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
+                        selectedSpot?.id === spot.id ? 'border-amber-400 bg-amber-400' : isLight ? 'border-gray-300' : 'border-zinc-600'
+                      }`}>
+                        {selectedSpot?.id === spot.id && <Check className="w-3 h-3 text-black" />}
+                      </div>
+                    </button>
+                  ))}
+
+                {/* Custom Location */}
+                <button
+                  onClick={() => {
+                    setUseCustomLocation(true);
+                    setSelectedSpot(null);
+                  }}
+                  className={`w-full p-3 rounded-xl border-2 flex items-center gap-3 transition-all text-left ${
+                    useCustomLocation
+                      ? 'border-purple-400 bg-purple-500/10'
+                      : `${isLight ? 'border-gray-200 bg-gray-50' : 'border-zinc-700 bg-muted/30'} hover:border-purple-400/50`
+                  }`}
+                  data-testid="spot-custom-location"
+                >
+                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${
+                    useCustomLocation ? 'bg-purple-500' : isLight ? 'bg-gray-200' : 'bg-zinc-700'
+                  }`}>
+                    <Plus className={`w-5 h-5 ${useCustomLocation ? 'text-white' : textSecondary}`} />
+                  </div>
+                  <div className="flex-1">
+                    <p className={`font-medium text-sm ${textPrimary}`}>Custom Location</p>
+                    <p className={`text-xs ${textSecondary}`}>Spot not listed? Type it in</p>
+                  </div>
+                  <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
+                    useCustomLocation ? 'border-purple-400 bg-purple-400' : isLight ? 'border-gray-300' : 'border-zinc-600'
+                  }`}>
+                    {useCustomLocation && <Check className="w-3 h-3 text-black" />}
+                  </div>
+                </button>
+
+                {/* Custom Location Text Input */}
+                {useCustomLocation && (
+                  <div className="mt-2 pl-2">
+                    <Input
+                      value={customLocationName}
+                      onChange={(e) => setCustomLocationName(e.target.value)}
+                      placeholder="e.g. North side of pier, Parking lot 3..."
+                      className={`${isLight ? 'bg-white' : 'bg-card/80'}`}
+                      autoFocus
+                      data-testid="custom-location-input"
+                    />
+                    <p className={`text-xs ${textSecondary} mt-1`}>The photographer will use your GPS for directions</p>
+                  </div>
+                )}
+
+                {/* No spots message */}
+                {nearbySpots.length === 0 && !loadingSpots && (
+                  <div className={`py-6 text-center`}>
+                    <MapPin className={`w-8 h-8 mx-auto mb-2 ${textSecondary}`} />
+                    <p className={`text-sm ${textSecondary}`}>No mapped spots found nearby.</p>
+                    <p className={`text-xs ${textSecondary} mt-1`}>Use "Custom Location" or "Current Location" instead.</p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Selected spot summary */}
+            {(selectedSpot || useCustomLocation) && (
+              <div className={`flex items-center gap-3 p-3 rounded-xl ${isLight ? 'bg-green-50' : 'bg-green-500/10'} border border-green-400/30`}>
+                <MapPin className="w-4 h-4 text-green-400 flex-shrink-0" />
+                <p className={`text-sm ${textPrimary}`}>
+                  {selectedSpot ? selectedSpot.name : (customLocationName || 'Custom Location (GPS)')}
+                </p>
+              </div>
+            )}
+          </div>
+        )}
         
         {/* ============ STEP 1: DURATION SELECTION ============ */}
         {step === 'duration' && (
           <div className="p-4 sm:p-6 space-y-5">
             {/* Header with back button */}
             <div className="flex items-center gap-3 mb-2">
-              <button onClick={() => setStep('timing')} className={`p-2 rounded-lg ${isLight ? 'hover:bg-gray-100' : 'hover:bg-muted'}`}>
+              <button onClick={() => setStep('location')} className={`p-2 rounded-lg ${isLight ? 'hover:bg-gray-100' : 'hover:bg-muted'}`}>
                 <ChevronRight className={`w-5 h-5 ${textSecondary} rotate-180`} />
               </button>
               <div>
                 <h2 className={`text-xl font-bold ${textPrimary}`}>Session Duration</h2>
                 <p className={`text-xs ${textSecondary}`}>
-                  Starting in {startTimeOption} min • {photographer?.full_name}
+                  Starting in {startTimeOption} min • {selectedSpot?.name || customLocationName || 'Current Location'} • {photographer?.full_name}
                 </p>
               </div>
             </div>
@@ -1443,7 +1658,15 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
               </div>
               
               {/* Quick Details */}
-              <div className={`grid grid-cols-3 gap-3 pt-4 border-t ${isLight ? 'border-gray-200' : 'border-zinc-700'}`}>
+              {/* Location row */}
+              <div className={`flex items-center gap-2 pt-3 border-t ${isLight ? 'border-gray-200' : 'border-zinc-700'}`}>
+                <MapPin className="w-4 h-4 text-green-400 flex-shrink-0" />
+                <p className={`text-sm ${textPrimary} truncate`}>
+                  {selectedSpot?.name || (useCustomLocation && customLocationName ? customLocationName : 'Current Location')}
+                </p>
+              </div>
+
+              <div className={`grid grid-cols-3 gap-3 pt-3 border-t ${isLight ? 'border-gray-200' : 'border-zinc-700'}`}>
                 <div className="text-center">
                   <Clock className="w-4 h-4 mx-auto text-cyan-400 mb-1" />
                   <p className={`text-xs ${textSecondary}`}>Duration</p>
@@ -1791,10 +2014,26 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
           <div className={`absolute bottom-0 left-0 right-0 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] border-t ${isLight ? 'bg-white border-gray-200' : 'bg-card border-border'} shadow-[0_-8px_24px_rgba(0,0,0,0.15)]`}>
             {step === 'timing' && (
               <Button
-                onClick={() => setStep('duration')}
+                onClick={() => setStep('location')}
                 className="w-full py-4 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-black font-bold text-base rounded-xl"
               >
                 Continue <ChevronRight className="w-5 h-5 ml-1" />
+              </Button>
+            )}
+            {step === 'location' && (
+              <Button
+                onClick={() => setStep('duration')}
+                disabled={useCustomLocation && !customLocationName.trim()}
+                className="w-full py-4 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-black font-bold text-base rounded-xl disabled:opacity-50"
+              >
+                {selectedSpot ? (
+                  <><MapPin className="w-5 h-5 mr-2" />{selectedSpot.name}</>
+                ) : useCustomLocation ? (
+                  <><MapPin className="w-5 h-5 mr-2" />{customLocationName || 'Enter Location'}</>
+                ) : (
+                  <><Navigation className="w-5 h-5 mr-2" />Use My Location</>
+                )}
+                <ChevronRight className="w-5 h-5 ml-1" />
               </Button>
             )}
             {step === 'duration' && (
