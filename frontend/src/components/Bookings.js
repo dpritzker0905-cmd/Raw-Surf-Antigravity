@@ -363,9 +363,6 @@ export const Bookings = () => {
   // loading must be declared before the useEffect that depends on it
   const [loading, setLoading] = useState(true);
 
-  // Ref to track whether the very first centering has happened (use instant scroll
-  // on the first render, smooth scroll on subsequent tab changes via tap).
-  const initialCenterDoneRef = useRef(false);
 
   // Sliding indicator bar position (left + width track the active tab button)
   const [indicatorStyle, setIndicatorStyle] = useState({ left: 0, width: 0 });
@@ -387,10 +384,10 @@ export const Bookings = () => {
         const btnLeft = activeBtn.offsetLeft;
         const btnWidth = activeBtn.offsetWidth;
         const targetScroll = btnLeft - (stripWidth / 2) + (btnWidth / 2);
-        // First render → instant scroll; subsequent tab changes → smooth scroll
-        const useSmooth = initialCenterDoneRef.current;
-        tabStrip.scrollTo({ left: targetScroll, behavior: useSmooth ? 'smooth' : 'instant' });
-        if (!initialCenterDoneRef.current) initialCenterDoneRef.current = true;
+        // Always instant scroll — the sliding indicator CSS transition provides
+        // the smooth visual feedback. Smooth scroll + indicator transition together
+        // create competing animations that look like "spinning".
+        tabStrip.scrollTo({ left: targetScroll, behavior: 'instant' });
         // Update the sliding indicator position
         setIndicatorStyle({ left: btnLeft, width: btnWidth });
       }
