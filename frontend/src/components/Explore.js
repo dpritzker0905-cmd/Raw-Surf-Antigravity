@@ -575,7 +575,7 @@ export const Explore = () => {
       if (state_province && state_province !== 'All') {
         params.append('state_province', state_province);
       }
-      if (region && region !== 'All' && !country) {
+      if (region && region !== 'All') {
         params.append('region', region);
       }
       params.append('limit', '30');
