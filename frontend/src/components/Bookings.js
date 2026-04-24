@@ -978,14 +978,6 @@ export const Bookings = () => {
           </Card>
         )}
 
-        {/* Gold Pass Early Access Section - For all surfers */}
-        {SURFER_ROLES.includes(user?.role) && (
-          <GoldPassBookingsSection 
-            user={user} 
-            theme={theme} 
-            onBookingComplete={fetchData}
-          />
-        )}
 
         {/* Tabs — sticky orange underline bar, pins below TopNav */}
         <div
@@ -1225,6 +1217,14 @@ export const Bookings = () => {
 
           {/* Scheduled Tab */}
           <div style={{ display: activeTab === 'scheduled' ? 'block' : 'none' }}>
+            {/* Gold Pass Early Access Section - inside Scheduled tab so it doesn't cause layout shifts during swiping */}
+            {SURFER_ROLES.includes(user?.role) && (
+              <GoldPassBookingsSection 
+                user={user} 
+                theme={theme} 
+                onBookingComplete={fetchData}
+              />
+            )}
             <ScheduledTab
               user={user}
               scheduledBookings={scheduledBookings}
