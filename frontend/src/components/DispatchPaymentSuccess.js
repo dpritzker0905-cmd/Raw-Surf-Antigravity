@@ -3,7 +3,7 @@
  * Handles Stripe payment confirmation for on-demand dispatch sessions
  * Shows selfie upload modal after payment confirmation
  */
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import apiClient from '../lib/apiClient';
@@ -23,8 +23,11 @@ const DispatchPaymentSuccess = () => {
   const dispatchId = searchParams.get('dispatch_id');
   
   const [status, setStatus] = useState('checking');
-  const [pollAttempts, setPollAttempts] = useState(0);
   const [showSelfieModal, setShowSelfieModal] = useState(false);
+  
+  // Refs to prevent duplicate work across re-renders
+  const confirmedRef = useRef(false);
+  const pollCountRef = useRef(0);
   const maxAttempts = 5;
 
   useEffect(() => {
@@ -33,7 +36,13 @@ const DispatchPaymentSuccess = () => {
       return;
     }
 
+    // If we already confirmed, do not re-run
+    if (confirmedRef.current) return;
+
     const confirmDispatchPayment = async () => {
+      // Double-check inside async in case of race
+      if (confirmedRef.current) return;
+
       try {
         // Step 1: Confirm payment with Stripe
         const response = await apiClient.get(
@@ -41,21 +50,21 @@ const DispatchPaymentSuccess = () => {
         );
         
         if (response.data.success) {
+          // Mark as confirmed IMMEDIATELY to prevent any re-entry
+          confirmedRef.current = true;
+
           // Step 2: VERIFICATION - Check that participant record was created with metadata
-          // This prevents "phantom" bookings where payment succeeded but metadata was lost
           try {
             const verifyResponse = await apiClient.get(
               `/dispatch/${dispatchId}/verify-payment?user_id=${user?.id}`
             );
             
-            if (!verifyResponse.data.verified) {
-              logger.warn('Payment verified but metadata not stored, retrying...');
-              // Retry verification a few times
-              if (pollAttempts < maxAttempts) {
-                setPollAttempts(prev => prev + 1);
-                setTimeout(confirmDispatchPayment, 2000);
-                return;
-              }
+            if (!verifyResponse.data.verified && pollCountRef.current < maxAttempts) {
+              // Metadata not stored yet — retry verification only, not the whole flow
+              confirmedRef.current = false; // allow one more attempt
+              pollCountRef.current += 1;
+              setTimeout(confirmDispatchPayment, 2000);
+              return;
             }
             
             // Check if selfie is needed
@@ -67,9 +76,11 @@ const DispatchPaymentSuccess = () => {
           }
           
           setStatus('success');
-          toast.success('Payment confirmed! Now add your selfie so the photographer can find you.');
+          toast.success('Payment confirmed! Now add your selfie so the photographer can find you.', {
+            id: 'payment-confirmed', // Deduplicate by ID
+          });
           
-          // Immediately show selfie modal
+          // Show selfie modal
           setShowSelfieModal(true);
           
           // Refresh user data
@@ -82,9 +93,9 @@ const DispatchPaymentSuccess = () => {
             logger.warn('Could not refresh user data');
           }
         } else {
-          // Try again
-          if (pollAttempts < maxAttempts) {
-            setPollAttempts(prev => prev + 1);
+          // Payment not yet confirmed — poll again
+          if (pollCountRef.current < maxAttempts) {
+            pollCountRef.current += 1;
             setTimeout(confirmDispatchPayment, 2000);
           } else {
             setStatus('timeout');
@@ -93,8 +104,8 @@ const DispatchPaymentSuccess = () => {
       } catch (error) {
         logger.error('Dispatch payment confirmation error:', error);
         
-        if (pollAttempts < maxAttempts && error.response?.status !== 400) {
-          setPollAttempts(prev => prev + 1);
+        if (pollCountRef.current < maxAttempts && error.response?.status !== 400) {
+          pollCountRef.current += 1;
           setTimeout(confirmDispatchPayment, 2000);
         } else {
           setStatus('error');
@@ -103,19 +114,19 @@ const DispatchPaymentSuccess = () => {
     };
 
     confirmDispatchPayment();
-  }, [sessionId, dispatchId, pollAttempts, user?.id, updateUser]);
+  }, [sessionId, dispatchId]);
 
   const handleSelfieSuccess = (_selfieUrl) => {
     setShowSelfieModal(false);
     toast.success('Selfie uploaded! The photographer can now find you.');
-    // Navigate to bookings page where they can track the request
-    navigate(`/bookings?tab=on_demand&highlight=${dispatchId}`);
+    // Navigate to lobby instead of bookings for better flow
+    navigate(`/dispatch/${dispatchId}/lobby`);
   };
 
   const handleSkipSelfie = () => {
     setShowSelfieModal(false);
     toast.info('You can add a selfie later from the booking screen.');
-    navigate(`/bookings?tab=on_demand&highlight=${dispatchId}`);
+    navigate(`/dispatch/${dispatchId}/lobby`);
   };
 
   const renderContent = () => {
@@ -180,7 +191,7 @@ const DispatchPaymentSuccess = () => {
               className="text-gray-400 hover:text-white"
               data-testid="skip-selfie-btn"
             >
-              Skip for now, I'll add it later
+              Skip for now
             </Button>
           </div>
         );
@@ -197,8 +208,11 @@ const DispatchPaymentSuccess = () => {
             </p>
             <Button
               onClick={() => {
-                setPollAttempts(0);
+                confirmedRef.current = false;
+                pollCountRef.current = 0;
                 setStatus('checking');
+                // Re-trigger by navigating to self
+                window.location.reload();
               }}
               className="bg-amber-500 hover:bg-amber-600 text-black"
             >

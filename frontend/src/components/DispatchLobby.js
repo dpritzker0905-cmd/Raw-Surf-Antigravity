@@ -18,7 +18,7 @@ import apiClient from '../lib/apiClient';
 import { getFullUrl } from '../utils/media';
 import {
   Check, Clock, MapPin, Radio, Award, Camera, Loader2,
-  Zap, X, ChevronRight, Users, Bell, ArrowLeft
+  Zap, X, ChevronRight, Users, Bell, ArrowLeft, RefreshCw
 } from 'lucide-react';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
@@ -129,28 +129,45 @@ const PhotographerCard = ({ photographer, eta, status, isLight }) => {
   const textPrimary = isLight ? 'text-gray-900' : 'text-white';
   const textSecondary = isLight ? 'text-gray-500' : 'text-gray-400';
   const accepted = ['accepted', 'en_route', 'arrived'].includes(status);
+  const declined = status === 'declined' || status === 'searching_for_pro';
+
+  const borderClass = accepted
+    ? 'border-green-400/50 bg-green-500/10'
+    : declined
+    ? 'border-red-400/40 bg-red-500/10'
+    : 'border-amber-400/30 bg-amber-500/5';
+
+  const ringClass = accepted
+    ? 'ring-2 ring-green-400'
+    : declined
+    ? 'ring-2 ring-red-400/50'
+    : 'ring-2 ring-amber-400/40';
+
+  const statusText = accepted
+    ? 'En route to you'
+    : declined
+    ? 'Searching for another photographer...'
+    : 'Reviewing your request...';
 
   return (
     <div
-      className={`flex items-center gap-3 p-3 rounded-2xl border transition-all duration-500 ${
-        accepted
-          ? 'border-green-400/50 bg-green-500/10'
-          : 'border-amber-400/30 bg-amber-500/5'
-      }`}
+      className={`flex items-center gap-3 p-3 rounded-2xl border transition-all duration-500 ${borderClass}`}
     >
       <div
-        className={`w-12 h-12 rounded-full overflow-hidden flex-shrink-0 ${
-          accepted ? 'ring-2 ring-green-400' : 'ring-2 ring-amber-400/40'
-        }`}
+        className={`w-12 h-12 rounded-full overflow-hidden flex-shrink-0 ${ringClass}`}
       >
-        {photographer?.avatar_url ? (
+        {photographer?.avatar_url || photographer?.avatar ? (
           <img
-            src={getFullUrl(photographer.avatar_url)}
-            alt={photographer.full_name}
+            src={getFullUrl(photographer.avatar_url || photographer.avatar)}
+            alt={photographer.full_name || photographer.name}
             className="w-full h-full object-cover"
           />
         ) : (
-          <div className="w-full h-full bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center">
+          <div className={`w-full h-full flex items-center justify-center ${
+            declined
+              ? 'bg-gradient-to-br from-red-400 to-red-600'
+              : 'bg-gradient-to-br from-amber-400 to-orange-500'
+          }`}>
             <Camera className="w-6 h-6 text-black" />
           </div>
         )}
@@ -158,10 +175,10 @@ const PhotographerCard = ({ photographer, eta, status, isLight }) => {
 
       <div className="flex-1 min-w-0">
         <p className={`font-semibold text-sm ${textPrimary} truncate`}>
-          {photographer?.full_name || 'Photographer'}
+          {photographer?.full_name || photographer?.name || 'Photographer'}
         </p>
-        <p className={`text-xs ${textSecondary}`}>
-          {accepted ? 'En route to you' : 'Reviewing your request...'}
+        <p className={`text-xs ${declined ? 'text-red-400' : textSecondary}`}>
+          {statusText}
         </p>
       </div>
 
@@ -171,7 +188,12 @@ const PhotographerCard = ({ photographer, eta, status, isLight }) => {
           <p className="text-xs text-green-400/70">min ETA</p>
         </div>
       )}
-      {!accepted && (
+      {declined && (
+        <div className="w-8 h-8 rounded-full bg-red-500/20 flex items-center justify-center flex-shrink-0">
+          <RefreshCw className="w-4 h-4 text-red-400 animate-spin" style={{ animationDuration: '3s' }} />
+        </div>
+      )}
+      {!accepted && !declined && (
         <div className="w-8 h-8 rounded-full bg-amber-500/20 flex items-center justify-center animate-pulse flex-shrink-0">
           <Radio className="w-4 h-4 text-amber-400" />
         </div>
@@ -227,8 +249,14 @@ export const DispatchLobby = () => {
   const [error, setError] = useState(null);
   const [showSelfieModal, setShowSelfieModal] = useState(false);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+  const [declinedBanner, setDeclinedBanner] = useState(false);
   const selfieShownRef = useRef(false);
   const pollRef = useRef(null);
+
+  // Status transition tracking refs (prevents duplicate toasts)
+  const prevStatusRef = useRef(null);
+  const prevPaidCountRef = useRef(null);
+  const acceptSoundPlayedRef = useRef(false);
 
   // State from navigation (captain's local crew list before backend synced)
   const localCrewMembers = navState?.crewMembers || [];
@@ -252,25 +280,64 @@ export const DispatchLobby = () => {
         apiClient.get(`/dispatch/${dispatchId}`),
         apiClient.get(`/dispatch/${dispatchId}/crew-status`),
       ]);
+      const newStatus = dispatchRes.data?.status;
+      const newCrew = crewRes.data?.crew || [];
+      const newPaidCount = newCrew.filter(m => m.paid).length;
+
+      // --- STATUS TRANSITION NOTIFICATIONS ---
+      const prevStatus = prevStatusRef.current;
+
+      if (prevStatus && prevStatus !== newStatus) {
+        // Photographer ACCEPTED
+        if (['accepted', 'en_route'].includes(newStatus) && !acceptSoundPlayedRef.current) {
+          acceptSoundPlayedRef.current = true;
+          toast.success('🎉 Photographer accepted! They\'re on their way.', {
+            id: 'photographer-accepted',
+            duration: 6000,
+          });
+          try {
+            const audio = new Audio('/sounds/notification.mp3');
+            audio.volume = 0.4;
+            audio.play().catch(() => {});
+          } catch (_) {}
+        }
+
+        // Photographer DECLINED (status goes back to searching)
+        if (newStatus === 'searching_for_pro' && prevStatus !== 'searching_for_pro') {
+          setDeclinedBanner(true);
+          toast.info('Photographer couldn\'t make it. We\'re finding another one.', {
+            id: 'photographer-declined',
+            duration: 6000,
+          });
+        }
+
+        // Session CANCELLED
+        if (newStatus === 'cancelled') {
+          toast.error('Session was cancelled.', { id: 'session-cancelled' });
+          clearInterval(pollRef.current);
+          navigate(`/bookings?tab=on_demand&highlight=${dispatchId}`);
+          return;
+        }
+      }
+
+      // --- CREW PAYMENT NOTIFICATIONS ---
+      if (prevPaidCountRef.current !== null && newPaidCount > prevPaidCountRef.current) {
+        const diff = newPaidCount - prevPaidCountRef.current;
+        const newlyPaid = newCrew.filter(m => m.paid).slice(-diff);
+        const names = newlyPaid.map(m => m.name || 'A crew member').join(', ');
+        toast.success(`${names} joined the session! 🏄`, {
+          id: `crew-paid-${newPaidCount}`,
+          duration: 4000,
+        });
+      }
+
+      // Update refs
+      prevStatusRef.current = newStatus;
+      prevPaidCountRef.current = newPaidCount;
+
       setDispatch(dispatchRes.data);
-      setCrewStatus(crewRes.data?.crew || []);
+      setCrewStatus(newCrew);
       setError(null);
-
-      // Auto-advance if photographer accepted
-      if (['accepted', 'en_route'].includes(dispatchRes.data?.status)) {
-        try {
-          const audio = new Audio('/sounds/notification.mp3');
-          audio.volume = 0.4;
-          audio.play().catch(() => {});
-        } catch (_) {}
-      }
-
-      // If cancelled, show error and go back
-      if (dispatchRes.data?.status === 'cancelled') {
-        toast.error('Session was cancelled.');
-        clearInterval(pollRef.current);
-        navigate(`/bookings?tab=on_demand&highlight=${dispatchId}`);
-      }
     } catch (err) {
       setError('Lost connection - retrying...');
     } finally {
@@ -401,6 +468,29 @@ export const DispatchLobby = () => {
       </div>
 
       <div className="max-w-lg mx-auto px-4 py-6 space-y-6">
+
+        {/* --- Declined Banner --- */}
+        {declinedBanner && !photographerAccepted && (
+          <div
+            className={`flex items-center gap-3 p-3 rounded-xl border animate-in slide-in-from-top ${
+              isLight ? 'bg-amber-50 border-amber-300' : 'bg-amber-500/10 border-amber-500/30'
+            }`}
+          >
+            <RefreshCw className="w-5 h-5 text-amber-400 animate-spin flex-shrink-0" style={{ animationDuration: '3s' }} />
+            <div className="flex-1">
+              <p className={`text-sm font-medium ${textPrimary}`}>Finding a new photographer</p>
+              <p className={`text-xs ${textSecondary}`}>
+                The previous photographer couldn't make it. We're matching you with someone new.
+              </p>
+            </div>
+            <button
+              onClick={() => setDeclinedBanner(false)}
+              className="text-gray-500 hover:text-gray-300"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        )}
 
         {/* --- Photographer Card --- */}
         <PhotographerCard

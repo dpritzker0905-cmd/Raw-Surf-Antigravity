@@ -126,20 +126,54 @@ const IncomingRequestCard = ({
           </div>
         </div>
         
-        {/* Location */}
-        <div className={`flex items-center gap-3 mb-4 p-3 rounded-xl ${sectionBg}`}>
-          <MapPin className="w-5 h-5 text-cyan-400 flex-shrink-0" />
-          <div className="flex-1 min-w-0">
-            <p className={`font-medium truncate ${textPrimary}`}>{request.location?.name || 'Nearby Location'}</p>
-            {request.requester_name && (
-              <p className={`text-sm ${textSecondary}`}>Surfer: {request.requester_name}</p>
-            )}
+        {/* Location — Uber-style navigation block */}
+        <div className={`mb-4 rounded-xl overflow-hidden border ${
+          'border-cyan-500/30'
+        }`}>
+          {/* Location header */}
+          <div className={`flex items-center gap-3 p-3 ${sectionBg}`}>
+            <div className="w-9 h-9 rounded-lg bg-cyan-500/20 flex items-center justify-center flex-shrink-0">
+              <MapPin className="w-5 h-5 text-cyan-400" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className={`font-semibold text-sm truncate ${textPrimary}`}>
+                {request.location?.name || 'Nearby Location'}
+              </p>
+              {request.location?.lat && request.location?.lng && (
+                <p className={`text-[10px] font-mono ${textSecondary}`}>
+                  {Number(request.location.lat).toFixed(5)}, {Number(request.location.lng).toFixed(5)}
+                </p>
+              )}
+            </div>
+            <div className="flex items-center gap-1.5 flex-shrink-0">
+              {request.distance_miles && (
+                <Badge className="bg-purple-500/20 text-purple-400 text-xs">
+                  <Navigation className="w-3 h-3 mr-1" />
+                  {request.distance_miles.toFixed(1)} mi
+                </Badge>
+              )}
+              {request.requester_selfie && (
+                <Badge className="bg-cyan-500/20 text-cyan-400 text-xs">
+                  <Camera className="w-3 h-3 mr-1" />
+                  ID
+                </Badge>
+              )}
+            </div>
           </div>
-          {request.requester_selfie && (
-            <Badge className="bg-cyan-500/20 text-cyan-400 text-xs">
-              <Camera className="w-3 h-3 mr-1" />
-              ID Photo
-            </Badge>
+          {/* Navigate button */}
+          {request.location?.lat && request.location?.lng && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                const url = `https://www.google.com/maps/dir/?api=1&destination=${request.location.lat},${request.location.lng}`;
+                window.open(url, '_blank');
+              }}
+              className="w-full flex items-center justify-center gap-2 py-2.5 bg-gradient-to-r from-cyan-500/20 to-blue-500/20 hover:from-cyan-500/30 hover:to-blue-500/30 transition-all text-cyan-400 font-semibold text-sm border-t border-cyan-500/20"
+              data-testid="navigate-to-surfer-btn"
+            >
+              <Navigation className="w-4 h-4" />
+              Navigate to Surfer
+            </button>
           )}
         </div>
         
