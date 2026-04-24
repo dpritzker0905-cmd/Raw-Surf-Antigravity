@@ -35,8 +35,6 @@ import LineupManagerDrawer from './LineupManagerDrawer';
 // Tab components extracted for maintainability
 import { LiveSessionsTab, OnDemandTab, ScheduledTab, FindBuddiesTab, PastTab, LiveNowTab, LineupTab, DirectoryTab, SubscriptionsTab } from './bookings/index';
 
-import { GoldPassBookingsSection } from './bookings/GoldPassBookingsSection';
-
 import { OnDemandRequestDrawer } from './OnDemandRequestDrawer';
 
 import { CrewPaymentModal } from './CrewPaymentModal';
@@ -1217,14 +1215,6 @@ export const Bookings = () => {
 
           {/* Scheduled Tab */}
           <div style={{ display: activeTab === 'scheduled' ? 'block' : 'none' }}>
-            {/* Gold Pass Early Access Section - inside Scheduled tab so it doesn't cause layout shifts during swiping */}
-            {SURFER_ROLES.includes(user?.role) && (
-              <GoldPassBookingsSection 
-                user={user} 
-                theme={theme} 
-                onBookingComplete={fetchData}
-              />
-            )}
             <ScheduledTab
               user={user}
               scheduledBookings={scheduledBookings}
