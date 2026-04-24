@@ -439,6 +439,7 @@ export const Bookings = () => {
   const [onDemandPhotographers, setOnDemandPhotographers] = useState([]);
   const [onDemandLoading, setOnDemandLoading] = useState(false);
   const [userLocation, setUserLocation] = useState(null);
+  const [gpsUnavailable, setGpsUnavailable] = useState(false);
   const [showOnDemandDrawer, setShowOnDemandDrawer] = useState(false);
   const [selectedOnDemandPro, setSelectedOnDemandPro] = useState(null);
   const [resumeDispatchId, setResumeDispatchId] = useState(null);
@@ -797,7 +798,15 @@ export const Bookings = () => {
     setShowCrewPaymentModal(true);
   };
 
-  // Fetch on-demand photographers based on user location
+  // Helper: sort photographers by priority
+  const sortPhotographers = (photographers) => {
+    return (photographers || []).sort((a, b) => {
+      const priorityOrder = { 'Approved Pro': 0, 'Pro': 1, 'Photographer': 2, 'Hobbyist': 3 };
+      return (priorityOrder[a.role] ?? 99) - (priorityOrder[b.role] ?? 99);
+    });
+  };
+
+  // Fetch on-demand photographers based on user location (GPS)
   const fetchOnDemandPhotographers = async () => {
     setOnDemandLoading(true);
     try {
@@ -806,44 +815,48 @@ export const Bookings = () => {
           async (position) => {
             const { latitude, longitude } = position.coords;
             setUserLocation({ latitude, longitude });
+            setGpsUnavailable(false);
             
             try {
-              // Fetch photographers with on_demand_available = true
               const response = await apiClient.get(`/photographers/on-demand`, {
-                params: {
-                  latitude,
-                  longitude,
-                  radius: 25 // 25 mile radius
-                }
+                params: { latitude, longitude, radius: 25 }
               });
-              
-              // Sort by priority: Pro > Photographer > Hobbyist
-              const sorted = (response.data || []).sort((a, b) => {
-                const priorityOrder = { 'Approved Pro': 0, 'Pro': 1, 'Photographer': 2, 'Hobbyist': 3 };
-                const aPriority = priorityOrder[a.role] ?? 99;
-                const bPriority = priorityOrder[b.role] ?? 99;
-                return aPriority - bPriority;
-              });
-              
-              setOnDemandPhotographers(sorted);
+              setOnDemandPhotographers(sortPhotographers(response.data));
             } catch (e) {
               logger.error('Error fetching on-demand photographers:', e);
               setOnDemandPhotographers([]);
             }
             setOnDemandLoading(false);
           },
-          (error) => {
-            logger.error('Geolocation error:', error);
-            toast.error('Location access required for On-Demand requests');
+          (_error) => {
+            // GPS denied/unavailable — show manual location selector
+            setGpsUnavailable(true);
             setOnDemandLoading(false);
           }
         );
       } else {
-        toast.error('Geolocation not supported');
+        setGpsUnavailable(true);
         setOnDemandLoading(false);
       }
     } catch (e) {
       logger.error('Error in fetchOnDemandPhotographers:', e);
+      setOnDemandLoading(false);
+    }
+  };
+
+  // Fetch on-demand photographers by manual location (fallback when GPS unavailable)
+  const fetchOnDemandByManualLocation = async (latitude, longitude, locationLabel) => {
+    setOnDemandLoading(true);
+    setUserLocation({ latitude, longitude, label: locationLabel });
+    try {
+      const response = await apiClient.get(`/photographers/on-demand`, {
+        params: { latitude, longitude, radius: 50 }
+      });
+      setOnDemandPhotographers(sortPhotographers(response.data));
+    } catch (e) {
+      logger.error('Error fetching on-demand photographers by manual location:', e);
+      setOnDemandPhotographers([]);
+    } finally {
       setOnDemandLoading(false);
     }
   };
@@ -977,14 +990,13 @@ export const Bookings = () => {
         )}
 
 
-        {/* Tabs — sticky orange underline bar, pins below TopNav */}
+        {/* Tabs — scrolls with content */}
         <div
           ref={stickyTabRef}
-          className="sticky top-14 z-20"
+          className="relative z-10"
           style={{
             backgroundColor: isLight ? '#f9fafb' : isBeach ? '#09090b' : '#18181b',
             backgroundImage: 'none',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
           }}
         >
           <div className="relative">
@@ -1195,8 +1207,10 @@ export const Bookings = () => {
               onDemandPhotographers={onDemandPhotographers}
               onDemandLoading={onDemandLoading}
               userLocation={userLocation}
+              gpsUnavailable={gpsUnavailable}
               activeDispatch={activeDispatch}
               onRefresh={fetchOnDemandPhotographers}
+              onManualLocationSelect={fetchOnDemandByManualLocation}
               onSelectPhotographer={handleSelectOnDemandPro}
               onResumeDispatch={(dispatch) => {
                 // Resume the "Finding Your Photographer" workflow

@@ -5,7 +5,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Camera, MapPin, DollarSign, ChevronRight, Star, Radio, Loader2, Users, Zap } from 'lucide-react';
+import { Camera, MapPin, DollarSign, ChevronRight, Star, Radio, Loader2, Users, Zap, Globe } from 'lucide-react';
 import { Card, CardContent } from '../ui/card';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
@@ -13,13 +13,127 @@ import { CrewPaymentProgress } from '../dispatch/CrewPaymentProgress';
 import { getFullUrl } from '../../utils/media';
 import { ROLES } from '../../constants/roles';
 
+// Curated surf region data with coordinates for GPS fallback
+const SURF_REGIONS = {
+  'United States': {
+    'California': {
+      'San Diego': { lat: 32.7157, lng: -117.1611 },
+      'Los Angeles / Malibu': { lat: 34.0259, lng: -118.7798 },
+      'Santa Cruz': { lat: 36.9741, lng: -122.0308 },
+      'San Francisco / Pacifica': { lat: 37.6138, lng: -122.4869 },
+      'Huntington Beach': { lat: 33.6595, lng: -117.9988 },
+    },
+    'Hawaii': {
+      'North Shore, Oahu': { lat: 21.5912, lng: -158.1036 },
+      'South Shore, Oahu': { lat: 21.2614, lng: -157.8231 },
+      'Maui': { lat: 20.7984, lng: -156.3319 },
+      'Big Island': { lat: 19.8968, lng: -155.5828 },
+    },
+    'Florida': {
+      'Cocoa Beach': { lat: 28.3200, lng: -80.6076 },
+      'New Smyrna Beach': { lat: 29.0258, lng: -80.9270 },
+      'Jacksonville Beach': { lat: 30.2849, lng: -81.3935 },
+      'Sebastian Inlet': { lat: 27.8592, lng: -80.4489 },
+      'Palm Beach': { lat: 26.7056, lng: -80.0364 },
+    },
+    'New Jersey': {
+      'Asbury Park': { lat: 40.2204, lng: -74.0001 },
+      'Long Beach Island': { lat: 39.6571, lng: -74.1437 },
+    },
+    'New York': {
+      'Long Beach, NY': { lat: 40.5884, lng: -73.6579 },
+      'Montauk': { lat: 41.0365, lng: -71.9543 },
+      'Rockaway Beach': { lat: 40.5834, lng: -73.8155 },
+    },
+    'Texas': {
+      'South Padre Island': { lat: 26.1118, lng: -97.1681 },
+      'Galveston': { lat: 29.2866, lng: -94.7977 },
+    },
+    'Oregon': {
+      'Short Sands / Oswald West': { lat: 45.7601, lng: -123.9641 },
+    },
+    'North Carolina': {
+      'Outer Banks': { lat: 35.9582, lng: -75.6218 },
+      'Wrightsville Beach': { lat: 34.2085, lng: -77.7964 },
+    },
+  },
+  'Australia': {
+    'New South Wales': {
+      'Sydney / Bondi': { lat: -33.8915, lng: 151.2767 },
+      'Byron Bay': { lat: -28.6474, lng: 153.6020 },
+    },
+    'Queensland': {
+      'Gold Coast': { lat: -28.0167, lng: 153.4000 },
+      'Noosa Heads': { lat: -26.3923, lng: 153.0756 },
+    },
+    'Western Australia': {
+      'Margaret River': { lat: -33.9510, lng: 115.0711 },
+    },
+  },
+  'Indonesia': {
+    'Bali': {
+      'Uluwatu': { lat: -8.8291, lng: 115.0849 },
+      'Canggu': { lat: -8.6478, lng: 115.1385 },
+      'Kuta / Seminyak': { lat: -8.7180, lng: 115.1690 },
+    },
+    'Mentawai Islands': {
+      'Mentawai': { lat: -2.0833, lng: 99.6167 },
+    },
+  },
+  'Portugal': {
+    'Algarve': {
+      'Sagres': { lat: 37.0087, lng: -8.9390 },
+    },
+    'Central Portugal': {
+      'Peniche / Supertubos': { lat: 39.3554, lng: -9.3848 },
+      'Ericeira': { lat: 38.9626, lng: -9.4190 },
+      'Nazar\u00e9': { lat: 39.6015, lng: -9.0705 },
+    },
+  },
+  'Costa Rica': {
+    'Guanacaste': {
+      'Tamarindo': { lat: 10.2994, lng: -85.8375 },
+      'Nosara': { lat: 9.9769, lng: -85.6530 },
+    },
+    'Puntarenas': {
+      'Santa Teresa': { lat: 9.6410, lng: -85.1680 },
+      'Jac\u00f3': { lat: 9.6150, lng: -84.6300 },
+    },
+  },
+  'Mexico': {
+    'Baja California': {
+      'Todos Santos': { lat: 23.4467, lng: -110.2233 },
+      'San Jos\u00e9 del Cabo': { lat: 23.0597, lng: -109.7006 },
+    },
+    'Oaxaca': {
+      'Puerto Escondido': { lat: 15.8720, lng: -97.0767 },
+    },
+  },
+  'South Africa': {
+    'Western Cape': {
+      "Jeffreys Bay (J-Bay)": { lat: -34.0488, lng: 24.9310 },
+      'Cape Town / Muizenberg': { lat: -34.1067, lng: 18.4756 },
+    },
+  },
+  'Brazil': {
+    'Rio de Janeiro': {
+      'Rio / Barra da Tijuca': { lat: -23.0125, lng: -43.3650 },
+    },
+    'Santa Catarina': {
+      'Florian\u00f3polis': { lat: -27.5954, lng: -48.5480 },
+    },
+  },
+};
+
 export const OnDemandTab = ({
   user,
   onDemandPhotographers,
   onDemandLoading,
   userLocation,
+  gpsUnavailable = false,
   activeDispatch,
   onRefresh,
+  onManualLocationSelect,
   onSelectPhotographer,
   onResumeDispatch,
   crewInvites = [],
@@ -46,6 +160,22 @@ export const OnDemandTab = ({
   
   // Determine if user is crew member vs captain
   const isCrewMember = activeDispatch?.role === 'crew_member';
+
+  // Manual location fallback state
+  const [selectedCountry, setSelectedCountry] = useState('');
+  const [selectedState, setSelectedState] = useState('');
+  const [selectedCity, setSelectedCity] = useState('');
+
+  const countries = Object.keys(SURF_REGIONS);
+  const states = selectedCountry ? Object.keys(SURF_REGIONS[selectedCountry] || {}) : [];
+  const cities = selectedCountry && selectedState ? Object.keys(SURF_REGIONS[selectedCountry]?.[selectedState] || {}) : [];
+
+  const handleManualSearch = () => {
+    const coords = SURF_REGIONS[selectedCountry]?.[selectedState]?.[selectedCity];
+    if (coords && onManualLocationSelect) {
+      onManualLocationSelect(coords.lat, coords.lng, `${selectedCity}, ${selectedState}`);
+    }
+  };
 
   return (
     <>
@@ -264,20 +394,82 @@ export const OnDemandTab = ({
             <MapPin className="w-5 h-5 text-cyan-400" />
             <div className="flex-1">
               <span className={`text-sm ${textSecondaryClass}`}>
-                {userLocation ? 'Searching photographers near you...' : 'Getting your location...'}
+                {userLocation?.label
+                  ? `Showing photographers near ${userLocation.label}`
+                  : userLocation
+                    ? 'Searching photographers near you...'
+                    : gpsUnavailable
+                      ? 'Select your location below'
+                      : 'Getting your location...'}
               </span>
             </div>
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={onRefresh}
-              disabled={onDemandLoading}
-            >
+            <Button size="sm" variant="ghost" onClick={onRefresh} disabled={onDemandLoading}>
               Refresh
             </Button>
           </div>
         </CardContent>
       </Card>
+
+      {/* GPS Fallback: Manual Location Selector */}
+      {gpsUnavailable && !userLocation && (
+        <Card className={`${cardBgClass} border-2 border-amber-400/40 transition-colors duration-300`}>
+          <CardContent className="py-4 px-4">
+            <div className="flex items-center gap-2 mb-3">
+              <Globe className="w-5 h-5 text-amber-400" />
+              <h3 className={`font-semibold text-sm ${textPrimaryClass}`}>Select Your Location</h3>
+            </div>
+            <p className={`text-xs ${textSecondaryClass} mb-3`}>
+              GPS is unavailable. Choose your surf region to find nearby photographers.
+            </p>
+
+            {/* Country */}
+            <select
+              value={selectedCountry}
+              onChange={(e) => { setSelectedCountry(e.target.value); setSelectedState(''); setSelectedCity(''); }}
+              className={`w-full p-2.5 rounded-lg mb-2 text-sm border ${isLight ? 'bg-white border-gray-300 text-gray-900' : 'bg-zinc-800 border-zinc-600 text-white'}`}
+            >
+              <option value="">Select Country</option>
+              {countries.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+
+            {/* State */}
+            {selectedCountry && (
+              <select
+                value={selectedState}
+                onChange={(e) => { setSelectedState(e.target.value); setSelectedCity(''); }}
+                className={`w-full p-2.5 rounded-lg mb-2 text-sm border ${isLight ? 'bg-white border-gray-300 text-gray-900' : 'bg-zinc-800 border-zinc-600 text-white'}`}
+              >
+                <option value="">Select State / Province</option>
+                {states.map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
+            )}
+
+            {/* City */}
+            {selectedState && (
+              <select
+                value={selectedCity}
+                onChange={(e) => setSelectedCity(e.target.value)}
+                className={`w-full p-2.5 rounded-lg mb-2 text-sm border ${isLight ? 'bg-white border-gray-300 text-gray-900' : 'bg-zinc-800 border-zinc-600 text-white'}`}
+              >
+                <option value="">Select City / Area</option>
+                {cities.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+            )}
+
+            {/* Search Button */}
+            {selectedCity && (
+              <Button
+                onClick={handleManualSearch}
+                className="w-full mt-1 bg-gradient-to-r from-amber-500 to-orange-500 text-black font-semibold"
+                disabled={onDemandLoading}
+              >
+                {onDemandLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <MapPin className="w-4 h-4 mr-2" />}
+                Find Photographers
+              </Button>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {onDemandLoading ? (
         <div className="flex justify-center py-12">

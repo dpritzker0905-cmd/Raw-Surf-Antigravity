@@ -192,6 +192,7 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
   // ============ LOCATION STATE ============
   const [selectedSpot, setSelectedSpot] = useState(null);
   const [customLocationName, setCustomLocationName] = useState('');
+  const [customLocationAddress, setCustomLocationAddress] = useState('');
   const [nearbySpots, setNearbySpots] = useState([]);
   const [loadingSpots, setLoadingSpots] = useState(false);
   const [spotSearchQuery, setSpotSearchQuery] = useState('');
@@ -510,8 +511,11 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
       const lat = selectedSpot?.latitude || userLocation?.latitude || photographer?.on_demand_latitude || 28.3667;
       const lng = selectedSpot?.longitude || userLocation?.longitude || photographer?.on_demand_longitude || -80.6067;
       
-      // Determine the location name from selection
-      const locationName = selectedSpot?.name || (useCustomLocation && customLocationName ? customLocationName : null) || photographer?.on_demand_city || 'Current Location';
+      // Determine the location name from selection (include address if provided)
+      const baseLocationName = selectedSpot?.name || (useCustomLocation && customLocationName ? customLocationName : null) || photographer?.on_demand_city || 'Current Location';
+      const locationName = useCustomLocation && customLocationAddress
+        ? `${baseLocationName} — ${customLocationAddress}`
+        : baseLocationName;
       
       // Calculate requested start time based on user's timing selection
       const requestedStartTime = new Date(Date.now() + startTimeOption * 60000).toISOString();
@@ -1037,16 +1041,27 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
 
                 {/* Custom Location Text Input */}
                 {useCustomLocation && (
-                  <div className="mt-2 pl-2">
+                  <div className="mt-2 pl-2 space-y-2">
                     <Input
                       value={customLocationName}
                       onChange={(e) => setCustomLocationName(e.target.value)}
-                      placeholder="e.g. North side of pier, Parking lot 3..."
+                      placeholder="Spot name (e.g. North side of pier)"
                       className={`${isLight ? 'bg-white' : 'bg-card/80'}`}
                       autoFocus
                       data-testid="custom-location-input"
                     />
-                    <p className={`text-xs ${textSecondary} mt-1`}>The photographer will use your GPS for directions</p>
+                    <Input
+                      value={customLocationAddress}
+                      onChange={(e) => setCustomLocationAddress(e.target.value)}
+                      placeholder="Street address (e.g. 401 Meade Ave, Cocoa Beach, FL)"
+                      className={`${isLight ? 'bg-white' : 'bg-card/80'}`}
+                      data-testid="custom-location-address"
+                    />
+                    <p className={`text-xs ${textSecondary} mt-1`}>
+                      {customLocationAddress
+                        ? 'Address helps the photographer find the exact spot'
+                        : 'Optional: add a street address for more precise directions'}
+                    </p>
                   </div>
                 )}
 
@@ -1065,9 +1080,14 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
             {(selectedSpot || useCustomLocation) && (
               <div className={`flex items-center gap-3 p-3 rounded-xl ${isLight ? 'bg-green-50' : 'bg-green-500/10'} border border-green-400/30`}>
                 <MapPin className="w-4 h-4 text-green-400 flex-shrink-0" />
-                <p className={`text-sm ${textPrimary}`}>
-                  {selectedSpot ? selectedSpot.name : (customLocationName || 'Custom Location (GPS)')}
-                </p>
+                <div className="flex-1 min-w-0">
+                  <p className={`text-sm ${textPrimary} truncate`}>
+                    {selectedSpot ? selectedSpot.name : (customLocationName || 'Custom Location (GPS)')}
+                  </p>
+                  {useCustomLocation && customLocationAddress && (
+                    <p className={`text-xs ${textSecondary} truncate`}>{customLocationAddress}</p>
+                  )}
+                </div>
               </div>
             )}
           </div>
