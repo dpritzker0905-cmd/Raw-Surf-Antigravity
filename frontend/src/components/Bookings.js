@@ -334,6 +334,11 @@ export const Bookings = () => {
   const dragStartXRef = useRef(0);
   const scrollStartRef = useRef(0);
 
+  // Swipe-to-navigate refs for mobile tab switching
+  const swipeStartXRef = useRef(0);
+  const swipeStartYRef = useRef(0);
+  const swipeActiveRef = useRef(false);
+
   // Check if scroll arrows should show (desktop only)
   const updateArrows = () => {
     const el = tabScrollRef.current;
@@ -1031,8 +1036,44 @@ export const Bookings = () => {
           )}
         </div>
 
-        {/* Tab Content */}
-        <div className="space-y-4">
+        {/* Tab Content — swipeable on mobile */}
+        <div
+          className="space-y-4"
+          onTouchStart={(e) => {
+            swipeStartXRef.current = e.touches[0].clientX;
+            swipeStartYRef.current = e.touches[0].clientY;
+            swipeActiveRef.current = true;
+          }}
+          onTouchMove={(e) => {
+            if (!swipeActiveRef.current) return;
+            const dy = Math.abs(e.touches[0].clientY - swipeStartYRef.current);
+            const dx = Math.abs(e.touches[0].clientX - swipeStartXRef.current);
+            // If vertical movement exceeds horizontal, this is a scroll — cancel swipe
+            if (dy > dx && dy > 10) {
+              swipeActiveRef.current = false;
+            }
+          }}
+          onTouchEnd={(e) => {
+            if (!swipeActiveRef.current) return;
+            swipeActiveRef.current = false;
+            const endX = e.changedTouches[0].clientX;
+            const deltaX = endX - swipeStartXRef.current;
+            const MIN_SWIPE = 60; // minimum px to trigger tab change
+            if (Math.abs(deltaX) < MIN_SWIPE) return;
+
+            const tabIds = tabs.map(t => t.id);
+            const currentIdx = tabIds.indexOf(activeTab);
+            if (currentIdx === -1) return;
+
+            if (deltaX < 0 && currentIdx < tabIds.length - 1) {
+              // Swipe left → next tab
+              setActiveTab(tabIds[currentIdx + 1]);
+            } else if (deltaX > 0 && currentIdx > 0) {
+              // Swipe right → previous tab
+              setActiveTab(tabIds[currentIdx - 1]);
+            }
+          }}
+        >
           {/* The Lineup Tab - Surf Session Lobby */}
           {activeTab === 'lineup' && (
             <LineupTab
