@@ -285,6 +285,19 @@ export const Explore = () => {
     };
   }, [updateArrowVisibility]);
 
+  // Auto-scroll the active pill button into view whenever activeTab changes (e.g. after swipe)
+  useEffect(() => {
+    const container = tabsContainerRef.current;
+    if (!container) return;
+    // Find the active button by data-testid
+    const activeBtn = container.querySelector(`[data-testid="tab-${activeTab}"]`);
+    if (activeBtn) {
+      activeBtn.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' });
+    }
+    // Update arrows after scroll settles
+    setTimeout(updateArrowVisibility, 350);
+  }, [activeTab, updateArrowVisibility]);
+
   // Scroll tabs left/right
   const scrollTabs = (direction) => {
     const container = tabsContainerRef.current;

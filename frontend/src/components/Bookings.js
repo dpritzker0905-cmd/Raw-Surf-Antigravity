@@ -1137,15 +1137,33 @@ export const Bookings = () => {
             const indicator = indicatorRef.current;
             const container = tabScrollRef.current;
             if (indicator && container) {
+              const wrapper = container.parentElement;
               const activeBtn = container.querySelector('[data-active="true"]');
-              if (activeBtn) {
-                const containerRect = container.getBoundingClientRect();
+              if (activeBtn && wrapper) {
+                const wrapperRect = wrapper.getBoundingClientRect();
                 const btnRect = activeBtn.getBoundingClientRect();
-                const baseX = btnRect.left - containerRect.left + container.scrollLeft;
-                // Move indicator proportional to drag (scaled to tab width)
-                const indicatorShift = (dampened / window.innerWidth) * btnRect.width * 1.5;
-                indicator.style.transition = 'none';
-                indicator.style.transform = `translateX(${baseX + indicatorShift}px)`;
+                const baseX = btnRect.left - wrapperRect.left;
+                // Find the next tab button to interpolate toward
+                const tabIds = tabs.map(t => t.id);
+                const currentIdx = tabIds.indexOf(activeTab);
+                const nextIdx = dampened < 0 ? currentIdx + 1 : currentIdx - 1;
+                const allBtns = container.querySelectorAll('[data-testid^="tab-"]');
+                const nextBtn = nextIdx >= 0 && nextIdx < allBtns.length ? allBtns[nextIdx] : null;
+                const progress = Math.min(Math.abs(dampened) / (window.innerWidth * 0.4), 1);
+                if (nextBtn) {
+                  const nextRect = nextBtn.getBoundingClientRect();
+                  const nextX = nextRect.left - wrapperRect.left;
+                  const interpolatedX = baseX + (nextX - baseX) * progress;
+                  const interpolatedW = btnRect.width + (nextRect.width - btnRect.width) * progress;
+                  indicator.style.transition = 'none';
+                  indicator.style.transform = `translateX(${interpolatedX}px)`;
+                  indicator.style.width = `${interpolatedW}px`;
+                } else {
+                  // At edge — slight resistance shift
+                  const indicatorShift = (dampened / window.innerWidth) * btnRect.width * 0.5;
+                  indicator.style.transition = 'none';
+                  indicator.style.transform = `translateX(${baseX + indicatorShift}px)`;
+                }
               }
             }
           }}
@@ -1225,6 +1243,8 @@ export const Bookings = () => {
                 }
               }, 220);
             }
+            // Snap indicator back too
+            updateIndicator();
           }}
         >
           <div
