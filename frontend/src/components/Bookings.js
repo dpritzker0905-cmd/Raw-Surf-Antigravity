@@ -328,6 +328,7 @@ export const Bookings = () => {
   const tabFromUrl = searchParams.get('tab');
   const [activeTab, setActiveTab] = useState(tabFromUrl || 'lineup');  // Default to The Lineup tab, or use URL param
   const tabScrollRef = useRef(null);
+  const stickyTabRef = useRef(null);
   const [showLeftArrow, setShowLeftArrow] = useState(false);
   const [showRightArrow, setShowRightArrow] = useState(false);
   const isDraggingRef = useRef(false);
@@ -359,13 +360,29 @@ export const Bookings = () => {
     el.scrollBy({ left: dir * 160, behavior: 'smooth' });
   };
 
-  // Auto-scroll active tab into view whenever activeTab changes (Explore-style)
+  // Auto-scroll active tab into view + scroll page so tab bar sticks at top
   useEffect(() => {
     const el = tabScrollRef.current;
     if (!el) return;
+    // Horizontally scroll the active tab pill into view
     const active = el.querySelector(`[data-testid="tab-${activeTab}"]`);
     if (active) {
       active.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' });
+    }
+    // Vertically scroll the <main> so the tab bar reaches its sticky position
+    // This ensures the tab bar + content are fully visible after switching tabs
+    if (stickyTabRef.current) {
+      const main = stickyTabRef.current.closest('main');
+      if (main) {
+        const stickyRect = stickyTabRef.current.getBoundingClientRect();
+        const mainRect = main.getBoundingClientRect();
+        // 56px = TopNav height (top-14). If tab bar is below sticky point, scroll it up.
+        const targetTop = mainRect.top + 56; // where sticky should pin
+        if (stickyRect.top > targetTop + 4) {
+          const scrollBy = stickyRect.top - targetTop;
+          main.scrollBy({ top: scrollBy, behavior: 'smooth' });
+        }
+      }
     }
     updateArrows();
     const t = setTimeout(updateArrows, 350);
@@ -956,6 +973,7 @@ export const Bookings = () => {
 
         {/* Tabs — sticky orange underline bar, stays on screen below TopNav */}
         <div
+          ref={stickyTabRef}
           className={`sticky top-14 z-20 ${mainBgClass}`}
         >
           <div className="relative">
