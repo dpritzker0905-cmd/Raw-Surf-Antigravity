@@ -928,6 +928,7 @@ export const DutyStationDrawer = ({ isOpen, onClose }) => {
   
   // Handle conditions report confirmation - actually goes live
   // Uses two-step flow: (1) pre-upload media to /upload/conditions, (2) send URL to go-live
+  // Includes automatic retry for Render cold-start resilience
   const handleConditionsConfirm = async (conditionsData) => {
     setLoading(true);
     try {
@@ -945,6 +946,7 @@ export const DutyStationDrawer = ({ isOpen, onClose }) => {
       // Step 1: Pre-upload condition media via multipart form to avoid large JSON body
       let conditionMediaUrl = null;
       let conditionMediaType = conditionsData?.mediaType || null;
+      let uploadWokeServer = false; // Track if the upload request woke a sleeping server
       if (conditionsData?.media instanceof Blob) {
         try {
           const ext = conditionMediaType === 'video' ? '.webm' : '.jpg';
@@ -953,18 +955,24 @@ export const DutyStationDrawer = ({ isOpen, onClose }) => {
           formData.append('file', conditionsData.media, `conditions${ext}`);
           formData.append('user_id', user.id);
           logger.log('[DutyStation] Pre-uploading condition media…', { size: conditionsData.media.size, type: mimeType });
+          const uploadStart = Date.now();
           const uploadRes = await apiClient.post('/upload/conditions', formData, {
             headers: { 'Content-Type': undefined }, // Let browser set multipart boundary
             timeout: 60000 // 60s for large video uploads
           });
+          const uploadDuration = Date.now() - uploadStart;
           conditionMediaUrl = uploadRes.data?.media_url;
           conditionMediaType = uploadRes.data?.media_type || conditionMediaType;
-          logger.log('[DutyStation] Condition media uploaded:', conditionMediaUrl);
+          logger.log('[DutyStation] Condition media uploaded:', conditionMediaUrl, `(${uploadDuration}ms)`);
+          // If upload took > 10s, server was likely cold-starting — it's warm now
+          if (uploadDuration > 10000) uploadWokeServer = true;
         } catch (uploadErr) {
           // Non-fatal: proceed without condition media (matches PSM pattern)
           logger.warn('[DutyStation] Condition media upload failed (non-fatal):', uploadErr.message);
           conditionMediaUrl = null;
           conditionMediaType = null;
+          // Upload failure likely means server was sleeping — flag for warm-up
+          uploadWokeServer = true;
         }
       }
       
@@ -1007,17 +1015,80 @@ export const DutyStationDrawer = ({ isOpen, onClose }) => {
         condition_media_url: goLivePayload.condition_media_url ? '(url set)' : null
       });
       
-      const goLiveRes = await apiClient.post(`/photographer/${user.id}/go-live`, goLivePayload, {
-        timeout: 120000 // 120s — matches PSM; accommodates Render cold starts
-      });
-      logger.log('[DutyStation] Go-live success:', goLiveRes.data?.live_session_id);
-      setLiveActive(true);
-      setShowConditionsModal(false);
-      toast.success(`Now live at ${selectedSpot.name}!`);
+      // ── Go-live POST with automatic retry for cold-start resilience ──
+      // Render free tier drops the first request while waking up.
+      // Strategy: always warm the server with a lightweight ping first,
+      // then POST go-live. If that fails with no response, wait and retry.
+      const MAX_ATTEMPTS = 3;
+      let lastError = null;
+      
+      for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+        try {
+          // ALWAYS warm the server before go-live — cold starts are the #1 failure cause.
+          // On attempt 1: quick ping to wake if sleeping.
+          // On retries: longer wait + ping to let server finish booting.
+          if (attempt > 1) {
+            const retryDelay = attempt === 2 ? 5000 : 10000; // 5s, then 10s
+            toast.loading(`Server waking up — retry ${attempt - 1} of ${MAX_ATTEMPTS - 1}…`, { id: 'go-live-warmup' });
+            await new Promise(r => setTimeout(r, retryDelay));
+          } else {
+            toast.loading('Connecting to server…', { id: 'go-live-warmup' });
+          }
+          
+          try {
+            // Lightweight status check to confirm server is alive
+            await apiClient.get(`/photographer/${user.id}/status`, { timeout: 30000 });
+            logger.log(`[DutyStation] Server warm-up ping succeeded (attempt ${attempt})`);
+          } catch (pingErr) {
+            if (attempt === 1) {
+              // First ping failed — server is definitely cold. Wait for it.
+              logger.warn('[DutyStation] Server cold — waiting 8s for boot…', pingErr.message);
+              toast.loading('Server is starting up…', { id: 'go-live-warmup' });
+              await new Promise(r => setTimeout(r, 8000));
+              // Try ping again after waiting
+              try {
+                await apiClient.get(`/photographer/${user.id}/status`, { timeout: 30000 });
+                logger.log('[DutyStation] Server alive after wait');
+              } catch (secondPingErr) {
+                logger.warn('[DutyStation] Server still unresponsive after 8s wait:', secondPingErr.message);
+              }
+            } else {
+              logger.warn(`[DutyStation] Warm-up ping failed on attempt ${attempt}:`, pingErr.message);
+            }
+          }
+          toast.dismiss('go-live-warmup');
+          
+          const goLiveRes = await apiClient.post(`/photographer/${user.id}/go-live`, goLivePayload, {
+            timeout: 120000 // 120s — matches PSM; accommodates Render cold starts
+          });
+          logger.log('[DutyStation] Go-live success:', goLiveRes.data?.live_session_id);
+          setLiveActive(true);
+          setShowConditionsModal(false);
+          toast.success(`Now live at ${selectedSpot.name}!`);
+          return; // ← Success — exit the function
+        } catch (err) {
+          lastError = err;
+          toast.dismiss('go-live-warmup');
+          const hasResponse = !!err.response;
+          const isTimeout = err.code === 'ECONNABORTED' || err.message?.includes('timeout');
+          
+          // Only retry on cold-start symptoms (no HTTP response, or timeout)
+          // Do NOT retry on 4xx/5xx — those are real server errors
+          if (hasResponse || attempt >= MAX_ATTEMPTS) {
+            break; // Server responded with an error, or out of retries
+          }
+          
+          // No response or timeout — server is likely still booting
+          logger.warn(`[DutyStation] Go-live attempt ${attempt} failed, will retry…`, err.code, err.message);
+        }
+      }
+      
+      // If we get here, all attempts failed — surface the error from the last attempt
+      throw lastError;
     } catch (error) {
       const detail = error.response?.data?.detail || '';
       const status = error.response?.status;
-      logger.error('[DutyStation] Go-live failed:', { status, detail, message: error.message });
+      logger.error('[DutyStation] Go-live failed after retries:', { status, detail, message: error.message });
       
       // Check specific statuses FIRST — before the generic detail fallback
       if (status === 413) {
@@ -1039,9 +1110,9 @@ export const DutyStationDrawer = ({ isOpen, onClose }) => {
       } else if (error.code === 'ECONNABORTED' || error.message?.includes('timeout')) {
         toast.error('Server is warming up — please wait a moment and try again.', { duration: 6000 });
       } else if (!error.response) {
-        // No HTTP response at all — typically a cold start, CORS, or real network issue
-        logger.error('[DutyStation] No HTTP response:', error.code, error.message);
-        toast.error('Could not reach the server. It may be warming up — please try again in 30 seconds.', { duration: 8000 });
+        // Exhausted retries with no server response
+        logger.error('[DutyStation] No HTTP response after retries:', error.code, error.message);
+        toast.error('Could not reach the server after retrying. Please check your connection and try again.', { duration: 8000 });
       } else {
         toast.error('Failed to go live. Please try again.');
       }
