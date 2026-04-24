@@ -360,13 +360,37 @@ export const Bookings = () => {
     el.scrollBy({ left: dir * 160, behavior: 'smooth' });
   };
 
-  // Auto-scroll active tab pill into view horizontally when tab changes
+  // Auto-scroll active tab pill into view + scroll page so tab bar is visible with content
   useEffect(() => {
     const el = tabScrollRef.current;
     if (!el) return;
+    // Horizontally center the active tab button
     const active = el.querySelector(`[data-testid="tab-${activeTab}"]`);
     if (active) {
       active.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' });
+    }
+    // Scroll <main> so the tab bar is pinned at its sticky position
+    // This guarantees tab bar + workflow content are visible together after switching
+    if (stickyTabRef.current) {
+      const main = document.querySelector('main');
+      if (main) {
+        // Calculate the tab bar's natural position in the document flow
+        let offsetTop = 0;
+        let node = stickyTabRef.current;
+        while (node && node !== main) {
+          offsetTop += node.offsetTop;
+          node = node.offsetParent;
+        }
+        // Scroll so tab bar pins right below TopNav (56px)
+        const scrollTarget = Math.max(0, offsetTop - 56);
+        if (main.scrollTop < scrollTarget) {
+          // Only scroll down to pin — don't yank upward if user scrolled past
+          main.scrollTo({ top: scrollTarget, behavior: 'smooth' });
+        } else if (main.scrollTop > scrollTarget + 200) {
+          // If user was far down in prev tab, scroll up to show tab bar + new content
+          main.scrollTo({ top: scrollTarget, behavior: 'smooth' });
+        }
+      }
     }
     updateArrows();
     const t = setTimeout(updateArrows, 350);
@@ -895,13 +919,71 @@ export const Bookings = () => {
   }
 
   return (
-    <div className={`flex flex-col ${mainBgClass} transition-colors duration-300`} style={{ height: 'calc(100dvh - 3.5rem)' }} data-testid="bookings-page">
-      {/* ── Tab bar: flex-shrink-0 keeps it ALWAYS visible, never scrolls ── */}
-      <div
-        ref={stickyTabRef}
-        className={`flex-shrink-0 z-20 ${mainBgClass}`}
-      >
-        <div className="max-w-lg mx-auto px-4">
+    <div className={`pb-20 min-h-screen ${mainBgClass} transition-colors duration-300`} data-testid="bookings-page">
+      <div className="max-w-lg mx-auto p-4">
+        <div className="flex items-center justify-between mb-6">
+          <h1 className={`text-3xl font-bold ${textPrimaryClass}`} style={{ fontFamily: 'Oswald' }} data-testid="bookings-title">
+            Sessions & Bookings
+          </h1>
+          <div className="flex items-center gap-2">
+            <Button
+              onClick={() => setActiveTab('directory')}
+              size="sm"
+              className="bg-gradient-to-r from-yellow-500 to-amber-500 hover:from-yellow-600 hover:to-amber-600 text-black font-semibold"
+            >
+              <Search className="w-4 h-4 mr-1.5" />
+              Find Photogs
+            </Button>
+            <Button
+              onClick={() => setShowJoinCodeModal(true)}
+              variant="outline"
+              size="sm"
+              className={isLight ? 'border-gray-300' : 'border-zinc-700'}
+            >
+              <UserPlus className="w-4 h-4 mr-1.5" />
+              Join Code
+            </Button>
+          </div>
+        </div>
+
+        {/* Pending Invites Banner */}
+        {pendingInvites.length > 0 && (
+          <Card className="mb-4 bg-gradient-to-r from-yellow-500/20 to-orange-500/20 border-yellow-500/30">
+            <CardContent className="py-3 px-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <Mail className="w-5 h-5 text-yellow-400" />
+                  <span className={`text-sm font-medium ${textPrimaryClass}`}>
+                    You have {pendingInvites.length} pending invite{pendingInvites.length > 1 ? 's' : ''}
+                  </span>
+                </div>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="text-yellow-400"
+                  onClick={() => setActiveTab('scheduled')}
+                >
+                  View
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Gold Pass Early Access Section - For all surfers */}
+        {SURFER_ROLES.includes(user?.role) && (
+          <GoldPassBookingsSection 
+            user={user} 
+            theme={theme} 
+            onBookingComplete={fetchData}
+          />
+        )}
+
+        {/* Tabs — sticky orange underline bar, pins below TopNav */}
+        <div
+          ref={stickyTabRef}
+          className={`sticky top-14 z-20 ${mainBgClass}`}
+        >
           <div className="relative">
             {/* Scrollable tab strip with orange underline indicator */}
             <div
@@ -996,70 +1078,6 @@ export const Bookings = () => {
             )}
           </div>
         </div>
-      </div>
-
-      {/* ── Scrollable content area: header, banners, tab content all scroll here ── */}
-      <div className="flex-1 overflow-y-auto min-h-0 pb-20">
-        <div className="max-w-lg mx-auto p-4">
-        <div className="flex items-center justify-between mb-6">
-          <h1 className={`text-3xl font-bold ${textPrimaryClass}`} style={{ fontFamily: 'Oswald' }} data-testid="bookings-title">
-            Sessions & Bookings
-          </h1>
-          <div className="flex items-center gap-2">
-            <Button
-              onClick={() => setActiveTab('directory')}
-              size="sm"
-              className="bg-gradient-to-r from-yellow-500 to-amber-500 hover:from-yellow-600 hover:to-amber-600 text-black font-semibold"
-            >
-              <Search className="w-4 h-4 mr-1.5" />
-              Find Photogs
-            </Button>
-            <Button
-              onClick={() => setShowJoinCodeModal(true)}
-              variant="outline"
-              size="sm"
-              className={isLight ? 'border-gray-300' : 'border-zinc-700'}
-            >
-              <UserPlus className="w-4 h-4 mr-1.5" />
-              Join Code
-            </Button>
-          </div>
-        </div>
-
-        {/* Pending Invites Banner */}
-        {pendingInvites.length > 0 && (
-          <Card className="mb-4 bg-gradient-to-r from-yellow-500/20 to-orange-500/20 border-yellow-500/30">
-            <CardContent className="py-3 px-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <Mail className="w-5 h-5 text-yellow-400" />
-                  <span className={`text-sm font-medium ${textPrimaryClass}`}>
-                    You have {pendingInvites.length} pending invite{pendingInvites.length > 1 ? 's' : ''}
-                  </span>
-                </div>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className="text-yellow-400"
-                  onClick={() => setActiveTab('scheduled')}
-                >
-                  View
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Gold Pass Early Access Section - For all surfers */}
-        {SURFER_ROLES.includes(user?.role) && (
-          <GoldPassBookingsSection 
-            user={user} 
-            theme={theme} 
-            onBookingComplete={fetchData}
-          />
-        )}
-
-
 
         {/* Tab Content -- swipeable on mobile with slide animation */}
         <div
@@ -1329,7 +1347,6 @@ export const Bookings = () => {
           )}
           </div>
         </div>
-      </div>
       </div>
 
       {/* Join by Code Modal */}
