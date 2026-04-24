@@ -657,13 +657,18 @@ export const DutyStationDrawer = ({ isOpen, onClose }) => {
     price_per_join: 25,
     live_photo_price: 5,
     photos_included: 3,
+    videos_included: 1,
     general_photo_price: 10,
     photo_price_web: 3,
     photo_price_standard: 5,
     photo_price_high: 10,
     estimated_duration: 2,
     max_surfers: 10,
-    auto_accept: true
+    auto_accept: true,
+    // Earnings destination (Hobbyist cause/grom)
+    earnings_destination_type: null,
+    earnings_destination_id: null,
+    earnings_cause_name: null
   });
   
   // Role-based permissions
@@ -728,6 +733,7 @@ export const DutyStationDrawer = ({ isOpen, onClose }) => {
         price_per_join: p.live_buyin_price ?? prev.price_per_join,
         live_photo_price: g.session_pricing?.live_session_photo_price ?? p.live_photo_price ?? prev.live_photo_price,
         photos_included: g.session_pricing?.live_session_photos_included ?? p.photo_package_size ?? prev.photos_included,
+        videos_included: g.session_pricing?.live_session_videos_included ?? prev.videos_included,
         general_photo_price: g.photo_pricing?.standard ?? p.gallery_photo_price ?? prev.general_photo_price,
         photo_price_web: g.photo_pricing?.web ?? prev.photo_price_web,
         photo_price_standard: g.photo_pricing?.standard ?? prev.photo_price_standard,
@@ -963,17 +969,21 @@ export const DutyStationDrawer = ({ isOpen, onClose }) => {
       }
       
       // Step 2: Build go-live request — clean JSON payload with pricing config
+      // IMPORTANT: latitude/longitude must be USER's GPS position (not spot coords)
+      // — the backend uses these for Hobbyist proximity checks against nearby Pros
       const goLivePayload = {
         // Core spot data
         spot_id: selectedSpot.id,
         spot_name: selectedSpot.name,
         location: selectedSpot.name,
-        latitude: selectedSpot.latitude,
-        longitude: selectedSpot.longitude,
+        // User's GPS coords (for Hobbyist proximity check), fall back to spot coords
+        latitude: userLocation?.lat || selectedSpot.latitude,
+        longitude: userLocation?.lng || selectedSpot.longitude,
         // Session pricing — mirrors PhotographerSessionsManager
         price_per_join: pricingConfig.price_per_join,
         live_photo_price: pricingConfig.live_photo_price,
         photos_included: pricingConfig.photos_included,
+        videos_included: pricingConfig.videos_included ?? 1,
         general_photo_price: pricingConfig.general_photo_price,
         photo_price_web: pricingConfig.photo_price_web,
         photo_price_standard: pricingConfig.photo_price_standard,
@@ -985,17 +995,22 @@ export const DutyStationDrawer = ({ isOpen, onClose }) => {
         condition_media_url: conditionMediaUrl || null,
         condition_media_type: conditionMediaType,
         // Spot notes
-        spot_notes: conditionsData?.spotNotes || null
+        spot_notes: conditionsData?.spotNotes || null,
+        // Earnings destination (Hobbyist cause/grom allocation)
+        earnings_destination_type: pricingConfig.earnings_destination_type || null,
+        earnings_destination_id: pricingConfig.earnings_destination_id || null,
+        earnings_cause_name: pricingConfig.earnings_cause_name || null
       };
       
       logger.log('[DutyStation] Go-live payload:', {
         ...goLivePayload,
-        condition_media_url: goLivePayload.condition_media_url || null
+        condition_media_url: goLivePayload.condition_media_url ? '(url set)' : null
       });
       
-      await apiClient.post(`/photographer/${user.id}/go-live`, goLivePayload, {
+      const goLiveRes = await apiClient.post(`/photographer/${user.id}/go-live`, goLivePayload, {
         timeout: 120000 // 120s — matches PSM; accommodates Render cold starts
       });
+      logger.log('[DutyStation] Go-live success:', goLiveRes.data?.live_session_id);
       setLiveActive(true);
       setShowConditionsModal(false);
       toast.success(`Now live at ${selectedSpot.name}!`);
@@ -1022,9 +1037,11 @@ export const DutyStationDrawer = ({ isOpen, onClose }) => {
         // Generic backend error message (covers 403 role errors, etc.)
         toast.error(`Go-live error: ${detail}`);
       } else if (error.code === 'ECONNABORTED' || error.message?.includes('timeout')) {
-        toast.error('Request timed out. The server may be waking up — please try again in a moment.', { duration: 6000 });
+        toast.error('Server is warming up — please wait a moment and try again.', { duration: 6000 });
       } else if (!error.response) {
-        toast.error('Network error — please check your connection and try again.');
+        // No HTTP response at all — typically a cold start, CORS, or real network issue
+        logger.error('[DutyStation] No HTTP response:', error.code, error.message);
+        toast.error('Could not reach the server. It may be warming up — please try again in 30 seconds.', { duration: 8000 });
       } else {
         toast.error('Failed to go live. Please try again.');
       }
