@@ -118,7 +118,6 @@ export const BottomNav = () => {
   // State for Photo Tools drawer and unread messages
   const [showPhotoTools, setShowPhotoTools] = useState(false);
   const [unreadMessages, setUnreadMessages] = useState(0);
-  const [newGalleryItems, setNewGalleryItems] = useState(0);
   const [freshAvatarUrl, setFreshAvatarUrl] = useState(null);
   
   // Fetch fresh avatar URL from profile API to avoid stale cached data
@@ -179,29 +178,16 @@ export const BottomNav = () => {
     }
   }, [user?.id]);
 
-  // Fetch new/unviewed gallery items for surfers
-  const fetchNewGalleryItems = useCallback(async () => {
-    if (!user?.id || isPhotographer) return;
-    try {
-      const response = await apiClient.get(`/surfer-gallery/pending-selections?surfer_id=${user.id}`);
-      setNewGalleryItems(response.data.count || 0);
-    } catch (error) {
-      // Silently fail — non-critical
-    }
-  }, [user?.id, isPhotographer]);
-
   useEffect(() => {
     if (user?.id) {
       fetchUnreadMessages();
-      fetchNewGalleryItems();
-      // Poll every 30 seconds for new messages and gallery items
+      // Poll every 30 seconds for new messages
       const interval = setInterval(() => {
         fetchUnreadMessages();
-        fetchNewGalleryItems();
       }, 30000);
       return () => clearInterval(interval);
     }
-  }, [user?.id, fetchUnreadMessages, fetchNewGalleryItems]);
+  }, [user?.id, fetchUnreadMessages]);
 
   // Dynamically track BottomNav height and expose as --bottomnav-h CSS variable.
   // This drives the safe-bottom clearance system used by all modals and drawers.
@@ -317,11 +303,6 @@ export const BottomNav = () => {
           >
             <div className="relative">
               <ActionIcon className={`w-6 h-6 ${isPathActive(actionConfig.path) ? actionConfig.activeColor : textInactiveClass}`} />
-              {newGalleryItems > 0 && (
-                <span className="absolute -top-1 -right-1.5 min-w-[16px] h-[16px] px-0.5 flex items-center justify-center bg-cyan-500 text-white text-[9px] font-bold rounded-full animate-pulse shadow-lg shadow-cyan-500/50">
-                  {newGalleryItems > 9 ? '9+' : newGalleryItems}
-                </span>
-              )}
             </div>
             <span className={`text-[10px] font-medium ${isPathActive(actionConfig.path) ? actionConfig.activeColor : textInactiveClass}`}>
               {actionConfig.label}

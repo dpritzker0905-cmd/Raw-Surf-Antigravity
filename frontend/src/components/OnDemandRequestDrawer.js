@@ -220,6 +220,8 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
   const [spotSearchQuery, setSpotSearchQuery] = useState('');
   const [useCustomLocation, setUseCustomLocation] = useState(false);
   const [recentSpots, setRecentSpots] = useState([]);
+  const [customLocationCoords, setCustomLocationCoords] = useState(null); // { latitude, longitude } from geocoding
+  const [geocodingAddress, setGeocodingAddress] = useState(false);
 
   // Load recently visited spots from localStorage
   useEffect(() => {
@@ -233,6 +235,38 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
       } catch (e) { /* silent */ }
     }
   }, [step]);
+
+  // Geocode custom address when user finishes typing
+  useEffect(() => {
+    if (!useCustomLocation || !customLocationAddress || customLocationAddress.trim().length < 5) {
+      setCustomLocationCoords(null);
+      return;
+    }
+    const timeoutId = setTimeout(async () => {
+      setGeocodingAddress(true);
+      try {
+        const encoded = encodeURIComponent(customLocationAddress.trim());
+        const res = await fetch(`https://nominatim.openstreetmap.org/search?q=${encoded}&format=json&limit=1`, {
+          headers: { 'Accept': 'application/json' }
+        });
+        const data = await res.json();
+        if (data && data.length > 0) {
+          const coords = { latitude: parseFloat(data[0].lat), longitude: parseFloat(data[0].lon) };
+          setCustomLocationCoords(coords);
+          logger.info('[OnDemandDrawer] Geocoded address:', customLocationAddress, '->', coords);
+        } else {
+          setCustomLocationCoords(null);
+          logger.warn('[OnDemandDrawer] Geocoding returned no results for:', customLocationAddress);
+        }
+      } catch (e) {
+        logger.error('[OnDemandDrawer] Geocoding failed:', e);
+        setCustomLocationCoords(null);
+      } finally {
+        setGeocodingAddress(false);
+      }
+    }, 800); // Debounce 800ms
+    return () => clearTimeout(timeoutId);
+  }, [customLocationAddress, useCustomLocation]);
 
   // Save a spot to recently visited (called when advancing from location step)
   const saveRecentSpot = (spot) => {
@@ -561,9 +595,25 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
   const handleSubmitRequest = async () => {
     setLoading(true);
     try {
-      // Use selected spot coordinates if available, otherwise fall back to user/photographer location
-      const lat = selectedSpot?.latitude || userLocation?.latitude || photographer?.on_demand_latitude || 28.3667;
-      const lng = selectedSpot?.longitude || userLocation?.longitude || photographer?.on_demand_longitude || -80.6067;
+      // Determine coordinates based on location selection mode:
+      // 1. Mapped spot selected -> use spot coordinates
+      // 2. Custom location with geocoded address -> use geocoded coordinates
+      // 3. Custom location without address -> use surfer's GPS ("meet me here")
+      // 4. "Use Current Location" (neither spot nor custom) -> use surfer's GPS
+      let lat, lng;
+      if (selectedSpot?.latitude && selectedSpot?.longitude) {
+        // Case 1: Mapped surf spot
+        lat = selectedSpot.latitude;
+        lng = selectedSpot.longitude;
+      } else if (useCustomLocation && customLocationCoords?.latitude && customLocationCoords?.longitude) {
+        // Case 2: Custom address was geocoded successfully
+        lat = customLocationCoords.latitude;
+        lng = customLocationCoords.longitude;
+      } else {
+        // Case 3 & 4: Fall back to surfer's GPS
+        lat = userLocation?.latitude || photographer?.on_demand_latitude || 28.3667;
+        lng = userLocation?.longitude || photographer?.on_demand_longitude || -80.6067;
+      }
       
       // Determine the location name from selection (include address if provided)
       const baseLocationName = selectedSpot?.name || (useCustomLocation && customLocationName ? customLocationName : null) || photographer?.on_demand_city || 'Current Location';
@@ -931,6 +981,8 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
                     setSelectedSpot(null);
                     setUseCustomLocation(false);
                     setCustomLocationName('');
+                    setCustomLocationAddress('');
+                    setCustomLocationCoords(null);
                   }}
                   className={`w-full p-3 rounded-xl border-2 flex items-center gap-3 transition-all text-left ${
                     !selectedSpot && !useCustomLocation
@@ -971,10 +1023,17 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
                             setUseCustomLocation(true);
                             setCustomLocationName(spot.name);
                             setSelectedSpot(null);
+                            // Restore geocoded coords from recent spot if available
+                            if (spot.latitude && spot.longitude) {
+                              setCustomLocationCoords({ latitude: spot.latitude, longitude: spot.longitude });
+                            } else {
+                              setCustomLocationCoords(null);
+                            }
                           } else {
                             setSelectedSpot(spot);
                             setUseCustomLocation(false);
                             setCustomLocationName('');
+                            setCustomLocationCoords(null);
                           }
                         }}
                         className={`w-full p-3 rounded-xl border-2 flex items-center gap-3 transition-all text-left ${
@@ -1030,6 +1089,7 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
                         setSelectedSpot(spot);
                         setUseCustomLocation(false);
                         setCustomLocationName('');
+                        setCustomLocationCoords(null);
                       }}
                       className={`w-full p-3 rounded-xl border-2 flex items-center gap-3 transition-all text-left ${
                         selectedSpot?.id === spot.id
@@ -1073,6 +1133,7 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
                   onClick={() => {
                     setUseCustomLocation(true);
                     setSelectedSpot(null);
+                    setCustomLocationCoords(null);
                   }}
                   className={`w-full p-3 rounded-xl border-2 flex items-center gap-3 transition-all text-left ${
                     useCustomLocation
@@ -1116,9 +1177,13 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
                       data-testid="custom-location-address"
                     />
                     <p className={`text-xs ${textSecondary} mt-1`}>
-                      {customLocationAddress
-                        ? 'Address helps the photographer find the exact spot'
-                        : 'Optional: add a street address for more precise directions'}
+                      {geocodingAddress
+                        ? '📍 Finding location...'
+                        : customLocationCoords
+                          ? '✅ Address found — photographer will be directed here'
+                          : customLocationAddress && customLocationAddress.trim().length >= 5
+                            ? '⚠️ Could not find address — photographer will use your GPS'
+                            : 'Optional: add a street address for more precise directions'}
                     </p>
                   </div>
                 )}
@@ -2250,7 +2315,12 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
                   if (selectedSpot) {
                     saveRecentSpot(selectedSpot);
                   } else if (useCustomLocation && customLocationName.trim()) {
-                    saveRecentSpot({ name: customLocationName.trim(), is_custom: true });
+                    saveRecentSpot({
+                      name: customLocationName.trim(),
+                      is_custom: true,
+                      latitude: customLocationCoords?.latitude || null,
+                      longitude: customLocationCoords?.longitude || null
+                    });
                   }
                   setStep('duration');
                 }}
