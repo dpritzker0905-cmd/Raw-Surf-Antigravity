@@ -847,32 +847,45 @@ async def purchase_photo_in_session(
     # Use photographer's per-photo price (SmugMug style)
     photo_price = photographer.live_photo_price or gallery_item.price or 5.0
     
-    # Process payment
-    success, new_balance, error = await deduct_credits(
-        user_id=surfer_id,
-        amount=photo_price,
-        transaction_type='live_photo_purchase',
-        db=db,
-        description=f"Photo purchase from {photographer.full_name}",
-        reference_type='gallery_item',
-        reference_id=data.gallery_item_id,
-        counterparty_id=photographer.id
+    # Check if subscription quota covers this item (photo or video)
+    from routes.photo_subscriptions import try_use_subscription_quota
+    quota_type = 'video' if gallery_item.media_type == 'video' else 'photo'
+    sub_quota_result = await try_use_subscription_quota(
+        db, surfer_id, photographer.id, quota_type
     )
+    subscription_covered = sub_quota_result.get("used", False)
     
-    if not success:
-        raise HTTPException(status_code=400, detail=error)
-    
-    # Credit photographer (80% after platform fee)
-    await add_credits(
-        user_id=photographer.id,
-        amount=photo_price * 0.80,
-        transaction_type='gallery_sale',
-        db=db,
-        description=f"Photo sale to {surfer.full_name}",
-        reference_type='gallery_item',
-        reference_id=data.gallery_item_id,
-        counterparty_id=surfer_id
-    )
+    if subscription_covered:
+        # Subscription covers this photo — no charge
+        photo_price = 0.0
+        new_balance = surfer.credit_balance or 0
+    else:
+        # Process payment
+        success, new_balance, error = await deduct_credits(
+            user_id=surfer_id,
+            amount=photo_price,
+            transaction_type='live_photo_purchase',
+            db=db,
+            description=f"Photo purchase from {photographer.full_name}",
+            reference_type='gallery_item',
+            reference_id=data.gallery_item_id,
+            counterparty_id=photographer.id
+        )
+        
+        if not success:
+            raise HTTPException(status_code=400, detail=error)
+        
+        # Credit photographer (80% after platform fee)
+        await add_credits(
+            user_id=photographer.id,
+            amount=photo_price * 0.80,
+            transaction_type='gallery_sale',
+            db=db,
+            description=f"Photo sale to {surfer.full_name}",
+            reference_type='gallery_item',
+            reference_id=data.gallery_item_id,
+            counterparty_id=surfer_id
+        )
     
     # Create purchase record
     purchase = GalleryPurchase(
@@ -880,7 +893,7 @@ async def purchase_photo_in_session(
         buyer_id=surfer_id,
         photographer_id=photographer.id,
         amount_paid=photo_price,
-        payment_method='credits'
+        payment_method='subscription' if subscription_covered else 'credits'
     )
     db.add(purchase)
     
@@ -893,8 +906,9 @@ async def purchase_photo_in_session(
     await db.commit()
     
     return {
-        "message": "Photo purchased successfully",
+        "message": "Included with subscription!" if subscription_covered else "Photo purchased successfully",
         "amount_paid": photo_price,
+        "subscription_covered": subscription_covered,
         "new_balance": new_balance,
         "download_url": gallery_item.original_url
     }

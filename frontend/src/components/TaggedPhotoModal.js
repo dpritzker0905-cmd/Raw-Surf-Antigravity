@@ -33,6 +33,7 @@ export const TaggedPhotoModal = ({
   const [selectedTier, setSelectedTier] = useState('standard');
   const [galleryPricing, setGalleryPricing] = useState(null);
   const [hasPurchased, setHasPurchased] = useState(false);
+  const [subscriptionInfo, setSubscriptionInfo] = useState(null);
 
   // Theme classes
   const isLight = theme === 'light';
@@ -48,6 +49,7 @@ export const TaggedPhotoModal = ({
       // Fetch gallery pricing if needed
       if (!photo.access_granted && !photo.is_gift) {
         fetchGalleryPricing();
+        fetchSubscriptionQuota();
       }
     }
   }, [isOpen, photo]);
@@ -74,6 +76,19 @@ export const TaggedPhotoModal = ({
       photo: { web: 3, standard: 5, high: 10 },
       video: { '720p': 8, '1080p': 15, '4k': 30 }
     });
+  };
+
+  const fetchSubscriptionQuota = async () => {
+    if (!user?.id || !photo?.photographer_id) return;
+    try {
+      const quotaType = photo.media_type === 'video' ? 'video' : 'photo';
+      const res = await apiClient.get(
+        `/photo-subscriptions/check-quota?surfer_id=${user.id}&photographer_id=${photo.photographer_id}&quota_type=${quotaType}`
+      );
+      setSubscriptionInfo(res.data);
+    } catch {
+      setSubscriptionInfo(null);
+    }
   };
 
   const handleThankPhotographer = async () => {
@@ -135,7 +150,11 @@ export const TaggedPhotoModal = ({
 
       if (response.data.success) {
         setHasPurchased(true);
-        toast.success('Photo added to your gallery! You can now download it.');
+        if (response.data.subscription_covered) {
+          toast.success('Included with your subscription! 🎉 Added to gallery.');
+        } else {
+          toast.success('Photo added to your gallery! You can now download it.');
+        }
         onPurchaseComplete?.(photo.id);
       }
     } catch (e) {
@@ -183,9 +202,20 @@ export const TaggedPhotoModal = ({
   const isGift = photo.is_gift;
   const needsToPay = !canViewFull;
 
+  // Check subscription coverage
+  const hasSubscriptionQuota = subscriptionInfo?.has_quota && subscriptionInfo?.subscription_active;
+
   // Determine pricing to show
   const getPriceDisplay = () => {
     if (canViewFull) return null;
+
+    // Subscription covers this item — show "Included" path
+    if (hasSubscriptionQuota) {
+      return {
+        type: 'subscription',
+        message: `Included with your subscription! (${subscriptionInfo.remaining} remaining)`,
+      };
+    }
     
     if (isSessionParticipant && sessionPrice !== null) {
       if (sessionPrice === 0) {
@@ -275,7 +305,26 @@ export const TaggedPhotoModal = ({
           {/* Pricing Section - Only show if needs to pay */}
           {needsToPay && (
             <div className={`p-4 rounded-lg ${isLight ? 'bg-gray-100' : 'bg-zinc-800'}`}>
-              {priceInfo?.type === 'included' ? (
+              {priceInfo?.type === 'subscription' ? (
+                /* ── Subscription covers this item ── */
+                <div className="text-center">
+                  <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-purple-500/20 text-purple-400 text-xs font-semibold mb-3">
+                    <Sparkles className="w-3.5 h-3.5" /> SUBSCRIBER PERK
+                  </div>
+                  <p className={`${textPrimary} font-medium`}>{priceInfo.message}</p>
+                  <Button
+                    onClick={handlePurchase}
+                    disabled={purchasing}
+                    className="mt-3 bg-gradient-to-r from-purple-400 to-pink-500 text-white"
+                  >
+                    {purchasing ? 'Processing...' : (
+                      <>
+                        <Check className="w-4 h-4 mr-2" /> Add to My Gallery — Free
+                      </>
+                    )}
+                  </Button>
+                </div>
+              ) : priceInfo?.type === 'included' ? (
                 <div className="text-center">
                   <Sparkles className="w-8 h-8 mx-auto mb-2 text-green-400" />
                   <p className={`${textPrimary} font-medium`}>{priceInfo.message}</p>
@@ -289,6 +338,14 @@ export const TaggedPhotoModal = ({
               ) : priceInfo?.type === 'session' ? (
                 <div className="text-center">
                   <p className={`${textSecondary} mb-2`}>You were in this session!</p>
+                  {/* Show subscriber discount hint if active but no quota */}
+                  {subscriptionInfo?.subscription_active && !hasSubscriptionQuota && (
+                    <div className="mb-2">
+                      <Badge className="bg-purple-500/20 text-purple-400 text-xs">
+                        <Sparkles className="w-3 h-3 mr-1" /> Subscription quota used up
+                      </Badge>
+                    </div>
+                  )}
                   <p className={`${textPrimary} text-xl font-bold mb-3`}>
                     {priceInfo.price} <span className="text-sm font-normal">credits</span>
                   </p>
@@ -307,6 +364,14 @@ export const TaggedPhotoModal = ({
               ) : (
                 // Gallery pricing tiers - photo gets added to user's personal gallery
                 <div>
+                  {/* Show subscriber discount hint if active but no quota */}
+                  {subscriptionInfo?.subscription_active && !hasSubscriptionQuota && (
+                    <div className="text-center mb-3">
+                      <Badge className="bg-purple-500/20 text-purple-400 text-xs">
+                        <Sparkles className="w-3 h-3 mr-1" /> Subscription quota used up — regular pricing applies
+                      </Badge>
+                    </div>
+                  )}
                   <p className={`${textSecondary} mb-3 text-center`}>{priceInfo?.message}</p>
                   <div className="grid grid-cols-3 gap-2 mb-4">
                     {[

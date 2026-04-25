@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 
 import { useAuth } from '../contexts/AuthContext';
 
@@ -36,7 +36,7 @@ import { getFullUrl } from '../utils/media';
 
 
 export const AdminDashboard = () => {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const { enableGodMode, isGodMode } = usePersona();
   const [stats, setStats] = useState(null);
   const [users, setUsers] = useState([]);
@@ -64,6 +64,9 @@ export const AdminDashboard = () => {
     }
   }, [user?.id]);
 
+  // Track whether admin API calls are failing due to expired session
+  const [sessionExpired, setSessionExpired] = useState(false);
+
   const fetchData = async () => {
     try {
       const [statsRes, usersRes, logsRes, settingsRes] = await Promise.all([
@@ -78,9 +81,13 @@ export const AdminDashboard = () => {
       setLogs(logsRes.data);
       // Always set siteSettings with defaults if not present
       setSiteSettings(settingsRes.data || { access_code_enabled: false, access_code: '' });
+      setSessionExpired(false); // Clear expired flag on success
     } catch (error) {
       logger.error('Admin data error:', error);
-      if (error.response?.status === 403) {
+      if (error.response?.status === 401) {
+        setSessionExpired(true);
+        toast.error('Admin session expired — please log in again to restore access.');
+      } else if (error.response?.status === 403) {
         toast.error('Admin access required');
       }
     } finally {
@@ -203,6 +210,29 @@ export const AdminDashboard = () => {
           <p className="text-gray-400 text-sm mt-1">God Mode - Full platform control</p>
         </div>
       </div>
+
+      {/* Session Expired Banner */}
+      {sessionExpired && (
+        <div className="mb-6 p-4 rounded-xl bg-red-500/10 border border-red-500/30 flex items-center gap-4">
+          <AlertTriangle className="w-6 h-6 text-red-400 shrink-0" />
+          <div className="flex-1">
+            <p className="text-red-400 font-semibold">Session Expired</p>
+            <p className="text-gray-400 text-sm mt-1">
+              Your admin session token has been invalidated (server restart or token expiry). 
+              Log out and log back in to restore full admin access.
+            </p>
+          </div>
+          <Button
+            onClick={() => {
+              logout();
+              window.location.href = '/auth';
+            }}
+            className="bg-red-500 hover:bg-red-600 text-white whitespace-nowrap"
+          >
+            Re-Login Now
+          </Button>
+        </div>
+      )}
 
       {/* Tabs */}
       <div className="flex gap-2 mb-6 overflow-x-auto">

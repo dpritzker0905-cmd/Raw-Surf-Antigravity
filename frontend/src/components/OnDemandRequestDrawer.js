@@ -7,7 +7,7 @@ import { useTheme } from '../contexts/ThemeContext';
 
 import apiClient from '../lib/apiClient';
 
-import { MapPin, Camera, Zap, Clock, ChevronRight, Radio, Award, Plus, X, Calculator, Loader2, Wallet, Check, Bell, CreditCard, Search, Navigation, History } from 'lucide-react';
+import { MapPin, Camera, Zap, Clock, ChevronRight, Radio, Award, Plus, X, Calculator, Loader2, Wallet, Check, Bell, CreditCard, Search, Navigation, History, Sparkles } from 'lucide-react';
 
 import { Button } from './ui/button';
 
@@ -142,6 +142,7 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
   const navigate = useNavigate();
   const [localCredits, setLocalCredits] = useState(0);
   const [creditsFetched, setCreditsFetched] = useState(false);
+  const [subscriptionDiscount, setSubscriptionDiscount] = useState(null);
   
   // Always fetch credits when drawer opens
   useEffect(() => {
@@ -167,11 +168,32 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
     fetchCredits();
   }, [isOpen, user?.id, creditsFetched]);
   
+  // Fetch subscription discount for this photographer
+  useEffect(() => {
+    const fetchSubDiscount = async () => {
+      if (!user?.id || !photographer?.id || !isOpen) return;
+      try {
+        const res = await apiClient.get(
+          `/photo-subscriptions/check-quota?surfer_id=${user.id}&photographer_id=${photographer.id}&quota_type=session`
+        );
+        if (res.data?.subscription_active) {
+          setSubscriptionDiscount(res.data);
+        } else {
+          setSubscriptionDiscount(null);
+        }
+      } catch {
+        setSubscriptionDiscount(null);
+      }
+    };
+    fetchSubDiscount();
+  }, [isOpen, user?.id, photographer?.id]);
+
   // Reset state when drawer closes
   useEffect(() => {
     if (!isOpen) {
       setCreditsFetched(false);
       setShowCancelConfirm(false);
+      setSubscriptionDiscount(null);
     }
   }, [isOpen]);
   
@@ -369,6 +391,11 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
   const baseSessionPrice = hourlyRate * requestDuration;
   const crewAdditionalCost = perSurferFee * crewMembers.length;
   const totalPrice = baseSessionPrice + crewAdditionalCost;
+
+  // Subscription discount (on-demand sessions)
+  const subDiscountPct = subscriptionDiscount?.on_demand_discount_pct || 0;
+  const subDiscountAmount = subDiscountPct > 0 ? (totalPrice * subDiscountPct / 100) : 0;
+  const discountedTotalPrice = totalPrice - subDiscountAmount;
   
   const totalParticipants = crewMembers.length + 1;
   const perPersonSplit = (totalPrice / totalParticipants).toFixed(2);
@@ -1812,7 +1839,14 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
                   <p className={`text-sm ${textSecondary}`}>{requestDuration * 60} min session</p>
                 </div>
                 <div className="text-right">
-                  <p className="text-amber-400 font-bold">${totalPrice.toFixed(2)}</p>
+                  {subDiscountPct > 0 ? (
+                    <>
+                      <p className="text-xs text-muted-foreground line-through">${totalPrice.toFixed(2)}</p>
+                      <p className="text-amber-400 font-bold">${discountedTotalPrice.toFixed(2)}</p>
+                    </>
+                  ) : (
+                    <p className="text-amber-400 font-bold">${totalPrice.toFixed(2)}</p>
+                  )}
                   {crewMembers.length > 0 && (
                     <p className="text-xs text-green-400">You: ${captainPayAmount.toFixed(2)}</p>
                   )}
@@ -1845,6 +1879,32 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
                   <p className={`font-medium ${textPrimary}`}>{totalParticipants}</p>
                 </div>
               </div>
+
+              {/* Subscription Discount Banner */}
+              {subDiscountPct > 0 && (
+                <div className={`flex items-center gap-2 pt-3 border-t ${isLight ? 'border-gray-200' : 'border-zinc-700'}`}>
+                  <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-purple-500/20">
+                    <Sparkles className="w-3.5 h-3.5 text-purple-400" />
+                    <span className="text-xs font-semibold text-purple-400">SUBSCRIBER</span>
+                  </div>
+                  <p className={`text-sm ${textPrimary} flex-1`}>
+                    {subDiscountPct}% off &mdash; saving <span className="font-semibold text-green-400">${subDiscountAmount.toFixed(2)}</span>
+                  </p>
+                </div>
+              )}
+
+              {/* Subscription active but no on-demand discount */}
+              {subscriptionDiscount?.subscription_active && subDiscountPct === 0 && (
+                <div className={`flex items-center gap-2 pt-3 border-t ${isLight ? 'border-gray-200' : 'border-zinc-700'}`}>
+                  <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-purple-500/10">
+                    <Sparkles className="w-3.5 h-3.5 text-purple-300" />
+                    <span className="text-xs font-medium text-purple-300">SUBSCRIBER</span>
+                  </div>
+                  <p className={`text-xs ${textSecondary}`}>
+                    {subscriptionDiscount.plan_name || 'Active plan'} &mdash; on-demand discount not included
+                  </p>
+                </div>
+              )}
             </div>
             
             {/* Payment Selection */}

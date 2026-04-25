@@ -755,3 +755,51 @@ async def get_subscription_discount(
     if service_type == 'on_demand':
         return sub.on_demand_discount_pct or 0.0
     return sub.booking_discount_pct or 0.0
+
+
+async def check_quota_inline(
+    db: AsyncSession,
+    surfer_id: str,
+    photographer_id: str,
+    quota_type: str,  # 'photo', 'video', 'live_buyin', 'session'
+) -> dict:
+    """
+    Read-only subscription quota check (does NOT decrement).
+    Used by pricing endpoints to hint subscription coverage to the frontend.
+    """
+    now = datetime.now(timezone.utc)
+    result = await db.execute(
+        select(SurferPhotoSubscription).where(and_(
+            SurferPhotoSubscription.surfer_id == surfer_id,
+            SurferPhotoSubscription.photographer_id == photographer_id,
+            SurferPhotoSubscription.status == 'active',
+            SurferPhotoSubscription.expires_at > now,
+        ))
+    )
+    sub = result.scalar_one_or_none()
+    if not sub:
+        return {
+            "has_quota": False,
+            "remaining": 0,
+            "subscription_active": False,
+            "booking_discount_pct": 0,
+            "on_demand_discount_pct": 0,
+        }
+
+    field_map = {
+        'photo': 'photos_remaining',
+        'video': 'videos_remaining',
+        'live_buyin': 'live_session_buyins_remaining',
+        'session': 'sessions_remaining',
+    }
+    field = field_map.get(quota_type, 'photos_remaining')
+    remaining = getattr(sub, field, 0)
+
+    return {
+        "has_quota": remaining > 0,
+        "remaining": remaining,
+        "subscription_active": True,
+        "booking_discount_pct": sub.booking_discount_pct or 0,
+        "on_demand_discount_pct": sub.on_demand_discount_pct or 0,
+        "plan_name": sub.plan_name,
+    }

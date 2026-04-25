@@ -555,9 +555,30 @@ async def create_user_booking(
     elif data.max_participants >= 2 and (photographer.group_discount_2_plus or 0) > 0:
         group_discount_percent = photographer.group_discount_2_plus
     
-    # Calculate discounted total
+    # Calculate group-discounted total
     discount_amount = (base_price * group_discount_percent) / 100
     total_price = base_price - discount_amount
+    
+    # Apply photographer-specific subscription discount (stacks with group discount, capped at 50%)
+    from routes.photo_subscriptions import get_subscription_discount, try_use_subscription_quota
+    subscription_discount_pct = await get_subscription_discount(
+        db, user_id, data.photographer_id, service_type='booking'
+    )
+    subscription_covered = False
+    if subscription_discount_pct > 0:
+        # Cap combined discount at 50% of base price
+        max_sub_discount = (base_price * 0.50) - discount_amount
+        sub_discount = min((base_price * subscription_discount_pct / 100), max(max_sub_discount, 0))
+        total_price = total_price - sub_discount
+    
+    # Try to use subscription session quota (free booking if quota available)
+    sub_quota_result = await try_use_subscription_quota(
+        db, user_id, data.photographer_id, 'session'
+    )
+    if sub_quota_result.get("used", False):
+        subscription_covered = True
+        total_price = 0.0
+    
     price_per_person = total_price / data.max_participants if data.max_participants > 0 else total_price
     
     # Handle credit application
@@ -726,7 +747,9 @@ async def create_user_booking(
         "remaining_credits": remaining_credits,
         "amount_to_charge": amount_to_charge,
         "escrow_status": booking.escrow_status,
-        "escrow_amount": booking.escrow_amount
+        "escrow_amount": booking.escrow_amount,
+        "subscription_discount_pct": subscription_discount_pct,
+        "subscription_covered": subscription_covered,
     }
 
 
@@ -1360,6 +1383,22 @@ async def create_booking_with_stripe(
     duration_multipliers = {60: 1, 120: 1.8, 180: 2.5, 240: 3, 480: 5}
     multiplier = duration_multipliers.get(data.duration, data.duration / 60)
     total_price = hourly_rate * multiplier
+    
+    # Apply photographer-specific subscription discount for Stripe quick-book
+    from routes.photo_subscriptions import get_subscription_discount, try_use_subscription_quota
+    subscription_discount_pct = await get_subscription_discount(
+        db, user_id, data.photographer_id, service_type='booking'
+    )
+    if subscription_discount_pct > 0:
+        effective_discount = min(subscription_discount_pct / 100.0, 0.50)
+        total_price = total_price * (1 - effective_discount)
+    
+    # Try subscription session quota (free booking if available)
+    sub_quota_result = await try_use_subscription_quota(
+        db, user_id, data.photographer_id, 'session'
+    )
+    if sub_quota_result.get("used", False):
+        total_price = 0.0
     
     # Validate and apply credits
     credits_applied = 0

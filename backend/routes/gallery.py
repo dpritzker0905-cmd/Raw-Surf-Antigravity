@@ -640,6 +640,21 @@ async def get_gallery_item_pricing(
             ]
         }
     
+    # ── Subscription quota check (pre-purchase hint for frontend) ──
+    subscription_info = {
+        "has_quota": False,
+        "remaining": 0,
+        "subscription_active": False,
+        "booking_discount_pct": 0,
+        "on_demand_discount_pct": 0,
+    }
+    if viewer_id and item.photographer_id:
+        from routes.photo_subscriptions import check_quota_inline
+        quota_type = 'video' if item.media_type == 'video' else 'photo'
+        subscription_info = await check_quota_inline(
+            db, viewer_id, item.photographer_id, quota_type
+        )
+
     return {
         "item_id": item_id,
         "media_type": item.media_type,
@@ -652,7 +667,9 @@ async def get_gallery_item_pricing(
         "is_free_from_session": is_free_from_session,
         "session_price_override": session_price_override,
         "session_origin_mode": item.session_origin_mode,
-        "has_locked_pricing": bool(participant_locked_prices or item.locked_price_web or item.locked_price_standard)
+        "has_locked_pricing": bool(participant_locked_prices or item.locked_price_web or item.locked_price_standard),
+        # Subscription info (pre-purchase)
+        "subscription": subscription_info,
     }
 
 
@@ -713,8 +730,20 @@ async def purchase_gallery_item(
     # Get price for quality tier
     price, download_url = get_quality_price(item, photographer, data.quality_tier)
     
-    # Process payment with credit system
-    if data.payment_method == 'credits':
+    # Check if subscription quota covers this purchase (photo or video)
+    from routes.photo_subscriptions import try_use_subscription_quota
+    quota_type = 'video' if item.media_type == 'video' else 'photo'
+    sub_quota_result = await try_use_subscription_quota(
+        db, buyer_id, item.photographer_id, quota_type
+    )
+    subscription_covered = sub_quota_result.get("used", False)
+    
+    if subscription_covered:
+        # Subscription covers this — no charge
+        price = 0.0
+        new_balance = buyer.credit_balance or 0
+    elif data.payment_method == 'credits':
+        # Process payment with credit system
         success, new_balance, error = await deduct_credits(
             user_id=buyer_id,
             amount=price,
@@ -815,12 +844,13 @@ async def purchase_gallery_item(
     )
     
     return {
-        "message": "Purchase successful!",
+        "message": "Included with subscription!" if subscription_covered else "Purchase successful!",
         "success": True,
         "download_url": download_url,
         "quality_tier": data.quality_tier,
         "amount_paid": price,
-        "remaining_credits": new_balance if data.payment_method == 'credits' else buyer.credit_balance,
+        "subscription_covered": subscription_covered,
+        "remaining_credits": new_balance if (subscription_covered or data.payment_method == 'credits') else buyer.credit_balance,
         "download_link": f"/api/gallery/download/{item_id}?buyer_id={buyer_id}&quality={data.quality_tier}"
     }
 
