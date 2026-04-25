@@ -98,9 +98,11 @@ async def create_session_gallery(
     elif session_type == 'on_demand':
         title = f"On-Demand Session at {spot_name} - {date_str}"
         description = "Exclusive photos from your private on-demand session"
-        price_web = photographer.on_demand_photo_price or photographer.photo_price_web or 5.0
-        price_standard = photographer.on_demand_photo_price or photographer.photo_price_standard or 10.0
-        price_high = photographer.on_demand_photo_price * 1.5 if photographer.on_demand_photo_price else photographer.photo_price_high or 15.0
+        # Use independent on-demand resolution pricing (Profile fields added in Iteration 135+)
+        # Falls back to legacy on_demand_photo_price, then to general gallery pricing
+        price_web = photographer.on_demand_price_web or photographer.on_demand_photo_price or photographer.photo_price_web or 5.0
+        price_standard = photographer.on_demand_price_standard or photographer.on_demand_photo_price or photographer.photo_price_standard or 10.0
+        price_high = photographer.on_demand_price_high or photographer.on_demand_photo_price or photographer.photo_price_high or 18.0
         gallery_tier = GalleryTierEnum.PRO
         
     elif session_type == 'booking':

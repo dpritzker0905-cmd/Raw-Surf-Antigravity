@@ -13,6 +13,16 @@ import {
   Power, MapPin, Clock, DollarSign, Camera, Zap, Settings, User, Navigation, Check, X, Flame, Bell, Volume2, VolumeX, Loader2, Radio, Eye, Calendar, Square, ChevronDown, ChevronUp, Wallet, History, Info, Waves, Users
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from './ui/card';
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogFooter,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogAction,
+  AlertDialogCancel,
+} from './ui/alert-dialog';
 
 import { Button } from './ui/button';
 
@@ -897,6 +907,9 @@ export const OnDemandSessionManager = () => {
   // UI state
   const [activeTab, setActiveTab] = useState('dashboard');
   const [soundEnabled, setSoundEnabled] = useState(true);
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+  const [cancelTargetId, setCancelTargetId] = useState(null);
+  const [isCancelling, setIsCancelling] = useState(false);
   
   const pollIntervalRef = useRef(null);
   const audioRef = useRef(null);
@@ -1277,17 +1290,28 @@ export const OnDemandSessionManager = () => {
     }
   };
   
-  const handleCancelSession = async (dispatchId) => {
-    if (!confirm('Are you sure you want to cancel this session?')) return;
-    
+  // Opens the in-app cancel confirmation modal
+  const promptCancelSession = (dispatchId) => {
+    setCancelTargetId(dispatchId);
+    setShowCancelConfirm(true);
+  };
+
+  // Executes the cancel after the user confirms via the modal
+  const handleConfirmCancel = async () => {
+    if (!cancelTargetId) return;
+    setIsCancelling(true);
     try {
-      await apiClient.post(`/dispatch/${dispatchId}/cancel?user_id=${user.id}`, {
+      await apiClient.post(`/dispatch/${cancelTargetId}/cancel?user_id=${user.id}`, {
         reason: 'Photographer cancelled'
       });
       toast.info('Session cancelled');
       setActiveSession(null);
     } catch (error) {
       toast.error(error.response?.data?.detail || 'Failed to cancel session');
+    } finally {
+      setIsCancelling(false);
+      setShowCancelConfirm(false);
+      setCancelTargetId(null);
     }
   };
   
@@ -1479,7 +1503,7 @@ export const OnDemandSessionManager = () => {
                 session={activeSession}
                 onMarkArrived={handleMarkArrived}
                 onComplete={handleCompleteSession}
-                onCancel={handleCancelSession}
+                onCancel={promptCancelSession}
                 cardBg={cardBg}
                 textPrimary={textPrimary}
                 textSecondary={textSecondary}
@@ -1889,6 +1913,75 @@ export const OnDemandSessionManager = () => {
           </Card>
         )}
       </div>
+
+      {/* ============ CANCEL CONFIRMATION MODAL ============ */}
+      <AlertDialog open={showCancelConfirm} onOpenChange={setShowCancelConfirm}>
+        <AlertDialogContent className="bg-zinc-900 border-zinc-700 max-w-md">
+          <AlertDialogHeader>
+            <div className="flex items-center gap-3 mb-1">
+              <div className="w-10 h-10 rounded-full bg-red-500/20 flex items-center justify-center flex-shrink-0">
+                <X className="w-5 h-5 text-red-400" />
+              </div>
+              <AlertDialogTitle className="text-white text-lg">
+                Cancel This Session?
+              </AlertDialogTitle>
+            </div>
+            <AlertDialogDescription className="text-gray-400 text-sm leading-relaxed">
+              This will end the on-demand session and notify the surfer.
+              Any held deposit will be refunded to their account.
+              This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          {/* Session context summary */}
+          {activeSession && (
+            <div className="p-3 rounded-xl bg-zinc-800/70 border border-zinc-700 flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full overflow-hidden bg-zinc-700 flex-shrink-0">
+                {activeSession.requester_selfie ? (
+                  <img src={getImageUrl(activeSession.requester_selfie)} alt="" className="w-full h-full object-cover" />
+                ) : activeSession.requester_avatar ? (
+                  <img src={getFullUrl(getImageUrl(activeSession.requester_avatar))} alt="" className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center">
+                    <User className="w-5 h-5 text-zinc-500" />
+                  </div>
+                )}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm text-white font-medium truncate">{activeSession.requester_name || 'Surfer'}</p>
+                <p className="text-xs text-gray-500 truncate">{activeSession.location_name || 'On-Demand Session'}</p>
+              </div>
+              <Badge className="bg-red-500/20 text-red-400 border-red-500/30 text-xs flex-shrink-0">
+                Cancelling
+              </Badge>
+            </div>
+          )}
+
+          <AlertDialogFooter className="gap-3 sm:gap-2">
+            <AlertDialogCancel
+              className="flex-1 border-zinc-600 bg-transparent text-white hover:bg-zinc-800 hover:text-white"
+              disabled={isCancelling}
+            >
+              Keep Session
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault(); // Prevent auto-close so loading state is visible
+                handleConfirmCancel();
+              }}
+              disabled={isCancelling}
+              className="flex-1 bg-red-500 hover:bg-red-600 text-white font-bold border-0"
+            >
+              {isCancelling ? (
+                <Loader2 className="w-4 h-4 animate-spin mr-2" />
+              ) : (
+                <X className="w-4 h-4 mr-2" />
+              )}
+              {isCancelling ? 'Cancelling...' : 'Yes, Cancel Session'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

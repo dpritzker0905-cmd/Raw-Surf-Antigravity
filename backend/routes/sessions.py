@@ -128,14 +128,32 @@ async def join_session(data: JoinSessionRequest, surfer_id: str, db: AsyncSessio
     # SmugMug-style pricing: buy-in price for the session
     buyin_price = photographer.live_buyin_price or photographer.session_price or 25.0
     
-    # Apply subscription tier discounts
-    discount = 0.0
+    # Apply platform subscription tier discounts
+    platform_discount = 0.0
     if surfer.subscription_tier == 'basic':
-        discount = 0.10  # 10% off
+        platform_discount = 0.10  # 10% off
     elif surfer.subscription_tier == 'premium':
-        discount = 0.20  # 20% off
+        platform_discount = 0.20  # 20% off
+    
+    # Apply photographer-specific subscription discount (stacks with platform discount)
+    from routes.photo_subscriptions import get_subscription_discount, try_use_subscription_quota
+    photo_sub_discount_pct = await get_subscription_discount(
+        db, surfer_id, data.photographer_id, service_type='on_demand'
+    )
+    photo_sub_discount = photo_sub_discount_pct / 100.0  # Convert percentage to decimal
+    
+    # Combined discount: platform + photographer subscription (capped at 50%)
+    discount = min(platform_discount + photo_sub_discount, 0.50)
     
     final_price = buyin_price * (1 - discount)
+    
+    # Try to use subscription live_buyin quota (free session if quota available)
+    sub_quota_result = await try_use_subscription_quota(
+        db, surfer_id, data.photographer_id, 'live_buyin'
+    )
+    subscription_covered = sub_quota_result.get("used", False)
+    if subscription_covered:
+        final_price = 0.0  # Subscription covers this buy-in
     
     # ============ CARD PAYMENT: Create Stripe Checkout Session ============
     if data.payment_method == 'card':
@@ -450,6 +468,9 @@ async def join_session(data: JoinSessionRequest, surfer_id: str, db: AsyncSessio
             "spot_name": spot_name,
             "amount_paid": final_price,
             "discount_applied": discount * 100 if discount > 0 else 0,
+            "platform_discount_pct": platform_discount * 100,
+            "photographer_sub_discount_pct": photo_sub_discount_pct,
+            "subscription_covered": subscription_covered,
             "remaining_credits": new_balance if data.payment_method == 'credits' else surfer.credit_balance,
             "photos_included": photographer.photo_package_size or 0,
             "price_per_photo": photographer.live_photo_price or 5.0,

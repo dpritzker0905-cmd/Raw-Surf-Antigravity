@@ -352,9 +352,30 @@ async def create_dispatch_request(
     # Use average rate of available pros
     avg_rate = sum(p.on_demand_hourly_rate or 75.0 for p in available_pros) / len(available_pros)
     
-    # Calculate pricing
+    # Calculate base pricing
     hourly_rate = avg_rate
     estimated_total = hourly_rate * request_data.estimated_duration_hours
+    
+    # Apply photographer-specific subscription discount (Quick Book only)
+    subscription_discount_pct = 0.0
+    subscription_covered = False
+    if request_data.target_photographer_id:
+        from routes.photo_subscriptions import get_subscription_discount, try_use_subscription_quota
+        subscription_discount_pct = await get_subscription_discount(
+            db, requester_id, request_data.target_photographer_id, service_type='on_demand'
+        )
+        if subscription_discount_pct > 0:
+            # Cap discount at 50% to ensure photographer still earns
+            effective_discount = min(subscription_discount_pct / 100.0, 0.50)
+            estimated_total = estimated_total * (1 - effective_discount)
+        
+        # Try to use subscription session quota (free session if quota available)
+        sub_quota_result = await try_use_subscription_quota(
+            db, requester_id, request_data.target_photographer_id, 'session'
+        )
+        subscription_covered = sub_quota_result.get("used", False)
+        if subscription_covered:
+            estimated_total = 0.0  # Subscription covers this session
     
     # Full payment (no deposit - we act as escrow)
     deposit_pct = 100
@@ -456,7 +477,9 @@ async def create_dispatch_request(
         "hourly_rate": hourly_rate,
         "stripe_client_secret": payment_intent.client_secret if 'payment_intent' in dir() else None,
         "available_pros_count": len(available_pros),
-        "pending_payment_expires_at": payment_expires_at.isoformat()  # For client-side countdown
+        "pending_payment_expires_at": payment_expires_at.isoformat(),  # For client-side countdown
+        "subscription_discount_pct": subscription_discount_pct,
+        "subscription_covered": subscription_covered,
     }
 
 
@@ -1267,12 +1290,15 @@ async def mark_arrived(
     await db.flush()
     
     # Add requester as participant
+    # NOTE: BookingParticipant model fields: is_captain, payment_status, paid_amount, status
     participant = BookingParticipant(
         booking_id=booking.id,
         participant_id=dispatch.requester_id,
-        role='requester',
-        has_paid=True,
-        amount_paid=dispatch.deposit_amount
+        is_captain=True,
+        payment_status='Paid',
+        paid_amount=dispatch.deposit_amount or 0,
+        share_amount=dispatch.deposit_amount or 0,
+        status='confirmed'
     )
     db.add(participant)
     

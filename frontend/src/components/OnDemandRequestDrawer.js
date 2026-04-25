@@ -318,6 +318,44 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
     return () => clearTimeout(timeoutId);
   }, [newCrewInput, user?.id, crewMembers]);
   
+  // ============ MOBILE KEYBOARD: VISUAL VIEWPORT TRACKING ============
+  // When the on-screen keyboard opens on mobile, window.visualViewport shrinks.
+  // We track this and set a CSS variable so the dialog resizes to stay above
+  // the keyboard. Without this, the custom location inputs get hidden.
+  const scrollContainerRef = useRef(null);
+  
+  useEffect(() => {
+    const vv = window.visualViewport;
+    if (!vv) return; // Desktop or unsupported browser
+    
+    // Only active on mobile-sized screens (dialog is bottom-sheet on < sm)
+    const isMobile = () => window.innerWidth < 640;
+    
+    const handleResize = () => {
+      if (!isMobile()) return;
+      
+      // Calculate how much the viewport shrank (keyboard height)
+      const keyboardHeight = window.innerHeight - vv.height;
+      
+      // Update CSS custom property on root for dialog to consume
+      if (keyboardHeight > 50) {
+        // Keyboard is open — shrink dialog bottom offset
+        document.documentElement.style.setProperty(
+          '--keyboard-offset', `${keyboardHeight}px`
+        );
+      } else {
+        // Keyboard closed — reset
+        document.documentElement.style.removeProperty('--keyboard-offset');
+      }
+    };
+    
+    vv.addEventListener('resize', handleResize);
+    return () => {
+      vv.removeEventListener('resize', handleResize);
+      document.documentElement.style.removeProperty('--keyboard-offset');
+    };
+  }, []);
+  
   const isLight = theme === 'light';
   const textPrimary = isLight ? 'text-gray-900' : 'text-foreground';
   const textSecondary = isLight ? 'text-gray-500' : 'text-muted-foreground';
