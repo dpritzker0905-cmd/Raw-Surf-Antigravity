@@ -338,30 +338,30 @@ const AdminSpotsPanel = ({ userId }) => {
   return (
     <div className="space-y-4" data-testid="admin-spots-panel">
       {/* Stats Overview */}
-      <Card className="bg-zinc-900 border-zinc-800">
+      <Card className="bg-card border-border">
         <CardHeader>
-          <CardTitle className="text-white flex items-center gap-2">
+          <CardTitle className="text-foreground flex items-center gap-2">
             <MapPin className="w-5 h-5 text-cyan-400" />
             Global Spot Database
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-            <div className="bg-zinc-800 rounded-lg p-3 text-center">
-              <p className="text-3xl font-bold text-white">{stats?.total_spots || 0}</p>
-              <p className="text-xs text-gray-400">Total Spots</p>
+            <div className="bg-muted rounded-lg p-3 text-center">
+              <p className="text-3xl font-bold text-foreground">{stats?.total_spots || 0}</p>
+              <p className="text-xs text-muted-foreground">Total Spots</p>
             </div>
-            <div className="bg-zinc-800 rounded-lg p-3 text-center">
+            <div className="bg-muted rounded-lg p-3 text-center">
               <p className="text-3xl font-bold text-cyan-400">{stats?.by_country?.length || 0}</p>
-              <p className="text-xs text-gray-400">Countries</p>
+              <p className="text-xs text-muted-foreground">Countries</p>
             </div>
-            <div className="bg-zinc-800 rounded-lg p-3 text-center">
+            <div className="bg-muted rounded-lg p-3 text-center">
               <p className="text-3xl font-bold text-green-400">{stats?.by_tier?.tier_1 || 0}</p>
-              <p className="text-xs text-gray-400">Tier 1 (East Coast)</p>
+              <p className="text-xs text-muted-foreground">Tier 1 (East Coast)</p>
             </div>
-            <div className="bg-zinc-800 rounded-lg p-3 text-center">
+            <div className="bg-muted rounded-lg p-3 text-center">
               <p className="text-3xl font-bold text-purple-400">{stats?.by_tier?.tier_3 || 0}</p>
-              <p className="text-xs text-gray-400">Tier 3 (Global)</p>
+              <p className="text-xs text-muted-foreground">Tier 3 (Global)</p>
             </div>
           </div>
 
@@ -370,7 +370,7 @@ const AdminSpotsPanel = ({ userId }) => {
             {stats?.by_country?.slice(0, 10).map((item) => (
               <Badge 
                 key={item.country} 
-                className="bg-zinc-700 text-gray-300 cursor-pointer hover:bg-zinc-600"
+                className="bg-input text-gray-300 cursor-pointer hover:bg-muted"
                 onClick={() => setFilterCountry(item.country)}
               >
                 {item.country}: {item.count}
@@ -393,7 +393,7 @@ const AdminSpotsPanel = ({ userId }) => {
         <Button
           variant="outline"
           onClick={() => { fetchStats(); fetchSpots(); }}
-          className="border-zinc-600"
+          className="border-input"
         >
           <RefreshCw className="w-4 h-4 mr-2" />
           Refresh
@@ -403,9 +403,9 @@ const AdminSpotsPanel = ({ userId }) => {
       {/* Import Tier Selection Dialog */}
 
       <Dialog open={showImportDialog} onOpenChange={setShowImportDialog}>
-        <DialogContent className="bg-zinc-900 border border-zinc-700 sm:max-w-md w-[95vw] sm:w-full rounded-xl">
+        <DialogContent className="bg-card border border-border sm:max-w-md w-[95vw] sm:w-full rounded-xl">
           <DialogHeader>
-            <DialogTitle className="text-white flex items-center gap-2">
+            <DialogTitle className="text-foreground flex items-center gap-2">
               <Upload className="w-5 h-5 text-green-400" />
               Import Global Surf Spots
 
@@ -413,7 +413,7 @@ const AdminSpotsPanel = ({ userId }) => {
           </DialogHeader>
           
           <div className="modal-body px-4 sm:px-6 py-4 space-y-4">
-            <p className="text-gray-400 text-sm">
+            <p className="text-muted-foreground text-sm">
               Select which region tier to import surf spots from:
 
             </p>
@@ -432,7 +432,7 @@ const AdminSpotsPanel = ({ userId }) => {
                   className={`p-3 rounded-lg border cursor-pointer transition-all ${
                     importTier === tier.value 
                       ? 'border-green-500 bg-green-500/10' 
-                      : 'border-zinc-700 bg-zinc-800 hover:border-zinc-600'
+                      : 'border-border bg-muted hover:border-input'
                   }`}
                 >
                   <div className="flex items-center gap-3">
@@ -442,21 +442,21 @@ const AdminSpotsPanel = ({ userId }) => {
                       {importTier === tier.value && <div className="w-2 h-2 rounded-full bg-green-500" />}
                     </div>
                     <div>
-                      <p className="text-white font-medium text-sm sm:text-base">{tier.label}</p>
-                      <p className="text-xs text-gray-400">{tier.desc}</p>
+                      <p className="text-foreground font-medium text-sm sm:text-base">{tier.label}</p>
+                      <p className="text-xs text-muted-foreground">{tier.desc}</p>
                     </div>
                   </div>
                 </div>
               ))}
             </div>
             
-            <div className="flex items-start gap-2 p-3 bg-zinc-800 rounded-lg border border-zinc-700">
+            <div className="flex items-start gap-2 p-3 bg-muted rounded-lg border border-border">
               <input
                 type="checkbox"
                 id="include-osm"
                 checked={includeOSM}
                 onChange={(e) => setIncludeOSM(e.target.checked)}
-                className="mt-0.5 w-4 h-4 rounded border-zinc-600 flex-shrink-0"
+                className="mt-0.5 w-4 h-4 rounded border-input flex-shrink-0"
               />
               <label htmlFor="include-osm" className="text-sm text-gray-300 leading-tight">
                 Also fetch from OSM Overpass API (slower, more spots)
@@ -468,7 +468,7 @@ const AdminSpotsPanel = ({ userId }) => {
             <Button
               variant="outline"
               onClick={() => setShowImportDialog(false)}
-              className="border-zinc-600 text-gray-300 hover:text-white"
+              className="border-input text-gray-300 hover:text-foreground"
             >
               Cancel
             </Button>
@@ -489,22 +489,22 @@ const AdminSpotsPanel = ({ userId }) => {
       </Dialog>
 
       {/* Search & Filter */}
-      <Card className="bg-zinc-900 border-zinc-800">
+      <Card className="bg-card border-border">
         <CardContent className="pt-4">
           <div className="flex gap-2 mb-4">
             <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search spots..."
-                className="pl-10 bg-zinc-800 border-zinc-700 text-white"
+                className="pl-10 bg-muted border-border text-foreground"
               />
             </div>
             <select
               value={filterCountry}
               onChange={(e) => setFilterCountry(e.target.value)}
-              className="bg-zinc-800 border border-zinc-700 rounded-lg px-3 text-white"
+              className="bg-muted border border-border rounded-lg px-3 text-foreground"
             >
               <option value="">All Countries</option>
               {countries.map(c => (
@@ -518,11 +518,11 @@ const AdminSpotsPanel = ({ userId }) => {
             {filteredSpots.slice(0, 50).map((spot) => (
               <div 
                 key={spot.id} 
-                className="flex items-center justify-between p-3 bg-zinc-800 rounded-lg hover:bg-zinc-700 transition-colors"
+                className="flex items-center justify-between p-3 bg-muted rounded-lg hover:bg-input transition-colors"
               >
                 <div className="flex-1">
-                  <p className="text-white font-medium">{spot.name}</p>
-                  <div className="flex items-center gap-2 text-xs text-gray-400">
+                  <p className="text-foreground font-medium">{spot.name}</p>
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
                     <span>{spot.country || 'Unknown'}</span>
                     {spot.state_province && <span>• {spot.state_province}</span>}
                     {spot.region && <span>• {spot.region}</span>}
@@ -555,7 +555,7 @@ const AdminSpotsPanel = ({ userId }) => {
                     size="sm"
                     variant="ghost"
                     onClick={() => setEditingSpot(spot)}
-                    className="text-gray-400 hover:text-white"
+                    className="text-muted-foreground hover:text-foreground"
                   >
                     <Settings className="w-4 h-4" />
                   </Button>
@@ -581,85 +581,85 @@ const AdminSpotsPanel = ({ userId }) => {
 
       {/* Edit Spot Dialog */}
       <Dialog open={!!editingSpot} onOpenChange={() => setEditingSpot(null)}>
-        <DialogContent className="bg-zinc-900 border-zinc-700">
+        <DialogContent className="bg-card border-border">
           <DialogHeader>
-            <DialogTitle className="text-white">Edit Spot: {editingSpot?.name}</DialogTitle>
+            <DialogTitle className="text-foreground">Edit Spot: {editingSpot?.name}</DialogTitle>
           </DialogHeader>
           {editingSpot && (
             <div className="modal-body px-4 sm:px-6 py-4 space-y-4">
               <div>
-                <label className="text-sm text-gray-400">Name</label>
+                <label className="text-sm text-muted-foreground">Name</label>
                 <Input
                   value={editingSpot.name}
                   onChange={(e) => setEditingSpot({...editingSpot, name: e.target.value})}
-                  className="bg-zinc-800 border-zinc-700 text-white"
+                  className="bg-muted border-border text-foreground"
                 />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-sm text-gray-400">Country</label>
+                  <label className="text-sm text-muted-foreground">Country</label>
                   <Input
                     value={editingSpot.country || ''}
                     onChange={(e) => setEditingSpot({...editingSpot, country: e.target.value})}
-                    className="bg-zinc-800 border-zinc-700 text-white"
+                    className="bg-muted border-border text-foreground"
                   />
                 </div>
                 <div>
-                  <label className="text-sm text-gray-400">State/Province</label>
+                  <label className="text-sm text-muted-foreground">State/Province</label>
                   <Input
                     value={editingSpot.state_province || ''}
                     onChange={(e) => setEditingSpot({...editingSpot, state_province: e.target.value})}
-                    className="bg-zinc-800 border-zinc-700 text-white"
+                    className="bg-muted border-border text-foreground"
                   />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-sm text-gray-400">Region</label>
+                  <label className="text-sm text-muted-foreground">Region</label>
                   <Input
                     value={editingSpot.region || ''}
                     onChange={(e) => setEditingSpot({...editingSpot, region: e.target.value})}
-                    className="bg-zinc-800 border-zinc-700 text-white"
+                    className="bg-muted border-border text-foreground"
                   />
                 </div>
                 <div>
-                  <label className="text-sm text-gray-400">Wave Type</label>
+                  <label className="text-sm text-muted-foreground">Wave Type</label>
                   <Input
                     value={editingSpot.wave_type || ''}
                     onChange={(e) => setEditingSpot({...editingSpot, wave_type: e.target.value})}
-                    className="bg-zinc-800 border-zinc-700 text-white"
+                    className="bg-muted border-border text-foreground"
                     placeholder="Beach Break, Point Break..."
                   />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-sm text-gray-400">Latitude</label>
+                  <label className="text-sm text-muted-foreground">Latitude</label>
                   <Input
                     type="number"
                     step="0.0001"
                     value={editingSpot.latitude || ''}
                     onChange={(e) => setEditingSpot({...editingSpot, latitude: parseFloat(e.target.value)})}
-                    className="bg-zinc-800 border-zinc-700 text-white"
+                    className="bg-muted border-border text-foreground"
                   />
                 </div>
                 <div>
-                  <label className="text-sm text-gray-400">Longitude</label>
+                  <label className="text-sm text-muted-foreground">Longitude</label>
                   <Input
                     type="number"
                     step="0.0001"
                     value={editingSpot.longitude || ''}
                     onChange={(e) => setEditingSpot({...editingSpot, longitude: parseFloat(e.target.value)})}
-                    className="bg-zinc-800 border-zinc-700 text-white"
+                    className="bg-muted border-border text-foreground"
                   />
                 </div>
               </div>
               <div className="flex items-center justify-between">
-                <label className="text-sm text-gray-400">Active</label>
+                <label className="text-sm text-muted-foreground">Active</label>
                 <Button
                   variant={editingSpot.is_active ? 'default' : 'outline'}
                   onClick={() => setEditingSpot({...editingSpot, is_active: !editingSpot.is_active})}
-                  className={editingSpot.is_active ? 'bg-green-600' : 'border-zinc-600'}
+                  className={editingSpot.is_active ? 'bg-green-600' : 'border-input'}
                 >
                   {editingSpot.is_active ? 'Active' : 'Inactive'}
                 </Button>
@@ -674,7 +674,7 @@ const AdminSpotsPanel = ({ userId }) => {
                 <Button
                   variant="outline"
                   onClick={() => setEditingSpot(null)}
-                  className="border-zinc-600"
+                  className="border-input"
                 >
                   Cancel
                 </Button>
@@ -686,9 +686,9 @@ const AdminSpotsPanel = ({ userId }) => {
 
       {/* Precision Pin Map Modal */}
       <Dialog open={precisionPinOpen} onOpenChange={() => { setPrecisionPinOpen(false); setPinMapSpot(null); }}>
-        <DialogContent className="bg-zinc-900 border-zinc-700 max-w-3xl">
+        <DialogContent className="bg-card border-border max-w-3xl">
           <DialogHeader>
-            <DialogTitle className="text-white flex items-center gap-2">
+            <DialogTitle className="text-foreground flex items-center gap-2">
               <MapPin className="w-5 h-5 text-cyan-400" />
               Precision Pin: {pinMapSpot?.name}
             </DialogTitle>
@@ -709,7 +709,7 @@ const AdminSpotsPanel = ({ userId }) => {
                   size="sm"
                   variant={mapLayer === 'satellite' ? 'default' : 'outline'}
                   onClick={() => mapLayer !== 'satellite' && toggleMapLayer()}
-                  className={mapLayer === 'satellite' ? 'bg-cyan-600' : 'border-zinc-600'}
+                  className={mapLayer === 'satellite' ? 'bg-cyan-600' : 'border-input'}
                 >
                   Satellite
                 </Button>
@@ -717,14 +717,14 @@ const AdminSpotsPanel = ({ userId }) => {
                   size="sm"
                   variant={mapLayer === 'street' ? 'default' : 'outline'}
                   onClick={() => mapLayer !== 'street' && toggleMapLayer()}
-                  className={mapLayer === 'street' ? 'bg-cyan-600' : 'border-zinc-600'}
+                  className={mapLayer === 'street' ? 'bg-cyan-600' : 'border-input'}
                 >
                   Street
                 </Button>
               </div>
               
               {draggedPosition && (
-                <div className="text-xs text-gray-400">
+                <div className="text-xs text-muted-foreground">
                   {draggedPosition.lat.toFixed(6)}, {draggedPosition.lng.toFixed(6)}
                 </div>
               )}
@@ -733,22 +733,22 @@ const AdminSpotsPanel = ({ userId }) => {
             {/* Map Container */}
             <div 
               ref={pinMapRef} 
-              className="w-full h-[400px] rounded-lg border border-zinc-700 overflow-hidden"
+              className="w-full h-[400px] rounded-lg border border-border overflow-hidden"
               style={{ background: '#1a1a1a' }}
             />
             
             {/* Original vs New Coordinates */}
             {pinMapSpot && draggedPosition && (
               <div className="grid grid-cols-2 gap-4 text-sm">
-                <div className="bg-zinc-800 rounded-lg p-3">
-                  <p className="text-gray-400 text-xs mb-1">Original Location</p>
-                  <p className="text-white font-mono">
+                <div className="bg-muted rounded-lg p-3">
+                  <p className="text-muted-foreground text-xs mb-1">Original Location</p>
+                  <p className="text-foreground font-mono">
                     {pinMapSpot.latitude.toFixed(6)}, {pinMapSpot.longitude.toFixed(6)}
                   </p>
                 </div>
                 <div className="bg-cyan-500/10 border border-cyan-500/30 rounded-lg p-3">
                   <p className="text-cyan-400 text-xs mb-1">New Peak Location</p>
-                  <p className="text-white font-mono">
+                  <p className="text-foreground font-mono">
                     {draggedPosition.lat.toFixed(6)}, {draggedPosition.lng.toFixed(6)}
                   </p>
                 </div>
@@ -767,7 +767,7 @@ const AdminSpotsPanel = ({ userId }) => {
               <Button
                 variant="outline"
                 onClick={() => { setPrecisionPinOpen(false); setPinMapSpot(null); }}
-                className="border-zinc-600"
+                className="border-input"
               >
                 Cancel
               </Button>

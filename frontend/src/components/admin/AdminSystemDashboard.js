@@ -30,8 +30,8 @@ export const AdminSystemDashboard = () => {
   const [alerts, setAlerts] = useState([]);
 
   const isLight = theme === 'light';
-  const cardBgClass = isLight ? 'bg-white border-gray-200' : 'bg-zinc-900/50 border-zinc-800';
-  const textClass = isLight ? 'text-gray-900' : 'text-white';
+  const cardBgClass = isLight ? 'bg-white border-gray-200' : 'bg-card/50 border-border';
+  const textClass = isLight ? 'text-gray-900' : 'text-foreground';
 
   useEffect(() => {
     if (user?.id) {
@@ -96,7 +96,7 @@ export const AdminSystemDashboard = () => {
       case 'healthy': return 'text-green-400 bg-green-500/20';
       case 'warning': return 'text-yellow-400 bg-yellow-500/20';
       case 'critical': return 'text-red-400 bg-red-500/20';
-      default: return 'text-gray-400 bg-gray-500/20';
+      default: return 'text-muted-foreground bg-gray-500/20';
     }
   };
 
@@ -105,7 +105,7 @@ export const AdminSystemDashboard = () => {
       case 'success': return <CheckCircle className="w-4 h-4 text-green-400" />;
       case 'failed': return <XCircle className="w-4 h-4 text-red-400" />;
       case 'running': return <Loader2 className="w-4 h-4 text-blue-400 animate-spin" />;
-      default: return <AlertCircle className="w-4 h-4 text-gray-400" />;
+      default: return <AlertCircle className="w-4 h-4 text-muted-foreground" />;
     }
   };
 
@@ -198,10 +198,10 @@ export const AdminSystemDashboard = () => {
               <CardContent>
                 <div className="space-y-2">
                   <div className="flex justify-between text-xs">
-                    <span className="text-gray-400">Used</span>
-                    <span className="text-white">{formatBytes(healthData.system.memory_used_gb)}</span>
+                    <span className="text-muted-foreground">Used</span>
+                    <span className="text-foreground">{formatBytes(healthData.system.memory_used_gb)}</span>
                   </div>
-                  <div className="h-2 bg-zinc-800 rounded-full overflow-hidden">
+                  <div className="h-2 bg-muted rounded-full overflow-hidden">
                     <div 
                       className={`h-full ${
                         healthData.system.memory_percent < 70 ? 'bg-green-500' :
@@ -211,7 +211,7 @@ export const AdminSystemDashboard = () => {
                     />
                   </div>
                   <div className="flex justify-between text-xs">
-                    <span className="text-gray-400">Total</span>
+                    <span className="text-muted-foreground">Total</span>
                     <span className="text-gray-500">{formatBytes(healthData.system.memory_total_gb)}</span>
                   </div>
                 </div>
@@ -225,10 +225,10 @@ export const AdminSystemDashboard = () => {
               <CardContent>
                 <div className="space-y-2">
                   <div className="flex justify-between text-xs">
-                    <span className="text-gray-400">Used</span>
-                    <span className="text-white">{formatBytes(healthData.system.disk_used_gb)}</span>
+                    <span className="text-muted-foreground">Used</span>
+                    <span className="text-foreground">{formatBytes(healthData.system.disk_used_gb)}</span>
                   </div>
-                  <div className="h-2 bg-zinc-800 rounded-full overflow-hidden">
+                  <div className="h-2 bg-muted rounded-full overflow-hidden">
                     <div 
                       className={`h-full ${
                         healthData.system.disk_percent < 70 ? 'bg-green-500' :
@@ -238,7 +238,7 @@ export const AdminSystemDashboard = () => {
                     />
                   </div>
                   <div className="flex justify-between text-xs">
-                    <span className="text-gray-400">Total</span>
+                    <span className="text-muted-foreground">Total</span>
                     <span className="text-gray-500">{formatBytes(healthData.system.disk_total_gb)}</span>
                   </div>
                 </div>
@@ -256,7 +256,7 @@ export const AdminSystemDashboard = () => {
         <CardContent>
           <div className="space-y-2">
             {jobs.map(job => (
-              <div key={job.id} className="flex items-center justify-between p-2 bg-zinc-800/50 rounded-lg">
+              <div key={job.id} className="flex items-center justify-between p-2 bg-muted/50 rounded-lg">
                 <div className="flex items-center gap-3">
                   {getJobStatusIcon(job.last_run_status)}
                   <div>
@@ -266,7 +266,7 @@ export const AdminSystemDashboard = () => {
                 </div>
                 <div className="flex items-center gap-4">
                   <div className="text-right">
-                    <p className="text-xs text-gray-400">{job.schedule}</p>
+                    <p className="text-xs text-muted-foreground">{job.schedule}</p>
                     {job.last_run_at && (
                       <p className="text-[10px] text-gray-500">
                         Last: {new Date(job.last_run_at).toLocaleString()}
@@ -321,7 +321,7 @@ export const AdminSystemDashboard = () => {
                         <span className="text-xs text-gray-500">{alert.alert_type}</span>
                       </div>
                       <p className={`text-sm font-medium ${textClass} mt-1`}>{alert.title}</p>
-                      <p className="text-xs text-gray-400 mt-0.5">{alert.message}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">{alert.message}</p>
                     </div>
                     <div className="flex gap-1">
                       {!alert.is_acknowledged && (

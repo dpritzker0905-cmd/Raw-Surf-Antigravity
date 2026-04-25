@@ -40,8 +40,8 @@ export const AdminContentModDashboard = () => {
   const [actionLoading, setActionLoading] = useState(false);
 
   const isLight = theme === 'light';
-  const cardBgClass = isLight ? 'bg-white border-gray-200' : 'bg-zinc-900/50 border-zinc-800';
-  const textClass = isLight ? 'text-gray-900' : 'text-white';
+  const cardBgClass = isLight ? 'bg-white border-gray-200' : 'bg-card/50 border-border';
+  const textClass = isLight ? 'text-gray-900' : 'text-foreground';
 
   useEffect(() => {
     if (user?.id) {
@@ -125,7 +125,7 @@ export const AdminContentModDashboard = () => {
       case 'image': return <Image className="w-4 h-4 text-purple-400" />;
       case 'post': return <MessageSquare className="w-4 h-4 text-blue-400" />;
       case 'comment': return <MessageSquare className="w-4 h-4 text-green-400" />;
-      default: return <Flag className="w-4 h-4 text-gray-400" />;
+      default: return <Flag className="w-4 h-4 text-muted-foreground" />;
     }
   };
 
@@ -136,7 +136,7 @@ export const AdminContentModDashboard = () => {
       case 'inappropriate': return 'bg-pink-500/20 text-pink-400';
       case 'copyright': return 'bg-purple-500/20 text-purple-400';
       case 'violence': return 'bg-red-500/20 text-red-400';
-      default: return 'bg-gray-500/20 text-gray-400';
+      default: return 'bg-gray-500/20 text-muted-foreground';
     }
   };
 
@@ -182,7 +182,7 @@ export const AdminContentModDashboard = () => {
       <div className="flex flex-wrap gap-2 items-center justify-between">
         <div className="flex gap-2">
           <Select value={status} onValueChange={setStatus}>
-            <SelectTrigger className="w-32 bg-zinc-800 border-zinc-700">
+            <SelectTrigger className="w-32 bg-muted border-border">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -192,7 +192,7 @@ export const AdminContentModDashboard = () => {
             </SelectContent>
           </Select>
           <Select value={contentType} onValueChange={setContentType}>
-            <SelectTrigger className="w-32 bg-zinc-800 border-zinc-700">
+            <SelectTrigger className="w-32 bg-muted border-border">
               <SelectValue placeholder="All Types" />
             </SelectTrigger>
             <SelectContent>
@@ -230,7 +230,7 @@ export const AdminContentModDashboard = () => {
         <CardContent className="max-h-[500px] overflow-y-auto">
           {loading ? (
             <div className="flex justify-center py-8">
-              <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
+              <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
             </div>
           ) : items.length === 0 ? (
             <div className="text-center py-8">
@@ -245,7 +245,7 @@ export const AdminContentModDashboard = () => {
                   className={`p-3 rounded-lg border transition-all ${
                     selectedItems.has(item.id)
                       ? 'bg-cyan-500/10 border-cyan-500/50'
-                      : 'bg-zinc-800/50 border-transparent hover:bg-zinc-800'
+                      : 'bg-muted/50 border-transparent hover:bg-muted'
                   }`}
                 >
                   <div className="flex items-start gap-3">
@@ -253,7 +253,7 @@ export const AdminContentModDashboard = () => {
                       type="checkbox"
                       checked={selectedItems.has(item.id)}
                       onChange={() => toggleSelect(item.id)}
-                      className="mt-1 rounded border-zinc-600"
+                      className="mt-1 rounded border-input"
                     />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
@@ -294,7 +294,7 @@ export const AdminContentModDashboard = () => {
 
       {/* Detail Modal */}
       <Dialog open={!!selectedItem} onOpenChange={() => setSelectedItem(null)}>
-        <DialogContent className="bg-zinc-900 border-zinc-800 text-white max-w-lg">
+        <DialogContent className="bg-card border-border text-foreground max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               {selectedItem && getContentIcon(selectedItem.content_type)}
@@ -304,7 +304,7 @@ export const AdminContentModDashboard = () => {
           {selectedItem && (
             <div className="space-y-4">
               {/* Content Preview */}
-              <div className="p-3 bg-zinc-800 rounded-lg">
+              <div className="p-3 bg-muted rounded-lg">
                 {selectedItem.media_url && (
                   <img src={getFullUrl(selectedItem.media_url)} alt="Content" className="w-full rounded mb-2 max-h-48 object-cover" />
                 )}
@@ -313,23 +313,23 @@ export const AdminContentModDashboard = () => {
 
               {/* Metadata */}
               <div className="grid grid-cols-2 gap-2 text-xs">
-                <div className="p-2 bg-zinc-800/50 rounded">
+                <div className="p-2 bg-muted/50 rounded">
                   <span className="text-gray-500">Author:</span>
-                  <span className="text-white ml-1">{selectedItem.author_name}</span>
+                  <span className="text-foreground ml-1">{selectedItem.author_name}</span>
                 </div>
-                <div className="p-2 bg-zinc-800/50 rounded">
+                <div className="p-2 bg-muted/50 rounded">
                   <span className="text-gray-500">Flags:</span>
                   <span className="text-red-400 ml-1">{selectedItem.flag_count}</span>
                 </div>
-                <div className="p-2 bg-zinc-800/50 rounded">
+                <div className="p-2 bg-muted/50 rounded">
                   <span className="text-gray-500">Reason:</span>
                   <Badge className={`ml-1 text-[10px] ${getReasonColor(selectedItem.flag_reason)}`}>
                     {selectedItem.flag_reason}
                   </Badge>
                 </div>
-                <div className="p-2 bg-zinc-800/50 rounded">
+                <div className="p-2 bg-muted/50 rounded">
                   <span className="text-gray-500">Created:</span>
-                  <span className="text-white ml-1">{new Date(selectedItem.created_at).toLocaleDateString()}</span>
+                  <span className="text-foreground ml-1">{new Date(selectedItem.created_at).toLocaleDateString()}</span>
                 </div>
               </div>
 
@@ -341,7 +341,7 @@ export const AdminContentModDashboard = () => {
                     value={moderationNote}
                     onChange={(e) => setModerationNote(e.target.value)}
                     placeholder="Add a note about this decision..."
-                    className="bg-zinc-800 border-zinc-700 mt-1"
+                    className="bg-muted border-border mt-1"
                   />
                 </div>
               )}

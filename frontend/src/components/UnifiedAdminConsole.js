@@ -395,8 +395,8 @@ const UnifiedAdminConsole = () => {
     return (
       <div className="flex flex-col items-center justify-center h-64 text-center p-4">
         <Shield className="w-16 h-16 text-red-500 mb-4" />
-        <h2 className="text-xl font-bold text-white mb-2">Access Denied</h2>
-        <p className="text-gray-400">You need admin privileges to access this page.</p>
+        <h2 className="text-xl font-bold text-foreground mb-2">Access Denied</h2>
+        <p className="text-muted-foreground">You need admin privileges to access this page.</p>
       </div>
     );
   }
@@ -436,11 +436,11 @@ const UnifiedAdminConsole = () => {
   return (
     <div className={`min-h-screen ${bgClass} pb-20`} data-testid="unified-admin-console">
       {/* Header */}
-      <div className={`sticky top-0 z-[1100] ${isLight ? 'bg-white/90 border-b border-gray-200' : 'bg-black/90 border-b border-zinc-800'} backdrop-blur-lg`}>
+      <div className={`sticky top-0 z-[1100] ${isLight ? 'bg-white/90 border-b border-gray-200' : 'bg-black/90 border-b border-border'} backdrop-blur-lg`}>
         <div className="flex items-center justify-between p-4">
           <button 
             onClick={() => navigate(-1)}
-            className={`flex items-center gap-2 ${isLight ? 'text-gray-500 hover:text-black' : 'text-gray-400 hover:text-white'} transition-colors`}
+            className={`flex items-center gap-2 ${isLight ? 'text-gray-500 hover:text-black' : 'text-muted-foreground hover:text-foreground'} transition-colors`}
           >
             <ArrowLeft className="w-5 h-5" />
             Back
@@ -454,7 +454,7 @@ const UnifiedAdminConsole = () => {
               variant="ghost"
               size="sm"
               onClick={() => { fetchData(); fetchSessionData(); }}
-              className={`${isLight ? 'text-gray-500 hover:text-black hover:bg-gray-100' : 'text-gray-400 hover:text-white hover:bg-zinc-800'}`}
+              className={`${isLight ? 'text-gray-500 hover:text-black hover:bg-gray-100' : 'text-muted-foreground hover:text-foreground hover:bg-muted'}`}
             >
               <RefreshCw className="w-4 h-4" />
             </Button>
@@ -495,7 +495,7 @@ const UnifiedAdminConsole = () => {
             className={`absolute left-0 top-0 bottom-0 w-10 bg-gradient-to-r ${isLight ? 'from-white via-white/80' : 'from-black via-black/80'} to-transparent z-20 flex items-center justify-start pl-1 opacity-70 hover:opacity-100 transition-opacity`}
             aria-label="Scroll left"
           >
-            <ChevronLeft className={`w-5 h-5 ${isLight ? 'text-black' : 'text-white'}`} />
+            <ChevronLeft className={`w-5 h-5 ${isLight ? 'text-black' : 'text-foreground'}`} />
           </button>
           
           {/* Right scroll button */}
@@ -507,7 +507,7 @@ const UnifiedAdminConsole = () => {
             className={`absolute right-0 top-0 bottom-0 w-10 bg-gradient-to-l ${isLight ? 'from-white via-white/80' : 'from-black via-black/80'} to-transparent z-20 flex items-center justify-end pr-1 opacity-70 hover:opacity-100 transition-opacity`}
             aria-label="Scroll right"
           >
-            <ChevronRight className={`w-5 h-5 ${isLight ? 'text-black' : 'text-white'}`} />
+            <ChevronRight className={`w-5 h-5 ${isLight ? 'text-black' : 'text-foreground'}`} />
           </button>
           
           <div 
@@ -527,7 +527,7 @@ const UnifiedAdminConsole = () => {
                       ? 'bg-red-500 text-white'
                       : isLight 
                         ? 'bg-gray-100 text-gray-500 hover:text-black hover:bg-gray-200' 
-                        : 'bg-zinc-800/50 text-gray-400 hover:text-white hover:bg-zinc-800'
+                        : 'bg-muted/50 text-muted-foreground hover:text-foreground hover:bg-muted'
                   }`}
                 data-testid={`admin-tab-${tab.id}`}
               >
@@ -572,10 +572,10 @@ const UnifiedAdminConsole = () => {
               ) : (
                 <div className="space-y-4">
                   {/* Enable/Disable Toggle */}
-                  <div className="flex items-center justify-between p-4 bg-zinc-800/50 rounded-lg">
+                  <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
                     <div>
-                      <p className="text-white font-medium">Access Code Required</p>
-                      <p className="text-gray-400 text-sm">
+                      <p className="text-foreground font-medium">Access Code Required</p>
+                      <p className="text-muted-foreground text-sm">
                         {siteSettings.access_code_enabled 
                           ? 'Visitors must enter code to access the site' 
                           : 'Site is publicly accessible'}
@@ -585,7 +585,7 @@ const UnifiedAdminConsole = () => {
                       onClick={() => updateSiteSettings({ access_code_enabled: !siteSettings.access_code_enabled })}
                       disabled={savingSettings}
                       className={`relative w-14 h-8 rounded-full transition-colors ${
-                        siteSettings.access_code_enabled ? 'bg-cyan-500' : 'bg-zinc-600'
+                        siteSettings.access_code_enabled ? 'bg-cyan-500' : 'bg-muted'
                       }`}
                       data-testid="access-code-toggle"
                     >
@@ -597,14 +597,14 @@ const UnifiedAdminConsole = () => {
                   
                   {/* Access Code Input */}
                   {siteSettings.access_code_enabled && (
-                    <div className="p-4 bg-zinc-800/50 rounded-lg">
-                      <label className="block text-white font-medium mb-2">Access Code</label>
+                    <div className="p-4 bg-muted/50 rounded-lg">
+                      <label className="block text-foreground font-medium mb-2">Access Code</label>
                       <div className="flex gap-2">
                         <Input
                           value={siteSettings.access_code || ''}
                           onChange={(e) => setSiteSettings(prev => ({ ...prev, access_code: e.target.value.toUpperCase() }))}
                           placeholder="Enter access code"
-                          className="bg-zinc-700 border-zinc-600 text-white uppercase tracking-widest font-mono"
+                          className="bg-input border-input text-foreground uppercase tracking-widest font-mono"
                           data-testid="access-code-input"
                         />
                         <Button
@@ -713,7 +713,7 @@ const UnifiedAdminConsole = () => {
                   >
                     <div className="flex items-center gap-3">
                       <Avatar className="w-10 h-10 border-2 border-current">
-                        <AvatarFallback className={`bg-zinc-800 ${colorClass}`}>
+                        <AvatarFallback className={`bg-muted ${colorClass}`}>
                           {persona.label.charAt(0)}
                         </AvatarFallback>
                       </Avatar>
@@ -765,12 +765,12 @@ const UnifiedAdminConsole = () => {
                         placeholder="Search photographers..."
                         value={photographerSearch}
                         onChange={(e) => setPhotographerSearch(e.target.value)}
-                        className="mb-2 bg-zinc-900 border-zinc-600 h-9 text-sm"
+                        className="mb-2 bg-card border-input h-9 text-sm"
                       />
                       <select
                         value={selectedPhotographer}
                         onChange={(e) => setSelectedPhotographer(e.target.value)}
-                        className="w-full h-10 px-3 rounded-md bg-zinc-900 border border-zinc-600 text-white text-sm"
+                        className="w-full h-10 px-3 rounded-md bg-card border border-input text-foreground text-sm"
                       >
                         <option value="">Select photographer...</option>
                         {filteredPhotographers.map((p) => (
@@ -788,12 +788,12 @@ const UnifiedAdminConsole = () => {
                         placeholder="Search spots..."
                         value={spotSearch}
                         onChange={(e) => setSpotSearch(e.target.value)}
-                        className="mb-2 bg-zinc-900 border-zinc-600 h-9 text-sm"
+                        className="mb-2 bg-card border-input h-9 text-sm"
                       />
                       <select
                         value={selectedSpot}
                         onChange={(e) => setSelectedSpot(e.target.value)}
-                        className="w-full h-10 px-3 rounded-md bg-zinc-900 border border-zinc-600 text-white text-sm"
+                        className="w-full h-10 px-3 rounded-md bg-card border border-input text-foreground text-sm"
                       >
                         <option value="">Select surf spot...</option>
                         {filteredSpots.map((s) => (
@@ -811,7 +811,7 @@ const UnifiedAdminConsole = () => {
                         type="number"
                         value={sessionPrice}
                         onChange={(e) => setSessionPrice(e.target.value)}
-                        className="bg-zinc-900 border-zinc-600 h-9 text-sm w-24"
+                        className="bg-card border-input h-9 text-sm w-24"
                         min="0"
                       />
                     </div>
@@ -837,7 +837,7 @@ const UnifiedAdminConsole = () => {
                             onClick={clearMedia}
                             className="absolute top-1 right-1 p-1 bg-black/60 rounded-full"
                           >
-                            <X className="w-4 h-4 text-white" />
+                            <X className="w-4 h-4 text-foreground" />
                           </button>
                         </div>
                       ) : (
@@ -845,7 +845,7 @@ const UnifiedAdminConsole = () => {
                           variant="outline"
                           size="sm"
                           onClick={() => fileInputRef.current?.click()}
-                          className="w-full border-dashed border-zinc-600 h-16"
+                          className="w-full border-dashed border-input h-16"
                         >
                           <Upload className="w-4 h-4 mr-2" />
                           Upload Photo/Video
@@ -860,7 +860,7 @@ const UnifiedAdminConsole = () => {
                         placeholder="e.g., 3-4ft, glassy..."
                         value={spotNotes}
                         onChange={(e) => setSpotNotes(e.target.value)}
-                        className="bg-zinc-900 border-zinc-600 text-sm h-14 resize-none"
+                        className="bg-card border-input text-sm h-14 resize-none"
                       />
                     </div>
                     
@@ -901,7 +901,7 @@ const UnifiedAdminConsole = () => {
                           >
                             <Avatar className="w-10 h-10">
                               <AvatarImage src={session.photographer_avatar} />
-                              <AvatarFallback className="bg-zinc-700">
+                              <AvatarFallback className="bg-input">
                                 <Camera className="w-4 h-4" />
                               </AvatarFallback>
                             </Avatar>
@@ -991,9 +991,9 @@ const UnifiedAdminConsole = () => {
             <CardContent>
               <div className="space-y-2 max-h-[500px] overflow-y-auto">
                 {logs.map((log) => (
-                  <div key={log.id} className="flex items-center gap-3 p-2 bg-zinc-800/50 rounded-lg">
+                  <div key={log.id} className="flex items-center gap-3 p-2 bg-muted/50 rounded-lg">
                     <div className="flex-1">
-                      <p className="text-white text-sm">
+                      <p className="text-foreground text-sm">
                         <span className="text-yellow-400">{log.admin_name || 'Unknown'}</span>
                         {' '}{log.action?.replace(/_/g, ' ')}{' '}
                         <span className="text-gray-500">({log.target_type})</span>
@@ -1005,7 +1005,7 @@ const UnifiedAdminConsole = () => {
                   </div>
                 ))}
                 {logs.length === 0 && (
-                  <p className="text-gray-400 text-center py-4">No admin logs yet</p>
+                  <p className="text-muted-foreground text-center py-4">No admin logs yet</p>
                 )}
               </div>
             </CardContent>
@@ -1024,7 +1024,7 @@ const UnifiedAdminConsole = () => {
 
       {/* Suspend Modal */}
       <Dialog open={showSuspendModal} onOpenChange={setShowSuspendModal}>
-        <DialogContent className="bg-zinc-900 border-zinc-800 text-white">
+        <DialogContent className="bg-card border-border text-foreground">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-red-500">
               <Ban className="w-5 h-5" />
@@ -1032,21 +1032,21 @@ const UnifiedAdminConsole = () => {
             </DialogTitle>
           </DialogHeader>
           <div className="modal-body px-4 sm:px-6 space-y-4 py-4">
-            <p className="text-gray-400">
-              Suspending <span className="text-white">{userToSuspend?.email}</span>
+            <p className="text-muted-foreground">
+              Suspending <span className="text-foreground">{userToSuspend?.email}</span>
             </p>
             <Textarea
               value={suspendReason}
               onChange={(e) => setSuspendReason(e.target.value)}
               placeholder="Reason for suspension..."
-              className="bg-zinc-800 border-zinc-700 text-white"
+              className="bg-muted border-border text-foreground"
               rows={3}
             />
             <div className="flex gap-3">
               <Button
                 variant="outline"
                 onClick={() => setShowSuspendModal(false)}
-                className="flex-1 border-zinc-700 text-white"
+                className="flex-1 border-border text-foreground"
               >
                 Cancel
               </Button>
@@ -1076,12 +1076,12 @@ const StatCard = ({ icon: Icon, label, value, subtext, color }) => {
   };
 
   return (
-    <div className="bg-zinc-900 rounded-xl p-3">
+    <div className="bg-card rounded-xl p-3">
       <div className="flex items-center gap-2 mb-1">
         <Icon className={`w-4 h-4 ${colors[color]}`} />
-        <span className="text-gray-400 text-xs">{label}</span>
+        <span className="text-muted-foreground text-xs">{label}</span>
       </div>
-      <p className="text-xl font-bold text-white">{value}</p>
+      <p className="text-xl font-bold text-foreground">{value}</p>
       {subtext && <p className="text-xs text-gray-500">{subtext}</p>}
     </div>
   );
@@ -1091,7 +1091,7 @@ const StatCard = ({ icon: Icon, label, value, subtext, color }) => {
 const UserDetailModal = ({ user: targetUser, onClose, onToggleAdmin }) => {
   return (
     <Dialog open={true} onOpenChange={onClose}>
-      <DialogContent className="bg-zinc-900 border-zinc-800 text-white max-w-md">
+      <DialogContent className="bg-card border-border text-foreground max-w-md">
         <DialogHeader>
           <DialogTitle>User Details</DialogTitle>
         </DialogHeader>
@@ -1099,35 +1099,35 @@ const UserDetailModal = ({ user: targetUser, onClose, onToggleAdmin }) => {
           <div className="flex items-center gap-4">
             <Avatar className="w-16 h-16">
               <AvatarImage src={getFullUrl(targetUser.avatar_url)} />
-              <AvatarFallback className="bg-zinc-700 text-2xl">
+              <AvatarFallback className="bg-input text-2xl">
                 {targetUser.full_name?.[0] || targetUser.email[0]}
               </AvatarFallback>
             </Avatar>
             <div>
-              <h3 className="text-lg font-bold text-white flex items-center gap-2">
+              <h3 className="text-lg font-bold text-foreground flex items-center gap-2">
                 {targetUser.full_name || 'No name'}
                 {targetUser.is_admin && <Crown className="w-5 h-5 text-yellow-400" />}
               </h3>
-              <p className="text-gray-400 text-sm">{targetUser.email}</p>
+              <p className="text-muted-foreground text-sm">{targetUser.email}</p>
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-2">
-            <div className="bg-zinc-800 rounded-lg p-2">
-              <p className="text-gray-400 text-xs">Role</p>
-              <p className="text-white capitalize">{targetUser.role?.replace(/_/g, ' ')}</p>
+            <div className="bg-muted rounded-lg p-2">
+              <p className="text-muted-foreground text-xs">Role</p>
+              <p className="text-foreground capitalize">{targetUser.role?.replace(/_/g, ' ')}</p>
             </div>
-            <div className="bg-zinc-800 rounded-lg p-2">
-              <p className="text-gray-400 text-xs">Subscription</p>
-              <p className="text-white capitalize">{targetUser.subscription_tier || 'None'}</p>
+            <div className="bg-muted rounded-lg p-2">
+              <p className="text-muted-foreground text-xs">Subscription</p>
+              <p className="text-foreground capitalize">{targetUser.subscription_tier || 'None'}</p>
             </div>
-            <div className="bg-zinc-800 rounded-lg p-2">
-              <p className="text-gray-400 text-xs">Credits</p>
+            <div className="bg-muted rounded-lg p-2">
+              <p className="text-muted-foreground text-xs">Credits</p>
               <p className="text-green-400">${targetUser.credit_balance?.toFixed(2)}</p>
             </div>
-            <div className="bg-zinc-800 rounded-lg p-2">
-              <p className="text-gray-400 text-xs">Joined</p>
-              <p className="text-white">{targetUser.created_at ? new Date(targetUser.created_at).toLocaleDateString() : 'N/A'}</p>
+            <div className="bg-muted rounded-lg p-2">
+              <p className="text-muted-foreground text-xs">Joined</p>
+              <p className="text-foreground">{targetUser.created_at ? new Date(targetUser.created_at).toLocaleDateString() : 'N/A'}</p>
             </div>
           </div>
 
@@ -1135,12 +1135,12 @@ const UserDetailModal = ({ user: targetUser, onClose, onToggleAdmin }) => {
             <Button
               variant="outline"
               onClick={() => onToggleAdmin(targetUser)}
-              className={`flex-1 border-zinc-700 ${targetUser.is_admin ? 'text-yellow-400' : 'text-white'}`}
+              className={`flex-1 border-border ${targetUser.is_admin ? 'text-yellow-400' : 'text-foreground'}`}
             >
               <Crown className="w-4 h-4 mr-2" />
               {targetUser.is_admin ? 'Remove Admin' : 'Make Admin'}
             </Button>
-            <Button variant="outline" onClick={onClose} className="flex-1 border-zinc-700 text-white">
+            <Button variant="outline" onClick={onClose} className="flex-1 border-border text-foreground">
               Close
             </Button>
           </div>
@@ -1212,7 +1212,7 @@ const DropdownBadge = ({ value, options, onChange, colorClass, isLoading }) => {
       </button>
       
       {isOpen && (
-        <div className="absolute z-50 mt-1 left-0 bg-zinc-800 border border-zinc-600 rounded-lg shadow-xl py-1 min-w-[140px] max-h-[200px] overflow-y-auto">
+        <div className="absolute z-50 mt-1 left-0 bg-muted border border-input rounded-lg shadow-xl py-1 min-w-[140px] max-h-[200px] overflow-y-auto">
           {options.map((option) => (
             <button
               key={option.value}
@@ -1220,10 +1220,10 @@ const DropdownBadge = ({ value, options, onChange, colorClass, isLoading }) => {
                 onChange(option.value);
                 setIsOpen(false);
               }}
-              className={`w-full text-left px-3 py-1.5 text-xs hover:bg-zinc-700 transition-colors ${
+              className={`w-full text-left px-3 py-1.5 text-xs hover:bg-input transition-colors ${
                 option.value.toLowerCase() === value?.toLowerCase() 
                   ? 'text-cyan-400 bg-cyan-500/10' 
-                  : 'text-white'
+                  : 'text-foreground'
               }`}
             >
               {option.label}
@@ -1456,7 +1456,7 @@ const UsersTabContent = ({
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           placeholder="Search by email or name..."
-          className="bg-zinc-800 border-zinc-700 text-white"
+          className="bg-muted border-border text-foreground"
           onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
         />
         <Button onClick={handleSearch} className="bg-red-500 hover:bg-red-600">
@@ -1471,7 +1471,7 @@ const UsersTabContent = ({
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2">
               <CheckCircle className="w-4 h-4 text-cyan-400 flex-shrink-0" />
-              <span className="text-white font-medium text-sm">
+              <span className="text-foreground font-medium text-sm">
                 {selectedUsers.size} selected
               </span>
             </div>
@@ -1479,7 +1479,7 @@ const UsersTabContent = ({
               size="sm"
               variant="ghost"
               onClick={() => setSelectedUsers(new Set())}
-              className="text-gray-400 hover:text-white p-1 h-auto"
+              className="text-muted-foreground hover:text-foreground p-1 h-auto"
             >
               <X className="w-4 h-4" />
             </Button>
@@ -1497,7 +1497,7 @@ const UsersTabContent = ({
                   setShowBulkRoleDropdown(!showBulkRoleDropdown);
                 }}
                 disabled={bulkLoading}
-                className="border-zinc-600 text-white hover:bg-zinc-700 text-xs px-2 h-8 whitespace-nowrap"
+                className="border-input text-foreground hover:bg-input text-xs px-2 h-8 whitespace-nowrap"
               >
                 {bulkLoading ? (
                   <Loader2 className="w-3 h-3 animate-spin mr-1" />
@@ -1519,7 +1519,7 @@ const UsersTabContent = ({
                   setShowBulkSubDropdown(!showBulkSubDropdown);
                 }}
                 disabled={bulkLoading}
-                className="border-zinc-600 text-white hover:bg-zinc-700 text-xs px-2 h-8 whitespace-nowrap"
+                className="border-input text-foreground hover:bg-input text-xs px-2 h-8 whitespace-nowrap"
               >
                 {bulkLoading ? (
                   <Loader2 className="w-3 h-3 animate-spin mr-1" />
@@ -1552,13 +1552,13 @@ const UsersTabContent = ({
           {showBulkRoleDropdown && (
             <div 
               ref={roleDropdownRef}
-              className="absolute left-2 mt-1 bg-zinc-800 border border-zinc-600 rounded-lg shadow-xl py-1 min-w-[160px] max-h-[250px] overflow-y-auto z-[100]"
+              className="absolute left-2 mt-1 bg-muted border border-input rounded-lg shadow-xl py-1 min-w-[160px] max-h-[250px] overflow-y-auto z-[100]"
             >
               {ROLE_OPTIONS.map((option) => (
                 <button
                   key={option.value}
                   onClick={() => handleBulkUpdateRole(option.value)}
-                  className="w-full text-left px-3 py-2 text-sm hover:bg-zinc-700 text-white transition-colors"
+                  className="w-full text-left px-3 py-2 text-sm hover:bg-input text-foreground transition-colors"
                 >
                   {option.label}
                 </button>
@@ -1570,14 +1570,14 @@ const UsersTabContent = ({
           {showBulkSubDropdown && (
             <div 
               ref={planDropdownRef}
-              className="absolute left-20 mt-1 bg-zinc-800 border border-zinc-600 rounded-lg shadow-xl py-1 min-w-[120px] z-[100]"
+              className="absolute left-20 mt-1 bg-muted border border-input rounded-lg shadow-xl py-1 min-w-[120px] z-[100]"
             >
               {SUBSCRIPTION_OPTIONS.map((option) => (
                 <button
                   key={option.value}
                   onClick={() => handleBulkUpdateSubscription(option.value)}
-                  className={`w-full text-left px-3 py-2 text-sm hover:bg-zinc-700 transition-colors ${
-                    option.value === 'premium' ? 'text-yellow-400' : 'text-white'
+                  className={`w-full text-left px-3 py-2 text-sm hover:bg-input transition-colors ${
+                    option.value === 'premium' ? 'text-yellow-400' : 'text-foreground'
                   }`}
                 >
                   {option.label}
@@ -1633,7 +1633,7 @@ const UsersTabContent = ({
                   
                   <Avatar className="w-10 h-10">
                     <AvatarImage src={getFullUrl(u.avatar_url)} />
-                    <AvatarFallback className="bg-zinc-700">
+                    <AvatarFallback className="bg-input">
                       {u.full_name?.[0] || u.email[0]}
                     </AvatarFallback>
                   </Avatar>
@@ -1701,7 +1701,7 @@ const UsersTabContent = ({
                     value={u.role}
                     options={ROLE_OPTIONS}
                     onChange={(newRole) => handleUpdateRole(u.id, newRole)}
-                    colorClass="bg-zinc-700 text-white"
+                    colorClass="bg-input text-foreground"
                     isLoading={loadingUser === u.id && loadingField === 'role'}
                   />
                   
@@ -1710,7 +1710,7 @@ const UsersTabContent = ({
                     value={u.subscription_tier || 'free'}
                     options={SUBSCRIPTION_OPTIONS}
                     onChange={(newTier) => handleUpdateSubscription(u.id, newTier)}
-                    colorClass={u.subscription_tier === 'premium' ? 'bg-yellow-500/20 text-yellow-400' : 'bg-zinc-700 text-gray-400'}
+                    colorClass={u.subscription_tier === 'premium' ? 'bg-yellow-500/20 text-yellow-400' : 'bg-input text-muted-foreground'}
                     isLoading={loadingUser === u.id && loadingField === 'subscription'}
                   />
                   
@@ -1731,9 +1731,9 @@ const UsersTabContent = ({
       
       {/* Delete Confirmation Modal */}
       <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
-        <DialogContent className="bg-zinc-900 border-zinc-700 max-w-sm">
+        <DialogContent className="bg-card border-border max-w-sm">
           <DialogHeader>
-            <DialogTitle className="text-white flex items-center gap-2">
+            <DialogTitle className="text-foreground flex items-center gap-2">
               <Trash2 className="w-5 h-5 text-red-500" />
               Confirm Delete
             </DialogTitle>
@@ -1750,7 +1750,7 @@ const UsersTabContent = ({
             <Button
               variant="outline"
               onClick={() => setShowDeleteConfirm(false)}
-              className="border-zinc-600 text-zinc-300 hover:bg-zinc-800"
+              className="border-input text-zinc-300 hover:bg-muted"
             >
               Cancel
             </Button>
@@ -1766,7 +1766,7 @@ const UsersTabContent = ({
       
       {/* Reset Password Modal */}
       <Dialog open={showResetPasswordModal} onOpenChange={setShowResetPasswordModal}>
-        <DialogContent className="bg-zinc-900 border-zinc-800 text-white max-w-sm">
+        <DialogContent className="bg-card border-border text-foreground max-w-sm">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-amber-400">
               <KeyRound className="w-5 h-5" />
@@ -1774,9 +1774,9 @@ const UsersTabContent = ({
             </DialogTitle>
           </DialogHeader>
           <div className="modal-body px-4 sm:px-6 space-y-4 py-4">
-            <p className="text-gray-400 text-sm">
+            <p className="text-muted-foreground text-sm">
               Set a new password for{' '}
-              <span className="text-white font-medium">{resetPasswordUser?.full_name || resetPasswordUser?.email}</span>
+              <span className="text-foreground font-medium">{resetPasswordUser?.full_name || resetPasswordUser?.email}</span>
             </p>
             <p className="text-gray-500 text-xs">{resetPasswordUser?.email}</p>
             <Input
@@ -1784,7 +1784,7 @@ const UsersTabContent = ({
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
               placeholder="Enter new password (min 6 characters)"
-              className="bg-zinc-800 border-zinc-700 text-white"
+              className="bg-muted border-border text-foreground"
               autoComplete="new-password"
             />
             {newPassword && newPassword.length < 6 && (
@@ -1794,7 +1794,7 @@ const UsersTabContent = ({
               <Button
                 variant="outline"
                 onClick={() => { setShowResetPasswordModal(false); setNewPassword(''); }}
-                className="flex-1 border-zinc-700 text-white"
+                className="flex-1 border-border text-foreground"
               >
                 Cancel
               </Button>
@@ -1869,7 +1869,7 @@ const AnalyticsTabContent = ({ user, cardBgClass, textClass, textSecondary }) =>
     return (
       <div className="flex items-center justify-center py-12">
         <Loader2 className="w-8 h-8 animate-spin text-cyan-400" />
-        <span className="ml-3 text-gray-400">Loading analytics...</span>
+        <span className="ml-3 text-muted-foreground">Loading analytics...</span>
       </div>
     );
   }
@@ -1887,7 +1887,7 @@ const AnalyticsTabContent = ({ user, cardBgClass, textClass, textSecondary }) =>
           variant="outline"
           onClick={handleRefreshCache}
           disabled={refreshing}
-          className="border-zinc-700"
+          className="border-border"
         >
           {refreshing ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
           <span className="ml-1">Refresh</span>
@@ -1907,7 +1907,7 @@ const AnalyticsTabContent = ({ user, cardBgClass, textClass, textSecondary }) =>
           <div className="p-4 rounded-xl bg-gradient-to-r from-red-500/10 to-orange-500/10 border border-red-500/30">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs text-gray-400 flex items-center gap-1">
+                <p className="text-xs text-muted-foreground flex items-center gap-1">
                   <AlertCircle className="w-3 h-3 text-red-400" />
                   Total Stoked Credits Liability
                 </p>
@@ -1930,8 +1930,8 @@ const AnalyticsTabContent = ({ user, cardBgClass, textClass, textSecondary }) =>
               <p className={`text-xs ${textSecondary} mb-2`}>Credit Distribution</p>
               <div className="grid grid-cols-5 gap-1">
                 {Object.entries(financial.credit_distribution).map(([range, count]) => (
-                  <div key={range} className="bg-zinc-800 rounded p-2 text-center">
-                    <p className="text-white font-bold text-sm">{count}</p>
+                  <div key={range} className="bg-muted rounded p-2 text-center">
+                    <p className="text-foreground font-bold text-sm">{count}</p>
                     <p className="text-gray-500 text-[10px]">${range}</p>
                   </div>
                 ))}
@@ -1941,20 +1941,20 @@ const AnalyticsTabContent = ({ user, cardBgClass, textClass, textSecondary }) =>
 
           {/* Revenue Metrics */}
           <div className="grid grid-cols-3 gap-2">
-            <div className="bg-zinc-800 rounded-lg p-3 text-center">
-              <p className="text-gray-400 text-xs">30-Day Revenue</p>
+            <div className="bg-muted rounded-lg p-3 text-center">
+              <p className="text-muted-foreground text-xs">30-Day Revenue</p>
               <p className="text-green-400 font-bold text-lg">
                 ${financial?.total_revenue_period?.toLocaleString() || '0'}
               </p>
             </div>
-            <div className="bg-zinc-800 rounded-lg p-3 text-center">
-              <p className="text-gray-400 text-xs">Ad Revenue</p>
+            <div className="bg-muted rounded-lg p-3 text-center">
+              <p className="text-muted-foreground text-xs">Ad Revenue</p>
               <p className="text-purple-400 font-bold text-lg">
                 ${financial?.ad_revenue?.toLocaleString() || '0'}
               </p>
             </div>
-            <div className="bg-zinc-800 rounded-lg p-3 text-center">
-              <p className="text-gray-400 text-xs">Subscription</p>
+            <div className="bg-muted rounded-lg p-3 text-center">
+              <p className="text-muted-foreground text-xs">Subscription</p>
               <p className="text-cyan-400 font-bold text-lg">
                 ${financial?.revenue_by_type?.subscription?.toLocaleString() || '0'}
               </p>
@@ -1978,13 +1978,13 @@ const AnalyticsTabContent = ({ user, cardBgClass, textClass, textSecondary }) =>
               <p className={`text-xs ${textSecondary} mb-2`}>User Categories</p>
               <div className="grid grid-cols-2 gap-2">
                 {Object.entries(ecosystem.role_categories).map(([category, data]) => (
-                  <div key={category} className="bg-zinc-800 rounded-lg p-3">
+                  <div key={category} className="bg-muted rounded-lg p-3">
                     <div className="flex items-center justify-between">
-                      <p className="text-gray-400 text-xs capitalize">{category.replace('_', ' ')}</p>
+                      <p className="text-muted-foreground text-xs capitalize">{category.replace('_', ' ')}</p>
                       <span className="text-cyan-400 text-xs">{data.percentage}%</span>
                     </div>
-                    <p className="text-white font-bold">{data.count}</p>
-                    <div className="w-full h-1 bg-zinc-700 rounded mt-1">
+                    <p className="text-foreground font-bold">{data.count}</p>
+                    <div className="w-full h-1 bg-input rounded mt-1">
                       <div 
                         className="h-1 bg-cyan-500 rounded" 
                         style={{ width: `${data.percentage}%` }}
@@ -2003,12 +2003,12 @@ const AnalyticsTabContent = ({ user, cardBgClass, textClass, textSecondary }) =>
               <div className="grid grid-cols-2 gap-2">
                 <div className="bg-gradient-to-r from-orange-500/10 to-red-500/10 border border-orange-500/30 rounded-lg p-3">
                   <p className="text-orange-400 text-xs">On-Demand</p>
-                  <p className="text-white font-bold text-xl">{ecosystem.booking_efficiency.on_demand?.count || 0}</p>
+                  <p className="text-foreground font-bold text-xl">{ecosystem.booking_efficiency.on_demand?.count || 0}</p>
                   <p className="text-orange-400 text-xs">{ecosystem.booking_efficiency.on_demand?.percentage || 0}%</p>
                 </div>
                 <div className="bg-gradient-to-r from-blue-500/10 to-purple-500/10 border border-blue-500/30 rounded-lg p-3">
                   <p className="text-blue-400 text-xs">Scheduled</p>
-                  <p className="text-white font-bold text-xl">{ecosystem.booking_efficiency.scheduled?.count || 0}</p>
+                  <p className="text-foreground font-bold text-xl">{ecosystem.booking_efficiency.scheduled?.count || 0}</p>
                   <p className="text-blue-400 text-xs">{ecosystem.booking_efficiency.scheduled?.percentage || 0}%</p>
                 </div>
               </div>
@@ -2021,10 +2021,10 @@ const AnalyticsTabContent = ({ user, cardBgClass, textClass, textSecondary }) =>
               <p className={`text-xs ${textSecondary} mb-2`}>Top Spots by Bookings</p>
               <div className="space-y-1">
                 {ecosystem.spot_heatmap.slice(0, 5).map((spot, i) => (
-                  <div key={i} className="flex items-center justify-between bg-zinc-800 rounded p-2">
+                  <div key={i} className="flex items-center justify-between bg-muted rounded p-2">
                     <div className="flex items-center gap-2">
                       <MapPin className="w-3 h-3 text-cyan-400" />
-                      <span className="text-white text-sm truncate max-w-[150px]">{spot.location}</span>
+                      <span className="text-foreground text-sm truncate max-w-[150px]">{spot.location}</span>
                     </div>
                     <div className="flex items-center gap-3">
                       <Badge className="bg-cyan-500/20 text-cyan-400 text-xs">{spot.bookings} bookings</Badge>
@@ -2053,10 +2053,10 @@ const AnalyticsTabContent = ({ user, cardBgClass, textClass, textSecondary }) =>
                 Recent pricing changes - correlate with signup trends
               </p>
               {priceImpact.price_change_markers.slice(0, 5).map((marker, i) => (
-                <div key={i} className="flex items-center justify-between bg-zinc-800 rounded p-2">
+                <div key={i} className="flex items-center justify-between bg-muted rounded p-2">
                   <div className="flex items-center gap-2">
                     <div className="w-2 h-2 bg-yellow-400 rounded-full" />
-                    <span className="text-white text-sm">{marker.action}</span>
+                    <span className="text-foreground text-sm">{marker.action}</span>
                   </div>
                   <span className="text-gray-500 text-xs">
                     {marker.date ? new Date(marker.date).toLocaleDateString() : 'N/A'}
@@ -2074,8 +2074,8 @@ const AnalyticsTabContent = ({ user, cardBgClass, textClass, textSecondary }) =>
 
           {/* Signup Trend Summary */}
           {priceImpact?.signup_trend && priceImpact.signup_trend.length > 0 && (
-            <div className="mt-4 p-3 bg-zinc-800 rounded-lg">
-              <p className="text-xs text-gray-400 mb-2">Signup Trend (Last 90 Days)</p>
+            <div className="mt-4 p-3 bg-muted rounded-lg">
+              <p className="text-xs text-muted-foreground mb-2">Signup Trend (Last 90 Days)</p>
               <div className="flex items-end gap-0.5 h-12">
                 {priceImpact.signup_trend.slice(-30).map((day, i) => (
                   <div

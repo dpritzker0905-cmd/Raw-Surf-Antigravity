@@ -338,7 +338,7 @@ export const AdminPricingEditor = () => {
           <AlertCircle className="w-5 h-5 text-yellow-400 flex-shrink-0" />
           <div className="flex-1">
             <p className="text-yellow-400 font-medium">Unsaved Changes</p>
-            <p className="text-gray-400 text-sm">You have unsaved changes to the pricing configuration.</p>
+            <p className="text-muted-foreground text-sm">You have unsaved changes to the pricing configuration.</p>
           </div>
           <div className="flex gap-2">
             <Button
@@ -465,7 +465,7 @@ export const AdminPricingEditor = () => {
                 On <span className="text-green-400 font-bold">$100</span> sale:
               </p>
               <ul className="text-xs text-gray-500 mt-1 space-y-0.5">
-                <li>Free: <span className="text-gray-400">${100 - (100 * commissionRates.free / 100)} net</span></li>
+                <li>Free: <span className="text-muted-foreground">${100 - (100 * commissionRates.free / 100)} net</span></li>
                 <li>Basic: <span className="text-blue-400">${100 - (100 * commissionRates.tier_2 / 100)} net</span></li>
                 <li>Premium: <span className="text-yellow-400">${100 - (100 * commissionRates.tier_3 / 100)} net</span></li>
               </ul>
@@ -565,7 +565,7 @@ export const AdminPricingEditor = () => {
                 On <span className="text-green-400 font-bold">$10</span> photo:
               </p>
               <ul className="text-xs text-gray-500 mt-1 space-y-0.5">
-                <li>Free: <span className="text-gray-400">${(10).toFixed(2)} (no discount)</span></li>
+                <li>Free: <span className="text-muted-foreground">${(10).toFixed(2)} (no discount)</span></li>
                 <li>Basic: <span className="text-cyan-400">${(10 - (10 * surferDiscountRates.tier_2 / 100)).toFixed(2)} ({surferDiscountRates.tier_2}% off)</span></li>
                 <li>Premium: <span className="text-amber-400">${(10 - (10 * surferDiscountRates.tier_3 / 100)).toFixed(2)} ({surferDiscountRates.tier_3}% off)</span></li>
               </ul>

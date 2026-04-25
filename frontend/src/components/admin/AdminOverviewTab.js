@@ -18,7 +18,7 @@ const StatCard = ({ icon: Icon, label, value, subtext, color = 'cyan' }) => (
   <div className={`p-3 rounded-xl bg-${color}-500/10 border border-${color}-500/20`}>
     <div className="flex items-center gap-2 mb-1">
       <Icon className={`w-4 h-4 text-${color}-400`} />
-      <span className="text-xs text-gray-400">{label}</span>
+      <span className="text-xs text-muted-foreground">{label}</span>
     </div>
     <p className={`text-xl font-bold text-${color}-400`}>{value}</p>
     {subtext && <p className="text-xs text-gray-500 mt-0.5">{subtext}</p>}
@@ -56,7 +56,7 @@ const AdminOverviewTab = ({ stats, cardBgClass, textClass, textSecondary, isLigh
         <CardContent>
           <div className="grid grid-cols-2 gap-2">
             {stats.users?.by_role && Object.entries(stats.users.by_role).map(([role, count]) => (
-              <div key={role} className={`${isLight ? 'bg-gray-100' : 'bg-zinc-800/50'} rounded-lg p-2`}>
+              <div key={role} className={`${isLight ? 'bg-gray-100' : 'bg-muted/50'} rounded-lg p-2`}>
                 <p className={`${textSecondary} text-xs capitalize`}>{role.replace(/_/g, ' ')}</p>
                 <p className={`${textClass} font-bold`}>{count}</p>
               </div>
@@ -71,16 +71,16 @@ const AdminOverviewTab = ({ stats, cardBgClass, textClass, textSecondary, isLigh
           <CardTitle className={`${textClass} text-sm`}>Quick Navigation</CardTitle>
         </CardHeader>
         <CardContent className="grid grid-cols-2 gap-2">
-          <Button variant="outline" size="sm" onClick={() => navigate('/map')} className={isLight ? 'border-gray-200 hover:bg-gray-100' : 'border-zinc-700'}>
+          <Button variant="outline" size="sm" onClick={() => navigate('/map')} className={isLight ? 'border-gray-200 hover:bg-gray-100' : 'border-border'}>
             Test Map
           </Button>
-          <Button variant="outline" size="sm" onClick={() => navigate('/bookings')} className={isLight ? 'border-gray-200 hover:bg-gray-100' : 'border-zinc-700'}>
+          <Button variant="outline" size="sm" onClick={() => navigate('/bookings')} className={isLight ? 'border-gray-200 hover:bg-gray-100' : 'border-border'}>
             Test Bookings
           </Button>
-          <Button variant="outline" size="sm" onClick={() => navigate('/gallery')} className={isLight ? 'border-gray-200 hover:bg-gray-100' : 'border-zinc-700'}>
+          <Button variant="outline" size="sm" onClick={() => navigate('/gallery')} className={isLight ? 'border-gray-200 hover:bg-gray-100' : 'border-border'}>
             Test Gallery
           </Button>
-          <Button variant="outline" size="sm" onClick={() => navigate('/profile')} className={isLight ? 'border-gray-200 hover:bg-gray-100' : 'border-zinc-700'}>
+          <Button variant="outline" size="sm" onClick={() => navigate('/profile')} className={isLight ? 'border-gray-200 hover:bg-gray-100' : 'border-border'}>
             Test Profile
           </Button>
         </CardContent>

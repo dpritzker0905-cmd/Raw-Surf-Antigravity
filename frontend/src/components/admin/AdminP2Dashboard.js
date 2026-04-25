@@ -66,9 +66,9 @@ export const AdminP2Dashboard = () => {
   const [actionLoading, setActionLoading] = useState(false);
 
   const isLight = theme === 'light';
-  const cardBgClass = isLight ? 'bg-white border-gray-200' : 'bg-zinc-900/50 border-zinc-800';
-  const textClass = isLight ? 'text-gray-900' : 'text-white';
-  const textSecondary = isLight ? 'text-gray-600' : 'text-gray-400';
+  const cardBgClass = isLight ? 'bg-white border-gray-200' : 'bg-card/50 border-border';
+  const textClass = isLight ? 'text-gray-900' : 'text-foreground';
+  const textSecondary = isLight ? 'text-gray-600' : 'text-muted-foreground';
 
   useEffect(() => {
     if (user?.id) {
@@ -290,7 +290,7 @@ export const AdminP2Dashboard = () => {
 
       {loading ? (
         <div className="flex items-center justify-center py-12">
-          <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
+          <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
         </div>
       ) : (
         <>
@@ -372,10 +372,10 @@ export const AdminP2Dashboard = () => {
                 <CardContent>
                   <div className="grid grid-cols-4 gap-2">
                     {Object.entries(revenueData.breakdown_by_type || {}).map(([type, data]) => (
-                      <div key={type} className="p-3 bg-zinc-800 rounded-lg">
+                      <div key={type} className="p-3 bg-muted rounded-lg">
                         <p className="text-xs text-gray-500 capitalize">{type.replace(/_/g, ' ')}</p>
-                        <p className="text-lg font-bold text-white">{formatCurrency(data.revenue)}</p>
-                        <p className="text-xs text-gray-400">{data.transactions} txns</p>
+                        <p className="text-lg font-bold text-foreground">{formatCurrency(data.revenue)}</p>
+                        <p className="text-xs text-muted-foreground">{data.transactions} txns</p>
                       </div>
                     ))}
                   </div>
@@ -392,13 +392,13 @@ export const AdminP2Dashboard = () => {
                     <div className="space-y-2">
                       {funnelData.funnel?.map((stage, _idx) => (
                         <div key={stage.stage} className="flex items-center gap-3">
-                          <div className="w-32 text-xs text-gray-400">{stage.stage}</div>
-                          <div className="flex-1 relative h-6 bg-zinc-800 rounded-full overflow-hidden">
+                          <div className="w-32 text-xs text-muted-foreground">{stage.stage}</div>
+                          <div className="flex-1 relative h-6 bg-muted rounded-full overflow-hidden">
                             <div 
                               className="absolute inset-y-0 left-0 bg-gradient-to-r from-green-500 to-teal-500 rounded-full transition-all"
                               style={{ width: `${stage.conversion_rate}%` }}
                             />
-                            <span className="absolute inset-0 flex items-center justify-center text-xs text-white font-medium">
+                            <span className="absolute inset-0 flex items-center justify-center text-xs text-foreground font-medium">
                               {stage.count} ({stage.conversion_rate}%)
                             </span>
                           </div>
@@ -432,9 +432,9 @@ export const AdminP2Dashboard = () => {
                         </thead>
                         <tbody>
                           {cohortData.cohorts.slice(0, 6).map(cohort => (
-                            <tr key={cohort.cohort_month} className="border-t border-zinc-800">
-                              <td className="p-2 text-white">{cohort.cohort_month}</td>
-                              <td className="p-2 text-center text-gray-400">{cohort.cohort_size}</td>
+                            <tr key={cohort.cohort_month} className="border-t border-border">
+                              <td className="p-2 text-foreground">{cohort.cohort_month}</td>
+                              <td className="p-2 text-center text-muted-foreground">{cohort.cohort_size}</td>
                               {[0,1,2,3,4,5].map(m => {
                                 const retention = cohort.retention[`month_${m}`];
                                 return (
@@ -490,7 +490,7 @@ export const AdminP2Dashboard = () => {
                           </div>
                           <div>
                             <div className="flex items-center gap-2">
-                              <code className="text-lg font-bold text-white bg-zinc-800 px-2 py-0.5 rounded">
+                              <code className="text-lg font-bold text-foreground bg-muted px-2 py-0.5 rounded">
                                 {promo.code}
                               </code>
                               <Button 
@@ -513,7 +513,7 @@ export const AdminP2Dashboard = () => {
                         
                         <div className="flex items-center gap-4">
                           <div className="text-right">
-                            <p className="text-sm text-white">
+                            <p className="text-sm text-foreground">
                               {promo.current_uses} / {promo.max_uses || '∞'} uses
                             </p>
                             {promo.valid_until && (
@@ -559,7 +559,7 @@ export const AdminP2Dashboard = () => {
                       <div className="flex items-center justify-between">
                         <div className="flex-1">
                           <div className="flex items-center gap-2">
-                            <code className="text-sm font-mono text-white bg-zinc-800 px-2 py-0.5 rounded">
+                            <code className="text-sm font-mono text-foreground bg-muted px-2 py-0.5 rounded">
                               {flag.key}
                             </code>
                             {flag.is_experiment && (
@@ -585,9 +585,9 @@ export const AdminP2Dashboard = () => {
                               max="100"
                               value={flag.rollout_percentage}
                               onChange={(e) => handleUpdateRollout(flag.id, parseInt(e.target.value))}
-                              className="w-20 h-2 bg-zinc-700 rounded-lg appearance-none cursor-pointer"
+                              className="w-20 h-2 bg-input rounded-lg appearance-none cursor-pointer"
                             />
-                            <span className="text-xs text-white w-8">{flag.rollout_percentage}%</span>
+                            <span className="text-xs text-foreground w-8">{flag.rollout_percentage}%</span>
                           </div>
                           
                           <Switch
@@ -631,7 +631,7 @@ export const AdminP2Dashboard = () => {
                             <Badge className={`text-xs ${
                               campaign.status === 'sent' ? 'bg-green-500/20 text-green-400' :
                               campaign.status === 'scheduled' ? 'bg-blue-500/20 text-blue-400' :
-                              campaign.status === 'cancelled' ? 'bg-gray-500/20 text-gray-400' :
+                              campaign.status === 'cancelled' ? 'bg-gray-500/20 text-muted-foreground' :
                               'bg-yellow-500/20 text-yellow-400'
                             }`}>
                               {campaign.status}
@@ -643,7 +643,7 @@ export const AdminP2Dashboard = () => {
                           
                           {campaign.status === 'sent' && (
                             <div className="flex gap-4 mt-2 text-xs">
-                              <span className="text-gray-400">
+                              <span className="text-muted-foreground">
                                 <Users className="w-3 h-3 inline mr-1" />
                                 {campaign.stats.targeted} targeted
                               </span>
@@ -688,25 +688,25 @@ export const AdminP2Dashboard = () => {
 
       {/* Create Promo Code Modal */}
       <Dialog open={showCreatePromo} onOpenChange={setShowCreatePromo}>
-        <DialogContent className="bg-zinc-900 border-zinc-800 text-white">
+        <DialogContent className="bg-card border-border text-foreground">
           <DialogHeader>
             <DialogTitle>Create Promo Code</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div>
-              <label className="text-sm text-gray-400">Code</label>
+              <label className="text-sm text-muted-foreground">Code</label>
               <Input
                 value={newPromo.code}
                 onChange={(e) => setNewPromo({ ...newPromo, code: e.target.value.toUpperCase() })}
                 placeholder="SUMMER2026"
-                className="bg-zinc-800 border-zinc-700 mt-1"
+                className="bg-muted border-border mt-1"
               />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="text-sm text-gray-400">Type</label>
+                <label className="text-sm text-muted-foreground">Type</label>
                 <Select value={newPromo.code_type} onValueChange={(v) => setNewPromo({ ...newPromo, code_type: v })}>
-                  <SelectTrigger className="bg-zinc-800 border-zinc-700 mt-1">
+                  <SelectTrigger className="bg-muted border-border mt-1">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -717,34 +717,34 @@ export const AdminP2Dashboard = () => {
                 </Select>
               </div>
               <div>
-                <label className="text-sm text-gray-400">
+                <label className="text-sm text-muted-foreground">
                   {newPromo.code_type === 'percentage' ? 'Percentage' : 'Amount'}
                 </label>
                 <Input
                   type="number"
                   value={newPromo.discount_value}
                   onChange={(e) => setNewPromo({ ...newPromo, discount_value: parseFloat(e.target.value) })}
-                  className="bg-zinc-800 border-zinc-700 mt-1"
+                  className="bg-muted border-border mt-1"
                 />
               </div>
             </div>
             <div>
-              <label className="text-sm text-gray-400">Max Uses (optional)</label>
+              <label className="text-sm text-muted-foreground">Max Uses (optional)</label>
               <Input
                 type="number"
                 value={newPromo.max_uses || ''}
                 onChange={(e) => setNewPromo({ ...newPromo, max_uses: e.target.value ? parseInt(e.target.value) : null })}
                 placeholder="Unlimited"
-                className="bg-zinc-800 border-zinc-700 mt-1"
+                className="bg-muted border-border mt-1"
               />
             </div>
             <div>
-              <label className="text-sm text-gray-400">Campaign Name (optional)</label>
+              <label className="text-sm text-muted-foreground">Campaign Name (optional)</label>
               <Input
                 value={newPromo.campaign_name}
                 onChange={(e) => setNewPromo({ ...newPromo, campaign_name: e.target.value })}
                 placeholder="Summer Sale 2026"
-                className="bg-zinc-800 border-zinc-700 mt-1"
+                className="bg-muted border-border mt-1"
               />
             </div>
           </div>
@@ -759,47 +759,47 @@ export const AdminP2Dashboard = () => {
 
       {/* Create Feature Flag Modal */}
       <Dialog open={showCreateFlag} onOpenChange={setShowCreateFlag}>
-        <DialogContent className="bg-zinc-900 border-zinc-800 text-white">
+        <DialogContent className="bg-card border-border text-foreground">
           <DialogHeader>
             <DialogTitle>Create Feature Flag</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div>
-              <label className="text-sm text-gray-400">Key (snake_case)</label>
+              <label className="text-sm text-muted-foreground">Key (snake_case)</label>
               <Input
                 value={newFlag.key}
                 onChange={(e) => setNewFlag({ ...newFlag, key: e.target.value.toLowerCase().replace(/\s/g, '_') })}
                 placeholder="new_booking_flow"
-                className="bg-zinc-800 border-zinc-700 mt-1 font-mono"
+                className="bg-muted border-border mt-1 font-mono"
               />
             </div>
             <div>
-              <label className="text-sm text-gray-400">Name</label>
+              <label className="text-sm text-muted-foreground">Name</label>
               <Input
                 value={newFlag.name}
                 onChange={(e) => setNewFlag({ ...newFlag, name: e.target.value })}
                 placeholder="New Booking Flow"
-                className="bg-zinc-800 border-zinc-700 mt-1"
+                className="bg-muted border-border mt-1"
               />
             </div>
             <div>
-              <label className="text-sm text-gray-400">Description</label>
+              <label className="text-sm text-muted-foreground">Description</label>
               <Textarea
                 value={newFlag.description}
                 onChange={(e) => setNewFlag({ ...newFlag, description: e.target.value })}
                 placeholder="What does this flag control?"
-                className="bg-zinc-800 border-zinc-700 mt-1"
+                className="bg-muted border-border mt-1"
               />
             </div>
             <div>
-              <label className="text-sm text-gray-400">Initial Rollout %</label>
+              <label className="text-sm text-muted-foreground">Initial Rollout %</label>
               <Input
                 type="number"
                 min="0"
                 max="100"
                 value={newFlag.rollout_percentage}
                 onChange={(e) => setNewFlag({ ...newFlag, rollout_percentage: parseInt(e.target.value) })}
-                className="bg-zinc-800 border-zinc-700 mt-1"
+                className="bg-muted border-border mt-1"
               />
             </div>
           </div>
@@ -814,36 +814,36 @@ export const AdminP2Dashboard = () => {
 
       {/* Create Campaign Modal */}
       <Dialog open={showCreateCampaign} onOpenChange={setShowCreateCampaign}>
-        <DialogContent className="bg-zinc-900 border-zinc-800 text-white">
+        <DialogContent className="bg-card border-border text-foreground">
           <DialogHeader>
             <DialogTitle>Create Push Campaign</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div>
-              <label className="text-sm text-gray-400">Campaign Name</label>
+              <label className="text-sm text-muted-foreground">Campaign Name</label>
               <Input
                 value={newCampaign.name}
                 onChange={(e) => setNewCampaign({ ...newCampaign, name: e.target.value })}
                 placeholder="Summer Promo Announcement"
-                className="bg-zinc-800 border-zinc-700 mt-1"
+                className="bg-muted border-border mt-1"
               />
             </div>
             <div>
-              <label className="text-sm text-gray-400">Notification Title</label>
+              <label className="text-sm text-muted-foreground">Notification Title</label>
               <Input
                 value={newCampaign.title}
                 onChange={(e) => setNewCampaign({ ...newCampaign, title: e.target.value })}
                 placeholder="🏄 Don't miss out!"
-                className="bg-zinc-800 border-zinc-700 mt-1"
+                className="bg-muted border-border mt-1"
               />
             </div>
             <div>
-              <label className="text-sm text-gray-400">Notification Body</label>
+              <label className="text-sm text-muted-foreground">Notification Body</label>
               <Textarea
                 value={newCampaign.body}
                 onChange={(e) => setNewCampaign({ ...newCampaign, body: e.target.value })}
                 placeholder="Book your next session and get 20% off..."
-                className="bg-zinc-800 border-zinc-700 mt-1"
+                className="bg-muted border-border mt-1"
               />
             </div>
             <div className="flex items-center gap-2">
@@ -851,7 +851,7 @@ export const AdminP2Dashboard = () => {
                 checked={newCampaign.target_all_users}
                 onCheckedChange={(v) => setNewCampaign({ ...newCampaign, target_all_users: v })}
               />
-              <label className="text-sm text-gray-400">Send to all users</label>
+              <label className="text-sm text-muted-foreground">Send to all users</label>
             </div>
           </div>
           <DialogFooter>

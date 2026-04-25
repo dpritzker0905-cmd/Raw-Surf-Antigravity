@@ -523,7 +523,7 @@ export const AdminSpotEditor = () => {
         <Button
           variant="outline"
           onClick={() => setSatelliteView(!satelliteView)}
-          className="border-zinc-600"
+          className="border-input"
         >
           <Eye className="w-4 h-4 mr-2" />
           {satelliteView ? 'Street View' : 'Satellite'}
@@ -532,23 +532,23 @@ export const AdminSpotEditor = () => {
         {/* Search */}
         <div className="flex-1 max-w-xs">
           <div className="relative">
-            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <Input
               placeholder="Search spots..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 bg-zinc-800 border-zinc-700"
+              className="pl-10 bg-muted border-border"
             />
           </div>
         </div>
 
         {/* Refresh */}
-        <Button variant="outline" onClick={fetchSpots} className="border-zinc-600">
+        <Button variant="outline" onClick={fetchSpots} className="border-input">
           <RefreshCw className="w-4 h-4" />
         </Button>
 
         {/* Stats */}
-        <Badge className="bg-zinc-700 text-white">
+        <Badge className="bg-input text-foreground">
           {spots.length} spots
         </Badge>
       </div>
@@ -560,7 +560,7 @@ export const AdminSpotEditor = () => {
             <AlertTriangle className="w-4 h-4" />
             Edit Mode Active
           </p>
-          <ul className="text-gray-400 text-xs mt-2 space-y-1">
+          <ul className="text-muted-foreground text-xs mt-2 space-y-1">
             <li>• <strong>Drag</strong> any pin to relocate it</li>
             <li>• <strong>Double-click</strong> on the map to create a new spot</li>
             <li>• <strong>Click</strong> a pin to select it, then use Edit/Delete buttons</li>
@@ -573,24 +573,24 @@ export const AdminSpotEditor = () => {
         {/* Map */}
         <div className="flex-1 relative z-0">
           {!leafletReady && (
-            <div className="absolute inset-0 bg-zinc-900 rounded-xl flex items-center justify-center z-10">
+            <div className="absolute inset-0 bg-card rounded-xl flex items-center justify-center z-10">
               <div className="text-center">
                 <Loader2 className="w-8 h-8 text-cyan-400 animate-spin mx-auto mb-2" />
-                <p className="text-gray-400">Loading map...</p>
+                <p className="text-muted-foreground">Loading map...</p>
               </div>
             </div>
           )}
           <div
             ref={setMapRef}
-            className="w-full rounded-xl overflow-hidden border border-zinc-700"
+            className="w-full rounded-xl overflow-hidden border border-border"
             style={{ height: '500px', minHeight: '500px', backgroundColor: '#1a1a2e' }}
             data-testid="admin-spot-map"
           />
         </div>
 
         {/* Spot List Sidebar */}
-        <div className="w-72 bg-zinc-800 rounded-xl p-4 max-h-[500px] overflow-y-auto">
-          <h3 className="text-white font-bold mb-3 flex items-center gap-2">
+        <div className="w-72 bg-muted rounded-xl p-4 max-h-[500px] overflow-y-auto">
+          <h3 className="text-foreground font-bold mb-3 flex items-center gap-2">
             <MapPin className="w-4 h-4 text-cyan-400" />
             Spots ({filteredSpots.length})
           </h3>
@@ -602,7 +602,7 @@ export const AdminSpotEditor = () => {
                 className={`p-2 rounded-lg cursor-pointer transition-colors ${
                   selectedSpot?.id === spot.id
                     ? 'bg-cyan-500/20 border border-cyan-500'
-                    : 'bg-zinc-700/50 hover:bg-zinc-700'
+                    : 'bg-input/50 hover:bg-input'
                 }`}
               >
                 <div className="flex items-center gap-2">
@@ -611,9 +611,9 @@ export const AdminSpotEditor = () => {
                     spot.flagged_for_review ? 'bg-orange-500' :
                     spot.is_verified_peak ? 'bg-cyan-500' : 'bg-yellow-500'
                   }`} />
-                  <span className="text-white text-sm font-medium truncate">{spot.name}</span>
+                  <span className="text-foreground text-sm font-medium truncate">{spot.name}</span>
                 </div>
-                <p className="text-gray-400 text-xs truncate">{spot.region}</p>
+                <p className="text-muted-foreground text-xs truncate">{spot.region}</p>
               </div>
             ))}
           </div>
@@ -622,10 +622,10 @@ export const AdminSpotEditor = () => {
 
       {/* Selected Spot Actions */}
       {selectedSpot && (
-        <div className="p-4 bg-zinc-800 rounded-xl flex items-center justify-between">
+        <div className="p-4 bg-muted rounded-xl flex items-center justify-between">
           <div>
-            <h4 className="text-white font-bold">{selectedSpot.name || 'Unknown Spot'}</h4>
-            <p className="text-gray-400 text-sm">
+            <h4 className="text-foreground font-bold">{selectedSpot.name || 'Unknown Spot'}</h4>
+            <p className="text-muted-foreground text-sm">
               {selectedSpot.region || 'No region'} • ({(selectedSpot.latitude || 0).toFixed(4)}, {(selectedSpot.longitude || 0).toFixed(4)})
             </p>
             <div className="flex items-center gap-2 mt-1">
@@ -635,7 +635,7 @@ export const AdminSpotEditor = () => {
               {selectedSpot.flagged_for_review && (
                 <Badge className="bg-orange-500 text-white text-xs">Needs Review</Badge>
               )}
-              <Badge className="bg-zinc-600 text-xs">
+              <Badge className="bg-muted text-xs">
                 Votes: {selectedSpot.verification_votes_yes || 0}✓ / {selectedSpot.verification_votes_no || 0}✗
               </Badge>
             </div>
@@ -677,16 +677,16 @@ export const AdminSpotEditor = () => {
 
       {/* Create Spot Modal - z-[1000] to appear above Leaflet map */}
       <Dialog open={showCreateModal} onOpenChange={setShowCreateModal}>
-        <DialogContent className="bg-zinc-900 border-zinc-700 z-[1000]">
+        <DialogContent className="bg-card border-border z-[1000]">
           <DialogHeader>
-            <DialogTitle className="text-white flex items-center gap-2">
+            <DialogTitle className="text-foreground flex items-center gap-2">
               <Plus className="w-5 h-5 text-cyan-400" />
               Create New Spot
             </DialogTitle>
           </DialogHeader>
           
           <div className="space-y-4">
-            <p className="text-gray-400 text-sm">
+            <p className="text-muted-foreground text-sm">
               Coordinates: ({pendingCoords?.lat.toFixed(6)}, {pendingCoords?.lng.toFixed(6)})
             </p>
             
@@ -694,14 +694,14 @@ export const AdminSpotEditor = () => {
               placeholder="Spot Name *"
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              className="bg-zinc-800 border-zinc-700"
+              className="bg-muted border-border"
             />
             
             <Input
               placeholder="Region (e.g., Central Florida)"
               value={formData.region}
               onChange={(e) => setFormData({ ...formData, region: e.target.value })}
-              className="bg-zinc-800 border-zinc-700"
+              className="bg-muted border-border"
             />
             
             <div className="grid grid-cols-2 gap-4">
@@ -709,19 +709,19 @@ export const AdminSpotEditor = () => {
                 placeholder="Secondary City (e.g., Cocoa Beach)"
                 value={formData.secondary_city}
                 onChange={(e) => setFormData({ ...formData, secondary_city: e.target.value })}
-                className="bg-zinc-800 border-zinc-700"
+                className="bg-muted border-border"
               />
               <Input
                 placeholder="Secondary Area (e.g., Space Coast)"
                 value={formData.secondary_area}
                 onChange={(e) => setFormData({ ...formData, secondary_area: e.target.value })}
-                className="bg-zinc-800 border-zinc-700"
+                className="bg-muted border-border"
               />
             </div>
             
             <div className="grid grid-cols-2 gap-4">
               <Select value={formData.difficulty} onValueChange={(v) => setFormData({ ...formData, difficulty: v })}>
-                <SelectTrigger className="bg-zinc-800 border-zinc-700">
+                <SelectTrigger className="bg-muted border-border">
                   <SelectValue placeholder="Difficulty" />
                 </SelectTrigger>
                 <SelectContent>
@@ -732,7 +732,7 @@ export const AdminSpotEditor = () => {
               </Select>
               
               <Select value={formData.wave_type} onValueChange={(v) => setFormData({ ...formData, wave_type: v })}>
-                <SelectTrigger className="bg-zinc-800 border-zinc-700">
+                <SelectTrigger className="bg-muted border-border">
                   <SelectValue placeholder="Wave Type" />
                 </SelectTrigger>
                 <SelectContent>
@@ -745,7 +745,7 @@ export const AdminSpotEditor = () => {
             </div>
             
             <Select value={formData.noaa_buoy_id || 'none'} onValueChange={(v) => setFormData({ ...formData, noaa_buoy_id: v === 'none' ? '' : v })}>
-              <SelectTrigger className="bg-zinc-800 border-zinc-700">
+              <SelectTrigger className="bg-muted border-border">
                 <SelectValue placeholder="NOAA Buoy (optional)" />
               </SelectTrigger>
               <SelectContent className="max-h-[300px]">
@@ -779,9 +779,9 @@ export const AdminSpotEditor = () => {
 
       {/* Edit Spot Modal - z-[1000] to appear above Leaflet map */}
       <Dialog open={showEditModal} onOpenChange={setShowEditModal}>
-        <DialogContent className="bg-zinc-900 border-zinc-700 z-[1000]">
+        <DialogContent className="bg-card border-border z-[1000]">
           <DialogHeader>
-            <DialogTitle className="text-white flex items-center gap-2">
+            <DialogTitle className="text-foreground flex items-center gap-2">
               <Edit2 className="w-5 h-5 text-cyan-400" />
               Edit Spot
             </DialogTitle>
@@ -792,14 +792,14 @@ export const AdminSpotEditor = () => {
               placeholder="Spot Name"
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              className="bg-zinc-800 border-zinc-700"
+              className="bg-muted border-border"
             />
             
             <Input
               placeholder="Region"
               value={formData.region}
               onChange={(e) => setFormData({ ...formData, region: e.target.value })}
-              className="bg-zinc-800 border-zinc-700"
+              className="bg-muted border-border"
             />
             
             <div className="grid grid-cols-2 gap-4">
@@ -807,19 +807,19 @@ export const AdminSpotEditor = () => {
                 placeholder="Secondary City (e.g., Cocoa Beach)"
                 value={formData.secondary_city}
                 onChange={(e) => setFormData({ ...formData, secondary_city: e.target.value })}
-                className="bg-zinc-800 border-zinc-700"
+                className="bg-muted border-border"
               />
               <Input
                 placeholder="Secondary Area (e.g., Space Coast)"
                 value={formData.secondary_area}
                 onChange={(e) => setFormData({ ...formData, secondary_area: e.target.value })}
-                className="bg-zinc-800 border-zinc-700"
+                className="bg-muted border-border"
               />
             </div>
             
             <div className="grid grid-cols-2 gap-4">
               <Select value={formData.difficulty} onValueChange={(v) => setFormData({ ...formData, difficulty: v })}>
-                <SelectTrigger className="bg-zinc-800 border-zinc-700">
+                <SelectTrigger className="bg-muted border-border">
                   <SelectValue placeholder="Difficulty" />
                 </SelectTrigger>
                 <SelectContent>
@@ -830,7 +830,7 @@ export const AdminSpotEditor = () => {
               </Select>
               
               <Select value={formData.wave_type} onValueChange={(v) => setFormData({ ...formData, wave_type: v })}>
-                <SelectTrigger className="bg-zinc-800 border-zinc-700">
+                <SelectTrigger className="bg-muted border-border">
                   <SelectValue placeholder="Wave Type" />
                 </SelectTrigger>
                 <SelectContent>
@@ -843,7 +843,7 @@ export const AdminSpotEditor = () => {
             </div>
             
             <Select value={formData.noaa_buoy_id || 'none'} onValueChange={(v) => setFormData({ ...formData, noaa_buoy_id: v === 'none' ? '' : v })}>
-              <SelectTrigger className="bg-zinc-800 border-zinc-700">
+              <SelectTrigger className="bg-muted border-border">
                 <SelectValue placeholder="NOAA Buoy" />
               </SelectTrigger>
               <SelectContent className="max-h-[300px]">
@@ -877,16 +877,16 @@ export const AdminSpotEditor = () => {
 
       {/* Delete Confirmation Modal - z-[1000] to appear above Leaflet map */}
       <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
-        <DialogContent className="bg-zinc-900 border-zinc-700 z-[1000]">
+        <DialogContent className="bg-card border-border z-[1000]">
           <DialogHeader>
-            <DialogTitle className="text-white flex items-center gap-2">
+            <DialogTitle className="text-foreground flex items-center gap-2">
               <Trash2 className="w-5 h-5 text-red-400" />
               Delete Spot?
             </DialogTitle>
           </DialogHeader>
           
-          <p className="text-gray-400">
-            Are you sure you want to delete <strong className="text-white">{selectedSpot?.name}</strong>?
+          <p className="text-muted-foreground">
+            Are you sure you want to delete <strong className="text-foreground">{selectedSpot?.name}</strong>?
             This action cannot be undone.
           </p>
           
@@ -905,15 +905,15 @@ export const AdminSpotEditor = () => {
 
       {/* Land Warning Modal - z-[1000] to appear above Leaflet map */}
       <Dialog open={!!landWarning} onOpenChange={() => setLandWarning(null)}>
-        <DialogContent className="bg-zinc-900 border-zinc-700 z-[1000]">
+        <DialogContent className="bg-card border-border z-[1000]">
           <DialogHeader>
-            <DialogTitle className="text-white flex items-center gap-2">
+            <DialogTitle className="text-foreground flex items-center gap-2">
               <AlertTriangle className="w-5 h-5 text-orange-400" />
               Pin on Land Detected
             </DialogTitle>
           </DialogHeader>
           
-          <p className="text-gray-400">
+          <p className="text-muted-foreground">
             {landWarning?.message}
           </p>
           <p className="text-gray-500 text-sm">

@@ -72,8 +72,8 @@ export const AdminContentMgmtDashboard = () => {
   const [actionLoading, setActionLoading] = useState(false);
 
   const isLight = theme === 'light';
-  const cardBgClass = isLight ? 'bg-white border-gray-200' : 'bg-zinc-900/50 border-zinc-800';
-  const textClass = isLight ? 'text-gray-900' : 'text-white';
+  const cardBgClass = isLight ? 'bg-white border-gray-200' : 'bg-card/50 border-border';
+  const textClass = isLight ? 'text-gray-900' : 'text-foreground';
 
   useEffect(() => {
     if (user?.id) {
@@ -232,7 +232,7 @@ export const AdminContentMgmtDashboard = () => {
       case 'improvement': return 'bg-blue-500/20 text-blue-400';
       case 'bugfix': return 'bg-yellow-500/20 text-yellow-400';
       case 'breaking': return 'bg-red-500/20 text-red-400';
-      default: return 'bg-gray-500/20 text-gray-400';
+      default: return 'bg-gray-500/20 text-muted-foreground';
     }
   };
 
@@ -284,11 +284,11 @@ export const AdminContentMgmtDashboard = () => {
                 ) : (
                   <div className="space-y-2">
                     {featuredContent.map(item => (
-                      <div key={item.id} className="p-3 bg-zinc-800/50 rounded-lg flex items-center justify-between">
+                      <div key={item.id} className="p-3 bg-muted/50 rounded-lg flex items-center justify-between">
                         <div>
                           <div className="flex items-center gap-2 mb-1">
                             <Badge variant="outline" className="text-[10px]">{item.content_type}</Badge>
-                            <Badge className="text-[10px] bg-zinc-700">{item.display_position}</Badge>
+                            <Badge className="text-[10px] bg-input">{item.display_position}</Badge>
                           </div>
                           <p className={`text-sm ${textClass}`}>ID: {item.content_id}</p>
                           <p className="text-xs text-gray-500">Priority: {item.priority}</p>
@@ -320,7 +320,7 @@ export const AdminContentMgmtDashboard = () => {
                 ) : (
                   <div className="space-y-2">
                     {banners.map(banner => (
-                      <div key={banner.id} className="p-3 bg-zinc-800/50 rounded-lg">
+                      <div key={banner.id} className="p-3 bg-muted/50 rounded-lg">
                         <div className="flex items-start justify-between">
                           <div className="flex gap-3">
                             {banner.image_url && (
@@ -330,7 +330,7 @@ export const AdminContentMgmtDashboard = () => {
                               <p className={`font-medium ${textClass}`}>{banner.title}</p>
                               <div className="flex items-center gap-2 mt-1">
                                 <Badge variant="outline" className="text-[10px]">{banner.position}</Badge>
-                                <Badge className="text-[10px] bg-zinc-700">{banner.target_audience}</Badge>
+                                <Badge className="text-[10px] bg-input">{banner.target_audience}</Badge>
                               </div>
                             </div>
                           </div>
@@ -356,7 +356,7 @@ export const AdminContentMgmtDashboard = () => {
                       value={seoSearch}
                       onChange={(e) => { setSeoSearch(e.target.value); setSeoPage(0); }}
                       placeholder="Search spots..."
-                      className="pl-9 bg-zinc-800 border-zinc-700"
+                      className="pl-9 bg-muted border-border"
                     />
                   </div>
                 </div>
@@ -371,7 +371,7 @@ export const AdminContentMgmtDashboard = () => {
                   <>
                     <div className="space-y-2 max-h-[400px] overflow-y-auto">
                       {seoSpots.map(spot => (
-                        <div key={spot.id} className="p-3 bg-zinc-800/50 rounded-lg flex items-center justify-between">
+                        <div key={spot.id} className="p-3 bg-muted/50 rounded-lg flex items-center justify-between">
                           <div>
                             <p className={`font-medium ${textClass}`}>{spot.name}</p>
                             <p className="text-xs text-gray-500">{spot.region}, {spot.country}</p>
@@ -398,7 +398,7 @@ export const AdminContentMgmtDashboard = () => {
                     </div>
                     {/* Pagination */}
                     {seoTotal > SEO_PAGE_SIZE && (
-                      <div className="flex items-center justify-between mt-4 pt-4 border-t border-zinc-800">
+                      <div className="flex items-center justify-between mt-4 pt-4 border-t border-border">
                         <p className="text-xs text-gray-500">
                           Showing {seoPage * SEO_PAGE_SIZE + 1}-{Math.min((seoPage + 1) * SEO_PAGE_SIZE, seoTotal)} of {seoTotal}
                         </p>
@@ -446,11 +446,11 @@ export const AdminContentMgmtDashboard = () => {
                 ) : (
                   <div className="space-y-2">
                     {apiKeys.map(key => (
-                      <div key={key.id} className="p-3 bg-zinc-800/50 rounded-lg flex items-center justify-between">
+                      <div key={key.id} className="p-3 bg-muted/50 rounded-lg flex items-center justify-between">
                         <div>
                           <p className={`font-medium ${textClass}`}>{key.name}</p>
                           <div className="flex items-center gap-2 mt-1">
-                            <code className="text-xs text-gray-500 bg-zinc-900 px-2 py-0.5 rounded">{key.key_prefix}...</code>
+                            <code className="text-xs text-gray-500 bg-card px-2 py-0.5 rounded">{key.key_prefix}...</code>
                             <Badge variant="outline" className="text-[10px]">{key.permissions}</Badge>
                           </div>
                           <p className="text-xs text-gray-500 mt-1">
@@ -484,11 +484,11 @@ export const AdminContentMgmtDashboard = () => {
                 ) : (
                   <div className="space-y-2">
                     {changelog.map(entry => (
-                      <div key={entry.id} className="p-3 bg-zinc-800/50 rounded-lg">
+                      <div key={entry.id} className="p-3 bg-muted/50 rounded-lg">
                         <div className="flex items-start justify-between">
                           <div>
                             <div className="flex items-center gap-2 mb-1">
-                              <Badge className="text-[10px] bg-zinc-700">v{entry.version}</Badge>
+                              <Badge className="text-[10px] bg-input">v{entry.version}</Badge>
                               <Badge className={`text-[10px] ${getChangeTypeColor(entry.change_type)}`}>
                                 {entry.change_type}
                               </Badge>
@@ -497,7 +497,7 @@ export const AdminContentMgmtDashboard = () => {
                               )}
                             </div>
                             <p className={`font-medium ${textClass}`}>{entry.title}</p>
-                            <p className="text-xs text-gray-400 mt-1 line-clamp-2">{entry.description}</p>
+                            <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{entry.description}</p>
                           </div>
                           {!entry.is_published && (
                             <Button size="sm" variant="outline" onClick={() => handlePublishChangelog(entry.id)}>
@@ -517,7 +517,7 @@ export const AdminContentMgmtDashboard = () => {
 
       {/* Featured Form Modal */}
       <Dialog open={showFeaturedForm} onOpenChange={setShowFeaturedForm}>
-        <DialogContent className="bg-zinc-900 border-zinc-800 text-white">
+        <DialogContent className="bg-card border-border text-foreground">
           <DialogHeader>
             <DialogTitle>Add Featured Content</DialogTitle>
           </DialogHeader>
@@ -525,7 +525,7 @@ export const AdminContentMgmtDashboard = () => {
             <div>
               <label className="text-xs text-gray-500">Content Type</label>
               <Select value={featuredForm.content_type} onValueChange={(v) => setFeaturedForm({...featuredForm, content_type: v})}>
-                <SelectTrigger className="bg-zinc-800 border-zinc-700 mt-1"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="bg-muted border-border mt-1"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="post">Post</SelectItem>
                   <SelectItem value="spot">Spot</SelectItem>
@@ -536,13 +536,13 @@ export const AdminContentMgmtDashboard = () => {
             </div>
             <div>
               <label className="text-xs text-gray-500">Content ID</label>
-              <Input value={featuredForm.content_id} onChange={(e) => setFeaturedForm({...featuredForm, content_id: e.target.value})} className="bg-zinc-800 border-zinc-700 mt-1" placeholder="UUID of the content" />
+              <Input value={featuredForm.content_id} onChange={(e) => setFeaturedForm({...featuredForm, content_id: e.target.value})} className="bg-muted border-border mt-1" placeholder="UUID of the content" />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="text-xs text-gray-500">Position</label>
                 <Select value={featuredForm.display_position} onValueChange={(v) => setFeaturedForm({...featuredForm, display_position: v})}>
-                  <SelectTrigger className="bg-zinc-800 border-zinc-700 mt-1"><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="bg-muted border-border mt-1"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="homepage">Homepage</SelectItem>
                     <SelectItem value="explore">Explore</SelectItem>
@@ -552,7 +552,7 @@ export const AdminContentMgmtDashboard = () => {
               </div>
               <div>
                 <label className="text-xs text-gray-500">Priority</label>
-                <Input type="number" value={featuredForm.priority} onChange={(e) => setFeaturedForm({...featuredForm, priority: parseInt(e.target.value) || 1})} className="bg-zinc-800 border-zinc-700 mt-1" min={1} max={100} />
+                <Input type="number" value={featuredForm.priority} onChange={(e) => setFeaturedForm({...featuredForm, priority: parseInt(e.target.value) || 1})} className="bg-muted border-border mt-1" min={1} max={100} />
               </div>
             </div>
           </div>
@@ -567,28 +567,28 @@ export const AdminContentMgmtDashboard = () => {
 
       {/* Banner Form Modal */}
       <Dialog open={showBannerForm} onOpenChange={setShowBannerForm}>
-        <DialogContent className="bg-zinc-900 border-zinc-800 text-white">
+        <DialogContent className="bg-card border-border text-foreground">
           <DialogHeader>
             <DialogTitle>Create Banner</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div>
               <label className="text-xs text-gray-500">Title</label>
-              <Input value={bannerForm.title} onChange={(e) => setBannerForm({...bannerForm, title: e.target.value})} className="bg-zinc-800 border-zinc-700 mt-1" />
+              <Input value={bannerForm.title} onChange={(e) => setBannerForm({...bannerForm, title: e.target.value})} className="bg-muted border-border mt-1" />
             </div>
             <div>
               <label className="text-xs text-gray-500">Image URL</label>
-              <Input value={bannerForm.image_url} onChange={(e) => setBannerForm({...bannerForm, image_url: e.target.value})} className="bg-zinc-800 border-zinc-700 mt-1" placeholder="https://..." />
+              <Input value={bannerForm.image_url} onChange={(e) => setBannerForm({...bannerForm, image_url: e.target.value})} className="bg-muted border-border mt-1" placeholder="https://..." />
             </div>
             <div>
               <label className="text-xs text-gray-500">Link URL (optional)</label>
-              <Input value={bannerForm.link_url} onChange={(e) => setBannerForm({...bannerForm, link_url: e.target.value})} className="bg-zinc-800 border-zinc-700 mt-1" />
+              <Input value={bannerForm.link_url} onChange={(e) => setBannerForm({...bannerForm, link_url: e.target.value})} className="bg-muted border-border mt-1" />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="text-xs text-gray-500">Position</label>
                 <Select value={bannerForm.position} onValueChange={(v) => setBannerForm({...bannerForm, position: v})}>
-                  <SelectTrigger className="bg-zinc-800 border-zinc-700 mt-1"><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="bg-muted border-border mt-1"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="top">Top</SelectItem>
                     <SelectItem value="sidebar">Sidebar</SelectItem>
@@ -599,7 +599,7 @@ export const AdminContentMgmtDashboard = () => {
               <div>
                 <label className="text-xs text-gray-500">Audience</label>
                 <Select value={bannerForm.target_audience} onValueChange={(v) => setBannerForm({...bannerForm, target_audience: v})}>
-                  <SelectTrigger className="bg-zinc-800 border-zinc-700 mt-1"><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="bg-muted border-border mt-1"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Users</SelectItem>
                     <SelectItem value="free">Free Users</SelectItem>
@@ -620,22 +620,22 @@ export const AdminContentMgmtDashboard = () => {
 
       {/* SEO Edit Modal */}
       <Dialog open={!!selectedSeoSpot} onOpenChange={() => setSelectedSeoSpot(null)}>
-        <DialogContent className="bg-zinc-900 border-zinc-800 text-white">
+        <DialogContent className="bg-card border-border text-foreground">
           <DialogHeader>
             <DialogTitle>Edit SEO - {selectedSeoSpot?.name}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div>
               <label className="text-xs text-gray-500">Meta Title</label>
-              <Input value={seoForm.meta_title} onChange={(e) => setSeoForm({...seoForm, meta_title: e.target.value})} className="bg-zinc-800 border-zinc-700 mt-1" placeholder="Max 60 characters" />
+              <Input value={seoForm.meta_title} onChange={(e) => setSeoForm({...seoForm, meta_title: e.target.value})} className="bg-muted border-border mt-1" placeholder="Max 60 characters" />
             </div>
             <div>
               <label className="text-xs text-gray-500">Meta Description</label>
-              <Textarea value={seoForm.meta_description} onChange={(e) => setSeoForm({...seoForm, meta_description: e.target.value})} className="bg-zinc-800 border-zinc-700 mt-1" rows={3} placeholder="Max 160 characters" />
+              <Textarea value={seoForm.meta_description} onChange={(e) => setSeoForm({...seoForm, meta_description: e.target.value})} className="bg-muted border-border mt-1" rows={3} placeholder="Max 160 characters" />
             </div>
             <div>
               <label className="text-xs text-gray-500">URL Slug</label>
-              <Input value={seoForm.slug} onChange={(e) => setSeoForm({...seoForm, slug: e.target.value})} className="bg-zinc-800 border-zinc-700 mt-1" placeholder="pipeline-banzai" />
+              <Input value={seoForm.slug} onChange={(e) => setSeoForm({...seoForm, slug: e.target.value})} className="bg-muted border-border mt-1" placeholder="pipeline-banzai" />
             </div>
           </div>
           <DialogFooter>
@@ -649,20 +649,20 @@ export const AdminContentMgmtDashboard = () => {
 
       {/* API Key Form Modal */}
       <Dialog open={showApiKeyForm} onOpenChange={setShowApiKeyForm}>
-        <DialogContent className="bg-zinc-900 border-zinc-800 text-white">
+        <DialogContent className="bg-card border-border text-foreground">
           <DialogHeader>
             <DialogTitle>Generate API Key</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div>
               <label className="text-xs text-gray-500">Name</label>
-              <Input value={apiKeyForm.name} onChange={(e) => setApiKeyForm({...apiKeyForm, name: e.target.value})} className="bg-zinc-800 border-zinc-700 mt-1" placeholder="My App" />
+              <Input value={apiKeyForm.name} onChange={(e) => setApiKeyForm({...apiKeyForm, name: e.target.value})} className="bg-muted border-border mt-1" placeholder="My App" />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="text-xs text-gray-500">Permissions</label>
                 <Select value={apiKeyForm.permissions} onValueChange={(v) => setApiKeyForm({...apiKeyForm, permissions: v})}>
-                  <SelectTrigger className="bg-zinc-800 border-zinc-700 mt-1"><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="bg-muted border-border mt-1"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="read">Read Only</SelectItem>
                     <SelectItem value="write">Read/Write</SelectItem>
@@ -672,7 +672,7 @@ export const AdminContentMgmtDashboard = () => {
               </div>
               <div>
                 <label className="text-xs text-gray-500">Rate Limit (calls/day)</label>
-                <Input type="number" value={apiKeyForm.rate_limit} onChange={(e) => setApiKeyForm({...apiKeyForm, rate_limit: parseInt(e.target.value) || 1000})} className="bg-zinc-800 border-zinc-700 mt-1" />
+                <Input type="number" value={apiKeyForm.rate_limit} onChange={(e) => setApiKeyForm({...apiKeyForm, rate_limit: parseInt(e.target.value) || 1000})} className="bg-muted border-border mt-1" />
               </div>
             </div>
           </div>
@@ -687,7 +687,7 @@ export const AdminContentMgmtDashboard = () => {
 
       {/* Changelog Form Modal */}
       <Dialog open={showChangelogForm} onOpenChange={setShowChangelogForm}>
-        <DialogContent className="bg-zinc-900 border-zinc-800 text-white">
+        <DialogContent className="bg-card border-border text-foreground">
           <DialogHeader>
             <DialogTitle>Add Changelog Entry</DialogTitle>
           </DialogHeader>
@@ -695,12 +695,12 @@ export const AdminContentMgmtDashboard = () => {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="text-xs text-gray-500">Version</label>
-                <Input value={changelogForm.version} onChange={(e) => setChangelogForm({...changelogForm, version: e.target.value})} className="bg-zinc-800 border-zinc-700 mt-1" placeholder="1.2.0" />
+                <Input value={changelogForm.version} onChange={(e) => setChangelogForm({...changelogForm, version: e.target.value})} className="bg-muted border-border mt-1" placeholder="1.2.0" />
               </div>
               <div>
                 <label className="text-xs text-gray-500">Type</label>
                 <Select value={changelogForm.change_type} onValueChange={(v) => setChangelogForm({...changelogForm, change_type: v})}>
-                  <SelectTrigger className="bg-zinc-800 border-zinc-700 mt-1"><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="bg-muted border-border mt-1"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="feature">Feature</SelectItem>
                     <SelectItem value="improvement">Improvement</SelectItem>
@@ -712,11 +712,11 @@ export const AdminContentMgmtDashboard = () => {
             </div>
             <div>
               <label className="text-xs text-gray-500">Title</label>
-              <Input value={changelogForm.title} onChange={(e) => setChangelogForm({...changelogForm, title: e.target.value})} className="bg-zinc-800 border-zinc-700 mt-1" />
+              <Input value={changelogForm.title} onChange={(e) => setChangelogForm({...changelogForm, title: e.target.value})} className="bg-muted border-border mt-1" />
             </div>
             <div>
               <label className="text-xs text-gray-500">Description</label>
-              <Textarea value={changelogForm.description} onChange={(e) => setChangelogForm({...changelogForm, description: e.target.value})} className="bg-zinc-800 border-zinc-700 mt-1" rows={3} />
+              <Textarea value={changelogForm.description} onChange={(e) => setChangelogForm({...changelogForm, description: e.target.value})} className="bg-muted border-border mt-1" rows={3} />
             </div>
           </div>
           <DialogFooter>

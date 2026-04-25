@@ -51,9 +51,9 @@ export const AdminFinanceDashboard = () => {
   const [actionLoading, setActionLoading] = useState(false);
 
   const isLight = theme === 'light';
-  const cardBgClass = isLight ? 'bg-white border-gray-200' : 'bg-zinc-900/50 border-zinc-800';
-  const textClass = isLight ? 'text-gray-900' : 'text-white';
-  const _textSecondary = isLight ? 'text-gray-600' : 'text-gray-400';
+  const cardBgClass = isLight ? 'bg-white border-gray-200' : 'bg-card/50 border-border';
+  const textClass = isLight ? 'text-gray-900' : 'text-foreground';
+  const _textSecondary = isLight ? 'text-gray-600' : 'text-muted-foreground';
 
   useEffect(() => {
     if (user?.id) {
@@ -229,7 +229,7 @@ export const AdminFinanceDashboard = () => {
               <CardHeader className="pb-2 flex flex-row items-center justify-between">
                 <CardTitle className={`text-sm ${textClass}`}>Refund Requests</CardTitle>
                 <Select value={refundFilter} onValueChange={setRefundFilter}>
-                  <SelectTrigger className="w-32 h-8 text-xs bg-zinc-800 border-zinc-700">
+                  <SelectTrigger className="w-32 h-8 text-xs bg-muted border-border">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -245,18 +245,18 @@ export const AdminFinanceDashboard = () => {
                 ) : (
                   <div className="space-y-2">
                     {refunds.map(refund => (
-                      <div key={refund.id} className="p-3 bg-zinc-800/50 rounded-lg">
+                      <div key={refund.id} className="p-3 bg-muted/50 rounded-lg">
                         <div className="flex items-start justify-between">
                           <div>
                             <p className={`font-medium ${textClass}`}>{refund.user_name}</p>
                             <p className="text-xs text-gray-500">{refund.user_email}</p>
-                            <p className="text-sm text-gray-400 mt-1">{refund.reason}</p>
+                            <p className="text-sm text-muted-foreground mt-1">{refund.reason}</p>
                             {refund.reason_category && (
                               <Badge variant="outline" className="text-xs mt-1">{refund.reason_category}</Badge>
                             )}
                           </div>
                           <div className="text-right">
-                            <p className="text-lg font-bold text-white">{formatCurrency(refund.amount)}</p>
+                            <p className="text-lg font-bold text-foreground">{formatCurrency(refund.amount)}</p>
                             <Badge className={`text-xs ${
                               refund.status === 'pending' ? 'bg-yellow-500/20 text-yellow-400' :
                               refund.status === 'completed' ? 'bg-green-500/20 text-green-400' :
@@ -265,7 +265,7 @@ export const AdminFinanceDashboard = () => {
                           </div>
                         </div>
                         {refund.status === 'pending' && (
-                          <div className="flex gap-2 mt-3 pt-3 border-t border-zinc-700">
+                          <div className="flex gap-2 mt-3 pt-3 border-t border-border">
                             <Button 
                               size="sm" 
                               onClick={() => handleProcessRefund(refund.id, 'approve')}
@@ -303,7 +303,7 @@ export const AdminFinanceDashboard = () => {
                     </Button>
                   </CardHeader>
                   <CardContent>
-                    <div className="flex items-center justify-between p-3 bg-zinc-800/50 rounded-lg">
+                    <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
                       <div>
                         <p className={`text-lg font-bold ${textClass}`}>{formatCurrency(pendingPayouts.total_pending_amount)}</p>
                         <p className="text-xs text-gray-500">{pendingPayouts.total_recipients} recipients</p>
@@ -323,17 +323,17 @@ export const AdminFinanceDashboard = () => {
                   ) : (
                     <div className="space-y-2">
                       {payoutBatches.map(batch => (
-                        <div key={batch.id} className="p-3 bg-zinc-800/50 rounded-lg flex items-center justify-between">
+                        <div key={batch.id} className="p-3 bg-muted/50 rounded-lg flex items-center justify-between">
                           <div>
                             <p className={`font-medium ${textClass}`}>{batch.batch_number}</p>
                             <p className="text-xs text-gray-500">{batch.total_recipients} recipients • {formatDate(batch.created_at)}</p>
                           </div>
                           <div className="flex items-center gap-3">
-                            <p className="text-lg font-bold text-white">{formatCurrency(batch.total_amount)}</p>
+                            <p className="text-lg font-bold text-foreground">{formatCurrency(batch.total_amount)}</p>
                             <Badge className={`text-xs ${
                               batch.status === 'completed' ? 'bg-green-500/20 text-green-400' :
                               batch.status === 'pending' ? 'bg-yellow-500/20 text-yellow-400' :
-                              'bg-gray-500/20 text-gray-400'
+                              'bg-gray-500/20 text-muted-foreground'
                             }`}>{batch.status}</Badge>
                             {batch.status === 'pending' && (
                               <Button size="sm" onClick={() => handleProcessBatch(batch.id)} disabled={actionLoading}>
@@ -362,7 +362,7 @@ export const AdminFinanceDashboard = () => {
                 ) : (
                   <div className="space-y-2">
                     {failedPayments.map(payment => (
-                      <div key={payment.id} className="p-3 bg-zinc-800/50 rounded-lg">
+                      <div key={payment.id} className="p-3 bg-muted/50 rounded-lg">
                         <div className="flex items-start justify-between">
                           <div>
                             <p className={`font-medium ${textClass}`}>{payment.user_name}</p>
@@ -371,12 +371,12 @@ export const AdminFinanceDashboard = () => {
                             <Badge variant="outline" className="text-xs mt-1">{payment.payment_type}</Badge>
                           </div>
                           <div className="text-right">
-                            <p className="text-lg font-bold text-white">{formatCurrency(payment.amount)}</p>
+                            <p className="text-lg font-bold text-foreground">{formatCurrency(payment.amount)}</p>
                             <p className="text-xs text-gray-500">{payment.recovery_attempts} attempts</p>
                           </div>
                         </div>
                         {!payment.recovered && (
-                          <div className="mt-3 pt-3 border-t border-zinc-700">
+                          <div className="mt-3 pt-3 border-t border-border">
                             <Button 
                               size="sm" 
                               onClick={() => handleRetryPayment(payment.id)}
@@ -400,7 +400,7 @@ export const AdminFinanceDashboard = () => {
               <CardHeader className="pb-2 flex flex-row items-center justify-between">
                 <CardTitle className={`text-sm ${textClass}`}>Tax Report (1099 Recipients)</CardTitle>
                 <Select value={taxYear.toString()} onValueChange={(v) => setTaxYear(parseInt(v))}>
-                  <SelectTrigger className="w-24 h-8 text-xs bg-zinc-800 border-zinc-700">
+                  <SelectTrigger className="w-24 h-8 text-xs bg-muted border-border">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -413,17 +413,17 @@ export const AdminFinanceDashboard = () => {
               <CardContent>
                 {taxReport && (
                   <>
-                    <div className="p-3 bg-zinc-800/50 rounded-lg mb-4">
+                    <div className="p-3 bg-muted/50 rounded-lg mb-4">
                       <p className="text-xs text-gray-500">Earnings ≥ ${taxReport.threshold} threshold</p>
                       <p className={`text-lg font-bold ${textClass}`}>{taxReport.total_recipients} recipients</p>
-                      <p className="text-sm text-gray-400">{formatCurrency(taxReport.total_reportable_amount)} total</p>
+                      <p className="text-sm text-muted-foreground">{formatCurrency(taxReport.total_reportable_amount)} total</p>
                     </div>
                     {taxReport.recipients.length === 0 ? (
                       <p className="text-center text-gray-500 py-4">No recipients above threshold</p>
                     ) : (
                       <div className="space-y-2">
                         {taxReport.recipients.map(r => (
-                          <div key={r.user_id} className="p-2 bg-zinc-800/30 rounded flex items-center justify-between">
+                          <div key={r.user_id} className="p-2 bg-muted/30 rounded flex items-center justify-between">
                             <div>
                               <p className={`text-sm font-medium ${textClass}`}>{r.name}</p>
                               <p className="text-xs text-gray-500">{r.email}</p>
@@ -443,17 +443,17 @@ export const AdminFinanceDashboard = () => {
 
       {/* Reject Dialog */}
       <Dialog open={showRejectDialog} onOpenChange={setShowRejectDialog}>
-        <DialogContent className="bg-zinc-900 border-zinc-800 text-white">
+        <DialogContent className="bg-card border-border text-foreground">
           <DialogHeader>
             <DialogTitle>Reject Refund</DialogTitle>
           </DialogHeader>
           <div>
-            <p className="text-sm text-gray-400 mb-2">Reason for rejection:</p>
+            <p className="text-sm text-muted-foreground mb-2">Reason for rejection:</p>
             <Textarea
               value={rejectionReason}
               onChange={(e) => setRejectionReason(e.target.value)}
               placeholder="Explain why this refund is being rejected..."
-              className="bg-zinc-800 border-zinc-700"
+              className="bg-muted border-border"
             />
           </div>
           <DialogFooter>

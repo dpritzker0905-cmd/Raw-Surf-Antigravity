@@ -125,13 +125,13 @@ export const AdminPrecisionQueue = () => {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-lg font-bold text-white flex items-center gap-2">
+          <h3 className="text-lg font-bold text-foreground flex items-center gap-2">
             <AlertTriangle className="w-5 h-5 text-orange-400" />
             Precision Queue
           </h3>
-          <p className="text-gray-400 text-sm">Spots requiring coordinate verification</p>
+          <p className="text-muted-foreground text-sm">Spots requiring coordinate verification</p>
         </div>
-        <Button variant="outline" onClick={fetchQueue} className="border-zinc-600">
+        <Button variant="outline" onClick={fetchQueue} className="border-input">
           <RefreshCw className="w-4 h-4 mr-2" />
           Refresh
         </Button>
@@ -144,7 +144,7 @@ export const AdminPrecisionQueue = () => {
           className={`px-4 py-2 rounded-lg font-medium transition-colors ${
             activeTab === 'queue'
               ? 'bg-orange-500 text-white'
-              : 'bg-zinc-800 text-gray-400 hover:text-white'
+              : 'bg-muted text-muted-foreground hover:text-foreground'
           }`}
         >
           Flagged ({queue.length})
@@ -154,7 +154,7 @@ export const AdminPrecisionQueue = () => {
           className={`px-4 py-2 rounded-lg font-medium transition-colors ${
             activeTab === 'suggestions'
               ? 'bg-cyan-500 text-white'
-              : 'bg-zinc-800 text-gray-400 hover:text-white'
+              : 'bg-muted text-muted-foreground hover:text-foreground'
           }`}
         >
           Suggestions ({suggestions.length})
@@ -165,24 +165,24 @@ export const AdminPrecisionQueue = () => {
       {activeTab === 'queue' && (
         <div className="space-y-3">
           {queue.length === 0 ? (
-            <div className="text-center py-12 bg-zinc-800 rounded-xl">
+            <div className="text-center py-12 bg-muted rounded-xl">
               <Check className="w-12 h-12 text-emerald-400 mx-auto mb-3" />
-              <p className="text-white font-medium">All Clear!</p>
-              <p className="text-gray-400 text-sm">No spots require review</p>
+              <p className="text-foreground font-medium">All Clear!</p>
+              <p className="text-muted-foreground text-sm">No spots require review</p>
             </div>
           ) : (
             queue.map((spot, index) => (
               <div
                 key={spot.id}
-                className="bg-zinc-800 rounded-xl p-4 flex items-center justify-between"
+                className="bg-muted rounded-xl p-4 flex items-center justify-between"
               >
                 <div className="flex items-center gap-4">
                   <div className="w-10 h-10 rounded-full bg-orange-500/20 flex items-center justify-center text-orange-400 font-bold">
                     {index + 1}
                   </div>
                   <div>
-                    <h4 className="text-white font-medium">{spot.name}</h4>
-                    <p className="text-gray-400 text-sm">{spot.region} • {spot.country}</p>
+                    <h4 className="text-foreground font-medium">{spot.name}</h4>
+                    <p className="text-muted-foreground text-sm">{spot.region} • {spot.country}</p>
                     <p className="text-gray-500 text-xs">
                       ({spot.latitude.toFixed(4)}, {spot.longitude.toFixed(4)})
                     </p>
@@ -219,7 +219,7 @@ export const AdminPrecisionQueue = () => {
                     variant="outline"
                     size="sm"
                     onClick={() => openInEditor(spot)}
-                    className="border-zinc-600"
+                    className="border-input"
                   >
                     <ExternalLink className="w-4 h-4" />
                   </Button>
@@ -234,26 +234,26 @@ export const AdminPrecisionQueue = () => {
       {activeTab === 'suggestions' && (
         <div className="space-y-3">
           {suggestions.length === 0 ? (
-            <div className="text-center py-12 bg-zinc-800 rounded-xl">
-              <MessageSquare className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-              <p className="text-white font-medium">No Suggestions</p>
-              <p className="text-gray-400 text-sm">Photographers haven't submitted relocation suggestions yet</p>
+            <div className="text-center py-12 bg-muted rounded-xl">
+              <MessageSquare className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
+              <p className="text-foreground font-medium">No Suggestions</p>
+              <p className="text-muted-foreground text-sm">Photographers haven't submitted relocation suggestions yet</p>
             </div>
           ) : (
             suggestions.map((suggestion) => (
               <div
                 key={suggestion.id}
-                className="bg-zinc-800 rounded-xl p-4"
+                className="bg-muted rounded-xl p-4"
               >
                 <div className="flex items-start justify-between">
                   <div>
-                    <h4 className="text-white font-medium">{suggestion.spot_name}</h4>
-                    <p className="text-gray-400 text-sm">
+                    <h4 className="text-foreground font-medium">{suggestion.spot_name}</h4>
+                    <p className="text-muted-foreground text-sm">
                       Suggested by: {suggestion.photographer_name}
                     </p>
                     
                     <div className="mt-2 grid grid-cols-2 gap-4 text-xs">
-                      <div className="bg-zinc-700/50 p-2 rounded">
+                      <div className="bg-input/50 p-2 rounded">
                         <p className="text-gray-500">Current</p>
                         <p className="text-gray-300">
                           ({suggestion.current_coords.latitude.toFixed(4)}, {suggestion.current_coords.longitude.toFixed(4)})
@@ -261,14 +261,14 @@ export const AdminPrecisionQueue = () => {
                       </div>
                       <div className="bg-cyan-500/10 p-2 rounded border border-cyan-500/30">
                         <p className="text-cyan-400">Suggested</p>
-                        <p className="text-white">
+                        <p className="text-foreground">
                           ({suggestion.suggested_coords.latitude.toFixed(4)}, {suggestion.suggested_coords.longitude.toFixed(4)})
                         </p>
                       </div>
                     </div>
                     
                     {suggestion.suggestion_note && (
-                      <p className="text-gray-400 text-sm mt-2 italic">
+                      <p className="text-muted-foreground text-sm mt-2 italic">
                         "{suggestion.suggestion_note}"
                       </p>
                     )}
@@ -294,7 +294,7 @@ export const AdminPrecisionQueue = () => {
                       variant="outline"
                       size="sm"
                       onClick={() => handleDismissSuggestion(suggestion)}
-                      className="border-zinc-600 text-gray-400"
+                      className="border-input text-muted-foreground"
                     >
                       <X className="w-4 h-4 mr-1" />
                       Dismiss

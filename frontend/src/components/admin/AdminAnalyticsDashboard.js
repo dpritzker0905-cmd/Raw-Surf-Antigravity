@@ -119,12 +119,12 @@ export const AdminAnalyticsDashboard = () => {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-xl font-bold text-white">Analytics & A/B Testing</h2>
-          <p className="text-gray-400 text-sm">Track booking conversions and test optimizations</p>
+          <h2 className="text-xl font-bold text-foreground">Analytics & A/B Testing</h2>
+          <p className="text-muted-foreground text-sm">Track booking conversions and test optimizations</p>
         </div>
         <div className="flex items-center gap-3">
           <Select value={timeRange} onValueChange={setTimeRange}>
-            <SelectTrigger className="w-32 bg-zinc-800 border-zinc-700">
+            <SelectTrigger className="w-32 bg-muted border-border">
               <SelectValue placeholder="Time Range" />
             </SelectTrigger>
             <SelectContent>
@@ -134,7 +134,7 @@ export const AdminAnalyticsDashboard = () => {
               <SelectItem value="90d">Last 90 days</SelectItem>
             </SelectContent>
           </Select>
-          <Button variant="outline" onClick={fetchAnalytics} className="border-zinc-600">
+          <Button variant="outline" onClick={fetchAnalytics} className="border-input">
             <RefreshCw className="w-4 h-4" />
           </Button>
         </div>
@@ -143,12 +143,12 @@ export const AdminAnalyticsDashboard = () => {
       {/* Key Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Revenue */}
-        <Card className="bg-zinc-800 border-zinc-700">
+        <Card className="bg-muted border-border">
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-gray-400 text-sm">Total Revenue</p>
-                <p className="text-2xl font-bold text-white">${metrics?.totalRevenue?.toLocaleString() || 0}</p>
+                <p className="text-muted-foreground text-sm">Total Revenue</p>
+                <p className="text-2xl font-bold text-foreground">${metrics?.totalRevenue?.toLocaleString() || 0}</p>
               </div>
               <div className="w-12 h-12 rounded-full bg-emerald-500/20 flex items-center justify-center">
                 <DollarSign className="w-6 h-6 text-emerald-400" />
@@ -169,12 +169,12 @@ export const AdminAnalyticsDashboard = () => {
         </Card>
 
         {/* Bookings */}
-        <Card className="bg-zinc-800 border-zinc-700">
+        <Card className="bg-muted border-border">
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-gray-400 text-sm">Total Bookings</p>
-                <p className="text-2xl font-bold text-white">{metrics?.totalBookings || 0}</p>
+                <p className="text-muted-foreground text-sm">Total Bookings</p>
+                <p className="text-2xl font-bold text-foreground">{metrics?.totalBookings || 0}</p>
               </div>
               <div className="w-12 h-12 rounded-full bg-blue-500/20 flex items-center justify-center">
                 <ShoppingCart className="w-6 h-6 text-blue-400" />
@@ -195,12 +195,12 @@ export const AdminAnalyticsDashboard = () => {
         </Card>
 
         {/* AOV */}
-        <Card className="bg-zinc-800 border-zinc-700">
+        <Card className="bg-muted border-border">
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-gray-400 text-sm">Avg Order Value</p>
-                <p className="text-2xl font-bold text-white">${metrics?.avgOrderValue?.toFixed(2) || 0}</p>
+                <p className="text-muted-foreground text-sm">Avg Order Value</p>
+                <p className="text-2xl font-bold text-foreground">${metrics?.avgOrderValue?.toFixed(2) || 0}</p>
               </div>
               <div className="w-12 h-12 rounded-full bg-yellow-500/20 flex items-center justify-center">
                 <CreditCard className="w-6 h-6 text-yellow-400" />
@@ -221,12 +221,12 @@ export const AdminAnalyticsDashboard = () => {
         </Card>
 
         {/* Conversion Rate */}
-        <Card className="bg-zinc-800 border-zinc-700">
+        <Card className="bg-muted border-border">
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-gray-400 text-sm">Conversion Rate</p>
-                <p className="text-2xl font-bold text-white">{metrics?.conversionRate || 0}%</p>
+                <p className="text-muted-foreground text-sm">Conversion Rate</p>
+                <p className="text-2xl font-bold text-foreground">{metrics?.conversionRate || 0}%</p>
               </div>
               <div className="w-12 h-12 rounded-full bg-purple-500/20 flex items-center justify-center">
                 <Target className="w-6 h-6 text-purple-400" />
@@ -248,9 +248,9 @@ export const AdminAnalyticsDashboard = () => {
       </div>
 
       {/* Conversion Funnel */}
-      <Card className="bg-zinc-800 border-zinc-700">
+      <Card className="bg-muted border-border">
         <CardHeader>
-          <CardTitle className="text-white flex items-center gap-2">
+          <CardTitle className="text-foreground flex items-center gap-2">
             <BarChart3 className="w-5 h-5 text-cyan-400" />
             Booking Conversion Funnel
           </CardTitle>
@@ -277,9 +277,9 @@ export const AdminAnalyticsDashboard = () => {
                   <div className="flex-1">
                     <div className="flex items-center justify-between mb-1">
                       <span className="text-gray-300 text-sm">{step.label}</span>
-                      <span className="text-white font-medium">{step.value.toLocaleString()}</span>
+                      <span className="text-foreground font-medium">{step.value.toLocaleString()}</span>
                     </div>
-                    <div className="w-full bg-zinc-700 rounded-full h-2">
+                    <div className="w-full bg-input rounded-full h-2">
                       <div 
                         className={`bg-${step.color}-500 h-2 rounded-full transition-all`}
                         style={{ width: `${Math.min(dropRate, 100)}%` }}
@@ -299,9 +299,9 @@ export const AdminAnalyticsDashboard = () => {
       </Card>
 
       {/* A/B Tests */}
-      <Card className="bg-zinc-800 border-zinc-700">
+      <Card className="bg-muted border-border">
         <CardHeader>
-          <CardTitle className="text-white flex items-center gap-2">
+          <CardTitle className="text-foreground flex items-center gap-2">
             <PieChart className="w-5 h-5 text-purple-400" />
             Active A/B Tests
           </CardTitle>
@@ -309,17 +309,17 @@ export const AdminAnalyticsDashboard = () => {
         <CardContent>
           <div className="space-y-6">
             {abTests.map(test => (
-              <div key={test.id} className="bg-zinc-700/50 rounded-xl p-4">
+              <div key={test.id} className="bg-input/50 rounded-xl p-4">
                 <div className="flex items-center justify-between mb-4">
                   <div>
-                    <h4 className="text-white font-medium">{test.name}</h4>
-                    <p className="text-gray-400 text-sm flex items-center gap-2">
+                    <h4 className="text-foreground font-medium">{test.name}</h4>
+                    <p className="text-muted-foreground text-sm flex items-center gap-2">
                       <Calendar className="w-3 h-3" />
                       Started: {test.startDate}
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Badge className={`${test.confidence >= 95 ? 'bg-emerald-500' : 'bg-yellow-500'} text-white`}>
+                    <Badge className={`${test.confidence >= 95 ? 'bg-emerald-500' : 'bg-yellow-500'} text-foreground`}>
                       {test.confidence}% confidence
                     </Badge>
                     <Badge className="bg-blue-500 text-white">
@@ -336,7 +336,7 @@ export const AdminAnalyticsDashboard = () => {
                       className={`p-3 rounded-lg ${
                         variant.name === test.winner 
                           ? 'bg-emerald-500/10 border border-emerald-500/30' 
-                          : 'bg-zinc-800'
+                          : 'bg-muted'
                       }`}
                     >
                       <div className="flex items-center justify-between mb-2">
@@ -347,15 +347,15 @@ export const AdminAnalyticsDashboard = () => {
                       </div>
                       <div className="grid grid-cols-3 gap-2 text-center">
                         <div>
-                          <p className="text-white font-bold">{variant.views.toLocaleString()}</p>
+                          <p className="text-foreground font-bold">{variant.views.toLocaleString()}</p>
                           <p className="text-gray-500 text-xs">Views</p>
                         </div>
                         <div>
-                          <p className="text-white font-bold">{variant.conversions}</p>
+                          <p className="text-foreground font-bold">{variant.conversions}</p>
                           <p className="text-gray-500 text-xs">Conversions</p>
                         </div>
                         <div>
-                          <p className={`font-bold ${variant.name === test.winner ? 'text-emerald-400' : 'text-white'}`}>
+                          <p className={`font-bold ${variant.name === test.winner ? 'text-emerald-400' : 'text-foreground'}`}>
                             {variant.rate}%
                           </p>
                           <p className="text-gray-500 text-xs">Rate</p>

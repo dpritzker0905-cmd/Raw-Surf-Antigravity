@@ -40,14 +40,14 @@ const StatusBadge = ({ status }) => {
     under_review: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
     awaiting_response: 'bg-orange-500/20 text-orange-400 border-orange-500/30',
     resolved_refund: 'bg-green-500/20 text-green-400 border-green-500/30',
-    resolved_no_action: 'bg-gray-500/20 text-gray-400 border-gray-500/30',
+    resolved_no_action: 'bg-gray-500/20 text-muted-foreground border-gray-500/30',
     resolved_partial: 'bg-teal-500/20 text-teal-400 border-teal-500/30',
     escalated: 'bg-red-500/20 text-red-400 border-red-500/30',
     closed: 'bg-zinc-500/20 text-zinc-400 border-zinc-500/30',
     // Reports
     pending: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
     action_taken: 'bg-green-500/20 text-green-400 border-green-500/30',
-    no_violation: 'bg-gray-500/20 text-gray-400 border-gray-500/30',
+    no_violation: 'bg-gray-500/20 text-muted-foreground border-gray-500/30',
     dismissed: 'bg-zinc-500/20 text-zinc-400 border-zinc-500/30',
   };
 
@@ -61,7 +61,7 @@ const StatusBadge = ({ status }) => {
 // Priority badge
 const PriorityBadge = ({ priority }) => {
   const styles = {
-    low: 'bg-gray-500/20 text-gray-400',
+    low: 'bg-gray-500/20 text-muted-foreground',
     normal: 'bg-blue-500/20 text-blue-400',
     high: 'bg-orange-500/20 text-orange-400',
     urgent: 'bg-red-500/20 text-red-400 animate-pulse',
@@ -106,9 +106,9 @@ export const AdminModerationDashboard = () => {
   const [actionLoading, setActionLoading] = useState(false);
 
   const isLight = theme === 'light';
-  const cardBgClass = isLight ? 'bg-white border-gray-200' : 'bg-zinc-900/50 border-zinc-800';
-  const textClass = isLight ? 'text-gray-900' : 'text-white';
-  const textSecondary = isLight ? 'text-gray-600' : 'text-gray-400';
+  const cardBgClass = isLight ? 'bg-white border-gray-200' : 'bg-card/50 border-border';
+  const textClass = isLight ? 'text-gray-900' : 'text-foreground';
+  const textSecondary = isLight ? 'text-gray-600' : 'text-muted-foreground';
 
   // Fetch data based on active tab
   useEffect(() => {
@@ -296,7 +296,7 @@ export const AdminModerationDashboard = () => {
             <tab.icon className="w-4 h-4 mr-1.5" />
             {tab.label}
             {tab.count > 0 && (
-              <Badge className="ml-1.5 bg-white/20 text-white">{tab.count}</Badge>
+              <Badge className="ml-1.5 bg-white/20 text-foreground">{tab.count}</Badge>
             )}
           </Button>
         ))}
@@ -304,7 +304,7 @@ export const AdminModerationDashboard = () => {
 
       {loading ? (
         <div className="flex items-center justify-center py-12">
-          <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
+          <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
         </div>
       ) : (
         <>
@@ -314,7 +314,7 @@ export const AdminModerationDashboard = () => {
               {/* Filters */}
               <div className="flex gap-2 flex-wrap">
                 <Select value={disputeFilter.status || "all"} onValueChange={(v) => setDisputeFilter(f => ({ ...f, status: v === "all" ? "" : v }))}>
-                  <SelectTrigger className="w-40 bg-zinc-800 border-zinc-700">
+                  <SelectTrigger className="w-40 bg-muted border-border">
                     <SelectValue placeholder="Status" />
                   </SelectTrigger>
                   <SelectContent>
@@ -327,7 +327,7 @@ export const AdminModerationDashboard = () => {
                   </SelectContent>
                 </Select>
                 <Select value={disputeFilter.type || "all"} onValueChange={(v) => setDisputeFilter(f => ({ ...f, type: v === "all" ? "" : v }))}>
-                  <SelectTrigger className="w-40 bg-zinc-800 border-zinc-700">
+                  <SelectTrigger className="w-40 bg-muted border-border">
                     <SelectValue placeholder="Type" />
                   </SelectTrigger>
                   <SelectContent>
@@ -356,7 +356,7 @@ export const AdminModerationDashboard = () => {
                 disputes.map(dispute => (
                   <Card 
                     key={dispute.id} 
-                    className={`${cardBgClass} cursor-pointer hover:border-zinc-600 transition-colors`}
+                    className={`${cardBgClass} cursor-pointer hover:border-input transition-colors`}
                     onClick={() => fetchDisputeDetail(dispute.id)}
                   >
                     <CardContent className="p-4">
@@ -409,7 +409,7 @@ export const AdminModerationDashboard = () => {
               {/* Filters */}
               <div className="flex gap-2 flex-wrap">
                 <Select value={reportFilter.status || "all"} onValueChange={(v) => setReportFilter(f => ({ ...f, status: v === "all" ? "" : v }))}>
-                  <SelectTrigger className="w-40 bg-zinc-800 border-zinc-700">
+                  <SelectTrigger className="w-40 bg-muted border-border">
                     <SelectValue placeholder="Status" />
                   </SelectTrigger>
                   <SelectContent>
@@ -421,7 +421,7 @@ export const AdminModerationDashboard = () => {
                   </SelectContent>
                 </Select>
                 <Select value={reportFilter.reason || "all"} onValueChange={(v) => setReportFilter(f => ({ ...f, reason: v === "all" ? "" : v }))}>
-                  <SelectTrigger className="w-40 bg-zinc-800 border-zinc-700">
+                  <SelectTrigger className="w-40 bg-muted border-border">
                     <SelectValue placeholder="Reason" />
                   </SelectTrigger>
                   <SelectContent>
@@ -565,7 +565,7 @@ export const AdminModerationDashboard = () => {
                             <p className={`text-sm ${textSecondary}`}>{hold.photographer?.email}</p>
                             <div className="flex items-center gap-2 mt-1">
                               <Badge 
-                                className={hold.is_active ? 'bg-orange-500/20 text-orange-400' : 'bg-gray-500/20 text-gray-400'}
+                                className={hold.is_active ? 'bg-orange-500/20 text-orange-400' : 'bg-gray-500/20 text-muted-foreground'}
                               >
                                 {hold.is_active ? 'Active' : 'Released'}
                               </Badge>
@@ -608,7 +608,7 @@ export const AdminModerationDashboard = () => {
               {/* Filters */}
               <div className="flex gap-2">
                 <Select value={auditFilter.category || "all"} onValueChange={(v) => setAuditFilter(f => ({ ...f, category: v === "all" ? "" : v }))}>
-                  <SelectTrigger className="w-40 bg-zinc-800 border-zinc-700">
+                  <SelectTrigger className="w-40 bg-muted border-border">
                     <SelectValue placeholder="Category" />
                   </SelectTrigger>
                   <SelectContent>
@@ -640,7 +640,7 @@ export const AdminModerationDashboard = () => {
                   <CardContent className="p-0">
                     <div className="divide-y divide-zinc-800">
                       {auditLogs.map(log => (
-                        <div key={log.id} className="p-3 hover:bg-zinc-800/50 transition-colors">
+                        <div key={log.id} className="p-3 hover:bg-muted/50 transition-colors">
                           <div className="flex items-start justify-between gap-4">
                             <div className="flex-1">
                               <div className="flex items-center gap-2 mb-1">
@@ -648,7 +648,7 @@ export const AdminModerationDashboard = () => {
                                   className={`text-xs ${
                                     log.is_admin_action ? 'bg-red-500/20 text-red-400' : 
                                     log.is_system_action ? 'bg-blue-500/20 text-blue-400' : 
-                                    'bg-gray-500/20 text-gray-400'
+                                    'bg-gray-500/20 text-muted-foreground'
                                   }`}
                                 >
                                   {log.is_admin_action ? 'Admin' : log.is_system_action ? 'System' : 'User'}
@@ -685,7 +685,7 @@ export const AdminModerationDashboard = () => {
 
       {/* Dispute Detail Modal */}
       <Dialog open={showDisputeDetail} onOpenChange={setShowDisputeDetail}>
-        <DialogContent className="bg-zinc-900 border-zinc-800 text-white max-w-2xl max-h-[80vh] overflow-y-auto">
+        <DialogContent className="bg-card border-border text-foreground max-w-2xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Scale className="w-5 h-5 text-red-400" />
@@ -706,7 +706,7 @@ export const AdminModerationDashboard = () => {
                     value={selectedDispute.status}
                     onValueChange={(v) => handleUpdateDispute(selectedDispute.id, { status: v })}
                   >
-                    <SelectTrigger className="w-40 bg-zinc-800 border-zinc-700">
+                    <SelectTrigger className="w-40 bg-muted border-border">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -725,12 +725,12 @@ export const AdminModerationDashboard = () => {
               {/* Subject & Description */}
               <div>
                 <h3 className="font-semibold text-lg">{selectedDispute.subject}</h3>
-                <p className="text-gray-400 mt-1">{selectedDispute.description}</p>
+                <p className="text-muted-foreground mt-1">{selectedDispute.description}</p>
               </div>
 
               {/* Parties */}
               <div className="grid grid-cols-2 gap-4">
-                <div className="p-3 bg-zinc-800 rounded-lg">
+                <div className="p-3 bg-muted rounded-lg">
                   <p className="text-xs text-gray-500 mb-2">Complainant</p>
                   <div className="flex items-center gap-2">
                     <Avatar>
@@ -739,11 +739,11 @@ export const AdminModerationDashboard = () => {
                     </Avatar>
                     <div>
                       <p className="font-medium">{selectedDispute.complainant?.full_name}</p>
-                      <p className="text-xs text-gray-400">{selectedDispute.complainant?.email}</p>
+                      <p className="text-xs text-muted-foreground">{selectedDispute.complainant?.email}</p>
                     </div>
                   </div>
                 </div>
-                <div className="p-3 bg-zinc-800 rounded-lg">
+                <div className="p-3 bg-muted rounded-lg">
                   <p className="text-xs text-gray-500 mb-2">Respondent</p>
                   <div className="flex items-center gap-2">
                     <Avatar>
@@ -752,7 +752,7 @@ export const AdminModerationDashboard = () => {
                     </Avatar>
                     <div>
                       <p className="font-medium">{selectedDispute.respondent?.full_name}</p>
-                      <p className="text-xs text-gray-400">{selectedDispute.respondent?.email}</p>
+                      <p className="text-xs text-muted-foreground">{selectedDispute.respondent?.email}</p>
                     </div>
                   </div>
                 </div>
@@ -762,12 +762,12 @@ export const AdminModerationDashboard = () => {
               {selectedDispute.amount_disputed && (
                 <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-lg">
                   <div className="flex items-center justify-between">
-                    <span className="text-gray-400">Amount Disputed</span>
+                    <span className="text-muted-foreground">Amount Disputed</span>
                     <span className="text-xl font-bold text-red-400">${selectedDispute.amount_disputed}</span>
                   </div>
                   {selectedDispute.amount_refunded && (
                     <div className="flex items-center justify-between mt-2 pt-2 border-t border-red-500/20">
-                      <span className="text-gray-400">Amount Refunded (Credit)</span>
+                      <span className="text-muted-foreground">Amount Refunded (Credit)</span>
                       <span className="text-green-400">${selectedDispute.amount_refunded}</span>
                     </div>
                   )}
@@ -782,7 +782,7 @@ export const AdminModerationDashboard = () => {
                     placeholder="Refund amount"
                     value={refundAmount}
                     onChange={(e) => setRefundAmount(e.target.value)}
-                    className="bg-zinc-800 border-zinc-700 w-32"
+                    className="bg-muted border-border w-32"
                   />
                   <Button
                     onClick={() => handleUpdateDispute(selectedDispute.id, {
@@ -807,7 +807,7 @@ export const AdminModerationDashboard = () => {
                   {selectedDispute.messages?.map(msg => (
                     <div 
                       key={msg.id} 
-                      className={`p-2 rounded-lg ${msg.is_admin ? 'bg-red-500/10 border border-red-500/30' : 'bg-zinc-800'}`}
+                      className={`p-2 rounded-lg ${msg.is_admin ? 'bg-red-500/10 border border-red-500/30' : 'bg-muted'}`}
                     >
                       <div className="flex items-center gap-2 mb-1">
                         <Avatar className="w-5 h-5">
@@ -829,7 +829,7 @@ export const AdminModerationDashboard = () => {
                     placeholder="Type a message..."
                     value={newMessage}
                     onChange={(e) => setNewMessage(e.target.value)}
-                    className="bg-zinc-800 border-zinc-700"
+                    className="bg-muted border-border"
                     onKeyPress={(e) => e.key === 'Enter' && handleAddDisputeMessage(selectedDispute.id)}
                   />
                   <Button
@@ -848,7 +848,7 @@ export const AdminModerationDashboard = () => {
 
       {/* Report Review Modal */}
       <Dialog open={showReportReview} onOpenChange={setShowReportReview}>
-        <DialogContent className="bg-zinc-900 border-zinc-800 text-white">
+        <DialogContent className="bg-card border-border text-foreground">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Flag className="w-5 h-5 text-orange-400" />
@@ -859,12 +859,12 @@ export const AdminModerationDashboard = () => {
           {selectedReport && (
             <div className="space-y-4">
               <div>
-                <p className="text-sm text-gray-400 mb-1">Report Type</p>
+                <p className="text-sm text-muted-foreground mb-1">Report Type</p>
                 <Badge variant="outline" className="capitalize">{selectedReport.report_type}</Badge>
               </div>
               
               <div>
-                <p className="text-sm text-gray-400 mb-1">Reason</p>
+                <p className="text-sm text-muted-foreground mb-1">Reason</p>
                 <Badge className="bg-red-500/20 text-red-400 capitalize">
                   {selectedReport.reason?.replace(/_/g, ' ')}
                 </Badge>
@@ -872,15 +872,15 @@ export const AdminModerationDashboard = () => {
               
               {selectedReport.description && (
                 <div>
-                  <p className="text-sm text-gray-400 mb-1">Description</p>
-                  <p className="text-white">{selectedReport.description}</p>
+                  <p className="text-sm text-muted-foreground mb-1">Description</p>
+                  <p className="text-foreground">{selectedReport.description}</p>
                 </div>
               )}
               
               <div>
-                <p className="text-sm text-gray-400 mb-2">Take Action</p>
+                <p className="text-sm text-muted-foreground mb-2">Take Action</p>
                 <Select value={reviewAction} onValueChange={setReviewAction}>
-                  <SelectTrigger className="bg-zinc-800 border-zinc-700">
+                  <SelectTrigger className="bg-muted border-border">
                     <SelectValue placeholder="Select action..." />
                   </SelectTrigger>
                   <SelectContent>
@@ -895,12 +895,12 @@ export const AdminModerationDashboard = () => {
               </div>
               
               <div>
-                <p className="text-sm text-gray-400 mb-2">Admin Notes</p>
+                <p className="text-sm text-muted-foreground mb-2">Admin Notes</p>
                 <Textarea
                   value={adminNotes}
                   onChange={(e) => setAdminNotes(e.target.value)}
                   placeholder="Add notes about this decision..."
-                  className="bg-zinc-800 border-zinc-700"
+                  className="bg-muted border-border"
                 />
               </div>
             </div>

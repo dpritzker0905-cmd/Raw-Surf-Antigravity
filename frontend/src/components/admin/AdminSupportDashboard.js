@@ -41,9 +41,9 @@ export const AdminSupportDashboard = () => {
   const [actionLoading, setActionLoading] = useState(false);
 
   const isLight = theme === 'light';
-  const cardBgClass = isLight ? 'bg-white border-gray-200' : 'bg-zinc-900/50 border-zinc-800';
-  const textClass = isLight ? 'text-gray-900' : 'text-white';
-  const _textSecondary = isLight ? 'text-gray-600' : 'text-gray-400';
+  const cardBgClass = isLight ? 'bg-white border-gray-200' : 'bg-card/50 border-border';
+  const textClass = isLight ? 'text-gray-900' : 'text-foreground';
+  const _textSecondary = isLight ? 'text-gray-600' : 'text-muted-foreground';
 
   useEffect(() => {
     if (user?.id) {
@@ -128,7 +128,7 @@ export const AdminSupportDashboard = () => {
       case 'high': return 'bg-orange-500/20 text-orange-400 border-orange-500/50';
       case 'medium': return 'bg-yellow-500/20 text-yellow-400 border-yellow-500/50';
       case 'low': return 'bg-green-500/20 text-green-400 border-green-500/50';
-      default: return 'bg-gray-500/20 text-gray-400 border-gray-500/50';
+      default: return 'bg-gray-500/20 text-muted-foreground border-gray-500/50';
     }
   };
 
@@ -138,8 +138,8 @@ export const AdminSupportDashboard = () => {
       case 'in_progress': return 'bg-purple-500/20 text-purple-400';
       case 'waiting_user': return 'bg-yellow-500/20 text-yellow-400';
       case 'resolved': return 'bg-green-500/20 text-green-400';
-      case 'closed': return 'bg-gray-500/20 text-gray-400';
-      default: return 'bg-gray-500/20 text-gray-400';
+      case 'closed': return 'bg-gray-500/20 text-muted-foreground';
+      default: return 'bg-gray-500/20 text-muted-foreground';
     }
   };
 
@@ -200,12 +200,12 @@ export const AdminSupportDashboard = () => {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && fetchTickets()}
-              className="pl-9 bg-zinc-800 border-zinc-700"
+              className="pl-9 bg-muted border-border"
             />
           </div>
         </div>
         <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-32 bg-zinc-800 border-zinc-700">
+          <SelectTrigger className="w-32 bg-muted border-border">
             <SelectValue placeholder="Status" />
           </SelectTrigger>
           <SelectContent>
@@ -217,7 +217,7 @@ export const AdminSupportDashboard = () => {
           </SelectContent>
         </Select>
         <Select value={priorityFilter} onValueChange={setPriorityFilter}>
-          <SelectTrigger className="w-32 bg-zinc-800 border-zinc-700">
+          <SelectTrigger className="w-32 bg-muted border-border">
             <SelectValue placeholder="Priority" />
           </SelectTrigger>
           <SelectContent>
@@ -245,7 +245,7 @@ export const AdminSupportDashboard = () => {
           <CardContent className="max-h-[500px] overflow-y-auto">
             {loading ? (
               <div className="flex justify-center py-8">
-                <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
+                <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
               </div>
             ) : tickets.length === 0 ? (
               <p className="text-center text-gray-500 py-8">No tickets found</p>
@@ -258,7 +258,7 @@ export const AdminSupportDashboard = () => {
                     className={`p-3 rounded-lg cursor-pointer transition-all ${
                       selectedTicket === ticket.id 
                         ? 'bg-cyan-500/10 border border-cyan-500/50' 
-                        : 'bg-zinc-800/50 hover:bg-zinc-800 border border-transparent'
+                        : 'bg-muted/50 hover:bg-muted border border-transparent'
                     }`}
                   >
                     <div className="flex items-start justify-between gap-2">
@@ -300,9 +300,9 @@ export const AdminSupportDashboard = () => {
             ) : (
               <div className="space-y-4">
                 {/* Ticket Info */}
-                <div className="p-3 bg-zinc-800/50 rounded-lg">
+                <div className="p-3 bg-muted/50 rounded-lg">
                   <h4 className={`font-medium ${textClass}`}>{ticketDetail.subject}</h4>
-                  <p className="text-sm text-gray-400 mt-1">{ticketDetail.description}</p>
+                  <p className="text-sm text-muted-foreground mt-1">{ticketDetail.description}</p>
                   <div className="flex flex-wrap gap-2 mt-2">
                     <Badge className={getPriorityColor(ticketDetail.priority)}>{ticketDetail.priority}</Badge>
                     <Badge className={getStatusColor(ticketDetail.status)}>{ticketDetail.status?.replace('_', ' ')}</Badge>
@@ -316,7 +316,7 @@ export const AdminSupportDashboard = () => {
                     value={ticketDetail.status}
                     onValueChange={(v) => handleUpdateTicket(ticketDetail.id, { status: v })}
                   >
-                    <SelectTrigger className="w-28 h-8 text-xs bg-zinc-800 border-zinc-700">
+                    <SelectTrigger className="w-28 h-8 text-xs bg-muted border-border">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -331,7 +331,7 @@ export const AdminSupportDashboard = () => {
                     value={ticketDetail.priority}
                     onValueChange={(v) => handleUpdateTicket(ticketDetail.id, { priority: v })}
                   >
-                    <SelectTrigger className="w-24 h-8 text-xs bg-zinc-800 border-zinc-700">
+                    <SelectTrigger className="w-24 h-8 text-xs bg-muted border-border">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -353,12 +353,12 @@ export const AdminSupportDashboard = () => {
                         msg.is_internal_note 
                           ? 'bg-yellow-500/10 border border-yellow-500/30' 
                           : msg.sender_id === ticketDetail.user?.id
-                            ? 'bg-zinc-800'
+                            ? 'bg-muted'
                             : 'bg-cyan-500/10'
                       }`}
                     >
                       <div className="flex items-center gap-2 mb-1">
-                        <span className="text-xs font-medium text-white">{msg.sender_name}</span>
+                        <span className="text-xs font-medium text-foreground">{msg.sender_name}</span>
                         {msg.is_internal_note && <Badge className="text-[10px] bg-yellow-500/20 text-yellow-400">Internal</Badge>}
                         <span className="text-[10px] text-gray-500">{formatDate(msg.created_at)}</span>
                       </div>
@@ -368,20 +368,20 @@ export const AdminSupportDashboard = () => {
                 </div>
 
                 {/* Reply */}
-                <div className="space-y-2 pt-2 border-t border-zinc-700">
+                <div className="space-y-2 pt-2 border-t border-border">
                   <Textarea
                     placeholder="Type your reply..."
                     value={replyText}
                     onChange={(e) => setReplyText(e.target.value)}
-                    className="bg-zinc-800 border-zinc-700 min-h-[80px]"
+                    className="bg-muted border-border min-h-[80px]"
                   />
                   <div className="flex items-center justify-between">
-                    <label className="flex items-center gap-2 text-xs text-gray-400 cursor-pointer">
+                    <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer">
                       <input
                         type="checkbox"
                         checked={isInternalNote}
                         onChange={(e) => setIsInternalNote(e.target.checked)}
-                        className="rounded border-zinc-600"
+                        className="rounded border-input"
                       />
                       Internal note
                     </label>

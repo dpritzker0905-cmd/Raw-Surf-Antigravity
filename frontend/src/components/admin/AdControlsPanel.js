@@ -153,13 +153,13 @@ const AdControlsPanel = ({ user }) => {
   return (
     <div className="space-y-4">
       {/* Sub-tabs */}
-      <div className="flex border-b border-zinc-700">
+      <div className="flex border-b border-border">
         <button
           onClick={() => setActiveSubTab('overview')}
           className={`flex-1 py-2 text-sm font-medium transition-colors ${
             activeSubTab === 'overview' 
-              ? 'text-white border-b-2 border-cyan-400' 
-              : 'text-gray-400 hover:text-white'
+              ? 'text-foreground border-b-2 border-cyan-400' 
+              : 'text-muted-foreground hover:text-foreground'
           }`}
         >
           Overview
@@ -168,8 +168,8 @@ const AdControlsPanel = ({ user }) => {
           onClick={() => setActiveSubTab('queue')}
           className={`flex-1 py-2 text-sm font-medium transition-colors relative ${
             activeSubTab === 'queue' 
-              ? 'text-white border-b-2 border-cyan-400' 
-              : 'text-gray-400 hover:text-white'
+              ? 'text-foreground border-b-2 border-cyan-400' 
+              : 'text-muted-foreground hover:text-foreground'
           }`}
         >
           Approval Queue
@@ -183,8 +183,8 @@ const AdControlsPanel = ({ user }) => {
           onClick={() => setActiveSubTab('variants')}
           className={`flex-1 py-2 text-sm font-medium transition-colors ${
             activeSubTab === 'variants' 
-              ? 'text-white border-b-2 border-cyan-400' 
-              : 'text-gray-400 hover:text-white'
+              ? 'text-foreground border-b-2 border-cyan-400' 
+              : 'text-muted-foreground hover:text-foreground'
           }`}
         >
           All Variants
@@ -196,22 +196,22 @@ const AdControlsPanel = ({ user }) => {
         <>
           {/* Analytics */}
           {analytics && (
-            <Card className="bg-zinc-900 border-zinc-800">
+            <Card className="bg-card border-border">
               <CardHeader>
-                <CardTitle className="text-white text-sm">Ad Performance</CardTitle>
+                <CardTitle className="text-foreground text-sm">Ad Performance</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-3 gap-2">
-                  <div className="bg-zinc-800 rounded-lg p-2 text-center">
-                    <p className="text-gray-400 text-xs">Impressions</p>
-                    <p className="text-white font-bold">{analytics.analytics?.total_impressions || 0}</p>
+                  <div className="bg-muted rounded-lg p-2 text-center">
+                    <p className="text-muted-foreground text-xs">Impressions</p>
+                    <p className="text-foreground font-bold">{analytics.analytics?.total_impressions || 0}</p>
                   </div>
-                  <div className="bg-zinc-800 rounded-lg p-2 text-center">
-                    <p className="text-gray-400 text-xs">Clicks</p>
-                    <p className="text-white font-bold">{analytics.analytics?.total_clicks || 0}</p>
+                  <div className="bg-muted rounded-lg p-2 text-center">
+                    <p className="text-muted-foreground text-xs">Clicks</p>
+                    <p className="text-foreground font-bold">{analytics.analytics?.total_clicks || 0}</p>
                   </div>
-                  <div className="bg-zinc-800 rounded-lg p-2 text-center">
-                    <p className="text-gray-400 text-xs">Ad-Free Users</p>
+                  <div className="bg-muted rounded-lg p-2 text-center">
+                    <p className="text-muted-foreground text-xs">Ad-Free Users</p>
                     <p className="text-green-400 font-bold">{analytics.ad_free_users || 0}</p>
                   </div>
                 </div>
@@ -221,13 +221,13 @@ const AdControlsPanel = ({ user }) => {
 
           {/* Frequency Control */}
           {config && (
-            <Card className="bg-zinc-900 border-zinc-800">
+            <Card className="bg-card border-border">
               <CardHeader>
-                <CardTitle className="text-white text-sm">Ad Frequency</CardTitle>
+                <CardTitle className="text-foreground text-sm">Ad Frequency</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="flex items-center gap-4">
-                  <p className="text-gray-400 text-sm flex-1">
+                  <p className="text-muted-foreground text-sm flex-1">
                     Show 1 ad every <span className="text-cyan-400 font-bold">{config.frequency}</span> posts
                   </p>
                   <div className="flex items-center gap-2">
@@ -236,17 +236,17 @@ const AdControlsPanel = ({ user }) => {
                       variant="outline"
                       onClick={() => handleFrequencyChange(Math.max(3, (config.frequency || 6) - 1))}
                       disabled={saving || config.frequency <= 3}
-                      className="border-zinc-700 w-8 h-8 p-0"
+                      className="border-border w-8 h-8 p-0"
                     >
                       -
                     </Button>
-                    <span className="text-white font-bold w-8 text-center">{config.frequency}</span>
+                    <span className="text-foreground font-bold w-8 text-center">{config.frequency}</span>
                     <Button
                       size="sm"
                       variant="outline"
                       onClick={() => handleFrequencyChange(Math.min(20, (config.frequency || 6) + 1))}
                       disabled={saving || config.frequency >= 20}
-                      className="border-zinc-700 w-8 h-8 p-0"
+                      className="border-border w-8 h-8 p-0"
                     >
                       +
                     </Button>
@@ -257,23 +257,23 @@ const AdControlsPanel = ({ user }) => {
           )}
 
           {/* Queue Summary */}
-          <Card className="bg-zinc-900 border-zinc-800">
+          <Card className="bg-card border-border">
             <CardHeader>
-              <CardTitle className="text-white text-sm">Approval Queue Summary</CardTitle>
+              <CardTitle className="text-foreground text-sm">Approval Queue Summary</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-3 gap-2">
                 <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-3 text-center">
                   <p className="text-yellow-400 text-xs">Pending</p>
-                  <p className="text-white font-bold text-xl">{queue?.counts?.pending || 0}</p>
+                  <p className="text-foreground font-bold text-xl">{queue?.counts?.pending || 0}</p>
                 </div>
                 <div className="bg-green-500/10 border border-green-500/30 rounded-lg p-3 text-center">
                   <p className="text-green-400 text-xs">Approved</p>
-                  <p className="text-white font-bold text-xl">{queue?.counts?.approved || 0}</p>
+                  <p className="text-foreground font-bold text-xl">{queue?.counts?.approved || 0}</p>
                 </div>
                 <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-3 text-center">
                   <p className="text-red-400 text-xs">Rejected</p>
-                  <p className="text-white font-bold text-xl">{queue?.counts?.rejected || 0}</p>
+                  <p className="text-foreground font-bold text-xl">{queue?.counts?.rejected || 0}</p>
                 </div>
               </div>
               {queue?.counts?.pending > 0 && (
@@ -293,10 +293,10 @@ const AdControlsPanel = ({ user }) => {
       {activeSubTab === 'queue' && (
         <div className="space-y-3">
           {(!queue?.pending || queue?.pending?.length === 0) ? (
-            <Card className="bg-zinc-900 border-zinc-800">
+            <Card className="bg-card border-border">
               <CardContent className="py-8 text-center">
                 <Megaphone className="w-12 h-12 text-gray-600 mx-auto mb-3" />
-                <p className="text-gray-400">No pending ads to review</p>
+                <p className="text-muted-foreground">No pending ads to review</p>
                 <p className="text-gray-500 text-sm mt-1">
                   User-submitted ads will appear here for approval
                 </p>
@@ -304,7 +304,7 @@ const AdControlsPanel = ({ user }) => {
             </Card>
           ) : (
             queue?.pending?.map((ad) => (
-              <Card key={ad.id} className="bg-zinc-900 border-yellow-500/30">
+              <Card key={ad.id} className="bg-card border-yellow-500/30">
                 <CardContent className="p-4">
                   {editingAd === ad.id ? (
                     // Edit Mode
@@ -313,13 +313,13 @@ const AdControlsPanel = ({ user }) => {
                         value={editForm.headline}
                         onChange={(e) => setEditForm(prev => ({ ...prev, headline: e.target.value }))}
                         placeholder="Headline"
-                        className="bg-zinc-800 border-zinc-700 text-white"
+                        className="bg-muted border-border text-foreground"
                       />
                       <Textarea
                         value={editForm.description}
                         onChange={(e) => setEditForm(prev => ({ ...prev, description: e.target.value }))}
                         placeholder="Description"
-                        className="bg-zinc-800 border-zinc-700 text-white"
+                        className="bg-muted border-border text-foreground"
                         rows={2}
                       />
                       <div className="grid grid-cols-2 gap-2">
@@ -327,13 +327,13 @@ const AdControlsPanel = ({ user }) => {
                           value={editForm.cta}
                           onChange={(e) => setEditForm(prev => ({ ...prev, cta: e.target.value }))}
                           placeholder="CTA Text"
-                          className="bg-zinc-800 border-zinc-700 text-white"
+                          className="bg-muted border-border text-foreground"
                         />
                         <Input
                           value={editForm.cta_link}
                           onChange={(e) => setEditForm(prev => ({ ...prev, cta_link: e.target.value }))}
                           placeholder="CTA Link"
-                          className="bg-zinc-800 border-zinc-700 text-white"
+                          className="bg-muted border-border text-foreground"
                         />
                       </div>
                       <div className="flex gap-2">
@@ -347,7 +347,7 @@ const AdControlsPanel = ({ user }) => {
                         <Button
                           variant="outline"
                           onClick={() => { setEditingAd(null); setEditForm({}); }}
-                          className="border-zinc-700"
+                          className="border-border"
                         >
                           Cancel
                         </Button>
@@ -358,8 +358,8 @@ const AdControlsPanel = ({ user }) => {
                     <>
                       <div className="flex items-start justify-between mb-3">
                         <div>
-                          <p className="text-white font-medium">{ad.headline}</p>
-                          <p className="text-gray-400 text-sm">{ad.description || ad.body}</p>
+                          <p className="text-foreground font-medium">{ad.headline}</p>
+                          <p className="text-muted-foreground text-sm">{ad.description || ad.body}</p>
                         </div>
                         <Badge className="bg-yellow-500/20 text-yellow-400">
                           {ad.approval_status || 'pending'}
@@ -384,7 +384,7 @@ const AdControlsPanel = ({ user }) => {
                                 controls
                               />
                               <div className="absolute top-2 left-2">
-                                <Badge className="bg-red-500/90 text-white text-xs">
+                                <Badge className="bg-red-500/90 text-foreground text-xs">
                                   <Video className="w-3 h-3 mr-1" />
                                   Video
                                 </Badge>
@@ -398,7 +398,7 @@ const AdControlsPanel = ({ user }) => {
                                 className="w-full h-32 object-cover" 
                               />
                               <div className="absolute top-2 left-2">
-                                <Badge className="bg-blue-500/90 text-white text-xs">
+                                <Badge className="bg-blue-500/90 text-foreground text-xs">
                                   <Image className="w-3 h-3 mr-1" />
                                   Image
                                 </Badge>
@@ -432,7 +432,7 @@ const AdControlsPanel = ({ user }) => {
                         <Button
                           variant="outline"
                           onClick={() => startEditing(ad)}
-                          className="border-zinc-700"
+                          className="border-border"
                         >
                           <FileText className="w-4 h-4" />
                         </Button>
@@ -448,17 +448,17 @@ const AdControlsPanel = ({ user }) => {
 
       {/* All Variants Sub-Tab */}
       {activeSubTab === 'variants' && config?.variants && (
-        <Card className="bg-zinc-900 border-zinc-800">
+        <Card className="bg-card border-border">
           <CardHeader>
-            <CardTitle className="text-white text-sm">All Ad Variants ({config.variants.length})</CardTitle>
+            <CardTitle className="text-foreground text-sm">All Ad Variants ({config.variants.length})</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-2">
               {config.variants.map((variant) => (
-                <div key={variant.id} className="flex items-center justify-between p-3 bg-zinc-800 rounded-lg">
+                <div key={variant.id} className="flex items-center justify-between p-3 bg-muted rounded-lg">
                   <div className="flex-1">
-                    <p className="text-white font-medium text-sm">{variant.headline}</p>
-                    <p className="text-gray-400 text-xs">
+                    <p className="text-foreground font-medium text-sm">{variant.headline}</p>
+                    <p className="text-muted-foreground text-xs">
                       {variant.type} • {variant.cta}
                       {variant.submitted_by_name && (
                         <span className="text-cyan-400 ml-2">by {variant.submitted_by_name}</span>
@@ -479,7 +479,7 @@ const AdControlsPanel = ({ user }) => {
                       size="sm"
                       variant={variant.is_active ? 'default' : 'outline'}
                       onClick={() => toggleVariant(variant.id, !variant.is_active)}
-                      className={variant.is_active ? 'bg-green-500 hover:bg-green-600' : 'border-zinc-600'}
+                      className={variant.is_active ? 'bg-green-500 hover:bg-green-600' : 'border-input'}
                     >
                       {variant.is_active ? 'Active' : 'Disabled'}
                     </Button>

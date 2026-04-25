@@ -47,7 +47,7 @@ const StatusBadge = ({ status }) => {
     open: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
     investigating: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
     resolved: 'bg-green-500/20 text-green-400 border-green-500/30',
-    false_positive: 'bg-gray-500/20 text-gray-400 border-gray-500/30',
+    false_positive: 'bg-gray-500/20 text-muted-foreground border-gray-500/30',
   };
   return (
     <Badge className={`text-xs ${styles[status] || 'bg-zinc-500/20 text-zinc-400'}`}>
@@ -59,7 +59,7 @@ const StatusBadge = ({ status }) => {
 // Severity badge
 const SeverityBadge = ({ severity }) => {
   const styles = {
-    low: 'bg-gray-500/20 text-gray-400',
+    low: 'bg-gray-500/20 text-muted-foreground',
     medium: 'bg-yellow-500/20 text-yellow-400',
     high: 'bg-orange-500/20 text-orange-400',
     critical: 'bg-red-500/20 text-red-400 animate-pulse',
@@ -152,9 +152,9 @@ export const AdminP1Dashboard = () => {
   const [actionLoading, setActionLoading] = useState(false);
 
   const isLight = theme === 'light';
-  const cardBgClass = isLight ? 'bg-white border-gray-200' : 'bg-zinc-900/50 border-zinc-800';
-  const textClass = isLight ? 'text-gray-900' : 'text-white';
-  const textSecondary = isLight ? 'text-gray-600' : 'text-gray-400';
+  const cardBgClass = isLight ? 'bg-white border-gray-200' : 'bg-card/50 border-border';
+  const textClass = isLight ? 'text-gray-900' : 'text-foreground';
+  const textSecondary = isLight ? 'text-gray-600' : 'text-muted-foreground';
 
   useEffect(() => {
     if (user?.id) {
@@ -499,7 +499,7 @@ export const AdminP1Dashboard = () => {
             <tab.icon className="w-4 h-4 mr-1.5" />
             {tab.label}
             {tab.count > 0 && (
-              <Badge className="ml-1.5 bg-white/20 text-white">{tab.count}</Badge>
+              <Badge className="ml-1.5 bg-white/20 text-foreground">{tab.count}</Badge>
             )}
           </Button>
         ))}
@@ -512,7 +512,7 @@ export const AdminP1Dashboard = () => {
             <div className="flex items-center gap-3">
               <Eye className="w-5 h-5 text-purple-400" />
               <div>
-                <p className="text-white font-medium">
+                <p className="text-foreground font-medium">
                   Viewing as: {activeImpersonation.target_user.full_name}
                 </p>
                 <p className="text-purple-300 text-xs">
@@ -534,7 +534,7 @@ export const AdminP1Dashboard = () => {
 
       {loading && activeSubTab !== 'journey' ? (
         <div className="flex items-center justify-center py-12">
-          <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
+          <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
         </div>
       ) : (
         <>
@@ -544,7 +544,7 @@ export const AdminP1Dashboard = () => {
               {/* Filters */}
               <div className="flex gap-2">
                 <Select value={verificationFilter.type} onValueChange={(v) => setVerificationFilter({ type: v })}>
-                  <SelectTrigger className="w-48 bg-zinc-800 border-zinc-700">
+                  <SelectTrigger className="w-48 bg-muted border-border">
                     <SelectValue placeholder="Verification Type" />
                   </SelectTrigger>
                   <SelectContent>
@@ -672,7 +672,7 @@ export const AdminP1Dashboard = () => {
                         setSearchUserQuery(e.target.value);
                         searchUsers(e.target.value);
                       }}
-                      className="pl-10 bg-zinc-800 border-zinc-700"
+                      className="pl-10 bg-muted border-border"
                     />
                   </div>
                   
@@ -680,16 +680,16 @@ export const AdminP1Dashboard = () => {
                     placeholder="Reason for impersonation (optional)"
                     value={impersonationReason}
                     onChange={(e) => setImpersonationReason(e.target.value)}
-                    className="bg-zinc-800 border-zinc-700"
+                    className="bg-muted border-border"
                   />
                   
                   {/* Search Results */}
                   {searchResults.length > 0 && (
-                    <div className="bg-zinc-800 rounded-lg divide-y divide-zinc-700 max-h-60 overflow-y-auto">
+                    <div className="bg-muted rounded-lg divide-y divide-zinc-700 max-h-60 overflow-y-auto">
                       {searchResults.map(u => (
                         <div 
                           key={u.id}
-                          className="p-3 flex items-center justify-between hover:bg-zinc-700 cursor-pointer"
+                          className="p-3 flex items-center justify-between hover:bg-input cursor-pointer"
                           onClick={() => startImpersonation(u.id)}
                         >
                           <div className="flex items-center gap-3">
@@ -698,8 +698,8 @@ export const AdminP1Dashboard = () => {
                               <AvatarFallback>{u.full_name?.[0]}</AvatarFallback>
                             </Avatar>
                             <div>
-                              <p className="text-white text-sm">{u.full_name}</p>
-                              <p className="text-gray-400 text-xs">{u.email}</p>
+                              <p className="text-foreground text-sm">{u.full_name}</p>
+                              <p className="text-muted-foreground text-xs">{u.email}</p>
                             </div>
                           </div>
                           <Button size="sm" className="bg-purple-500 hover:bg-purple-600">
@@ -723,20 +723,20 @@ export const AdminP1Dashboard = () => {
                   ) : (
                     <div className="space-y-2">
                       {impersonationHistory.map(session => (
-                        <div key={session.id} className="p-2 bg-zinc-800 rounded-lg flex items-center justify-between">
+                        <div key={session.id} className="p-2 bg-muted rounded-lg flex items-center justify-between">
                           <div className="flex items-center gap-3">
                             <Avatar className="w-8 h-8">
                               <AvatarFallback>{session.target_user?.full_name?.[0]}</AvatarFallback>
                             </Avatar>
                             <div>
-                              <p className="text-white text-sm">{session.target_user?.full_name}</p>
-                              <p className="text-gray-400 text-xs">
+                              <p className="text-foreground text-sm">{session.target_user?.full_name}</p>
+                              <p className="text-muted-foreground text-xs">
                                 {session.reason || 'No reason provided'}
                               </p>
                             </div>
                           </div>
                           <div className="text-right">
-                            <p className="text-xs text-gray-400">{formatDate(session.started_at)}</p>
+                            <p className="text-xs text-muted-foreground">{formatDate(session.started_at)}</p>
                             <p className="text-xs text-gray-500">
                               {session.duration_minutes ? `${Math.round(session.duration_minutes)} min` : 'Active'}
                             </p>
@@ -762,7 +762,7 @@ export const AdminP1Dashboard = () => {
                     severity === 'medium' ? 'border-yellow-500/50' : ''
                   }`}>
                     <CardContent className="p-3 text-center">
-                      <p className="text-2xl font-bold text-white">{severityCounts[severity] || 0}</p>
+                      <p className="text-2xl font-bold text-foreground">{severityCounts[severity] || 0}</p>
                       <p className={`text-xs capitalize ${textSecondary}`}>{severity}</p>
                     </CardContent>
                   </Card>
@@ -772,7 +772,7 @@ export const AdminP1Dashboard = () => {
               {/* Filters */}
               <div className="flex gap-2">
                 <Select value={fraudFilter.severity} onValueChange={(v) => setFraudFilter({ severity: v })}>
-                  <SelectTrigger className="w-40 bg-zinc-800 border-zinc-700">
+                  <SelectTrigger className="w-40 bg-muted border-border">
                     <SelectValue placeholder="Severity" />
                   </SelectTrigger>
                   <SelectContent>
@@ -958,7 +958,7 @@ export const AdminP1Dashboard = () => {
                         {locationFraudMapData.map((fraud, _idx) => (
                           <div 
                             key={fraud.id}
-                            className="p-3 rounded-lg bg-zinc-800/50 border border-zinc-700"
+                            className="p-3 rounded-lg bg-muted/50 border border-border"
                           >
                             <div className="flex items-center justify-between mb-2">
                               <Badge className={`text-[10px] ${
@@ -987,7 +987,7 @@ export const AdminP1Dashboard = () => {
                               </div>
                             </div>
                             {/* Visual Distance Bar */}
-                            <div className="mt-2 h-1.5 bg-zinc-700 rounded-full overflow-hidden">
+                            <div className="mt-2 h-1.5 bg-input rounded-full overflow-hidden">
                               <div 
                                 className={`h-full ${
                                   fraud.distance_miles > 50 ? 'bg-red-500' :
@@ -1070,7 +1070,7 @@ export const AdminP1Dashboard = () => {
                               type="checkbox"
                               checked={selectedAppeals.has(violation.id)}
                               onChange={() => toggleAppealSelection(violation.id)}
-                              className="w-4 h-4 rounded border-orange-500 bg-zinc-800 text-orange-500 focus:ring-orange-500"
+                              className="w-4 h-4 rounded border-orange-500 bg-muted text-orange-500 focus:ring-orange-500"
                               onClick={(e) => e.stopPropagation()}
                             />
                             <div 
@@ -1103,7 +1103,7 @@ export const AdminP1Dashboard = () => {
                       Recent Violations
                     </CardTitle>
                     <Select value={complianceFilter.type} onValueChange={(v) => setComplianceFilter({ type: v })}>
-                      <SelectTrigger className="w-[140px] h-8 bg-zinc-800 border-zinc-700">
+                      <SelectTrigger className="w-[140px] h-8 bg-muted border-border">
                         <SelectValue placeholder="Filter" />
                       </SelectTrigger>
                       <SelectContent>
@@ -1126,7 +1126,7 @@ export const AdminP1Dashboard = () => {
                       .map(violation => (
                         <div
                           key={violation.id}
-                          className={`p-3 rounded-lg ${cardBgClass} border cursor-pointer hover:bg-zinc-800/50 transition-colors`}
+                          className={`p-3 rounded-lg ${cardBgClass} border cursor-pointer hover:bg-muted/50 transition-colors`}
                           onClick={() => {
                             setSelectedViolation(violation);
                             setShowViolationDetail(true);
@@ -1148,7 +1148,7 @@ export const AdminP1Dashboard = () => {
                                     'text-yellow-400'
                                   }`} />
                                 ) : (
-                                  <Flag className="w-4 h-4 text-gray-400" />
+                                  <Flag className="w-4 h-4 text-muted-foreground" />
                                 )}
                               </div>
                               <div>
@@ -1158,7 +1158,7 @@ export const AdminP1Dashboard = () => {
                                     violation.severity === 'critical' ? 'bg-red-500/20 text-red-400' :
                                     violation.severity === 'severe' ? 'bg-orange-500/20 text-orange-400' :
                                     violation.severity === 'moderate' ? 'bg-yellow-500/20 text-yellow-400' :
-                                    'bg-gray-500/20 text-gray-400'
+                                    'bg-gray-500/20 text-muted-foreground'
                                   }`}>
                                     {violation.severity}
                                   </Badge>
@@ -1210,17 +1210,17 @@ export const AdminP1Dashboard = () => {
                         setSearchUserQuery(e.target.value);
                         searchUsers(e.target.value);
                       }}
-                      className="pl-10 bg-zinc-800 border-zinc-700"
+                      className="pl-10 bg-muted border-border"
                     />
                   </div>
                   
                   {/* Search Results */}
                   {searchResults.length > 0 && !journeyUser && (
-                    <div className="mt-2 bg-zinc-800 rounded-lg divide-y divide-zinc-700 max-h-40 overflow-y-auto">
+                    <div className="mt-2 bg-muted rounded-lg divide-y divide-zinc-700 max-h-40 overflow-y-auto">
                       {searchResults.map(u => (
                         <div 
                           key={u.id}
-                          className="p-3 flex items-center justify-between hover:bg-zinc-700 cursor-pointer"
+                          className="p-3 flex items-center justify-between hover:bg-input cursor-pointer"
                           onClick={() => { fetchUserJourney(u.id); setSearchResults([]); }}
                         >
                           <div className="flex items-center gap-3">
@@ -1229,8 +1229,8 @@ export const AdminP1Dashboard = () => {
                               <AvatarFallback>{u.full_name?.[0]}</AvatarFallback>
                             </Avatar>
                             <div>
-                              <p className="text-white text-sm">{u.full_name}</p>
-                              <p className="text-gray-400 text-xs">{u.email}</p>
+                              <p className="text-foreground text-sm">{u.full_name}</p>
+                              <p className="text-muted-foreground text-xs">{u.email}</p>
                             </div>
                           </div>
                           <ChevronRight className="w-4 h-4 text-gray-500" />
@@ -1285,10 +1285,10 @@ export const AdminP1Dashboard = () => {
                           { label: 'Disputes', value: journeySummary.stats?.disputes || 0, icon: MessageSquare },
                           { label: 'Reports', value: journeySummary.stats?.reports_against || 0, icon: Flag },
                         ].map(stat => (
-                          <div key={stat.label} className="p-2 bg-zinc-800 rounded-lg text-center">
+                          <div key={stat.label} className="p-2 bg-muted rounded-lg text-center">
                             <stat.icon className="w-4 h-4 mx-auto text-gray-500 mb-1" />
-                            <p className="text-lg font-bold text-white">{stat.value}</p>
-                            <p className="text-xs text-gray-400">{stat.label}</p>
+                            <p className="text-lg font-bold text-foreground">{stat.value}</p>
+                            <p className="text-xs text-muted-foreground">{stat.label}</p>
                           </div>
                         ))}
                       </div>
@@ -1303,15 +1303,15 @@ export const AdminP1Dashboard = () => {
                     <CardContent>
                       {loading ? (
                         <div className="flex justify-center py-8">
-                          <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
+                          <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
                         </div>
                       ) : journeyActivities.length === 0 ? (
                         <p className={`text-sm ${textSecondary} text-center py-4`}>No activity recorded</p>
                       ) : (
                         <div className="space-y-2 max-h-96 overflow-y-auto">
                           {journeyActivities.map((activity, _idx) => (
-                            <div key={activity.id} className="flex gap-3 p-2 hover:bg-zinc-800 rounded-lg">
-                              <div className="w-8 h-8 rounded-full bg-zinc-800 flex items-center justify-center shrink-0">
+                            <div key={activity.id} className="flex gap-3 p-2 hover:bg-muted rounded-lg">
+                              <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center shrink-0">
                                 <Activity className="w-4 h-4 text-gray-500" />
                               </div>
                               <div className="flex-1 min-w-0">
@@ -1357,7 +1357,7 @@ export const AdminP1Dashboard = () => {
                       <Input
                         value={testAccountPassword}
                         onChange={(e) => setTestAccountPassword(e.target.value)}
-                        className="bg-zinc-800 border-zinc-700"
+                        className="bg-muted border-border"
                         placeholder="Test123!"
                       />
                     </div>
@@ -1415,7 +1415,7 @@ export const AdminP1Dashboard = () => {
                       {testAccounts.map(account => (
                         <div 
                           key={account.id}
-                          className="flex items-center gap-3 p-3 bg-zinc-800 rounded-lg hover:bg-zinc-700 transition-colors"
+                          className="flex items-center gap-3 p-3 bg-muted rounded-lg hover:bg-input transition-colors"
                           data-testid={`test-account-${account.id}`}
                         >
                           <Avatar>
@@ -1468,7 +1468,7 @@ export const AdminP1Dashboard = () => {
 
       {/* Verification Detail Modal */}
       <Dialog open={showVerificationDetail} onOpenChange={setShowVerificationDetail}>
-        <DialogContent className="bg-zinc-900 border-zinc-800 text-white max-w-2xl max-h-[80vh] overflow-y-auto">
+        <DialogContent className="bg-card border-border text-foreground max-w-2xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <UserCheck className="w-5 h-5 text-purple-400" />
@@ -1479,14 +1479,14 @@ export const AdminP1Dashboard = () => {
           {selectedVerification && (
             <div className="space-y-4">
               {/* User Info */}
-              <div className="flex items-center gap-4 p-3 bg-zinc-800 rounded-lg">
+              <div className="flex items-center gap-4 p-3 bg-muted rounded-lg">
                 <Avatar className="w-12 h-12">
                   <AvatarImage src={getFullUrl(selectedVerification.user?.avatar_url)} />
                   <AvatarFallback>{selectedVerification.user?.full_name?.[0]}</AvatarFallback>
                 </Avatar>
                 <div>
                   <p className="font-medium">{selectedVerification.user?.full_name}</p>
-                  <p className="text-sm text-gray-400">{selectedVerification.user?.email}</p>
+                  <p className="text-sm text-muted-foreground">{selectedVerification.user?.email}</p>
                 </div>
                 <Badge variant="outline" className="ml-auto">
                   {selectedVerification.user?.role || 'User'}
@@ -1513,9 +1513,9 @@ export const AdminP1Dashboard = () => {
                   <h4 className="font-medium text-cyan-400">WSL Information</h4>
                   
                   {selectedVerification.wsl_athlete_id && (
-                    <div className="p-3 bg-zinc-800 rounded-lg">
+                    <div className="p-3 bg-muted rounded-lg">
                       <p className="text-xs text-gray-500">WSL Athlete ID</p>
-                      <p className="text-white font-mono">{selectedVerification.wsl_athlete_id}</p>
+                      <p className="text-foreground font-mono">{selectedVerification.wsl_athlete_id}</p>
                     </div>
                   )}
                   
@@ -1587,16 +1587,16 @@ export const AdminP1Dashboard = () => {
                   </div>
                   
                   {selectedVerification.years_experience && (
-                    <div className="p-3 bg-zinc-800 rounded-lg">
+                    <div className="p-3 bg-muted rounded-lg">
                       <p className="text-xs text-gray-500">Years of Experience</p>
-                      <p className="text-white">{selectedVerification.years_experience} years</p>
+                      <p className="text-foreground">{selectedVerification.years_experience} years</p>
                     </div>
                   )}
                   
                   {selectedVerification.professional_equipment && (
-                    <div className="p-3 bg-zinc-800 rounded-lg">
+                    <div className="p-3 bg-muted rounded-lg">
                       <p className="text-xs text-gray-500">Professional Equipment</p>
-                      <p className="text-white text-sm">{selectedVerification.professional_equipment}</p>
+                      <p className="text-foreground text-sm">{selectedVerification.professional_equipment}</p>
                     </div>
                   )}
                   
@@ -1629,7 +1629,7 @@ export const AdminP1Dashboard = () => {
                             href={url}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="aspect-square bg-zinc-800 rounded-lg overflow-hidden hover:ring-2 ring-purple-500"
+                            className="aspect-square bg-muted rounded-lg overflow-hidden hover:ring-2 ring-purple-500"
                           >
                             <img src={url} alt={`Sample ${idx + 1}`} className="w-full h-full object-cover" />
                           </a>
@@ -1648,30 +1648,30 @@ export const AdminP1Dashboard = () => {
                     href={selectedVerification.photo_id_url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex items-center gap-2 p-3 bg-zinc-800 rounded-lg hover:bg-zinc-700"
+                    className="flex items-center gap-2 p-3 bg-muted rounded-lg hover:bg-input"
                   >
-                    <FileText className="w-5 h-5 text-gray-400" />
-                    <span className="text-white">View Photo ID</span>
-                    <ExternalLink className="w-4 h-4 text-gray-400 ml-auto" />
+                    <FileText className="w-5 h-5 text-muted-foreground" />
+                    <span className="text-foreground">View Photo ID</span>
+                    <ExternalLink className="w-4 h-4 text-muted-foreground ml-auto" />
                   </a>
                 </div>
               )}
 
               {/* Additional Notes */}
               {selectedVerification.additional_notes && (
-                <div className="p-3 bg-zinc-800 rounded-lg">
+                <div className="p-3 bg-muted rounded-lg">
                   <p className="text-xs text-gray-500">Additional Notes from User</p>
-                  <p className="text-white text-sm mt-1">{selectedVerification.additional_notes}</p>
+                  <p className="text-foreground text-sm mt-1">{selectedVerification.additional_notes}</p>
                 </div>
               )}
 
               {/* Review Form */}
               {selectedVerification.status === 'pending' && (
-                <div className="border-t border-zinc-800 pt-4 space-y-3">
+                <div className="border-t border-border pt-4 space-y-3">
                   <h4 className="font-medium">Review Decision</h4>
                   
                   <Select value={reviewStatus} onValueChange={setReviewStatus}>
-                    <SelectTrigger className="bg-zinc-800 border-zinc-700">
+                    <SelectTrigger className="bg-muted border-border">
                       <SelectValue placeholder="Select decision..." />
                     </SelectTrigger>
                     <SelectContent>
@@ -1686,7 +1686,7 @@ export const AdminP1Dashboard = () => {
                       placeholder="Reason for rejection (shown to user)..."
                       value={rejectionReason}
                       onChange={(e) => setRejectionReason(e.target.value)}
-                      className="bg-zinc-800 border-zinc-700"
+                      className="bg-muted border-border"
                     />
                   )}
                   
@@ -1694,7 +1694,7 @@ export const AdminP1Dashboard = () => {
                     placeholder="Internal admin notes..."
                     value={adminNotes}
                     onChange={(e) => setAdminNotes(e.target.value)}
-                    className="bg-zinc-800 border-zinc-700"
+                    className="bg-muted border-border"
                   />
                   
                   <Button
@@ -1721,7 +1721,7 @@ export const AdminP1Dashboard = () => {
 
       {/* Fraud Alert Detail Modal */}
       <Dialog open={showAlertDetail} onOpenChange={setShowAlertDetail}>
-        <DialogContent className="bg-zinc-900 border-zinc-800 text-white max-w-lg">
+        <DialogContent className="bg-card border-border text-foreground max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <AlertTriangle className="w-5 h-5 text-red-400" />
@@ -1741,17 +1741,17 @@ export const AdminP1Dashboard = () => {
               
               <div>
                 <p className="font-medium text-lg">{selectedAlert.title}</p>
-                <p className="text-gray-400 mt-1">{selectedAlert.description}</p>
+                <p className="text-muted-foreground mt-1">{selectedAlert.description}</p>
               </div>
               
-              <div className="flex items-center gap-3 p-3 bg-zinc-800 rounded-lg">
+              <div className="flex items-center gap-3 p-3 bg-muted rounded-lg">
                 <Avatar>
                   <AvatarImage src={getFullUrl(selectedAlert.user?.avatar_url)} />
                   <AvatarFallback>{selectedAlert.user?.full_name?.[0]}</AvatarFallback>
                 </Avatar>
                 <div>
                   <p className="font-medium">{selectedAlert.user?.full_name}</p>
-                  <p className="text-sm text-gray-400">{selectedAlert.user?.email}</p>
+                  <p className="text-sm text-muted-foreground">{selectedAlert.user?.email}</p>
                 </div>
                 <div className="ml-auto text-right">
                   <p className="text-sm text-gray-500">Risk Score</p>
@@ -1764,9 +1764,9 @@ export const AdminP1Dashboard = () => {
               </div>
               
               {selectedAlert.status === 'open' && (
-                <div className="space-y-3 border-t border-zinc-800 pt-4">
+                <div className="space-y-3 border-t border-border pt-4">
                   <Select value={actionTaken} onValueChange={setActionTaken}>
-                    <SelectTrigger className="bg-zinc-800 border-zinc-700">
+                    <SelectTrigger className="bg-muted border-border">
                       <SelectValue placeholder="Select action..." />
                     </SelectTrigger>
                     <SelectContent>
@@ -1781,7 +1781,7 @@ export const AdminP1Dashboard = () => {
                     placeholder="Resolution notes..."
                     value={resolutionNotes}
                     onChange={(e) => setResolutionNotes(e.target.value)}
-                    className="bg-zinc-800 border-zinc-700"
+                    className="bg-muted border-border"
                   />
                   
                   <Button
@@ -1801,48 +1801,48 @@ export const AdminP1Dashboard = () => {
 
       {/* Violation Detail Dialog */}
       <Dialog open={showViolationDetail} onOpenChange={setShowViolationDetail}>
-        <DialogContent className="bg-zinc-900 border-zinc-800 max-w-lg" data-testid="violation-detail-dialog">
+        <DialogContent className="bg-card border-border max-w-lg" data-testid="violation-detail-dialog">
           {selectedViolation && (
             <div className="space-y-4">
               <DialogHeader>
-                <DialogTitle className="flex items-center gap-2 text-white">
+                <DialogTitle className="flex items-center gap-2 text-foreground">
                   <Gavel className="w-5 h-5 text-orange-400" />
                   Violation Details
                 </DialogTitle>
               </DialogHeader>
               
               {/* Violation Info */}
-              <div className="p-4 rounded-lg bg-zinc-800 space-y-3">
+              <div className="p-4 rounded-lg bg-muted space-y-3">
                 <div className="flex items-center justify-between">
                   <Badge className={`${
                     selectedViolation.severity === 'critical' ? 'bg-red-500/20 text-red-400' :
                     selectedViolation.severity === 'severe' ? 'bg-orange-500/20 text-orange-400' :
                     selectedViolation.severity === 'moderate' ? 'bg-yellow-500/20 text-yellow-400' :
-                    'bg-gray-500/20 text-gray-400'
+                    'bg-gray-500/20 text-muted-foreground'
                   }`}>
                     {selectedViolation.severity?.toUpperCase()}
                   </Badge>
-                  <span className="text-xs text-gray-400">{formatDate(selectedViolation.created_at)}</span>
+                  <span className="text-xs text-muted-foreground">{formatDate(selectedViolation.created_at)}</span>
                 </div>
                 
-                <h3 className="text-lg font-semibold text-white">{selectedViolation.title}</h3>
+                <h3 className="text-lg font-semibold text-foreground">{selectedViolation.title}</h3>
                 
                 <div className="grid grid-cols-2 gap-3 text-sm">
                   <div>
-                    <p className="text-gray-400">Type</p>
-                    <p className="text-white capitalize">{selectedViolation.violation_type?.replace(/_/g, ' ')}</p>
+                    <p className="text-muted-foreground">Type</p>
+                    <p className="text-foreground capitalize">{selectedViolation.violation_type?.replace(/_/g, ' ')}</p>
                   </div>
                   <div>
-                    <p className="text-gray-400">Action Taken</p>
-                    <p className="text-white capitalize">{selectedViolation.action_taken?.replace(/_/g, ' ')}</p>
+                    <p className="text-muted-foreground">Action Taken</p>
+                    <p className="text-foreground capitalize">{selectedViolation.action_taken?.replace(/_/g, ' ')}</p>
                   </div>
                   <div>
-                    <p className="text-gray-400">User ID</p>
-                    <p className="text-white font-mono text-xs">{selectedViolation.user_id}</p>
+                    <p className="text-muted-foreground">User ID</p>
+                    <p className="text-foreground font-mono text-xs">{selectedViolation.user_id}</p>
                   </div>
                   {selectedViolation.distance_discrepancy_miles && (
                     <div>
-                      <p className="text-gray-400">Distance Discrepancy</p>
+                      <p className="text-muted-foreground">Distance Discrepancy</p>
                       <p className="text-red-400 font-bold">{selectedViolation.distance_discrepancy_miles} miles</p>
                     </div>
                   )}
@@ -1861,7 +1861,7 @@ export const AdminP1Dashboard = () => {
                     placeholder="Add notes for this appeal review..."
                     value={appealNotes}
                     onChange={(e) => setAppealNotes(e.target.value)}
-                    className="bg-zinc-800 border-zinc-700 text-white"
+                    className="bg-muted border-border text-foreground"
                     rows={3}
                   />
                   

@@ -58,8 +58,8 @@ export const AdminCommunicationsDashboard = () => {
   const [actionLoading, setActionLoading] = useState(false);
 
   const isLight = theme === 'light';
-  const cardBgClass = isLight ? 'bg-white border-gray-200' : 'bg-zinc-900/50 border-zinc-800';
-  const textClass = isLight ? 'text-gray-900' : 'text-white';
+  const cardBgClass = isLight ? 'bg-white border-gray-200' : 'bg-card/50 border-border';
+  const textClass = isLight ? 'text-gray-900' : 'text-foreground';
 
   useEffect(() => {
     if (user?.id) {
@@ -187,7 +187,7 @@ export const AdminCommunicationsDashboard = () => {
       case 'warning': return 'bg-yellow-500/20 text-yellow-400';
       case 'success': return 'bg-green-500/20 text-green-400';
       case 'urgent': return 'bg-red-500/20 text-red-400';
-      default: return 'bg-gray-500/20 text-gray-400';
+      default: return 'bg-gray-500/20 text-muted-foreground';
     }
   };
 
@@ -277,7 +277,7 @@ export const AdminCommunicationsDashboard = () => {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder={`Search ${activeTab}...`}
-            className="pl-9 bg-zinc-800 border-zinc-700"
+            className="pl-9 bg-muted border-border"
           />
         </div>
       </div>
@@ -306,7 +306,7 @@ export const AdminCommunicationsDashboard = () => {
                 ) : (
                   <div className="space-y-2 max-h-[400px] overflow-y-auto">
                     {filteredAnnouncements.map(ann => (
-                      <div key={ann.id} className="p-3 bg-zinc-800/50 rounded-lg">
+                      <div key={ann.id} className="p-3 bg-muted/50 rounded-lg">
                         <div className="flex items-start justify-between">
                           <div className="flex-1">
                             <div className="flex items-center gap-2 mb-1">
@@ -314,7 +314,7 @@ export const AdminCommunicationsDashboard = () => {
                               <Badge variant="outline" className="text-[10px]">{ann.target_audience}</Badge>
                             </div>
                             <h4 className={`font-medium ${textClass}`}>{ann.title}</h4>
-                            <p className="text-sm text-gray-400 mt-1 line-clamp-2">{ann.content}</p>
+                            <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{ann.content}</p>
                           </div>
                           <Switch checked={ann.is_active} onCheckedChange={() => handleToggleAnnouncement(ann.id)} />
                         </div>
@@ -344,12 +344,12 @@ export const AdminCommunicationsDashboard = () => {
                 ) : (
                   <div className="space-y-2 max-h-[400px] overflow-y-auto">
                     {filteredTemplates.map(tpl => (
-                      <div key={tpl.id} className="p-3 bg-zinc-800/50 rounded-lg">
+                      <div key={tpl.id} className="p-3 bg-muted/50 rounded-lg">
                         <div className="flex items-start justify-between">
                           <div>
                             <div className="flex items-center gap-2 mb-1">
                               <Badge variant="outline" className="text-[10px]">{tpl.template_type}</Badge>
-                              <Badge className="text-[10px] bg-zinc-700">{tpl.category}</Badge>
+                              <Badge className="text-[10px] bg-input">{tpl.category}</Badge>
                             </div>
                             <h4 className={`font-medium ${textClass}`}>{tpl.name}</h4>
                             {tpl.subject && <p className="text-xs text-gray-500">{tpl.subject}</p>}
@@ -384,21 +384,21 @@ export const AdminCommunicationsDashboard = () => {
                 ) : (
                   <div className="space-y-2 max-h-[400px] overflow-y-auto">
                     {filteredCampaigns.map(camp => (
-                      <div key={camp.id} className="p-3 bg-zinc-800/50 rounded-lg">
+                      <div key={camp.id} className="p-3 bg-muted/50 rounded-lg">
                         <div className="flex items-start justify-between">
                           <div className="flex-1">
                             <div className="flex items-center gap-2 mb-1">
                               <Badge className={`text-[10px] ${
                                 camp.status === 'sent' ? 'bg-green-500/20 text-green-400' :
                                 camp.status === 'draft' ? 'bg-yellow-500/20 text-yellow-400' :
-                                'bg-gray-500/20 text-gray-400'
+                                'bg-gray-500/20 text-muted-foreground'
                               }`}>{camp.status}</Badge>
                               <Badge variant="outline" className="text-[10px]">{camp.channel}</Badge>
                             </div>
                             <h4 className={`font-medium ${textClass}`}>{camp.name}</h4>
                             <p className="text-xs text-gray-500 mt-1">{camp.subject}</p>
                             {camp.total_sent > 0 && (
-                              <p className="text-xs text-gray-400 mt-1">
+                              <p className="text-xs text-muted-foreground mt-1">
                                 Sent: {camp.total_sent} • Open: {camp.total_opened} ({camp.open_rate}%)
                               </p>
                             )}
@@ -421,24 +421,24 @@ export const AdminCommunicationsDashboard = () => {
 
       {/* Announcement Form Modal */}
       <Dialog open={showAnnouncementForm} onOpenChange={setShowAnnouncementForm}>
-        <DialogContent className="bg-zinc-900 border-zinc-800 text-white">
+        <DialogContent className="bg-card border-border text-foreground">
           <DialogHeader>
             <DialogTitle>Create Announcement</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div>
               <label className="text-xs text-gray-500">Title</label>
-              <Input value={announcementForm.title} onChange={(e) => setAnnouncementForm({...announcementForm, title: e.target.value})} className="bg-zinc-800 border-zinc-700 mt-1" />
+              <Input value={announcementForm.title} onChange={(e) => setAnnouncementForm({...announcementForm, title: e.target.value})} className="bg-muted border-border mt-1" />
             </div>
             <div>
               <label className="text-xs text-gray-500">Content</label>
-              <Textarea value={announcementForm.content} onChange={(e) => setAnnouncementForm({...announcementForm, content: e.target.value})} className="bg-zinc-800 border-zinc-700 mt-1" rows={3} />
+              <Textarea value={announcementForm.content} onChange={(e) => setAnnouncementForm({...announcementForm, content: e.target.value})} className="bg-muted border-border mt-1" rows={3} />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="text-xs text-gray-500">Type</label>
                 <Select value={announcementForm.type} onValueChange={(v) => setAnnouncementForm({...announcementForm, type: v})}>
-                  <SelectTrigger className="bg-zinc-800 border-zinc-700 mt-1"><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="bg-muted border-border mt-1"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="info">Info</SelectItem>
                     <SelectItem value="warning">Warning</SelectItem>
@@ -450,7 +450,7 @@ export const AdminCommunicationsDashboard = () => {
               <div>
                 <label className="text-xs text-gray-500">Audience</label>
                 <Select value={announcementForm.target_audience} onValueChange={(v) => setAnnouncementForm({...announcementForm, target_audience: v})}>
-                  <SelectTrigger className="bg-zinc-800 border-zinc-700 mt-1"><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="bg-muted border-border mt-1"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Users</SelectItem>
                     <SelectItem value="photographers">Photographers</SelectItem>
@@ -472,28 +472,28 @@ export const AdminCommunicationsDashboard = () => {
 
       {/* Template Form Modal */}
       <Dialog open={showTemplateForm} onOpenChange={setShowTemplateForm}>
-        <DialogContent className="bg-zinc-900 border-zinc-800 text-white">
+        <DialogContent className="bg-card border-border text-foreground">
           <DialogHeader>
             <DialogTitle>Create Template</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div>
               <label className="text-xs text-gray-500">Name</label>
-              <Input value={templateForm.name} onChange={(e) => setTemplateForm({...templateForm, name: e.target.value})} placeholder="Welcome Email" className="bg-zinc-800 border-zinc-700 mt-1" />
+              <Input value={templateForm.name} onChange={(e) => setTemplateForm({...templateForm, name: e.target.value})} placeholder="Welcome Email" className="bg-muted border-border mt-1" />
             </div>
             <div>
               <label className="text-xs text-gray-500">Subject</label>
-              <Input value={templateForm.subject} onChange={(e) => setTemplateForm({...templateForm, subject: e.target.value})} className="bg-zinc-800 border-zinc-700 mt-1" />
+              <Input value={templateForm.subject} onChange={(e) => setTemplateForm({...templateForm, subject: e.target.value})} className="bg-muted border-border mt-1" />
             </div>
             <div>
               <label className="text-xs text-gray-500">Body</label>
-              <Textarea value={templateForm.body} onChange={(e) => setTemplateForm({...templateForm, body: e.target.value})} className="bg-zinc-800 border-zinc-700 mt-1" rows={4} placeholder="Use {{name}}, {{email}} for placeholders" />
+              <Textarea value={templateForm.body} onChange={(e) => setTemplateForm({...templateForm, body: e.target.value})} className="bg-muted border-border mt-1" rows={4} placeholder="Use {{name}}, {{email}} for placeholders" />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="text-xs text-gray-500">Type</label>
                 <Select value={templateForm.template_type} onValueChange={(v) => setTemplateForm({...templateForm, template_type: v})}>
-                  <SelectTrigger className="bg-zinc-800 border-zinc-700 mt-1"><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="bg-muted border-border mt-1"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="email">Email</SelectItem>
                     <SelectItem value="push">Push Notification</SelectItem>
@@ -504,7 +504,7 @@ export const AdminCommunicationsDashboard = () => {
               <div>
                 <label className="text-xs text-gray-500">Category</label>
                 <Select value={templateForm.category} onValueChange={(v) => setTemplateForm({...templateForm, category: v})}>
-                  <SelectTrigger className="bg-zinc-800 border-zinc-700 mt-1"><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="bg-muted border-border mt-1"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="general">General</SelectItem>
                     <SelectItem value="marketing">Marketing</SelectItem>
@@ -526,28 +526,28 @@ export const AdminCommunicationsDashboard = () => {
 
       {/* Campaign Form Modal */}
       <Dialog open={showCampaignForm} onOpenChange={setShowCampaignForm}>
-        <DialogContent className="bg-zinc-900 border-zinc-800 text-white">
+        <DialogContent className="bg-card border-border text-foreground">
           <DialogHeader>
             <DialogTitle>Create Campaign</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div>
               <label className="text-xs text-gray-500">Campaign Name</label>
-              <Input value={campaignForm.name} onChange={(e) => setCampaignForm({...campaignForm, name: e.target.value})} className="bg-zinc-800 border-zinc-700 mt-1" />
+              <Input value={campaignForm.name} onChange={(e) => setCampaignForm({...campaignForm, name: e.target.value})} className="bg-muted border-border mt-1" />
             </div>
             <div>
               <label className="text-xs text-gray-500">Subject</label>
-              <Input value={campaignForm.subject} onChange={(e) => setCampaignForm({...campaignForm, subject: e.target.value})} className="bg-zinc-800 border-zinc-700 mt-1" />
+              <Input value={campaignForm.subject} onChange={(e) => setCampaignForm({...campaignForm, subject: e.target.value})} className="bg-muted border-border mt-1" />
             </div>
             <div>
               <label className="text-xs text-gray-500">Body</label>
-              <Textarea value={campaignForm.body} onChange={(e) => setCampaignForm({...campaignForm, body: e.target.value})} className="bg-zinc-800 border-zinc-700 mt-1" rows={3} />
+              <Textarea value={campaignForm.body} onChange={(e) => setCampaignForm({...campaignForm, body: e.target.value})} className="bg-muted border-border mt-1" rows={3} />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="text-xs text-gray-500">Channel</label>
                 <Select value={campaignForm.channel} onValueChange={(v) => setCampaignForm({...campaignForm, channel: v})}>
-                  <SelectTrigger className="bg-zinc-800 border-zinc-700 mt-1"><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="bg-muted border-border mt-1"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="email">Email</SelectItem>
                     <SelectItem value="push">Push</SelectItem>
@@ -557,7 +557,7 @@ export const AdminCommunicationsDashboard = () => {
               <div>
                 <label className="text-xs text-gray-500">Audience</label>
                 <Select value={campaignForm.target_audience} onValueChange={(v) => setCampaignForm({...campaignForm, target_audience: v})}>
-                  <SelectTrigger className="bg-zinc-800 border-zinc-700 mt-1"><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="bg-muted border-border mt-1"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Users</SelectItem>
                     <SelectItem value="active">Active Users</SelectItem>

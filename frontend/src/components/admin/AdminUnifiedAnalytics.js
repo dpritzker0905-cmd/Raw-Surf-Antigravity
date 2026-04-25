@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import apiClient, { BACKEND_URL } from '../../lib/apiClient';
@@ -66,9 +66,9 @@ export const AdminUnifiedAnalytics = () => {
   const [actionLoading, setActionLoading] = useState(false);
 
   const isLight = theme === 'light';
-  const cardBgClass = isLight ? 'bg-white border-gray-200' : 'bg-zinc-900/50 border-zinc-800';
-  const textClass = isLight ? 'text-gray-900' : 'text-white';
-  const textSecondary = isLight ? 'text-gray-600' : 'text-gray-400';
+  const cardBgClass = isLight ? 'bg-white border-gray-200' : 'bg-card/50 border-border';
+  const textClass = isLight ? 'text-gray-900' : 'text-foreground';
+  const textSecondary = isLight ? 'text-gray-600' : 'text-muted-foreground';
 
   const getDays = () => {
     switch(timeRange) {
@@ -243,7 +243,7 @@ export const AdminUnifiedAnalytics = () => {
       case 'healthy': case 'excellent': case 'good': return 'text-green-400 bg-green-500/20';
       case 'warning': case 'needs_attention': return 'text-yellow-400 bg-yellow-500/20';
       case 'critical': return 'text-red-400 bg-red-500/20';
-      default: return 'text-gray-400 bg-gray-500/20';
+      default: return 'text-muted-foreground bg-gray-500/20';
     }
   };
 
@@ -253,7 +253,7 @@ export const AdminUnifiedAnalytics = () => {
         status === 'healthy' || status === 'excellent' || status === 'good' ? 'bg-green-400' :
         status === 'warning' || status === 'needs_attention' ? 'bg-yellow-400' : 'bg-red-400'
       }`} />
-      <span className="text-xs text-gray-400">{label}</span>
+      <span className="text-xs text-muted-foreground">{label}</span>
       <span className={`text-xs font-medium ${
         status === 'healthy' || status === 'excellent' || status === 'good' ? 'text-green-400' :
         status === 'warning' || status === 'needs_attention' ? 'text-yellow-400' : 'text-red-400'
@@ -287,7 +287,7 @@ export const AdminUnifiedAnalytics = () => {
         </div>
         <div className="flex items-center gap-2">
           <Select value={timeRange} onValueChange={setTimeRange}>
-            <SelectTrigger className="w-24 bg-zinc-800 border-zinc-700 h-8 text-xs">
+            <SelectTrigger className="w-24 bg-muted border-border h-8 text-xs">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -344,7 +344,7 @@ export const AdminUnifiedAnalytics = () => {
                           label="Match Rate" 
                         />
                         <HealthIndicator 
-                          score={healthScore.components.satisfaction.avg_rating.toFixed(1) + '★'} 
+                          score={healthScore.components.satisfaction.avg_rating.toFixed(1) + '?'} 
                           status={healthScore.components.satisfaction.status} 
                           label="Satisfaction" 
                         />
@@ -436,21 +436,21 @@ export const AdminUnifiedAnalytics = () => {
                     </CardHeader>
                     <CardContent>
                       <div className="grid grid-cols-2 gap-3">
-                        <div className="p-3 bg-zinc-800/50 rounded-lg">
+                        <div className="p-3 bg-muted/50 rounded-lg">
                           <p className="text-xs text-gray-500">Lifetime Value (LTV)</p>
-                          <p className="text-xl font-bold text-white">{formatCurrency(ltvCacData.ltv)}</p>
+                          <p className="text-xl font-bold text-foreground">{formatCurrency(ltvCacData.ltv)}</p>
                         </div>
-                        <div className="p-3 bg-zinc-800/50 rounded-lg">
+                        <div className="p-3 bg-muted/50 rounded-lg">
                           <p className="text-xs text-gray-500">Acquisition Cost (CAC)</p>
-                          <p className="text-xl font-bold text-white">{formatCurrency(ltvCacData.cac)}</p>
+                          <p className="text-xl font-bold text-foreground">{formatCurrency(ltvCacData.cac)}</p>
                         </div>
-                        <div className="p-3 bg-zinc-800/50 rounded-lg">
+                        <div className="p-3 bg-muted/50 rounded-lg">
                           <p className="text-xs text-gray-500">ARPU</p>
-                          <p className="text-lg font-bold text-white">{formatCurrency(ltvCacData.arpu)}</p>
+                          <p className="text-lg font-bold text-foreground">{formatCurrency(ltvCacData.arpu)}</p>
                         </div>
-                        <div className="p-3 bg-zinc-800/50 rounded-lg">
+                        <div className="p-3 bg-muted/50 rounded-lg">
                           <p className="text-xs text-gray-500">Churn Rate</p>
-                          <p className="text-lg font-bold text-white">{ltvCacData.churn_rate}%</p>
+                          <p className="text-lg font-bold text-foreground">{ltvCacData.churn_rate}%</p>
                         </div>
                       </div>
                       <div className="mt-3 flex items-center justify-between text-xs">
@@ -469,10 +469,10 @@ export const AdminUnifiedAnalytics = () => {
                     <CardContent>
                       <div className="space-y-2">
                         {Object.entries(revenueData.breakdown_by_type).slice(0, 6).map(([type, data]) => (
-                          <div key={type} className="flex items-center justify-between p-2 bg-zinc-800/50 rounded">
-                            <span className="text-xs text-gray-400 capitalize">{type.replace(/_/g, ' ')}</span>
+                          <div key={type} className="flex items-center justify-between p-2 bg-muted/50 rounded">
+                            <span className="text-xs text-muted-foreground capitalize">{type.replace(/_/g, ' ')}</span>
                             <div className="text-right">
-                              <span className="text-sm font-medium text-white">{formatCurrency(data.revenue)}</span>
+                              <span className="text-sm font-medium text-foreground">{formatCurrency(data.revenue)}</span>
                               <span className="text-xs text-gray-500 ml-2">({data.transactions} txns)</span>
                             </div>
                           </div>
@@ -502,7 +502,7 @@ export const AdminUnifiedAnalytics = () => {
                         </div>
                         <div>
                           <p className="text-xs text-gray-500">Liquidity Score</p>
-                          <p className="text-2xl font-bold text-white">{liquidityData.liquidity_score}</p>
+                          <p className="text-2xl font-bold text-foreground">{liquidityData.liquidity_score}</p>
                           <Badge className={getStatusColor(liquidityData.health_status)}>
                             {liquidityData.health_status.replace('_', ' ')}
                           </Badge>
@@ -516,15 +516,15 @@ export const AdminUnifiedAnalytics = () => {
                       <p className="text-xs text-gray-500 mb-3">Supply Side</p>
                       <div className="space-y-2">
                         <div className="flex justify-between">
-                          <span className="text-xs text-gray-400">Total Photographers</span>
-                          <span className="text-sm font-medium text-white">{liquidityData.supply.total_photographers}</span>
+                          <span className="text-xs text-muted-foreground">Total Photographers</span>
+                          <span className="text-sm font-medium text-foreground">{liquidityData.supply.total_photographers}</span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-xs text-gray-400">Active ({timeRange})</span>
+                          <span className="text-xs text-muted-foreground">Active ({timeRange})</span>
                           <span className="text-sm font-medium text-green-400">{liquidityData.supply.active_photographers}</span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-xs text-gray-400">Utilization Rate</span>
+                          <span className="text-xs text-muted-foreground">Utilization Rate</span>
                           <span className="text-sm font-medium text-cyan-400">{liquidityData.supply.utilization_rate}%</span>
                         </div>
                       </div>
@@ -536,15 +536,15 @@ export const AdminUnifiedAnalytics = () => {
                       <p className="text-xs text-gray-500 mb-3">Demand Side</p>
                       <div className="space-y-2">
                         <div className="flex justify-between">
-                          <span className="text-xs text-gray-400">Total Bookings</span>
-                          <span className="text-sm font-medium text-white">{liquidityData.demand.total_bookings}</span>
+                          <span className="text-xs text-muted-foreground">Total Bookings</span>
+                          <span className="text-sm font-medium text-foreground">{liquidityData.demand.total_bookings}</span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-xs text-gray-400">Match Rate</span>
+                          <span className="text-xs text-muted-foreground">Match Rate</span>
                           <span className="text-sm font-medium text-green-400">{liquidityData.demand.match_rate}%</span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-xs text-gray-400">Completion Rate</span>
+                          <span className="text-xs text-muted-foreground">Completion Rate</span>
                           <span className="text-sm font-medium text-cyan-400">{liquidityData.demand.completion_rate}%</span>
                         </div>
                       </div>
@@ -569,12 +569,12 @@ export const AdminUnifiedAnalytics = () => {
                       ) : (
                         <div className="space-y-2">
                           {topPerformers.top_photographers.map((p, idx) => (
-                            <div key={p.id} className="flex items-center gap-3 p-2 bg-zinc-800/50 rounded">
+                            <div key={p.id} className="flex items-center gap-3 p-2 bg-muted/50 rounded">
                               <span className={`w-5 h-5 flex items-center justify-center rounded-full text-xs font-bold ${
-                                idx === 0 ? 'bg-yellow-500 text-black' : idx === 1 ? 'bg-gray-400 text-black' : idx === 2 ? 'bg-orange-600 text-white' : 'bg-zinc-700 text-gray-300'
+                                idx === 0 ? 'bg-yellow-500 text-black' : idx === 1 ? 'bg-gray-400 text-black' : idx === 2 ? 'bg-orange-600 text-white' : 'bg-input text-gray-300'
                               }`}>{idx + 1}</span>
                               <div className="flex-1 min-w-0">
-                                <p className="text-sm font-medium text-white truncate">{p.name}</p>
+                                <p className="text-sm font-medium text-foreground truncate">{p.name}</p>
                                 <p className="text-xs text-gray-500">{p.bookings} bookings</p>
                               </div>
                               <span className="text-sm font-bold text-green-400">{formatCurrency(p.revenue)}</span>
@@ -598,12 +598,12 @@ export const AdminUnifiedAnalytics = () => {
                       ) : (
                         <div className="space-y-2">
                           {topPerformers.top_spots.map((s, idx) => (
-                            <div key={s.id} className="flex items-center gap-3 p-2 bg-zinc-800/50 rounded">
+                            <div key={s.id} className="flex items-center gap-3 p-2 bg-muted/50 rounded">
                               <span className={`w-5 h-5 flex items-center justify-center rounded-full text-xs font-bold ${
-                                idx === 0 ? 'bg-blue-500 text-white' : 'bg-zinc-700 text-gray-300'
+                                idx === 0 ? 'bg-blue-500 text-white' : 'bg-input text-gray-300'
                               }`}>{idx + 1}</span>
                               <div className="flex-1 min-w-0">
-                                <p className="text-sm font-medium text-white truncate">{s.name}</p>
+                                <p className="text-sm font-medium text-foreground truncate">{s.name}</p>
                                 <p className="text-xs text-gray-500">{s.location}</p>
                               </div>
                               <span className="text-sm font-bold text-green-400">{formatCurrency(s.revenue)}</span>
@@ -640,13 +640,13 @@ export const AdminUnifiedAnalytics = () => {
                           spot.status === 'balanced' ? 'border-green-500/30 bg-green-500/5' :
                           spot.status === 'underserved' ? 'border-yellow-500/30 bg-yellow-500/5' :
                           spot.status === 'oversupplied' ? 'border-blue-500/30 bg-blue-500/5' :
-                          'border-zinc-700 bg-zinc-800/50'
+                          'border-border bg-muted/50'
                         }`}>
-                          <p className="text-xs font-medium text-white truncate">{spot.name}</p>
+                          <p className="text-xs font-medium text-foreground truncate">{spot.name}</p>
                           <p className="text-[10px] text-gray-500">{spot.country}</p>
                           <div className="flex justify-between mt-1 text-[10px]">
-                            <span className="text-gray-400">D: {spot.demand}</span>
-                            <span className="text-gray-400">S: {spot.supply}</span>
+                            <span className="text-muted-foreground">D: {spot.demand}</span>
+                            <span className="text-muted-foreground">S: {spot.supply}</span>
                           </div>
                         </div>
                       ))}
@@ -670,13 +670,13 @@ export const AdminUnifiedAnalytics = () => {
                     <div className="space-y-3">
                       {funnelData.funnel?.map((stage, _idx) => (
                         <div key={stage.stage} className="flex items-center gap-3">
-                          <div className="w-32 text-xs text-gray-400">{stage.stage}</div>
-                          <div className="flex-1 relative h-8 bg-zinc-800 rounded-full overflow-hidden">
+                          <div className="w-32 text-xs text-muted-foreground">{stage.stage}</div>
+                          <div className="flex-1 relative h-8 bg-muted rounded-full overflow-hidden">
                             <div 
                               className="absolute inset-y-0 left-0 bg-gradient-to-r from-cyan-500 to-teal-500 rounded-full transition-all"
                               style={{ width: `${stage.conversion_rate}%` }}
                             />
-                            <span className="absolute inset-0 flex items-center justify-center text-xs text-white font-medium">
+                            <span className="absolute inset-0 flex items-center justify-center text-xs text-foreground font-medium">
                               {stage.count} ({stage.conversion_rate}%)
                             </span>
                           </div>
@@ -712,9 +712,9 @@ export const AdminUnifiedAnalytics = () => {
                         </thead>
                         <tbody>
                           {cohortData.cohorts.slice(0, 6).map(cohort => (
-                            <tr key={cohort.cohort_month} className="border-t border-zinc-800">
-                              <td className="p-2 text-white font-medium">{cohort.cohort_month}</td>
-                              <td className="p-2 text-center text-gray-400">{cohort.cohort_size}</td>
+                            <tr key={cohort.cohort_month} className="border-t border-border">
+                              <td className="p-2 text-foreground font-medium">{cohort.cohort_month}</td>
+                              <td className="p-2 text-center text-muted-foreground">{cohort.cohort_size}</td>
                               {[0,1,2,3,4,5].map(m => {
                                 const retention = cohort.retention[`month_${m}`];
                                 const bgOpacity = retention !== undefined ? Math.min(retention / 100, 1) : 0;
@@ -722,7 +722,7 @@ export const AdminUnifiedAnalytics = () => {
                                   <td key={m} className="p-2 text-center">
                                     {retention !== undefined ? (
                                       <span 
-                                        className="px-2 py-1 rounded text-white font-medium"
+                                        className="px-2 py-1 rounded text-foreground font-medium"
                                         style={{ 
                                           backgroundColor: `rgba(34, 211, 238, ${bgOpacity * 0.5})`,
                                           color: retention >= 50 ? '#fff' : retention >= 25 ? '#d1d5db' : '#9ca3af'
@@ -771,15 +771,15 @@ export const AdminUnifiedAnalytics = () => {
                           <div className="flex items-center gap-3">
                             <Gift className="w-5 h-5 text-green-400" />
                             <div>
-                              <code className="font-bold text-white bg-zinc-800 px-2 py-0.5 rounded text-sm">{p.code}</code>
+                              <code className="font-bold text-foreground bg-muted px-2 py-0.5 rounded text-sm">{p.code}</code>
                               <p className="text-xs text-gray-500 mt-0.5">
                                 {p.code_type === 'percentage' ? `${p.discount_value}% off` : `$${p.discount_value} off`}
-                                {p.campaign_name && ` • ${p.campaign_name}`}
+                                {p.campaign_name && ` � ${p.campaign_name}`}
                               </p>
                             </div>
                           </div>
                           <div className="flex items-center gap-3">
-                            <span className="text-xs text-gray-400">{p.current_uses}/{p.max_uses || '∞'}</span>
+                            <span className="text-xs text-muted-foreground">{p.current_uses}/{p.max_uses || '8'}</span>
                             <Switch checked={p.is_active} onCheckedChange={() => handleTogglePromo(p.id)} />
                           </div>
                         </CardContent>
@@ -810,7 +810,7 @@ export const AdminUnifiedAnalytics = () => {
                       <Card key={f.id} className={cardBgClass}>
                         <CardContent className="p-3 flex items-center justify-between">
                           <div>
-                            <code className="text-sm font-mono text-white bg-zinc-800 px-2 py-0.5 rounded">{f.key}</code>
+                            <code className="text-sm font-mono text-foreground bg-muted px-2 py-0.5 rounded">{f.key}</code>
                             <p className="text-sm text-gray-300 mt-1">{f.name}</p>
                             <p className="text-xs text-gray-500">Rollout: {f.rollout_percentage}%</p>
                           </div>
@@ -844,7 +844,7 @@ export const AdminUnifiedAnalytics = () => {
                         <CardContent className="p-3 flex items-center justify-between">
                           <div>
                             <div className="flex items-center gap-2">
-                              <p className="font-medium text-white">{c.name}</p>
+                              <p className="font-medium text-foreground">{c.name}</p>
                               <Badge className={`text-xs ${
                                 c.status === 'sent' ? 'bg-green-500/20 text-green-400' : 'bg-yellow-500/20 text-yellow-400'
                               }`}>{c.status}</Badge>
@@ -869,18 +869,18 @@ export const AdminUnifiedAnalytics = () => {
 
       {/* Create Promo Modal */}
       <Dialog open={showCreatePromo} onOpenChange={setShowCreatePromo}>
-        <DialogContent className="bg-zinc-900 border-zinc-800 text-white">
+        <DialogContent className="bg-card border-border text-foreground">
           <DialogHeader><DialogTitle>Create Promo Code</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <div>
-              <label className="text-sm text-gray-400">Code</label>
-              <Input value={newPromo.code} onChange={(e) => setNewPromo({...newPromo, code: e.target.value.toUpperCase()})} placeholder="SUMMER2026" className="bg-zinc-800 border-zinc-700 mt-1" />
+              <label className="text-sm text-muted-foreground">Code</label>
+              <Input value={newPromo.code} onChange={(e) => setNewPromo({...newPromo, code: e.target.value.toUpperCase()})} placeholder="SUMMER2026" className="bg-muted border-border mt-1" />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="text-sm text-gray-400">Type</label>
+                <label className="text-sm text-muted-foreground">Type</label>
                 <Select value={newPromo.code_type} onValueChange={(v) => setNewPromo({...newPromo, code_type: v})}>
-                  <SelectTrigger className="bg-zinc-800 border-zinc-700 mt-1"><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="bg-muted border-border mt-1"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="percentage">Percentage Off</SelectItem>
                     <SelectItem value="fixed_amount">Fixed Amount</SelectItem>
@@ -888,8 +888,8 @@ export const AdminUnifiedAnalytics = () => {
                 </Select>
               </div>
               <div>
-                <label className="text-sm text-gray-400">{newPromo.code_type === 'percentage' ? 'Percentage' : 'Amount'}</label>
-                <Input type="number" value={newPromo.discount_value} onChange={(e) => setNewPromo({...newPromo, discount_value: parseFloat(e.target.value) || 0})} className="bg-zinc-800 border-zinc-700 mt-1" />
+                <label className="text-sm text-muted-foreground">{newPromo.code_type === 'percentage' ? 'Percentage' : 'Amount'}</label>
+                <Input type="number" value={newPromo.discount_value} onChange={(e) => setNewPromo({...newPromo, discount_value: parseFloat(e.target.value) || 0})} className="bg-muted border-border mt-1" />
               </div>
             </div>
           </div>
@@ -902,20 +902,20 @@ export const AdminUnifiedAnalytics = () => {
 
       {/* Create Flag Modal */}
       <Dialog open={showCreateFlag} onOpenChange={setShowCreateFlag}>
-        <DialogContent className="bg-zinc-900 border-zinc-800 text-white">
+        <DialogContent className="bg-card border-border text-foreground">
           <DialogHeader><DialogTitle>Create Feature Flag</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <div>
-              <label className="text-sm text-gray-400">Key (snake_case)</label>
-              <Input value={newFlag.key} onChange={(e) => setNewFlag({...newFlag, key: e.target.value.toLowerCase().replace(/\s/g, '_')})} placeholder="new_feature" className="bg-zinc-800 border-zinc-700 mt-1 font-mono" />
+              <label className="text-sm text-muted-foreground">Key (snake_case)</label>
+              <Input value={newFlag.key} onChange={(e) => setNewFlag({...newFlag, key: e.target.value.toLowerCase().replace(/\s/g, '_')})} placeholder="new_feature" className="bg-muted border-border mt-1 font-mono" />
             </div>
             <div>
-              <label className="text-sm text-gray-400">Name</label>
-              <Input value={newFlag.name} onChange={(e) => setNewFlag({...newFlag, name: e.target.value})} placeholder="New Feature" className="bg-zinc-800 border-zinc-700 mt-1" />
+              <label className="text-sm text-muted-foreground">Name</label>
+              <Input value={newFlag.name} onChange={(e) => setNewFlag({...newFlag, name: e.target.value})} placeholder="New Feature" className="bg-muted border-border mt-1" />
             </div>
             <div>
-              <label className="text-sm text-gray-400">Rollout %</label>
-              <Input type="number" min="0" max="100" value={newFlag.rollout_percentage} onChange={(e) => setNewFlag({...newFlag, rollout_percentage: parseInt(e.target.value) || 0})} className="bg-zinc-800 border-zinc-700 mt-1" />
+              <label className="text-sm text-muted-foreground">Rollout %</label>
+              <Input type="number" min="0" max="100" value={newFlag.rollout_percentage} onChange={(e) => setNewFlag({...newFlag, rollout_percentage: parseInt(e.target.value) || 0})} className="bg-muted border-border mt-1" />
             </div>
           </div>
           <DialogFooter>
@@ -927,20 +927,20 @@ export const AdminUnifiedAnalytics = () => {
 
       {/* Create Campaign Modal */}
       <Dialog open={showCreateCampaign} onOpenChange={setShowCreateCampaign}>
-        <DialogContent className="bg-zinc-900 border-zinc-800 text-white">
+        <DialogContent className="bg-card border-border text-foreground">
           <DialogHeader><DialogTitle>Create Push Campaign</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <div>
-              <label className="text-sm text-gray-400">Campaign Name</label>
-              <Input value={newCampaign.name} onChange={(e) => setNewCampaign({...newCampaign, name: e.target.value})} placeholder="Summer Promo" className="bg-zinc-800 border-zinc-700 mt-1" />
+              <label className="text-sm text-muted-foreground">Campaign Name</label>
+              <Input value={newCampaign.name} onChange={(e) => setNewCampaign({...newCampaign, name: e.target.value})} placeholder="Summer Promo" className="bg-muted border-border mt-1" />
             </div>
             <div>
-              <label className="text-sm text-gray-400">Notification Title</label>
-              <Input value={newCampaign.title} onChange={(e) => setNewCampaign({...newCampaign, title: e.target.value})} placeholder="Don't miss out!" className="bg-zinc-800 border-zinc-700 mt-1" />
+              <label className="text-sm text-muted-foreground">Notification Title</label>
+              <Input value={newCampaign.title} onChange={(e) => setNewCampaign({...newCampaign, title: e.target.value})} placeholder="Don't miss out!" className="bg-muted border-border mt-1" />
             </div>
             <div>
-              <label className="text-sm text-gray-400">Body</label>
-              <Textarea value={newCampaign.body} onChange={(e) => setNewCampaign({...newCampaign, body: e.target.value})} placeholder="Your message..." className="bg-zinc-800 border-zinc-700 mt-1" />
+              <label className="text-sm text-muted-foreground">Body</label>
+              <Textarea value={newCampaign.body} onChange={(e) => setNewCampaign({...newCampaign, body: e.target.value})} placeholder="Your message..." className="bg-muted border-border mt-1" />
             </div>
           </div>
           <DialogFooter>
