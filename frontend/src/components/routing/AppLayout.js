@@ -24,6 +24,7 @@ import { useWebRTCCall, CALL_STATE } from '../../hooks/useWebRTCCall';
 import IncomingCallModal from '../messages/IncomingCallModal';
 import OutgoingCallModal from '../messages/OutgoingCallModal';
 import InCallView from '../messages/InCallView';
+import PermissionDeniedModal from '../messages/PermissionDeniedModal';
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
@@ -132,6 +133,13 @@ const CallManager = () => {
           facingMode={call.facingMode}
           onEndCall={call.endCall}
           onReplaceVideoTrack={call.replaceVideoTrack}
+        />
+      )}
+      {/* Permission denied modal — guides user to Settings */}
+      {call.permissionDenied && (
+        <PermissionDeniedModal
+          onRetry={call.retryAfterPermission}
+          onDismiss={call.dismissPermissionModal}
         />
       )}
     </>

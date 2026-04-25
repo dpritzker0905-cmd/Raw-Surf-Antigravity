@@ -158,6 +158,7 @@ export function useWebRTCCall(userId, userInfo = {}) {
   const [callDuration, setCallDuration] = useState(0);
   const [remoteUserInfo, setRemoteUserInfo] = useState(null); // { id, name, avatar }
   const [connectionQuality, setConnectionQuality] = useState('good'); // good, fair, poor
+  const [permissionDenied, setPermissionDenied] = useState(false); // true when camera/mic blocked
 
   // Refs (avoid re-renders for WebRTC internals)
   const peerConnection = useRef(null);
@@ -627,17 +628,8 @@ export function useWebRTCCall(userId, userInfo = {}) {
     } catch (err) {
       console.error('[WebRTC] Failed to start call:', err);
       if (err.name === 'NotAllowedError') {
-        if (isIOS) {
-          toast.error(
-            'Camera/Mic blocked. Go to iPhone Settings → Apps → Safari → Camera & Microphone → set to "Allow".',
-            { duration: 8000 }
-          );
-        } else {
-          toast.error(
-            'Camera/Microphone access denied. Click the 🔒 icon in your address bar to allow access, then try again.',
-            { duration: 6000 }
-          );
-        }
+        // Show the full permission-denied modal instead of a toast
+        setPermissionDenied(true);
       } else if (err.name === 'NotFoundError') {
         toast.error('No camera or microphone found on this device.');
       } else {
@@ -717,17 +709,8 @@ export function useWebRTCCall(userId, userInfo = {}) {
     } catch (err) {
       console.error('[WebRTC] Failed to answer call:', err);
       if (err.name === 'NotAllowedError') {
-        if (isIOS) {
-          toast.error(
-            'Camera/Mic blocked. Go to iPhone Settings → Apps → Safari → Camera & Microphone → set to "Allow".',
-            { duration: 8000 }
-          );
-        } else {
-          toast.error(
-            'Camera/Microphone access denied. Click the 🔒 icon in your address bar to allow access, then try again.',
-            { duration: 6000 }
-          );
-        }
+        // Show the full permission-denied modal instead of a toast
+        setPermissionDenied(true);
       } else if (err.name === 'NotFoundError') {
         toast.error('No camera or microphone found on this device.');
       } else {
@@ -1030,6 +1013,7 @@ export function useWebRTCCall(userId, userInfo = {}) {
     callDuration,
     remoteUserInfo,
     connectionQuality,
+    permissionDenied,
     // Actions
     startCall,
     answerCall,
@@ -1040,5 +1024,10 @@ export function useWebRTCCall(userId, userInfo = {}) {
     flipCamera,
     facingMode,
     replaceVideoTrack,
+    dismissPermissionModal: () => setPermissionDenied(false),
+    retryAfterPermission: () => {
+      setPermissionDenied(false);
+      toast.success('Permissions updated! Try your call again.', { duration: 3000 });
+    },
   };
 }
