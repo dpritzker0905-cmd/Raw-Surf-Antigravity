@@ -1113,7 +1113,6 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
                       placeholder="Spot name (e.g. North side of pier)"
                       className={`${isLight ? 'bg-white' : 'bg-card/80'}`}
                       autoFocus
-                      onFocus={(e) => setTimeout(() => e.target.scrollIntoView({ block: 'center', behavior: 'smooth' }), 300)}
                       data-testid="custom-location-input"
                     />
                     <Input
@@ -1121,7 +1120,6 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
                       onChange={(e) => setCustomLocationAddress(e.target.value)}
                       placeholder="Street address (e.g. 401 Meade Ave, Cocoa Beach, FL)"
                       className={`${isLight ? 'bg-white' : 'bg-card/80'}`}
-                      onFocus={(e) => setTimeout(() => e.target.scrollIntoView({ block: 'center', behavior: 'smooth' }), 300)}
                       data-testid="custom-location-address"
                     />
                     <p className={`text-xs ${textSecondary} mt-1`}>
@@ -2259,7 +2257,7 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
                 {selectedSpot ? (
                   <><MapPin className="w-5 h-5 mr-2" />{selectedSpot.name}</>
                 ) : useCustomLocation ? (
-                  <><MapPin className="w-5 h-5 mr-2" />{customLocationName || 'Enter Location'}</>
+                  <><MapPin className="w-5 h-5 mr-2" />Continue</>
                 ) : (
                   <><Navigation className="w-5 h-5 mr-2" />Use My Location</>
                 )}
