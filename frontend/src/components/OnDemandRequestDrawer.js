@@ -340,42 +340,31 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
     return () => clearTimeout(timeoutId);
   }, [newCrewInput, user?.id, crewMembers]);
   
-  // ============ MOBILE KEYBOARD: VISUAL VIEWPORT TRACKING ============
-  // When the on-screen keyboard opens on mobile, window.visualViewport shrinks.
-  // We track this and set a CSS variable so the dialog resizes to stay above
-  // the keyboard. Without this, the custom location inputs get hidden.
+  // ============ MOBILE KEYBOARD: TRACK OPEN STATE ============
+  // We no longer manipulate --keyboard-offset (that was pushing the dialog
+  // bottom up and crushing the footer into the content). Instead, we simply
+  // track whether the keyboard is open so we can hide the spots list and
+  // give the custom-location inputs breathing room.
   const scrollContainerRef = useRef(null);
+  const [keyboardOpen, setKeyboardOpen] = useState(false);
   
   useEffect(() => {
     const vv = window.visualViewport;
     if (!vv) return; // Desktop or unsupported browser
     
-    // Only active on mobile-sized screens (dialog is bottom-sheet on < sm)
     const isMobile = () => window.innerWidth < 640;
     
     const handleResize = () => {
-      if (!isMobile()) return;
-      
-      // Calculate how much the viewport shrank (keyboard height)
-      const keyboardHeight = window.innerHeight - vv.height;
-      
-      // Update CSS custom property on root for dialog to consume
-      if (keyboardHeight > 50) {
-        // Keyboard is open — shrink dialog bottom offset
-        document.documentElement.style.setProperty(
-          '--keyboard-offset', `${keyboardHeight}px`
-        );
-      } else {
-        // Keyboard closed — reset
-        document.documentElement.style.removeProperty('--keyboard-offset');
+      if (!isMobile()) {
+        setKeyboardOpen(false);
+        return;
       }
+      const keyboardHeight = window.innerHeight - vv.height;
+      setKeyboardOpen(keyboardHeight > 100);
     };
     
     vv.addEventListener('resize', handleResize);
-    return () => {
-      vv.removeEventListener('resize', handleResize);
-      document.documentElement.style.removeProperty('--keyboard-offset');
-    };
+    return () => vv.removeEventListener('resize', handleResize);
   }, []);
   
   const isLight = theme === 'light';
@@ -913,7 +902,8 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
               </div>
             </div>
 
-            {/* Search / Filter */}
+            {/* Search / Filter — hidden when typing custom location on mobile */}
+            {!(keyboardOpen && useCustomLocation) && (
             <div className="relative">
               <Search className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${textSecondary}`} />
               <Input
@@ -924,6 +914,7 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
                 data-testid="spot-search-input"
               />
             </div>
+            )}
 
             {/* Spots List */}
             {loadingSpots ? (
@@ -933,7 +924,8 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
               </div>
             ) : (
               <div className="space-y-2 max-h-[40vh] sm:max-h-[320px] overflow-y-auto pr-1" style={{ WebkitOverflowScrolling: 'touch' }}>
-                {/* Use Current Location option */}
+                {/* Use Current Location — hidden when typing custom location */}
+                {!(keyboardOpen && useCustomLocation) && (
                 <button
                   onClick={() => {
                     setSelectedSpot(null);
@@ -962,9 +954,10 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
                     {!selectedSpot && !useCustomLocation && <Check className="w-3 h-3 text-black" />}
                   </div>
                 </button>
+                )}
 
-                {/* Recently Visited Spots */}
-                {recentSpots.length > 0 && !spotSearchQuery && (
+                {/* Recently Visited Spots — hidden when typing custom location */}
+                {!(keyboardOpen && useCustomLocation) && recentSpots.length > 0 && !spotSearchQuery && (
                   <>
                     <div className={`flex items-center gap-2 mt-3 mb-1 px-1`}>
                       <History className={`w-3.5 h-3.5 ${textSecondary}`} />
@@ -1026,8 +1019,8 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
                   </>
                 )}
 
-                {/* Nearby Mapped Spots */}
-                {nearbySpots
+                {/* Nearby Mapped Spots — hidden when typing custom location */}
+                {!(keyboardOpen && useCustomLocation) && nearbySpots
                   .filter(s => !spotSearchQuery || s.name?.toLowerCase().includes(spotSearchQuery.toLowerCase()) || s.region?.toLowerCase().includes(spotSearchQuery.toLowerCase()))
                   .slice(0, 20)
                   .map((spot) => (
@@ -1141,8 +1134,8 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
               </div>
             )}
 
-            {/* Selected spot summary */}
-            {(selectedSpot || useCustomLocation) && (
+            {/* Selected spot summary — hidden when keyboard is up */}
+            {!keyboardOpen && (selectedSpot || useCustomLocation) && (
               <div className={`flex items-center gap-3 p-3 rounded-xl ${isLight ? 'bg-green-50' : 'bg-green-500/10'} border border-green-400/30`}>
                 <MapPin className="w-4 h-4 text-green-400 flex-shrink-0" />
                 <div className="flex-1 min-w-0">

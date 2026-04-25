@@ -78,14 +78,10 @@
    capped at only the lower half of the viewport (~270px on a laptop).
    ─────────────────────────────────────────────────────────────────── */
 .dialog-safe-bottom {
-  /* Mobile: clear the BottomNav + Create button protrusion.
-     When the soft keyboard is open, --keyboard-offset is set by JS
-     (via visualViewport listener) and pushes the dialog bottom up
-     so the focused input stays visible above the keyboard. */
-  bottom: calc(var(--keyboard-offset, 0px) + var(--safe-bottom, 84px));
-  /* When keyboard is open, also shrink the dialog height */
-  transition: bottom 0.15s ease-out;
+  /* Mobile: clear the BottomNav + Create button protrusion. */
+  bottom: var(--safe-bottom, 84px);
 }
+
 
 /* Desktop: dialog must be freely centered — bottom: auto lets it
    expand to max-h-[90vh] without any top/bottom clamping */
