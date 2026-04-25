@@ -26,3 +26,12 @@
   from = "/*"
   to = "/index.html"
   status = 200
+
+# ── HTTP Headers ─────────────────────────────────────────────────────────
+# Explicitly allow camera, microphone, and display-capture for WebRTC.
+# Without this, some CDN/browser combos silently deny getUserMedia.
+[[headers]]
+  for = "/*"
+  [headers.values]
+    Permissions-Policy = "camera=(self), microphone=(self), display-capture=(self), fullscreen=(self), geolocation=(self)"
+

@@ -57,6 +57,10 @@ export const CALL_STATE = {
   ENDED: 'ended',           // call finished
 };
 
+// Detect iOS for platform-specific permission guidance
+const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+  (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
 /**
  * Robust getUserMedia with sequential permission requests for iOS Safari.
  *
@@ -76,6 +80,22 @@ export const CALL_STATE = {
  *   Single { audio: true } request.
  */
 async function getMediaStream(type = 'audio', facingMode = 'user') {
+  // ── Pre-flight: Check if permissions are permanently denied ──
+  // navigator.permissions.query is NOT available for camera/mic on Safari,
+  // so we skip this check on iOS and rely on the getUserMedia error instead.
+  if (!isIOS && navigator.permissions?.query) {
+    try {
+      const micPerm = await navigator.permissions.query({ name: 'microphone' });
+      if (micPerm.state === 'denied') {
+        console.warn('[WebRTC] Microphone permission permanently denied');
+        throw Object.assign(new DOMException('Microphone permanently denied', 'NotAllowedError'), { _permanentlyDenied: true });
+      }
+    } catch (e) {
+      if (e._permanentlyDenied) throw e;
+      // permissions.query not supported for this name — continue
+    }
+  }
+
   // ── Step 1: Always acquire audio first ──
   let audioStream;
   try {
@@ -607,7 +627,19 @@ export function useWebRTCCall(userId, userInfo = {}) {
     } catch (err) {
       console.error('[WebRTC] Failed to start call:', err);
       if (err.name === 'NotAllowedError') {
-        toast.error('Camera/Microphone access denied. Check your browser permissions.');
+        if (isIOS) {
+          toast.error(
+            'Camera/Mic blocked. Go to iPhone Settings → Apps → Safari → Camera & Microphone → set to "Allow".',
+            { duration: 8000 }
+          );
+        } else {
+          toast.error(
+            'Camera/Microphone access denied. Click the 🔒 icon in your address bar to allow access, then try again.',
+            { duration: 6000 }
+          );
+        }
+      } else if (err.name === 'NotFoundError') {
+        toast.error('No camera or microphone found on this device.');
       } else {
         toast.error('Failed to start call');
       }
@@ -685,7 +717,19 @@ export function useWebRTCCall(userId, userInfo = {}) {
     } catch (err) {
       console.error('[WebRTC] Failed to answer call:', err);
       if (err.name === 'NotAllowedError') {
-        toast.error('Camera/Microphone access denied.');
+        if (isIOS) {
+          toast.error(
+            'Camera/Mic blocked. Go to iPhone Settings → Apps → Safari → Camera & Microphone → set to "Allow".',
+            { duration: 8000 }
+          );
+        } else {
+          toast.error(
+            'Camera/Microphone access denied. Click the 🔒 icon in your address bar to allow access, then try again.',
+            { duration: 6000 }
+          );
+        }
+      } else if (err.name === 'NotFoundError') {
+        toast.error('No camera or microphone found on this device.');
       } else {
         toast.error('Failed to answer call');
       }
