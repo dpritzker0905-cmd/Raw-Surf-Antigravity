@@ -346,6 +346,24 @@ export const PhotographerGalleryManager = () => {
     }
   };
 
+  // Set a specific item as gallery cover/thumbnail
+  const handleSetAsCover = async (item) => {
+    const coverUrl = item.preview_url || item.thumbnail_url;
+    if (!coverUrl) {
+      toast.error('This item has no preview image');
+      return;
+    }
+    try {
+      await apiClient.put(`/galleries/${galleryId}?photographer_id=${user?.id}`, {
+        cover_image_url: coverUrl
+      });
+      setGallery(prev => ({ ...prev, cover_image_url: coverUrl }));
+      toast.success('Gallery cover updated!');
+    } catch (error) {
+      toast.error('Failed to update cover image');
+    }
+  };
+
   // AI Tagging Functions
   const handleOpenTagging = async (item) => {
     setSelectedItem(item);
@@ -1215,6 +1233,13 @@ export const PhotographerGalleryManager = () => {
                     ${item.custom_price}
                   </Badge>
                 )}
+
+                {/* Cover image indicator */}
+                {gallery?.cover_image_url && (item.preview_url === gallery.cover_image_url || item.thumbnail_url === gallery.cover_image_url) && (
+                  <Badge className="absolute bottom-2 right-2 bg-cyan-500/90 text-black text-[9px] gap-0.5 px-1.5">
+                    <ImageIcon className="w-2.5 h-2.5" /> Cover
+                  </Badge>
+                )}
                 
                 {/* Hover overlay with actions */}
                 {!bulkMode && (
@@ -1260,6 +1285,9 @@ export const PhotographerGalleryManager = () => {
                           <DollarSign className="w-4 h-4 mr-2" /> Set Custom Price
                         </DropdownMenuItem>
                       )}
+                      <DropdownMenuItem onClick={() => handleSetAsCover(item)}>
+                        <ImageIcon className="w-4 h-4 mr-2" /> Set as Cover
+                      </DropdownMenuItem>
                       <DropdownMenuSeparator />
                       <DropdownMenuItem 
                         onClick={() => handleDeleteItem(item.id)}
