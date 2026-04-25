@@ -528,11 +528,23 @@ export function useWebRTCCall(userId, userInfo = {}) {
     try {
       // Pre-warm iOS audio pipeline during user gesture
       unlockAudioNow();
-      // ── Grom Permission Check ──
+
+      // ⚠️ iOS Safari CRITICAL: getUserMedia MUST be the first async call
+      // after the user tap gesture. Any prior await (API call, setState flush)
+      // will invalidate the gesture context and iOS will reject with NotAllowedError.
+      const stream = await getMediaStream(type, facingMode);
+      localStreamRef.current = stream;
+      setLocalStream(stream);
+
+      // ── Grom Permission Check (safe to do after getUserMedia) ──
       try {
         const permRes = await apiClient.get(`/grom-hq/call-permission/${userId}/${targetUserId}`);
         if (!permRes.data.allowed) {
           toast.error(permRes.data.reason || 'Call not allowed');
+          // Stop the stream we already acquired
+          stream.getTracks().forEach(t => t.stop());
+          localStreamRef.current = null;
+          setLocalStream(null);
           return;
         }
       } catch (permErr) {
@@ -547,11 +559,6 @@ export function useWebRTCCall(userId, userInfo = {}) {
         avatar: targetUserInfo.avatar,
       });
       setCallState(CALL_STATE.OUTGOING);
-
-      // Get local media (with iOS Safari fallback chain)
-      const stream = await getMediaStream(type, facingMode);
-      localStreamRef.current = stream;
-      setLocalStream(stream);
 
       // Create peer connection
       const pc = createPeerConnection(type === 'video');
@@ -614,23 +621,26 @@ export function useWebRTCCall(userId, userInfo = {}) {
 
     try {
       // iOS Safari fix: Unlock audio pipeline during user gesture (Accept tap).
-      // WebRTC audio arrives later (after ICE), but iOS needs the pipeline
-      // warmed during a gesture context.
       unlockAudioNow();
 
+      // ⚠️ iOS Safari CRITICAL: getUserMedia MUST be the first async call
+      // after the user tap. setCallState() or any other operation that could
+      // trigger a React re-render will break the gesture context on iOS,
+      // causing NotAllowedError even though the user tapped Accept.
+      const stream = await getMediaStream(callType, facingMode);
+      localStreamRef.current = stream;
+      setLocalStream(stream);
+
+      // Now safe to update state (media already acquired)
       setCallState(CALL_STATE.CONNECTING);
 
       const pendingOffer = peerConnection.current?._pendingOffer;
       if (!pendingOffer) {
         toast.error('Call data lost. Try again.');
+        stream.getTracks().forEach(t => t.stop());
         cleanup();
         return;
       }
-
-      // Get local media (with iOS Safari fallback chain)
-      const stream = await getMediaStream(callType, facingMode);
-      localStreamRef.current = stream;
-      setLocalStream(stream);
 
       // Create peer connection
       const pc = createPeerConnection(callType === 'video');
