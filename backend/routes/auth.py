@@ -9,7 +9,7 @@ import uuid
 
 from database import get_db
 from models import Profile, RoleEnum
-from core.security import create_access_token
+from core.security import create_access_token, get_current_user_id
 from core.rate_limiter import rate_limit_check
 
 router = APIRouter()
@@ -473,3 +473,63 @@ async def convert_to_hobbyist(
     
     else:
         raise HTTPException(status_code=400, detail="Invalid tier_id")
+
+
+# ── Authenticated Password Change (2FA via current password) ──────────────────
+
+class ChangePasswordRequest(BaseModel):
+    current_password: str
+    new_password: str
+
+
+@router.post("/auth/change-password")
+async def change_password(
+    request: Request,
+    data: ChangePasswordRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user_id: str = Depends(get_current_user_id),
+):
+    """
+    Authenticated password change.
+    Requires the user's current password as 2FA verification
+    before accepting a new password.
+    JWT Bearer token required.
+    """
+    # Rate limit: max 5 attempts per 5 minutes per IP
+    rate_limit_check(request, max_requests=5, window_seconds=300, key_prefix="change_pw:")
+
+    # Look up the authenticated user
+    result = await db.execute(select(Profile).where(Profile.id == current_user_id))
+    profile = result.scalar_one_or_none()
+
+    if not profile:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # ── 2FA: Verify current password ──────────────────────────────────────
+    if not profile.password_hash:
+        raise HTTPException(
+            status_code=400,
+            detail="No password is set on this account. Use the forgot-password flow to create one.",
+        )
+
+    if not verify_password(data.current_password, profile.password_hash):
+        raise HTTPException(status_code=401, detail="Current password is incorrect")
+
+    # ── Validate new password ─────────────────────────────────────────────
+    if len(data.new_password) < 6:
+        raise HTTPException(status_code=400, detail="New password must be at least 6 characters")
+
+    if len(data.new_password) > 128:
+        raise HTTPException(status_code=400, detail="Password exceeds maximum length")
+
+    if data.new_password == data.current_password:
+        raise HTTPException(status_code=400, detail="New password must be different from current password")
+
+    # ── Update password hash ──────────────────────────────────────────────
+    profile.password_hash = hash_password(data.new_password)
+    await db.commit()
+
+    return {
+        "success": True,
+        "message": "Password changed successfully.",
+    }
