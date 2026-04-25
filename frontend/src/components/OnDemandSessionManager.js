@@ -128,10 +128,6 @@ const IncomingRequestCard = ({
             </div>
           </div>
           <div className="text-right">
-            <Badge className="bg-amber-500/20 text-amber-400 animate-pulse">
-              <Radio className="w-3 h-3 mr-1" />
-              LIVE
-            </Badge>
             <p className={`text-xs ${textSecondary} mt-1`}>{requestAge}m ago</p>
           </div>
         </div>

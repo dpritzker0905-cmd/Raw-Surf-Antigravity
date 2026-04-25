@@ -66,6 +66,14 @@ class CancelDispatchRequest(BaseModel):
     reason: Optional[str] = None
 
 
+class UpdateSessionLocationRequest(BaseModel):
+    """Update the session meeting point (before location is locked)"""
+    latitude: float
+    longitude: float
+    location_name: Optional[str] = None
+    spot_id: Optional[str] = None
+
+
 class UpdateSelfieRequest(BaseModel):
     selfie_url: str
 
@@ -1159,6 +1167,96 @@ async def decline_dispatch(
     }
 
 
+@router.put("/{dispatch_id}/update-session-location")
+async def update_session_location(
+    dispatch_id: str,
+    requester_id: str,
+    data: UpdateSessionLocationRequest,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Update the session meeting point (coordinates + name).
+    
+    ONLY allowed when:
+    - Caller is the requester (captain)
+    - Status is PENDING_PAYMENT or SEARCHING_FOR_PRO
+    - No photographer has accepted yet
+    - No crew member has paid yet (for split sessions)
+    
+    Once any confirmation happens, the location is LOCKED.
+    """
+    result = await db.execute(
+        select(DispatchRequest).where(DispatchRequest.id == dispatch_id)
+    )
+    dispatch = result.scalar_one_or_none()
+    
+    if not dispatch:
+        raise HTTPException(status_code=404, detail="Dispatch request not found")
+    
+    # Only the requester can change the meeting point
+    if str(dispatch.requester_id) != str(requester_id):
+        raise HTTPException(status_code=403, detail="Only the session requester can update the location")
+    
+    # Check if location is locked (photographer accepted or session advanced)
+    locked_statuses = [
+        DispatchRequestStatusEnum.EN_ROUTE,
+        DispatchRequestStatusEnum.ARRIVED,
+        DispatchRequestStatusEnum.COMPLETED,
+        DispatchRequestStatusEnum.CANCELLED
+    ]
+    # Also check for 'accepted' if it exists as a status
+    if hasattr(DispatchRequestStatusEnum, 'ACCEPTED'):
+        locked_statuses.append(DispatchRequestStatusEnum.ACCEPTED)
+    
+    if dispatch.status in locked_statuses:
+        raise HTTPException(
+            status_code=400,
+            detail="Location is locked — a photographer has already accepted this session."
+        )
+    
+    # For split sessions: check if any crew member has paid (locks location)
+    if dispatch.is_shared:
+        crew_result = await db.execute(
+            select(DispatchRequestParticipant)
+            .where(
+                DispatchRequestParticipant.dispatch_request_id == dispatch_id,
+                DispatchRequestParticipant.paid == True
+            )
+        )
+        paid_crew = crew_result.scalars().all()
+        if paid_crew:
+            raise HTTPException(
+                status_code=400,
+                detail="Location is locked — a crew member has already confirmed and paid."
+            )
+    
+    # Update the session meeting point
+    dispatch.latitude = data.latitude
+    dispatch.longitude = data.longitude
+    if data.location_name:
+        dispatch.location_name = data.location_name
+    if data.spot_id:
+        dispatch.spot_id = data.spot_id
+    
+    dispatch.status_changed_at = datetime.now(timezone.utc)
+    
+    await db.commit()
+    
+    logger.info(f"Session location updated for dispatch {dispatch_id}: {data.location_name} ({data.latitude}, {data.longitude})")
+    
+    return {
+        "success": True,
+        "dispatch_id": dispatch_id,
+        "location": {
+            "lat": dispatch.latitude,
+            "lng": dispatch.longitude,
+            "name": dispatch.location_name
+        },
+        "location_locked": False,
+        "message": "Meeting point updated successfully"
+    }
+
+
 @router.post("/{dispatch_id}/update-location")
 async def update_location(
     dispatch_id: str,
@@ -1805,7 +1903,11 @@ async def get_dispatch_request(
         "booking_id": dispatch.booking_id,
         "selfie_url": dispatch.selfie_url,
         "cancelled_reason": dispatch.cancellation_reason,
-        "refund_amount": dispatch.refund_amount if hasattr(dispatch, 'refund_amount') else None
+        "refund_amount": dispatch.refund_amount if hasattr(dispatch, 'refund_amount') else None,
+        "location_name": dispatch.location_name,
+        "arrival_window_minutes": dispatch.arrival_window_minutes,
+        "estimated_duration_hours": dispatch.estimated_duration_hours,
+        "location_locked": dispatch.status.value not in ['pending_payment', 'searching_for_pro'],
     }
 
 

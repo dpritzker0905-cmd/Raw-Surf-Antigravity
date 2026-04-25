@@ -18,7 +18,8 @@ import apiClient from '../lib/apiClient';
 import { getFullUrl } from '../utils/media';
 import {
   Check, Clock, MapPin, Radio, Award, Camera, Loader2,
-  Zap, X, ChevronRight, Users, Bell, ArrowLeft, RefreshCw
+  Zap, X, ChevronRight, Users, Bell, ArrowLeft, RefreshCw,
+  Edit2, Navigation, Lock
 } from 'lucide-react';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
@@ -245,6 +246,7 @@ export const DispatchLobby = () => {
   const textSecondary = isLight ? 'text-gray-500' : 'text-gray-400';
   const bgPage = isLight ? 'bg-gray-50' : 'bg-zinc-950';
 
+
   // -- State --
   const [dispatch, setDispatch] = useState(null);
   const [crewStatus, setCrewStatus] = useState([]);
@@ -262,6 +264,14 @@ export const DispatchLobby = () => {
   const prevPaidCountRef = useRef(null);
   const acceptSoundPlayedRef = useRef(false);
 
+  // Location editing state
+  const [editingLocation, setEditingLocation] = useState(false);
+  const [newLocationName, setNewLocationName] = useState('');
+  const [savingLocation, setSavingLocation] = useState(false);
+
+  // Countdown timer
+  const [countdown, setCountdown] = useState('');
+
   // State from navigation (captain's local crew list before backend synced)
   const localCrewMembers = navState?.crewMembers || [];
   const photographerFromNav = navState?.photographer || null;
@@ -275,6 +285,57 @@ export const DispatchLobby = () => {
   const paidCount = crewStatus.filter(m => m.paid).length;
   const photographer = dispatch?.photographer || photographerFromNav;
   const eta = dispatch?.gps?.eta_minutes || null;
+  const locationLocked = dispatch?.location_locked || photographerAccepted;
+
+  // -- Countdown timer for arrival window --
+  useEffect(() => {
+    if (!dispatch?.timestamps?.created || !dispatch?.arrival_window_minutes) return;
+    const updateCountdown = () => {
+      const created = new Date(dispatch.timestamps.created).getTime();
+      const windowMs = (dispatch.arrival_window_minutes || 30) * 60 * 1000;
+      const deadline = created + windowMs;
+      const remaining = deadline - Date.now();
+      if (remaining <= 0) { setCountdown('Overdue'); return; }
+      const m = Math.floor(remaining / 60000);
+      const s = Math.floor((remaining % 60000) / 1000);
+      setCountdown(`${m}:${s.toString().padStart(2, '0')}`);
+    };
+    updateCountdown();
+    const iv = setInterval(updateCountdown, 1000);
+    return () => clearInterval(iv);
+  }, [dispatch?.timestamps?.created, dispatch?.arrival_window_minutes]);
+
+  // -- Handle location update --
+  const handleUpdateLocation = async () => {
+    if (!newLocationName.trim()) { toast.error('Enter a location name'); return; }
+    setSavingLocation(true);
+    try {
+      // Use current GPS as coordinates (surfer is presumably at/near the new location)
+      let lat = dispatch?.location?.lat;
+      let lng = dispatch?.location?.lng;
+      if (navigator.geolocation) {
+        try {
+          const pos = await new Promise((res, rej) =>
+            navigator.geolocation.getCurrentPosition(res, rej, { timeout: 5000 })
+          );
+          lat = pos.coords.latitude;
+          lng = pos.coords.longitude;
+        } catch { /* keep existing coords */ }
+      }
+      await apiClient.put(
+        `/dispatch/${dispatchId}/update-session-location?requester_id=${user.id}`,
+        { latitude: lat, longitude: lng, location_name: newLocationName.trim() }
+      );
+      toast.success('Meeting point updated!');
+      setEditingLocation(false);
+      setNewLocationName('');
+      pollDispatch();
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'Failed to update location');
+    } finally {
+      setSavingLocation(false);
+    }
+  };
 
   // -- Poll dispatch state --
   const pollDispatch = useCallback(async () => {
@@ -712,55 +773,123 @@ export const DispatchLobby = () => {
           </div>
         </div>
 
-        {/* --- Session Details --- */}
+        {/* --- Location Card (editable when unlocked) --- */}
         <div
-          className={`p-4 rounded-2xl grid grid-cols-2 gap-3 ${
+          className={`p-4 rounded-2xl border ${
+            isLight ? 'bg-white border-gray-200' : 'bg-zinc-900 border-zinc-800'
+          }`}
+        >
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+                locationLocked ? 'bg-green-500/15' : 'bg-cyan-500/15'
+              }`}>
+                {locationLocked
+                  ? <Lock className="w-4 h-4 text-green-400" />
+                  : <MapPin className="w-4 h-4 text-cyan-400" />
+                }
+              </div>
+              <div>
+                <p className={`text-xs font-medium ${locationLocked ? 'text-green-400' : 'text-cyan-400'}`}>
+                  {locationLocked ? 'Meeting Point (Locked)' : 'Meeting Point'}
+                </p>
+              </div>
+            </div>
+            {!locationLocked && !editingLocation && (
+              <button
+                onClick={() => { setEditingLocation(true); setNewLocationName(dispatch?.location_name || ''); }}
+                className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${
+                  isLight
+                    ? 'bg-cyan-50 text-cyan-600 hover:bg-cyan-100'
+                    : 'bg-cyan-500/10 text-cyan-400 hover:bg-cyan-500/20'
+                }`}
+              >
+                <Edit2 className="w-3 h-3" /> Edit
+              </button>
+            )}
+          </div>
+
+          {editingLocation ? (
+            <div className="space-y-2">
+              <input
+                type="text"
+                value={newLocationName}
+                onChange={e => setNewLocationName(e.target.value)}
+                placeholder="e.g. Pier at 2nd Street"
+                className={`w-full px-3 py-2 rounded-lg text-sm border focus:outline-none focus:ring-2 focus:ring-cyan-400/50 ${
+                  isLight
+                    ? 'bg-gray-50 border-gray-200 text-gray-900 placeholder-gray-400'
+                    : 'bg-zinc-800 border-zinc-700 text-white placeholder-zinc-500'
+                }`}
+                autoFocus
+                onKeyDown={e => { if (e.key === 'Enter') handleUpdateLocation(); if (e.key === 'Escape') setEditingLocation(false); }}
+              />
+              <p className={`text-[10px] ${textSecondary}`}>
+                Your current GPS coordinates will be used. Press Enter to save.
+              </p>
+              <div className="flex gap-2">
+                <Button
+                  onClick={() => setEditingLocation(false)}
+                  className={`flex-1 text-xs py-1.5 ${isLight ? 'bg-gray-100 text-gray-600' : 'bg-zinc-800 text-zinc-400'}`}
+                  disabled={savingLocation}
+                >Cancel</Button>
+                <Button
+                  onClick={handleUpdateLocation}
+                  disabled={savingLocation || !newLocationName.trim()}
+                  className="flex-1 text-xs py-1.5 bg-cyan-500 hover:bg-cyan-600 text-white font-bold"
+                >
+                  {savingLocation ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Save Location'}
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2">
+              <Navigation className={`w-4 h-4 flex-shrink-0 ${isLight ? 'text-gray-400' : 'text-zinc-500'}`} />
+              <p className={`text-sm font-bold ${textPrimary} truncate`}>
+                {dispatch?.location_name || dispatch?.location?.name || 'On-Demand Session'}
+              </p>
+            </div>
+          )}
+        </div>
+
+        {/* --- Session Details Grid --- */}
+        <div
+          className={`p-4 rounded-2xl grid grid-cols-3 gap-3 ${
             isLight ? 'bg-white border border-gray-200' : 'bg-zinc-900 border border-zinc-800'
           }`}
         >
-          {[
-            {
-              icon: MapPin,
-              label: 'Location',
-              val: dispatch?.location_name || 'On-Demand',
-              color: 'text-cyan-400',
-            },
-            {
-              icon: Clock,
-              label: 'Duration',
-              val: dispatch?.estimated_duration_hours
-                ? `${dispatch.estimated_duration_hours}h`
-                : 'TBD',
-              color: 'text-purple-400',
-            },
-            {
-              icon: Zap,
-              label: 'Arrival Window',
-              val: dispatch?.arrival_window_minutes
-                ? `${dispatch.arrival_window_minutes} min`
-                : 'ASAP',
-              color: 'text-amber-400',
-            },
-            {
-              icon: Users,
-              label: 'Surfers',
-              val: `${crewLineup.length + 1} total`,
-              color: 'text-green-400',
-            },
-          ].map(({ icon: Icon, label, val, color }) => (
-            <div
-              key={label}
-              className={`p-3 rounded-xl ${
-                isLight ? 'bg-gray-50' : 'bg-zinc-800/50'
-              }`}
-            >
-              <div className={`flex items-center gap-1 ${color} mb-1`}>
-                <Icon className="w-3 h-3" />
-                <span className="text-[10px] font-medium">{label}</span>
-              </div>
-              <p className={`text-sm font-bold ${textPrimary} truncate`}>{val}</p>
+          {/* Arrival Countdown */}
+          <div className={`p-3 rounded-xl ${isLight ? 'bg-gray-50' : 'bg-zinc-800/50'}`}>
+            <div className="flex items-center gap-1 text-amber-400 mb-1">
+              <Zap className="w-3 h-3" />
+              <span className="text-[10px] font-medium">Arrival</span>
             </div>
-          ))}
+            <p className={`text-sm font-bold ${
+              countdown === 'Overdue' ? 'text-red-400' : textPrimary
+            } tabular-nums`}>
+              {countdown || (dispatch?.arrival_window_minutes ? `${dispatch.arrival_window_minutes}m` : 'ASAP')}
+            </p>
+          </div>
+          {/* Duration */}
+          <div className={`p-3 rounded-xl ${isLight ? 'bg-gray-50' : 'bg-zinc-800/50'}`}>
+            <div className="flex items-center gap-1 text-purple-400 mb-1">
+              <Clock className="w-3 h-3" />
+              <span className="text-[10px] font-medium">Duration</span>
+            </div>
+            <p className={`text-sm font-bold ${textPrimary}`}>
+              {dispatch?.estimated_duration_hours ? `${dispatch.estimated_duration_hours}h` : 'TBD'}
+            </p>
+          </div>
+          {/* Surfer count */}
+          <div className={`p-3 rounded-xl ${isLight ? 'bg-gray-50' : 'bg-zinc-800/50'}`}>
+            <div className="flex items-center gap-1 text-green-400 mb-1">
+              <Users className="w-3 h-3" />
+              <span className="text-[10px] font-medium">Surfers</span>
+            </div>
+            <p className={`text-sm font-bold ${textPrimary}`}>
+              {crewLineup.length + 1} total
+            </p>
+          </div>
         </div>
 
         {/* --- Error state --- */}
