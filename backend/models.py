@@ -220,6 +220,11 @@ class Profile(Base):
     # Flexible: >24h=100%, 12-24h=50%, <12h=0%
     # Strict: >72h=50%, <72h=0%
     
+    # On-Demand Cancellation Fee (photographer-controlled)
+    # Percentage of the deposit kept as a cancellation fee when surfer cancels after acceptance.
+    # 0 = fully refundable, 100 = non-refundable (legacy default). Typical range: 25-100.
+    on_demand_cancellation_fee_pct = Column(Integer, default=100)  # 0-100 percentage
+    
     accepts_donations = Column(Boolean, default=False)
     skill_level = Column(String(50), nullable=True)
     stance = Column(String(20), nullable=True)  # 'regular' or 'goofy'
@@ -928,6 +933,46 @@ class DispatchRequestParticipant(Base):
     
     dispatch_request = relationship('DispatchRequest')
     participant = relationship('Profile')
+
+
+class CancellationExceptionRequest(Base):
+    """
+    Emergency cancellation waiver requests from surfers.
+    When a photographer charges a cancellation fee, surfers can submit an
+    emergency exception request explaining why they need a full refund.
+    The photographer reviews and approves/denies on their On-Demand dashboard.
+    """
+    __tablename__ = 'cancellation_exception_requests'
+    
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    dispatch_request_id = Column(String(36), ForeignKey('dispatch_requests.id', ondelete='CASCADE'), nullable=False, index=True)
+    requester_id = Column(String(36), ForeignKey('profiles.id', ondelete='CASCADE'), nullable=False, index=True)
+    photographer_id = Column(String(36), ForeignKey('profiles.id', ondelete='CASCADE'), nullable=False, index=True)
+    
+    # Exception details
+    reason = Column(Text, nullable=False)  # Surfer's explanation (e.g. "Family emergency", "Injury")
+    category = Column(String(50), default='other')  # 'emergency', 'weather', 'injury', 'other'
+    
+    # Financial context (snapshot at time of request)
+    deposit_amount = Column(Float, nullable=False)  # Original deposit
+    fee_amount = Column(Float, nullable=False)  # Cancellation fee that would be charged
+    refund_requested = Column(Float, nullable=False)  # Amount surfer is requesting back (typically full deposit)
+    
+    # Resolution
+    status = Column(String(20), default='pending')  # 'pending', 'approved', 'denied'
+    resolution_note = Column(Text, nullable=True)  # Photographer's response message
+    resolved_at = Column(DateTime(timezone=True), nullable=True)
+    
+    # Refund outcome (only set after resolution)
+    final_refund_amount = Column(Float, nullable=True)  # Actual refund given (could be partial)
+    
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    
+    # Relationships
+    dispatch_request = relationship('DispatchRequest')
+    requester = relationship('Profile', foreign_keys=[requester_id])
+    photographer_profile = relationship('Profile', foreign_keys=[photographer_id])
 
 
 class SessionSnapshot(Base):

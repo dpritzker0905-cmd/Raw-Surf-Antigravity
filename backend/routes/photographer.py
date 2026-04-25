@@ -2729,6 +2729,7 @@ async def get_on_demand_photographers(
             "on_demand_county": p.on_demand_county,
             "rating": getattr(p, 'rating', None) or 4.5,  # Default rating if not set
             "total_reviews": getattr(p, 'total_reviews', 0) or 0,
+            "on_demand_cancellation_fee_pct": getattr(p, 'on_demand_cancellation_fee_pct', None) if getattr(p, 'on_demand_cancellation_fee_pct', None) is not None else 100,
             "distance": None
         }
         
@@ -3032,6 +3033,8 @@ class OnDemandSettingsRequest(BaseModel):
     on_demand_video_720p: Optional[float] = None
     on_demand_video_1080p: Optional[float] = None
     on_demand_video_4k: Optional[float] = None
+    # Cancellation fee percentage (0-100)
+    on_demand_cancellation_fee_pct: Optional[int] = None
 
 
 class OnDemandSettingsResponse(BaseModel):
@@ -3049,6 +3052,7 @@ class OnDemandSettingsResponse(BaseModel):
     on_demand_video_720p: float = 12.0
     on_demand_video_1080p: float = 20.0
     on_demand_video_4k: float = 40.0
+    on_demand_cancellation_fee_pct: int = 100
 
 
 @router.get("/photographer/{photographer_id}/on-demand-settings")
@@ -3089,6 +3093,8 @@ async def get_on_demand_settings(
         "on_demand_video_720p": profile.on_demand_video_720p or 12.0,
         "on_demand_video_1080p": profile.on_demand_video_1080p or 20.0,
         "on_demand_video_4k": profile.on_demand_video_4k or 40.0,
+        # Cancellation fee
+        "on_demand_cancellation_fee_pct": profile.on_demand_cancellation_fee_pct if profile.on_demand_cancellation_fee_pct is not None else 100,
     }
 
 
@@ -3139,6 +3145,10 @@ async def save_on_demand_settings(
     if data.latitude and data.longitude:
         profile.on_demand_latitude = data.latitude
         profile.on_demand_longitude = data.longitude
+    
+    # Cancellation fee percentage
+    if data.on_demand_cancellation_fee_pct is not None:
+        profile.on_demand_cancellation_fee_pct = max(0, min(100, data.on_demand_cancellation_fee_pct))
     
     await db.commit()
     

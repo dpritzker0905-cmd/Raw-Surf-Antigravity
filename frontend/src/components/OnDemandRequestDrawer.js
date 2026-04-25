@@ -2138,7 +2138,11 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
                   Are you sure you want to cancel this on-demand booking?
                 </p>
                 <p className={`text-xs ${textSecondary} text-center`}>
-                  Your deposit will be refunded to your account credits.
+                  {photographer?.on_demand_cancellation_fee_pct === 0
+                    ? 'Your deposit will be fully refunded to your account credits.'
+                    : photographer?.on_demand_cancellation_fee_pct === 100
+                      ? 'This photographer has a non-refundable cancellation policy.'
+                      : `A ${photographer?.on_demand_cancellation_fee_pct || 100}% cancellation fee will be applied. You may request an emergency exception after cancelling.`}
                 </p>
                 <div className="flex gap-3">
                   <Button
@@ -2151,8 +2155,14 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
                   <Button
                     onClick={async () => {
                       try {
-                        await apiClient.post(`/dispatch/${requestId}/cancel?user_id=${user.id}`, { reason: 'User cancelled' });
-                        toast.info('Request cancelled. Your deposit will be refunded.');
+                        const res = await apiClient.post(`/dispatch/${requestId}/cancel?user_id=${user.id}`, { reason: 'User cancelled' });
+                        const feeAmt = res.data?.fee_amount || 0;
+                        const refundAmt = res.data?.refund_amount || 0;
+                        if (feeAmt > 0) {
+                          toast.info(`Cancelled. $${refundAmt.toFixed(2)} refunded, $${feeAmt.toFixed(2)} fee applied.`, { duration: 6000 });
+                        } else {
+                          toast.info('Request cancelled. Your deposit has been refunded.');
+                        }
                       } catch (e) {
                         toast.error('Failed to cancel request');
                       }

@@ -887,6 +887,13 @@ export const OnDemandSessionManager = () => {
   const [odVideo720p, setOdVideo720p] = useState(12);
   const [odVideo1080p, setOdVideo1080p] = useState(20);
   const [odVideo4k, setOdVideo4k] = useState(40);
+
+  // Cancellation fee state
+  const [cancellationFeePct, setCancellationFeePct] = useState(100);
+
+  // Exception requests state
+  const [exceptionRequests, setExceptionRequests] = useState([]);
+  const [resolvingExceptionId, setResolvingExceptionId] = useState(null);
   
   // Coverage spots state
   const [nearbySpots, setNearbySpots] = useState([]);
@@ -951,6 +958,7 @@ export const OnDemandSessionManager = () => {
     fetchSettings();
     fetchStats();
     fetchSessionHistory();
+    fetchExceptionRequests();
     requestLocation();
   }, [user?.id]);
   
@@ -1078,6 +1086,8 @@ export const OnDemandSessionManager = () => {
         setOdVideo720p(response.data.on_demand_video_720p || 12);
         setOdVideo1080p(response.data.on_demand_video_1080p || 20);
         setOdVideo4k(response.data.on_demand_video_4k || 40);
+        // Cancellation fee
+        setCancellationFeePct(response.data.on_demand_cancellation_fee_pct ?? 100);
       }
       setLoading(false);
     } catch (error) {
@@ -1159,6 +1169,15 @@ export const OnDemandSessionManager = () => {
     } catch (error) {
       logger.error('Failed to fetch history:', error);
       setSessionHistory([]);
+    }
+  };
+
+  const fetchExceptionRequests = async () => {
+    try {
+      const response = await apiClient.get(`/dispatch/photographer/${user.id}/exception-requests?status_filter=pending`);
+      setExceptionRequests(response.data.exception_requests || []);
+    } catch (error) {
+      logger.error('Failed to fetch exception requests:', error);
     }
   };
   
@@ -1345,6 +1364,7 @@ export const OnDemandSessionManager = () => {
         on_demand_video_720p: odVideo720p,
         on_demand_video_1080p: odVideo1080p,
         on_demand_video_4k: odVideo4k,
+        on_demand_cancellation_fee_pct: cancellationFeePct,
       });
       
       toast.success('On-Demand settings saved!');
@@ -1583,6 +1603,86 @@ export const OnDemandSessionManager = () => {
               sectionBg={sectionBg}
               borderClass={borderClass}
             />
+
+            {/* ============ EXCEPTION REQUESTS FEED ============ */}
+            {exceptionRequests.length > 0 && (
+              <Card className={cardBg}>
+                <CardHeader>
+                  <CardTitle className={`text-lg ${textPrimary} flex items-center gap-2`}>
+                    <Bell className="w-5 h-5 text-amber-400" />
+                    Fee Waiver Requests
+                    <Badge className="bg-amber-500 text-white text-xs">{exceptionRequests.length}</Badge>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {exceptionRequests.map(exc => (
+                    <div key={exc.id} className={`p-4 rounded-xl border ${isLight ? 'bg-amber-50 border-amber-200' : 'bg-amber-500/10 border-amber-500/30'}`}>
+                      <div className="flex items-start justify-between mb-2">
+                        <div>
+                          <p className={`font-semibold ${textPrimary}`}>{exc.requester_name}</p>
+                          <p className={`text-xs ${textSecondary}`}>
+                            {exc.category === 'emergency' ? '🚨 Emergency' : exc.category === 'weather' ? '🌧️ Weather' : exc.category === 'injury' ? '🩹 Injury' : '📋 Other'}
+                          </p>
+                        </div>
+                        <p className="text-amber-400 font-bold">${exc.fee_amount?.toFixed(2)}</p>
+                      </div>
+                      <p className={`text-sm ${textSecondary} mb-3 italic`}>"{exc.reason}"</p>
+                      {resolvingExceptionId === exc.id ? (
+                        <div className="flex items-center justify-center py-2">
+                          <Loader2 className="w-5 h-5 animate-spin text-amber-400" />
+                        </div>
+                      ) : (
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            className="flex-1 bg-green-500 hover:bg-green-600 text-white text-xs"
+                            onClick={async () => {
+                              setResolvingExceptionId(exc.id);
+                              try {
+                                await apiClient.post(`/dispatch/${exc.dispatch_id}/resolve-exception?user_id=${user.id}`, {
+                                  approved: true,
+                                  resolution_note: 'Approved by photographer'
+                                });
+                                toast.success('Waiver approved — surfer refunded');
+                                setExceptionRequests(prev => prev.filter(e => e.id !== exc.id));
+                              } catch (err) {
+                                toast.error('Failed to approve waiver');
+                              } finally {
+                                setResolvingExceptionId(null);
+                              }
+                            }}
+                          >
+                            <Check className="w-3 h-3 mr-1" /> Approve
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className={`flex-1 text-xs ${isLight ? 'border-red-300 text-red-600' : 'border-red-500/50 text-red-400'}`}
+                            onClick={async () => {
+                              setResolvingExceptionId(exc.id);
+                              try {
+                                await apiClient.post(`/dispatch/${exc.dispatch_id}/resolve-exception?user_id=${user.id}`, {
+                                  approved: false,
+                                  resolution_note: 'Denied by photographer'
+                                });
+                                toast.info('Waiver denied');
+                                setExceptionRequests(prev => prev.filter(e => e.id !== exc.id));
+                              } catch (err) {
+                                toast.error('Failed to deny waiver');
+                              } finally {
+                                setResolvingExceptionId(null);
+                              }
+                            }}
+                          >
+                            <X className="w-3 h-3 mr-1" /> Deny
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+            )}
           </>
         )}
         
@@ -1751,6 +1851,32 @@ export const OnDemandSessionManager = () => {
                         <NumericStepper label="720p HD" value={odVideo720p} onChange={setOdVideo720p} min={0} max={500} step={0.5} prefix="$" theme={theme} />
                         <NumericStepper label="1080p Full HD" value={odVideo1080p} onChange={setOdVideo1080p} min={0} max={500} step={0.5} prefix="$" theme={theme} />
                         <NumericStepper label="4K Ultra HD" value={odVideo4k} onChange={setOdVideo4k} min={0} max={500} step={0.5} prefix="$" theme={theme} />
+                      </div>
+                    </div>
+
+                    {/* Cancellation Fee */}
+                    <div className={`mt-4 p-4 rounded-xl border ${isLight ? 'bg-red-50 border-red-200' : 'bg-red-500/10 border-red-500/20'}`}>
+                      <p className={`text-sm font-semibold mb-1 flex items-center gap-2 ${textPrimary}`}>
+                        🛡️ Cancellation Fee
+                      </p>
+                      <p className={`text-xs ${textSecondary} mb-3`}>
+                        Percentage of deposit kept when a surfer cancels after you accept. 0% = fully refundable.
+                      </p>
+                      <NumericStepper
+                        label="Fee Percentage"
+                        value={cancellationFeePct}
+                        onChange={setCancellationFeePct}
+                        min={0}
+                        max={100}
+                        step={5}
+                        suffix="%"
+                        theme={theme}
+                      />
+                      <div className={`mt-2 text-xs ${textSecondary} flex items-center gap-1`}>
+                        <Info className="w-3 h-3" />
+                        {cancellationFeePct === 0 ? 'Fully refundable — surfers get full deposit back' :
+                         cancellationFeePct === 100 ? 'Non-refundable — you keep the entire deposit' :
+                         `Surfer receives ${100 - cancellationFeePct}% refund on cancellation`}
                       </div>
                     </div>
                   </div>
