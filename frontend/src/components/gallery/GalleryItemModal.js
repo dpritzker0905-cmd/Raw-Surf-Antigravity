@@ -10,7 +10,7 @@ import { isGrom } from '../../lib/roles';
 import { submitPurchaseRequest } from '../../utils/gromPurchase';
 import { 
   Lock, Eye, ShoppingCart, Download, DollarSign, Edit3, Loader2, Check,
-  Play, Image as ImageIcon, X, Send, UserPlus
+  Play, Image as ImageIcon, X, Send, UserPlus, ImagePlus
 } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Dialog, DialogContent, DialogTitle } from '../ui/dialog';
@@ -23,7 +23,7 @@ import { PriceSourceBadge } from './PriceSourceBadge';
 
 import { getErrorMessage } from '../../utils/errors';
 
-export const GalleryItemModal = ({ item, onClose, onPurchased, galleryId }) => {
+export const GalleryItemModal = ({ item, onClose, onPurchased, galleryId, onSetAsCover }) => {
   const { user } = useAuth();
   const [purchasing, setPurchasing] = useState(false);
   const [pricingInfo, setPricingInfo] = useState(null);
@@ -585,6 +585,17 @@ export const GalleryItemModal = ({ item, onClose, onPurchased, galleryId }) => {
                   <Download className="w-4 h-4 mr-2" />
                   Download Original
                 </Button>
+                {onSetAsCover && !isVideo && (
+                  <Button
+                    variant="outline"
+                    onClick={() => onSetAsCover(item.id)}
+                    className="border-cyan-500/40 text-cyan-400 hover:bg-cyan-500/10"
+                    title="Use this photo as the folder thumbnail"
+                  >
+                    <ImagePlus className="w-4 h-4 mr-2" />
+                    Set as Cover
+                  </Button>
+                )}
                 <Button
                   variant="outline"
                   onClick={onClose}

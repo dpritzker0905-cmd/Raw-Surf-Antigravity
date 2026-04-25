@@ -2600,8 +2600,30 @@ async def add_item_to_gallery(
     
     # Update gallery stats
     gallery.item_count += 1
-    if not gallery.cover_image_url and data.media_type == 'image':
-        gallery.cover_image_url = data.preview_url
+    
+    # Auto-thumbnail sync logic:
+    # 1. If gallery has no cover yet, set from this item
+    # 2. If gallery is linked to an active live session, always update cover
+    #    to the latest item (keeps conditions report / latest media as thumbnail)
+    item_thumbnail = data.preview_url or data.thumbnail_url
+    if item_thumbnail:
+        if not gallery.cover_image_url:
+            gallery.cover_image_url = item_thumbnail
+        elif gallery.live_session_id:
+            # Live session galleries: always update cover to latest upload
+            # This ensures conditions report photos sync as the folder thumbnail
+            try:
+                ls_result = await db.execute(
+                    select(LiveSession).where(LiveSession.id == gallery.live_session_id)
+                )
+                live_session = ls_result.scalar_one_or_none()
+                if live_session and live_session.status in ('active', 'shooting', 'live'):
+                    gallery.cover_image_url = item_thumbnail
+                    gallery_logger.info(
+                        f"Live session auto-thumbnail sync: gallery {gallery_id} cover updated to latest upload"
+                    )
+            except Exception as e:
+                gallery_logger.warning(f"Live session thumbnail sync check failed: {e}")
     
     await db.commit()
     await db.refresh(item)
@@ -5423,3 +5445,108 @@ async def update_session_settings(
         "message": "Session content settings updated. Roster will reflect changes on next load."
     }
 
+
+class SetThumbnailRequest(BaseModel):
+    item_id: Optional[str] = None
+    thumbnail_url: Optional[str] = None  # Direct URL override (for conditions report sync)
+
+
+@router.patch("/galleries/{gallery_id}/set-thumbnail")
+async def set_gallery_thumbnail(
+    gallery_id: str,
+    photographer_id: str,
+    data: SetThumbnailRequest,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Manually set a gallery's cover thumbnail.
+    
+    Accepts either:
+    - item_id: Use that item's preview/thumbnail as the cover
+    - thumbnail_url: Direct URL to use as the cover
+    
+    This gives photographers full control over which image
+    represents their session folder in the gallery hub.
+    """
+    result = await db.execute(
+        select(Gallery).where(Gallery.id == gallery_id)
+    )
+    gallery = result.scalar_one_or_none()
+    
+    if not gallery:
+        raise HTTPException(status_code=404, detail="Gallery not found")
+    if gallery.photographer_id != photographer_id:
+        raise HTTPException(status_code=403, detail="Not authorized")
+    
+    new_cover_url = None
+    
+    if data.item_id:
+        # Find the item and use its preview URL
+        item_result = await db.execute(
+            select(GalleryItem).where(
+                GalleryItem.id == data.item_id,
+                GalleryItem.photographer_id == photographer_id
+            )
+        )
+        item = item_result.scalar_one_or_none()
+        if not item:
+            raise HTTPException(status_code=404, detail="Gallery item not found")
+        
+        new_cover_url = item.preview_url or item.thumbnail_url or item.original_url
+    elif data.thumbnail_url:
+        new_cover_url = data.thumbnail_url
+    else:
+        raise HTTPException(
+            status_code=400, 
+            detail="Must provide either item_id or thumbnail_url"
+        )
+    
+    if not new_cover_url:
+        raise HTTPException(status_code=400, detail="No valid thumbnail URL found for this item")
+    
+    old_cover = gallery.cover_image_url
+    gallery.cover_image_url = new_cover_url
+    await db.commit()
+    
+    gallery_logger.info(
+        f"Gallery {gallery_id} thumbnail manually set: {old_cover} -> {new_cover_url}"
+    )
+    
+    return {
+        "success": True,
+        "gallery_id": gallery_id,
+        "cover_image_url": new_cover_url,
+        "message": "Gallery thumbnail updated successfully"
+    }
+
+
+@router.patch("/galleries/{gallery_id}/clear-thumbnail")
+async def clear_gallery_thumbnail(
+    gallery_id: str,
+    photographer_id: str,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Clear a gallery's manually-set cover thumbnail.
+    The auto-heal logic will select a new one from gallery items on next load.
+    """
+    result = await db.execute(
+        select(Gallery).where(Gallery.id == gallery_id)
+    )
+    gallery = result.scalar_one_or_none()
+    
+    if not gallery:
+        raise HTTPException(status_code=404, detail="Gallery not found")
+    if gallery.photographer_id != photographer_id:
+        raise HTTPException(status_code=403, detail="Not authorized")
+    
+    gallery.cover_image_url = None
+    await db.commit()
+    
+    gallery_logger.info(f"Gallery {gallery_id} thumbnail cleared — will auto-select on next load")
+    
+    return {
+        "success": True,
+        "gallery_id": gallery_id,
+        "message": "Thumbnail cleared. Auto-selection will apply on next page load."
+    }

@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { usePricing } from '../contexts/PricingContext';
 import apiClient, { BACKEND_URL } from '../lib/apiClient';
-import { Camera, Upload, X, DollarSign, Eye, ShoppingCart, Plus, Loader2, Image, Check, Lock, Video, Play, Settings, Edit3, Sparkles, RotateCcw, Folder, MapPin, Calendar, Trash2, Copy, Radio, UserPlus, Droplet, ChevronLeft, ChevronDown, ChevronUp, MoreHorizontal, Users, Send, CheckCircle } from 'lucide-react';
+import { Camera, Upload, X, DollarSign, Eye, ShoppingCart, Plus, Loader2, Image, Check, Lock, Video, Play, Settings, Edit3, Sparkles, RotateCcw, Folder, MapPin, Calendar, Trash2, Copy, Radio, UserPlus, Droplet, ChevronLeft, ChevronDown, ChevronUp, MoreHorizontal, Users, Send, CheckCircle, Link2, ImagePlus } from 'lucide-react';
 import { Button } from './ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from './ui/dialog';
 import { Input } from './ui/input';
@@ -116,6 +116,20 @@ export const GalleryPage = () => {
   const [aiAutoTagLoading, setAiAutoTagLoading] = useState(false);
   const [showBatchTagPicker, setShowBatchTagPicker] = useState(false);
   const [batchTagLoading, setBatchTagLoading] = useState({});
+  
+  // Thumbnail picker state
+  const [showThumbnailPicker, setShowThumbnailPicker] = useState(false);
+  const [thumbnailPickerGallery, setThumbnailPickerGallery] = useState(null);
+  const [thumbnailPickerItems, setThumbnailPickerItems] = useState([]);
+  const [thumbnailPickerLoading, setThumbnailPickerLoading] = useState(false);
+  const [settingThumbnail, setSettingThumbnail] = useState(false);
+  
+  // Link session state
+  const [showLinkSessionModal, setShowLinkSessionModal] = useState(false);
+  const [linkSessionGallery, setLinkSessionGallery] = useState(null);
+  const [recentSessions, setRecentSessions] = useState([]);
+  const [recentSessionsLoading, setRecentSessionsLoading] = useState(false);
+  const [linkingSession, setLinkingSession] = useState(false);
   
   // Grom Highlights state (for Grom Parents)
   const [gromHighlights, setGromHighlights] = useState([]);
@@ -769,6 +783,125 @@ export const GalleryPage = () => {
     }
   };
 
+  // ============ THUMBNAIL PICKER HANDLERS ============
+  
+  // Open thumbnail picker for a gallery
+  const handleOpenThumbnailPicker = async (gal) => {
+    setThumbnailPickerGallery(gal);
+    setShowThumbnailPicker(true);
+    setThumbnailPickerLoading(true);
+    try {
+      const response = await apiClient.get(`/galleries/${gal.id}/items?viewer_id=${user.id}`);
+      setThumbnailPickerItems(response.data || []);
+    } catch (error) {
+      console.error('Error loading gallery items for thumbnail picker:', error);
+      setThumbnailPickerItems([]);
+    } finally {
+      setThumbnailPickerLoading(false);
+    }
+  };
+
+  // Set a specific item as the gallery cover
+  const handleSetThumbnail = async (itemId) => {
+    if (!thumbnailPickerGallery) return;
+    setSettingThumbnail(true);
+    try {
+      await apiClient.patch(
+        `/galleries/${thumbnailPickerGallery.id}/set-thumbnail?photographer_id=${user.id}`,
+        { item_id: itemId }
+      );
+      toast.success('📸 Folder thumbnail updated!');
+      setShowThumbnailPicker(false);
+      setThumbnailPickerGallery(null);
+      // Clear broken cover cache for this gallery
+      setBrokenCoverImages(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(thumbnailPickerGallery.id);
+        newSet.delete(`${thumbnailPickerGallery.id}_fallback`);
+        return newSet;
+      });
+      fetchGalleries();
+    } catch (error) {
+      toast.error(getErrorMessage(error, 'Failed to set thumbnail'));
+    } finally {
+      setSettingThumbnail(false);
+    }
+  };
+
+  // Clear gallery thumbnail (revert to auto-select)
+  const handleClearThumbnail = async (galleryId) => {
+    try {
+      await apiClient.patch(
+        `/galleries/${galleryId}/clear-thumbnail?photographer_id=${user.id}`
+      );
+      toast.success('Thumbnail reset — will auto-select on next load');
+      setShowThumbnailPicker(false);
+      setThumbnailPickerGallery(null);
+      fetchGalleries();
+    } catch (error) {
+      toast.error(getErrorMessage(error, 'Failed to clear thumbnail'));
+    }
+  };
+
+  // Set cover directly from gallery detail view (Set as Cover action)
+  const handleSetAsCover = async (itemId) => {
+    if (!selectedGallery) return;
+    try {
+      await apiClient.patch(
+        `/galleries/${selectedGallery.id}/set-thumbnail?photographer_id=${user.id}`,
+        { item_id: itemId }
+      );
+      toast.success('📸 Set as folder cover!');
+      setBrokenCoverImages(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(selectedGallery.id);
+        newSet.delete(`${selectedGallery.id}_fallback`);
+        return newSet;
+      });
+      fetchGalleries();
+    } catch (error) {
+      toast.error(getErrorMessage(error, 'Failed to set cover'));
+    }
+  };
+
+  // ============ LINK SESSION HANDLERS ============
+  
+  // Open link session modal and fetch recent sessions
+  const handleOpenLinkSession = async (gal) => {
+    setLinkSessionGallery(gal);
+    setShowLinkSessionModal(true);
+    setRecentSessionsLoading(true);
+    try {
+      const response = await apiClient.get(`/photographer/${user.id}/recent-sessions?limit=20`);
+      setRecentSessions(response.data || []);
+    } catch (error) {
+      console.error('Error fetching recent sessions:', error);
+      setRecentSessions([]);
+    } finally {
+      setRecentSessionsLoading(false);
+    }
+  };
+
+  // Link gallery to a session
+  const handleLinkSession = async (sessionId) => {
+    if (!linkSessionGallery) return;
+    setLinkingSession(true);
+    try {
+      await apiClient.post(
+        `/gallery/${linkSessionGallery.id}/link-session?photographer_id=${user.id}`,
+        { live_session_id: sessionId }
+      );
+      toast.success('✅ Folder linked to session! Participants and distribution are now available.');
+      setShowLinkSessionModal(false);
+      setLinkSessionGallery(null);
+      fetchGalleries();
+    } catch (error) {
+      toast.error(getErrorMessage(error, 'Failed to link session'));
+    } finally {
+      setLinkingSession(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -1382,6 +1515,30 @@ export const GalleryPage = () => {
                     <div className="absolute top-2 right-2 z-10">
                       <div className="hidden group-hover:flex gap-1">
                         <button
+                          className="h-8 w-8 rounded-full bg-black/50 backdrop-blur-sm hover:bg-cyan-500/70 text-white flex items-center justify-center transition-colors"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleOpenThumbnailPicker(gal);
+                          }}
+                          title="Change thumbnail"
+                          data-testid={`change-thumbnail-${gal.id}`}
+                        >
+                          <ImagePlus className="w-3.5 h-3.5" />
+                        </button>
+                        {!gal.live_session_id && (
+                          <button
+                            className="h-8 w-8 rounded-full bg-black/50 backdrop-blur-sm hover:bg-purple-500/70 text-white flex items-center justify-center transition-colors"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleOpenLinkSession(gal);
+                            }}
+                            title="Link to session"
+                            data-testid={`link-session-${gal.id}`}
+                          >
+                            <Link2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                        <button
                           className="h-8 w-8 rounded-full bg-black/50 backdrop-blur-sm hover:bg-black/70 text-white flex items-center justify-center transition-colors"
                           onClick={(e) => {
                             e.stopPropagation();
@@ -1612,6 +1769,18 @@ export const GalleryPage = () => {
                     <UserPlus className="w-4 h-4 mr-1" />
                     Tag & Assign
                   </Button>
+                  {/* Link Session button — only for unlinked folders */}
+                  {!selectedGallery.live_session_id && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="border-purple-600/50 text-purple-400 hover:bg-purple-500/10 flex-shrink-0"
+                      onClick={() => handleOpenLinkSession(selectedGallery)}
+                    >
+                      <Link2 className="w-4 h-4 mr-1" />
+                      Link Session
+                    </Button>
+                  )}
                   <Button
                     size="sm"
                     variant="outline"
@@ -1874,6 +2043,7 @@ export const GalleryPage = () => {
           galleryId={selectedGallery?.id}
           onClose={() => setSelectedItem(null)}
           onPurchased={fetchGallery}
+          onSetAsCover={selectedGallery ? handleSetAsCover : undefined}
         />
       )}
 
@@ -2671,6 +2841,173 @@ export const GalleryPage = () => {
       </Dialog>
 
       {/* Batch Tag Picker now unified into Tag & Assign modal above */}
+
+      {/* ============ THUMBNAIL PICKER MODAL ============ */}
+      <Dialog open={showThumbnailPicker} onOpenChange={setShowThumbnailPicker}>
+        <DialogContent className="bg-background border-border text-foreground max-w-lg max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-foreground flex items-center gap-2">
+              <ImagePlus className="w-5 h-5 text-cyan-400" />
+              Choose Folder Thumbnail
+            </DialogTitle>
+            <p className="text-xs text-muted-foreground">
+              Select any photo from <strong>{thumbnailPickerGallery?.title}</strong> to use as the folder cover.
+            </p>
+          </DialogHeader>
+          <div className="py-3">
+            {thumbnailPickerLoading ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="w-8 h-8 animate-spin text-cyan-400" />
+              </div>
+            ) : thumbnailPickerItems.length === 0 ? (
+              <div className="text-center py-8 bg-muted/50 rounded-lg">
+                <Camera className="w-10 h-10 text-muted-foreground/40 mx-auto mb-2" />
+                <p className="text-muted-foreground text-sm">No items in this folder yet.</p>
+                <p className="text-muted-foreground text-xs mt-1">Upload photos first, then set one as the cover.</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-3 gap-2">
+                {thumbnailPickerItems.filter(item => item.media_type !== 'video').map((item) => (
+                  <button
+                    key={item.id}
+                    onClick={() => handleSetThumbnail(item.id)}
+                    disabled={settingThumbnail}
+                    className="relative aspect-square rounded-lg overflow-hidden bg-muted hover:ring-2 hover:ring-cyan-400 transition-all group/thumb disabled:opacity-50"
+                    data-testid={`thumbnail-pick-${item.id}`}
+                  >
+                    <img
+                      src={getFullUrl(item.thumbnail_url || item.preview_url)}
+                      alt={item.title || 'Photo'}
+                      className="w-full h-full object-cover group-hover/thumb:scale-105 transition-transform duration-200"
+                    />
+                    <div className="absolute inset-0 bg-black/0 group-hover/thumb:bg-black/40 transition-colors flex items-center justify-center">
+                      <div className="opacity-0 group-hover/thumb:opacity-100 transition-opacity flex flex-col items-center gap-1">
+                        <ImagePlus className="w-5 h-5 text-white" />
+                        <span className="text-white text-[10px] font-medium">Set as Cover</span>
+                      </div>
+                    </div>
+                    {/* Current cover indicator */}
+                    {thumbnailPickerGallery?.cover_image_url && 
+                     (item.preview_url === thumbnailPickerGallery.cover_image_url || 
+                      item.thumbnail_url === thumbnailPickerGallery.cover_image_url) && (
+                      <div className="absolute top-1 right-1">
+                        <Badge className="bg-cyan-500 text-white text-[8px] px-1 py-0">Current</Badge>
+                      </div>
+                    )}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+          <DialogFooter className="gap-2">
+            {thumbnailPickerGallery?.cover_image_url && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handleClearThumbnail(thumbnailPickerGallery.id)}
+                className="border-amber-500/30 text-amber-400 hover:bg-amber-500/10 mr-auto"
+              >
+                <RotateCcw className="w-3 h-3 mr-1" />
+                Reset to Auto
+              </Button>
+            )}
+            <Button variant="outline" onClick={() => setShowThumbnailPicker(false)} className="border-border">
+              Cancel
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ============ LINK SESSION MODAL ============ */}
+      <Dialog open={showLinkSessionModal} onOpenChange={setShowLinkSessionModal}>
+        <DialogContent className="bg-background border-border text-foreground max-w-md max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-foreground flex items-center gap-2">
+              <Link2 className="w-5 h-5 text-purple-400" />
+              Link to Session
+            </DialogTitle>
+            <p className="text-xs text-muted-foreground">
+              Connect <strong>{linkSessionGallery?.title}</strong> to a past session to enable participant tracking and auto-distribution.
+            </p>
+          </DialogHeader>
+          <div className="py-3 space-y-2">
+            {recentSessionsLoading ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="w-6 h-6 animate-spin text-purple-400" />
+                <span className="ml-2 text-muted-foreground text-sm">Loading recent sessions...</span>
+              </div>
+            ) : recentSessions.length === 0 ? (
+              <div className="text-center py-8 bg-muted/50 rounded-lg">
+                <Radio className="w-10 h-10 text-muted-foreground/40 mx-auto mb-2" />
+                <p className="text-muted-foreground text-sm">No recent sessions found</p>
+                <p className="text-muted-foreground text-xs mt-1">Start a live session first, then come back to link it.</p>
+              </div>
+            ) : (
+              recentSessions.filter(s => s.is_available).length === 0 ? (
+                <div className="text-center py-8 bg-muted/50 rounded-lg">
+                  <CheckCircle className="w-10 h-10 text-emerald-400/40 mx-auto mb-2" />
+                  <p className="text-muted-foreground text-sm">All sessions are already linked</p>
+                  <p className="text-muted-foreground text-xs mt-1">Start a new live session, then come back to link it.</p>
+                </div>
+              ) : (
+              recentSessions.filter(s => s.is_available).map((session) => (
+                <button
+                  key={session.id}
+                  onClick={() => handleLinkSession(session.id)}
+                  disabled={linkingSession}
+                  className="w-full flex items-center gap-3 p-3 rounded-lg bg-card hover:bg-muted transition-colors text-left border border-border hover:border-purple-500/40 disabled:opacity-50"
+                  data-testid={`link-session-option-${session.id}`}
+                >
+                  <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{
+                    background: session.status === 'active' || session.status === 'shooting'
+                      ? 'rgba(16,185,129,0.15)' 
+                      : 'rgba(139,92,246,0.1)',
+                    border: `1px solid ${session.status === 'active' || session.status === 'shooting' ? 'rgba(16,185,129,0.3)' : 'rgba(139,92,246,0.2)'}`
+                  }}>
+                    <Radio className={`w-4 h-4 ${session.status === 'active' || session.status === 'shooting' ? 'text-emerald-400' : 'text-purple-400'}`} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-foreground font-medium text-sm truncate">
+                      {session.location_name || 'Session'}
+                    </p>
+                    <div className="flex items-center gap-2 text-[10px] text-muted-foreground mt-0.5">
+                      {session.started_at && (
+                        <span>{new Date(session.started_at).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}</span>
+                      )}
+                      {session.participant_count > 0 && (
+                        <span className="flex items-center gap-0.5">
+                          <Users className="w-3 h-3" />
+                          {session.participant_count}
+                        </span>
+                      )}
+                      <Badge className={`text-[8px] px-1 py-0 ${
+                        session.status === 'active' || session.status === 'shooting'
+                          ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
+                          : session.status === 'completed'
+                          ? 'bg-blue-500/20 text-blue-400 border-blue-500/30'
+                          : 'bg-zinc-500/20 text-zinc-400 border-zinc-500/30'
+                      }`}>
+                        {session.status}
+                      </Badge>
+                    </div>
+                  </div>
+                  {linkingSession ? (
+                    <Loader2 className="w-4 h-4 animate-spin text-purple-400 flex-shrink-0" />
+                  ) : (
+                    <Link2 className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                  )}
+                </button>
+              ))
+              )
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowLinkSessionModal(false)} className="border-border">
+              Cancel
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Watermark Settings Modal */}
       <WatermarkSettings
