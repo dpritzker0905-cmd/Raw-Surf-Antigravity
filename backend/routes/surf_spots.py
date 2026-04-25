@@ -2590,7 +2590,7 @@ async def get_spot_live_shooting_pulse(
             "is_approved_pro": p.role == RoleEnum.APPROVED_PRO,
             "session_id": session.id,
             "started_at": session.started_at.isoformat() if session.started_at else None,
-            "photo_count": session.photo_count or 0,
+            "photo_count": getattr(session, 'photo_count', 0),
             "participant_count": session.participant_count or 0,
             "session_pricing": {
                 "web": session.session_price_web or p.photo_price_web,

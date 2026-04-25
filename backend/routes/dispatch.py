@@ -1641,13 +1641,13 @@ async def complete_dispatch_session(
                     type='gallery_ready',
                     title='Your Photos Are Ready! 📸',
                     body=f'{photographer_name} has completed your on-demand session. Your gallery is ready for selection!',
-                    action_url=f'/gallery/{gallery_id}',
-                    metadata={
+                    data=json.dumps({
+                        'action_url': f'/gallery/{gallery_id}',
                         'gallery_id': gallery_id,
                         'dispatch_id': dispatch_id,
                         'photographer_id': photographer_id,
                         'photographer_name': photographer_name
-                    }
+                    })
                 )
                 db.add(notification)
     
