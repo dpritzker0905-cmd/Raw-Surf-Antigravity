@@ -571,7 +571,7 @@ export const AdminSpotEditor = () => {
       {/* Map Container */}
       <div className="flex gap-4">
         {/* Map */}
-        <div className="flex-1 relative">
+        <div className="flex-1 relative z-0">
           {!leafletReady && (
             <div className="absolute inset-0 bg-zinc-900 rounded-xl flex items-center justify-center z-10">
               <div className="text-center">

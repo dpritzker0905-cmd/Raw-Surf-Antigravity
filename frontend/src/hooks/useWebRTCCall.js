@@ -58,39 +58,72 @@ export const CALL_STATE = {
 };
 
 /**
- * Robust getUserMedia with fallback chain for iOS Safari.
- * iOS Safari is strict about constraints — specific width/height can fail.
- * Falls back progressively: ideal constraints → basic → audio-only.
+ * Robust getUserMedia with sequential permission requests for iOS Safari.
+ *
+ * iOS Safari (iPhone 15+) is extremely strict about media permissions:
+ *   - Requesting audio+video simultaneously can fail with NotAllowedError
+ *     even when the user hasn't been prompted yet (gesture-gating).
+ *   - Requesting audio first, then video separately, produces two
+ *     sequential native permission prompts which iOS reliably shows.
+ *
+ * Strategy for VIDEO calls:
+ *   1. Acquire audio-only stream (most reliable on all platforms)
+ *   2. Acquire video-only stream (triggers separate camera prompt on iOS)
+ *   3. Merge tracks into a single MediaStream
+ *   Falls back to audio-only if video fails at every constraint level.
+ *
+ * Strategy for AUDIO calls:
+ *   Single { audio: true } request.
  */
 async function getMediaStream(type = 'audio', facingMode = 'user') {
-  const constraintChain = type === 'video' ? [
-    // 1. Preferred: specific resolution + facing mode
-    { audio: true, video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode } },
-    // 2. Fallback: just facing mode
-    { audio: true, video: { facingMode } },
-    // 3. Bare minimum: just video = true
-    { audio: true, video: true },
-    // 4. Last resort: audio only (show a message)
-    { audio: true, video: false },
-  ] : [
-    { audio: true, video: false },
+  // ── Step 1: Always acquire audio first ──
+  let audioStream;
+  try {
+    console.log('[WebRTC] Step 1 — requesting audio-only…');
+    audioStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+    console.log('[WebRTC] ✅ Audio acquired:', audioStream.getAudioTracks().length, 'track(s)');
+  } catch (err) {
+    console.error('[WebRTC] ❌ Audio request failed:', err.name, err.message);
+    throw err; // No audio = no call possible
+  }
+
+  // Audio-only call — we're done
+  if (type !== 'video') {
+    return audioStream;
+  }
+
+  // ── Step 2: Acquire video separately (iOS needs its own prompt) ──
+  const videoConstraintChain = [
+    { audio: false, video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode } },
+    { audio: false, video: { facingMode } },
+    { audio: false, video: true },
   ];
 
-  let lastError = null;
-  for (const constraints of constraintChain) {
+  let videoStream = null;
+  for (const constraints of videoConstraintChain) {
     try {
-      console.log('[WebRTC] Trying getUserMedia with:', JSON.stringify(constraints));
-      const stream = await navigator.mediaDevices.getUserMedia(constraints);
-      console.log('[WebRTC] ✅ Got media stream:', 
-        stream.getAudioTracks().length, 'audio,', 
-        stream.getVideoTracks().length, 'video tracks');
-      return stream;
+      console.log('[WebRTC] Step 2 — trying video with:', JSON.stringify(constraints));
+      videoStream = await navigator.mediaDevices.getUserMedia(constraints);
+      console.log('[WebRTC] ✅ Video acquired:', videoStream.getVideoTracks().length, 'track(s)');
+      break;
     } catch (err) {
-      console.warn('[WebRTC] getUserMedia failed with constraints:', constraints, err.name, err.message);
-      lastError = err;
+      console.warn('[WebRTC] Video attempt failed:', constraints, err.name, err.message);
     }
   }
-  throw lastError;
+
+  // ── Step 3: Merge into a single MediaStream ──
+  if (videoStream) {
+    const combined = new MediaStream();
+    audioStream.getAudioTracks().forEach(t => combined.addTrack(t));
+    videoStream.getVideoTracks().forEach(t => combined.addTrack(t));
+    console.log('[WebRTC] ✅ Combined stream:', combined.getAudioTracks().length, 'audio,', combined.getVideoTracks().length, 'video');
+    return combined;
+  }
+
+  // Video failed at all constraint levels — fall back to audio-only
+  console.warn('[WebRTC] ⚠️ All video attempts failed, falling back to audio-only');
+  toast('Camera unavailable — continuing with audio only', { icon: '📹' });
+  return audioStream;
 }
 
 export function useWebRTCCall(userId, userInfo = {}) {

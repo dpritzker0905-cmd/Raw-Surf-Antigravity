@@ -436,7 +436,7 @@ const UnifiedAdminConsole = () => {
   return (
     <div className={`min-h-screen ${bgClass} pb-20`} data-testid="unified-admin-console">
       {/* Header */}
-      <div className={`sticky top-0 z-10 ${isLight ? 'bg-white/90 border-b border-gray-200' : 'bg-black/90 border-b border-zinc-800'} backdrop-blur-lg`}>
+      <div className={`sticky top-0 z-[1100] ${isLight ? 'bg-white/90 border-b border-gray-200' : 'bg-black/90 border-b border-zinc-800'} backdrop-blur-lg`}>
         <div className="flex items-center justify-between p-4">
           <button 
             onClick={() => navigate(-1)}
