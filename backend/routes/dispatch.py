@@ -826,15 +826,21 @@ async def dispatch_payment_success(
 async def process_dispatch_notifications(dispatch_id: str):
     """Background task to notify photographers in stages"""
     from database import async_session_maker
+    from routes.push import notify_dispatch_alert
     
     async with async_session_maker() as db:
         result = await db.execute(
-            select(DispatchRequest).where(DispatchRequest.id == dispatch_id)
+            select(DispatchRequest)
+            .where(DispatchRequest.id == dispatch_id)
+            .options(selectinload(DispatchRequest.requester))
         )
         dispatch = result.scalar_one_or_none()
         
         if not dispatch or dispatch.status != DispatchRequestStatusEnum.SEARCHING_FOR_PRO:
             return
+        
+        requester_name = dispatch.requester.full_name if dispatch.requester else "A surfer"
+        spot_name = dispatch.location_name or "Nearby"
         
         # If Quick Book - notify ONLY the target photographer
         if dispatch.target_photographer_id:
@@ -861,7 +867,19 @@ async def process_dispatch_notifications(dispatch_id: str):
                 )
                 db.add(notification)
                 await db.commit()
-                logger.error(f"[Dispatch] Sent Quick Book notification to {target_pro.full_name} for request {dispatch_id}")
+                
+                # Send push notification to target photographer
+                try:
+                    await notify_dispatch_alert(
+                        photographer_id=target_pro.id,
+                        spot_name=spot_name,
+                        surfer_name=requester_name,
+                        db=db
+                    )
+                except Exception as push_err:
+                    logger.warning(f"Failed to send Quick Book push to {target_pro.full_name}: {push_err}")
+                
+                logger.info(f"[Dispatch] Sent Quick Book notification to {target_pro.full_name} for request {dispatch_id}")
             return
         
         # Regular dispatch - notify Approved Pros in radius (Stage 1)
@@ -881,7 +899,17 @@ async def process_dispatch_notifications(dispatch_id: str):
                 distance_miles=getattr(pro, '_distance', None)
             )
             db.add(notification)
-            # TODO: Send push notification via notification service
+            
+            # Send push notification to each available pro
+            try:
+                await notify_dispatch_alert(
+                    photographer_id=pro.id,
+                    spot_name=spot_name,
+                    surfer_name=requester_name,
+                    db=db
+                )
+            except Exception as push_err:
+                logger.warning(f"Failed to send dispatch push to {pro.full_name}: {push_err}")
         
         await db.commit()
         

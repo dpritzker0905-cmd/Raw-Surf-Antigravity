@@ -348,6 +348,20 @@ async def join_session(data: JoinSessionRequest, surfer_id: str, db: AsyncSessio
         )
         db.add(notification)
         
+        # ============ PUSH NOTIFICATION: Alert photographer ============
+        # Send real-time push notification so photographer sees it immediately
+        try:
+            from routes.push import notify_session_join
+            await notify_session_join(
+                photographer_id=data.photographer_id,
+                surfer_name=surfer.full_name,
+                amount=final_price,
+                spot_name=photographer.current_spot.name if photographer.current_spot else 'Current location',
+                db=db
+            )
+        except Exception as push_err:
+            logger.warning(f"Failed to send session join push notification: {push_err}")
+        
         # ============ CROSS-POLLINATION: Map â†’ Feed ============
         # Create a Check-In Post when user joins a live session
         spot_name = photographer.current_spot.name if photographer.current_spot else photographer.location
@@ -695,6 +709,34 @@ async def complete_session_payment(data: CompletePaymentRequest, db: AsyncSessio
         # Credit the photographer (80% after platform fee)
         photographer_credit = amount * 0.80
         photographer.credit_balance = (photographer.credit_balance or 0) + photographer_credit
+        
+        # Notify photographer (card payment path was missing this)
+        card_notification = Notification(
+            user_id=photographer_id,
+            type='session_join',
+            title=f"{surfer.full_name} joined your session!",
+            body=f"${amount:.2f} (card) \u2022 {photographer.current_spot.name if photographer.current_spot else 'Current location'}",
+            data=json.dumps({
+                "surfer_id": surfer_id,
+                "surfer_name": surfer.full_name,
+                "selfie_url": selfie_url,
+                "amount_paid": amount
+            })
+        )
+        db.add(card_notification)
+        
+        # Send real-time push notification
+        try:
+            from routes.push import notify_session_join
+            await notify_session_join(
+                photographer_id=photographer_id,
+                surfer_name=surfer.full_name,
+                amount=amount,
+                spot_name=photographer.current_spot.name if photographer.current_spot else 'Current location',
+                db=db
+            )
+        except Exception as push_err:
+            logger.warning(f"Failed to send card session join push: {push_err}")
         
         await db.commit()
         

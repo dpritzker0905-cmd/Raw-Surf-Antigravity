@@ -335,6 +335,36 @@ async def notify_booking(user_id: str, title: str, message: str, db: AsyncSessio
             await db.close()
 
 
+# ============ LIVE SESSION PUSH NOTIFICATIONS ============
+
+async def notify_session_join(photographer_id: str, surfer_name: str, amount: float, spot_name: str, db: AsyncSession = None):
+    """Push notification to photographer when surfer joins their live session - checks user preferences"""
+    from routes.notification_preferences import should_send_notification
+    from database import AsyncSessionLocal
+    
+    close_session = False
+    if db is None:
+        db = AsyncSessionLocal()
+        close_session = True
+    
+    try:
+        # Live session joins fall under the 'bookings' notification category
+        if not await should_send_notification(photographer_id, 'bookings', db):
+            logger.info(f"Skipping session join push for {photographer_id} - disabled in preferences")
+            return {"status": "skipped", "reason": "user_preference"}
+        
+        return await send_push_notification(
+            user_id=photographer_id,
+            title=f"{surfer_name} joined your session!",
+            message=f"${amount:.2f} \u2022 {spot_name}",
+            data={"type": "session_join", "surfer_name": surfer_name, "amount": amount},
+            action_url="/bookings"
+        )
+    finally:
+        if close_session:
+            await db.close()
+
+
 # ============ GROM-SPECIFIC PUSH NOTIFICATIONS ============
 
 async def notify_grom_activity(parent_id: str, grom_name: str, activity_type: str, detail: str = "", db: AsyncSession = None):
