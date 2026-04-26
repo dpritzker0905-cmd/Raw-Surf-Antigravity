@@ -995,60 +995,51 @@ export const Explore = () => {
               {(activeTab === 'all' || activeTab === 'spots') && searchResults.spots.length > 0 && (
                 <section>
                   <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">Surf Spots</h3>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-2">
                     {searchResults.spots.map((spot) => (
                       <div
                         key={spot.id}
                         onClick={() => navigate(`/spot-hub/${spot.id}`)}
-                        className="relative aspect-[4/3] rounded-xl overflow-hidden cursor-pointer group"
+                        className="flex items-center gap-3 p-3 bg-card rounded-xl hover:bg-muted cursor-pointer transition-colors group"
                         data-testid={`spot-result-${spot.id}`}
                       >
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent z-10" />
-                        {spot.image_url ? (
-                          <img 
-                            src={getFullUrl(spot.image_url)} 
-                            alt={spot.name} 
-                            className="w-full h-full object-cover group-hover:scale-105 transition-transform"
-                            onError={(e) => {
-                              if (spot.latitude && spot.longitude) {
-                                e.target.onerror = () => {
-                                  e.target.style.display = 'none';
-                                  e.target.parentElement.classList.add('bg-gradient-to-br', 'from-cyan-600', 'to-blue-800');
-                                };
-                                e.target.src = `https://static-maps.yandex.ru/1.x/?lang=en_US&ll=${spot.longitude},${spot.latitude}&z=12&l=sat&size=400,300`;
-                                e.target.className = 'w-full h-full object-cover opacity-70';
-                              } else {
-                                e.target.style.display = 'none';
-                                e.target.parentElement.classList.add('bg-gradient-to-br', 'from-cyan-600', 'to-blue-800');
-                              }
-                            }}
-                          />
-                        ) : spot.latitude && spot.longitude ? (
-                          <div className="w-full h-full bg-muted relative">
+                        {/* Thumbnail */}
+                        <div className="w-14 h-14 rounded-lg overflow-hidden flex-shrink-0 bg-muted">
+                          {spot.image_url ? (
                             <img 
-                              src={`https://static-maps.yandex.ru/1.x/?lang=en_US&ll=${spot.longitude},${spot.latitude}&z=12&l=sat&size=400,300`}
-                              alt={`Map of ${spot.name}`}
-                              className="w-full h-full object-cover opacity-60"
+                              src={getFullUrl(spot.image_url)} 
+                              alt={spot.name} 
+                              className="w-full h-full object-cover group-hover:scale-110 transition-transform"
                               onError={(e) => {
                                 e.target.style.display = 'none';
                                 e.target.parentElement.classList.add('bg-gradient-to-br', 'from-cyan-600', 'to-blue-800');
+                                e.target.parentElement.innerHTML = '<div class="w-full h-full flex items-center justify-center"><svg class="w-5 h-5 text-white/50" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg></div>';
                               }}
                             />
-                            <div className="absolute inset-0 flex items-center justify-center">
-                              <MapPin className="w-8 h-8 text-cyan-400 drop-shadow-lg" />
+                          ) : (
+                            <div className="w-full h-full bg-gradient-to-br from-cyan-600 to-blue-800 flex items-center justify-center">
+                              <MapPin className="w-5 h-5 text-white/50" />
                             </div>
-                          </div>
-                        ) : (
-                          <div className="w-full h-full bg-gradient-to-br from-cyan-600 to-blue-800 flex items-center justify-center">
-                            <MapPin className="w-8 h-8 text-white/30" />
-                          </div>
-                        )}
-                        <div className="absolute bottom-0 left-0 right-0 p-3 z-20">
-                          <h4 className="font-medium text-foreground truncate">{spot.name}</h4>
-                          <p className="text-xs text-gray-300">
+                          )}
+                        </div>
+                        {/* Info */}
+                        <div className="flex-1 min-w-0">
+                          <h4 className="font-semibold text-foreground truncate">{spot.name}</h4>
+                          <p className="text-xs text-muted-foreground truncate">
                             {[spot.secondary_city, spot.region].filter(Boolean).filter((v, i, a) => a.indexOf(v) === i).join(' • ')}
                           </p>
+                          {spot.difficulty && (
+                            <span className={`inline-block mt-1 text-[10px] font-medium px-1.5 py-0.5 rounded-full ${
+                              spot.difficulty === 'Beginner' ? 'bg-green-500/20 text-green-400' :
+                              spot.difficulty === 'Intermediate' ? 'bg-yellow-500/20 text-yellow-400' :
+                              'bg-red-500/20 text-red-400'
+                            }`}>
+                              {spot.difficulty}
+                            </span>
+                          )}
                         </div>
+                        {/* Arrow */}
+                        <ChevronRight className="w-4 h-4 text-muted-foreground flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
                       </div>
                     ))}
                   </div>
