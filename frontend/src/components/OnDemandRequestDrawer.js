@@ -236,7 +236,7 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
     }
   }, [step]);
 
-  // Geocode custom address when user finishes typing
+  // Geocode custom address when user finishes typing — GPS-biased
   useEffect(() => {
     if (!useCustomLocation || !customLocationAddress || customLocationAddress.trim().length < 5) {
       setCustomLocationCoords(null);
@@ -246,14 +246,42 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
       setGeocodingAddress(true);
       try {
         const encoded = encodeURIComponent(customLocationAddress.trim());
-        const res = await fetch(`https://nominatim.openstreetmap.org/search?q=${encoded}&format=json&limit=1`, {
-          headers: { 'Accept': 'application/json' }
-        });
-        const data = await res.json();
+        
+        // Build GPS-biased Nominatim URL — constrain results near the user's location
+        // so "401 Meade Ave" resolves to Cape Canaveral, not Virginia
+        const refLat = userLocation?.latitude || photographer?.on_demand_latitude || 28.3667;
+        const refLng = userLocation?.longitude || photographer?.on_demand_longitude || -80.6067;
+        const boxDelta = 0.5; // ~35 miles radius bounding box
+        const viewbox = `${refLng - boxDelta},${refLat + boxDelta},${refLng + boxDelta},${refLat - boxDelta}`;
+        
+        const url = `https://nominatim.openstreetmap.org/search?q=${encoded}&format=json&limit=5&viewbox=${viewbox}&bounded=1`;
+        let res = await fetch(url, { headers: { 'Accept': 'application/json' } });
+        let data = await res.json();
+        
+        // If bounded search found nothing, try unbounded but still with viewbox preference
+        if (!data || data.length === 0) {
+          const fallbackUrl = `https://nominatim.openstreetmap.org/search?q=${encoded}&format=json&limit=5&viewbox=${viewbox}&bounded=0`;
+          res = await fetch(fallbackUrl, { headers: { 'Accept': 'application/json' } });
+          data = await res.json();
+        }
+        
         if (data && data.length > 0) {
-          const coords = { latitude: parseFloat(data[0].lat), longitude: parseFloat(data[0].lon) };
+          // Pick the result closest to the user's GPS
+          let bestResult = data[0];
+          let bestDist = Infinity;
+          for (const item of data) {
+            const dLat = parseFloat(item.lat) - refLat;
+            const dLng = parseFloat(item.lon) - refLng;
+            const dist = dLat * dLat + dLng * dLng;
+            if (dist < bestDist) {
+              bestDist = dist;
+              bestResult = item;
+            }
+          }
+          
+          const coords = { latitude: parseFloat(bestResult.lat), longitude: parseFloat(bestResult.lon) };
           setCustomLocationCoords(coords);
-          logger.info('[OnDemandDrawer] Geocoded address:', customLocationAddress, '->', coords);
+          logger.info('[OnDemandDrawer] Geocoded address:', customLocationAddress, '->', coords, `(${bestResult.display_name})`);
         } else {
           setCustomLocationCoords(null);
           logger.warn('[OnDemandDrawer] Geocoding returned no results for:', customLocationAddress);
@@ -266,7 +294,7 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
       }
     }, 800); // Debounce 800ms
     return () => clearTimeout(timeoutId);
-  }, [customLocationAddress, useCustomLocation]);
+  }, [customLocationAddress, useCustomLocation, userLocation?.latitude, userLocation?.longitude, photographer?.on_demand_latitude, photographer?.on_demand_longitude]);
 
   // Save a spot to recently visited (called when advancing from location step)
   const saveRecentSpot = (spot) => {

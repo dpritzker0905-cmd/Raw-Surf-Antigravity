@@ -5,7 +5,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { 
 
   MapPin, Waves, Camera, Clock, Users, X, TrendingUp, Loader2, Radio, Calendar, MessageCircle, Compass,
-  Sun, Lock, Crown, Eye, Heart, ChevronLeft,
+  Sun, Lock, Crown, Eye, Heart, ChevronLeft, Flag,
   Navigation, AlertCircle, Zap, CalendarClock, ChevronRight,
   Bell, Send, DollarSign, Star, Wind, CloudRain
 } from 'lucide-react';
@@ -626,6 +626,30 @@ const SpotHub = () => {
     }
   };
 
+  // Report a condition report for moderation
+  const handleReportConditionReport = async (reportId) => {
+    if (!user) {
+      toast.error('Please sign in to report content');
+      return;
+    }
+    try {
+      await apiClient.post('/content/flag', {
+        content_type: 'condition_report',
+        content_id: reportId,
+        reporter_id: user.id,
+        reason: 'user_report'
+      });
+      toast.success('Report submitted — our team will review it');
+    } catch (error) {
+      const detail = error?.response?.data?.detail;
+      if (typeof detail === 'string' && detail.toLowerCase().includes('already')) {
+        toast.info('You have already reported this content');
+      } else {
+        toast.error('Failed to submit report');
+      }
+    }
+  };
+
   const handleClose = () => {
     navigate(-1);
   };
@@ -1149,6 +1173,14 @@ const SpotHub = () => {
                           {report.conditions_label}
                         </Badge>
                       )}
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handleReportConditionReport(report.id); }}
+                        className={`p-1.5 rounded-full transition-colors ${isLight ? 'hover:bg-red-50 text-gray-400 hover:text-red-500' : 'hover:bg-red-500/10 text-gray-600 hover:text-red-400'}`}
+                        title="Report this content"
+                        data-testid={`report-cr-${report.id}`}
+                      >
+                        <Flag className="w-3.5 h-3.5" />
+                      </button>
                     </div>
                     {/* Captured timestamp — exact time the media was shot */}
                     <p className={`text-xs mt-1.5 ${textSecondary}`}>
