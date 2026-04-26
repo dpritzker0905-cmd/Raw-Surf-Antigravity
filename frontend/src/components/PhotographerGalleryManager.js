@@ -11,7 +11,7 @@ import {
   MapPin, Calendar, Sparkles, UserCheck, Loader2,
   Search, Filter, Check, MoreVertical,
   TrendingUp, ShoppingBag, BarChart3,
-  Link2, Send, CheckCircle, AlertCircle, ArrowRight, UserPlus, RefreshCw, Globe
+  Link2, Send, CheckCircle, AlertCircle, ArrowRight, UserPlus, RefreshCw, Globe, Radio
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from './ui/card';
 import { Button } from './ui/button';
@@ -90,6 +90,10 @@ export const PhotographerGalleryManager = () => {
   const [loadingSales, setLoadingSales] = useState(false);
   const [publishing, setPublishing] = useState(false);
   
+  // Push to Spot Hub state
+  const [pushingConditions, setPushingConditions] = useState(false);
+  const [conditionsStatus, setConditionsStatus] = useState(null);
+  
   const [pricing, setPricing] = useState({
     price_web: 3,
     price_standard: 5,
@@ -148,6 +152,48 @@ export const PhotographerGalleryManager = () => {
       navigate('/photographer/sessions');
     } finally {
       setLoading(false);
+    }
+  };
+
+  // ============ PUSH TO SPOT HUB HANDLERS ============
+
+  // Fetch conditions status when gallery loads
+  useEffect(() => {
+    if (gallery?.surf_spot_id && user?.id) {
+      fetchConditionsStatus();
+    }
+  }, [gallery?.id, gallery?.surf_spot_id]);
+
+  const fetchConditionsStatus = async () => {
+    try {
+      const response = await apiClient.get(
+        `/galleries/${galleryId}/conditions-status?photographer_id=${user.id}`
+      );
+      setConditionsStatus(response.data);
+    } catch (error) {
+      logger.error('Error fetching conditions status:', error);
+      setConditionsStatus(null);
+    }
+  };
+
+  const handlePushToSpotHub = async () => {
+    if (!gallery?.surf_spot_id) {
+      toast.error('This gallery has no linked surf spot');
+      return;
+    }
+    setPushingConditions(true);
+    try {
+      const response = await apiClient.post(
+        `/galleries/${galleryId}/push-conditions?photographer_id=${user.id}`,
+        {}
+      );
+      const data = response.data;
+      toast.success(`📡 ${data.message}`);
+      await fetchConditionsStatus();
+    } catch (error) {
+      toast.error(error.response?.data?.detail || 'Failed to push conditions report');
+    } finally {
+      setPushingConditions(false);
     }
   };
 
@@ -657,6 +703,27 @@ export const PhotographerGalleryManager = () => {
               >
                 <DollarSign className="w-4 h-4 mr-2" />
                 Set Pricing
+              </Button>
+            )}
+            {/* Push to Spot Hub — only for galleries with a surf spot */}
+            {gallery?.surf_spot_id && (
+              <Button
+                variant="outline"
+                className={`${
+                  conditionsStatus?.has_active_report
+                    ? `${borderClass} border-amber-500/50 text-amber-400 hover:bg-amber-500/10`
+                    : `${borderClass} border-teal-500/50 text-teal-400 hover:bg-teal-500/10`
+                }`}
+                onClick={handlePushToSpotHub}
+                disabled={pushingConditions || (gallery?.item_count || 0) === 0}
+                data-testid="push-to-spot-hub-pgm-btn"
+              >
+                {pushingConditions ? (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                ) : (
+                  <Radio className="w-4 h-4 mr-2" />
+                )}
+                {conditionsStatus?.has_active_report ? 'Refresh Spot Hub' : 'Push to Spot Hub'}
               </Button>
             )}
           </div>

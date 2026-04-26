@@ -131,6 +131,10 @@ export const GalleryPage = () => {
   const [recentSessionsLoading, setRecentSessionsLoading] = useState(false);
   const [linkingSession, setLinkingSession] = useState(false);
   
+  // Push to Spot Hub state
+  const [pushingConditions, setPushingConditions] = useState(false);
+  const [conditionsStatus, setConditionsStatus] = useState(null); // { has_spot, has_active_report, ... }
+  
   // Grom Highlights state (for Grom Parents)
   const [gromHighlights, setGromHighlights] = useState([]);
   const [linkedGroms, setLinkedGroms] = useState([]);
@@ -339,12 +343,57 @@ export const GalleryPage = () => {
   const openGalleryDetail = (gal) => {
     setSelectedGallery(gal);
     fetchGalleryItems(gal.id);
+    // Check conditions report status for this gallery
+    if (gal.surf_spot_id) {
+      fetchConditionsStatus(gal.id);
+    } else {
+      setConditionsStatus(null);
+    }
   };
 
   // Close gallery detail view
   const closeGalleryDetail = () => {
     setSelectedGallery(null);
     setGalleryItems([]);
+    setConditionsStatus(null);
+  };
+
+  // ============ PUSH TO SPOT HUB HANDLERS ============
+  
+  // Fetch current conditions report status for a gallery
+  const fetchConditionsStatus = async (galleryId) => {
+    try {
+      const response = await apiClient.get(
+        `/galleries/${galleryId}/conditions-status?photographer_id=${user.id}`
+      );
+      setConditionsStatus(response.data);
+    } catch (error) {
+      logger.error('Error fetching conditions status:', error);
+      setConditionsStatus(null);
+    }
+  };
+
+  // Push conditions report to spot hub
+  const handlePushToSpotHub = async () => {
+    if (!selectedGallery?.surf_spot_id) {
+      toast.error('This gallery has no linked surf spot');
+      return;
+    }
+    setPushingConditions(true);
+    try {
+      const response = await apiClient.post(
+        `/galleries/${selectedGallery.id}/push-conditions?photographer_id=${user.id}`,
+        {}
+      );
+      const data = response.data;
+      toast.success(`📡 ${data.message}`);
+      // Refresh status
+      await fetchConditionsStatus(selectedGallery.id);
+    } catch (error) {
+      toast.error(getErrorMessage(error, 'Failed to push conditions report'));
+    } finally {
+      setPushingConditions(false);
+    }
   };
 
   const handleSaveGalleryPricing = async () => {
@@ -1784,6 +1833,28 @@ export const GalleryPage = () => {
                     >
                       <Link2 className="w-4 h-4 mr-1" />
                       Link Session
+                    </Button>
+                  )}
+                  {/* Push to Spot Hub — only for galleries with a surf spot */}
+                  {selectedGallery.surf_spot_id && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className={`flex-shrink-0 ${
+                        conditionsStatus?.has_active_report
+                          ? 'border-amber-500/60 text-amber-400 hover:bg-amber-500/10'
+                          : 'border-teal-500/60 text-teal-400 hover:bg-teal-500/10'
+                      }`}
+                      onClick={handlePushToSpotHub}
+                      disabled={pushingConditions || galleryItems.length === 0}
+                      data-testid="push-to-spot-hub-btn"
+                    >
+                      {pushingConditions ? (
+                        <Loader2 className="w-4 h-4 animate-spin mr-1" />
+                      ) : (
+                        <Radio className="w-4 h-4 mr-1" />
+                      )}
+                      {conditionsStatus?.has_active_report ? 'Refresh Spot Hub' : 'Push to Spot Hub'}
                     </Button>
                   )}
                   <Button
