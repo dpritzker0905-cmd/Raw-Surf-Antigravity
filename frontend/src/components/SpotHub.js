@@ -31,6 +31,7 @@ import { ScheduledBookingDrawer } from './ScheduledBookingDrawer';
 
 import logger from '../utils/logger';
 import { getFullUrl } from '../utils/media';
+import { getThemeTokens } from '../utils/themeTokens';
 import { ROLES } from '../constants/roles';
 
 
@@ -454,11 +455,12 @@ const PhotographerRequestModal = ({ isOpen, onClose, spot, spotId, onSuccess }) 
 const SpotHub = () => {
   const { spotId } = useParams();
   const { theme } = useTheme();
-  const isLight = theme === 'light';
-  const textPrimary = isLight ? 'text-gray-900' : 'text-white';
-  const textSecondary = isLight ? 'text-gray-600' : 'text-gray-400';
-  const cardBg = isLight ? 'bg-white/80 border-gray-200 shadow-sm' : 'bg-zinc-900/80 border-zinc-800';
-  const rowBg = isLight ? 'bg-gray-100/80' : 'bg-zinc-800/50';
+  const t = getThemeTokens(theme);
+  const isLight = t.isLight;
+  const textPrimary = t.textPrimary;
+  const textSecondary = t.textSecondary;
+  const cardBg = t.glassBg;
+  const rowBg = t.rowBg;
   
   const navigate = useNavigate();
   const { user } = useAuth();

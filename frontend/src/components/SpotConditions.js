@@ -10,6 +10,7 @@ import { toast } from 'sonner';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import logger from '../utils/logger';
+import { getThemeTokens } from '../utils/themeTokens';
 
 
 // Get subscription tier for forecast access
@@ -41,17 +42,16 @@ const conditionColors = {
 export const SpotConditions = ({ spotId, spotName, compact = false }) => {
   const { user } = useAuth();
   const { theme } = useTheme();
-  const isLight = theme === 'light';
-  const isBeach = theme === 'beach';
-  // Theme tokens
-  const containerBg = isLight ? 'bg-white' : isBeach ? 'bg-amber-50' : 'bg-zinc-900';
-  const containerBorder = isLight ? 'border-gray-200' : isBeach ? 'border-amber-200' : 'border-zinc-800';
-  const tPrimary = isLight ? 'text-gray-900' : isBeach ? 'text-amber-900' : 'text-white';
-  const tSecondary = isLight ? 'text-gray-500' : isBeach ? 'text-amber-700' : 'text-gray-400';
-  const tMuted = isLight ? 'text-gray-400' : isBeach ? 'text-amber-600' : 'text-gray-500';
-  const cellBg = isLight ? 'bg-gray-100' : isBeach ? 'bg-amber-100/60' : 'bg-zinc-800';
-  const cellBgFaded = isLight ? 'bg-gray-100/50 opacity-60' : isBeach ? 'bg-amber-100/30 opacity-60' : 'bg-zinc-800/50 opacity-60';
-  const hoverBg = isLight ? 'hover:bg-gray-100' : isBeach ? 'hover:bg-amber-100/50' : 'hover:bg-zinc-800/50';
+  const t = getThemeTokens(theme);
+  // Theme tokens from shared utility
+  const containerBg = t.pageBg;
+  const containerBorder = t.border;
+  const tPrimary = t.textPrimary;
+  const tSecondary = t.textSecondary;
+  const tMuted = t.textMuted;
+  const cellBg = t.cellBg;
+  const cellBgFaded = t.cellBgFaded;
+  const hoverBg = t.hoverBg;
   const [conditions, setConditions] = useState(null);
   const [tideData, setTideData] = useState(null);
   const [reports, setReports] = useState(null);

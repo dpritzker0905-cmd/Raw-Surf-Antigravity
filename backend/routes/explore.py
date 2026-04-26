@@ -159,6 +159,15 @@ async def explore_search(
         } for u in users]
     
     if search_type in ["all", "spots"]:
+        # Prioritize name matches over region/description matches
+        # Use CASE to rank: exact name match > partial name > region/description
+        from sqlalchemy import case
+        relevance = case(
+            (SurfSpot.name.ilike(search_term), 1),  # Name contains search term
+            (SurfSpot.region.ilike(search_term), 2),  # Region contains search term
+            (SurfSpot.description.ilike(search_term), 3),  # Description contains search term
+            else_=4
+        )
         spot_result = await db.execute(
             select(SurfSpot)
             .where(
@@ -168,6 +177,7 @@ async def explore_search(
                     SurfSpot.description.ilike(search_term)
                 )
             )
+            .order_by(relevance, SurfSpot.name)
             .limit(limit)
         )
         spots = spot_result.scalars().all()

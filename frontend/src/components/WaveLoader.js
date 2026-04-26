@@ -1,5 +1,6 @@
 import React from 'react';
 import { useTheme } from '../contexts/ThemeContext';
+import { getThemeTokens } from '../utils/themeTokens';
 
 /**
  * WaveLoader - Surfing-themed loading animation for the Map
@@ -12,17 +13,14 @@ import { useTheme } from '../contexts/ThemeContext';
  */
 export const WaveLoader = () => {
   const { theme } = useTheme();
-  const isLight = theme === 'light';
-  const isBeach = theme === 'beach';
+  const t = getThemeTokens(theme);
 
-  // Theme-aware colors
-  const bgColor = isLight ? '#f5f5f5' : isBeach ? '#fffbeb' : '#1a1a1a';
-  const wave1 = isLight ? '#e5e7eb' : isBeach ? '#fde68a' : '#252525';
-  const wave2 = isLight ? '#d1d5db' : isBeach ? '#fbbf24' : '#2a2a2a';
-  const wave3 = isLight ? '#c4c8cf' : isBeach ? '#f59e0b' : '#303030';
-  const textColor = isLight ? 'text-gray-900' : isBeach ? 'text-amber-900' : 'text-white';
-  const subtextColor = isLight ? 'text-gray-400' : isBeach ? 'text-amber-600' : 'text-gray-500';
-  const dotColor = isLight ? 'bg-blue-400' : isBeach ? 'bg-amber-500' : 'bg-cyan-400';
+  // Theme-aware wave fill colors (not class-based, needs raw hex)
+  const bgColor = t.isLight ? '#f5f5f5' : t.isBeach ? '#fffbeb' : '#1a1a1a';
+  const wave1 = t.isLight ? '#e5e7eb' : t.isBeach ? '#fde68a' : '#252525';
+  const wave2 = t.isLight ? '#d1d5db' : t.isBeach ? '#fbbf24' : '#2a2a2a';
+  const wave3 = t.isLight ? '#c4c8cf' : t.isBeach ? '#f59e0b' : '#303030';
+  const dotColor = t.isLight ? 'bg-blue-400' : t.isBeach ? 'bg-amber-500' : 'bg-cyan-400';
 
   return (
     <div className={`h-full w-full flex flex-col items-center justify-center relative overflow-hidden`} style={{ backgroundColor: bgColor }}>
@@ -81,12 +79,12 @@ export const WaveLoader = () => {
         {/* Loading Text */}
         <div className="text-center">
           <h2 
-            className={`text-2xl font-bold ${textColor} mb-2 animate-pulse`}
+            className={`text-2xl font-bold ${t.textPrimary} mb-2 animate-pulse`}
             style={{ fontFamily: 'Oswald', animationDuration: '2s' }}
           >
             Loading Waves
           </h2>
-          <p className={`${subtextColor} text-sm`}>
+          <p className={`${t.textMuted} text-sm`}>
             Finding surf spots near you...
           </p>
         </div>

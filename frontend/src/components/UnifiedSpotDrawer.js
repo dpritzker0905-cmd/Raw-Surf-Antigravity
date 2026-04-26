@@ -26,6 +26,8 @@ import { usePersona } from '../contexts/PersonaContext';
 
 import { useTheme } from '../contexts/ThemeContext';
 
+import { getThemeTokens } from '../utils/themeTokens';
+
 import { JumpInSessionModal } from './JumpInSessionModal';
 
 import { LockerSelfieModal } from './LockerSelfieModal';
@@ -1175,16 +1177,17 @@ const UnifiedSpotDrawer = ({
   const { user } = useAuth();
   const navigate = useNavigate();
   const { theme } = useTheme();
-  const isLight = theme === 'light';
-  const isBeach = theme === 'beach';
+  const t = getThemeTokens(theme);
+  const isLight = t.isLight;
+  const isBeach = t.isBeach;
   
-  // Theme-aware tokens
-  const drawerBg = isLight ? 'bg-white' : isBeach ? 'bg-amber-50' : 'bg-zinc-900';
-  const drawerBorder = isLight ? 'border-gray-200' : isBeach ? 'border-amber-200' : 'border-zinc-700';
-  const headerBorder = isLight ? 'border-gray-200' : isBeach ? 'border-amber-200' : 'border-zinc-800';
-  const textPrimary = isLight ? 'text-gray-900' : isBeach ? 'text-amber-900' : 'text-white';
-  const textSecondary = isLight ? 'text-gray-500' : isBeach ? 'text-amber-700' : 'text-gray-400';
-  const cardBg = isLight ? 'bg-gray-50 border-gray-200' : isBeach ? 'bg-amber-100/60 border-amber-200' : 'bg-zinc-800/50 border-zinc-800';
+  // Theme-aware tokens from shared utility
+  const drawerBg = t.pageBg;
+  const drawerBorder = t.borderLight;
+  const headerBorder = t.border;
+  const textPrimary = t.textPrimary;
+  const textSecondary = t.textSecondary;
+  const cardBg = t.cardBgBorder;
   
   const isWithinGeofence = spot?.is_within_geofence !== false;
   const distanceMiles = spot?.distance_miles;
