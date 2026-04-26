@@ -492,7 +492,7 @@ const SpotHub = () => {
   const [showRequestModal, setShowRequestModal] = useState(false);
   
   const userTier = user?.subscription_tier || 'free';
-  const forecastDaysAllowed = userTier === 'premium' ? 10 : userTier === 'paid' ? 7 : 3;
+  const forecastDaysAllowed = ['premium', 'pro', 'gold'].includes(userTier) ? 10 : ['paid', 'basic'].includes(userTier) ? 7 : 3;
   
   // Calculate distance between two coordinates in miles
   const calculateDistance = (lat1, lon1, lat2, lon2) => {
@@ -972,10 +972,21 @@ const SpotHub = () => {
                   <Button 
                     size="sm" 
                     onClick={() => handleOpenBookingModal(photographer)}
-                    className="text-[10px] bg-cyan-500 hover:bg-cyan-600 h-7 px-2"
+                    className={`text-[10px] h-7 px-2 ${
+                      photographer.status === 'live_shooting' || photographer.is_shooting
+                        ? 'bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 text-white'
+                        : photographer.status === 'on_demand' || photographer.is_on_demand
+                          ? 'bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white'
+                          : 'bg-cyan-500 hover:bg-cyan-600 text-white'
+                    }`}
                     data-testid={`book-photographer-${photographer.id}`}
                   >
-                    Book
+                    {photographer.status === 'live_shooting' || photographer.is_shooting
+                      ? 'Jump In'
+                      : photographer.status === 'on_demand' || photographer.is_on_demand
+                        ? 'Request'
+                        : 'Book'
+                    }
                   </Button>
                 </div>
               );
@@ -1157,17 +1168,33 @@ const SpotHub = () => {
                         </span>
                       )}
                     </div>
-                    {report.media_url && report.media_url.trim() && (
-                      <img 
-                        src={getFullUrl(report.thumbnail_url || report.media_url)} 
-                        alt="" 
-                        className="mt-2 w-full h-32 object-cover rounded-lg"
-                        onError={(e) => {
-                          // Hide broken images instead of showing black box
-                          e.target.style.display = 'none';
-                        }}
-                      />
-                    )}
+                    {(() => {
+                      // Get the best available image URL, filtering out broken local paths
+                      const candidateUrls = [
+                        report.thumbnail_url,
+                        report.media_url
+                      ].filter(url => url && url.trim() && !url.startsWith('/api/uploads/'));
+                      const primaryUrl = candidateUrls[0];
+                      const fallbackUrl = candidateUrls[1];
+                      
+                      if (!primaryUrl) return null;
+                      
+                      return (
+                        <img 
+                          src={getFullUrl(primaryUrl)} 
+                          alt="" 
+                          className="mt-2 w-full h-32 object-cover rounded-lg"
+                          onError={(e) => {
+                            // Try fallback URL before hiding
+                            if (fallbackUrl && e.target.src !== getFullUrl(fallbackUrl)) {
+                              e.target.src = getFullUrl(fallbackUrl);
+                            } else {
+                              e.target.style.display = 'none';
+                            }
+                          }}
+                        />
+                      );
+                    })()}
                   </div>
                 ))}
               </div>

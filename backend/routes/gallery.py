@@ -12,7 +12,7 @@ import logging
 gallery_logger = logging.getLogger(__name__)
 
 from database import get_db
-from models import Profile, SurfSpot, GalleryItem, GalleryPurchase, Notification, RoleEnum, Gallery, LiveSession, LiveSessionParticipant, XPTransaction, SurferGalleryItem, SurferSelectionQuota, GalleryTierEnum, Booking, BookingParticipant, DispatchRequest
+from models import Profile, SurfSpot, GalleryItem, GalleryPurchase, Notification, RoleEnum, Gallery, LiveSession, LiveSessionParticipant, XPTransaction, SurferGalleryItem, SurferSelectionQuota, GalleryTierEnum, Booking, BookingParticipant, DispatchRequest, ConditionReport
 
 # Import badge check function
 from routes.gamification import check_badge_milestones
@@ -5506,16 +5506,54 @@ async def set_gallery_thumbnail(
     
     old_cover = gallery.cover_image_url
     gallery.cover_image_url = new_cover_url
+    
+    # Sync to linked condition reports — when the gallery thumbnail changes,
+    # any condition report linked via the same live_session_id should also update.
+    # This prevents blank/broken photos on SpotHub's condition reports section.
+    synced_reports = 0
+    if gallery.live_session_id:
+        linked_reports = await db.execute(
+            select(ConditionReport).where(
+                ConditionReport.live_session_id == gallery.live_session_id,
+                ConditionReport.photographer_id == photographer_id
+            )
+        )
+        for report in linked_reports.scalars().all():
+            report.thumbnail_url = new_cover_url
+            # If media_url is broken (local path), also update it
+            if report.media_url and report.media_url.startswith('/api/uploads/'):
+                report.media_url = new_cover_url
+            synced_reports += 1
+    
+    # Also check if there are condition reports by this photographer at the same spot
+    # that were created around the same time as the gallery
+    if synced_reports == 0 and gallery.spot_id:
+        spot_reports = await db.execute(
+            select(ConditionReport).where(
+                ConditionReport.photographer_id == photographer_id,
+                ConditionReport.spot_id == gallery.spot_id,
+                ConditionReport.is_active == True
+            ).order_by(ConditionReport.created_at.desc()).limit(1)
+        )
+        latest_report = spot_reports.scalar_one_or_none()
+        if latest_report:
+            latest_report.thumbnail_url = new_cover_url
+            if latest_report.media_url and latest_report.media_url.startswith('/api/uploads/'):
+                latest_report.media_url = new_cover_url
+            synced_reports += 1
+    
     await db.commit()
     
     gallery_logger.info(
         f"Gallery {gallery_id} thumbnail manually set: {old_cover} -> {new_cover_url}"
+        + (f" (synced {synced_reports} condition reports)" if synced_reports > 0 else "")
     )
     
     return {
         "success": True,
         "gallery_id": gallery_id,
         "cover_image_url": new_cover_url,
+        "condition_reports_synced": synced_reports,
         "message": "Gallery thumbnail updated successfully"
     }
 

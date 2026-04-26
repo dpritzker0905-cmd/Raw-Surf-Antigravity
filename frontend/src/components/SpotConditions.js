@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import { Waves, Clock, Compass, Users, Star, MessageSquare, ChevronDown, ChevronUp, Loader2, ArrowUp, ArrowDown, Droplets, Calendar, Lock, Crown } from 'lucide-react';
 import { Badge } from './ui/badge';
@@ -14,8 +14,9 @@ import logger from '../utils/logger';
 // Get subscription tier for forecast access
 const getForecastDays = (subscriptionTier) => {
   if (!subscriptionTier || subscriptionTier === 'free') return 3;
-  if (subscriptionTier === 'basic') return 3;
-  return 10; // Premium gets 10-day forecast
+  if (['basic', 'paid'].includes(subscriptionTier)) return 7;
+  if (['premium', 'pro', 'gold'].includes(subscriptionTier)) return 10;
+  return 3; // Default fallback for unknown tiers
 };
 
 // Check if user has premium forecast access
