@@ -1,8 +1,8 @@
-﻿import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 
 import { useNavigate } from 'react-router-dom';
 
-import { MapPin, Camera, Radio, Users, Waves, AlertTriangle, DollarSign, Zap, Check, ArrowLeft, Image, Tag, Sparkles, Star, CreditCard, Coins, Loader2, RefreshCw, ChevronDown, Calendar, Lock, Crown, Trophy, CheckCircle } from 'lucide-react';
+import { MapPin, Camera, Radio, Users, Waves, AlertTriangle, DollarSign, Zap, Check, ArrowLeft, Image, Tag, Sparkles, Star, CreditCard, Coins, Loader2, RefreshCw, ChevronDown, ChevronRight, Calendar, Lock, Crown, Trophy, CheckCircle, ExternalLink } from 'lucide-react';
 
 import { Button } from './ui/button';
 
@@ -1570,21 +1570,26 @@ const UnifiedSpotDrawer = ({
                       <MapPin className="w-5 h-5 text-cyan-400" />
                     </div>
                   </div>
-                  <div className="flex-1">
+                  <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <h2 className="text-white font-bold text-lg" style={{ fontFamily: 'Oswald' }}>
+                      <h2
+                        className="text-white font-bold text-lg cursor-pointer hover:text-cyan-400 transition-colors truncate"
+                        style={{ fontFamily: 'Oswald' }}
+                        onClick={() => { navigate(`/spot-hub/${spot.id}`); onClose?.(); }}
+                        title="View Spot Hub"
+                      >
                         {spot.name}
                       </h2>
                       {/* Real-Time Wave Height Badge - NOAA/Open-Meteo data */}
                       {liveWaveHeight !== null && (
-                        <Badge className={`text-xs px-1.5 py-0.5 ${getWaveBadgeColor(liveWaveHeight)}`} data-testid="live-wave-badge">
+                        <Badge className={`text-xs px-1.5 py-0.5 shrink-0 ${getWaveBadgeColor(liveWaveHeight)}`} data-testid="live-wave-badge">
                           <Waves className="w-3 h-3 mr-0.5" />
                           {liveWaveHeight}ft
                         </Badge>
                       )}
                       {/* Community Verified Badge */}
                       {spot.community_verified && (
-                        <Badge className="bg-emerald-500 text-white text-xs px-1.5 py-0.5" data-testid="community-verified-badge">
+                        <Badge className="bg-emerald-500 text-white text-xs px-1.5 py-0.5 shrink-0" data-testid="community-verified-badge">
                           <CheckCircle className="w-3 h-3 mr-0.5" />
                           Verified
                         </Badge>
@@ -1888,6 +1893,30 @@ const UnifiedSpotDrawer = ({
                       </div>
                     )}
                     
+                    {/* ── View Full Spot Hub CTA ──────────────────────────── */}
+                    <div className="px-4 py-4">
+                      <button
+                        onClick={() => { navigate(`/spot-hub/${spot.id}`); onClose?.(); }}
+                        className="w-full group relative overflow-hidden rounded-xl border border-cyan-500/30 bg-gradient-to-r from-cyan-500/10 via-blue-500/10 to-purple-500/10 hover:from-cyan-500/20 hover:via-blue-500/20 hover:to-purple-500/20 transition-all duration-300"
+                        data-testid="view-spot-hub-btn"
+                      >
+                        <div className="flex items-center justify-between px-4 py-3.5">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-full bg-gradient-to-r from-cyan-400 to-blue-500 p-0.5 shrink-0">
+                              <div className="w-full h-full rounded-full bg-zinc-900 flex items-center justify-center">
+                                <ExternalLink className="w-4 h-4 text-cyan-400" />
+                              </div>
+                            </div>
+                            <div>
+                              <p className="text-white font-semibold text-sm">View Full Spot Hub</p>
+                              <p className="text-gray-400 text-xs">Forecast, reports, galleries & more</p>
+                            </div>
+                          </div>
+                          <ChevronRight className="w-5 h-5 text-cyan-400 group-hover:translate-x-1 transition-transform" />
+                        </div>
+                      </button>
+                    </div>
+
                     {/* Bottom safe area padding for mobile */}
                     <div className="h-20" aria-hidden="true" />
                   </>
