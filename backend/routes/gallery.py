@@ -3313,7 +3313,10 @@ async def trigger_ai_lineup_match(
         "quotas_created": quotas_created,
         "surfer_items_created": surfer_items_created,
         "photos_included_per_surfer": photos_included,
-        "gallery_tier": gallery_tier.value
+        "gallery_tier": gallery_tier.value,
+        # Frontend-expected fields for toast messages
+        "matches_found": ai_result.get("matches", 0) if ai_result.get("success") else 0,
+        "items_processed": ai_result.get("processed", 0) if ai_result.get("success") else 0
     }
 
 

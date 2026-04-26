@@ -186,13 +186,13 @@ async def process_session_burst_for_matching(
         result = await db.execute(
             select(LiveSessionParticipant)
             .where(LiveSessionParticipant.live_session_id == session_id)
-            .options(selectinload(LiveSessionParticipant.participant))
+            .options(selectinload(LiveSessionParticipant.surfer))
         )
         participants = result.scalars().all()
         
         for p in participants:
-            if p.participant:
-                passport = await get_passport_data(p.participant, db)
+            if p.surfer:
+                passport = await get_passport_data(p.surfer, db)
                 participants_data.append(passport)
     
     elif session_type == 'booking':
@@ -291,20 +291,13 @@ async def trigger_lineup_match_for_session(
     
     try:
         # Get gallery items for the session
-        if session_type == 'live_session':
-            result = await db.execute(
-                select(GalleryItem).where(
-                    GalleryItem.session_id == session_id,
-                    GalleryItem.is_deleted == False
-                )
+        # Note: GalleryItem only has 'session_id' (used for both live sessions and bookings)
+        result = await db.execute(
+            select(GalleryItem).where(
+                GalleryItem.session_id == session_id,
+                GalleryItem.is_deleted == False
             )
-        else:
-            result = await db.execute(
-                select(GalleryItem).where(
-                    GalleryItem.booking_id == session_id,
-                    GalleryItem.is_deleted == False
-                )
-            )
+        )
         
         items = result.scalars().all()
         
