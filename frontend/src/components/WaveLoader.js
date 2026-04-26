@@ -1,17 +1,31 @@
 import React from 'react';
+import { useTheme } from '../contexts/ThemeContext';
 
 /**
  * WaveLoader - Surfing-themed loading animation for the Map
  * 
  * Features:
- * - Animated wave pattern in dark gray (matches map background)
+ * - Animated wave pattern that adapts to light/dark/beach themes
  * - Brand logo integration
  * - Subtle breathing animation on text
- * - Minimalist dark aesthetic
+ * - Minimalist aesthetic
  */
 export const WaveLoader = () => {
+  const { theme } = useTheme();
+  const isLight = theme === 'light';
+  const isBeach = theme === 'beach';
+
+  // Theme-aware colors
+  const bgColor = isLight ? '#f5f5f5' : isBeach ? '#fffbeb' : '#1a1a1a';
+  const wave1 = isLight ? '#e5e7eb' : isBeach ? '#fde68a' : '#252525';
+  const wave2 = isLight ? '#d1d5db' : isBeach ? '#fbbf24' : '#2a2a2a';
+  const wave3 = isLight ? '#c4c8cf' : isBeach ? '#f59e0b' : '#303030';
+  const textColor = isLight ? 'text-gray-900' : isBeach ? 'text-amber-900' : 'text-white';
+  const subtextColor = isLight ? 'text-gray-400' : isBeach ? 'text-amber-600' : 'text-gray-500';
+  const dotColor = isLight ? 'bg-blue-400' : isBeach ? 'bg-amber-500' : 'bg-cyan-400';
+
   return (
-    <div className="h-full w-full flex flex-col items-center justify-center bg-[#1a1a1a] relative overflow-hidden">
+    <div className={`h-full w-full flex flex-col items-center justify-center relative overflow-hidden`} style={{ backgroundColor: bgColor }}>
       {/* Animated Wave Background */}
       <div className="absolute inset-0 overflow-hidden">
         {/* Wave 1 - Slowest, largest */}
@@ -22,7 +36,7 @@ export const WaveLoader = () => {
           style={{ height: '40%', minHeight: '200px' }}
         >
           <path 
-            fill="#252525" 
+            fill={wave1} 
             d="M0,160L48,170.7C96,181,192,203,288,192C384,181,480,139,576,138.7C672,139,768,181,864,197.3C960,213,1056,203,1152,181.3C1248,160,1344,128,1392,112L1440,96L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z"
           />
         </svg>
@@ -35,7 +49,7 @@ export const WaveLoader = () => {
           style={{ height: '35%', minHeight: '175px' }}
         >
           <path 
-            fill="#2a2a2a" 
+            fill={wave2} 
             d="M0,224L48,213.3C96,203,192,181,288,181.3C384,181,480,203,576,218.7C672,235,768,245,864,234.7C960,224,1056,192,1152,181.3C1248,171,1344,181,1392,186.7L1440,192L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z"
           />
         </svg>
@@ -48,7 +62,7 @@ export const WaveLoader = () => {
           style={{ height: '30%', minHeight: '150px' }}
         >
           <path 
-            fill="#303030" 
+            fill={wave3} 
             d="M0,288L48,272C96,256,192,224,288,213.3C384,203,480,213,576,229.3C672,245,768,267,864,261.3C960,256,1056,224,1152,208C1248,192,1344,192,1392,192L1440,192L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z"
           />
         </svg>
@@ -67,21 +81,21 @@ export const WaveLoader = () => {
         {/* Loading Text */}
         <div className="text-center">
           <h2 
-            className="text-2xl font-bold text-white mb-2 animate-pulse"
+            className={`text-2xl font-bold ${textColor} mb-2 animate-pulse`}
             style={{ fontFamily: 'Oswald', animationDuration: '2s' }}
           >
             Loading Waves
           </h2>
-          <p className="text-gray-500 text-sm">
+          <p className={`${subtextColor} text-sm`}>
             Finding surf spots near you...
           </p>
         </div>
         
         {/* Subtle loading indicator */}
         <div className="mt-6 flex gap-1">
-          <div className="w-2 h-2 bg-cyan-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
-          <div className="w-2 h-2 bg-cyan-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
-          <div className="w-2 h-2 bg-cyan-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+          <div className={`w-2 h-2 ${dotColor} rounded-full animate-bounce`} style={{ animationDelay: '0ms' }}></div>
+          <div className={`w-2 h-2 ${dotColor} rounded-full animate-bounce`} style={{ animationDelay: '150ms' }}></div>
+          <div className={`w-2 h-2 ${dotColor} rounded-full animate-bounce`} style={{ animationDelay: '300ms' }}></div>
         </div>
       </div>
       

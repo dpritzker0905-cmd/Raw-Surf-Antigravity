@@ -491,6 +491,9 @@ const SpotHub = () => {
   // Photographer request modal state
   const [showRequestModal, setShowRequestModal] = useState(false);
   
+  // Lightbox state for condition report media
+  const [lightboxUrl, setLightboxUrl] = useState(null);
+  
   const userTier = user?.subscription_tier || 'free';
   const forecastDaysAllowed = ['premium', 'pro', 'gold'].includes(userTier) ? 10 : ['paid', 'basic'].includes(userTier) ? 7 : 3;
   
@@ -1183,7 +1186,8 @@ const SpotHub = () => {
                         <img 
                           src={getFullUrl(primaryUrl)} 
                           alt="" 
-                          className="mt-2 w-full h-32 object-cover rounded-lg"
+                          className="mt-2 w-full h-56 object-cover rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
+                          onClick={() => setLightboxUrl(getFullUrl(primaryUrl))}
                           onError={(e) => {
                             // Try fallback URL before hiding
                             if (fallbackUrl && e.target.src !== getFullUrl(fallbackUrl)) {
@@ -1389,6 +1393,27 @@ const SpotHub = () => {
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
       `}</style>
+
+      {/* Lightbox Modal for Condition Report Media */}
+      {lightboxUrl && (
+        <div 
+          className="fixed inset-0 z-[9999] bg-black/90 flex items-center justify-center p-4 cursor-pointer"
+          onClick={() => setLightboxUrl(null)}
+        >
+          <button 
+            className="absolute top-4 right-4 text-white/80 hover:text-white z-10"
+            onClick={() => setLightboxUrl(null)}
+          >
+            <X className="w-8 h-8" />
+          </button>
+          <img 
+            src={lightboxUrl} 
+            alt="Condition report" 
+            className="max-w-full max-h-[90vh] object-contain rounded-lg"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      )}
     </div>
   );
 };

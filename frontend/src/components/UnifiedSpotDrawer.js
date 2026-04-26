@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 
 import { useNavigate } from 'react-router-dom';
 
-import { MapPin, Camera, Radio, Users, Waves, AlertTriangle, DollarSign, Zap, Check, ArrowLeft, Image, Tag, Sparkles, Star, CreditCard, Coins, Loader2, RefreshCw, ChevronDown, ChevronRight, Calendar, Lock, Crown, Trophy, CheckCircle, ExternalLink, MessageCircle } from 'lucide-react';
+import { MapPin, Camera, Radio, Users, Waves, AlertTriangle, DollarSign, Zap, Check, ArrowLeft, Image, Tag, Sparkles, Star, CreditCard, Coins, Loader2, RefreshCw, ChevronDown, ChevronRight, Calendar, Lock, Crown, Trophy, CheckCircle, ExternalLink, MessageCircle, X } from 'lucide-react';
 
 import { Button } from './ui/button';
 
@@ -1417,6 +1417,7 @@ const UnifiedSpotDrawer = ({
   const [proPhotos, setProPhotos] = useState([]);
   const [communityPhotos, setCommunityPhotos] = useState([]);
   const [drawerTab, setDrawerTab] = useState('reports');
+  const [lightboxUrl, setLightboxUrl] = useState(null);
 
   // ============ REFINE LOCATION FUNCTIONS ============
   const openRefineModal = () => {
@@ -2008,7 +2009,7 @@ const UnifiedSpotDrawer = ({
                               {(() => {
                                 const urls = [report.thumbnail_url, report.media_url].filter(u => u && u.trim() && !u.startsWith('/api/uploads/'));
                                 if (!urls[0]) return null;
-                                return (<img src={getFullUrl(urls[0])} alt="" className="mt-2 w-full h-28 object-cover rounded-lg" onError={(e) => { if (urls[1] && e.target.src !== getFullUrl(urls[1])) { e.target.src = getFullUrl(urls[1]); } else { e.target.style.display = 'none'; } }} />);
+                                return (<img src={getFullUrl(urls[0])} alt="" className="mt-2 w-full h-48 object-cover rounded-lg cursor-pointer hover:opacity-90 transition-opacity" onClick={() => setLightboxUrl(getFullUrl(urls[0]))} onError={(e) => { if (urls[1] && e.target.src !== getFullUrl(urls[1])) { e.target.src = getFullUrl(urls[1]); } else { e.target.style.display = 'none'; } }} />);
                               })()}
                             </div>
                           )) : (
@@ -2381,6 +2382,26 @@ const UnifiedSpotDrawer = ({
         spotId={spot?.id}
         spotName={spot?.name}
       />
+      {/* Lightbox Modal for Condition Report Media */}
+      {lightboxUrl && (
+        <div 
+          className="fixed inset-0 z-[9999] bg-black/90 flex items-center justify-center p-4 cursor-pointer"
+          onClick={() => setLightboxUrl(null)}
+        >
+          <button 
+            className="absolute top-4 right-4 text-white/80 hover:text-white z-10"
+            onClick={() => setLightboxUrl(null)}
+          >
+            <X className="w-8 h-8" />
+          </button>
+          <img 
+            src={lightboxUrl} 
+            alt="Condition report" 
+            className="max-w-full max-h-[90vh] object-contain rounded-lg"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      )}
     </>
   );
 };
