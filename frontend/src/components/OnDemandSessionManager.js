@@ -10,7 +10,7 @@ import apiClient, { BACKEND_URL } from '../lib/apiClient';
 
 import { 
 
-  Power, MapPin, Clock, DollarSign, Camera, Zap, Settings, User, Navigation, Check, X, Flame, Bell, Volume2, VolumeX, Loader2, Radio, Eye, Calendar, Square, ChevronDown, ChevronUp, Wallet, History, Info, Waves, Users
+  Power, MapPin, Clock, DollarSign, Camera, Zap, Settings, User, Navigation, Check, X, Flame, Bell, Volume2, VolumeX, Loader2, Radio, Eye, Calendar, Square, ChevronDown, ChevronUp, Wallet, History, Info, Waves, Users, MessageCircle, Mic
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from './ui/card';
 import {
@@ -37,6 +37,7 @@ import { toast } from 'sonner';
 import logger from '../utils/logger';
 import { getFullUrl } from '../utils/media';
 import { ROLES } from '../constants/roles';
+import { SessionChatDrawer, SessionChatFAB } from './SessionChatDrawer';
 
 
 
@@ -597,6 +598,7 @@ const ActiveSessionCard = ({
   onMarkArrived, 
   onComplete, 
   onCancel,
+  onOpenChat,
   _cardBg,
   textPrimary, 
   textSecondary,
@@ -759,6 +761,26 @@ const ActiveSessionCard = ({
         
         {/* Action Buttons */}
         <div className="space-y-3">
+          {/* Communication Buttons */}
+          <div className="grid grid-cols-2 gap-3">
+            <button
+              onClick={onOpenChat}
+              className="flex items-center justify-center gap-2 py-3 rounded-xl font-semibold text-sm transition-all active:scale-[0.97] bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white"
+              data-testid="photographer-chat-btn"
+            >
+              <MessageCircle className="w-4 h-4" />
+              Chat Surfer
+            </button>
+            <button
+              onClick={onOpenChat}
+              className="flex items-center justify-center gap-2 py-3 rounded-xl font-semibold text-sm transition-all active:scale-[0.97] bg-zinc-800 hover:bg-zinc-700 text-white border border-zinc-700"
+              data-testid="photographer-voice-btn"
+            >
+              <Mic className="w-4 h-4" />
+              Voice Note
+            </button>
+          </div>
+
           {isEnRoute && (
             <Button
               onClick={() => onMarkArrived(session.id)}
@@ -913,6 +935,10 @@ export const OnDemandSessionManager = () => {
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [cancelTargetId, setCancelTargetId] = useState(null);
   const [isCancelling, setIsCancelling] = useState(false);
+
+  // Session chat state
+  const [showSessionChat, setShowSessionChat] = useState(false);
+  const [chatUnreadCount, setChatUnreadCount] = useState(0);
   
   const pollIntervalRef = useRef(null);
   const audioRef = useRef(null);
@@ -1520,6 +1546,7 @@ export const OnDemandSessionManager = () => {
                 onMarkArrived={handleMarkArrived}
                 onComplete={handleCompleteSession}
                 onCancel={promptCancelSession}
+                onOpenChat={() => setShowSessionChat(true)}
                 cardBg={cardBg}
                 textPrimary={textPrimary}
                 textSecondary={textSecondary}
@@ -2104,6 +2131,31 @@ export const OnDemandSessionManager = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* --- Session Chat Drawer --- */}
+      {activeSession && (
+        <SessionChatDrawer
+          isOpen={showSessionChat}
+          onClose={() => setShowSessionChat(false)}
+          otherUserId={activeSession.requester_id}
+          otherUserName={activeSession.requester_name || 'Surfer'}
+          otherUserAvatar={activeSession.requester_avatar || activeSession.requester_selfie}
+          dispatchId={activeSession.id}
+          isLight={false}
+          onUnreadChange={setChatUnreadCount}
+        />
+      )}
+
+      {/* --- Floating Chat FAB --- */}
+      {activeSession && !showSessionChat && (
+        <div className="fixed bottom-24 right-4 z-40">
+          <SessionChatFAB
+            unreadCount={chatUnreadCount}
+            onClick={() => setShowSessionChat(true)}
+            isLight={false}
+          />
+        </div>
+      )}
     </div>
   );
 };

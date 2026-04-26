@@ -19,12 +19,13 @@ import { getFullUrl } from '../utils/media';
 import {
   Check, Clock, MapPin, Radio, Award, Camera, Loader2,
   Zap, X, ChevronRight, Users, Bell, ArrowLeft, RefreshCw,
-  Edit2, Navigation, Lock
+  Edit2, Navigation, Lock, MessageCircle, Mic
 } from 'lucide-react';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { toast } from 'sonner';
 import { RequestProSelfieModal } from './RequestProSelfieModal';
+import { SessionChatDrawer, SessionChatFAB } from './SessionChatDrawer';
 
 // --- Constants ---
 const SURFBOARD_COLORS = [
@@ -269,6 +270,13 @@ export const DispatchLobby = () => {
   const [newLocationName, setNewLocationName] = useState('');
   const [savingLocation, setSavingLocation] = useState(false);
 
+  // Session chat state
+  const [showSessionChat, setShowSessionChat] = useState(false);
+  const [chatUnreadCount, setChatUnreadCount] = useState(0);
+
+  // Session active timer (separate from arrival countdown)
+  const [sessionElapsed, setSessionElapsed] = useState(0);
+
   // Countdown timer
   const [countdown, setCountdown] = useState('');
 
@@ -286,6 +294,22 @@ export const DispatchLobby = () => {
   const photographer = dispatch?.photographer || photographerFromNav;
   const eta = dispatch?.gps?.eta_minutes || null;
   const locationLocked = dispatch?.location_locked || photographerAccepted;
+  const sessionActive = ['arrived', 'in_session'].includes(dispatch?.status);
+  const photographerId = dispatch?.photographer?.id || dispatch?.target_photographer_id || photographerFromNav?.id;
+  const photographerName = photographer?.full_name || photographer?.name || 'Photographer';
+  const photographerAvatarUrl = photographer?.avatar_url || photographer?.avatar;
+
+  // -- Session elapsed timer (for "Session Active" state) --
+  useEffect(() => {
+    if (!sessionActive) { setSessionElapsed(0); return; }
+    const startTime = dispatch?.timestamps?.arrived
+      ? new Date(dispatch.timestamps.arrived).getTime()
+      : Date.now();
+    const update = () => setSessionElapsed(Math.floor((Date.now() - startTime) / 1000));
+    update();
+    const iv = setInterval(update, 1000);
+    return () => clearInterval(iv);
+  }, [sessionActive, dispatch?.timestamps?.arrived]);
 
   // -- Countdown timer for arrival window --
   useEffect(() => {
@@ -565,14 +589,119 @@ export const DispatchLobby = () => {
           </div>
         )}
 
-        {/* --- Photographer Card --- */}
-        <PhotographerCard
-          photographer={photographer}
-          eta={eta}
-          status={dispatch?.status}
-          isLight={isLight}
-          wasDeclined={declinedBanner}
-        />
+        {/* --- SESSION ACTIVE HERO (when photographer arrived) --- */}
+        {sessionActive && (
+          <div
+            className={`relative rounded-3xl overflow-hidden border-2 ${
+              isLight
+                ? 'bg-gradient-to-br from-green-50 via-emerald-50 to-cyan-50 border-green-300'
+                : 'bg-gradient-to-br from-green-900/40 via-emerald-900/30 to-cyan-900/30 border-green-500/40'
+            }`}
+          >
+            {/* Animated top bar */}
+            <div className="h-1.5 bg-gradient-to-r from-green-400 via-cyan-400 to-green-400 animate-pulse" />
+
+            <div className="p-5 space-y-4">
+              {/* Status + Timer */}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-full bg-green-400 animate-pulse shadow-lg shadow-green-400/50" />
+                  <span className={`font-bold text-sm ${
+                    isLight ? 'text-green-700' : 'text-green-400'
+                  }`}>
+                    Session Active
+                  </span>
+                </div>
+                <div className={`font-mono text-2xl font-bold tabular-nums ${
+                  isLight ? 'text-green-700' : 'text-green-400'
+                }`}>
+                  {Math.floor(sessionElapsed / 3600) > 0 && `${Math.floor(sessionElapsed / 3600)}:`}
+                  {Math.floor((sessionElapsed % 3600) / 60).toString().padStart(2, '0')}:{(sessionElapsed % 60).toString().padStart(2, '0')}
+                </div>
+              </div>
+
+              {/* Photographer info row */}
+              <div className="flex items-center gap-3">
+                <div className="w-14 h-14 rounded-xl overflow-hidden ring-2 ring-green-400 flex-shrink-0">
+                  {photographerAvatarUrl ? (
+                    <img
+                      src={getFullUrl(photographerAvatarUrl)}
+                      alt={photographerName}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full bg-gradient-to-br from-green-400 to-cyan-500 flex items-center justify-center">
+                      <Camera className="w-6 h-6 text-white" />
+                    </div>
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className={`font-bold ${textPrimary} truncate`}>
+                    {photographerName}
+                  </p>
+                  <p className={`text-sm ${isLight ? 'text-green-600' : 'text-green-400'}`}>
+                    📸 Shooting your session now
+                  </p>
+                </div>
+                <Badge className="bg-green-500/20 text-green-400 border-green-500/30 text-xs flex-shrink-0">
+                  <Camera className="w-3 h-3 mr-1" />
+                  Live
+                </Badge>
+              </div>
+
+              {/* Communication Buttons */}
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  onClick={() => setShowSessionChat(true)}
+                  className={`flex items-center justify-center gap-2 py-3.5 rounded-xl font-semibold text-sm transition-all active:scale-[0.97] ${
+                    isLight
+                      ? 'bg-cyan-500 hover:bg-cyan-600 text-white'
+                      : 'bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white'
+                  }`}
+                  data-testid="session-chat-btn"
+                >
+                  <MessageCircle className="w-5 h-5" />
+                  Chat
+                  {chatUnreadCount > 0 && (
+                    <span className="w-5 h-5 rounded-full bg-red-500 text-[10px] font-bold flex items-center justify-center">
+                      {chatUnreadCount}
+                    </span>
+                  )}
+                </button>
+                <button
+                  onClick={() => setShowSessionChat(true)}
+                  className={`flex items-center justify-center gap-2 py-3.5 rounded-xl font-semibold text-sm transition-all active:scale-[0.97] ${
+                    isLight
+                      ? 'bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-200'
+                      : 'bg-zinc-800 hover:bg-zinc-700 text-white border border-zinc-700'
+                  }`}
+                  data-testid="session-voice-btn"
+                >
+                  <Mic className="w-5 h-5" />
+                  Voice Note
+                </button>
+              </div>
+
+              {/* Session tips */}
+              <p className={`text-xs text-center ${
+                isLight ? 'text-green-600/70' : 'text-green-400/60'
+              }`}>
+                Stay nearby — your photographer is capturing the action!
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* --- Photographer Card (hidden when session is active - replaced by hero above) --- */}
+        {!sessionActive && (
+          <PhotographerCard
+            photographer={photographer}
+            eta={eta}
+            status={dispatch?.status}
+            isLight={isLight}
+            wasDeclined={declinedBanner}
+          />
+        )}
 
         {/* --- THE LINEUP (Surfboard Visualization) --- */}
         <div
@@ -977,6 +1106,29 @@ export const DispatchLobby = () => {
           toast.success('Selfie added! The photographer can now find you.');
         }}
       />
+
+      {/* --- Session Chat Drawer --- */}
+      <SessionChatDrawer
+        isOpen={showSessionChat}
+        onClose={() => setShowSessionChat(false)}
+        otherUserId={photographerId}
+        otherUserName={photographerName}
+        otherUserAvatar={photographerAvatarUrl}
+        dispatchId={dispatchId}
+        isLight={isLight}
+        onUnreadChange={setChatUnreadCount}
+      />
+
+      {/* --- Floating Chat FAB (visible when session active and chat closed) --- */}
+      {photographerAccepted && !showSessionChat && photographerId && (
+        <div className="fixed bottom-24 right-4 z-40">
+          <SessionChatFAB
+            unreadCount={chatUnreadCount}
+            onClick={() => setShowSessionChat(true)}
+            isLight={isLight}
+          />
+        </div>
+      )}
     </div>
   );
 };
