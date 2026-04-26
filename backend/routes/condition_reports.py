@@ -11,13 +11,100 @@ from typing import Optional, List
 from datetime import datetime, timedelta, timezone
 
 from database import get_db
-from models import Profile, SurfSpot, ConditionReport, Story, Post, LiveSession, RoleEnum
+from models import Profile, SurfSpot, ConditionReport, Story, Post, LiveSession, RoleEnum, Gallery, GalleryItem
 from websocket_manager import broadcast_new_condition_report
+
+import logging
+cr_logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
 # Report duration - 24 hours (like stories)
 REPORT_DURATION_HOURS = 24
+
+
+def _is_broken_url(url: Optional[str]) -> bool:
+    """Check if a URL is a broken local/ephemeral path that won't resolve in production."""
+    if not url or not url.strip():
+        return True
+    return url.startswith('/api/uploads/') or url.startswith('/uploads/')
+
+
+async def _auto_heal_report_media(report: ConditionReport, db) -> bool:
+    """
+    Auto-heal broken media URLs on condition reports by resolving from linked galleries.
+    
+    When a condition report's media_url or thumbnail_url is a stale local path
+    (e.g. /api/uploads/...), attempt to resolve a valid Supabase URL from:
+    1. The linked gallery's cover_image_url (via live_session_id)
+    2. The latest gallery item preview for that photographer+spot
+    
+    Returns True if any URLs were healed.
+    """
+    media_broken = _is_broken_url(report.media_url)
+    thumb_broken = _is_broken_url(report.thumbnail_url)
+    
+    # If both URLs are valid (start with https://), nothing to heal
+    if not media_broken and not thumb_broken:
+        return False
+    
+    healed = False
+    valid_url = None
+    
+    # Strategy 1: Find gallery linked by live_session_id
+    if report.live_session_id:
+        gallery_result = await db.execute(
+            select(Gallery).where(
+                Gallery.live_session_id == report.live_session_id,
+                Gallery.photographer_id == report.photographer_id
+            ).limit(1)
+        )
+        gallery = gallery_result.scalar_one_or_none()
+        if gallery and gallery.cover_image_url and gallery.cover_image_url.startswith('https://'):
+            valid_url = gallery.cover_image_url
+    
+    # Strategy 2: Find any gallery by photographer+spot with a valid cover
+    if not valid_url and report.spot_id:
+        gallery_result = await db.execute(
+            select(Gallery).where(
+                Gallery.photographer_id == report.photographer_id,
+                Gallery.spot_id == report.spot_id
+            ).order_by(Gallery.created_at.desc()).limit(1)
+        )
+        gallery = gallery_result.scalar_one_or_none()
+        if gallery and gallery.cover_image_url and gallery.cover_image_url.startswith('https://'):
+            valid_url = gallery.cover_image_url
+    
+    # Strategy 3: Find latest gallery item with valid preview URL for this photographer
+    if not valid_url:
+        item_result = await db.execute(
+            select(GalleryItem).where(
+                GalleryItem.photographer_id == report.photographer_id,
+                GalleryItem.is_deleted == False
+            ).order_by(GalleryItem.created_at.desc()).limit(1)
+        )
+        item = item_result.scalar_one_or_none()
+        if item:
+            candidate = item.preview_url or item.thumbnail_url
+            if candidate and candidate.startswith('https://'):
+                valid_url = candidate
+    
+    # Apply the healed URL
+    if valid_url:
+        if media_broken:
+            report.media_url = valid_url
+            healed = True
+        if thumb_broken:
+            report.thumbnail_url = valid_url
+            healed = True
+        
+        if healed:
+            cr_logger.info(
+                f"Auto-healed condition report {report.id}: "
+                f"resolved broken URLs to {valid_url[:60]}..."
+            )
+    
+    return healed
 
 # Available regions for filtering
 SURF_REGIONS = [
@@ -159,7 +246,12 @@ async def get_condition_reports_feed(
     
     # Format response
     response_reports = []
+    any_healed = False
     for report in reports:
+        # Auto-heal broken media URLs from linked galleries
+        if await _auto_heal_report_media(report, db):
+            any_healed = True
+        
         photographer = report.photographer
         response_reports.append(ConditionReportResponse(
             id=report.id,
@@ -184,6 +276,13 @@ async def get_condition_reports_feed(
             expires_at=report.expires_at,
             time_ago=get_time_ago(report.created_at)
         ))
+    
+    # Persist any healed URLs back to the database
+    if any_healed:
+        try:
+            await db.commit()
+        except Exception as e:
+            cr_logger.warning(f"Failed to persist auto-healed URLs: {e}")
     
     # Get total count for pagination
     count_query = select(ConditionReport).where(
@@ -378,7 +477,12 @@ async def get_condition_reports_for_spot(
     reports = result.scalars().all()
     
     response_reports = []
+    any_healed = False
     for report in reports:
+        # Auto-heal broken media URLs from linked galleries
+        if await _auto_heal_report_media(report, db):
+            any_healed = True
+        
         photographer = report.photographer
         response_reports.append(ConditionReportResponse(
             id=report.id,
@@ -403,6 +507,13 @@ async def get_condition_reports_for_spot(
             expires_at=report.expires_at,
             time_ago=get_time_ago(report.created_at)
         ))
+    
+    # Persist any healed URLs back to the database
+    if any_healed:
+        try:
+            await db.commit()
+        except Exception as e:
+            cr_logger.warning(f"Failed to persist auto-healed URLs: {e}")
     
     return {
         "reports": response_reports,
@@ -509,3 +620,57 @@ async def delete_condition_report(
     await db.commit()
     
     return {"success": True, "message": "Condition report deleted"}
+
+
+class UpdateConditionReportMedia(BaseModel):
+    media_url: Optional[str] = None
+    thumbnail_url: Optional[str] = None
+
+
+@router.patch("/condition-reports/{report_id}/update-media")
+async def update_condition_report_media(
+    report_id: str,
+    photographer_id: str,
+    data: UpdateConditionReportMedia,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Update the media/thumbnail URLs on a condition report.
+    Used when gallery thumbnails are swapped and need to propagate
+    to the linked condition report.
+    """
+    result = await db.execute(
+        select(ConditionReport).where(ConditionReport.id == report_id)
+    )
+    report = result.scalar_one_or_none()
+    
+    if not report:
+        raise HTTPException(status_code=404, detail="Condition report not found")
+    
+    if report.photographer_id != photographer_id:
+        raise HTTPException(status_code=403, detail="Not authorized")
+    
+    updated = {}
+    if data.media_url:
+        old_val = report.media_url
+        report.media_url = data.media_url
+        updated["media_url"] = {"old": old_val, "new": data.media_url}
+    
+    if data.thumbnail_url:
+        old_val = report.thumbnail_url
+        report.thumbnail_url = data.thumbnail_url
+        updated["thumbnail_url"] = {"old": old_val, "new": data.thumbnail_url}
+    
+    if not updated:
+        return {"message": "No changes provided", "report_id": report_id}
+    
+    await db.commit()
+    
+    cr_logger.info(f"Condition report {report_id} media updated: {updated}")
+    
+    return {
+        "success": True,
+        "report_id": report_id,
+        "updated": updated,
+        "message": "Condition report media updated successfully"
+    }
