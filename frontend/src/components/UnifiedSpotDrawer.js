@@ -24,6 +24,8 @@ import { useAuth } from '../contexts/AuthContext';
 
 import { usePersona } from '../contexts/PersonaContext';
 
+import { useTheme } from '../contexts/ThemeContext';
+
 import { JumpInSessionModal } from './JumpInSessionModal';
 
 import { LockerSelfieModal } from './LockerSelfieModal';
@@ -1172,6 +1174,18 @@ const UnifiedSpotDrawer = ({
   // Privacy Shield: Check if spot is within user's geofence
   const { user } = useAuth();
   const navigate = useNavigate();
+  const { theme } = useTheme();
+  const isLight = theme === 'light';
+  const isBeach = theme === 'beach';
+  
+  // Theme-aware tokens
+  const drawerBg = isLight ? 'bg-white' : isBeach ? 'bg-amber-50' : 'bg-zinc-900';
+  const drawerBorder = isLight ? 'border-gray-200' : isBeach ? 'border-amber-200' : 'border-zinc-700';
+  const headerBorder = isLight ? 'border-gray-200' : isBeach ? 'border-amber-200' : 'border-zinc-800';
+  const textPrimary = isLight ? 'text-gray-900' : isBeach ? 'text-amber-900' : 'text-white';
+  const textSecondary = isLight ? 'text-gray-500' : isBeach ? 'text-amber-700' : 'text-gray-400';
+  const cardBg = isLight ? 'bg-gray-50 border-gray-200' : isBeach ? 'bg-amber-100/60 border-amber-200' : 'bg-zinc-800/50 border-zinc-800';
+  
   const isWithinGeofence = spot?.is_within_geofence !== false;
   const distanceMiles = spot?.distance_miles;
   const visibilityRadius = spot?.visibility_radius_miles;
@@ -1300,6 +1314,34 @@ const UnifiedSpotDrawer = ({
     }
   };
 
+  // Fetch condition reports and pro photos when drawer opens
+  useEffect(() => {
+    if (isOpen && spot?.id) {
+      fetchConditionReports();
+      fetchProPhotos();
+    }
+  }, [isOpen, spot?.id]);
+
+  const fetchConditionReports = async () => {
+    try {
+      const response = await apiClient.get(`/condition-reports/spot/${spot.id}?limit=5`);
+      setConditionReports(response.data?.reports || response.data || []);
+    } catch (error) {
+      logger.debug('Condition reports not available');
+      setConditionReports([]);
+    }
+  };
+
+  const fetchProPhotos = async () => {
+    try {
+      const response = await apiClient.get(`/posts/spot/${spot.id}?limit=9&type=photographer`);
+      setProPhotos(response.data?.posts || response.data || []);
+    } catch (error) {
+      logger.debug('Pro photos not available');
+      setProPhotos([]);
+    }
+  };
+
   // Reset drawer mode when spot changes or drawer closes
   useEffect(() => {
     if (spot) {
@@ -1357,6 +1399,10 @@ const UnifiedSpotDrawer = ({
 
   // Find Me Spot Scanner State
   const [scanModalOpen, setScanModalOpen] = useState(false);
+  
+  // Condition reports state
+  const [conditionReports, setConditionReports] = useState([]);
+  const [proPhotos, setProPhotos] = useState([]);
 
   // ============ REFINE LOCATION FUNCTIONS ============
   const openRefineModal = () => {
@@ -1505,7 +1551,7 @@ const UnifiedSpotDrawer = ({
         setActiveSnapPoint={setActiveSnapPoint}
       >
         <DrawerContent 
-          className="bg-zinc-900 border-t border-zinc-700 max-h-[90vh] focus:outline-none"
+          className={`${drawerBg} border-t ${drawerBorder} max-h-[90vh] focus:outline-none md:max-w-[480px] md:mx-auto md:rounded-t-2xl`}
           data-testid="unified-spot-drawer"
         >
           {/* Expanded Photographer Profile View */}
@@ -1555,7 +1601,7 @@ const UnifiedSpotDrawer = ({
           {(drawerMode === DRAWER_MODE.REPORT || drawerMode === DRAWER_MODE.SETUP) && (
             <div className="flex flex-col max-h-[85vh]">
               {/* Header */}
-              <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-800 shrink-0">
+              <div className={`flex items-center justify-between px-4 py-3 border-b ${headerBorder} shrink-0`}>
                 <div className="flex items-center gap-3">
                   {drawerMode === DRAWER_MODE.SETUP && (
                     <button
@@ -1573,7 +1619,7 @@ const UnifiedSpotDrawer = ({
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                       <h2
-                        className="text-white font-bold text-lg cursor-pointer hover:text-cyan-400 transition-colors truncate"
+                        className={`${textPrimary} font-bold text-lg cursor-pointer hover:text-cyan-400 transition-colors truncate`}
                         style={{ fontFamily: 'Oswald' }}
                         onClick={() => { navigate(`/spot-hub/${spot.id}`); onClose?.(); }}
                         title="View Spot Hub"
@@ -1595,7 +1641,7 @@ const UnifiedSpotDrawer = ({
                         </Badge>
                       )}
                     </div>
-                    <p className="text-gray-400 text-xs">{spot.region}</p>
+                    <p className={`${textSecondary} text-xs`}>{spot.region}</p>
                   </div>
                 </div>
 
@@ -1893,23 +1939,133 @@ const UnifiedSpotDrawer = ({
                       </div>
                     )}
                     
+                    {/* ── Condition Reports Section ──────────────────── */}
+                    {conditionReports.length > 0 && (
+                      <div className={`px-4 py-4 border-t ${headerBorder}`}>
+                        <div className="flex items-center gap-2 mb-3">
+                          <Camera className="w-4 h-4 text-cyan-400" />
+                          <h3 className={`${textPrimary} font-medium text-sm`}>
+                            Live Condition Reports ({conditionReports.length})
+                          </h3>
+                        </div>
+                        <div className="space-y-2">
+                          {conditionReports.slice(0, 3).map((report) => (
+                            <div key={report.id} className={`p-2.5 rounded-lg border ${cardBg}`}>
+                              <div className="flex items-center gap-2">
+                                <div className="w-8 h-8 rounded-full overflow-hidden ring-2 ring-cyan-500 shrink-0">
+                                  {report.photographer_avatar ? (
+                                    <img src={getFullUrl(report.photographer_avatar)} className="w-full h-full object-cover" alt="" />
+                                  ) : (
+                                    <div className="w-full h-full bg-cyan-500 flex items-center justify-center text-xs font-bold text-white">
+                                      {report.photographer_name?.[0]}
+                                    </div>
+                                  )}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <p className={`text-sm font-medium truncate ${textPrimary}`}>{report.photographer_name}</p>
+                                  <p className={`text-[10px] ${textSecondary}`}>{report.time_ago}</p>
+                                </div>
+                                {report.conditions_label && (
+                                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-400 font-medium shrink-0">
+                                    {report.conditions_label}
+                                  </span>
+                                )}
+                              </div>
+                              {report.caption && (
+                                <p className={`text-xs mt-1.5 ${textSecondary}`}>{report.caption}</p>
+                              )}
+                              <div className="flex items-center gap-3 mt-1.5">
+                                {report.wave_height_ft && (
+                                  <span className="text-xs flex items-center gap-1">
+                                    <Waves className="w-3 h-3 text-cyan-400" />
+                                    <span className={textPrimary}>{report.wave_height_ft}ft</span>
+                                  </span>
+                                )}
+                                {report.wind_conditions && (
+                                  <span className={`text-xs ${textSecondary}`}>{report.wind_conditions}</span>
+                                )}
+                                {report.crowd_level && (
+                                  <span className="text-xs flex items-center gap-1">
+                                    <Users className="w-3 h-3 text-purple-400" />
+                                    <span className={textPrimary}>{report.crowd_level}</span>
+                                  </span>
+                                )}
+                              </div>
+                              {/* Report thumbnail - filter broken local paths */}
+                              {(() => {
+                                const candidateUrls = [
+                                  report.thumbnail_url,
+                                  report.media_url
+                                ].filter(url => url && url.trim() && !url.startsWith('/api/uploads/'));
+                                const primaryUrl = candidateUrls[0];
+                                const fallbackUrl = candidateUrls[1];
+                                if (!primaryUrl) return null;
+                                return (
+                                  <img 
+                                    src={getFullUrl(primaryUrl)} 
+                                    alt="" 
+                                    className="mt-2 w-full h-28 object-cover rounded-lg"
+                                    onError={(e) => {
+                                      if (fallbackUrl && e.target.src !== getFullUrl(fallbackUrl)) {
+                                        e.target.src = getFullUrl(fallbackUrl);
+                                      } else {
+                                        e.target.style.display = 'none';
+                                      }
+                                    }}
+                                  />
+                                );
+                              })()}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* ── Pro Tagged Photos Section ──────────────────── */}
+                    {proPhotos.length > 0 && (
+                      <div className={`px-4 py-4 border-t ${headerBorder}`}>
+                        <div className="flex items-center gap-2 mb-3">
+                          <Image className="w-4 h-4 text-purple-400" />
+                          <h3 className={`${textPrimary} font-medium text-sm`}>
+                            Pro Photos ({proPhotos.length})
+                          </h3>
+                        </div>
+                        <div className="grid grid-cols-3 gap-1.5">
+                          {proPhotos.slice(0, 9).map((post) => (
+                            <div 
+                              key={post.id}
+                              className="aspect-square rounded-lg overflow-hidden cursor-pointer hover:opacity-80 transition-opacity"
+                              onClick={() => { navigate(`/post/${post.id}`); onClose?.(); }}
+                            >
+                              <img 
+                                src={getFullUrl(post.media_url || post.thumbnail_url)} 
+                                alt="" 
+                                className="w-full h-full object-cover"
+                                onError={(e) => { e.target.style.display = 'none'; }}
+                              />
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
                     {/* ── View Full Spot Hub CTA ──────────────────────────── */}
                     <div className="px-4 py-4">
                       <button
                         onClick={() => { navigate(`/spot-hub/${spot.id}`); onClose?.(); }}
-                        className="w-full group relative overflow-hidden rounded-xl border border-cyan-500/30 bg-gradient-to-r from-cyan-500/10 via-blue-500/10 to-purple-500/10 hover:from-cyan-500/20 hover:via-blue-500/20 hover:to-purple-500/20 transition-all duration-300"
+                        className={`w-full group relative overflow-hidden rounded-xl border ${isLight ? 'border-cyan-400/40 bg-gradient-to-r from-cyan-50 via-blue-50 to-purple-50 hover:from-cyan-100 hover:via-blue-100 hover:to-purple-100' : isBeach ? 'border-cyan-500/30 bg-gradient-to-r from-cyan-500/10 via-blue-500/10 to-purple-500/10 hover:from-cyan-500/20 hover:via-blue-500/20 hover:to-purple-500/20' : 'border-cyan-500/30 bg-gradient-to-r from-cyan-500/10 via-blue-500/10 to-purple-500/10 hover:from-cyan-500/20 hover:via-blue-500/20 hover:to-purple-500/20'} transition-all duration-300`}
                         data-testid="view-spot-hub-btn"
                       >
                         <div className="flex items-center justify-between px-4 py-3.5">
                           <div className="flex items-center gap-3">
                             <div className="w-10 h-10 rounded-full bg-gradient-to-r from-cyan-400 to-blue-500 p-0.5 shrink-0">
-                              <div className="w-full h-full rounded-full bg-zinc-900 flex items-center justify-center">
+                              <div className={`w-full h-full rounded-full ${isLight ? 'bg-white' : isBeach ? 'bg-amber-50' : 'bg-zinc-900'} flex items-center justify-center`}>
                                 <ExternalLink className="w-4 h-4 text-cyan-400" />
                               </div>
                             </div>
                             <div>
-                              <p className="text-white font-semibold text-sm">View Full Spot Hub</p>
-                              <p className="text-gray-400 text-xs">Forecast, reports, galleries & more</p>
+                              <p className={`${textPrimary} font-semibold text-sm`}>View Full Spot Hub</p>
+                              <p className={`${textSecondary} text-xs`}>Forecast, reports, galleries & more</p>
                             </div>
                           </div>
                           <ChevronRight className="w-5 h-5 text-cyan-400 group-hover:translate-x-1 transition-transform" />

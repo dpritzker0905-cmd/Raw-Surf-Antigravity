@@ -70,7 +70,7 @@ async def _auto_heal_report_media(report: ConditionReport, db) -> bool:
             gallery_result = await db.execute(
                 select(Gallery).where(
                     Gallery.photographer_id == report.photographer_id,
-                    Gallery.spot_id == report.spot_id
+                    Gallery.surf_spot_id == report.spot_id
                 ).order_by(Gallery.created_at.desc()).limit(1)
             )
             gallery = gallery_result.scalar_one_or_none()
