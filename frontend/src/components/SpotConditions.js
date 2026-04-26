@@ -52,6 +52,7 @@ export const SpotConditions = ({ spotId, spotName, compact = false }) => {
   const cellBg = t.cellBg;
   const cellBgFaded = t.cellBgFaded;
   const hoverBg = t.hoverBg;
+  const isLight = t.isLight;
   const [conditions, setConditions] = useState(null);
   const [tideData, setTideData] = useState(null);
   const [reports, setReports] = useState(null);

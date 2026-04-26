@@ -1200,7 +1200,7 @@ const UnifiedSpotDrawer = ({
   const _drawerRef = useRef(null);
   
   // Snap point control for drawer height
-  const [activeSnapPoint, setActiveSnapPoint] = useState(0.9);
+  const [activeSnapPoint, setActiveSnapPoint] = useState(0.92);
   
   // Jump In Session Modal state
   const [showJumpInModal, setShowJumpInModal] = useState(false);
@@ -1561,18 +1561,27 @@ const UnifiedSpotDrawer = ({
         onOpenChange={(open) => {
           if (!open && !showJumpInModal) {
             onClose();
-            setActiveSnapPoint(0.9); // Reset on close
+            setActiveSnapPoint(0.92); // Reset on close
           }
         }} 
-        snapPoints={[0.5, 0.75, 1]}
+        snapPoints={[0.5, 0.75, 0.92]}
         activeSnapPoint={activeSnapPoint}
         setActiveSnapPoint={setActiveSnapPoint}
+        dismissible={true}
       >
         <DrawerContent 
-          className={`${drawerBg} border-t ${drawerBorder} max-h-[90vh] focus:outline-none md:max-w-[520px] md:mx-auto md:rounded-t-2xl`}
+          className={`${drawerBg} border-t ${drawerBorder} max-h-[92vh] focus:outline-none md:max-w-[520px] md:mx-auto md:rounded-t-2xl`}
           data-testid="unified-spot-drawer"
         >
-          {/* Expanded Photographer Profile View */}
+          {/* Close / Pull-down button — always visible at top */}
+          <button
+            onClick={onClose}
+            className={`w-full flex flex-col items-center pt-2 pb-1 cursor-grab active:cursor-grabbing`}
+            aria-label="Close drawer"
+          >
+            <div className={`w-12 h-1.5 rounded-full mb-1 ${isLight ? 'bg-gray-300' : isBeach ? 'bg-amber-300' : 'bg-zinc-600'}`} />
+            <ChevronDown className={`w-5 h-5 ${textSecondary} opacity-60`} />
+          </button>
           {drawerMode === DRAWER_MODE.PHOTOGRAPHER_PROFILE && selectedPhotographer && (
             <div className="flex flex-col" style={{ height: '85vh', maxHeight: '85vh' }}>
               {/* Header - Fixed */}
