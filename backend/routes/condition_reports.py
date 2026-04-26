@@ -77,7 +77,7 @@ async def _auto_heal_report_media(report: ConditionReport, db) -> bool:
             if gallery and gallery.cover_image_url and gallery.cover_image_url.startswith('https://'):
                 valid_url = gallery.cover_image_url
         
-        # Strategy 3: Find latest gallery item with valid preview URL for this photographer
+        # Strategy 3: Find latest gallery item with valid unwatermarked URL for this photographer
         if not valid_url:
             item_result = await db.execute(
                 select(GalleryItem).where(
@@ -87,7 +87,8 @@ async def _auto_heal_report_media(report: ConditionReport, db) -> bool:
             )
             item = item_result.scalar_one_or_none()
             if item:
-                candidate = item.preview_url or item.thumbnail_url
+                # Prefer unwatermarked URLs for condition reports
+                candidate = item.original_url or item.url_standard or item.url_web or item.thumbnail_url
                 if candidate and candidate.startswith('https://'):
                     valid_url = candidate
         
