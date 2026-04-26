@@ -1045,7 +1045,9 @@ export const Explore = () => {
                         )}
                         <div className="absolute bottom-0 left-0 right-0 p-3 z-20">
                           <h4 className="font-medium text-foreground truncate">{spot.name}</h4>
-                          <p className="text-xs text-gray-300">{spot.region}</p>
+                          <p className="text-xs text-gray-300">
+                            {[spot.secondary_city, spot.region].filter(Boolean).filter((v, i, a) => a.indexOf(v) === i).join(' • ')}
+                          </p>
                         </div>
                       </div>
                     ))}

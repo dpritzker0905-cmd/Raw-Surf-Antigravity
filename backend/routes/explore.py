@@ -159,20 +159,44 @@ async def explore_search(
         } for u in users]
     
     if search_type in ["all", "spots"]:
-        # Prioritize name matches over region/description matches
+        # ── Multi-signal ranked search ──────────────────────────────
+        # Priority: exact name > name starts-with > name contains >
+        #           city match > area match > region > state > description
+        #
+        # This ensures "Cocoa Beach" returns "Cocoa Beach Pier" (name match)
+        # before "Central Florida" (region match that merely contains Cocoa Beach spots).
+        starts_term = f"{q}%"       # name starts with search term
+        contains_term = f"%{q}%"    # name/field contains search term
+
         relevance = case(
-            (SurfSpot.name.ilike(search_term), 1),  # Name contains search term
-            (SurfSpot.region.ilike(search_term), 2),  # Region contains search term
-            (SurfSpot.description.ilike(search_term), 3),  # Description contains search term
-            else_=4
+            # Tier 1: Name starts with search term (best match)
+            (SurfSpot.name.ilike(starts_term), 1),
+            # Tier 2: Name contains search term anywhere
+            (SurfSpot.name.ilike(contains_term), 2),
+            # Tier 3: City match — user likely searching by city name
+            (SurfSpot.secondary_city.ilike(contains_term), 3),
+            # Tier 4: Area match (e.g., "Space Coast")
+            (SurfSpot.secondary_area.ilike(contains_term), 4),
+            # Tier 5: Region match (e.g., "Central Florida")
+            (SurfSpot.region.ilike(contains_term), 5),
+            # Tier 6: State / Country match
+            (SurfSpot.state_province.ilike(contains_term), 6),
+            (SurfSpot.country.ilike(contains_term), 7),
+            # Tier 7: Description mention (weakest signal)
+            (SurfSpot.description.ilike(contains_term), 8),
+            else_=9
         )
         spot_result = await db.execute(
             select(SurfSpot)
             .where(
                 or_(
-                    SurfSpot.name.ilike(search_term),
-                    SurfSpot.region.ilike(search_term),
-                    SurfSpot.description.ilike(search_term)
+                    SurfSpot.name.ilike(contains_term),
+                    SurfSpot.secondary_city.ilike(contains_term),
+                    SurfSpot.secondary_area.ilike(contains_term),
+                    SurfSpot.region.ilike(contains_term),
+                    SurfSpot.state_province.ilike(contains_term),
+                    SurfSpot.country.ilike(contains_term),
+                    SurfSpot.description.ilike(contains_term)
                 )
             )
             .order_by(relevance, SurfSpot.name)
@@ -183,6 +207,8 @@ async def explore_search(
             "id": s.id,
             "name": s.name,
             "region": s.region,
+            "secondary_city": s.secondary_city,
+            "secondary_area": s.secondary_area,
             "difficulty": s.difficulty,
             "image_url": s.image_url,
             "latitude": s.latitude,
