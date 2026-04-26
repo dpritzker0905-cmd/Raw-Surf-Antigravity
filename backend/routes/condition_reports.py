@@ -766,27 +766,90 @@ async def cleanup_orphaned_condition_reports(
     }
 
 
-@router.delete("/condition-reports/{report_id}")
-async def delete_condition_report(
+# ── Admin Moderation ─────────────────────────────────────────────────
+# Allows admins to remove any condition report (questionable content,
+# stale orphans, etc.) bypassing photographer ownership checks.
+# Secured via JWT admin auth — same pattern as admin_content_mod.py.
+
+from deps.admin_auth import get_current_admin
+
+
+@router.delete("/admin/condition-reports/{report_id}")
+async def admin_remove_condition_report(
     report_id: str,
-    photographer_id: str,
+    reason: Optional[str] = Query(None, description="Reason for removal"),
+    admin: Profile = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db)
 ):
-    """Delete a specific condition report (photographer who owns it only)"""
+    """
+    Admin-only: Remove any condition report.
+    Use this to take down questionable, inappropriate, or stale content.
+    """
     result = await db.execute(
         select(ConditionReport).where(ConditionReport.id == report_id)
     )
     report = result.scalar_one_or_none()
-    
+
     if not report:
         raise HTTPException(status_code=404, detail="Condition report not found")
-    
-    if report.photographer_id != photographer_id:
-        raise HTTPException(status_code=403, detail="Not authorized to delete this report")
-    
+
+    photographer_id = report.photographer_id
+    spot_id = report.spot_id
+
     await db.delete(report)
     await db.commit()
-    
-    cr_logger.info(f"Condition report {report_id} deleted by {photographer_id}")
-    
-    return {"message": "Condition report deleted", "report_id": report_id}
+
+    cr_logger.info(
+        f"ADMIN ACTION: Condition report {report_id} deleted by admin {admin.id} "
+        f"(photographer={photographer_id}, spot={spot_id}, reason={reason or 'none'})"
+    )
+
+    return {
+        "success": True,
+        "message": "Condition report removed by admin",
+        "report_id": report_id,
+        "admin_id": admin.id,
+        "reason": reason
+    }
+
+
+@router.get("/admin/condition-reports")
+async def admin_list_condition_reports(
+    admin: Profile = Depends(get_current_admin),
+    spot_id: Optional[str] = None,
+    photographer_id: Optional[str] = None,
+    active_only: bool = True,
+    limit: int = 50,
+    offset: int = 0,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Admin-only: List all condition reports with optional filters.
+    Useful for reviewing content across the platform.
+    """
+    query = select(ConditionReport).order_by(desc(ConditionReport.created_at))
+
+    if spot_id:
+        query = query.where(ConditionReport.spot_id == spot_id)
+    if photographer_id:
+        query = query.where(ConditionReport.photographer_id == photographer_id)
+    if active_only:
+        query = query.where(ConditionReport.is_active == True)
+
+    result = await db.execute(query.limit(limit).offset(offset))
+    reports = result.scalars().all()
+
+    return {
+        "reports": [{
+            "id": r.id,
+            "photographer_id": r.photographer_id,
+            "spot_id": r.spot_id,
+            "media_url": r.media_url,
+            "media_type": r.media_type,
+            "caption": r.caption,
+            "is_active": r.is_active,
+            "created_at": r.created_at.isoformat() if r.created_at else None,
+            "expires_at": r.expires_at.isoformat() if r.expires_at else None,
+        } for r in reports],
+        "total": len(reports)
+    }

@@ -15,7 +15,7 @@ from database import get_db
 from deps.admin_auth import get_current_admin
 from models import (
     Profile, ContentModerationItem, ContentModerationStatusEnum,
-    GalleryItem, Post
+    GalleryItem, Post, ConditionReport
 )
 from routes.admin_moderation import log_audit
 
@@ -131,7 +131,7 @@ async def moderate_content(
         )
     )
     
-    # If rejected, also hide the original content
+    # If rejected, also hide/deactivate the original content
     if request.action == "reject":
         if item.content_type == "gallery_item":
             await db.execute(
@@ -144,6 +144,12 @@ async def moderate_content(
                 update(Post)
                 .where(Post.id == item.content_id)
                 .values(is_hidden=True)
+            )
+        elif item.content_type == "condition_report":
+            await db.execute(
+                update(ConditionReport)
+                .where(ConditionReport.id == item.content_id)
+                .values(is_active=False)
             )
     
     await log_audit(db, admin.id, "content_moderation", f"{request.action} content {item.content_type}:{item.content_id}")
@@ -181,7 +187,7 @@ async def bulk_moderate_content(
         )
     )
     
-    # If rejecting, hide the original content
+    # If rejecting, hide/deactivate the original content
     if request.action == "reject":
         items = await db.execute(
             select(ContentModerationItem)
@@ -192,6 +198,8 @@ async def bulk_moderate_content(
                 await db.execute(update(GalleryItem).where(GalleryItem.id == item.content_id).values(is_hidden=True))
             elif item.content_type == "post":
                 await db.execute(update(Post).where(Post.id == item.content_id).values(is_hidden=True))
+            elif item.content_type == "condition_report":
+                await db.execute(update(ConditionReport).where(ConditionReport.id == item.content_id).values(is_active=False))
     
     await log_audit(db, admin.id, "content_moderation", f"bulk_{request.action} {len(request.item_ids)} items")
     await db.commit()
@@ -335,6 +343,13 @@ async def flag_content_for_moderation(
         if post:
             content_preview = post.content[:200] if post.content else None
             user_id = post.user_id
+    elif content_type == "condition_report":
+        item = await db.execute(select(ConditionReport).where(ConditionReport.id == content_id))
+        cr = item.scalar_one_or_none()
+        if cr:
+            content_url = cr.media_url
+            content_preview = cr.thumbnail_url or cr.media_url
+            user_id = cr.photographer_id
     
     if not user_id:
         raise HTTPException(status_code=404, detail="Content not found")
