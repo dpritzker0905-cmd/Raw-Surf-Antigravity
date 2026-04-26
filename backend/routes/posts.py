@@ -1408,7 +1408,7 @@ async def report_post(
     db: AsyncSession = Depends(get_db)
 ):
     """Report a post for policy violation"""
-    from models import Profile, PostReport as PostReportModel
+    from models import Profile, PostReport as PostReportModel, ContentModerationItem, ContentModerationStatusEnum
     import uuid
     
     # Verify post exists
@@ -1423,9 +1423,8 @@ async def report_post(
     if not reporter:
         raise HTTPException(status_code=404, detail="Reporter not found")
     
-    # Check if already reported by this user
+    # Save to PostReport table
     try:
-        # Try to create report - table may not exist yet
         new_report = PostReportModel(
             id=str(uuid.uuid4()),
             post_id=post_id,
@@ -1434,11 +1433,41 @@ async def report_post(
             description=report.description
         )
         db.add(new_report)
-        await db.commit()
+        await db.flush()
     except Exception:
-        # If table doesn't exist, just log and return success
-        # Admin will see it via manual review
         logger.error(f"Report logging: {report.reason} for post {post_id}")
+        await db.rollback()
+    
+    # Also feed into content moderation queue so admins see it
+    try:
+        existing = await db.execute(
+            select(ContentModerationItem).where(
+                ContentModerationItem.content_type == "post",
+                ContentModerationItem.content_id == post_id,
+                ContentModerationItem.status == ContentModerationStatusEnum.PENDING
+            )
+        )
+        existing_item = existing.scalar_one_or_none()
+        
+        if existing_item:
+            # Increment flag count on existing queue item
+            existing_item.flag_count = (existing_item.flag_count or 1) + 1
+        else:
+            # Create new moderation queue entry
+            mod_item = ContentModerationItem(
+                content_type="post",
+                content_id=post_id,
+                content_url=post.media_url,
+                content_preview=post.caption[:200] if post.caption else None,
+                user_id=post.author_id,
+                flagged_by="user_report",
+                flag_count=1
+            )
+            db.add(mod_item)
+        
+        await db.commit()
+    except Exception as e:
+        logger.error(f"Failed to create moderation queue entry for post {post_id}: {e}")
         await db.rollback()
     
     return {"success": True, "message": "Report submitted"}

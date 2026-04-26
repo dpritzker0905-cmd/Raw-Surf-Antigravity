@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
-import apiClient, { BACKEND_URL } from '../../lib/apiClient';
+import apiClient from '../../lib/apiClient';
 import {
   Shield, Image, MessageSquare, Check, X,
-  Loader2, RefreshCw, Eye, Flag, Trash2
+  Loader2, RefreshCw, Eye, Flag, Trash2, Radio
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '../ui/card';
 import { Button } from '../ui/button';
@@ -73,14 +73,14 @@ export const AdminContentModDashboard = () => {
     }
   };
 
-  const handleModerate = async (itemId, decision) => {
+  const handleModerate = async (itemId, action) => {
     setActionLoading(true);
     try {
       await apiClient.post(`/admin/content-moderation/${itemId}/moderate`, {
-        decision,
-        notes: moderationNote
+        action,
+        rejection_reason: action === 'reject' ? moderationNote : null
       });
-      toast.success(`Content ${decision}`);
+      toast.success(`Content ${action}ed`);
       setSelectedItem(null);
       setModerationNote('');
       fetchQueue();
@@ -92,15 +92,15 @@ export const AdminContentModDashboard = () => {
     }
   };
 
-  const handleBulkModerate = async (decision) => {
+  const handleBulkModerate = async (action) => {
     if (selectedItems.size === 0) return;
     setActionLoading(true);
     try {
       await apiClient.post(`/admin/content-moderation/bulk-moderate`, {
         item_ids: Array.from(selectedItems),
-        decision
+        action
       });
-      toast.success(`${selectedItems.size} items ${decision}`);
+      toast.success(`${selectedItems.size} items ${action}ed`);
       setSelectedItems(new Set());
       fetchQueue();
       fetchStats();
@@ -122,9 +122,9 @@ export const AdminContentModDashboard = () => {
 
   const getContentIcon = (type) => {
     switch (type) {
-      case 'image': return <Image className="w-4 h-4 text-purple-400" />;
+      case 'gallery_item': return <Image className="w-4 h-4 text-purple-400" />;
       case 'post': return <MessageSquare className="w-4 h-4 text-blue-400" />;
-      case 'comment': return <MessageSquare className="w-4 h-4 text-green-400" />;
+      case 'condition_report': return <Radio className="w-4 h-4 text-orange-400" />;
       default: return <Flag className="w-4 h-4 text-muted-foreground" />;
     }
   };
@@ -159,20 +159,20 @@ export const AdminContentModDashboard = () => {
           </Card>
           <Card className={`${cardBgClass} border-red-500/30`}>
             <CardContent className="p-3">
-              <p className="text-xs text-gray-500">Removed (30d)</p>
-              <p className="text-2xl font-bold text-red-400">{stats.removed_count}</p>
+              <p className="text-xs text-gray-500">Rejected (30d)</p>
+              <p className="text-2xl font-bold text-red-400">{stats.rejected_count}</p>
             </CardContent>
           </Card>
           <Card className={`${cardBgClass} border-cyan-500/30`}>
             <CardContent className="p-3">
-              <p className="text-xs text-gray-500">Avg Response</p>
-              <p className="text-2xl font-bold text-cyan-400">{stats.avg_response_time_hours}h</p>
+              <p className="text-xs text-gray-500">Approval Rate</p>
+              <p className="text-2xl font-bold text-cyan-400">{stats.approval_rate}%</p>
             </CardContent>
           </Card>
           <Card className={`${cardBgClass} border-purple-500/30`}>
             <CardContent className="p-3">
-              <p className="text-xs text-gray-500">False Positives</p>
-              <p className="text-2xl font-bold text-purple-400">{stats.false_positive_rate}%</p>
+              <p className="text-xs text-gray-500">AI Accuracy</p>
+              <p className="text-2xl font-bold text-purple-400">{stats.ai_accuracy}%</p>
             </CardContent>
           </Card>
         </div>
@@ -188,18 +188,18 @@ export const AdminContentModDashboard = () => {
             <SelectContent>
               <SelectItem value="pending">Pending</SelectItem>
               <SelectItem value="approved">Approved</SelectItem>
-              <SelectItem value="removed">Removed</SelectItem>
+              <SelectItem value="rejected">Rejected</SelectItem>
             </SelectContent>
           </Select>
           <Select value={contentType} onValueChange={setContentType}>
-            <SelectTrigger className="w-32 bg-muted border-border">
+            <SelectTrigger className="w-40 bg-muted border-border">
               <SelectValue placeholder="All Types" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Types</SelectItem>
               <SelectItem value="post">Posts</SelectItem>
-              <SelectItem value="comment">Comments</SelectItem>
-              <SelectItem value="image">Images</SelectItem>
+              <SelectItem value="gallery_item">Gallery Items</SelectItem>
+              <SelectItem value="condition_report">Condition Reports</SelectItem>
             </SelectContent>
           </Select>
           <Button size="sm" variant="outline" onClick={() => { fetchQueue(); fetchStats(); }}>
@@ -210,10 +210,10 @@ export const AdminContentModDashboard = () => {
         {selectedItems.size > 0 && (
           <div className="flex gap-2 items-center">
             <Badge className="bg-cyan-500/20 text-cyan-400">{selectedItems.size} selected</Badge>
-            <Button size="sm" onClick={() => handleBulkModerate('approved')} disabled={actionLoading} className="bg-green-500 hover:bg-green-600">
+            <Button size="sm" onClick={() => handleBulkModerate('approve')} disabled={actionLoading} className="bg-green-500 hover:bg-green-600">
               <Check className="w-4 h-4 mr-1" /> Approve All
             </Button>
-            <Button size="sm" onClick={() => handleBulkModerate('removed')} disabled={actionLoading} className="bg-red-500 hover:bg-red-600">
+            <Button size="sm" onClick={() => handleBulkModerate('reject')} disabled={actionLoading} className="bg-red-500 hover:bg-red-600">
               <Trash2 className="w-4 h-4 mr-1" /> Remove All
             </Button>
           </div>
@@ -258,15 +258,15 @@ export const AdminContentModDashboard = () => {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
                         {getContentIcon(item.content_type)}
-                        <span className="text-xs text-gray-500">{item.content_type}</span>
-                        <Badge className={`text-[10px] ${getReasonColor(item.flag_reason)}`}>
-                          {item.flag_reason}
+                        <span className="text-xs text-gray-500">{item.content_type?.replace('_', ' ')}</span>
+                        <Badge className={`text-[10px] ${getReasonColor(item.flagged_by)}`}>
+                          {item.flagged_by || 'flagged'}
                         </Badge>
-                        <span className="text-xs text-gray-500">{item.flag_count} flags</span>
+                        <span className="text-xs text-gray-500">{item.flag_count || 1} flags</span>
                       </div>
                       <p className={`text-sm ${textClass} line-clamp-2`}>{item.content_preview}</p>
                       <p className="text-xs text-gray-500 mt-1">
-                        By: {item.author_name} • {new Date(item.created_at).toLocaleDateString()}
+                        By: {item.user_name || 'Unknown'} • {item.created_at ? new Date(item.created_at).toLocaleDateString() : ''}
                       </p>
                     </div>
                     <div className="flex gap-1">
@@ -275,10 +275,10 @@ export const AdminContentModDashboard = () => {
                       </Button>
                       {status === 'pending' && (
                         <>
-                          <Button size="sm" variant="ghost" onClick={() => handleModerate(item.id, 'approved')} className="text-green-400 hover:bg-green-500/20">
+                          <Button size="sm" variant="ghost" onClick={() => handleModerate(item.id, 'approve')} className="text-green-400 hover:bg-green-500/20">
                             <Check className="w-4 h-4" />
                           </Button>
-                          <Button size="sm" variant="ghost" onClick={() => handleModerate(item.id, 'removed')} className="text-red-400 hover:bg-red-500/20">
+                          <Button size="sm" variant="ghost" onClick={() => handleModerate(item.id, 'reject')} className="text-red-400 hover:bg-red-500/20">
                             <X className="w-4 h-4" />
                           </Button>
                         </>
@@ -305,8 +305,8 @@ export const AdminContentModDashboard = () => {
             <div className="space-y-4">
               {/* Content Preview */}
               <div className="p-3 bg-muted rounded-lg">
-                {selectedItem.media_url && (
-                  <img src={getFullUrl(selectedItem.media_url)} alt="Content" className="w-full rounded mb-2 max-h-48 object-cover" />
+                {selectedItem.content_url && (
+                  <img src={getFullUrl(selectedItem.content_url)} alt="Content" className="w-full rounded mb-2 max-h-48 object-cover" />
                 )}
                 <p className="text-sm text-gray-300">{selectedItem.content_preview}</p>
               </div>
@@ -315,21 +315,21 @@ export const AdminContentModDashboard = () => {
               <div className="grid grid-cols-2 gap-2 text-xs">
                 <div className="p-2 bg-muted/50 rounded">
                   <span className="text-gray-500">Author:</span>
-                  <span className="text-foreground ml-1">{selectedItem.author_name}</span>
+                  <span className="text-foreground ml-1">{selectedItem.user_name || 'Unknown'}</span>
                 </div>
                 <div className="p-2 bg-muted/50 rounded">
                   <span className="text-gray-500">Flags:</span>
-                  <span className="text-red-400 ml-1">{selectedItem.flag_count}</span>
+                  <span className="text-red-400 ml-1">{selectedItem.flag_count || 1}</span>
                 </div>
                 <div className="p-2 bg-muted/50 rounded">
-                  <span className="text-gray-500">Reason:</span>
-                  <Badge className={`ml-1 text-[10px] ${getReasonColor(selectedItem.flag_reason)}`}>
-                    {selectedItem.flag_reason}
+                  <span className="text-gray-500">Source:</span>
+                  <Badge className={`ml-1 text-[10px] ${getReasonColor(selectedItem.flagged_by)}`}>
+                    {selectedItem.flagged_by || 'flagged'}
                   </Badge>
                 </div>
                 <div className="p-2 bg-muted/50 rounded">
                   <span className="text-gray-500">Created:</span>
-                  <span className="text-foreground ml-1">{new Date(selectedItem.created_at).toLocaleDateString()}</span>
+                  <span className="text-foreground ml-1">{selectedItem.created_at ? new Date(selectedItem.created_at).toLocaleDateString() : ''}</span>
                 </div>
               </div>
 
@@ -350,11 +350,11 @@ export const AdminContentModDashboard = () => {
           {status === 'pending' && selectedItem && (
             <DialogFooter className="gap-2">
               <Button variant="outline" onClick={() => setSelectedItem(null)}>Cancel</Button>
-              <Button onClick={() => handleModerate(selectedItem.id, 'approved')} disabled={actionLoading} className="bg-green-500 hover:bg-green-600">
+              <Button onClick={() => handleModerate(selectedItem.id, 'approve')} disabled={actionLoading} className="bg-green-500 hover:bg-green-600">
                 <Check className="w-4 h-4 mr-1" /> Approve
               </Button>
-              <Button onClick={() => handleModerate(selectedItem.id, 'removed')} disabled={actionLoading} className="bg-red-500 hover:bg-red-600">
-                <Trash2 className="w-4 h-4 mr-1" /> Remove
+              <Button onClick={() => handleModerate(selectedItem.id, 'reject')} disabled={actionLoading} className="bg-red-500 hover:bg-red-600">
+                <Trash2 className="w-4 h-4 mr-1" /> Reject
               </Button>
             </DialogFooter>
           )}
