@@ -2467,7 +2467,7 @@ async def delete_gallery(
     photographer_id: str,
     db: AsyncSession = Depends(get_db)
 ):
-    """Delete a gallery and its items"""
+    """Delete a gallery and its items, plus any linked condition reports"""
     
     result = await db.execute(select(Gallery).where(Gallery.id == gallery_id))
     gallery = result.scalar_one_or_none()
@@ -2478,10 +2478,40 @@ async def delete_gallery(
     if gallery.photographer_id != photographer_id:
         raise HTTPException(status_code=403, detail="Not authorized")
     
+    # Cascade: delete linked condition reports
+    deleted_reports = 0
+    if gallery.live_session_id:
+        # Delete all condition reports linked to this live session
+        cr_result = await db.execute(
+            select(ConditionReport).where(ConditionReport.live_session_id == gallery.live_session_id)
+        )
+        for cr in cr_result.scalars().all():
+            await db.delete(cr)
+            deleted_reports += 1
+    
+    # Also clean up any condition reports from this photographer at this spot
+    # that were created around the same time as the gallery (within 24 hours)
+    if gallery.surf_spot_id:
+        from datetime import timedelta
+        window_start = gallery.created_at - timedelta(hours=1) if gallery.created_at else None
+        window_end = gallery.created_at + timedelta(hours=24) if gallery.created_at else None
+        if window_start and window_end:
+            cr_spot_result = await db.execute(
+                select(ConditionReport).where(
+                    ConditionReport.photographer_id == photographer_id,
+                    ConditionReport.spot_id == gallery.surf_spot_id,
+                    ConditionReport.created_at >= window_start,
+                    ConditionReport.created_at <= window_end
+                )
+            )
+            for cr in cr_spot_result.scalars().all():
+                await db.delete(cr)
+                deleted_reports += 1
+    
     await db.delete(gallery)
     await db.commit()
     
-    return {"message": "Gallery deleted"}
+    return {"message": "Gallery deleted", "condition_reports_deleted": deleted_reports}
 
 
 @router.get("/galleries/{gallery_id}/items")
