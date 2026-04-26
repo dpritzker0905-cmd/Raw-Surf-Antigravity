@@ -488,10 +488,14 @@ async def get_condition_reports_for_spot(
     )
     
     if not include_expired:
-        # Only show non-expired reports (last 24h), but also include recently expired (48h)
-        # so the tab isn't empty after reports age out
+        # Show reports that are either:
+        # 1. Recently created (within 48h) — natural condition reports
+        # 2. Still active (expires_at in the future) — manually pushed reports from older sessions
         query = query.where(
-            ConditionReport.created_at > now - timedelta(hours=48)
+            or_(
+                ConditionReport.created_at > now - timedelta(hours=48),
+                ConditionReport.expires_at > now
+            )
         )
     
     query = query.order_by(desc(ConditionReport.created_at)).limit(limit)

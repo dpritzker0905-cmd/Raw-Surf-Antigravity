@@ -185,7 +185,7 @@ async def process_session_burst_for_matching(
     if session_type == 'live_session':
         result = await db.execute(
             select(LiveSessionParticipant)
-            .where(LiveSessionParticipant.session_id == session_id)
+            .where(LiveSessionParticipant.live_session_id == session_id)
             .options(selectinload(LiveSessionParticipant.participant))
         )
         participants = result.scalars().all()
@@ -289,33 +289,37 @@ async def trigger_lineup_match_for_session(
         logger.warning("OpenAI API key not configured - skipping AI lineup match")
         return {"success": False, "reason": "API key not configured"}
     
-    # Get gallery items for the session
-    if session_type == 'live_session':
-        result = await db.execute(
-            select(GalleryItem).where(
-                GalleryItem.live_session_id == session_id,
-                GalleryItem.is_deleted == False
+    try:
+        # Get gallery items for the session
+        if session_type == 'live_session':
+            result = await db.execute(
+                select(GalleryItem).where(
+                    GalleryItem.session_id == session_id,
+                    GalleryItem.is_deleted == False
+                )
             )
-        )
-    else:
-        result = await db.execute(
-            select(GalleryItem).where(
-                GalleryItem.booking_id == session_id,
-                GalleryItem.is_deleted == False
+        else:
+            result = await db.execute(
+                select(GalleryItem).where(
+                    GalleryItem.booking_id == session_id,
+                    GalleryItem.is_deleted == False
+                )
             )
+        
+        items = result.scalars().all()
+        
+        if not items:
+            return {"success": True, "processed": 0, "matches": 0}
+        
+        processed, matches = await process_session_burst_for_matching(
+            items, session_id, session_type, db, openai_key
         )
-    
-    items = result.scalars().all()
-    
-    if not items:
-        return {"success": True, "processed": 0, "matches": 0}
-    
-    processed, matches = await process_session_burst_for_matching(
-        items, session_id, session_type, db, openai_key
-    )
-    
-    return {
-        "success": True,
-        "processed": processed,
-        "matches": matches
-    }
+        
+        return {
+            "success": True,
+            "processed": processed,
+            "matches": matches
+        }
+    except Exception as e:
+        logger.error(f"AI lineup match failed for session {session_id}: {e}")
+        return {"success": False, "reason": str(e)}

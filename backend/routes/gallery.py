@@ -3172,8 +3172,11 @@ async def trigger_ai_lineup_match(
         photos_included = live_session.photos_included or photographer.live_session_photos_included or 0
         gallery_tier = GalleryTierEnum.STANDARD  # Live sessions are always standard tier
     
-    # Trigger AI matching
-    ai_result = await trigger_lineup_match_for_session(session_id, session_type, db)
+    # Trigger AI matching (only if we have a valid session_id)
+    if session_id:
+        ai_result = await trigger_lineup_match_for_session(session_id, session_type, db)
+    else:
+        ai_result = {"success": False, "reason": "No session linked to this gallery"}
     
     if not ai_result.get('success'):
         # Continue without AI - will use manual tagging
@@ -5798,9 +5801,10 @@ async def push_conditions_to_spot_hub(
     photographer = prof_result.scalar_one_or_none()
     
     # Look for an existing condition report to update
+    # ONLY match by live_session_id — prevents cross-session contamination
+    # when multiple sessions happen at the same spot
     existing_cr = None
     
-    # Strategy 1: Find by live_session_id (most precise link)
     if gallery.live_session_id:
         cr_result = await db.execute(
             select(ConditionReport).where(
@@ -5810,22 +5814,14 @@ async def push_conditions_to_spot_hub(
         )
         existing_cr = cr_result.scalars().first()
     
-    # Strategy 2: Find by photographer + spot (within last 48h)
-    if not existing_cr and gallery.surf_spot_id:
-        cutoff = datetime.now(timezone.utc) - timedelta(hours=48)
-        cr_result = await db.execute(
-            select(ConditionReport).where(
-                ConditionReport.photographer_id == photographer_id,
-                ConditionReport.spot_id == gallery.surf_spot_id,
-                ConditionReport.created_at > cutoff
-            ).order_by(ConditionReport.created_at.desc())
-        )
-        existing_cr = cr_result.scalars().first()
-    
     # Caption
     caption = data.caption or (gallery.title if gallery.title else f"Conditions at {spot_name or 'surf spot'}")
     
-    # Set expiration to 24 hours from now
+    # Use the gallery's original session date for created_at so the CR
+    # appears at the correct time in feeds (not "just now")
+    original_date = gallery.session_date or gallery.created_at or datetime.now(timezone.utc)
+    
+    # Expiration: 24 hours from NOW so the report is visible for the next day
     expires_at = datetime.now(timezone.utc) + timedelta(hours=24)
     
     action = "updated"
@@ -5838,6 +5834,8 @@ async def push_conditions_to_spot_hub(
         existing_cr.expires_at = expires_at
         existing_cr.is_expired = False
         existing_cr.is_active = True
+        # Preserve the original created_at from the session date
+        existing_cr.created_at = original_date
         
         # Update thumbnail_url if the field exists
         try:
@@ -5865,6 +5863,7 @@ async def push_conditions_to_spot_hub(
             live_session_id=gallery.live_session_id,
             expires_at=expires_at,
             is_active=True,
+            created_at=original_date,
         )
         # Only set optional fields if model supports them
         try:
@@ -5879,7 +5878,7 @@ async def push_conditions_to_spot_hub(
         condition_report_id = new_cr.id
         
         gallery_logger.info(
-            f"Push-conditions: CREATED new CR {new_cr.id} for gallery {gallery_id} → spot {spot_name}"
+            f"Push-conditions: CREATED new CR {new_cr.id} for gallery {gallery_id} → spot {spot_name} (date={original_date})"
         )
     
     await db.commit()
@@ -5892,6 +5891,7 @@ async def push_conditions_to_spot_hub(
         "spot_id": gallery.surf_spot_id,
         "media_url": media_url,
         "expires_at": expires_at.isoformat(),
+        "session_date": original_date.isoformat() if original_date else None,
         "message": f"Conditions report {action} for {spot_name or 'spot hub'}! Visible for 24 hours."
     }
 
@@ -5927,7 +5927,7 @@ async def get_gallery_conditions_status(
             "is_expired": True
         }
     
-    # Look for existing CR
+    # Look for existing CR — ONLY by live_session_id to prevent cross-session confusion
     existing_cr = None
     
     if gallery.live_session_id:
@@ -5935,17 +5935,6 @@ async def get_gallery_conditions_status(
             select(ConditionReport).where(
                 ConditionReport.live_session_id == gallery.live_session_id,
                 ConditionReport.photographer_id == photographer_id
-            ).order_by(ConditionReport.created_at.desc())
-        )
-        existing_cr = cr_result.scalars().first()
-    
-    if not existing_cr:
-        cutoff = datetime.now(timezone.utc) - timedelta(hours=48)
-        cr_result = await db.execute(
-            select(ConditionReport).where(
-                ConditionReport.photographer_id == photographer_id,
-                ConditionReport.spot_id == gallery.surf_spot_id,
-                ConditionReport.created_at > cutoff
             ).order_by(ConditionReport.created_at.desc())
         )
         existing_cr = cr_result.scalars().first()
