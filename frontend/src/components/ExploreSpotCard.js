@@ -73,7 +73,10 @@ const ExploreSpotCard = ({ spot, userSubscriptionTier = 'free' }) => {
   const [mapError, setMapError] = useState(false);
   
   const conditions = spot.current_conditions;
+  const livePhotographers = (spot.active_photographers || []).filter(p => p.status === 'live_shooting' || p.is_shooting);
+  const onDemandPhotographers = (spot.active_photographers || []).filter(p => p.status === 'on_demand' || (p.is_on_demand && !p.is_shooting));
   const hasPhotographers = spot.active_photographers?.length > 0;
+  const hasLivePhotographers = livePhotographers.length > 0;
   const hasReports = spot.recent_reports?.length > 0;
   
   // Calculate forecast access
@@ -215,11 +218,21 @@ const ExploreSpotCard = ({ spot, userSubscriptionTier = 'free' }) => {
         
         
         {/* Live Photographers Badge */}
-        {hasPhotographers && (
+        {hasLivePhotographers && (
           <div className="absolute top-2 left-2 flex items-center gap-1 px-2 py-1 bg-red-500/90 backdrop-blur-sm rounded-full animate-pulse">
             <Radio className="w-3 h-3 text-white" />
             <span className="text-[10px] font-bold text-white">
-              {spot.active_photographers.length} LIVE
+              {livePhotographers.length} LIVE
+            </span>
+          </div>
+        )}
+        
+        {/* On-Demand Photographers Badge (only if no live) */}
+        {!hasLivePhotographers && onDemandPhotographers.length > 0 && (
+          <div className="absolute top-2 left-2 flex items-center gap-1 px-2 py-1 bg-amber-500/90 backdrop-blur-sm rounded-full">
+            <Camera className="w-3 h-3 text-white" />
+            <span className="text-[10px] font-bold text-white">
+              {onDemandPhotographers.length} ON-DEMAND
             </span>
           </div>
         )}
@@ -373,7 +386,9 @@ const ExploreSpotCard = ({ spot, userSubscriptionTier = 'free' }) => {
               <div className="px-3 py-2 border-b border-zinc-800">
                 <div className="flex items-center gap-2 mb-2">
                   <Camera className="w-4 h-4 text-red-400" />
-                  <span className="text-xs font-medium text-white">Photographers Shooting Now</span>
+                  <span className="text-xs font-medium text-white">
+                    {hasLivePhotographers ? 'Photographers Shooting Now' : 'On-Demand Photographers'}
+                  </span>
                 </div>
                 <div className="flex gap-2 overflow-x-auto">
                   {spot.active_photographers.map((photographer) => (
@@ -382,7 +397,7 @@ const ExploreSpotCard = ({ spot, userSubscriptionTier = 'free' }) => {
                       onClick={() => navigate(`/profile/${photographer.id}`)}
                       className="flex items-center gap-2 px-2 py-1.5 bg-zinc-800 rounded-lg cursor-pointer hover:bg-zinc-700 transition-colors flex-shrink-0"
                     >
-                      <Avatar className="w-6 h-6 ring-2 ring-red-500">
+                      <Avatar className={`w-6 h-6 ring-2 ${photographer.status === 'live_shooting' ? 'ring-red-500' : 'ring-amber-500'}`}>
                         <AvatarImage src={getFullUrl(photographer.avatar_url)} />
                         <AvatarFallback className="text-[10px]">
                           {photographer.full_name?.charAt(0)}
@@ -392,14 +407,22 @@ const ExploreSpotCard = ({ spot, userSubscriptionTier = 'free' }) => {
                         <p className="text-xs font-medium text-white truncate max-w-[80px]">
                           {photographer.full_name?.split(' ')[0]}
                         </p>
-                        {photographer.session_price && (
+                        {photographer.status === 'live_shooting' && photographer.session_price && (
                           <p className="text-[10px] text-emerald-400">
                             ${photographer.session_price}/session
                           </p>
                         )}
+                        {photographer.status === 'on_demand' && photographer.on_demand_hourly_rate && (
+                          <p className="text-[10px] text-amber-400">
+                            ${photographer.on_demand_hourly_rate}/hr
+                          </p>
+                        )}
                       </div>
-                      {photographer.is_streaming && (
+                      {photographer.status === 'live_shooting' && (
                         <Badge className="bg-red-500 text-[8px] px-1">LIVE</Badge>
+                      )}
+                      {photographer.status === 'on_demand' && (
+                        <Badge className="bg-amber-500 text-[8px] px-1">ON-DEMAND</Badge>
                       )}
                     </div>
                   ))}

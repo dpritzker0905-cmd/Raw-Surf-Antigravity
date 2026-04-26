@@ -408,20 +408,34 @@ async def get_surf_spots_with_conditions(
             reports_by_spot[r.spot_id].append(r)
     
     # Fetch active photographers for all spots
-    photographers_result = await db.execute(
+    # Two separate queries: live-shooting AND on-demand available
+    shooting_result = await db.execute(
         select(Profile)
         .where(Profile.current_spot_id.in_(spot_ids))
         .where(Profile.is_shooting .is_(True))
     )
-    all_photographers = photographers_result.scalars().all()
+    shooting_photographers = shooting_result.scalars().all()
     
-    # Group photographers by spot_id
+    on_demand_result = await db.execute(
+        select(Profile)
+        .where(Profile.current_spot_id.in_(spot_ids))
+        .where(Profile.on_demand_available .is_(True))
+        .where(Profile.is_shooting .is_(False))  # NOT already in live session
+    )
+    on_demand_photographers = on_demand_result.scalars().all()
+    
+    # Group all photographers by spot_id with status flag
     photographers_by_spot = {}
-    for p in all_photographers:
+    for p in shooting_photographers:
         if p.current_spot_id not in photographers_by_spot:
             photographers_by_spot[p.current_spot_id] = []
-        if len(photographers_by_spot[p.current_spot_id]) < 5:
-            photographers_by_spot[p.current_spot_id].append(p)
+        if len(photographers_by_spot[p.current_spot_id]) < 10:
+            photographers_by_spot[p.current_spot_id].append((p, 'live_shooting'))
+    for p in on_demand_photographers:
+        if p.current_spot_id not in photographers_by_spot:
+            photographers_by_spot[p.current_spot_id] = []
+        if len(photographers_by_spot[p.current_spot_id]) < 10:
+            photographers_by_spot[p.current_spot_id].append((p, 'on_demand'))
     
     # ============ Fetch spot thumbnails from tagged posts (BATCHED - not N+1) ============
     thumbnails_by_spot = {}
@@ -559,17 +573,20 @@ async def get_surf_spots_with_conditions(
             "created_at": r.created_at.isoformat() if r.created_at else None
         } for r in spot_reports]
         
-        # Add active photographers (from batch query)
+        # Add active photographers (from batch query) with status differentiation
         spot_photographers = photographers_by_spot.get(spot.id, [])
         spot_data["active_photographers"] = [{
             "id": p.id,
             "full_name": p.full_name,
             "avatar_url": p.avatar_url,
-            "is_shooting": True,  # They're shooting at this spot
+            "is_shooting": status == 'live_shooting',
             "is_streaming": p.is_streaming,
-            "is_on_demand": getattr(p, 'is_on_demand', False) or False,
-            "session_price": p.session_price
-        } for p in spot_photographers]
+            "is_on_demand": status == 'on_demand',
+            "status": status,  # 'live_shooting' or 'on_demand'
+            "session_price": p.session_price,
+            "on_demand_hourly_rate": getattr(p, 'on_demand_hourly_rate', None),
+            "role": p.role.value if p.role else 'photographer'
+        } for p, status in spot_photographers]
         
         enriched_spots.append(spot_data)
     
@@ -734,29 +751,58 @@ async def get_spot_details(
         "created_at": r.created_at.isoformat() if r.created_at else None
     } for r in reports]
     
-    # Get active photographers
-    photographers_result = await db.execute(
+    # Get photographers at this spot: live-shooting AND on-demand available
+    shooting_result = await db.execute(
         select(Profile)
         .where(Profile.current_spot_id == spot_id)
         .where(Profile.is_shooting .is_(True))
     )
-    photographers = photographers_result.scalars().all()
+    shooting_photographers = shooting_result.scalars().all()
     
-    # Only include photographers who are actually shooting at THIS spot
-    spot_data["active_photographers"] = [{
-        "id": p.id,
-        "full_name": p.full_name,
-        "avatar_url": p.avatar_url,
-        "is_shooting": True,  # They're in this list because they're shooting here
-        "is_streaming": p.is_streaming,
-        "is_on_demand": getattr(p, 'is_on_demand', False) or False,
-        "on_demand_hourly_rate": getattr(p, 'on_demand_hourly_rate', None),
-        "session_price": p.session_price,
-        "hourly_rate": p.hourly_rate,
-        "booking_hourly_rate": getattr(p, 'booking_hourly_rate', None),
-        "role": p.role.value if p.role else 'photographer',
-        "current_spot_id": p.current_spot_id  # Include for verification
-    } for p in photographers]
+    on_demand_result = await db.execute(
+        select(Profile)
+        .where(Profile.current_spot_id == spot_id)
+        .where(Profile.on_demand_available .is_(True))
+        .where(Profile.is_shooting .is_(False))  # NOT already in live session
+    )
+    on_demand_photographers = on_demand_result.scalars().all()
+    
+    # Combine with status differentiation
+    combined_photographers = []
+    for p in shooting_photographers:
+        combined_photographers.append({
+            "id": p.id,
+            "full_name": p.full_name,
+            "avatar_url": p.avatar_url,
+            "is_shooting": True,
+            "is_streaming": p.is_streaming,
+            "is_on_demand": False,
+            "status": "live_shooting",
+            "on_demand_hourly_rate": getattr(p, 'on_demand_hourly_rate', None),
+            "session_price": p.session_price,
+            "hourly_rate": p.hourly_rate,
+            "booking_hourly_rate": getattr(p, 'booking_hourly_rate', None),
+            "role": p.role.value if p.role else 'photographer',
+            "current_spot_id": p.current_spot_id
+        })
+    for p in on_demand_photographers:
+        combined_photographers.append({
+            "id": p.id,
+            "full_name": p.full_name,
+            "avatar_url": p.avatar_url,
+            "is_shooting": False,
+            "is_streaming": False,
+            "is_on_demand": True,
+            "status": "on_demand",
+            "on_demand_hourly_rate": getattr(p, 'on_demand_hourly_rate', None),
+            "session_price": p.session_price,
+            "hourly_rate": p.hourly_rate,
+            "booking_hourly_rate": getattr(p, 'booking_hourly_rate', None),
+            "role": p.role.value if p.role else 'photographer',
+            "current_spot_id": p.current_spot_id
+        })
+    
+    spot_data["active_photographers"] = combined_photographers
     
     # Get recent posts at this spot
     posts_result = await db.execute(

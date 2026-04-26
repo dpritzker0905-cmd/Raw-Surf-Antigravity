@@ -87,9 +87,14 @@ const MediaItem = ({ item, onClick }) => (
     className="relative aspect-square bg-zinc-800 rounded-lg overflow-hidden cursor-pointer group"
   >
     <img 
-      src={item.thumbnail_url || item.media_url || item.image_url} 
+      src={getFullUrl(item.thumbnail_url || item.media_url || item.image_url)} 
       alt="" 
       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+      onError={(e) => {
+        // Replace broken images with a gradient placeholder
+        e.target.style.display = 'none';
+        e.target.parentElement.classList.add('bg-gradient-to-br', 'from-zinc-700', 'to-zinc-900');
+      }}
     />
     <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
       <Eye className="w-5 h-5 text-white" />
@@ -856,7 +861,7 @@ const SpotHub = () => {
         </div>
       )}
 
-      {/* Active Photographers at this Spot - NOT social live, just working here */}
+      {/* Active Photographers at this Spot - differentiated by status */}
       {activePhotographers.length > 0 && (
         <div className={`mx-4 mt-3 p-3 rounded-xl border backdrop-blur-md ${cardBg}`} data-testid="photographers-section">
           <div className="flex items-center justify-between mb-2">
@@ -864,9 +869,18 @@ const SpotHub = () => {
               <Camera className="w-3 h-3 text-cyan-400" />
               Photographers at this Spot
             </span>
-            <Badge className="bg-cyan-500/20 text-cyan-400 text-[10px]">
-              {activePhotographers.length} active
-            </Badge>
+            <div className="flex items-center gap-1">
+              {activePhotographers.filter(p => p.status === 'live_shooting' || p.is_shooting).length > 0 && (
+                <Badge className="bg-red-500/20 text-red-400 text-[10px]">
+                  {activePhotographers.filter(p => p.status === 'live_shooting' || p.is_shooting).length} live
+                </Badge>
+              )}
+              {activePhotographers.filter(p => p.status === 'on_demand' || (p.is_on_demand && !p.is_shooting)).length > 0 && (
+                <Badge className="bg-amber-500/20 text-amber-400 text-[10px]">
+                  {activePhotographers.filter(p => p.status === 'on_demand' || (p.is_on_demand && !p.is_shooting)).length} on-demand
+                </Badge>
+              )}
+            </div>
           </div>
           
           {/* Show photographers - ALL visible if within 1 mile, otherwise subscription gating */}
@@ -910,7 +924,13 @@ const SpotHub = () => {
                   className={`flex items-center gap-3 p-2 rounded-lg ${rowBg}`}
                 >
                   <Avatar 
-                    className="w-10 h-10 cursor-pointer ring-2 ring-cyan-500"
+                    className={`w-10 h-10 cursor-pointer ring-2 ${
+                      photographer.status === 'live_shooting' || photographer.is_shooting
+                        ? 'ring-red-500'
+                        : photographer.status === 'on_demand' || photographer.is_on_demand
+                          ? 'ring-amber-500'
+                          : 'ring-cyan-500'
+                    }`}
                     onClick={() => navigate(`/profile/${photographer.id}`)}
                   >
                     <AvatarImage src={getFullUrl(photographer.avatar_url)} />
@@ -926,9 +946,20 @@ const SpotHub = () => {
                       }`}>
                         {photographer.role === 'approved_pro' ? 'PRO' : 'Regular'}
                       </Badge>
-                      <span className="text-cyan-400 flex items-center gap-0.5">
+                      <span className={`flex items-center gap-0.5 ${
+                        photographer.status === 'live_shooting' || photographer.is_shooting 
+                          ? 'text-red-400' 
+                          : photographer.status === 'on_demand' || photographer.is_on_demand
+                            ? 'text-amber-400'
+                            : 'text-cyan-400'
+                      }`}>
                         <Camera className="w-2.5 h-2.5" />
-                        {photographer.is_on_demand ? 'On-Demand' : 'Active'}
+                        {photographer.status === 'live_shooting' || photographer.is_shooting
+                          ? 'Live Shooting'
+                          : photographer.status === 'on_demand' || photographer.is_on_demand
+                            ? 'On-Demand'
+                            : 'Available'
+                        }
                       </span>
                     </div>
                   </div>
@@ -1126,11 +1157,15 @@ const SpotHub = () => {
                         </span>
                       )}
                     </div>
-                    {report.media_url && (
+                    {report.media_url && report.media_url.trim() && (
                       <img 
                         src={getFullUrl(report.thumbnail_url || report.media_url)} 
                         alt="" 
                         className="mt-2 w-full h-32 object-cover rounded-lg"
+                        onError={(e) => {
+                          // Hide broken images instead of showing black box
+                          e.target.style.display = 'none';
+                        }}
                       />
                     )}
                   </div>

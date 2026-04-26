@@ -2522,6 +2522,40 @@ async def get_spot_live_shooting_pulse(
     )
     active_sessions = list(active_sessions_result.scalars().all())
     
+    # ── STALE SESSION AUTO-CLEANUP ──
+    # Auto-end sessions older than 4 hours to prevent ghost "LIVE SHOOTING" indicators
+    stale_threshold_hours = 4
+    now = datetime.now(timezone.utc)
+    clean_sessions = []
+    stale_cleaned = 0
+    for session in active_sessions:
+        started = session.started_at
+        if started:
+            if started.tzinfo is None:
+                started = started.replace(tzinfo=timezone.utc)
+            hours_elapsed = (now - started).total_seconds() / 3600
+            if hours_elapsed > stale_threshold_hours:
+                # Auto-end stale session
+                session.status = 'ended'
+                session.ended_at = now
+                # Also reset photographer flags if they match
+                if session.photographer:
+                    session.photographer.is_shooting = False
+                    session.photographer.current_spot_id = None
+                    session.photographer.shooting_started_at = None
+                stale_cleaned += 1
+                logger.warning(
+                    f"[live-pulse] Auto-ended stale session {session.id} "
+                    f"(started {hours_elapsed:.1f}h ago)"
+                )
+                continue
+        clean_sessions.append(session)
+    
+    if stale_cleaned > 0:
+        await db.commit()
+    
+    active_sessions = clean_sessions
+    
     # Permission check: determine which photographers the viewer can see
     visible_sessions = []
     
