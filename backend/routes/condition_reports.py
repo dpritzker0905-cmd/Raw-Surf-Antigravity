@@ -716,32 +716,6 @@ async def update_condition_report_media(
     }
 
 
-@router.delete("/condition-reports/{report_id}")
-async def delete_condition_report(
-    report_id: str,
-    photographer_id: str,
-    db: AsyncSession = Depends(get_db)
-):
-    """Delete a specific condition report (photographer who owns it only)"""
-    result = await db.execute(
-        select(ConditionReport).where(ConditionReport.id == report_id)
-    )
-    report = result.scalar_one_or_none()
-    
-    if not report:
-        raise HTTPException(status_code=404, detail="Condition report not found")
-    
-    if report.photographer_id != photographer_id:
-        raise HTTPException(status_code=403, detail="Not authorized to delete this report")
-    
-    await db.delete(report)
-    await db.commit()
-    
-    cr_logger.info(f"Condition report {report_id} deleted by {photographer_id}")
-    
-    return {"message": "Condition report deleted", "report_id": report_id}
-
-
 @router.delete("/condition-reports/cleanup/orphaned")
 async def cleanup_orphaned_condition_reports(
     photographer_id: str,
@@ -790,3 +764,29 @@ async def cleanup_orphaned_condition_reports(
         "message": f"Cleaned up {deleted} orphaned condition reports",
         "deleted_count": deleted
     }
+
+
+@router.delete("/condition-reports/{report_id}")
+async def delete_condition_report(
+    report_id: str,
+    photographer_id: str,
+    db: AsyncSession = Depends(get_db)
+):
+    """Delete a specific condition report (photographer who owns it only)"""
+    result = await db.execute(
+        select(ConditionReport).where(ConditionReport.id == report_id)
+    )
+    report = result.scalar_one_or_none()
+    
+    if not report:
+        raise HTTPException(status_code=404, detail="Condition report not found")
+    
+    if report.photographer_id != photographer_id:
+        raise HTTPException(status_code=403, detail="Not authorized to delete this report")
+    
+    await db.delete(report)
+    await db.commit()
+    
+    cr_logger.info(f"Condition report {report_id} deleted by {photographer_id}")
+    
+    return {"message": "Condition report deleted", "report_id": report_id}

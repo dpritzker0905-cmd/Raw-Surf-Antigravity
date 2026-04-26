@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, or_, desc, text
+from sqlalchemy import select, func, or_, desc, text, case
 from sqlalchemy.orm import selectinload
 from typing import Optional, List, Dict, Any
 from datetime import datetime, timezone, timedelta
@@ -160,8 +160,6 @@ async def explore_search(
     
     if search_type in ["all", "spots"]:
         # Prioritize name matches over region/description matches
-        # Use CASE to rank: exact name match > partial name > region/description
-        from sqlalchemy import case
         relevance = case(
             (SurfSpot.name.ilike(search_term), 1),  # Name contains search term
             (SurfSpot.region.ilike(search_term), 2),  # Region contains search term

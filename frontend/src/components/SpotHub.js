@@ -1152,7 +1152,7 @@ const SpotHub = () => {
                     </div>
                     {/* Captured timestamp — exact time the media was shot */}
                     <p className={`text-xs mt-1.5 ${textSecondary}`}>
-                      Captured {new Date(report.created_at).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })} at {new Date(report.created_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true })} — {report.spot_name || spotData?.name || 'Unknown Spot'}
+                      Captured {new Date(report.created_at).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })} at {new Date(report.created_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true })} — {report.spot_name || spot?.name || 'Unknown Spot'}
                     </p>
                     <div className="flex items-center gap-3 mt-1.5">
                       {report.wave_height_ft && (
