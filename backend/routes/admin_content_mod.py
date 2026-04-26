@@ -293,17 +293,29 @@ async def get_moderation_stats(
     }
 
 
+class FlagContentRequest(BaseModel):
+    content_type: str
+    content_id: str
+    reporter_id: Optional[str] = None
+    reason: Optional[str] = None
+    flagged_by: str = "user_report"
+    ai_categories: Optional[List[str]] = None
+    ai_confidence: Optional[float] = None
+
+
 # Endpoint to flag content for moderation (from user reports or auto)
 @router.post("/content/flag")
 async def flag_content_for_moderation(
-    content_type: str,
-    content_id: str,
-    flagged_by: str = "user_report",
-    ai_categories: Optional[List[str]] = None,
-    ai_confidence: Optional[float] = None,
+    request: FlagContentRequest,
     db: AsyncSession = Depends(get_db)
 ):
     """Flag content for moderation review"""
+    content_type = request.content_type
+    content_id = request.content_id
+    flagged_by = request.flagged_by or "user_report"
+    ai_categories = request.ai_categories
+    ai_confidence = request.ai_confidence
+
     # Check if already in queue
     existing = await db.execute(
         select(ContentModerationItem)
@@ -323,7 +335,7 @@ async def flag_content_for_moderation(
             .values(flag_count=existing_item.flag_count + 1)
         )
         await db.commit()
-        return {"success": True, "message": "Flag count incremented"}
+        return {"success": True, "message": "Already reported", "detail": "You have already reported this content"}
     
     # Get content details
     content_url = None

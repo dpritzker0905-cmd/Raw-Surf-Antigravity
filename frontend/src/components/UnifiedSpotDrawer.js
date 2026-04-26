@@ -2022,7 +2022,7 @@ const UnifiedSpotDrawer = ({
                                 {report.crowd_level && (<span className="text-xs flex items-center gap-1"><Users className="w-3 h-3 text-purple-400" /><span className={textPrimary}>{report.crowd_level}</span></span>)}
                               </div>
                               {(() => {
-                                const urls = [report.thumbnail_url, report.media_url].filter(u => u && u.trim() && !u.startsWith('/api/uploads/'));
+                                const urls = [report.media_url, report.thumbnail_url].filter(u => u && u.trim() && !u.startsWith('/api/uploads/'));
                                 if (!urls[0]) return null;
                                 return (<img src={getFullUrl(urls[0])} alt="" className="mt-2 w-full h-48 object-cover rounded-lg cursor-pointer hover:opacity-90 transition-opacity" onClick={() => setLightboxUrl(getFullUrl(urls[0]))} onError={(e) => { if (urls[1] && e.target.src !== getFullUrl(urls[1])) { e.target.src = getFullUrl(urls[1]); } else { e.target.style.display = 'none'; } }} />);
                               })()}

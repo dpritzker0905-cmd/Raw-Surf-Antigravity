@@ -2255,7 +2255,7 @@ export const Explore = () => {
                   <div className="relative w-20 h-20 rounded-lg overflow-hidden flex-shrink-0 bg-zinc-700">
                     {report.media_url ? (
                       <img 
-                        src={report.thumbnail_url || report.media_url} 
+                        src={report.media_url || report.thumbnail_url} 
                         alt={report.spot_name || 'Conditions'} 
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform"
                       />

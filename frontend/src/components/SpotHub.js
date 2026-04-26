@@ -633,18 +633,24 @@ const SpotHub = () => {
       return;
     }
     try {
-      await apiClient.post('/content/flag', {
+      const res = await apiClient.post('/content/flag', {
         content_type: 'condition_report',
         content_id: reportId,
         reporter_id: user.id,
         reason: 'user_report'
       });
-      toast.success('Report submitted — our team will review it');
+      // Backend returns "Already reported" message when duplicate
+      if (res.data?.message === 'Already reported') {
+        toast.info('You have already reported this content');
+      } else {
+        toast.success('Report submitted — our team will review it');
+      }
     } catch (error) {
       const detail = error?.response?.data?.detail;
       if (typeof detail === 'string' && detail.toLowerCase().includes('already')) {
         toast.info('You have already reported this content');
       } else {
+        logger.error('Error reporting condition report:', error);
         toast.error('Failed to submit report');
       }
     }
@@ -1208,9 +1214,11 @@ const SpotHub = () => {
                     </div>
                     {(() => {
                       // Get the best available image URL, filtering out broken local paths
+                      // For condition reports (free content), prefer media_url (unwatermarked original)
+                      // over thumbnail_url (which may be a watermarked preview)
                       const candidateUrls = [
-                        report.thumbnail_url,
-                        report.media_url
+                        report.media_url,
+                        report.thumbnail_url
                       ].filter(url => url && url.trim() && !url.startsWith('/api/uploads/'));
                       const primaryUrl = candidateUrls[0];
                       const fallbackUrl = candidateUrls[1];
