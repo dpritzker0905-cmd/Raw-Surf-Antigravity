@@ -180,12 +180,17 @@ export const PhotographerGalleryManager = () => {
     }
   };
 
-  const handleLinkSession = async (sessionId) => {
+  const handleLinkSession = async (session) => {
     try {
-      await apiClient.post(`/gallery/${galleryId}/link-session?photographer_id=${user.id}`, {
-        live_session_id: sessionId
-      });
-      toast.success('Gallery linked to session!');
+      // session can be a full object with link_key, or a plain sessionId string for backward compat
+      const linkPayload = typeof session === 'object' && session.link_key
+        ? { [session.link_key]: session.id }
+        : { live_session_id: session };
+      
+      await apiClient.post(`/gallery/${galleryId}/link-session?photographer_id=${user.id}`, linkPayload);
+      const typeLabel = session?.session_type === 'booking' ? 'Booking' :
+        session?.session_type === 'on_demand' ? 'On-Demand' : 'Live Session';
+      toast.success(`Gallery linked to ${typeLabel}!`);
       setShowLinkSessionModal(false);
       fetchGallery();
       fetchSessionParticipants();
@@ -1940,8 +1945,8 @@ export const PhotographerGalleryManager = () => {
               <div className="space-y-2 max-h-[400px] overflow-y-auto">
                 {recentSessions.map((session) => (
                   <div
-                    key={session.id}
-                    onClick={() => session.is_available && handleLinkSession(session.id)}
+                    key={`${session.session_type || 'live'}-${session.id}`}
+                    onClick={() => session.is_available && handleLinkSession(session)}
                     className={`flex items-center gap-3 p-3 rounded-lg transition-colors cursor-pointer ${
                       session.is_available
                         ? isLight ? 'bg-gray-50 hover:bg-gray-100 hover:ring-2 hover:ring-amber-500/30' : 'bg-zinc-800 hover:bg-zinc-700 hover:ring-2 hover:ring-amber-500/30'
@@ -1949,9 +1954,17 @@ export const PhotographerGalleryManager = () => {
                     }`}
                   >
                     <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                      session.is_available ? 'bg-amber-500/20' : 'bg-zinc-700'
+                      !session.is_available ? 'bg-zinc-700' :
+                      session.session_type === 'booking' ? 'bg-blue-500/20' :
+                      session.session_type === 'on_demand' ? 'bg-orange-500/20' :
+                      'bg-amber-500/20'
                     }`}>
-                      <MapPin className={`w-5 h-5 ${session.is_available ? 'text-amber-400' : 'text-zinc-500'}`} />
+                      <MapPin className={`w-5 h-5 ${
+                        !session.is_available ? 'text-zinc-500' :
+                        session.session_type === 'booking' ? 'text-blue-400' :
+                        session.session_type === 'on_demand' ? 'text-orange-400' :
+                        'text-amber-400'
+                      }`} />
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className={`text-sm font-medium truncate ${textPrimaryClass}`}>
@@ -1964,6 +1977,17 @@ export const PhotographerGalleryManager = () => {
                             month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit'
                           }) : 'Unknown date'}
                         </span>
+                        {session.session_type && (
+                          <Badge variant="outline" className={`text-[9px] px-1 py-0 ${
+                            session.session_type === 'live' ? 'border-emerald-500/50 text-emerald-400' :
+                            session.session_type === 'booking' ? 'border-blue-500/50 text-blue-400' :
+                            'border-orange-500/50 text-orange-400'
+                          }`}>
+                            {session.session_type === 'live' ? '🟢 Live' :
+                             session.session_type === 'booking' ? '📅 Booking' :
+                             '⚡ On-Demand'}
+                          </Badge>
+                        )}
                       </div>
                     </div>
                     <div className="text-right">

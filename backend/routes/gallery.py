@@ -5061,26 +5061,25 @@ async def get_photographer_recent_sessions(
     db: AsyncSession = Depends(get_db)
 ):
     """
-    Get recent live sessions for a photographer.
-    Used by the link-session UI to show available sessions to link to a gallery.
+    Get recent linkable sessions for a photographer.
+    Returns live sessions, bookings, and dispatch requests
+    so any gallery can be manually linked to any past session type.
     """
+    session_list = []
+    
+    # ── 1. Live Sessions ──
     result = await db.execute(
         select(LiveSession)
         .where(LiveSession.photographer_id == photographer_id)
         .order_by(LiveSession.started_at.desc())
         .limit(limit)
     )
-    sessions = result.scalars().all()
-    
-    session_list = []
-    for s in sessions:
-        # Check if already linked to a gallery
+    for s in result.scalars().all():
         gallery_result = await db.execute(
             select(Gallery.id).where(Gallery.live_session_id == s.id)
         )
         linked_gallery = gallery_result.scalar_one_or_none()
         
-        # Count participants
         part_count_result = await db.execute(
             select(func.count(LiveSessionParticipant.id))
             .where(LiveSessionParticipant.live_session_id == s.id)
@@ -5089,17 +5088,89 @@ async def get_photographer_recent_sessions(
         
         session_list.append({
             "id": s.id,
-            "location_name": s.location_name,
+            "session_type": "live",
+            "link_key": "live_session_id",
+            "location_name": s.location_name or "Live Session",
             "started_at": s.started_at.isoformat() if s.started_at else None,
             "ended_at": s.ended_at.isoformat() if s.ended_at else None,
             "status": s.status,
             "participant_count": part_count,
             "total_earnings": s.total_earnings or 0,
             "linked_gallery_id": linked_gallery,
-            "is_available": linked_gallery is None  # Available if not linked to any gallery
+            "is_available": linked_gallery is None
         })
     
-    return session_list
+    # ── 2. Bookings ──
+    try:
+        bk_result = await db.execute(
+            select(Booking)
+            .where(Booking.photographer_id == photographer_id)
+            .order_by(Booking.session_date.desc())
+            .limit(limit)
+        )
+        for bk in bk_result.scalars().all():
+            gallery_result = await db.execute(
+                select(Gallery.id).where(Gallery.booking_id == bk.id)
+            )
+            linked_gallery = gallery_result.scalar_one_or_none()
+            
+            # Count participants
+            bp_count_result = await db.execute(
+                select(func.count(BookingParticipant.id))
+                .where(BookingParticipant.booking_id == bk.id)
+            )
+            bp_count = bp_count_result.scalar() or 0
+            
+            session_list.append({
+                "id": bk.id,
+                "session_type": "booking",
+                "link_key": "booking_id",
+                "location_name": bk.location or "Scheduled Booking",
+                "started_at": bk.session_date.isoformat() if bk.session_date else (bk.created_at.isoformat() if bk.created_at else None),
+                "ended_at": None,
+                "status": bk.status or "completed",
+                "participant_count": bp_count,
+                "total_earnings": bk.total_price or 0,
+                "linked_gallery_id": linked_gallery,
+                "is_available": linked_gallery is None
+            })
+    except Exception as e:
+        gallery_logger.warning(f"Could not load bookings for recent-sessions: {e}")
+    
+    # ── 3. Dispatch (On-Demand) Requests ──
+    try:
+        dp_result = await db.execute(
+            select(DispatchRequest)
+            .where(DispatchRequest.photographer_id == photographer_id)
+            .order_by(DispatchRequest.created_at.desc())
+            .limit(limit)
+        )
+        for dp in dp_result.scalars().all():
+            gallery_result = await db.execute(
+                select(Gallery.id).where(Gallery.dispatch_id == dp.id)
+            )
+            linked_gallery = gallery_result.scalar_one_or_none()
+            
+            session_list.append({
+                "id": dp.id,
+                "session_type": "on_demand",
+                "link_key": "dispatch_id",
+                "location_name": dp.location_name or "On-Demand Request",
+                "started_at": dp.created_at.isoformat() if dp.created_at else None,
+                "ended_at": None,
+                "status": (dp.status.value if hasattr(dp.status, 'value') else str(dp.status)) if dp.status else "completed",
+                "participant_count": 1,
+                "total_earnings": dp.deposit_amount or 0,
+                "linked_gallery_id": linked_gallery,
+                "is_available": linked_gallery is None
+            })
+    except Exception as e:
+        gallery_logger.warning(f"Could not load dispatch requests for recent-sessions: {e}")
+    
+    # Sort all by most recent first
+    session_list.sort(key=lambda x: x.get("started_at") or "", reverse=True)
+    
+    return session_list[:limit * 2]  # Return up to 2x limit since we merged 3 sources
 
 
 @router.delete("/gallery/cleanup-empty")
@@ -5540,37 +5611,43 @@ async def set_gallery_thumbnail(
     # Sync to linked condition reports — when the gallery thumbnail changes,
     # any condition report linked via the same live_session_id should also update.
     # This prevents blank/broken photos on SpotHub's condition reports section.
+    # DEFENSIVE: wrap in try/except so CR sync issues never block cover photo updates.
     synced_reports = 0
-    if gallery.live_session_id:
-        linked_reports = await db.execute(
-            select(ConditionReport).where(
-                ConditionReport.live_session_id == gallery.live_session_id,
-                ConditionReport.photographer_id == photographer_id
+    try:
+        if gallery.live_session_id:
+            linked_reports = await db.execute(
+                select(ConditionReport).where(
+                    ConditionReport.live_session_id == gallery.live_session_id,
+                    ConditionReport.photographer_id == photographer_id
+                )
             )
+            for report in linked_reports.scalars().all():
+                report.thumbnail_url = new_cover_url
+                # If media_url is broken (local path), also update it
+                if report.media_url and report.media_url.startswith('/api/uploads/'):
+                    report.media_url = new_cover_url
+                synced_reports += 1
+        
+        # Also check if there are condition reports by this photographer at the same spot
+        # that were created around the same time as the gallery
+        if synced_reports == 0 and gallery.surf_spot_id:
+            spot_reports = await db.execute(
+                select(ConditionReport).where(
+                    ConditionReport.photographer_id == photographer_id,
+                    ConditionReport.spot_id == gallery.surf_spot_id,
+                    ConditionReport.is_active.is_(True)
+                ).order_by(ConditionReport.created_at.desc()).limit(1)
+            )
+            latest_report = spot_reports.scalar_one_or_none()
+            if latest_report:
+                latest_report.thumbnail_url = new_cover_url
+                if latest_report.media_url and latest_report.media_url.startswith('/api/uploads/'):
+                    latest_report.media_url = new_cover_url
+                synced_reports += 1
+    except Exception as sync_err:
+        gallery_logger.warning(
+            f"Gallery {gallery_id} cover updated but CR sync failed: {sync_err}"
         )
-        for report in linked_reports.scalars().all():
-            report.thumbnail_url = new_cover_url
-            # If media_url is broken (local path), also update it
-            if report.media_url and report.media_url.startswith('/api/uploads/'):
-                report.media_url = new_cover_url
-            synced_reports += 1
-    
-    # Also check if there are condition reports by this photographer at the same spot
-    # that were created around the same time as the gallery
-    if synced_reports == 0 and gallery.spot_id:
-        spot_reports = await db.execute(
-            select(ConditionReport).where(
-                ConditionReport.photographer_id == photographer_id,
-                ConditionReport.spot_id == gallery.spot_id,
-                ConditionReport.is_active == True
-            ).order_by(ConditionReport.created_at.desc()).limit(1)
-        )
-        latest_report = spot_reports.scalar_one_or_none()
-        if latest_report:
-            latest_report.thumbnail_url = new_cover_url
-            if latest_report.media_url and latest_report.media_url.startswith('/api/uploads/'):
-                latest_report.media_url = new_cover_url
-            synced_reports += 1
     
     await db.commit()
     

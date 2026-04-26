@@ -882,16 +882,21 @@ export const GalleryPage = () => {
     }
   };
 
-  // Link gallery to a session
-  const handleLinkSession = async (sessionId) => {
+  // Link gallery to a session (live, booking, or dispatch)
+  const handleLinkSession = async (session) => {
     if (!linkSessionGallery) return;
     setLinkingSession(true);
     try {
+      // Build the correct payload based on session type
+      const linkPayload = { [session.link_key]: session.id };
+      
       await apiClient.post(
         `/gallery/${linkSessionGallery.id}/link-session?photographer_id=${user.id}`,
-        { live_session_id: sessionId }
+        linkPayload
       );
-      toast.success('✅ Folder linked to session! Participants and distribution are now available.');
+      const typeLabel = session.session_type === 'live' ? 'Live Session' :
+        session.session_type === 'booking' ? 'Booking' : 'On-Demand';
+      toast.success(`✅ Folder linked to ${typeLabel}! Participants and distribution are now available.`);
       setShowLinkSessionModal(false);
       setLinkSessionGallery(null);
       fetchGalleries();
@@ -2952,19 +2957,31 @@ export const GalleryPage = () => {
               ) : (
               recentSessions.filter(s => s.is_available).map((session) => (
                 <button
-                  key={session.id}
-                  onClick={() => handleLinkSession(session.id)}
+                  key={`${session.session_type}-${session.id}`}
+                  onClick={() => handleLinkSession(session)}
                   disabled={linkingSession}
                   className="w-full flex items-center gap-3 p-3 rounded-lg bg-card hover:bg-muted transition-colors text-left border border-border hover:border-purple-500/40 disabled:opacity-50"
                   data-testid={`link-session-option-${session.id}`}
                 >
                   <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{
-                    background: session.status === 'active' || session.status === 'shooting'
-                      ? 'rgba(16,185,129,0.15)' 
-                      : 'rgba(139,92,246,0.1)',
-                    border: `1px solid ${session.status === 'active' || session.status === 'shooting' ? 'rgba(16,185,129,0.3)' : 'rgba(139,92,246,0.2)'}`
+                    background: session.session_type === 'live'
+                      ? (session.status === 'active' || session.status === 'shooting' ? 'rgba(16,185,129,0.15)' : 'rgba(139,92,246,0.1)')
+                      : session.session_type === 'booking'
+                      ? 'rgba(59,130,246,0.1)'
+                      : 'rgba(249,115,22,0.1)',
+                    border: `1px solid ${session.session_type === 'live'
+                      ? (session.status === 'active' || session.status === 'shooting' ? 'rgba(16,185,129,0.3)' : 'rgba(139,92,246,0.2)')
+                      : session.session_type === 'booking'
+                      ? 'rgba(59,130,246,0.2)'
+                      : 'rgba(249,115,22,0.2)'}`
                   }}>
-                    <Radio className={`w-4 h-4 ${session.status === 'active' || session.status === 'shooting' ? 'text-emerald-400' : 'text-purple-400'}`} />
+                    <Radio className={`w-4 h-4 ${
+                      session.session_type === 'live'
+                        ? (session.status === 'active' || session.status === 'shooting' ? 'text-emerald-400' : 'text-purple-400')
+                        : session.session_type === 'booking'
+                        ? 'text-blue-400'
+                        : 'text-orange-400'
+                    }`} />
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-foreground font-medium text-sm truncate">
@@ -2981,9 +2998,20 @@ export const GalleryPage = () => {
                         </span>
                       )}
                       <Badge className={`text-[8px] px-1 py-0 ${
+                        session.session_type === 'live'
+                          ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
+                          : session.session_type === 'booking'
+                          ? 'bg-blue-500/20 text-blue-400 border-blue-500/30'
+                          : 'bg-orange-500/20 text-orange-400 border-orange-500/30'
+                      }`}>
+                        {session.session_type === 'live' ? '🟢 Live' :
+                         session.session_type === 'booking' ? '📅 Booking' :
+                         '⚡ On-Demand'}
+                      </Badge>
+                      <Badge className={`text-[8px] px-1 py-0 ${
                         session.status === 'active' || session.status === 'shooting'
                           ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
-                          : session.status === 'completed'
+                          : session.status === 'completed' || session.status === 'Completed'
                           ? 'bg-blue-500/20 text-blue-400 border-blue-500/30'
                           : 'bg-zinc-500/20 text-zinc-400 border-zinc-500/30'
                       }`}>
