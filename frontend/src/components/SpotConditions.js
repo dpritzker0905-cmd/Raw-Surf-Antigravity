@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Textarea } from './ui/textarea';
 import { toast } from 'sonner';
 import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../contexts/ThemeContext';
 import logger from '../utils/logger';
 
 
@@ -39,6 +40,18 @@ const conditionColors = {
 
 export const SpotConditions = ({ spotId, spotName, compact = false }) => {
   const { user } = useAuth();
+  const { theme } = useTheme();
+  const isLight = theme === 'light';
+  const isBeach = theme === 'beach';
+  // Theme tokens
+  const containerBg = isLight ? 'bg-white' : isBeach ? 'bg-amber-50' : 'bg-zinc-900';
+  const containerBorder = isLight ? 'border-gray-200' : isBeach ? 'border-amber-200' : 'border-zinc-800';
+  const tPrimary = isLight ? 'text-gray-900' : isBeach ? 'text-amber-900' : 'text-white';
+  const tSecondary = isLight ? 'text-gray-500' : isBeach ? 'text-amber-700' : 'text-gray-400';
+  const tMuted = isLight ? 'text-gray-400' : isBeach ? 'text-amber-600' : 'text-gray-500';
+  const cellBg = isLight ? 'bg-gray-100' : isBeach ? 'bg-amber-100/60' : 'bg-zinc-800';
+  const cellBgFaded = isLight ? 'bg-gray-100/50 opacity-60' : isBeach ? 'bg-amber-100/30 opacity-60' : 'bg-zinc-800/50 opacity-60';
+  const hoverBg = isLight ? 'hover:bg-gray-100' : isBeach ? 'hover:bg-amber-100/50' : 'hover:bg-zinc-800/50';
   const [conditions, setConditions] = useState(null);
   const [tideData, setTideData] = useState(null);
   const [reports, setReports] = useState(null);
@@ -151,7 +164,7 @@ export const SpotConditions = ({ spotId, spotName, compact = false }) => {
     return (
       <div className="flex items-center gap-2">
         <Waves className="w-4 h-4 text-blue-400" />
-        <span className="text-sm text-white font-medium">
+        <span className={`text-sm ${tPrimary} font-medium`}>
           {waveHeight > 0 ? `${waveHeight}ft` : label}
         </span>
         <Badge className={`text-[10px] ${conditionColors[label] || 'bg-gray-500'}`}>
@@ -166,11 +179,11 @@ export const SpotConditions = ({ spotId, spotName, compact = false }) => {
   const waveLabel = current ? getConditionsLabel(current.wave_height_ft) : "No Data";
 
   return (
-    <div className="bg-zinc-900 rounded-xl border border-zinc-800 overflow-hidden" data-testid="spot-conditions">
+    <div className={`${containerBg} rounded-xl border ${containerBorder} overflow-hidden`} data-testid="spot-conditions">
       {/* Header with current conditions */}
       <div className="p-4">
         <div className="flex items-center justify-between mb-3">
-          <h3 className="font-bold text-white flex items-center gap-2">
+          <h3 className={`font-bold ${tPrimary} flex items-center gap-2`}>
             <Waves className="w-5 h-5 text-blue-400" />
             Current Conditions
           </h3>
@@ -182,49 +195,49 @@ export const SpotConditions = ({ spotId, spotName, compact = false }) => {
         {current ? (
           <div className="grid grid-cols-2 gap-4">
             {/* Wave Height */}
-            <div className="bg-zinc-800 rounded-lg p-3 text-center">
-              <p className="text-3xl font-bold text-white">{current.wave_height_ft}<span className="text-lg">ft</span></p>
-              <p className="text-xs text-gray-400">Wave Height</p>
+            <div className={`${cellBg} rounded-lg p-3 text-center`}>
+              <p className={`text-3xl font-bold ${tPrimary}`}>{current.wave_height_ft}<span className="text-lg">ft</span></p>
+              <p className={`text-xs ${tSecondary}`}>Wave Height</p>
             </div>
             
             {/* Swell */}
-            <div className="bg-zinc-800 rounded-lg p-3 text-center">
-              <p className="text-3xl font-bold text-white">{current.swell_height_ft || 0}<span className="text-lg">ft</span></p>
-              <p className="text-xs text-gray-400">Swell</p>
+            <div className={`${cellBg} rounded-lg p-3 text-center`}>
+              <p className={`text-3xl font-bold ${tPrimary}`}>{current.swell_height_ft || 0}<span className="text-lg">ft</span></p>
+              <p className={`text-xs ${tSecondary}`}>Swell</p>
             </div>
 
             {/* Direction */}
             <div className="flex items-center gap-3 col-span-2">
               <div className="flex items-center gap-2">
                 <Compass className="w-4 h-4 text-yellow-400" />
-                <span className="text-sm text-gray-300">
+                <span className={`text-sm ${tSecondary}`}>
                   {current.wave_direction ? `${current.wave_direction}°` : 'N/A'}
                 </span>
               </div>
               <div className="flex items-center gap-2">
                 <Clock className="w-4 h-4 text-yellow-400" />
-                <span className="text-sm text-gray-300">
+                <span className={`text-sm ${tSecondary}`}>
                   {current.wave_period ? `${current.wave_period}s period` : 'N/A'}
                 </span>
               </div>
             </div>
           </div>
         ) : (
-          <p className="text-gray-400 text-sm">Unable to fetch conditions</p>
+          <p className={`${tSecondary} text-sm`}>Unable to fetch conditions</p>
         )}
 
         {/* Source attribution */}
-        <p className="text-[10px] text-gray-500 mt-3">
+        <p className={`text-[10px] ${tMuted} mt-3`}>
           Data from Open-Meteo Marine API • Updated: {current?.updated_at ? new Date(current.updated_at).toLocaleTimeString() : 'N/A'}
         </p>
       </div>
 
       {/* Tide Data Section */}
       {tideData && tideData.tides && tideData.tides.length > 0 && (
-        <div className="border-t border-zinc-800 p-4">
+        <div className={`border-t ${containerBorder} p-4`}>
           <div className="flex items-center gap-2 mb-3">
             <Droplets className="w-5 h-5 text-cyan-400" />
-            <h4 className="font-bold text-white text-sm">Today's Tides</h4>
+            <h4 className={`font-bold ${tPrimary} text-sm`}>Today's Tides</h4>
             {tideData.current_status && (
               <Badge className={`text-[10px] ${
                 tideData.current_status === 'Rising' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-orange-500/20 text-orange-400'
@@ -247,7 +260,7 @@ export const SpotConditions = ({ spotId, spotName, compact = false }) => {
               return (
                 <div 
                   key={index} 
-                  className={`p-2 rounded-lg ${isPast ? 'bg-zinc-800/50 opacity-60' : 'bg-zinc-800'}`}
+                  className={`p-2 rounded-lg ${isPast ? cellBgFaded : cellBg}`}
                 >
                   <div className="flex items-center gap-2 mb-1">
                     {isHigh ? (
@@ -260,10 +273,10 @@ export const SpotConditions = ({ spotId, spotName, compact = false }) => {
                     </span>
                   </div>
                   <div className="flex items-baseline gap-2">
-                    <span className="text-lg font-bold text-white">
+                    <span className={`text-lg font-bold ${tPrimary}`}>
                       {tideTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </span>
-                    <span className="text-xs text-gray-400">
+                    <span className={`text-xs ${tSecondary}`}>
                       {parseFloat(tide.height).toFixed(1)}ft
                     </span>
                   </div>
@@ -272,7 +285,7 @@ export const SpotConditions = ({ spotId, spotName, compact = false }) => {
             })}
           </div>
           
-          <p className="text-[10px] text-gray-500 mt-2">
+          <p className={`text-[10px] ${tMuted} mt-2`}>
             Data from NOAA Tides & Currents
           </p>
         </div>
@@ -280,19 +293,19 @@ export const SpotConditions = ({ spotId, spotName, compact = false }) => {
 
       {/* Forecast Section - Tiered Access */}
       {forecast.length > 0 && (
-        <div className="border-t border-zinc-800">
+        <div className={`border-t ${containerBorder}`}>
           <button
             onClick={() => setForecastExpanded(!forecastExpanded)}
-            className="w-full flex items-center justify-between p-4 hover:bg-zinc-800/50 transition-colors"
+            className={`w-full flex items-center justify-between p-4 ${hoverBg} transition-colors`}
           >
             <div className="flex items-center gap-2">
               <Calendar className="w-4 h-4 text-purple-400" />
-              <span className="text-sm font-medium text-white">Surf Forecast</span>
-              <Badge className={`text-[10px] ${isPremiumUser ? 'bg-purple-500/20 text-purple-400' : 'bg-zinc-700 text-gray-400'}`}>
+              <span className={`text-sm font-medium ${tPrimary}`}>Surf Forecast</span>
+              <Badge className={`text-[10px] ${isPremiumUser ? 'bg-purple-500/20 text-purple-400' : isLight ? 'bg-gray-200 text-gray-500' : 'bg-zinc-700 text-gray-400'}`}>
                 {forecastDaysAllowed} Day{forecastDaysAllowed > 1 ? 's' : ''}
               </Badge>
             </div>
-            {forecastExpanded ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
+            {forecastExpanded ? <ChevronUp className={`w-4 h-4 ${tSecondary}`} /> : <ChevronDown className={`w-4 h-4 ${tSecondary}`} />}
           </button>
           
           {forecastExpanded && (
@@ -305,15 +318,15 @@ export const SpotConditions = ({ spotId, spotName, compact = false }) => {
                   const dateStr = dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
                   
                   return (
-                    <div key={day.date} className="flex items-center justify-between p-3 bg-zinc-800 rounded-lg">
+                    <div key={day.date} className={`flex items-center justify-between p-3 ${cellBg} rounded-lg`}>
                       <div className="flex items-center gap-3">
                         <div className="text-center w-14">
-                          <p className="text-white font-medium text-sm">{dayName}</p>
-                          <p className="text-gray-500 text-[10px]">{dateStr}</p>
+                          <p className={`${tPrimary} font-medium text-sm`}>{dayName}</p>
+                          <p className={`${tMuted} text-[10px]`}>{dateStr}</p>
                         </div>
                         <div className="flex items-center gap-2">
                           <Waves className="w-4 h-4 text-blue-400" />
-                          <span className="text-white font-bold">{day.wave_height_min}-{day.wave_height_max}ft</span>
+                          <span className={`${tPrimary} font-bold`}>{day.wave_height_min}-{day.wave_height_max}ft</span>
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
@@ -321,7 +334,7 @@ export const SpotConditions = ({ spotId, spotName, compact = false }) => {
                           {day.label}
                         </Badge>
                         {day.swell_period && (
-                          <span className="text-gray-400 text-xs">{day.swell_period}s</span>
+                          <span className={`${tSecondary} text-xs`}>{day.swell_period}s</span>
                         )}
                       </div>
                     </div>
@@ -334,9 +347,9 @@ export const SpotConditions = ({ spotId, spotName, compact = false }) => {
                 <div className="p-3 bg-gradient-to-r from-purple-500/10 to-pink-500/10 border border-purple-500/30 rounded-lg">
                   <div className="flex items-center gap-2 mb-2">
                     <Lock className="w-4 h-4 text-purple-400" />
-                    <span className="text-white font-medium text-sm">Unlock 10-Day Forecast</span>
+                    <span className={`${tPrimary} font-medium text-sm`}>Unlock 10-Day Forecast</span>
                   </div>
-                  <p className="text-gray-400 text-xs mb-2">
+                  <p className={`${tSecondary} text-xs mb-2`}>
                     Premium members get extended 10-day forecasts and priority buoy data.
                   </p>
                   <div className="flex items-center gap-2">
@@ -361,7 +374,7 @@ export const SpotConditions = ({ spotId, spotName, compact = false }) => {
                 </div>
               )}
               
-              <p className="text-[10px] text-gray-500">
+              <p className={`text-[10px] ${tMuted}`}>
                 Forecast from Open-Meteo Marine API
               </p>
             </div>
@@ -370,21 +383,21 @@ export const SpotConditions = ({ spotId, spotName, compact = false }) => {
       )}
 
       {/* Community Reports Section */}
-      <div className="border-t border-zinc-800">
+      <div className={`border-t ${containerBorder}`}>
         <button
           onClick={() => setExpanded(!expanded)}
-          className="w-full flex items-center justify-between p-4 hover:bg-zinc-800/50 transition-colors"
+          className={`w-full flex items-center justify-between p-4 ${hoverBg} transition-colors`}
         >
           <div className="flex items-center gap-2">
             <Users className="w-4 h-4 text-emerald-400" />
-            <span className="text-sm font-medium text-white">Community Reports</span>
+            <span className={`text-sm font-medium ${tPrimary}`}>Community Reports</span>
             {reports?.report_count > 0 && (
               <Badge variant="outline" className="text-emerald-400 border-emerald-400/30">
                 {reports.report_count} today
               </Badge>
             )}
           </div>
-          {expanded ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
+          {expanded ? <ChevronUp className={`w-4 h-4 ${tSecondary}`} /> : <ChevronDown className={`w-4 h-4 ${tSecondary}`} />}
         </button>
 
         {expanded && (
@@ -392,7 +405,7 @@ export const SpotConditions = ({ spotId, spotName, compact = false }) => {
             {/* Consensus */}
             {reports?.consensus_conditions && (
               <div className="flex items-center gap-2 text-sm">
-                <span className="text-gray-400">Consensus:</span>
+                <span className={tSecondary}>Consensus:</span>
                 <Badge className="bg-emerald-500/20 text-emerald-400">{reports.consensus_conditions}</Badge>
                 {reports.consensus_crowd && (
                   <Badge className="bg-blue-500/20 text-blue-400">{reports.consensus_crowd}</Badge>
@@ -410,17 +423,17 @@ export const SpotConditions = ({ spotId, spotName, compact = false }) => {
             {reports?.reports?.length > 0 ? (
               <div className="space-y-2 max-h-48 overflow-y-auto">
                 {reports.reports.slice(0, 5).map((report) => (
-                  <div key={report.id} className="bg-zinc-800 rounded-lg p-3">
+                  <div key={report.id} className={`${cellBg} rounded-lg p-3`}>
                     <div className="flex items-center gap-2 mb-2">
-                      <div className="w-6 h-6 rounded-full bg-zinc-700 flex items-center justify-center">
+                      <div className={`w-6 h-6 rounded-full ${isLight ? 'bg-gray-200' : 'bg-zinc-700'} flex items-center justify-center`}>
                         {report.user_avatar ? (
                           <img src={report.user_avatar} alt="" className="w-full h-full rounded-full object-cover" />
                         ) : (
-                          <span className="text-[10px] text-gray-400">{report.user_name?.charAt(0)}</span>
+                          <span className={`text-[10px] ${tSecondary}`}>{report.user_name?.charAt(0)}</span>
                         )}
                       </div>
-                      <span className="text-xs text-gray-300">{report.user_name}</span>
-                      <span className="text-[10px] text-gray-500 ml-auto">
+                      <span className={`text-xs ${tPrimary}`}>{report.user_name}</span>
+                      <span className={`text-[10px] ${tMuted} ml-auto`}>
                         {new Date(report.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </span>
                     </div>
@@ -429,12 +442,12 @@ export const SpotConditions = ({ spotId, spotName, compact = false }) => {
                       {report.conditions && <Badge className="bg-emerald-500/20 text-emerald-300 text-[10px]">{report.conditions}</Badge>}
                       {report.crowd_level && <Badge className="bg-purple-500/20 text-purple-300 text-[10px]">{report.crowd_level}</Badge>}
                     </div>
-                    {report.notes && <p className="text-xs text-gray-400 mt-1">{report.notes}</p>}
+                    {report.notes && <p className={`text-xs ${tSecondary} mt-1`}>{report.notes}</p>}
                   </div>
                 ))}
               </div>
             ) : (
-              <p className="text-sm text-gray-400 text-center py-4">No reports yet today. Be the first!</p>
+              <p className={`text-sm ${tSecondary} text-center py-4`}>No reports yet today. Be the first!</p>
             )}
 
             {/* Submit Report Button */}

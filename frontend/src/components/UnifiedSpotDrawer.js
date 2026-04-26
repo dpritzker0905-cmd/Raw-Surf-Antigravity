@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 
 import { useNavigate } from 'react-router-dom';
 
-import { MapPin, Camera, Radio, Users, Waves, AlertTriangle, DollarSign, Zap, Check, ArrowLeft, Image, Tag, Sparkles, Star, CreditCard, Coins, Loader2, RefreshCw, ChevronDown, ChevronRight, Calendar, Lock, Crown, Trophy, CheckCircle, ExternalLink } from 'lucide-react';
+import { MapPin, Camera, Radio, Users, Waves, AlertTriangle, DollarSign, Zap, Check, ArrowLeft, Image, Tag, Sparkles, Star, CreditCard, Coins, Loader2, RefreshCw, ChevronDown, ChevronRight, Calendar, Lock, Crown, Trophy, CheckCircle, ExternalLink, MessageCircle } from 'lucide-react';
 
 import { Button } from './ui/button';
 
@@ -1197,7 +1197,7 @@ const UnifiedSpotDrawer = ({
   const _drawerRef = useRef(null);
   
   // Snap point control for drawer height
-  const [activeSnapPoint, setActiveSnapPoint] = useState(0.75);
+  const [activeSnapPoint, setActiveSnapPoint] = useState(0.9);
   
   // Jump In Session Modal state
   const [showJumpInModal, setShowJumpInModal] = useState(false);
@@ -1319,6 +1319,8 @@ const UnifiedSpotDrawer = ({
     if (isOpen && spot?.id) {
       fetchConditionReports();
       fetchProPhotos();
+      fetchCommunityPhotos();
+      setDrawerTab('reports');
     }
   }, [isOpen, spot?.id]);
 
@@ -1339,6 +1341,16 @@ const UnifiedSpotDrawer = ({
     } catch (error) {
       logger.debug('Pro photos not available');
       setProPhotos([]);
+    }
+  };
+
+  const fetchCommunityPhotos = async () => {
+    try {
+      const response = await apiClient.get(`/posts/spot/${spot.id}?limit=9&type=community`);
+      setCommunityPhotos(response.data?.posts || response.data || []);
+    } catch (error) {
+      logger.debug('Community photos not available');
+      setCommunityPhotos([]);
     }
   };
 
@@ -1403,6 +1415,8 @@ const UnifiedSpotDrawer = ({
   // Condition reports state
   const [conditionReports, setConditionReports] = useState([]);
   const [proPhotos, setProPhotos] = useState([]);
+  const [communityPhotos, setCommunityPhotos] = useState([]);
+  const [drawerTab, setDrawerTab] = useState('reports');
 
   // ============ REFINE LOCATION FUNCTIONS ============
   const openRefineModal = () => {
@@ -1543,7 +1557,7 @@ const UnifiedSpotDrawer = ({
         onOpenChange={(open) => {
           if (!open && !showJumpInModal) {
             onClose();
-            setActiveSnapPoint(0.75); // Reset on close
+            setActiveSnapPoint(0.9); // Reset on close
           }
         }} 
         snapPoints={[0.5, 0.75, 1]}
@@ -1551,7 +1565,7 @@ const UnifiedSpotDrawer = ({
         setActiveSnapPoint={setActiveSnapPoint}
       >
         <DrawerContent 
-          className={`${drawerBg} border-t ${drawerBorder} max-h-[90vh] focus:outline-none md:max-w-[480px] md:mx-auto md:rounded-t-2xl`}
+          className={`${drawerBg} border-t ${drawerBorder} max-h-[90vh] focus:outline-none md:max-w-[520px] md:mx-auto md:rounded-t-2xl`}
           data-testid="unified-spot-drawer"
         >
           {/* Expanded Photographer Profile View */}
@@ -1939,26 +1953,42 @@ const UnifiedSpotDrawer = ({
                       </div>
                     )}
                     
-                    {/* ── Condition Reports Section ──────────────────── */}
-                    {conditionReports.length > 0 && (
-                      <div className={`px-4 py-4 border-t ${headerBorder}`}>
-                        <div className="flex items-center gap-2 mb-3">
-                          <Camera className="w-4 h-4 text-cyan-400" />
-                          <h3 className={`${textPrimary} font-medium text-sm`}>
-                            Live Condition Reports ({conditionReports.length})
-                          </h3>
-                        </div>
+                    {/* ── Tab Navigation (mirrors SpotHub) ──────────── */}
+                    <div className={`flex border-t border-b ${headerBorder} mt-2`}>
+                      {[
+                        { id: 'reports', label: 'Reports', icon: MessageCircle, count: conditionReports.length },
+                        { id: 'pro', label: 'Pro', icon: Camera, count: proPhotos.length },
+                        { id: 'community', label: 'Community', icon: Users, count: communityPhotos.length },
+                      ].map((tab) => (
+                        <button
+                          key={tab.id}
+                          onClick={() => setDrawerTab(tab.id)}
+                          className={`flex-1 flex items-center justify-center gap-1 py-2.5 text-xs font-medium transition-colors relative ${
+                            drawerTab === tab.id ? textPrimary : textSecondary
+                          }`}
+                        >
+                          <tab.icon className="w-3.5 h-3.5" />
+                          {tab.label}
+                          {tab.count > 0 && (
+                            <span className={`text-[10px] ${textSecondary}`}>({tab.count})</span>
+                          )}
+                          {drawerTab === tab.id && (
+                            <div className="absolute bottom-0 left-2 right-2 h-0.5 bg-cyan-400 rounded-full" />
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="px-4 py-3">
+                      {drawerTab === 'reports' && (
                         <div className="space-y-2">
-                          {conditionReports.slice(0, 3).map((report) => (
+                          {conditionReports.length > 0 ? conditionReports.slice(0, 5).map((report) => (
                             <div key={report.id} className={`p-2.5 rounded-lg border ${cardBg}`}>
                               <div className="flex items-center gap-2">
                                 <div className="w-8 h-8 rounded-full overflow-hidden ring-2 ring-cyan-500 shrink-0">
                                   {report.photographer_avatar ? (
                                     <img src={getFullUrl(report.photographer_avatar)} className="w-full h-full object-cover" alt="" />
                                   ) : (
-                                    <div className="w-full h-full bg-cyan-500 flex items-center justify-center text-xs font-bold text-white">
-                                      {report.photographer_name?.[0]}
-                                    </div>
+                                    <div className="w-full h-full bg-cyan-500 flex items-center justify-center text-xs font-bold text-white">{report.photographer_name?.[0]}</div>
                                   )}
                                 </div>
                                 <div className="flex-1 min-w-0">
@@ -1966,99 +1996,76 @@ const UnifiedSpotDrawer = ({
                                   <p className={`text-[10px] ${textSecondary}`}>{report.time_ago}</p>
                                 </div>
                                 {report.conditions_label && (
-                                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-400 font-medium shrink-0">
-                                    {report.conditions_label}
-                                  </span>
+                                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-400 font-medium shrink-0">{report.conditions_label}</span>
                                 )}
                               </div>
-                              {report.caption && (
-                                <p className={`text-xs mt-1.5 ${textSecondary}`}>{report.caption}</p>
-                              )}
+                              {report.caption && <p className={`text-xs mt-1.5 ${textSecondary}`}>{report.caption}</p>}
                               <div className="flex items-center gap-3 mt-1.5">
-                                {report.wave_height_ft && (
-                                  <span className="text-xs flex items-center gap-1">
-                                    <Waves className="w-3 h-3 text-cyan-400" />
-                                    <span className={textPrimary}>{report.wave_height_ft}ft</span>
-                                  </span>
-                                )}
-                                {report.wind_conditions && (
-                                  <span className={`text-xs ${textSecondary}`}>{report.wind_conditions}</span>
-                                )}
-                                {report.crowd_level && (
-                                  <span className="text-xs flex items-center gap-1">
-                                    <Users className="w-3 h-3 text-purple-400" />
-                                    <span className={textPrimary}>{report.crowd_level}</span>
-                                  </span>
-                                )}
+                                {report.wave_height_ft && (<span className="text-xs flex items-center gap-1"><Waves className="w-3 h-3 text-cyan-400" /><span className={textPrimary}>{report.wave_height_ft}ft</span></span>)}
+                                {report.wind_conditions && (<span className={`text-xs ${textSecondary}`}>{report.wind_conditions}</span>)}
+                                {report.crowd_level && (<span className="text-xs flex items-center gap-1"><Users className="w-3 h-3 text-purple-400" /><span className={textPrimary}>{report.crowd_level}</span></span>)}
                               </div>
-                              {/* Report thumbnail - filter broken local paths */}
                               {(() => {
-                                const candidateUrls = [
-                                  report.thumbnail_url,
-                                  report.media_url
-                                ].filter(url => url && url.trim() && !url.startsWith('/api/uploads/'));
-                                const primaryUrl = candidateUrls[0];
-                                const fallbackUrl = candidateUrls[1];
-                                if (!primaryUrl) return null;
-                                return (
-                                  <img 
-                                    src={getFullUrl(primaryUrl)} 
-                                    alt="" 
-                                    className="mt-2 w-full h-28 object-cover rounded-lg"
-                                    onError={(e) => {
-                                      if (fallbackUrl && e.target.src !== getFullUrl(fallbackUrl)) {
-                                        e.target.src = getFullUrl(fallbackUrl);
-                                      } else {
-                                        e.target.style.display = 'none';
-                                      }
-                                    }}
-                                  />
-                                );
+                                const urls = [report.thumbnail_url, report.media_url].filter(u => u && u.trim() && !u.startsWith('/api/uploads/'));
+                                if (!urls[0]) return null;
+                                return (<img src={getFullUrl(urls[0])} alt="" className="mt-2 w-full h-28 object-cover rounded-lg" onError={(e) => { if (urls[1] && e.target.src !== getFullUrl(urls[1])) { e.target.src = getFullUrl(urls[1]); } else { e.target.style.display = 'none'; } }} />);
                               })()}
                             </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* ── Pro Tagged Photos Section ──────────────────── */}
-                    {proPhotos.length > 0 && (
-                      <div className={`px-4 py-4 border-t ${headerBorder}`}>
-                        <div className="flex items-center gap-2 mb-3">
-                          <Image className="w-4 h-4 text-purple-400" />
-                          <h3 className={`${textPrimary} font-medium text-sm`}>
-                            Pro Photos ({proPhotos.length})
-                          </h3>
-                        </div>
-                        <div className="grid grid-cols-3 gap-1.5">
-                          {proPhotos.slice(0, 9).map((post) => (
-                            <div 
-                              key={post.id}
-                              className="aspect-square rounded-lg overflow-hidden cursor-pointer hover:opacity-80 transition-opacity"
-                              onClick={() => { navigate(`/post/${post.id}`); onClose?.(); }}
-                            >
-                              <img 
-                                src={getFullUrl(post.media_url || post.thumbnail_url)} 
-                                alt="" 
-                                className="w-full h-full object-cover"
-                                onError={(e) => { e.target.style.display = 'none'; }}
-                              />
+                          )) : (
+                            <div className={`text-center py-8 ${textSecondary}`}>
+                              <MessageCircle className="w-10 h-10 mx-auto mb-2 opacity-30" />
+                              <p className="text-sm">No condition reports yet</p>
+                              <p className="text-xs">Photographers will post when they start shooting</p>
                             </div>
-                          ))}
+                          )}
                         </div>
-                      </div>
-                    )}
-
-                    {/* ── View Full Spot Hub CTA ──────────────────────────── */}
-                    <div className="px-4 py-4">
-                      <button
-                        onClick={() => { navigate(`/spot-hub/${spot.id}`); onClose?.(); }}
-                        className={`w-full group relative overflow-hidden rounded-xl border ${isLight ? 'border-cyan-400/40 bg-gradient-to-r from-cyan-50 via-blue-50 to-purple-50 hover:from-cyan-100 hover:via-blue-100 hover:to-purple-100' : isBeach ? 'border-cyan-500/30 bg-gradient-to-r from-cyan-500/10 via-blue-500/10 to-purple-500/10 hover:from-cyan-500/20 hover:via-blue-500/20 hover:to-purple-500/20' : 'border-cyan-500/30 bg-gradient-to-r from-cyan-500/10 via-blue-500/10 to-purple-500/10 hover:from-cyan-500/20 hover:via-blue-500/20 hover:to-purple-500/20'} transition-all duration-300`}
-                        data-testid="view-spot-hub-btn"
-                      >
-                        <div className="flex items-center justify-between px-4 py-3.5">
+                      )}
+                      {drawerTab === 'pro' && (
+                        <div>
+                          {proPhotos.length > 0 ? (<>
+                            <p className={`text-[10px] ${textSecondary} mb-2`}>Photos/videos tagged to this spot by photographers</p>
+                            <div className="grid grid-cols-3 gap-1.5">
+                              {proPhotos.slice(0, 9).map((post) => (
+                                <div key={post.id} className="aspect-square rounded-lg overflow-hidden cursor-pointer hover:opacity-80 transition-opacity" onClick={() => { navigate(`/post/${post.id}`); onClose?.(); }}>
+                                  <img src={getFullUrl(post.media_url || post.thumbnail_url)} alt="" className="w-full h-full object-cover" onError={(e) => { e.target.style.display = 'none'; }} />
+                                </div>
+                              ))}
+                            </div>
+                          </>) : (
+                            <div className={`text-center py-8 ${textSecondary}`}>
+                              <Camera className="w-10 h-10 mx-auto mb-2 opacity-30" />
+                              <p className="text-sm">No pro photos tagged here</p>
+                              <p className="text-xs">Photographers can tag their photos to this spot</p>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      {drawerTab === 'community' && (
+                        <div>
+                          {communityPhotos.length > 0 ? (<>
+                            <p className={`text-[10px] ${textSecondary} mb-2`}>Photos/videos tagged to this spot by surfers</p>
+                            <div className="grid grid-cols-3 gap-1.5">
+                              {communityPhotos.slice(0, 9).map((post) => (
+                                <div key={post.id} className="aspect-square rounded-lg overflow-hidden cursor-pointer hover:opacity-80 transition-opacity" onClick={() => { navigate(`/post/${post.id}`); onClose?.(); }}>
+                                  <img src={getFullUrl(post.media_url || post.thumbnail_url)} alt="" className="w-full h-full object-cover" onError={(e) => { e.target.style.display = 'none'; }} />
+                                </div>
+                              ))}
+                            </div>
+                          </>) : (
+                            <div className={`text-center py-8 ${textSecondary}`}>
+                              <Users className="w-10 h-10 mx-auto mb-2 opacity-30" />
+                              <p className="text-sm">No community posts tagged here</p>
+                              <p className="text-xs">Tag your photos to this spot to appear here</p>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                    <div className="px-4 py-3">
+                      <button onClick={() => { navigate(`/spot-hub/${spot.id}`); onClose?.(); }} className={`w-full group overflow-hidden rounded-xl border ${isLight ? 'border-cyan-400/40 bg-gradient-to-r from-cyan-50 via-blue-50 to-purple-50 hover:from-cyan-100 hover:via-blue-100 hover:to-purple-100' : 'border-cyan-500/30 bg-gradient-to-r from-cyan-500/10 via-blue-500/10 to-purple-500/10 hover:from-cyan-500/20 hover:via-blue-500/20 hover:to-purple-500/20'} transition-all duration-300`} data-testid="view-spot-hub-btn">
+                        <div className="flex items-center justify-between px-4 py-3">
                           <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-full bg-gradient-to-r from-cyan-400 to-blue-500 p-0.5 shrink-0">
+                            <div className="w-9 h-9 rounded-full bg-gradient-to-r from-cyan-400 to-blue-500 p-0.5 shrink-0">
                               <div className={`w-full h-full rounded-full ${isLight ? 'bg-white' : isBeach ? 'bg-amber-50' : 'bg-zinc-900'} flex items-center justify-center`}>
                                 <ExternalLink className="w-4 h-4 text-cyan-400" />
                               </div>
@@ -2072,7 +2079,6 @@ const UnifiedSpotDrawer = ({
                         </div>
                       </button>
                     </div>
-
                     {/* Bottom safe area padding for mobile */}
                     <div className="h-20" aria-hidden="true" />
                   </>
