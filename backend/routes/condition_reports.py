@@ -30,14 +30,29 @@ def _is_broken_url(url: Optional[str]) -> bool:
     return url.startswith('/api/uploads/') or url.startswith('/uploads/')
 
 
+def _is_watermarked_url(url: Optional[str]) -> bool:
+    """Check if a URL points to a watermarked preview image.
+    Watermarked previews typically contain '_preview' in the filename.
+    Condition reports are free public content and must never show watermarks."""
+    if not url:
+        return False
+    return '_preview' in url.lower()
+
+
 async def _auto_heal_report_media(report: ConditionReport, db) -> bool:
     """
-    Auto-heal broken media URLs on condition reports by resolving from linked galleries.
+    Auto-heal broken or watermarked media URLs on condition reports.
     
-    When a condition report's media_url or thumbnail_url is a stale local path
-    (e.g. /api/uploads/...), attempt to resolve a valid Supabase URL from:
-    1. The linked gallery's cover_image_url (via live_session_id)
-    2. The latest gallery item preview for that photographer+spot
+    Condition reports are FREE public content — they must NEVER show watermarks.
+    This function fixes two classes of bad URLs:
+    1. Broken local paths (e.g. /api/uploads/...)
+    2. Watermarked preview URLs (containing '_preview' in the filename)
+    
+    Resolution strategy:
+    1. Find the matching gallery item by media URL similarity
+    2. Find gallery items linked via live_session_id
+    3. Find latest gallery item for this photographer+spot
+    4. Fall back to any recent gallery item from this photographer
     
     Returns True if any URLs were healed.
     Wrapped in try/except — MUST NEVER crash the parent endpoint.
@@ -45,39 +60,84 @@ async def _auto_heal_report_media(report: ConditionReport, db) -> bool:
     try:
         media_broken = _is_broken_url(report.media_url)
         thumb_broken = _is_broken_url(report.thumbnail_url)
+        media_watermarked = _is_watermarked_url(report.media_url)
+        thumb_watermarked = _is_watermarked_url(report.thumbnail_url)
         
-        # If both URLs are valid (start with https://), nothing to heal
-        if not media_broken and not thumb_broken:
+        needs_heal = media_broken or thumb_broken or media_watermarked or thumb_watermarked
+        
+        # If both URLs are valid and unwatermarked, nothing to do
+        if not needs_heal:
             return False
         
         healed = False
         valid_url = None
         
-        # Strategy 1: Find gallery linked by live_session_id
-        if report.live_session_id:
-            gallery_result = await db.execute(
-                select(Gallery).where(
+        # Strategy 1: Match gallery item by URL pattern
+        # If the media_url is a watermarked _preview, try to find the same
+        # gallery item and use its original_url instead
+        if media_watermarked and report.media_url:
+            # Strip '_preview' suffix to find the base filename pattern
+            base_pattern = report.media_url.replace('_preview', '').rsplit('.', 1)[0]
+            if base_pattern:
+                item_result = await db.execute(
+                    select(GalleryItem).where(
+                        GalleryItem.photographer_id == report.photographer_id,
+                        GalleryItem.is_deleted == False,
+                        GalleryItem.original_url.ilike(f"%{base_pattern.split('/')[-1]}%")
+                    ).limit(1)
+                )
+                item = item_result.scalar_one_or_none()
+                if item:
+                    candidate = item.original_url or item.url_standard or item.url_web
+                    if candidate and candidate.startswith('https://'):
+                        valid_url = candidate
+        
+        # Strategy 2: Find gallery linked by live_session_id
+        if not valid_url and report.live_session_id:
+            # Try to find gallery items from the linked session
+            item_result = await db.execute(
+                select(GalleryItem).join(Gallery).where(
                     Gallery.live_session_id == report.live_session_id,
-                    Gallery.photographer_id == report.photographer_id
-                ).limit(1)
+                    GalleryItem.photographer_id == report.photographer_id,
+                    GalleryItem.is_deleted == False
+                ).order_by(GalleryItem.created_at.desc()).limit(1)
             )
-            gallery = gallery_result.scalar_one_or_none()
-            if gallery and gallery.cover_image_url and gallery.cover_image_url.startswith('https://'):
-                valid_url = gallery.cover_image_url
+            item = item_result.scalar_one_or_none()
+            if item:
+                candidate = item.original_url or item.url_standard or item.url_web
+                if candidate and candidate.startswith('https://'):
+                    valid_url = candidate
+            
+            # Fall back to gallery cover
+            if not valid_url:
+                gallery_result = await db.execute(
+                    select(Gallery).where(
+                        Gallery.live_session_id == report.live_session_id,
+                        Gallery.photographer_id == report.photographer_id
+                    ).limit(1)
+                )
+                gallery = gallery_result.scalar_one_or_none()
+                if gallery and gallery.cover_image_url and gallery.cover_image_url.startswith('https://'):
+                    # Only use cover if it's not watermarked
+                    if not _is_watermarked_url(gallery.cover_image_url):
+                        valid_url = gallery.cover_image_url
         
-        # Strategy 2: Find any gallery by photographer+spot with a valid cover
+        # Strategy 3: Find gallery items by photographer+spot
         if not valid_url and report.spot_id:
-            gallery_result = await db.execute(
-                select(Gallery).where(
-                    Gallery.photographer_id == report.photographer_id,
-                    Gallery.surf_spot_id == report.spot_id
-                ).order_by(Gallery.created_at.desc()).limit(1)
+            item_result = await db.execute(
+                select(GalleryItem).join(Gallery).where(
+                    Gallery.surf_spot_id == report.spot_id,
+                    GalleryItem.photographer_id == report.photographer_id,
+                    GalleryItem.is_deleted == False
+                ).order_by(GalleryItem.created_at.desc()).limit(1)
             )
-            gallery = gallery_result.scalar_one_or_none()
-            if gallery and gallery.cover_image_url and gallery.cover_image_url.startswith('https://'):
-                valid_url = gallery.cover_image_url
+            item = item_result.scalar_one_or_none()
+            if item:
+                candidate = item.original_url or item.url_standard or item.url_web
+                if candidate and candidate.startswith('https://'):
+                    valid_url = candidate
         
-        # Strategy 3: Find latest gallery item with valid unwatermarked URL for this photographer
+        # Strategy 4: Find any recent gallery item from this photographer
         if not valid_url:
             item_result = await db.execute(
                 select(GalleryItem).where(
@@ -87,24 +147,24 @@ async def _auto_heal_report_media(report: ConditionReport, db) -> bool:
             )
             item = item_result.scalar_one_or_none()
             if item:
-                # Prefer unwatermarked URLs for condition reports
-                candidate = item.original_url or item.url_standard or item.url_web or item.thumbnail_url
+                candidate = item.original_url or item.url_standard or item.url_web
                 if candidate and candidate.startswith('https://'):
                     valid_url = candidate
         
         # Apply the healed URL
         if valid_url:
-            if media_broken:
+            if media_broken or media_watermarked:
                 report.media_url = valid_url
                 healed = True
-            if thumb_broken:
+            if thumb_broken or thumb_watermarked:
                 report.thumbnail_url = valid_url
                 healed = True
             
             if healed:
                 cr_logger.info(
                     f"Auto-healed condition report {report.id}: "
-                    f"resolved broken URLs to {valid_url[:60]}..."
+                    f"resolved {'watermarked' if (media_watermarked or thumb_watermarked) else 'broken'} "
+                    f"URLs to {valid_url[:60]}..."
                 )
         
         return healed
@@ -219,6 +279,7 @@ async def get_condition_reports_feed(
     query = select(ConditionReport).where(
         and_(
             ConditionReport.is_expired.is_(False),
+            ConditionReport.is_active.is_(True),
             ConditionReport.expires_at > now
         )
     ).options(
@@ -312,6 +373,7 @@ async def get_condition_reports_feed(
     count_query = select(ConditionReport).where(
         and_(
             ConditionReport.is_expired.is_(False),
+            ConditionReport.is_active.is_(True),
             ConditionReport.expires_at > now
         )
     )
@@ -481,8 +543,12 @@ async def get_condition_reports_for_spot(
     now = datetime.now(timezone.utc)
     
     # Build query for this spot's condition reports
+    # Only return active reports (is_active=False means admin-rejected or deactivated)
     query = select(ConditionReport).where(
-        ConditionReport.spot_id == spot_id
+        and_(
+            ConditionReport.spot_id == spot_id,
+            ConditionReport.is_active.is_(True)
+        )
     ).options(
         selectinload(ConditionReport.photographer),
         selectinload(ConditionReport.spot)
