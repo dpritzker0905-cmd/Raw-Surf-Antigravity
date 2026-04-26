@@ -2278,8 +2278,8 @@ export const Explore = () => {
                         <span className="text-[10px] font-bold text-foreground">{report.wave_height_ft}ft</span>
                       </div>
                     )}
-                    {/* Active Indicator */}
-                    {report.is_active && (
+                    {/* Live Shooting Indicator - only when photographer is actively shooting right now */}
+                    {report.is_photographer_live && (
                       <div className="absolute top-1 right-1 w-2.5 h-2.5 bg-green-500 rounded-full animate-pulse" />
                     )}
                   </div>

@@ -40,71 +40,76 @@ async def _auto_heal_report_media(report: ConditionReport, db) -> bool:
     2. The latest gallery item preview for that photographer+spot
     
     Returns True if any URLs were healed.
+    Wrapped in try/except — MUST NEVER crash the parent endpoint.
     """
-    media_broken = _is_broken_url(report.media_url)
-    thumb_broken = _is_broken_url(report.thumbnail_url)
-    
-    # If both URLs are valid (start with https://), nothing to heal
-    if not media_broken and not thumb_broken:
-        return False
-    
-    healed = False
-    valid_url = None
-    
-    # Strategy 1: Find gallery linked by live_session_id
-    if report.live_session_id:
-        gallery_result = await db.execute(
-            select(Gallery).where(
-                Gallery.live_session_id == report.live_session_id,
-                Gallery.photographer_id == report.photographer_id
-            ).limit(1)
-        )
-        gallery = gallery_result.scalar_one_or_none()
-        if gallery and gallery.cover_image_url and gallery.cover_image_url.startswith('https://'):
-            valid_url = gallery.cover_image_url
-    
-    # Strategy 2: Find any gallery by photographer+spot with a valid cover
-    if not valid_url and report.spot_id:
-        gallery_result = await db.execute(
-            select(Gallery).where(
-                Gallery.photographer_id == report.photographer_id,
-                Gallery.spot_id == report.spot_id
-            ).order_by(Gallery.created_at.desc()).limit(1)
-        )
-        gallery = gallery_result.scalar_one_or_none()
-        if gallery and gallery.cover_image_url and gallery.cover_image_url.startswith('https://'):
-            valid_url = gallery.cover_image_url
-    
-    # Strategy 3: Find latest gallery item with valid preview URL for this photographer
-    if not valid_url:
-        item_result = await db.execute(
-            select(GalleryItem).where(
-                GalleryItem.photographer_id == report.photographer_id,
-                GalleryItem.is_deleted == False
-            ).order_by(GalleryItem.created_at.desc()).limit(1)
-        )
-        item = item_result.scalar_one_or_none()
-        if item:
-            candidate = item.preview_url or item.thumbnail_url
-            if candidate and candidate.startswith('https://'):
-                valid_url = candidate
-    
-    # Apply the healed URL
-    if valid_url:
-        if media_broken:
-            report.media_url = valid_url
-            healed = True
-        if thumb_broken:
-            report.thumbnail_url = valid_url
-            healed = True
+    try:
+        media_broken = _is_broken_url(report.media_url)
+        thumb_broken = _is_broken_url(report.thumbnail_url)
         
-        if healed:
-            cr_logger.info(
-                f"Auto-healed condition report {report.id}: "
-                f"resolved broken URLs to {valid_url[:60]}..."
+        # If both URLs are valid (start with https://), nothing to heal
+        if not media_broken and not thumb_broken:
+            return False
+        
+        healed = False
+        valid_url = None
+        
+        # Strategy 1: Find gallery linked by live_session_id
+        if report.live_session_id:
+            gallery_result = await db.execute(
+                select(Gallery).where(
+                    Gallery.live_session_id == report.live_session_id,
+                    Gallery.photographer_id == report.photographer_id
+                ).limit(1)
             )
-    
-    return healed
+            gallery = gallery_result.scalar_one_or_none()
+            if gallery and gallery.cover_image_url and gallery.cover_image_url.startswith('https://'):
+                valid_url = gallery.cover_image_url
+        
+        # Strategy 2: Find any gallery by photographer+spot with a valid cover
+        if not valid_url and report.spot_id:
+            gallery_result = await db.execute(
+                select(Gallery).where(
+                    Gallery.photographer_id == report.photographer_id,
+                    Gallery.spot_id == report.spot_id
+                ).order_by(Gallery.created_at.desc()).limit(1)
+            )
+            gallery = gallery_result.scalar_one_or_none()
+            if gallery and gallery.cover_image_url and gallery.cover_image_url.startswith('https://'):
+                valid_url = gallery.cover_image_url
+        
+        # Strategy 3: Find latest gallery item with valid preview URL for this photographer
+        if not valid_url:
+            item_result = await db.execute(
+                select(GalleryItem).where(
+                    GalleryItem.photographer_id == report.photographer_id,
+                    GalleryItem.is_deleted == False
+                ).order_by(GalleryItem.created_at.desc()).limit(1)
+            )
+            item = item_result.scalar_one_or_none()
+            if item:
+                candidate = item.preview_url or item.thumbnail_url
+                if candidate and candidate.startswith('https://'):
+                    valid_url = candidate
+        
+        # Apply the healed URL
+        if valid_url:
+            if media_broken:
+                report.media_url = valid_url
+                healed = True
+            if thumb_broken:
+                report.thumbnail_url = valid_url
+                healed = True
+            
+            if healed:
+                cr_logger.info(
+                    f"Auto-healed condition report {report.id}: "
+                    f"resolved broken URLs to {valid_url[:60]}..."
+                )
+        
+        return healed
+    except Exception as e:
+        cr_logger.warning(f"Auto-heal failed for report {report.id}: {e}")
+        return False
 
 # Available regions for filtering
 SURF_REGIONS = [
@@ -162,6 +167,7 @@ class ConditionReportResponse(BaseModel):
     crowd_level: Optional[str]
     view_count: int
     is_active: bool
+    is_photographer_live: bool = False  # True ONLY when photographer has an active live session right now
     created_at: datetime
     expires_at: datetime
     time_ago: str
@@ -247,6 +253,22 @@ async def get_condition_reports_feed(
     # Format response
     response_reports = []
     any_healed = False
+    
+    # Batch-check which photographers are currently in an active live session
+    photographer_ids = list(set(r.photographer_id for r in reports))
+    live_photographer_ids = set()
+    if photographer_ids:
+        try:
+            live_result = await db.execute(
+                select(LiveSession.photographer_id).where(
+                    LiveSession.photographer_id.in_(photographer_ids),
+                    LiveSession.status == 'active'
+                )
+            )
+            live_photographer_ids = set(row[0] for row in live_result.fetchall())
+        except Exception as e:
+            cr_logger.warning(f"Failed to check live session status: {e}")
+    
     for report in reports:
         # Auto-heal broken media URLs from linked galleries
         if await _auto_heal_report_media(report, db):
@@ -272,6 +294,7 @@ async def get_condition_reports_feed(
             crowd_level=report.crowd_level,
             view_count=report.view_count,
             is_active=report.is_active,
+            is_photographer_live=report.photographer_id in live_photographer_ids,
             created_at=report.created_at,
             expires_at=report.expires_at,
             time_ago=get_time_ago(report.created_at)
@@ -478,6 +501,22 @@ async def get_condition_reports_for_spot(
     
     response_reports = []
     any_healed = False
+    
+    # Batch-check which photographers are currently in an active live session
+    photographer_ids = list(set(r.photographer_id for r in reports))
+    live_photographer_ids = set()
+    if photographer_ids:
+        try:
+            live_result = await db.execute(
+                select(LiveSession.photographer_id).where(
+                    LiveSession.photographer_id.in_(photographer_ids),
+                    LiveSession.status == 'active'
+                )
+            )
+            live_photographer_ids = set(row[0] for row in live_result.fetchall())
+        except Exception as e:
+            cr_logger.warning(f"Failed to check live session status: {e}")
+    
     for report in reports:
         # Auto-heal broken media URLs from linked galleries
         if await _auto_heal_report_media(report, db):
@@ -503,6 +542,7 @@ async def get_condition_reports_for_spot(
             crowd_level=report.crowd_level,
             view_count=report.view_count,
             is_active=report.is_active,
+            is_photographer_live=report.photographer_id in live_photographer_ids,
             created_at=report.created_at,
             expires_at=report.expires_at,
             time_ago=get_time_ago(report.created_at)
