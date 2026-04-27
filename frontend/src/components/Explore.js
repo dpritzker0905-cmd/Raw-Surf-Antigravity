@@ -2693,93 +2693,137 @@ export const Explore = () => {
                   Condition Reports
                 </h3>
               )}
-              {conditionReports.map((report) => (
+              {conditionReports.map((report) => {
+                const hasGallery = report.gallery_id && report.gallery_item_count > 0;
+                return (
                 <div
                   key={report.id}
-                  onClick={() => {
-                    if (report.spot_id) {
-                      navigate(`/spot-hub/${report.spot_id}`);
-                    } else {
-                      navigate(`/profile/${report.photographer_id}`);
-                    }
-                  }}
-                  className="flex items-center gap-4 p-4 bg-muted/50 hover:bg-zinc-700/50 rounded-xl cursor-pointer transition-colors group"
+                  className={`bg-muted/50 rounded-xl overflow-hidden transition-colors ${isLight ? 'hover:bg-gray-100' : 'hover:bg-zinc-700/50'}`}
                   data-testid={`condition-report-${report.id}`}
                 >
-                  {/* Thumbnail */}
-                  <div className="relative w-20 h-20 rounded-lg overflow-hidden flex-shrink-0 bg-zinc-700">
-                    {report.media_url ? (
-                      <img 
-                        src={report.media_url || report.thumbnail_url} 
-                        alt={report.spot_name || 'Conditions'} 
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center">
-                        <Waves className="w-8 h-8 text-zinc-600" />
-                      </div>
-                    )}
-                    {/* Wave Height Badge */}
-                    {report.wave_height_ft && (
-                      <div className="absolute bottom-1 left-1 flex items-center gap-0.5 bg-blue-500/90 backdrop-blur-sm rounded-full px-1.5 py-0.5">
-                        <Waves className="w-2.5 h-2.5 text-foreground" />
-                        <span className="text-[10px] font-bold text-foreground">{report.wave_height_ft}ft</span>
-                      </div>
-                    )}
-                    {/* Live Shooting Indicator */}
-                    {report.is_photographer_live && (
-                      <div className="absolute top-1 right-1 w-2.5 h-2.5 bg-green-500 rounded-full animate-pulse" />
-                    )}
-                    {/* Gallery link badge */}
-                    {report.gallery_id && report.gallery_item_count > 0 && (
-                      <div className="absolute top-1 left-1 bg-black/70 backdrop-blur-sm rounded px-1 py-0.5">
-                        <span className="text-[9px] font-bold text-cyan-400">📸 {report.gallery_item_count}</span>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Content */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      <h4 className="font-medium text-foreground truncate">{report.spot_name || 'Unknown Spot'}</h4>
-                      {report.conditions_label && (
-                        <Badge className="bg-blue-500/20 text-blue-400 text-xs">
-                          {report.conditions_label}
-                        </Badge>
+                  {/* Main card body — clicks to SpotHub */}
+                  <div
+                    onClick={() => {
+                      if (report.spot_id) {
+                        navigate(`/spot-hub/${report.spot_id}`);
+                      } else {
+                        navigate(`/profile/${report.photographer_id}`);
+                      }
+                    }}
+                    className="flex items-center gap-4 p-4 cursor-pointer group"
+                  >
+                    {/* Thumbnail */}
+                    <div className="relative w-20 h-20 rounded-lg overflow-hidden flex-shrink-0 bg-zinc-700">
+                      {report.media_url ? (
+                        <img 
+                          src={report.media_url || report.thumbnail_url} 
+                          alt={report.spot_name || 'Conditions'} 
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <Waves className="w-8 h-8 text-zinc-600" />
+                        </div>
+                      )}
+                      {/* Wave Height Badge */}
+                      {report.wave_height_ft && (
+                        <div className="absolute bottom-1 left-1 flex items-center gap-0.5 bg-blue-500/90 backdrop-blur-sm rounded-full px-1.5 py-0.5">
+                          <Waves className="w-2.5 h-2.5 text-foreground" />
+                          <span className="text-[10px] font-bold text-foreground">{report.wave_height_ft}ft</span>
+                        </div>
+                      )}
+                      {/* Live Shooting Indicator */}
+                      {report.is_photographer_live && (
+                        <div className="absolute top-1 right-1 w-2.5 h-2.5 bg-green-500 rounded-full animate-pulse" />
+                      )}
+                      {/* Gallery link badge */}
+                      {hasGallery && (
+                        <div className="absolute top-1 left-1 bg-black/70 backdrop-blur-sm rounded px-1 py-0.5">
+                          <span className="text-[9px] font-bold text-cyan-400">📸 {report.gallery_item_count}</span>
+                        </div>
                       )}
                     </div>
-                    
-                    {/* Photographer Info */}
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <div className="flex items-center gap-1.5">
-                        {report.photographer_avatar ? (
-                          <img 
-                            src={report.photographer_avatar} 
-                            alt={report.photographer_name} 
-                            className="w-4 h-4 rounded-full object-cover"
-                          />
-                        ) : (
-                          <Camera className="w-4 h-4 text-yellow-400" />
+
+                    {/* Content */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <h4 className="font-medium text-foreground truncate">{report.spot_name || 'Unknown Spot'}</h4>
+                        {report.conditions_label && (
+                          <Badge className="bg-blue-500/20 text-blue-400 text-xs">
+                            {report.conditions_label}
+                          </Badge>
                         )}
-                        <span className="truncate">{report.photographer_name || 'Photographer'}</span>
                       </div>
-                      <span className="text-gray-600">•</span>
-                      <span className="flex items-center gap-1">
-                        <Clock className="w-3 h-3" />
-                        {report.time_ago}
-                      </span>
+                      
+                      {/* Photographer Info */}
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <div className="flex items-center gap-1.5">
+                          {report.photographer_avatar ? (
+                            <img 
+                              src={report.photographer_avatar} 
+                              alt={report.photographer_name} 
+                              className="w-4 h-4 rounded-full object-cover"
+                            />
+                          ) : (
+                            <Camera className="w-4 h-4 text-yellow-400" />
+                          )}
+                          <span className="truncate">{report.photographer_name || 'Photographer'}</span>
+                        </div>
+                        <span className="text-gray-600">•</span>
+                        <span className="flex items-center gap-1">
+                          <Clock className="w-3 h-3" />
+                          {report.time_ago}
+                        </span>
+                      </div>
+                      
+                      {/* Caption Preview */}
+                      {report.caption && (
+                        <p className="text-xs text-gray-500 truncate mt-1">{report.caption}</p>
+                      )}
                     </div>
-                    
-                    {/* Caption Preview */}
-                    {report.caption && (
-                      <p className="text-xs text-gray-500 truncate mt-1">{report.caption}</p>
-                    )}
+
+                    {/* Arrow */}
+                    <ChevronRight className="w-5 h-5 text-gray-600 group-hover:text-cyan-400 transition-colors flex-shrink-0" />
                   </div>
 
-                  {/* Arrow */}
-                  <ChevronRight className="w-5 h-5 text-gray-600 group-hover:text-cyan-400 transition-colors flex-shrink-0" />
+                  {/* Action buttons row — shows when gallery is linked */}
+                  {hasGallery && (
+                    <div className={`flex gap-2 px-4 pb-3 pt-0`}>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (report.spot_id) {
+                            navigate(`/spot-hub/${report.spot_id}`);
+                          } else {
+                            navigate(`/profile/${report.photographer_id}`);
+                          }
+                        }}
+                        className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-medium transition-all ${
+                          isLight
+                            ? 'bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-200'
+                            : 'bg-zinc-800 hover:bg-zinc-700 text-gray-300 border border-zinc-700'
+                        }`}
+                      >
+                        <Waves className="w-3.5 h-3.5" />
+                        View Spot
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigate(`/photographer/${report.photographer_id}/gallery`);
+                        }}
+                        className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-medium transition-all bg-gradient-to-r from-cyan-500/20 to-blue-500/20 hover:from-cyan-500/30 hover:to-blue-500/30 text-cyan-400 border border-cyan-500/30 hover:border-cyan-500/50"
+                        data-testid={`view-gallery-${report.id}`}
+                      >
+                        <Camera className="w-3.5 h-3.5" />
+                        View Gallery
+                        <span className="bg-cyan-500/30 rounded-full px-1.5 py-0 text-[10px] font-bold">{report.gallery_item_count}</span>
+                      </button>
+                    </div>
+                  )}
                 </div>
-              ))}
+                );
+              })}
             </div>
           ) : null}
         </div>
