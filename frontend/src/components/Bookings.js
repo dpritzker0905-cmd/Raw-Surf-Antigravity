@@ -409,6 +409,7 @@ export const Bookings = () => {
 
   const [bookings, setBookings] = useState([]);
   const [liveSessions, setLiveSessions] = useState([]);
+  const [sessionHistory, setSessionHistory] = useState([]);  // Past live session participations
 
   const [livePhotographers, setLivePhotographers] = useState([]);
   const [pendingInvites, setPendingInvites] = useState([]);
@@ -591,7 +592,7 @@ export const Bookings = () => {
     setLoading(true);
     try {
       // Fire all independent API calls in parallel for ~2-3x faster load
-      const [creditsRes, bookingsRes, sessionsRes, liveRes, invitesRes, crewRes, activeRes] = await Promise.allSettled([
+      const [creditsRes, bookingsRes, sessionsRes, liveRes, invitesRes, crewRes, activeRes, historyRes] = await Promise.allSettled([
         apiClient.get(`/credits/${user.id}/balance`),
         apiClient.get(`/bookings/user/${user.id}`),
         apiClient.get(`/sessions/user/${user.id}`),
@@ -599,6 +600,7 @@ export const Bookings = () => {
         apiClient.get(`/bookings/invites/${user.id}`),
         apiClient.get(`/dispatch/user/${user.id}/crew-invites`),
         apiClient.get(`/dispatch/user/${user.id}/active`),
+        apiClient.get(`/sessions/user/${user.id}/history`),
       ]);
 
       // Credits
@@ -633,6 +635,9 @@ export const Bookings = () => {
       } else {
         setActiveDispatch(null);
       }
+
+      // Past live session history (completed/left live sessions)
+      setSessionHistory(historyRes.status === 'fulfilled' ? (historyRes.value.data || []) : []);
       
       // Fetch nearby splittable bookings (if user has location) — kept async since geolocation is callback-based
       try {
@@ -922,12 +927,16 @@ export const Bookings = () => {
   });
 
   // Past = explicitly completed OR past-dated sessions (expired/missed)
-  const pastBookings = bookings.filter(b => {
-    if (b.status === 'Completed') return true;
-    // Past-dated sessions that were never completed
-    if (isBookingPast(b) && ['Confirmed', 'Pending'].includes(b.status)) return true;
-    return false;
-  });
+  // Also merge in past live session participations
+  const pastBookings = [
+    ...bookings.filter(b => {
+      if (b.status === 'Completed') return true;
+      // Past-dated sessions that were never completed
+      if (isBookingPast(b) && ['Confirmed', 'Pending'].includes(b.status)) return true;
+      return false;
+    }),
+    ...sessionHistory, // Past live session participations (already normalized by backend)
+  ].sort((a, b) => new Date(b.session_date || b.created_at) - new Date(a.session_date || a.created_at));
 
   const tabs = [
     { id: 'lineup', label: 'The Lineup', icon: Users, count: 0, highlight: true },

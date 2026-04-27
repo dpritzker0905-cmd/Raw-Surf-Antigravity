@@ -435,6 +435,7 @@ async def get_user_bookings(
             "session_date": booking.session_date.isoformat(),
             "duration": booking.duration,
             "status": booking.status,
+            "booking_type": booking.booking_type or 'scheduled',  # 'scheduled' | 'on_demand'
             "participant_status": p.status,
             "payment_status": p.payment_status,
             "paid_amount": p.paid_amount,
@@ -1376,6 +1377,54 @@ async def get_user_live_sessions(
     
     return sessions
 
+
+@router.get("/sessions/user/{user_id}/history")
+async def get_user_session_history(
+    user_id: str,
+    db: AsyncSession = Depends(get_db)
+):
+    """Get past live sessions user participated in (completed or left).
+    
+    Returns session history in the same shape as booking data so the
+    frontend PastTab can render them alongside scheduled booking history.
+    """
+    from models import LiveSessionParticipant
+    
+    result = await db.execute(
+        select(LiveSessionParticipant)
+        .where(LiveSessionParticipant.surfer_id == user_id)
+        .where(LiveSessionParticipant.status.in_(['completed', 'left']))
+        .options(
+            selectinload(LiveSessionParticipant.photographer),
+            selectinload(LiveSessionParticipant.spot)
+        )
+        .order_by(LiveSessionParticipant.completed_at.desc().nullslast())
+        .limit(50)  # Cap to recent history
+    )
+    participants = result.scalars().all()
+    
+    sessions = []
+    for p in participants:
+        sessions.append({
+            "id": p.id,
+            "live_session_id": p.live_session_id,
+            "photographer_id": p.photographer_id,
+            "photographer_name": p.photographer.full_name if p.photographer else None,
+            "photographer_avatar": p.photographer.avatar_url if p.photographer else None,
+            "location": p.spot.name if p.spot else (p.photographer.location if p.photographer else "Unknown"),
+            "session_date": (p.joined_at or p.completed_at).isoformat() if (p.joined_at or p.completed_at) else None,
+            "duration": None,  # Live sessions don't have a pre-set duration
+            "status": "Completed",  # All history entries are past
+            "booking_type": "live",  # Differentiate from scheduled bookings
+            "session_type": "live",
+            "paid_amount": p.amount_paid,
+            "amount_paid": p.amount_paid,
+            "joined_at": p.joined_at.isoformat() if p.joined_at else None,
+            "completed_at": p.completed_at.isoformat() if p.completed_at else None,
+            "_source": "live_session",  # Frontend can use this to distinguish data origin
+        })
+    
+    return sessions
 
 
 

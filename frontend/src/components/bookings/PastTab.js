@@ -304,44 +304,63 @@ export const PastTab = ({
                 )}
               </div>
               
-              {/* Review section */}
+              {/* Review section — only Completed sessions are reviewable */}
               <div className={`pt-2.5 border-t ${isLight ? 'border-gray-100' : isBeach ? 'border-zinc-800' : 'border-white/[0.06]'}`}>
-                {hasReviewed ? (
-                  <div className="flex items-center gap-2">
-                    <div className="flex items-center gap-0.5">
-                      {[1, 2, 3, 4, 5].map(s => (
-                        <Star
-                          key={s}
-                          className={`w-3.5 h-3.5 transition-colors ${
-                            s <= (existingRating || 5) 
-                              ? 'text-yellow-400 fill-yellow-400' 
-                              : isLight ? 'text-gray-200' : 'text-zinc-700'
-                          }`}
-                        />
-                      ))}
-                    </div>
-                    <span className={`text-xs font-medium ${isLight ? 'text-green-600' : 'text-green-400'}`}>
-                      Reviewed
-                    </span>
-                  </div>
-                ) : (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={(e) => {
-                      e.stopPropagation(); // Prevent card click from firing
-                      handleLeaveReview(booking);
-                    }}
-                    className={`w-full h-9 rounded-xl text-xs font-semibold transition-all ${
-                      isLight
-                        ? 'border-yellow-300/80 text-yellow-700 hover:bg-yellow-50 hover:border-yellow-400'
-                        : 'border-yellow-500/25 text-yellow-400 hover:bg-yellow-500/10 hover:border-yellow-500/40'
-                    }`}
-                  >
-                    <Star className="w-3.5 h-3.5 mr-1.5" />
-                    Leave a Review
-                  </Button>
-                )}
+                {(() => {
+                  const displayStatus = inferDisplayStatus(booking);
+                  
+                  // Already reviewed — show rating stars
+                  if (hasReviewed) {
+                    return (
+                      <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-0.5">
+                          {[1, 2, 3, 4, 5].map(s => (
+                            <Star
+                              key={s}
+                              className={`w-3.5 h-3.5 transition-colors ${
+                                s <= (existingRating || 5) 
+                                  ? 'text-yellow-400 fill-yellow-400' 
+                                  : isLight ? 'text-gray-200' : 'text-zinc-700'
+                              }`}
+                            />
+                          ))}
+                        </div>
+                        <span className={`text-xs font-medium ${isLight ? 'text-green-600' : 'text-green-400'}`}>
+                          Reviewed
+                        </span>
+                      </div>
+                    );
+                  }
+                  
+                  // Completed but not yet reviewed — show review CTA
+                  if (displayStatus === 'Completed') {
+                    return (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleLeaveReview(booking);
+                        }}
+                        className={`w-full h-9 rounded-xl text-xs font-semibold transition-all ${
+                          isLight
+                            ? 'border-yellow-300/80 text-yellow-700 hover:bg-yellow-50 hover:border-yellow-400'
+                            : 'border-yellow-500/25 text-yellow-400 hover:bg-yellow-500/10 hover:border-yellow-500/40'
+                        }`}
+                      >
+                        <Star className="w-3.5 h-3.5 mr-1.5" />
+                        Leave a Review
+                      </Button>
+                    );
+                  }
+                  
+                  // Missed or Expired — no review allowed
+                  return (
+                    <p className={`text-xs ${textSecondary} italic`}>
+                      {displayStatus === 'Missed' ? 'Session not confirmed — review unavailable' : 'Session expired — review unavailable'}
+                    </p>
+                  );
+                })()}
               </div>
             </div>
           );
