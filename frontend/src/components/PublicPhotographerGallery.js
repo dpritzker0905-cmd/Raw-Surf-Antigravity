@@ -45,6 +45,8 @@ export const PublicPhotographerGallery = () => {
   
   // Get photographer ID from URL params or query string
   const photographerId = paramPhotographerId || searchParams.get('photographer');
+  // Deep-link: ?gallery=<id> auto-selects a specific session gallery tab
+  const deepLinkGalleryId = searchParams.get('gallery');
   
   // State
   const [photographer, setPhotographer] = useState(null);
@@ -260,6 +262,16 @@ export const PublicPhotographerGallery = () => {
       fetchItems();
     }
   }, [photographerId, fetchPhotographer, fetchGalleries, fetchItems]);
+
+  // Deep-link: auto-select gallery tab when ?gallery=<id> is in URL
+  useEffect(() => {
+    if (deepLinkGalleryId && galleries.length > 0 && !selectedGallery) {
+      const target = galleries.find(g => g.id === deepLinkGalleryId);
+      if (target) {
+        setSelectedGallery(target);
+      }
+    }
+  }, [deepLinkGalleryId, galleries, selectedGallery]);
 
   // Get price for quality tier
   const getQualityPrice = (item, quality) => {

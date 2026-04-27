@@ -2606,7 +2606,7 @@ export const Explore = () => {
                       {archiveGalleries.map((gallery) => (
                         <div
                           key={gallery.id}
-                          onClick={() => navigate(`/photographer/${gallery.photographer_id}/gallery`)}
+                          onClick={() => navigate(`/photographer/${gallery.photographer_id}/gallery?gallery=${gallery.id}`)}
                           className="flex items-center gap-3 p-3 bg-muted/50 hover:bg-zinc-700/50 rounded-xl cursor-pointer transition-all group"
                           data-testid={`archive-gallery-${gallery.id}`}
                         >
@@ -2810,7 +2810,7 @@ export const Explore = () => {
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          navigate(`/photographer/${report.photographer_id}/gallery`);
+                          navigate(`/photographer/${report.photographer_id}/gallery?gallery=${report.gallery_id}`);
                         }}
                         className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-medium transition-all bg-gradient-to-r from-cyan-500/20 to-blue-500/20 hover:from-cyan-500/30 hover:to-blue-500/30 text-cyan-400 border border-cyan-500/30 hover:border-cyan-500/50"
                         data-testid={`view-gallery-${report.id}`}

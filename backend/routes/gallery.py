@@ -248,6 +248,7 @@ async def get_photographer_gallery(
     
     return [{
         "id": item.id,
+        "gallery_id": item.gallery_id,  # Needed for frontend folder filtering
         "photographer_id": item.photographer_id,
         "photographer_name": item.photographer.full_name if item.photographer else None,
         "photographer_avatar": item.photographer.avatar_url if item.photographer else None,
