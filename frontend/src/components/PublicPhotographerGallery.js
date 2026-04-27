@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useSearchParams, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
@@ -72,6 +72,16 @@ export const PublicPhotographerGallery = () => {
   
   // New Find Me Selfie Scanner state
   const [scanModalOpen, setScanModalOpen] = useState(false);
+
+  // Swipe-to-navigate state for mobile gallery switching
+  const swipeStartXRef = useRef(0);
+  const swipeStartYRef = useRef(0);
+  const swipeActiveRef = useRef(false);
+  const swipeDragRef = useRef(0);
+  const swipeLockedRef = useRef(false);
+  const galleryContentRef = useRef(null);
+  const galleryPillsRef = useRef(null);
+  const [isAnimating, setIsAnimating] = useState(false);
 
   // Theme classes
   const isLight = theme === 'light';
@@ -279,6 +289,57 @@ export const PublicPhotographerGallery = () => {
     }
   }, [deepLinkGalleryId, galleries, selectedGallery]);
 
+  // Auto-scroll active gallery pill into view after swipe or selection change
+  useEffect(() => {
+    if (!selectedGallery || !galleryPillsRef.current) return;
+    const activeBtn = galleryPillsRef.current.querySelector(
+      `[data-gallery-id="${selectedGallery.id}"]`
+    );
+    if (activeBtn) {
+      activeBtn.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' });
+    }
+  }, [selectedGallery]);
+
+  // Swipe handler: navigate between gallery folders
+  const handleSwipeGallery = useCallback((direction) => {
+    if (!selectedGallery || galleries.length <= 1) return;
+    const currentIdx = galleries.findIndex(g => g.id === selectedGallery.id);
+    const nextIdx = direction === 'left' ? currentIdx + 1 : currentIdx - 1;
+    if (nextIdx >= 0 && nextIdx < galleries.length) {
+      setIsAnimating(true);
+      if (galleryContentRef.current) {
+        galleryContentRef.current.style.transition = 'transform 0.22s ease-out, opacity 0.22s ease-out';
+        galleryContentRef.current.style.transform = `translateX(${direction === 'left' ? '-100%' : '100%'})`;
+        galleryContentRef.current.style.opacity = '0';
+      }
+      setTimeout(() => {
+        setSelectedGallery(galleries[nextIdx]);
+        if (galleryContentRef.current) {
+          galleryContentRef.current.style.transition = 'none';
+          galleryContentRef.current.style.transform = `translateX(${direction === 'left' ? '60%' : '-60%'})`;
+          galleryContentRef.current.style.opacity = '0.5';
+        }
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            if (galleryContentRef.current) {
+              galleryContentRef.current.style.transition = 'transform 0.25s ease-out, opacity 0.25s ease-out';
+              galleryContentRef.current.style.transform = 'translateX(0)';
+              galleryContentRef.current.style.opacity = '1';
+            }
+            setTimeout(() => {
+              setIsAnimating(false);
+              if (galleryContentRef.current) {
+                galleryContentRef.current.style.transition = '';
+                galleryContentRef.current.style.transform = '';
+                galleryContentRef.current.style.opacity = '';
+              }
+            }, 260);
+          });
+        });
+      }, 200);
+    }
+  }, [selectedGallery, galleries]);
+
   // Get price for quality tier
   const getQualityPrice = (item, quality) => {
     if (!item) return 5; // Default price if item is null
@@ -420,10 +481,11 @@ export const PublicPhotographerGallery = () => {
         {galleries.length > 0 && (
           <div className="mb-6">
             <h2 className={`text-lg font-semibold ${textPrimary} mb-3`}>Session Galleries</h2>
-            <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
+            <div ref={galleryPillsRef} className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
               {galleries.map(gallery => (
                 <button
                   key={gallery.id}
+                  data-gallery-id={gallery.id}
                   onClick={() => setSelectedGallery(gallery)}
                   className={`flex-shrink-0 px-4 py-2 rounded-full border transition-all flex items-center gap-2 ${
                     selectedGallery?.id === gallery.id 
@@ -439,6 +501,81 @@ export const PublicPhotographerGallery = () => {
             </div>
           </div>
         )}
+
+        {/* Swipeable content area — swipe left/right to switch gallery folders on mobile */}
+        <div
+          className="relative overflow-hidden"
+          onTouchStart={(e) => {
+            if (isAnimating) return;
+            swipeStartXRef.current = e.touches[0].clientX;
+            swipeStartYRef.current = e.touches[0].clientY;
+            swipeActiveRef.current = true;
+            swipeLockedRef.current = false;
+            swipeDragRef.current = 0;
+            if (galleryContentRef.current) {
+              galleryContentRef.current.style.transition = 'none';
+            }
+          }}
+          onTouchMove={(e) => {
+            if (!swipeActiveRef.current || isAnimating) return;
+            const dx = e.touches[0].clientX - swipeStartXRef.current;
+            const dy = e.touches[0].clientY - swipeStartYRef.current;
+            if (!swipeLockedRef.current) {
+              // If vertical scroll dominates, cancel swipe
+              if (Math.abs(dy) > Math.abs(dx) && Math.abs(dy) > 10) {
+                swipeActiveRef.current = false;
+                if (galleryContentRef.current) {
+                  galleryContentRef.current.style.transform = '';
+                  galleryContentRef.current.style.transition = '';
+                }
+                return;
+              }
+              if (Math.abs(dx) > 10) {
+                swipeLockedRef.current = true;
+              } else {
+                return;
+              }
+            }
+            e.preventDefault();
+            const currentIdx = galleries.findIndex(g => g.id === selectedGallery?.id);
+            const atEdge = (dx > 0 && currentIdx === 0) || (dx < 0 && currentIdx === galleries.length - 1);
+            const dampened = atEdge ? dx * 0.2 : dx;
+            swipeDragRef.current = dampened;
+            if (galleryContentRef.current) {
+              galleryContentRef.current.style.transform = `translateX(${dampened}px)`;
+              const progress = Math.min(Math.abs(dampened) / 200, 1);
+              galleryContentRef.current.style.opacity = `${1 - progress * 0.15}`;
+            }
+          }}
+          onTouchEnd={() => {
+            if (!swipeActiveRef.current || isAnimating) {
+              swipeActiveRef.current = false;
+              return;
+            }
+            swipeActiveRef.current = false;
+            const dragX = swipeDragRef.current;
+            const MIN_SWIPE = 50;
+            if (Math.abs(dragX) >= MIN_SWIPE && swipeLockedRef.current) {
+              const goingLeft = dragX < 0;
+              handleSwipeGallery(goingLeft ? 'left' : 'right');
+              return;
+            }
+            // Snap back
+            if (galleryContentRef.current) {
+              galleryContentRef.current.style.transition = 'transform 0.2s ease-out, opacity 0.2s ease-out';
+              galleryContentRef.current.style.transform = 'translateX(0)';
+              galleryContentRef.current.style.opacity = '1';
+              setTimeout(() => {
+                if (galleryContentRef.current) {
+                  galleryContentRef.current.style.transition = '';
+                  galleryContentRef.current.style.transform = '';
+                  galleryContentRef.current.style.opacity = '';
+                }
+              }, 220);
+            }
+          }}
+        >
+        <div ref={galleryContentRef} className="will-change-transform">
 
         {/* Filters Bar */}
         <div className="flex flex-wrap items-center gap-3 mb-6">
@@ -525,6 +662,9 @@ export const PublicPhotographerGallery = () => {
             ))}
           </div>
         )}
+
+        </div>{/* end galleryContentRef */}
+        </div>{/* end swipe container */}
       </div>
 
       {/* Purchase Modal */}
