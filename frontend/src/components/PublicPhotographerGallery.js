@@ -64,6 +64,7 @@ export const PublicPhotographerGallery = () => {
   const [showPurchaseModal, setShowPurchaseModal] = useState(false);
   const [purchaseLoading, setPurchaseLoading] = useState(false);
   const [selectedQuality, setSelectedQuality] = useState('standard');
+  const [galleriesReady, setGalleriesReady] = useState(false);
   
   // AI Face Match state
   const [showAIMatch, setShowAIMatch] = useState(false);
@@ -130,8 +131,10 @@ export const PublicPhotographerGallery = () => {
       // Only show public galleries, and exclude private sessions (on_demand/booking)
       const PRIVATE_SESSION_TYPES = ['on_demand', 'booking'];
       setGalleries(res.data.filter(g => g.is_public && !PRIVATE_SESSION_TYPES.includes(g.session_type)));
+      setGalleriesReady(true);
     } catch (error) {
       logger.error('Failed to fetch galleries:', error);
+      setGalleriesReady(true); // Mark ready even on error so UI doesn't hang
     }
   }, [photographerId]);
 
@@ -626,7 +629,7 @@ export const PublicPhotographerGallery = () => {
         </div>
 
         {/* Gallery Grid */}
-        {loading ? (
+        {(loading || (!galleriesReady) || (galleries.length > 0 && !selectedGallery)) ? (
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
             {[...Array(8)].map((_, i) => (
               <div key={i} className={`aspect-square ${skeletonBg} rounded-lg animate-pulse`} />
