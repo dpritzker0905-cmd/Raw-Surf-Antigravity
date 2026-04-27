@@ -380,17 +380,23 @@ export const PhotographerSessionsManager = () => {
       }
       
       // Check if photographer has an active session
-      const activeRes = await apiClient.get(`/photographer/${user?.id}/active-session`);
-      if (activeRes.data) {
-        setIsLive(true);
-        setCurrentSession(activeRes.data);
-        // Populate settings from active session
-        setSessionSettings(prev => ({
-          ...prev,
-          location: activeRes.data.location || '',
-          price_per_join: activeRes.data.price_per_join || prev.price_per_join
-        }));
-      } else {
+      try {
+        const activeRes = await apiClient.get(`/photographer/${user?.id}/active-session`);
+        if (activeRes.data) {
+          setIsLive(true);
+          setCurrentSession(activeRes.data);
+          // Populate settings from active session
+          setSessionSettings(prev => ({
+            ...prev,
+            location: activeRes.data.location || '',
+            price_per_join: activeRes.data.price_per_join || prev.price_per_join
+          }));
+        } else {
+          setIsLive(false);
+          setCurrentSession(null);
+        }
+      } catch (e) {
+        logger.error('Error fetching active session:', e);
         setIsLive(false);
         setCurrentSession(null);
       }

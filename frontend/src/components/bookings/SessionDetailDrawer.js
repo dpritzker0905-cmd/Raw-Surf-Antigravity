@@ -178,7 +178,7 @@ const SessionDetailDrawer = ({
   
   const sessionType = session.session_type || 'live';
   const location = session.location || session.spot_name || 'Unknown location';
-  const durationMins = session.duration_mins || 0;
+  const durationMins = session.duration_mins || session.duration || 0;
   const durationDisplay = durationMins >= 60
     ? `${Math.floor(durationMins / 60)}h ${durationMins % 60}m`
     : `${durationMins}m`;
@@ -211,7 +211,7 @@ const SessionDetailDrawer = ({
             md:max-w-[560px] md:mx-auto
             ${isLight ? 'bg-white' : isBeach ? 'bg-zinc-950' : 'bg-zinc-900'}
             border-t md:border ${isLight ? 'border-gray-200' : 'border-white/10'}`}
-          style={{ maxHeight: '92vh', maxWidth: '100%' }}
+          style={{ maxHeight: '92vh' }}
           onClick={(e) => e.stopPropagation()}
         >
           

@@ -1,16 +1,16 @@
 /**
- * PastTab - Completed session history with review CTAs
+ * PastTab - Completed session history for surfers
  * 
  * Features:
- * - Shows completed sessions with photographer info
- * - "Leave a Review" button if session hasn't been reviewed
- * - Shows existing review snippet if already reviewed
- * - Tap-to-expand session detail drawer with pricing, participants, gallery link
+ * - Premium glassmorphism card UI matching gallery design standards
+ * - Photographer avatar, session type badge, and metadata
+ * - "Leave a Review" CTA or existing rating stars
+ * - Tap-to-expand SessionDetailDrawer with normalized booking data
  * - Theme-aware (light/dark/beach)
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { Calendar, MapPin, History, Star, Camera, Clock, ChevronRight } from 'lucide-react';
+import { Calendar, MapPin, History, Star, Camera, Clock, ChevronRight, DollarSign, Zap, Send } from 'lucide-react';
 import { Card, CardContent } from '../ui/card';
 import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';
@@ -20,6 +20,40 @@ import apiClient from '../../lib/apiClient';
 import ReviewModal from '../ReviewModal';
 import SessionDetailDrawer from './SessionDetailDrawer';
 
+// ─── Session Type Icon ──────────────────────────────────────────────────────
+const SessionTypeConfig = {
+  on_demand: { label: 'On-Demand', gradient: 'from-purple-500 to-indigo-500', icon: Send },
+  scheduled: { label: 'Scheduled', gradient: 'from-amber-500 to-orange-500', icon: Calendar },
+  live: { label: 'Live Session', gradient: 'from-cyan-500 to-blue-500', icon: Zap },
+  live_join: { label: 'Live Session', gradient: 'from-cyan-500 to-blue-500', icon: Zap },
+};
+
+/**
+ * Normalize a raw booking object (from /bookings/user) into the shape
+ * that SessionDetailDrawer expects so all stats render correctly.
+ */
+const normalizeBookingForDrawer = (booking) => ({
+  ...booking,
+  // Map duration → duration_mins (bookings use `duration` in minutes)
+  duration_mins: booking.duration_mins || booking.duration || 0,
+  // Session type — bookings don't have this, infer from booking_type
+  session_type: booking.booking_type || booking.session_type || 'scheduled',
+  // Surfer count from participants array or current_participants
+  total_surfers: booking.current_participants || booking.participants?.length || 1,
+  // Pricing — map booking fields for the drawer's PriceRow
+  buyin_price: booking.price_per_person || booking.total_price,
+  // Gallery data — if the booking has associated gallery info
+  gallery_photo_count: booking.gallery_photo_count || 0,
+  gallery_id: booking.gallery_id || null,
+  // Ensure participants have expected shape
+  participants: (booking.participants || []).map(p => ({
+    id: p.participant_id || p.user_id || p.id,
+    full_name: p.name || p.full_name || 'Surfer',
+    avatar_url: p.avatar_url,
+    amount_paid: p.paid_amount || p.amount_paid || 0,
+  })),
+});
+
 export const PastTab = ({
   pastBookings,
   theme,
@@ -27,17 +61,19 @@ export const PastTab = ({
 }) => {
   const isLight = theme === 'light';
   const isBeach = theme === 'beach';
-  const cardBgClass = isLight
-    ? 'bg-white border-gray-200'
+  
+  // Glassmorphism card styles matching gallery/premium standards
+  const cardBg = isLight
+    ? 'bg-white border border-gray-200/80 shadow-sm'
     : isBeach
-      ? 'bg-zinc-950 border-zinc-700'
-      : 'bg-zinc-800/50 border-zinc-700';
-  const textPrimaryClass = isLight ? 'text-gray-900' : 'text-white';
-  const textSecondaryClass = isLight ? 'text-gray-600' : isBeach ? 'text-gray-300' : 'text-gray-400';
+      ? 'bg-zinc-950/80 border border-zinc-700/60 backdrop-blur-sm'
+      : 'bg-white/[0.04] border border-white/[0.08] backdrop-blur-sm';
+  const textPrimary = isLight ? 'text-gray-900' : 'text-white';
+  const textSecondary = isLight ? 'text-gray-500' : isBeach ? 'text-gray-400' : 'text-gray-400';
   
   // Review modal state
   const [showReviewModal, setShowReviewModal] = useState(false);
-  const [reviewTarget, setReviewTarget] = useState(null); // { id, full_name, avatar_url }
+  const [reviewTarget, setReviewTarget] = useState(null);
   const [reviewSessionId, setReviewSessionId] = useState(null);
   const [reviewSessionType, setReviewSessionType] = useState('live');
   
@@ -101,20 +137,25 @@ export const PastTab = ({
   }, [reviewSessionId]);
   
   const handleViewDetails = useCallback((booking) => {
-    setSelectedSession(booking);
+    // Normalize booking data to match SessionDetailDrawer expectations
+    setSelectedSession(normalizeBookingForDrawer(booking));
     setShowDetailDrawer(true);
   }, []);
 
   if (pastBookings.length === 0) {
     return (
-      <Card className={`${cardBgClass} transition-colors duration-300`}>
-        <CardContent className="py-12 text-center">
-          <div className={`w-16 h-16 mx-auto mb-4 rounded-full ${isLight ? 'bg-gray-100' : isBeach ? 'bg-zinc-900' : 'bg-zinc-800'} flex items-center justify-center`}>
-            <History className={`w-8 h-8 ${textSecondaryClass}`} />
+      <Card className={`${cardBg} transition-colors duration-300`}>
+        <CardContent className="py-16 text-center">
+          <div className={`w-20 h-20 mx-auto mb-5 rounded-2xl ${
+            isLight ? 'bg-gray-100' : isBeach ? 'bg-zinc-900' : 'bg-white/5'
+          } flex items-center justify-center`}>
+            <History className={`w-10 h-10 ${textSecondary}`} />
           </div>
-          <h3 className={`text-lg font-medium ${textPrimaryClass} mb-2`}>No Past Sessions</h3>
-          <p className={textSecondaryClass}>
-            Your completed sessions will appear here.
+          <h3 className={`text-xl font-bold ${textPrimary} mb-2`} style={{ fontFamily: 'Oswald' }}>
+            No Past Sessions
+          </h3>
+          <p className={`text-sm ${textSecondary} max-w-xs mx-auto`}>
+            Your completed sessions will appear here after you join a photographer&apos;s session.
           </p>
         </CardContent>
       </Card>
@@ -129,98 +170,143 @@ export const PastTab = ({
           const hasReviewed = reviewedSessions[sessionId];
           const existingRating = typeof hasReviewed === 'number' ? hasReviewed : null;
           
+          // Session type config
+          const sessionType = booking.booking_type || booking.session_type || 'scheduled';
+          const typeConfig = SessionTypeConfig[sessionType] || SessionTypeConfig.live;
+          const TypeIcon = typeConfig.icon;
+          
+          // Duration display
+          const durationMins = booking.duration_mins || booking.duration || 0;
+          const durationDisplay = durationMins >= 60
+            ? `${Math.floor(durationMins / 60)}h ${durationMins % 60}m`
+            : `${durationMins} min`;
+          
+          // Price display
+          const pricePaid = booking.paid_amount || booking.price_per_person || booking.total_price;
+          
           return (
-            <Card 
+            <div 
               key={booking.id} 
-              className={`${cardBgClass} transition-all duration-300 cursor-pointer hover:ring-1 ${isLight ? 'hover:ring-amber-300' : 'hover:ring-amber-500/30'}`}
+              className={`${cardBg} rounded-2xl p-4 transition-all duration-200 cursor-pointer
+                hover:ring-1 ${isLight ? 'hover:ring-amber-300/80 hover:shadow-md' : 'hover:ring-amber-500/30'}
+                active:scale-[0.98]`}
               onClick={() => handleViewDetails(booking)}
             >
-              <CardContent className="p-4">
-                {/* Session header */}
-                <div className="flex items-start justify-between mb-2">
-                  <div className="flex items-center gap-3">
-                    {booking.photographer_avatar ? (
-                      <Avatar className={`w-10 h-10 border ${isLight ? 'border-gray-200' : 'border-zinc-600'}`}>
-                        <AvatarImage src={getFullUrl(booking.photographer_avatar)} />
-                        <AvatarFallback className={`${isLight ? 'bg-gray-100 text-gray-700' : 'bg-zinc-700 text-white'} text-sm`}>
-                          {(booking.photographer_name || 'P').charAt(0)}
-                        </AvatarFallback>
-                      </Avatar>
-                    ) : (
-                      <div className={`w-10 h-10 rounded-full flex items-center justify-center ${isLight ? 'bg-gray-100' : 'bg-zinc-700'}`}>
-                        <Camera className={`w-5 h-5 ${textSecondaryClass}`} />
-                      </div>
-                    )}
-                    <div>
-                      <h3 className={`font-medium ${textPrimaryClass}`}>
-                        {booking.photographer_name || 'Surf Photo Session'}
-                      </h3>
-                      <p className={`text-xs ${textSecondaryClass}`}>
-                        {booking.session_type === 'on_demand' ? 'On-Demand' : booking.session_type === 'scheduled' ? 'Scheduled' : 'Live Session'}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Badge variant="secondary" className={isLight ? 'bg-green-100 text-green-700' : 'bg-green-900/30 text-green-400'}>
-                      Completed
-                    </Badge>
-                    <ChevronRight className={`w-4 h-4 ${textSecondaryClass} flex-shrink-0`} />
-                  </div>
-                </div>
-                
-                {/* Session details */}
-                <div className="space-y-1 ml-13 mb-3">
-                  <div className={`flex items-center gap-2 text-sm ${textSecondaryClass}`}>
-                    <MapPin className="w-3.5 h-3.5" />
-                    <span>{booking.location || 'Unknown location'}</span>
-                  </div>
-                  <div className={`flex items-center gap-2 text-sm ${textSecondaryClass}`}>
-                    <Calendar className="w-3.5 h-3.5" />
-                    <span>{new Date(booking.session_date || booking.created_at).toLocaleDateString()}</span>
-                  </div>
-                  {booking.duration_mins && (
-                    <div className={`flex items-center gap-2 text-sm ${textSecondaryClass}`}>
-                      <Clock className="w-3.5 h-3.5" />
-                      <span>{booking.duration_mins} min</span>
-                    </div>
-                  )}
-                </div>
-                
-                {/* Review section */}
-                <div className={`pt-3 border-t ${isLight ? 'border-gray-100' : isBeach ? 'border-zinc-800' : 'border-zinc-700/50'}`}>
-                  {hasReviewed ? (
-                    <div className="flex items-center gap-2">
-                      <div className="flex items-center gap-1">
-                        {[1, 2, 3, 4, 5].map(s => (
-                          <Star
-                            key={s}
-                            className={`w-3.5 h-3.5 ${s <= (existingRating || 5) ? 'text-yellow-400 fill-yellow-400' : isLight ? 'text-gray-300' : 'text-zinc-600'}`}
-                          />
-                        ))}
-                      </div>
-                      <span className={`text-xs ${textSecondaryClass}`}>Reviewed</span>
-                    </div>
+              {/* Top row: Avatar + Name + Badge */}
+              <div className="flex items-start gap-3 mb-3">
+                {/* Photographer Avatar */}
+                <div className="relative flex-shrink-0">
+                  {booking.photographer_avatar ? (
+                    <Avatar className={`w-12 h-12 ring-2 ${isLight ? 'ring-gray-200' : 'ring-white/10'}`}>
+                      <AvatarImage src={getFullUrl(booking.photographer_avatar)} />
+                      <AvatarFallback className={`${isLight ? 'bg-gray-100 text-gray-700' : 'bg-zinc-700 text-white'} text-sm font-bold`}>
+                        {(booking.photographer_name || 'P').charAt(0)}
+                      </AvatarFallback>
+                    </Avatar>
                   ) : (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={(e) => {
-                        e.stopPropagation(); // Prevent card click from firing
-                        handleLeaveReview(booking);
-                      }}
-                      className={`w-full ${
-                        isLight
-                          ? 'border-yellow-300 text-yellow-700 hover:bg-yellow-50'
-                          : 'border-yellow-500/30 text-yellow-400 hover:bg-yellow-500/10'
-                      }`}
-                    >
-                      <Star className="w-4 h-4 mr-2" />
-                      Leave a Review
-                    </Button>
+                    <div className={`w-12 h-12 rounded-full flex items-center justify-center ring-2 ${
+                      isLight ? 'bg-gray-100 ring-gray-200' : 'bg-zinc-700 ring-white/10'
+                    }`}>
+                      <Camera className={`w-6 h-6 ${textSecondary}`} />
+                    </div>
                   )}
+                  {/* Session type indicator dot */}
+                  <div className={`absolute -bottom-0.5 -right-0.5 w-5 h-5 rounded-full bg-gradient-to-br ${typeConfig.gradient} flex items-center justify-center ring-2 ${isLight ? 'ring-white' : 'ring-zinc-900'}`}>
+                    <TypeIcon className="w-2.5 h-2.5 text-white" />
+                  </div>
                 </div>
-              </CardContent>
-            </Card>
+                
+                {/* Name + Type */}
+                <div className="flex-1 min-w-0">
+                  <h3 className={`font-semibold ${textPrimary} truncate`}>
+                    {booking.photographer_name || 'Surf Photo Session'}
+                  </h3>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <span className={`text-xs font-medium bg-gradient-to-r ${typeConfig.gradient} bg-clip-text text-transparent`}>
+                      {typeConfig.label}
+                    </span>
+                  </div>
+                </div>
+                
+                {/* Completed badge + Chevron */}
+                <div className="flex items-center gap-1.5 flex-shrink-0">
+                  <Badge variant="secondary" className={`text-[10px] font-semibold px-2 py-0.5 ${
+                    isLight ? 'bg-green-100 text-green-700' : 'bg-green-500/15 text-green-400 border border-green-500/20'
+                  }`}>
+                    ✓ Completed
+                  </Badge>
+                  <ChevronRight className={`w-4 h-4 ${textSecondary} opacity-60`} />
+                </div>
+              </div>
+              
+              {/* Metadata row: Location + Date + Duration + Price */}
+              <div className={`flex items-center gap-3 flex-wrap text-xs ${textSecondary} mb-3`}>
+                <div className="flex items-center gap-1">
+                  <MapPin className="w-3 h-3 flex-shrink-0" />
+                  <span className="truncate max-w-[120px]">{booking.location || 'Unknown'}</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <Calendar className="w-3 h-3 flex-shrink-0" />
+                  <span>{new Date(booking.session_date || booking.created_at).toLocaleDateString('en-US', {
+                    month: 'short', day: 'numeric'
+                  })}</span>
+                </div>
+                {durationMins > 0 && (
+                  <div className="flex items-center gap-1">
+                    <Clock className="w-3 h-3 flex-shrink-0" />
+                    <span>{durationDisplay}</span>
+                  </div>
+                )}
+                {pricePaid > 0 && (
+                  <div className="flex items-center gap-1">
+                    <DollarSign className="w-3 h-3 flex-shrink-0" />
+                    <span className={isLight ? 'text-gray-700 font-medium' : 'text-green-400 font-medium'}>
+                      ${typeof pricePaid === 'number' ? pricePaid.toFixed(2) : pricePaid}
+                    </span>
+                  </div>
+                )}
+              </div>
+              
+              {/* Review section */}
+              <div className={`pt-2.5 border-t ${isLight ? 'border-gray-100' : isBeach ? 'border-zinc-800' : 'border-white/[0.06]'}`}>
+                {hasReviewed ? (
+                  <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-0.5">
+                      {[1, 2, 3, 4, 5].map(s => (
+                        <Star
+                          key={s}
+                          className={`w-3.5 h-3.5 transition-colors ${
+                            s <= (existingRating || 5) 
+                              ? 'text-yellow-400 fill-yellow-400' 
+                              : isLight ? 'text-gray-200' : 'text-zinc-700'
+                          }`}
+                        />
+                      ))}
+                    </div>
+                    <span className={`text-xs font-medium ${isLight ? 'text-green-600' : 'text-green-400'}`}>
+                      Reviewed
+                    </span>
+                  </div>
+                ) : (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={(e) => {
+                      e.stopPropagation(); // Prevent card click from firing
+                      handleLeaveReview(booking);
+                    }}
+                    className={`w-full h-9 rounded-xl text-xs font-semibold transition-all ${
+                      isLight
+                        ? 'border-yellow-300/80 text-yellow-700 hover:bg-yellow-50 hover:border-yellow-400'
+                        : 'border-yellow-500/25 text-yellow-400 hover:bg-yellow-500/10 hover:border-yellow-500/40'
+                    }`}
+                  >
+                    <Star className="w-3.5 h-3.5 mr-1.5" />
+                    Leave a Review
+                  </Button>
+                )}
+              </div>
+            </div>
           );
         })}
       </div>
