@@ -153,6 +153,11 @@ export const Explore = () => {
   const [archiveDates, setArchiveDates] = useState([]);
   const [archiveGalleries, setArchiveGalleries] = useState([]);
   const [archiveGalleriesLoading, setArchiveGalleriesLoading] = useState(false);
+  // Conditions location hierarchy state (shared across all sub-tabs)
+  const [conditionsCountry, setConditionsCountry] = useState('');
+  const [conditionsState, setConditionsState] = useState('');
+  const [conditionsCity, setConditionsCity] = useState('');
+  const [conditionsLocMode, setConditionsLocMode] = useState('browse'); // 'browse' | 'nearby'
   
   // Trending Waves state
   const [trendingWaves, setTrendingWaves] = useState([]);
@@ -239,6 +244,7 @@ export const Explore = () => {
     if (activeTab === 'conditions') {
       fetchConditionReports();
       fetchConditionsRegions();
+      fetchLocationHierarchy(); // Load hierarchy for conditions location picker
     }
     if (activeTab === 'surfspots') {
       fetchSurfSpots();
@@ -519,8 +525,8 @@ export const Explore = () => {
     setSponsorDetails(null);
   };
 
-  // Fetch condition reports for Conditions tab (supports date_filter)
-  const fetchConditionReports = async (region = selectedRegion, locationOverride = null, dateFilter = conditionsSubTab, dateOverride = null) => {
+  // Fetch condition reports for Conditions tab (supports date_filter + location hierarchy)
+  const fetchConditionReports = async (region = selectedRegion, locationOverride = null, dateFilter = conditionsSubTab, dateOverride = null, locOverride = null) => {
     setConditionsLoading(true);
     try {
       const params = new URLSearchParams();
@@ -543,6 +549,12 @@ export const Explore = () => {
         params.append('user_lng', location.lng);
       }
       
+      // Hierarchical location params
+      const loc = locOverride || { country: conditionsCountry, state: conditionsState, city: conditionsCity };
+      if (loc.country) params.append('country', loc.country);
+      if (loc.state) params.append('state_province', loc.state);
+      if (loc.city) params.append('city', loc.city);
+      
       const response = await apiClient.get(`/condition-reports/feed?${params}`);
       setConditionReports(response.data.reports || []);
     } catch (error) {
@@ -553,10 +565,16 @@ export const Explore = () => {
     }
   };
 
-  // Fetch archive dates for the date picker
-  const fetchArchiveDates = async () => {
+  // Fetch archive dates for the date picker (with location filtering)
+  const fetchArchiveDates = async (locOverride = null) => {
     try {
-      const response = await apiClient.get('/condition-reports/archive-dates?limit=30');
+      const params = new URLSearchParams();
+      params.append('limit', '30');
+      const loc = locOverride || { country: conditionsCountry, state: conditionsState, city: conditionsCity };
+      if (loc.country) params.append('country', loc.country);
+      if (loc.state) params.append('state_province', loc.state);
+      if (loc.city) params.append('city', loc.city);
+      const response = await apiClient.get(`/condition-reports/archive-dates?${params}`);
       setArchiveDates(response.data.dates || []);
     } catch (error) {
       logger.error('Error fetching archive dates:', error);
@@ -564,13 +582,17 @@ export const Explore = () => {
     }
   };
 
-  // Fetch public galleries for archive browsing
-  const fetchArchiveGalleries = async (date = null) => {
+  // Fetch public galleries for archive browsing (with location filtering)
+  const fetchArchiveGalleries = async (date = null, locOverride = null) => {
     setArchiveGalleriesLoading(true);
     try {
       const params = new URLSearchParams();
       if (date) params.append('date', date);
       params.append('limit', '20');
+      const loc = locOverride || { country: conditionsCountry, state: conditionsState, city: conditionsCity };
+      if (loc.country) params.append('country', loc.country);
+      if (loc.state) params.append('state_province', loc.state);
+      if (loc.city) params.append('city', loc.city);
       const response = await apiClient.get(`/condition-reports/public-galleries?${params}`);
       setArchiveGalleries(response.data.galleries || []);
     } catch (error) {
@@ -581,16 +603,17 @@ export const Explore = () => {
     }
   };
 
-  // Handle conditions sub-tab change
+  // Handle conditions sub-tab change (preserves location state across tabs)
   const handleConditionsSubTabChange = (subTab) => {
     setConditionsSubTab(subTab);
+    const loc = { country: conditionsCountry, state: conditionsState, city: conditionsCity };
     if (subTab === 'today' || subTab === 'yesterday') {
-      fetchConditionReports(selectedRegion, null, subTab);
+      fetchConditionReports(selectedRegion, null, subTab, null, loc);
     } else if (subTab === 'archives') {
-      fetchArchiveDates();
+      fetchArchiveDates(loc);
       if (archiveDate) {
-        fetchConditionReports(selectedRegion, null, 'archives', archiveDate);
-        fetchArchiveGalleries(archiveDate);
+        fetchConditionReports(selectedRegion, null, 'archives', archiveDate, loc);
+        fetchArchiveGalleries(archiveDate, loc);
       }
     }
   };
@@ -598,8 +621,9 @@ export const Explore = () => {
   // Handle archive date selection
   const handleArchiveDateSelect = (date) => {
     setArchiveDate(date);
-    fetchConditionReports(selectedRegion, null, 'archives', date);
-    fetchArchiveGalleries(date);
+    const loc = { country: conditionsCountry, state: conditionsState, city: conditionsCity };
+    fetchConditionReports(selectedRegion, null, 'archives', date, loc);
+    fetchArchiveGalleries(date, loc);
   };
 
   // Fetch available regions for filter
@@ -624,6 +648,11 @@ export const Explore = () => {
   const getReportsNearby = () => {
     if (navigator.geolocation) {
       setConditionsLoading(true);
+      setConditionsLocMode('nearby');
+      // Clear hierarchical filters when switching to nearby
+      setConditionsCountry('');
+      setConditionsState('');
+      setConditionsCity('');
       
       navigator.geolocation.getCurrentPosition(
         (position) => {
@@ -632,18 +661,104 @@ export const Explore = () => {
             lng: position.coords.longitude
           };
           setUserLocation(newLocation);
-          fetchConditionReports(selectedRegion, newLocation);
-          toast.success('Location updated! Showing nearby reports first.');
+          fetchConditionReports('All', newLocation, conditionsSubTab, null, { country: '', state: '', city: '' });
+          toast.success('📍 Showing nearby reports first');
         },
         (error) => {
           logger.error('Geolocation error:', error);
           setConditionsLoading(false);
+          setConditionsLocMode('browse');
           toast.error('Could not get your location');
         },
         { enableHighAccuracy: true, timeout: 10000 }
       );
     } else {
       toast.error('Geolocation is not supported by your browser');
+    }
+  };
+  
+  // ============ CONDITIONS LOCATION HIERARCHY ============
+  
+  // Computed dropdown options from the shared location hierarchy
+  const conditionsCountryOptions = locationHierarchy?.countries?.map(c => c.name).sort() || [];
+  
+  const conditionsStateOptions = (() => {
+    if (!conditionsCountry || !locationHierarchy) return [];
+    const country = locationHierarchy.countries.find(c => c.name === conditionsCountry);
+    if (!country?.states) return [];
+    return country.states.filter(s => !s.is_virtual).map(s => s.name).sort();
+  })();
+  
+  const conditionsCityOptions = (() => {
+    if (!conditionsCountry || !conditionsState || !locationHierarchy) return [];
+    const country = locationHierarchy.countries.find(c => c.name === conditionsCountry);
+    const state = country?.states?.find(s => s.name === conditionsState);
+    if (!state?.cities) return [];
+    return state.cities.map(c => c.name).sort();
+  })();
+  
+  // Cascading location change handlers for conditions
+  const handleConditionsCountryChange = (countryName) => {
+    setConditionsCountry(countryName);
+    setConditionsState('');
+    setConditionsCity('');
+    setConditionsLocMode('browse');
+    setUserLocation(null); // Clear GPS when switching to browse
+    const loc = { country: countryName, state: '', city: '' };
+    fetchConditionReports('All', null, conditionsSubTab, conditionsSubTab === 'archives' ? archiveDate : null, loc);
+    if (conditionsSubTab === 'archives') {
+      fetchArchiveDates(loc);
+      if (archiveDate) fetchArchiveGalleries(archiveDate, loc);
+    }
+  };
+  
+  const handleConditionsStateChange = (stateName) => {
+    setConditionsState(stateName);
+    setConditionsCity('');
+    const loc = { country: conditionsCountry, state: stateName, city: '' };
+    fetchConditionReports('All', null, conditionsSubTab, conditionsSubTab === 'archives' ? archiveDate : null, loc);
+    if (conditionsSubTab === 'archives') {
+      fetchArchiveDates(loc);
+      if (archiveDate) fetchArchiveGalleries(archiveDate, loc);
+    }
+  };
+  
+  const handleConditionsCityChange = (cityName) => {
+    setConditionsCity(cityName);
+    const loc = { country: conditionsCountry, state: conditionsState, city: cityName };
+    fetchConditionReports('All', null, conditionsSubTab, conditionsSubTab === 'archives' ? archiveDate : null, loc);
+    if (conditionsSubTab === 'archives') {
+      fetchArchiveDates(loc);
+      if (archiveDate) fetchArchiveGalleries(archiveDate, loc);
+    }
+  };
+  
+  const clearConditionsLocation = () => {
+    setConditionsCountry('');
+    setConditionsState('');
+    setConditionsCity('');
+    setConditionsLocMode('browse');
+    setUserLocation(null);
+    const loc = { country: '', state: '', city: '' };
+    fetchConditionReports('All', null, conditionsSubTab, conditionsSubTab === 'archives' ? archiveDate : null, loc);
+    if (conditionsSubTab === 'archives') {
+      fetchArchiveDates(loc);
+      if (archiveDate) fetchArchiveGalleries(archiveDate, loc);
+    }
+  };
+  
+  // Quick jump to a popular location for conditions
+  const jumpToConditionsLocation = (loc) => {
+    setConditionsLocMode('browse');
+    setConditionsCountry(loc.country);
+    setConditionsState(loc.state || '');
+    setConditionsCity('');
+    setUserLocation(null);
+    const locParams = { country: loc.country, state: loc.state || '', city: '' };
+    fetchConditionReports('All', null, conditionsSubTab, conditionsSubTab === 'archives' ? archiveDate : null, locParams);
+    if (conditionsSubTab === 'archives') {
+      fetchArchiveDates(locParams);
+      if (archiveDate) fetchArchiveGalleries(archiveDate, locParams);
     }
   };
   
@@ -2259,73 +2374,185 @@ export const Explore = () => {
             ))}
           </div>
 
-          {/* Header with Nearby Button (shared for today/yesterday) */}
-          {conditionsSubTab !== 'archives' && (
-            <>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Waves className="w-5 h-5 text-cyan-400" />
-                  <h2 className="font-bold text-foreground">
-                    {conditionsSubTab === 'today' ? "Today's Reports" : "Yesterday's Reports"}
-                  </h2>
-                  <Badge className="bg-cyan-500/20 text-cyan-400 text-xs">
-                    {conditionReports.length} reports
-                  </Badge>
-                </div>
-                {conditionsSubTab === 'today' && (
-                  <button
-                    onClick={getReportsNearby}
-                    className="flex items-center gap-1 px-3 py-1.5 bg-muted hover:bg-zinc-700 rounded-full text-xs text-gray-300 transition-colors"
-                    data-testid="reports-nearby-btn"
+          {/* ============ SHARED LOCATION PICKER (all sub-tabs) ============ */}
+          
+          {/* Header row with title + report count */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Waves className="w-5 h-5 text-cyan-400" />
+              <h2 className="font-bold text-foreground">
+                {conditionsSubTab === 'today' ? "Today's Reports" 
+                  : conditionsSubTab === 'yesterday' ? "Yesterday's Reports" 
+                  : "Session Archives"}
+              </h2>
+              {conditionsSubTab !== 'archives' && (
+                <Badge className="bg-cyan-500/20 text-cyan-400 text-xs">
+                  {conditionReports.length} reports
+                </Badge>
+              )}
+            </div>
+          </div>
+          
+          {/* Browse / Nearby Toggle */}
+          <div className="flex gap-2 p-1 bg-zinc-900 rounded-xl border border-zinc-800">
+            <button
+              onClick={() => { setConditionsLocMode('browse'); setUserLocation(null); }}
+              className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-medium transition-all ${
+                conditionsLocMode === 'browse'
+                  ? 'bg-gradient-to-r from-cyan-500 to-blue-500 text-white shadow-lg shadow-cyan-500/20'
+                  : 'text-gray-400 hover:text-gray-200 hover:bg-zinc-800'
+              }`}
+              data-testid="conditions-browse-btn"
+            >
+              <Globe className="w-4 h-4" />
+              Browse
+            </button>
+            <button
+              onClick={getReportsNearby}
+              className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-medium transition-all ${
+                conditionsLocMode === 'nearby'
+                  ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-lg shadow-emerald-500/20'
+                  : 'text-gray-400 hover:text-gray-200 hover:bg-zinc-800'
+              }`}
+              data-testid="conditions-nearby-btn"
+            >
+              <Compass className="w-4 h-4" />
+              Nearby
+              {userLocation && conditionsLocMode === 'nearby' && <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />}
+            </button>
+          </div>
+          
+          {/* Hierarchical Location Dropdowns (Browse mode) */}
+          {conditionsLocMode === 'browse' && (
+            <div className="space-y-3">
+              {/* Country Dropdown */}
+              <div>
+                <label className={`block text-xs uppercase tracking-wider font-medium mb-1.5 ${labelClass}`}>Country</label>
+                <div className="relative">
+                  <Globe className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-cyan-400 pointer-events-none z-10" />
+                  <select
+                    value={conditionsCountry}
+                    onChange={(e) => handleConditionsCountryChange(e.target.value)}
+                    className={`w-full pl-10 pr-10 py-3 ${dropdownBg} border ${dropdownBorder} rounded-xl ${dropdownText} text-sm focus:outline-none ${dropdownFocus} focus:ring-1 transition-all appearance-none cursor-pointer`}
+                    data-testid="conditions-country-dropdown"
                   >
-                    <Compass className="w-3 h-3" />
-                    Nearby
-                  </button>
-                )}
+                    <option value="">All Countries</option>
+                    {conditionsCountryOptions.map(name => (
+                      <option key={name} value={name}>{getCountryFlag(name)} {name}</option>
+                    ))}
+                  </select>
+                  <ChevronDown className={`absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 ${isLight ? 'text-gray-400' : 'text-gray-500'} pointer-events-none`} />
+                </div>
               </div>
               
-              {/* Region Filter Dropdown */}
-              <div className="relative">
-                <button
-                  onClick={() => setShowRegionDropdown(!showRegionDropdown)}
-                  className="flex items-center justify-between w-full px-4 py-3 bg-muted rounded-lg text-foreground hover:bg-zinc-700 transition-colors"
-                  data-testid="region-filter-btn"
-                >
-                  <span className="flex items-center gap-2">
-                    <MapPin className="w-4 h-4 text-cyan-400" />
-                    <span className="font-medium">{selectedRegion === 'All' ? 'All Regions' : selectedRegion}</span>
-                  </span>
-                  <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${showRegionDropdown ? 'rotate-180' : ''}`} />
-                </button>
-                
-                {showRegionDropdown && (
-                  <div className="absolute top-full left-0 right-0 mt-1 bg-muted border border-zinc-700 rounded-lg shadow-xl z-20 max-h-64 overflow-y-auto">
-                    {conditionsRegions.map((region) => (
+              {/* State/Province Dropdown */}
+              {conditionsCountry && conditionsStateOptions.length > 0 && (
+                <div>
+                  <label className={`block text-xs uppercase tracking-wider font-medium mb-1.5 ${labelClass}`}>State / Province</label>
+                  <div className="relative">
+                    <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-blue-400 pointer-events-none z-10" />
+                    <select
+                      value={conditionsState}
+                      onChange={(e) => handleConditionsStateChange(e.target.value)}
+                      className={`w-full pl-10 pr-10 py-3 ${dropdownBg} border ${dropdownBorder} rounded-xl ${dropdownText} text-sm focus:outline-none ${isLight ? 'focus:border-blue-500 focus:ring-blue-200/30' : 'focus:border-blue-500/50 focus:ring-blue-500/20'} focus:ring-1 transition-all appearance-none cursor-pointer`}
+                      data-testid="conditions-state-dropdown"
+                    >
+                      <option value="">All States</option>
+                      {conditionsStateOptions.map(name => (
+                        <option key={name} value={name}>{name}</option>
+                      ))}
+                    </select>
+                    <ChevronDown className={`absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 ${isLight ? 'text-gray-400' : 'text-gray-500'} pointer-events-none`} />
+                  </div>
+                </div>
+              )}
+              
+              {/* City/Area Dropdown */}
+              {conditionsState && conditionsCityOptions.length > 0 && (
+                <div>
+                  <label className={`block text-xs uppercase tracking-wider font-medium mb-1.5 ${labelClass}`}>City / Area</label>
+                  <div className="relative">
+                    <Navigation className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-emerald-400 pointer-events-none z-10" />
+                    <select
+                      value={conditionsCity}
+                      onChange={(e) => handleConditionsCityChange(e.target.value)}
+                      className={`w-full pl-10 pr-10 py-3 ${dropdownBg} border ${dropdownBorder} rounded-xl ${dropdownText} text-sm focus:outline-none ${isLight ? 'focus:border-emerald-500 focus:ring-emerald-200/30' : 'focus:border-emerald-500/50 focus:ring-emerald-500/20'} focus:ring-1 transition-all appearance-none cursor-pointer`}
+                      data-testid="conditions-city-dropdown"
+                    >
+                      <option value="">All Cities</option>
+                      {conditionsCityOptions.map(name => (
+                        <option key={name} value={name}>{name}</option>
+                      ))}
+                    </select>
+                    <ChevronDown className={`absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 ${isLight ? 'text-gray-400' : 'text-gray-500'} pointer-events-none`} />
+                  </div>
+                </div>
+              )}
+              
+              {/* Popular Destinations — show when no country selected */}
+              {!conditionsCountry && (
+                <div>
+                  <p className={`text-xs uppercase tracking-wider font-medium mb-2 ${labelClass}`}>Popular Destinations</p>
+                  <div className="flex flex-wrap gap-2">
+                    {popularLocations.map((loc, i) => (
                       <button
-                        key={region}
-                        onClick={() => handleRegionChange(region)}
-                        className={`w-full px-4 py-2 text-left text-sm transition-colors ${
-                          selectedRegion === region 
-                            ? 'bg-cyan-500/20 text-cyan-400' 
-                            : 'text-gray-300 hover:bg-zinc-700'
-                        }`}
+                        key={i}
+                        onClick={() => jumpToConditionsLocation(loc)}
+                        className={`px-3 py-1.5 border rounded-full text-xs transition-all ${chipBg}`}
+                        data-testid={`conditions-quick-loc-${i}`}
                       >
-                        {region === 'All' ? 'All Regions' : region}
+                        {loc.label}
                       </button>
                     ))}
                   </div>
-                )}
-              </div>
-            </>
+                </div>
+              )}
+              
+              {/* Selection breadcrumb + Clear */}
+              {conditionsCountry && (
+                <div className="flex items-center gap-1.5 text-sm flex-wrap">
+                  <span className="text-lg">{getCountryFlag(conditionsCountry)}</span>
+                  <span className={`${breadcrumbText} font-medium`}>{conditionsCountry}</span>
+                  {conditionsState && (
+                    <>
+                      <ChevronRight className="w-3.5 h-3.5 text-gray-600" />
+                      <span className={isLight ? 'text-blue-600' : 'text-blue-400'}>{conditionsState}</span>
+                    </>
+                  )}
+                  {conditionsCity && (
+                    <>
+                      <ChevronRight className="w-3.5 h-3.5 text-gray-600" />
+                      <span className={isLight ? 'text-emerald-600' : 'text-emerald-400'}>{conditionsCity}</span>
+                    </>
+                  )}
+                  <button
+                    onClick={clearConditionsLocation}
+                    className={`ml-auto text-xs flex items-center gap-1 px-2 py-1 rounded-md transition-colors ${isLight ? 'text-gray-500 hover:text-gray-700 hover:bg-gray-100' : 'text-gray-500 hover:text-gray-300 hover:bg-zinc-800'}`}
+                  >
+                    <X className="w-3 h-3" /> Clear
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+          
+          {/* Nearby Mode Indicator */}
+          {conditionsLocMode === 'nearby' && userLocation && (
+            <div className="flex items-center gap-2 px-3 py-2 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
+              <Compass className="w-4 h-4 text-emerald-400 animate-pulse" />
+              <span className="text-xs text-emerald-300">Showing reports sorted by distance from you</span>
+              <button
+                onClick={clearConditionsLocation}
+                className="ml-auto text-xs text-emerald-400 hover:text-emerald-300 flex items-center gap-1"
+              >
+                <X className="w-3 h-3" /> Clear
+              </button>
+            </div>
           )}
 
           {/* Archives: Date Carousel + Gallery Cards */}
           {conditionsSubTab === 'archives' && (
             <div className="space-y-4">
-              <div className="flex items-center gap-2">
-                <Calendar className="w-5 h-5 text-cyan-400" />
-                <h2 className="font-bold text-foreground">Session Archives</h2>
-              </div>
               
               {/* Scrollable date chips */}
               {archiveDates.length > 0 ? (
