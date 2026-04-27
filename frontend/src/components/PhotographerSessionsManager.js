@@ -19,6 +19,7 @@ import { SurferRosterCard } from './SurferRosterCard';
 import logger from '../utils/logger';
 import LiveSavingsBadge from './sessions/LiveSavingsBadge';
 import PotentialEarningsCalculator from './sessions/PotentialEarningsCalculator';
+import SessionDetailDrawer from './bookings/SessionDetailDrawer';
 
 
 // Helper function to get commission rate based on subscription tier
@@ -156,6 +157,8 @@ export const PhotographerSessionsManager = () => {
   const [showGoLiveModal, setShowGoLiveModal] = useState(false);       // Location selection for Go Live
   const [showConditionsModal, setShowConditionsModal] = useState(false);
   const [showEndSessionModal, setShowEndSessionModal] = useState(false);
+  const [showSessionDetailDrawer, setShowSessionDetailDrawer] = useState(false);
+  const [selectedHistorySession, setSelectedHistorySession] = useState(null);
   const [goLiveLoading, setGoLiveLoading] = useState(false);
   const [endSessionLoading, setEndSessionLoading] = useState(false);
   const [isOnDemandActive, setIsOnDemandActive] = useState(false);  // Track on-demand status for mutual exclusivity
@@ -1164,24 +1167,39 @@ export const PhotographerSessionsManager = () => {
           ) : (
             <div className="space-y-3">
               {sessionHistory.map((session) => (
-                <Card key={session.id} className={cardBgClass}>
+                <Card 
+                  key={session.id} 
+                  className={`${cardBgClass} cursor-pointer transition-all hover:ring-1 ${isLight ? 'hover:ring-amber-300' : 'hover:ring-amber-500/30'}`}
+                  onClick={() => {
+                    setSelectedHistorySession(session);
+                    setShowSessionDetailDrawer(true);
+                  }}
+                >
                   <CardContent className="p-4">
                     <div className="flex items-center justify-between">
-                      <div>
+                      <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
-                          <MapPin className={`w-4 h-4 ${textSecondaryClass}`} />
-                          <span className={textPrimaryClass}>{session.location}</span>
+                          <MapPin className={`w-4 h-4 ${textSecondaryClass} flex-shrink-0`} />
+                          <span className={`${textPrimaryClass} truncate`}>{session.location}</span>
                         </div>
                         <p className={`text-sm ${textSecondaryClass} mt-1`}>
-                          {new Date(session.started_at).toLocaleDateString()} - {session.duration_mins} mins
+                          {new Date(session.started_at).toLocaleDateString()} · {session.duration_mins} mins
                         </p>
                       </div>
-                      <div className="text-right">
-                        <div className="flex items-center gap-2 justify-end">
-                          <Users className="w-4 h-4 text-cyan-400" />
-                          <span className={textPrimaryClass}>{session.total_surfers}</span>
+                      <div className="flex items-center gap-3">
+                        <div className="text-right">
+                          <div className="flex items-center gap-2 justify-end">
+                            <Users className="w-4 h-4 text-cyan-400" />
+                            <span className={textPrimaryClass}>{session.total_surfers}</span>
+                          </div>
+                          <p className="text-green-400 font-bold">${session.total_earnings?.toFixed(2) || '0.00'}</p>
                         </div>
-                        <p className="text-green-400 font-bold">${session.total_earnings?.toFixed(2) || '0.00'}</p>
+                        {session.has_pending_reviews && (
+                          <span className="relative flex h-2.5 w-2.5">
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-yellow-400 opacity-75" />
+                            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-yellow-500" />
+                          </span>
+                        )}
                       </div>
                     </div>
                   </CardContent>
@@ -1190,6 +1208,22 @@ export const PhotographerSessionsManager = () => {
             </div>
           )}
         </div>
+
+        {/* Session Detail Drawer */}
+        <SessionDetailDrawer
+          isOpen={showSessionDetailDrawer}
+          onClose={() => {
+            setShowSessionDetailDrawer(false);
+            setSelectedHistorySession(null);
+          }}
+          session={selectedHistorySession}
+          theme={theme}
+          userRole="photographer"
+          userId={user?.id}
+          onNavigateToGallery={(galleryId) => {
+            navigate(`/gallery/${galleryId}`);
+          }}
+        />
       </div>
 
       {/* Settings Modal - RATES/PRICING ONLY (Separated from Go Live) */}

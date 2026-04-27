@@ -5,11 +5,12 @@
  * - Shows completed sessions with photographer info
  * - "Leave a Review" button if session hasn't been reviewed
  * - Shows existing review snippet if already reviewed
+ * - Tap-to-expand session detail drawer with pricing, participants, gallery link
  * - Theme-aware (light/dark/beach)
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { Calendar, MapPin, History, Star, MessageSquare, ChevronDown, Camera, Clock } from 'lucide-react';
+import { Calendar, MapPin, History, Star, MessageSquare, ChevronDown, Camera, Clock, ChevronRight } from 'lucide-react';
 import { Card, CardContent } from '../ui/card';
 import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';
@@ -18,6 +19,7 @@ import { getFullUrl } from '../../utils/media';
 import apiClient from '../../lib/apiClient';
 import logger from '../../utils/logger';
 import ReviewModal from '../ReviewModal';
+import SessionDetailDrawer from './SessionDetailDrawer';
 
 export const PastTab = ({
   pastBookings,
@@ -39,6 +41,10 @@ export const PastTab = ({
   const [reviewTarget, setReviewTarget] = useState(null); // { id, full_name, avatar_url }
   const [reviewSessionId, setReviewSessionId] = useState(null);
   const [reviewSessionType, setReviewSessionType] = useState('live');
+  
+  // Session detail drawer state
+  const [showDetailDrawer, setShowDetailDrawer] = useState(false);
+  const [selectedSession, setSelectedSession] = useState(null);
   
   // Review status tracking
   const [reviewedSessions, setReviewedSessions] = useState({});
@@ -94,6 +100,11 @@ export const PastTab = ({
       setReviewedSessions(prev => ({ ...prev, [sessionId]: true }));
     }
   }, [reviewSessionId]);
+  
+  const handleViewDetails = useCallback((booking) => {
+    setSelectedSession(booking);
+    setShowDetailDrawer(true);
+  }, []);
 
   if (pastBookings.length === 0) {
     return (
@@ -120,7 +131,11 @@ export const PastTab = ({
           const existingRating = typeof hasReviewed === 'number' ? hasReviewed : null;
           
           return (
-            <Card key={booking.id} className={`${cardBgClass} transition-colors duration-300`}>
+            <Card 
+              key={booking.id} 
+              className={`${cardBgClass} transition-all duration-300 cursor-pointer hover:ring-1 ${isLight ? 'hover:ring-amber-300' : 'hover:ring-amber-500/30'}`}
+              onClick={() => handleViewDetails(booking)}
+            >
               <CardContent className="p-4">
                 {/* Session header */}
                 <div className="flex items-start justify-between mb-2">
@@ -146,9 +161,12 @@ export const PastTab = ({
                       </p>
                     </div>
                   </div>
-                  <Badge variant="secondary" className={isLight ? 'bg-green-100 text-green-700' : 'bg-green-900/30 text-green-400'}>
-                    Completed
-                  </Badge>
+                  <div className="flex items-center gap-2">
+                    <Badge variant="secondary" className={isLight ? 'bg-green-100 text-green-700' : 'bg-green-900/30 text-green-400'}>
+                      Completed
+                    </Badge>
+                    <ChevronRight className={`w-4 h-4 ${textSecondaryClass} flex-shrink-0`} />
+                  </div>
                 </div>
                 
                 {/* Session details */}
@@ -187,7 +205,10 @@ export const PastTab = ({
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => handleLeaveReview(booking)}
+                      onClick={(e) => {
+                        e.stopPropagation(); // Prevent card click from firing
+                        handleLeaveReview(booking);
+                      }}
                       className={`w-full ${
                         isLight
                           ? 'border-yellow-300 text-yellow-700 hover:bg-yellow-50'
@@ -204,6 +225,23 @@ export const PastTab = ({
           );
         })}
       </div>
+      
+      {/* Session Detail Drawer */}
+      <SessionDetailDrawer
+        isOpen={showDetailDrawer}
+        onClose={() => {
+          setShowDetailDrawer(false);
+          setSelectedSession(null);
+        }}
+        session={selectedSession}
+        theme={theme}
+        userRole="surfer"
+        userId={userId}
+        onNavigateToGallery={(galleryId) => {
+          // Navigate to gallery page
+          window.location.href = `/gallery/${galleryId}`;
+        }}
+      />
       
       {/* Review Modal */}
       {showReviewModal && reviewTarget && (

@@ -135,6 +135,13 @@ class LiveSessionResponse(BaseModel):
     participants: List[dict] = []
 
 
+class SessionHistoryParticipant(BaseModel):
+    id: str
+    full_name: Optional[str] = None
+    avatar_url: Optional[str] = None
+    amount_paid: float = 0.0
+
+
 class SessionHistoryItem(BaseModel):
     id: str
     location: str
@@ -142,6 +149,21 @@ class SessionHistoryItem(BaseModel):
     duration_mins: int
     total_surfers: int
     total_earnings: float
+    # Enhanced fields for detail drawer
+    session_type: Optional[str] = 'live'
+    live_session_id: Optional[str] = None
+    gallery_id: Optional[str] = None
+    gallery_photo_count: int = 0
+    # Pricing snapshot
+    buyin_price: Optional[float] = None
+    photo_price_web: Optional[float] = None
+    photo_price_standard: Optional[float] = None
+    photo_price_high: Optional[float] = None
+    # Participant roster
+    participants: List[SessionHistoryParticipant] = []
+    # Review info
+    has_pending_reviews: bool = False
+    reviews_given: int = 0
 
 
 
@@ -2271,60 +2293,174 @@ async def get_session_history(
     limit: int = Query(default=20, le=100),
     db: AsyncSession = Depends(get_db)
 ):
-    """Get photographer's past live session history"""
-    # Get completed sessions grouped by approximate time windows
-    # For simplicity, we'll aggregate completed participants by date
-    result = await db.execute(
-        select(LiveSessionParticipant)
-        .where(LiveSessionParticipant.photographer_id == photographer_id)
-        .where(LiveSessionParticipant.status == 'completed')
-        .options(selectinload(LiveSessionParticipant.spot))
-        .order_by(LiveSessionParticipant.completed_at.desc())
-        .limit(limit * 10)  # Get more to aggregate
+    """Get photographer's past session history with enriched detail data"""
+    from models import Gallery, GalleryItem, Review
+    
+    # Query ended LiveSessions directly for accurate session data
+    sessions_result = await db.execute(
+        select(LiveSession)
+        .where(
+            and_(
+                LiveSession.photographer_id == photographer_id,
+                LiveSession.status == 'ended'
+            )
+        )
+        .options(selectinload(LiveSession.surf_spot))
+        .order_by(LiveSession.ended_at.desc())
+        .limit(limit)
     )
-    participants = result.scalars().all()
+    sessions = sessions_result.scalars().all()
     
-    if not participants:
-        return []
+    if not sessions:
+        # Fallback: check participant records for legacy sessions without LiveSession records
+        result = await db.execute(
+            select(LiveSessionParticipant)
+            .where(LiveSessionParticipant.photographer_id == photographer_id)
+            .where(LiveSessionParticipant.status == 'completed')
+            .options(selectinload(LiveSessionParticipant.spot))
+            .order_by(LiveSessionParticipant.completed_at.desc())
+            .limit(limit * 10)
+        )
+        participants = result.scalars().all()
+        
+        if not participants:
+            return []
+        
+        # Legacy aggregation path
+        sessions_map = {}
+        for p in participants:
+            if p.completed_at:
+                date_key = p.completed_at.date().isoformat()
+                location = p.spot.name if p.spot else "Unknown location"
+                key = f"{date_key}_{location}"
+                if key not in sessions_map:
+                    sessions_map[key] = {
+                        "id": p.id, "location": location,
+                        "started_at": p.joined_at, "completed_at": p.completed_at,
+                        "surfers": [], "earnings": 0
+                    }
+                sessions_map[key]["surfers"].append(p.surfer_id)
+                sessions_map[key]["earnings"] += p.amount_paid
+        
+        history = []
+        for sd in list(sessions_map.values())[:limit]:
+            duration_mins = 60
+            if sd["completed_at"] and sd["started_at"]:
+                duration = sd["completed_at"] - sd["started_at"]
+                duration_mins = max(int(duration.total_seconds() / 60), 1)
+            history.append(SessionHistoryItem(
+                id=sd["id"], location=sd["location"], started_at=sd["started_at"],
+                duration_mins=duration_mins, total_surfers=len(sd["surfers"]),
+                total_earnings=sd["earnings"]
+            ))
+        return history
     
-    # Group by date and spot to create "sessions"
-    sessions_map = {}
-    for p in participants:
-        # Use date as key
-        if p.completed_at:
-            date_key = p.completed_at.date().isoformat()
-            location = p.spot.name if p.spot else "Unknown location"
-            key = f"{date_key}_{location}"
-            
-            if key not in sessions_map:
-                sessions_map[key] = {
-                    "id": p.id,
-                    "location": location,
-                    "started_at": p.joined_at,
-                    "completed_at": p.completed_at,
-                    "surfers": [],
-                    "earnings": 0
-                }
-            
-            sessions_map[key]["surfers"].append(p.surfer_id)
-            sessions_map[key]["earnings"] += p.amount_paid
+    # Collect session IDs for batch queries
+    session_ids = [s.id for s in sessions]
     
-    # Convert to response
+    # Batch-load participants with surfer profiles
+    participants_result = await db.execute(
+        select(LiveSessionParticipant)
+        .options(selectinload(LiveSessionParticipant.surfer))
+        .where(
+            and_(
+                LiveSessionParticipant.session_id.in_(session_ids),
+                LiveSessionParticipant.status == 'completed'
+            )
+        )
+    )
+    all_participants = participants_result.scalars().all()
+    
+    # Group participants by session_id
+    participants_by_session = {}
+    for p in all_participants:
+        participants_by_session.setdefault(p.session_id, []).append(p)
+    
+    # Batch-load galleries for these sessions
+    galleries_result = await db.execute(
+        select(Gallery)
+        .where(Gallery.live_session_id.in_(session_ids))
+    )
+    galleries_by_session = {g.live_session_id: g for g in galleries_result.scalars().all()}
+    
+    # Batch-load gallery photo counts
+    gallery_ids = [g.id for g in galleries_by_session.values()]
+    photo_counts = {}
+    if gallery_ids:
+        counts_result = await db.execute(
+            select(GalleryItem.gallery_id, func.count(GalleryItem.id))
+            .where(GalleryItem.gallery_id.in_(gallery_ids))
+            .where(GalleryItem.is_deleted.is_(False))
+            .group_by(GalleryItem.gallery_id)
+        )
+        for gid, cnt in counts_result.all():
+            photo_counts[gid] = cnt
+    
+    # Batch-load review counts (reviews given BY this photographer for these sessions)
+    reviews_result = await db.execute(
+        select(Review.live_session_id, func.count(Review.id))
+        .where(
+            and_(
+                Review.reviewer_id == photographer_id,
+                Review.live_session_id.in_(session_ids)
+            )
+        )
+        .group_by(Review.live_session_id)
+    )
+    reviews_given_by_session = dict(reviews_result.all())
+    
+    # Build enriched response
     history = []
-    for session_data in list(sessions_map.values())[:limit]:
-        duration_mins = 60  # Default duration
-        if session_data["completed_at"] and session_data["started_at"]:
-            duration = session_data["completed_at"] - session_data["started_at"]
+    for session in sessions:
+        duration_mins = session.duration_mins or 60
+        if not session.duration_mins and session.ended_at and session.started_at:
+            duration = session.ended_at - session.started_at
             duration_mins = max(int(duration.total_seconds() / 60), 1)
         
+        location = session.location_name or (session.surf_spot.name if session.surf_spot else "Unknown location")
+        
+        # Participant roster
+        session_participants = participants_by_session.get(session.id, [])
+        participant_roster = []
+        total_earnings = session.total_earnings or 0
+        for p in session_participants:
+            surfer = p.surfer
+            participant_roster.append(SessionHistoryParticipant(
+                id=p.surfer_id,
+                full_name=surfer.full_name if surfer else "Surfer",
+                avatar_url=surfer.avatar_url if surfer else None,
+                amount_paid=p.amount_paid or 0.0
+            ))
+        
+        # Gallery info
+        gallery = galleries_by_session.get(session.id)
+        gallery_id = gallery.id if gallery else None
+        gallery_count = photo_counts.get(gallery_id, 0) if gallery_id else 0
+        
+        # Review info
+        reviews_given = reviews_given_by_session.get(session.id, 0)
+        has_pending = len(session_participants) > reviews_given
+        
         history.append(SessionHistoryItem(
-            id=session_data["id"],
-            location=session_data["location"],
-            started_at=session_data["started_at"],
+            id=session.id,
+            location=location,
+            started_at=session.started_at,
             duration_mins=duration_mins,
-            total_surfers=len(session_data["surfers"]),
-            total_earnings=session_data["earnings"]
+            total_surfers=len(session_participants),
+            total_earnings=total_earnings,
+            session_type=session.session_mode or 'live_join',
+            live_session_id=session.id,
+            gallery_id=gallery_id,
+            gallery_photo_count=gallery_count,
+            buyin_price=session.buyin_price,
+            photo_price_web=session.session_price_web,
+            photo_price_standard=session.session_price_standard,
+            photo_price_high=session.session_price_high,
+            participants=participant_roster,
+            has_pending_reviews=has_pending,
+            reviews_given=reviews_given
         ))
+    
     
     return history
 
