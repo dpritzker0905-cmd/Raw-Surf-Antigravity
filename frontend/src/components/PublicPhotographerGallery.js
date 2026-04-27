@@ -264,13 +264,18 @@ export const PublicPhotographerGallery = () => {
     }
   }, [photographerId, fetchPhotographer, fetchGalleries, fetchItems]);
 
-  // Deep-link: auto-select gallery tab when ?gallery=<id> is in URL
+  // Auto-select gallery tab: deep-link first, then default to first gallery
   useEffect(() => {
-    if (deepLinkGalleryId && galleries.length > 0 && !selectedGallery) {
-      const target = galleries.find(g => g.id === deepLinkGalleryId);
-      if (target) {
-        setSelectedGallery(target);
+    if (galleries.length > 0 && !selectedGallery) {
+      if (deepLinkGalleryId) {
+        const target = galleries.find(g => g.id === deepLinkGalleryId);
+        if (target) {
+          setSelectedGallery(target);
+          return;
+        }
       }
+      // No deep-link or target not found — default to first gallery
+      setSelectedGallery(galleries[0]);
     }
   }, [deepLinkGalleryId, galleries, selectedGallery]);
 
@@ -416,16 +421,6 @@ export const PublicPhotographerGallery = () => {
           <div className="mb-6">
             <h2 className={`text-lg font-semibold ${textPrimary} mb-3`}>Session Galleries</h2>
             <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
-              <button
-                onClick={() => setSelectedGallery(null)}
-                className={`flex-shrink-0 px-4 py-2 rounded-full border transition-all ${
-                  !selectedGallery 
-                    ? pillActive 
-                    : pillInactive
-                }`}
-              >
-                All Photos
-              </button>
               {galleries.map(gallery => (
                 <button
                   key={gallery.id}
