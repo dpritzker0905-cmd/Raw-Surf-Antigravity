@@ -10,14 +10,13 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { Calendar, MapPin, History, Star, MessageSquare, ChevronDown, Camera, Clock, ChevronRight } from 'lucide-react';
+import { Calendar, MapPin, History, Star, Camera, Clock, ChevronRight } from 'lucide-react';
 import { Card, CardContent } from '../ui/card';
 import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { getFullUrl } from '../../utils/media';
 import apiClient from '../../lib/apiClient';
-import logger from '../../utils/logger';
 import ReviewModal from '../ReviewModal';
 import SessionDetailDrawer from './SessionDetailDrawer';
 

@@ -3348,7 +3348,10 @@ async def get_photographer_session_history(
             DispatchRequest.photographer_id == photographer_id,
             DispatchRequest.status == DispatchRequestStatusEnum.COMPLETED
         )
-        .options(selectinload(DispatchRequest.requester))
+        .options(
+            selectinload(DispatchRequest.requester),
+            selectinload(DispatchRequest.participants).selectinload(DispatchRequestParticipant.participant_profile)
+        )
         .order_by(DispatchRequest.completed_at.desc())
         .offset(offset)
         .limit(limit)
@@ -3357,14 +3360,32 @@ async def get_photographer_session_history(
     
     history = []
     for d in dispatches:
+        # Build participant roster
+        participants = []
+        for p in (d.participants or []):
+            profile = p.participant_profile if hasattr(p, 'participant_profile') else None
+            participants.append({
+                "id": p.participant_id,
+                "full_name": p.payer_name or (profile.full_name if profile else "Surfer"),
+                "avatar_url": p.payer_avatar_url or (profile.avatar_url if profile else None),
+                "amount_paid": float(p.share_amount or 0) if p.paid else 0,
+                "paid": p.paid or False,
+            })
+
         history.append({
             "id": d.id,
+            "requester_id": d.requester_id,
             "requester_name": d.requester.full_name if d.requester else "Unknown",
+            "requester_avatar": d.requester.avatar_url if d.requester else None,
             "location_name": d.location_name or "Unknown Location",
-            "date": d.completed_at.isoformat() if d.completed_at else None,
+            "date": d.completed_at.isoformat() if d.completed_at else (d.created_at.isoformat() if d.created_at else None),
             "duration_hours": d.estimated_duration_hours,
             "earnings": d.estimated_total or 0,
-            "hourly_rate": d.hourly_rate or 75
+            "hourly_rate": d.hourly_rate or 75,
+            "participant_count": len(participants) + 1,  # +1 for captain/requester
+            "participants": participants,
+            "photo_count": 0,
+            "gallery_id": None,
         })
     
     return {

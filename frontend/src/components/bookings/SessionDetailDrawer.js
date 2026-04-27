@@ -9,20 +9,18 @@
 
 import React, { useState, useCallback, useEffect } from 'react';
 import {
-  X, MapPin, Calendar, Clock, DollarSign, Users, Star, Camera,
-  ChevronRight, ImageIcon, MessageSquare, Award, Zap, Send
+  X, MapPin, Calendar, Clock, DollarSign, Users, Star,
+  ChevronRight, ImageIcon, Award, Zap, Send
 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';
 import { getFullUrl } from '../../utils/media';
 import apiClient from '../../lib/apiClient';
-import { toast } from 'sonner';
-import logger from '../../utils/logger';
 import ReviewModal from '../ReviewModal';
 
 // ─── Session Type Badge ─────────────────────────────────────────────────────
-const SessionTypeBadge = ({ type, isLight }) => {
+const SessionTypeBadge = ({ type, isLight: _isLight }) => {
   const config = {
     live_join: { label: 'Live Session', color: 'from-cyan-500 to-blue-500', icon: Zap },
     live: { label: 'Live Session', color: 'from-cyan-500 to-blue-500', icon: Zap },
@@ -125,18 +123,6 @@ const SessionDetailDrawer = ({
       if (!sessionId) return;
       
       if (userRole === 'photographer' && session.participants?.length > 0) {
-        // Check which participants the photographer has already reviewed
-        const reviewed = {};
-        for (const p of session.participants) {
-          try {
-            const res = await apiClient.get(`/reviews/check?reviewer_id=${userId}&live_session_id=${sessionId}`);
-            if (res.data?.has_reviewed) {
-              // This checks the session level — need to check per reviewee
-              // Actually the check endpoint checks by reviewer + session, not per reviewee
-              // So we'll mark all as reviewed if any review exists for this session
-            }
-          } catch { /* silent */ }
-        }
         // More accurate: batch check
         try {
           const res = await apiClient.get(`/reviews/check?reviewer_id=${userId}&live_session_id=${sessionId}`);
@@ -212,15 +198,25 @@ const SessionDetailDrawer = ({
         onClick={onClose}
       />
 
-      {/* Drawer */}
+      {/* Drawer — bottom-sheet mobile, centered modal desktop */}
       <div
-        className={`fixed inset-x-0 bottom-0 z-50 transition-transform duration-300 ease-out ${isOpen ? 'translate-y-0' : 'translate-y-full'}`}
-        style={{ maxHeight: '92vh' }}
+        className={`fixed z-50 transition-transform duration-300 ease-out
+          inset-x-0 bottom-0
+          md:inset-0 md:flex md:items-center md:justify-center
+          ${isOpen ? 'translate-y-0 md:translate-y-0' : 'translate-y-full md:translate-y-full'}`}
+        style={{ pointerEvents: isOpen ? 'auto' : 'none' }}
       >
-        <div className={`rounded-t-3xl overflow-hidden ${isLight ? 'bg-white' : isBeach ? 'bg-zinc-950' : 'bg-zinc-900'} border-t ${isLight ? 'border-gray-200' : 'border-white/10'}`}>
+        <div
+          className={`w-full rounded-t-3xl md:rounded-3xl overflow-hidden shadow-2xl
+            md:max-w-[560px] md:mx-auto
+            ${isLight ? 'bg-white' : isBeach ? 'bg-zinc-950' : 'bg-zinc-900'}
+            border-t md:border ${isLight ? 'border-gray-200' : 'border-white/10'}`}
+          style={{ maxHeight: '92vh', maxWidth: '100%' }}
+          onClick={(e) => e.stopPropagation()}
+        >
           
-          {/* Drag Handle */}
-          <div className="flex justify-center pt-3 pb-1">
+          {/* Drag Handle (mobile) / Close hint */}
+          <div className="flex justify-center pt-3 pb-1 md:hidden">
             <div className={`w-10 h-1 rounded-full ${isLight ? 'bg-gray-300' : 'bg-white/20'}`} />
           </div>
 

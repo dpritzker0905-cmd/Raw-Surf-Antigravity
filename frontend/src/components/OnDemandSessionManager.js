@@ -6,7 +6,7 @@ import { useAuth } from '../contexts/AuthContext';
 
 import { useTheme } from '../contexts/ThemeContext';
 
-import apiClient, { BACKEND_URL } from '../lib/apiClient';
+import apiClient from '../lib/apiClient';
 
 import { 
 
@@ -38,6 +38,8 @@ import logger from '../utils/logger';
 import { getFullUrl } from '../utils/media';
 import { ROLES } from '../constants/roles';
 import { SessionChatDrawer, SessionChatFAB } from './SessionChatDrawer';
+import SessionDetailDrawer from './bookings/SessionDetailDrawer';
+import { ChevronRight as ChevronRightIcon } from 'lucide-react';
 
 
 
@@ -928,6 +930,8 @@ export const OnDemandSessionManager = () => {
   // Stats and history
   const [stats, setStats] = useState({});
   const [sessionHistory, setSessionHistory] = useState([]);
+  const [showHistoryDrawer, setShowHistoryDrawer] = useState(false);
+  const [selectedHistorySession, setSelectedHistorySession] = useState(null);
   
   // UI state
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -2023,6 +2027,7 @@ export const OnDemandSessionManager = () => {
         )}
         
         {activeTab === 'history' && (
+          <>
           <Card className={cardBg} data-testid="history-panel">
             <CardContent className="p-4">
               <h3 className={`font-bold text-lg ${textPrimary} flex items-center gap-2 mb-6`}>
@@ -2038,28 +2043,74 @@ export const OnDemandSessionManager = () => {
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {sessionHistory.map((session, idx) => (
-                    <div 
-                      key={session.id || idx}
-                      className={`p-4 rounded-xl ${sectionBg} flex justify-between items-start`}
-                    >
-                      <div>
-                        <p className={`font-medium ${textPrimary}`}>{session.location_name}</p>
-                        <p className={`text-sm ${textSecondary}`}>
-                          {session.date ? new Date(session.date).toLocaleDateString() : 'Unknown'}
-                          {session.requester_name && ` • ${session.requester_name}`}
-                        </p>
-                        <p className={`text-xs ${textSecondary} mt-1`}>
-                          {session.duration_hours ? `${session.duration_hours * 60} min` : ''} @ ${session.hourly_rate || 75}/hr
-                        </p>
+                  {sessionHistory.map((session, idx) => {
+                    const durationMins = session.duration_hours ? Math.round(session.duration_hours * 60) : 0;
+                    return (
+                      <div 
+                        key={session.id || idx}
+                        className={`p-4 rounded-xl ${sectionBg} flex justify-between items-center cursor-pointer transition-all hover:ring-1 ${isLight ? 'hover:ring-purple-300' : 'hover:ring-purple-500/30'}`}
+                        onClick={() => {
+                          setSelectedHistorySession({
+                            ...session,
+                            session_type: 'on_demand',
+                            location: session.location_name,
+                            session_date: session.date,
+                            duration_mins: durationMins,
+                            total_surfers: session.participant_count || 1,
+                            total_earnings: session.earnings || 0,
+                            buyin_price: session.hourly_rate || 75,
+                            photographer_name: session.requester_name,
+                            gallery_photo_count: session.photo_count || 0,
+                            gallery_id: session.gallery_id || null,
+                            participants: session.participants || [],
+                          });
+                          setShowHistoryDrawer(true);
+                        }}
+                      >
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold text-white bg-gradient-to-r from-purple-500 to-indigo-500">
+                              <Zap className="w-2.5 h-2.5" /> On-Demand
+                            </span>
+                          </div>
+                          <p className={`font-medium ${textPrimary}`}>{session.location_name}</p>
+                          <p className={`text-sm ${textSecondary}`}>
+                            {session.date ? new Date(session.date).toLocaleDateString() : 'Unknown'}
+                            {session.requester_name && ` • ${session.requester_name}`}
+                          </p>
+                          <p className={`text-xs ${textSecondary} mt-1`}>
+                            {durationMins > 0 ? `${durationMins} min` : ''}
+                            {session.hourly_rate ? ` @ $${session.hourly_rate}/hr` : ''}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          <p className="text-green-400 font-bold text-lg">${(session.earnings || 0).toFixed(2)}</p>
+                          <ChevronRightIcon className={`w-4 h-4 ${textSecondary}`} />
+                        </div>
                       </div>
-                      <p className="text-green-400 font-bold text-lg">${(session.earnings || 0).toFixed(2)}</p>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </CardContent>
           </Card>
+
+          {/* Session Detail Drawer for On-Demand History */}
+          <SessionDetailDrawer
+            isOpen={showHistoryDrawer}
+            onClose={() => {
+              setShowHistoryDrawer(false);
+              setSelectedHistorySession(null);
+            }}
+            session={selectedHistorySession}
+            theme={theme}
+            userRole="photographer"
+            userId={user?.id}
+            onNavigateToGallery={(galleryId) => {
+              window.location.href = `/gallery/${galleryId}`;
+            }}
+          />
+          </>
         )}
       </div>
 
