@@ -381,14 +381,18 @@ async def get_user_bookings(
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     
-    # Get bookings where user is a participant and booking is not cancelled
+    # Get bookings where user is a participant and booking is not cancelled.
+    # IMPORTANT: Exclude bookings where the user IS the photographer — those
+    # belong in the photographer dashboard, not the surfer booking view.
     result = await db.execute(
         select(BookingParticipant)
         .join(Booking, BookingParticipant.booking_id == Booking.id)
         .where(
             BookingParticipant.participant_id == user_id,
             # Exclude cancelled, completed, and refunded bookings
-            ~Booking.status.in_(['Cancelled', 'Refunded'])
+            ~Booking.status.in_(['Cancelled', 'Refunded']),
+            # Don't show bookings where user is the photographer (surfer view only)
+            Booking.photographer_id != user_id
         )
         .options(
             selectinload(BookingParticipant.booking).selectinload(Booking.photographer),

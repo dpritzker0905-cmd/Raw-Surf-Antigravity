@@ -998,12 +998,35 @@ const SpotHub = () => {
                       </span>
                     </div>
                   </div>
-                  {photographer.session_price && (
-                    <div className="text-right">
-                      <p className="text-sm font-bold text-emerald-400">${photographer.session_price}</p>
-                      <p className="text-[9px] text-gray-500">per session</p>
-                    </div>
-                  )}
+                  {/* Context-aware pricing: on-demand → hourly rate, live → session price, scheduled → booking rate */}
+                  {(() => {
+                    const isOnDemand = photographer.status === 'on_demand' || photographer.is_on_demand;
+                    const isLive = photographer.status === 'live_shooting' || photographer.is_shooting;
+                    
+                    if (isOnDemand && photographer.on_demand_hourly_rate) {
+                      return (
+                        <div className="text-right">
+                          <p className="text-sm font-bold text-amber-400">${photographer.on_demand_hourly_rate}</p>
+                          <p className="text-[9px] text-gray-500">per hour</p>
+                        </div>
+                      );
+                    } else if (isLive && photographer.session_price) {
+                      return (
+                        <div className="text-right">
+                          <p className="text-sm font-bold text-emerald-400">${photographer.session_price}</p>
+                          <p className="text-[9px] text-gray-500">per session</p>
+                        </div>
+                      );
+                    } else if (photographer.booking_hourly_rate || photographer.hourly_rate) {
+                      return (
+                        <div className="text-right">
+                          <p className="text-sm font-bold text-cyan-400">${photographer.booking_hourly_rate || photographer.hourly_rate}</p>
+                          <p className="text-[9px] text-gray-500">per hour</p>
+                        </div>
+                      );
+                    }
+                    return null;
+                  })()}
                   <Button 
                     size="sm" 
                     onClick={() => handleOpenBookingModal(photographer)}

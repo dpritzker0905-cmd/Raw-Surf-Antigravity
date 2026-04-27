@@ -23,6 +23,7 @@ export const CrewPaymentModal = ({
   const { theme } = useTheme();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
+  const [declining, setDeclining] = useState(false);
   const [step, setStep] = useState('details'); // 'details' | 'selfie' | 'payment' | 'success'
   const [selfieUrl, setSelfieUrl] = useState(null);
   const [uploadingSelfie, setUploadingSelfie] = useState(false);
@@ -254,10 +255,24 @@ export const CrewPaymentModal = ({
             </Button>
             
             <button 
-              onClick={onClose}
+              onClick={async () => {
+                if (!invite?.id) { onClose(); return; }
+                setDeclining(true);
+                try {
+                  await apiClient.post(`/dispatch/crew-invite/${invite.id}/decline?user_id=${user?.id}`);
+                  toast.success('Invite declined');
+                  onSuccess?.();
+                  onClose();
+                } catch (err) {
+                  toast.error(err?.response?.data?.detail || 'Failed to decline invite');
+                } finally {
+                  setDeclining(false);
+                }
+              }}
+              disabled={declining}
               className={`w-full text-center text-xs ${textSecondary} hover:text-red-400 transition-colors py-1`}
             >
-              Decline Invite
+              {declining ? 'Declining...' : 'Decline Invite'}
             </button>
           </div>
         )}

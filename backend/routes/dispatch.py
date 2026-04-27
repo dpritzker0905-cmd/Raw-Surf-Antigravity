@@ -2669,6 +2669,78 @@ async def get_crew_invites(
     return {"crew_invites": invites}
 
 
+@router.post("/crew-invite/{participant_id}/decline")
+async def decline_crew_invite(
+    participant_id: str,
+    user_id: str,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Crew member declines a shared session invite.
+    Sets the participant status to 'declined' and notifies the captain.
+    """
+    # Find the participant record
+    result = await db.execute(
+        select(DispatchRequestParticipant)
+        .where(DispatchRequestParticipant.id == participant_id)
+        .options(selectinload(DispatchRequestParticipant.dispatch_request))
+    )
+    participant = result.scalar_one_or_none()
+
+    if not participant:
+        raise HTTPException(status_code=404, detail="Invite not found")
+
+    if participant.participant_id != user_id:
+        raise HTTPException(status_code=403, detail="You can only decline your own invites")
+
+    if participant.status == 'paid':
+        raise HTTPException(status_code=400, detail="Cannot decline — you've already paid")
+
+    if participant.status == 'declined':
+        return {"success": True, "message": "Already declined"}
+
+    dispatch = participant.dispatch_request
+    if dispatch and dispatch.status in [
+        DispatchRequestStatusEnum.COMPLETED,
+        DispatchRequestStatusEnum.CANCELLED
+    ]:
+        raise HTTPException(status_code=400, detail="Session is no longer active")
+
+    # Mark as declined
+    participant.status = 'declined'
+
+    # Notify the captain that a crew member declined
+    if dispatch:
+        # Look up the declining user's name
+        decliner_result = await db.execute(
+            select(Profile).where(Profile.id == user_id)
+        )
+        decliner = decliner_result.scalar_one_or_none()
+        decliner_name = decliner.full_name if decliner else "A crew member"
+
+        notification = Notification(
+            user_id=dispatch.requester_id,
+            type='crew_invite_declined',
+            title='Crew Member Declined',
+            body=f'{decliner_name} declined your session invite',
+            data=json.dumps({
+                'dispatch_id': dispatch.id,
+                'participant_id': participant_id,
+                'decliner_name': decliner_name,
+                'action': 'crew_declined'
+            })
+        )
+        db.add(notification)
+
+    await db.commit()
+
+    return {
+        "success": True,
+        "message": "Invite declined",
+        "participant_id": participant_id
+    }
+
+
 class CrewPaymentRequest(BaseModel):
     selfie_url: Optional[str] = None
     require_selfie: bool = False  # If true, payment will fail without selfie
