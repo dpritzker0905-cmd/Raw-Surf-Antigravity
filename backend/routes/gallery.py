@@ -219,7 +219,11 @@ async def get_photographer_gallery(
     offset: int = 0,
     db: AsyncSession = Depends(get_db)
 ):
-    """Get a photographer's gallery. By default excludes items that are in folders."""
+    """Get a photographer's gallery. By default excludes items that are in folders.
+    
+    Privacy: Items from on-demand/booking galleries are PRIVATE and only visible
+    to session participants. Live session and manual gallery items are public.
+    """
     query = select(GalleryItem)\
         .where(GalleryItem.photographer_id == photographer_id)\
         .where(GalleryItem.is_public == True)\
@@ -228,6 +232,18 @@ async def get_photographer_gallery(
     # By default, exclude items that are in folders (gallery_id is not null)
     if not include_in_folders:
         query = query.where(GalleryItem.gallery_id == None)
+    else:
+        # When including folder items, exclude items from PRIVATE session galleries
+        # (on_demand, booking) — those are only visible to session participants.
+        # Items with no gallery_id (unfiled), or in live/manual galleries, are public.
+        query = query.where(
+            (GalleryItem.gallery_id == None) | 
+            (~GalleryItem.gallery_id.in_(
+                select(Gallery.id)
+                .where(Gallery.photographer_id == photographer_id)
+                .where(Gallery.session_type.in_(['on_demand', 'booking']))
+            ))
+        )
     
     query = query.options(selectinload(GalleryItem.photographer), selectinload(GalleryItem.spot))\
         .order_by(GalleryItem.created_at.desc())\

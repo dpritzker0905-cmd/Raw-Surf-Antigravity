@@ -117,8 +117,9 @@ export const PublicPhotographerGallery = () => {
     
     try {
       const res = await apiClient.get(`/galleries/photographer/${photographerId}`);
-      // Only show public galleries
-      setGalleries(res.data.filter(g => g.is_public));
+      // Only show public galleries, and exclude private sessions (on_demand/booking)
+      const PRIVATE_SESSION_TYPES = ['on_demand', 'booking'];
+      setGalleries(res.data.filter(g => g.is_public && !PRIVATE_SESSION_TYPES.includes(g.session_type)));
     } catch (error) {
       logger.error('Failed to fetch galleries:', error);
     }
