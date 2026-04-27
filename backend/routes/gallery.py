@@ -6154,3 +6154,296 @@ async def find_me_in_gallery(
         "subscription_tier": subscription_tier
     }
 
+
+# ═══════════════════════════════════════════════════════════════════
+# ADMIN: Migrate Gallery Titles to Date · Time · Location · Type
+# ═══════════════════════════════════════════════════════════════════
+
+SESSION_TYPE_LABELS = {
+    'live': 'Live Session',
+    'on_demand': 'On-Demand',
+    'booking': 'Booking',
+    'manual': 'Gallery',
+    None: 'Gallery',
+}
+
+
+@router.post("/gallery/migrate-titles")
+async def migrate_gallery_titles(
+    photographer_id: str = Query(..., description="Photographer ID for authorization"),
+    dry_run: bool = Query(False, description="If true, preview changes without saving"),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Retroactively update all gallery titles to the new format:
+      Date · Time · Location · Type
+    
+    Skips galleries whose title already contains ' · ' (already migrated).
+    Use dry_run=true to preview changes before committing.
+    """
+    import re
+
+    # Verify photographer exists
+    profile_result = await db.execute(select(Profile).where(Profile.id == photographer_id))
+    photographer = profile_result.scalar_one_or_none()
+    if not photographer:
+        raise HTTPException(status_code=404, detail="Photographer not found")
+
+    # Fetch all galleries for this photographer, eager-load surf_spot
+    result = await db.execute(
+        select(Gallery)
+        .where(Gallery.photographer_id == photographer_id)
+        .options(selectinload(Gallery.surf_spot))
+    )
+    galleries = result.scalars().all()
+
+    updated = []
+    skipped = []
+
+    for g in galleries:
+        # Skip already-migrated titles (contain · separator)
+        if g.title and ' · ' in g.title:
+            skipped.append({"id": g.id, "title": g.title, "reason": "already_migrated"})
+            continue
+
+        # Need session_date to build the new title
+        ts = g.session_date or g.created_at
+        if not ts:
+            skipped.append({"id": g.id, "title": g.title, "reason": "no_date"})
+            continue
+
+        # Format date and time components
+        date_part = ts.strftime("%b %d, %Y")
+        try:
+            time_part = ts.strftime("%-I:%M %p")  # Linux/Mac
+        except ValueError:
+            time_part = ts.strftime("%#I:%M %p")  # Windows
+
+        # Get spot name from relationship or parse from existing title
+        spot_name = None
+        if g.surf_spot:
+            spot_name = g.surf_spot.name
+        elif g.title:
+            # Try to extract spot name from old-format title
+            # Old format: "Live Session at Cocoa Beach Pier - April 26, 2026 at 1:00 PM"
+            match = re.search(r'(?:Session|Gallery) at (.+?)(?:\s*-\s*)', g.title)
+            if match:
+                spot_name = match.group(1).strip()
+
+        # Build type label
+        type_label = SESSION_TYPE_LABELS.get(g.session_type, 'Gallery')
+
+        # Assemble new title
+        if spot_name:
+            new_title = f"{date_part} · {time_part} · {spot_name} · {type_label}"
+        else:
+            new_title = f"{date_part} · {time_part} · {type_label}"
+
+        old_title = g.title
+        updated.append({
+            "id": g.id,
+            "old_title": old_title,
+            "new_title": new_title,
+        })
+
+        if not dry_run:
+            g.title = new_title
+
+    if not dry_run and updated:
+        await db.commit()
+
+    return {
+        "message": f"{'Would update' if dry_run else 'Updated'} {len(updated)} gallery titles, skipped {len(skipped)}",
+        "dry_run": dry_run,
+        "updated": updated,
+        "skipped": skipped,
+    }
+
+
+# ═══════════════════════════════════════════════════════════════════
+# ADMIN: Clean up GalleryItem titles (replace hash/UUID filenames)
+# ═══════════════════════════════════════════════════════════════════
+
+def _is_hash_title(title: str) -> bool:
+    """Detect if a title is a non-human-readable hash, UUID, or numeric string.
+    Returns True for titles like:
+      - '517123533_30162777753884_4533105'
+      - 'a1b2c3d4-e5f6-7890-abcd-ef1234567890'
+      - '2f3a4b5c_original'
+    """
+    if not title:
+        return True
+    import re
+    cleaned = title.strip()
+    # UUID pattern
+    if re.match(r'^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}', cleaned, re.I):
+        return True
+    # UUID without dashes (32 hex chars)
+    if re.match(r'^[a-f0-9]{32}', cleaned, re.I):
+        return True
+    # Strip common suffixes like _original, _preview
+    base = re.sub(r'_(original|preview|thumb|thumbnail)$', '', cleaned)
+    # All digits + underscores (Instagram-style) — at least 10 chars
+    if re.match(r'^[\d_]+$', base) and len(base) >= 10:
+        return True
+    # Mostly digits/hex with underscores — >70% non-alpha in a long string
+    alpha_count = sum(1 for c in base if c.isalpha() and c not in 'abcdefABCDEF')
+    if len(base) > 15 and alpha_count < len(base) * 0.3:
+        return True
+    return False
+
+
+@router.post("/gallery/{gallery_id}/clean-item-titles")
+async def clean_gallery_item_titles(
+    gallery_id: str,
+    photographer_id: str = Query(..., description="Photographer ID for authorization"),
+    dry_run: bool = Query(False, description="If true, preview changes without saving"),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Replace hash/UUID/numeric-only item titles with clean sequential names.
+    
+    Photos become: "Surf Photo 1", "Surf Photo 2", …
+    Videos become: "Surf Video 1", "Surf Video 2", …
+    
+    Only renames items whose current title looks like a system-generated hash.
+    Items with human-readable titles are left untouched.
+    """
+    # Verify gallery ownership
+    result = await db.execute(select(Gallery).where(Gallery.id == gallery_id))
+    gallery = result.scalar_one_or_none()
+    if not gallery:
+        raise HTTPException(status_code=404, detail="Gallery not found")
+    if gallery.photographer_id != photographer_id:
+        raise HTTPException(status_code=403, detail="Not authorized")
+
+    # Get all items, ordered by creation date
+    items_result = await db.execute(
+        select(GalleryItem)
+        .where(
+            GalleryItem.gallery_id == gallery_id,
+            GalleryItem.is_deleted == False
+        )
+        .order_by(GalleryItem.created_at.asc())
+    )
+    items = items_result.scalars().all()
+
+    photo_counter = 0
+    video_counter = 0
+    updated = []
+    skipped = []
+
+    for item in items:
+        is_video = item.media_type == 'video'
+
+        if is_video:
+            video_counter += 1
+        else:
+            photo_counter += 1
+
+        if not _is_hash_title(item.title):
+            skipped.append({"id": item.id, "title": item.title, "reason": "human_readable"})
+            continue
+
+        if is_video:
+            new_title = f"Surf Video {video_counter}"
+        else:
+            new_title = f"Surf Photo {photo_counter}"
+
+        updated.append({
+            "id": item.id,
+            "old_title": item.title,
+            "new_title": new_title,
+        })
+
+        if not dry_run:
+            item.title = new_title
+
+    if not dry_run and updated:
+        await db.commit()
+
+    return {
+        "message": f"{'Would rename' if dry_run else 'Renamed'} {len(updated)} items, skipped {len(skipped)} (already readable)",
+        "gallery_id": gallery_id,
+        "dry_run": dry_run,
+        "updated": updated,
+        "skipped": skipped,
+    }
+
+
+@router.post("/gallery/clean-all-item-titles")
+async def clean_all_item_titles(
+    photographer_id: str = Query(..., description="Photographer ID for authorization"),
+    dry_run: bool = Query(False, description="If true, preview changes without saving"),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Batch version: Clean up hash-style item titles across ALL galleries for a photographer.
+    Calls the per-gallery logic for each gallery.
+    """
+    # Verify photographer exists
+    profile_result = await db.execute(select(Profile).where(Profile.id == photographer_id))
+    photographer = profile_result.scalar_one_or_none()
+    if not photographer:
+        raise HTTPException(status_code=404, detail="Photographer not found")
+
+    # Get all galleries
+    result = await db.execute(
+        select(Gallery).where(Gallery.photographer_id == photographer_id)
+    )
+    galleries = result.scalars().all()
+
+    total_updated = 0
+    total_skipped = 0
+    gallery_results = []
+
+    for g in galleries:
+        items_result = await db.execute(
+            select(GalleryItem)
+            .where(
+                GalleryItem.gallery_id == g.id,
+                GalleryItem.is_deleted == False
+            )
+            .order_by(GalleryItem.created_at.asc())
+        )
+        items = items_result.scalars().all()
+
+        photo_counter = 0
+        video_counter = 0
+        g_updated = 0
+
+        for item in items:
+            is_video = item.media_type == 'video'
+            if is_video:
+                video_counter += 1
+            else:
+                photo_counter += 1
+
+            if not _is_hash_title(item.title):
+                total_skipped += 1
+                continue
+
+            new_title = f"Surf Video {video_counter}" if is_video else f"Surf Photo {photo_counter}"
+
+            if not dry_run:
+                item.title = new_title
+            g_updated += 1
+            total_updated += 1
+
+        if g_updated > 0:
+            gallery_results.append({
+                "gallery_id": g.id,
+                "gallery_title": g.title,
+                "items_renamed": g_updated,
+            })
+
+    if not dry_run and total_updated > 0:
+        await db.commit()
+
+    return {
+        "message": f"{'Would rename' if dry_run else 'Renamed'} {total_updated} items across {len(gallery_results)} galleries, skipped {total_skipped}",
+        "dry_run": dry_run,
+        "total_updated": total_updated,
+        "total_skipped": total_skipped,
+        "galleries": gallery_results,
+    }

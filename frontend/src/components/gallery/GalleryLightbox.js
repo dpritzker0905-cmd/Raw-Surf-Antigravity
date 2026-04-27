@@ -257,9 +257,12 @@ export const GalleryLightbox = ({
         {item.media_type === 'video' ? (
           <video
             src={mediaUrl}
-            controls
+            controls={isAccessible || unlocked}
+            autoPlay
+            muted={!isAccessible && !unlocked}
+            loop={!isAccessible && !unlocked}
             playsInline
-            className="max-w-[90vw] max-h-[75vh] object-contain"
+            className={`max-w-[90vw] max-h-[75vh] object-contain ${!isAccessible && !unlocked ? 'blur-sm' : ''}`}
             poster={getFullUrl(item.thumbnail_url)}
           />
         ) : (
@@ -299,7 +302,7 @@ export const GalleryLightbox = ({
               </div>
               <h3 className="text-white text-lg font-bold mb-2">Unlock Full Resolution</h3>
               <p className="text-zinc-400 text-sm mb-4">
-                Purchase this photo to download in full quality
+                Purchase this {item.media_type === 'video' ? 'video' : 'photo'} to download in full quality
               </p>
               <Button
                 onClick={handlePurchaseClick}

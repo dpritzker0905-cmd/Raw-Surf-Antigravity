@@ -674,18 +674,30 @@ export const PublicPhotographerGallery = () => {
       <Dialog open={showPurchaseModal} onOpenChange={setShowPurchaseModal}>
         <DialogContent className={`${modalBg} max-w-lg`}>
           <DialogHeader>
-            <DialogTitle>Purchase Photo</DialogTitle>
+            <DialogTitle>Purchase {selectedItem?.media_type === 'video' ? 'Video' : 'Photo'}</DialogTitle>
           </DialogHeader>
           
           {selectedItem && (
             <div className="space-y-4">
               {/* Preview */}
               <div className={`relative aspect-video ${cardItemBg} rounded-lg overflow-hidden`}>
-                <img 
-                  src={selectedItem.preview_url || selectedItem.thumbnail_url}
-                  alt={selectedItem.title || 'Gallery item'}
-                  className="w-full h-full object-contain"
-                />
+                {selectedItem.media_type === 'video' ? (
+                  <video 
+                    src={selectedItem.preview_url || selectedItem.thumbnail_url}
+                    className="w-full h-full object-contain"
+                    autoPlay
+                    muted
+                    loop
+                    playsInline
+                    poster={selectedItem.thumbnail_url || undefined}
+                  />
+                ) : (
+                  <img 
+                    src={selectedItem.preview_url || selectedItem.thumbnail_url}
+                    alt={selectedItem.title || 'Gallery item'}
+                    className="w-full h-full object-contain"
+                  />
+                )}
                 <div className="absolute inset-0 flex items-center justify-center bg-black/30">
                   <Lock className="w-8 h-8 text-white/50" />
                 </div>

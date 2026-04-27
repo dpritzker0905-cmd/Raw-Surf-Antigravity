@@ -291,9 +291,10 @@ async def get_condition_reports_feed(
     needs_spot_join = bool(country or state_province or city)
     
     # Build date range based on date_filter
+    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    
     if date_filter == 'yesterday':
         # Yesterday: midnight-to-midnight in UTC
-        today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
         yesterday_start = today_start - timedelta(days=1)
         date_start = yesterday_start
         date_end = today_start
@@ -302,38 +303,24 @@ async def get_condition_reports_feed(
         try:
             target_date = datetime.fromisoformat(archive_date).replace(tzinfo=timezone.utc)
         except (ValueError, TypeError):
-            target_date = now.replace(hour=0, minute=0, second=0, microsecond=0) - timedelta(days=2)
+            target_date = today_start - timedelta(days=2)
         date_start = target_date.replace(hour=0, minute=0, second=0, microsecond=0)
         date_end = date_start + timedelta(days=1)
     else:
-        # Default: today — only active, non-expired reports
-        date_start = None
-        date_end = None
+        # Default: today — strict midnight-to-midnight UTC
+        date_start = today_start
+        date_end = today_start + timedelta(days=1)
     
-    # Base query
-    if date_start and date_end:
-        # Historical mode: show ALL reports from the date range (ignore expiry)
-        query = select(ConditionReport).where(
-            and_(
-                ConditionReport.created_at >= date_start,
-                ConditionReport.created_at < date_end
-            )
-        ).options(
-            selectinload(ConditionReport.photographer),
-            selectinload(ConditionReport.spot)
+    # Base query: show reports created within the date range
+    query = select(ConditionReport).where(
+        and_(
+            ConditionReport.created_at >= date_start,
+            ConditionReport.created_at < date_end
         )
-    else:
-        # Today mode: only active, non-expired reports
-        query = select(ConditionReport).where(
-            and_(
-                ConditionReport.is_expired.is_(False),
-                ConditionReport.is_active.is_(True),
-                ConditionReport.expires_at > now
-            )
-        ).options(
-            selectinload(ConditionReport.photographer),
-            selectinload(ConditionReport.spot)
-        )
+    ).options(
+        selectinload(ConditionReport.photographer),
+        selectinload(ConditionReport.spot)
+    )
     
     # Filter by region if specified
     if region and region != "All":
@@ -457,22 +444,13 @@ async def get_condition_reports_feed(
         except Exception as e:
             cr_logger.warning(f"Failed to persist auto-healed URLs: {e}")
     
-    # Get total count for pagination
-    if date_start and date_end:
-        count_query = select(ConditionReport).where(
-            and_(
-                ConditionReport.created_at >= date_start,
-                ConditionReport.created_at < date_end
-            )
+    # Get total count for pagination (always uses date range now)
+    count_query = select(ConditionReport).where(
+        and_(
+            ConditionReport.created_at >= date_start,
+            ConditionReport.created_at < date_end
         )
-    else:
-        count_query = select(ConditionReport).where(
-            and_(
-                ConditionReport.is_expired.is_(False),
-                ConditionReport.is_active.is_(True),
-                ConditionReport.expires_at > now
-            )
-        )
+    )
     if region and region != "All":
         count_query = count_query.where(ConditionReport.region == region)
     if spot_id:

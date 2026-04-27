@@ -2673,7 +2673,7 @@ export const Explore = () => {
             <div className="text-center py-12 text-muted-foreground">
               <Waves className="w-12 h-12 mx-auto mb-3 opacity-50" />
               <p className="font-medium mb-1">
-                {conditionsSubTab === 'yesterday' ? "No reports from yesterday" : "No conditions reports yet"}
+                {conditionsSubTab === 'yesterday' ? "No reports from yesterday" : "No reports from today yet"}
               </p>
               <p className="text-sm text-gray-500">
                 {conditionsSubTab === 'yesterday' ? "Check the Archives for older reports" : "Check back when photographers go live!"}

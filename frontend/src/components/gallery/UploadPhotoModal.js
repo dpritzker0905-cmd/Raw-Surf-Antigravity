@@ -69,6 +69,38 @@ function formatFileSize(bytes) {
   return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
 }
 
+/**
+ * Detect non-human-readable filenames (Instagram hashes, UUIDs, numeric strings)
+ * and replace with clean sequential titles like "Surf Photo 1".
+ * Human-readable filenames are preserved as-is.
+ */
+function isHumanReadableFilename(name) {
+  if (!name) return false;
+  const base = name.replace(/\.[^/.]+$/, '').trim(); // strip extension
+  // UUID pattern
+  if (/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}/i.test(base)) return false;
+  // UUID without dashes (32+ hex chars)
+  if (/^[a-f0-9]{32}/i.test(base)) return false;
+  // Strip common system suffixes
+  const cleaned = base.replace(/_(original|preview|thumb|thumbnail)$/i, '');
+  // All digits + underscores, at least 10 chars (Instagram-style)
+  if (/^[\d_]+$/.test(cleaned) && cleaned.length >= 10) return false;
+  // Mostly non-alpha characters in a long string (hex hashes, etc.)
+  const alphaCount = (cleaned.match(/[g-zG-Z]/g) || []).length; // letters beyond hex
+  if (cleaned.length > 15 && alphaCount < cleaned.length * 0.3) return false;
+  return true;
+}
+
+function sanitizeItemTitle(fileName, mediaType, sequenceIndex) {
+  const baseName = fileName.replace(/\.[^/.]+$/, ''); // strip extension
+  if (isHumanReadableFilename(fileName)) {
+    return baseName;
+  }
+  // Generate clean sequential title
+  const label = mediaType === 'video' ? 'Surf Video' : 'Surf Photo';
+  return `${label} ${sequenceIndex}`;
+}
+
 function validateFile(file) {
   const isVideo = file.type.startsWith('video/') || ACCEPTED_VIDEO.includes(file.type);
   const isImage = file.type.startsWith('image/') || ACCEPTED_IMAGE.includes(file.type);
@@ -222,10 +254,11 @@ export const UploadPhotoModal = ({
         }
       });
 
-      // Step 2: Create gallery item with auto pricing
+      // Step 2: Create gallery item with auto pricing + sanitized title
       const filePrice = fileEntry.type === 'video' ? pricing.videoPrice : pricing.photoPrice;
+      const itemTitle = sanitizeItemTitle(fileEntry.name, fileEntry.type, fileEntry.batchIndex || 1);
       const createRes = await apiClient.post(`/gallery?photographer_id=${encodeURIComponent(user.id)}`, {
-        title: fileEntry.name.replace(/\.[^/.]+$/, ''),
+        title: itemTitle,
         description: '',
         media_type: fileEntry.type,
         original_url: uploadResponse.data.original_url,
@@ -280,7 +313,20 @@ export const UploadPhotoModal = ({
     abortRef.current = false;
     let successCount = 0;
 
-    for (const fileEntry of queued) {
+    // Assign sequential batch indices for clean title generation
+    let photoIdx = 0;
+    let videoIdx = 0;
+    const indexedQueue = queued.map(f => {
+      if (f.type === 'video') {
+        videoIdx++;
+        return { ...f, batchIndex: videoIdx };
+      } else {
+        photoIdx++;
+        return { ...f, batchIndex: photoIdx };
+      }
+    });
+
+    for (const fileEntry of indexedQueue) {
       if (abortRef.current) break;
       const ok = await uploadSingleFile(fileEntry);
       if (ok) successCount++;
