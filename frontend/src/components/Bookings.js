@@ -900,34 +900,46 @@ export const Bookings = () => {
     setShowInviteModal(true);
   };
 
-  const tabs = [
-    { id: 'lineup', label: 'The Lineup', icon: Users, count: 0, highlight: true },  // New Lineup tab
-    { id: 'directory', label: 'Find Photogs', icon: Search, count: 0 },  // Photographer Discovery tab
-    { id: 'live_sessions', label: 'Live Sessions', icon: Zap, count: liveSessions.length },
-    { id: 'on_demand', label: 'On-Demand', icon: Target, count: onDemandPhotographers.length },
-    { id: 'find_buddies', label: 'Open Sessions', icon: Users, count: nearbyBookings.length },
-    { id: 'scheduled', label: 'Scheduled', icon: CalendarClock, count: bookings.filter(b => {
-      if (b.status === 'Confirmed') return true;
-      // Pending is only in Scheduled if the session is NOT still in an active lineup lobby
-      // (lobby-phase pending sessions already show in The Lineup tab)
-      const LOBBY_PHASE = ['open', 'filling', 'ready'];
-      if (b.status === 'Pending' && LOBBY_PHASE.includes(b.lineup_status)) return false;
-      return b.status === 'Pending';
-    }).length },
-    { id: 'past', label: 'Past', icon: History, count: bookings.filter(b => b.status === 'Completed').length },
-    { id: 'live_now', label: 'Live Now', icon: Radio, count: livePhotographers.length },
-    { id: 'subscriptions', label: 'Subscriptions', icon: RefreshCw, count: 0 },
-  ];
+  // ─── Date-based booking lifecycle helper ────────────────────────────────────
+  // A booking is "past" if its session_date + duration has elapsed.
+  // This catches sessions the photographer never explicitly ended.
+  const isBookingPast = (b) => {
+    if (!b.session_date) return false;
+    const sessionEnd = new Date(b.session_date);
+    sessionEnd.setMinutes(sessionEnd.getMinutes() + (b.duration || 60));
+    return sessionEnd < new Date();
+  };
 
-  // Scheduled = confirmed bookings + pending bookings that are NOT still in an active lineup lobby
-  // (lineup-lobby pending sessions live in The Lineup tab to avoid duplication)
   const LOBBY_PHASE = ['open', 'filling', 'ready'];
+
+  // ─── Derived lists ─────────────────────────────────────────────────────────
+  // Scheduled = future confirmed/pending bookings only
   const scheduledBookings = bookings.filter(b => {
+    if (isBookingPast(b)) return false; // past-dated → Past tab
     if (b.status === 'Confirmed') return true;
     if (b.status === 'Pending' && LOBBY_PHASE.includes(b.lineup_status)) return false;
     return b.status === 'Pending';
   });
-  const pastBookings = bookings.filter(b => b.status === 'Completed');
+
+  // Past = explicitly completed OR past-dated sessions (expired/missed)
+  const pastBookings = bookings.filter(b => {
+    if (b.status === 'Completed') return true;
+    // Past-dated sessions that were never completed
+    if (isBookingPast(b) && ['Confirmed', 'Pending'].includes(b.status)) return true;
+    return false;
+  });
+
+  const tabs = [
+    { id: 'lineup', label: 'The Lineup', icon: Users, count: 0, highlight: true },
+    { id: 'directory', label: 'Find Photogs', icon: Search, count: 0 },
+    { id: 'live_sessions', label: 'Live Sessions', icon: Zap, count: liveSessions.length },
+    { id: 'on_demand', label: 'On-Demand', icon: Target, count: onDemandPhotographers.length },
+    { id: 'find_buddies', label: 'Open Sessions', icon: Users, count: nearbyBookings.length },
+    { id: 'scheduled', label: 'Scheduled', icon: CalendarClock, count: scheduledBookings.length },
+    { id: 'past', label: 'Past', icon: History, count: pastBookings.length },
+    { id: 'live_now', label: 'Live Now', icon: Radio, count: livePhotographers.length },
+    { id: 'subscriptions', label: 'Subscriptions', icon: RefreshCw, count: 0 },
+  ];
 
   if (loading) {
     return (

@@ -29,6 +29,18 @@ const SessionTypeConfig = {
 };
 
 /**
+ * Infer display status for a past session:
+ * - 'Completed' = photographer explicitly ended session (status === 'Completed')
+ * - 'Expired'   = session date passed but was never started/completed (was Confirmed)
+ * - 'Missed'    = session date passed but user never confirmed (was Pending)
+ */
+const inferDisplayStatus = (booking) => {
+  if (booking.status === 'Completed') return 'Completed';
+  if (booking.status === 'Pending') return 'Missed';
+  return 'Expired'; // Confirmed that passed without being completed
+};
+
+/**
  * Normalize a raw booking object (from /bookings/user) into the shape
  * that SessionDetailDrawer expects so all stats render correctly.
  */
@@ -45,6 +57,8 @@ const normalizeBookingForDrawer = (booking) => ({
   // Gallery data — if the booking has associated gallery info
   gallery_photo_count: booking.gallery_photo_count || 0,
   gallery_id: booking.gallery_id || null,
+  // Display status for the OutcomeBadge in SessionDetailDrawer
+  _displayStatus: inferDisplayStatus(booking),
   // Ensure participants have expected shape
   participants: (booking.participants || []).map(p => ({
     id: p.participant_id || p.user_id || p.id,
@@ -228,13 +242,36 @@ export const PastTab = ({
                   </div>
                 </div>
                 
-                {/* Completed badge + Chevron */}
+                {/* Outcome badge + Chevron */}
                 <div className="flex items-center gap-1.5 flex-shrink-0">
-                  <Badge variant="secondary" className={`text-[10px] font-semibold px-2 py-0.5 ${
-                    isLight ? 'bg-green-100 text-green-700' : 'bg-green-500/15 text-green-400 border border-green-500/20'
-                  }`}>
-                    ✓ Completed
-                  </Badge>
+                  {(() => {
+                    const displayStatus = inferDisplayStatus(booking);
+                    if (displayStatus === 'Completed') {
+                      return (
+                        <Badge variant="secondary" className={`text-[10px] font-semibold px-2 py-0.5 ${
+                          isLight ? 'bg-green-100 text-green-700' : 'bg-green-500/15 text-green-400 border border-green-500/20'
+                        }`}>
+                          ✓ Completed
+                        </Badge>
+                      );
+                    } else if (displayStatus === 'Missed') {
+                      return (
+                        <Badge variant="secondary" className={`text-[10px] font-semibold px-2 py-0.5 ${
+                          isLight ? 'bg-red-50 text-red-600 border-red-200' : 'bg-red-500/10 text-red-400 border border-red-500/20'
+                        }`}>
+                          Missed
+                        </Badge>
+                      );
+                    } else {
+                      return (
+                        <Badge variant="secondary" className={`text-[10px] font-semibold px-2 py-0.5 ${
+                          isLight ? 'bg-gray-100 text-gray-500' : 'bg-zinc-700/50 text-gray-400 border border-zinc-600/40'
+                        }`}>
+                          Expired
+                        </Badge>
+                      );
+                    }
+                  })()}
                   <ChevronRight className={`w-4 h-4 ${textSecondary} opacity-60`} />
                 </div>
               </div>

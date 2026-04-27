@@ -13,25 +13,57 @@ import {
   ChevronRight, ImageIcon, Award, Zap, Send
 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
-import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';
 import { getFullUrl } from '../../utils/media';
 import apiClient from '../../lib/apiClient';
 import ReviewModal from '../ReviewModal';
 
-// ─── Session Type Badge ─────────────────────────────────────────────────────
-const SessionTypeBadge = ({ type, isLight: _isLight }) => {
+// ─── Session Type Icon (small indicator, NOT a status badge) ────────────────
+const SessionTypeIcon = ({ type }) => {
   const config = {
-    live_join: { label: 'Live Session', color: 'from-cyan-500 to-blue-500', icon: Zap },
-    live: { label: 'Live Session', color: 'from-cyan-500 to-blue-500', icon: Zap },
+    live_join: { label: 'Live', color: 'from-cyan-500 to-blue-500', icon: Zap },
+    live: { label: 'Live', color: 'from-cyan-500 to-blue-500', icon: Zap },
     on_demand: { label: 'On-Demand', color: 'from-purple-500 to-indigo-500', icon: Send },
-    scheduled: { label: 'Scheduled', color: 'from-amber-500 to-orange-500', icon: Calendar },
+    scheduled: { label: 'Booked', color: 'from-amber-500 to-orange-500', icon: Calendar },
   };
   const c = config[type] || config.live;
   const Icon = c.icon;
   return (
-    <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold text-white bg-gradient-to-r ${c.color}`}>
-      <Icon className="w-3 h-3" />
+    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium text-white/80 bg-gradient-to-r ${c.color} opacity-80`}>
+      <Icon className="w-2.5 h-2.5" />
+      {c.label}
+    </span>
+  );
+};
+
+// ─── Outcome Badge (Completed / Expired / Missed) ───────────────────────────
+const OutcomeBadge = ({ session, isLight }) => {
+  // Determine display status from session data
+  const displayStatus = session._displayStatus || session.status || 'Completed';
+  
+  const config = {
+    Completed: {
+      label: '✓ Completed',
+      className: isLight
+        ? 'bg-green-100 text-green-700 border-green-200'
+        : 'bg-green-500/15 text-green-400 border border-green-500/20',
+    },
+    Expired: {
+      label: 'Expired',
+      className: isLight
+        ? 'bg-gray-100 text-gray-600 border-gray-200'
+        : 'bg-zinc-700/50 text-gray-400 border border-zinc-600/40',
+    },
+    Missed: {
+      label: 'Missed',
+      className: isLight
+        ? 'bg-red-50 text-red-600 border-red-200'
+        : 'bg-red-500/10 text-red-400 border border-red-500/20',
+    },
+  };
+  const c = config[displayStatus] || config.Completed;
+  return (
+    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${c.className}`}>
       {c.label}
     </span>
   );
@@ -228,10 +260,8 @@ const SessionDetailDrawer = ({
               <div className="flex items-start justify-between mb-3">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-2">
-                    <SessionTypeBadge type={sessionType} isLight={isLight} />
-                    <Badge variant="secondary" className={isLight ? 'bg-green-100 text-green-700' : 'bg-green-900/30 text-green-400'}>
-                      Completed
-                    </Badge>
+                    <OutcomeBadge session={session} isLight={isLight} />
+                    <SessionTypeIcon type={sessionType} />
                   </div>
                   <h2 className={`text-xl font-bold ${isLight ? 'text-gray-900' : 'text-white'}`} style={{ fontFamily: 'Oswald' }}>
                     {location}
