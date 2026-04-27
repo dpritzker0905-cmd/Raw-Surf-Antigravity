@@ -487,15 +487,15 @@ export const PublicPhotographerGallery = () => {
                   key={gallery.id}
                   data-gallery-id={gallery.id}
                   onClick={() => setSelectedGallery(gallery)}
-                  className={`flex-shrink-0 px-4 py-2 rounded-full border transition-all flex items-center gap-2 ${
+                  className={`flex-shrink-0 px-4 py-2 rounded-full border transition-all flex items-center gap-2 max-w-[75vw] ${
                     selectedGallery?.id === gallery.id 
                       ? pillActive 
                       : pillInactive
                   }`}
                 >
-                  <Folder className="w-4 h-4" />
-                  {gallery.title}
-                  <span className="text-xs opacity-60">({gallery.item_count})</span>
+                  <Folder className="w-4 h-4 flex-shrink-0" />
+                  <span className="truncate">{gallery.title}</span>
+                  <span className="text-xs opacity-60 flex-shrink-0">({gallery.item_count})</span>
                 </button>
               ))}
             </div>
