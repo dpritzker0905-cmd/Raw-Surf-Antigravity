@@ -120,7 +120,12 @@ async def get_user_lineups(
     # Filter to relevant lineups
     relevant_lineups = []
     for lineup in all_lineups:
-        # Always show own lineups
+        # NEVER show lineups where user is the photographer
+        # (those belong in the photographer dashboard, not surfer lineup view)
+        if lineup.photographer_id == user_id:
+            continue
+        
+        # Always show own lineups (captain)
         if lineup.creator_id == user_id:
             relevant_lineups.append(lineup)
             continue
@@ -177,6 +182,9 @@ async def get_user_lineups(
                     "payment_status": p.payment_status
                 }
                 for p in lineup.participants
+                # Exclude the captain/creator from the participants list
+                # to prevent double-counting (frontend adds +1 for captain)
+                if p.participant_id != lineup.creator_id
             ],
             "invite_code": lineup.invite_code
         }
