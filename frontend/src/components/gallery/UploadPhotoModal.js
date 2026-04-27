@@ -117,11 +117,12 @@ export const UploadPhotoModal = ({
       setUploading(false);
       setCurrentUploadId(null);
       setUploadComplete(false);
-      setSelectedFolderId(targetFolderId);
+      // Default to targetFolderId if provided, otherwise first available gallery
+      setSelectedFolderId(targetFolderId || (galleries.length > 0 ? galleries[0].id : null));
       setFolderDropdownOpen(false);
       abortRef.current = false;
     }
-  }, [isOpen, targetFolderId]);
+  }, [isOpen, targetFolderId, galleries]);
 
   // Cleanup previews on unmount
   useEffect(() => {
@@ -131,7 +132,7 @@ export const UploadPhotoModal = ({
   // Get selected folder name for dropdown label
   const selectedFolderLabel = selectedFolderId 
     ? galleries.find(g => g.id === selectedFolderId)?.title || 'Selected Folder'
-    : 'All Media (Root)';
+    : 'Select a folder…';
 
   const addFiles = useCallback((newFiles) => {
     const entries = [];
@@ -339,25 +340,16 @@ export const UploadPhotoModal = ({
                   <div className="fixed inset-0 z-10" onClick={() => setFolderDropdownOpen(false)} />
                   
                   <div className="absolute z-20 mt-1 w-full bg-card border border-border rounded-lg shadow-xl max-h-48 overflow-y-auto">
-                    <button
-                      onClick={() => { setSelectedFolderId(null); setFolderDropdownOpen(false); }}
-                      className={`w-full text-left px-3 py-2.5 text-sm hover:bg-muted/60 transition-colors flex items-center gap-2 ${
-                        !selectedFolderId ? 'text-cyan-400 bg-cyan-500/5' : 'text-foreground'
-                      }`}
-                    >
-                      <Image className="w-4 h-4" />
-                      All Media (Root)
-                    </button>
                     {galleries.map((folder) => (
                       <button
                         key={folder.id}
                         onClick={() => { setSelectedFolderId(folder.id); setFolderDropdownOpen(false); }}
-                        className={`w-full text-left px-3 py-2.5 text-sm hover:bg-muted/60 transition-colors flex items-center gap-2 border-t border-border/50 ${
+                        className={`w-full text-left px-3 py-2.5 text-sm hover:bg-muted/60 transition-colors flex items-center gap-2 border-b border-border/30 last:border-0 ${
                           selectedFolderId === folder.id ? 'text-cyan-400 bg-cyan-500/5' : 'text-foreground'
                         }`}
                       >
-                        <Folder className="w-4 h-4 text-yellow-400" />
-                        {folder.title}
+                        <Folder className="w-4 h-4 text-yellow-400 flex-shrink-0" />
+                        <span className="truncate">{folder.title}</span>
                       </button>
                     ))}
                   </div>
@@ -564,7 +556,7 @@ export const UploadPhotoModal = ({
             {!uploadComplete ? (
               <Button
                 onClick={handleUploadAll}
-                disabled={uploading || queuedFiles.length === 0}
+                disabled={uploading || queuedFiles.length === 0 || !selectedFolderId}
                 className="flex-1 h-12 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white font-bold rounded-xl disabled:opacity-50"
                 data-testid="upload-submit"
               >
