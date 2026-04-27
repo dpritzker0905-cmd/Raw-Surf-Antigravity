@@ -2558,7 +2558,7 @@ export const Explore = () => {
               {archiveDates.length > 0 ? (
                 <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
                   {archiveDates.map((d) => {
-                    const dateObj = new Date(d.date + 'T00:00:00');
+                    const dateObj = new Date(d.date + 'T12:00:00Z');
                     const isSelected = archiveDate === d.date;
                     return (
                       <button
@@ -2629,7 +2629,21 @@ export const Explore = () => {
                           </div>
                           {/* Info */}
                           <div className="flex-1 min-w-0">
-                            <h4 className="font-medium text-foreground text-sm truncate">{gallery.title}</h4>
+                            <div className="flex items-center gap-1.5">
+                              <h4 className="font-medium text-foreground text-sm truncate">{gallery.title}</h4>
+                              {gallery.session_type && (
+                                <span className={`flex-shrink-0 text-[9px] font-semibold px-1.5 py-0.5 rounded-full ${
+                                  gallery.session_type === 'live' ? 'bg-green-500/20 text-green-400' :
+                                  gallery.session_type === 'on_demand' ? 'bg-yellow-500/20 text-yellow-400' :
+                                  gallery.session_type === 'booking' ? 'bg-purple-500/20 text-purple-400' :
+                                  'bg-zinc-500/20 text-zinc-400'
+                                }`}>
+                                  {gallery.session_type === 'live' ? 'LIVE' :
+                                   gallery.session_type === 'on_demand' ? 'ON-DEMAND' :
+                                   gallery.session_type === 'booking' ? 'BOOKING' : 'MANUAL'}
+                                </span>
+                              )}
+                            </div>
                             <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-0.5">
                               {gallery.photographer_avatar ? (
                                 <img src={gallery.photographer_avatar} alt="" className="w-3.5 h-3.5 rounded-full object-cover" />

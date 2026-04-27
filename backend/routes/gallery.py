@@ -1880,7 +1880,7 @@ async def get_photographer_galleries(
             selectinload(Gallery.items),
             selectinload(Gallery.photographer)
         )
-        .order_by(Gallery.created_at.desc())
+        .order_by(func.coalesce(Gallery.session_date, Gallery.created_at).desc())
     )
     galleries = result.scalars().all()
     
@@ -6447,3 +6447,105 @@ async def clean_all_item_titles(
         "total_skipped": total_skipped,
         "galleries": gallery_results,
     }
+
+
+# ── Admin: Heal Session Dates ─────────────────────────────────────────────────
+# Backfill NULL session_date values on legacy galleries using linked metadata.
+# Secured via JWT admin auth.
+from deps.admin_auth import get_current_admin
+
+@router.post("/gallery/admin/heal-session-dates")
+async def heal_session_dates(
+    dry_run: bool = Query(default=True, description="Preview changes without committing"),
+    admin: dict = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Backfill NULL session_date values on galleries using metadata from linked
+    LiveSession, Booking, or DispatchRequest records.
+
+    Priority order:
+      1. LiveSession.started_at (most accurate — actual session start)
+      2. Booking.session_date (scheduled date)
+      3. DispatchRequest.created_at (on-demand request timestamp)
+      4. Gallery.created_at (last-resort fallback)
+
+    Use dry_run=true (default) to preview before committing.
+    """
+    # Fetch all galleries with NULL session_date
+    result = await db.execute(
+        select(Gallery).where(Gallery.session_date.is_(None))
+    )
+    galleries = result.scalars().all()
+
+    healed = []
+    skipped = []
+
+    for gallery in galleries:
+        source = None
+        healed_date = None
+
+        # 1. Try linked LiveSession
+        if gallery.live_session_id:
+            ls_result = await db.execute(
+                select(LiveSession).where(LiveSession.id == gallery.live_session_id)
+            )
+            live_session = ls_result.scalar_one_or_none()
+            if live_session and live_session.started_at:
+                healed_date = live_session.started_at
+                source = "live_session.started_at"
+
+        # 2. Try linked Booking
+        if not healed_date and gallery.booking_id:
+            bk_result = await db.execute(
+                select(Booking).where(Booking.id == gallery.booking_id)
+            )
+            booking = bk_result.scalar_one_or_none()
+            if booking and booking.session_date:
+                healed_date = booking.session_date
+                source = "booking.session_date"
+
+        # 3. Try linked DispatchRequest
+        if not healed_date and gallery.dispatch_request_id:
+            dr_result = await db.execute(
+                select(DispatchRequest).where(DispatchRequest.id == gallery.dispatch_request_id)
+            )
+            dispatch = dr_result.scalar_one_or_none()
+            if dispatch and dispatch.created_at:
+                healed_date = dispatch.created_at
+                source = "dispatch_request.created_at"
+
+        # 4. Fallback to gallery.created_at
+        if not healed_date and gallery.created_at:
+            healed_date = gallery.created_at
+            source = "gallery.created_at (fallback)"
+
+        if healed_date:
+            if not dry_run:
+                gallery.session_date = healed_date
+            healed.append({
+                "gallery_id": gallery.id,
+                "title": gallery.title,
+                "source": source,
+                "healed_date": healed_date.isoformat() if healed_date else None,
+            })
+        else:
+            skipped.append({
+                "gallery_id": gallery.id,
+                "title": gallery.title,
+                "reason": "No linked metadata found"
+            })
+
+    if not dry_run and healed:
+        await db.commit()
+
+    return {
+        "message": f"{'Would heal' if dry_run else 'Healed'} {len(healed)} galleries, skipped {len(skipped)}",
+        "dry_run": dry_run,
+        "total_null": len(galleries),
+        "total_healed": len(healed),
+        "total_skipped": len(skipped),
+        "healed": healed,
+        "skipped": skipped,
+    }
+

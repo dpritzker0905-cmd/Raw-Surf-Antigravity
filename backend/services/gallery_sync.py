@@ -79,7 +79,7 @@ async def create_session_gallery(
             logger.warning(f"Could not fetch condition report for gallery cover: {e}")
     
     # Determine gallery title and pricing based on session type
-    # Title format: Date · Time · Location · Gallery Type
+    # Title format: Date · Time · Location (session type lives as a badge on the folder card)
     # This ordering ensures mobile pill buttons show the date/time first
     now = datetime.now(timezone.utc)
     ts = session_start or now
@@ -93,7 +93,7 @@ async def create_session_gallery(
         time_part = ts.strftime("%#I:%M %p")
     
     if session_type == 'live':
-        title = f"{date_part} · {time_part} · {spot_name} · Live Session"
+        title = f"{date_part} · {time_part} · {spot_name}"
         description = f"Photos from live surf session at {spot_name}"
         price_web = photographer.live_session_photo_price or photographer.photo_price_web or 3.0
         price_standard = photographer.live_session_photo_price or photographer.photo_price_standard or 5.0
@@ -101,7 +101,7 @@ async def create_session_gallery(
         gallery_tier = GalleryTierEnum.STANDARD
         
     elif session_type == 'on_demand':
-        title = f"{date_part} · {time_part} · {spot_name} · On-Demand"
+        title = f"{date_part} · {time_part} · {spot_name}"
         description = "Exclusive photos from your private on-demand session"
         # Use independent on-demand resolution pricing (Profile fields added in Iteration 135+)
         # Falls back to legacy on_demand_photo_price, then to general gallery pricing
@@ -119,7 +119,7 @@ async def create_session_gallery(
             )
             booking = booking_result.scalar_one_or_none()
         
-        title = f"{date_part} · {time_part} · {spot_name} · Booking"
+        title = f"{date_part} · {time_part} · {spot_name}"
         description = "Photos from your scheduled surf session"
         
         if booking:
@@ -135,7 +135,7 @@ async def create_session_gallery(
         
     else:
         # Manual/general gallery - use general pricing
-        title = f"{date_part} · {time_part} · {spot_name} · Gallery" if spot_name else f"{date_part} · {time_part} · Gallery"
+        title = f"{date_part} · {time_part} · {spot_name}" if spot_name else f"{date_part} · {time_part}"
         description = "Surf photography gallery"
         price_web = photographer.photo_price_web or 3.0
         price_standard = photographer.photo_price_standard or 5.0
