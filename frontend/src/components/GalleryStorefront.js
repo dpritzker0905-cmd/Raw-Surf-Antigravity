@@ -13,10 +13,11 @@ import {
   Camera, MapPin, Star, Users, Image as ImageIcon,
   Calendar, ExternalLink, Share2, ArrowLeft, Loader2,
   CheckCircle, Instagram, Globe, Briefcase, Play,
-  Heart, MessageCircle, ShieldCheck, RefreshCw
+  Heart, MessageCircle, ShieldCheck, RefreshCw, Sparkles
 } from 'lucide-react';
 import logger from '../utils/logger';
 import { PhotographerSubscriptionPlans } from './PhotographerSubscriptionPlans';
+import { FindMeModal } from './gallery/FindMeModal';
 
 /**
  * GalleryStorefront — Premium public photographer portfolio page
@@ -37,6 +38,8 @@ export const GalleryStorefront = () => {
   const [error, setError] = useState(null);
   const [isFollowing, setIsFollowing] = useState(false);
   const [followLoading, setFollowLoading] = useState(false);
+  const [showFindMe, setShowFindMe] = useState(false);
+  const [findMeGalleryId, setFindMeGalleryId] = useState(null);
 
   // Theme tokens
   const pageBg = isLight ? 'bg-gray-50' : 'bg-black';
@@ -433,6 +436,35 @@ export const GalleryStorefront = () => {
           </div>
         )}
       </div>
+
+      {/* ── AI Find Me Button (floating) ── */}
+      {!isSelf && user?.id && galleries.length > 0 && (
+        <div className="max-w-4xl mx-auto px-4 mt-4">
+          <button
+            onClick={() => {
+              const firstGallery = galleries[0];
+              setFindMeGalleryId(firstGallery?.id);
+              setShowFindMe(true);
+            }}
+            className={`w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-medium text-sm transition-all
+              bg-gradient-to-r from-cyan-500/10 to-blue-500/10 border border-cyan-500/30
+              text-cyan-400 hover:from-cyan-500/20 hover:to-blue-500/20 hover:border-cyan-500/50`}
+          >
+            <Sparkles className="w-4 h-4" />
+            AI Find Me in These Galleries
+          </button>
+        </div>
+      )}
+
+      {/* Find Me Modal */}
+      {showFindMe && findMeGalleryId && (
+        <FindMeModal
+          open={showFindMe}
+          onClose={() => setShowFindMe(false)}
+          galleryId={findMeGalleryId}
+          userId={user?.id}
+        />
+      )}
 
       {/* ── CTA Footer ── */}
       {!isSelf && (

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
-import { Search, MapPin, Users, Image, TrendingUp, Radio, X, Waves, Heart, Trophy, MessageCircle, Camera, Clock, ChevronDown, ChevronRight, ChevronLeft, Navigation, Compass, Filter, Loader2, Play, Hash, Globe, ArrowLeft } from 'lucide-react';
+import { Search, MapPin, Users, Image, TrendingUp, Radio, X, Waves, Heart, Trophy, MessageCircle, Camera, Clock, ChevronDown, ChevronRight, ChevronLeft, Navigation, Compass, Filter, Loader2, Play, Hash, Globe, ArrowLeft, Calendar, Archive, FolderOpen } from 'lucide-react';
 
 import { Input } from './ui/input';
 
@@ -147,6 +147,12 @@ export const Explore = () => {
   const [selectedRegion, setSelectedRegion] = useState('All');
   const [conditionsLoading, setConditionsLoading] = useState(false);
   const [showRegionDropdown, setShowRegionDropdown] = useState(false);
+  // Archive sub-tabs: 'today' | 'yesterday' | 'archives'
+  const [conditionsSubTab, setConditionsSubTab] = useState('today');
+  const [archiveDate, setArchiveDate] = useState(null);
+  const [archiveDates, setArchiveDates] = useState([]);
+  const [archiveGalleries, setArchiveGalleries] = useState([]);
+  const [archiveGalleriesLoading, setArchiveGalleriesLoading] = useState(false);
   
   // Trending Waves state
   const [trendingWaves, setTrendingWaves] = useState([]);
@@ -513,8 +519,8 @@ export const Explore = () => {
     setSponsorDetails(null);
   };
 
-  // Fetch condition reports for Conditions tab
-  const fetchConditionReports = async (region = selectedRegion, locationOverride = null) => {
+  // Fetch condition reports for Conditions tab (supports date_filter)
+  const fetchConditionReports = async (region = selectedRegion, locationOverride = null, dateFilter = conditionsSubTab, dateOverride = null) => {
     setConditionsLoading(true);
     try {
       const params = new URLSearchParams();
@@ -522,6 +528,13 @@ export const Explore = () => {
         params.append('region', region);
       }
       params.append('limit', '30');
+      params.append('date_filter', dateFilter === 'archives' ? 'archive' : dateFilter);
+      
+      // For archive mode, pass the specific date
+      const targetDate = dateOverride || archiveDate;
+      if (dateFilter === 'archives' && targetDate) {
+        params.append('archive_date', targetDate);
+      }
       
       // Add user location for nearby sorting if available
       const location = locationOverride || userLocation;
@@ -538,6 +551,55 @@ export const Explore = () => {
     } finally {
       setConditionsLoading(false);
     }
+  };
+
+  // Fetch archive dates for the date picker
+  const fetchArchiveDates = async () => {
+    try {
+      const response = await apiClient.get('/condition-reports/archive-dates?limit=30');
+      setArchiveDates(response.data.dates || []);
+    } catch (error) {
+      logger.error('Error fetching archive dates:', error);
+      setArchiveDates([]);
+    }
+  };
+
+  // Fetch public galleries for archive browsing
+  const fetchArchiveGalleries = async (date = null) => {
+    setArchiveGalleriesLoading(true);
+    try {
+      const params = new URLSearchParams();
+      if (date) params.append('date', date);
+      params.append('limit', '20');
+      const response = await apiClient.get(`/condition-reports/public-galleries?${params}`);
+      setArchiveGalleries(response.data.galleries || []);
+    } catch (error) {
+      logger.error('Error fetching archive galleries:', error);
+      setArchiveGalleries([]);
+    } finally {
+      setArchiveGalleriesLoading(false);
+    }
+  };
+
+  // Handle conditions sub-tab change
+  const handleConditionsSubTabChange = (subTab) => {
+    setConditionsSubTab(subTab);
+    if (subTab === 'today' || subTab === 'yesterday') {
+      fetchConditionReports(selectedRegion, null, subTab);
+    } else if (subTab === 'archives') {
+      fetchArchiveDates();
+      if (archiveDate) {
+        fetchConditionReports(selectedRegion, null, 'archives', archiveDate);
+        fetchArchiveGalleries(archiveDate);
+      }
+    }
+  };
+
+  // Handle archive date selection
+  const handleArchiveDateSelect = (date) => {
+    setArchiveDate(date);
+    fetchConditionReports(selectedRegion, null, 'archives', date);
+    fetchArchiveGalleries(date);
   };
 
   // Fetch available regions for filter
@@ -2168,76 +2230,242 @@ export const Explore = () => {
         </div>
       )}
 
-      {/* Conditions/Reports Tab - Condition reports posted by photographers when they start shooting */}
+      {/* Conditions/Reports Tab - 3-tab layout: Today / Yesterday / Archives */}
       {activeTab === 'conditions' && (
         <div className="space-y-4" data-testid="conditions-explorer-tab">
-          {/* Header with Nearby Button */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Waves className="w-5 h-5 text-cyan-400" />
-              <h2 className="font-bold text-foreground">Today's Reports</h2>
-              <Badge className="bg-cyan-500/20 text-cyan-400 text-xs">
-                {conditionReports.length} reports
-              </Badge>
-            </div>
-            <button
-              onClick={getReportsNearby}
-              className="flex items-center gap-1 px-3 py-1.5 bg-muted hover:bg-zinc-700 rounded-full text-xs text-gray-300 transition-colors"
-              data-testid="reports-nearby-btn"
-            >
-              <Compass className="w-3 h-3" />
-              Nearby
-            </button>
-          </div>
-          
-          {/* Region Filter Dropdown */}
-          <div className="relative">
-            <button
-              onClick={() => setShowRegionDropdown(!showRegionDropdown)}
-              className="flex items-center justify-between w-full px-4 py-3 bg-muted rounded-lg text-foreground hover:bg-zinc-700 transition-colors"
-              data-testid="region-filter-btn"
-            >
-              <span className="flex items-center gap-2">
-                <MapPin className="w-4 h-4 text-cyan-400" />
-                <span className="font-medium">{selectedRegion === 'All' ? 'All Regions' : selectedRegion}</span>
-              </span>
-              <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${showRegionDropdown ? 'rotate-180' : ''}`} />
-            </button>
-            
-            {showRegionDropdown && (
-              <div className="absolute top-full left-0 right-0 mt-1 bg-muted border border-zinc-700 rounded-lg shadow-xl z-20 max-h-64 overflow-y-auto">
-                {conditionsRegions.map((region) => (
-                  <button
-                    key={region}
-                    onClick={() => handleRegionChange(region)}
-                    className={`w-full px-4 py-2 text-left text-sm transition-colors ${
-                      selectedRegion === region 
-                        ? 'bg-cyan-500/20 text-cyan-400' 
-                        : 'text-gray-300 hover:bg-zinc-700'
-                    }`}
-                  >
-                    {region === 'All' ? 'All Regions' : region}
-                  </button>
-                ))}
-              </div>
-            )}
+          {/* Sub-tab navigation pills */}
+          <div className="flex items-center gap-1 bg-muted/50 rounded-xl p-1">
+            {[
+              { id: 'today', label: 'Today', icon: Radio },
+              { id: 'yesterday', label: 'Yesterday', icon: Clock },
+              { id: 'archives', label: 'Archives', icon: Archive },
+            ].map(({ id, label, icon: Icon }) => (
+              <button
+                key={id}
+                onClick={() => handleConditionsSubTabChange(id)}
+                className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-lg text-sm font-medium transition-all ${
+                  conditionsSubTab === id
+                    ? 'bg-cyan-500/20 text-cyan-400 shadow-sm'
+                    : 'text-gray-400 hover:text-gray-200 hover:bg-zinc-700/50'
+                }`}
+                data-testid={`conditions-subtab-${id}`}
+              >
+                <Icon className="w-3.5 h-3.5" />
+                {label}
+                {id === 'today' && conditionsSubTab === 'today' && conditionReports.length > 0 && (
+                  <span className="ml-0.5 w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                )}
+              </button>
+            ))}
           </div>
 
-          {/* Loading State */}
+          {/* Header with Nearby Button (shared for today/yesterday) */}
+          {conditionsSubTab !== 'archives' && (
+            <>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Waves className="w-5 h-5 text-cyan-400" />
+                  <h2 className="font-bold text-foreground">
+                    {conditionsSubTab === 'today' ? "Today's Reports" : "Yesterday's Reports"}
+                  </h2>
+                  <Badge className="bg-cyan-500/20 text-cyan-400 text-xs">
+                    {conditionReports.length} reports
+                  </Badge>
+                </div>
+                {conditionsSubTab === 'today' && (
+                  <button
+                    onClick={getReportsNearby}
+                    className="flex items-center gap-1 px-3 py-1.5 bg-muted hover:bg-zinc-700 rounded-full text-xs text-gray-300 transition-colors"
+                    data-testid="reports-nearby-btn"
+                  >
+                    <Compass className="w-3 h-3" />
+                    Nearby
+                  </button>
+                )}
+              </div>
+              
+              {/* Region Filter Dropdown */}
+              <div className="relative">
+                <button
+                  onClick={() => setShowRegionDropdown(!showRegionDropdown)}
+                  className="flex items-center justify-between w-full px-4 py-3 bg-muted rounded-lg text-foreground hover:bg-zinc-700 transition-colors"
+                  data-testid="region-filter-btn"
+                >
+                  <span className="flex items-center gap-2">
+                    <MapPin className="w-4 h-4 text-cyan-400" />
+                    <span className="font-medium">{selectedRegion === 'All' ? 'All Regions' : selectedRegion}</span>
+                  </span>
+                  <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${showRegionDropdown ? 'rotate-180' : ''}`} />
+                </button>
+                
+                {showRegionDropdown && (
+                  <div className="absolute top-full left-0 right-0 mt-1 bg-muted border border-zinc-700 rounded-lg shadow-xl z-20 max-h-64 overflow-y-auto">
+                    {conditionsRegions.map((region) => (
+                      <button
+                        key={region}
+                        onClick={() => handleRegionChange(region)}
+                        className={`w-full px-4 py-2 text-left text-sm transition-colors ${
+                          selectedRegion === region 
+                            ? 'bg-cyan-500/20 text-cyan-400' 
+                            : 'text-gray-300 hover:bg-zinc-700'
+                        }`}
+                      >
+                        {region === 'All' ? 'All Regions' : region}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+
+          {/* Archives: Date Carousel + Gallery Cards */}
+          {conditionsSubTab === 'archives' && (
+            <div className="space-y-4">
+              <div className="flex items-center gap-2">
+                <Calendar className="w-5 h-5 text-cyan-400" />
+                <h2 className="font-bold text-foreground">Session Archives</h2>
+              </div>
+              
+              {/* Scrollable date chips */}
+              {archiveDates.length > 0 ? (
+                <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+                  {archiveDates.map((d) => {
+                    const dateObj = new Date(d.date + 'T00:00:00');
+                    const isSelected = archiveDate === d.date;
+                    return (
+                      <button
+                        key={d.date}
+                        onClick={() => handleArchiveDateSelect(d.date)}
+                        className={`flex-shrink-0 flex flex-col items-center px-3 py-2 rounded-xl text-xs font-medium transition-all ${
+                          isSelected
+                            ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/40'
+                            : 'bg-muted text-gray-400 hover:bg-zinc-700 border border-transparent'
+                        }`}
+                      >
+                        <span className="text-[10px] uppercase opacity-70">
+                          {dateObj.toLocaleDateString('en-US', { weekday: 'short' })}
+                        </span>
+                        <span className="text-sm font-bold">
+                          {dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                        </span>
+                        <span className="text-[10px] mt-0.5 opacity-60">
+                          {d.report_count} {d.report_count === 1 ? 'report' : 'reports'}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="text-center py-6 text-muted-foreground">
+                  <Archive className="w-10 h-10 mx-auto mb-2 opacity-40" />
+                  <p className="text-sm">No archived reports found</p>
+                </div>
+              )}
+
+              {/* Archive Gallery Cards */}
+              {archiveDate && (
+                <>
+                  {archiveGalleriesLoading ? (
+                    <div className="flex justify-center py-6">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-cyan-400"></div>
+                    </div>
+                  ) : archiveGalleries.length > 0 ? (
+                    <div className="space-y-3">
+                      <h3 className="text-sm font-semibold text-gray-400 flex items-center gap-1.5">
+                        <FolderOpen className="w-4 h-4" />
+                        Session Galleries
+                      </h3>
+                      {archiveGalleries.map((gallery) => (
+                        <div
+                          key={gallery.id}
+                          onClick={() => navigate(`/photographer/${gallery.photographer_id}/gallery`)}
+                          className="flex items-center gap-3 p-3 bg-muted/50 hover:bg-zinc-700/50 rounded-xl cursor-pointer transition-all group"
+                          data-testid={`archive-gallery-${gallery.id}`}
+                        >
+                          {/* Cover thumbnail */}
+                          <div className="relative w-16 h-16 rounded-lg overflow-hidden flex-shrink-0 bg-zinc-700">
+                            {gallery.cover_image_url ? (
+                              <img 
+                                src={gallery.cover_image_url} 
+                                alt={gallery.title} 
+                                className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                              />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center">
+                                <Camera className="w-6 h-6 text-zinc-600" />
+                              </div>
+                            )}
+                            <div className="absolute bottom-0.5 right-0.5 bg-black/70 rounded px-1 py-0.5">
+                              <span className="text-[9px] font-bold text-white">{gallery.item_count} 📸</span>
+                            </div>
+                          </div>
+                          {/* Info */}
+                          <div className="flex-1 min-w-0">
+                            <h4 className="font-medium text-foreground text-sm truncate">{gallery.title}</h4>
+                            <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-0.5">
+                              {gallery.photographer_avatar ? (
+                                <img src={gallery.photographer_avatar} alt="" className="w-3.5 h-3.5 rounded-full object-cover" />
+                              ) : (
+                                <Camera className="w-3.5 h-3.5 text-yellow-400" />
+                              )}
+                              <span className="truncate">{gallery.photographer_name || 'Photographer'}</span>
+                            </div>
+                            {gallery.conditions && (
+                              <div className="flex items-center gap-1.5 mt-1">
+                                {gallery.conditions.wave_height_ft && (
+                                  <Badge className="bg-blue-500/20 text-blue-400 text-[10px] py-0 px-1.5">
+                                    {gallery.conditions.wave_height_ft}ft
+                                  </Badge>
+                                )}
+                                {gallery.conditions.conditions_label && (
+                                  <Badge className="bg-teal-500/20 text-teal-400 text-[10px] py-0 px-1.5">
+                                    {gallery.conditions.conditions_label}
+                                  </Badge>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                          <ChevronRight className="w-4 h-4 text-gray-600 group-hover:text-cyan-400 transition-colors flex-shrink-0" />
+                        </div>
+                      ))}
+                    </div>
+                  ) : null}
+                </>
+              )}
+            </div>
+          )}
+
+          {/* Report List (shared between today/yesterday/archive-date) */}
           {conditionsLoading ? (
             <div className="flex justify-center py-10">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-cyan-400"></div>
             </div>
-          ) : conditionReports.length === 0 ? (
+          ) : conditionReports.length === 0 && conditionsSubTab !== 'archives' ? (
             /* Empty State */
             <div className="text-center py-12 text-muted-foreground">
               <Waves className="w-12 h-12 mx-auto mb-3 opacity-50" />
-              <p className="font-medium mb-1">No conditions reports yet</p>
-              <p className="text-sm text-gray-500">Check back when photographers go live!</p>
+              <p className="font-medium mb-1">
+                {conditionsSubTab === 'yesterday' ? "No reports from yesterday" : "No conditions reports yet"}
+              </p>
+              <p className="text-sm text-gray-500">
+                {conditionsSubTab === 'yesterday' ? "Check the Archives for older reports" : "Check back when photographers go live!"}
+              </p>
             </div>
-          ) : (
+          ) : conditionReports.length === 0 && conditionsSubTab === 'archives' && archiveDate ? (
+            <div className="text-center py-8 text-muted-foreground">
+              <Waves className="w-10 h-10 mx-auto mb-2 opacity-40" />
+              <p className="text-sm">No reports for this date</p>
+            </div>
+          ) : conditionReports.length > 0 ? (
             /* Conditions Reports List */
             <div className="space-y-3">
+              {conditionsSubTab === 'archives' && archiveDate && (
+                <h3 className="text-sm font-semibold text-gray-400 flex items-center gap-1.5">
+                  <Waves className="w-4 h-4" />
+                  Condition Reports
+                </h3>
+              )}
               {conditionReports.map((report) => (
                 <div
                   key={report.id}
@@ -2271,9 +2499,15 @@ export const Explore = () => {
                         <span className="text-[10px] font-bold text-foreground">{report.wave_height_ft}ft</span>
                       </div>
                     )}
-                    {/* Live Shooting Indicator - only when photographer is actively shooting right now */}
+                    {/* Live Shooting Indicator */}
                     {report.is_photographer_live && (
                       <div className="absolute top-1 right-1 w-2.5 h-2.5 bg-green-500 rounded-full animate-pulse" />
+                    )}
+                    {/* Gallery link badge */}
+                    {report.gallery_id && report.gallery_item_count > 0 && (
+                      <div className="absolute top-1 left-1 bg-black/70 backdrop-blur-sm rounded px-1 py-0.5">
+                        <span className="text-[9px] font-bold text-cyan-400">📸 {report.gallery_item_count}</span>
+                      </div>
                     )}
                   </div>
 
@@ -2320,7 +2554,7 @@ export const Explore = () => {
                 </div>
               ))}
             </div>
-          )}
+          ) : null}
         </div>
       )}
 

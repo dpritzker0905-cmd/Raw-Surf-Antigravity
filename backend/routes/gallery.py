@@ -5967,3 +5967,173 @@ async def get_gallery_conditions_status(
         "expires_at": None,
         "is_expired": True
     }
+
+
+# ============ AI "FIND ME" IN GALLERY ============
+
+
+class FindMeRequest(BaseModel):
+    selfie_url: str
+    board_description: Optional[str] = None
+    wetsuit_description: Optional[str] = None
+    rash_guard_description: Optional[str] = None
+    stance: Optional[str] = None  # 'regular' or 'goofy'
+
+
+@router.post("/gallery/{gallery_id}/find-me")
+async def find_me_in_gallery(
+    gallery_id: str,
+    user_id: str,
+    data: FindMeRequest,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    AI-powered surfer identification in a gallery.
+    Scans gallery photos and returns matches ranked by confidence.
+    
+    Rate limits:
+      - Free/Basic: 5 scans/day, max 150 photos/scan
+      - Premium: 10 scans/day, unlimited photos/scan
+    """
+    # Verify user exists
+    user_result = await db.execute(select(Profile).where(Profile.id == user_id))
+    user = user_result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Determine tier limits
+    subscription_tier = getattr(user, 'subscription_tier', 'free') or 'free'
+    is_premium = subscription_tier in ('premium', 'pro', 'gold')
+    max_scans_per_day = 10 if is_premium else 5
+    max_photos_per_scan = None if is_premium else 150  # None = unlimited
+    
+    # Check daily scan count (use XPTransaction as a scan log)
+    from sqlalchemy import func
+    today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+    scan_count_result = await db.execute(
+        select(func.count(XPTransaction.id)).where(
+            XPTransaction.user_id == user_id,
+            XPTransaction.transaction_type == 'find_me_scan',
+            XPTransaction.created_at >= today_start
+        )
+    )
+    scans_today = scan_count_result.scalar() or 0
+    
+    if scans_today >= max_scans_per_day:
+        tier_label = "Premium" if is_premium else "Free/Basic"
+        raise HTTPException(
+            status_code=429,
+            detail=f"Daily scan limit reached ({max_scans_per_day}/day for {tier_label} users). "
+                   f"{'Try again tomorrow.' if is_premium else 'Upgrade to Premium for 10 scans/day.'}"
+        )
+    
+    # Get gallery and its items
+    gallery_result = await db.execute(
+        select(Gallery).where(Gallery.id == gallery_id, Gallery.is_public.is_(True))
+    )
+    gallery = gallery_result.scalar_one_or_none()
+    if not gallery:
+        raise HTTPException(status_code=404, detail="Gallery not found or not public")
+    
+    # Fetch gallery items (watermarked previews for AI analysis)
+    items_query = select(GalleryItem).where(
+        GalleryItem.gallery_id == gallery_id,
+        GalleryItem.is_public.is_(True),
+        GalleryItem.is_deleted.is_(False)
+    ).order_by(GalleryItem.created_at.desc())
+    
+    if max_photos_per_scan:
+        items_query = items_query.limit(max_photos_per_scan)
+    
+    items_result = await db.execute(items_query)
+    items = items_result.scalars().all()
+    
+    if not items:
+        return {
+            "matches": [],
+            "total_photos_scanned": 0,
+            "matches_found": 0,
+            "gallery_id": gallery_id,
+            "message": "No photos in this gallery to scan"
+        }
+    
+    # Build surfer profile for AI matching
+    from services.ai_identity_matching import SurferProfile, batch_analyze_session_photos
+    
+    surfer_profile = SurferProfile(
+        profile_photo_url=user.avatar_url,
+        session_selfie_url=data.selfie_url,
+        board_description=data.board_description,
+        wetsuit_description=data.wetsuit_description,
+        rash_guard_description=data.rash_guard_description,
+        stance=data.stance
+    )
+    
+    # Get photo URLs for analysis (use preview_url for watermarked previews)
+    photo_urls = []
+    url_to_item = {}
+    for item in items:
+        url = item.preview_url or item.original_url
+        if url:
+            photo_urls.append(url)
+            url_to_item[url] = item
+    
+    # Build session context
+    spot_name = gallery.title or "Unknown Spot"
+    session_context = f"Session at {spot_name}"
+    if gallery.session_date:
+        session_context += f" on {gallery.session_date.strftime('%B %d, %Y')}"
+    
+    # Run AI batch analysis
+    gallery_logger.info(
+        f"Find Me scan: user={user_id}, gallery={gallery_id}, "
+        f"photos={len(photo_urls)}, tier={subscription_tier}"
+    )
+    
+    ai_results = await batch_analyze_session_photos(
+        photo_urls=photo_urls,
+        surfer_profile=surfer_profile,
+        session_context=session_context
+    )
+    
+    # Process results and build response
+    matches = []
+    for result in ai_results:
+        if result.get("is_match") and result.get("confidence", 0) >= 0.3:
+            item = url_to_item.get(result["photo_url"])
+            if item:
+                matches.append({
+                    "gallery_item_id": item.id,
+                    "preview_url": item.preview_url,
+                    "thumbnail_url": item.thumbnail_url,
+                    "media_type": item.media_type or 'image',
+                    "confidence": round(result["confidence"], 2),
+                    "match_methods": result.get("match_methods", []),
+                    "reasoning": result.get("details", {}).get("reasoning", ""),
+                    "is_for_sale": item.is_for_sale,
+                    "price": item.price
+                })
+    
+    # Sort by confidence (highest first)
+    matches.sort(key=lambda x: x["confidence"], reverse=True)
+    
+    # Log the scan (for rate limiting)
+    scan_log = XPTransaction(
+        user_id=user_id,
+        transaction_type='find_me_scan',
+        xp_amount=0,
+        description=f"AI Find Me scan in gallery {gallery_id} ({len(matches)} matches from {len(photo_urls)} photos)"
+    )
+    db.add(scan_log)
+    await db.commit()
+    
+    return {
+        "matches": matches,
+        "total_photos_scanned": len(photo_urls),
+        "matches_found": len(matches),
+        "gallery_id": gallery_id,
+        "scans_remaining_today": max_scans_per_day - scans_today - 1,
+        "max_photos_per_scan": max_photos_per_scan or "unlimited",
+        "subscription_tier": subscription_tier
+    }
+
