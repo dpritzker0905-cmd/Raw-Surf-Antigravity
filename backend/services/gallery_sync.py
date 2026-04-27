@@ -79,16 +79,21 @@ async def create_session_gallery(
             logger.warning(f"Could not fetch condition report for gallery cover: {e}")
     
     # Determine gallery title and pricing based on session type
+    # Title format: Date · Time · Location · Gallery Type
+    # This ordering ensures mobile pill buttons show the date/time first
     now = datetime.now(timezone.utc)
+    ts = session_start or now
     try:
         # Linux/macOS: %-I removes leading zero from hour
-        date_str = (session_start or now).strftime("%B %d, %Y at %-I:%M %p")
+        date_part = ts.strftime("%b %d, %Y")
+        time_part = ts.strftime("%-I:%M %p")
     except ValueError:
         # Windows: %#I removes leading zero
-        date_str = (session_start or now).strftime("%B %d, %Y at %#I:%M %p")
+        date_part = ts.strftime("%b %d, %Y")
+        time_part = ts.strftime("%#I:%M %p")
     
     if session_type == 'live':
-        title = f"Live Session at {spot_name} - {date_str}"
+        title = f"{date_part} · {time_part} · {spot_name} · Live Session"
         description = f"Photos from live surf session at {spot_name}"
         price_web = photographer.live_session_photo_price or photographer.photo_price_web or 3.0
         price_standard = photographer.live_session_photo_price or photographer.photo_price_standard or 5.0
@@ -96,7 +101,7 @@ async def create_session_gallery(
         gallery_tier = GalleryTierEnum.STANDARD
         
     elif session_type == 'on_demand':
-        title = f"On-Demand Session at {spot_name} - {date_str}"
+        title = f"{date_part} · {time_part} · {spot_name} · On-Demand"
         description = "Exclusive photos from your private on-demand session"
         # Use independent on-demand resolution pricing (Profile fields added in Iteration 135+)
         # Falls back to legacy on_demand_photo_price, then to general gallery pricing
@@ -114,7 +119,7 @@ async def create_session_gallery(
             )
             booking = booking_result.scalar_one_or_none()
         
-        title = f"Booked Session at {spot_name} - {date_str}"
+        title = f"{date_part} · {time_part} · {spot_name} · Booking"
         description = "Photos from your scheduled surf session"
         
         if booking:
@@ -130,7 +135,7 @@ async def create_session_gallery(
         
     else:
         # Manual/general gallery - use general pricing
-        title = f"Session at {spot_name} - {date_str}" if spot_name else f"Gallery - {date_str}"
+        title = f"{date_part} · {time_part} · {spot_name} · Gallery" if spot_name else f"{date_part} · {time_part} · Gallery"
         description = "Surf photography gallery"
         price_web = photographer.photo_price_web or 3.0
         price_standard = photographer.photo_price_standard or 5.0
