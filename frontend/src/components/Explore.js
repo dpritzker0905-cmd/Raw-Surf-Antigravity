@@ -2367,7 +2367,7 @@ export const Explore = () => {
               >
                 <Icon className="w-3.5 h-3.5" />
                 {label}
-                {id === 'today' && conditionsSubTab === 'today' && conditionReports.length > 0 && (
+                {id === 'today' && conditionsSubTab === 'today' && conditionReports.some(r => r.is_photographer_live) && (
                   <span className="ml-0.5 w-2 h-2 bg-green-500 rounded-full animate-pulse" />
                 )}
               </button>
@@ -2786,27 +2786,27 @@ export const Explore = () => {
                     <ChevronRight className="w-5 h-5 text-gray-600 group-hover:text-cyan-400 transition-colors flex-shrink-0" />
                   </div>
 
-                  {/* Action buttons row — shows when gallery is linked */}
-                  {hasGallery && (
-                    <div className={`flex gap-2 px-4 pb-3 pt-0`}>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (report.spot_id) {
-                            navigate(`/spot-hub/${report.spot_id}`);
-                          } else {
-                            navigate(`/profile/${report.photographer_id}`);
-                          }
-                        }}
-                        className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-medium transition-all ${
-                          isLight
-                            ? 'bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-200'
-                            : 'bg-zinc-800 hover:bg-zinc-700 text-gray-300 border border-zinc-700'
-                        }`}
-                      >
-                        <Waves className="w-3.5 h-3.5" />
-                        View Spot
-                      </button>
+                  {/* Action buttons row — View Spot always, View Gallery when gallery linked */}
+                  <div className={`flex gap-2 px-4 pb-3 pt-0`}>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (report.spot_id) {
+                          navigate(`/spot-hub/${report.spot_id}`);
+                        } else {
+                          navigate(`/profile/${report.photographer_id}`);
+                        }
+                      }}
+                      className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-medium transition-all ${
+                        isLight
+                          ? 'bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-200'
+                          : 'bg-zinc-800 hover:bg-zinc-700 text-gray-300 border border-zinc-700'
+                      }`}
+                    >
+                      <Waves className="w-3.5 h-3.5" />
+                      View Spot
+                    </button>
+                    {hasGallery && (
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
@@ -2819,8 +2819,8 @@ export const Explore = () => {
                         View Gallery
                         <span className="bg-cyan-500/30 rounded-full px-1.5 py-0 text-[10px] font-bold">{report.gallery_item_count}</span>
                       </button>
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </div>
                 );
               })}

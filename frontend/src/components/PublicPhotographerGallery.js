@@ -426,7 +426,10 @@ export const PublicPhotographerGallery = () => {
                 )}
               </div>
               {photographer?.username && (
-                <p className={`${textSecondary} mb-2`}>@{photographer.username}</p>
+                <p 
+                  className={`${textSecondary} mb-2 cursor-pointer hover:underline hover:text-cyan-400 transition-colors`}
+                  onClick={() => navigate(`/profile/${photographerId}`)}
+                >@{photographer.username}</p>
               )}
               {photographer?.bio && (
                 <p className={`${isLight ? 'text-gray-600' : 'text-zinc-300'} text-sm max-w-xl`}>{photographer.bio}</p>
