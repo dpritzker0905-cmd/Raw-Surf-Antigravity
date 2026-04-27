@@ -38,24 +38,21 @@ const MAX_IMAGE_SIZE = 50 * 1024 * 1024;  // 50MB
 const ACCEPTED_VIDEO = ['video/mp4', 'video/quicktime', 'video/webm', 'video/mpeg', 'video/x-m4v'];
 const ACCEPTED_IMAGE = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
 
-function resolveUploadPricing(gallery, galleryPricing) {
+/**
+ * Resolve the BASE price stored on each uploaded gallery item.
+ * 
+ * IMPORTANT: This always uses the photographer's General Gallery Pricing
+ * (photo_price_standard / video_price_1080p). Session-specific discounts
+ * (live session jump-in rates, booking rates) are applied at PURCHASE TIME
+ * by the backend based on participant status — NOT baked into the item here.
+ * 
+ * This ensures that anonymous gallery visitors who weren't part of a session
+ * see the photographer's intended standard rates.
+ */
+function resolveUploadPricing(_gallery, galleryPricing) {
   const defaults = { photoPrice: 5, videoPrice: 15, source: 'Gallery Default' };
   if (!galleryPricing) return defaults;
 
-  if (gallery?.live_session_id) {
-    return {
-      photoPrice: galleryPricing.live_session_photo_price || 5,
-      videoPrice: galleryPricing.video_price_1080p || 15,
-      source: 'Live Session'
-    };
-  }
-  if (gallery?.booking_id) {
-    return {
-      photoPrice: galleryPricing.on_demand_photo_price || 10,
-      videoPrice: galleryPricing.video_price_1080p || 15,
-      source: 'Booking'
-    };
-  }
   return {
     photoPrice: galleryPricing.photo_price_standard || 5,
     videoPrice: galleryPricing.video_price_1080p || 15,
