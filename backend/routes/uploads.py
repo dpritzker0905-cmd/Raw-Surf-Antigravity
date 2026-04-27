@@ -155,8 +155,10 @@ def add_watermark(image_path: str, output_path: str, text: str = "RAW SURF OS") 
     Add watermark to an image.
     Returns (output_path, processing_time_ms)
     Optimized for sub-2-second processing of 5MB images.
+    Memory-safe: releases intermediate PIL images between steps.
     """
     import time
+    import gc
     start_time = time.time()
     
     try:
@@ -166,10 +168,9 @@ def add_watermark(image_path: str, output_path: str, text: str = "RAW SURF OS") 
         img = Image.open(image_path)
         original_size = img.size
         
-        # For very large images (>4K), resize for watermarking then upscale
+        # For very large images (>4K), resize for watermarking
         max_dimension = 4096
         if img.width > max_dimension or img.height > max_dimension:
-            # Calculate scale factor
             scale = min(max_dimension / img.width, max_dimension / img.height)
             new_size = (int(img.width * scale), int(img.height * scale))
             img = img.resize(new_size, Image.Resampling.LANCZOS)
@@ -217,15 +218,26 @@ def add_watermark(image_path: str, output_path: str, text: str = "RAW SURF OS") 
             for x in range(0, img.width, spacing_x):
                 draw.text((x, y), text, font=font, fill=(255, 255, 255, 50))
         
-        # Composite
+        # Composite and immediately release source images
         watermarked = Image.alpha_composite(img, txt_layer)
+        img.close()
+        txt_layer.close()
+        del img, txt_layer, draw
         
         # Convert back to RGB for saving as JPEG
         if output_path.lower().endswith('.jpg') or output_path.lower().endswith('.jpeg'):
-            watermarked = watermarked.convert('RGB')
+            rgb_result = watermarked.convert('RGB')
+            watermarked.close()
+            del watermarked
+            rgb_result.save(output_path, quality=80, optimize=True)
+            rgb_result.close()
+            del rgb_result
+        else:
+            watermarked.save(output_path, quality=80, optimize=True)
+            watermarked.close()
+            del watermarked
         
-        # Save with optimized settings
-        watermarked.save(output_path, quality=80, optimize=True)
+        gc.collect()
         
         processing_time_ms = (time.time() - start_time) * 1000
         logging.info(f"Watermark applied in {processing_time_ms:.0f}ms for {original_size[0]}x{original_size[1]} image")
@@ -1122,6 +1134,8 @@ async def upload_photographer_gallery_media(
         }
     else:
         # Handle image upload (existing logic)
+        # Memory-safe: release buffers between steps to stay under 512MB
+        import gc
         ext = get_file_extension(file.content_type)
         base_filename = str(uuid.uuid4())
         original_filename = f"{base_filename}_original{ext}"
@@ -1129,6 +1143,7 @@ async def upload_photographer_gallery_media(
         
         original_path = gallery_dir / original_filename
         preview_path = gallery_dir / preview_filename
+        content_size = len(content)
         
         # Auto-rotate based on EXIF orientation (fixes sideways mobile photos)
         try:
@@ -1136,6 +1151,9 @@ async def upload_photographer_gallery_media(
             from io import BytesIO
             img = PILImage.open(BytesIO(content))
             img = ImageOps.exif_transpose(img)
+            # Release raw bytes NOW — we no longer need them
+            del content
+            gc.collect()
             # Save the corrected original
             save_kwargs = {}
             if ext.lower() in ('.jpg', '.jpeg'):
@@ -1146,15 +1164,26 @@ async def upload_photographer_gallery_media(
                 save_kwargs = {'quality': 95}
             img.save(str(original_path), **save_kwargs)
             logger.info(f"Saved EXIF-corrected image: {original_filename}")
+            # Release PIL image before watermarking opens it again
+            img.close()
+            del img
+            gc.collect()
         except Exception as exif_err:
             logger.warning(f"EXIF auto-rotate failed ({exif_err}), saving raw file")
             with open(original_path, "wb") as f:
                 f.write(content)
+            # Release raw bytes after writing to disk
+            try:
+                del content
+            except NameError:
+                pass
+            gc.collect()
         
-        # Create watermarked preview
+        # Create watermarked preview (reads from disk, not memory)
         watermark_time_ms = 0
         if add_watermark_preview:
             _, watermark_time_ms = add_watermark(str(original_path), str(preview_path))
+            gc.collect()  # Release watermark PIL objects
         else:
             shutil.copy(original_path, preview_path)
         
@@ -1178,7 +1207,7 @@ async def upload_photographer_gallery_media(
             "preview_url": supabase_preview or local_preview_url,
             "media_type": "image",
             "filename": base_filename,
-            "size": len(content),
+            "size": content_size,
             "has_watermark": add_watermark_preview,
             "watermark_time_ms": watermark_time_ms
         }
