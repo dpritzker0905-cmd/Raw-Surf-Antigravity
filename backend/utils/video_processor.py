@@ -74,15 +74,27 @@ def get_video_info(file_path: str) -> Optional[dict]:
 
 def needs_transcoding(video_info: dict, max_height: int = MAX_FEED_HEIGHT, max_width: int = MAX_FEED_WIDTH) -> bool:
     """
-    Check if video exceeds resolution limits and needs transcoding
+    Check if video exceeds resolution limits and needs transcoding.
+
+    Orientation-aware: uses the longer edge vs 1920 and shorter edge vs 1080
+    so that standard vertical videos (1080x1920) are NOT needlessly downscaled.
     """
     if not video_info:
         return False
-    
+
     height = video_info.get('height', 0)
     width = video_info.get('width', 0)
-    
-    return height > max_height or width > max_width
+
+    # Orientation-aware limits:
+    # max_long  = max(max_width, max_height)  -> 1920 for feed
+    # max_short = min(max_width, max_height)  -> 1080 for feed
+    max_long = max(max_width, max_height)
+    max_short = min(max_width, max_height)
+
+    long_edge = max(width, height)
+    short_edge = min(width, height)
+
+    return long_edge > max_long or short_edge > max_short
 
 
 def calculate_target_dimensions(
@@ -92,25 +104,32 @@ def calculate_target_dimensions(
     max_height: int = MAX_FEED_HEIGHT
 ) -> Tuple[int, int]:
     """
-    Calculate target dimensions maintaining aspect ratio
+    Calculate target dimensions maintaining aspect ratio.
+
+    Orientation-aware: allows 1080x1920 portrait videos to pass as-is.
     """
-    if width <= max_width and height <= max_height:
+    # Orientation-aware limits
+    max_long = max(max_width, max_height)
+    max_short = min(max_width, max_height)
+
+    long_edge = max(width, height)
+    short_edge = min(width, height)
+
+    if long_edge <= max_long and short_edge <= max_short:
         return width, height
-    
-    # Calculate scaling factor based on limiting dimension
-    width_ratio = max_width / width
-    height_ratio = max_height / height
-    
-    # Use the smaller ratio to ensure we don't exceed either limit
-    scale_factor = min(width_ratio, height_ratio)
-    
+
+    # Scale so that the longest edge fits max_long, shortest fits max_short
+    long_ratio = max_long / long_edge if long_edge > max_long else 1.0
+    short_ratio = max_short / short_edge if short_edge > max_short else 1.0
+    scale_factor = min(long_ratio, short_ratio)
+
     new_width = int(width * scale_factor)
     new_height = int(height * scale_factor)
-    
+
     # Ensure dimensions are even (required for some codecs)
     new_width = new_width - (new_width % 2)
     new_height = new_height - (new_height % 2)
-    
+
     return new_width, new_height
 
 
@@ -156,23 +175,28 @@ def transcode_video(
         }
         crf = crf_values.get(quality, '23')
         
-        # Build ffmpeg command
+        # Build ffmpeg command — memory-optimised for Render 512 MB tier
         cmd = [
             'ffmpeg',
+            '-threads', '1',              # single decode thread to cap RAM
             '-i', input_path,
             '-vf', f'scale={target_width}:{target_height}',
             '-c:v', 'libx264',
-            '-preset', 'medium',
+            '-preset', 'ultrafast',        # minimal encoder buffers
             '-crf', crf,
+            '-threads', '1',              # single encode thread
+            '-bufsize', '2M',             # limit rate-control buffer
+            '-maxrate', '4M',             # cap bitrate spikes
             '-c:a', 'aac',
             '-b:a', '128k',
-            '-movflags', '+faststart',  # Enable streaming
-            '-y',  # Overwrite output
+            '-movflags', '+faststart',    # enable streaming
+            '-max_muxing_queue_size', '256',
+            '-y',
             output_path
         ]
-        
+
         logger.info(f"Transcoding video: {video_info['width']}x{video_info['height']} -> {target_width}x{target_height}")
-        
+
         # Run transcode (with timeout based on duration + overhead)
         timeout = max(60, int(video_info['duration']) * 2 + 30)
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
@@ -481,8 +505,9 @@ def _generate_smart_thumbnail(
     import tempfile
     
     try:
-        # Sample 5 frames at different points (10%, 25%, 50%, 75%, 90% of duration)
-        sample_points = [0.1, 0.25, 0.5, 0.75, 0.9]
+        # Sample 3 frames (25%, 50%, 75%) — reduced from 5 to lower memory
+        # pressure on Render 512 MB tier (each ffmpeg call uses ~20-30 MB)
+        sample_points = [0.25, 0.5, 0.75]
         if duration < 2:
             sample_points = [0.5]  # Short video, just use middle
         
