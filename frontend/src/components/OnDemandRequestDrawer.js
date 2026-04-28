@@ -128,6 +128,7 @@ const EmptySeat = ({ onClick, isLight }) => {
 export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess, userLocation, _userCredits = 0, resumeDispatchId }) => {
   const { user, updateUser } = useAuth();
   const { theme } = useTheme();
+  const navigate = useNavigate();
   // Flow: 'timing' -> 'location' -> 'duration' -> 'crew' -> 'confirm' -> 'selfie' -> 'waiting' -> 'success'
   const [step, setStep] = useState('timing');
   const [_selectedResolution, _setSelectedResolution] = useState('standard');
@@ -139,7 +140,6 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
   const [showSelfieModal, setShowSelfieModal] = useState(false);
   const selfieShownRef = useRef(false); // gates selfie modal to open exactly once
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
-  const navigate = useNavigate();
   const [localCredits, setLocalCredits] = useState(0);
   const [creditsFetched, setCreditsFetched] = useState(false);
   const [subscriptionDiscount, setSubscriptionDiscount] = useState(null);
@@ -2307,19 +2307,16 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
             
             <Button
               onClick={() => {
-                onSuccess?.({
-                  request_id: requestId,
-                  photographer_id: acceptedData?.photographer_id,
-                  photographer_name: acceptedData?.photographer_name
-                });
+                // Navigate to the interactive DispatchLobby for chat, voice notes, and cancel options
                 onClose();
+                navigate(`/dispatch/${requestId}/lobby`);
               }}
               className="w-full py-5 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-foreground font-bold rounded-xl"
             >
               Got it, Let's Surf! 🤙
             </Button>
             <p className={`text-xs ${textSecondary} text-center`}>
-              You can track this session anytime from your Bookings tab
+              Chat with your photographer, track their arrival, or manage your session
             </p>
           </div>
         )}

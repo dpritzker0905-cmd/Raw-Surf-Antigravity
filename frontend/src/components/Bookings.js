@@ -1234,7 +1234,12 @@ export const Bookings = () => {
               onManualLocationSelect={fetchOnDemandByManualLocation}
               onSelectPhotographer={handleSelectOnDemandPro}
               onResumeDispatch={(dispatch) => {
-                // Resume the "Finding Your Photographer" workflow
+                // If photographer already accepted/en_route/arrived, go directly to interactive lobby
+                if (['accepted', 'en_route', 'arrived'].includes(dispatch.status)) {
+                  navigate(`/dispatch/${dispatch.id}/lobby`);
+                  return;
+                }
+                // Otherwise resume the "Finding Your Photographer" workflow drawer
                 setSelectedOnDemandPro({ 
                   id: dispatch.photographer_id || 'unknown', 
                   full_name: dispatch.photographer_name || 'Photographer'

@@ -1737,27 +1737,34 @@ async def cancel_dispatch(
         refund_amount = dispatch.deposit_amount
         refund_type = 'full'
     elif dispatch.is_immediate:
-        # On-demand after acceptance - use photographer's cancellation fee setting
-        photographer_fee_pct = 100  # Default: non-refundable (legacy behavior)
-        if dispatch.photographer_id:
-            photographer_result = await db.execute(
-                select(Profile).where(Profile.id == dispatch.photographer_id)
-            )
-            photographer_profile = photographer_result.scalar_one_or_none()
-            if photographer_profile and photographer_profile.on_demand_cancellation_fee_pct is not None:
-                photographer_fee_pct = photographer_profile.on_demand_cancellation_fee_pct
-        
-        # Calculate refund: deposit minus fee
-        fee_fraction = photographer_fee_pct / 100.0
-        fee_amount = (dispatch.deposit_amount or 0) * fee_fraction
-        refund_amount = (dispatch.deposit_amount or 0) - fee_amount
-        
-        if refund_amount >= (dispatch.deposit_amount or 0):
+        # On-demand after acceptance — fee logic depends on WHO cancelled
+        if user_id == dispatch.photographer_id:
+            # PHOTOGRAPHER cancelled → surfer always gets full refund, no fee
+            refund_amount = dispatch.deposit_amount or 0
             refund_type = 'full'
-        elif refund_amount > 0:
-            refund_type = 'partial'
+            photographer_fee_pct = 0
         else:
-            refund_type = 'none'
+            # SURFER cancelled → apply photographer's cancellation fee setting
+            photographer_fee_pct = 100  # Default: non-refundable (legacy behavior)
+            if dispatch.photographer_id:
+                photographer_result = await db.execute(
+                    select(Profile).where(Profile.id == dispatch.photographer_id)
+                )
+                photographer_profile = photographer_result.scalar_one_or_none()
+                if photographer_profile and photographer_profile.on_demand_cancellation_fee_pct is not None:
+                    photographer_fee_pct = photographer_profile.on_demand_cancellation_fee_pct
+            
+            # Calculate refund: deposit minus fee
+            fee_fraction = photographer_fee_pct / 100.0
+            fee_amount = (dispatch.deposit_amount or 0) * fee_fraction
+            refund_amount = (dispatch.deposit_amount or 0) - fee_amount
+            
+            if refund_amount >= (dispatch.deposit_amount or 0):
+                refund_type = 'full'
+            elif refund_amount > 0:
+                refund_type = 'partial'
+            else:
+                refund_type = 'none'
     else:
         # Scheduled request - check timing
         if dispatch.requested_start_time:

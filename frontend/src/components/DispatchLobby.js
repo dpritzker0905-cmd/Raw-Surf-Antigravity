@@ -19,7 +19,7 @@ import { getFullUrl } from '../utils/media';
 import {
   Check, Clock, MapPin, Radio, Award, Camera, Loader2,
   Zap, X, ChevronRight, Users, Bell, ArrowLeft, RefreshCw,
-  Edit2, Navigation, Lock, MessageCircle, Mic
+  Edit2, Navigation, Lock, MessageCircle, Mic, AlertTriangle
 } from 'lucide-react';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
@@ -255,6 +255,7 @@ export const DispatchLobby = () => {
   const [error, setError] = useState(null);
   const [showSelfieModal, setShowSelfieModal] = useState(false);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+  const [cancelLoading, setCancelLoading] = useState(false);
   const [declinedBanner, setDeclinedBanner] = useState(false);
   const selfieShownRef = useRef(false);
   const pollRef = useRef(null);
@@ -465,15 +466,28 @@ export const DispatchLobby = () => {
 
   // -- Handle cancel with confirmation --
   const handleCancelSession = async () => {
+    setCancelLoading(true);
     try {
-      await apiClient.post(
+      const res = await apiClient.post(
         `/dispatch/${dispatchId}/cancel?user_id=${user.id}`,
         { reason: 'User cancelled from lobby' }
       );
-      toast.info('Session cancelled. Your deposit will be refunded.');
+      const feeAmt = res.data?.fee_amount || 0;
+      const refundAmt = res.data?.refund_amount || 0;
+
+      if (feeAmt > 0) {
+        toast.info(
+          `Cancelled. $${refundAmt.toFixed(2)} refunded, $${feeAmt.toFixed(2)} cancellation fee applied.`,
+          { duration: 6000 }
+        );
+      } else {
+        toast.info('Session cancelled. Your deposit has been refunded.');
+      }
       navigate(`/bookings?tab=on_demand&highlight=${dispatchId}`);
     } catch {
       toast.error('Failed to cancel. Please try again or contact support.');
+    } finally {
+      setCancelLoading(false);
     }
   };
 
@@ -1101,8 +1115,8 @@ export const DispatchLobby = () => {
             Your session is saved. You can check back anytime from the Bookings tab.
           </p>
 
-          {/* Cancel with confirmation */}
-          {!photographerAccepted && !showCancelConfirm && (
+          {/* Cancel Session */}
+          {!showCancelConfirm && (
             <button
               onClick={() => setShowCancelConfirm(true)}
               className={`w-full text-center text-sm py-3 rounded-xl border transition-colors ${
@@ -1111,7 +1125,8 @@ export const DispatchLobby = () => {
                   : 'border-zinc-700 text-zinc-500 hover:text-red-400 hover:border-red-500/40'
               }`}
             >
-              <X className="w-4 h-4 inline mr-1" /> Cancel Session
+              <X className="w-4 h-4 inline mr-1" />
+              {photographerAccepted ? 'Cancel Session (fee may apply)' : 'Cancel Session'}
             </button>
           )}
 
@@ -1120,11 +1135,18 @@ export const DispatchLobby = () => {
             <div className={`p-4 rounded-xl border-2 space-y-3 ${
               isLight ? 'bg-red-50 border-red-200' : 'bg-red-500/10 border-red-500/30'
             }`}>
-              <p className={`text-sm font-medium ${textPrimary} text-center`}>
-                Are you sure you want to cancel this session?
-              </p>
-              <p className={`text-xs ${textSecondary} text-center`}>
-                Your deposit will be refunded to your account credits.
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="w-5 h-5 text-red-400 flex-shrink-0" />
+                <p className={`text-sm font-medium ${textPrimary}`}>
+                  {photographerAccepted
+                    ? 'Cancel after photographer confirmed?'
+                    : 'Are you sure you want to cancel?'}
+                </p>
+              </div>
+              <p className={`text-xs ${textSecondary}`}>
+                {photographerAccepted
+                  ? 'A cancellation fee may apply based on the photographer\'s policy.'
+                  : 'Your deposit will be refunded to your account credits.'}
               </p>
               <div className="flex gap-3">
                 <Button
@@ -1136,8 +1158,10 @@ export const DispatchLobby = () => {
                 </Button>
                 <Button
                   onClick={handleCancelSession}
+                  disabled={cancelLoading}
                   className="flex-1 bg-red-500 hover:bg-red-600 text-white font-bold"
                 >
+                  {cancelLoading ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : null}
                   Yes, Cancel
                 </Button>
               </div>
