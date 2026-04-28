@@ -153,6 +153,9 @@ const NOTIFICATION_CONFIG = {
   collaboration_request:           { icon: Users,         color: 'text-cyan-400',    bgColor: 'bg-cyan-500/20',    category: 'social' },
   crew_invite:                     { icon: Users,         color: 'text-cyan-400',    bgColor: 'bg-cyan-500/20',    category: 'social' },
   friend_invite:                   { icon: UserPlus,      color: 'text-cyan-400',    bgColor: 'bg-cyan-500/20',    category: 'social' },
+  post_comment:                    { icon: MessageCircle, color: 'text-cyan-400',    bgColor: 'bg-cyan-500/20',    category: 'social' },
+  comment_reply:                   { icon: MessageCircle, color: 'text-blue-400',    bgColor: 'bg-blue-500/20',    category: 'social' },
+  post_like:                       { icon: Trophy,        color: 'text-pink-400',    bgColor: 'bg-pink-500/20',    category: 'social' },
   surf_alert:                      { icon: Waves,         color: 'text-cyan-400',    bgColor: 'bg-cyan-500/20',    category: 'alerts' },
   grom_spending_alert:             { icon: CreditCard,    color: 'text-amber-400',   bgColor: 'bg-amber-500/20',   category: 'alerts' },
   grom_link_request:               { icon: Users,         color: 'text-amber-400',   bgColor: 'bg-amber-500/20',   category: 'alerts' },
@@ -376,7 +379,7 @@ export const NotificationsPage = () => {
           {activeTab === 'sessions' && 'Session activity will appear here'}
           {activeTab === 'payments' && 'Payment updates will appear here'}
           {activeTab === 'photos'   && 'Photo tags and gallery updates will appear here'}
-          {activeTab === 'social'   && 'Followers, messages, and achievements will appear here'}
+          {activeTab === 'social'   && 'Comments, likes, followers, and messages will appear here'}
           {activeTab === 'admin'    && 'Pro applications, reports, and system alerts will appear here'}
           {activeTab === 'all'      && "You're all caught up!"}
         </p>

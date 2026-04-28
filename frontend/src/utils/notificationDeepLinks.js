@@ -164,6 +164,15 @@ export const getNotificationDeepLink = (notification) => {
       }
       return { route: '/feed' }; // Feed
       
+    case 'post_comment':
+    case 'comment_reply':
+    case 'post_like':
+      // Navigate to the commented/liked post
+      if (data.post_id) {
+        return { route: `/post/${data.post_id}` };
+      }
+      return { route: '/feed' };
+      
     case 'shaka_received':
     case 'instant_shaka':
       if (data.post_id) {
