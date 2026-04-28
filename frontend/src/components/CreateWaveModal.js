@@ -1,4 +1,4 @@
-﻿/**
+/**
  * CreateWaveModal - Upload short-form vertical video (max 60 seconds)
  */
 import React, { useState, useRef, useCallback } from 'react';
@@ -7,7 +7,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import { Button } from './ui/button';
-import { Textarea } from './ui/textarea';
+import { TextareaWithEmoji } from './EmojiPicker';
 import { Input } from './ui/input';
 import { 
   Upload, Video, Loader2, MapPin, Clock, AlertCircle, 
@@ -331,19 +331,17 @@ export const CreateWaveModal = ({ isOpen, onClose, onSuccess }) => {
                 </div>
               </div>
               
-              {/* Caption */}
+              {/* Caption with Emoji Picker */}
               <div>
                 <label className={`text-sm font-medium ${textClass} mb-1 block`}>
                   Caption
                 </label>
-                <Textarea
+                <TextareaWithEmoji
                   value={caption}
-                  onChange={(e) => setCaption(e.target.value)}
-                  placeholder="Add a caption..."
-                  className={`${isLight ? 'bg-white border-zinc-300' : 'bg-zinc-800 border-zinc-700'} resize-none`}
+                  onChange={(val) => setCaption(val.length <= 500 ? val : val.slice(0, 500))}
+                  placeholder="Add a caption... 🤙"
                   rows={3}
-                  maxLength={500}
-                  data-testid="wave-caption-input"
+                  isLight={isLight}
                 />
                 <p className={`text-xs ${mutedClass} mt-1 text-right`}>
                   {caption.length}/500

@@ -161,6 +161,7 @@ export const Explore = () => {
   
   // Trending Waves state
   const [trendingWaves, setTrendingWaves] = useState([]);
+  const [recentWaves, setRecentWaves] = useState([]);
   const [wavesLoading, setWavesLoading] = useState(false);
   const [selectedWaveHashtag, setSelectedWaveHashtag] = useState(null);
   const [waveHashtagResults, setWaveHashtagResults] = useState([]);
@@ -392,7 +393,7 @@ export const Explore = () => {
     fetchHashtagPosts(tag);
   };
   
-  // Fetch Trending Waves for Explore
+  // Fetch Trending + Recent Waves for Explore
   const fetchTrendingWaves = async () => {
     setWavesLoading(true);
     try {
@@ -400,9 +401,11 @@ export const Explore = () => {
         params: { limit: 12, days: 7 }
       });
       setTrendingWaves(response.data.trending_waves || []);
+      setRecentWaves(response.data.recent_waves || []);
     } catch (error) {
       logger.error('Error fetching trending waves:', error);
       setTrendingWaves([]);
+      setRecentWaves([]);
     } finally {
       setWavesLoading(false);
     }
@@ -2075,13 +2078,13 @@ export const Explore = () => {
               )}
             </div>
           ) : (
-            <>
-              {/* Waves Grid */}
+          <>
+              {/* Waves Grid — merge trending + recent so new content always surfaces */}
               {wavesLoading ? (
                 <div className="flex justify-center py-10">
                   <Loader2 className="w-8 h-8 animate-spin text-cyan-400" />
                 </div>
-              ) : trendingWaves.length === 0 ? (
+              ) : trendingWaves.length === 0 && recentWaves.length === 0 ? (
                 <div className="text-center py-10 text-muted-foreground">
                   <Play className="w-16 h-16 mx-auto mb-4 opacity-50" />
                   <h3 className="text-lg font-semibold text-foreground mb-2">No Waves Yet</h3>
@@ -2094,53 +2097,92 @@ export const Explore = () => {
                   </button>
                 </div>
               ) : (
-                <div className="grid grid-cols-3 gap-1">
-                  {trendingWaves.map((wave, index) => (
-                    <div
-                      key={wave.id}
-                      onClick={() => handleWaveClick(wave)}
-                      className="aspect-[9/16] bg-black overflow-hidden cursor-pointer group relative"
-                      data-testid={`trending-wave-${wave.id}`}
-                    >
-                      <PostMediaPreview post={wave} />
-                      
-                      {/* Rank badge for top 3 */}
-                      {index < 3 && (
-                        <div className={`absolute top-2 left-2 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold z-20 ${
-                          index === 0 ? 'bg-yellow-500 text-black' :
-                          index === 1 ? 'bg-gray-400 text-black' :
-                          'bg-amber-700 text-white'
-                        }`}>
-                          {index + 1}
+                <>
+                  {/* Trending section */}
+                  {trendingWaves.length > 0 && (
+                    <div className="grid grid-cols-3 gap-1">
+                      {trendingWaves.map((wave, index) => (
+                        <div
+                          key={wave.id}
+                          onClick={() => handleWaveClick(wave)}
+                          className="aspect-[9/16] bg-black overflow-hidden cursor-pointer group relative"
+                          data-testid={`trending-wave-${wave.id}`}
+                        >
+                          <PostMediaPreview post={wave} />
+                          
+                          {/* Rank badge for top 3 */}
+                          {index < 3 && (
+                            <div className={`absolute top-2 left-2 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold z-20 ${
+                              index === 0 ? 'bg-yellow-500 text-black' :
+                              index === 1 ? 'bg-gray-400 text-black' :
+                              'bg-amber-700 text-white'
+                            }`}>
+                              {index + 1}
+                            </div>
+                          )}
+                          
+                          {/* Overlay on hover */}
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent z-10 pointer-events-none" />
+                          
+                          {/* Stats */}
+                          <div className="absolute bottom-2 left-2 right-2 z-20 pointer-events-none">
+                            <div className="flex items-center gap-3 text-white text-xs">
+                              <span className="flex items-center gap-1">
+                                <Play className="w-3 h-3" fill="white" />
+                                {wave.view_count || 0}
+                              </span>
+                              <span className="flex items-center gap-1">
+                                <Heart className="w-3 h-3" />
+                                {wave.likes_count || 0}
+                              </span>
+                            </div>
+                            <p className="text-white text-xs mt-1 truncate">
+                              @{wave.author_username || wave.author_name?.split(' ')[0]?.toLowerCase()}
+                            </p>
+                          </div>
                         </div>
-                      )}
-                      
-                      {/* Overlay on hover */}
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent z-10 pointer-events-none" />
-                      
-                      {/* Stats */}
-                      <div className="absolute bottom-2 left-2 right-2 z-20 pointer-events-none">
-                        <div className="flex items-center gap-3 text-white text-xs">
-                          <span className="flex items-center gap-1">
-                            <Play className="w-3 h-3" fill="white" />
-                            {wave.view_count || 0}
-                          </span>
-                          <span className="flex items-center gap-1">
-                            <Heart className="w-3 h-3" />
-                            {wave.likes_count || 0}
-                          </span>
-                        </div>
-                        <p className="text-white text-xs mt-1 truncate">
-                          @{wave.author_username || wave.author_name?.split(' ')[0]?.toLowerCase()}
-                        </p>
+                      ))}
+                    </div>
+                  )}
+                  
+                  {/* Recent Waves section (new uploads that haven't gained engagement yet) */}
+                  {recentWaves.length > 0 && (
+                    <div className="mt-6">
+                      <div className="flex items-center gap-2 mb-3">
+                        <Clock className="w-4 h-4 text-cyan-400" />
+                        <h3 className="font-semibold text-foreground text-sm">Recent Waves</h3>
+                      </div>
+                      <div className="grid grid-cols-3 gap-1">
+                        {recentWaves.map((wave) => (
+                          <div
+                            key={wave.id}
+                            onClick={() => handleWaveClick(wave)}
+                            className="aspect-[9/16] bg-black overflow-hidden cursor-pointer group relative"
+                            data-testid={`recent-wave-${wave.id}`}
+                          >
+                            <PostMediaPreview post={wave} />
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent z-10 pointer-events-none" />
+                            <div className="absolute bottom-2 left-2 right-2 z-20 pointer-events-none">
+                              <div className="flex items-center gap-3 text-white text-xs">
+                                <span className="flex items-center gap-1">
+                                  <Play className="w-3 h-3" fill="white" />
+                                  {wave.view_count || 0}
+                                </span>
+                              </div>
+                              <p className="text-white text-xs mt-1 truncate">
+                                @{wave.author_username || wave.author_name?.split(' ')[0]?.toLowerCase()}
+                              </p>
+                            </div>
+                          </div>
+                        ))}
                       </div>
                     </div>
-                  ))}
-                </div>
+                  )}
+                </>
               )}
               
               {/* Browse by Hashtag CTA */}
-              {trendingWaves.length > 0 && (
+              {(trendingWaves.length > 0 || recentWaves.length > 0) && (
                 <div className="mt-6 p-4 bg-gradient-to-r from-cyan-500/10 to-blue-500/10 rounded-xl border border-cyan-500/20">
                   <div className="flex items-center gap-3">
                     <Hash className="w-8 h-8 text-cyan-400" />

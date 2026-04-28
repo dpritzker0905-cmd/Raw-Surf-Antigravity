@@ -424,12 +424,22 @@ async def get_trending_waves(
 ):
     """
     Get trending Waves for Explore page
-    Based on engagement (views, likes, comments) in the last N days
+    Returns trending_waves (sorted by engagement) AND recent_waves (sorted by date)
+    so freshly posted waves always appear even before gaining engagement.
+    Uses func.coalesce to handle NULL counts safely.
     """
     try:
         cutoff_date = datetime.now(timezone.utc) - timedelta(days=days)
         
-        query = (
+        # Use coalesce to handle NULL counts — NULL arithmetic evaluates to NULL in SQL
+        engagement_score = (
+            func.coalesce(Post.view_count, 0) / 10
+            + func.coalesce(Post.likes_count, 0)
+            + func.coalesce(Post.comments_count, 0) * 2
+        )
+        
+        # Trending: sorted by engagement score
+        trending_query = (
             select(Post)
             .where(
                 Post.content_type == 'wave',
@@ -437,18 +447,33 @@ async def get_trending_waves(
                 Post.created_at > cutoff_date
             )
             .order_by(
-                desc(Post.view_count / 10 + Post.likes_count + Post.comments_count * 2),
+                desc(engagement_score),
                 desc(Post.created_at)
             )
             .options(selectinload(Post.author))
             .limit(limit)
         )
         
-        result = await db.execute(query)
-        waves = result.scalars().all()
+        trending_result = await db.execute(trending_query)
+        trending_waves = trending_result.scalars().all()
         
-        return {
-            "trending_waves": [{
+        # Recent: sorted purely by created_at (catches brand new waves)
+        recent_query = (
+            select(Post)
+            .where(
+                Post.content_type == 'wave',
+                Post.media_type == 'video',
+            )
+            .order_by(desc(Post.created_at))
+            .options(selectinload(Post.author))
+            .limit(limit)
+        )
+        
+        recent_result = await db.execute(recent_query)
+        recent_waves = recent_result.scalars().all()
+        
+        def serialize_wave(w):
+            return {
                 "id": w.id,
                 "author_id": w.author_id,
                 "author_name": w.author.full_name if w.author else "Unknown",
@@ -459,12 +484,20 @@ async def get_trending_waves(
                 "caption": w.caption,
                 "aspect_ratio": w.aspect_ratio,
                 "video_duration": w.video_duration,
-                "likes_count": w.likes_count,
-                "view_count": w.view_count,
-                "comments_count": w.comments_count,
+                "likes_count": w.likes_count or 0,
+                "view_count": w.view_count or 0,
+                "comments_count": w.comments_count or 0,
                 "engagement_score": (w.view_count or 0) / 10 + (w.likes_count or 0) + (w.comments_count or 0) * 2,
                 "created_at": w.created_at.isoformat() if w.created_at else None
-            } for w in waves],
+            }
+        
+        # Deduplicate recent_waves (remove any already in trending)
+        trending_ids = {w.id for w in trending_waves}
+        unique_recent = [w for w in recent_waves if w.id not in trending_ids]
+        
+        return {
+            "trending_waves": [serialize_wave(w) for w in trending_waves],
+            "recent_waves": [serialize_wave(w) for w in unique_recent],
             "period_days": days
         }
         
