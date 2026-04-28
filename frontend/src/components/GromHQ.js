@@ -485,12 +485,12 @@ export const GromHQ = () => {
                       )}
                       
                       {/* Media preview for posts/highlights */}
-                      {activity.media_url && (
+                      {(activity.thumbnail_url || activity.media_url) && (
                         <div className="mt-2 rounded-lg overflow-hidden max-w-[200px]">
                           {activity.media_type === 'video' ? (
-                            <video src={getFullUrl(activity.media_url)} className="w-full h-auto" muted />
+                            <video src={getFullUrl(activity.media_url)} poster={getFullUrl(activity.thumbnail_url)} className="w-full h-auto" muted />
                           ) : (
-                            <img src={getFullUrl(activity.media_url)} alt="Activity" className="w-full h-auto" />
+                            <img src={getFullUrl(activity.thumbnail_url || activity.media_url)} alt="Activity" className="w-full h-auto" />
                           )}
                         </div>
                       )}

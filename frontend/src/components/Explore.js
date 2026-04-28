@@ -49,14 +49,13 @@ const PostMediaPreview = ({ post, isHoverScale = true }) => {
   if (isVideo && finalMediaUrl) {
     return (
       <>
-        <video 
-          src={finalMediaUrl}
-          poster={finalThumbnailUrl || ""}
-          autoPlay 
-          muted 
-          loop 
-          playsInline
-          className={`w-full h-full object-cover absolute inset-0 pointer-events-none ${hoverClass}`}
+        {/* Thumbnail-first: show poster image instead of autoPlaying video to save egress */}
+        <img
+          src={finalThumbnailUrl || finalMediaUrl}
+          alt=""
+          className={`w-full h-full object-cover absolute inset-0 ${hoverClass}`}
+          loading="lazy"
+          onError={(e) => { e.target.style.display = 'none'; }}
         />
         <div className="absolute top-2 right-2 bg-black/60 rounded-full w-6 h-6 flex items-center justify-center opacity-80 shadow-md z-10">
           <Play className="w-3 h-3 text-white fill-white ml-0.5" />
@@ -2787,9 +2786,9 @@ export const Explore = () => {
                   >
                     {/* Thumbnail */}
                     <div className="relative w-20 h-20 rounded-lg overflow-hidden flex-shrink-0 bg-zinc-700">
-                      {report.media_url ? (
+                      {(report.thumbnail_url || report.media_url) ? (
                         <img 
-                          src={report.media_url || report.thumbnail_url} 
+                          src={report.thumbnail_url || report.media_url} 
                           alt={report.spot_name || 'Conditions'} 
                           className="w-full h-full object-cover group-hover:scale-105 transition-transform"
                         />

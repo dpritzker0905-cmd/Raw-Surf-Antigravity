@@ -688,10 +688,10 @@ export const PublicPhotographerGallery = () => {
                   <video 
                     src={selectedItem.preview_url || selectedItem.thumbnail_url}
                     className="w-full h-full object-contain"
-                    autoPlay
                     muted
                     loop
                     playsInline
+                    preload="none"
                     poster={selectedItem.thumbnail_url || undefined}
                   />
                 ) : (
@@ -889,9 +889,7 @@ const GalleryItemCard = ({ item, isPurchased, viewMode, isLight, onClick }) => {
       onMouseLeave={() => setIsHovered(false)}
       onClick={onClick}
     >
-      {item.media_type === 'video' ? (
         <video 
-          src={item.preview_url || item.original_url}
           className={`
             w-full h-full object-cover transition-transform duration-300
             ${isHovered ? 'scale-105' : 'scale-100'}
@@ -899,8 +897,7 @@ const GalleryItemCard = ({ item, isPurchased, viewMode, isLight, onClick }) => {
           muted
           loop
           playsInline
-          autoPlay
-          preload="metadata"
+          preload="none"
           poster={item.thumbnail_url || undefined}
         />
       ) : (

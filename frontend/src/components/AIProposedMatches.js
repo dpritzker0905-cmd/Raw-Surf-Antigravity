@@ -1,4 +1,4 @@
-﻿/**
+/**
  * AIProposedMatches - "Proposed Matches" Queue with Paid/Free Account Differentiation
  * 
  * Logic Override: Account Tier (Paid vs Free) controls the Review UX:
@@ -649,7 +649,7 @@ const AIProposedMatches = ({
                 src={previewMatch.original_url || previewMatch.preview_url}
                 className="w-full h-auto max-h-[80vh]"
                 controls
-                autoPlay
+                preload="metadata"
               />
             ) : (
               <img

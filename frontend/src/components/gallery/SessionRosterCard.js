@@ -379,20 +379,12 @@ const TaggedItemThumb = ({ item, onUntag, isUntagging }) => {
   const videoUrl = isVideo ? getFullUrl(item.preview_url || item.original_url) : null;
   const accessColor = item.access_type === 'included' ? '#10b981' : item.access_type === 'pending_selection' ? '#f59e0b' : '#6b7280';
 
-  // Autoplay video on mount
-  useEffect(() => {
-    if (isVideo && videoRef.current) {
-      videoRef.current.play().catch(() => {});
-    }
-  }, [isVideo]);
+  // Thumbnail-only in grid — no video autoplay to save bandwidth
 
   return (
     <div className="relative flex-shrink-0 group">
       <div className="w-16 h-16 rounded-lg overflow-hidden relative" style={{ border: `2px solid ${accessColor}30` }}>
-        {isVideo && videoUrl ? (
-          <video ref={videoRef} src={videoUrl} className="w-full h-full object-cover"
-            muted loop playsInline autoPlay preload="metadata" />
-        ) : thumbUrl ? (
+        {thumbUrl ? (
           <img src={thumbUrl} alt="Tagged" className="w-full h-full object-cover" />
         ) : (
           <div className="w-full h-full flex items-center justify-center" style={{ background: 'rgba(255,255,255,0.06)' }}>

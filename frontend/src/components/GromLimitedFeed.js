@@ -161,10 +161,10 @@ const GromLimitedFeed = ({ gromStatus, _onCopyCode }) => {
                   </div>
                   
                   {/* Post Media */}
-                  {post.media_url && (
+                  {(post.thumbnail_url || post.media_url) && (
                     <div className="relative aspect-square bg-zinc-800">
                       <img 
-                        src={getFullUrl(post.media_url)} 
+                        src={getFullUrl(post.thumbnail_url || post.media_url)} 
                         alt="" 
                         className="w-full h-full object-cover"
                       />

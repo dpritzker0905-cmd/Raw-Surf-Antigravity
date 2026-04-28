@@ -1378,20 +1378,18 @@ export const GalleryPage = () => {
                   className="relative aspect-square rounded-lg overflow-hidden group"
                 >
                   {item.media_type === 'video' ? (
-                    <video 
-                      src={getFullUrl(item.preview_url)} 
+                    <img 
+                      src={getFullUrl(item.thumbnail_url || item.preview_url)} 
+                      alt={item.title || 'Grom video'} 
                       className="w-full h-full object-cover"
-                      muted
-                      loop
-                      playsInline
-                      autoPlay
-                      preload="metadata"
+                      loading="lazy"
                     />
                   ) : (
                     <img 
                       src={getFullUrl(item.thumbnail_url || item.preview_url)} 
                       alt={item.title || 'Grom photo'} 
                       className="w-full h-full object-cover"
+                      loading="lazy"
                     />
                   )}
                   

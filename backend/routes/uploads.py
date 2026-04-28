@@ -64,6 +64,26 @@ MAX_FILE_SIZE = 500 * 1024 * 1024  # 500MB for videos
 MAX_IMAGE_SIZE = 50 * 1024 * 1024  # 50MB for images
 STREAM_CHUNK_SIZE = 1024 * 1024    # 1 MB chunks for streaming video to disk
 
+# ── Egress-reduction: cache headers for static media ────────────────────
+# Filenames contain UUIDs (content-addressed), so aggressive caching is safe.
+_IMMUTABLE_CACHE = 'public, max-age=31536000, immutable'  # 1 year
+_SHORT_CACHE     = 'public, max-age=86400'                 # 24 hours
+
+def _cached_file_response(
+    path: Path,
+    *,
+    media_type: str | None = None,
+    cache_control: str = _IMMUTABLE_CACHE,
+) -> FileResponse:
+    """Wrap FileResponse with Cache-Control + Accept-Ranges headers."""
+    headers = {
+        'Cache-Control': cache_control,
+        'Accept-Ranges': 'bytes',
+    }
+    if media_type:
+        return FileResponse(path, media_type=media_type, headers=headers)
+    return FileResponse(path, headers=headers)
+
 
 def upload_to_supabase_storage(local_path: Path, bucket: str, remote_key: str, content_type: str = 'video/mp4') -> str | None:
     """Upload a local file to Supabase Storage and return the public URL.
@@ -314,7 +334,7 @@ async def get_general_upload(filename: str):
     if not file_path.exists():
         raise HTTPException(status_code=404, detail="File not found")
     
-    return FileResponse(file_path)
+    return _cached_file_response(file_path)
 
 
 @router.post("/upload/story")
@@ -433,7 +453,7 @@ async def get_conditions_media(user_id: str, filename: str):
     file_path = UPLOAD_DIR / "conditions" / user_id / filename
     if not file_path.exists():
         raise HTTPException(status_code=404, detail="File not found")
-    return FileResponse(file_path)
+    return _cached_file_response(file_path, cache_control=_SHORT_CACHE)
 
 
 @router.post("/upload/gallery")
@@ -548,7 +568,7 @@ async def get_story_media(filename: str):
     file_path = UPLOAD_DIR / "stories" / filename
     if not file_path.exists():
         raise HTTPException(status_code=404, detail="File not found")
-    return FileResponse(file_path)
+    return _cached_file_response(file_path)
 
 @router.get("/uploads/gallery/{user_id}/{filename}")
 async def get_gallery_media(user_id: str, filename: str):
@@ -556,7 +576,7 @@ async def get_gallery_media(user_id: str, filename: str):
     file_path = UPLOAD_DIR / "gallery" / user_id / filename
     if not file_path.exists():
         raise HTTPException(status_code=404, detail="File not found")
-    return FileResponse(file_path)
+    return _cached_file_response(file_path)
 
 @router.get("/uploads/avatars/{filename}")
 async def get_avatar(filename: str):
@@ -564,7 +584,7 @@ async def get_avatar(filename: str):
     file_path = UPLOAD_DIR / "avatars" / filename
     if not file_path.exists():
         raise HTTPException(status_code=404, detail="File not found")
-    return FileResponse(file_path)
+    return _cached_file_response(file_path)
 
 
 @router.get("/uploads/crew_chat/{filename}")
@@ -586,8 +606,8 @@ async def get_crew_chat_media(filename: str):
         content_type = "audio/ogg"
     
     if content_type:
-        return FileResponse(file_path, media_type=content_type)
-    return FileResponse(file_path)
+        return _cached_file_response(file_path, media_type=content_type)
+    return _cached_file_response(file_path)
 
 
 @router.get("/uploads/chat_media/{filename}")
@@ -622,8 +642,8 @@ async def get_chat_media(filename: str):
         content_type = "image/webp"
     
     if content_type:
-        return FileResponse(file_path, media_type=content_type)
-    return FileResponse(file_path)
+        return _cached_file_response(file_path, media_type=content_type)
+    return _cached_file_response(file_path)
 
 
 @router.post("/upload/feed")
@@ -977,7 +997,7 @@ async def get_wave_media(filename: str):
     file_path = UPLOAD_DIR / "waves" / filename
     if not file_path.exists():
         raise HTTPException(status_code=404, detail="File not found")
-    return FileResponse(file_path)
+    return _cached_file_response(file_path)
 
 
 @router.post("/upload/user-gallery")
@@ -1319,14 +1339,7 @@ async def get_feed_media(filename: str):
     else:
         content_type = None
 
-    return FileResponse(
-        file_path,
-        media_type=content_type,
-        headers={
-            'Accept-Ranges': 'bytes',  # Allow browser to seek/scrub video
-            'Cache-Control': 'public, max-age=86400',  # 24h cache for videos
-        }
-    )
+    return _cached_file_response(file_path, media_type=content_type, cache_control=_SHORT_CACHE)
 
 
 @router.get("/uploads/user-gallery/{user_id}/{filename}")
@@ -1350,11 +1363,7 @@ async def get_user_gallery_media(user_id: str, filename: str):
     else:
         content_type = None
 
-    return FileResponse(
-        file_path,
-        media_type=content_type,
-        headers={'Accept-Ranges': 'bytes', 'Cache-Control': 'public, max-age=86400'}
-    )
+    return _cached_file_response(file_path, media_type=content_type, cache_control=_SHORT_CACHE)
 
 
 

@@ -269,7 +269,7 @@ export const TaggedPhotoModal = ({
         {/* Photo */}
         <div className="relative aspect-video bg-black flex items-center justify-center">
           <img 
-            src={photo.media_url || photo.preview_url} 
+            src={photo.preview_url || photo.media_url} 
             alt="Tagged photo"
             className={`max-w-full max-h-full object-contain ${needsToPay ? 'blur-md' : ''}`}
           />

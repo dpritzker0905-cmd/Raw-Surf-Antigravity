@@ -1246,15 +1246,11 @@ export const PhotographerGalleryManager = () => {
                 )}
                 
                 {item.media_type === 'video' ? (
-                  <video
-                    src={item.preview_url || item.original_url}
+                  <img
+                    src={item.thumbnail_url || item.preview_url}
+                    alt={item.title || 'Video thumbnail'}
                     className="w-full h-full object-cover"
-                    muted
-                    loop
-                    playsInline
-                    autoPlay
-                    preload="metadata"
-                    poster={item.thumbnail_url || undefined}
+                    loading="lazy"
                     onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling && (e.target.nextSibling.style.display = 'flex'); }}
                   />
                 ) : (
@@ -1262,6 +1258,7 @@ export const PhotographerGalleryManager = () => {
                     src={item.preview_url || item.thumbnail_url} 
                     alt={item.title || 'Gallery item'}
                     className="w-full h-full object-cover"
+                    loading="lazy"
                   />
                 )}
                 <Badge className="absolute top-2 right-2 bg-black/70">

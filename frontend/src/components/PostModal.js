@@ -178,7 +178,7 @@ const ModalVideoPlayer = ({ src, poster, className = '' }) => {
         webkit-playsinline="true"
         loop
         muted={muted}
-        preload="auto"
+        preload="metadata"
       />
 
       {/* Play/Pause center overlay — fades in/out */}

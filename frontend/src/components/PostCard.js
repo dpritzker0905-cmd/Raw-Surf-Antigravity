@@ -942,7 +942,7 @@ const PostCard = ({
             className="w-full h-full object-cover"
             playsInline
             webkit-playsinline="true"
-            preload="auto"
+            preload="none"
             muted={isMuted}
             autoPlay
             loop

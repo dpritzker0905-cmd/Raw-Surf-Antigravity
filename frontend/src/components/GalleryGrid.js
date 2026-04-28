@@ -36,12 +36,8 @@ export const GalleryGridItem = ({
   );
   const videoSrc = isVideo ? getFullUrl(item.preview_url || item.original_url) : null;
 
-  // Autoplay video on mount (browser requires muted for autoplay)
-  useEffect(() => {
-    if (isVideo && videoRef.current) {
-      videoRef.current.play().catch(() => {});
-    }
-  }, [isVideo]);
+  // Video poster is shown via the poster attribute — no autoplay to save bandwidth
+  // Video plays only when user clicks through to detail view
 
   const handleTap = () => {
     if (bulkSelectMode) {
@@ -130,16 +126,12 @@ export const GalleryGridItem = ({
         )}
         
         {isVideo && videoSrc ? (
-          <video
-            ref={videoRef}
-            src={videoSrc}
+          <img
+            src={imgSrc || undefined}
+            alt={item.title || 'Video thumbnail'}
             className={`w-full h-full object-cover transition-transform duration-300 group-hover:scale-105 relative z-[1]`}
-            muted
-            loop
-            playsInline
-            autoPlay
-            preload="metadata"
-            poster={imgSrc || undefined}
+            loading="lazy"
+            onError={() => setImgError(true)}
           />
         ) : imgSrc ? (
           <img
