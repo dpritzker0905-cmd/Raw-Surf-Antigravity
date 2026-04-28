@@ -29,6 +29,10 @@ import logger from '../utils/logger';
 import { getFullUrl } from '../utils/media';
 import { ROLES } from '../constants/roles';
 import { REACTION_EMOJIS } from '../constants/emojis';
+import useSwipeTabs from '../hooks/useSwipeTabs';
+
+// Tab order for the feed — used by swipe navigation and sliding indicator
+const FEED_TABS = ['for_you', 'waves', 'following'];
 
 
 // Role badge component for post authors
@@ -1313,6 +1317,10 @@ export const Feed = () => {
     setSelectedCity('');
   };
 
+  // Swipeable tab navigation — hooks must be called before any early returns
+  const swipeHandlers = useSwipeTabs(FEED_TABS, activeTab, setActiveTab);
+  const activeTabIndex = FEED_TABS.indexOf(activeTab);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64 theme-main-content">
@@ -1382,23 +1390,20 @@ export const Feed = () => {
       {/* Live Photographers Section (for surfers) */}
       {!isPhotographer && <LivePhotographers />}
 
-      {/* Feed Tabs */}
-      <div className={`flex border-b ${borderClass}`}>
+      {/* Feed Tabs — with sliding indicator */}
+      <div className={`relative flex border-b ${borderClass}`}>
         <button
           onClick={() => setActiveTab('for_you')}
-          className={`flex-1 py-3 text-sm font-medium transition-colors relative ${
+          className={`flex-1 py-3 text-sm font-medium transition-colors ${
             activeTab === 'for_you' ? textPrimaryClass : textSecondaryClass
           }`}
           data-testid="tab-for-you"
         >
           For You
-          {activeTab === 'for_you' && (
-            <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-16 h-0.5 bg-gradient-to-r from-yellow-400 to-orange-400" />
-          )}
         </button>
         <button
           onClick={() => setActiveTab('waves')}
-          className={`flex-1 py-3 text-sm font-medium transition-colors relative ${
+          className={`flex-1 py-3 text-sm font-medium transition-colors ${
             activeTab === 'waves' ? textPrimaryClass : textSecondaryClass
           }`}
           data-testid="tab-waves"
@@ -1407,23 +1412,31 @@ export const Feed = () => {
             <Play className="w-3.5 h-3.5" />
             Waves
           </span>
-          {activeTab === 'waves' && (
-            <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-16 h-0.5 bg-gradient-to-r from-cyan-400 to-blue-400" />
-          )}
         </button>
         <button
           onClick={() => setActiveTab('following')}
-          className={`flex-1 py-3 text-sm font-medium transition-colors relative ${
+          className={`flex-1 py-3 text-sm font-medium transition-colors ${
             activeTab === 'following' ? textPrimaryClass : textSecondaryClass
           }`}
           data-testid="tab-following"
         >
           Following
-          {activeTab === 'following' && (
-            <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-16 h-0.5 bg-gradient-to-r from-yellow-400 to-orange-400" />
-          )}
         </button>
+        {/* Sliding indicator — transitions smoothly between tabs */}
+        <div
+          className="absolute bottom-0 h-0.5 rounded-full transition-all duration-300 ease-out"
+          style={{
+            width: `${100 / FEED_TABS.length}%`,
+            left: `${(activeTabIndex * 100) / FEED_TABS.length}%`,
+            background: activeTab === 'waves'
+              ? 'linear-gradient(to right, #22d3ee, #3b82f6)'
+              : 'linear-gradient(to right, #facc15, #f97316)',
+          }}
+        />
       </div>
+
+      {/* Swipeable content area — touch handlers enable left/right tab swiping */}
+      <div {...swipeHandlers} style={{ touchAction: 'pan-y' }}>
 
       {/* Waves Tab - Full Screen Video Feed */}
       {activeTab === 'waves' && (
@@ -1607,6 +1620,8 @@ export const Feed = () => {
           />
         </>
       )}
+
+      </div>{/* end swipeable content area */}
 
       {/* Check In Modal */}
       <Dialog open={showCheckInModal} onOpenChange={closeCheckInModal}>
