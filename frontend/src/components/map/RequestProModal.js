@@ -319,30 +319,57 @@ export const RequestProModal = ({
       );
 
       const dispatchId = response.data.id;
+      const payAmount  = parseFloat(response.data.captain_share_amount ?? response.data.deposit_amount ?? depositAmount);
+
       onClose();
 
       if (crewMembers.length > 0) {
         toast.success(`Request sent! Invites sent to ${crewMembers.length} crew member${crewMembers.length > 1 ? 's' : ''} (10 min to accept)`);
       } else {
-        toast.success('Request created! Proceeding to payment…');
+        toast.success('Request created! Processing payment…');
       }
 
-      setTimeout(async () => {
-        try {
-          await apiClient.post(`/dispatch/${dispatchId}/pay?payer_id=${uid}`);
-          toast.success('Payment confirmed! Searching for a Pro…');
-          if (boostHours > 0) {
-            try {
-              await apiClient.post(`/dispatch/request/${dispatchId}/boost?user_id=${uid}`, { boost_hours: boostHours });
-              toast.success(`🚀 Boosted! You'll appear first for ${boostHours}h`);
-              onBoostApplied?.();
-            } catch (e) {
-              toast.error(e.response?.data?.detail || 'Failed to boost');
-            }
+      // ── Payment: try credits first, fall back to Stripe Checkout ──
+      try {
+        await apiClient.post(`/dispatch/${dispatchId}/pay?payer_id=${uid}`);
+        toast.success('Payment confirmed! Searching for a Pro…');
+
+        // Apply boost if selected
+        if (boostHours > 0) {
+          try {
+            await apiClient.post(`/dispatch/request/${dispatchId}/boost?user_id=${uid}`, { boost_hours: boostHours });
+            toast.success(`🚀 Boosted! You'll appear first for ${boostHours}h`);
+            onBoostApplied?.();
+          } catch (e) {
+            toast.error(e.response?.data?.detail || 'Failed to boost');
           }
-          onSuccess?.(dispatchId);
-        } catch { toast.error('Payment failed. Please try again.'); }
-      }, 1000);
+        }
+        onSuccess?.(dispatchId);
+      } catch (payError) {
+        const errDetail = payError?.response?.data?.detail || '';
+        const isInsufficientCredits = typeof errDetail === 'string' && errDetail.toLowerCase().includes('insufficient');
+
+        if (isInsufficientCredits) {
+          // Fall back to Stripe card checkout
+          toast('Redirecting to card payment…', { icon: '💳' });
+          try {
+            const checkoutRes = await apiClient.post('/dispatch/checkout', {
+              dispatch_id: payAmount > 0 ? dispatchId : dispatchId,
+              payer_id:    uid,
+              amount:      payAmount,
+              origin_url:  window.location.origin,
+            });
+            if (checkoutRes.data?.checkout_url) {
+              window.location.href = checkoutRes.data.checkout_url;
+              return; // Redirect — don't show error
+            }
+          } catch (checkoutErr) {
+            toast.error(checkoutErr?.response?.data?.detail || 'Could not start card payment. Please try again.');
+          }
+        } else {
+          toast.error(typeof errDetail === 'string' ? errDetail : 'Payment failed. Please try again.');
+        }
+      }
 
     } catch (error) {
       const detail = error?.response?.data?.detail;
