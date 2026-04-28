@@ -1,88 +1,148 @@
-import React, { useState } from 'react';
-import { ChevronDown, ChevronUp } from 'lucide-react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import {
   QUICK_ACCESS_EMOJIS,
-  EMOJI_CATEGORIES,
-  EXTENDED_EMOJI_CATEGORIES,
+  ALL_EMOJI_CATEGORIES,
+  CATEGORY_ICONS,
 } from '../../constants/emojis';
 
 /**
  * Emoji Picker for Direct Messages (MessagesPage)
- * Simpler popover variant — preserves existing show/onSelect/onClose interface.
+ * Redesigned following industry best practices (WhatsApp/Telegram/Slack):
+ *
+ *  - Always shows ALL categories (no confusing More/Less toggle)
+ *  - Icon-only category tabs (compact, scannable)
+ *  - Desktop: scroll arrow indicators for tab overflow
+ *  - Thin scrollbar on the emoji grid for desktop
+ *  - Quick-access row at top for frequently used surf emojis
  *
  * Uses shared emoji data from constants/emojis.js.
- * Includes a collapsible "More" toggle to reveal extended categories.
  */
 
-// Build a DM-friendly subset: "Recent" quick-access row + shared primary categories
-const DM_BASE_CATEGORIES = {
+// Build a DM-friendly category map: "Recent" quick-access row + all shared categories
+const DM_CATEGORIES = {
   'Recent': QUICK_ACCESS_EMOJIS,
-  ...EMOJI_CATEGORIES,
+  ...ALL_EMOJI_CATEGORIES,
 };
+
+const CATEGORY_NAMES = Object.keys(DM_CATEGORIES);
+
+// Icon map with "Recent" added
+const TAB_ICONS = { Recent: '🕐', ...CATEGORY_ICONS };
 
 const EmojiPicker = ({ show, onSelect, onClose }) => {
   const [activeCategory, setActiveCategory] = useState('Recent');
-  const [showExtended, setShowExtended] = useState(false);
+  const tabsRef = useRef(null);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
 
-  // Build the visible category map based on expanded state
-  const visibleCategories = showExtended
-    ? { ...DM_BASE_CATEGORIES, ...EXTENDED_EMOJI_CATEGORIES }
-    : DM_BASE_CATEGORIES;
+  // ── Scroll-indicator state ──
+  const updateScrollIndicators = useCallback(() => {
+    const el = tabsRef.current;
+    if (!el) return;
+    setCanScrollLeft(el.scrollLeft > 4);
+    setCanScrollRight(el.scrollLeft < el.scrollWidth - el.clientWidth - 4);
+  }, []);
 
-  // Reset to a valid category when collapsing extended
-  const handleToggleExtended = () => {
-    if (showExtended && !(activeCategory in DM_BASE_CATEGORIES)) {
-      setActiveCategory('Recent');
-    }
-    setShowExtended(!showExtended);
+  useEffect(() => {
+    const el = tabsRef.current;
+    if (!el || !show) return;
+    updateScrollIndicators();
+    el.addEventListener('scroll', updateScrollIndicators, { passive: true });
+    window.addEventListener('resize', updateScrollIndicators);
+    return () => {
+      el.removeEventListener('scroll', updateScrollIndicators);
+      window.removeEventListener('resize', updateScrollIndicators);
+    };
+  }, [show, updateScrollIndicators]);
+
+  const scrollTabs = (dir) => {
+    const el = tabsRef.current;
+    if (!el) return;
+    el.scrollBy({ left: dir * 120, behavior: 'smooth' });
   };
 
+  // Scroll active tab into view when category changes
+  useEffect(() => {
+    if (!tabsRef.current) return;
+    const activeBtn = tabsRef.current.querySelector('[data-active="true"]');
+    if (activeBtn) {
+      activeBtn.scrollIntoView({ inline: 'center', behavior: 'smooth', block: 'nearest' });
+    }
+  }, [activeCategory]);
+
   if (!show) return null;
-  
+
   return (
-    <div 
-      className="absolute bottom-full left-0 mb-2 w-72 bg-zinc-900 border border-zinc-700 rounded-xl shadow-xl z-50 animate-in slide-in-from-bottom-2"
+    <div
+      className="absolute bottom-full left-0 mb-2 w-80 bg-zinc-900 border border-zinc-700 rounded-xl shadow-xl z-50 animate-in slide-in-from-bottom-2"
       onClick={(e) => e.stopPropagation()}
     >
-      <div className="flex border-b border-zinc-700 overflow-x-auto px-2 py-1 scrollbar-hide">
-        {Object.keys(visibleCategories).map((cat) => (
+      {/* ── Category tabs: icon-only, scroll arrows on overflow ── */}
+      <div className="relative border-b border-zinc-700">
+        {/* Left scroll arrow */}
+        {canScrollLeft && (
           <button
-            key={cat}
-            onClick={() => setActiveCategory(cat)}
-            className={`px-3 py-1.5 text-xs font-medium whitespace-nowrap transition-colors rounded ${
-              activeCategory === cat ? 'bg-cyan-500/20 text-cyan-400' : 'text-gray-400 hover:text-white'
-            }`}
+            onClick={() => scrollTabs(-1)}
+            className="absolute left-0 top-0 bottom-0 z-10 w-7 flex items-center justify-center bg-gradient-to-r from-zinc-900 via-zinc-900/90 to-transparent"
+            aria-label="Scroll tabs left"
           >
-            {cat}
+            <ChevronLeft className="w-3.5 h-3.5 text-gray-400" />
           </button>
-        ))}
+        )}
 
-        {/* Show More / Show Less toggle */}
-        <button
-          onClick={handleToggleExtended}
-          className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium whitespace-nowrap transition-colors rounded text-cyan-500/60 hover:text-cyan-400"
-          data-testid="dm-emoji-show-more"
+        {/* Tab bar */}
+        <div
+          ref={tabsRef}
+          className="flex overflow-x-auto px-1 py-1.5 gap-0.5"
+          style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
         >
-          {showExtended ? (
-            <>Less <ChevronUp className="w-3 h-3" /></>
-          ) : (
-            <>More <ChevronDown className="w-3 h-3" /></>
-          )}
-        </button>
-      </div>
-      <div className="p-2 grid grid-cols-8 gap-1 max-h-40 overflow-y-auto">
-        {(visibleCategories[activeCategory] || []).map((emoji, i) => (
+          {CATEGORY_NAMES.map((cat) => (
+            <button
+              key={cat}
+              data-active={activeCategory === cat ? 'true' : undefined}
+              onClick={() => setActiveCategory(cat)}
+              className={`flex-shrink-0 w-9 h-9 flex items-center justify-center rounded-lg text-lg transition-colors ${
+                activeCategory === cat
+                  ? 'bg-cyan-500/20 ring-1 ring-cyan-500/40'
+                  : 'hover:bg-zinc-800'
+              }`}
+              title={cat}
+            >
+              {TAB_ICONS[cat] || cat.charAt(0)}
+            </button>
+          ))}
+        </div>
+
+        {/* Right scroll arrow */}
+        {canScrollRight && (
           <button
-            key={i}
+            onClick={() => scrollTabs(1)}
+            className="absolute right-0 top-0 bottom-0 z-10 w-7 flex items-center justify-center bg-gradient-to-l from-zinc-900 via-zinc-900/90 to-transparent"
+            aria-label="Scroll tabs right"
+          >
+            <ChevronRight className="w-3.5 h-3.5 text-gray-400" />
+          </button>
+        )}
+      </div>
+
+      {/* ── Emoji grid ── */}
+      <div className="p-2 grid grid-cols-8 gap-1 max-h-48 overflow-y-auto show-scrollbar">
+        {(DM_CATEGORIES[activeCategory] || []).map((emoji, i) => (
+          <button
+            key={`${emoji}-${i}`}
             onClick={() => onSelect(emoji)}
-            className="text-xl p-1.5 hover:bg-zinc-800 rounded transition-colors hover:scale-110"
+            className="text-xl p-1.5 hover:bg-zinc-800 rounded-lg transition-colors hover:scale-110 active:scale-95"
           >
             {emoji}
           </button>
         ))}
       </div>
-      <div className="flex justify-end px-2 py-1 border-t border-zinc-700">
-        <button onClick={onClose} className="text-xs text-gray-400 hover:text-white">Close</button>
+
+      {/* ── Footer ── */}
+      <div className="flex items-center justify-between px-3 py-1.5 border-t border-zinc-700">
+        <span className="text-[11px] text-gray-500">{activeCategory}</span>
+        <button onClick={onClose} className="text-xs text-gray-400 hover:text-white transition-colors">Close</button>
       </div>
     </div>
   );

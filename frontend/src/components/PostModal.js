@@ -7,7 +7,7 @@ import { useNavigate } from 'react-router-dom';
 import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
-import { X, ChevronLeft, ChevronRight, Heart, MessageCircle, Send, Bookmark, MoreHorizontal, Loader2, Calendar, Waves, Play, Pause, Volume2, Volume1, VolumeX } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, Heart, MessageCircle, Send, Bookmark, MoreHorizontal, Loader2, Calendar, Waves, Play, Pause, Volume2, Volume1, VolumeX, Smile } from 'lucide-react';
 import { toast } from 'sonner';
 import { RichText, CommentText } from './RichText';
 import { SharePostModal } from './PostMenu';
@@ -16,6 +16,7 @@ import logger from '../utils/logger';
 import { getFullUrl } from '../utils/media';
 import { formatTimeAgo } from '../utils/formatTime';
 import { REACTION_EMOJIS } from '../constants/emojis';
+import EmojiPicker from './EmojiPicker';
 
 
 // Reaction emojis — imported from centralized constants/emojis.js
@@ -421,6 +422,7 @@ const PostModal = ({ post, isOpen, onClose, _onPostUpdated, posts, onNavigatePos
   const [captionExpanded, setCaptionExpanded] = useState(false);
   const [showComments, setShowComments] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  const [showCommentEmoji, setShowCommentEmoji] = useState(false);
   
   // Shaka reaction state
   const [userReaction, setUserReaction] = useState(null);
@@ -1053,8 +1055,16 @@ const PostModal = ({ post, isOpen, onClose, _onPostUpdated, posts, onNavigatePos
             </div>
           )}
           
-          {/* Comment Input */}
-          <div className="px-4 pb-2 flex items-center gap-2" style={{ pointerEvents: 'auto' }}>
+          {/* Comment Input with Emoji Picker */}
+          <div className="relative px-4 pb-2 flex items-center gap-2" style={{ pointerEvents: 'auto' }}>
+            <button
+              onClick={() => setShowCommentEmoji(!showCommentEmoji)}
+              className={`flex-shrink-0 p-1.5 rounded-full transition-colors ${
+                showCommentEmoji ? 'bg-yellow-500/20 text-yellow-400' : 'text-white/50 hover:text-white'
+              }`}
+            >
+              <Smile className="w-5 h-5" />
+            </button>
             <input
               ref={mobileCommentInputRef}
               type="text"
@@ -1064,19 +1074,28 @@ const PostModal = ({ post, isOpen, onClose, _onPostUpdated, posts, onNavigatePos
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && commentInput.trim()) {
                   handleComment();
+                  setShowCommentEmoji(false);
                 }
               }}
               className="flex-1 bg-transparent text-white text-sm placeholder-white/40 outline-none"
             />
             {commentInput.trim() && (
               <button
-                onClick={handleComment}
+                onClick={() => { handleComment(); setShowCommentEmoji(false); }}
                 disabled={submittingComment}
                 className="text-cyan-400 font-semibold text-sm"
               >
                 {submittingComment ? '...' : 'Post'}
               </button>
             )}
+            <EmojiPicker
+              isOpen={showCommentEmoji}
+              onClose={() => setShowCommentEmoji(false)}
+              onSelect={(emoji) => {
+                setCommentInput(prev => prev + emoji);
+              }}
+              position="above"
+            />
           </div>
           
           {/* Timestamp */}
@@ -1297,9 +1316,17 @@ const PostModal = ({ post, isOpen, onClose, _onPostUpdated, posts, onNavigatePos
             </p>
           </div>
           
-          {/* Comment input */}
+          {/* Comment input with Emoji Picker */}
           <div className="border-t border-zinc-800 p-4">
-            <div className="flex items-center gap-2">
+            <div className="relative flex items-center gap-2">
+              <button
+                onClick={() => setShowCommentEmoji(!showCommentEmoji)}
+                className={`flex-shrink-0 p-1.5 rounded-full transition-colors ${
+                  showCommentEmoji ? 'bg-yellow-500/20 text-yellow-400' : 'text-gray-400 hover:text-white'
+                }`}
+              >
+                <Smile className="w-5 h-5" />
+              </button>
               <input
                 ref={desktopCommentInputRef}
                 type="text"
@@ -1308,6 +1335,7 @@ const PostModal = ({ post, isOpen, onClose, _onPostUpdated, posts, onNavigatePos
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && commentInput.trim()) {
                     handleSubmitComment();
+                    setShowCommentEmoji(false);
                   }
                 }}
                 placeholder="Add a comment..."
@@ -1316,13 +1344,21 @@ const PostModal = ({ post, isOpen, onClose, _onPostUpdated, posts, onNavigatePos
               />
               {commentInput.trim() && (
                 <button
-                  onClick={handleSubmitComment}
+                  onClick={() => { handleSubmitComment(); setShowCommentEmoji(false); }}
                   disabled={submittingComment}
                   className="text-blue-500 hover:text-blue-400 text-sm font-semibold"
                 >
                   {submittingComment ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Post'}
                 </button>
               )}
+              <EmojiPicker
+                isOpen={showCommentEmoji}
+                onClose={() => setShowCommentEmoji(false)}
+                onSelect={(emoji) => {
+                  setCommentInput(prev => prev + emoji);
+                }}
+                position="above"
+              />
             </div>
           </div>
         </div>
