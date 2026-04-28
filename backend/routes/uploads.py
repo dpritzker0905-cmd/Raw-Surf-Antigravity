@@ -42,6 +42,7 @@ from utils.video_processor import (
     get_video_info, 
     needs_transcoding, 
     process_video_upload,
+    process_video_from_path,
     generate_video_thumbnail,
     MAX_FEED_HEIGHT, 
     MAX_FEED_WIDTH,
@@ -61,6 +62,7 @@ ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp", "image/gif", "im
 ALLOWED_VIDEO_TYPES = {"video/mp4", "video/quicktime", "video/webm", "video/mpeg", "video/x-m4v"}
 MAX_FILE_SIZE = 500 * 1024 * 1024  # 500MB for videos
 MAX_IMAGE_SIZE = 50 * 1024 * 1024  # 50MB for images
+STREAM_CHUNK_SIZE = 1024 * 1024    # 1 MB chunks for streaming video to disk
 
 
 def upload_to_supabase_storage(local_path: Path, bucket: str, remote_key: str, content_type: str = 'video/mp4') -> str | None:
@@ -632,46 +634,73 @@ async def upload_feed_media(
 ):
     """
     Upload media for a feed post (image or video)
-    Videos are automatically transcoded to 1080p max for all users
+    Videos are automatically transcoded to 1080p max for all users.
+
+    Memory-safe: video uploads are streamed to disk in 1 MB chunks.
     """
+    import gc
+
+
     # Validate file type
     is_video = file.content_type in ALLOWED_VIDEO_TYPES
     is_image = file.content_type in ALLOWED_IMAGE_TYPES
-    
+
     if not is_video and not is_image:
         raise HTTPException(
-            status_code=400, 
+            status_code=400,
             detail="Invalid file type. Allowed: JPEG, PNG, WebP, GIF, MP4, MOV, WebM"
         )
-    
-    # Read file content
-    content = await file.read()
-    
-    # Check file size
-    max_size = MAX_FILE_SIZE if is_video else MAX_IMAGE_SIZE
-    if len(content) > max_size:
-        raise HTTPException(
-            status_code=400, 
-            detail=f"File too large. Maximum size is {max_size // (1024*1024)}MB"
-        )
-    
+
     # Create feed subdirectory
     feed_dir = UPLOAD_DIR / "feed"
     feed_dir.mkdir(exist_ok=True)
-    
+
     if is_video:
-        # Process video with automatic 1080p transcoding
+        # ── Stream video to disk (never hold full file in RAM) ──
+        temp_filename = f"temp_{uuid.uuid4()}.mp4"
+        temp_path = feed_dir / temp_filename
+        file_size = 0
+
+        try:
+            with open(temp_path, "wb") as out:
+                while True:
+                    chunk = await file.read(STREAM_CHUNK_SIZE)
+                    if not chunk:
+                        break
+                    file_size += len(chunk)
+                    if file_size > MAX_FILE_SIZE:
+                        out.close()
+                        os.remove(temp_path)
+                        raise HTTPException(
+                            status_code=400,
+                            detail=f"File too large. Maximum size is {MAX_FILE_SIZE // (1024*1024)}MB"
+                        )
+                    out.write(chunk)
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"Feed video streaming write failed: {e}")
+            if temp_path.exists():
+                os.remove(temp_path)
+            raise HTTPException(status_code=500, detail="Upload write failed")
+        finally:
+            await file.close()
+            gc.collect()
+
+        # Process video from the file on disk
         success, error, result = await asyncio.to_thread(
-            process_video_upload,
-            content,
+            process_video_from_path,
+            temp_path,
             file.filename or "video.mp4",
             feed_dir,
-            user_subscription='free',  # Feed posts always capped at 1080p
+            user_subscription='free',
             upload_type='feed'
         )
-        
+
         if not success:
             raise HTTPException(status_code=400, detail=f"Video processing failed: {error}")
+
+        gc.collect()
 
         video_path = feed_dir / result['filename']
         thumbnail_filename = f"{result['filename'].rsplit('.', 1)[0]}_thumb.jpg"
@@ -685,6 +714,8 @@ async def upload_feed_media(
             str(thumbnail_path),
             'smart'
         )
+
+        gc.collect()
 
         # Prefer Supabase Storage (permanent) over ephemeral disk URL
         remote_key = f"feed/{result['filename']}"
@@ -714,21 +745,33 @@ async def upload_feed_media(
             "size": result.get('size', 0)
         }
     else:
-        # Handle image upload
+        # Handle image upload (images are small enough for in-memory read)
+        content = await file.read()
+
+        if len(content) > MAX_IMAGE_SIZE:
+            raise HTTPException(
+                status_code=400,
+                detail=f"File too large. Maximum size is {MAX_IMAGE_SIZE // (1024*1024)}MB"
+            )
+
         ext = get_file_extension(file.content_type)
         filename = f"{uuid.uuid4()}{ext}"
         file_path = feed_dir / filename
-        
+
         with open(file_path, "wb") as f:
             f.write(content)
-        
+
+        content_size = len(content)
+        del content
+        gc.collect()
+
         media_url = f"/api/uploads/feed/{filename}"
-        
+
         return {
             "media_url": media_url,
             "media_type": "image",
             "filename": filename,
-            "size": len(content)
+            "size": content_size
         }
 
 
@@ -748,38 +791,59 @@ async def upload_wave_video(
     - Max 60 seconds for music label compliance
     - Vertical (9:16) or portrait (4:5) recommended
     - Auto-transcoded to 1080p max
+
+    Memory-safe: streams video directly to disk in 1 MB chunks instead of
+    buffering the entire file in Python RAM.  Designed for Render 512 MB tier.
     """
+    import gc
+
+
     # Waves must be video
     if file.content_type not in ALLOWED_VIDEO_TYPES:
         raise HTTPException(
             status_code=400,
             detail="Waves must be video: MP4, MOV, or WebM"
         )
-    
-    content = await file.read()
-    
-    if len(content) > MAX_FILE_SIZE:
-        raise HTTPException(
-            status_code=400,
-            detail=f"File too large. Maximum size is {MAX_FILE_SIZE // (1024*1024)}MB"
-        )
-    
-    # Create waves subdirectory
+
+    # ── 1. Stream upload directly to disk (never hold full file in RAM) ──
     waves_dir = UPLOAD_DIR / "waves"
     waves_dir.mkdir(exist_ok=True)
-    
-    # Save temp file to check duration
+
     temp_filename = f"temp_{uuid.uuid4()}.mp4"
     temp_path = waves_dir / temp_filename
-    
-    with open(temp_path, "wb") as f:
-        f.write(content)
-    
-    # Get video info to check duration and aspect ratio
-    video_info = get_video_info(str(temp_path))
-    
+    file_size = 0
+
+    try:
+        with open(temp_path, "wb") as out:
+            while True:
+                chunk = await file.read(STREAM_CHUNK_SIZE)
+                if not chunk:
+                    break
+                file_size += len(chunk)
+                if file_size > MAX_FILE_SIZE:
+                    out.close()
+                    os.remove(temp_path)
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"File too large. Maximum size is {MAX_FILE_SIZE // (1024*1024)}MB"
+                    )
+                out.write(chunk)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Wave streaming write failed: {e}")
+        if temp_path.exists():
+            os.remove(temp_path)
+        raise HTTPException(status_code=500, detail="Upload write failed")
+    finally:
+        # Release the Starlette SpooledTemporaryFile immediately
+        await file.close()
+        gc.collect()
+
+    # ── 2. Read metadata from the file on disk (zero extra RAM) ──
+    video_info = await asyncio.to_thread(get_video_info, str(temp_path))
+
     if not video_info:
-        # ffprobe not available or video unreadable — proceed with fallback metadata
         logger.warning("Could not read video metadata (ffprobe missing?), proceeding with defaults")
         video_info = {
             'width': 0,
@@ -787,54 +851,56 @@ async def upload_wave_video(
             'duration': 0,
             'codec': 'unknown',
             'bitrate': 0,
-            'size': len(content)
+            'size': file_size
         }
     else:
-        # ENFORCE 60-SECOND LIMIT for music label compliance (only if we have real metadata)
+        # ENFORCE 60-SECOND LIMIT for music label compliance
         if video_info.get('duration', 0) > MAX_WAVE_DURATION:
             os.remove(temp_path)
             raise HTTPException(
                 status_code=400,
-                detail=f"Waves must be {MAX_WAVE_DURATION} seconds or less. Your video is {video_info['duration']:.1f} seconds."
+                detail=f"Waves must be {MAX_WAVE_DURATION} seconds or less. "
+                       f"Your video is {video_info['duration']:.1f} seconds."
             )
-    
-    # Calculate aspect ratio
+
+    gc.collect()
+
+    # ── 3. Calculate aspect ratio ──
     width = video_info.get('width', 0)
     height = video_info.get('height', 0)
-    
+
     if width > 0 and height > 0:
         ratio = height / width
-        if ratio >= 1.7:  # ~9:16
+        if ratio >= 1.7:
             aspect_ratio = '9:16'
-        elif ratio >= 1.2:  # ~4:5
+        elif ratio >= 1.2:
             aspect_ratio = '4:5'
-        elif ratio >= 0.9:  # ~1:1
+        elif ratio >= 0.9:
             aspect_ratio = '1:1'
-        else:  # landscape
+        else:
             aspect_ratio = '16:9'
     else:
-        aspect_ratio = '9:16'  # Default for Waves
-    
-    # Clean up temp file
-    os.remove(temp_path)
-    
-    # Process video with transcoding
+        aspect_ratio = '9:16'
+
+    # ── 4. Process video from the file on disk (path-based, no bytes in RAM) ──
     success, error, result = await asyncio.to_thread(
-        process_video_upload,
-        content,
+        process_video_from_path,
+        temp_path,
         file.filename or "wave.mp4",
         waves_dir,
-        user_subscription='free',  # Waves capped at 1080p
+        user_subscription='free',
         upload_type='feed'
     )
-    
+
     if not success:
-        # Fallback: save raw video without transcoding
-        logger.warning(f"Wave transcoding failed ({error}), saving raw video instead")
+        # Fallback: keep the raw temp file as-is
+        logger.warning(f"Wave transcoding failed ({error}), keeping raw video")
         raw_filename = f"{uuid.uuid4()}.mp4"
         raw_path = waves_dir / raw_filename
-        with open(raw_path, "wb") as f:
-            f.write(content)
+        if temp_path.exists():
+            shutil.move(str(temp_path), str(raw_path))
+        else:
+            raise HTTPException(status_code=500, detail="Video processing failed and source lost")
         result = {
             'filename': raw_filename,
             'original_width': width,
@@ -843,41 +909,51 @@ async def upload_wave_video(
             'final_height': height,
             'duration': video_info.get('duration', 0),
             'was_transcoded': False,
-            'size': len(content),
+            'size': file_size,
         }
-    
+
+    gc.collect()
+
     media_url = f"/api/uploads/waves/{result['filename']}"
-    
-    # Generate thumbnail
+
+    # ── 5. Generate thumbnail (runs ffmpeg subprocess, not Python RAM) ──
     thumbnail_url = None
     video_path = waves_dir / result['filename']
     thumbnail_filename = f"{result['filename'].rsplit('.', 1)[0]}_thumb.jpg"
     thumbnail_path = waves_dir / thumbnail_filename
-    
+
     thumb_success, _ = await asyncio.to_thread(
         generate_video_thumbnail,
         str(video_path),
         str(thumbnail_path),
         'smart'
     )
-    
+
     if thumb_success:
         thumbnail_url = f"/api/uploads/waves/{thumbnail_filename}"
-    
-    # ── Upload to Supabase for persistence ──
+
+    gc.collect()
+
+    # ── 6. Upload to Supabase for persistence ──
     if SUPABASE_STORAGE_AVAILABLE:
         wave_remote_key = f"waves/{user_id}/{result['filename']}"
-        supa_media = upload_to_supabase_storage(video_path, 'feed', wave_remote_key, content_type='video/mp4')
+        supa_media = await asyncio.to_thread(
+            upload_to_supabase_storage, video_path, 'feed', wave_remote_key, 'video/mp4'
+        )
         if supa_media:
             media_url = supa_media
             logger.info(f'Wave video uploaded to Supabase: {supa_media}')
-        
+
         if thumb_success and thumbnail_path.exists():
             thumb_remote_key = f"waves/{user_id}/{thumbnail_filename}"
-            supa_thumb = upload_to_supabase_storage(thumbnail_path, 'feed', thumb_remote_key, content_type='image/jpeg')
+            supa_thumb = await asyncio.to_thread(
+                upload_to_supabase_storage, thumbnail_path, 'feed', thumb_remote_key, 'image/jpeg'
+            )
             if supa_thumb:
                 thumbnail_url = supa_thumb
-    
+
+    gc.collect()
+
     return {
         "media_url": media_url,
         "media_type": "video",

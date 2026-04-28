@@ -301,6 +301,97 @@ def process_video_upload(
         return False, str(e), None
 
 
+def process_video_from_path(
+    source_path: Path,
+    filename: str,
+    upload_dir: Path,
+    user_subscription: str = 'free',
+    upload_type: str = 'feed'
+) -> Tuple[bool, Optional[str], Optional[dict]]:
+    """
+    Memory-safe variant of process_video_upload that works directly from a
+    file already on disk, avoiding the need to hold raw bytes in RAM.
+
+    Designed for Render 512 MB free-tier deployments where buffering an entire
+    video in Python memory causes OOM crashes.
+
+    Args:
+        source_path: Path to the video file already saved on disk
+        filename: Original upload filename (used for extension detection)
+        upload_dir: Directory for the final processed file
+        user_subscription: User's subscription tier
+        upload_type: 'feed' (1080p cap) or 'gallery' (4K for paid)
+
+    Returns:
+        Tuple of (success, error_message, result_data)
+    """
+    try:
+        if upload_type == 'gallery' and user_subscription in ['basic', 'premium']:
+            max_width = MAX_GALLERY_WIDTH
+            max_height = MAX_GALLERY_HEIGHT
+        else:
+            max_width = MAX_FEED_WIDTH
+            max_height = MAX_FEED_HEIGHT
+
+        base_name = str(uuid.uuid4())
+        ext = Path(filename).suffix.lower() or '.mp4'
+        final_filename = f"{base_name}.mp4"
+
+        upload_dir.mkdir(parents=True, exist_ok=True)
+        final_path = upload_dir / final_filename
+
+        # Read metadata from the file already on disk — zero extra RAM
+        video_info = get_video_info(str(source_path))
+        if not video_info:
+            return False, "Could not read video file", None
+
+        result_data = {
+            'original_width': video_info['width'],
+            'original_height': video_info['height'],
+            'duration': video_info['duration'],
+            'was_transcoded': False,
+            'filename': final_filename,
+        }
+
+        is_mp4 = ext == '.mp4'
+        if needs_transcoding(video_info, max_height, max_width) or not is_mp4:
+            success, error = transcode_video(
+                str(source_path),
+                str(final_path),
+                max_width,
+                max_height,
+            )
+
+            # Remove the source temp file after transcoding
+            try:
+                os.remove(source_path)
+            except OSError:
+                pass
+
+            if not success:
+                return False, f"Video transcoding failed: {error}", None
+
+            result_data['was_transcoded'] = True
+
+            final_info = get_video_info(str(final_path))
+            if final_info:
+                result_data['final_width'] = final_info['width']
+                result_data['final_height'] = final_info['height']
+                result_data['size'] = final_info['size']
+        else:
+            # Already a conformant MP4 — just move (rename) on same volume
+            shutil.move(str(source_path), str(final_path))
+            result_data['final_width'] = video_info['width']
+            result_data['final_height'] = video_info['height']
+            result_data['size'] = video_info['size']
+
+        return True, None, result_data
+
+    except Exception as e:
+        logger.error(f"Video processing error (path-based): {e}")
+        return False, str(e), None
+
+
 # Utility to check if ffmpeg is available
 def check_ffmpeg_available() -> bool:
     """Check if ffmpeg is installed and accessible"""
