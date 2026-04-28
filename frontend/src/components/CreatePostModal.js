@@ -1,4 +1,4 @@
-﻿/**
+/**
  * CreatePostModal - Extracted from Feed.js for better maintainability
  * Handles media upload (photo/video), session metadata, and post creation
  */
@@ -39,7 +39,12 @@ const CreatePostModal = ({ isOpen, onClose, onCreated }) => {
 
   // Session metadata state
   const [showSessionData, setShowSessionData] = useState(false);
-  const [sessionDate, setSessionDate] = useState(new Date().toISOString().split('T')[0]);
+  // Helper: get today's date in local time (avoids UTC day-shift — e.g. 11 PM EDT = next day UTC)
+  const todayLocal = () => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  };
+  const [sessionDate, setSessionDate] = useState(todayLocal());
   const [sessionStartTime, setSessionStartTime] = useState('');
   const [sessionEndTime, setSessionEndTime] = useState('');
   const [waveHeightFt, setWaveHeightFt] = useState('');
@@ -287,7 +292,10 @@ const CreatePostModal = ({ isOpen, onClose, onCreated }) => {
 
       // Add session metadata if enabled
       if (showSessionData) {
-        if (sessionDate) postData.session_date = new Date(sessionDate).toISOString();
+        if (sessionDate) {
+          // Send as noon UTC for the selected date — avoids timezone boundary issues on the backend
+          postData.session_date = sessionDate + 'T12:00:00.000Z';
+        }
         if (sessionStartTime) postData.session_start_time = sessionStartTime;
         if (sessionEndTime) postData.session_end_time = sessionEndTime;
         if (waveHeightFt) postData.wave_height_ft = parseFloat(waveHeightFt);
@@ -333,7 +341,7 @@ const CreatePostModal = ({ isOpen, onClose, onCreated }) => {
     setLocation('');
     // Reset session metadata
     setShowSessionData(false);
-    setSessionDate(new Date().toISOString().split('T')[0]);
+    setSessionDate(todayLocal());
     setSessionStartTime('');
     setSessionEndTime('');
     setWaveHeightFt('');
@@ -691,6 +699,7 @@ const CreatePostModal = ({ isOpen, onClose, onCreated }) => {
                       type="date"
                       value={sessionDate}
                       onChange={(e) => setSessionDate(e.target.value)}
+                      max={todayLocal()}
                       className="bg-zinc-800 border-zinc-700 text-white text-sm"
                     />
                   </div>

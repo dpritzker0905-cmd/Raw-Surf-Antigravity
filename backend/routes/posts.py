@@ -5,7 +5,7 @@ from sqlalchemy import select, func, and_, or_
 from sqlalchemy.orm import selectinload
 from pydantic import BaseModel, ConfigDict
 from typing import List, Optional
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from database import get_db
 from models import Profile, Post, PostLike, Comment, PostReaction, PostCollaboration, SurfSpot, RoleEnum
@@ -159,6 +159,10 @@ async def create_post(author_id: str, data: PostCreate, db: AsyncSession = Depen
     profile = result.scalar_one_or_none()
     if not profile:
         raise HTTPException(status_code=404, detail="Profile not found")
+    
+    # Reject future-dated sessions (allow 1-day buffer for international timezones up to UTC+14)
+    if data.session_date and data.session_date > datetime.utcnow() + timedelta(days=1):
+        raise HTTPException(status_code=400, detail="Session date cannot be in the future")
     
     post = Post(
         author_id=author_id,
@@ -1402,7 +1406,11 @@ async def update_post(
         try:
             # Parse date string and convert to datetime (noon UTC to avoid timezone issues)
             parsed_date = dt.strptime(data.session_date, "%Y-%m-%d")
-            post.session_date = parsed_date.replace(hour=12, minute=0, second=0)
+            parsed_date = parsed_date.replace(hour=12, minute=0, second=0)
+            # Reject future-dated sessions (1-day buffer for international timezones)
+            if parsed_date > datetime.utcnow() + timedelta(days=1):
+                raise HTTPException(status_code=400, detail="Session date cannot be in the future")
+            post.session_date = parsed_date
         except (ValueError, TypeError):
             pass  # Keep existing value if parsing fails
     

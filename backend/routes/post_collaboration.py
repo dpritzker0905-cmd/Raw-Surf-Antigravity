@@ -9,7 +9,7 @@ from sqlalchemy import select, func, and_, or_
 from sqlalchemy.orm import selectinload
 from pydantic import BaseModel
 from typing import Optional, List
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 import json
 
 from database import get_db
@@ -143,7 +143,11 @@ async def update_post_session_metadata(
     
     # Update session metadata
     if data.session_date:
-        post.session_date = datetime.fromisoformat(data.session_date.replace('Z', '+00:00'))
+        parsed_session_date = datetime.fromisoformat(data.session_date.replace('Z', '+00:00'))
+        # Reject future-dated sessions (1-day buffer for international timezones)
+        if parsed_session_date > datetime.now(timezone.utc) + timedelta(days=1):
+            raise HTTPException(status_code=400, detail="Session date cannot be in the future")
+        post.session_date = parsed_session_date
     if data.session_start_time:
         post.session_start_time = data.session_start_time
         # Auto-generate label if not provided
