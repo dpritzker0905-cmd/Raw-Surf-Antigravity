@@ -904,6 +904,50 @@ async def create_comment(post_id: str, data: CommentCreate, user_id: str = Query
     await db.commit()
     await db.refresh(comment)
     
+    # ── Notification: alert post author / parent comment author ──────────
+    from utils.notifications import send_notification, NotificationType
+    
+    commenter_name = user.full_name or user.username or "Someone"
+    preview = (data.content.strip()[:80] + "…") if len(data.content.strip()) > 80 else data.content.strip()
+    
+    if data.parent_id and parent:
+        # Reply to a comment — notify the parent comment author
+        if parent.author_id != user_id:
+            await send_notification(
+                db,
+                user_id=parent.author_id,
+                type=NotificationType.COMMENT_REPLY,
+                title="New Reply",
+                body=f'{commenter_name} replied to your comment: "{preview}"',
+                data={"post_id": post_id, "comment_id": comment.id, "parent_comment_id": data.parent_id},
+                action_url=f"/post/{post_id}",
+            )
+        # Also notify the post author if they're different from both commenter & parent author
+        if post.author_id != user_id and post.author_id != parent.author_id:
+            await send_notification(
+                db,
+                user_id=post.author_id,
+                type=NotificationType.POST_COMMENT,
+                title="New Comment",
+                body=f'{commenter_name} replied to a comment on your post: "{preview}"',
+                data={"post_id": post_id, "comment_id": comment.id},
+                action_url=f"/post/{post_id}",
+            )
+    else:
+        # Top-level comment — notify the post author
+        if post.author_id != user_id:
+            await send_notification(
+                db,
+                user_id=post.author_id,
+                type=NotificationType.POST_COMMENT,
+                title="New Comment",
+                body=f'{commenter_name} commented on your post: "{preview}"',
+                data={"post_id": post_id, "comment_id": comment.id},
+                action_url=f"/post/{post_id}",
+            )
+    
+    await db.commit()  # Persist notification records
+    
     return CommentResponse(
         id=comment.id,
         post_id=comment.post_id,
