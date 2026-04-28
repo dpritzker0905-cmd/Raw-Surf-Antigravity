@@ -7,7 +7,7 @@ import { useNavigate } from 'react-router-dom';
 import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
-import { X, ChevronLeft, ChevronRight, Heart, MessageCircle, Send, Bookmark, MoreHorizontal, Loader2, Calendar, Waves, Play, Pause, Volume2, VolumeX } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, Heart, MessageCircle, Send, Bookmark, MoreHorizontal, Loader2, Calendar, Waves, Play, Pause, Volume2, Volume1, VolumeX } from 'lucide-react';
 import { toast } from 'sonner';
 import { RichText, CommentText } from './RichText';
 import { SharePostModal } from './PostMenu';
@@ -38,17 +38,20 @@ const ShakaIcon = ({ filled, size = 28 }) => (
 
 
 // Custom Video Player for PostModal — TikTok/Instagram style
-// Tap to play/pause, custom progress bar, mute toggle, no native controls
+// Tap to play/pause, custom progress bar, volume slider, no native controls
 const ModalVideoPlayer = ({ src, poster, className = '' }) => {
   const videoRef = useRef(null);
   const progressRef = useRef(null);
   const [playing, setPlaying] = useState(false);
   const [muted, setMuted] = useState(true);
+  const [volume, setVolume] = useState(0.7); // 0-1 range
+  const [showVolumeSlider, setShowVolumeSlider] = useState(false);
   const [progress, setProgress] = useState(0);
   const [duration, setDuration] = useState(0);
   const [currentTime, setCurrentTimeState] = useState(0);
   const [showControls, setShowControls] = useState(true);
   const hideTimerRef = useRef(null);
+  const volumeTimerRef = useRef(null);
 
   // Auto-play when mounted
   useEffect(() => {
@@ -61,6 +64,7 @@ const ModalVideoPlayer = ({ src, poster, className = '' }) => {
     }
     return () => {
       if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
+      if (volumeTimerRef.current) clearTimeout(volumeTimerRef.current);
     };
   }, [src]);
 
@@ -102,8 +106,42 @@ const ModalVideoPlayer = ({ src, poster, className = '' }) => {
     if (!videoRef.current) return;
     const newMuted = !muted;
     videoRef.current.muted = newMuted;
+    if (!newMuted) {
+      videoRef.current.volume = volume;
+    }
     setMuted(newMuted);
   };
+
+  const handleVolumeChange = (e) => {
+    e.stopPropagation();
+    const newVolume = parseFloat(e.target.value);
+    setVolume(newVolume);
+    if (videoRef.current) {
+      videoRef.current.volume = newVolume;
+      if (newVolume === 0) {
+        setMuted(true);
+        videoRef.current.muted = true;
+      } else if (muted) {
+        setMuted(false);
+        videoRef.current.muted = false;
+      }
+    }
+    // Keep slider visible while interacting
+    if (volumeTimerRef.current) clearTimeout(volumeTimerRef.current);
+    volumeTimerRef.current = setTimeout(() => setShowVolumeSlider(false), 2000);
+  };
+
+  const handleVolumeAreaEnter = () => {
+    setShowVolumeSlider(true);
+    if (volumeTimerRef.current) clearTimeout(volumeTimerRef.current);
+  };
+
+  const handleVolumeAreaLeave = () => {
+    volumeTimerRef.current = setTimeout(() => setShowVolumeSlider(false), 1200);
+  };
+
+  // Get appropriate volume icon
+  const VolumeIcon = muted || volume === 0 ? VolumeX : volume < 0.5 ? Volume1 : Volume2;
 
   const handleSeek = (e) => {
     e.stopPropagation();
@@ -174,6 +212,7 @@ const ModalVideoPlayer = ({ src, poster, className = '' }) => {
             <button
               onClick={togglePlay}
               className="text-white hover:opacity-80 transition-opacity"
+              aria-label={playing ? 'Pause' : 'Play'}
             >
               {playing ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5" fill="white" />}
             </button>
@@ -181,12 +220,49 @@ const ModalVideoPlayer = ({ src, poster, className = '' }) => {
               {formatTime(currentTime)} / {formatTime(duration)}
             </span>
           </div>
-          <button
-            onClick={toggleMute}
-            className="text-white hover:opacity-80 transition-opacity"
+          {/* Volume control group */}
+          <div
+            className="flex items-center gap-1.5"
+            onMouseEnter={handleVolumeAreaEnter}
+            onMouseLeave={handleVolumeAreaLeave}
+            onTouchStart={handleVolumeAreaEnter}
           >
-            {muted ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
-          </button>
+            {/* Volume slider — progressive disclosure */}
+            <div
+              className="overflow-hidden transition-all duration-300 ease-out flex items-center"
+              style={{
+                width: showVolumeSlider ? '80px' : '0px',
+                opacity: showVolumeSlider ? 1 : 0,
+              }}
+            >
+              <input
+                type="range"
+                min="0"
+                max="1"
+                step="0.05"
+                value={muted ? 0 : volume}
+                onChange={handleVolumeChange}
+                onClick={(e) => e.stopPropagation()}
+                className="w-full h-1 appearance-none bg-white/30 rounded-full cursor-pointer"
+                aria-label="Volume"
+                style={{
+                  background: `linear-gradient(to right, rgba(255,255,255,0.9) ${(muted ? 0 : volume) * 100}%, rgba(255,255,255,0.2) ${(muted ? 0 : volume) * 100}%)`,
+                }}
+              />
+            </div>
+            <button
+              onClick={(e) => {
+                toggleMute(e);
+                setShowVolumeSlider(true);
+                if (volumeTimerRef.current) clearTimeout(volumeTimerRef.current);
+                volumeTimerRef.current = setTimeout(() => setShowVolumeSlider(false), 2000);
+              }}
+              className="text-white hover:opacity-80 transition-opacity p-1 min-w-[28px] min-h-[28px] flex items-center justify-center"
+              aria-label={muted ? 'Unmute' : 'Mute'}
+            >
+              <VolumeIcon className="w-5 h-5" />
+            </button>
+          </div>
         </div>
       </div>
     </div>

@@ -11,7 +11,7 @@ import { CommentInputWithEmoji } from './EmojiPicker';
 import WhoReactedModal from './WhoReactedModal';
 import SessionJoinCard from './SessionJoinCard';
 import { RichText, CommentText } from './RichText';
-import { MapPin, MessageCircle, Send, Bookmark, MoreHorizontal, Loader2, Play, Radio, Heart, ShoppingBag, ChevronRight, RefreshCw, Volume2, VolumeX, Pause } from 'lucide-react';
+import { MapPin, MessageCircle, Send, Bookmark, MoreHorizontal, Loader2, Play, Radio, Heart, ShoppingBag, ChevronRight, RefreshCw, Volume2, Volume1, VolumeX, Pause } from 'lucide-react';
 import { toast } from 'sonner';
 import { getFullUrl } from '../utils/media';
 import { formatTimeAgo } from '../utils/formatTime';
@@ -618,6 +618,9 @@ const PostCard = ({
   const [videoError, setVideoError] = useState(false);
   // Mute state for in-feed video (defaults muted for autoplay)
   const [isMuted, setIsMuted] = useState(true);
+  const [videoVolume, setVideoVolume] = useState(0.7);
+  const [showVolSlider, setShowVolSlider] = useState(false);
+  const volTimerRef = useRef(null);
   // Track if video is currently playing (for play/pause overlay)
   const [isPlaying, setIsPlaying] = useState(false);
 
@@ -963,19 +966,77 @@ const PostCard = ({
               </div>
             </div>
           )}
-          {/* Mute toggle — bottom-right, TikTok style (stops propagation so it doesn't open modal) */}
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              const newMuted = !isMuted;
-              setIsMuted(newMuted);
-              if (videoRef.current) videoRef.current.muted = newMuted;
+          {/* Volume control — bottom-right, progressive disclosure (stops propagation so it doesn't open modal) */}
+          <div
+            className="absolute bottom-3 right-3 z-[3] flex items-center gap-1"
+            onClick={(e) => e.stopPropagation()}
+            onMouseEnter={() => {
+              setShowVolSlider(true);
+              if (volTimerRef.current) clearTimeout(volTimerRef.current);
             }}
-            className="absolute bottom-3 right-3 z-[3] w-8 h-8 rounded-full bg-black/60 backdrop-blur-sm flex items-center justify-center text-white hover:bg-black/80 transition-colors"
-            data-testid={`video-mute-${post.id}`}
+            onMouseLeave={() => {
+              volTimerRef.current = setTimeout(() => setShowVolSlider(false), 1200);
+            }}
           >
-            {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
-          </button>
+            {/* Horizontal slider — appears to the left of the icon */}
+            <div
+              className="overflow-hidden transition-all duration-300 ease-out flex items-center"
+              style={{
+                width: showVolSlider ? '60px' : '0px',
+                opacity: showVolSlider ? 1 : 0,
+              }}
+            >
+              <input
+                type="range"
+                min="0"
+                max="1"
+                step="0.05"
+                value={isMuted ? 0 : videoVolume}
+                onChange={(e) => {
+                  e.stopPropagation();
+                  const newVol = parseFloat(e.target.value);
+                  setVideoVolume(newVol);
+                  if (videoRef.current) {
+                    videoRef.current.volume = newVol;
+                    if (newVol === 0) {
+                      setIsMuted(true);
+                      videoRef.current.muted = true;
+                    } else if (isMuted) {
+                      setIsMuted(false);
+                      videoRef.current.muted = false;
+                    }
+                  }
+                  if (volTimerRef.current) clearTimeout(volTimerRef.current);
+                  volTimerRef.current = setTimeout(() => setShowVolSlider(false), 2000);
+                }}
+                onClick={(e) => e.stopPropagation()}
+                className="w-full h-1 appearance-none rounded-full cursor-pointer"
+                aria-label="Volume"
+                style={{
+                  background: `linear-gradient(to right, rgba(255,255,255,0.9) ${(isMuted ? 0 : videoVolume) * 100}%, rgba(255,255,255,0.25) ${(isMuted ? 0 : videoVolume) * 100}%)`,
+                }}
+              />
+            </div>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                const newMuted = !isMuted;
+                setIsMuted(newMuted);
+                if (videoRef.current) {
+                  videoRef.current.muted = newMuted;
+                  if (!newMuted) videoRef.current.volume = videoVolume;
+                }
+                setShowVolSlider(true);
+                if (volTimerRef.current) clearTimeout(volTimerRef.current);
+                volTimerRef.current = setTimeout(() => setShowVolSlider(false), 2000);
+              }}
+              className="w-8 h-8 rounded-full bg-black/60 backdrop-blur-sm flex items-center justify-center text-white hover:bg-black/80 transition-colors"
+              data-testid={`video-mute-${post.id}`}
+              aria-label={isMuted ? 'Unmute' : 'Mute'}
+            >
+              {isMuted || videoVolume === 0 ? <VolumeX className="w-4 h-4" /> : videoVolume < 0.5 ? <Volume1 className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+            </button>
+          </div>
           </>
           )
         ) : (

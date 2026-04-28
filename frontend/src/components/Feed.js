@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import apiClient from '../lib/apiClient';
 import { getNotifications, getUnreadCount, markRead, markAllRead, sendNotification, sendPhotographerAlert, createNotification, markAlertRead } from '../services/notificationService';
 
@@ -190,6 +190,7 @@ export const Feed = () => {
   const { theme } = useTheme();
   const { getEffectiveRole, _isMasked } = usePersona();
   const navigate = useNavigate();
+  const location = useLocation();
   
   // Get effective role for UI rendering (respects God Mode persona masking)
   const effectiveRole = getEffectiveRole(user?.role);
@@ -202,7 +203,13 @@ export const Feed = () => {
   const [showCreateWaveModal, setShowCreateWaveModal] = useState(false);
   const [checkInLoading, setCheckInLoading] = useState(false);
   const [spots, setSpots] = useState([]);
-  const [activeTab, setActiveTab] = useState('for_you');
+  // Read ?tab= from URL to allow deep-linking (e.g. from Explore → View All Waves)
+  const initialTab = (() => {
+    const params = new URLSearchParams(location.search);
+    const t = params.get('tab');
+    return ['for_you', 'waves', 'following'].includes(t) ? t : 'for_you';
+  })();
+  const [activeTab, setActiveTab] = useState(initialTab);
   const [storyTier, setStoryTier] = useState('all'); // Synced with StoriesBar: 'all', 'photographers', 'surfers'
   const [checkInData, setCheckInData] = useState({
     spot_id: '',

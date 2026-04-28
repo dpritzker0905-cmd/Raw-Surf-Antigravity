@@ -11,7 +11,7 @@ import { TextareaWithEmoji } from './EmojiPicker';
 import { Input } from './ui/input';
 import { 
   Upload, Video, Loader2, MapPin, Clock, AlertCircle, 
-  CheckCircle, Play, Pause, Volume2, VolumeX, RotateCcw
+  CheckCircle, Play, Pause, Volume2, Volume1, VolumeX, RotateCcw
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -32,6 +32,9 @@ export const CreateWaveModal = ({ isOpen, onClose, onSuccess }) => {
   const [videoInfo, setVideoInfo] = useState(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isMuted, setIsMuted] = useState(true);
+  const [volume, setVolume] = useState(0.7);
+  const [showVolumeSlider, setShowVolumeSlider] = useState(false);
+  const volumeTimerRef = useRef(null);
   
   const [caption, setCaption] = useState('');
   const [location, setLocation] = useState('');
@@ -264,12 +267,72 @@ export const CreateWaveModal = ({ isOpen, onClose, onSuccess }) => {
                       {isPlaying ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5" />}
                     </button>
                     
-                    <div className="flex items-center gap-3">
+                    <div
+                      className="flex items-center gap-1.5"
+                      onMouseEnter={() => {
+                        setShowVolumeSlider(true);
+                        if (volumeTimerRef.current) clearTimeout(volumeTimerRef.current);
+                      }}
+                      onMouseLeave={() => {
+                        volumeTimerRef.current = setTimeout(() => setShowVolumeSlider(false), 1200);
+                      }}
+                    >
                       <span className="text-sm">
                         {formatDuration(videoInfo?.duration || 0)}
                       </span>
-                      <button onClick={() => setIsMuted(!isMuted)} className="p-2">
-                        {isMuted ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
+                      {/* Volume slider — progressive disclosure */}
+                      <div
+                        className="overflow-hidden transition-all duration-300 ease-out flex items-center"
+                        style={{
+                          width: showVolumeSlider ? '60px' : '0px',
+                          opacity: showVolumeSlider ? 1 : 0,
+                        }}
+                      >
+                        <input
+                          type="range"
+                          min="0"
+                          max="1"
+                          step="0.05"
+                          value={isMuted ? 0 : volume}
+                          onChange={(e) => {
+                            const newVol = parseFloat(e.target.value);
+                            setVolume(newVol);
+                            if (videoRef.current) {
+                              videoRef.current.volume = newVol;
+                              if (newVol === 0) {
+                                setIsMuted(true);
+                                videoRef.current.muted = true;
+                              } else if (isMuted) {
+                                setIsMuted(false);
+                                videoRef.current.muted = false;
+                              }
+                            }
+                            if (volumeTimerRef.current) clearTimeout(volumeTimerRef.current);
+                            volumeTimerRef.current = setTimeout(() => setShowVolumeSlider(false), 2000);
+                          }}
+                          className="w-full h-1 appearance-none bg-white/30 rounded-full cursor-pointer"
+                          aria-label="Volume"
+                          style={{
+                            background: `linear-gradient(to right, rgba(255,255,255,0.9) ${(isMuted ? 0 : volume) * 100}%, rgba(255,255,255,0.2) ${(isMuted ? 0 : volume) * 100}%)`,
+                          }}
+                        />
+                      </div>
+                      <button
+                        onClick={() => {
+                          const newMuted = !isMuted;
+                          setIsMuted(newMuted);
+                          if (videoRef.current) {
+                            videoRef.current.muted = newMuted;
+                            if (!newMuted) videoRef.current.volume = volume;
+                          }
+                          setShowVolumeSlider(true);
+                          if (volumeTimerRef.current) clearTimeout(volumeTimerRef.current);
+                          volumeTimerRef.current = setTimeout(() => setShowVolumeSlider(false), 2000);
+                        }}
+                        className="p-2"
+                        aria-label={isMuted ? 'Unmute' : 'Mute'}
+                      >
+                        {isMuted || volume === 0 ? <VolumeX className="w-5 h-5" /> : volume < 0.5 ? <Volume1 className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
                       </button>
                     </div>
                   </div>

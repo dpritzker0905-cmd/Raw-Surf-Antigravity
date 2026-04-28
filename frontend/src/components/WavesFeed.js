@@ -1,4 +1,4 @@
-﻿/**
+/**
  * WavesFeed - Full-screen vertical video feed (TikTok/Reels style)
  * Swipe up/down to navigate, double-tap to like
  */
@@ -7,7 +7,7 @@ import { useNavigate } from 'react-router-dom';
 import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
-import { Heart, MessageCircle, Share2, Volume2, VolumeX, Play, ChevronUp, ChevronDown, MapPin, Plus, Loader2 } from 'lucide-react';
+import { Heart, MessageCircle, Share2, Volume2, Volume1, VolumeX, Play, ChevronUp, ChevronDown, MapPin, Plus, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from './ui/button';
 
@@ -19,7 +19,9 @@ const WaveCard = ({
   wave, 
   isActive, 
   isMuted, 
+  volume,
   onToggleMute, 
+  onVolumeChange,
   onLike, 
   onComment, 
   onShare,
@@ -32,6 +34,8 @@ const WaveCard = ({
   const [localLiked, setLocalLiked] = useState(wave.is_liked);
   const [localLikes, setLocalLikes] = useState(wave.likes_count);
   const lastTapRef = useRef(0);
+  const [showVolumeSlider, setShowVolumeSlider] = useState(false);
+  const volumeTimerRef = useRef(null);
   
   // Auto-play when active
   useEffect(() => {
@@ -49,12 +53,23 @@ const WaveCard = ({
     }
   }, [isActive, wave.id]);
   
-  // Sync mute state
+  // Sync mute + volume state
   useEffect(() => {
     if (videoRef.current) {
       videoRef.current.muted = isMuted;
+      videoRef.current.volume = volume;
     }
-  }, [isMuted]);
+  }, [isMuted, volume]);
+  
+  // Cleanup volume timer
+  useEffect(() => {
+    return () => {
+      if (volumeTimerRef.current) clearTimeout(volumeTimerRef.current);
+    };
+  }, []);
+  
+  // Get appropriate volume icon
+  const VolumeIcon = isMuted || volume === 0 ? VolumeX : volume < 0.5 ? Volume1 : Volume2;
   
   // Handle tap - single tap = play/pause, double tap = like
   const handleTap = useCallback((e) => {
@@ -221,16 +236,68 @@ const WaveCard = ({
           <span className="text-white text-xs font-semibold">Share</span>
         </button>
         
-        {/* Sound toggle */}
-        <button
-          onClick={(e) => { e.stopPropagation(); onToggleMute(); }}
-          className="flex flex-col items-center gap-1"
-          data-testid="wave-sound-btn"
-        >
-          <div className="w-10 h-10 rounded-full bg-black/30 flex items-center justify-center text-white transition-transform active:scale-90">
-            {isMuted ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
+        {/* Sound control with volume slider */}
+        <div className="relative flex flex-col items-center gap-1">
+          {/* Vertical volume slider — appears above the button */}
+          <div
+            className="flex flex-col items-center transition-all duration-300 ease-out overflow-hidden"
+            style={{
+              height: showVolumeSlider ? '80px' : '0px',
+              opacity: showVolumeSlider ? 1 : 0,
+              marginBottom: showVolumeSlider ? '4px' : '0px',
+            }}
+          >
+            <div className="relative h-[72px] w-8 flex items-center justify-center">
+              <input
+                type="range"
+                min="0"
+                max="1"
+                step="0.05"
+                value={isMuted ? 0 : volume}
+                onChange={(e) => {
+                  e.stopPropagation();
+                  const newVol = parseFloat(e.target.value);
+                  onVolumeChange(newVol);
+                  if (volumeTimerRef.current) clearTimeout(volumeTimerRef.current);
+                  volumeTimerRef.current = setTimeout(() => setShowVolumeSlider(false), 2500);
+                }}
+                onClick={(e) => e.stopPropagation()}
+                className="appearance-none cursor-pointer"
+                aria-label="Volume"
+                style={{
+                  writingMode: 'vertical-lr',
+                  direction: 'rtl',
+                  width: '72px',
+                  height: '4px',
+                  background: `linear-gradient(to top, rgba(255,255,255,0.9) ${(isMuted ? 0 : volume) * 100}%, rgba(255,255,255,0.25) ${(isMuted ? 0 : volume) * 100}%)`,
+                  borderRadius: '9999px',
+                }}
+              />
+            </div>
           </div>
-        </button>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              if (showVolumeSlider) {
+                // If slider is open, tap toggles mute
+                onToggleMute();
+              } else {
+                // First tap: show slider and unmute if muted
+                setShowVolumeSlider(true);
+                if (isMuted) onToggleMute();
+              }
+              if (volumeTimerRef.current) clearTimeout(volumeTimerRef.current);
+              volumeTimerRef.current = setTimeout(() => setShowVolumeSlider(false), 2500);
+            }}
+            className="flex flex-col items-center gap-1"
+            data-testid="wave-sound-btn"
+            aria-label={isMuted ? 'Unmute' : 'Mute'}
+          >
+            <div className="w-10 h-10 rounded-full bg-black/30 flex items-center justify-center text-white transition-transform active:scale-90">
+              <VolumeIcon className="w-5 h-5" />
+            </div>
+          </button>
+        </div>
       </div>
       
       {/* Bottom info */}
@@ -286,6 +353,7 @@ export const WavesFeed = ({ feedType = 'for_you', onCreateWave }) => {
   const [loading, setLoading] = useState(true);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isMuted, setIsMuted] = useState(true);
+  const [volume, setVolume] = useState(0.7); // 0-1 range, shared across all cards
   const [hasMore, setHasMore] = useState(true);
   const containerRef = useRef(null);
   
@@ -465,7 +533,16 @@ export const WavesFeed = ({ feedType = 'for_you', onCreateWave }) => {
             wave={wave}
             isActive={index === currentIndex}
             isMuted={isMuted}
+            volume={volume}
             onToggleMute={() => setIsMuted(prev => !prev)}
+            onVolumeChange={(newVol) => {
+              setVolume(newVol);
+              if (newVol === 0) {
+                setIsMuted(true);
+              } else if (isMuted) {
+                setIsMuted(false);
+              }
+            }}
             onLike={handleLike}
             onComment={handleComment}
             onShare={handleShare}
