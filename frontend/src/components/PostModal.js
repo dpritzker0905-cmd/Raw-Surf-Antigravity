@@ -858,33 +858,37 @@ const PostModal = ({ post, isOpen, onClose, _onPostUpdated, posts, onNavigatePos
               className="absolute inset-0 bg-black/30"
               onClick={() => setShowReactionPicker(false)}
             />
-            {/* Centered Picker - ensure all 5 emojis fit */}
+            {/* Centered Picker - 2-row grid for mobile */}
             <div 
-              className="absolute bg-zinc-900/95 backdrop-blur-sm border border-zinc-600 rounded-full px-2 py-2 flex items-center shadow-2xl animate-in zoom-in-95 duration-200"
+              className="absolute bg-zinc-900/95 backdrop-blur-md border border-zinc-600 rounded-2xl px-3 py-3 shadow-2xl animate-in zoom-in-95 duration-200"
               style={{ 
                 left: '50%',
                 top: '50%',
-                transform: 'translate(-50%, -50%)'
+                transform: 'translate(-50%, -50%)',
+                width: `${Math.min(window.innerWidth - 24, 300)}px`
               }}
               onClick={(e) => e.stopPropagation()}
             >
-              {REACTION_EMOJIS.map((emoji, _index) => (
-                <button
-                  key={emoji}
-                  onClick={() => handleReaction(emoji)}
-                  className="w-10 h-10 flex items-center justify-center hover:scale-110 transition-all duration-150 hover:bg-zinc-700/50 rounded-full active:scale-95 touch-manipulation"
-                  style={{ fontSize: '22px' }}
-                  data-testid={`post-reaction-${emoji}`}
-                >
-                  {emoji}
-                </button>
-              ))}
               <button 
                 onClick={() => setShowReactionPicker(false)}
-                className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-white border-l border-zinc-600 ml-1 hover:bg-zinc-700/50 rounded-full touch-manipulation"
+                className="absolute top-1.5 right-1.5 w-6 h-6 flex items-center justify-center text-gray-500 hover:text-white rounded-full hover:bg-zinc-700/50 touch-manipulation"
+                style={{ zIndex: 1 }}
               >
-                <X className="w-4 h-4" />
+                <X className="w-3.5 h-3.5" />
               </button>
+              <div className="grid grid-cols-5 gap-1 justify-items-center">
+                {REACTION_EMOJIS.map((emoji, _index) => (
+                  <button
+                    key={emoji}
+                    onClick={() => handleReaction(emoji)}
+                    className="w-11 h-11 flex items-center justify-center rounded-full hover:bg-zinc-700/60 active:scale-90 transition-transform duration-100 touch-manipulation"
+                    style={{ fontSize: '24px' }}
+                    data-testid={`post-reaction-${emoji}`}
+                  >
+                    {emoji}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
         )}

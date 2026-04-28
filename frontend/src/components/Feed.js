@@ -115,59 +115,60 @@ const _ShakaIcon = ({ filled }) => (
 );
 
 // Reaction Picker Component - Anchored near the Shaka button, not screen center
+// Uses a 2-row grid on mobile so all 10 emojis fit without overflow
 const ReactionPicker = ({ show, onSelect, onClose, anchor }) => {
   if (!show) return null;
 
-  // Position above the Shaka button, clamped within viewport
-  // anchor = { x: button center X, y: button top Y } in page coords
-  const PICKER_WIDTH = 380;  // approximate picker width for 10 reaction emojis
-  const PICKER_HEIGHT = 52;  // approximate picker height in px
-  const MARGIN = 8;           // gap above the button
+  // Container width: 5 emojis per row at 44px each + 8px gaps + padding
+  const EDGE_PAD = 12;
+  const PICKER_W = Math.min(window.innerWidth - EDGE_PAD * 2, 300);
+  const PICKER_H = 108;       // approx height for 2-row layout
+  const MARGIN = 10;
 
-  let left = (anchor?.x ?? window.innerWidth / 2) - PICKER_WIDTH / 2;
-  let top = (anchor?.y ?? window.innerHeight / 2) - PICKER_HEIGHT - MARGIN;
+  let left = (anchor?.x ?? window.innerWidth / 2) - PICKER_W / 2;
+  let top = (anchor?.y ?? window.innerHeight / 2) - PICKER_H - MARGIN;
 
-  // Clamp horizontally within viewport
-  left = Math.max(8, Math.min(left, window.innerWidth - PICKER_WIDTH - 8));
-  // Clamp vertically — if goes off top, show below button instead
-  if (top < 8) {
-    top = (anchor?.y ?? window.innerHeight / 2) + MARGIN + 36; // 36 ≈ button height
+  // Clamp horizontally
+  left = Math.max(EDGE_PAD, Math.min(left, window.innerWidth - PICKER_W - EDGE_PAD));
+  // If goes off top, show below the button
+  if (top < EDGE_PAD) {
+    top = (anchor?.y ?? window.innerHeight / 2) + MARGIN + 36;
   }
 
   return (
     <div 
-      className="fixed bg-zinc-900/95 backdrop-blur-sm border border-zinc-600 rounded-full px-2 py-1.5 flex items-center gap-1 shadow-2xl animate-in zoom-in-95 duration-200"
+      className="fixed bg-zinc-900/95 backdrop-blur-md border border-zinc-600 rounded-2xl px-3 py-3 shadow-2xl animate-in zoom-in-95 duration-200"
       style={{ 
         zIndex: 99999,
         left: `${left}px`,
         top: `${top}px`,
+        width: `${PICKER_W}px`,
         pointerEvents: 'auto'
       }}
       onClick={(e) => e.stopPropagation()}
     >
-      {REACTION_EMOJIS.map((emoji) => (
-        <button
-          key={emoji}
-          onClick={(e) => {
-            e.stopPropagation();
-            onSelect(emoji);
-          }}
-          className="w-10 h-10 flex items-center justify-center text-2xl hover:scale-125 transition-all duration-150 hover:bg-zinc-700/50 rounded-full active:scale-95"
-          style={{ fontSize: '26px' }}
-          data-testid={`feed-reaction-${emoji}`}
-        >
-          {emoji}
-        </button>
-      ))}
+      {/* Close button top-right */}
       <button 
-        onClick={(e) => {
-          e.stopPropagation();
-          onClose();
-        }}
-        className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-white border-l border-zinc-600 ml-1 hover:bg-zinc-700/50 rounded-full"
+        onClick={(e) => { e.stopPropagation(); onClose(); }}
+        className="absolute top-1.5 right-1.5 w-6 h-6 flex items-center justify-center text-gray-500 hover:text-white rounded-full hover:bg-zinc-700/50"
+        style={{ zIndex: 1 }}
       >
-        <X className="w-4 h-4" />
+        <X className="w-3.5 h-3.5" />
       </button>
+      {/* 5×2 grid of emojis */}
+      <div className="grid grid-cols-5 gap-1 justify-items-center">
+        {REACTION_EMOJIS.map((emoji) => (
+          <button
+            key={emoji}
+            onClick={(e) => { e.stopPropagation(); onSelect(emoji); }}
+            className="w-11 h-11 flex items-center justify-center rounded-full hover:bg-zinc-700/60 active:scale-90 transition-transform duration-100"
+            style={{ fontSize: '24px' }}
+            data-testid={`feed-reaction-${emoji}`}
+          >
+            {emoji}
+          </button>
+        ))}
+      </div>
     </div>
   );
 };
@@ -383,7 +384,7 @@ export const Feed = () => {
         latestPostIdRef.current = incoming[0]?.id ?? null;
         window.scrollTo({ top: 0, behavior: 'smooth' });
       }
-    } catch {}
+    } catch { /* silent – non-critical refresh */ }
     setNewPostsChip(0);
     setIsRefreshing(false);
   }, [user?.id]);
