@@ -1,17 +1,42 @@
-import React, { useState, useRef } from 'react';
-import { X } from 'lucide-react';
+import React, { useState } from 'react';
+import { ChevronDown, ChevronUp } from 'lucide-react';
+import {
+  QUICK_ACCESS_EMOJIS,
+  EMOJI_CATEGORIES,
+  EXTENDED_EMOJI_CATEGORIES,
+} from '../../constants/emojis';
 
-const EMOJI_CATEGORIES = {
-  'Recent': ['🤙', '🌊', '❤️', '🔥', '👏', '😂', '🏄', '🏄‍♀️'],
-  'Surf': ['🏄', '🏄‍♀️', '🌊', '🏖️', '🐚', '🐬', '🦈', '☀️', '🌅', '🌴', '🐠', '🦑', '🐙', '🦀'],
-  'Faces': ['😀', '😂', '🥹', '😍', '🥰', '😘', '😎', '🤩', '😇', '🙂', '😉', '😊', '😋', '🤪', '😜'],
-  'Gestures': ['🤙', '👋', '✌️', '👍', '👊', '🤟', '🤘', '👏', '🙌', '🤝', '💪', '🫶', '❤️', '🔥', '💯'],
-  'Nature': ['🌞', '🌈', '⭐', '🌙', '☁️', '💨', '🌬️', '🌀', '🌪️', '🌧️', '⚡', '🔆', '🌺', '🌸', '🌻']
+/**
+ * Emoji Picker for Direct Messages (MessagesPage)
+ * Simpler popover variant — preserves existing show/onSelect/onClose interface.
+ *
+ * Uses shared emoji data from constants/emojis.js.
+ * Includes a collapsible "More" toggle to reveal extended categories.
+ */
+
+// Build a DM-friendly subset: "Recent" quick-access row + shared primary categories
+const DM_BASE_CATEGORIES = {
+  'Recent': QUICK_ACCESS_EMOJIS,
+  ...EMOJI_CATEGORIES,
 };
 
 const EmojiPicker = ({ show, onSelect, onClose }) => {
   const [activeCategory, setActiveCategory] = useState('Recent');
-  
+  const [showExtended, setShowExtended] = useState(false);
+
+  // Build the visible category map based on expanded state
+  const visibleCategories = showExtended
+    ? { ...DM_BASE_CATEGORIES, ...EXTENDED_EMOJI_CATEGORIES }
+    : DM_BASE_CATEGORIES;
+
+  // Reset to a valid category when collapsing extended
+  const handleToggleExtended = () => {
+    if (showExtended && !(activeCategory in DM_BASE_CATEGORIES)) {
+      setActiveCategory('Recent');
+    }
+    setShowExtended(!showExtended);
+  };
+
   if (!show) return null;
   
   return (
@@ -20,7 +45,7 @@ const EmojiPicker = ({ show, onSelect, onClose }) => {
       onClick={(e) => e.stopPropagation()}
     >
       <div className="flex border-b border-zinc-700 overflow-x-auto px-2 py-1 scrollbar-hide">
-        {Object.keys(EMOJI_CATEGORIES).map((cat) => (
+        {Object.keys(visibleCategories).map((cat) => (
           <button
             key={cat}
             onClick={() => setActiveCategory(cat)}
@@ -31,9 +56,22 @@ const EmojiPicker = ({ show, onSelect, onClose }) => {
             {cat}
           </button>
         ))}
+
+        {/* Show More / Show Less toggle */}
+        <button
+          onClick={handleToggleExtended}
+          className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium whitespace-nowrap transition-colors rounded text-cyan-500/60 hover:text-cyan-400"
+          data-testid="dm-emoji-show-more"
+        >
+          {showExtended ? (
+            <>Less <ChevronUp className="w-3 h-3" /></>
+          ) : (
+            <>More <ChevronDown className="w-3 h-3" /></>
+          )}
+        </button>
       </div>
       <div className="p-2 grid grid-cols-8 gap-1 max-h-40 overflow-y-auto">
-        {EMOJI_CATEGORIES[activeCategory].map((emoji, i) => (
+        {(visibleCategories[activeCategory] || []).map((emoji, i) => (
           <button
             key={i}
             onClick={() => onSelect(emoji)}

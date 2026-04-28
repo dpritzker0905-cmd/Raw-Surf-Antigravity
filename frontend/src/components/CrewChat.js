@@ -1,4 +1,4 @@
-﻿/**
+/**
  * CrewChat - Real-time messaging for booking coordination
  * Features: Text, Voice (30s max), Images, Quick Actions, Emoji Picker, Reactions
  */
@@ -20,8 +20,14 @@ import {
 
   ArrowLeft, Send, Mic, MoreVertical, 
   MapPin, Users, CheckCheck, Loader2, X, Play, Pause,
-  Zap, StopCircle, Smile, Plus, Reply, Download, Paperclip
+  Zap, StopCircle, Smile, Plus, Reply, Download, Paperclip,
+  ChevronDown, ChevronUp
 } from 'lucide-react';
+import {
+  REACTION_EMOJIS,
+  EMOJI_CATEGORIES,
+  EXTENDED_EMOJI_CATEGORIES,
+} from '../constants/emojis';
 import { toast } from 'sonner';
 
 import logger from '../utils/logger';
@@ -74,16 +80,8 @@ const _QUICK_ACTION_CATEGORIES = {
   vibes: { label: 'Vibes', color: 'bg-pink-500/20 text-pink-400 border-pink-500/30' },
 };
 
-// Reaction emojis for messages
-const REACTION_EMOJIS = ['🤙', '🌊', '🏄', '🔥', '💯', '❤️', '👏', '😂'];
-
-// Emoji categories for picker
-const EMOJI_CATEGORIES = {
-  'Surf': ['🤙', '🌊', '🏄', '🏄‍♂️', '🏄‍♀️', '🌴', '☀️', '🐚', '🦈', '🐬', '🏝️', '🌅'],
-  'Reactions': ['🔥', '💯', '❤️', '👏', '🙌', '😍', '🤩', '😎', '💪', '👊', '✨', '🚀'],
-  'Faces': ['😀', '😃', '😄', '😁', '😆', '🤣', '😂', '🙂', '😊', '😇', '🥰', '😍', '😘', '😎', '🤔', '😏'],
-  'Gestures': ['👍', '👎', '👌', '✌️', '🤞', '🤟', '🤘', '🤙', '👋', '👏', '🙌', '🤝', '🙏', '💪'],
-};
+// Emoji data imported from ../constants/emojis.js
+// (REACTION_EMOJIS, EMOJI_CATEGORIES, EXTENDED_EMOJI_CATEGORIES)
 
 export default function CrewChat() {
   const { bookingId } = useParams();
@@ -117,7 +115,8 @@ export default function CrewChat() {
   
   // Emoji & Reactions state
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
-  const [activeEmojiCategory, setActiveEmojiCategory] = useState('Surf');
+  const [activeEmojiCategory, setActiveEmojiCategory] = useState('Surf & Ocean');
+  const [showExtendedEmoji, setShowExtendedEmoji] = useState(false);
   const [showReactionPicker, setShowReactionPicker] = useState(null); // message ID or null
   
   // Mentions & Replies state
@@ -1107,12 +1106,12 @@ export default function CrewChat() {
       {showEmojiPicker && (
         <div className="bg-zinc-900 border-t border-zinc-800 p-3" data-testid="emoji-picker-panel">
           <div className="flex items-center justify-between mb-2">
-            <div className="flex gap-2">
-              {Object.keys(EMOJI_CATEGORIES).map((category) => (
+            <div className="flex gap-2 overflow-x-auto hide-scrollbar">
+              {Object.keys(showExtendedEmoji ? { ...EMOJI_CATEGORIES, ...EXTENDED_EMOJI_CATEGORIES } : EMOJI_CATEGORIES).map((category) => (
                 <button
                   key={category}
                   onClick={() => setActiveEmojiCategory(category)}
-                  className={`text-xs px-2 py-1 rounded transition-colors ${
+                  className={`text-xs px-2 py-1 rounded transition-colors whitespace-nowrap flex-shrink-0 ${
                     activeEmojiCategory === category 
                       ? 'bg-cyan-500/20 text-cyan-400' 
                       : 'text-zinc-500 hover:text-zinc-300'
@@ -1121,13 +1120,29 @@ export default function CrewChat() {
                   {category}
                 </button>
               ))}
+              <button
+                onClick={() => {
+                  if (showExtendedEmoji && !(activeEmojiCategory in EMOJI_CATEGORIES)) {
+                    setActiveEmojiCategory('Surf & Ocean');
+                  }
+                  setShowExtendedEmoji(!showExtendedEmoji);
+                }}
+                className="flex items-center gap-1 text-xs px-2 py-1 rounded transition-colors whitespace-nowrap flex-shrink-0 text-cyan-500/60 hover:text-cyan-400"
+                data-testid="crew-emoji-show-more"
+              >
+                {showExtendedEmoji ? (
+                  <>Less <ChevronUp className="w-3 h-3" /></>
+                ) : (
+                  <>More <ChevronDown className="w-3 h-3" /></>
+                )}
+              </button>
             </div>
-            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setShowEmojiPicker(false)}>
+            <Button variant="ghost" size="icon" className="h-6 w-6 flex-shrink-0" onClick={() => setShowEmojiPicker(false)}>
               <X className="h-4 w-4 text-zinc-500" />
             </Button>
           </div>
           <div className="grid grid-cols-8 gap-1 max-h-32 overflow-y-auto">
-            {EMOJI_CATEGORIES[activeEmojiCategory]?.map((emoji) => (
+            {(showExtendedEmoji ? { ...EMOJI_CATEGORIES, ...EXTENDED_EMOJI_CATEGORIES } : EMOJI_CATEGORIES)[activeEmojiCategory]?.map((emoji) => (
               <button
                 key={emoji}
                 onClick={() => handleEmojiSelect(emoji)}

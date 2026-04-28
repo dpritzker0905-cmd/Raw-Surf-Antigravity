@@ -1,26 +1,20 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Smile, X } from 'lucide-react';
+import { Smile, X, ChevronDown, ChevronUp } from 'lucide-react';
+import {
+  QUICK_ACCESS_EMOJIS,
+  EMOJI_CATEGORIES,
+  EXTENDED_EMOJI_CATEGORIES,
+} from '../constants/emojis';
 
 /**
  * Smart Emoji Picker for Comments & Captions
  * Features:
  * - Quick-Access Row (8 most frequent surf emojis)
  * - Surf-First Sorting
+ * - Collapsible extended emoji categories ("Show More")
  * - Mobile: Bottom sheet that slides up from bottom
  * - Desktop: Positioned popover
  */
-
-// Surf-first emoji categories
-const QUICK_ACCESS_EMOJIS = ['🤙', '🌊', '🏄', '🔥', '💯', '🙌', '❤️', '👏'];
-
-const EMOJI_CATEGORIES = {
-  'Surf & Ocean': ['🌊', '🏄', '🏄‍♂️', '🏄‍♀️', '🤙', '🌴', '☀️', '🐚', '🦈', '🐬', '🐠', '🏝️', '⛱️', '🌅', '🌞', '🦑', '🐙', '🦀', '🐳', '🦭'],
-  'Reactions': ['🔥', '💯', '❤️', '👏', '🙌', '😍', '🤩', '😎', '💪', '👊', '✨', '⭐', '🎯', '🏆', '🥇', '💥', '💫', '🚀'],
-  'Faces': ['😀', '😃', '😄', '😁', '😆', '😅', '🤣', '😂', '🙂', '😊', '😇', '🥰', '😍', '🤩', '😘', '😗', '😚', '😋', '😛', '😜', '🤪', '😝', '🤑', '🤗', '🤭', '🤫', '🤔', '🤐', '🤨', '😐', '😑', '😶', '😏', '😒', '🙄', '😬', '😮‍💨', '🤥'],
-  'Gestures': ['👍', '👎', '👌', '🤌', '🤏', '✌️', '🤞', '🤟', '🤘', '🤙', '👈', '👉', '👆', '👇', '☝️', '👋', '🤚', '🖐️', '✋', '🖖', '👏', '🙌', '🤝', '🙏', '💪'],
-  'Nature': ['🌸', '🌺', '🌻', '🌼', '🌷', '🌹', '🌱', '🌿', '🍀', '🍃', '🍂', '🍁', '🌾', '🌵', '🎋', '🎍', '🌳', '🌲', '🌴', '🎄'],
-  'Weather': ['🌤️', '⛅', '🌥️', '☁️', '🌦️', '🌧️', '⛈️', '🌩️', '🌨️', '❄️', '🌬️', '💨', '🌪️', '🌫️', '🌈', '☀️', '🌙', '⭐', '🌟', '💫'],
-};
 
 /**
  * Mobile Bottom Sheet Emoji Picker
@@ -34,10 +28,16 @@ const EMOJI_CATEGORIES = {
  */
 const MobileEmojiSheet = ({ isOpen, onClose, onSelect }) => {
   const [activeCategory, setActiveCategory] = useState('Surf & Ocean');
+  const [showExtended, setShowExtended] = useState(false);
   const [lastSelected, setLastSelected] = useState(null);
   const sheetRef = useRef(null);
   const startY = useRef(0);
   const currentY = useRef(0);
+
+  // Build the visible category map based on expanded state
+  const visibleCategories = showExtended
+    ? { ...EMOJI_CATEGORIES, ...EXTENDED_EMOJI_CATEGORIES }
+    : EMOJI_CATEGORIES;
 
   // Close on outside click (backdrop)
   const handleBackdropClick = (e) => {
@@ -92,6 +92,13 @@ const MobileEmojiSheet = ({ isOpen, onClose, onSelect }) => {
       return () => clearTimeout(timer);
     }
   }, [lastSelected]);
+
+  // Reset to a valid category when collapsing extended
+  useEffect(() => {
+    if (!showExtended && !(activeCategory in EMOJI_CATEGORIES)) {
+      setActiveCategory('Surf & Ocean');
+    }
+  }, [showExtended, activeCategory]);
 
   if (!isOpen) return null;
 
@@ -162,7 +169,7 @@ const MobileEmojiSheet = ({ isOpen, onClose, onSelect }) => {
 
         {/* Category Tabs */}
         <div className="flex overflow-x-auto hide-scrollbar border-b border-zinc-800 px-2">
-          {Object.keys(EMOJI_CATEGORIES).map((category) => (
+          {Object.keys(visibleCategories).map((category) => (
             <button
               key={category}
               onClick={() => setActiveCategory(category)}
@@ -175,12 +182,25 @@ const MobileEmojiSheet = ({ isOpen, onClose, onSelect }) => {
               {category}
             </button>
           ))}
+
+          {/* Show More / Show Less toggle tab */}
+          <button
+            onClick={() => setShowExtended(!showExtended)}
+            className="flex-shrink-0 flex items-center gap-1 px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap text-yellow-500/70 hover:text-yellow-400"
+            data-testid="emoji-show-more-mobile"
+          >
+            {showExtended ? (
+              <>Less <ChevronUp className="w-3.5 h-3.5" /></>
+            ) : (
+              <>More <ChevronDown className="w-3.5 h-3.5" /></>
+            )}
+          </button>
         </div>
 
         {/* Emoji Grid - Scrollable */}
         <div className="flex-1 overflow-y-auto p-3 min-h-[180px]">
           <div className="grid grid-cols-8 gap-1">
-            {EMOJI_CATEGORIES[activeCategory].map((emoji, idx) => (
+            {(visibleCategories[activeCategory] || []).map((emoji, idx) => (
               <button
                 key={`${emoji}-${idx}`}
                 onClick={() => handleEmojiClick(emoji)}
@@ -203,7 +223,13 @@ const MobileEmojiSheet = ({ isOpen, onClose, onSelect }) => {
  */
 const DesktopEmojiPopover = ({ isOpen, onClose, onSelect, position = 'above' }) => {
   const [activeCategory, setActiveCategory] = useState('Surf & Ocean');
+  const [showExtended, setShowExtended] = useState(false);
   const pickerRef = useRef(null);
+
+  // Build the visible category map based on expanded state
+  const visibleCategories = showExtended
+    ? { ...EMOJI_CATEGORIES, ...EXTENDED_EMOJI_CATEGORIES }
+    : EMOJI_CATEGORIES;
 
   // Close on outside click
   useEffect(() => {
@@ -221,6 +247,13 @@ const DesktopEmojiPopover = ({ isOpen, onClose, onSelect, position = 'above' }) 
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [isOpen, onClose]);
+
+  // Reset to a valid category when collapsing extended
+  useEffect(() => {
+    if (!showExtended && !(activeCategory in EMOJI_CATEGORIES)) {
+      setActiveCategory('Surf & Ocean');
+    }
+  }, [showExtended, activeCategory]);
 
   if (!isOpen) return null;
 
@@ -258,7 +291,7 @@ const DesktopEmojiPopover = ({ isOpen, onClose, onSelect, position = 'above' }) 
 
       {/* Categories */}
       <div className="flex overflow-x-auto hide-scrollbar border-b border-zinc-800">
-        {Object.keys(EMOJI_CATEGORIES).map((category) => (
+        {Object.keys(visibleCategories).map((category) => (
           <button
             key={category}
             onClick={() => setActiveCategory(category)}
@@ -271,12 +304,25 @@ const DesktopEmojiPopover = ({ isOpen, onClose, onSelect, position = 'above' }) 
             {category}
           </button>
         ))}
+
+        {/* Show More / Show Less toggle tab */}
+        <button
+          onClick={() => setShowExtended(!showExtended)}
+          className="flex-shrink-0 flex items-center gap-1 px-3 py-2 text-xs font-medium transition-colors whitespace-nowrap text-yellow-500/70 hover:text-yellow-400"
+          data-testid="emoji-show-more-desktop"
+        >
+          {showExtended ? (
+            <>Less <ChevronUp className="w-3 h-3" /></>
+          ) : (
+            <>More <ChevronDown className="w-3 h-3" /></>
+          )}
+        </button>
       </div>
 
       {/* Grid */}
       <div className="p-2 max-h-48 overflow-y-auto">
         <div className="grid grid-cols-8 gap-1">
-          {EMOJI_CATEGORIES[activeCategory].map((emoji, idx) => (
+          {(visibleCategories[activeCategory] || []).map((emoji, idx) => (
             <button
               key={`${emoji}-${idx}`}
               onClick={() => handleEmojiClick(emoji)}
