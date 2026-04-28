@@ -22,8 +22,8 @@ TEST_USER_2_PASSWORD = "password123"
 TEST_CONVERSATION_ID = "acbc18be-c9a6-42cc-bef3-3fb882a707b9"
 TEST_MESSAGE_ID = "aca8e061-c940-4da6-b7b3-781469c120b4"
 
-# Allowed reaction emojis
-ALLOWED_REACTIONS = ['🤙', '🌊', '❤️', '🔥', '👏', '😂']
+# Allowed reaction emojis — must match backend routes/messages.py → ALLOWED_REACTIONS
+ALLOWED_REACTIONS = ['🤙', '🌊', '🏄', '🔥', '💯', '❤️', '👏', '😂', '😎', '💪']
 
 
 @pytest.fixture(scope="module")

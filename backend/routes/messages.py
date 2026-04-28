@@ -27,8 +27,8 @@ router = APIRouter()
 SUPABASE_URL = os.environ.get('SUPABASE_URL', '')
 SUPABASE_SERVICE_KEY = os.environ.get('SUPABASE_SERVICE_KEY', '')
 
-# Supported reaction emojis (Shaka, Wave, Heart, Fire)
-ALLOWED_REACTIONS = ['🤙', '🌊', '❤️', '🔥', '👏', '😂']
+# Supported reaction emojis — must stay in sync with frontend constants/emojis.js → REACTION_EMOJIS
+ALLOWED_REACTIONS = ['🤙', '🌊', '🏄', '🔥', '💯', '❤️', '👏', '😂', '😎', '💪']
 
 
 async def check_grom_messaging_permission(user_id: str, db: AsyncSession, is_grom_channel: bool = False) -> dict:
