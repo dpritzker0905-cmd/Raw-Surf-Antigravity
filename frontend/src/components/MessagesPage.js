@@ -1530,7 +1530,7 @@ export const MessagesPage = () => {
     const chatAvatarWithCacheBust = cacheBustUrl(chatAvatarUrl, conversationDetail?.last_message_at);
     
     return (
-    <div className="flex flex-col h-full bg-background">
+    <div className="flex flex-col h-full bg-background messages-chat-view">
       {/* Chat Header */}
       <div className="flex items-center gap-3 px-4 py-3 border-b border-border bg-background/80 backdrop-blur-sm">
         <button
@@ -1740,7 +1740,7 @@ export const MessagesPage = () => {
 
       {/* Message Input */}
       {(selectedConversation?.is_new_chat || !conversationDetail?.is_request) && (
-        <div className="p-4 border-t border-border bg-muted/50 relative">
+        <div className="p-4 border-t border-border bg-muted/50 relative flex-shrink-0" style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}>
           <WebcamCaptureModal
             isOpen={showVideoCapture}
             onClose={() => setShowVideoCapture(false)}

@@ -92,6 +92,23 @@
   }
 }
 
+/* ── Messages Chat View: mobile-aware height ──────────────────────
+   On mobile the chat view sits between TopNav (56px) and BottomNav.
+   h-full would resolve to the full <main> which includes pb-20 padding,
+   pushing the compose bar behind the BottomNav.
+   On desktop (md+), the sidebar layout doesn't have top/bottom nav,
+   so h-full is correct.
+   ─────────────────────────────────────────────────────────────── */
+.messages-chat-view {
+  /* Mobile: viewport minus TopNav (56px) minus BottomNav + safe area */
+  height: calc(100dvh - 56px - var(--bottomnav-h) - var(--create-protrude) - env(safe-area-inset-bottom, 0px));
+}
+@media (min-width: 768px) {
+  .messages-chat-view {
+    height: 100%;
+  }
+}
+
 * {
   margin: 0;
   padding: 0;

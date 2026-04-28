@@ -151,7 +151,10 @@ export const SessionChatDrawer = ({
 
   // ============ INITIALIZE CONVERSATION ============
   const initConversation = useCallback(async () => {
-    if (!user?.id || !otherUserId) return;
+    if (!user?.id || !otherUserId) {
+      setIsLoading(false);
+      return;
+    }
     setIsLoading(true);
     try {
       // Check if thread exists
@@ -325,31 +328,41 @@ export const SessionChatDrawer = ({
     if (!otherUserId || !user?.id) return;
     setIsUploadingVoice(true);
     try {
-      // Send as a DM with voice note type
-      // First ensure conversation exists
-      const sendRes = await apiClient.post(
-        `/messages/send?sender_id=${user.id}`,
-        {
-          recipient_id: otherUserId,
-          content: `🎤 Voice note (${recordingTime}s)`,
-          message_type: 'voice_note',
-        }
-      );
-
-      if (sendRes.data.conversation_id && !conversationId) {
-        setConversationId(sendRes.data.conversation_id);
+      // If no conversation exists yet, create one first with a placeholder
+      let cId = conversationId;
+      if (!cId) {
+        const initRes = await apiClient.post(
+          `/messages/send?sender_id=${user.id}`,
+          { recipient_id: otherUserId, content: '', message_type: 'text' }
+        );
+        cId = initRes.data.conversation_id;
+        if (cId) setConversationId(cId);
       }
+
+      if (!cId) {
+        toast.error('Could not start conversation');
+        return;
+      }
+
+      // Upload the actual audio file via the voice-note endpoint
+      const formData = new FormData();
+      formData.append('file', audioBlob, `voice_${Date.now()}.webm`);
+      formData.append('duration', recordingTime.toString());
+      formData.append('conversation_id', cId);
+      formData.append('sender_id', user.id);
+
+      await apiClient.post('/messages/voice-note', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
 
       toast.success('Voice note sent!');
+
       // Refresh messages
-      if (conversationId || sendRes.data.conversation_id) {
-        const cId = conversationId || sendRes.data.conversation_id;
-        const msgRes = await apiClient.get(
-          `/messages/conversation/${cId}?user_id=${user.id}`
-        );
-        setMessages(msgRes.data.messages || []);
-        scrollToBottom();
-      }
+      const msgRes = await apiClient.get(
+        `/messages/conversation/${cId}?user_id=${user.id}`
+      );
+      setMessages(msgRes.data.messages || []);
+      scrollToBottom();
     } catch (err) {
       logger.error('[SessionChat] Voice upload error:', err);
       toast.error('Failed to send voice note');

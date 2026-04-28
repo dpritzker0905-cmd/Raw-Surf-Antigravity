@@ -1233,6 +1233,7 @@ export const OnDemandSessionManager = () => {
         setActiveSession({
           id: active.id,
           status: detailResponse.data.status,
+          requester_id: active.requester_id || detailResponse.data.requester?.id,
           requester_name: active.requester_name || detailResponse.data.requester?.name,
           requester_avatar: detailResponse.data.requester?.avatar,
           requester_selfie: requesterSelfie || detailResponse.data.selfie_url,  // Prefer active dispatch selfie

@@ -243,7 +243,7 @@ const SessionDetailDrawer = ({
             md:max-w-[560px] md:mx-auto
             ${isLight ? 'bg-white' : isBeach ? 'bg-zinc-950' : 'bg-zinc-900'}
             border-t md:border ${isLight ? 'border-gray-200' : 'border-white/10'}`}
-          style={{ maxHeight: '92vh' }}
+          style={{ maxHeight: '85vh' }}
           onClick={(e) => e.stopPropagation()}
         >
           
@@ -253,7 +253,7 @@ const SessionDetailDrawer = ({
           </div>
 
           {/* Scrollable Content */}
-          <div className="overflow-y-auto" style={{ maxHeight: 'calc(92vh - 20px)', WebkitOverflowScrolling: 'touch' }}>
+          <div className="overflow-y-auto" style={{ maxHeight: 'calc(85vh - 20px)', WebkitOverflowScrolling: 'touch' }}>
             
             {/* ─── Header ─────────────────────────────────────────────── */}
             <div className={`px-5 pb-4 border-b ${isLight ? 'border-gray-100' : 'border-white/5'}`}>
@@ -441,8 +441,8 @@ const SessionDetailDrawer = ({
               </div>
             )}
 
-            {/* Bottom safe area padding */}
-            <div className="h-8" />
+            {/* Bottom safe area padding — clears mobile BottomNav */}
+            <div className="h-24" />
           </div>
         </div>
       </div>
