@@ -8,7 +8,7 @@
  *  ● Session duration: 0.5 / 1 / 2 / 3 hours
  *  ● Crew / Split Fare — full surfboard lineup UI (pool-table style)
  *  ● Captain's Hub: per-member % slider + "I'll cover" toggle
- *  ● Live cost breakdown (rate × duration, split share, 25% deposit)
+ *  ● Live cost breakdown (rate × duration, split share, captain's share)
  *  ● Boost Your Request (credits-based priority)
  *  ● Proper sticky header / scrollable body / sticky footer layout
  */
@@ -30,6 +30,7 @@ import { toast } from 'sonner';
 import apiClient from '../../lib/apiClient';
 import { getFullUrl } from '../../utils/media';
 import { ROLES } from '../../constants/roles';
+import { useTheme } from '../../contexts/ThemeContext';
 
 
 
@@ -147,6 +148,8 @@ export const RequestProModal = ({
   onSuccess,
   onBoostApplied,
 }) => {
+  const { theme } = useTheme();
+  const isDark = theme === 'dark';
   // ── Photographer selection ──────────────────────────────────────────────
   const [selectedPro, setSelectedPro]         = useState(null);
   const [proListExpanded, setProListExpanded] = useState(false);
@@ -202,7 +205,9 @@ export const RequestProModal = ({
     0
   );
   const captainPayAmount = totalCost - crewCoversAmount;
-  const depositAmount    = (captainPayAmount * 0.25).toFixed(0);
+  const isShared         = crewMembers.length > 0;
+  // For solo bookings: 25% deposit. For shared: captain pays their full share upfront.
+  const depositAmount    = isShared ? captainPayAmount.toFixed(0) : (totalCost * 0.25).toFixed(0);
 
   // ── Debounced user search for crew autocomplete ─────────────────────────
   useEffect(() => {
@@ -351,18 +356,18 @@ export const RequestProModal = ({
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent
-        className="bg-zinc-900 border-zinc-800 text-white sm:max-w-md"
+        className={`${isDark ? 'bg-zinc-900 border-zinc-800 text-white' : 'bg-white border-gray-200 text-gray-900'} sm:max-w-md`}
         hideCloseButton={false}
       >
         {/* ── STICKY HEADER ───────────────────────────────────────────────── */}
-        <DialogHeader className="border-b border-zinc-800 bg-zinc-900">
+        <DialogHeader className={`border-b ${isDark ? 'border-zinc-800 bg-zinc-900' : 'border-gray-200 bg-white'}`}>
           <DialogTitle className="text-lg font-bold flex items-center gap-2">
             <span className="w-8 h-8 rounded-xl bg-gradient-to-br from-cyan-500/30 to-blue-500/30 flex items-center justify-center">
               <Camera className="w-4 h-4 text-cyan-400" />
             </span>
             Request a Pro
           </DialogTitle>
-          <p className="text-gray-400 text-xs mt-0.5">
+          <p className={`${isDark ? 'text-gray-400' : 'text-gray-500'} text-xs mt-0.5`}>
             On-demand surf photographer — at your break within the hour
           </p>
         </DialogHeader>
@@ -785,26 +790,28 @@ export const RequestProModal = ({
           </div>
 
           {/* ── 6. Price breakdown ─────────────────────────────────────────── */}
-          <div className="bg-gradient-to-r from-cyan-900/30 to-blue-900/30 rounded-xl border border-cyan-500/25 overflow-hidden">
+          <div className={`${isDark ? 'bg-gradient-to-r from-cyan-900/30 to-blue-900/30 border-cyan-500/25' : 'bg-gradient-to-r from-cyan-50 to-blue-50 border-cyan-200'} rounded-xl border overflow-hidden`}>
             <div className="px-3 pt-3 pb-2 space-y-1.5">
               <div className="flex items-center justify-between text-sm">
-                <span className="text-gray-400">Rate</span>
-                <span className="text-white">${hourlyRate}/hr × {duration}h</span>
+                <span className={isDark ? 'text-gray-400' : 'text-gray-500'}>Rate</span>
+                <span className={isDark ? 'text-white' : 'text-gray-900'}>${hourlyRate}/hr × {duration}h</span>
               </div>
               <div className="flex items-center justify-between text-sm">
-                <span className="text-gray-400">Session Total</span>
-                <span className="text-white font-semibold">${totalCost.toFixed(0)}</span>
+                <span className={isDark ? 'text-gray-400' : 'text-gray-500'}>Session Total</span>
+                <span className={`${isDark ? 'text-white' : 'text-gray-900'} font-semibold`}>${totalCost.toFixed(0)}</span>
               </div>
-              {crewMembers.length > 0 && (
-                <div className="flex items-center justify-between text-sm pt-1 border-t border-zinc-700/50">
+              {isShared && (
+                <div className={`flex items-center justify-between text-sm pt-1 border-t ${isDark ? 'border-zinc-700/50' : 'border-gray-200'}`}>
                   <span className="text-emerald-400">Your Share ({totalParticipants} split)</span>
                   <span className="text-emerald-400 font-semibold">~${captainPayAmount.toFixed(0)}</span>
                 </div>
               )}
             </div>
-            <div className="px-3 py-2.5 border-t border-cyan-500/20 bg-cyan-500/5 flex items-center justify-between">
-              <span className="text-cyan-400 font-medium text-sm">Your Deposit (25%)</span>
-              <span className="text-cyan-400 font-bold text-base">${depositAmount}</span>
+            <div className={`px-3 py-2.5 border-t ${isDark ? 'border-cyan-500/20 bg-cyan-500/5' : 'border-cyan-200 bg-cyan-50'} flex items-center justify-between`}>
+              <span className="text-cyan-600 dark:text-cyan-400 font-medium text-sm">
+                {isShared ? "Captain's Share" : 'Deposit (25%)'}
+              </span>
+              <span className="text-cyan-600 dark:text-cyan-400 font-bold text-base">${depositAmount}</span>
             </div>
           </div>
 
@@ -840,16 +847,18 @@ export const RequestProModal = ({
 
           {/* Disclaimer */}
           <p className="text-[10px] text-gray-500 text-center">
-            Deposit is non-refundable once a Pro accepts and starts traveling to you.
+            {isShared
+              ? 'Crew members have 10 minutes to accept. Your share is charged now.'
+              : 'Deposit is non-refundable once a Pro accepts and starts traveling to you.'}
           </p>
         </div>
 
         {/* ── STICKY FOOTER ───────────────────────────────────────────────── */}
-        <DialogFooter className="bg-zinc-900 border-zinc-800 gap-2">
+        <DialogFooter className={`${isDark ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-gray-200'} gap-2`}>
           <Button
             variant="outline"
             onClick={onClose}
-            className="border-zinc-600 text-white hover:bg-zinc-800 flex-1 sm:flex-none"
+            className={`${isDark ? 'border-zinc-600 text-white hover:bg-zinc-800' : 'border-gray-300 text-gray-700 hover:bg-gray-100'} flex-1 sm:flex-none`}
           >
             Cancel
           </Button>
@@ -861,6 +870,8 @@ export const RequestProModal = ({
           >
             {loading ? (
               <Loader2 className="w-5 h-5 animate-spin" />
+            ) : isShared ? (
+              `Send Invites & Pay $${depositAmount}`
             ) : (
               `Pay $${depositAmount} Deposit`
             )}

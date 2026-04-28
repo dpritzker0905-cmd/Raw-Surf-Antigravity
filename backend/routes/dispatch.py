@@ -956,8 +956,9 @@ async def process_dispatch_notifications(dispatch_id: str):
 
 
 async def notify_crew_members(dispatch_id: str, captain_id: str):
-    """Background task to notify crew members about shared session"""
+    """Background task to notify crew members about shared session via in-app + push"""
     from database import async_session_maker
+    from routes.push import send_push_notification
     
     async with async_session_maker() as db:
         # Get dispatch request with requester info
@@ -979,9 +980,16 @@ async def notify_crew_members(dispatch_id: str, captain_id: str):
         participants = participants_result.scalars().all()
         
         captain_name = dispatch.requester.full_name if dispatch.requester else "A surfer"
+        captain_avatar = dispatch.requester.avatar_url if dispatch.requester else None
+        location_name = dispatch.location_name or "Nearby"
         
         for participant in participants:
-            # Create in-app notification
+            # Skip participants who are already covered (captain pays their share)
+            if participant.status == 'covered':
+                logger.info(f"[Dispatch] Skipping notification for covered participant {participant.participant_id}")
+                continue
+            
+            # 1. Create in-app notification
             notification = Notification(
                 user_id=participant.participant_id,
                 type='crew_session_invite',
@@ -991,12 +999,31 @@ async def notify_crew_members(dispatch_id: str, captain_id: str):
                     'dispatch_id': dispatch_id,
                     'captain_id': captain_id,
                     'share_amount': float(participant.share_amount),
-                    'action_url': '/bookings?tab=scheduled'
+                    'action_url': f'/bookings?tab=on_demand&highlight={dispatch_id}'
                 })
             )
             db.add(notification)
             
-            logger.error(f"[Dispatch] Sent crew invite notification to participant {participant.participant_id}")
+            # 2. Send OneSignal push notification so crew actually sees the invite
+            try:
+                await send_push_notification(
+                    user_id=participant.participant_id,
+                    title=f"🏄 {captain_name} invited you to surf!",
+                    message=f"Your share: ${participant.share_amount:.2f} at {location_name}. Tap to join the session.",
+                    data={
+                        "type": "crew_session_invite",
+                        "dispatch_id": dispatch_id,
+                        "captain_name": captain_name,
+                        "captain_avatar": captain_avatar,
+                        "share_amount": float(participant.share_amount),
+                        "location": location_name,
+                        "deep_link": f"/bookings?tab=on_demand&highlight={dispatch_id}"
+                    },
+                    action_url=f"/bookings?tab=on_demand&highlight={dispatch_id}"
+                )
+                logger.info(f"[Dispatch] Sent push + in-app crew invite to participant {participant.participant_id}")
+            except Exception as push_err:
+                logger.warning(f"[Dispatch] Push failed for participant {participant.participant_id}: {push_err}")
         
         await db.commit()
 
