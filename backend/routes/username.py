@@ -3,7 +3,7 @@ Username Management Routes
 Handles:
 - Username availability checking
 - Username setting (during signup)
-- Username changing (with 60-day cooldown)
+- Username changing (with 90-day cooldown)
 - Username history tracking
 """
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -28,7 +28,7 @@ RESERVED_USERNAMES = {
     'official', 'mod', 'moderator', 'system', 'staff', 'team', 'api',
     'null', 'undefined', 'root', 'test', 'user', 'anonymous'
 }
-USERNAME_CHANGE_COOLDOWN_DAYS = 60
+USERNAME_CHANGE_COOLDOWN_DAYS = 90
 
 
 # ============ PYDANTIC SCHEMAS ============
@@ -237,7 +237,7 @@ async def change_username(
     db: AsyncSession = Depends(get_db)
 ):
     """
-    Change username (with 60-day cooldown).
+    Change username (with 90-day cooldown).
     Old username becomes available to others.
     If someone else takes the old username, original user cannot reclaim it.
     """

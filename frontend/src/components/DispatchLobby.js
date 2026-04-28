@@ -363,6 +363,7 @@ export const DispatchLobby = () => {
   };
 
   // -- Poll dispatch state --
+  const hasDataRef = useRef(false); // Track if we've received dispatch data (avoids stale closure)
   const pollDispatch = useCallback(async () => {
     if (!dispatchId) return;
     try {
@@ -388,6 +389,19 @@ export const DispatchLobby = () => {
           try {
             const audio = new Audio('/sounds/notification.mp3');
             audio.volume = 0.4;
+            audio.play().catch(() => {});
+          } catch (_) {}
+        }
+
+        // Photographer ARRIVED — notify the surfer
+        if (newStatus === 'arrived') {
+          toast.success('📸 Your photographer has arrived! Look for them at the spot.', {
+            id: 'photographer-arrived',
+            duration: 8000,
+          });
+          try {
+            const audio = new Audio('/sounds/notification.mp3');
+            audio.volume = 0.5;
             audio.play().catch(() => {});
           } catch (_) {}
         }
@@ -428,6 +442,7 @@ export const DispatchLobby = () => {
       setDispatch(dispatchRes.data);
       setCrewStatus(newCrew);
       setError(null);
+      hasDataRef.current = true;
       pollAttemptRef.current += 1;
     } catch (err) {
       pollAttemptRef.current += 1;
@@ -437,7 +452,8 @@ export const DispatchLobby = () => {
       }
     } finally {
       // Keep loading=true until we have dispatch data or exhausted initial retries
-      if (dispatch || pollAttemptRef.current >= 3) {
+      // Uses ref instead of state to avoid stale closure issues
+      if (hasDataRef.current || pollAttemptRef.current >= 3) {
         setLoading(false);
       }
     }

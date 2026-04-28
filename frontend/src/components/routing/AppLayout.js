@@ -60,26 +60,59 @@ const PushNotificationInit = () => {
 /**
  * Prevents browser back-button navigation to auth/landing pages
  * when the user is authenticated. Redirects to /feed instead.
+ *
+ * In-app browsers (e.g. Facebook Messenger on Samsung) have very
+ * shallow history stacks — one "back" press can exit the entire
+ * app or land on the auth page, triggering an unintended logout.
+ *
+ * Strategy:
+ *  1. Push a guard entry into the history stack on mount so
+ *     pressing back once never exits past our SPA origin.
+ *  2. On every popstate, if the destination is an auth/public
+ *     route, immediately replace the history entry with /feed
+ *     and navigate there — no setTimeout race conditions.
  */
 const BackButtonHandler = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // Push a guard history entry so the back button has something
+  // to "pop" before exiting the SPA context entirely.
   useEffect(() => {
-    const handlePopState = () => {
-      if (user && (
-        window.location.pathname === '/auth' ||
-        window.location.pathname === '/login' ||
-        window.location.pathname === '/'
-      )) {
-        setTimeout(() => {
-          window.history.pushState(null, '', '/feed');
-          navigate('/feed', { replace: true });
-        }, 0);
+    if (user) {
+      window.history.pushState({ guard: true }, '', window.location.href);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    if (!user) return;
+
+    const AUTH_PATHS = new Set(['/', '/auth', '/login', '/auth/']);
+
+    const handlePopState = (e) => {
+      const dest = window.location.pathname;
+
+      if (AUTH_PATHS.has(dest)) {
+        // Immediately replace so the URL never visibly shows /auth
+        window.history.replaceState(null, '', '/feed');
+        navigate('/feed', { replace: true });
+        // Re-push a guard entry for the next back press
+        window.history.pushState({ guard: true }, '', '/feed');
+        return;
+      }
+
+      // If the user hit the guard entry itself, re-push it so
+      // repeated presses don't eventually exit.
+      if (e?.state?.guard) {
+        window.history.pushState({ guard: true }, '', window.location.href);
       }
     };
+
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
   }, [user, navigate]);
+
   return null;
 };
 

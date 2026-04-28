@@ -536,7 +536,7 @@ const UsernameCard = ({ userId, _textPrimaryClass, textSecondaryClass, borderCla
                 <span>Can change in {status.days_until_change} days</span>
               </div>
               <p className={`text-xs mt-1 ${textSecondaryClass}`}>
-                Usernames can be changed once every 60 days
+                Usernames can be changed once every 90 days
               </p>
             </div>
           )}

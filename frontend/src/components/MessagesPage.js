@@ -585,11 +585,17 @@ export const MessagesPage = () => {
   }, [user?.id, activeFolder]);
 
   // Fetch conversation detail when selected
+  // CRITICAL: Depend on selectedConversation?.id (not the full object) to prevent
+  // unnecessary re-fetches when the object reference changes but the ID stays the
+  // same. Re-fetching replaces all messages with the server response, which wipes
+  // out any messages added optimistically or via the realtime subscription.
+  const selectedConvId = selectedConversation?.id;
+  const isNewChat = selectedConversation?.is_new_chat;
   useEffect(() => {
-    if (selectedConversation?.id && !selectedConversation.is_new_chat) {
-      fetchConversationDetail(selectedConversation.id);
+    if (selectedConvId && !isNewChat) {
+      fetchConversationDetail(selectedConvId);
     }
-  }, [selectedConversation]);
+  }, [selectedConvId]);
 
   // Scroll to bottom on new messages
   useEffect(() => {
@@ -618,6 +624,8 @@ export const MessagesPage = () => {
             // Deduplicate: don't add if already present (e.g., from optimistic insert)
             const exists = prev.messages.some(m => m.id === msg.id);
             if (exists) return prev;
+            // Use prev.other_user_name / prev.other_user_avatar instead of
+            // conversationDetail (outer scope) to avoid stale-closure bugs.
             return {
               ...prev,
               messages: [...prev.messages, {
@@ -630,8 +638,8 @@ export const MessagesPage = () => {
                 reply_to_id: msg.reply_to_id,
                 is_read: false,
                 reactions: [],
-                sender_name: conversationDetail?.other_user_name || 'User',
-                sender_avatar: conversationDetail?.other_user_avatar,
+                sender_name: prev.other_user_name || 'User',
+                sender_avatar: prev.other_user_avatar,
               }]
             };
           });

@@ -382,14 +382,17 @@ const CommentWithReaction = ({
           {showReactionPicker && (
             <>
               <div className="fixed inset-0 z-40" onClick={() => setShowReactionPicker(false)} />
-              <div className={`absolute bottom-full right-0 mb-1 flex gap-1 p-1.5 rounded-full shadow-lg z-50 ${
-                isLight ? 'bg-white border border-gray-200' : 'bg-zinc-800 border border-zinc-700'
-              }`}>
+              <div 
+                className={`absolute bottom-full right-0 mb-1 flex gap-1 p-1.5 rounded-full shadow-lg z-50 ${
+                  isLight ? 'bg-white border border-gray-200' : 'bg-zinc-800 border border-zinc-700'
+                }`}
+                style={{ maxWidth: 'calc(100vw - 32px)', overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}
+              >
                 {REACTION_EMOJIS.map((emoji) => (
                   <button
                     key={emoji}
                     onClick={() => handleReaction(emoji)}
-                    className={`w-7 h-7 flex items-center justify-center text-base hover:scale-125 transition-transform rounded-full ${
+                    className={`w-7 h-7 flex-shrink-0 flex items-center justify-center text-base hover:scale-125 transition-transform rounded-full ${
                       viewerReaction === emoji ? isLight ? 'bg-blue-100' : 'bg-blue-900/30' : ''
                     }`}
                   >
