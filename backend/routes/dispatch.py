@@ -23,10 +23,40 @@ from models import (
     Profile, DispatchRequest, DispatchRequestParticipant, 
     DispatchNotification, DispatchRequestStatusEnum, SurfSpot,
     Booking, BookingParticipant, CreditTransaction, RoleEnum, Notification,
-    PaymentTransaction, SessionSnapshot, CancellationExceptionRequest
+    PaymentTransaction, SessionSnapshot, CancellationExceptionRequest,
+    Surfboard
 )
 from utils.parental_alerts import check_and_send_spending_alert
 from services.onesignal_service import onesignal_service
+
+
+async def _get_surfer_board_description(db: AsyncSession, user_id: str) -> Optional[str]:
+    """Build a human-readable board description from the surfer's primary surfboard."""
+    try:
+        board_result = await db.execute(
+            select(Surfboard)
+            .where(Surfboard.user_id == user_id)
+            .order_by(Surfboard.created_at.desc())
+            .limit(1)
+        )
+        board = board_result.scalar_one_or_none()
+        if not board:
+            return None
+        parts = []
+        if board.length_feet:
+            inches = f'"{board.length_inches}' if board.length_inches else ''
+            parts.append(f"{board.length_feet}'{inches}")
+        if board.brand:
+            parts.append(board.brand)
+        if board.model:
+            parts.append(board.model)
+        elif board.board_type:
+            parts.append(board.board_type)
+        if board.description and not parts:
+            return board.description[:80]
+        return ' '.join(parts) if parts else (board.name or None)
+    except Exception:
+        return None
 
 router = APIRouter(prefix="/dispatch", tags=["dispatch"])
 
@@ -2276,6 +2306,13 @@ async def get_active_dispatch(
                     "share_amount": cp.share_amount
                 })
     
+    # Fetch surfer profile data for photographer identification
+    requester_stance = None
+    requester_board_desc = None
+    if dispatch.requester:
+        requester_stance = dispatch.requester.stance
+        requester_board_desc = await _get_surfer_board_description(db, dispatch.requester_id)
+
     return {
         "active_dispatch": {
             "id": dispatch.id,
@@ -2285,7 +2322,11 @@ async def get_active_dispatch(
             "photographer_name": dispatch.photographer.full_name if dispatch.photographer else None,
             "requester_id": dispatch.requester_id,
             "requester_name": dispatch.requester.full_name if dispatch.requester else None,
+            "requester_username": dispatch.requester.username if dispatch.requester else None,
             "requester_selfie": dispatch.selfie_url,
+            "requester_avatar": dispatch.requester.avatar_url if dispatch.requester else None,
+            "requester_stance": requester_stance,
+            "requester_board_description": requester_board_desc,
             "eta_minutes": dispatch.estimated_arrival_minutes,
             "location_name": dispatch.location_name,
             "is_shared": dispatch.is_shared,
@@ -2363,6 +2404,13 @@ async def get_pending_dispatch_notifications(
                             "paid_at": cp.paid_at.isoformat() if cp.paid_at else None
                         })
             
+            # Fetch surfer profile data for identification
+            requester_stance = None
+            requester_board_desc = None
+            if dispatch.requester:
+                requester_stance = dispatch.requester.stance
+                requester_board_desc = await _get_surfer_board_description(db, dispatch.requester_id)
+
             pending.append({
                 "notification_id": notif.id,
                 "dispatch_id": dispatch.id,
@@ -2372,6 +2420,8 @@ async def get_pending_dispatch_notifications(
                 "requester_username": dispatch.captain_username or (dispatch.requester.username if dispatch.requester else None),
                 "requester_avatar": dispatch.captain_avatar_url or (dispatch.requester.avatar_url if dispatch.requester else None),
                 "requester_selfie": dispatch.selfie_url,
+                "requester_stance": requester_stance,
+                "requester_board_description": requester_board_desc,
                 "captain_metadata_verified": bool(dispatch.captain_name),  # True if atomic payment stored metadata
                 "location": {
                     "lat": dispatch.latitude,
@@ -2463,6 +2513,13 @@ async def get_dispatch_crew_status(
     paid_crew = sum(1 for c in crew_info if c.get('paid'))
     total_crew = len(crew_info)
     
+    # Fetch surfer profile data for photographer identification
+    captain_stance = None
+    captain_board_desc = None
+    if dispatch.requester:
+        captain_stance = dispatch.requester.stance
+        captain_board_desc = await _get_surfer_board_description(db, dispatch.requester_id)
+
     return {
         "dispatch_id": dispatch_id,
         "status": dispatch.status.value,
@@ -2473,6 +2530,8 @@ async def get_dispatch_crew_status(
             "username": dispatch.captain_username or (dispatch.requester.username if dispatch.requester else None),
             "avatar_url": dispatch.captain_avatar_url or (dispatch.requester.avatar_url if dispatch.requester else None),
             "selfie_url": dispatch.selfie_url,
+            "stance": captain_stance,
+            "board_description": captain_board_desc,
             "paid": dispatch.deposit_paid,
             "metadata_verified": bool(dispatch.captain_name)  # True if atomic metadata was stored
         },

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 import { useAuth } from '../contexts/AuthContext';
 
@@ -127,7 +127,22 @@ const IncomingRequestCard = ({
               <p className={`font-bold text-lg ${textPrimary}`}>
                 {request.requester_name || 'New Request!'}
               </p>
-              <p className={`text-sm ${textSecondary}`}>{request.distance_miles?.toFixed(1) || '?'} mi away</p>
+              {request.requester_username && (
+                <button
+                  onClick={(e) => { e.stopPropagation(); window.open(`/profile/${request.requester_username}`, '_blank'); }}
+                  className="text-sm text-cyan-400 hover:text-cyan-300 hover:underline transition-colors"
+                >
+                  @{request.requester_username}
+                </button>
+              )}
+              <div className="flex items-center gap-2 mt-0.5">
+                <span className={`text-sm ${textSecondary}`}>{request.distance_miles?.toFixed(1) || '?'} mi away</span>
+                {request.requester_stance && (
+                  <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-purple-500/20 text-purple-400 uppercase tracking-wide">
+                    {request.requester_stance === 'goofy' ? '🦶 Goofy' : '🦶 Regular'}
+                  </span>
+                )}
+              </div>
             </div>
           </div>
           <div className="text-right">
@@ -285,6 +300,26 @@ const IncomingRequestCard = ({
               <span className={textSecondary}>Request Time</span>
               <span className={textPrimary}>{new Date(request.created_at).toLocaleTimeString()}</span>
             </div>
+            {/* Surfer Identification Section */}
+            {(request.requester_stance || request.requester_board_description) && (
+              <div className="p-3 rounded-xl bg-cyan-500/10 border border-cyan-400/20 space-y-2">
+                <p className={`text-xs font-semibold ${textSecondary} uppercase tracking-wider`}>🏄 Surfer ID</p>
+                {request.requester_stance && (
+                  <div className="flex items-center gap-2 text-sm">
+                    <span className={textSecondary}>Stance:</span>
+                    <span className={`font-medium ${textPrimary} capitalize`}>
+                      {request.requester_stance === 'goofy' ? '🦶 Goofy Foot' : '🦶 Regular'}
+                    </span>
+                  </div>
+                )}
+                {request.requester_board_description && (
+                  <div className="flex items-start gap-2 text-sm">
+                    <span className={`${textSecondary} flex-shrink-0`}>Board:</span>
+                    <span className={`font-medium ${textPrimary}`}>{request.requester_board_description}</span>
+                  </div>
+                )}
+              </div>
+            )}
             {request.requester_selfie && (
               <div className="mt-3">
                 <p className={`text-xs ${textSecondary} mb-2`}>Surfer Photo (for identification):</p>
@@ -675,6 +710,14 @@ const ActiveSessionCard = ({
           </div>
           <div className="flex-1">
             <p className={`font-bold text-lg ${textPrimary}`}>{session.requester_name || 'Surfer'}</p>
+            {session.requester_username && (
+              <button
+                onClick={(e) => { e.stopPropagation(); window.open(`/profile/${session.requester_username}`, '_blank'); }}
+                className="text-sm text-cyan-400 hover:text-cyan-300 hover:underline transition-colors"
+              >
+                @{session.requester_username}
+              </button>
+            )}
             <div className="flex items-center gap-2 mt-1">
               <MapPin className="w-4 h-4 text-cyan-400" />
               <span className={`text-sm ${textSecondary}`}>{session.location_name || 'Meeting Point'}</span>
@@ -693,6 +736,23 @@ const ActiveSessionCard = ({
             <p className="font-bold text-green-400">${((session.hourly_rate || 75) * (session.estimated_duration || 1)).toFixed(0)}</p>
           </div>
         </div>
+
+        {/* Surfer Identification Details */}
+        {(session.requester_stance || session.requester_board_description) && (
+          <div className={`p-3 rounded-xl bg-cyan-500/10 border border-cyan-400/20`}>
+            <p className={`text-[10px] font-semibold ${textSecondary} uppercase tracking-wider mb-2`}>🏄 Surfer Identification</p>
+            <div className="flex flex-wrap items-center gap-2">
+              {session.requester_stance && (
+                <span className="text-xs font-medium px-2 py-1 rounded-full bg-purple-500/20 text-purple-400">
+                  {session.requester_stance === 'goofy' ? '🦶 Goofy Foot' : '🦶 Regular'}
+                </span>
+              )}
+              {session.requester_board_description && (
+                <span className={`text-xs font-medium ${textPrimary}`}>🏄‍♂️ {session.requester_board_description}</span>
+              )}
+            </div>
+          </div>
+        )}
         
         {/* Crew Selfies Section - Show all surfers the photographer needs to identify */}
         {session.is_shared && session.crew && session.crew.length > 0 && (

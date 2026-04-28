@@ -703,6 +703,60 @@ export const DispatchLobby = () => {
           />
         )}
 
+        {/* --- Communication Block: Shown when photographer accepted but NOT yet arrived --- */}
+        {photographerAccepted && !sessionActive && photographerId && (
+          <div
+            className={`rounded-2xl overflow-hidden border-2 ${
+              isLight
+                ? 'bg-gradient-to-br from-cyan-50 via-blue-50 to-white border-cyan-300'
+                : 'bg-gradient-to-br from-cyan-900/30 via-blue-900/20 to-zinc-950 border-cyan-500/40'
+            }`}
+          >
+            {/* Animated top bar */}
+            <div className="h-1 bg-gradient-to-r from-cyan-400 via-blue-500 to-cyan-400 animate-pulse" />
+            <div className="p-4 space-y-3">
+              <div className="flex items-center gap-2">
+                <MessageCircle className={`w-4 h-4 ${isLight ? 'text-cyan-600' : 'text-cyan-400'}`} />
+                <span className={`font-bold text-sm ${textPrimary}`}>Chat with your photographer</span>
+              </div>
+              <p className={`text-xs ${textSecondary}`}>
+                {photographerName} is on the way! Send a message or voice note to help them find you at the beach.
+              </p>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  onClick={() => setShowSessionChat(true)}
+                  className={`flex items-center justify-center gap-2 py-3 rounded-xl font-semibold text-sm transition-all active:scale-[0.97] ${
+                    isLight
+                      ? 'bg-cyan-500 hover:bg-cyan-600 text-white'
+                      : 'bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white'
+                  }`}
+                  data-testid="pre-session-chat-btn"
+                >
+                  <MessageCircle className="w-5 h-5" />
+                  Chat
+                  {chatUnreadCount > 0 && (
+                    <span className="w-5 h-5 rounded-full bg-red-500 text-[10px] font-bold flex items-center justify-center">
+                      {chatUnreadCount}
+                    </span>
+                  )}
+                </button>
+                <button
+                  onClick={() => setShowSessionChat(true)}
+                  className={`flex items-center justify-center gap-2 py-3 rounded-xl font-semibold text-sm transition-all active:scale-[0.97] ${
+                    isLight
+                      ? 'bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-200'
+                      : 'bg-zinc-800 hover:bg-zinc-700 text-white border border-zinc-700'
+                  }`}
+                  data-testid="pre-session-voice-btn"
+                >
+                  <Mic className="w-5 h-5" />
+                  Voice Note
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* --- THE LINEUP (Surfboard Visualization) --- */}
         <div
           className={`relative rounded-3xl overflow-hidden ${
