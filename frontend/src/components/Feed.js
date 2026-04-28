@@ -28,6 +28,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import logger from '../utils/logger';
 import { getFullUrl } from '../utils/media';
 import { ROLES } from '../constants/roles';
+import { REACTION_EMOJIS } from '../constants/emojis';
 
 
 // Role badge component for post authors
@@ -40,8 +41,7 @@ const _RoleBadge = ({ role }) => {
   );
 };
 
-// Valid surf-themed reactions (same as messenger)
-const POST_REACTIONS = ['🤙', '🌊', '❤️', '🔥'];
+// Reaction emojis — imported from centralized constants/emojis.js
 
 // Dynamic Reaction Icon - Shows user's reaction or default Shaka
 // Uses spring transition for smooth morphing animation (both ways)
@@ -120,7 +120,7 @@ const ReactionPicker = ({ show, onSelect, onClose, anchor }) => {
 
   // Position above the Shaka button, clamped within viewport
   // anchor = { x: button center X, y: button top Y } in page coords
-  const PICKER_WIDTH = 220;  // approximate picker width in px
+  const PICKER_WIDTH = 380;  // approximate picker width for 10 reaction emojis
   const PICKER_HEIGHT = 52;  // approximate picker height in px
   const MARGIN = 8;           // gap above the button
 
@@ -145,7 +145,7 @@ const ReactionPicker = ({ show, onSelect, onClose, anchor }) => {
       }}
       onClick={(e) => e.stopPropagation()}
     >
-      {POST_REACTIONS.map((emoji) => (
+      {REACTION_EMOJIS.map((emoji) => (
         <button
           key={emoji}
           onClick={(e) => {

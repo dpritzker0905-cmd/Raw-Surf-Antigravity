@@ -10,11 +10,14 @@
  * Import from here instead.
  */
 
-// ─── Quick-access row (top 8, surf-first) ────────────────────────
-export const QUICK_ACCESS_EMOJIS = ['🤙', '🌊', '🏄', '🔥', '💯', '🙌', '❤️', '👏'];
+// ─── Quick-access row (top row, surf-first) ──────────────────────
+export const QUICK_ACCESS_EMOJIS = ['🤙', '🌊', '🏄', '🔥', '💯', '🙌', '❤️', '👏', '😎', '💪'];
 
-// ─── Reaction emojis for message reactions (CrewChat, PostCard) ───
-export const REACTION_EMOJIS = ['🤙', '🌊', '🏄', '🔥', '💯', '❤️', '👏', '😂'];
+// ─── Reaction emojis for post/comment/message reactions ──────────
+// Used by Feed.js, PostCard.js, PostModal.js, CrewChat, and messages.
+// Curated for surf culture: Shaka, Wave, Surfer, Fire, 100, Heart,
+// Clap, Laugh, Stoked-face, Flexed-biceps.
+export const REACTION_EMOJIS = ['🤙', '🌊', '🏄', '🔥', '💯', '❤️', '👏', '😂', '😎', '💪'];
 
 // ─── Primary categories (always visible) ─────────────────────────
 // Surf-first ordering, consistent across all pickers.

@@ -15,10 +15,10 @@ import { MapPin, MessageCircle, Send, Bookmark, MoreHorizontal, Loader2, Play, R
 import { toast } from 'sonner';
 import { getFullUrl } from '../utils/media';
 import { formatTimeAgo } from '../utils/formatTime';
+import { REACTION_EMOJIS } from '../constants/emojis';
 
 
-// Comment reaction emojis
-const COMMENT_REACTIONS = ['❤️', '🤙', '🌊', '🔥'];
+// Comment reaction emojis — imported from centralized constants/emojis.js
 
 /**
  * ReplyItem - Simpler component for reply rendering (non-recursive)
@@ -385,7 +385,7 @@ const CommentWithReaction = ({
               <div className={`absolute bottom-full right-0 mb-1 flex gap-1 p-1.5 rounded-full shadow-lg z-50 ${
                 isLight ? 'bg-white border border-gray-200' : 'bg-zinc-800 border border-zinc-700'
               }`}>
-                {COMMENT_REACTIONS.map((emoji) => (
+                {REACTION_EMOJIS.map((emoji) => (
                   <button
                     key={emoji}
                     onClick={() => handleReaction(emoji)}

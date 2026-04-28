@@ -164,19 +164,7 @@ const getFolders = (userRole, _isAdmin = false, effectiveRole = null, _isMasked 
   return folders;
 };
 
-// Available reaction emojis for messages
-const REACTIONS = ['🤙', '🌊', '❤️', '🔥', '👏', '😂'];
-
 // GifPicker extracted to ./messages/GifPicker.js
-
-// Emoji picker categories and emojis
-const EMOJI_CATEGORIES = {
-  'Recent': ['🤙', '🌊', '❤️', '🔥', '👏', '😂', '🏄', '🏄‍♀️'],
-  'Surf': ['🏄', '🏄‍♀️', '🌊', '🏖️', '🐚', '🐬', '🦈', '☀️', '🌅', '🌴', '🐠', '🦑', '🐙', '🦀'],
-  'Faces': ['😀', '😂', '🥹', '😍', '🥰', '😘', '😎', '🤩', '😇', '🙂', '😉', '😊', '😋', '🤪', '😜'],
-  'Gestures': ['🤙', '👋', '✌️', '👍', '👊', '🤟', '🤘', '👏', '🙌', '🤝', '💪', '🫶', '❤️', '🔥', '💯'],
-  'Nature': ['🌞', '🌈', '⭐', '🌙', '☁️', '💨', '🌬️', '🌀', '🌪️', '🌧️', '⚡', '🔆', '🌺', '🌸', '🌻']
-};
 
 // Shaka SVG Icon Component
 const ShakaIcon = ({ className = "w-16 h-16" }) => (

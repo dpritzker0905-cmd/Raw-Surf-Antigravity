@@ -15,10 +15,10 @@ import PostMenu from './PostMenu';
 import logger from '../utils/logger';
 import { getFullUrl } from '../utils/media';
 import { formatTimeAgo } from '../utils/formatTime';
+import { REACTION_EMOJIS } from '../constants/emojis';
 
 
-// Reaction emojis (Shaka plus others)
-const POST_REACTIONS = ['🤙', '❤️', '🔥', '🌊', '👏'];
+// Reaction emojis — imported from centralized constants/emojis.js
 
 // Shaka Icon Component
 const ShakaIcon = ({ filled, size = 28 }) => (
@@ -866,7 +866,7 @@ const PostModal = ({ post, isOpen, onClose, _onPostUpdated, posts, onNavigatePos
               }}
               onClick={(e) => e.stopPropagation()}
             >
-              {POST_REACTIONS.map((emoji, _index) => (
+              {REACTION_EMOJIS.map((emoji, _index) => (
                 <button
                   key={emoji}
                   onClick={() => handleReaction(emoji)}
