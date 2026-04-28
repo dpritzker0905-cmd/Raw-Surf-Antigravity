@@ -264,157 +264,9 @@ async def create_wave(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.post("/waves/{wave_id}/view")
-async def record_wave_view(
-    wave_id: str,
-    user_id: Optional[str] = None,
-    watch_duration: Optional[float] = None,
-    db: AsyncSession = Depends(get_db)
-):
-    """Record a view on a Wave"""
-    try:
-        result = await db.execute(
-            select(Post).where(Post.id == wave_id, Post.content_type == 'wave')
-        )
-        wave = result.scalar_one_or_none()
-        
-        if not wave:
-            raise HTTPException(status_code=404, detail="Wave not found")
-        
-        # Increment view count
-        wave.view_count = (wave.view_count or 0) + 1
-        await db.commit()
-        
-        return {"view_count": wave.view_count}
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error recording view: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.get("/waves/{wave_id}")
-async def get_wave(
-    wave_id: str,
-    user_id: Optional[str] = None,
-    db: AsyncSession = Depends(get_db)
-):
-    """Get a single Wave by ID"""
-    try:
-        result = await db.execute(
-            select(Post)
-            .where(Post.id == wave_id, Post.content_type == 'wave')
-            .options(selectinload(Post.author))
-        )
-        wave = result.scalar_one_or_none()
-        
-        if not wave:
-            raise HTTPException(status_code=404, detail="Wave not found")
-        
-        # Check if user liked
-        is_liked = False
-        user_reaction = None
-        if user_id:
-            like_result = await db.execute(
-                select(PostLike).where(
-                    PostLike.post_id == wave_id,
-                    PostLike.user_id == user_id
-                )
-            )
-            is_liked = like_result.scalar_one_or_none() is not None
-            
-            reaction_result = await db.execute(
-                select(PostReaction.emoji).where(
-                    PostReaction.post_id == wave_id,
-                    PostReaction.user_id == user_id
-                )
-            )
-            reaction = reaction_result.scalar_one_or_none()
-            if reaction:
-                user_reaction = reaction
-        
-        author = wave.author
-        return {
-            "id": wave.id,
-            "author_id": wave.author_id,
-            "author_name": author.full_name if author else "Unknown",
-            "author_username": author.username if author else None,
-            "author_avatar": author.avatar_url if author else None,
-            "author_role": author.role.value if author and author.role else "Surfer",
-            "media_url": wave.media_url,
-            "thumbnail_url": wave.thumbnail_url,
-            "caption": wave.caption,
-            "location": wave.location,
-            "spot_id": wave.spot_id,
-            "aspect_ratio": wave.aspect_ratio or "9:16",
-            "video_width": wave.video_width,
-            "video_height": wave.video_height,
-            "video_duration": wave.video_duration,
-            "likes_count": wave.likes_count,
-            "comments_count": wave.comments_count,
-            "view_count": wave.view_count,
-            "is_liked": is_liked,
-            "user_reaction": user_reaction,
-            "created_at": wave.created_at.isoformat() if wave.created_at else None
-        }
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error fetching wave: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.get("/users/{user_id}/waves")
-async def get_user_waves(
-    user_id: str,
-    limit: int = Query(20, le=50),
-    offset: int = 0,
-    db: AsyncSession = Depends(get_db)
-):
-    """Get all Waves by a specific user"""
-    try:
-        query = select(Post).where(
-            Post.author_id == user_id,
-            Post.content_type == 'wave'
-        ).order_by(desc(Post.created_at)).offset(offset).limit(limit)
-        
-        result = await db.execute(query)
-        waves = result.scalars().all()
-        
-        # Count total
-        count_result = await db.execute(
-            select(func.count()).select_from(Post).where(
-                Post.author_id == user_id,
-                Post.content_type == 'wave'
-            )
-        )
-        total = count_result.scalar() or 0
-        
-        waves_data = [{
-            "id": w.id,
-            "media_url": w.media_url,
-            "thumbnail_url": w.thumbnail_url,
-            "caption": w.caption,
-            "aspect_ratio": w.aspect_ratio,
-            "video_duration": w.video_duration,
-            "likes_count": w.likes_count,
-            "view_count": w.view_count,
-            "created_at": w.created_at.isoformat() if w.created_at else None
-        } for w in waves]
-        
-        return {
-            "waves": waves_data,
-            "total": total,
-            "has_more": offset + limit < total
-        }
-        
-    except Exception as e:
-        logger.error(f"Error fetching user waves: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
+# ─── STATIC PATH ROUTES MUST COME BEFORE /waves/{wave_id} ───
+# FastAPI matches routes in declaration order. If /waves/{wave_id} comes first,
+# requests to /waves/trending would match {wave_id}="trending" → 404.
 
 @router.get("/waves/trending")
 async def get_trending_waves(
@@ -572,3 +424,158 @@ async def get_waves_by_hashtag(
     except Exception as e:
         logger.error(f"Error fetching waves by hashtag: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# ─── PARAMETERIZED ROUTES (must come AFTER static paths) ───
+
+@router.post("/waves/{wave_id}/view")
+async def record_wave_view(
+    wave_id: str,
+    user_id: Optional[str] = None,
+    watch_duration: Optional[float] = None,
+    db: AsyncSession = Depends(get_db)
+):
+    """Record a view on a Wave"""
+    try:
+        result = await db.execute(
+            select(Post).where(Post.id == wave_id, Post.content_type == 'wave')
+        )
+        wave = result.scalar_one_or_none()
+        
+        if not wave:
+            raise HTTPException(status_code=404, detail="Wave not found")
+        
+        # Increment view count
+        wave.view_count = (wave.view_count or 0) + 1
+        await db.commit()
+        
+        return {"view_count": wave.view_count}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error recording view: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/waves/{wave_id}")
+async def get_wave(
+    wave_id: str,
+    user_id: Optional[str] = None,
+    db: AsyncSession = Depends(get_db)
+):
+    """Get a single Wave by ID"""
+    try:
+        result = await db.execute(
+            select(Post)
+            .where(Post.id == wave_id, Post.content_type == 'wave')
+            .options(selectinload(Post.author))
+        )
+        wave = result.scalar_one_or_none()
+        
+        if not wave:
+            raise HTTPException(status_code=404, detail="Wave not found")
+        
+        # Check if user liked
+        is_liked = False
+        user_reaction = None
+        if user_id:
+            like_result = await db.execute(
+                select(PostLike).where(
+                    PostLike.post_id == wave_id,
+                    PostLike.user_id == user_id
+                )
+            )
+            is_liked = like_result.scalar_one_or_none() is not None
+            
+            reaction_result = await db.execute(
+                select(PostReaction.emoji).where(
+                    PostReaction.post_id == wave_id,
+                    PostReaction.user_id == user_id
+                )
+            )
+            reaction = reaction_result.scalar_one_or_none()
+            if reaction:
+                user_reaction = reaction
+        
+        author = wave.author
+        return {
+            "id": wave.id,
+            "author_id": wave.author_id,
+            "author_name": author.full_name if author else "Unknown",
+            "author_username": author.username if author else None,
+            "author_avatar": author.avatar_url if author else None,
+            "author_role": author.role.value if author and author.role else "Surfer",
+            "media_url": wave.media_url,
+            "thumbnail_url": wave.thumbnail_url,
+            "caption": wave.caption,
+            "location": wave.location,
+            "spot_id": wave.spot_id,
+            "aspect_ratio": wave.aspect_ratio or "9:16",
+            "video_width": wave.video_width,
+            "video_height": wave.video_height,
+            "video_duration": wave.video_duration,
+            "likes_count": wave.likes_count,
+            "comments_count": wave.comments_count,
+            "view_count": wave.view_count,
+            "is_liked": is_liked,
+            "user_reaction": user_reaction,
+            "created_at": wave.created_at.isoformat() if wave.created_at else None
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error fetching wave: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/users/{user_id}/waves")
+async def get_user_waves(
+    user_id: str,
+    limit: int = Query(20, le=50),
+    offset: int = 0,
+    db: AsyncSession = Depends(get_db)
+):
+    """Get all Waves by a specific user"""
+    try:
+        query = select(Post).where(
+            Post.author_id == user_id,
+            Post.content_type == 'wave'
+        ).order_by(desc(Post.created_at)).offset(offset).limit(limit)
+        
+        result = await db.execute(query)
+        waves = result.scalars().all()
+        
+        # Count total
+        count_result = await db.execute(
+            select(func.count()).select_from(Post).where(
+                Post.author_id == user_id,
+                Post.content_type == 'wave'
+            )
+        )
+        total = count_result.scalar() or 0
+        
+        waves_data = [{
+            "id": w.id,
+            "media_url": w.media_url,
+            "thumbnail_url": w.thumbnail_url,
+            "caption": w.caption,
+            "aspect_ratio": w.aspect_ratio,
+            "video_duration": w.video_duration,
+            "likes_count": w.likes_count,
+            "view_count": w.view_count,
+            "created_at": w.created_at.isoformat() if w.created_at else None
+        } for w in waves]
+        
+        return {
+            "waves": waves_data,
+            "total": total,
+            "has_more": offset + limit < total
+        }
+        
+    except Exception as e:
+        logger.error(f"Error fetching user waves: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
