@@ -2009,14 +2009,14 @@ export const Explore = () => {
         </div>
       )}
 
-      {/* Waves Tab - Trending Short-Form Videos */}
+      {/* Waves Tab - Reels-Style Vertical Scroll Feed */}
       {activeTab === 'waves' && (
-        <div className="space-y-4" data-testid="waves-tab">
+        <div className="space-y-0" data-testid="waves-tab">
           {/* Header */}
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <Play className="w-5 h-5 text-cyan-400" />
-              <h2 className="font-bold text-foreground">Trending Waves</h2>
+              <h2 className="font-bold text-foreground">Waves</h2>
             </div>
             <button
               onClick={() => navigate('/feed?tab=waves')}
@@ -2027,179 +2027,196 @@ export const Explore = () => {
             </button>
           </div>
           
-          {/* Selected Hashtag View for Waves */}
-          {selectedWaveHashtag ? (
-            <div>
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => {
-                      setSelectedWaveHashtag(null);
-                      setWaveHashtagResults([]);
-                    }}
-                    className="p-1.5 hover:bg-muted rounded-full transition-colors"
-                  >
-                    <X className="w-5 h-5 text-muted-foreground" />
-                  </button>
-                  <span className="text-xl font-bold text-cyan-400">#{selectedWaveHashtag}</span>
-                </div>
-                <Badge className="bg-cyan-400/20 text-cyan-400">
-                  {waveHashtagResults.length} waves
-                </Badge>
-              </div>
-              
-              {wavesLoading ? (
-                <div className="flex justify-center py-10">
-                  <Loader2 className="w-8 h-8 animate-spin text-cyan-400" />
-                </div>
-              ) : waveHashtagResults.length === 0 ? (
-                <div className="text-center py-10 text-muted-foreground">
-                  <Play className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                  <p>No waves with #{selectedWaveHashtag} yet</p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-3 gap-1">
-                  {waveHashtagResults.map((wave) => (
-                    <div
-                      key={wave.id}
-                      onClick={() => handleWaveClick(wave)}
-                      className="aspect-[9/16] bg-black overflow-hidden cursor-pointer group relative"
-                      data-testid={`wave-${wave.id}`}
-                    >
-                      <PostMediaPreview post={wave} />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity z-10 pointer-events-none" />
-                      <div className="absolute bottom-2 left-2 right-2 flex items-center gap-2 text-white text-xs z-20 pointer-events-none">
-                        <Play className="w-3 h-3" fill="white" />
-                        <span>{wave.view_count || 0}</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
+          {/* Loading / Empty / Feed */}
+          {wavesLoading ? (
+            <div className="flex justify-center py-10">
+              <Loader2 className="w-8 h-8 animate-spin text-cyan-400" />
+            </div>
+          ) : trendingWaves.length === 0 && recentWaves.length === 0 ? (
+            <div className="text-center py-10 text-muted-foreground">
+              <Play className="w-16 h-16 mx-auto mb-4 opacity-50" />
+              <h3 className="text-lg font-semibold text-foreground mb-2">No Waves Yet</h3>
+              <p className="mb-4">Be the first to share a short-form video!</p>
+              <button
+                onClick={() => navigate('/feed?tab=waves')}
+                className="px-4 py-2 bg-gradient-to-r from-cyan-500 to-blue-500 text-white rounded-full text-sm font-medium hover:from-cyan-600 hover:to-blue-600 transition-all"
+              >
+                Create a Wave
+              </button>
             </div>
           ) : (
-          <>
-              {/* Waves Grid — merge trending + recent so new content always surfaces */}
-              {wavesLoading ? (
-                <div className="flex justify-center py-10">
-                  <Loader2 className="w-8 h-8 animate-spin text-cyan-400" />
-                </div>
-              ) : trendingWaves.length === 0 && recentWaves.length === 0 ? (
-                <div className="text-center py-10 text-muted-foreground">
-                  <Play className="w-16 h-16 mx-auto mb-4 opacity-50" />
-                  <h3 className="text-lg font-semibold text-foreground mb-2">No Waves Yet</h3>
-                  <p className="mb-4">Be the first to share a short-form video!</p>
-                  <button
-                    onClick={() => navigate('/feed?tab=waves')}
-                    className="px-4 py-2 bg-gradient-to-r from-cyan-500 to-blue-500 text-white rounded-full text-sm font-medium hover:from-cyan-600 hover:to-blue-600 transition-all"
-                  >
-                    Create a Wave
-                  </button>
-                </div>
-              ) : (
-                <>
-                  {/* Trending section */}
-                  {trendingWaves.length > 0 && (
-                    <div className="grid grid-cols-3 gap-1">
-                      {trendingWaves.map((wave, index) => (
-                        <div
-                          key={wave.id}
-                          onClick={() => handleWaveClick(wave)}
-                          className="aspect-[9/16] bg-black overflow-hidden cursor-pointer group relative"
-                          data-testid={`trending-wave-${wave.id}`}
-                        >
-                          <PostMediaPreview post={wave} />
-                          
-                          {/* Rank badge for top 3 */}
-                          {index < 3 && (
-                            <div className={`absolute top-2 left-2 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold z-20 ${
-                              index === 0 ? 'bg-yellow-500 text-black' :
-                              index === 1 ? 'bg-gray-400 text-black' :
-                              'bg-amber-700 text-white'
-                            }`}>
-                              {index + 1}
-                            </div>
-                          )}
-                          
-                          {/* Overlay on hover */}
-                          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent z-10 pointer-events-none" />
-                          
-                          {/* Stats */}
-                          <div className="absolute bottom-2 left-2 right-2 z-20 pointer-events-none">
-                            <div className="flex items-center gap-3 text-white text-xs">
-                              <span className="flex items-center gap-1">
-                                <Play className="w-3 h-3" fill="white" />
-                                {wave.view_count || 0}
-                              </span>
-                              <span className="flex items-center gap-1">
-                                <Heart className="w-3 h-3" />
-                                {wave.likes_count || 0}
-                              </span>
-                            </div>
-                            <p className="text-white text-xs mt-1 truncate">
-                              @{wave.author_username || wave.author_name?.split(' ')[0]?.toLowerCase()}
-                            </p>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
+            /* Reels-style vertical snap-scroll feed */
+            <div
+              className="explore-waves-feed"
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '12px',
+                maxWidth: '420px',
+                margin: '0 auto',
+              }}
+            >
+              {/* Merge trending + recent, deduplicated */}
+              {[...trendingWaves, ...recentWaves].map((wave) => (
+                <div
+                  key={wave.id}
+                  onClick={() => handleWaveClick(wave)}
+                  className="group cursor-pointer"
+                  data-testid={`wave-card-${wave.id}`}
+                  style={{
+                    position: 'relative',
+                    aspectRatio: '9 / 16',
+                    borderRadius: '16px',
+                    overflow: 'hidden',
+                    background: '#000',
+                    boxShadow: '0 4px 24px rgba(0,0,0,0.3)',
+                  }}
+                >
+                  {/* Video/Thumbnail */}
+                  <PostMediaPreview post={wave} isHoverScale={false} />
                   
-                  {/* Recent Waves section (new uploads that haven't gained engagement yet) */}
-                  {recentWaves.length > 0 && (
-                    <div className="mt-6">
-                      <div className="flex items-center gap-2 mb-3">
-                        <Clock className="w-4 h-4 text-cyan-400" />
-                        <h3 className="font-semibold text-foreground text-sm">Recent Waves</h3>
-                      </div>
-                      <div className="grid grid-cols-3 gap-1">
-                        {recentWaves.map((wave) => (
-                          <div
-                            key={wave.id}
-                            onClick={() => handleWaveClick(wave)}
-                            className="aspect-[9/16] bg-black overflow-hidden cursor-pointer group relative"
-                            data-testid={`recent-wave-${wave.id}`}
-                          >
-                            <PostMediaPreview post={wave} />
-                            <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent z-10 pointer-events-none" />
-                            <div className="absolute bottom-2 left-2 right-2 z-20 pointer-events-none">
-                              <div className="flex items-center gap-3 text-white text-xs">
-                                <span className="flex items-center gap-1">
-                                  <Play className="w-3 h-3" fill="white" />
-                                  {wave.view_count || 0}
-                                </span>
-                              </div>
-                              <p className="text-white text-xs mt-1 truncate">
-                                @{wave.author_username || wave.author_name?.split(' ')[0]?.toLowerCase()}
-                              </p>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
+                  {/* Play button overlay (center) */}
+                  <div
+                    className="absolute inset-0 flex items-center justify-center z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                    style={{ pointerEvents: 'none' }}
+                  >
+                    <div style={{
+                      width: '56px',
+                      height: '56px',
+                      borderRadius: '50%',
+                      background: 'rgba(0,0,0,0.5)',
+                      backdropFilter: 'blur(8px)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}>
+                      <Play className="w-6 h-6 text-white" fill="white" />
                     </div>
-                  )}
-                </>
-              )}
-              
-              {/* Browse by Hashtag CTA */}
-              {(trendingWaves.length > 0 || recentWaves.length > 0) && (
-                <div className="mt-6 p-4 bg-gradient-to-r from-cyan-500/10 to-blue-500/10 rounded-xl border border-cyan-500/20">
-                  <div className="flex items-center gap-3">
-                    <Hash className="w-8 h-8 text-cyan-400" />
-                    <div className="flex-1">
-                      <p className="font-medium text-foreground">Browse Waves by Hashtag</p>
-                      <p className="text-sm text-muted-foreground">Find waves about specific topics</p>
+                  </div>
+                  
+                  {/* Bottom gradient overlay */}
+                  <div
+                    className="absolute inset-0 z-10"
+                    style={{
+                      background: 'linear-gradient(to top, rgba(0,0,0,0.75) 0%, rgba(0,0,0,0.3) 25%, transparent 50%)',
+                      pointerEvents: 'none',
+                    }}
+                  />
+                  
+                  {/* Right-side action buttons (Reels-style) */}
+                  <div
+                    className="absolute right-3 z-20"
+                    style={{
+                      bottom: '80px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      gap: '16px',
+                      pointerEvents: 'none',
+                    }}
+                  >
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
+                      <div style={{
+                        width: '40px', height: '40px', borderRadius: '50%',
+                        background: 'rgba(255,255,255,0.15)', backdropFilter: 'blur(8px)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      }}>
+                        <Heart className="w-5 h-5 text-white" />
+                      </div>
+                      <span style={{ color: 'white', fontSize: '11px', fontWeight: '600' }}>
+                        {wave.likes_count || 0}
+                      </span>
                     </div>
-                    <button
-                      onClick={() => setActiveTab('trending')}
-                      className="px-3 py-1.5 text-sm text-cyan-400 border border-cyan-400/30 rounded-full hover:bg-cyan-400/10 transition-colors"
-                    >
-                      Browse
-                    </button>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
+                      <div style={{
+                        width: '40px', height: '40px', borderRadius: '50%',
+                        background: 'rgba(255,255,255,0.15)', backdropFilter: 'blur(8px)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      }}>
+                        <Play className="w-5 h-5 text-white" />
+                      </div>
+                      <span style={{ color: 'white', fontSize: '11px', fontWeight: '600' }}>
+                        {wave.view_count || 0}
+                      </span>
+                    </div>
+                  </div>
+                  
+                  {/* Bottom info bar (author + caption) */}
+                  <div
+                    className="absolute bottom-0 left-0 right-0 z-20 p-4"
+                    style={{ pointerEvents: 'none' }}
+                  >
+                    {/* Author row */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
+                      {wave.author_avatar ? (
+                        <img
+                          src={wave.author_avatar}
+                          alt={wave.author_name}
+                          style={{
+                            width: '32px', height: '32px', borderRadius: '50%',
+                            border: '2px solid rgba(255,255,255,0.6)',
+                            objectFit: 'cover',
+                          }}
+                        />
+                      ) : (
+                        <div style={{
+                          width: '32px', height: '32px', borderRadius: '50%',
+                          background: 'rgba(255,255,255,0.2)',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          fontSize: '14px', fontWeight: '600', color: 'white',
+                        }}>
+                          {(wave.author_name || '?')[0]}
+                        </div>
+                      )}
+                      <span style={{
+                        color: 'white', fontWeight: '600', fontSize: '14px',
+                        textShadow: '0 1px 3px rgba(0,0,0,0.5)',
+                      }}>
+                        @{wave.author_username || wave.author_name?.split(' ')[0]?.toLowerCase()}
+                      </span>
+                    </div>
+                    
+                    {/* Caption */}
+                    {wave.caption && (
+                      <p style={{
+                        color: 'rgba(255,255,255,0.9)', fontSize: '13px',
+                        lineHeight: '1.4', maxHeight: '40px', overflow: 'hidden',
+                        textShadow: '0 1px 3px rgba(0,0,0,0.5)',
+                      }}>
+                        {wave.caption.length > 80 ? wave.caption.slice(0, 80) + '...' : wave.caption}
+                      </p>
+                    )}
                   </div>
                 </div>
-              )}
-            </>
+              ))}
+              
+              {/* Load more / View all CTA */}
+              <button
+                onClick={() => navigate('/feed?tab=waves')}
+                style={{
+                  width: '100%',
+                  padding: '14px',
+                  borderRadius: '12px',
+                  background: 'linear-gradient(135deg, rgba(6,182,212,0.15), rgba(59,130,246,0.15))',
+                  border: '1px solid rgba(6,182,212,0.25)',
+                  color: 'rgb(6,182,212)',
+                  fontWeight: '600',
+                  fontSize: '14px',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  transition: 'all 0.2s',
+                  marginTop: '8px',
+                }}
+                className="hover:bg-cyan-500/20"
+              >
+                <Play className="w-4 h-4" />
+                View All Waves
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
           )}
         </div>
       )}
