@@ -826,6 +826,7 @@ export const Feed = () => {
           return {
             ...p,
             liked: false, // Global reset to unchecked state
+            likes_count: Math.max(0, (p.likes_count || 1) - 1),
             reactions: (p.reactions || []).filter(r => r.user_id !== user.id)
           };
         }
@@ -957,12 +958,14 @@ export const Feed = () => {
       if (p.id === postId) {
         const reactions = p.reactions || [];
         const existingIndex = reactions.findIndex(r => r.user_id === user.id && r.emoji === emoji);
+        const hadAnyReaction = reactions.some(r => r.user_id === user.id);
         
         if (existingIndex >= 0) {
           // Remove reaction - revert to UNCHECKED Shaka (liked = false)
           return {
             ...p,
             liked: false,
+            likes_count: Math.max(0, (p.likes_count || 1) - 1),
             reactions: reactions.filter((_, i) => i !== existingIndex)
           };
         } else {
@@ -973,6 +976,8 @@ export const Feed = () => {
           return {
             ...p,
             liked: isShakaEmoji,
+            // Only increment count if user didn't already have a reaction (swap = no count change)
+            likes_count: hadAnyReaction ? (p.likes_count || 0) : (p.likes_count || 0) + 1,
             reactions: isShakaEmoji 
               ? filteredReactions // Shaka uses liked state, not reactions array
               : [...filteredReactions, { emoji, user_id: user.id, user_name: user.full_name }]

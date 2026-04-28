@@ -1275,14 +1275,16 @@ async def toggle_reaction(post_id: str, data: ReactionCreate, user_id: str = Que
         if existing.emoji == data.emoji:
             # Same emoji - remove it (toggle off)
             await db.delete(existing)
+            # Decrement likes_count so the reaction count stays visible
+            post.likes_count = max(0, (post.likes_count or 1) - 1)
             await db.commit()
-            return {"action": "removed", "emoji": data.emoji, "post_id": post_id}
+            return {"action": "removed", "emoji": data.emoji, "post_id": post_id, "likes_count": post.likes_count}
         else:
             # Different emoji - replace it (no count change)
             old_emoji = existing.emoji
             existing.emoji = data.emoji
             await db.commit()
-            return {"action": "changed", "emoji": data.emoji, "old_emoji": old_emoji, "post_id": post_id}
+            return {"action": "changed", "emoji": data.emoji, "old_emoji": old_emoji, "post_id": post_id, "likes_count": post.likes_count}
     else:
         # No existing reaction - add new one
         reaction = PostReaction(
@@ -1291,8 +1293,10 @@ async def toggle_reaction(post_id: str, data: ReactionCreate, user_id: str = Que
             emoji=data.emoji
         )
         db.add(reaction)
+        # Increment likes_count so the reaction shows in the visible count
+        post.likes_count = (post.likes_count or 0) + 1
         await db.commit()
-        return {"action": "added", "emoji": data.emoji, "post_id": post_id}
+        return {"action": "added", "emoji": data.emoji, "post_id": post_id, "likes_count": post.likes_count}
 
 
 @router.get("/posts/{post_id}/reactions")

@@ -13,6 +13,7 @@ import PostCard from './PostCard';
 import PostMenu, { SharePostModal } from './PostMenu';
 import { toast } from 'sonner';
 import logger from '../utils/logger';
+import { REACTION_EMOJIS } from '../constants/emojis';
 
 
 const SinglePost = () => {
@@ -112,7 +113,7 @@ const SinglePost = () => {
   const isPressingRef = React.useRef(false);
   const pickerShownRef = React.useRef(false);
   
-  const VALID_REACTIONS = ['🤙', '❤️', '🔥', '🌊', '👏'];
+  const VALID_REACTIONS = REACTION_EMOJIS;
   
   const handleShakaPointerDown = (postId, _e) => {
     if (pressTimerRef.current) {
