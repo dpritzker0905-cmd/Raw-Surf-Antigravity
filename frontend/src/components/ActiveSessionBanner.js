@@ -185,7 +185,7 @@ const TopNavLine = ({ colorConfig }) => {
   return (
     <div
       className="fixed left-0 right-0 z-[101] md:hidden pointer-events-none"
-      style={{ top: 'calc(env(safe-area-inset-top, 0px) + 44px)' }}
+      style={{ top: 'calc(env(safe-area-inset-top, 0px) + 43px)' }}
       data-testid="session-topnav-line"
     >
       <div
