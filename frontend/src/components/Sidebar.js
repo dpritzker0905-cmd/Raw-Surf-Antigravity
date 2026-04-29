@@ -8,6 +8,7 @@ import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import { getNotifications, getUnreadCount, markRead, markAllRead, sendNotification, sendPhotographerAlert, createNotification, markAlertRead } from '../services/notificationService';
 import { SurfPassport } from './SurfPassport';
 import { GlobalSearchBar } from './GlobalSearchBar';
+import useActiveSession from '../hooks/useActiveSession';
 import logger from '../utils/logger';
 import { ROLES } from '../constants/roles';
 
@@ -24,6 +25,7 @@ export const Sidebar = () => {
   const [backpackOpen, setBackpackOpen] = useState(false);
   const [passportOpen, setPassportOpen] = useState(false);
   const [logoSpinning, setLogoSpinning] = useState(false);
+  const { activeSession } = useActiveSession();
 
   // Logo click: refresh current page in-place
   // On /feed: triggers full feed refresh + scroll to top
@@ -325,6 +327,7 @@ export const Sidebar = () => {
           
           // Insert Search Bar after Map item
           const isMapItem = item.path === '/map';
+          const isBookingsItem = item.path === '/bookings';
           
           // Locked item - show placeholder instead of NavLink
           if (item.isLocked) {
@@ -450,6 +453,39 @@ export const Sidebar = () => {
               <div key="search-bar" className="px-2 py-2">
                 <GlobalSearchBar variant="desktop" className="w-full" />
               </div>
+            ),
+            // Insert active session indicator after Bookings item
+            isBookingsItem && activeSession && (
+              <button
+                key="active-session-indicator"
+                onClick={() => {
+                  if (['accepted', 'en_route', 'arrived', 'in_session'].includes(activeSession.status)) {
+                    navigate(`/dispatch/${activeSession.id}/lobby`);
+                  } else {
+                    navigate('/bookings?tab=on_demand');
+                  }
+                }}
+                className="w-full ml-4 pl-3 py-1.5 text-left transition-all hover:opacity-80"
+                style={{ borderLeft: `2px solid ${activeSession.role === 'crew_member' ? '#22d3ee' : '#f59e0b'}` }}
+                data-testid="sidebar-active-session"
+              >
+                <span
+                  className={`text-[11px] font-semibold animate-pulse ${
+                    activeSession.role === 'crew_member' ? 'text-cyan-400' : 'text-amber-400'
+                  }`}
+                >
+                  {activeSession.status === 'in_session'
+                    ? '📸 Live Shooting Session Active'
+                    : activeSession.status === 'searching_for_pro'
+                    ? '🔍 On-Demand Session Searching...'
+                    : activeSession.status === 'en_route'
+                    ? '🚗 Photographer On The Way'
+                    : activeSession.status === 'arrived'
+                    ? '📍 Photographer Arrived'
+                    : '⚡ On-Demand Session Active'
+                  }
+                </span>
+              </button>
             )
           ].filter(Boolean));
         })}
