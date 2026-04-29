@@ -84,25 +84,29 @@ export const useSessionChatSync = ({
         );
         setUnreadCount(unread.length);
 
-        // Get latest message from the other user
+        // Track the absolute latest message (from either side) for inline preview
+        const absoluteLatest = messages.length > 0 ? messages[messages.length - 1] : null;
+        if (absoluteLatest) {
+          setLatestMessage(absoluteLatest);
+        }
+
+        // Get latest message from the other user (for notifications only)
         const fromOther = messages.filter(m => m.sender_id !== userId);
-        const latest = fromOther.length > 0 ? fromOther[fromOther.length - 1] : null;
+        const latestFromOther = fromOther.length > 0 ? fromOther[fromOther.length - 1] : null;
 
-        if (latest) {
-          setLatestMessage(latest);
-
+        if (latestFromOther) {
           // Fire notification if this is a NEW message we haven't seen
           if (
-            latest.id !== lastSeenMsgIdRef.current &&
+            latestFromOther.id !== lastSeenMsgIdRef.current &&
             lastSeenMsgIdRef.current !== null // Don't fire on first load
           ) {
             // Toast notification
-            const preview = latest.message_type === 'voice_note'
+            const preview = latestFromOther.message_type === 'voice_note'
               ? '🎤 Voice note'
-              : (latest.content?.slice(0, 60) || '📎 Media');
+              : (latestFromOther.content?.slice(0, 60) || '📎 Media');
 
             toast.info(`${otherUserName || 'Session'}: ${preview}`, {
-              id: `session-msg-${latest.id}`,
+              id: `session-msg-${latestFromOther.id}`,
               duration: 4000,
               icon: '💬',
             });
@@ -118,7 +122,7 @@ export const useSessionChatSync = ({
             } catch (_) {}
           }
 
-          lastSeenMsgIdRef.current = latest.id;
+          lastSeenMsgIdRef.current = latestFromOther.id;
         }
       } catch (err) {
         logger.debug('[SessionChatSync] Poll error:', err);
