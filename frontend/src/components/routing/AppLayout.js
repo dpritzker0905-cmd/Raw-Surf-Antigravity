@@ -17,6 +17,7 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { Sidebar } from '../Sidebar';
 import { TopNav } from '../TopNav';
 import { BottomNav } from '../BottomNav';
+import { ActiveSessionBanner } from '../ActiveSessionBanner';
 import ImpersonationBanner from '../ImpersonationBanner';
 import PersonaMaskBanner from '../PersonaMaskBanner';
 import { usePushNotifications } from '../../hooks/usePushNotifications';
@@ -223,6 +224,7 @@ const AppLayout = ({ children, hideNav = false, hideTopNav = false }) => {
         {children}
       </main>
 
+      {showBottomNav && <ActiveSessionBanner />}
       {showBottomNav && <BottomNav />}
     </div>
   );
