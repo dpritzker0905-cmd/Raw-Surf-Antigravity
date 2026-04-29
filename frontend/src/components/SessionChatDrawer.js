@@ -383,7 +383,7 @@ export const SessionChatDrawer = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[60] flex flex-col" data-testid="session-chat-drawer">
+    <div className="fixed inset-0 z-[200] flex flex-col" data-testid="session-chat-drawer">
       {/* Backdrop */}
       <div
         className="absolute inset-0 bg-black/50 backdrop-blur-sm"
