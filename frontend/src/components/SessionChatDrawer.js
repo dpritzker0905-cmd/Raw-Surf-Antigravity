@@ -390,13 +390,14 @@ export const SessionChatDrawer = ({
         onClick={onClose}
       />
 
-      {/* Drawer Content */}
+      {/* Drawer Content — full screen on mobile, side panel on desktop */}
       <div
-        className={`relative mt-auto sm:mt-0 sm:ml-auto w-full sm:w-[420px] flex flex-col ${bgDrawer} rounded-t-3xl sm:rounded-none shadow-2xl animate-in slide-in-from-bottom sm:slide-in-from-right duration-300`}
-        style={{ height: '100dvh', maxHeight: '100dvh' }}
+        className={`relative w-full sm:ml-auto sm:w-[420px] h-full sm:h-full flex flex-col ${bgDrawer} sm:rounded-none shadow-2xl animate-in slide-in-from-bottom sm:slide-in-from-right duration-300`}
       >
         {/* ============ HEADER ============ */}
-        <div className={`flex items-center gap-3 px-4 py-3 border-b ${bgHeader} rounded-t-3xl sm:rounded-none flex-shrink-0`}>
+        <div className={`flex items-center gap-3 px-4 py-3 border-b ${bgHeader} flex-shrink-0`}
+          style={{ paddingTop: 'max(0.75rem, env(safe-area-inset-top, 0.75rem))' }}
+        >
           <button
             onClick={onClose}
             className={`w-8 h-8 rounded-full flex items-center justify-center ${
