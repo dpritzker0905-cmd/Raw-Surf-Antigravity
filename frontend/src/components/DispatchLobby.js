@@ -285,13 +285,13 @@ export const DispatchLobby = () => {
   // State from navigation (captain's local crew list before backend synced)
   const localCrewMembers = navState?.crewMembers || [];
   const photographerFromNav = navState?.photographer || null;
-  const captainPayAmount = navState?.captainPayAmount || 0;
+  const _captainPayAmount = navState?.captainPayAmount || 0;
 
   // -- Derived state --
   const photographerAccepted = ['accepted', 'en_route', 'arrived', 'completed'].includes(
     dispatch?.status
   );
-  const allCrewPaid = crewStatus.length === 0 || crewStatus.every(m => m.paid);
+  const _allCrewPaid = crewStatus.length === 0 || crewStatus.every(m => m.paid);
   const paidCount = crewStatus.filter(m => m.paid).length;
   const photographer = dispatch?.photographer || photographerFromNav;
   const eta = dispatch?.gps?.eta_minutes || null;
@@ -411,7 +411,7 @@ export const DispatchLobby = () => {
             const audio = new Audio('/sounds/notification.mp3');
             audio.volume = 0.4;
             audio.play().catch(() => {});
-          } catch (_) {}
+          } catch (_) { /* audio play failures are non-critical */ }
         }
 
         // Photographer ARRIVED — notify the surfer
@@ -424,7 +424,7 @@ export const DispatchLobby = () => {
             const audio = new Audio('/sounds/notification.mp3');
             audio.volume = 0.5;
             audio.play().catch(() => {});
-          } catch (_) {}
+          } catch (_) { /* audio play failures are non-critical */ }
         }
 
         // Photographer DECLINED (status goes back to searching)
@@ -549,7 +549,7 @@ export const DispatchLobby = () => {
   // --- Derive timeline phase ---
   const captainSelfieUploaded = !!dispatch?.selfie_url;
   const crewAllPaid = crewLineup.length === 0 || crewLineup.every(m => m.paid);
-  const photographerPending = !photographerAccepted;
+  const _photographerPending = !photographerAccepted;
 
   if (loading) {
     return (

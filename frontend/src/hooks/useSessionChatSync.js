@@ -119,7 +119,7 @@ export const useSessionChatSync = ({
               }
               audioRef.current.currentTime = 0;
               audioRef.current.play().catch(() => {});
-            } catch (_) {}
+            } catch (_) { /* audio play failures are non-critical */ }
           }
 
           lastSeenMsgIdRef.current = latestFromOther.id;
@@ -157,7 +157,7 @@ export const useSessionChatSync = ({
             setLatestMessage(latest);
             lastSeenMsgIdRef.current = latest.id;
           }
-        } catch (_) {}
+        } catch (_) { /* resync failures are non-critical */ }
       };
       // Small delay so the drawer's final mark-read call completes
       const t = setTimeout(resync, 500);

@@ -118,7 +118,7 @@ export const SessionChatDrawer = ({
   otherUserId,
   otherUserName,
   otherUserAvatar,
-  dispatchId,
+  _dispatchId,
   isLight = false,
   onUnreadChange,
 }) => {
@@ -129,7 +129,7 @@ export const SessionChatDrawer = ({
   const [isSending, setIsSending] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [showQuickReplies, setShowQuickReplies] = useState(false);
-  const [unreadCount, setUnreadCount] = useState(0);
+  const [_unreadCount, setUnreadCount] = useState(0);
 
   // Voice recording state
   const [isRecording, setIsRecording] = useState(false);

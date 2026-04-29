@@ -3,7 +3,7 @@
  * Extracted from Bookings.js for better maintainability
  */
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useSessionChatSync } from '../../hooks/useSessionChatSync';
 import { Camera, MapPin, DollarSign, ChevronRight, Star, Radio, Loader2, Users, Zap, Globe, MessageCircle } from 'lucide-react';
