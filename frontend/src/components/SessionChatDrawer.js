@@ -383,7 +383,7 @@ export const SessionChatDrawer = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col" data-testid="session-chat-drawer">
+    <div className="fixed inset-0 z-[60] flex flex-col" data-testid="session-chat-drawer">
       {/* Backdrop */}
       <div
         className="absolute inset-0 bg-black/50 backdrop-blur-sm"
@@ -392,7 +392,8 @@ export const SessionChatDrawer = ({
 
       {/* Drawer Content */}
       <div
-        className={`relative mt-auto sm:mt-0 sm:ml-auto w-full sm:w-[420px] h-[85vh] sm:h-full flex flex-col ${bgDrawer} rounded-t-3xl sm:rounded-none shadow-2xl animate-in slide-in-from-bottom sm:slide-in-from-right duration-300`}
+        className={`relative mt-auto sm:mt-0 sm:ml-auto w-full sm:w-[420px] flex flex-col ${bgDrawer} rounded-t-3xl sm:rounded-none shadow-2xl animate-in slide-in-from-bottom sm:slide-in-from-right duration-300`}
+        style={{ height: '100dvh', maxHeight: '100dvh' }}
       >
         {/* ============ HEADER ============ */}
         <div className={`flex items-center gap-3 px-4 py-3 border-b ${bgHeader} rounded-t-3xl sm:rounded-none flex-shrink-0`}>
@@ -518,7 +519,9 @@ export const SessionChatDrawer = ({
 
         {/* ============ INPUT BAR ============ */}
         {!isRecording && (
-          <div className={`px-3 py-2.5 border-t ${isLight ? 'border-gray-200 bg-white' : 'border-zinc-800 bg-zinc-900'} flex items-center gap-2 flex-shrink-0 pb-safe`}>
+          <div className={`px-3 py-2.5 border-t ${isLight ? 'border-gray-200 bg-white' : 'border-zinc-800 bg-zinc-900'} flex items-center gap-2 flex-shrink-0`}
+            style={{ paddingBottom: 'max(0.625rem, env(safe-area-inset-bottom, 0.625rem))' }}
+          >
             {/* Quick reply toggle */}
             <button
               onClick={() => setShowQuickReplies(!showQuickReplies)}

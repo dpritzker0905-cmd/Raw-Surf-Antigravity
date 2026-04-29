@@ -305,6 +305,7 @@ export const DispatchLobby = () => {
   // MUST be after derived state so photographerId/photographerName are defined
   const {
     unreadCount: bgUnreadCount,
+    latestMessage: bgLatestMessage,
   } = useSessionChatSync({
     userId: user?.id,
     otherUserId: photographerId,
@@ -772,6 +773,51 @@ export const DispatchLobby = () => {
               <p className={`text-xs ${textSecondary}`}>
                 {photographerName} is on the way! Send a message or voice note to help them find you at the beach.
               </p>
+
+              {/* Inline message preview — shows latest photographer message */}
+              {bgLatestMessage && (
+                <button
+                  onClick={() => setShowSessionChat(true)}
+                  className={`w-full flex items-start gap-3 p-2.5 rounded-xl border transition-all active:scale-[0.98] ${
+                    chatUnreadCount > 0
+                      ? (isLight ? 'bg-cyan-50 border-cyan-300 ring-1 ring-cyan-200' : 'bg-cyan-500/10 border-cyan-400/40 ring-1 ring-cyan-400/20')
+                      : (isLight ? 'bg-white/60 border-gray-200' : 'bg-zinc-800/50 border-zinc-700/50')
+                  }`}
+                  data-testid="lobby-message-preview"
+                >
+                  <div className="relative flex-shrink-0">
+                    <MessageCircle className={`w-4 h-4 mt-0.5 ${
+                      chatUnreadCount > 0 ? (isLight ? 'text-cyan-600' : 'text-cyan-400') : (isLight ? 'text-gray-400' : 'text-zinc-500')
+                    }`} />
+                    {chatUnreadCount > 0 && (
+                      <span className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-red-500 text-[8px] font-bold text-white flex items-center justify-center">
+                        {chatUnreadCount > 9 ? '9+' : chatUnreadCount}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0 text-left">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className={`text-xs font-semibold ${
+                        chatUnreadCount > 0 ? (isLight ? 'text-cyan-700' : 'text-cyan-400') : (isLight ? 'text-gray-500' : 'text-zinc-400')
+                      }`}>
+                        {bgLatestMessage.sender_id !== user?.id ? photographerName : 'You'}
+                      </p>
+                      <span className={`text-[10px] flex-shrink-0 ${isLight ? 'text-gray-400' : 'text-zinc-500'}`}>
+                        {new Date(bgLatestMessage.created_at).toLocaleTimeString([], {
+                          hour: '2-digit', minute: '2-digit'
+                        })}
+                      </span>
+                    </div>
+                    <p className={`text-sm truncate ${
+                      chatUnreadCount > 0 ? (isLight ? 'text-gray-900 font-medium' : 'text-white font-medium') : (isLight ? 'text-gray-500' : 'text-zinc-400')
+                    }`}>
+                      {bgLatestMessage.message_type === 'voice_note'
+                        ? '🎤 Voice note'
+                        : (bgLatestMessage.content || '📎 Media')}
+                    </p>
+                  </div>
+                </button>
+              )}
               <div className="grid grid-cols-2 gap-3">
                 <button
                   onClick={() => setShowSessionChat(true)}
