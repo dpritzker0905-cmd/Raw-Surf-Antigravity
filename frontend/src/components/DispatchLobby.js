@@ -26,6 +26,7 @@ import { Badge } from './ui/badge';
 import { toast } from 'sonner';
 import { RequestProSelfieModal } from './RequestProSelfieModal';
 import { SessionChatDrawer, SessionChatFAB } from './SessionChatDrawer';
+import { useSessionChatSync } from '../hooks/useSessionChatSync';
 
 // --- Constants ---
 const SURFBOARD_COLORS = [
@@ -274,6 +275,24 @@ export const DispatchLobby = () => {
   // Session chat state
   const [showSessionChat, setShowSessionChat] = useState(false);
   const [chatUnreadCount, setChatUnreadCount] = useState(0);
+
+  // Background chat sync (runs even when drawer is closed)
+  const {
+    unreadCount: bgUnreadCount,
+  } = useSessionChatSync({
+    userId: user?.id,
+    otherUserId: photographerId,
+    otherUserName: photographerName,
+    drawerOpen: showSessionChat,
+    enabled: !!photographerAccepted && !!photographerId,
+  });
+
+  // Sync background unread count to state
+  useEffect(() => {
+    if (!showSessionChat) {
+      setChatUnreadCount(bgUnreadCount);
+    }
+  }, [bgUnreadCount, showSessionChat]);
 
   // Session active timer (separate from arrival countdown)
   const [sessionElapsed, setSessionElapsed] = useState(0);

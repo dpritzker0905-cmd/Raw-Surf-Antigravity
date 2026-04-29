@@ -40,6 +40,7 @@ import { ROLES } from '../constants/roles';
 import { SessionChatDrawer, SessionChatFAB } from './SessionChatDrawer';
 import SessionDetailDrawer from './bookings/SessionDetailDrawer';
 import { ChevronRight as ChevronRightIcon } from 'lucide-react';
+import { useSessionChatSync } from '../hooks/useSessionChatSync';
 
 
 
@@ -639,7 +640,9 @@ const ActiveSessionCard = ({
   _cardBg,
   textPrimary, 
   textSecondary,
-  sectionBg
+  sectionBg,
+  chatUnreadCount = 0,
+  chatLatestMessage = null
 }) => {
   const [elapsedTime, setElapsedTime] = useState(0);
   
@@ -821,17 +824,67 @@ const ActiveSessionCard = ({
           </div>
         )}
         
+        {/* Inline Message Preview (shows latest surfer message) */}
+        {chatLatestMessage && (
+          <button
+            onClick={onOpenChat}
+            className={`w-full flex items-start gap-3 p-3 rounded-xl border transition-all active:scale-[0.99] ${
+              chatUnreadCount > 0
+                ? 'bg-cyan-500/10 border-cyan-400/40 ring-1 ring-cyan-400/30'
+                : 'bg-zinc-800/50 border-zinc-700/50'
+            }`}
+            data-testid="inline-message-preview"
+          >
+            <div className="relative flex-shrink-0">
+              <MessageCircle className={`w-5 h-5 mt-0.5 ${
+                chatUnreadCount > 0 ? 'text-cyan-400' : 'text-zinc-500'
+              }`} />
+              {chatUnreadCount > 0 && (
+                <span className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-red-500 text-[9px] font-bold text-white flex items-center justify-center animate-bounce">
+                  {chatUnreadCount > 9 ? '9+' : chatUnreadCount}
+                </span>
+              )}
+            </div>
+            <div className="flex-1 min-w-0 text-left">
+              <div className="flex items-center justify-between gap-2">
+                <p className={`text-xs font-semibold ${
+                  chatUnreadCount > 0 ? 'text-cyan-400' : 'text-zinc-400'
+                }`}>
+                  {session.requester_name || 'Surfer'}
+                </p>
+                <span className="text-[10px] text-zinc-500 flex-shrink-0">
+                  {new Date(chatLatestMessage.created_at).toLocaleTimeString([], {
+                    hour: '2-digit', minute: '2-digit'
+                  })}
+                </span>
+              </div>
+              <p className={`text-sm truncate ${
+                chatUnreadCount > 0 ? 'text-white font-medium' : 'text-zinc-400'
+              }`}>
+                {chatLatestMessage.message_type === 'voice_note'
+                  ? '🎤 Voice note'
+                  : (chatLatestMessage.content || '📎 Media')}
+              </p>
+            </div>
+          </button>
+        )}
+
         {/* Action Buttons */}
         <div className="space-y-3">
           {/* Communication Buttons */}
           <div className="grid grid-cols-2 gap-3">
             <button
               onClick={onOpenChat}
-              className="flex items-center justify-center gap-2 py-3 rounded-xl font-semibold text-sm transition-all active:scale-[0.97] bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white"
+              className="relative flex items-center justify-center gap-2 py-3 rounded-xl font-semibold text-sm transition-all active:scale-[0.97] bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white"
               data-testid="photographer-chat-btn"
             >
               <MessageCircle className="w-4 h-4" />
               Chat Surfer
+              {chatUnreadCount > 0 && (
+                <span className="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-red-500 text-[10px] font-bold text-white flex items-center justify-center animate-bounce shadow-lg">
+                  {chatUnreadCount > 9 ? '9+' : chatUnreadCount}
+                </span>
+              )}
             </button>
             <button
               onClick={onOpenChat}
@@ -1003,6 +1056,25 @@ export const OnDemandSessionManager = () => {
   // Session chat state
   const [showSessionChat, setShowSessionChat] = useState(false);
   const [chatUnreadCount, setChatUnreadCount] = useState(0);
+
+  // Background chat sync (runs even when drawer is closed)
+  const {
+    unreadCount: bgUnreadCount,
+    latestMessage: bgLatestMessage,
+  } = useSessionChatSync({
+    userId: user?.id,
+    otherUserId: activeSession?.requester_id,
+    otherUserName: activeSession?.requester_name || 'Surfer',
+    drawerOpen: showSessionChat,
+    enabled: !!activeSession,
+  });
+
+  // Sync background unread count to state (when drawer is closed, background hook is authoritative)
+  useEffect(() => {
+    if (!showSessionChat) {
+      setChatUnreadCount(bgUnreadCount);
+    }
+  }, [bgUnreadCount, showSessionChat]);
   
   const pollIntervalRef = useRef(null);
   const audioRef = useRef(null);
@@ -1616,6 +1688,8 @@ export const OnDemandSessionManager = () => {
                 textPrimary={textPrimary}
                 textSecondary={textSecondary}
                 sectionBg={sectionBg}
+                chatUnreadCount={chatUnreadCount}
+                chatLatestMessage={bgLatestMessage}
               />
             )}
             
