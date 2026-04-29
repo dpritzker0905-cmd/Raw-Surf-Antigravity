@@ -91,7 +91,12 @@ const MobileBanner = ({ activeSession, colorConfig, isLight, isExpanded, setIsEx
         <div
           className={`h-[5px] w-full bg-gradient-to-r ${colorConfig.barGradient} animate-[pulse_2.5s_ease-in-out_infinite]`}
         />
-        {/* Pull-up handle — positioned RIGHT to avoid center Create button */}
+        {/* Pull-up handles — positioned LEFT and RIGHT to avoid center Create button */}
+        <div className="absolute left-16 -top-3 flex flex-col items-center">
+          <div className={`w-8 h-3 rounded-t-lg ${isLight ? 'bg-white/90' : 'bg-zinc-900/90'} border border-b-0 ${colorConfig.border} flex items-center justify-center backdrop-blur-sm`}>
+            <ChevronUp className={`w-3 h-3 ${colorConfig.textAccent}`} />
+          </div>
+        </div>
         <div className="absolute right-16 -top-3 flex flex-col items-center">
           <div className={`w-8 h-3 rounded-t-lg ${isLight ? 'bg-white/90' : 'bg-zinc-900/90'} border border-b-0 ${colorConfig.border} flex items-center justify-center backdrop-blur-sm`}>
             <ChevronUp className={`w-3 h-3 ${colorConfig.textAccent}`} />
