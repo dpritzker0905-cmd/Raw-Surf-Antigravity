@@ -276,24 +276,6 @@ export const DispatchLobby = () => {
   const [showSessionChat, setShowSessionChat] = useState(false);
   const [chatUnreadCount, setChatUnreadCount] = useState(0);
 
-  // Background chat sync (runs even when drawer is closed)
-  const {
-    unreadCount: bgUnreadCount,
-  } = useSessionChatSync({
-    userId: user?.id,
-    otherUserId: photographerId,
-    otherUserName: photographerName,
-    drawerOpen: showSessionChat,
-    enabled: !!photographerAccepted && !!photographerId,
-  });
-
-  // Sync background unread count to state
-  useEffect(() => {
-    if (!showSessionChat) {
-      setChatUnreadCount(bgUnreadCount);
-    }
-  }, [bgUnreadCount, showSessionChat]);
-
   // Session active timer (separate from arrival countdown)
   const [sessionElapsed, setSessionElapsed] = useState(0);
 
@@ -318,6 +300,25 @@ export const DispatchLobby = () => {
   const photographerId = dispatch?.photographer?.id || dispatch?.target_photographer_id || photographerFromNav?.id;
   const photographerName = photographer?.full_name || photographer?.name || 'Photographer';
   const photographerAvatarUrl = photographer?.avatar_url || photographer?.avatar;
+
+  // Background chat sync (runs even when drawer is closed)
+  // MUST be after derived state so photographerId/photographerName are defined
+  const {
+    unreadCount: bgUnreadCount,
+  } = useSessionChatSync({
+    userId: user?.id,
+    otherUserId: photographerId,
+    otherUserName: photographerName,
+    drawerOpen: showSessionChat,
+    enabled: !!photographerAccepted && !!photographerId,
+  });
+
+  // Sync background unread count to state
+  useEffect(() => {
+    if (!showSessionChat) {
+      setChatUnreadCount(bgUnreadCount);
+    }
+  }, [bgUnreadCount, showSessionChat]);
 
   // -- Session elapsed timer (for "Session Active" state) --
   useEffect(() => {

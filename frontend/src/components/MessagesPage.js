@@ -559,21 +559,44 @@ export const MessagesPage = () => {
     }
   }, [searchParams, user?.id]);
 
-  // Re-fetch when persona changes (God Mode switching)
+  // Track previous persona state to detect GENUINE persona switches
+  // (not mount or auth-settling re-renders)
+  const prevPersonaRef = useRef({ effectiveRole, isGodMode, activePersona, initialized: false });
+
+  // Re-fetch when persona GENUINELY changes (God Mode switching)
   useEffect(() => {
-    if (user?.id) {
-      // Reset to appropriate default folder based on effective role
-      const folders = getFolders(user?.role, user?.is_admin || isGodMode, effectiveRole, isMasked, user?.is_grom_parent === true);
-      const folderIds = folders.map(f => f.id);
-      
-      // If current folder is not available for this role, switch to primary
-      if (!folderIds.includes(activeFolder)) {
-        setActiveFolder('primary');
-      }
-      
-      // Refetch conversations for current folder
-      fetchConversations();
+    if (!user?.id) return;
+
+    const prev = prevPersonaRef.current;
+
+    // On first run after mount, just record the current values — don't reset folder
+    if (!prev.initialized) {
+      prevPersonaRef.current = { effectiveRole, isGodMode, activePersona, initialized: true };
+      return;
     }
+
+    // Check if anything actually changed
+    const personaChanged =
+      prev.effectiveRole !== effectiveRole ||
+      prev.isGodMode !== isGodMode ||
+      prev.activePersona !== activePersona;
+
+    if (!personaChanged) return;
+
+    // Genuine persona switch — update ref
+    prevPersonaRef.current = { effectiveRole, isGodMode, activePersona, initialized: true };
+
+    // Reset to appropriate default folder based on effective role
+    const folders = getFolders(user?.role, user?.is_admin || isGodMode, effectiveRole, isMasked, user?.is_grom_parent === true);
+    const folderIds = folders.map(f => f.id);
+    
+    // If current folder is not available for this role, switch to primary
+    if (!folderIds.includes(activeFolder)) {
+      setActiveFolder('primary');
+    }
+    
+    // Refetch conversations for current folder
+    fetchConversations();
   }, [effectiveRole, isGodMode, activePersona]);
 
   // Fetch conversations on folder change
