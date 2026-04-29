@@ -3,9 +3,10 @@
  * Extracted from Bookings.js for better maintainability
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Camera, MapPin, DollarSign, ChevronRight, Star, Radio, Loader2, Users, Zap, Globe } from 'lucide-react';
+import { useSessionChatSync } from '../../hooks/useSessionChatSync';
+import { Camera, MapPin, DollarSign, ChevronRight, Star, Radio, Loader2, Users, Zap, Globe, MessageCircle } from 'lucide-react';
 import { Card, CardContent } from '../ui/card';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
@@ -144,6 +145,21 @@ export const OnDemandTab = ({
   const cardBgClass = isLight ? 'bg-white border-gray-200' : 'bg-zinc-800/50 border-zinc-700';
   const textPrimaryClass = isLight ? 'text-gray-900' : 'text-white';
   const textSecondaryClass = isLight ? 'text-gray-600' : 'text-gray-400';
+
+  // Chat sync for active dispatch — shows unread badge + latest message on card
+  const photographerId = activeDispatch?.photographer_id || activeDispatch?.photographer?.id;
+  const photographerName = activeDispatch?.photographer_name || 'Photographer';
+  const dispatchChatReady = !!activeDispatch && !!photographerId && ['accepted', 'en_route', 'arrived'].includes(activeDispatch?.status);
+  const {
+    unreadCount: dispatchUnread,
+    latestMessage: dispatchLatestMsg,
+  } = useSessionChatSync({
+    userId: user?.id,
+    otherUserId: photographerId,
+    otherUserName: photographerName,
+    drawerOpen: false, // always poll — there's no drawer on this page
+    enabled: dispatchChatReady,
+  });
   
   // Highlight flash for newly created dispatches
   const [searchParams] = useSearchParams();
@@ -237,93 +253,121 @@ export const OnDemandTab = ({
         </div>
       )}
 
-      {/* Active Dispatch Card - Different UI for Captain vs Crew Member */}
-      {activeDispatch && ['searching_for_pro', 'pending_payment', 'accepted', 'en_route', 'arrived'].includes(activeDispatch.status) && (
-        <Card 
-          className={`border-2 cursor-pointer transition-all mb-4 ${
-            flashingDispatch ? 'animate-booking-flash ' : ''
-          }${
-            isCrewMember 
-              ? 'bg-gradient-to-r from-cyan-500/20 to-blue-500/20 border-cyan-400/50 hover:border-cyan-400'
-              : 'bg-gradient-to-r from-amber-500/20 to-orange-500/20 border-amber-400/50 hover:border-amber-400'
-          }`}
-          onClick={() => onResumeDispatch?.(activeDispatch)}
-        >
-          <CardContent className="py-4 px-4">
-            <div className="flex items-center gap-4">
-              <div className="relative">
-                <div className={`w-14 h-14 rounded-full flex items-center justify-center ${
-                  isCrewMember ? 'bg-cyan-500/20' : 'bg-amber-500/20'
-                }`}>
-                  <Radio className={`w-7 h-7 animate-pulse ${
-                    isCrewMember ? 'text-cyan-400' : 'text-amber-400'
-                  }`} />
-                </div>
-                <div className={`absolute -top-1 -right-1 w-4 h-4 rounded-full animate-ping ${
-                  isCrewMember ? 'bg-cyan-400' : 'bg-amber-400'
-                }`} />
+      {/* Active Dispatch Card — Redesigned with progress stepper + chat notification */}
+      {activeDispatch && ['searching_for_pro', 'pending_payment', 'accepted', 'en_route', 'arrived'].includes(activeDispatch.status) && (() => {
+        // ── Stepper logic ──
+        const STEPS = [
+          { key: 'searching_for_pro', label: 'Confirming', shortLabel: 'Confirm' },
+          { key: 'accepted',          label: 'Accepted',   shortLabel: 'Accept' },
+          { key: 'en_route',          label: 'En Route',   shortLabel: 'En Route' },
+          { key: 'arrived',           label: 'Arrived',    shortLabel: 'Arrived' },
+        ];
+        // pending_payment maps to searching_for_pro step
+        const currentKey = activeDispatch.status === 'pending_payment' ? 'searching_for_pro' : activeDispatch.status;
+        const currentIdx = STEPS.findIndex(s => s.key === currentKey);
+
+        // ── Status display config ──
+        const accentColor = isCrewMember ? 'cyan' : 'amber';
+        const gradientFrom = isCrewMember ? 'from-cyan-500/20' : 'from-amber-500/20';
+        const gradientTo   = isCrewMember ? 'to-blue-500/20'   : 'to-orange-500/20';
+        const borderActive = isCrewMember ? 'border-cyan-400/60' : 'border-amber-400/60';
+        const accentText   = isCrewMember ? 'text-cyan-400' : 'text-amber-400';
+        const accentBg     = isCrewMember ? 'bg-cyan-400' : 'bg-amber-400';
+
+        // ── Title / subtitle ──
+        let title = '';
+        let subtitle = '';
+        if (isCrewMember) {
+          switch (activeDispatch.status) {
+            case 'searching_for_pro': title = 'Waiting for Photographer'; subtitle = `Session with ${activeDispatch.requester_name || 'your crew'}`; break;
+            case 'pending_payment':   title = 'Waiting for Captain to Pay'; subtitle = 'Payment in progress...'; break;
+            case 'accepted':          title = 'Photographer Confirmed!'; subtitle = `${activeDispatch.photographer_name || 'Photographer'} is joining`; break;
+            case 'en_route':          title = 'Photographer On The Way!'; subtitle = `ETA: ${activeDispatch.eta_minutes || '?'} min`; break;
+            case 'arrived':           title = 'Photographer Has Arrived!'; subtitle = `Look for ${activeDispatch.photographer_name || 'your photographer'}!`; break;
+            default: break;
+          }
+        } else {
+          switch (activeDispatch.status) {
+            case 'searching_for_pro': title = 'Waiting for Confirmation'; subtitle = activeDispatch.photographer_name ? `Waiting for ${activeDispatch.photographer_name}...` : `Searching near ${activeDispatch.location_name || 'your location'}...`; break;
+            case 'pending_payment':   title = 'Pending Payment'; subtitle = 'Complete payment to continue'; break;
+            case 'accepted':          title = 'Photographer Accepted!'; subtitle = `${activeDispatch.photographer_name || 'Photographer'} is getting ready`; break;
+            case 'en_route':          title = 'Photographer On The Way'; subtitle = `ETA: ${activeDispatch.eta_minutes || '?'} minutes`; break;
+            case 'arrived':           title = 'Photographer Arrived!'; subtitle = 'Your photographer is here!'; break;
+            default: break;
+          }
+        }
+
+        return (
+          <Card 
+            className={`border-2 cursor-pointer transition-all mb-4 overflow-hidden ${
+              flashingDispatch ? 'animate-booking-flash ' : ''
+            }bg-gradient-to-br ${gradientFrom} ${gradientTo} ${borderActive} hover:shadow-lg hover:shadow-${accentColor}-400/10 active:scale-[0.98]`}
+            onClick={() => onResumeDispatch?.(activeDispatch)}
+            data-testid="active-dispatch-card"
+          >
+            <CardContent className="py-0 px-0">
+              {/* ── Progress Stepper Bar ── */}
+              <div className={`flex items-center justify-between px-4 py-2.5 border-b ${isLight ? 'border-gray-200/60 bg-white/40' : 'border-zinc-700/40 bg-zinc-900/30'}`}>
+                {STEPS.map((step, idx) => {
+                  const isComplete = idx < currentIdx;
+                  const isCurrent  = idx === currentIdx;
+                  const isFuture   = idx > currentIdx;
+                  return (
+                    <React.Fragment key={step.key}>
+                      {/* Step dot + label */}
+                      <div className="flex flex-col items-center gap-0.5 min-w-0">
+                        <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold transition-all ${
+                          isComplete ? `${accentBg} text-black` :
+                          isCurrent  ? `${accentBg} text-black ring-2 ring-offset-1 ${isLight ? 'ring-offset-white' : 'ring-offset-zinc-900'} ring-${accentColor}-400/60 animate-pulse` :
+                                       `${isLight ? 'bg-gray-200 text-gray-400' : 'bg-zinc-700 text-zinc-500'}`
+                        }`}>
+                          {isComplete ? '✓' : idx + 1}
+                        </div>
+                        <span className={`text-[10px] font-medium leading-tight text-center ${
+                          isCurrent ? accentText : isFuture ? (isLight ? 'text-gray-400' : 'text-zinc-500') : (isLight ? 'text-gray-600' : 'text-zinc-300')
+                        }`}>
+                          {step.shortLabel}
+                        </span>
+                      </div>
+                      {/* Connector line */}
+                      {idx < STEPS.length - 1 && (
+                        <div className={`flex-1 h-0.5 mx-1 mt-[-12px] rounded-full ${
+                          idx < currentIdx ? accentBg : (isLight ? 'bg-gray-200' : 'bg-zinc-700')
+                        }`} />
+                      )}
+                    </React.Fragment>
+                  );
+                })}
               </div>
-              <div className="flex-1">
-                <div className="flex items-center gap-2">
-                  <h3 className={`font-bold ${textPrimaryClass}`}>
-                    {isCrewMember ? (
-                      <>
-                        {activeDispatch.status === 'searching_for_pro' && 'Waiting for Photographer'}
-                        {activeDispatch.status === 'pending_payment' && 'Waiting for Captain to Pay'}
-                        {activeDispatch.status === 'accepted' && 'Photographer Confirmed!'}
-                        {activeDispatch.status === 'en_route' && 'Photographer On The Way!'}
-                        {activeDispatch.status === 'arrived' && 'Photographer Has Arrived!'}
-                      </>
-                    ) : (
-                      <>
-                        {activeDispatch.status === 'searching_for_pro' && 'Waiting for Confirmation'}
-                        {activeDispatch.status === 'pending_payment' && 'Pending Payment'}
-                        {activeDispatch.status === 'accepted' && 'Photographer Accepted!'}
-                        {activeDispatch.status === 'en_route' && 'Photographer On The Way'}
-                        {activeDispatch.status === 'arrived' && 'Photographer Arrived!'}
-                      </>
+
+              {/* ── Main Card Body ── */}
+              <div className="px-4 py-3">
+                <div className="flex items-center gap-3">
+                  {/* Animated icon */}
+                  <div className="relative flex-shrink-0">
+                    <div className={`w-12 h-12 rounded-full flex items-center justify-center ${isCrewMember ? 'bg-cyan-500/20' : 'bg-amber-500/20'}`}>
+                      <Radio className={`w-6 h-6 animate-pulse ${accentText}`} />
+                    </div>
+                    {['searching_for_pro', 'en_route'].includes(activeDispatch.status) && (
+                      <div className={`absolute -top-0.5 -right-0.5 w-3.5 h-3.5 rounded-full animate-ping ${accentBg}`} />
                     )}
-                  </h3>
-                  {['searching_for_pro', 'en_route'].includes(activeDispatch.status) && (
-                    <Loader2 className={`w-4 h-4 animate-spin ${
-                      isCrewMember ? 'text-cyan-400' : 'text-amber-400'
-                    }`} />
-                  )}
+                  </div>
+
+                  {/* Status text */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <h3 className={`font-bold text-sm ${textPrimaryClass}`}>{title}</h3>
+                      {['searching_for_pro', 'en_route'].includes(activeDispatch.status) && (
+                        <Loader2 className={`w-3.5 h-3.5 animate-spin ${accentText}`} />
+                      )}
+                    </div>
+                    <p className={`text-xs ${textSecondaryClass} truncate`}>{subtitle}</p>
+                  </div>
                 </div>
-                <p className={`text-sm ${textSecondaryClass}`}>
-                  {isCrewMember ? (
-                    <>
-                      {activeDispatch.status === 'searching_for_pro' && (
-                        `Session with ${activeDispatch.requester_name || 'your crew'} at ${activeDispatch.location_name || 'the spot'}`
-                      )}
-                      {activeDispatch.status === 'accepted' && (
-                        `${activeDispatch.photographer_name || 'Photographer'} is joining your session`
-                      )}
-                      {activeDispatch.status === 'en_route' && (
-                        `ETA: ${activeDispatch.eta_minutes || '?'} min • Meet at ${activeDispatch.location_name || 'the spot'}`
-                      )}
-                      {activeDispatch.status === 'arrived' && (
-                        `Look for ${activeDispatch.photographer_name || 'your photographer'}!`
-                      )}
-                    </>
-                  ) : (
-                    <>
-                      {activeDispatch.status === 'searching_for_pro' && (
-                        activeDispatch.photographer_name 
-                          ? `Waiting for ${activeDispatch.photographer_name} to accept...`
-                          : `Searching near ${activeDispatch.location_name || 'your location'}...`
-                      )}
-                      {activeDispatch.status === 'pending_payment' && 'Complete payment to continue'}
-                      {activeDispatch.status === 'accepted' && `${activeDispatch.photographer_name || 'Photographer'} is getting ready`}
-                      {activeDispatch.status === 'en_route' && `ETA: ${activeDispatch.eta_minutes || '?'} minutes`}
-                      {activeDispatch.status === 'arrived' && 'Your photographer is here!'}
-                    </>
-                  )}
-                </p>
-                
-                {/* Crew Info for Crew Members */}
+
+                {/* ── Crew avatars (for crew members) ── */}
                 {isCrewMember && activeDispatch.crew && activeDispatch.crew.length > 0 && (
-                  <div className="flex items-center gap-1 mt-2">
+                  <div className="flex items-center gap-1 mt-2 ml-15">
                     <span className={`text-xs ${textSecondaryClass}`}>With:</span>
                     {activeDispatch.crew.slice(0, 3).map((member, idx) => (
                       <div key={idx} className="w-6 h-6 rounded-full bg-zinc-700 overflow-hidden border border-cyan-400/30">
@@ -342,28 +386,70 @@ export const OnDemandTab = ({
                   </div>
                 )}
               </div>
-              <ChevronRight className={`w-5 h-5 ${
-                isCrewMember ? 'text-cyan-400' : 'text-amber-400'
-              }`} />
-            </div>
-            
-            {/* Crew Payment Progress - Show when this is a crew session with pending payments */}
-            {activeDispatch?.is_shared && activeDispatch?.crew && activeDispatch.crew.length > 0 && (
-              <div className="mt-4 pt-4 border-t border-zinc-700/50" onClick={(e) => e.stopPropagation()}>
-                <CrewPaymentProgress
-                  dispatchId={activeDispatch.id}
-                  serviceType="dispatch"
-                  currentUserId={user?.id}
-                  isCaptain={activeDispatch.requester_id === user?.id}
-                  onRefresh={onRefresh}
-                  theme={theme}
-                  compact={true}
-                />
+
+              {/* ── Crew Payment Progress ── */}
+              {activeDispatch?.is_shared && activeDispatch?.crew && activeDispatch.crew.length > 0 && (
+                <div className="px-4 pb-3" onClick={(e) => e.stopPropagation()}>
+                  <div className={`pt-3 border-t ${isLight ? 'border-gray-200/60' : 'border-zinc-700/50'}`}>
+                    <CrewPaymentProgress
+                      dispatchId={activeDispatch.id}
+                      serviceType="dispatch"
+                      currentUserId={user?.id}
+                      isCaptain={activeDispatch.requester_id === user?.id}
+                      onRefresh={onRefresh}
+                      theme={theme}
+                      compact={true}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* ── Inline Chat Notification ── */}
+              {dispatchChatReady && (dispatchUnread > 0 || dispatchLatestMsg) && (
+                <div className={`flex items-center gap-3 mx-4 mb-2 px-3 py-2 rounded-xl border transition-all ${
+                  dispatchUnread > 0
+                    ? (isLight ? 'bg-cyan-50 border-cyan-300 ring-1 ring-cyan-200' : 'bg-cyan-500/10 border-cyan-400/40 ring-1 ring-cyan-400/20')
+                    : (isLight ? 'bg-gray-50 border-gray-200' : 'bg-zinc-800/50 border-zinc-700/50')
+                }`}>
+                  <div className="relative flex-shrink-0">
+                    <MessageCircle className={`w-4 h-4 ${
+                      dispatchUnread > 0 ? 'text-cyan-500' : (isLight ? 'text-gray-400' : 'text-zinc-500')
+                    }`} />
+                    {dispatchUnread > 0 && (
+                      <span className="absolute -top-1.5 -right-1.5 w-3.5 h-3.5 rounded-full bg-red-500 text-[8px] font-bold text-white flex items-center justify-center">
+                        {dispatchUnread > 9 ? '9+' : dispatchUnread}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className={`text-xs truncate ${
+                      dispatchUnread > 0 ? (isLight ? 'text-gray-900 font-semibold' : 'text-white font-semibold') : textSecondaryClass
+                    }`}>
+                      {dispatchUnread > 0
+                        ? `${photographerName}: ${dispatchLatestMsg?.content || 'New message'}`
+                        : (dispatchLatestMsg?.content || 'Chat available')}
+                    </p>
+                  </div>
+                  <span className={`text-[10px] flex-shrink-0 ${dispatchUnread > 0 ? 'text-cyan-500' : textSecondaryClass}`}>Open →</span>
+                </div>
+              )}
+
+              {/* ── Tap-to-View CTA Strip ── */}
+              <div className={`flex items-center justify-between px-4 py-2.5 border-t ${
+                isLight ? 'border-gray-200/60 bg-white/50' : 'border-zinc-700/40 bg-zinc-800/50'
+              }`}>
+                <span className={`text-xs font-medium ${accentText} flex items-center gap-1.5`}>
+                  <Zap className="w-3 h-3" />
+                  Tap to view session details
+                </span>
+                <div className={`flex items-center gap-0.5 ${accentText}`}>
+                  <ChevronRight className="w-4 h-4 animate-[pulse_1.5s_ease-in-out_infinite]" />
+                </div>
               </div>
-            )}
-          </CardContent>
-        </Card>
-      )}
+            </CardContent>
+          </Card>
+        );
+      })()}
 
       {/* Credit Balance Banner */}
       {(user?.credit_balance || 0) > 0 && (
