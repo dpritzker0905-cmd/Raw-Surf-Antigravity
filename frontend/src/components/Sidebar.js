@@ -466,7 +466,6 @@ export const Sidebar = () => {
                   }
                 }}
                 className="w-full ml-4 pl-3 py-1.5 text-left transition-all hover:opacity-80"
-                style={{ borderLeft: `2px solid ${activeSession.role === 'crew_member' ? '#22d3ee' : '#f59e0b'}` }}
                 data-testid="sidebar-active-session"
               >
                 <span
