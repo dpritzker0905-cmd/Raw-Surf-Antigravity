@@ -609,7 +609,7 @@ const SpotHub = () => {
       
       // Fetch additional data in parallel
       const [reportsRes, postsRes] = await Promise.allSettled([
-        apiClient.get(`/condition-reports/spot/${spotId}?limit=10`),
+        apiClient.get(`/condition-reports/spot/${spotId}?limit=10&include_expired=true`),
         apiClient.get(`/posts/spot/${spotId}?limit=50&viewer_id=${user?.id || ''}`) // Only posts TAGGED to this spot
       ]);
       
@@ -1431,60 +1431,112 @@ const SpotHub = () => {
             ) : (
               <>
                 {/* Optimal Surf Time */}
-                {optimalTime && optimalTime.best_window && (
+                {optimalTime && optimalTime.has_data && optimalTime.optimal && (
                   <div className={`p-4 rounded-xl border ${isLight ? 'bg-gradient-to-br from-green-50 to-emerald-50 border-green-200' : 'bg-gradient-to-br from-green-500/10 to-emerald-500/10 border-green-500/30'}`}>
                     <div className="flex items-center gap-2 mb-3">
                       <Timer className="w-4 h-4 text-green-400" />
                       <span className={`text-sm font-bold ${isLight ? 'text-gray-900' : 'text-white'}`}>Best Time to Surf</span>
+                      {optimalTime.confidence && (
+                        <Badge className={`text-[9px] px-1.5 py-0 ${optimalTime.confidence === 'high' ? 'bg-green-500/20 text-green-400' : optimalTime.confidence === 'moderate' ? 'bg-yellow-500/20 text-yellow-400' : 'bg-gray-500/20 text-gray-400'}`}>
+                          {optimalTime.confidence} confidence
+                        </Badge>
+                      )}
                     </div>
-                    <div className={`text-2xl font-bold mb-1 ${isLight ? 'text-green-700' : 'text-green-400'}`}>
-                      {optimalTime.best_window.start_hour || 'N/A'} — {optimalTime.best_window.end_hour || ''}
-                    </div>
-                    {optimalTime.best_window.reason && (
-                      <p className={`text-xs ${isLight ? 'text-gray-600' : 'text-gray-400'}`}>{optimalTime.best_window.reason}</p>
-                    )}
-                    {optimalTime.best_window.score && (
-                      <div className="mt-2 flex items-center gap-2">
-                        <div className={`h-2 flex-1 rounded-full ${isLight ? 'bg-gray-200' : 'bg-zinc-700'}`}>
-                          <div className="h-2 rounded-full bg-gradient-to-r from-green-400 to-emerald-400" style={{ width: `${Math.min(optimalTime.best_window.score * 10, 100)}%` }} />
+                    <div className="space-y-2">
+                      {optimalTime.optimal.best_day && (
+                        <div className="flex items-center gap-2">
+                          <Calendar className="w-3.5 h-3.5 text-green-400" />
+                          <span className={`text-sm ${isLight ? 'text-gray-700' : 'text-gray-300'}`}>Best day:</span>
+                          <span className={`text-sm font-bold ${isLight ? 'text-green-700' : 'text-green-400'}`}>{optimalTime.optimal.best_day}</span>
+                          {optimalTime.optimal.best_day_avg_score && (
+                            <span className="text-[10px] text-gray-500">({optimalTime.optimal.best_day_avg_score}/10)</span>
+                          )}
                         </div>
-                        <span className="text-xs text-green-400 font-medium">{optimalTime.best_window.score}/10</span>
-                      </div>
-                    )}
+                      )}
+                      {optimalTime.optimal.best_time_window && (
+                        <div className="flex items-center gap-2">
+                          <Clock className="w-3.5 h-3.5 text-green-400" />
+                          <span className={`text-sm ${isLight ? 'text-gray-700' : 'text-gray-300'}`}>Best window:</span>
+                          <span className={`text-sm font-bold ${isLight ? 'text-green-700' : 'text-green-400'} capitalize`}>{optimalTime.optimal.best_time_window.replace('_', ' ')}</span>
+                          {optimalTime.optimal.best_window_avg_score && (
+                            <span className="text-[10px] text-gray-500">({optimalTime.optimal.best_window_avg_score}/10)</span>
+                          )}
+                        </div>
+                      )}
+                      {optimalTime.optimal.preferred_tide && (
+                        <div className="flex items-center gap-2">
+                          <Waves className="w-3.5 h-3.5 text-blue-400" />
+                          <span className={`text-sm ${isLight ? 'text-gray-700' : 'text-gray-300'}`}>Preferred tide:</span>
+                          <span className={`text-sm font-medium ${isLight ? 'text-blue-700' : 'text-blue-400'}`}>{optimalTime.optimal.preferred_tide}</span>
+                        </div>
+                      )}
+                      {optimalTime.optimal.preferred_wind && (
+                        <div className="flex items-center gap-2">
+                          <Wind className="w-3.5 h-3.5 text-cyan-400" />
+                          <span className={`text-sm ${isLight ? 'text-gray-700' : 'text-gray-300'}`}>Preferred wind:</span>
+                          <span className={`text-sm font-medium ${isLight ? 'text-cyan-700' : 'text-cyan-400'}`}>{optimalTime.optimal.preferred_wind}</span>
+                        </div>
+                      )}
+                    </div>
+                    <p className={`text-[10px] mt-3 ${isLight ? 'text-gray-400' : 'text-gray-500'}`}>Based on {optimalTime.data_points} logged sessions</p>
                   </div>
                 )}
 
-                {/* Crowd Prediction */}
-                {crowdPrediction && crowdPrediction.predictions && (
+                {/* Optimal Time — No Data State */}
+                {optimalTime && !optimalTime.has_data && (
+                  <div className={`p-4 rounded-xl border ${isLight ? 'bg-gray-50 border-gray-200' : 'bg-zinc-800/40 border-zinc-700'}`}>
+                    <div className="flex items-center gap-2 mb-2">
+                      <Timer className="w-4 h-4 text-gray-400" />
+                      <span className={`text-sm font-bold ${isLight ? 'text-gray-900' : 'text-white'}`}>Best Time to Surf</span>
+                    </div>
+                    <p className={`text-xs ${isLight ? 'text-gray-500' : 'text-gray-400'}`}>{optimalTime.message || 'Not enough data yet. Log sessions at this spot to unlock insights.'}</p>
+                  </div>
+                )}
+
+                {/* Crowd Prediction — Current Level */}
+                {crowdPrediction && crowdPrediction.current_prediction && (
                   <div className={`p-4 rounded-xl border ${isLight ? 'bg-white border-gray-200' : 'bg-zinc-800/60 border-zinc-700'}`}>
                     <div className="flex items-center gap-2 mb-3">
                       <Users className="w-4 h-4 text-orange-400" />
                       <span className={`text-sm font-bold ${isLight ? 'text-gray-900' : 'text-white'}`}>Crowd Forecast</span>
                     </div>
-                    <div className="space-y-2">
-                      {(Array.isArray(crowdPrediction.predictions) ? crowdPrediction.predictions : Object.entries(crowdPrediction.predictions)).slice(0, 7).map((item, idx) => {
-                        const day = Array.isArray(item) ? item[0] : (item.day || item.date);
-                        const level = Array.isArray(item) ? item[1] : (item.level || item.crowd_level || item.value);
-                        const numLevel = typeof level === 'number' ? level : ({'low':1,'light':2,'moderate':3,'busy':4,'crowded':4,'packed':5}[String(level).toLowerCase()] || 2);
-                        const colors = ['bg-green-400','bg-green-400','bg-yellow-400','bg-orange-400','bg-red-400','bg-red-500'];
-                        const labels = ['','Empty','Light','Moderate','Busy','Packed'];
-                        return (
-                          <div key={idx} className="flex items-center gap-3">
-                            <span className={`text-xs w-16 ${isLight ? 'text-gray-600' : 'text-gray-400'}`}>
-                              {typeof day === 'string' && day.length > 3 ? new Date(day + 'T12:00:00').toLocaleDateString('en-US', {weekday:'short'}) : day}
-                            </span>
-                            <div className={`flex-1 h-3 rounded-full ${isLight ? 'bg-gray-200' : 'bg-zinc-700'}`}>
-                              <div className={`h-3 rounded-full ${colors[numLevel] || 'bg-yellow-400'} transition-all`} style={{ width: `${numLevel * 20}%` }} />
-                            </div>
-                            <span className={`text-[10px] w-14 text-right ${isLight ? 'text-gray-500' : 'text-gray-400'}`}>{labels[numLevel] || level}</span>
-                          </div>
-                        );
-                      })}
+                    {/* Current level */}
+                    <div className="flex items-center gap-3 mb-3">
+                      <span className={`text-xs ${isLight ? 'text-gray-600' : 'text-gray-400'}`}>Right now:</span>
+                      <span className={`text-sm font-bold capitalize ${
+                        {'low':'text-green-400','moderate':'text-yellow-400','high':'text-orange-400','packed':'text-red-400'}[crowdPrediction.current_prediction.level] || 'text-gray-400'
+                      }`}>{crowdPrediction.current_prediction.level}</span>
                     </div>
-                    {crowdPrediction.note && <p className={`text-[10px] mt-2 ${isLight ? 'text-gray-400' : 'text-gray-500'}`}>{crowdPrediction.note}</p>}
+                    {/* Today summary */}
+                    {crowdPrediction.today_summary && (
+                      <div className="space-y-1.5">
+                        {crowdPrediction.today_summary.peak_hour != null && (
+                          <div className="flex items-center gap-2">
+                            <TrendingUp className="w-3 h-3 text-red-400" />
+                            <span className={`text-xs ${isLight ? 'text-gray-600' : 'text-gray-400'}`}>Peak:</span>
+                            <span className={`text-xs font-medium ${isLight ? 'text-gray-900' : 'text-white'}`}>
+                              {crowdPrediction.today_summary.peak_hour > 12 ? `${crowdPrediction.today_summary.peak_hour - 12}pm` : crowdPrediction.today_summary.peak_hour === 0 ? '12am' : `${crowdPrediction.today_summary.peak_hour}am`}
+                            </span>
+                            <span className={`text-[10px] capitalize ${isLight ? 'text-gray-500' : 'text-gray-500'}`}>({crowdPrediction.today_summary.peak_level})</span>
+                          </div>
+                        )}
+                        {crowdPrediction.today_summary.quiet_hour != null && (
+                          <div className="flex items-center gap-2">
+                            <Compass className="w-3 h-3 text-green-400" />
+                            <span className={`text-xs ${isLight ? 'text-gray-600' : 'text-gray-400'}`}>Quietest:</span>
+                            <span className={`text-xs font-medium ${isLight ? 'text-gray-900' : 'text-white'}`}>
+                              {crowdPrediction.today_summary.quiet_hour > 12 ? `${crowdPrediction.today_summary.quiet_hour - 12}pm` : crowdPrediction.today_summary.quiet_hour === 0 ? '12am' : `${crowdPrediction.today_summary.quiet_hour}am`}
+                            </span>
+                            <span className={`text-[10px] capitalize ${isLight ? 'text-gray-500' : 'text-gray-500'}`}>({crowdPrediction.today_summary.quiet_level})</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    <p className={`text-[10px] mt-3 ${isLight ? 'text-gray-400' : 'text-gray-500'}`}>Based on {crowdPrediction.data_points || 0} historical data points</p>
                   </div>
                 )}
 
+                {/* No intel data at all */}
                 {!crowdPrediction && !optimalTime && (
                   <div className="text-center py-8 text-gray-400">
                     <Brain className="w-10 h-10 mx-auto mb-2 opacity-30" />

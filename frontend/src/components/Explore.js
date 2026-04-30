@@ -37,26 +37,38 @@ const PostMediaPreview = ({ post, isHoverScale = true }) => {
   const isVideo = post?.media_type === 'video' || (mediaUrl && typeof mediaUrl === 'string' && mediaUrl.match(/\.(mp4|webm|ogg|mov)(\?.*)?$/i)) || post?.is_wave === true || typeof post?.view_count !== 'undefined';
   const thumbnailUrl = post?.thumbnail_url || (isVideo ? null : mediaUrl);
 
-  const formatUrl = (url) => {
-    if (!url) return null;
-    return url.startsWith('/api') ? `${process.env.REACT_APP_BACKEND_URL}${url}` : url;
-  };
-
-  const finalMediaUrl = formatUrl(mediaUrl);
-  const finalThumbnailUrl = formatUrl(thumbnailUrl);
+  // Use the project's getFullUrl utility for proper URL resolution (Supabase, backend, etc.)
+  const finalMediaUrl = getFullUrl(mediaUrl);
+  const finalThumbnailUrl = getFullUrl(thumbnailUrl);
   const hoverClass = isHoverScale ? "group-hover:scale-105 transition-transform duration-300" : "group-hover:opacity-80 transition-opacity duration-300";
 
   if (isVideo && finalMediaUrl) {
+    // If we have a proper thumbnail image, show it; otherwise show a styled placeholder
+    const hasImageThumb = finalThumbnailUrl && !finalThumbnailUrl.match(/\.(mp4|webm|ogg|mov)(\?.*)?$/i);
     return (
       <>
-        {/* Thumbnail-first: show poster image instead of autoPlaying video to save egress */}
-        <img
-          src={finalThumbnailUrl || finalMediaUrl}
-          alt=""
-          className={`w-full h-full object-cover absolute inset-0 ${hoverClass}`}
-          loading="lazy"
-          onError={(e) => { e.target.style.display = 'none'; }}
-        />
+        {hasImageThumb ? (
+          <img
+            src={finalThumbnailUrl}
+            alt=""
+            className={`w-full h-full object-cover absolute inset-0 ${hoverClass}`}
+            loading="lazy"
+            onError={(e) => {
+              // Fallback: try the video element poster approach
+              e.target.style.display = 'none';
+            }}
+          />
+        ) : (
+          /* For videos without a thumbnail image, render a video element to extract a frame */
+          <video
+            src={finalMediaUrl}
+            className={`w-full h-full object-cover absolute inset-0 ${hoverClass}`}
+            muted
+            preload="metadata"
+            playsInline
+            onLoadedData={(e) => { e.target.currentTime = 0.5; }}
+          />
+        )}
         <div className="absolute top-2 right-2 bg-black/60 rounded-full w-6 h-6 flex items-center justify-center opacity-80 shadow-md z-10">
           <Play className="w-3 h-3 text-white fill-white ml-0.5" />
         </div>
@@ -70,6 +82,7 @@ const PostMediaPreview = ({ post, isHoverScale = true }) => {
         src={finalThumbnailUrl || finalMediaUrl}
         alt=""
         className={`w-full h-full object-cover absolute inset-0 ${hoverClass}`}
+        loading="lazy"
       />
     );
   }
