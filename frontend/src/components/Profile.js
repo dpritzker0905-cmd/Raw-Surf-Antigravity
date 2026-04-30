@@ -56,6 +56,7 @@ import { getFullUrl } from '../utils/media';
 import { ROLES } from '../constants/roles';
 import AvatarCropModal from './AvatarCropModal';
 import { PhotographerSubscriptionPlans } from './PhotographerSubscriptionPlans';
+import TrustSignalBadges from './ui/TrustSignalBadges';
 
 // Resolve relative /api/uploads/... paths to backend absolute URLs
 
@@ -976,6 +977,13 @@ export const Profile = () => {
               </Badge>
             )}
           </div>
+
+          {/* Trust Signal Badges - Photographer social proof */}
+          {isProfilePhotographer && profileUserId && (
+            <div className="w-full max-w-sm mb-3">
+              <TrustSignalBadges profileId={profileUserId} compact />
+            </div>
+          )}
 
           {/* Earned Badges */}
           {gamificationStats.badges && gamificationStats.badges.length > 0 && (

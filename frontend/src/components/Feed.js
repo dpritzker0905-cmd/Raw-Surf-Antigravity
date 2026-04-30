@@ -20,6 +20,9 @@ import SessionCountdownWidget from './SessionCountdownWidget';
 import WavesFeed from './WavesFeed';
 import CreateWaveModal from './CreateWaveModal';
 import { MapPin, Flame, Plus, X, Check, Loader2, Navigation, Play, Users, Sparkles, RefreshCw } from 'lucide-react';
+import FeedSkeleton from './ui/FeedSkeleton';
+import LastUpdatedBanner from './ui/LastUpdatedBanner';
+import { useOfflineQueue } from '../hooks/useOfflineQueue';
 import { toast } from 'sonner';
 import { Button } from './ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from './ui/dialog';
@@ -201,6 +204,8 @@ export const Feed = () => {
   const effectiveRole = getEffectiveRole(user?.role);
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [feedLastUpdated, setFeedLastUpdated] = useState(null);
+  const { isOnline, queueAction } = useOfflineQueue();
   const [streak, setStreak] = useState({ current_streak: 0, checked_in_today: false });
   const [showCheckInModal, setShowCheckInModal] = useState(false);
   const [showCreateStoryModal, setShowCreateStoryModal] = useState(false);
@@ -571,10 +576,17 @@ export const Feed = () => {
       });
       if (response.data && response.data.length > 0) {
         // Map is_liked_by_user to liked for frontend state
-        setPosts(response.data.map(post => ({
+        const mappedPosts = response.data.map(post => ({
           ...post,
           liked: post.is_liked_by_user
-        })));
+        }));
+        setPosts(mappedPosts);
+        setFeedLastUpdated(new Date().toISOString());
+        // Cache last 20 posts for offline fallback
+        try {
+          localStorage.setItem('rawsurf_cached_feed', JSON.stringify(mappedPosts.slice(0, 20)));
+          localStorage.setItem('rawsurf_cached_feed_ts', new Date().toISOString());
+        } catch { /* localStorage full */ }
       } else {
         // Fallback demo posts if no real posts
         setPosts([
@@ -618,21 +630,34 @@ export const Feed = () => {
       }
     } catch (error) {
       logger.error('Error fetching posts:', error);
-      // Demo posts for error state
-      setPosts([
-        {
-          id: 'demo-1',
-          author_name: 'Pro Surfer Mike',
-          author_avatar: null,
-          media_url: 'https://images.unsplash.com/photo-1502680390469-be75c86b636f?w=600',
-          media_type: 'image',
-          caption: 'Dawn patrol at its finest! 🤙',
-          location: 'Pipeline, Hawaii',
-          likes_count: 247,
-          liked: false,
-          created_at: new Date().toISOString()
+      // Try loading cached feed before falling back to demo posts
+      try {
+        const cached = localStorage.getItem('rawsurf_cached_feed');
+        const cachedTs = localStorage.getItem('rawsurf_cached_feed_ts');
+        if (cached) {
+          setPosts(JSON.parse(cached));
+          setFeedLastUpdated(cachedTs || null);
+          logger.info('Loaded cached feed data');
+        } else {
+          throw new Error('No cache');
         }
-      ]);
+      } catch {
+        // Final fallback: demo posts
+        setPosts([
+          {
+            id: 'demo-1',
+            author_name: 'Pro Surfer Mike',
+            author_avatar: null,
+            media_url: 'https://images.unsplash.com/photo-1502680390469-be75c86b636f?w=600',
+            media_type: 'image',
+            caption: 'Dawn patrol at its finest! 🤙',
+            location: 'Pipeline, Hawaii',
+            likes_count: 247,
+            liked: false,
+            created_at: new Date().toISOString()
+          }
+        ]);
+      }
     } finally {
       setLoading(false);
     }
@@ -1328,8 +1353,8 @@ export const Feed = () => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64 theme-main-content">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-yellow-400"></div>
+      <div className="max-w-xl mx-auto theme-main-content pt-4 px-2">
+        <FeedSkeleton count={4} />
       </div>
     );
   }
@@ -1350,6 +1375,12 @@ export const Feed = () => {
 
   return (
     <div className={`max-w-xl mx-auto ${mainBgClass} min-h-screen transition-colors duration-300`} data-testid="feed-container">
+      {/* Offline / stale data banner */}
+      <LastUpdatedBanner
+        lastUpdatedAt={feedLastUpdated}
+        isOnline={isOnline}
+        onRefresh={fetchPosts}
+      />
       {/* Stories Bar at Top */}
       <StoriesBar 
         key={storiesKey}

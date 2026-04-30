@@ -6044,13 +6044,42 @@ async def find_me_in_gallery(
                    f"{'Try again tomorrow.' if is_premium else 'Upgrade to Premium for 10 scans/day.'}"
         )
     
-    # Get gallery and its items
+    # Get gallery (public OR private — access check below)
     gallery_result = await db.execute(
-        select(Gallery).where(Gallery.id == gallery_id, Gallery.is_public.is_(True))
+        select(Gallery).where(Gallery.id == gallery_id)
     )
     gallery = gallery_result.scalar_one_or_none()
     if not gallery:
-        raise HTTPException(status_code=404, detail="Gallery not found or not public")
+        raise HTTPException(status_code=404, detail="Gallery not found")
+    
+    # Access control: public = anyone, private = owner or session participants only
+    if not gallery.is_public:
+        if gallery.photographer_id == user_id:
+            pass  # Owner always has access
+        else:
+            # Check if user has a selection quota (= was assigned to this session)
+            quota_result = await db.execute(
+                select(SurferSelectionQuota).where(
+                    SurferSelectionQuota.surfer_id == user_id,
+                    SurferSelectionQuota.gallery_id == gallery_id
+                )
+            )
+            if not quota_result.scalar_one_or_none():
+                # Also check by live_session_id as a fallback
+                has_session_access = False
+                if gallery.live_session_id:
+                    session_quota = await db.execute(
+                        select(SurferSelectionQuota).where(
+                            SurferSelectionQuota.surfer_id == user_id,
+                            SurferSelectionQuota.live_session_id == gallery.live_session_id
+                        )
+                    )
+                    has_session_access = session_quota.scalar_one_or_none() is not None
+                if not has_session_access:
+                    raise HTTPException(
+                        status_code=403,
+                        detail="This gallery is private. Only session participants can scan it."
+                    )
     
     # Fetch gallery items (watermarked previews for AI analysis)
     items_query = select(GalleryItem).where(
@@ -6143,6 +6172,20 @@ async def find_me_in_gallery(
     )
     db.add(scan_log)
     await db.commit()
+    
+    # Fire push notification if matches were found (best-effort, never blocks response)
+    if matches:
+        try:
+            from routes.push import notify_photos_found_ai
+            spot_name = gallery.title or "Unknown Spot"
+            await notify_photos_found_ai(
+                surfer_id=user_id,
+                gallery_id=gallery_id,
+                match_count=len(matches),
+                spot_name=spot_name
+            )
+        except Exception as push_err:
+            gallery_logger.warning(f"Find-Me push notification failed: {push_err}")
     
     return {
         "matches": matches,

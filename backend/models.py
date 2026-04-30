@@ -5195,3 +5195,72 @@ class SurferPhotoSubscription(Base):
         Index('ix_surfer_photo_sub_photographer', 'photographer_id'),
         Index('ix_surfer_photo_sub_status', 'status'),
     )
+
+
+# ============================================================
+# SURF LOG — "BACKPACK" PERSONAL SESSION JOURNAL
+# ============================================================
+
+class SurfLogEntry(Base):
+    """
+    Personal surf journal entry.
+    Users can log sessions manually or auto-generate from completed bookings/dispatches.
+    """
+    __tablename__ = 'surf_log_entries'
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    user_id = Column(String(36), ForeignKey('profiles.id', ondelete='CASCADE'), nullable=False, index=True)
+
+    # When / Where
+    session_date = Column(Date, nullable=False, index=True)
+    session_time = Column(String(20), nullable=True)  # e.g., "06:30" (dawn patrol)
+    duration_minutes = Column(Integer, nullable=True)
+    spot_id = Column(String(36), ForeignKey('surf_spots.id', ondelete='SET NULL'), nullable=True)
+    spot_name = Column(String(255), nullable=True)  # Denormalized — persists even if spot deleted
+    latitude = Column(Float, nullable=True)
+    longitude = Column(Float, nullable=True)
+
+    # Conditions
+    wave_height = Column(String(50), nullable=True)   # e.g., "3-4ft"
+    wind_direction = Column(String(50), nullable=True) # "Offshore", "Cross-shore", etc.
+    tide_status = Column(String(50), nullable=True)    # "Rising", "Falling", "High", "Low"
+    water_temp = Column(String(30), nullable=True)     # "72°F" or "Warm"
+    crowd_level = Column(String(30), nullable=True)    # "Empty", "Light", "Moderate", "Packed"
+    conditions_rating = Column(Integer, nullable=True) # 1-5 stars for overall conditions
+
+    # Gear
+    board_model = Column(String(255), nullable=True)    # "5'10 Lost Puddle Jumper"
+    board_id = Column(String(36), nullable=True)        # FK to board catalog (optional)
+    wetsuit = Column(String(100), nullable=True)        # "3/2mm Fullsuit" or "Boardshorts"
+    fin_setup = Column(String(50), nullable=True)       # "Thruster", "Quad", "Twin"
+
+    # Personal notes
+    notes = Column(Text, nullable=True)        # Freeform journal text
+    mood = Column(String(30), nullable=True)   # "stoked", "chill", "frustrated", "epic"
+    personal_rating = Column(Integer, nullable=True)  # 1-5 stars for personal performance
+
+    # Media attachments (JSON array of URLs)
+    photo_urls = Column(JSON, nullable=True)  # ["https://...", ...]
+
+    # Linkage to platform sessions (auto-populate when available)
+    booking_id = Column(String(36), ForeignKey('bookings.id', ondelete='SET NULL'), nullable=True)
+    dispatch_id = Column(String(36), nullable=True)       # Not FK — dispatch may be deleted
+    live_session_id = Column(String(36), nullable=True)    # Not FK — session may be deleted
+    gallery_id = Column(String(36), nullable=True)         # Linked gallery if photos were purchased
+
+    # Source of entry
+    source = Column(String(30), default='manual')  # 'manual', 'auto_booking', 'auto_dispatch', 'auto_checkin'
+
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc),
+                        onupdate=lambda: datetime.now(timezone.utc))
+
+    # Relationships
+    user = relationship('Profile', backref='surf_log_entries')
+    spot = relationship('SurfSpot')
+    booking = relationship('Booking')
+
+    __table_args__ = (
+        Index('ix_surf_log_user_date', 'user_id', 'session_date'),
+    )
+

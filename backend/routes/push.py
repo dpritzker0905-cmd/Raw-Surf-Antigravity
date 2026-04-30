@@ -136,9 +136,16 @@ async def send_push_notification(
     title: str,
     message: str,
     data: Dict = {},
-    action_url: Optional[str] = None
+    action_url: Optional[str] = None,
+    urgent: bool = True
 ) -> Dict:
-    """Send push notification to user via OneSignal using external_id targeting"""
+    """
+    Send push notification to user via OneSignal using external_id targeting.
+    
+    Args:
+        urgent: If False, use timezone-aware delivery (OneSignal sends at 9:00 AM
+                in the user's timezone). Default True = send immediately.
+    """
     if not ONESIGNAL_APP_ID or not ONESIGNAL_REST_API_KEY:
         logger.warning("OneSignal not configured - skipping push notification")
         return {"status": "skipped", "reason": "OneSignal not configured"}
@@ -158,6 +165,11 @@ async def send_push_notification(
         "contents": {"en": message},
         "data": data
     }
+    
+    # Smart scheduling: non-urgent notifications respect timezone
+    if not urgent:
+        payload["delayed_option"] = "timezone"
+        payload["delivery_time_of_day"] = "9:00AM"
     
     if action_url:
         payload["web_url"] = action_url
@@ -626,3 +638,385 @@ async def notify_crew_session_confirmed(
     finally:
         if close_session:
             await db.close()
+
+
+# ============ NEW NOTIFICATION TRIGGERS (v2) ============
+
+
+async def notify_photographer_arrived(
+    surfer_id: str,
+    photographer_name: str,
+    dispatch_id: str,
+    db: AsyncSession = None
+):
+    """Push notification when photographer arrives at the meeting point."""
+    from routes.notification_preferences import should_send_notification
+    from database import AsyncSessionLocal
+
+    close_session = False
+    if db is None:
+        db = AsyncSessionLocal()
+        close_session = True
+
+    try:
+        if not await should_send_notification(surfer_id, 'dispatch', db):
+            return {"status": "skipped", "reason": "user_preference"}
+
+        return await send_push_notification(
+            user_id=surfer_id,
+            title=f"{photographer_name} has arrived! 📸",
+            message="Your photographer is at the meeting point. Time to shred!",
+            data={
+                "type": "photographer_arrived",
+                "dispatch_id": dispatch_id,
+                "photographer_name": photographer_name
+            },
+            action_url=f"/dispatch/{dispatch_id}/lobby"
+        )
+    finally:
+        if close_session:
+            await db.close()
+
+
+async def notify_session_completed(
+    surfer_id: str,
+    photographer_name: str,
+    dispatch_id: str,
+    duration_mins: int,
+    gallery_id: str = None,
+    db: AsyncSession = None
+):
+    """Push notification when session is marked complete."""
+    from routes.notification_preferences import should_send_notification
+    from database import AsyncSessionLocal
+
+    close_session = False
+    if db is None:
+        db = AsyncSessionLocal()
+        close_session = True
+
+    try:
+        if not await should_send_notification(surfer_id, 'dispatch', db):
+            return {"status": "skipped", "reason": "user_preference"}
+
+        dur_text = f"{duration_mins} min session" if duration_mins else "session"
+        deep_link = f"/gallery/{gallery_id}" if gallery_id else "/my-gallery"
+
+        return await send_push_notification(
+            user_id=surfer_id,
+            title="Session Complete! 🤙",
+            message=f"{photographer_name} finished your {dur_text}. Your gallery is being prepared!",
+            data={
+                "type": "session_completed",
+                "dispatch_id": dispatch_id,
+                "gallery_id": gallery_id,
+                "duration_mins": duration_mins
+            },
+            action_url=deep_link
+        )
+    finally:
+        if close_session:
+            await db.close()
+
+
+async def notify_photos_ready(
+    surfer_id: str,
+    photographer_name: str,
+    gallery_id: str,
+    photo_count: int = 0,
+    db: AsyncSession = None
+):
+    """Push notification when gallery photos are uploaded and ready for selection."""
+    from routes.notification_preferences import should_send_notification
+    from database import AsyncSessionLocal
+
+    close_session = False
+    if db is None:
+        db = AsyncSessionLocal()
+        close_session = True
+
+    try:
+        if not await should_send_notification(surfer_id, 'gallery', db):
+            return {"status": "skipped", "reason": "user_preference"}
+
+        count_text = f"{photo_count} photos" if photo_count else "Your photos"
+
+        return await send_push_notification(
+            user_id=surfer_id,
+            title="Your Photos Are Ready! 📸",
+            message=f"{photographer_name} uploaded {count_text}. Check them out!",
+            data={
+                "type": "photos_ready",
+                "gallery_id": gallery_id,
+                "photo_count": photo_count
+            },
+            action_url=f"/gallery/{gallery_id}"
+        )
+    finally:
+        if close_session:
+            await db.close()
+
+
+async def notify_photos_found_ai(
+    surfer_id: str,
+    gallery_id: str,
+    match_count: int,
+    spot_name: str = "",
+    db: AsyncSession = None
+):
+    """Push notification after AI Find-Me scan discovers photos of the user."""
+    from routes.notification_preferences import should_send_notification
+    from database import AsyncSessionLocal
+
+    close_session = False
+    if db is None:
+        db = AsyncSessionLocal()
+        close_session = True
+
+    try:
+        if not await should_send_notification(surfer_id, 'gallery', db):
+            return {"status": "skipped", "reason": "user_preference"}
+
+        location_text = f" from your session at {spot_name}" if spot_name else ""
+
+        return await send_push_notification(
+            user_id=surfer_id,
+            title=f"We found {match_count} photos of you! 🤖📸",
+            message=f"AI matched {match_count} photos{location_text}. Tap to view!",
+            data={
+                "type": "photos_found_ai",
+                "gallery_id": gallery_id,
+                "match_count": match_count
+            },
+            action_url=f"/gallery/{gallery_id}"
+        )
+    finally:
+        if close_session:
+            await db.close()
+
+
+async def notify_new_comment(
+    author_id: str,
+    commenter_name: str,
+    post_id: str,
+    preview: str = "",
+    db: AsyncSession = None
+):
+    """Push notification for new comment on a post."""
+    from routes.notification_preferences import should_send_notification
+    from database import AsyncSessionLocal
+
+    close_session = False
+    if db is None:
+        db = AsyncSessionLocal()
+        close_session = True
+
+    try:
+        if not await should_send_notification(author_id, 'social', db):
+            return {"status": "skipped", "reason": "user_preference"}
+
+        msg = f'"{preview[:80]}..."' if len(preview) > 80 else f'"{preview}"' if preview else "on your post"
+
+        return await send_push_notification(
+            user_id=author_id,
+            title=f"{commenter_name} commented",
+            message=f"{commenter_name} commented {msg}",
+            data={
+                "type": "new_comment",
+                "post_id": post_id,
+                "commenter_name": commenter_name
+            },
+            action_url=f"/post/{post_id}",
+            urgent=False  # Non-urgent: smart-scheduled
+        )
+    finally:
+        if close_session:
+            await db.close()
+
+
+async def notify_mention(
+    mentioned_user_id: str,
+    mentioner_name: str,
+    post_id: str,
+    db: AsyncSession = None
+):
+    """Push notification when a user is @mentioned in a post or comment."""
+    from routes.notification_preferences import should_send_notification
+    from database import AsyncSessionLocal
+
+    close_session = False
+    if db is None:
+        db = AsyncSessionLocal()
+        close_session = True
+
+    try:
+        if not await should_send_notification(mentioned_user_id, 'social', db):
+            return {"status": "skipped", "reason": "user_preference"}
+
+        return await send_push_notification(
+            user_id=mentioned_user_id,
+            title=f"{mentioner_name} mentioned you",
+            message=f"{mentioner_name} mentioned you in a post. Tap to see!",
+            data={
+                "type": "mention",
+                "post_id": post_id,
+                "mentioner_name": mentioner_name
+            },
+            action_url=f"/post/{post_id}"
+        )
+    finally:
+        if close_session:
+            await db.close()
+
+
+async def notify_surf_alert_triggered(
+    user_id: str,
+    spot_name: str,
+    spot_id: str,
+    alert_summary: str,
+    db: AsyncSession = None
+):
+    """Push notification when a user's surf alert conditions are met."""
+    from routes.notification_preferences import should_send_notification
+    from database import AsyncSessionLocal
+
+    close_session = False
+    if db is None:
+        db = AsyncSessionLocal()
+        close_session = True
+
+    try:
+        if not await should_send_notification(user_id, 'alerts', db):
+            return {"status": "skipped", "reason": "user_preference"}
+
+        return await send_push_notification(
+            user_id=user_id,
+            title=f"🌊 Surf Alert: {spot_name}",
+            message=alert_summary,
+            data={
+                "type": "surf_alert",
+                "spot_id": spot_id,
+                "spot_name": spot_name
+            },
+            action_url=f"/spot-hub/{spot_id}"
+        )
+    finally:
+        if close_session:
+            await db.close()
+
+
+async def notify_booking_reminder(
+    user_id: str,
+    photographer_name: str,
+    booking_id: str,
+    location: str,
+    time_until: str,
+    db: AsyncSession = None
+):
+    """Push notification for upcoming booking reminder (1hr / 24hr before)."""
+    from routes.notification_preferences import should_send_notification
+    from database import AsyncSessionLocal
+
+    close_session = False
+    if db is None:
+        db = AsyncSessionLocal()
+        close_session = True
+
+    try:
+        if not await should_send_notification(user_id, 'bookings', db):
+            return {"status": "skipped", "reason": "user_preference"}
+
+        return await send_push_notification(
+            user_id=user_id,
+            title=f"Session in {time_until}! 🏄",
+            message=f"Your session with {photographer_name} at {location} starts in {time_until}.",
+            data={
+                "type": "booking_reminder",
+                "booking_id": booking_id,
+                "time_until": time_until
+            },
+            action_url="/bookings"
+        )
+    finally:
+        if close_session:
+            await db.close()
+
+
+async def notify_gallery_purchase(
+    photographer_id: str,
+    buyer_name: str,
+    gallery_id: str,
+    item_count: int,
+    amount: float,
+    db: AsyncSession = None
+):
+    """Push notification to photographer when someone purchases gallery items."""
+    from routes.notification_preferences import should_send_notification
+    from database import AsyncSessionLocal
+
+    close_session = False
+    if db is None:
+        db = AsyncSessionLocal()
+        close_session = True
+
+    try:
+        if not await should_send_notification(photographer_id, 'gallery', db):
+            return {"status": "skipped", "reason": "user_preference"}
+
+        items_text = f"{item_count} photo{'s' if item_count != 1 else ''}"
+
+        return await send_push_notification(
+            user_id=photographer_id,
+            title=f"New Sale! 💰 ${amount:.2f}",
+            message=f"{buyer_name} purchased {items_text} from your gallery!",
+            data={
+                "type": "gallery_purchase",
+                "gallery_id": gallery_id,
+                "buyer_name": buyer_name,
+                "amount": amount
+            },
+            action_url=f"/gallery/{gallery_id}",
+            urgent=False  # Non-urgent: smart-scheduled
+        )
+    finally:
+        if close_session:
+            await db.close()
+
+
+async def notify_review_received(
+    photographer_id: str,
+    reviewer_name: str,
+    rating: float,
+    db: AsyncSession = None
+):
+    """Push notification to photographer when they receive a new review."""
+    from routes.notification_preferences import should_send_notification
+    from database import AsyncSessionLocal
+
+    close_session = False
+    if db is None:
+        db = AsyncSessionLocal()
+        close_session = True
+
+    try:
+        if not await should_send_notification(photographer_id, 'social', db):
+            return {"status": "skipped", "reason": "user_preference"}
+
+        stars = "⭐" * int(rating)
+
+        return await send_push_notification(
+            user_id=photographer_id,
+            title=f"New Review! {stars}",
+            message=f"{reviewer_name} left you a {rating:.1f}-star review. Nice work!",
+            data={
+                "type": "review_received",
+                "reviewer_name": reviewer_name,
+                "rating": rating
+            },
+            action_url="/profile",
+            urgent=False  # Non-urgent: smart-scheduled
+        )
+    finally:
+        if close_session:
+            await db.close()
+

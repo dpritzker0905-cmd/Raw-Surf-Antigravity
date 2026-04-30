@@ -316,6 +316,117 @@ async def get_profile(profile_id: str, db: AsyncSession = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Profile not found")
     return profile_to_response(profile)
 
+
+@router.get("/profiles/{profile_id}/trust-signals")
+async def get_trust_signals(profile_id: str, db: AsyncSession = Depends(get_db)):
+    """
+    Social proof data for a photographer's profile.
+    Returns total completed sessions, average on-demand response time,
+    category-level review averages, and verification status.
+    """
+    from models import Booking, DispatchRequest, Review
+    from sqlalchemy import func as sql_func
+
+    # Verify profile exists
+    prof_result = await db.execute(select(Profile).where(Profile.id == profile_id))
+    profile = prof_result.scalar_one_or_none()
+    if not profile:
+        raise HTTPException(status_code=404, detail="Profile not found")
+
+    # Total completed sessions (bookings + dispatches)
+    booking_count_result = await db.execute(
+        sql_func.count(Booking.id).select().where(
+            Booking.photographer_id == profile_id,
+            Booking.status == 'Completed'
+        )
+    )
+    total_bookings = booking_count_result.scalar() or 0
+
+    dispatch_count_result = await db.execute(
+        sql_func.count(DispatchRequest.id).select().where(
+            DispatchRequest.photographer_id == profile_id,
+            DispatchRequest.status == 'completed'
+        )
+    )
+    total_dispatches = dispatch_count_result.scalar() or 0
+
+    total_sessions = total_bookings + total_dispatches
+
+    # Average on-demand response time (in seconds)
+    avg_response_minutes = None
+    try:
+        avg_resp_result = await db.execute(
+            sql_func.avg(
+                sql_func.extract('epoch', DispatchRequest.accepted_at - DispatchRequest.created_at)
+            ).select().where(
+                DispatchRequest.photographer_id == profile_id,
+                DispatchRequest.accepted_at.isnot(None)
+            )
+        )
+        avg_response_seconds = avg_resp_result.scalar()
+        if avg_response_seconds is not None:
+            avg_response_minutes = round(avg_response_seconds / 60)
+    except Exception:
+        pass
+
+    # Review category averages
+    review_breakdown = {}
+    try:
+        review_result = await db.execute(
+            sql_func.count(Review.id).select().where(Review.reviewee_id == profile_id)
+        )
+        total_reviews = review_result.scalar() or 0
+
+        if total_reviews > 0:
+            # Get average for each category rating column
+            for col_name in ['photo_quality_rating', 'communication_rating', 'punctuality_rating']:
+                col = getattr(Review, col_name, None)
+                if col is not None:
+                    cat_result = await db.execute(
+                        sql_func.avg(col).select().where(
+                            Review.reviewee_id == profile_id,
+                            col.isnot(None)
+                        )
+                    )
+                    cat_avg = cat_result.scalar()
+                    if cat_avg is not None:
+                        label = col_name.replace('_rating', '')
+                        review_breakdown[label] = round(float(cat_avg), 1)
+
+            # Overall average
+            overall_result = await db.execute(
+                sql_func.avg(Review.rating).select().where(
+                    Review.reviewee_id == profile_id
+                )
+            )
+            overall = overall_result.scalar()
+            review_breakdown['overall'] = round(float(overall), 1) if overall else 0
+            review_breakdown['count'] = total_reviews
+    except Exception:
+        review_breakdown = {}
+
+    # Session tier label
+    if total_sessions >= 500:
+        session_tier = "legend"
+    elif total_sessions >= 100:
+        session_tier = "veteran"
+    elif total_sessions >= 50:
+        session_tier = "experienced"
+    elif total_sessions >= 10:
+        session_tier = "established"
+    else:
+        session_tier = "new"
+
+    return {
+        "profile_id": profile_id,
+        "is_verified": profile.is_verified or False,
+        "is_approved_pro": profile.is_approved_pro or False,
+        "total_sessions": total_sessions,
+        "session_tier": session_tier,
+        "avg_response_minutes": avg_response_minutes,
+        "review_breakdown": review_breakdown,
+    }
+
 @router.patch("/profiles/{profile_id}", response_model=ProfileResponse)
 async def update_profile(profile_id: str, data: ProfileUpdate, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(Profile).where(Profile.id == profile_id))
