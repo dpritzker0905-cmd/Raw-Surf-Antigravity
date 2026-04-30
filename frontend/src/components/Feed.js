@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import apiClient from '../lib/apiClient';
-import { getNotifications, getUnreadCount, markRead, markAllRead, sendNotification, sendPhotographerAlert, createNotification, markAlertRead } from '../services/notificationService';
+import { createNotification } from '../services/notificationService';
 
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
@@ -205,7 +205,7 @@ export const Feed = () => {
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [feedLastUpdated, setFeedLastUpdated] = useState(null);
-  const { isOnline, queueAction } = useOfflineQueue();
+  const { isOnline, _queueAction } = useOfflineQueue();
   const [streak, setStreak] = useState({ current_streak: 0, checked_in_today: false });
   const [showCheckInModal, setShowCheckInModal] = useState(false);
   const [showCreateStoryModal, setShowCreateStoryModal] = useState(false);
