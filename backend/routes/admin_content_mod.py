@@ -6,7 +6,7 @@ Admin Content Moderation Queue
 """
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, and_, update, desc
+from sqlalchemy import select, func, and_, update, desc, delete
 from pydantic import BaseModel
 from typing import Optional, List
 from datetime import datetime, timezone, timedelta
@@ -113,26 +113,16 @@ async def moderate_content(
     status_map = {
         "approve": ContentModerationStatusEnum.APPROVED,
         "reject": ContentModerationStatusEnum.REJECTED,
-        "escalate": ContentModerationStatusEnum.ESCALATED
+        "escalate": ContentModerationStatusEnum.ESCALATED,
+        "delete": ContentModerationStatusEnum.REJECTED  # delete = hard reject
     }
     
     new_status = status_map.get(request.action)
     if not new_status:
         raise HTTPException(status_code=400, detail="Invalid action")
     
-    await db.execute(
-        update(ContentModerationItem)
-        .where(ContentModerationItem.id == item_id)
-        .values(
-            status=new_status,
-            reviewed_by=admin.id,
-            reviewed_at=datetime.now(timezone.utc),
-            rejection_reason=request.rejection_reason if request.action == "reject" else None
-        )
-    )
-    
-    # If rejected, also hide/deactivate the original content
-    if request.action == "reject":
+    # If rejecting or deleting, remove the original content first
+    if request.action in ("reject", "delete"):
         if item.content_type == "gallery_item":
             await db.execute(
                 update(GalleryItem)
@@ -146,11 +136,35 @@ async def moderate_content(
                 .values(is_hidden=True)
             )
         elif item.content_type == "condition_report":
+            # Hard-delete the condition report — setting is_active=False is not
+            # sufficient because orphaned reports can still appear through
+            # various query paths. Permanent removal is the correct action.
             await db.execute(
-                update(ConditionReport)
+                delete(ConditionReport)
                 .where(ConditionReport.id == item.content_id)
-                .values(is_active=False)
             )
+        
+        # Hard-delete the moderation queue entry itself so it never
+        # reappears in any status filter (pending, rejected, etc.)
+        await log_audit(db, admin.id, "content_moderation", f"{request.action} content {item.content_type}:{item.content_id}")
+        await db.execute(
+            delete(ContentModerationItem)
+            .where(ContentModerationItem.id == item_id)
+        )
+        await db.commit()
+        return {"success": True, "message": f"Content permanently removed"}
+    
+    # For approve / escalate — update status only
+    await db.execute(
+        update(ContentModerationItem)
+        .where(ContentModerationItem.id == item_id)
+        .values(
+            status=new_status,
+            reviewed_by=admin.id,
+            reviewed_at=datetime.now(timezone.utc),
+            rejection_reason=request.rejection_reason if request.action == "reject" else None
+        )
+    )
     
     await log_audit(db, admin.id, "content_moderation", f"{request.action} content {item.content_type}:{item.content_id}")
     await db.commit()
@@ -169,26 +183,8 @@ async def bulk_moderate_content(
     if request.action not in ["approve", "reject"]:
         raise HTTPException(status_code=400, detail="Bulk action must be 'approve' or 'reject'")
     
-    status_map = {
-        "approve": ContentModerationStatusEnum.APPROVED,
-        "reject": ContentModerationStatusEnum.REJECTED
-    }
-    
-    new_status = status_map[request.action]
-    
-    await db.execute(
-        update(ContentModerationItem)
-        .where(ContentModerationItem.id.in_(request.item_ids))
-        .values(
-            status=new_status,
-            reviewed_by=admin.id,
-            reviewed_at=datetime.now(timezone.utc),
-            rejection_reason=request.rejection_reason if request.action == "reject" else None
-        )
-    )
-    
-    # If rejecting, hide/deactivate the original content
     if request.action == "reject":
+        # For rejection: hard-delete original content, then hard-delete moderation entries
         items = await db.execute(
             select(ContentModerationItem)
             .where(ContentModerationItem.id.in_(request.item_ids))
@@ -199,7 +195,27 @@ async def bulk_moderate_content(
             elif item.content_type == "post":
                 await db.execute(update(Post).where(Post.id == item.content_id).values(is_hidden=True))
             elif item.content_type == "condition_report":
-                await db.execute(update(ConditionReport).where(ConditionReport.id == item.content_id).values(is_active=False))
+                # Hard-delete the condition report entirely
+                await db.execute(
+                    delete(ConditionReport).where(ConditionReport.id == item.content_id)
+                )
+        
+        # Hard-delete all moderation queue entries so they never reappear
+        await db.execute(
+            delete(ContentModerationItem)
+            .where(ContentModerationItem.id.in_(request.item_ids))
+        )
+    else:
+        # For approval: update status only
+        await db.execute(
+            update(ContentModerationItem)
+            .where(ContentModerationItem.id.in_(request.item_ids))
+            .values(
+                status=ContentModerationStatusEnum.APPROVED,
+                reviewed_by=admin.id,
+                reviewed_at=datetime.now(timezone.utc)
+            )
+        )
     
     await log_audit(db, admin.id, "content_moderation", f"bulk_{request.action} {len(request.item_ids)} items")
     await db.commit()
