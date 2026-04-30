@@ -7,8 +7,8 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { 
   Camera, Settings, DollarSign, MapPin, Flame, 
   Grid3X3, Bookmark, UserSquare2, Play, Waves, ExternalLink,
-  Instagram, Globe, Check, Loader2, UserPlus, UserMinus, ArrowLeft, Heart, Award,
-  Zap, CalendarClock, Clock, Calculator, Users, Radio, Image, Shield, Trophy, Pin, MoreHorizontal, Ban, Flag, AlertTriangle,
+  Instagram, Globe, Check, Loader2, UserPlus, UserMinus, ArrowLeft, Heart,
+  Users, Radio, Image, Shield, Trophy, MoreHorizontal, Ban, Flag,
   Star
 } from 'lucide-react';
 
@@ -35,13 +35,9 @@ const SurfboardIcon = ({ className = "w-5 h-5" }) => (
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from './ui/dialog';
-import { Input } from './ui/input';
-import { Textarea } from './ui/textarea';
 import { toast } from 'sonner';
 import { TaggedPhotoModal } from './TaggedPhotoModal';
 import { XPDisplay, BadgeRow } from './GamificationUI';
-import { NumericStepper } from './ui/numeric-stepper';
 import GoLiveModal from './GoLiveModal';
 import { StokedTab } from './StokedTab';
 import { CrewLeaderboard } from './CrewLeaderboard';
@@ -57,6 +53,19 @@ import { ROLES } from '../constants/roles';
 import AvatarCropModal from './AvatarCropModal';
 import { PhotographerSubscriptionPlans } from './PhotographerSubscriptionPlans';
 import TrustSignalBadges from './ui/TrustSignalBadges';
+
+// Extracted hooks
+import { useProfileBlock } from '../hooks/useProfileBlock';
+import { useProfileNotes } from '../hooks/useProfileNotes';
+import { useProfileQuickBook } from '../hooks/useProfileQuickBook';
+
+// Extracted sub-components
+import { ProfileEditModal } from './ProfileEditModal';
+import { ProfileQuickBookModal } from './ProfileQuickBookModal';
+import { ProfileNoteModal } from './ProfileNoteModal';
+import { ProfileBlockModal } from './ProfileBlockModal';
+import { BadgeSection } from './BadgeSection';
+import { MediaGridItem } from './MediaGridItem';
 
 // Resolve relative /api/uploads/... paths to backend absolute URLs
 
@@ -131,32 +140,21 @@ export const Profile = () => {
   const [showFollowersModal, setShowFollowersModal] = useState(false);
   const [followersModalType, setFollowersModalType] = useState('followers'); // 'followers' or 'following'
 
-  // ============ BLOCK USER STATE ============
-  const [isBlocked, setIsBlocked] = useState(false);
-  const [isBlockedByThem, setIsBlockedByThem] = useState(false);
-  const [showBlockModal, setShowBlockModal] = useState(false);
-  const [blockReason, setBlockReason] = useState('');
-  const [blockNotes, setBlockNotes] = useState('');
-  const [blockLoading, setBlockLoading] = useState(false);
-  const [showMoreMenu, setShowMoreMenu] = useState(false);
+  // ============ BLOCK USER (extracted hook) ============
+  const blockHook = useProfileBlock(user?.id, profileUserId, isOwnProfile, {
+    onBlocked: () => {
+      if (isFollowing) {
+        setIsFollowing(false);
+        setSocialStats(prev => ({ ...prev, followers: Math.max(0, prev.followers - 1) }));
+      }
+    }
+  });
 
-  // ============ NOTES STATE (Instagram-style) ============
-  const [userNote, setUserNote] = useState(null);
-  const [_isMutualFollower, setIsMutualFollower] = useState(false);
-  const [showNoteModal, setShowNoteModal] = useState(false);
-  const [noteText, setNoteText] = useState('');
-  const [noteSubmitting, setNoteSubmitting] = useState(false);
+  // ============ NOTES (extracted hook) ============
+  const notesHook = useProfileNotes(profileUserId, user?.id);
 
-  // ============ QUICK BOOK STATE ============
-  const [showQuickBookModal, setShowQuickBookModal] = useState(false);
-  const [quickBookType, setQuickBookType] = useState('on-demand'); // 'on-demand' or 'scheduled'
-  const [quickBookDuration, setQuickBookDuration] = useState(1);
-  const [quickBookLoading, setQuickBookLoading] = useState(false);
-  const [photographerPricing, setPhotographerPricing] = useState(null);
-  const [userLocation, setUserLocation] = useState(null);
-  
-  // ============ SCHEDULED BOOKING DRAWER STATE ============
-  const [showScheduledBookingDrawer, setShowScheduledBookingDrawer] = useState(false);
+  // ============ QUICK BOOK (extracted hook) ============
+  const quickBookHook = useProfileQuickBook(user, profileUserId, profile);
 
   // Check if profile is on-demand active (for Quick Book feature)
   const isOnDemandActive = profile?.on_demand_active === true;
@@ -174,10 +172,10 @@ export const Profile = () => {
       fetchContentStats();
       fetchImpactScore();
       fetchGamificationStats();
-      fetchUserNote(); // Fetch the profile user's note
+      notesHook.fetchUserNote(); // Fetch the profile user's note
       if (!isOwnProfile && user) {
         checkFollowStatus();
-        checkBlockStatus();
+        blockHook.checkBlockStatus();
       }
     }
   }, [profileUserId, isOwnProfile, authLoading, user]);
@@ -275,47 +273,7 @@ export const Profile = () => {
     }
   };
 
-  // Fetch the profile user's Note (Instagram-style)
-  const fetchUserNote = async () => {
-    if (!profileUserId || !user?.id) return;
-    try {
-      const response = await apiClient.get(`/notes/user/${profileUserId}?viewer_id=${user.id}`);
-      setUserNote(response.data.note);
-      setIsMutualFollower(response.data.is_mutual_follower);
-    } catch (error) {
-      logger.error('Error fetching user note:', error);
-      setUserNote(null);
-    }
-  };
-
-  // Create/update a note (for own profile)
-  const handleCreateNote = async () => {
-    if (!noteText.trim() || noteSubmitting) return;
-    setNoteSubmitting(true);
-    try {
-      await apiClient.post(`/notes/create`, { content: noteText.trim() });
-      toast.success('Note shared with mutual followers!');
-      setShowNoteModal(false);
-      setNoteText('');
-      fetchUserNote();
-    } catch (error) {
-      toast.error('Failed to share note');
-    } finally {
-      setNoteSubmitting(false);
-    }
-  };
-
-  // Delete note
-  const handleDeleteNote = async () => {
-    try {
-      await apiClient.delete(`/notes/delete`);
-      setUserNote(null);
-      setShowNoteModal(false);
-      toast.success('Note deleted');
-    } catch (error) {
-      toast.error('Failed to delete note');
-    }
-  };
+  // Note handlers moved to notesHook (useProfileNotes)
 
   const checkFollowStatus = async () => {
     if (!user?.id || !profileUserId) return;
@@ -364,159 +322,7 @@ export const Profile = () => {
     }
   };
 
-  // ============ BLOCK USER FUNCTIONS ============
-  const checkBlockStatus = async () => {
-    if (!user?.id || !profileUserId || isOwnProfile) return;
-    try {
-      const response = await apiClient.get(`/users/${user.id}/is-blocked/${profileUserId}`);
-      setIsBlocked(response.data.user_blocked_other);
-      setIsBlockedByThem(response.data.other_blocked_user);
-    } catch (error) {
-      logger.error('Error checking block status:', error);
-    }
-  };
-
-  const handleBlockUser = async () => {
-    if (!user?.id || !profileUserId) return;
-    
-    setBlockLoading(true);
-    try {
-      await apiClient.post(`/users/block`, {
-        blocker_id: user.id,
-        blocked_id: profileUserId,
-        reason: blockReason || null,
-        notes: blockNotes || null,
-        auto_report: blockReason === 'harassment' || blockReason === 'scam'
-      });
-      
-      setIsBlocked(true);
-      setShowBlockModal(false);
-      setBlockReason('');
-      setBlockNotes('');
-      toast.success(`${profile?.full_name || 'User'} has been blocked`);
-      
-      // Unfollowing happens automatically on backend
-      if (isFollowing) {
-        setIsFollowing(false);
-        setSocialStats(prev => ({ ...prev, followers: Math.max(0, prev.followers - 1) }));
-      }
-    } catch (error) {
-      toast.error(error.response?.data?.detail || 'Failed to block user');
-    } finally {
-      setBlockLoading(false);
-    }
-  };
-
-  const handleUnblockUser = async () => {
-    if (!user?.id || !profileUserId) return;
-    
-    setBlockLoading(true);
-    try {
-      await apiClient.post(`/users/unblock`, {
-        blocker_id: user.id,
-        blocked_id: profileUserId
-      });
-      
-      setIsBlocked(false);
-      toast.success(`${profile?.full_name || 'User'} has been unblocked`);
-    } catch (error) {
-      toast.error(error.response?.data?.detail || 'Failed to unblock user');
-    } finally {
-      setBlockLoading(false);
-    }
-  };
-
-  // ============ QUICK BOOK FUNCTIONS ============
-  const fetchPhotographerPricing = async () => {
-    if (!profileUserId) return;
-    try {
-      const res = await apiClient.get(`/photographer/${profileUserId}/pricing`);
-      setPhotographerPricing(res.data);
-    } catch (e) {
-      logger.error('Error fetching photographer pricing:', e);
-    }
-  };
-
-  const getUserLocation = () => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          setUserLocation({
-            latitude: position.coords.latitude,
-            longitude: position.coords.longitude
-          });
-        },
-        (error) => {
-          logger.debug('Geolocation error:', error);
-        }
-      );
-    }
-  };
-
-  const handleQuickBookOpen = (type) => {
-    if (type === 'scheduled') {
-      // Open ScheduledBookingDrawer directly with photographer pre-selected
-      fetchPhotographerPricing();
-      setShowScheduledBookingDrawer(true);
-    } else {
-      // On-demand flow - uses quick book modal
-      setQuickBookType(type);
-      setQuickBookDuration(1);
-      fetchPhotographerPricing();
-      getUserLocation();
-      setShowQuickBookModal(true);
-    }
-  };
-
-  const handleQuickBookSubmit = async () => {
-    if (!user) {
-      toast.error('Please log in to book');
-      return;
-    }
-
-    setQuickBookLoading(true);
-    try {
-      if (quickBookType === 'on-demand') {
-        // Submit On-Demand request using correct API format
-        // API expects: requester_id as query param, CreateDispatchRequest in body
-        await apiClient.post(`/dispatch/request?requester_id=${user.id}`, {
-          latitude: userLocation?.latitude || 0,
-          longitude: userLocation?.longitude || 0,
-          estimated_duration_hours: quickBookDuration,
-          is_immediate: true,
-          target_photographer_id: profileUserId
-        });
-        toast.success('On-Demand request sent!');
-        setShowQuickBookModal(false);
-      } else {
-        // Navigate to full booking page with pre-filled data
-        navigate('/bookings', { 
-          state: { 
-            selectedPhotographer: profileUserId,
-            bookingDuration: quickBookDuration,
-            fromQuickBook: true
-          }
-        });
-        setShowQuickBookModal(false);
-      }
-    } catch (error) {
-      const detail = error.response?.data?.detail;
-      // Handle off-duty / unavailable error specifically
-      if (detail && detail.includes('not currently available')) {
-        toast.error('Photographer is currently off-duty. Try scheduling a session instead.');
-      } else {
-        toast.error(detail || 'Failed to process booking');
-      }
-    } finally {
-      setQuickBookLoading(false);
-    }
-  };
-
-  // Calculate quick book pricing
-  const quickBookHourlyRate = quickBookType === 'on-demand' 
-    ? (photographerPricing?.on_demand_hourly_rate || profile?.on_demand_hourly_rate || 75)
-    : (photographerPricing?.booking_hourly_rate || 75);
-  const quickBookTotal = quickBookHourlyRate * quickBookDuration;
+  // Block/Notes/QuickBook handlers are now in extracted hooks (blockHook, notesHook, quickBookHook)
 
   const fetchTabContent = async (tab) => {
     setTabLoading(true);
@@ -724,36 +530,36 @@ export const Profile = () => {
       <div className="max-w-2xl mx-auto px-4 pt-6">
         
         {/* Blocked Banner - Show when either user has blocked the other */}
-        {!isOwnProfile && (isBlocked || isBlockedByThem) && (
+        {!isOwnProfile && (blockHook.isBlocked || blockHook.isBlockedByThem) && (
           <div className={`mb-4 p-3 rounded-xl border flex items-center gap-3 ${
-            isBlockedByThem 
+            blockHook.isBlockedByThem 
               ? 'bg-zinc-800/50 border-zinc-600' 
               : 'bg-red-500/10 border-red-500/30'
           }`}>
-            <Ban className={`w-5 h-5 flex-shrink-0 ${isBlockedByThem ? 'text-zinc-400' : 'text-red-400'}`} />
+            <Ban className={`w-5 h-5 flex-shrink-0 ${blockHook.isBlockedByThem ? 'text-zinc-400' : 'text-red-400'}`} />
             <div className="flex-1">
-              <p className={`text-sm font-medium ${isBlockedByThem ? 'text-zinc-300' : 'text-red-400'}`}>
-                {isBlockedByThem 
+              <p className={`text-sm font-medium ${blockHook.isBlockedByThem ? 'text-zinc-300' : 'text-red-400'}`}>
+                {blockHook.isBlockedByThem 
                   ? 'This user has restricted their profile' 
                   : `You have blocked ${profile?.full_name || 'this user'}`
                 }
               </p>
               <p className="text-xs text-zinc-500">
-                {isBlockedByThem
+                {blockHook.isBlockedByThem
                   ? 'You cannot view their posts or send them messages.'
                   : 'They cannot see your posts or contact you.'
                 }
               </p>
             </div>
-            {isBlocked && !isBlockedByThem && (
+            {blockHook.isBlocked && !blockHook.isBlockedByThem && (
               <Button
-                onClick={handleUnblockUser}
-                disabled={blockLoading}
+                onClick={() => blockHook.handleUnblockUser(profile?.full_name)}
+                disabled={blockHook.blockLoading}
                 size="sm"
                 variant="outline"
                 className="border-zinc-600 text-zinc-300 hover:text-white"
               >
-                {blockLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Unblock'}
+                {blockHook.blockLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Unblock'}
               </Button>
             )}
           </div>
@@ -773,14 +579,14 @@ export const Profile = () => {
           {/* Avatar with Note Bubble, Live/Shooting rings */}
           <div className="relative group mb-2 z-10">
             {/* Note Bubble - positioned ABOVE avatar (only when note exists) */}
-            {userNote && (
+            {notesHook.userNote && (
               <button
-                onClick={() => setShowNoteModal(true)}
+                onClick={() => notesHook.setShowNoteModal(true)}
                 className="absolute -top-4 left-1/2 -translate-x-1/2 z-20 animate-in fade-in zoom-in duration-300"
                 data-testid="profile-note-bubble"
               >
                 <div className="bg-zinc-900/95 backdrop-blur-sm border border-emerald-400 rounded-full px-3 py-1.5 max-w-[160px] shadow-lg hover:scale-105 transition-transform">
-                  <p className="text-xs text-gray-100 truncate text-center font-medium">{userNote.content}</p>
+                  <p className="text-xs text-gray-100 truncate text-center font-medium">{notesHook.userNote.content}</p>
                 </div>
                 <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-zinc-900/95 border-r border-b border-emerald-400 rotate-45" />
               </button>
@@ -793,12 +599,12 @@ export const Profile = () => {
                   ? 'bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-500 animate-pulse' 
                   : profile.is_shooting
                     ? 'bg-gradient-to-tr from-cyan-400 via-blue-500 to-indigo-500'
-                    : userNote 
+                    : notesHook.userNote 
                       ? 'bg-gradient-to-br from-emerald-400 via-green-500 to-teal-500'
                       : 'bg-gradient-to-br from-zinc-700 to-zinc-800'
               }`}
-              onClick={() => userNote && setShowNoteModal(true)}
-              style={{ cursor: userNote ? 'pointer' : 'default' }}
+              onClick={() => notesHook.userNote && notesHook.setShowNoteModal(true)}
+              style={{ cursor: notesHook.userNote ? 'pointer' : 'default' }}
             >
               <Avatar className={`w-28 h-28 md:w-32 md:h-32 border-4 border-black ${profile.is_logo_avatar ? 'bg-black' : ''}`} data-testid="profile-avatar">
                 <AvatarImage 
@@ -873,11 +679,11 @@ export const Profile = () => {
           </div>
 
           {/* Add Note button - BELOW avatar, only when NO note exists */}
-          {isOwnProfile && !userNote && (
+          {isOwnProfile && !notesHook.userNote && (
             <button
               onClick={() => {
-                setNoteText('');
-                setShowNoteModal(true);
+                notesHook.setNoteText('');
+                notesHook.setShowNoteModal(true);
               }}
               className="mb-2"
               data-testid="add-note-btn"
@@ -1148,7 +954,7 @@ export const Profile = () => {
               {/* More Options (Block, Report) */}
               <div className="relative">
                 <Button
-                  onClick={() => setShowMoreMenu(!showMoreMenu)}
+                  onClick={() => blockHook.setShowMoreMenu(!blockHook.showMoreMenu)}
                   variant="outline"
                   className="h-10 w-10 p-0 border-zinc-700"
                   data-testid="more-options-button"
@@ -1156,27 +962,27 @@ export const Profile = () => {
                   <MoreHorizontal className="w-4 h-4 text-white" />
                 </Button>
                 
-                {showMoreMenu && (
+                {blockHook.showMoreMenu && (
                   <>
                     {/* Click outside to close */}
                     <div 
                       className="fixed inset-0 z-40" 
-                      onClick={() => setShowMoreMenu(false)} 
+                      onClick={() => blockHook.setShowMoreMenu(false)} 
                     />
                     
                     {/* Menu dropdown */}
                     <div className="absolute right-0 top-12 z-50 w-48 bg-zinc-800 border border-zinc-700 rounded-xl shadow-xl py-1">
-                      {isBlocked ? (
+                      {blockHook.isBlocked ? (
                         <button
                           onClick={() => {
-                            setShowMoreMenu(false);
-                            handleUnblockUser();
+                            blockHook.setShowMoreMenu(false);
+                            blockHook.handleUnblockUser(profile?.full_name);
                           }}
-                          disabled={blockLoading}
+                          disabled={blockHook.blockLoading}
                           className="w-full flex items-center gap-3 px-4 py-3 text-sm text-green-400 hover:bg-zinc-700 transition-colors"
                           data-testid="unblock-user-btn"
                         >
-                          {blockLoading ? (
+                          {blockHook.blockLoading ? (
                             <Loader2 className="w-4 h-4 animate-spin" />
                           ) : (
                             <Ban className="w-4 h-4" />
@@ -1186,8 +992,8 @@ export const Profile = () => {
                       ) : (
                         <button
                           onClick={() => {
-                            setShowMoreMenu(false);
-                            setShowBlockModal(true);
+                            blockHook.setShowMoreMenu(false);
+                            blockHook.setShowBlockModal(true);
                           }}
                           className="w-full flex items-center gap-3 px-4 py-3 text-sm text-red-400 hover:bg-zinc-700 transition-colors"
                           data-testid="block-user-btn"
@@ -1199,7 +1005,7 @@ export const Profile = () => {
                       
                       <button
                         onClick={() => {
-                          setShowMoreMenu(false);
+                          blockHook.setShowMoreMenu(false);
                           // Could navigate to report page or open report modal
                           toast.info('Report functionality coming soon');
                         }}
@@ -1227,8 +1033,8 @@ export const Profile = () => {
                 // Navigate to live stream or open live viewer
                 navigate(`/live/${profileUserId}`);
               }}
-              onRequestOnDemand={() => handleQuickBookOpen('on-demand')}
-              onBook={() => handleQuickBookOpen('scheduled')}
+              onRequestOnDemand={() => quickBookHook.handleQuickBookOpen('on-demand')}
+              onBook={() => quickBookHook.handleQuickBookOpen('scheduled')}
               trigger={
                 <Button
                   className="w-full h-12 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white font-bold"
@@ -1671,300 +1477,32 @@ export const Profile = () => {
         />
       )}
 
-      {/* Edit Profile Modal */}
-      <Dialog open={showEditModal} onOpenChange={setShowEditModal}>
-        <DialogContent className="bg-zinc-900 border-zinc-800 border-t text-white max-w-md !fixed !bottom-[70px] !top-auto !translate-y-0 rounded-t-2xl rounded-b-none max-h-[calc(100dvh-6rem)] flex flex-col p-0">
-          {/* Header */}
-          <div className="flex items-center justify-between p-4 border-b border-zinc-800 flex-shrink-0">
-            <button
-              onClick={() => setShowEditModal(false)}
-              className="text-gray-400 hover:text-white text-sm"
-            >
-              Cancel
-            </button>
-            <DialogTitle className="text-lg font-bold">Edit Profile</DialogTitle>
-            <Button
-              onClick={handleSaveProfile}
-              disabled={editLoading}
-              size="sm"
-              className="bg-gradient-to-r from-yellow-400 to-orange-400 hover:from-yellow-500 hover:to-orange-500 text-black font-bold px-4"
-              data-testid="save-profile-btn"
-            >
-              {editLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Save'}
-            </Button>
-          </div>
-          
-          {/* Scrollable content */}
-          <div className="flex-1 overflow-y-auto overscroll-contain p-4 pb-6">
-            <div className="space-y-4">
-              <div>
-                <label className="text-sm text-gray-400 mb-1.5 block">Name</label>
-                <Input
-                  value={editData.full_name}
-                  onChange={(e) => setEditData(prev => ({ ...prev, full_name: e.target.value }))}
-                  className="bg-zinc-800 border-zinc-700 text-white h-11"
-                  data-testid="edit-name-input"
-                />
-              </div>
-
-              <div>
-                <label className="text-sm text-gray-400 mb-1.5 block">Bio</label>
-                <Textarea
-                  value={editData.bio}
-                  onChange={(e) => setEditData(prev => ({ ...prev, bio: e.target.value }))}
-                  className="bg-zinc-800 border-zinc-700 text-white min-h-[70px]"
-                  placeholder="Tell us about yourself..."
-                  data-testid="edit-bio-input"
-                />
-              </div>
-
-              <div>
-                <label className="text-sm text-gray-400 mb-1.5 block">Home Break</label>
-                <Input
-                  value={editData.location}
-                  onChange={(e) => setEditData(prev => ({ ...prev, location: e.target.value }))}
-                  className="bg-zinc-800 border-zinc-700 text-white h-11"
-                  placeholder="e.g., Cocoa Beach Pier"
-                  data-testid="edit-location-input"
-                />
-              </div>
-
-              <div>
-                <label className="text-sm text-gray-400 mb-1.5 block">Instagram</label>
-                <Input
-                  value={editData.instagram_url}
-                  onChange={(e) => setEditData(prev => ({ ...prev, instagram_url: e.target.value }))}
-                  className="bg-zinc-800 border-zinc-700 text-white h-11"
-                  placeholder="@yourusername"
-                  data-testid="edit-instagram-input"
-                />
-              </div>
-
-              <div>
-                <label className="text-sm text-gray-400 mb-1.5 block">Website</label>
-                <Input
-                  value={editData.website_url}
-                  onChange={(e) => setEditData(prev => ({ ...prev, website_url: e.target.value }))}
-                  className="bg-zinc-800 border-zinc-700 text-white h-11"
-                  placeholder="https://yourwebsite.com"
-                  data-testid="edit-website-input"
-                />
-              </div>
-              
-              {/* Surfer Identification Section */}
-              <div className="pt-4 border-t border-zinc-700">
-                <p className="text-sm text-cyan-400 font-medium mb-3 flex items-center gap-2">
-                  <Camera className="w-4 h-4" />
-                  Photographer Identification
-                </p>
-                <p className="text-xs text-gray-500 mb-4">
-                  Help photographers identify you in the water during live sessions
-                </p>
-                
-                {/* Stance */}
-                <div className="mb-4">
-                  <label className="text-sm text-gray-400 mb-1.5 block">Stance</label>
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setEditData(prev => ({ ...prev, stance: 'regular' }))}
-                      className={`flex-1 py-2.5 rounded-lg border transition-all ${
-                        editData.stance === 'regular' 
-                          ? 'bg-purple-500/20 border-purple-500 text-purple-400' 
-                          : 'bg-zinc-800 border-zinc-700 text-gray-400 hover:border-zinc-600'
-                      }`}
-                    >
-                      Regular
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setEditData(prev => ({ ...prev, stance: 'goofy' }))}
-                      className={`flex-1 py-2.5 rounded-lg border transition-all ${
-                        editData.stance === 'goofy' 
-                          ? 'bg-purple-500/20 border-purple-500 text-purple-400' 
-                          : 'bg-zinc-800 border-zinc-700 text-gray-400 hover:border-zinc-600'
-                      }`}
-                    >
-                      Goofy
-                    </button>
-                  </div>
-                </div>
-                
-                {/* Wetsuit Color */}
-                <div className="mb-4">
-                  <label className="text-sm text-gray-400 mb-1.5 block">Wetsuit Color</label>
-                  <Input
-                    value={editData.wetsuit_color}
-                    onChange={(e) => setEditData(prev => ({ ...prev, wetsuit_color: e.target.value }))}
-                    className="bg-zinc-800 border-zinc-700 text-white h-11"
-                    placeholder="e.g., Full black, Blue/black, Black with red stripe"
-                    data-testid="edit-wetsuit-input"
-                  />
-                </div>
-                
-                {/* Rash Guard Color */}
-                <div>
-                  <label className="text-sm text-gray-400 mb-1.5 block">Rash Guard Color</label>
-                  <Input
-                    value={editData.rash_guard_color}
-                    onChange={(e) => setEditData(prev => ({ ...prev, rash_guard_color: e.target.value }))}
-                    className="bg-zinc-800 border-zinc-700 text-white h-11"
-                    placeholder="e.g., White, Red, Blue with logo"
-                    data-testid="edit-rashguard-input"
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* ============ QUICK BOOK MODAL ============ */}
-      <Dialog open={showQuickBookModal} onOpenChange={setShowQuickBookModal}>
-        <DialogContent className="bg-zinc-900 border-zinc-800 text-white max-w-md">
-          <DialogHeader>
-            <DialogTitle className="text-xl font-bold flex items-center gap-2">
-              {quickBookType === 'on-demand' ? (
-                <>
-                  <Zap className="w-5 h-5 text-yellow-400" />
-                  Quick Book - On-Demand
-                </>
-              ) : (
-                <>
-                  <CalendarClock className="w-5 h-5 text-cyan-400" />
-                  Quick Book - Scheduled
-                </>
-              )}
-            </DialogTitle>
-          </DialogHeader>
-
-          <div className="space-y-4 py-4">
-            {/* Photographer Info */}
-            <div className="flex items-center gap-4 p-4 rounded-xl bg-zinc-800">
-              <Avatar className="w-14 h-14 border-2 border-cyan-400">
-                <AvatarImage src={getFullUrl(profile?.avatar_url)} />
-                <AvatarFallback className="bg-zinc-700 text-cyan-400">
-                  {profile?.full_name?.charAt(0)}
-                </AvatarFallback>
-              </Avatar>
-              <div className="flex-1">
-                <h3 className="font-semibold text-white">{profile?.full_name}</h3>
-                <p className="text-sm text-gray-400">{profile?.role}</p>
-                {quickBookType === 'on-demand' && isOnDemandActive && (
-                  <div className="flex items-center gap-1 mt-1">
-                    <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
-                    <span className="text-xs text-green-400">Available Now</span>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Live Price Calculator */}
-            <div className="p-4 rounded-xl bg-gradient-to-br from-yellow-500/10 to-orange-500/10 border border-yellow-400/30">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  <Calculator className="w-5 h-5 text-yellow-400" />
-                  <span className="font-bold text-white">Price Calculator</span>
-                </div>
-                <span className="text-2xl font-bold text-yellow-400">${quickBookTotal.toFixed(2)}</span>
-              </div>
-              <p className="text-sm text-gray-400">
-                ${quickBookHourlyRate}/hr × {quickBookDuration} hr{quickBookDuration > 1 ? 's' : ''} = ${quickBookTotal.toFixed(2)}
-              </p>
-            </div>
-
-            {/* Duration Stepper */}
-            <NumericStepper
-              label="Session Duration"
-              value={quickBookDuration}
-              onChange={setQuickBookDuration}
-              min={0.5}
-              max={8}
-              step={0.5}
-              suffix="hours"
-              description={`Rate: $${quickBookHourlyRate}/hour`}
-              theme="dark"
-            />
-
-            {/* What's included */}
-            <div className="p-4 rounded-xl bg-green-500/10 border border-green-500/30">
-              <p className="text-green-400 font-medium mb-2">What's Included:</p>
-              <ul className="text-sm text-gray-400 space-y-1">
-                <li className="flex items-center gap-2">
-                  <Camera className="w-4 h-4 text-green-400" />
-                  {photographerPricing?.on_demand_photos_included || 3} photos included
-                </li>
-                <li className="flex items-center gap-2">
-                  <Clock className="w-4 h-4 text-green-400" />
-                  {quickBookDuration} hour{quickBookDuration > 1 ? 's' : ''} of dedicated shooting
-                </li>
-                {quickBookType === 'on-demand' && (
-                  <li className="flex items-center gap-2">
-                    <Zap className="w-4 h-4 text-green-400" />
-                    Immediate response from photographer
-                  </li>
-                )}
-              </ul>
-            </div>
-
-            {/* Info note for scheduled */}
-            {quickBookType === 'scheduled' && (
-              <div className="p-3 rounded-lg bg-cyan-500/10 border border-cyan-500/30">
-                <p className="text-sm text-cyan-400">
-                  You'll be redirected to the full booking page to select your preferred date and time.
-                </p>
-              </div>
-            )}
-          </div>
-
-          <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => setShowQuickBookModal(false)}>
-              Cancel
-            </Button>
-            <Button
-              onClick={handleQuickBookSubmit}
-              disabled={quickBookLoading}
-              className={`flex-1 ${
-                quickBookType === 'on-demand'
-                  ? 'bg-gradient-to-r from-yellow-400 to-orange-400 text-black'
-                  : 'bg-gradient-to-r from-cyan-400 to-blue-500 text-black'
-              } font-bold`}
-              data-testid="quick-book-submit-btn"
-            >
-              {quickBookLoading ? (
-                <Loader2 className="w-5 h-5 animate-spin" />
-              ) : quickBookType === 'on-demand' ? (
-                <>
-                  <Zap className="w-4 h-4 mr-2" />
-                  Send Request - ${quickBookTotal.toFixed(2)}
-                </>
-              ) : (
-                <>
-                  <CalendarClock className="w-4 h-4 mr-2" />
-                  Continue to Booking
-                </>
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* Edit Profile Modal (extracted component) */}
+      <ProfileEditModal
+        isOpen={showEditModal}
+        onClose={setShowEditModal}
+        editData={editData}
+        setEditData={setEditData}
+        onSave={handleSaveProfile}
+        editLoading={editLoading}
+      />
 
       {/* ============ SCHEDULED BOOKING DRAWER ============ */}
       <ScheduledBookingDrawer
-        isOpen={showScheduledBookingDrawer}
-        onClose={() => setShowScheduledBookingDrawer(false)}
+        isOpen={quickBookHook.showScheduledBookingDrawer}
+        onClose={() => quickBookHook.setShowScheduledBookingDrawer(false)}
         photographer={{
           id: profileUserId,
           full_name: profile?.full_name,
           avatar_url: profile?.avatar_url,
           role: profile?.role,
           home_break: profile?.home_break,
-          booking_hourly_rate: photographerPricing?.booking_hourly_rate || profile?.booking_hourly_rate,
-          hourly_rate: photographerPricing?.hourly_rate || profile?.hourly_rate,
-          session_price: photographerPricing?.session_price || profile?.session_price,
-          group_discount_2_plus: photographerPricing?.group_discount_2_plus || profile?.group_discount_2_plus,
-          group_discount_3_plus: photographerPricing?.group_discount_3_plus || profile?.group_discount_3_plus,
-          group_discount_5_plus: photographerPricing?.group_discount_5_plus || profile?.group_discount_5_plus,
+          booking_hourly_rate: quickBookHook.photographerPricing?.booking_hourly_rate || profile?.booking_hourly_rate,
+          hourly_rate: quickBookHook.photographerPricing?.hourly_rate || profile?.hourly_rate,
+          session_price: quickBookHook.photographerPricing?.session_price || profile?.session_price,
+          group_discount_2_plus: quickBookHook.photographerPricing?.group_discount_2_plus || profile?.group_discount_2_plus,
+          group_discount_3_plus: quickBookHook.photographerPricing?.group_discount_3_plus || profile?.group_discount_3_plus,
+          group_discount_5_plus: quickBookHook.photographerPricing?.group_discount_5_plus || profile?.group_discount_5_plus,
           service_radius_miles: profile?.service_radius_miles,
           home_latitude: profile?.home_latitude,
           home_longitude: profile?.home_longitude,
@@ -1972,7 +1510,7 @@ export const Profile = () => {
           charges_travel_fees: profile?.charges_travel_fees
         }}
         onSuccess={(_result) => {
-          setShowScheduledBookingDrawer(false);
+          quickBookHook.setShowScheduledBookingDrawer(false);
           toast.success('Booking submitted successfully!');
         }}
       />
@@ -1984,110 +1522,19 @@ export const Profile = () => {
         onStreamEnded={handleGoLiveEnded}
       />
 
-      {/* Note Modal - View/Create/Edit Note */}
-      <Dialog open={showNoteModal} onOpenChange={setShowNoteModal}>
-        <DialogContent className="bg-zinc-900 border-zinc-800 text-white max-w-sm">
-          <DialogHeader>
-            <DialogTitle className="text-xl font-bold text-center">
-              {isOwnProfile ? (userNote ? 'Your Note' : 'Share a Note') : `${profile.full_name}'s Note`}
-            </DialogTitle>
-          </DialogHeader>
-          
-          <div className="py-4">
-            {/* Viewing someone else's note */}
-            {!isOwnProfile && userNote && (
-              <div className="text-center space-y-4">
-                <div className="bg-zinc-800 rounded-2xl p-6">
-                  <p className="text-lg text-white">{userNote.content}</p>
-                  <p className="text-sm text-emerald-400 mt-2">{userNote.time_remaining} remaining</p>
-                </div>
-                <p className="text-xs text-gray-500">
-                  Notes are shared with mutual followers only
-                </p>
-              </div>
-            )}
-            
-            {/* Own profile - create/edit note */}
-            {isOwnProfile && (
-              <div className="space-y-4">
-                {userNote ? (
-                  // Show existing note with option to delete
-                  <div className="text-center space-y-4">
-                    <div className="bg-zinc-800 rounded-2xl p-6">
-                      <p className="text-lg text-white">{userNote.content}</p>
-                      <p className="text-sm text-emerald-400 mt-2">{userNote.time_remaining} remaining</p>
-                    </div>
-                    <p className="text-xs text-gray-400">
-                      Shared with {userNote.view_count || 0} mutual followers
-                    </p>
-                    <Button
-                      variant="ghost"
-                      onClick={handleDeleteNote}
-                      className="text-red-400 hover:text-red-300 hover:bg-red-500/10"
-                      data-testid="delete-note-btn"
-                    >
-                      Delete Note
-                    </Button>
-                  </div>
-                ) : (
-                  // Create new note with emoji support
-                  <div className="space-y-4">
-                    <p className="text-sm text-gray-400 text-center">
-                      Shared with followers you follow back
-                    </p>
-                    <p className="text-xs text-emerald-400 text-center">
-                      Notes disappear after 24 hours
-                    </p>
-                    <Input
-                      value={noteText}
-                      onChange={(e) => setNoteText(e.target.value.slice(0, 60))}
-                      placeholder="What's happening? 🤙"
-                      className="bg-zinc-800 border-zinc-700 text-white text-lg text-center h-14"
-                      maxLength={60}
-                      data-testid="note-input"
-                    />
-                    {/* Quick Emoji Picker */}
-                    <div className="flex justify-center flex-wrap gap-2" data-testid="emoji-picker">
-                      {['🤙', '🌊', '🏄', '🔥', '💯', '😎', '🌅', '🐚', '🦈', '☀️', '🌴', '✨'].map((emoji) => (
-                        <button
-                          key={emoji}
-                          type="button"
-                          onClick={() => setNoteText(prev => (prev + emoji).slice(0, 60))}
-                          className="text-2xl hover:scale-125 transition-transform p-1"
-                          data-testid={`emoji-${emoji}`}
-                        >
-                          {emoji}
-                        </button>
-                      ))}
-                    </div>
-                    <div className="flex justify-between text-xs text-gray-500">
-                      <span>{noteText.length}/60</span>
-                      <span>Mutual followers only</span>
-                    </div>
-                    <div className="flex gap-3">
-                      <Button
-                        variant="ghost"
-                        onClick={() => setShowNoteModal(false)}
-                        className="flex-1 text-gray-400"
-                      >
-                        Cancel
-                      </Button>
-                      <Button
-                        onClick={handleCreateNote}
-                        disabled={!noteText.trim() || noteSubmitting}
-                        className="flex-1 bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700"
-                        data-testid="submit-note-btn"
-                      >
-                        {noteSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Share'}
-                      </Button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
+      {/* Note Modal (extracted component) */}
+      <ProfileNoteModal
+        isOpen={notesHook.showNoteModal}
+        onClose={notesHook.setShowNoteModal}
+        isOwnProfile={isOwnProfile}
+        profileName={profile.full_name}
+        userNote={notesHook.userNote}
+        noteText={notesHook.noteText}
+        setNoteText={notesHook.setNoteText}
+        noteSubmitting={notesHook.noteSubmitting}
+        onCreateNote={notesHook.handleCreateNote}
+        onDeleteNote={notesHook.handleDeleteNote}
+      />
 
       {/* Followers/Following Modal */}
       <FollowersModal
@@ -2098,224 +1545,19 @@ export const Profile = () => {
         userName={profile?.username ? `@${profile.username}` : profile?.full_name}
       />
       
-      {/* Block User Modal */}
-      <Dialog open={showBlockModal} onOpenChange={setShowBlockModal}>
-        <DialogContent className="bg-zinc-900 border-zinc-700 text-white max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-lg text-red-400">
-              <Ban className="w-5 h-5" />
-              Block {profile?.full_name || 'User'}?
-            </DialogTitle>
-          </DialogHeader>
-          
-          <div className="space-y-4 mt-2">
-            {/* Warning about blocking */}
-            <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-lg">
-              <div className="flex items-start gap-2">
-                <AlertTriangle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
-                <div className="text-sm text-zinc-300">
-                  <p className="font-medium text-red-400 mb-1">When you block someone:</p>
-                  <ul className="space-y-1 text-zinc-400">
-                    <li>• They won't be able to message you</li>
-                    <li>• They won't see your posts or profile</li>
-                    <li>• They won't be able to follow you</li>
-                    <li>• Any existing follow will be removed</li>
-                  </ul>
-                </div>
-              </div>
-            </div>
-            
-            {/* Reason selector */}
-            <div>
-              <label className="text-sm font-medium text-zinc-300 mb-2 block">
-                Reason (optional)
-              </label>
-              <select
-                value={blockReason}
-                onChange={(e) => setBlockReason(e.target.value)}
-                className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white"
-                data-testid="block-reason-select"
-              >
-                <option value="">Select a reason...</option>
-                <option value="harassment">Harassment</option>
-                <option value="spam">Spam</option>
-                <option value="inappropriate">Inappropriate content</option>
-                <option value="scam">Scam/Fraud</option>
-                <option value="other">Other</option>
-              </select>
-            </div>
-            
-            {/* Notes (optional) */}
-            <div>
-              <label className="text-sm font-medium text-zinc-300 mb-2 block">
-                Additional notes (private, optional)
-              </label>
-              <textarea
-                value={blockNotes}
-                onChange={(e) => setBlockNotes(e.target.value)}
-                placeholder="Add any notes about why you're blocking this user..."
-                className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white resize-none h-20"
-                data-testid="block-notes-input"
-              />
-            </div>
-            
-            {/* Auto-report notice for severe reasons */}
-            {(blockReason === 'harassment' || blockReason === 'scam') && (
-              <div className="p-2 bg-amber-500/10 border border-amber-500/30 rounded-lg">
-                <p className="text-xs text-amber-400 flex items-center gap-2">
-                  <Flag className="w-4 h-4" />
-                  This will also report the user to our safety team
-                </p>
-              </div>
-            )}
-            
-            {/* Action buttons */}
-            <div className="flex gap-3 pt-2">
-              <Button
-                onClick={() => {
-                  setShowBlockModal(false);
-                  setBlockReason('');
-                  setBlockNotes('');
-                }}
-                variant="outline"
-                className="flex-1 border-zinc-700"
-              >
-                Cancel
-              </Button>
-              <Button
-                onClick={handleBlockUser}
-                disabled={blockLoading}
-                className="flex-1 bg-red-500 hover:bg-red-600 text-white"
-                data-testid="confirm-block-btn"
-              >
-                {blockLoading ? (
-                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                ) : (
-                  <Ban className="w-4 h-4 mr-2" />
-                )}
-                Block User
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
+      {/* Block User Modal (extracted component) */}
+      <ProfileBlockModal
+        isOpen={blockHook.showBlockModal}
+        onClose={blockHook.setShowBlockModal}
+        profileName={profile?.full_name}
+        blockReason={blockHook.blockReason}
+        setBlockReason={blockHook.setBlockReason}
+        blockNotes={blockHook.blockNotes}
+        setBlockNotes={blockHook.setBlockNotes}
+        blockLoading={blockHook.blockLoading}
+        onBlock={() => blockHook.handleBlockUser(profile?.full_name)}
+      />
     </div>
   );
 };
 
-// Media Grid Item Component
-const MediaGridItem = ({ item, onClick, isPinned = false }) => {
-  if (!item) return null;
-  
-  // Helper to intercept Netlify HTML proxy traps on local backend arrays
-  const _checkMediaUrl = getFullUrl(item.media_url || item.image_url);
-  const isVideo = item.media_type === 'video' || (typeof _checkMediaUrl === 'string' && _checkMediaUrl.match(/\.(mp4|webm|ogg|mov)(\?.*)?$/i));
-  const isNew = item.is_new;
-  const hasMedia = item.media_url || item.thumbnail_url || (item.media_urls && item.media_urls.length > 0);
-  const isCheckIn = item.is_check_in;
-  const isPhotographerSession = item.is_photographer_session;
-  
-  return (
-    <div 
-      className="aspect-square relative cursor-pointer group bg-muted"
-      onClick={onClick}
-      data-testid={`media-item-${item.id}`}
-    >
-      {hasMedia ? (
-        isVideo ? (
-          <>
-            <img
-              src={getFullUrl(item.thumbnail_url || item.media_url)}
-              alt=""
-              className="w-full h-full object-cover"
-              loading="lazy"
-              onError={(e) => { e.target.style.display = 'none'; }}
-            />
-            <div className="absolute top-2 right-2 bg-black/60 px-1.5 py-0.5 rounded text-white text-xs flex items-center gap-1">
-              <Play className="w-3 h-3" fill="currentColor" />
-              {item.video_duration ? `${Math.round(item.video_duration)}s` : ''}
-            </div>
-          </>
-        ) : (
-          <img
-            src={getFullUrl(item.thumbnail_url || item.media_url)}
-            alt=""
-            className="w-full h-full object-cover"
-            loading="lazy"
-            onError={(e) => { e.target.style.display = 'none'; }}
-          />
-        )
-      ) : isPhotographerSession ? (
-        // Placeholder for photographer session without conditions media
-        <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-cyan-900 to-zinc-900 p-2">
-          <Camera className="w-8 h-8 text-cyan-400 mb-1" />
-          <span className="text-[10px] text-gray-400 text-center line-clamp-2">{item.location || 'Session'}</span>
-          {item.item_count > 0 && (
-            <span className="text-[9px] text-cyan-400 mt-1">{item.item_count} photos</span>
-          )}
-        </div>
-      ) : (
-        // Placeholder for check-in or text-only posts
-        <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-zinc-800 to-zinc-900 p-2">
-          {isCheckIn ? (
-            <>
-              <MapPin className="w-8 h-8 text-cyan-400 mb-1" />
-              <span className="text-[10px] text-gray-400 text-center line-clamp-2">{item.location || 'Check-in'}</span>
-            </>
-          ) : (
-            <>
-              <Grid3X3 className="w-8 h-8 text-yellow-400 mb-1" />
-              <span className="text-[10px] text-gray-400 text-center line-clamp-2">{item.caption?.substring(0, 30) || 'Post'}</span>
-            </>
-          )}
-        </div>
-      )}
-      
-      {/* Photo count badge for photographer sessions */}
-      {isPhotographerSession && hasMedia && item.item_count > 0 && (
-        <div className="absolute bottom-2 left-2 bg-black/70 px-1.5 py-0.5 rounded text-white text-xs flex items-center gap-1">
-          <Camera className="w-3 h-3" />
-          {item.item_count}
-        </div>
-      )}
-      
-      {/* PINNED Badge - Instagram-style */}
-      {isPinned && (
-        <div className="absolute top-2 left-2 bg-white/90 dark:bg-black/80 px-2 py-0.5 rounded-full text-xs font-bold flex items-center gap-1 shadow-lg" data-testid="pinned-indicator">
-          <Pin className="w-3 h-3 text-amber-500" />
-          <span className="text-foreground">Pinned</span>
-        </div>
-      )}
-      
-      {/* NEW Badge for unviewed tagged photos */}
-      {isNew && !isPinned && (
-        <div className="absolute top-2 left-2 bg-gradient-to-r from-cyan-400 to-blue-500 px-2 py-0.5 rounded-full text-black text-xs font-bold animate-pulse">
-          NEW
-        </div>
-      )}
-      
-      {/* Access granted indicator */}
-      {item.access_granted && (
-        <div className="absolute bottom-2 right-2 bg-green-500/80 p-1 rounded-full">
-          <Check className="w-3 h-3 text-white" />
-        </div>
-      )}
-      
-      {/* Hover overlay */}
-      <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-        <div className="flex items-center gap-4 text-white text-sm">
-          {item.likes_count !== undefined && (
-            <span className="flex items-center gap-1">
-              ❤️ {item.likes_count}
-            </span>
-          )}
-          {item.tagged_by && (
-            <span className="flex items-center gap-1">
-              Tagged by {item.tagged_by}
-            </span>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-};
