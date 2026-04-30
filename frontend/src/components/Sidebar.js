@@ -329,7 +329,6 @@ export const Sidebar = () => {
           
           // Insert Search Bar after Map item
           const isMapItem = item.path === '/map';
-          const isBookingsItem = item.path === '/bookings';
           
           // Locked item - show placeholder instead of NavLink
           if (item.isLocked) {
@@ -456,40 +455,40 @@ export const Sidebar = () => {
                 <GlobalSearchBar variant="desktop" className="w-full" />
               </div>
             ),
-            // Insert active session indicator after Bookings item
-            isBookingsItem && activeSession && (
-              <button
-                key="active-session-indicator"
-                onClick={() => {
-                  if (['accepted', 'en_route', 'arrived', 'in_session'].includes(activeSession.status)) {
-                    navigate(`/dispatch/${activeSession.id}/lobby`);
-                  } else {
-                    navigate('/bookings?tab=on_demand');
-                  }
-                }}
-                className="w-full ml-4 pl-3 py-1.5 text-left transition-all hover:opacity-80"
-                data-testid="sidebar-active-session"
-              >
-                <span
-                  className={`text-[11px] font-semibold animate-pulse ${
-                    activeSession.role === 'crew_member' ? 'text-cyan-400' : 'text-amber-400'
-                  }`}
-                >
-                  {activeSession.status === 'in_session'
-                    ? '📸 Live Shooting Session Active'
-                    : activeSession.status === 'searching_for_pro'
-                    ? '🔍 On-Demand Session Searching...'
-                    : activeSession.status === 'en_route'
-                    ? '🚗 Photographer On The Way'
-                    : activeSession.status === 'arrived'
-                    ? '📍 Photographer Arrived'
-                    : '⚡ On-Demand Session Active'
-                  }
-                </span>
-              </button>
-            )
           ].filter(Boolean));
         })}
+
+        {/* Active Session Indicator — standalone, visible to ALL roles */}
+        {activeSession && (
+          <button
+            onClick={() => {
+              if (['accepted', 'en_route', 'arrived', 'in_session'].includes(activeSession.status)) {
+                navigate(`/dispatch/${activeSession.id}/lobby`);
+              } else {
+                navigate('/bookings?tab=on_demand');
+              }
+            }}
+            className="w-full px-3 py-1.5 text-left transition-all hover:opacity-80"
+            data-testid="sidebar-active-session"
+          >
+            <span
+              className={`text-[11px] font-semibold animate-pulse ${
+                activeSession.role === 'crew_member' ? 'text-cyan-400' : 'text-amber-400'
+              }`}
+            >
+              {activeSession.status === 'in_session'
+                ? '📸 Live Shooting Session Active'
+                : activeSession.status === 'searching_for_pro'
+                ? '🔍 On-Demand Session Searching...'
+                : activeSession.status === 'en_route'
+                ? '🚗 Photographer On The Way'
+                : activeSession.status === 'arrived'
+                ? '📍 Photographer Arrived'
+                : '⚡ On-Demand Session Active'
+              }
+            </span>
+          </button>
+        )}
 
         {/* Photo Tools Section - Only for Photographers */}
         {isPhotographer && (

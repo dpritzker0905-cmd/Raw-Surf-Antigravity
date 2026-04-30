@@ -311,9 +311,10 @@ async def get_condition_reports_feed(
         date_start = today_start
         date_end = today_start + timedelta(days=1)
     
-    # Base query: show reports created within the date range
+    # Base query: show ACTIVE reports created within the date range
     query = select(ConditionReport).where(
         and_(
+            ConditionReport.is_active == True,
             ConditionReport.created_at >= date_start,
             ConditionReport.created_at < date_end
         )
@@ -447,6 +448,7 @@ async def get_condition_reports_feed(
     # Get total count for pagination (always uses date range now)
     count_query = select(ConditionReport).where(
         and_(
+            ConditionReport.is_active == True,
             ConditionReport.created_at >= date_start,
             ConditionReport.created_at < date_end
         )

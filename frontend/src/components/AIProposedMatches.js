@@ -32,6 +32,7 @@ import {
 import { toast } from 'sonner';
 import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import logger from '../utils/logger';
+import { getFullUrl } from '../utils/media';
 
 
 /**
