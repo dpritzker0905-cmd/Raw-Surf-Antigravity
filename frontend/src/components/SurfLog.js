@@ -32,24 +32,24 @@ const TIME_OPTIONS = ['Dawn Patrol', 'Morning', 'Midday', 'Afternoon', 'Sunset',
 const StatsBanner = ({ stats, isLight }) => {
   if (!stats || stats.total_sessions === 0) return null;
   const items = [
-    { label: 'Sessions', value: stats.total_sessions, icon: Waves },
-    { label: 'Hours', value: stats.total_hours, icon: Clock },
-    { label: 'Avg Rating', value: stats.avg_personal_rating ?? '—', icon: Star },
+    { label: 'Sessions', value: stats.total_sessions, icon: Waves, gradient: 'from-cyan-500/20 to-blue-500/20', border: 'border-cyan-500/30' },
+    { label: 'Hours', value: stats.total_hours, icon: Clock, gradient: 'from-purple-500/20 to-pink-500/20', border: 'border-purple-500/30' },
+    { label: 'Avg Rating', value: stats.avg_personal_rating ?? '—', icon: Star, gradient: 'from-yellow-500/20 to-orange-500/20', border: 'border-yellow-500/30' },
   ];
   return (
-    <div className={`mx-4 p-3 rounded-xl border ${isLight ? 'bg-white/80 border-gray-200' : 'bg-zinc-800/60 border-zinc-700'} mb-4`}>
-      <div className="grid grid-cols-3 gap-2 text-center">
+    <div className="px-4 md:px-0 mb-4">
+      <div className="grid grid-cols-3 gap-3">
         {items.map(s => (
-          <div key={s.label}>
-            <s.icon className="w-4 h-4 mx-auto mb-1 text-cyan-400" />
-            <p className={`text-lg font-bold ${isLight ? 'text-gray-900' : 'text-white'}`}>{s.value}</p>
-            <p className={`text-[10px] ${isLight ? 'text-gray-500' : 'text-gray-400'}`}>{s.label}</p>
+          <div key={s.label} className={`p-3 md:p-4 rounded-xl border text-center bg-gradient-to-br ${s.gradient} ${s.border} transition-all hover:scale-[1.02]`}>
+            <s.icon className="w-4 h-4 md:w-5 md:h-5 mx-auto mb-1.5 text-cyan-400" />
+            <p className={`text-xl md:text-2xl font-bold ${isLight ? 'text-gray-900' : 'text-white'}`}>{s.value}</p>
+            <p className={`text-[10px] md:text-xs ${isLight ? 'text-gray-500' : 'text-gray-400'}`}>{s.label}</p>
           </div>
         ))}
       </div>
       {stats.favourite_spot && (
-        <div className={`mt-2 pt-2 border-t ${isLight ? 'border-gray-200' : 'border-zinc-700'} flex items-center gap-2`}>
-          <MapPin className="w-3 h-3 text-cyan-400" />
+        <div className={`mt-3 p-3 rounded-xl border ${isLight ? 'bg-white/80 border-gray-200' : 'bg-zinc-800/60 border-zinc-700'} flex items-center gap-2`}>
+          <MapPin className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
           <span className={`text-xs ${isLight ? 'text-gray-600' : 'text-gray-400'}`}>
             Favourite: <span className={`font-medium ${isLight ? 'text-gray-900' : 'text-white'}`}>{stats.favourite_spot}</span> ({stats.favourite_spot_count}x)
           </span>
@@ -63,7 +63,7 @@ const StatsBanner = ({ stats, isLight }) => {
 const EntryCard = ({ entry, isLight, onEdit, onDelete }) => {
   const mood = MOODS.find(m => m.id === entry.mood);
   return (
-    <div className={`mx-4 mb-3 p-4 rounded-xl border transition-all hover:scale-[1.01] ${isLight ? 'bg-white border-gray-200 shadow-sm' : 'bg-zinc-800/60 border-zinc-700'}`}>
+    <div className={`p-4 rounded-xl border transition-all hover:scale-[1.01] hover:shadow-lg ${isLight ? 'bg-white border-gray-200 shadow-sm hover:shadow-gray-200/50' : 'bg-zinc-800/60 border-zinc-700 hover:border-zinc-600 hover:shadow-cyan-500/5'}`}>
       <div className="flex items-start justify-between mb-2">
         <div className="flex items-center gap-2">
           <Calendar className="w-4 h-4 text-cyan-400" />
@@ -178,7 +178,7 @@ const EntryModal = ({ isOpen, onClose, entry, userId, onSaved }) => {
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className={`${bg} border-zinc-800 max-w-md max-h-[85vh] overflow-y-auto`}>
+      <DialogContent className={`${bg} border-zinc-800 max-w-md md:max-w-lg max-h-[85vh] overflow-y-auto`}>
         <DialogHeader>
           <DialogTitle className={`text-lg font-bold ${isLight ? 'text-gray-900' : 'text-white'} flex items-center gap-2`}>
             <BookOpen className="w-5 h-5 text-cyan-400" />
@@ -312,27 +312,35 @@ const SurfLog = () => {
   const handleCreate = () => { setEditEntry(null); setModalOpen(true); };
 
   return (
-    <div className={`max-w-xl mx-auto pb-24 ${isLight ? 'bg-gray-50/50 min-h-screen' : 'min-h-screen'}`}>
+    <div className={`max-w-2xl mx-auto pb-24 ${isLight ? 'bg-gray-50/50 min-h-screen' : 'min-h-screen'}`}>
       {/* Header */}
       <div className={`sticky top-0 z-40 backdrop-blur-xl border-b ${isLight ? 'bg-white/90 border-gray-200' : 'bg-zinc-900/95 border-zinc-800'}`}>
         <div className="flex items-center justify-between px-4 py-3">
           <div className="flex items-center gap-3">
-            <button onClick={() => navigate(-1)} className={`p-1.5 rounded-full ${isLight ? 'hover:bg-gray-100' : 'hover:bg-zinc-800'}`}>
+            <button onClick={() => navigate(-1)} className={`p-1.5 rounded-full ${isLight ? 'hover:bg-gray-100' : 'hover:bg-zinc-800'} transition-colors md:hidden`}>
               <ChevronLeft className="w-5 h-5" />
             </button>
             <div className="flex items-center gap-2">
-              <BookOpen className="w-5 h-5 text-cyan-400" />
-              <h1 className={`text-lg font-bold ${isLight ? 'text-gray-900' : 'text-white'}`}>Surf Log</h1>
+              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-cyan-500/20 to-blue-500/20 flex items-center justify-center">
+                <BookOpen className="w-4 h-4 text-cyan-400" />
+              </div>
+              <div>
+                <h1 className={`text-lg font-bold ${isLight ? 'text-gray-900' : 'text-white'}`}>Surf Log</h1>
+                <p className={`text-[10px] hidden md:block ${isLight ? 'text-gray-500' : 'text-gray-400'}`}>Track your sessions & progress</p>
+              </div>
             </div>
           </div>
-          <Button size="sm" onClick={handleCreate} className="bg-gradient-to-r from-cyan-500 to-blue-500 text-white">
+          <Button size="sm" onClick={handleCreate} className="bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white shadow-lg shadow-cyan-500/20 transition-all hover:shadow-cyan-500/40">
             <Plus className="w-4 h-4 mr-1" /> Log Session
           </Button>
         </div>
       </div>
 
       {loading ? (
-        <div className="flex items-center justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-cyan-400" /></div>
+        <div className="flex flex-col items-center justify-center py-20 gap-3">
+          <Loader2 className="w-8 h-8 animate-spin text-cyan-400" />
+          <p className={`text-sm ${isLight ? 'text-gray-500' : 'text-gray-400'}`}>Loading your sessions...</p>
+        </div>
       ) : (
         <>
           <div className="mt-4">
@@ -341,18 +349,20 @@ const SurfLog = () => {
 
           {entries.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
-              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-cyan-500/20 to-blue-500/20 flex items-center justify-center mb-4">
-                <BookOpen className="w-8 h-8 text-cyan-400" />
+              <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-cyan-500/20 to-blue-500/20 flex items-center justify-center mb-5 animate-pulse">
+                <BookOpen className="w-10 h-10 text-cyan-400" />
               </div>
-              <h3 className={`font-bold text-lg mb-1 ${isLight ? 'text-gray-900' : 'text-white'}`}>No sessions yet</h3>
-              <p className={`text-sm mb-4 ${isLight ? 'text-gray-500' : 'text-gray-400'}`}>Start logging your surf sessions to track your progress and stoke.</p>
-              <Button onClick={handleCreate} className="bg-gradient-to-r from-cyan-500 to-blue-500 text-white">
+              <h3 className={`font-bold text-xl mb-2 ${isLight ? 'text-gray-900' : 'text-white'}`}>No sessions yet</h3>
+              <p className={`text-sm mb-6 max-w-xs ${isLight ? 'text-gray-500' : 'text-gray-400'}`}>Start logging your surf sessions to track your progress, conditions, and stoke level.</p>
+              <Button onClick={handleCreate} className="bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white px-6 py-3 shadow-lg shadow-cyan-500/20">
                 <Plus className="w-4 h-4 mr-1" /> Log Your First Session
               </Button>
             </div>
           ) : (
-            <div className="mt-2">
-              {entries.map(e => <EntryCard key={e.id} entry={e} isLight={isLight} onEdit={handleEdit} onDelete={handleDelete} />)}
+            <div className="mt-2 px-4 md:px-0">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {entries.map(e => <EntryCard key={e.id} entry={e} isLight={isLight} onEdit={handleEdit} onDelete={handleDelete} />)}
+              </div>
             </div>
           )}
         </>

@@ -3,7 +3,7 @@ import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { usePersona, getExpandedRoleInfo } from '../contexts/PersonaContext';
-import { Home, Compass, MapPin, Calendar, MessageCircle, Bell, BellRing, User, Settings, LogOut, Camera, Shield, ChevronDown, ChevronRight, Image, CalendarCheck, Radio, ShoppingBag, Heart, Sun, Moon, Waves, Eye, TrendingUp, Zap, Crown, Baby, Lock, Plus, Stamp, Target, Backpack, CreditCard, RefreshCw } from 'lucide-react';
+import { Home, Compass, MapPin, Calendar, MessageCircle, Bell, BellRing, User, Settings, LogOut, Camera, Shield, ChevronDown, ChevronRight, Image, CalendarCheck, Radio, ShoppingBag, Heart, Sun, Moon, Waves, Eye, TrendingUp, Zap, Crown, Baby, Lock, Plus, Stamp, Target, Backpack, CreditCard, RefreshCw, BookOpen } from 'lucide-react';
 import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import { getNotifications, getUnreadCount, markRead, markAllRead, sendNotification, sendPhotographerAlert, createNotification, markAlertRead } from '../services/notificationService';
 import { SurfPassport } from './SurfPassport';
@@ -229,8 +229,9 @@ export const Sidebar = () => {
   
   const photoToolsItems = getPhotoToolsItems();
   
-  // Backpack sub-items - Passport, Wallet, Surf Alerts
+  // Backpack sub-items - Surf Log, Passport, Wallet, Surf Alerts
   const backpackItems = [
+    { path: '/surf-log', icon: BookOpen, label: 'Surf Log', color: 'text-cyan-400' },
     { id: 'passport', icon: Stamp, label: 'Surf Passport', isPassportButton: true, color: 'text-emerald-400' },
     { path: '/wallet', icon: CreditCard, label: 'Credit Wallet', color: 'text-yellow-400' },
     { path: '/alerts', icon: BellRing, label: 'Surf Alerts', color: 'text-orange-400' },
