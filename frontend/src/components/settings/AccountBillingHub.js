@@ -35,7 +35,6 @@ import logger from '../../utils/logger';
 import { ROLES } from '../../constants/roles';
 import { getFullUrl } from '../../utils/media';
 
-const API = process.env.REACT_APP_BACKEND_URL;
 
 /**
  * Get the appropriate plans based on user role

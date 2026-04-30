@@ -8,13 +8,21 @@ import { usePersona } from '../contexts/PersonaContext';
 
 import { useTheme } from '../contexts/ThemeContext';
 
-import { MapPin, Camera, Users, X, MessageCircle, Navigation, Loader2, Target, Check, Clock } from 'lucide-react';
+import {
+  MapPin,
+  Camera,
+  Users,
+  X,
+  MessageCircle,
+  Navigation,
+  Loader2,
+  Check
+} from 'lucide-react';
 
 import { PermissionNudgeDrawer } from './PermissionNudgeDrawer';
 
 import { Button } from './ui/button';
 
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from './ui/dialog';
 
 import { toast } from 'sonner';
 

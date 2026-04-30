@@ -10,7 +10,6 @@ import { Droplet, Type, Image, Move, Eye, Upload, X, Loader2, Check, AlertCircle
 import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import logger from '../utils/logger';
 
-const API = process.env.REACT_APP_BACKEND_URL;
 
 const WatermarkSettings = ({ open, onOpenChange, theme = 'dark' }) => {
   const { user } = useAuth();

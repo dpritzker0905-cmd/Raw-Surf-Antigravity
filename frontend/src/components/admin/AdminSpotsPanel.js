@@ -11,14 +11,11 @@ import {
 import { Card, CardHeader, CardTitle, CardContent } from '../ui/card';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
-import { Textarea } from '../ui/textarea';
 import { Badge } from '../ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../ui/dialog';
 import { toast } from 'sonner';
-import { getFullUrl } from '../../utils/media';
 import logger from '../../utils/logger';
 import { AdminSpotEditor } from './AdminSpotEditor';
-import { AdminPrecisionQueue } from './AdminPrecisionQueue';
 import { supabase } from '../../lib/supabase';
 
 /**

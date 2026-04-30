@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
 
 import { useAuth } from '../contexts/AuthContext';
 
@@ -39,7 +39,6 @@ import { getFullUrl } from '../utils/media';
 import { ROLES } from '../constants/roles';
 import { SessionChatDrawer, SessionChatFAB } from './SessionChatDrawer';
 import SessionDetailDrawer from './bookings/SessionDetailDrawer';
-import { ChevronRight as ChevronRightIcon } from 'lucide-react';
 import { useSessionChatSync } from '../hooks/useSessionChatSync';
 import { formatDuration } from '../utils/formatTime';
 

@@ -12,7 +12,15 @@
  */
 
 import React, { useState, useCallback } from 'react';
-import { Star, Camera, MessageSquare, Clock, Send, X, Loader2, ChevronRight, AlertCircle } from 'lucide-react';
+import {
+  Star,
+  Camera,
+  MessageSquare,
+  Clock,
+  Send,
+  Loader2,
+  AlertCircle
+} from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import { Button } from './ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';

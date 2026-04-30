@@ -17,7 +17,7 @@ jest.mock('../lib/apiClient', () => ({
 }));
 
 import React from 'react';
-import { render, act, waitFor } from '@testing-library/react';
+import { act, waitFor } from '@testing-library/react';
 import { renderHook } from '@testing-library/react';
 import { AuthProvider, useAuth } from './AuthContext';
 import apiClient from '../lib/apiClient';

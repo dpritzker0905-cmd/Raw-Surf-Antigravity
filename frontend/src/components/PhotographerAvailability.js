@@ -8,7 +8,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import apiClient, { BACKEND_URL } from '../lib/apiClient';
-import { getNotifications, getUnreadCount, markRead, markAllRead, sendNotification, sendPhotographerAlert, createNotification, markAlertRead } from '../services/notificationService';
+import { sendPhotographerAlert } from '../services/notificationService';
 import { 
   Radio, Calendar, Bell, BellOff, Loader2,
   MapPin, Camera, ChevronRight, Zap

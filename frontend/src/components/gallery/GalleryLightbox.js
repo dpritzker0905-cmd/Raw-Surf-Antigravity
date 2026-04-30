@@ -18,7 +18,6 @@ import {
   MapPin, Calendar, Check, Maximize2
 } from 'lucide-react';
 import { Button } from '../ui/button';
-import { Badge } from '../ui/badge';
 import { toast } from 'sonner';
 import { getFullUrl } from '../../utils/media';
 

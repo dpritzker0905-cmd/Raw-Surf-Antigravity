@@ -31,7 +31,12 @@ import { Badge } from './ui/badge';
 
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from './ui/dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle
+} from './ui/dialog';
 
 import { toast } from 'sonner';
 
@@ -64,7 +69,6 @@ import { AdminContentMgmtDashboard } from './admin/AdminContentMgmtDashboard';
 import logger from '../utils/logger';
 import { AdControlsPanel } from './admin/AdControlsPanel';
 import { AdminSpotsPanel } from './admin/AdminSpotsPanel';
-import { supabase } from '../lib/supabase';
 import { getFullUrl } from '../utils/media';
 import AdminOverviewTab from './admin/AdminOverviewTab';
 

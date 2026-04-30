@@ -1,5 +1,12 @@
 import React, { useState, useRef } from 'react';
-import { Reply, MoreHorizontal, Check, CheckCheck, Smile, Heart, X } from 'lucide-react';
+import {
+  Reply,
+  Check,
+  CheckCheck,
+  Smile,
+  Heart,
+  X
+} from 'lucide-react';
 import { getFullUrl } from '../../utils/media';
 import { BACKEND_URL } from '../../lib/apiClient';
 import EphemeralCountdown from './EphemeralCountdown';

@@ -10,14 +10,12 @@ import { Input } from './ui/input';
 import { Badge } from './ui/badge';
 import { toast } from 'sonner';
 import apiClient, { BACKEND_URL } from '../lib/apiClient';
-import { getNotifications, getUnreadCount, markRead, markAllRead, sendNotification, sendPhotographerAlert, createNotification, markAlertRead } from '../services/notificationService';
 import { AccountBillingHub } from './settings/AccountBillingHub';
 import { AdCenterPanel } from './settings/AdCenterPanel';
 import useOfflineMode from '../hooks/useOfflineMode';
 import logger from '../utils/logger';
 import { ROLES } from '../constants/roles';
 
-const API = process.env.REACT_APP_BACKEND_URL;
 
 /**
  * SurfModeCard — Lets non-Grom surfers set their surf mode (Casual / Competitive / Pro).

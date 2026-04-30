@@ -7,7 +7,6 @@ import { toast } from 'sonner';
 import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import logger from '../utils/logger';
 
-const API = process.env.REACT_APP_BACKEND_URL;
 
 const PhotoSelectionQueue = ({ open, onOpenChange, theme = 'dark', onSelectionComplete }) => {
   const { user } = useAuth();

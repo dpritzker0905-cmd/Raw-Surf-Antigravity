@@ -1,7 +1,17 @@
 import React from 'react';
-import { Check, CheckCheck, EyeOff, BellOff, Pin, Camera, Play, Mic, Star, Shield, Users, Store, Briefcase } from 'lucide-react';
+import {
+  BellOff,
+  Pin,
+  Camera,
+  Play,
+  Mic,
+  Star,
+  Shield,
+  Users,
+  Store,
+  Briefcase
+} from 'lucide-react';
 import { getFullUrl, cacheBustUrl } from '../../utils/media';
-import { formatTimeAgoCompact as formatTimeAgo } from '../../utils/formatTime';
 
 // Inline role icon helper (mirrors MessagesPage logic for ConversationItem)
 const getRoleIcon = (role, isAdmin = false) => {

@@ -43,7 +43,6 @@ import { HairFilterEngine } from '../utils/HairFilterEngine';
 import { HairFilterPicker } from './HairFilterPicker';
 
 
-const API = process.env.REACT_APP_BACKEND_URL + '/api';
 
 /**
  * Connection Quality Indicator Component

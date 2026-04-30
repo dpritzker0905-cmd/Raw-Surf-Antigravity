@@ -16,7 +16,6 @@ import { Card, CardHeader, CardTitle, CardContent } from './ui/card';
 import { toast } from 'sonner';
 import logger from '../utils/logger';
 
-const API = process.env.REACT_APP_BACKEND_URL;
 
 /**
  * CrewHub - Captain's Command Center for Split Bookings

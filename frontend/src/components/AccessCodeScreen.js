@@ -8,7 +8,6 @@ import { Lock, Loader2, Waves } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 
-const API = process.env.REACT_APP_BACKEND_URL;
 const ACCESS_CODE_KEY = 'site_access_code'; // Stores the actual code for re-validation
 
 export const AccessCodeScreen = ({ children }) => {

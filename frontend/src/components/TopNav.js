@@ -10,7 +10,7 @@ import { StokedDrawer } from './StokedDrawer';
 import { NotificationsDrawer } from './NotificationsDrawer';
 import { ExclusiveAreaDrawer, hasExclusiveArea, getAreaType, getAreaIcon, getAreaColor } from './ExclusiveAreaDrawer';
 import apiClient, { BACKEND_URL } from '../lib/apiClient';
-import { getNotifications, getUnreadCount, markRead, markAllRead, sendNotification, sendPhotographerAlert, createNotification, markAlertRead } from '../services/notificationService';
+import { getUnreadCount } from '../services/notificationService';
 import logger from '../utils/logger';
 import { ROLES } from '../constants/roles';
 

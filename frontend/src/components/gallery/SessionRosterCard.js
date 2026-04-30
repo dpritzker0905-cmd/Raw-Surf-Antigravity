@@ -1,5 +1,21 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { Users, ChevronDown, ChevronUp, CheckCircle2, ImageIcon, Video, X, ZoomIn, Tag, Minus, Sparkles, Shield, Camera, Film, Bot, Hand } from 'lucide-react';
+import {
+  Users,
+  ChevronDown,
+  ChevronUp,
+  CheckCircle2,
+  ImageIcon,
+  Video,
+  X,
+  ZoomIn,
+  Tag,
+  Minus,
+  Shield,
+  Camera,
+  Film,
+  Bot,
+  Hand
+} from 'lucide-react';
 import apiClient from '../../lib/apiClient';
 import { getFullUrl } from '../../utils/media';
 import { toast } from 'sonner';

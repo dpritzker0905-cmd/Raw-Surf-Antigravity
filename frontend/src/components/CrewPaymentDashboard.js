@@ -15,7 +15,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { toast } from 'sonner';
 import logger from '../utils/logger';
 
-const API = process.env.REACT_APP_BACKEND_URL;
 
 /**
  * CrewPaymentDashboard - Host Surfer's real-time crew payment management

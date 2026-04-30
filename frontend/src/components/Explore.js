@@ -2,7 +2,32 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
-import { Search, MapPin, Users, Image, TrendingUp, Radio, X, Waves, Heart, Trophy, MessageCircle, Camera, Clock, ChevronDown, ChevronRight, ChevronLeft, Navigation, Compass, Filter, Loader2, Play, Hash, Globe, ArrowLeft, Calendar, Archive, FolderOpen } from 'lucide-react';
+import {
+  Search,
+  MapPin,
+  Users,
+  Image,
+  TrendingUp,
+  Radio,
+  X,
+  Waves,
+  Heart,
+  Trophy,
+  MessageCircle,
+  Camera,
+  Clock,
+  ChevronDown,
+  ChevronRight,
+  ChevronLeft,
+  Navigation,
+  Compass,
+  Loader2,
+  Play,
+  Hash,
+  Globe,
+  Archive,
+  FolderOpen
+} from 'lucide-react';
 
 import { Input } from './ui/input';
 

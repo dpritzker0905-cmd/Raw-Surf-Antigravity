@@ -1,7 +1,17 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import apiClient, { BACKEND_URL } from '../lib/apiClient';
-import { MapPin, Search, Check, Loader2, Navigation, X, ChevronRight, ChevronLeft, Globe, Map as MapIcon, AlertTriangle } from 'lucide-react';
+import {
+  MapPin,
+  Search,
+  Check,
+  Loader2,
+  Navigation,
+  X,
+  Globe,
+  Map,
+  AlertTriangle
+} from 'lucide-react';
 import { Input } from './ui/input';
 import { Badge } from './ui/badge';
 import logger from '../utils/logger';

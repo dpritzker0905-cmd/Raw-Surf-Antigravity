@@ -5,7 +5,6 @@ import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import logger from '../utils/logger';
 import { formatDuration } from '../utils/formatTime';
 
-const API = process.env.REACT_APP_BACKEND_URL;
 
 // Supabase storage URL for voice notes
 const _SUPABASE_URL = process.env.REACT_APP_SUPABASE_URL || '';

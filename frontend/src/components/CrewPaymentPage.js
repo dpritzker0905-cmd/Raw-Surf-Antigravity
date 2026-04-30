@@ -28,7 +28,6 @@ import logger from '../utils/logger';
 import { getFullUrl } from '../utils/media';
 
 
-const API = process.env.REACT_APP_BACKEND_URL;
 
 /**
  * CrewPaymentPage - Deep link destination for crew payment notifications

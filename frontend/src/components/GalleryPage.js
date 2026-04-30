@@ -3,7 +3,41 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { usePricing } from '../contexts/PricingContext';
 import apiClient, { BACKEND_URL } from '../lib/apiClient';
-import { Camera, Upload, X, DollarSign, Eye, ShoppingCart, Plus, Loader2, Image, Check, Lock, Video, Play, Settings, Edit3, Sparkles, RotateCcw, Folder, MapPin, Calendar, Trash2, Copy, Radio, UserPlus, Droplet, ChevronLeft, ChevronDown, ChevronUp, MoreHorizontal, Users, Send, CheckCircle, Link2, ImagePlus } from 'lucide-react';
+import {
+  Camera,
+  Upload,
+  X,
+  DollarSign,
+  Eye,
+  ShoppingCart,
+  Plus,
+  Loader2,
+  Image,
+  Check,
+  Lock,
+  Video,
+  Play,
+  Settings,
+  Edit3,
+  Sparkles,
+  RotateCcw,
+  Folder,
+  MapPin,
+  Calendar,
+  Trash2,
+  Copy,
+  Radio,
+  UserPlus,
+  Droplet,
+  ChevronLeft,
+  ChevronDown,
+  ChevronUp,
+  Users,
+  Send,
+  CheckCircle,
+  Link2,
+  ImagePlus
+} from 'lucide-react';
 import { Button } from './ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from './ui/dialog';
 import { Input } from './ui/input';

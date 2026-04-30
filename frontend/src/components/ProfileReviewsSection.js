@@ -10,8 +10,13 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { Star, MessageSquare, Camera, Clock, User, Loader2 } from 'lucide-react';
-import { Card, CardContent } from './ui/card';
+import {
+  Star,
+  MessageSquare,
+  Camera,
+  Clock,
+  Loader2
+} from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { getFullUrl } from '../utils/media';
 import apiClient from '../lib/apiClient';

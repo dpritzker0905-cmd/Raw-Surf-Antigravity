@@ -1,5 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { RefreshCw, Camera, Video, Zap, Calendar, Loader2, Check, Percent, ChevronDown, ChevronUp, Bell } from 'lucide-react';
+import {
+  RefreshCw,
+  Camera,
+  Video,
+  Zap,
+  Calendar,
+  Loader2,
+  Percent,
+  ChevronDown,
+  ChevronUp,
+  Bell
+} from 'lucide-react';
 import { Button } from './ui/button';
 import { useAuth } from '../contexts/AuthContext';
 import apiClient from '../lib/apiClient';

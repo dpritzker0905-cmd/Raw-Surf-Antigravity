@@ -37,7 +37,6 @@ import logger from '../utils/logger';
 import { getFullUrl } from '../utils/media';
 
 
-const API = process.env.REACT_APP_BACKEND_URL;
 
 // Badge icon mapping
 const BADGE_ICONS = {

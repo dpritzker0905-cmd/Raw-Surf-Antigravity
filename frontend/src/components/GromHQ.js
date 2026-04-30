@@ -25,7 +25,6 @@ import {
   DialogTitle,
 } from './ui/dialog';
 import apiClient from '../lib/apiClient';
-import { getNotifications, getUnreadCount, markRead, markAllRead, sendNotification, sendPhotographerAlert, createNotification, markAlertRead } from '../services/notificationService';
 import { toast } from 'sonner';
 import logger from '../utils/logger';
 import { getFullUrl } from '../utils/media';
@@ -142,9 +141,9 @@ export const GromHQ = () => {
     }
   };
 
-  const markAlertRead = async (alertId) => {
+  const handleMarkAlertRead = async (alertId) => {
     try {
-      await markAlertRead(alertId);
+      await apiClient.post(`/grom-hq/spending-alerts/${alertId}/read`);
       setSpendingAlerts(prev => prev.filter(a => a.id !== alertId));
     } catch (error) {
       logger.error('Failed to mark alert read:', error);
@@ -396,7 +395,7 @@ export const GromHQ = () => {
                     size="sm" 
                     variant="ghost"
                     className="text-orange-400 hover:text-orange-500 shrink-0"
-                    onClick={() => markAlertRead(alert.id)}
+                    onClick={() => handleMarkAlertRead(alert.id)}
                   >
                     <XCircle className="w-4 h-4" />
                   </Button>

@@ -31,7 +31,6 @@ import { getFullUrl } from '../../utils/media';
 import logger from '../../utils/logger';
 
 
-const API = process.env.REACT_APP_BACKEND_URL;
 
 /**
  * Individual crew member chip showing payment status
@@ -232,7 +231,7 @@ export const CrewPaymentProgress = ({
           <div>
             <p className={`font-medium ${textPrimaryClass}`}>All Crew Paid!</p>
             <p className={`text-sm ${textSecondaryClass}`}>
-              {totalCount} members • ${totalAmount.toFixed(2)} total
+              {totalCount} members ï¿½ ${totalAmount.toFixed(2)} total
             </p>
           </div>
         </div>

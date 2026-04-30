@@ -1,6 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Edit3, Trash2, Check, Loader2, Play, Image, MoreVertical, X } from 'lucide-react';
-import { Button } from './ui/button';
 import { getFullUrl } from '../utils/media';
 
 /**

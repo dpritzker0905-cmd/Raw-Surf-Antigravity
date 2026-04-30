@@ -22,7 +22,6 @@ import {
 import { toast } from 'sonner';
 import apiClient, { BACKEND_URL } from '../../lib/apiClient';
 
-const API = process.env.REACT_APP_BACKEND_URL;
 
 // Default discount tiers (can be overridden by photographer settings)
 const DEFAULT_DISCOUNT_TIERS = [

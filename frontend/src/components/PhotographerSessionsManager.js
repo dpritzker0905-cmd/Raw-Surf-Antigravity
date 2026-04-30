@@ -3,7 +3,32 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import apiClient from '../lib/apiClient';
-import { Radio, MapPin, Users, DollarSign, Clock, Play, Square, Eye, Camera, Zap, Settings, RefreshCw, ChevronDown, Image as ImageIcon, Heart, Target, Video, Signal, Tag, Percent, Sparkles, Upload, AlertTriangle, Check, Search, X } from 'lucide-react';
+import {
+  Radio,
+  MapPin,
+  Users,
+  DollarSign,
+  Clock,
+  Play,
+  Square,
+  Eye,
+  Camera,
+  Zap,
+  Settings,
+  RefreshCw,
+  ChevronDown,
+  Heart,
+  Target,
+  Video,
+  Tag,
+  Percent,
+  Sparkles,
+  Upload,
+  AlertTriangle,
+  Check,
+  Search,
+  X
+} from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from './ui/card';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
