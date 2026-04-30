@@ -41,6 +41,7 @@ import { SessionChatDrawer, SessionChatFAB } from './SessionChatDrawer';
 import SessionDetailDrawer from './bookings/SessionDetailDrawer';
 import { ChevronRight as ChevronRightIcon } from 'lucide-react';
 import { useSessionChatSync } from '../hooks/useSessionChatSync';
+import { formatDuration } from '../utils/formatTime';
 
 
 
@@ -658,13 +659,7 @@ const ActiveSessionCard = ({
     return () => clearInterval(interval);
   }, [session.status, session.arrived_at]);
   
-  const formatTime = (seconds) => {
-    const h = Math.floor(seconds / 3600);
-    const m = Math.floor((seconds % 3600) / 60);
-    const s = seconds % 60;
-    if (h > 0) return `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
-    return `${m}:${s.toString().padStart(2, '0')}`;
-  };
+  const formatTime = formatDuration;
   
   const isEnRoute = session.status === 'en_route';
   const isArrived = session.status === 'arrived';
@@ -1142,7 +1137,7 @@ export const OnDemandSessionManager = () => {
       if (document.visibilityState === 'hidden') return;
       fetchIncomingRequests();
       fetchActiveSession();
-    }, 5000);
+    }, 10000);
     
     return () => {
       if (pollIntervalRef.current) {

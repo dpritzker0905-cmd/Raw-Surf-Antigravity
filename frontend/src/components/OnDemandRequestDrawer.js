@@ -131,7 +131,6 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
   const navigate = useNavigate();
   // Flow: 'timing' -> 'location' -> 'duration' -> 'crew' -> 'confirm' -> 'selfie' -> 'waiting' -> 'success'
   const [step, setStep] = useState('timing');
-  const [_selectedResolution, _setSelectedResolution] = useState('standard');
   const [paymentMethod, setPaymentMethod] = useState('card');
   const [loading, setLoading] = useState(false);
   const [countdown, setCountdown] = useState(null);
@@ -828,7 +827,7 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
     
     if (step === 'waiting' && requestId) {
       pollDispatchStatus();
-      pollInterval = setInterval(pollDispatchStatus, 3000);
+      pollInterval = setInterval(pollDispatchStatus, 8000);
     }
     
     return () => {

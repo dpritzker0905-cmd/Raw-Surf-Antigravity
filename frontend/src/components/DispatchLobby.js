@@ -482,7 +482,7 @@ export const DispatchLobby = () => {
 
   useEffect(() => {
     pollDispatch(); // Immediate
-    pollRef.current = setInterval(pollDispatch, 3000);
+    pollRef.current = setInterval(pollDispatch, 8000);
     return () => clearInterval(pollRef.current);
   }, [pollDispatch]);
 

@@ -58,21 +58,7 @@ const ReplyItem = ({ reply, userId, _postId, textPrimaryClass, textSecondaryClas
     }
   };
 
-  const formatTime = (dateString) => {
-    if (!dateString) return '';
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffMs = now - date;
-    const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMs / 3600000);
-    const diffDays = Math.floor(diffMs / 86400000);
-    
-    if (diffMins < 1) return 'now';
-    if (diffMins < 60) return `${diffMins}m`;
-    if (diffHours < 24) return `${diffHours}h`;
-    if (diffDays < 7) return `${diffDays}d`;
-    return date.toLocaleDateString();
-  };
+
 
   return (
     <div className="ml-6 pl-3 border-l-2 border-zinc-700/50">
@@ -89,7 +75,7 @@ const ReplyItem = ({ reply, userId, _postId, textPrimaryClass, textSecondaryClas
         </div>
       </div>
       <div className={`flex items-center gap-3 mt-1 ${textSecondaryClass} text-xs`}>
-        <span className="opacity-70">{formatTime(reply.created_at)}</span>
+        <span className="opacity-70">{formatTimeAgo(reply.created_at)}</span>
         {reactionCount > 0 && (
           <span className="font-medium">{reactionCount} like{reactionCount !== 1 ? 's' : ''}</span>
         )}
@@ -239,21 +225,7 @@ const CommentWithReaction = ({
     setEditContent(localContent);
   };
 
-  const formatTime = (dateString) => {
-    if (!dateString) return '';
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffMs = now - date;
-    const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMs / 3600000);
-    const diffDays = Math.floor(diffMs / 86400000);
-    
-    if (diffMins < 1) return 'now';
-    if (diffMins < 60) return `${diffMins}m`;
-    if (diffHours < 24) return `${diffHours}h`;
-    if (diffDays < 7) return `${diffDays}d`;
-    return date.toLocaleDateString();
-  };
+
 
   const replyCount = localReplies.length;
   const isOwner = userId && comment.author_id === userId;
@@ -348,7 +320,7 @@ const CommentWithReaction = ({
       
       {/* Comment actions row */}
       <div className={`flex items-center gap-3 mt-1 ${textSecondaryClass} text-xs`}>
-        <span className="opacity-70">{formatTime(comment.created_at)}</span>
+        <span className="opacity-70">{formatTimeAgo(comment.created_at)}</span>
         
         {reactionCount > 0 && (
           <span className="font-medium">{reactionCount} like{reactionCount !== 1 ? 's' : ''}</span>

@@ -1,8 +1,9 @@
-﻿import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Mic, Square, Play, Pause, Send, X, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import logger from '../utils/logger';
+import { formatDuration } from '../utils/formatTime';
 
 const API = process.env.REACT_APP_BACKEND_URL;
 
@@ -200,11 +201,7 @@ export const VoiceRecorder = ({
     if (onCancel) onCancel();
   };
 
-  const formatTime = (seconds) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
-  };
+  const formatTime = formatDuration;
 
   return (
     <div className="flex items-center gap-3 p-3 bg-zinc-800 rounded-lg">

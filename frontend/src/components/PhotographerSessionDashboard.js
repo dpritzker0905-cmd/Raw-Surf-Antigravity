@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import { useAuth } from '../contexts/AuthContext';
@@ -8,6 +8,7 @@ import { Button } from './ui/button';
 import { toast } from 'sonner';
 import { DutyStationDrawer } from './DutyStationDrawer';
 import logger from '../utils/logger';
+import { formatClockTime } from '../utils/formatTime';
 
 
 export const PhotographerSessionDashboard = ({ onClose }) => {
@@ -81,11 +82,7 @@ export const PhotographerSessionDashboard = ({ onClose }) => {
     }
   };
 
-  const formatTime = (isoString) => {
-    if (!isoString) return '';
-    const date = new Date(isoString);
-    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  };
+  const formatTime = formatClockTime;
 
   const getSessionDuration = () => {
     if (!session?.participants?.[0]?.joined_at) return '';

@@ -47,3 +47,73 @@ export const formatTimeAgoCompact = (dateInput) => {
   if (h < 24) return `${h}h`;
   return `${Math.floor(h / 24)}d`;
 };
+
+/**
+ * Formats a duration in seconds into a human-readable timer string.
+ * Examples: "0:05", "1:30", "1:05:30"
+ * 
+ * Used by: LiveStatusHUD, MapLiveIndicator, OnDemandSessionManager,
+ *          PostModal, VoiceRecorder, WebcamCaptureModal
+ * 
+ * @param {number} seconds - Duration in seconds
+ * @returns {string} Formatted duration string (m:ss or h:mm:ss)
+ */
+export const formatDuration = (seconds) => {
+  if (!seconds && seconds !== 0) return '0:00';
+  const s = Math.floor(seconds);
+  const hrs = Math.floor(s / 3600);
+  const mins = Math.floor((s % 3600) / 60);
+  const secs = s % 60;
+  if (hrs > 0) {
+    return `${hrs}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  }
+  return `${mins}:${secs.toString().padStart(2, '0')}`;
+};
+
+/**
+ * Formats a duration with zero-padded minutes (for recording UIs).
+ * Examples: "00:05", "01:30", "01:05:30"
+ * 
+ * @param {number} seconds - Duration in seconds
+ * @returns {string} Formatted duration string (mm:ss or hh:mm:ss)
+ */
+export const formatDurationPadded = (seconds) => {
+  if (!seconds && seconds !== 0) return '00:00';
+  const s = Math.floor(seconds);
+  const hrs = Math.floor(s / 3600);
+  const mins = Math.floor((s % 3600) / 60);
+  const secs = s % 60;
+  if (hrs > 0) {
+    return `${hrs.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  }
+  return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+};
+
+/**
+ * Formats an ISO date/time string into a locale clock time (e.g. "2:30 PM").
+ * Used by: MessagesPage, PhotographerSessionDashboard
+ * 
+ * @param {string|Date} dateInput - ISO date string or Date object
+ * @returns {string} Locale time string (e.g. "2:30 PM")
+ */
+export const formatClockTime = (dateInput) => {
+  if (!dateInput) return '';
+  const date = dateInput instanceof Date ? dateInput : new Date(dateInput);
+  return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+};
+
+/**
+ * Converts a 24h time string (HH:MM) to 12h format.
+ * Used by: GoldPassSlotCard
+ * 
+ * @param {string} time - Time string in HH:MM format
+ * @returns {string} Formatted 12h time (e.g. "2:30 PM")
+ */
+export const formatTimeSlot = (time) => {
+  if (!time) return '';
+  const [hours, minutes] = time.split(':');
+  const hour = parseInt(hours);
+  const ampm = hour >= 12 ? 'PM' : 'AM';
+  const hour12 = hour % 12 || 12;
+  return `${hour12}:${minutes} ${ampm}`;
+};

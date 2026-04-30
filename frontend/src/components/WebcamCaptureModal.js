@@ -11,6 +11,7 @@ import { WebGLVideoProcessor } from '../utils/WebGLFilterEngine';
 import { HairFilterEngine } from '../utils/HairFilterEngine';
 import { HairFilterPicker } from './HairFilterPicker';
 import logger from '../utils/logger';
+import { formatDurationPadded } from '../utils/formatTime';
 
 export default function WebcamCaptureModal({ isOpen, onClose, onCapture, maxLength = null }) {
   const [stream, setStream] = useState(null);
@@ -349,11 +350,7 @@ export default function WebcamCaptureModal({ isOpen, onClose, onCapture, maxLeng
     setIsRecording(false);
   }, []);
 
-  const formatTime = (seconds) => {
-    const m = Math.floor(seconds / 60).toString().padStart(2, '0');
-    const s = (seconds % 60).toString().padStart(2, '0');
-    return `${m}:${s}`;
-  };
+  const formatTime = formatDurationPadded;
 
   const handleFilterChange = (key, val) => setVideoFilters(p => ({ ...p, [key]: val }));
   const handlePresetSelect = (preset) => {

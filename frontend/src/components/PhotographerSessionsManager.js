@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import apiClient from '../lib/apiClient';
-import { Radio, MapPin, Users, DollarSign, Clock, Play, Square, Eye, Camera, Zap, Settings, RefreshCw, ChevronDown, Image as ImageIcon, Heart, Target, Bug, Video, Signal, Tag, Percent, Sparkles, Upload, AlertTriangle, Check, Search, X } from 'lucide-react';
+import { Radio, MapPin, Users, DollarSign, Clock, Play, Square, Eye, Camera, Zap, Settings, RefreshCw, ChevronDown, Image as ImageIcon, Heart, Target, Video, Signal, Tag, Percent, Sparkles, Upload, AlertTriangle, Check, Search, X } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from './ui/card';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
@@ -138,7 +138,6 @@ export const PhotographerSessionsManager = () => {
   const [sessionHistory, setSessionHistory] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showPricingModal, setShowPricingModal] = useState(false);
-  const [_showPromoPreview, _setShowPromoPreview] = useState(false);
   const [surfSpots, setSurfSpots] = useState([]);
   const [_galleries, setGalleries] = useState([]);
   const [showGalleryCreatedModal, setShowGalleryCreatedModal] = useState(false);
@@ -149,8 +148,6 @@ export const PhotographerSessionsManager = () => {
   const [groms, setGroms] = useState([]);
   const isHobbyist = ['Hobbyist', 'Grom Parent'].includes(user?.role);
   
-  // Debug overlay state
-  const [showDebugOverlay, setShowDebugOverlay] = useState(false);
   const [showPhotoUpload, setShowPhotoUpload] = useState(false);
   // Modal states - SEPARATED WORKFLOWS
   const [showSettingsModal, setShowSettingsModal] = useState(false);  // Rates/Pricing setup
@@ -2384,144 +2381,7 @@ export const PhotographerSessionsManager = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Debug Overlay Toggle Button */}
-      <button
-        onClick={() => setShowDebugOverlay(!showDebugOverlay)}
-        className="fixed bottom-24 right-4 z-50 w-10 h-10 bg-zinc-800 border border-zinc-700 rounded-full flex items-center justify-center text-zinc-400 hover:text-white hover:border-cyan-500 transition-all shadow-lg md:bottom-4"
-        title="Toggle Debug Overlay"
-        data-testid="debug-toggle"
-      >
-        <Bug className="w-5 h-5" />
-      </button>
 
-      {/* Debug Overlay */}
-      {showDebugOverlay && (
-        <div className="fixed bottom-36 right-4 z-50 w-72 bg-black/90 backdrop-blur-sm border border-cyan-500/50 rounded-lg p-4 shadow-xl md:bottom-16" data-testid="debug-overlay">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-cyan-400 font-bold text-sm flex items-center gap-2">
-              <Bug className="w-4 h-4" />
-              Debug Overlay
-            </h3>
-            <button
-              onClick={() => setShowDebugOverlay(false)}
-              className="text-zinc-500 hover:text-white"
-            >
-              x
-            </button>
-          </div>
-          
-          {/* GPS Status */}
-          <div className="mb-3 p-2 bg-zinc-900/50 rounded border border-zinc-800">
-            <div className="flex items-center gap-2 mb-1">
-              <Signal className={`w-4 h-4 ${
-                debugInfo.gpsStatus === 'granted' ? 'text-green-400' :
-                debugInfo.gpsStatus === 'denied' ? 'text-red-400' :
-                debugInfo.gpsStatus === 'requesting' ? 'text-yellow-400 animate-pulse' :
-                'text-zinc-500'
-              }`} />
-              <span className="text-zinc-400 text-xs font-medium">GPS Status</span>
-            </div>
-            <div className="grid grid-cols-2 gap-2 text-xs">
-              <div>
-                <span className="text-zinc-500">Status:</span>
-                <span className={`ml-1 font-mono ${
-                  debugInfo.gpsStatus === 'granted' ? 'text-green-400' : 'text-zinc-400'
-                }`}>
-                  {debugInfo.gpsStatus}
-                </span>
-              </div>
-              <div>
-                <span className="text-zinc-500">Accuracy:</span>
-                <span className="ml-1 font-mono text-cyan-400">
-                  {debugInfo.gpsAccuracy ? `${debugInfo.gpsAccuracy.toFixed(1)}m` : '--'}
-                </span>
-              </div>
-            </div>
-            {debugInfo.latitude && (
-              <div className="mt-1 text-xs text-zinc-500 font-mono truncate">
-                {debugInfo.latitude.toFixed(6)}, {debugInfo.longitude.toFixed(6)}
-              </div>
-            )}
-          </div>
-          
-          {/* Camera Status */}
-          <div className="mb-3 p-2 bg-zinc-900/50 rounded border border-zinc-800">
-            <div className="flex items-center gap-2 mb-1">
-              <Video className={`w-4 h-4 ${
-                debugInfo.cameraStatus === 'granted' ? 'text-green-400' :
-                debugInfo.cameraStatus === 'denied' ? 'text-red-400' :
-                debugInfo.cameraStatus === 'requesting' ? 'text-yellow-400 animate-pulse' :
-                'text-zinc-500'
-              }`} />
-              <span className="text-zinc-400 text-xs font-medium">Camera Status</span>
-            </div>
-            <div className="text-xs">
-              <span className="text-zinc-500">Status:</span>
-              <span className={`ml-1 font-mono ${
-                debugInfo.cameraStatus === 'granted' ? 'text-green-400' : 'text-zinc-400'
-              }`}>
-                {debugInfo.cameraStatus}
-              </span>
-            </div>
-            {debugInfo.cameraStream && (
-              <div className="mt-2 aspect-video bg-zinc-800 rounded overflow-hidden">
-                <video
-                  ref={videoRef}
-                  autoPlay
-                  playsInline
-                  muted
-                  className="w-full h-full object-cover"
-                />
-              </div>
-            )}
-          </div>
-          
-          {/* Permission Flow Step */}
-          <div className="p-2 bg-zinc-900/50 rounded border border-zinc-800">
-            <div className="flex items-center gap-2 mb-2">
-              <Zap className="w-4 h-4 text-amber-400" />
-              <span className="text-zinc-400 text-xs font-medium">Permission Flow</span>
-            </div>
-            <div className="flex items-center gap-1">
-              {['location', 'spot_picker', 'camera', 'ready'].map((step, i) => (
-                <React.Fragment key={step}>
-                  <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
-                    debugInfo.permissionStep === step ? 'bg-cyan-500 text-black animate-pulse' :
-                    ['location', 'spot_picker', 'camera', 'ready'].indexOf(debugInfo.permissionStep) > i ? 'bg-green-500 text-black' :
-                    'bg-zinc-700 text-zinc-500'
-                  }`}>
-                    {i + 1}
-                  </div>
-                  {i < 3 && <div className="flex-1 h-0.5 bg-zinc-700" />}
-                </React.Fragment>
-              ))}
-            </div>
-            <div className="text-center mt-1 text-xs text-zinc-500">
-              {debugInfo.permissionStep === 'idle' && 'Ready to start'}
-              {debugInfo.permissionStep === 'location' && 'Getting location...'}
-              {debugInfo.permissionStep === 'spot_picker' && 'Select surf spot'}
-              {debugInfo.permissionStep === 'camera' && 'Camera access...'}
-              {debugInfo.permissionStep === 'ready' && 'All set!'}
-            </div>
-          </div>
-          
-          {/* Quick Actions */}
-          <div className="mt-3 flex gap-2">
-            <button
-              onClick={requestLocationPermission}
-              className="flex-1 text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-300 py-1.5 rounded"
-            >
-              Test GPS
-            </button>
-            <button
-              onClick={requestCameraPermission}
-              className="flex-1 text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-300 py-1.5 rounded"
-            >
-              Test Camera
-            </button>
-          </div>
-        </div>
-      )}
       
       {/* Photo Upload Modal */}
       <PhotoUploadModal

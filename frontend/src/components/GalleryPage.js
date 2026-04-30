@@ -138,7 +138,6 @@ export const GalleryPage = () => {
   // Grom Highlights state (for Grom Parents)
   const [gromHighlights, setGromHighlights] = useState([]);
   const [linkedGroms, setLinkedGroms] = useState([]);
-  const [_selectedTagGrom, _setSelectedTagGrom] = useState(null);
   const [_showTagGromModal, setShowTagGromModal] = useState(false);
   const [_itemToTag, setItemToTag] = useState(null);
   

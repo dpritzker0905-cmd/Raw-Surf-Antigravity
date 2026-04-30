@@ -16,6 +16,7 @@ import { Clock, Lock, Crown, Calendar, Unlock, Camera, MapPin } from 'lucide-rea
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
+import { formatTimeSlot } from '../utils/formatTime';
 
 export const GoldPassSlotCard = ({ 
   slot, 
@@ -45,15 +46,8 @@ export const GoldPassSlotCard = ({
     return () => clearInterval(interval);
   }, [isLocked, minutesRemaining]);
 
-  // Format time for display (HH:MM -> 7:00 AM)
-  const formatTime = (time) => {
-    if (!time) return '';
-    const [hours, minutes] = time.split(':');
-    const hour = parseInt(hours);
-    const ampm = hour >= 12 ? 'PM' : 'AM';
-    const hour12 = hour % 12 || 12;
-    return `${hour12}:${minutes} ${ampm}`;
-  };
+  // Format time for display (HH:MM -> 7:00 AM) — shared utility
+  const formatTime = formatTimeSlot;
 
   // Format date
   const formatDate = (dateStr) => {

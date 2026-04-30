@@ -14,7 +14,7 @@ import { SharePostModal } from './PostMenu';
 import PostMenu from './PostMenu';
 import logger from '../utils/logger';
 import { getFullUrl } from '../utils/media';
-import { formatTimeAgo } from '../utils/formatTime';
+import { formatTimeAgo, formatDuration } from '../utils/formatTime';
 import { REACTION_EMOJIS } from '../constants/emojis';
 import EmojiPicker from './EmojiPicker';
 
@@ -152,12 +152,7 @@ const ModalVideoPlayer = ({ src, poster, className = '' }) => {
     videoRef.current.currentTime = ratio * videoRef.current.duration;
   };
 
-  const formatTime = (s) => {
-    if (!s || isNaN(s)) return '0:00';
-    const m = Math.floor(s / 60);
-    const sec = Math.floor(s % 60);
-    return `${m}:${sec.toString().padStart(2, '0')}`;
-  };
+  const formatTime = formatDuration;
 
   return (
     <div

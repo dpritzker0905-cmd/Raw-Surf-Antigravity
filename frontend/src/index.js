@@ -46,6 +46,39 @@ if (typeof window !== 'undefined') {
       });
     }
   };
+
+  // Global broken-image fallback handler
+  // Catches ALL failed <img> loads and prevents the broken-image icon.
+  // For avatar images (with class "rounded-full"), replaces with an initial letter.
+  // For other images, hides them gracefully.
+  document.addEventListener('error', function(e) {
+    if (e.target.tagName === 'IMG') {
+      const img = e.target;
+      // Prevent infinite re-trigger
+      if (img.dataset.fallbackApplied) return;
+      img.dataset.fallbackApplied = 'true';
+
+      const isAvatar = img.className?.includes('rounded-full');
+      if (isAvatar) {
+        // Replace with initial-letter div
+        const initial = (img.alt || '?').charAt(0).toUpperCase();
+        const fallback = document.createElement('div');
+        fallback.className = img.className;
+        fallback.style.cssText = `
+          display: flex; align-items: center; justify-content: center;
+          background: linear-gradient(135deg, #8b5cf6, #06b6d4);
+          color: white; font-weight: 700; user-select: none;
+        `;
+        fallback.textContent = initial;
+        fallback.setAttribute('role', 'img');
+        fallback.setAttribute('aria-label', img.alt || 'Avatar');
+        if (img.parentNode) img.parentNode.replaceChild(fallback, img);
+      } else {
+        // Hide non-avatar broken images
+        img.style.display = 'none';
+      }
+    }
+  }, true); // capture phase to catch before React
 }
 
 // Loading fallback for translations

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Square, Clock, MapPin } from 'lucide-react';
 import { Button } from './ui/button';
+import { formatDuration } from '../utils/formatTime';
 
 /**
  * MapLiveIndicator - Map-Integrated Live Session HUD
@@ -37,17 +38,8 @@ const useSessionTimer = (startTime) => {
   return elapsed;
 };
 
-// Format seconds to HH:MM:SS or MM:SS
-const formatTime = (seconds) => {
-  const hrs = Math.floor(seconds / 3600);
-  const mins = Math.floor((seconds % 3600) / 60);
-  const secs = seconds % 60;
-  
-  if (hrs > 0) {
-    return `${hrs}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-  }
-  return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-};
+// Format seconds to HH:MM:SS or MM:SS — using shared utility
+const formatTime = formatDuration;
 
 // Soft Red Pulsing Live Indicator
 const PulsingLiveIndicator = () => (

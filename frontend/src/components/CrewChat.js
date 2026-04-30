@@ -35,6 +35,7 @@ import logger from '../utils/logger';
 
 import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import { getFullUrl } from '../utils/media';
+import { formatClockTime, formatDuration } from '../utils/formatTime';
 
 
 const WS_URL = BACKEND_URL.replace('https://', 'wss://').replace('http://', 'ws://');
@@ -640,16 +641,8 @@ export default function CrewChat() {
     return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
   };
   
-  const formatTime = (isoString) => {
-    const date = new Date(isoString);
-    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  };
+  const formatTime = formatClockTime;
   
-  const formatDuration = (seconds) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
-  };
   
   const getTypingNames = () => {
     if (!chatInfo?.participants) return [];

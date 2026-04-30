@@ -462,10 +462,7 @@ const ViewNoteModal = ({ isOpen, onClose, note, currentUserId, onReply }) => {
 // MessageBubble extracted → ./messages/MessageBubble.js
 
 // Helper functions
-const formatTime = (dateString) => {
-  const date = new Date(dateString);
-  return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-};
+// formatTime was consolidated into ../utils/formatTime.js (formatClockTime)
 
 
 
@@ -709,7 +706,7 @@ export const MessagesPage = () => {
     };
 
     fetchTypingUsers();
-    const interval = setInterval(fetchTypingUsers, 3000);
+    const interval = setInterval(fetchTypingUsers, 5000);
     return () => clearInterval(interval);
   }, [selectedConversation?.id, user?.id]);
 

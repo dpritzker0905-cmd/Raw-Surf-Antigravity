@@ -1,7 +1,8 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Square, Clock, Users, DollarSign, MapPin, Eye, Camera, ChevronDown, ChevronUp } from 'lucide-react';
 import { Button } from './ui/button';
 import { getFullUrl } from '../utils/media';
+import { formatDuration } from '../utils/formatTime';
 
 /**
  * LiveStatusHUD - Persistent "Active Session" Heads-Up Display
@@ -39,17 +40,8 @@ const useSessionTimer = (startTime) => {
   return elapsed;
 };
 
-// Format seconds to HH:MM:SS or MM:SS
-const formatTime = (seconds) => {
-  const hrs = Math.floor(seconds / 3600);
-  const mins = Math.floor((seconds % 3600) / 60);
-  const secs = seconds % 60;
-  
-  if (hrs > 0) {
-    return `${hrs}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-  }
-  return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-};
+// Format seconds to HH:MM:SS or MM:SS — using shared utility
+const formatTime = formatDuration;
 
 // Blinking Live Indicator Component
 const BlinkingLiveIndicator = ({ size = 'default' }) => {

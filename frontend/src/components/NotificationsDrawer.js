@@ -13,6 +13,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from './ui/sheet';
 import { Button } from './ui/button';
 import { toast } from 'sonner';
 import logger from '../utils/logger';
+import { formatTimeAgo } from '../utils/formatTime';
 import { getNotificationDeepLink } from '../utils/notificationDeepLinks';
 
 // ── Theme colour tokens (mirrors GoLiveModal pattern) ────────────────────────
@@ -228,17 +229,7 @@ export const NotificationsDrawer = ({ isOpen, onClose, onCountUpdate }) => {
     }
   };
 
-  const formatTime = (dateString) => {
-    if (!dateString) return '';
-    const date = new Date(dateString);
-    const diffMs = Date.now() - date;
-    const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMs / 3600000);
-    if (diffMins < 1) return 'Just now';
-    if (diffMins < 60) return `${diffMins}m`;
-    if (diffHours < 24) return `${diffHours}h`;
-    return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
-  };
+
 
   const handleViewAll = () => {
     onClose();
@@ -286,7 +277,7 @@ export const NotificationsDrawer = ({ isOpen, onClose, onCountUpdate }) => {
             <p className={`font-medium text-sm leading-tight ${notification.is_read ? colors.subtext : colors.title}`}>
               {notification.title}
             </p>
-            <span className={`text-[10px] ${colors.timeText} flex-shrink-0`}>{formatTime(notification.created_at)}</span>
+            <span className={`text-[10px] ${colors.timeText} flex-shrink-0`}>{formatTimeAgo(notification.created_at)}</span>
           </div>
           {notification.body && (
             <p className={`text-xs ${colors.subtext} mt-0.5 line-clamp-2`}>{notification.body}</p>

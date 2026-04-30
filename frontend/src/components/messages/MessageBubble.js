@@ -4,15 +4,12 @@ import { getFullUrl } from '../../utils/media';
 import { BACKEND_URL } from '../../lib/apiClient';
 import EphemeralCountdown from './EphemeralCountdown';
 import logger from '../../utils/logger';
+import { formatClockTime } from '../../utils/formatTime';
 
 const REACTIONS = ['🤙', '🌊', '❤️', '🔥', '👏', '😂'];
 
-// Format timestamp for message bubble
-const formatTime = (ts) => {
-  if (!ts) return '';
-  const d = new Date(ts);
-  return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-};
+// Format timestamp for message bubble — shared utility
+const formatTime = formatClockTime;
 
 
 const MessageBubble = ({ message, onReact, _onReply, onNavigateProfile }) => {

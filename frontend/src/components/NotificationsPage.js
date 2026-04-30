@@ -11,6 +11,7 @@ import {
 import { Button } from './ui/button';
 import { toast } from 'sonner';
 import logger from '../utils/logger';
+import { formatTimeAgo } from '../utils/formatTime';
 import { getNotificationDeepLink } from '../utils/notificationDeepLinks';
 
 // ── Theme colour tokens ───────────────────────────────────────────────────────
@@ -298,17 +299,7 @@ export const NotificationsPage = () => {
     }
   };
 
-  const formatTime = (dateString) => {
-    if (!dateString) return '';
-    const date = new Date(dateString);
-    const diffMs   = Date.now() - date;
-    const diffMins  = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMs / 3600000);
-    if (diffMins < 1)  return 'Just now';
-    if (diffMins < 60) return `${diffMins}m ago`;
-    if (diffHours < 24) return `${diffHours}h ago`;
-    return date.toLocaleDateString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
-  };
+
 
   // ── Sub-components ──────────────────────────────────────────────────────────
   const NotificationItem = ({ notification }) => {
@@ -332,7 +323,7 @@ export const NotificationsPage = () => {
               {notification.title}
             </p>
             <div className="flex items-center gap-2 flex-shrink-0">
-              <span className={`text-xs ${colors.timeText}`}>{formatTime(notification.created_at)}</span>
+              <span className={`text-xs ${colors.timeText}`}>{formatTimeAgo(notification.created_at)}</span>
               {!notification.is_read && (
                 <div className={`w-2 h-2 rounded-full ${colors.unreadDot}`} />
               )}
