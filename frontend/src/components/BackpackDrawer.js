@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { Backpack, Stamp, ChevronRight, X, CreditCard, BellRing } from 'lucide-react';
+import { Backpack, Stamp, ChevronRight, X, CreditCard, BellRing, BookOpen } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from './ui/sheet';
 import { SurfPassport } from './SurfPassport';
 
@@ -42,6 +42,16 @@ export const BackpackDrawer = ({ isOpen, onClose, onReopen }) => {
   };
 
   const menuItems = [
+    {
+      id: 'surf-log',
+      icon: BookOpen,
+      label: 'Surf Log',
+      description: 'Track your sessions & progress',
+      color: 'text-cyan-400',
+      bgColor: 'bg-cyan-500/20',
+      borderColor: 'border-cyan-500/30',
+      action: () => handleNavigation('/surf-log')
+    },
     {
       id: 'passport',
       icon: Stamp,

@@ -70,6 +70,7 @@ const GalleryStorefront           = React.lazy(() => import('./components/Galler
 const UsernameSetup               = React.lazy(() => import('./components/UsernameSetup'));
 const ThemePage                   = React.lazy(() => import('./components/ThemePage').then(m => ({ default: m.ThemePage })));
 const SearchPage                  = React.lazy(() => import('./pages/SearchPage'));
+const SurfLog                     = React.lazy(() => import('./components/SurfLog'));
 const CreatePost                  = React.lazy(() => import('./components/CreatePost').then(m => ({ default: m.CreatePost })));
 const DispatchLobby               = React.lazy(() => import('./components/DispatchLobby').then(m => ({ default: m.DispatchLobby })));
 const PostSessionSummary          = React.lazy(() => import('./components/gallery/PostSessionSummary').then(m => ({ default: m.PostSessionSummary })));
@@ -165,6 +166,7 @@ function App() {
             <Route path="/create" element={<ProtectedRoute><AppLayout><Lazy><CreatePost /></Lazy></AppLayout></ProtectedRoute>} />
             <Route path="/notifications" element={<ProtectedRoute><AppLayout><Lazy><NotificationsPage /></Lazy></AppLayout></ProtectedRoute>} />
             <Route path="/alerts" element={<ProtectedRoute><AppLayout><Lazy><SurfAlerts /></Lazy></AppLayout></ProtectedRoute>} />
+            <Route path="/surf-log" element={<ProtectedRoute><AppLayout><Lazy><SurfLog /></Lazy></AppLayout></ProtectedRoute>} />
             <Route path="/gallery" element={<ProtectedRoute><AppLayout><Lazy><GalleryPage /></Lazy></AppLayout></ProtectedRoute>} />
             <Route path="/my-gallery" element={<ProtectedRoute><AppLayout><Lazy><SurferGallery /></Lazy></AppLayout></ProtectedRoute>} />
 

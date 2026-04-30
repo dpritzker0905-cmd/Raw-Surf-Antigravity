@@ -7,7 +7,7 @@ import {
   MapPin, Waves, Camera, Clock, Users, X, TrendingUp, Loader2, Radio, Calendar, MessageCircle, Compass,
   Sun, Lock, Crown, Eye, Heart, ChevronLeft, Flag,
   Navigation, AlertCircle, Zap, CalendarClock, ChevronRight,
-  Bell, Send, DollarSign, Star, Wind, CloudRain
+  Bell, Send, DollarSign, Star, Wind, CloudRain, Brain, Timer
 } from 'lucide-react';
 import { Button } from './ui/button';
 
@@ -496,6 +496,11 @@ const SpotHub = () => {
   // Lightbox state for condition report media
   const [lightboxUrl, setLightboxUrl] = useState(null);
   
+  // Intelligence state — crowd prediction + optimal time
+  const [crowdPrediction, setCrowdPrediction] = useState(null);
+  const [optimalTime, setOptimalTime] = useState(null);
+  const [intelLoading, setIntelLoading] = useState(false);
+  
   const userTier = user?.subscription_tier || 'free';
   const forecastDaysAllowed = ['premium', 'pro', 'gold'].includes(userTier) ? 10 : ['paid', 'basic'].includes(userTier) ? 7 : 3;
   
@@ -623,6 +628,24 @@ const SpotHub = () => {
       toast.error('Failed to load spot information');
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Fetch intelligence data (crowd prediction + optimal time) — only when Intel tab is opened
+  const fetchIntelData = async () => {
+    if (!spotId || crowdPrediction) return; // Don't refetch if already loaded
+    setIntelLoading(true);
+    try {
+      const [crowdRes, optimalRes] = await Promise.allSettled([
+        apiClient.get(`/surf-spots/${spotId}/crowd-prediction`),
+        apiClient.get(`/surf-spots/${spotId}/optimal-time`),
+      ]);
+      if (crowdRes.status === 'fulfilled') setCrowdPrediction(crowdRes.value.data);
+      if (optimalRes.status === 'fulfilled') setOptimalTime(optimalRes.value.data);
+    } catch (err) {
+      logger.error('Error fetching intel data:', err);
+    } finally {
+      setIntelLoading(false);
     }
   };
 
@@ -1154,10 +1177,14 @@ const SpotHub = () => {
           { id: 'conditions', label: 'Reports', icon: MessageCircle, count: conditionReports.length + surfReports.length },
           { id: 'pro', label: 'Pro', icon: Camera, count: photographerPosts.length },
           { id: 'community', label: 'Community', icon: Users, count: userPosts.length },
+          { id: 'intel', label: 'Intel', icon: Brain, count: 0 },
         ].map((tab) => (
           <button
             key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
+            onClick={() => {
+              setActiveTab(tab.id);
+              if (tab.id === 'intel') fetchIntelData();
+            }}
             className={`flex-1 flex items-center justify-center gap-1 py-2 text-xs font-medium transition-colors relative ${
               activeTab === tab.id ? 'text-white' : 'text-gray-500'
             }`}
@@ -1392,6 +1419,80 @@ const SpotHub = () => {
                 <p className="text-sm">No community posts tagged here</p>
                 <p className="text-xs">Tag your photos to this spot to appear here</p>
               </div>
+            )}
+          </div>
+        )}
+
+        {/* Intelligence Tab — Crowd Prediction + Optimal Time */}
+        {activeTab === 'intel' && (
+          <div className="space-y-4">
+            {intelLoading ? (
+              <div className="flex items-center justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-cyan-400" /></div>
+            ) : (
+              <>
+                {/* Optimal Surf Time */}
+                {optimalTime && optimalTime.best_window && (
+                  <div className={`p-4 rounded-xl border ${isLight ? 'bg-gradient-to-br from-green-50 to-emerald-50 border-green-200' : 'bg-gradient-to-br from-green-500/10 to-emerald-500/10 border-green-500/30'}`}>
+                    <div className="flex items-center gap-2 mb-3">
+                      <Timer className="w-4 h-4 text-green-400" />
+                      <span className={`text-sm font-bold ${isLight ? 'text-gray-900' : 'text-white'}`}>Best Time to Surf</span>
+                    </div>
+                    <div className={`text-2xl font-bold mb-1 ${isLight ? 'text-green-700' : 'text-green-400'}`}>
+                      {optimalTime.best_window.start_hour || 'N/A'} — {optimalTime.best_window.end_hour || ''}
+                    </div>
+                    {optimalTime.best_window.reason && (
+                      <p className={`text-xs ${isLight ? 'text-gray-600' : 'text-gray-400'}`}>{optimalTime.best_window.reason}</p>
+                    )}
+                    {optimalTime.best_window.score && (
+                      <div className="mt-2 flex items-center gap-2">
+                        <div className={`h-2 flex-1 rounded-full ${isLight ? 'bg-gray-200' : 'bg-zinc-700'}`}>
+                          <div className="h-2 rounded-full bg-gradient-to-r from-green-400 to-emerald-400" style={{ width: `${Math.min(optimalTime.best_window.score * 10, 100)}%` }} />
+                        </div>
+                        <span className="text-xs text-green-400 font-medium">{optimalTime.best_window.score}/10</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Crowd Prediction */}
+                {crowdPrediction && crowdPrediction.predictions && (
+                  <div className={`p-4 rounded-xl border ${isLight ? 'bg-white border-gray-200' : 'bg-zinc-800/60 border-zinc-700'}`}>
+                    <div className="flex items-center gap-2 mb-3">
+                      <Users className="w-4 h-4 text-orange-400" />
+                      <span className={`text-sm font-bold ${isLight ? 'text-gray-900' : 'text-white'}`}>Crowd Forecast</span>
+                    </div>
+                    <div className="space-y-2">
+                      {(Array.isArray(crowdPrediction.predictions) ? crowdPrediction.predictions : Object.entries(crowdPrediction.predictions)).slice(0, 7).map((item, idx) => {
+                        const day = Array.isArray(item) ? item[0] : (item.day || item.date);
+                        const level = Array.isArray(item) ? item[1] : (item.level || item.crowd_level || item.value);
+                        const numLevel = typeof level === 'number' ? level : ({'low':1,'light':2,'moderate':3,'busy':4,'crowded':4,'packed':5}[String(level).toLowerCase()] || 2);
+                        const colors = ['bg-green-400','bg-green-400','bg-yellow-400','bg-orange-400','bg-red-400','bg-red-500'];
+                        const labels = ['','Empty','Light','Moderate','Busy','Packed'];
+                        return (
+                          <div key={idx} className="flex items-center gap-3">
+                            <span className={`text-xs w-16 ${isLight ? 'text-gray-600' : 'text-gray-400'}`}>
+                              {typeof day === 'string' && day.length > 3 ? new Date(day + 'T12:00:00').toLocaleDateString('en-US', {weekday:'short'}) : day}
+                            </span>
+                            <div className={`flex-1 h-3 rounded-full ${isLight ? 'bg-gray-200' : 'bg-zinc-700'}`}>
+                              <div className={`h-3 rounded-full ${colors[numLevel] || 'bg-yellow-400'} transition-all`} style={{ width: `${numLevel * 20}%` }} />
+                            </div>
+                            <span className={`text-[10px] w-14 text-right ${isLight ? 'text-gray-500' : 'text-gray-400'}`}>{labels[numLevel] || level}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    {crowdPrediction.note && <p className={`text-[10px] mt-2 ${isLight ? 'text-gray-400' : 'text-gray-500'}`}>{crowdPrediction.note}</p>}
+                  </div>
+                )}
+
+                {!crowdPrediction && !optimalTime && (
+                  <div className="text-center py-8 text-gray-400">
+                    <Brain className="w-10 h-10 mx-auto mb-2 opacity-30" />
+                    <p className="text-sm">Intelligence data unavailable</p>
+                    <p className="text-xs">Check back when more data is available for this spot</p>
+                  </div>
+                )}
+              </>
             )}
           </div>
         )}
