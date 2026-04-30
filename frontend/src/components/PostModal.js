@@ -593,7 +593,7 @@ const PostModal = ({ post, isOpen, onClose, _onPostUpdated, posts, onNavigatePos
         toast.success('Saved!');
       }
     } catch (err) {
-      console.error('Save error:', err);
+      logger.error('Save error:', err);
       toast.error(err.response?.data?.detail || 'Failed to save');
     }
   };

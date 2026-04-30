@@ -445,8 +445,7 @@ async def get_condition_reports_feed(
         except Exception as e:
             cr_logger.warning(f"Failed to persist auto-healed URLs: {e}")
     
-    # Get total count for pagination (always uses date range now)
-    count_query = select(ConditionReport).where(
+    count_sql = select(func.count(ConditionReport.id)).where(
         and_(
             ConditionReport.is_active == True,
             ConditionReport.created_at >= date_start,
@@ -454,22 +453,21 @@ async def get_condition_reports_feed(
         )
     )
     if region and region != "All":
-        count_query = count_query.where(ConditionReport.region == region)
+        count_sql = count_sql.where(ConditionReport.region == region)
     if spot_id:
-        count_query = count_query.where(ConditionReport.spot_id == spot_id)
+        count_sql = count_sql.where(ConditionReport.spot_id == spot_id)
     if needs_spot_join:
-        count_query = count_query.join(SurfSpot, ConditionReport.spot_id == SurfSpot.id)
+        count_sql = count_sql.join(SurfSpot, ConditionReport.spot_id == SurfSpot.id)
         if country:
-            count_query = count_query.where(SurfSpot.country == country)
+            count_sql = count_sql.where(SurfSpot.country == country)
         if state_province:
-            count_query = count_query.where(SurfSpot.state_province == state_province)
+            count_sql = count_sql.where(SurfSpot.state_province == state_province)
         if city:
-            count_query = count_query.where(
+            count_sql = count_sql.where(
                 or_(SurfSpot.secondary_city == city, SurfSpot.secondary_area == city)
             )
     
-    count_result = await db.execute(count_query)
-    total = len(count_result.scalars().all())
+    total = (await db.execute(count_sql)).scalar() or 0
     
     return {
         "reports": response_reports,

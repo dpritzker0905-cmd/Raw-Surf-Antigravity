@@ -10,6 +10,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { WebGLVideoProcessor } from '../utils/WebGLFilterEngine';
 import { HairFilterEngine } from '../utils/HairFilterEngine';
 import { HairFilterPicker } from './HairFilterPicker';
+import logger from '../utils/logger';
 
 export default function WebcamCaptureModal({ isOpen, onClose, onCapture, maxLength = null }) {
   const [stream, setStream] = useState(null);
@@ -86,7 +87,7 @@ export default function WebcamCaptureModal({ isOpen, onClose, onCapture, maxLeng
         });
       } catch (exactErr) {
         // Fallback: use 'ideal' (soft hint) — works better on some iPhones
-        console.warn('Exact facingMode failed, falling back to ideal:', exactErr.message);
+        logger.warn('Exact facingMode failed, falling back to ideal:', exactErr.message);
         try {
           newStream = await navigator.mediaDevices.getUserMedia({
             video: { facingMode: { ideal: facingMode }, width: { ideal: 1280 }, height: { ideal: 720 } },
@@ -110,7 +111,7 @@ export default function WebcamCaptureModal({ isOpen, onClose, onCapture, maxLeng
         await videoRef.current.play().catch(() => {});
       }
     } catch (err) {
-      console.error('Camera access error:', err);
+      logger.error('Camera access error:', err);
       toast.error('Could not access camera/microphone. Please check permissions.');
       killAllTracks();
       onClose();
@@ -168,7 +169,7 @@ export default function WebcamCaptureModal({ isOpen, onClose, onCapture, maxLeng
       processorRef.current.setFilter(filterKey);
       processorRef.current.start(video);
     } catch (e) {
-      console.warn("WebGL Shader instantiation crashed - falling back silently.", e);
+      logger.warn("WebGL Shader instantiation crashed - falling back silently.", e);
     }
   }, [videoFilters.presetName]);
 

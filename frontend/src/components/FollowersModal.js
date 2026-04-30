@@ -1,4 +1,4 @@
-﻿/**
+/**
  * FollowersModal - Instagram-style modal showing followers or following list
  * Allows users to view who follows them or who they follow
  */
@@ -13,6 +13,7 @@ import { Badge } from './ui/badge';
 import { useAuth } from '../contexts/AuthContext';
 import { toast } from 'sonner';
 import { getFullUrl } from '../utils/media';
+import logger from '../utils/logger';
 
 
 export const FollowersModal = ({ 
@@ -50,7 +51,7 @@ export const FollowersModal = ({
           setFollowingIds(followingSet);
         }
       } catch (error) {
-        console.error('Error fetching users:', error);
+        logger.error('Error fetching users:', error);
         setUsers([]);
       } finally {
         setLoading(false);
@@ -110,7 +111,7 @@ export const FollowersModal = ({
             <Users className="w-5 h-5 text-muted-foreground" />
             <h2 className="text-lg font-semibold text-foreground">{title}</h2>
             {userName && (
-              <span className="text-sm text-muted-foreground">• {userName}</span>
+              <span className="text-sm text-muted-foreground">� {userName}</span>
             )}
           </div>
           <button
@@ -170,7 +171,7 @@ export const FollowersModal = ({
                         </p>
                         {listUser.is_verified && (
                           <Badge className="bg-blue-500/20 text-blue-400 border-0 text-xs px-1.5">
-                            ✓
+                            ?
                           </Badge>
                         )}
                       </div>

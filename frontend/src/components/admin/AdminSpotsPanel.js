@@ -150,7 +150,7 @@ const AdminSpotsPanel = ({ userId }) => {
             }
             successCount++;
           } catch (err) {
-            console.error(`Failed to ingest ${spot.name}:`, err);
+            logger.error(`Failed to ingest ${spot.name}:`, err);
           }
         }
       } else {

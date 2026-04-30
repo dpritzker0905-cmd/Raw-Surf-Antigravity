@@ -1,10 +1,11 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import { Camera, Check, AlertCircle } from 'lucide-react';
 import { Dialog, DialogContent, DialogTitle } from './ui/dialog';
 import { Button } from './ui/button';
 import { toast } from 'sonner';
 import { SelfieCapture } from './SelfieCapture';
+import logger from '../utils/logger';
 
 
 /**
@@ -53,7 +54,7 @@ export const BookingSelfieModal = ({
       }, 2500);
       
     } catch (error) {
-      console.error('Error uploading selfie:', error);
+      logger.error('Error uploading selfie:', error);
       toast.error('Failed to upload selfie. Please try again.');
     } finally {
       setUploading(false);

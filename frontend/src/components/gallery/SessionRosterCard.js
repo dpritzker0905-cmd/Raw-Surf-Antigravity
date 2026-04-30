@@ -3,6 +3,7 @@ import { Users, ChevronDown, ChevronUp, CheckCircle2, ImageIcon, Video, X, ZoomI
 import apiClient from '../../lib/apiClient';
 import { getFullUrl } from '../../utils/media';
 import { toast } from 'sonner';
+import logger from '../../utils/logger';
 
 /**
  * SessionRosterCard — Enhanced Surfer Delivery Tracker
@@ -135,7 +136,7 @@ const SurferPanel = ({ surfer, galleryId, photographerId, onRosterUpdate }) => {
       setTaggedItems(resp.data.tagged_items || []);
       setItemsLoaded(true);
     } catch (err) {
-      console.error('Failed to load tagged items:', err);
+      logger.error('Failed to load tagged items:', err);
     } finally {
       setLoadingItems(false);
     }

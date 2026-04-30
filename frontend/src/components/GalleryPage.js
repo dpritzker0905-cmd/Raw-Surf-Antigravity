@@ -843,7 +843,7 @@ export const GalleryPage = () => {
       const response = await apiClient.get(`/galleries/${gal.id}/items?viewer_id=${user.id}`);
       setThumbnailPickerItems(response.data || []);
     } catch (error) {
-      console.error('Error loading gallery items for thumbnail picker:', error);
+      logger.error('Error loading gallery items for thumbnail picker:', error);
       setThumbnailPickerItems([]);
     } finally {
       setThumbnailPickerLoading(false);
@@ -924,7 +924,7 @@ export const GalleryPage = () => {
       const response = await apiClient.get(`/photographer/${user.id}/recent-sessions?limit=20`);
       setRecentSessions(response.data || []);
     } catch (error) {
-      console.error('Error fetching recent sessions:', error);
+      logger.error('Error fetching recent sessions:', error);
       setRecentSessions([]);
     } finally {
       setRecentSessionsLoading(false);

@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import { Textarea } from './ui/textarea';
 import { toast } from 'sonner';
 import { formatTimeAgo } from '../utils/formatTime';
+import logger from '../utils/logger';
 
 
 // Audio notification for new surfer joins
@@ -339,7 +340,7 @@ export const SurferRosterCard = ({
         }
       }
     } catch (error) {
-      console.error('Error fetching participants:', error);
+      logger.error('Error fetching participants:', error);
     }
   }, [photographerId, isLive, soundEnabled, playChime, onParticipantsUpdate]);
   

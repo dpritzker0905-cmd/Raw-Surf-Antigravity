@@ -14,6 +14,7 @@ import {
   CheckCircle, Play, Pause, Volume2, Volume1, VolumeX, RotateCcw
 } from 'lucide-react';
 import { toast } from 'sonner';
+import logger from '../utils/logger';
 
 const MAX_DURATION = 60; // seconds
 const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB
@@ -171,7 +172,7 @@ export const CreateWaveModal = ({ isOpen, onClose, onSuccess }) => {
       onSuccess?.();
       
     } catch (err) {
-      console.error('Upload error:', err);
+      logger.error('Upload error:', err);
       setError(err.response?.data?.detail || 'Failed to upload wave');
       setStep('details');
     }

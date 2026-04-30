@@ -3,6 +3,7 @@ import { Reply, MoreHorizontal, Check, CheckCheck, Smile, Heart, X } from 'lucid
 import { getFullUrl } from '../../utils/media';
 import { BACKEND_URL } from '../../lib/apiClient';
 import EphemeralCountdown from './EphemeralCountdown';
+import logger from '../../utils/logger';
 
 const REACTIONS = ['🤙', '🌊', '❤️', '🔥', '👏', '😂'];
 
@@ -51,7 +52,7 @@ const MessageBubble = ({ message, onReact, _onReply, onNavigateProfile }) => {
           onClick={() => window.open(mediaUrl, '_blank')}
           onError={(e) => {
             e.target.style.display = 'none';
-            console.error('Failed to load image:', mediaUrl);
+            logger.error('Failed to load image:', mediaUrl);
           }}
         />
       );

@@ -160,7 +160,7 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
             }
           }
         } catch (e) {
-          console.error('[OnDemandDrawer] Failed to fetch credits:', e);
+          logger.error('[OnDemandDrawer] Failed to fetch credits:', e);
           setCreditsFetched(true); // Mark as fetched even on error to prevent infinite loops
         }
       }
@@ -352,7 +352,7 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
         const response = await apiClient.get(`/surf-spots/nearby?latitude=${lat}&longitude=${lng}&radius_miles=15${user?.id ? `&user_id=${user.id}` : ''}`);
         setNearbySpots(response.data || []);
       } catch (e) {
-        console.error('[OnDemandDrawer] Failed to fetch nearby spots:', e);
+        logger.error('[OnDemandDrawer] Failed to fetch nearby spots:', e);
         setNearbySpots([]);
       } finally {
         setLoadingSpots(false);
@@ -822,7 +822,7 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
         }
         
       } catch (error) {
-        console.error('Poll error:', error);
+        logger.error('Poll error:', error);
       }
     };
     

@@ -655,7 +655,7 @@ export const Profile = () => {
       toast.success('Avatar updated!');
     } catch (patchError) {
       toast.error('Failed to upload avatar');
-      console.error(patchError);
+      logger.error(patchError);
     } finally {
       setAvatarUploading(false);
     }

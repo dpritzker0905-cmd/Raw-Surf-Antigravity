@@ -573,7 +573,7 @@ export const Bookings = () => {
             setLiveSessions(sessionsRes.data || []);
           }
         } catch (error) {
-          console.error('Complete session payment error:', error);
+          logger.error('Complete session payment error:', error);
           toast.error(error.response?.data?.detail || 'Payment received - session will be activated shortly');
         }
         

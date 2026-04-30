@@ -8,6 +8,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import apiClient from '../../lib/apiClient';
 import { toast } from 'sonner';
 import { getFullUrl } from '../../utils/media';
+import logger from '../../utils/logger';
 import { useSearchParams } from 'react-router-dom';
 
 export const SubscriptionsTab = () => {
@@ -42,7 +43,7 @@ export const SubscriptionsTab = () => {
     try {
       const res = await apiClient.get(`/photo-subscriptions/my-subscriptions/${user.id}`);
       setSubscriptions(res.data || []);
-    } catch (err) { console.error(err); }
+    } catch (err) { logger.error('Failed to fetch subscriptions:', err); }
     finally { setLoading(false); }
   }, [user?.id]);
 

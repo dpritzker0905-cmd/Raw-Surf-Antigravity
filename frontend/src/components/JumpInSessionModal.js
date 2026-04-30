@@ -1,10 +1,11 @@
-﻿import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { X, Camera, CreditCard, Coins, Check, Loader2, RefreshCw } from 'lucide-react';
 import { Button } from './ui/button';
 import { useAuth } from '../contexts/AuthContext';
 import apiClient from '../lib/apiClient';
 import { toast } from 'sonner';
 import { getFullUrl } from '../utils/media';
+import logger from '../utils/logger';
 
 
 export const JumpInSessionModal = ({ photographer, onClose, onSuccess }) => {
@@ -155,7 +156,7 @@ export const JumpInSessionModal = ({ photographer, onClose, onSuccess }) => {
         if (onSuccess) onSuccess(response.data);
       }, 2000);
     } catch (error) {
-      console.error('Join session error:', error);
+      logger.error('Join session error:', error);
       const message = error.response?.data?.detail || 'Failed to join session';
       toast.error(typeof message === 'string' ? message : 'Failed to join session');
     } finally {
@@ -226,7 +227,7 @@ export const JumpInSessionModal = ({ photographer, onClose, onSuccess }) => {
                 <div className="p-4 bg-gradient-to-r from-cyan-500/20 to-blue-500/20 border-2 border-cyan-500/40 rounded-xl">
                   <div className="flex items-center gap-4">
                     <div className="w-14 h-14 rounded-full bg-cyan-500/30 flex items-center justify-center shrink-0">
-                      <span className="text-3xl">🏄</span>
+                      <span className="text-3xl">??</span>
                     </div>
                     <div>
                       <p className="text-cyan-300 font-bold text-lg">Hold your surfboard up!</p>
@@ -289,7 +290,7 @@ export const JumpInSessionModal = ({ photographer, onClose, onSuccess }) => {
 
                 {/* Surfboard instruction - smaller version */}
                 <div className="p-3 bg-gradient-to-r from-cyan-500/20 to-blue-500/20 border border-cyan-500/30 rounded-xl flex items-center gap-3">
-                  <span className="text-2xl">🏄</span>
+                  <span className="text-2xl">??</span>
                   <div>
                     <p className="text-cyan-300 font-bold text-sm">Hold your board up!</p>
                     <p className="text-cyan-400/70 text-xs">So they can spot you in the water</p>

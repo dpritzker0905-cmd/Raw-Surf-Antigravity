@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Camera, RefreshCw, Check, User } from 'lucide-react';
 import { Button } from './ui/button';
 import { toast } from 'sonner';
+import logger from '../utils/logger';
 
 /**
  * SelfieCapture - Reusable camera capture component for surfer identification
@@ -49,7 +50,7 @@ export const SelfieCapture = ({
         }
       } catch (err) {
         if (mounted) {
-          console.error('Camera error:', err);
+          logger.error('Camera error:', err);
           setCameraError('Could not access camera. Please check permissions.');
         }
       }

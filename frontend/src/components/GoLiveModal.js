@@ -513,7 +513,7 @@ const LiveCommentsFeed = ({ streamId, colors, onSendComment, onLikeComment, isEx
       setReplyingTo(null);
     } catch (err) {
       // Error already handled in onSendComment
-      console.error('Comment send error:', err);
+      logger.error('Comment send error:', err);
     } finally {
       setSending(false);
     }

@@ -1,21 +1,17 @@
-﻿/**
+/**
  * CrewPaymentProgress - TICKET-003
  * Shows individual payment status per crew member
  * Allows captain to cover remaining shares to unlock media immediately
  */
 import React, { useState, useEffect } from 'react';
-
 import { 
 
   Check, Users, Loader2, 
   Send, AlertCircle, ChevronDown, ChevronUp, Shield
 } from 'lucide-react';
 import { Button } from '../ui/button';
-
 import { Badge } from '../ui/badge';
-
 import { Progress } from '../ui/progress';
-
 import {
 
   Tooltip,
@@ -30,9 +26,9 @@ import {
   CollapsibleTrigger,
 } from '../ui/collapsible';
 import { toast } from 'sonner';
-
 import apiClient, { BACKEND_URL } from '../../lib/apiClient';
 import { getFullUrl } from '../../utils/media';
+import logger from '../../utils/logger';
 
 
 const API = process.env.REACT_APP_BACKEND_URL;
@@ -142,7 +138,7 @@ export const CrewPaymentProgress = ({
         onAllPaid();
       }
     } catch (error) {
-      console.error('Failed to fetch crew status:', error);
+      logger.error('Failed to fetch crew status:', error);
     } finally {
       setLoading(false);
     }
@@ -236,7 +232,7 @@ export const CrewPaymentProgress = ({
           <div>
             <p className={`font-medium ${textPrimaryClass}`}>All Crew Paid!</p>
             <p className={`text-sm ${textSecondaryClass}`}>
-              {totalCount} members • ${totalAmount.toFixed(2)} total
+              {totalCount} members � ${totalAmount.toFixed(2)} total
             </p>
           </div>
         </div>

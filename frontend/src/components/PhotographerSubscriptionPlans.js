@@ -4,6 +4,7 @@ import { Button } from './ui/button';
 import { useAuth } from '../contexts/AuthContext';
 import apiClient from '../lib/apiClient';
 import { toast } from 'sonner';
+import logger from '../utils/logger';
 
 /**
  * Embeddable component showing a photographer's subscription plans.
@@ -24,7 +25,7 @@ export const PhotographerSubscriptionPlans = ({ photographerId, photographerName
     try {
       const res = await apiClient.get(`/photo-subscriptions/plans/${photographerId}`);
       setPlans((res.data || []).filter(p => p.is_active));
-    } catch (err) { console.error(err); }
+    } catch (err) { logger.error('Failed to fetch subscription plans:', err); }
     finally { setLoading(false); }
   };
 

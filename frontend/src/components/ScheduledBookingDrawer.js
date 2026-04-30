@@ -260,7 +260,7 @@ const ImpactZonePicker = ({
           setGpsLoading(false);
         },
         (error) => {
-          console.error('GPS Error:', error);
+          logger.error('GPS Error:', error);
           setGpsError(true);
           setGpsLoading(false);
           toast.error('GPS unavailable. You can browse spots manually below.');

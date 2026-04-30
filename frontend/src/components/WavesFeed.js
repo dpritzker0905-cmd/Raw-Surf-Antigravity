@@ -10,6 +10,7 @@ import { useTheme } from '../contexts/ThemeContext';
 import { Heart, MessageCircle, Share2, Volume2, Volume1, VolumeX, Play, ChevronUp, ChevronDown, MapPin, Plus, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from './ui/button';
+import logger from '../utils/logger';
 
 
 /**
@@ -377,7 +378,7 @@ export const WavesFeed = ({ feedType = 'for_you', onCreateWave }) => {
       }
       setHasMore(response.data.has_more);
     } catch (error) {
-      console.error('Failed to fetch waves:', error);
+      logger.error('Failed to fetch waves:', error);
       toast.error('Failed to load waves');
     } finally {
       setLoading(false);
@@ -444,7 +445,7 @@ export const WavesFeed = ({ feedType = 'for_you', onCreateWave }) => {
     try {
       await apiClient.post(`/posts/${waveId}/like?user_id=${user.id}`);
     } catch (error) {
-      console.error('Failed to like:', error);
+      logger.error('Failed to like wave:', error);
     }
   };
   

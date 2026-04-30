@@ -9,6 +9,7 @@ import { useAuth } from '../contexts/AuthContext';
 import apiClient from '../lib/apiClient';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
+import logger from '../utils/logger';
 import { getFullUrl } from '../utils/media';
 
 const PhotographerSubscriptionSettings = () => {
@@ -36,7 +37,7 @@ const PhotographerSubscriptionSettings = () => {
     try {
       const res = await apiClient.get(`/photo-subscriptions/plans/${user.id}`);
       setPlans(res.data || []);
-    } catch (err) { console.error(err); }
+    } catch (err) { logger.error('Failed to fetch plans:', err); }
   }, [user?.id]);
 
   const fetchSubscribers = useCallback(async () => {
@@ -44,7 +45,7 @@ const PhotographerSubscriptionSettings = () => {
     try {
       const res = await apiClient.get(`/photo-subscriptions/my-subscribers/${user.id}`);
       setSubscribers(res.data?.subscribers || []);
-    } catch (err) { console.error(err); }
+    } catch (err) { logger.error('Failed to fetch subscribers:', err); }
   }, [user?.id]);
 
   useEffect(() => {
