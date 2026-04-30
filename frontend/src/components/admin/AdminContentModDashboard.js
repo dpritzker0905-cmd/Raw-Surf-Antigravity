@@ -76,17 +76,36 @@ export const AdminContentModDashboard = () => {
   const handleModerate = async (itemId, action) => {
     setActionLoading(true);
     try {
+      // For condition reports, use 'delete' action to ensure hard-deletion
+      const item = items.find(i => i.id === itemId);
+      const effectiveAction = (action === 'reject' && item?.content_type === 'condition_report') ? 'delete' : action;
+      
       await apiClient.post(`/admin/content-moderation/${itemId}/moderate`, {
-        action,
+        action: effectiveAction,
         rejection_reason: action === 'reject' ? moderationNote : null
       });
-      toast.success(`Content ${action}ed`);
+      toast.success(effectiveAction === 'delete' ? 'Content permanently deleted' : `Content ${action}ed`);
       setSelectedItem(null);
       setModerationNote('');
       fetchQueue();
       fetchStats();
     } catch (error) {
       toast.error('Failed to moderate content');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handlePurgeOrphans = async () => {
+    if (!window.confirm('This will permanently delete ALL condition reports with no linked sessions. Continue?')) return;
+    setActionLoading(true);
+    try {
+      const response = await apiClient.post('/admin/condition-reports/purge-orphans');
+      toast.success(response.data.message || `Purged ${response.data.purged} orphan reports`);
+      fetchQueue();
+      fetchStats();
+    } catch (error) {
+      toast.error('Failed to purge orphan reports');
     } finally {
       setActionLoading(false);
     }
@@ -204,6 +223,17 @@ export const AdminContentModDashboard = () => {
           </Select>
           <Button size="sm" variant="outline" onClick={() => { fetchQueue(); fetchStats(); }}>
             <RefreshCw className="w-4 h-4" />
+          </Button>
+          <Button 
+            size="sm" 
+            variant="outline" 
+            onClick={handlePurgeOrphans} 
+            disabled={actionLoading}
+            className="text-orange-400 border-orange-500/30 hover:bg-orange-500/10"
+            data-testid="purge-orphans-btn"
+          >
+            <Trash2 className="w-4 h-4 mr-1" />
+            Purge Ghost Reports
           </Button>
         </div>
 

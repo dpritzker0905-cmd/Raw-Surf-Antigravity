@@ -1307,7 +1307,10 @@ export const OnDemandSessionManager = () => {
           status: detailResponse.data.status,
           requester_id: active.requester_id || detailResponse.data.requester?.id,
           requester_name: active.requester_name || detailResponse.data.requester?.name,
-          requester_avatar: detailResponse.data.requester?.avatar,
+          requester_avatar: active.requester_avatar || detailResponse.data.requester?.avatar,
+          requester_username: active.requester_username || detailResponse.data.requester?.username,
+          requester_stance: active.requester_stance,
+          requester_board_description: active.requester_board_description,
           requester_selfie: requesterSelfie || detailResponse.data.selfie_url,  // Prefer active dispatch selfie
           location_name: active.location_name || detailResponse.data.location?.name,
           estimated_duration: detailResponse.data.pricing?.estimated_duration,

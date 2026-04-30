@@ -171,7 +171,8 @@ export const Sidebar = () => {
     { path: '/notifications', icon: Bell, label: 'Notifications', badge: unreadCount },
     { path: '/explore', icon: Compass, label: 'Explore' },
     { path: '/map', icon: MapPin, label: 'Map' },
-    { path: '/bookings', icon: Calendar, label: 'Bookings' },
+    // Bookings - Only for surfers. Photographers have their own Bookings Manager under Photo Tools.
+    ...(!isPhotographer ? [{ path: '/bookings', icon: Calendar, label: 'Bookings' }] : []),
     // Create button - special handling (not a NavLink)
     { id: 'create', icon: Plus, label: 'Create', isCreateButton: true },
     // Career Hub: The Peak for Pro role OR Surfer in pro surf_mode

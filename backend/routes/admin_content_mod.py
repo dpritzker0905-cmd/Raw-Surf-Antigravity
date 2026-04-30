@@ -398,3 +398,77 @@ async def flag_content_for_moderation(
     await db.commit()
     
     return {"success": True, "moderation_id": moderation_item.id}
+
+
+@router.delete("/admin/condition-reports/{report_id}")
+async def admin_delete_condition_report(
+    report_id: str,
+    admin: Profile = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Admin direct-delete a condition report by ID.
+    Also purges any associated moderation queue entries.
+    This is a nuclear option that bypasses the moderation queue.
+    """
+    # Delete associated moderation items first
+    await db.execute(
+        delete(ContentModerationItem)
+        .where(
+            ContentModerationItem.content_type == "condition_report",
+            ContentModerationItem.content_id == report_id
+        )
+    )
+    
+    # Hard-delete the condition report
+    result = await db.execute(
+        delete(ConditionReport)
+        .where(ConditionReport.id == report_id)
+    )
+    
+    await log_audit(db, admin.id, "content_moderation", f"admin_delete condition_report:{report_id}")
+    await db.commit()
+    
+    return {"success": True, "deleted": result.rowcount > 0, "report_id": report_id}
+
+
+@router.post("/admin/condition-reports/purge-orphans")
+async def purge_orphan_condition_reports(
+    admin: Profile = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Mass-delete all condition reports that have no linked live session.
+    Also purges all associated moderation queue entries.
+    These are 'ghost' reports that should never have existed.
+    """
+    # Find all condition reports with no live_session_id
+    orphan_result = await db.execute(
+        select(ConditionReport.id).where(
+            ConditionReport.live_session_id.is_(None)
+        )
+    )
+    orphan_ids = [r[0] for r in orphan_result.all()]
+    
+    if not orphan_ids:
+        return {"success": True, "purged": 0, "message": "No orphan reports found"}
+    
+    # Delete all associated moderation items
+    await db.execute(
+        delete(ContentModerationItem)
+        .where(
+            ContentModerationItem.content_type == "condition_report",
+            ContentModerationItem.content_id.in_(orphan_ids)
+        )
+    )
+    
+    # Hard-delete all orphaned condition reports
+    await db.execute(
+        delete(ConditionReport)
+        .where(ConditionReport.id.in_(orphan_ids))
+    )
+    
+    await log_audit(db, admin.id, "content_moderation", f"purge_orphan_condition_reports count={len(orphan_ids)}")
+    await db.commit()
+    
+    return {"success": True, "purged": len(orphan_ids), "message": f"Purged {len(orphan_ids)} orphan condition reports"}
