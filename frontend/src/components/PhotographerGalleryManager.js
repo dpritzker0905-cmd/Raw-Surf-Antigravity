@@ -705,17 +705,26 @@ export const PhotographerGalleryManager = () => {
                 Set Pricing
               </Button>
             )}
-            {/* Push to Spot Hub — only for galleries with a surf spot */}
+            {/* Push to Spot Hub — requires linked surf spot AND live session */}
             {gallery?.surf_spot_id && (
               <Button
                 variant="outline"
                 className={`${
-                  conditionsStatus?.has_active_report
+                  !gallery?.live_session_id
+                    ? `${borderClass} border-zinc-500/30 text-zinc-500 cursor-not-allowed`
+                    : conditionsStatus?.has_active_report
                     ? `${borderClass} border-amber-500/50 text-amber-400 hover:bg-amber-500/10`
                     : `${borderClass} border-teal-500/50 text-teal-400 hover:bg-teal-500/10`
                 }`}
-                onClick={handlePushToSpotHub}
-                disabled={pushingConditions || (gallery?.item_count || 0) === 0}
+                onClick={() => {
+                  if (!gallery?.live_session_id) {
+                    toast.error('Link a live session to this gallery first, then push to Spot Hub.');
+                    return;
+                  }
+                  handlePushToSpotHub();
+                }}
+                disabled={pushingConditions || (gallery?.item_count || 0) === 0 || !gallery?.live_session_id}
+                title={!gallery?.live_session_id ? 'Link a live session first' : ''}
                 data-testid="push-to-spot-hub-pgm-btn"
               >
                 {pushingConditions ? (

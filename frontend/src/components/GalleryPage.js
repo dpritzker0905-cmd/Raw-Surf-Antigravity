@@ -1833,18 +1833,27 @@ export const GalleryPage = () => {
                       Link Session
                     </Button>
                   )}
-                  {/* Push to Spot Hub — only for galleries with a surf spot */}
+                  {/* Push to Spot Hub — requires linked surf spot AND live session */}
                   {selectedGallery.surf_spot_id && (
                     <Button
                       size="sm"
                       variant="outline"
                       className={`flex-shrink-0 ${
-                        conditionsStatus?.has_active_report
+                        !selectedGallery.live_session_id
+                          ? 'border-zinc-500/30 text-zinc-500 cursor-not-allowed'
+                          : conditionsStatus?.has_active_report
                           ? 'border-amber-500/60 text-amber-400 hover:bg-amber-500/10'
                           : 'border-teal-500/60 text-teal-400 hover:bg-teal-500/10'
                       }`}
-                      onClick={handlePushToSpotHub}
-                      disabled={pushingConditions || galleryItems.length === 0}
+                      onClick={() => {
+                        if (!selectedGallery.live_session_id) {
+                          toast.error('Link a live session to this gallery first, then push to Spot Hub.');
+                          return;
+                        }
+                        handlePushToSpotHub();
+                      }}
+                      disabled={pushingConditions || galleryItems.length === 0 || !selectedGallery.live_session_id}
+                      title={!selectedGallery.live_session_id ? 'Link a live session first' : ''}
                       data-testid="push-to-spot-hub-btn"
                     >
                       {pushingConditions ? (

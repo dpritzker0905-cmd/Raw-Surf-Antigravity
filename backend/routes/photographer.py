@@ -2007,29 +2007,27 @@ async def go_live(
     if data.spot_notes:
         story.caption = f"Now shooting at {spot_name}: {data.spot_notes.strip()}"
     
-    # Create Condition Report ONLY if the photographer provides actual conditions data
-    # (condition media, or spot notes). Without this guard, every go-live creates a
-    # bogus "Live at X" CR with no conditions metadata, flooding the Reports tab.
-    has_conditions_data = bool(condition_media_url) or bool(data.spot_notes)
-    
-    if has_conditions_data:
-        condition_report = ConditionReport(
-            photographer_id=photographer_id,
-            spot_id=spot_id,
-            media_url=condition_media_url,
-            media_type=condition_media_type,
-            caption=condition_caption,
-            spot_name=spot_name,
-            region=spot.region if spot_id and spot else None,
-            latitude=data.latitude,
-            longitude=data.longitude,
-            story_id=story.id,
-            post_id=None,  # No longer creating feed posts for go-live
-            live_session_id=live_session.id,
-            expires_at=expires_at,
-            is_active=True
-        )
-        db.add(condition_report)
+    # Create Condition Report (appears in Spot Hub & Conditions Explorer)
+    # This is ALWAYS created on go-live — the photographer's condition media
+    # IS the conditions report. It's tethered to the live_session_id so it
+    # stays linked to the session gallery for cover-photo sync later.
+    condition_report = ConditionReport(
+        photographer_id=photographer_id,
+        spot_id=spot_id,
+        media_url=condition_media_url,
+        media_type=condition_media_type,
+        caption=condition_caption,
+        spot_name=spot_name,
+        region=spot.region if spot_id and spot else None,
+        latitude=data.latitude,
+        longitude=data.longitude,
+        story_id=story.id,
+        post_id=None,  # No longer creating feed posts for go-live
+        live_session_id=live_session.id,
+        expires_at=expires_at,
+        is_active=True
+    )
+    db.add(condition_report)
     
     # Update photographer status
     # Note: is_shooting = professional work at spot, is_live = social broadcasting to followers

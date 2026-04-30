@@ -5772,6 +5772,14 @@ async def push_conditions_to_spot_hub(
             detail="This gallery has no linked surf spot. Link a session or assign a spot first."
         )
     
+    # Must be linked to a live session — condition reports are tethered to sessions.
+    # Without this, orphaned CRs appear on dates with no session record.
+    if not gallery.live_session_id:
+        raise HTTPException(
+            status_code=400,
+            detail="This gallery is not linked to a live session. Link a session first, then push to Spot Hub."
+        )
+    
     # Resolve media URL to use for the condition report
     media_url = None
     media_type = 'image'

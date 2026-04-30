@@ -614,13 +614,7 @@ const SpotHub = () => {
       ]);
       
       if (reportsRes.status === 'fulfilled') {
-        const rawReports = reportsRes.value.data.reports || reportsRes.value.data || [];
-        // Filter out bogus auto-generated "Live at" reports with no actual conditions data
-        const validReports = rawReports.filter(r => 
-          r.conditions_label || r.wave_height_ft || r.wind_conditions || r.crowd_level ||
-          (r.caption && !r.caption.startsWith('Live at '))
-        );
-        setConditionReports(validReports);
+        setConditionReports(reportsRes.value.data.reports || reportsRes.value.data || []);
       }
       
       if (postsRes.status === 'fulfilled') {

@@ -1245,88 +1245,70 @@ async def admin_list_condition_reports(
     }
 
 
-@router.delete("/admin/condition-reports/cleanup-bogus")
-async def admin_cleanup_bogus_condition_reports(
+@router.delete("/admin/condition-reports/cleanup-orphaned-sessions")
+async def admin_cleanup_orphaned_condition_reports(
     spot_id: Optional[str] = None,
     dry_run: bool = Query(True, description="Preview deletions without committing"),
     admin: Profile = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db)
 ):
     """
-    Admin-only: Bulk-delete bogus condition reports.
+    Admin-only: Bulk-delete orphaned condition reports.
     
-    Bogus = auto-generated "Live at {spot}" placeholders with NO actual
-    conditions data (no wave_height_ft, no conditions_label, no wind,
-    no crowd_level).
+    Orphaned = condition reports that have NO live_session_id attached.
     
-    These are created by the go-live pipeline even when the photographer
-    doesn't attach any conditions info, resulting in noise in the Reports tab.
+    Every valid condition report is created during a go-live event and is
+    tethered to a LiveSession. Reports without this link were either:
+    - Created by a bug in an older push-conditions flow
+    - Left behind when a gallery/session was deleted
+    - Manually created without a proper session context
+    
+    These orphans show up as stale entries on dates with no actual session
+    record, polluting the Reports tab.
     
     Use dry_run=true first to preview what would be deleted.
     """
     query = select(ConditionReport).where(
-        and_(
-            # No actual conditions data
-            or_(
-                ConditionReport.wave_height_ft.is_(None),
-                ConditionReport.wave_height_ft == 0
-            ),
-            or_(
-                ConditionReport.conditions_label.is_(None),
-                ConditionReport.conditions_label == ""
-            ),
-            or_(
-                ConditionReport.wind_conditions.is_(None),
-                ConditionReport.wind_conditions == ""
-            ),
-            or_(
-                ConditionReport.crowd_level.is_(None),
-                ConditionReport.crowd_level == ""
-            ),
-            # Has the generic go-live caption pattern
-            or_(
-                ConditionReport.caption.like("Live at %"),
-                ConditionReport.caption.is_(None),
-                ConditionReport.caption == ""
-            )
-        )
+        ConditionReport.live_session_id.is_(None)
     )
 
     if spot_id:
         query = query.where(ConditionReport.spot_id == spot_id)
 
     result = await db.execute(query)
-    bogus_reports = result.scalars().all()
+    orphaned_reports = result.scalars().all()
 
     preview = [{
         "id": r.id,
         "spot_id": r.spot_id,
+        "spot_name": r.spot_name,
         "caption": r.caption,
         "media_url": r.media_url[:80] if r.media_url else None,
         "created_at": r.created_at.isoformat() if r.created_at else None,
-    } for r in bogus_reports]
+        "live_session_id": r.live_session_id,
+    } for r in orphaned_reports]
 
     if dry_run:
         return {
             "dry_run": True,
-            "would_delete": len(bogus_reports),
+            "would_delete": len(orphaned_reports),
             "preview": preview[:50],
-            "message": f"Found {len(bogus_reports)} bogus condition reports. Set dry_run=false to delete."
+            "message": f"Found {len(orphaned_reports)} orphaned condition reports (no live_session_id). Set dry_run=false to delete."
         }
 
-    for report in bogus_reports:
+    for report in orphaned_reports:
         await db.delete(report)
     
     await db.commit()
 
     cr_logger.info(
-        f"ADMIN ACTION: Bulk-deleted {len(bogus_reports)} bogus condition reports "
-        f"by admin {admin.id} (spot_id={spot_id or 'all'})"
+        f"ADMIN ACTION: Bulk-deleted {len(orphaned_reports)} orphaned condition reports "
+        f"(no live_session_id) by admin {admin.id} (spot_id={spot_id or 'all'})"
     )
 
     return {
         "dry_run": False,
-        "deleted": len(bogus_reports),
-        "message": f"Deleted {len(bogus_reports)} bogus condition reports",
+        "deleted": len(orphaned_reports),
+        "message": f"Deleted {len(orphaned_reports)} orphaned condition reports",
         "admin_id": admin.id
     }
