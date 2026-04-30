@@ -523,6 +523,12 @@ export const MessagesPage = () => {
   const fileInputRef = useRef(null);
   const typingTimeoutRef = useRef(null);
 
+  // Ref to track current activeFolder — prevents stale-closure bugs in polling
+  // intervals that capture an old fetchConversations and overwrite channel/pro-lounge
+  // conversations with primary ones.
+  const activeFolderRef = useRef(activeFolder);
+  useEffect(() => { activeFolderRef.current = activeFolder; }, [activeFolder]);
+
   // Handle direct conversation routing
   useEffect(() => {
     if (conversationId && conversationId !== 'undefined' && conversationId !== 'null' && user?.id) {
@@ -678,6 +684,9 @@ export const MessagesPage = () => {
   // Lightweight polling for conversation list sidebar (replaces global postgres_changes)
   // The conversations channel was monitoring ALL conversation updates for ALL users,
   // generating massive shared pooler egress. Polling every 10s is sufficient for sidebar.
+  // NOTE: activeFolder in deps ensures the interval restarts with the correct folder
+  // when the user switches tabs. Combined with activeFolderRef inside fetchConversations,
+  // this provides belt-and-suspenders protection against stale-closure overwrites.
   useEffect(() => {
     if (!user?.id) return;
 
@@ -686,7 +695,7 @@ export const MessagesPage = () => {
     }, 10000); // Poll every 10 seconds
 
     return () => clearInterval(pollInterval);
-  }, [user?.id]);
+  }, [user?.id, activeFolder]);
 
   // Typing indicator polling
   useEffect(() => {
@@ -766,9 +775,13 @@ export const MessagesPage = () => {
 
   const fetchConversations = async () => {
     try {
-      // Check if fetching Grom Zone
-      const isGromZone = activeFolder === 'grom_zone';
-      const isFamily = activeFolder === 'family';
+      // CRITICAL: Read from ref to avoid stale-closure bugs.
+      // The polling interval (10s) captures this function once; without the ref,
+      // switching to The Channel would be overwritten by a stale poll still
+      // fetching 'primary' conversations.
+      const currentFolder = activeFolderRef.current;
+      const isGromZone = currentFolder === 'grom_zone';
+      const isFamily = currentFolder === 'family';
       
       // Fetch conversations for active folder
       let path;
@@ -777,7 +790,7 @@ export const MessagesPage = () => {
       } else if (isFamily) {
         path = `/messages/conversations/${user.id}/family`;
       } else {
-        path = `/messages/conversations/${user.id}?inbox_type=${activeFolder}`;
+        path = `/messages/conversations/${user.id}?inbox_type=${currentFolder}`;
       }
       
       // Fetch conversations + unread counts in parallel (2 requests max, not 8)
@@ -801,8 +814,8 @@ export const MessagesPage = () => {
         family: familyUnread,
         // Channel/Pro Lounge/Hidden don't have dedicated count endpoints;
         // derive from current conversation list when viewing those folders
-        pro_lounge: activeFolder === 'pro_lounge' ? (response.data || []).filter(c => c.unread_count > 0).length : 0,
-        channel: activeFolder === 'channel' ? (response.data || []).filter(c => c.unread_count > 0).length : 0,
+        pro_lounge: currentFolder === 'pro_lounge' ? (response.data || []).filter(c => c.unread_count > 0).length : 0,
+        channel: currentFolder === 'channel' ? (response.data || []).filter(c => c.unread_count > 0).length : 0,
         hidden: 0
       });
     } catch (error) {
