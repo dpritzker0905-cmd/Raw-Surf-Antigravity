@@ -7,7 +7,7 @@ import {
   MapPin, Waves, Camera, Clock, Users, X, TrendingUp, Loader2, Radio, Calendar, MessageCircle, Compass,
   Sun, Lock, Crown, Eye, Heart, ChevronLeft, Flag,
   Navigation, AlertCircle, Zap, CalendarClock, ChevronRight,
-  Bell, Send, DollarSign, Star, Wind, CloudRain, Brain, Timer
+  Bell, Send, DollarSign, Star, Wind, CloudRain, Brain, Timer, BookOpen, ArrowRight
 } from 'lucide-react';
 import { Button } from './ui/button';
 
@@ -614,7 +614,13 @@ const SpotHub = () => {
       ]);
       
       if (reportsRes.status === 'fulfilled') {
-        setConditionReports(reportsRes.value.data.reports || reportsRes.value.data || []);
+        const rawReports = reportsRes.value.data.reports || reportsRes.value.data || [];
+        // Filter out bogus auto-generated "Live at" reports with no actual conditions data
+        const validReports = rawReports.filter(r => 
+          r.conditions_label || r.wave_height_ft || r.wind_conditions || r.crowd_level ||
+          (r.caption && !r.caption.startsWith('Live at '))
+        );
+        setConditionReports(validReports);
       }
       
       if (postsRes.status === 'fulfilled') {
@@ -1544,6 +1550,35 @@ const SpotHub = () => {
                     <p className="text-xs">Check back when more data is available for this spot</p>
                   </div>
                 )}
+
+                {/* Surf Log CTA — Help build accurate intel */}
+                <div 
+                  className={`p-3.5 rounded-xl border cursor-pointer group transition-all ${
+                    isLight 
+                      ? 'bg-gradient-to-r from-cyan-50 to-blue-50 border-cyan-200 hover:border-cyan-400' 
+                      : 'bg-gradient-to-r from-cyan-500/5 to-blue-500/5 border-cyan-500/20 hover:border-cyan-500/40'
+                  }`}
+                  onClick={() => navigate('/surf-log')}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className={`w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                      isLight ? 'bg-cyan-100' : 'bg-cyan-500/15'
+                    }`}>
+                      <BookOpen className="w-4.5 h-4.5 text-cyan-500" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className={`text-sm font-semibold ${isLight ? 'text-gray-900' : 'text-white'}`}>
+                        Help improve this data
+                      </p>
+                      <p className={`text-[11px] leading-tight ${isLight ? 'text-gray-500' : 'text-gray-400'}`}>
+                        Log your sessions at {spot?.name || 'this spot'} to make crowd & conditions intel more accurate
+                      </p>
+                    </div>
+                    <ArrowRight className={`w-4 h-4 flex-shrink-0 transition-transform group-hover:translate-x-0.5 ${
+                      isLight ? 'text-cyan-500' : 'text-cyan-400'
+                    }`} />
+                  </div>
+                </div>
               </>
             )}
           </div>
