@@ -134,7 +134,7 @@ export const SpotConditions = ({ spotId, spotName, compact = false }) => {
 
     setReportLoading(true);
     try {
-      await apiClient.post(`/surf-reports?user_id=${user.id}`, {
+      await apiClient.post(`/surf-reports`, {
         spot_id: spotId,
         ...reportData
       });

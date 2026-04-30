@@ -50,7 +50,7 @@ from .crud import (
 @router.post("/bookings/{booking_id}/request-join")
 async def request_join_session(
     booking_id: str,
-    user_id: str = Query(...),
+    user_id: str = Depends(get_user_id_from_jwt_or_query),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -799,7 +799,7 @@ async def respond_to_invite(
 @router.post("/bookings/{booking_id}/invite-crew")
 async def invite_crew_to_booking(
     booking_id: str,
-    user_id: str = Query(...),
+    user_id: str = Depends(get_user_id_from_jwt_or_query),
     data: InviteCrewRequest = None,
     db: AsyncSession = Depends(get_db)
 ):
@@ -893,7 +893,7 @@ async def invite_crew_to_booking(
 @router.get("/bookings/{booking_id}/invite-suggestions")
 async def get_invite_suggestions(
     booking_id: str,
-    user_id: str = Query(...),
+    user_id: str = Depends(get_user_id_from_jwt_or_query),
     db: AsyncSession = Depends(get_db)
 ):
     """

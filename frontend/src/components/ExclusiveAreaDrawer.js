@@ -18,7 +18,6 @@ import { Button } from './ui/button';
 import logger from '../utils/logger';
 import { ROLES } from '../constants/roles';
 
-const _API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 /**
  * Area configurations for each tier

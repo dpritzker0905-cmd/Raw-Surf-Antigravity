@@ -101,7 +101,7 @@ export const CreditWallet = () => {
     if (!user?.id) return;
     setPurchasing(true);
     try {
-      const res = await apiClient.post(`/credits/purchase?user_id=${user.id}`, {
+      const res = await apiClient.post(`/credits/purchase`, {
         amount: selectedAmount,
         origin_url: window.location.origin
       });

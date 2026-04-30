@@ -610,7 +610,7 @@ export const PhotographerSessionManager = ({
       setSearching(true);
       try {
         const response = await apiClient.get(
-          `/bookings/${booking.id}/search-users?query=${encodeURIComponent(searchQuery)}&user_id=${user.id}`
+          `/bookings/${booking.id}/search-users?query=${encodeURIComponent(searchQuery)}`
         );
         setSearchResults(response.data || []);
       } catch (error) {
@@ -629,7 +629,7 @@ export const PhotographerSessionManager = ({
     setInviting(surfer.user_id);
     try {
       await apiClient.post(
-        `/bookings/${booking.id}/invite-by-handle?user_id=${user.id}`,
+        `/bookings/${booking.id}/invite-by-handle`,
         { handle_query: surfer.username || surfer.email || surfer.full_name }
       );
       const displayName = surfer.username ? `@${surfer.username}` : surfer.full_name;
@@ -649,7 +649,7 @@ export const PhotographerSessionManager = ({
     
     setActionLoading('remove');
     try {
-      await apiClient.post(`/bookings/${booking.id}/lineup/remove-member?user_id=${user.id}`, {
+      await apiClient.post(`/bookings/${booking.id}/lineup/remove-member`, {
         member_id: participantId
       });
       toast.success(`${name} removed from session`);
@@ -671,7 +671,7 @@ export const PhotographerSessionManager = ({
     setLocalLineupStatus(newStatus);
     setActionLoading('toggle');
     try {
-      await apiClient.post(`/bookings/${booking.id}/lineup/status?user_id=${user.id}`, {
+      await apiClient.post(`/bookings/${booking.id}/lineup/status`, {
         status: newStatus
       });
       toast.success(newStatus === 'open' ? 'Session opened for bookings' : 'Session closed to new bookings');
@@ -692,7 +692,7 @@ export const PhotographerSessionManager = ({
     setLocalSplitMode(newMode);
     setActionLoading('visibility');
     try {
-      await apiClient.patch(`/bookings/${booking.id}?user_id=${user.id}`, {
+      await apiClient.patch(`/bookings/${booking.id}`, {
         split_mode: newMode
       });
       toast.success(newMode === 'open_nearby' 
@@ -715,7 +715,7 @@ export const PhotographerSessionManager = ({
     setLocalAutoConfirm(newValue);
     setActionLoading('autoconfirm');
     try {
-      await apiClient.patch(`/bookings/${booking.id}?user_id=${user.id}`, {
+      await apiClient.patch(`/bookings/${booking.id}`, {
         lineup_auto_confirm: newValue
       });
       toast.success(newValue 
@@ -737,7 +737,7 @@ export const PhotographerSessionManager = ({
     
     setActionLoading('lock');
     try {
-      await apiClient.post(`/bookings/${booking.id}/lineup/lock?user_id=${user.id}`);
+      await apiClient.post(`/bookings/${booking.id}/lineup/lock`);
       toast.success('Session locked and finalized');
       onRefresh?.();
       onClose();
@@ -753,7 +753,7 @@ export const PhotographerSessionManager = ({
     
     setActionLoading('cancel');
     try {
-      await apiClient.post(`/bookings/${booking.id}/cancel?user_id=${user.id}`, {
+      await apiClient.post(`/bookings/${booking.id}/cancel`, {
         reason: 'Cancelled by photographer'
       });
       toast.success('Session cancelled. All participants notified.');
@@ -773,7 +773,7 @@ export const PhotographerSessionManager = ({
   const handleUpdateReservationSettings = async (updates) => {
     setActionLoading('reservation');
     try {
-      await apiClient.patch(`/bookings/${booking.id}/reservation-settings?user_id=${user.id}`, updates);
+      await apiClient.patch(`/bookings/${booking.id}/reservation-settings`, updates);
       toast.success('Reservation settings updated');
       // Update parent state with new settings
       onBookingUpdate?.(updates);

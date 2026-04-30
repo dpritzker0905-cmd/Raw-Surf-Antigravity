@@ -14,7 +14,6 @@ import { Input } from './ui/input';
 import { toast } from 'sonner';
 import logger from '../utils/logger';
 
-const _API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 /**
  * LocationPicker - Allows users to manually select their location on a map

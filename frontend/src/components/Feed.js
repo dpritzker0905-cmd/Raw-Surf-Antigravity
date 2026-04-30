@@ -343,7 +343,7 @@ export const Feed = () => {
     setIsRefreshing(true);
     try {
       const response = await apiClient.get('/posts', {
-        params: { user_id: user?.id, limit: 10 }
+        params: { limit: 10 }
       });
       const incoming = response.data || [];
       if (incoming.length === 0) { setIsRefreshing(false); return; }
@@ -385,7 +385,7 @@ export const Feed = () => {
     setIsRefreshing(true);
     try {
       const response = await apiClient.get('/posts', {
-        params: { user_id: user?.id, limit: 10 }
+        params: { limit: 10 }
       });
       const incoming = response.data || [];
       if (incoming.length > 0) {
@@ -405,7 +405,7 @@ export const Feed = () => {
     try {
       setFeedLineupsLoading(true);
       const response = await apiClient.get(`/feed/lineups`, {
-        params: { user_id: user.id, limit: 3 }
+        params: { limit: 3 }
       });
       setFeedLineups(response.data || []);
     } catch (error) {
@@ -572,7 +572,6 @@ export const Feed = () => {
   const fetchPosts = async () => {
     try {
       const response = await apiClient.get(`/posts`, {
-        params: { user_id: user?.id }
       });
       if (response.data && response.data.length > 0) {
         // Map is_liked_by_user to liked for frontend state
@@ -802,7 +801,7 @@ export const Feed = () => {
     ));
     
     try {
-      const response = await apiClient.post(`/posts/${postId}/like?user_id=${user.id}`);
+      const response = await apiClient.post(`/posts/${postId}/like`);
       // Update with actual server response using functional update
       setPosts(prevPosts => prevPosts.map(p =>
         p.id === postId ? { 
@@ -860,12 +859,12 @@ export const Feed = () => {
       
       try {
         // Call API to remove the reaction (toggle it off)
-        await apiClient.post(`/posts/${postId}/reactions?user_id=${user.id}`, { 
+        await apiClient.post(`/posts/${postId}/reactions`, { 
           emoji: userReaction.emoji 
         });
         // Also unlike if was liked
         if (isLiked) {
-          await apiClient.post(`/posts/${postId}/like?user_id=${user.id}`);
+          await apiClient.post(`/posts/${postId}/like`);
         }
       } catch (error) {
         toast.error('Failed to clear reaction');
@@ -1016,9 +1015,9 @@ export const Feed = () => {
       let response;
       if (isShakaEmoji) {
         // Shaka emoji uses the like endpoint
-        response = await apiClient.post(`/posts/${postId}/like?user_id=${user.id}`);
+        response = await apiClient.post(`/posts/${postId}/like`);
       } else {
-        response = await apiClient.post(`/posts/${postId}/reactions?user_id=${user.id}`, { emoji });
+        response = await apiClient.post(`/posts/${postId}/reactions`, { emoji });
       }
       
       // Broadcast reaction update via Supabase Realtime for social sync
@@ -1028,7 +1027,6 @@ export const Feed = () => {
           event: 'reaction_update',
           payload: {
             post_id: postId,
-            user_id: user.id,
             user_name: user.full_name,
             emoji: isRemoving ? null : emoji,
             action: response?.data?.action || (isRemoving ? 'removed' : 'added')
@@ -1071,10 +1069,10 @@ export const Feed = () => {
     
     try {
       if (isSaved) {
-        await apiClient.delete(`/posts/${postId}/save?user_id=${user.id}`);
+        await apiClient.delete(`/posts/${postId}/save`);
         toast.success('Post removed from saved');
       } else {
-        await apiClient.post(`/posts/${postId}/save?user_id=${user.id}`);
+        await apiClient.post(`/posts/${postId}/save`);
         toast.success('Post saved!');
       }
     } catch (error) {
@@ -1096,7 +1094,7 @@ export const Feed = () => {
 
     try {
       const response = await apiClient.post(
-        `/posts/${postId}/comments?user_id=${user.id}`,
+        `/posts/${postId}/comments`,
         { content }
       );
       
@@ -1185,7 +1183,7 @@ export const Feed = () => {
       }
       
       await apiClient.post(
-        `/posts/${postId}/request-collaboration?user_id=${user.id}`,
+        `/posts/${postId}/request-collaboration`,
         {
           latitude,
           longitude
@@ -1203,7 +1201,6 @@ export const Feed = () => {
               ...(p.collaborators || []),
               {
                 id: 'pending-' + user.id,
-                user_id: user.id,
                 full_name: user.full_name,
                 avatar_url: user.avatar_url,
                 status: 'pending',
@@ -1246,7 +1243,7 @@ export const Feed = () => {
     try {
       if (checkInData.use_gps && checkInData.latitude && checkInData.longitude && spotId) {
         // GPS path → Passport check-in (XP + stamps + badges)
-        const passportResponse = await apiClient.post(`/passport/checkin?user_id=${user.id}`, {
+        const passportResponse = await apiClient.post(`/passport/checkin`, {
           spot_id: spotId,
           latitude: checkInData.latitude,
           longitude: checkInData.longitude,
@@ -1261,7 +1258,7 @@ export const Feed = () => {
 
         // Also update legacy streak (best-effort)
         try {
-          const streakResponse = await apiClient.post(`/check-in?user_id=${user.id}`, {
+          const streakResponse = await apiClient.post(`/check-in`, {
             spot_id: spotId,
             spot_name: spotName,
             conditions: checkInData.conditions || null,
@@ -1296,7 +1293,7 @@ export const Feed = () => {
 
       } else {
         // Manual (non-GPS) path → legacy streak only, no passport XP
-        const response = await apiClient.post(`/check-in?user_id=${user.id}`, {
+        const response = await apiClient.post(`/check-in`, {
           spot_id: spotId || null,
           spot_name: spotName,
           conditions: checkInData.conditions || null,

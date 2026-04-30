@@ -40,7 +40,7 @@ if STRIPE_API_KEY:
 @router.post("/bookings/{booking_id}/waitlist/join")
 async def join_booking_waitlist(
     booking_id: str,
-    user_id: str = Query(...),
+    user_id: str = Depends(get_user_id_from_jwt_or_query),
     user_lat: Optional[float] = Query(None),
     user_lon: Optional[float] = Query(None),
     db: AsyncSession = Depends(get_db)
@@ -126,7 +126,7 @@ async def join_booking_waitlist(
 @router.get("/bookings/{booking_id}/waitlist")
 async def get_booking_waitlist(
     booking_id: str,
-    user_id: str = Query(...),
+    user_id: str = Depends(get_user_id_from_jwt_or_query),
     db: AsyncSession = Depends(get_db)
 ):
     """Get waitlist for a booking session."""
@@ -185,7 +185,7 @@ async def get_booking_waitlist(
 @router.delete("/bookings/{booking_id}/waitlist/leave")
 async def leave_booking_waitlist(
     booking_id: str,
-    user_id: str = Query(...),
+    user_id: str = Depends(get_user_id_from_jwt_or_query),
     db: AsyncSession = Depends(get_db)
 ):
     """Leave the waitlist for a booking."""
@@ -214,7 +214,7 @@ async def leave_booking_waitlist(
 @router.post("/bookings/{booking_id}/waitlist/claim")
 async def claim_waitlist_spot(
     booking_id: str,
-    user_id: str = Query(...),
+    user_id: str = Depends(get_user_id_from_jwt_or_query),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -285,7 +285,7 @@ async def claim_waitlist_spot(
 @router.post("/bookings/{booking_id}/keep-seat")
 async def keep_seat_extension(
     booking_id: str,
-    user_id: str = Query(...),
+    user_id: str = Depends(get_user_id_from_jwt_or_query),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -375,7 +375,7 @@ async def keep_seat_extension(
 @router.get("/bookings/{booking_id}/keep-seat-status")
 async def get_keep_seat_status(
     booking_id: str,
-    user_id: str = Query(...),
+    user_id: str = Depends(get_user_id_from_jwt_or_query),
     db: AsyncSession = Depends(get_db)
 ):
     """Get keep-seat extension status for a user."""

@@ -275,7 +275,7 @@ export const CrewLeaderboard = ({
   
   const handleCrewClick = async (crew) => {
     try {
-      const res = await apiClient.get(`/crew/stats/${crew.crew_hash}?user_id=${targetUserId}`);
+      const res = await apiClient.get(`/crew/stats/${crew.crew_hash}`);
       setSelectedCrew(res.data);
       setShowCrewDetail(true);
     } catch (error) {
@@ -289,7 +289,7 @@ export const CrewLeaderboard = ({
   
   const handlePrivacyToggle = async (crewHash, isPublic) => {
     try {
-      await apiClient.put(`/crew/${crewHash}/settings?user_id=${targetUserId}`, {
+      await apiClient.put(`/crew/${crewHash}/settings`, {
         is_public: isPublic
       });
       toast.success(`Crew is now ${isPublic ? 'public' : 'private'}`);

@@ -92,7 +92,7 @@ class PassportStatsResponse(BaseModel):
 @router.post("/passport/checkin", response_model=CheckInResponse)
 async def checkin_at_spot(
     request: CheckInRequest,
-    user_id: str = Query(..., description="User ID"),
+    user_id: str = Depends(get_user_id_from_jwt_or_query),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -301,7 +301,7 @@ async def checkin_at_spot(
 
 @router.get("/passport/stats")
 async def get_passport_stats(
-    user_id: str = Query(..., description="User ID"),
+    user_id: str = Depends(get_user_id_from_jwt_or_query),
     db: AsyncSession = Depends(get_db)
 ):
     """Get user's Surf Passport statistics."""
@@ -371,7 +371,7 @@ async def get_passport_stats(
 
 @router.get("/passport/visited-spots")
 async def get_visited_spots(
-    user_id: str = Query(..., description="User ID"),
+    user_id: str = Depends(get_user_id_from_jwt_or_query),
     country: Optional[str] = None,
     db: AsyncSession = Depends(get_db)
 ):

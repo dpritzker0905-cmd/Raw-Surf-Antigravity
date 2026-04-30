@@ -143,7 +143,7 @@ export const CreateAdModal = ({ isOpen, onClose, onSuccess }) => {
 
     setSubmitting(true);
     try {
-      const response = await apiClient.post(`/ads/submit?user_id=${user.id}`, {
+      const response = await apiClient.post(`/ads/submit`, {
         headline: headline.trim(),
         description: description.trim(),
         cta: cta.trim() || 'Learn More',

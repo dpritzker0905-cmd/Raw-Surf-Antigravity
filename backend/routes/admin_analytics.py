@@ -16,6 +16,7 @@ from models import (
     SurfSpot, GalleryItem, Post, AdminLog, RoleEnum
 )
 import json
+from core.security import get_user_id_from_jwt_or_query
 
 router = APIRouter()
 
@@ -766,7 +767,7 @@ async def update_platform_settings(
 
 @router.get("/feed/lineups")
 async def get_feed_lineups(
-    user_id: str = Query(...),
+    user_id: str = Depends(get_user_id_from_jwt_or_query),
     limit: int = Query(3, ge=1, le=10),
     db: AsyncSession = Depends(get_db)
 ):

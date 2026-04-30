@@ -506,7 +506,7 @@ export const DispatchLobby = () => {
     setCancelLoading(true);
     try {
       const res = await apiClient.post(
-        `/dispatch/${dispatchId}/cancel?user_id=${user.id}`,
+        `/dispatch/${dispatchId}/cancel`,
         { reason: 'User cancelled from lobby' }
       );
       const feeAmt = res.data?.fee_amount || 0;

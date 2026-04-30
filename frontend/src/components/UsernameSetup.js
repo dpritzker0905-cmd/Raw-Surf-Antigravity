@@ -1,4 +1,4 @@
-﻿/**
+/**
  * UsernameSetup - Component for setting up @username
  * Shows after signup or when username is not set
  */
@@ -15,7 +15,6 @@ import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import logger from '../utils/logger';
 import { ROLES } from '../constants/roles';
 
-const API = process.env.REACT_APP_BACKEND_URL;
 
 // Debounce hook
 const useDebounce = (value, delay) => {
@@ -81,7 +80,7 @@ const UsernameSetup = ({ onComplete, skipAllowed = false }) => {
       setChecking(true);
       try {
         const response = await apiClient.get(
-          `/username/check/${debouncedUsername}?user_id=${user?.id}`
+          `/username/check/${debouncedUsername}`
         );
         setAvailability(response.data);
       } catch (error) {
@@ -108,7 +107,7 @@ const UsernameSetup = ({ onComplete, skipAllowed = false }) => {
     
     setSubmitting(true);
     try {
-      await apiClient.post(`/username/set?user_id=${user.id}`, {
+      await apiClient.post(`/username/set`, {
         username: username
       });
       

@@ -69,7 +69,7 @@ export const SessionActionDrawer = ({
     
     setCancelLoading(true);
     try {
-      await apiClient.post(`/bookings/${booking.id}/cancel?user_id=${user.id}`, {
+      await apiClient.post(`/bookings/${booking.id}/cancel`, {
         reason: cancellationReason || 'Cancelled by user'
       });
       
@@ -130,7 +130,7 @@ export const SessionActionDrawer = ({
     
     setShareLoading(true);
     try {
-      const response = await apiClient.post(`/bookings/${booking.id}/share-to-feed?user_id=${user.id}`);
+      const response = await apiClient.post(`/bookings/${booking.id}/share-to-feed`);
       toast.success('Session posted to feed! Friends can join from there.', {
         description: response.data?.spots_left > 0 
           ? `${response.data.spots_left} spot${response.data.spots_left > 1 ? 's' : ''} available for crew` 

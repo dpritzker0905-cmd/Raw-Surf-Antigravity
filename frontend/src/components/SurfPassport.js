@@ -56,7 +56,7 @@ export const SurfPassport = ({ isOpen, onClose }) => {
   const fetchStats = useCallback(async () => {
     if (!user?.id) return;
     try {
-      const response = await apiClient.get(`/passport/stats?user_id=${user.id}`);
+      const response = await apiClient.get(`/passport/stats`);
       setStats(response.data);
     } catch (error) {
       logger.error('Failed to fetch passport stats:', error);
@@ -67,7 +67,7 @@ export const SurfPassport = ({ isOpen, onClose }) => {
   const fetchVisitedSpots = useCallback(async () => {
     if (!user?.id) return;
     try {
-      const response = await apiClient.get(`/passport/visited-spots?user_id=${user.id}`);
+      const response = await apiClient.get(`/passport/visited-spots`);
       setVisitedSpots(response.data.visited_spots || []);
     } catch (error) {
       logger.error('Failed to fetch visited spots:', error);
@@ -163,7 +163,7 @@ export const SurfPassport = ({ isOpen, onClose }) => {
     
     setCheckingIn(true);
     try {
-      const response = await apiClient.post(`/passport/checkin?user_id=${user.id}`, {
+      const response = await apiClient.post(`/passport/checkin`, {
         spot_id: nearbySpot.id,
         latitude: userLocation.latitude,
         longitude: userLocation.longitude

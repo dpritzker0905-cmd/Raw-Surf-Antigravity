@@ -111,7 +111,7 @@ export const Credits = () => {
 
     try {
       const originUrl = window.location.origin;
-      const response = await apiClient.post(`/credits/purchase?user_id=${user.id}`, {
+      const response = await apiClient.post(`/credits/purchase`, {
         amount: parseFloat(amount),
         origin_url: originUrl
       });

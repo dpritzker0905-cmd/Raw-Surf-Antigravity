@@ -16,6 +16,7 @@ import os
 import stripe
 
 from database import get_db
+from core.security import get_user_id_from_jwt_or_query, get_optional_user_id_from_jwt_or_query
 from models import (
     Profile, Booking, BookingParticipant, BookingInvite,
     Notification, RoleEnum, PaymentTransaction,
@@ -1041,7 +1042,7 @@ async def mark_content_delivered(
 @router.post("/bookings/{booking_id}/share-to-feed")
 async def share_booking_to_feed(
     booking_id: str,
-    user_id: str = Query(...),
+    user_id: str = Depends(get_user_id_from_jwt_or_query),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -1118,7 +1119,7 @@ async def share_booking_to_feed(
 @router.post("/bookings/{booking_id}/send-split-requests")
 async def send_split_payment_requests(
     booking_id: str,
-    user_id: str = Query(...),
+    user_id: str = Depends(get_user_id_from_jwt_or_query),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -1229,7 +1230,7 @@ async def send_split_payment_requests(
 @router.post("/bookings/{booking_id}/request-join")
 async def request_join_session(
     booking_id: str,
-    user_id: str = Query(...),
+    user_id: str = Depends(get_user_id_from_jwt_or_query),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -2607,7 +2608,7 @@ async def get_nearby_open_bookings(
     longitude: float,
     radius: float = Query(default=5.0, description="Radius in miles"),
     skill_level: Optional[str] = Query(default=None, description="Filter by skill level (Beginner, Intermediate, Advanced, Expert)"),
-    user_id: Optional[str] = Query(default=None, description="User ID for skill matching"),
+    user_id: Optional[str] = Depends(get_optional_user_id_from_jwt_or_query),
     db: AsyncSession = Depends(get_db)
 ):
     """Find open bookings nearby that allow strangers to join, optionally filtered by skill level"""
@@ -3814,7 +3815,7 @@ class OpenLineupRequest(BaseModel):
 
 @router.get("/bookings/lineups")
 async def get_user_lineups(
-    user_id: str = Query(...),
+    user_id: str = Depends(get_user_id_from_jwt_or_query),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -3943,7 +3944,7 @@ async def get_user_lineups(
 @router.post("/bookings/{booking_id}/lineup/open")
 async def open_lineup(
     booking_id: str,
-    user_id: str = Query(...),
+    user_id: str = Depends(get_user_id_from_jwt_or_query),
     data: OpenLineupRequest = None,
     db: AsyncSession = Depends(get_db)
 ):
@@ -4004,7 +4005,7 @@ async def open_lineup(
 @router.post("/bookings/{booking_id}/lineup/join")
 async def join_lineup(
     booking_id: str,
-    user_id: str = Query(...),
+    user_id: str = Depends(get_user_id_from_jwt_or_query),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -4106,7 +4107,7 @@ async def join_lineup(
 @router.post("/bookings/{booking_id}/lineup/leave")
 async def leave_lineup(
     booking_id: str,
-    user_id: str = Query(...),
+    user_id: str = Depends(get_user_id_from_jwt_or_query),
     db: AsyncSession = Depends(get_db)
 ):
     """Leave a lineup you've joined."""
@@ -4206,7 +4207,7 @@ async def leave_lineup(
 @router.post("/bookings/{booking_id}/lineup/lock")
 async def lock_lineup(
     booking_id: str,
-    user_id: str = Query(...),
+    user_id: str = Depends(get_user_id_from_jwt_or_query),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -4287,7 +4288,7 @@ async def lock_lineup(
 @router.post("/bookings/{booking_id}/lineup/close")
 async def close_lineup(
     booking_id: str,
-    user_id: str = Query(...),
+    user_id: str = Depends(get_user_id_from_jwt_or_query),
     db: AsyncSession = Depends(get_db)
 ):
     """Captain closes the lineup (cancels it before locking)."""
@@ -4347,7 +4348,7 @@ class SetLineupStatusRequest(BaseModel):
 @router.post("/bookings/{booking_id}/lineup/status")
 async def set_lineup_status(
     booking_id: str,
-    user_id: str = Query(...),
+    user_id: str = Depends(get_user_id_from_jwt_or_query),
     data: SetLineupStatusRequest = None,
     db: AsyncSession = Depends(get_db)
 ):
@@ -4445,7 +4446,7 @@ class RemoveCrewMemberRequest(BaseModel):
 @router.post("/bookings/{booking_id}/lineup/remove-member")
 async def remove_crew_member(
     booking_id: str,
-    user_id: str = Query(...),
+    user_id: str = Depends(get_user_id_from_jwt_or_query),
     data: RemoveCrewMemberRequest = None,
     db: AsyncSession = Depends(get_db)
 ):
@@ -4545,7 +4546,7 @@ class InviteCrewRequest(BaseModel):
 @router.post("/bookings/{booking_id}/invite-crew")
 async def invite_crew_to_booking(
     booking_id: str,
-    user_id: str = Query(...),
+    user_id: str = Depends(get_user_id_from_jwt_or_query),
     data: InviteCrewRequest = None,
     db: AsyncSession = Depends(get_db)
 ):
@@ -4637,7 +4638,7 @@ async def invite_crew_to_booking(
 @router.get("/bookings/{booking_id}/invite-suggestions")
 async def get_invite_suggestions(
     booking_id: str,
-    user_id: str = Query(...),
+    user_id: str = Depends(get_user_id_from_jwt_or_query),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -4762,7 +4763,7 @@ class ReservationSettingsUpdate(BaseModel):
 @router.patch("/bookings/{booking_id}/reservation-settings")
 async def update_reservation_settings(
     booking_id: str,
-    user_id: str = Query(...),
+    user_id: str = Depends(get_user_id_from_jwt_or_query),
     data: ReservationSettingsUpdate = None,
     db: AsyncSession = Depends(get_db)
 ):
@@ -4825,7 +4826,7 @@ async def update_reservation_settings(
 @router.get("/bookings/{booking_id}/reservation-settings")
 async def get_reservation_settings(
     booking_id: str,
-    user_id: str = Query(...),
+    user_id: str = Depends(get_user_id_from_jwt_or_query),
     db: AsyncSession = Depends(get_db)
 ):
     """Get current reservation settings for a booking."""
@@ -4850,7 +4851,7 @@ async def get_reservation_settings(
 @router.post("/bookings/{booking_id}/waitlist/join")
 async def join_booking_waitlist(
     booking_id: str,
-    user_id: str = Query(...),
+    user_id: str = Depends(get_user_id_from_jwt_or_query),
     user_lat: Optional[float] = Query(None),
     user_lon: Optional[float] = Query(None),
     db: AsyncSession = Depends(get_db)
@@ -4934,7 +4935,7 @@ async def join_booking_waitlist(
 @router.get("/bookings/{booking_id}/waitlist")
 async def get_booking_waitlist(
     booking_id: str,
-    user_id: str = Query(...),
+    user_id: str = Depends(get_user_id_from_jwt_or_query),
     db: AsyncSession = Depends(get_db)
 ):
     """Get waitlist for a booking session."""
@@ -4991,7 +4992,7 @@ async def get_booking_waitlist(
 @router.delete("/bookings/{booking_id}/waitlist/leave")
 async def leave_booking_waitlist(
     booking_id: str,
-    user_id: str = Query(...),
+    user_id: str = Depends(get_user_id_from_jwt_or_query),
     db: AsyncSession = Depends(get_db)
 ):
     """Leave the waitlist for a booking."""
@@ -5018,7 +5019,7 @@ async def leave_booking_waitlist(
 @router.post("/bookings/{booking_id}/waitlist/claim")
 async def claim_waitlist_spot(
     booking_id: str,
-    user_id: str = Query(...),
+    user_id: str = Depends(get_user_id_from_jwt_or_query),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -5087,7 +5088,7 @@ async def claim_waitlist_spot(
 @router.post("/bookings/{booking_id}/keep-seat")
 async def keep_seat_extension(
     booking_id: str,
-    user_id: str = Query(...),
+    user_id: str = Depends(get_user_id_from_jwt_or_query),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -5175,7 +5176,7 @@ async def keep_seat_extension(
 @router.get("/bookings/{booking_id}/keep-seat-status")
 async def get_keep_seat_status(
     booking_id: str,
-    user_id: str = Query(...),
+    user_id: str = Depends(get_user_id_from_jwt_or_query),
     db: AsyncSession = Depends(get_db)
 ):
     """Get keep-seat extension status for a user."""

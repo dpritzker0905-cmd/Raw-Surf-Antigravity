@@ -58,7 +58,7 @@ const CrewPaymentPage = () => {
 
   const fetchBookingDetails = useCallback(async () => {
     try {
-      const response = await apiClient.get(`/bookings/${bookingId}/crew-payment-details?user_id=${user.id}`);
+      const response = await apiClient.get(`/bookings/${bookingId}/crew-payment-details`);
       setBooking(response.data.booking);
       setMyShare(response.data.my_share);
       setCaptain(response.data.captain);

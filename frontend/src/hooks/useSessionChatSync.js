@@ -74,7 +74,7 @@ export const useSessionChatSync = ({
 
       try {
         const res = await apiClient.get(
-          `/messages/conversation/${conversationId}?user_id=${userId}`
+          `/messages/conversation/${conversationId}`
         );
         const messages = res.data.messages || [];
 
@@ -143,7 +143,7 @@ export const useSessionChatSync = ({
       const resync = async () => {
         try {
           const res = await apiClient.get(
-            `/messages/conversation/${conversationId}?user_id=${userId}`
+            `/messages/conversation/${conversationId}`
           );
           const messages = res.data.messages || [];
           const unread = messages.filter(

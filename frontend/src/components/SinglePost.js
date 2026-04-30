@@ -177,7 +177,7 @@ const SinglePost = () => {
     try {
       const response = await apiClient.post(`/posts/${postId}/reactions`, 
         { emoji },
-        { params: { user_id: user.id } }
+        { }
       );
       
       const action = response.data.action;
@@ -234,13 +234,11 @@ const SinglePost = () => {
     try {
       if (isSaved) {
         await apiClient.delete(`/posts/${postId}/save`, {
-          params: { user_id: user.id }
         });
         setPost(prev => ({ ...prev, saved: false }));
         toast.success('Removed from saved');
       } else {
         await apiClient.post(`/posts/${postId}/save`, null, {
-          params: { user_id: user.id }
         });
         setPost(prev => ({ ...prev, saved: true }));
         toast.success('Saved!');
@@ -259,7 +257,7 @@ const SinglePost = () => {
       await apiClient.post(
         `/posts/${postId}/comments`,
         { content },
-        { params: { user_id: user.id } }
+        { }
       );
       
       setCommentInputs(prev => ({ ...prev, [postId]: '' }));
@@ -320,7 +318,6 @@ const SinglePost = () => {
     
     try {
       await apiClient.post(`/posts/${postId}/collaborators`, null, {
-        params: { user_id: user.id }
       });
       toast.success("Added you as a collaborator!");
       fetchPost(); // Refresh to show updated collaborators

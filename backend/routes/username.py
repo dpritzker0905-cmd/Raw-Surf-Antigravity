@@ -16,6 +16,7 @@ import re
 
 from database import get_db
 from models import Profile, UsernameHistory
+from core.security import get_user_id_from_jwt_or_query
 
 router = APIRouter(prefix="/username", tags=["username"])
 
@@ -193,7 +194,7 @@ async def check_username_availability(
 @router.post("/set")
 async def set_username(
     data: SetUsernameRequest,
-    user_id: str = Query(...),
+    user_id: str = Depends(get_user_id_from_jwt_or_query),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -233,7 +234,7 @@ async def set_username(
 @router.put("/change")
 async def change_username(
     data: ChangeUsernameRequest,
-    user_id: str = Query(...),
+    user_id: str = Depends(get_user_id_from_jwt_or_query),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -302,7 +303,7 @@ async def change_username(
 
 @router.get("/status")
 async def get_username_status(
-    user_id: str = Query(...),
+    user_id: str = Depends(get_user_id_from_jwt_or_query),
     db: AsyncSession = Depends(get_db)
 ):
     """

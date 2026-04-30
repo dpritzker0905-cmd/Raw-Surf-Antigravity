@@ -57,7 +57,7 @@ export const TaggedPhotoModal = ({
   const markAsViewed = async () => {
     if (photo?.is_new && photo?.tag_id) {
       try {
-        await apiClient.post(`/ai/mark-photo-viewed?user_id=${user?.id}&tag_id=${photo.tag_id}`);
+        await apiClient.post(`/ai/mark-photo-viewed?tag_id=${photo.tag_id}`);
         onPhotoViewed?.(photo.id);
       } catch (e) {
         logger.error('Failed to mark as viewed:', e);

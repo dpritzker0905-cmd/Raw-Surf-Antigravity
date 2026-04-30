@@ -293,7 +293,7 @@ export const Profile = () => {
     if (!noteText.trim() || noteSubmitting) return;
     setNoteSubmitting(true);
     try {
-      await apiClient.post(`/notes/create?user_id=${user.id}`, { content: noteText.trim() });
+      await apiClient.post(`/notes/create`, { content: noteText.trim() });
       toast.success('Note shared with mutual followers!');
       setShowNoteModal(false);
       setNoteText('');
@@ -308,7 +308,7 @@ export const Profile = () => {
   // Delete note
   const handleDeleteNote = async () => {
     try {
-      await apiClient.delete(`/notes/delete?user_id=${user.id}`);
+      await apiClient.delete(`/notes/delete`);
       setUserNote(null);
       setShowNoteModal(false);
       toast.success('Note deleted');

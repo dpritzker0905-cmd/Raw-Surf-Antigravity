@@ -52,7 +52,7 @@ export const NotificationPreferences = ({ userId, textPrimaryClass, textSecondar
   
   const fetchPreferences = async () => {
     try {
-      const response = await apiClient.get(`/notifications/preferences?user_id=${userId}`);
+      const response = await apiClient.get(`/notifications/preferences`);
       if (response.data) {
         setPreferences(prev => ({ ...prev, ...response.data }));
       }
@@ -69,7 +69,7 @@ export const NotificationPreferences = ({ userId, textPrimaryClass, textSecondar
     setPreferences(updated);
     
     try {
-      await apiClient.put(`/notifications/preferences?user_id=${userId}`, {
+      await apiClient.put(`/notifications/preferences`, {
         [key]: value
       });
     } catch (error) {
@@ -82,7 +82,7 @@ export const NotificationPreferences = ({ userId, textPrimaryClass, textSecondar
   const _saveAllPreferences = async () => {
     setSaving(true);
     try {
-      await apiClient.put(`/notifications/preferences?user_id=${userId}`, preferences);
+      await apiClient.put(`/notifications/preferences`, preferences);
       toast.success('Notification preferences saved');
     } catch (error) {
       toast.error('Failed to save preferences');

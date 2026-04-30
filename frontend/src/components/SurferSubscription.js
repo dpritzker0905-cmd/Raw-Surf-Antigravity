@@ -32,7 +32,7 @@ export const SurferSubscription = () => {
       if (tier.price === 0) {
         // Free tier - direct update via API
         const _response = await apiClient.post(
-          `/subscriptions/checkout?user_id=${user.id}`,
+          `/subscriptions/checkout`,
           {
             tier_id: tier.id,
             origin_url: window.location.origin
@@ -46,7 +46,7 @@ export const SurferSubscription = () => {
       } else {
         // Paid tier - redirect to Stripe checkout
         const response = await apiClient.post(
-          `/subscriptions/checkout?user_id=${user.id}`,
+          `/subscriptions/checkout`,
           {
             tier_id: tier.id,
             origin_url: window.location.origin

@@ -284,7 +284,7 @@ const PhotographerRequestModal = ({ isOpen, onClose, spot, spotId, onSuccess }) 
     
     setIsSubmitting(true);
     try {
-      const response = await apiClient.post(`/photographer-request?user_id=${user.id}`, {
+      const response = await apiClient.post(`/photographer-request`, {
         spot_id: spotId,
         urgency,
         preferred_time: preferredTime || null,

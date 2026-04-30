@@ -84,7 +84,7 @@ export const usePushNotifications = (userId) => {
 
       // Send subscription to server
       const subJson = subscription.toJSON();
-      await apiClient.post(`/push/subscribe?user_id=${userId}`, {
+      await apiClient.post(`/push/subscribe`, {
         endpoint: subJson.endpoint,
         p256dh_key: subJson.keys?.p256dh || '',
         auth_key: subJson.keys?.auth || '',
@@ -114,7 +114,7 @@ export const usePushNotifications = (userId) => {
         await subscription.unsubscribe();
         
         // Remove from server
-        await apiClient.delete(`/push/unsubscribe?user_id=${userId}&endpoint=${encodeURIComponent(subscription.endpoint)}`);
+        await apiClient.delete(`/push/unsubscribe?endpoint=${encodeURIComponent(subscription.endpoint)}`);
       }
 
       setIsSubscribed(false);

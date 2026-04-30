@@ -119,3 +119,54 @@ async def get_optional_user_id(
         return await get_current_user_id(authorization=authorization)
     except HTTPException:
         return None
+
+
+# ── Migration Bridge ──────────────────────────────────────────────────────────
+# These helpers let routes accept BOTH JWT tokens AND legacy user_id query params
+# during the migration period.  Once the frontend is fully migrated, the query
+# param fallback can be removed and routes can use get_current_user_id directly.
+
+def get_user_id_from_jwt_or_query(
+    authorization: Optional[str] = Header(None),
+    user_id: Optional[str] = None,
+) -> str:
+    """
+    Resolve the authenticated user's ID.
+
+    Priority:
+      1. JWT Bearer token (from Authorization header)
+      2. Legacy user_id query parameter (backwards compat)
+
+    Raises HTTPException 401 if neither is provided.
+    """
+    # Try JWT first
+    if authorization and authorization.startswith("Bearer "):
+        token = authorization.split(" ", 1)[1]
+        payload = verify_token(token)
+        sub = payload.get("sub")
+        if sub:
+            return sub
+
+    # Fall back to legacy query param
+    if user_id:
+        return user_id
+
+    raise HTTPException(
+        status_code=401,
+        detail="Authentication required. Provide a Bearer token or user_id parameter.",
+    )
+
+
+def get_optional_user_id_from_jwt_or_query(
+    authorization: Optional[str] = Header(None),
+    user_id: Optional[str] = None,
+) -> Optional[str]:
+    """
+    Like get_user_id_from_jwt_or_query but returns None for public/optional-auth routes.
+    """
+    try:
+        return get_user_id_from_jwt_or_query(
+            authorization=authorization, user_id=user_id
+        )
+    except HTTPException:
+        return None

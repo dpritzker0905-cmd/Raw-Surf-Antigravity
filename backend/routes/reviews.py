@@ -574,7 +574,7 @@ async def check_review_status(
 
 @router.get("/pending-for-user")
 async def get_pending_reviews_for_user(
-    user_id: str = Query(..., description="User to check for unreviewed sessions"),
+    user_id: str = Depends(get_user_id_from_jwt_or_query),
     limit: int = Query(default=10, le=50),
     db: AsyncSession = Depends(get_db)
 ):

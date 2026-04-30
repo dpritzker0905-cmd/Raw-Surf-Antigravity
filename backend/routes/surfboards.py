@@ -195,7 +195,7 @@ async def get_surfboard(
 
 @router.post("/")
 async def create_surfboard(
-    user_id: str = Query(..., description="User ID who owns the board"),
+    user_id: str = Depends(get_user_id_from_jwt_or_query),
     data: SurfboardCreate = None,
     db: AsyncSession = Depends(get_db)
 ):
@@ -241,7 +241,7 @@ async def create_surfboard(
 async def update_surfboard(
     board_id: str,
     data: SurfboardUpdate,
-    user_id: str = Query(..., description="User ID for ownership verification"),
+    user_id: str = Depends(get_user_id_from_jwt_or_query),
     db: AsyncSession = Depends(get_db)
 ):
     """Update a surfboard"""
@@ -272,7 +272,7 @@ async def update_surfboard(
 @router.delete("/{board_id}")
 async def delete_surfboard(
     board_id: str,
-    user_id: str = Query(..., description="User ID for ownership verification"),
+    user_id: str = Depends(get_user_id_from_jwt_or_query),
     db: AsyncSession = Depends(get_db)
 ):
     """Delete a surfboard from quiver"""
@@ -297,7 +297,7 @@ async def delete_surfboard(
 async def add_surfboard_photo(
     board_id: str,
     photo_url: str = Query(..., description="URL of the uploaded photo"),
-    user_id: str = Query(..., description="User ID for ownership verification"),
+    user_id: str = Depends(get_user_id_from_jwt_or_query),
     db: AsyncSession = Depends(get_db)
 ):
     """Add a photo to a surfboard (max 5)"""
@@ -330,7 +330,7 @@ async def add_surfboard_photo(
 async def remove_surfboard_photo(
     board_id: str,
     photo_index: int,
-    user_id: str = Query(..., description="User ID for ownership verification"),
+    user_id: str = Depends(get_user_id_from_jwt_or_query),
     db: AsyncSession = Depends(get_db)
 ):
     """Remove a photo from a surfboard"""

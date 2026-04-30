@@ -82,7 +82,6 @@ export const FeedLineupCard = ({
     setLoading(true);
     try {
       await apiClient.post(`/bookings/${lineup.id}/lineup/join`, null, {
-        params: { user_id: user.id }
       });
       
       setJoined(true);

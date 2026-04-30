@@ -712,7 +712,7 @@ export const LineupManagerDrawer = ({
       setLoadingSuggestions(true);
       try {
         const response = await apiClient.get(
-          `/bookings/${lineup.id}/invite-suggestions?user_id=${user.id}`
+          `/bookings/${lineup.id}/invite-suggestions`
         );
         setSuggestions(response.data || { mutual_friends: [], nearby_public: [] });
       } catch (error) {
@@ -736,7 +736,7 @@ export const LineupManagerDrawer = ({
       setSearching(true);
       try {
         const response = await apiClient.get(
-          `/bookings/${lineup.id}/search-users?query=${encodeURIComponent(searchQuery)}&user_id=${user.id}`
+          `/bookings/${lineup.id}/search-users?query=${encodeURIComponent(searchQuery)}`
         );
         setSearchResults(response.data || []);
       } catch (error) {
@@ -755,7 +755,7 @@ export const LineupManagerDrawer = ({
     setInviting(targetUser.user_id);
     try {
       await apiClient.post(
-        `/bookings/${lineup.id}/invite-by-handle?user_id=${user.id}`,
+        `/bookings/${lineup.id}/invite-by-handle`,
         { handle_query: targetUser.username || targetUser.full_name }
       );
       const displayName = targetUser.username ? `@${targetUser.username}` : targetUser.full_name;
@@ -777,7 +777,7 @@ export const LineupManagerDrawer = ({
     for (const targetUser of users) {
       try {
         await apiClient.post(
-          `/bookings/${lineup.id}/invite-by-handle?user_id=${user.id}`,
+          `/bookings/${lineup.id}/invite-by-handle`,
           { handle_query: targetUser.username || targetUser.full_name }
         );
         successCount++;
@@ -801,7 +801,7 @@ export const LineupManagerDrawer = ({
     setShowLockConfirm(false);
     setLoading(true);
     try {
-      await apiClient.post(`/bookings/${lineup.id}/lineup/lock?user_id=${user.id}`);
+      await apiClient.post(`/bookings/${lineup.id}/lineup/lock`);
       toast.success('Lineup locked! Payment requests sent to crew.');
       onRefresh?.();
       onClose();
@@ -817,7 +817,7 @@ export const LineupManagerDrawer = ({
     
     setLoading(true);
     try {
-      await apiClient.post(`/bookings/${lineup.id}/lineup/close?user_id=${user.id}`);
+      await apiClient.post(`/bookings/${lineup.id}/lineup/close`);
       toast.success('Lineup closed to new members');
       onRefresh?.();
     } catch (error) {
@@ -832,7 +832,7 @@ export const LineupManagerDrawer = ({
     setShowCancelConfirm(false);
     setLoading(true);
     try {
-      await apiClient.post(`/bookings/${lineup.id}/cancel?user_id=${user.id}`, {
+      await apiClient.post(`/bookings/${lineup.id}/cancel`, {
         reason: 'Cancelled by captain'
       });
       toast.success('Session cancelled. All participants have been notified.');
@@ -854,7 +854,7 @@ export const LineupManagerDrawer = ({
     
     setLoading(true);
     try {
-      await apiClient.post(`/bookings/${lineup.id}/lineup/remove-member?user_id=${user.id}`, {
+      await apiClient.post(`/bookings/${lineup.id}/lineup/remove-member`, {
         member_id: memberId
       });
       toast.success(`${memberName} removed from lineup. Spot is now open.`);
@@ -871,7 +871,7 @@ export const LineupManagerDrawer = ({
     
     setLoading(true);
     try {
-      await apiClient.post(`/bookings/${lineup.id}/lineup/leave?user_id=${user.id}`);
+      await apiClient.post(`/bookings/${lineup.id}/lineup/leave`);
       toast.success('You left the lineup. The captain has been notified.');
       onRefresh?.();
       onClose();
@@ -1300,7 +1300,7 @@ export const LineupManagerDrawer = ({
                     const newMode = localSplitMode === 'open_nearby' ? 'friends_only' : 'open_nearby';
                     // Immediately update local state for instant UI feedback
                     setLocalSplitMode(newMode);
-                    await apiClient.patch(`/bookings/${lineup.id}?user_id=${user.id}`, {
+                    await apiClient.patch(`/bookings/${lineup.id}`, {
                       split_mode: newMode
                     });
                     // Update parent state
@@ -1343,7 +1343,7 @@ export const LineupManagerDrawer = ({
                     const newValue = !localAutoConfirm;
                     // Immediately update local state for instant UI feedback
                     setLocalAutoConfirm(newValue);
-                    await apiClient.patch(`/bookings/${lineup.id}?user_id=${user.id}`, {
+                    await apiClient.patch(`/bookings/${lineup.id}`, {
                       lineup_auto_confirm: newValue
                     });
                     // Update parent state

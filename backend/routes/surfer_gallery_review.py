@@ -23,6 +23,7 @@ import json
 
 from database import get_db
 from models import (
+from core.security import get_user_id_from_jwt_or_query
     Profile, SurferGalleryItem, SurferGalleryClaimQueue, 
     GalleryItem, Booking, LiveSession, BookingParticipant,
     LiveSessionParticipant, DispatchRequest
@@ -52,7 +53,7 @@ class ConfirmIdentityRequest(BaseModel):
 @router.get("/proposed-matches/{session_id}")
 async def get_proposed_matches(
     session_id: str,
-    user_id: str = Query(...),
+    user_id: str = Depends(get_user_id_from_jwt_or_query),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -140,7 +141,7 @@ def _parse_match_reasons(reasons_json: str) -> str:
 @router.get("/session-entitlements/{session_id}")
 async def get_session_entitlements(
     session_id: str,
-    user_id: str = Query(...),
+    user_id: str = Depends(get_user_id_from_jwt_or_query),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -248,7 +249,7 @@ async def get_session_entitlements(
 @router.post("/claim-match")
 async def claim_single_match(
     request: ClaimMatchRequest,
-    user_id: str = Query(...),
+    user_id: str = Depends(get_user_id_from_jwt_or_query),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -334,7 +335,7 @@ async def claim_single_match(
 @router.post("/claim-matches-batch")
 async def claim_matches_batch(
     request: ClaimBatchRequest,
-    user_id: str = Query(...),
+    user_id: str = Depends(get_user_id_from_jwt_or_query),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -438,7 +439,7 @@ async def claim_matches_batch(
 async def dismiss_match(
     match_id: str = Query(...),
     session_id: str = Query(...),
-    user_id: str = Query(...),
+    user_id: str = Depends(get_user_id_from_jwt_or_query),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -469,7 +470,7 @@ async def dismiss_match(
 @router.post("/confirm-identity")
 async def confirm_identity(
     request: ConfirmIdentityRequest,
-    user_id: str = Query(...),
+    user_id: str = Depends(get_user_id_from_jwt_or_query),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -505,7 +506,7 @@ async def confirm_identity(
 @router.get("/resolution-upsell/{gallery_item_id}")
 async def get_resolution_upsell(
     gallery_item_id: str,
-    user_id: str = Query(...),
+    user_id: str = Depends(get_user_id_from_jwt_or_query),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -556,7 +557,7 @@ async def get_resolution_upsell(
 @router.post("/upgrade-resolution/{gallery_item_id}")
 async def upgrade_resolution(
     gallery_item_id: str,
-    user_id: str = Query(...),
+    user_id: str = Depends(get_user_id_from_jwt_or_query),
     db: AsyncSession = Depends(get_db)
 ):
     """

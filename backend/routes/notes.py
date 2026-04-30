@@ -14,6 +14,7 @@ import json
 import asyncio
 from database import get_db
 from models import UserNote, NoteReply, NoteReaction, Profile, Follow, Conversation, Notification
+from core.security import get_user_id_from_jwt_or_query
 
 # Import OneSignal service for push notifications
 try:
@@ -88,7 +89,7 @@ def get_time_remaining(expires_at: datetime) -> str:
 @router.post("/create")
 async def create_note(
     request: CreateNoteRequest,
-    user_id: str = Query(...),
+    user_id: str = Depends(get_user_id_from_jwt_or_query),
     db: AsyncSession = Depends(get_db)
 ):
     """Create a new note (replaces existing active note)"""
@@ -142,7 +143,7 @@ async def create_note(
 
 @router.get("/my-note")
 async def get_my_note(
-    user_id: str = Query(...),
+    user_id: str = Depends(get_user_id_from_jwt_or_query),
     db: AsyncSession = Depends(get_db)
 ):
     """Get current user's active note"""
@@ -315,7 +316,7 @@ async def get_user_note(
 
 @router.delete("/delete")
 async def delete_note(
-    user_id: str = Query(...),
+    user_id: str = Depends(get_user_id_from_jwt_or_query),
     db: AsyncSession = Depends(get_db)
 ):
     """Delete user's active note"""
@@ -335,7 +336,7 @@ async def delete_note(
 
 @router.get("/feed")
 async def get_notes_feed(
-    user_id: str = Query(...),
+    user_id: str = Depends(get_user_id_from_jwt_or_query),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -429,7 +430,7 @@ async def get_notes_feed(
 async def reply_to_note(
     note_id: str,
     request: ReplyToNoteRequest,
-    user_id: str = Query(...),
+    user_id: str = Depends(get_user_id_from_jwt_or_query),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -576,7 +577,7 @@ async def reply_to_note(
 @router.get("/{note_id}/replies")
 async def get_note_replies(
     note_id: str,
-    user_id: str = Query(...),
+    user_id: str = Depends(get_user_id_from_jwt_or_query),
     db: AsyncSession = Depends(get_db)
 ):
     """Get all replies to a note"""
@@ -610,7 +611,7 @@ async def get_note_replies(
 
 @router.get("/notifications")
 async def get_note_notifications(
-    user_id: str = Query(...),
+    user_id: str = Depends(get_user_id_from_jwt_or_query),
     limit: int = Query(20, ge=1, le=100),
     db: AsyncSession = Depends(get_db)
 ):
@@ -652,7 +653,7 @@ async def get_note_notifications(
 
 @router.post("/notifications/mark-read")
 async def mark_note_notifications_read(
-    user_id: str = Query(...),
+    user_id: str = Depends(get_user_id_from_jwt_or_query),
     notification_ids: Optional[list] = None,
     db: AsyncSession = Depends(get_db)
 ):
@@ -723,7 +724,7 @@ async def get_note_reaction_emojis():
 async def react_to_note(
     note_id: str,
     request: NoteReactionRequest,
-    user_id: str = Query(...),
+    user_id: str = Depends(get_user_id_from_jwt_or_query),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -862,7 +863,7 @@ async def react_to_note(
 @router.get("/{note_id}/reactions")
 async def get_note_reactions(
     note_id: str,
-    user_id: str = Query(...),
+    user_id: str = Depends(get_user_id_from_jwt_or_query),
     db: AsyncSession = Depends(get_db)
 ):
     """Get all reactions on a note with counts by emoji"""

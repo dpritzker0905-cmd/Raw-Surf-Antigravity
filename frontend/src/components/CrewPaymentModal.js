@@ -259,7 +259,7 @@ export const CrewPaymentModal = ({
                 if (!invite?.id) { onClose(); return; }
                 setDeclining(true);
                 try {
-                  await apiClient.post(`/dispatch/crew-invite/${invite.id}/decline?user_id=${user?.id}`);
+                  await apiClient.post(`/dispatch/crew-invite/${invite.id}/decline`);
                   toast.success('Invite declined');
                   onSuccess?.();
                   onClose();

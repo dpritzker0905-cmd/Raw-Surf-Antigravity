@@ -16,7 +16,6 @@ import { isGrom } from '../lib/roles';
 import { submitPurchaseRequest } from '../utils/gromPurchase';
 import { getFullUrl } from '../utils/media';
 
-const API_URL = process.env.REACT_APP_BACKEND_URL;
 
 const CATEGORY_ICONS = {
   camera: Camera,
@@ -117,7 +116,7 @@ export const GearHub = () => {
 
     setPurchasing(item.id);
     try {
-      const res = await apiClient.post(`/gear-hub/${item.id}/purchase?user_id=${user.id}`);
+      const res = await apiClient.post(`/gear-hub/${item.id}/purchase`);
       
       toast.success(res.data.message);
       
@@ -138,7 +137,7 @@ export const GearHub = () => {
   const setAsTarget = async (item) => {
     if (!user?.id) return;
     try {
-      await apiClient.patch(`/api/profiles/me?user_id=${user.id}`, {
+      await apiClient.patch(`/api/profiles/me`, {
         target_gear_item_id: item.id,
       });
       setTargetGear(item);

@@ -39,13 +39,13 @@ const replayAction = async (action) => {
     switch (type) {
       case 'reaction':
         await apiClient.post(
-          `/posts/${payload.postId}/like?user_id=${payload.userId}`
+          `/posts/${payload.postId}/like`
         );
         break;
 
       case 'comment':
         await apiClient.post(
-          `/posts/${payload.postId}/comments?user_id=${payload.userId}`,
+          `/posts/${payload.postId}/comments`,
           { content: payload.content }
         );
         break;
@@ -58,7 +58,7 @@ const replayAction = async (action) => {
 
       case 'save_post':
         await apiClient.post(
-          `/posts/${payload.postId}/save?user_id=${payload.userId}`
+          `/posts/${payload.postId}/save`
         );
         break;
 

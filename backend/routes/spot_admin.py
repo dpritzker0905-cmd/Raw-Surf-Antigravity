@@ -22,6 +22,7 @@ from typing import Optional, List
 from datetime import datetime, timezone
 import uuid
 import httpx
+from core.security import get_user_id_from_jwt_or_query
 
 router = APIRouter(prefix="/admin/spots", tags=["Admin Spots"])
 
@@ -544,7 +545,7 @@ verification_router = APIRouter(prefix="/spots/verification", tags=["Spot Verifi
 async def submit_verification(
     spot_id: str,
     request: SpotVerificationRequest,
-    user_id: str = Query(...),
+    user_id: str = Depends(get_user_id_from_jwt_or_query),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -616,7 +617,7 @@ async def submit_verification(
 @verification_router.get("/{spot_id}/status")
 async def get_verification_status(
     spot_id: str,
-    user_id: str = Query(...),
+    user_id: str = Depends(get_user_id_from_jwt_or_query),
     db: AsyncSession = Depends(get_db)
 ):
     """Get verification status for a spot and whether user has voted"""

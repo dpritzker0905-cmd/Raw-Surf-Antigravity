@@ -46,12 +46,12 @@ export const AdCenterPanel = () => {
     setLoading(true);
     try {
       // Fetch user's ads
-      const adsRes = await apiClient.get(`/ads/my-submissions?user_id=${user.id}`);
+      const adsRes = await apiClient.get(`/ads/my-submissions`);
       setMyAds(adsRes.data);
       
       // Fetch analytics
       try {
-        const analyticsRes = await apiClient.get(`/ads/my-analytics?user_id=${user.id}`);
+        const analyticsRes = await apiClient.get(`/ads/my-analytics`);
         setAnalytics(analyticsRes.data);
       } catch (e) {
         setAnalytics(null);

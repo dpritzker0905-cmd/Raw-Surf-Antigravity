@@ -1,4 +1,4 @@
-﻿/**
+/**
  * PostMenu - Instagram-style post options menu
  * Different options for own posts vs other users' posts
  */
@@ -533,8 +533,7 @@ const SharePostModal = ({ post, open, onClose, isLight }) => {
   const [checkingMeta, setCheckingMeta] = useState(true);
   
   // Use the API share URL which has proper Open Graph meta tags
-  const API = process.env.REACT_APP_BACKEND_URL || '';
-  const shareUrl = `${API}/share/${post?.id}`;
+  const shareUrl = `${BACKEND_URL}/share/${post?.id}`;
   const postUrl = `${window.location.origin}/post/${post?.id}`;
   
   // Check if on mobile device
@@ -548,7 +547,7 @@ const SharePostModal = ({ post, open, onClose, isLight }) => {
         return;
       }
       try {
-        const response = await apiClient.get(`/meta/status?user_id=${user.id}`);
+        const response = await apiClient.get(`/meta/status`);
         setMetaStatus(response.data);
       } catch (err) {
         // Not connected or error - that's fine
@@ -580,7 +579,7 @@ const SharePostModal = ({ post, open, onClose, isLight }) => {
     
     setDirectShareLoading('facebook');
     try {
-      const response = await apiClient.post(`/meta/share-to-facebook?user_id=${user.id}`, {
+      const response = await apiClient.post(`/meta/share-to-facebook`, {
         post_id: post.id,
         platform: 'facebook'
       });
@@ -603,7 +602,7 @@ const SharePostModal = ({ post, open, onClose, isLight }) => {
     
     setDirectShareLoading('instagram');
     try {
-      const response = await apiClient.post(`/meta/share-to-instagram?user_id=${user.id}`, {
+      const response = await apiClient.post(`/meta/share-to-instagram`, {
         post_id: post.id,
         platform: 'instagram'
       });
@@ -922,7 +921,7 @@ export const PostMenu = ({
     if (!activePost?.id || !user?.id) return;
     setActionLoading('pin');
     try {
-      const response = await apiClient.post(`/posts/${activePost.id}/pin?user_id=${user.id}`);
+      const response = await apiClient.post(`/posts/${activePost.id}/pin`);
       if (response.data.pinned) {
         setIsPinned(true);
         toast.success('Post pinned to profile');
@@ -946,7 +945,7 @@ export const PostMenu = ({
     }
     try {
       logger.debug('Updating post:', activePost.id, 'with user:', user.id, 'updates:', updates);
-      await apiClient.patch(`/posts/${activePost.id}?user_id=${user.id}`, updates);
+      await apiClient.patch(`/posts/${activePost.id}`, updates);
       toast.success('Post updated');
       onPostUpdated?.({ ...activePost, ...updates });
     } catch (error) {
@@ -963,7 +962,7 @@ export const PostMenu = ({
       return;
     }
     try {
-      await apiClient.delete(`/posts/${activePost.id}?user_id=${user.id}`);
+      await apiClient.delete(`/posts/${activePost.id}`);
       toast.success('Post deleted');
       onPostDeleted?.(activePost.id);
       onClose();
@@ -978,7 +977,7 @@ export const PostMenu = ({
     if (!activePost?.id || !user?.id) return;
     setActionLoading('like-count');
     try {
-      await apiClient.patch(`/posts/${activePost.id}/settings?user_id=${user.id}`, {
+      await apiClient.patch(`/posts/${activePost.id}/settings`, {
         hide_like_count: !activePost.hide_like_count
       });
       toast.success(activePost.hide_like_count ? 'Like count shown' : 'Like count hidden');
@@ -996,7 +995,7 @@ export const PostMenu = ({
     if (!activePost?.id || !user?.id) return;
     setActionLoading('commenting');
     try {
-      await apiClient.patch(`/posts/${activePost.id}/settings?user_id=${user.id}`, {
+      await apiClient.patch(`/posts/${activePost.id}/settings`, {
         comments_disabled: !activePost.comments_disabled
       });
       toast.success(activePost.comments_disabled ? 'Comments enabled' : 'Comments disabled');

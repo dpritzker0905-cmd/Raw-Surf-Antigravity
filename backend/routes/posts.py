@@ -251,7 +251,7 @@ async def create_post(author_id: str, data: PostCreate, db: AsyncSession = Depen
     )
 
 @router.get("/posts")
-async def get_feed(limit: int = 50, user_id: Optional[str] = Query(None), db: AsyncSession = Depends(get_db)):
+async def get_feed(limit: int = 50, user_id: Optional[str] = Depends(get_optional_user_id_from_jwt_or_query), db: AsyncSession = Depends(get_db)):
     """
     Get feed posts with privacy enforcement.
     
@@ -752,7 +752,7 @@ async def get_grom_preview_feed(limit: int = 3, db: AsyncSession = Depends(get_d
 
 
 @router.post("/posts/{post_id}/like")
-async def toggle_like_post(post_id: str, user_id: str = Query(...), db: AsyncSession = Depends(get_db)):
+async def toggle_like_post(post_id: str, user_id: str = Depends(get_user_id_from_jwt_or_query), db: AsyncSession = Depends(get_db)):
     """Toggle like on a post - if already liked, unlike it; if not liked, like it"""
     # Get the post
     result = await db.execute(select(Post).where(Post.id == post_id))
@@ -785,7 +785,7 @@ async def toggle_like_post(post_id: str, user_id: str = Query(...), db: AsyncSes
 
 
 @router.delete("/posts/{post_id}/like")
-async def unlike_post(post_id: str, user_id: str = Query(...), db: AsyncSession = Depends(get_db)):
+async def unlike_post(post_id: str, user_id: str = Depends(get_user_id_from_jwt_or_query), db: AsyncSession = Depends(get_db)):
     """Unlike a post"""
     # Get the post
     result = await db.execute(select(Post).where(Post.id == post_id))
@@ -811,7 +811,7 @@ async def unlike_post(post_id: str, user_id: str = Query(...), db: AsyncSession 
 
 
 @router.post("/posts/{post_id}/pin")
-async def pin_post_to_profile(post_id: str, user_id: str = Query(...), db: AsyncSession = Depends(get_db)):
+async def pin_post_to_profile(post_id: str, user_id: str = Depends(get_user_id_from_jwt_or_query), db: AsyncSession = Depends(get_db)):
     """Pin a post to user's profile. Only one post can be pinned at a time."""
     # Get the post
     result = await db.execute(
@@ -847,7 +847,7 @@ async def pin_post_to_profile(post_id: str, user_id: str = Query(...), db: Async
 
 
 @router.delete("/posts/{post_id}/pin")
-async def unpin_post_from_profile(post_id: str, user_id: str = Query(...), db: AsyncSession = Depends(get_db)):
+async def unpin_post_from_profile(post_id: str, user_id: str = Depends(get_user_id_from_jwt_or_query), db: AsyncSession = Depends(get_db)):
     """Unpin a post from user's profile."""
     # Get the user's profile
     profile_result = await db.execute(
@@ -870,7 +870,7 @@ async def unpin_post_from_profile(post_id: str, user_id: str = Query(...), db: A
 
 # Comment endpoints
 @router.post("/posts/{post_id}/comments", response_model=CommentResponse)
-async def create_comment(post_id: str, data: CommentCreate, user_id: str = Query(...), db: AsyncSession = Depends(get_db)):
+async def create_comment(post_id: str, data: CommentCreate, user_id: str = Depends(get_user_id_from_jwt_or_query), db: AsyncSession = Depends(get_db)):
     """Add a comment or reply to a post"""
     # Verify post exists
     post_result = await db.execute(select(Post).where(Post.id == post_id))
@@ -1041,7 +1041,7 @@ async def get_comments(
 
 
 @router.delete("/posts/{post_id}/comments/{comment_id}")
-async def delete_comment(post_id: str, comment_id: str, user_id: str = Query(...), db: AsyncSession = Depends(get_db)):
+async def delete_comment(post_id: str, comment_id: str, user_id: str = Depends(get_user_id_from_jwt_or_query), db: AsyncSession = Depends(get_db)):
     """Delete a comment (only by author)"""
     # Get comment
     result = await db.execute(
@@ -1072,7 +1072,7 @@ async def edit_comment(
     post_id: str, 
     comment_id: str, 
     data: CommentUpdate, 
-    user_id: str = Query(...), 
+    user_id: str = Depends(get_user_id_from_jwt_or_query), 
     db: AsyncSession = Depends(get_db)
 ):
     """Edit a comment (only by author). Shows 'edited' label after edit."""
@@ -1148,7 +1148,7 @@ class CommentReactionResponse(BaseModel):
 async def toggle_comment_reaction(
     comment_id: str, 
     data: CommentReactionCreate,
-    user_id: str = Query(...), 
+    user_id: str = Depends(get_user_id_from_jwt_or_query), 
     db: AsyncSession = Depends(get_db)
 ):
     """Toggle a reaction on a comment - like/unlike"""
@@ -1244,7 +1244,7 @@ async def get_comment_reactions(
 
 # Post Reaction endpoints
 @router.post("/posts/{post_id}/reactions")
-async def toggle_reaction(post_id: str, data: ReactionCreate, user_id: str = Query(...), db: AsyncSession = Depends(get_db)):
+async def toggle_reaction(post_id: str, data: ReactionCreate, user_id: str = Depends(get_user_id_from_jwt_or_query), db: AsyncSession = Depends(get_db)):
     """Toggle a reaction on a post - one reaction per user. If same emoji, remove it. If different, replace it."""
     # Validate emoji
     if data.emoji not in VALID_REACTIONS:
@@ -1627,6 +1627,7 @@ async def get_recent_locations(
 # ============================================================
 
 from fastapi.responses import HTMLResponse
+from core.security import get_user_id_from_jwt_or_query, get_optional_user_id_from_jwt_or_query
 
 @router.get("/share/{post_id}", response_class=HTMLResponse)
 async def get_share_page(

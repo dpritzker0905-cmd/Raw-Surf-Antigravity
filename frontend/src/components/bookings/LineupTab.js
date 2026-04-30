@@ -377,7 +377,6 @@ export const LineupTab = ({
     try {
       setLoading(true);
       const response = await apiClient.get(`/bookings/lineups`, {
-        params: { user_id: user.id }
       });
       setLineups(response.data || []);
     } catch (error) {
@@ -394,13 +393,11 @@ export const LineupTab = ({
 
   const handleJoinLineup = async (bookingId) => {
     await apiClient.post(`/bookings/${bookingId}/lineup/join`, null, {
-      params: { user_id: user.id }
     });
   };
 
   const handleLeaveLineup = async (bookingId) => {
     await apiClient.post(`/bookings/${bookingId}/lineup/leave`, null, {
-      params: { user_id: user.id }
     });
   };
 
@@ -416,7 +413,7 @@ export const LineupTab = ({
   const handleToggleStatus = async (bookingId, newStatus) => {
     await apiClient.post(`/bookings/${bookingId}/lineup/status`, 
       { status: newStatus },
-      { params: { user_id: user.id } }
+      { }
     );
   };
 

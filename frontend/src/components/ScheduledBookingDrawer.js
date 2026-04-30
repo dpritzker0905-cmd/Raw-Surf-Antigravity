@@ -1887,7 +1887,7 @@ export const ScheduledBookingDrawer = ({
       // If there's an amount to charge and user selected card payment
       if (amountToCharge > 0 && paymentMethod === 'card') {
         // Create booking with pending payment status and redirect to Stripe
-        const response = await apiClient.post(`/bookings/create-with-stripe?user_id=${user.id}`, {
+        const response = await apiClient.post(`/bookings/create-with-stripe`, {
           photographer_id: photographer.id,
           location: impactZone.description,
           session_date: sessionDateTime.toISOString(),
@@ -1919,7 +1919,7 @@ export const ScheduledBookingDrawer = ({
       }
       
       // Full credit payment or credits cover everything
-      const response = await apiClient.post(`/bookings/create?user_id=${user.id}`, {
+      const response = await apiClient.post(`/bookings/create`, {
         photographer_id: photographer.id,
         location: impactZone.description,
         session_date: sessionDateTime.toISOString(),
@@ -1947,7 +1947,7 @@ export const ScheduledBookingDrawer = ({
       // If crew split is enabled, send payment requests to crew members
       if (crewSplitEnabled && crewMembers.length > 0 && response.data.booking?.id) {
         try {
-          await apiClient.post(`/bookings/${response.data.booking.id}/send-crew-requests?user_id=${user.id}`, {
+          await apiClient.post(`/bookings/${response.data.booking.id}/send-crew-requests`, {
             crew_members: crewMemberData,
             price_per_person: pricePerPerson,
             payment_deadline: paymentWindowExpires?.toISOString(),

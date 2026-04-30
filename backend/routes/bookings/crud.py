@@ -15,6 +15,7 @@ import os
 import stripe
 
 from database import get_db
+from core.security import get_user_id_from_jwt_or_query, get_optional_user_id_from_jwt_or_query
 from models import (
     Profile, Booking, BookingParticipant, BookingInvite,
     Notification, RoleEnum, PaymentTransaction,
@@ -1085,7 +1086,7 @@ async def mark_content_delivered(
 @router.post("/bookings/{booking_id}/share-to-feed")
 async def share_booking_to_feed(
     booking_id: str,
-    user_id: str = Query(...),
+    user_id: str = Depends(get_user_id_from_jwt_or_query),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -1240,7 +1241,7 @@ async def get_nearby_open_bookings(
     longitude: float,
     radius: float = Query(default=5.0, description="Radius in miles"),
     skill_level: Optional[str] = Query(default=None, description="Filter by skill level (Beginner, Intermediate, Advanced, Expert)"),
-    user_id: Optional[str] = Query(default=None, description="User ID for skill matching"),
+    user_id: Optional[str] = Depends(get_optional_user_id_from_jwt_or_query),
     db: AsyncSession = Depends(get_db)
 ):
     """Find open bookings nearby that allow strangers to join, optionally filtered by skill level"""

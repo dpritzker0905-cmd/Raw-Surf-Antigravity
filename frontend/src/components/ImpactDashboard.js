@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
@@ -16,7 +16,6 @@ import { getFullUrl } from '../utils/media';
 import { ROLES } from '../constants/roles';
 
 
-const API_URL = process.env.REACT_APP_BACKEND_URL;
 
 const IMPACT_LEVELS = {
   Legend: { emoji: '🏆', color: 'from-yellow-400 to-amber-600' },

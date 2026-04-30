@@ -56,7 +56,7 @@ const DispatchPaymentSuccess = () => {
           // Step 2: VERIFICATION - Check that participant record was created with metadata
           try {
             const verifyResponse = await apiClient.get(
-              `/dispatch/${dispatchId}/verify-payment?user_id=${user?.id}`
+              `/dispatch/${dispatchId}/verify-payment`
             );
             
             if (!verifyResponse.data.verified && pollCountRef.current < maxAttempts) {

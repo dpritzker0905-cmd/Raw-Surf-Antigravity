@@ -3,7 +3,6 @@
  * Extracted from MapPage.js for better organization
  */
 
-export const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 // Colors
 export const ELECTRIC_CYAN = '#00CCFF';

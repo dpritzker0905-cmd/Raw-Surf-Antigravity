@@ -38,7 +38,7 @@ const ReplyItem = ({ reply, userId, _postId, textPrimaryClass, textSecondaryClas
     setLoading(true);
     try {
       const response = await apiClient.post(
-        `/comments/${reply.id}/reactions?user_id=${userId}`,
+        `/comments/${reply.id}/reactions`,
         { emoji }
       );
       
@@ -134,7 +134,7 @@ const CommentWithReaction = ({
     setLoading(true);
     try {
       const response = await apiClient.post(
-        `/comments/${comment.id}/reactions?user_id=${userId}`,
+        `/comments/${comment.id}/reactions`,
         { emoji }
       );
       
@@ -167,7 +167,7 @@ const CommentWithReaction = ({
     setSubmittingReply(true);
     try {
       const response = await apiClient.post(
-        `/posts/${postId}/comments?user_id=${userId}`,
+        `/posts/${postId}/comments`,
         { 
           content: replyContent.trim(),
           parent_id: comment.id
@@ -203,7 +203,7 @@ const CommentWithReaction = ({
     setSavingEdit(true);
     try {
       const response = await apiClient.put(
-        `/posts/${postId}/comments/${comment.id}?user_id=${userId}`,
+        `/posts/${postId}/comments/${comment.id}`,
         { content: editContent.trim() }
       );
       

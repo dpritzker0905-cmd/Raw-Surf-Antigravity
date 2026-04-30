@@ -86,7 +86,7 @@ const InviteModalContent = ({ booking, user, isLight, textPrimaryClass, textSeco
       setSearching(true);
       try {
         const response = await apiClient.get(
-          `/bookings/${booking.id}/search-users?query=${encodeURIComponent(searchQuery)}&user_id=${user.id}`
+          `/bookings/${booking.id}/search-users?query=${encodeURIComponent(searchQuery)}`
         );
         setSearchResults(response.data || []);
       } catch (error) {
@@ -104,7 +104,7 @@ const InviteModalContent = ({ booking, user, isLight, textPrimaryClass, textSeco
     setInviting(targetUser.user_id);
     try {
       const _response = await apiClient.post(
-        `/bookings/${booking.id}/invite-by-handle?user_id=${user.id}`,
+        `/bookings/${booking.id}/invite-by-handle`,
         {
           // Use username if available, otherwise fall back to full_name
           handle_query: targetUser.username || targetUser.full_name,
@@ -647,8 +647,7 @@ export const Bookings = () => {
             const params = new URLSearchParams({
               latitude,
               longitude,
-              radius: 10,
-              user_id: user.id
+              radius: 10
             });
             if (selectedSkillFilter) {
               params.append('skill_level', selectedSkillFilter);
@@ -708,7 +707,7 @@ export const Bookings = () => {
       return;
     }
     try {
-      const _response = await apiClient.post(`/bookings/join-by-code?user_id=${user.id}&invite_code=${joinCode.toUpperCase()}`);
+      const _response = await apiClient.post(`/bookings/join-by-code?invite_code=${joinCode.toUpperCase()}`);
       toast.success('Successfully joined the booking!');
       setShowJoinCodeModal(false);
       setJoinCode('');
@@ -720,7 +719,7 @@ export const Bookings = () => {
 
   const handleRespondToInvite = async (inviteId, accept) => {
     try {
-      await apiClient.post(`/bookings/invites/${inviteId}/respond?user_id=${user.id}&accept=${accept}`);
+      await apiClient.post(`/bookings/invites/${inviteId}/respond?accept=${accept}`);
       toast.success(accept ? 'Invite accepted!' : 'Invite declined');
       fetchData();
     } catch (error) {
@@ -730,7 +729,7 @@ export const Bookings = () => {
 
   const handleJoinNearbyBooking = async (bookingId) => {
     try {
-      const response = await apiClient.post(`/bookings/${bookingId}/join?user_id=${user.id}`);
+      const response = await apiClient.post(`/bookings/${bookingId}/join`);
       toast.success(`Joined booking! Paid ${response.data.amount_paid} credits`);
       fetchData();
     } catch (error) {
@@ -887,7 +886,7 @@ export const Bookings = () => {
     // If needs to enable splitting first
     if (booking.needsEnableSplitting) {
       try {
-        const response = await apiClient.post(`/bookings/${booking.id}/enable-splitting?user_id=${user.id}`);
+        const response = await apiClient.post(`/bookings/${booking.id}/enable-splitting`);
         if (response.data.success) {
           toast.success('Crew splitting enabled!');
           // Refresh booking with new invite code

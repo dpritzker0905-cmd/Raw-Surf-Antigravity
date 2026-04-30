@@ -364,7 +364,6 @@ export const WavesFeed = ({ feedType = 'for_you', onCreateWave }) => {
       const offset = reset ? 0 : waves.length;
       const response = await apiClient.get(`/waves`, {
         params: {
-          user_id: user?.id,
           feed_type: feedType,
           limit: 10,
           offset
@@ -443,7 +442,7 @@ export const WavesFeed = ({ feedType = 'for_you', onCreateWave }) => {
     }
     
     try {
-      await apiClient.post(`/posts/${waveId}/like?user_id=${user.id}`);
+      await apiClient.post(`/posts/${waveId}/like`);
     } catch (error) {
       logger.error('Failed to like wave:', error);
     }

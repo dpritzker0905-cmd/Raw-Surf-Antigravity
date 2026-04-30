@@ -700,7 +700,7 @@ export const MessagesPage = () => {
     
     const fetchTypingUsers = async () => {
       try {
-        const response = await apiClient.get(`/messages/typing/${selectedConversation.id}?user_id=${user.id}`);
+        const response = await apiClient.get(`/messages/typing/${selectedConversation.id}`);
         setTypingUsers(response.data.typing_users || []);
       } catch (error) { /* typing indicator is non-critical, ignore poll failures */ }
     };
@@ -721,7 +721,7 @@ export const MessagesPage = () => {
     }
     try {
       logger.debug('[Messages] Fetching conversation:', convId);
-      const response = await apiClient.get(`/messages/conversation/${convId}?user_id=${user.id}`);
+      const response = await apiClient.get(`/messages/conversation/${convId}`);
       setSelectedConversation({
         id: convId,
         other_user_id: response.data.other_user_id,
@@ -824,7 +824,7 @@ export const MessagesPage = () => {
 
   const fetchConversationDetail = async (convId) => {
     try {
-      const response = await apiClient.get(`/messages/conversation/${convId}?user_id=${user.id}`);
+      const response = await apiClient.get(`/messages/conversation/${convId}`);
       setConversationDetail(response.data);
     } catch (error) {
       logger.error('Failed to fetch conversation:', error);
@@ -834,7 +834,7 @@ export const MessagesPage = () => {
   const fetchStories = async () => {
     // Fetch notes from API (Instagram-style Notes feature)
     try {
-      const response = await apiClient.get(`/notes/feed?user_id=${user.id}`);
+      const response = await apiClient.get(`/notes/feed`);
       const { own_note, feed } = response.data;
       
       // CRITICAL: Fetch fresh profile data to get current avatar_url
@@ -915,7 +915,7 @@ export const MessagesPage = () => {
   // Create a new note
   const createNote = async (content) => {
     try {
-      await apiClient.post(`/notes/create?user_id=${user.id}`, { content });
+      await apiClient.post(`/notes/create`, { content });
       toast.success('Note shared!');
       fetchStories(); // Refresh notes
     } catch (error) {
@@ -927,7 +927,7 @@ export const MessagesPage = () => {
   // Reply to a note
   const replyToNote = async (noteId, replyText) => {
     try {
-      const response = await apiClient.post(`/notes/${noteId}/reply?user_id=${user.id}`, {
+      const response = await apiClient.post(`/notes/${noteId}/reply`, {
         reply_text: replyText
       });
       // Navigate to the conversation created by the reply
@@ -970,7 +970,7 @@ export const MessagesPage = () => {
       const chatsWithInfo = await Promise.all(
         activeBookings.map(async (booking) => {
           try {
-            const chatInfo = await apiClient.get(`/crew-chat/${booking.id}/info?user_id=${user.id}`);
+            const chatInfo = await apiClient.get(`/crew-chat/${booking.id}/info`);
             return {
               ...booking,
               chatInfo: chatInfo.data,
@@ -1005,7 +1005,7 @@ export const MessagesPage = () => {
   const sendTypingIndicator = useCallback(async (isTyping) => {
     if (!selectedConversation?.id || selectedConversation.is_new_chat) return;
     try {
-      await apiClient.post(`/messages/typing/${selectedConversation.id}?user_id=${user.id}`, { is_typing: isTyping });
+      await apiClient.post(`/messages/typing/${selectedConversation.id}`, { is_typing: isTyping });
     } catch (error) { /* typing indicator fire-and-forget, ignore network errors */ }
   }, [selectedConversation, user?.id]);
 
@@ -1148,7 +1148,7 @@ export const MessagesPage = () => {
 
   const handleReaction = async (messageId, emoji) => {
     try {
-      await apiClient.post(`/messages/react/${messageId}?user_id=${user.id}`, { emoji });
+      await apiClient.post(`/messages/react/${messageId}`, { emoji });
       fetchConversationDetail(selectedConversation.id);
     } catch (error) {
       toast.error('Failed to add reaction');
@@ -1157,7 +1157,7 @@ export const MessagesPage = () => {
 
   const handleAcceptRequest = async () => {
     try {
-      await apiClient.post(`/messages/accept/${selectedConversation.id}?user_id=${user.id}`);
+      await apiClient.post(`/messages/accept/${selectedConversation.id}`);
       toast.success('Moved to Primary inbox');
       fetchConversations();
       fetchConversationDetail(selectedConversation.id);
@@ -1168,7 +1168,7 @@ export const MessagesPage = () => {
 
   const handleDeclineRequest = async () => {
     try {
-      await apiClient.delete(`/messages/conversation/${selectedConversation.id}?user_id=${user.id}`);
+      await apiClient.delete(`/messages/conversation/${selectedConversation.id}`);
       toast.success('Request declined');
       setSelectedConversation(null);
       setConversationDetail(null);
@@ -1184,7 +1184,7 @@ export const MessagesPage = () => {
     if (!selectedConversation?.id) return;
     try {
       const response = await apiClient.post(
-        `/messages/conversation/${selectedConversation.id}/pin?user_id=${user.id}`
+        `/messages/conversation/${selectedConversation.id}/pin`
       );
       toast.success(response.data.message);
       fetchConversations();
@@ -1200,7 +1200,7 @@ export const MessagesPage = () => {
     if (!selectedConversation?.id) return;
     try {
       const response = await apiClient.post(
-        `/messages/conversation/${selectedConversation.id}/mute?user_id=${user.id}`
+        `/messages/conversation/${selectedConversation.id}/mute`
       );
       toast.success(response.data.message);
       fetchConversations();
@@ -1216,7 +1216,7 @@ export const MessagesPage = () => {
     if (!selectedConversation?.id) return;
     try {
       const response = await apiClient.post(
-        `/messages/conversation/${selectedConversation.id}/mark-unread?user_id=${user.id}`
+        `/messages/conversation/${selectedConversation.id}/mark-unread`
       );
       toast.success(response.data.message);
       fetchConversations();
@@ -1232,7 +1232,7 @@ export const MessagesPage = () => {
     if (!selectedConversation?.id) return;
     if (!window.confirm('Delete this conversation? It will be hidden from your inbox.')) return;
     try {
-      await apiClient.delete(`/messages/conversation/${selectedConversation.id}?user_id=${user.id}`);
+      await apiClient.delete(`/messages/conversation/${selectedConversation.id}`);
       toast.success('Conversation deleted');
       setSelectedConversation(null);
       setConversationDetail(null);
@@ -1258,7 +1258,7 @@ export const MessagesPage = () => {
       // Accept all requests in parallel
       await Promise.all(
         requestConversations.map(conv => 
-          apiClient.post(`/messages/accept/${conv.id}?user_id=${user.id}`)
+          apiClient.post(`/messages/accept/${conv.id}`)
         )
       );
       

@@ -14,6 +14,7 @@ from database import get_db
 from deps.admin_auth import get_current_admin
 from models import Profile, SurfSpot, RoleEnum, LiveSession, SpotRefinement, SpotOfTheDay, Booking
 from utils.grom_parent import is_grom_parent_eligible
+from core.security import get_optional_user_id_from_jwt_or_query
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -203,7 +204,7 @@ async def get_surf_spots(
     state_province: Optional[str] = None,
     user_lat: Optional[float] = Query(None, description="User latitude for geofencing"),
     user_lon: Optional[float] = Query(None, description="User longitude for geofencing"),
-    user_id: Optional[str] = Query(None, description="User ID to determine subscription tier"),
+    user_id: Optional[str] = Depends(get_optional_user_id_from_jwt_or_query),
     viewport_only: bool = Query(False, description="Only return spots in viewport"),
     min_lat: Optional[float] = None,
     max_lat: Optional[float] = None,
@@ -992,7 +993,7 @@ async def get_surf_spot(
     spot_id: str,
     user_lat: Optional[float] = Query(None),
     user_lon: Optional[float] = Query(None),
-    user_id: Optional[str] = Query(None),
+    user_id: Optional[str] = Depends(get_optional_user_id_from_jwt_or_query),
     db: AsyncSession = Depends(get_db)
 ):
     """

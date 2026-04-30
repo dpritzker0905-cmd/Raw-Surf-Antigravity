@@ -165,7 +165,7 @@ export const SessionChatDrawer = ({
         setConversationId(checkRes.data.conversation_id);
         // Load messages
         const msgRes = await apiClient.get(
-          `/messages/conversation/${checkRes.data.conversation_id}?user_id=${user.id}`
+          `/messages/conversation/${checkRes.data.conversation_id}`
         );
         setMessages(msgRes.data.messages || []);
         scrollToBottom();
@@ -194,7 +194,7 @@ export const SessionChatDrawer = ({
     const pollMessages = async () => {
       try {
         const res = await apiClient.get(
-          `/messages/conversation/${conversationId}?user_id=${user.id}`
+          `/messages/conversation/${conversationId}`
         );
         const newMessages = res.data.messages || [];
         setMessages(prev => {
@@ -359,7 +359,7 @@ export const SessionChatDrawer = ({
 
       // Refresh messages
       const msgRes = await apiClient.get(
-        `/messages/conversation/${cId}?user_id=${user.id}`
+        `/messages/conversation/${cId}`
       );
       setMessages(msgRes.data.messages || []);
       scrollToBottom();

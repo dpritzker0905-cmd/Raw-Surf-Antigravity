@@ -220,10 +220,10 @@ const SurfboardModal = ({ isOpen, onClose, board, onSave, userId }) => {
       };
       
       if (isEditing) {
-        await apiClient.patch(`/surfboards/${board.id}?user_id=${userId}`, payload);
+        await apiClient.patch(`/surfboards/${board.id}`, payload);
         toast.success('Surfboard updated!');
       } else {
-        await apiClient.post(`/surfboards/?user_id=${userId}`, payload);
+        await apiClient.post(`/surfboards/`, payload);
         toast.success('Surfboard added to your quiver!');
       }
       
@@ -475,7 +475,7 @@ const SurfboardDetailModal = ({ isOpen, onClose, board, onEdit, onDelete, isOwnP
   const handleDelete = async () => {
     setDeleting(true);
     try {
-      await apiClient.delete(`/surfboards/${board.id}?user_id=${userId}`);
+      await apiClient.delete(`/surfboards/${board.id}`);
       toast.success('Surfboard removed from quiver');
       onDelete();
       onClose();

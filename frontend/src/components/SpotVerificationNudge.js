@@ -33,7 +33,6 @@ export const SpotVerificationNudge = ({ spot, userLocation, _onClose }) => {
       
       try {
         const response = await apiClient.get(`/spots/verification/${spot.id}/status`, {
-          params: { user_id: user.id }
         });
         
         if (response.data.user_has_voted) {
@@ -71,7 +70,7 @@ export const SpotVerificationNudge = ({ spot, userLocation, _onClose }) => {
       const response = await apiClient.post(
         `/spots/verification/${spot.id}`,
         payload,
-        { params: { user_id: user.id } }
+        { }
       );
       
       if (response.data.is_now_community_verified) {

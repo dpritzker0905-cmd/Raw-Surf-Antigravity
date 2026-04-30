@@ -55,7 +55,7 @@ from .crud import (
 @router.post("/bookings/{booking_id}/send-split-requests")
 async def send_split_payment_requests(
     booking_id: str,
-    user_id: str = Query(...),
+    user_id: str = Depends(get_user_id_from_jwt_or_query),
     db: AsyncSession = Depends(get_db)
 ):
     """

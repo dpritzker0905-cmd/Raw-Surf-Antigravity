@@ -77,7 +77,7 @@ const ComposeModal = ({ isOpen, onClose, onSelectUser, currentUserId }) => {
   const searchUsers = async (term) => {
     setLoading(true);
     try {
-      const response = await apiClient.get(`/profiles/search?q=${encodeURIComponent(term)}&limit=20&user_id=${currentUserId}`);
+      const response = await apiClient.get(`/profiles/search?q=${encodeURIComponent(term)}&limit=20`);
       
       // Results are already sorted by backend: God Mode > Pros > Photographers > Businesses > Users
       setSearchResults(response.data.map(u => ({

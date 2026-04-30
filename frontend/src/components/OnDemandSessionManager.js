@@ -1476,7 +1476,7 @@ export const OnDemandSessionManager = () => {
     if (!cancelTargetId) return;
     setIsCancelling(true);
     try {
-      await apiClient.post(`/dispatch/${cancelTargetId}/cancel?user_id=${user.id}`, {
+      await apiClient.post(`/dispatch/${cancelTargetId}/cancel`, {
         reason: 'Photographer cancelled'
       });
       toast.info('Session cancelled');
@@ -1802,7 +1802,7 @@ export const OnDemandSessionManager = () => {
                             onClick={async () => {
                               setResolvingExceptionId(exc.id);
                               try {
-                                await apiClient.post(`/dispatch/${exc.dispatch_id}/resolve-exception?user_id=${user.id}`, {
+                                await apiClient.post(`/dispatch/${exc.dispatch_id}/resolve-exception`, {
                                   approved: true,
                                   resolution_note: 'Approved by photographer'
                                 });
@@ -1824,7 +1824,7 @@ export const OnDemandSessionManager = () => {
                             onClick={async () => {
                               setResolvingExceptionId(exc.id);
                               try {
-                                await apiClient.post(`/dispatch/${exc.dispatch_id}/resolve-exception?user_id=${user.id}`, {
+                                await apiClient.post(`/dispatch/${exc.dispatch_id}/resolve-exception`, {
                                   approved: false,
                                   resolution_note: 'Denied by photographer'
                                 });

@@ -276,7 +276,7 @@ export const PhotographerAvailability = ({
   const fetchSubscriptions = async () => {
     try {
       const response = await apiClient.get(
-        `/notifications/photographer-alerts/${photographerId}?user_id=${user.id}`
+        `/notifications/photographer-alerts/${photographerId}`
       );
       setSubscriptions(response.data || {});
     } catch (error) {
@@ -304,7 +304,7 @@ export const PhotographerAvailability = ({
       } else {
         // Unsubscribe
         await apiClient.delete(
-          `/notifications/photographer-alerts/${photographerId}?user_id=${user.id}&alert_type=${type}`
+          `/notifications/photographer-alerts/${photographerId}?alert_type=${type}`
         );
         toast.success('Notification unsubscribed');
       }

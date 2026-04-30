@@ -352,7 +352,7 @@ const CommentItem = ({ comment, userId, _onReact }) => {
     
     try {
       const response = await apiClient.post(
-        `/comments/${comment.id}/reactions?user_id=${userId}`,
+        `/comments/${comment.id}/reactions`,
         { emoji: '❤️' }
       );
       
@@ -558,11 +558,11 @@ const PostModal = ({ post, isOpen, onClose, _onPostUpdated, posts, onNavigatePos
     
     try {
       if (liked) {
-        await apiClient.delete(`/posts/${post.id}/like`, { params: { user_id: user.id } });
+        await apiClient.delete(`/posts/${post.id}/like`, { });
         setLiked(false);
         setLikeCount(prev => Math.max(0, prev - 1));
       } else {
-        await apiClient.post(`/posts/${post.id}/like`, null, { params: { user_id: user.id } });
+        await apiClient.post(`/posts/${post.id}/like`, null, { });
         setLiked(true);
         setLikeCount(prev => prev + 1);
       }
@@ -579,11 +579,11 @@ const PostModal = ({ post, isOpen, onClose, _onPostUpdated, posts, onNavigatePos
     
     try {
       if (saved) {
-        await apiClient.delete(`/posts/${post.id}/save?user_id=${user.id}`);
+        await apiClient.delete(`/posts/${post.id}/save`);
         setSaved(false);
         toast.success('Removed from saved');
       } else {
-        await apiClient.post(`/posts/${post.id}/save?user_id=${user.id}`);
+        await apiClient.post(`/posts/${post.id}/save`);
         setSaved(true);
         toast.success('Saved!');
       }
@@ -669,7 +669,7 @@ const PostModal = ({ post, isOpen, onClose, _onPostUpdated, posts, onNavigatePos
       const isRemovingReaction = userReaction?.emoji === emoji;
       
       const response = await apiClient.post(
-        `/posts/${post.id}/reactions?user_id=${user.id}`,
+        `/posts/${post.id}/reactions`,
         { emoji }
       );
       
@@ -678,7 +678,7 @@ const PostModal = ({ post, isOpen, onClose, _onPostUpdated, posts, onNavigatePos
         setLiked(false);
         setLikeCount(prev => Math.max(0, prev - 1));
       } else {
-        setUserReaction({ emoji, user_id: user.id });
+        setUserReaction({ emoji });
         if (!liked && !userReaction) {
           setLikeCount(prev => prev + 1);
         }
@@ -701,7 +701,7 @@ const PostModal = ({ post, isOpen, onClose, _onPostUpdated, posts, onNavigatePos
     
     setSubmittingComment(true);
     try {
-      await apiClient.post(`/posts/${post.id}/comments?user_id=${user.id}`, {
+      await apiClient.post(`/posts/${post.id}/comments`, {
         content: commentInput.trim()
       });
       setCommentInput('');
@@ -731,7 +731,7 @@ const PostModal = ({ post, isOpen, onClose, _onPostUpdated, posts, onNavigatePos
     
     try {
       const _response = await apiClient.post(
-        `/comments/${commentId}/reactions?user_id=${user.id}`,
+        `/comments/${commentId}/reactions`,
         { emoji: '❤️' }
       );
       

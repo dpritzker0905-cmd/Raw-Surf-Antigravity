@@ -8,6 +8,7 @@ import aiohttp
 import logging
 import math
 from typing import Optional, Dict, Any
+from core.security import get_user_id_from_jwt_or_query
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -248,7 +249,7 @@ async def get_ip_geolocation(
 @router.post("/location/update-city")
 async def update_user_city(
     request: Request,
-    user_id: str = Query(...),
+    user_id: str = Depends(get_user_id_from_jwt_or_query),
     city: str = Query(...),
     latitude: float = Query(...),
     longitude: float = Query(...)

@@ -240,7 +240,7 @@ export const SurfAlerts = () => {
           });
           
           const subJson = subscription.toJSON();
-          await apiClient.post(`/push/subscribe?user_id=${user.id}`, {
+          await apiClient.post(`/push/subscribe`, {
             endpoint: subJson.endpoint,
             p256dh_key: subJson.keys?.p256dh || '',
             auth_key: subJson.keys?.auth || '',
@@ -301,7 +301,7 @@ export const SurfAlerts = () => {
 
     setCreateLoading(true);
     try {
-      await apiClient.post(`/alerts?user_id=${user.id}`, {
+      await apiClient.post(`/alerts`, {
         spot_id: newAlert.spot_id,
         min_wave_height: newAlert.min_wave_height ? parseFloat(newAlert.min_wave_height) : null,
         max_wave_height: newAlert.max_wave_height ? parseFloat(newAlert.max_wave_height) : null,

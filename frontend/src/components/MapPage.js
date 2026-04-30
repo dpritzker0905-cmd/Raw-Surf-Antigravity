@@ -481,7 +481,7 @@ const MapPageContent = () => {
       
       navigator.geolocation.getCurrentPosition(async (position) => {
         try {
-          await apiClient.post(`/dispatch/${activeDispatch.id}/update-location?user_id=${user.id}`, {
+          await apiClient.post(`/dispatch/${activeDispatch.id}/update-location`, {
             latitude: position.coords.latitude,
             longitude: position.coords.longitude
           });

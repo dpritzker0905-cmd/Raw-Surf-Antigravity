@@ -337,7 +337,7 @@ export const RequestProModal = ({
         // Apply boost if selected
         if (boostHours > 0) {
           try {
-            await apiClient.post(`/dispatch/request/${dispatchId}/boost?user_id=${uid}`, { boost_hours: boostHours });
+            await apiClient.post(`/dispatch/request/${dispatchId}/boost`, { boost_hours: boostHours });
             toast.success(`🚀 Boosted! You'll appear first for ${boostHours}h`);
             onBoostApplied?.();
           } catch (e) {

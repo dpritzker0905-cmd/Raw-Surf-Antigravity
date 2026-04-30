@@ -145,7 +145,7 @@ export default function CrewChat() {
   const fetchChatInfo = useCallback(async () => {
     if (!user?.id || !bookingId) return;
     try {
-      const response = await apiClient.get(`/crew-chat/${bookingId}/info?user_id=${user.id}`);
+      const response = await apiClient.get(`/crew-chat/${bookingId}/info`);
       const data = response.data;
       setChatInfo(data);
       setOnlineUsers(data.online_users || []);
@@ -160,7 +160,7 @@ export default function CrewChat() {
     if (!user?.id || !bookingId) return;
     try {
       setIsLoading(true);
-      const response = await apiClient.get(`/crew-chat/${bookingId}/messages?user_id=${user.id}&limit=50`);
+      const response = await apiClient.get(`/crew-chat/${bookingId}/messages?limit=50`);
       const data = response.data;
       setMessages(data.messages || []);
       setOnlineUsers(data.online_users || []);
@@ -258,7 +258,7 @@ export default function CrewChat() {
     setShowMentionPicker(false);
     
     try {
-      await apiClient.post(`/crew-chat/${bookingId}/send?user_id=${user.id}`, {
+      await apiClient.post(`/crew-chat/${bookingId}/send`, {
         content: messageContent,
         message_type: 'text',
         reply_to_id: replyingTo?.id || null
@@ -295,7 +295,7 @@ export default function CrewChat() {
     
     try {
       const response = await apiClient.get(
-        `/mentions/search?query=${encodeURIComponent(query)}&user_id=${user.id}&context=crew_chat&context_id=${bookingId}`
+        `/mentions/search?query=${encodeURIComponent(query)}&context=crew_chat&context_id=${bookingId}`
       );
       setMentionResults(response.data.users || []);
       setShowMentionPicker((response.data.users?.length || 0) > 0);
@@ -598,7 +598,7 @@ export default function CrewChat() {
   const handleReaction = async (messageId, emoji) => {
     try {
       const response = await apiClient.post(
-        `/crew-chat/${bookingId}/messages/${messageId}/react?user_id=${user.id}&emoji=${encodeURIComponent(emoji)}`
+        `/crew-chat/${bookingId}/messages/${messageId}/react?emoji=${encodeURIComponent(emoji)}`
       );
       const data = response.data;
       setMessages(prev => prev.map(msg =>

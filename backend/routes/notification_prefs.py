@@ -16,6 +16,7 @@ import logging
 
 from database import get_db
 from models import Profile, NotificationPreferences
+from core.security import get_user_id_from_jwt_or_query
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -51,7 +52,7 @@ class NotificationPreferenceUpdate(BaseModel):
 
 @router.get("/notifications/preferences")
 async def get_notification_preferences(
-    user_id: str = Query(...),
+    user_id: str = Depends(get_user_id_from_jwt_or_query),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -117,7 +118,7 @@ async def get_notification_preferences(
 @router.put("/notifications/preferences")
 async def update_notification_preferences(
     updates: NotificationPreferenceUpdate,
-    user_id: str = Query(...),
+    user_id: str = Depends(get_user_id_from_jwt_or_query),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -155,7 +156,7 @@ async def update_notification_preferences(
 
 @router.post("/notifications/preferences/reset")
 async def reset_notification_preferences(
-    user_id: str = Query(...),
+    user_id: str = Depends(get_user_id_from_jwt_or_query),
     db: AsyncSession = Depends(get_db)
 ):
     """

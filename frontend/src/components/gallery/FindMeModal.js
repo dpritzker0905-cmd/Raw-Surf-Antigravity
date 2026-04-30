@@ -82,7 +82,7 @@ export const FindMeModal = ({ open, onClose, galleryId, userId }) => {
 
     try {
       const response = await apiClient.post(
-        `/gallery/${galleryId}/find-me?user_id=${userId}`,
+        `/gallery/${galleryId}/find-me`,
         {
           selfie_url: url,
           board_description: boardDescription || undefined,

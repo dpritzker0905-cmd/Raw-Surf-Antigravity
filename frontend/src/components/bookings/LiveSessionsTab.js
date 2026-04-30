@@ -29,7 +29,7 @@ export const LiveSessionsTab = ({
   const handleLeaveSession = async (sessionId) => {
     setLeavingSession(sessionId);
     try {
-      const response = await apiClient.post(`/sessions/leave/${sessionId}?user_id=${userId}`);
+      const response = await apiClient.post(`/sessions/leave/${sessionId}`);
       
       // Check if refund was applied
       if (response.data.refunded) {

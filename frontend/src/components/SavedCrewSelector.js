@@ -45,7 +45,7 @@ export const SavedCrewSelector = ({
 
   const fetchSavedCrews = async () => {
     try {
-      const response = await apiClient.get(`/crews/saved?user_id=${user.id}`);
+      const response = await apiClient.get(`/crews/saved`);
       setSavedCrews(response.data.crews || []);
     } catch (error) {
       logger.error('Failed to fetch saved crews:', error);
@@ -57,7 +57,7 @@ export const SavedCrewSelector = ({
   const handleSelectCrew = async (crew) => {
     // Mark as used
     try {
-      await apiClient.post(`/crews/saved/${crew.id}/use?user_id=${user.id}`);
+      await apiClient.post(`/crews/saved/${crew.id}/use`);
     } catch (error) {
       logger.error('Failed to mark crew as used:', error);
     }
@@ -97,7 +97,7 @@ export const SavedCrewSelector = ({
         avatar_url: m.avatar_url || null
       }));
       
-      await apiClient.post(`/crews/saved?user_id=${user.id}`, {
+      await apiClient.post(`/crews/saved`, {
         name: newCrewName,
         members: membersData,
         is_default: setAsDefault
@@ -118,7 +118,7 @@ export const SavedCrewSelector = ({
 
   const _handleSetDefault = async (crewId) => {
     try {
-      await apiClient.post(`/crews/saved/${crewId}/set-default?user_id=${user.id}`);
+      await apiClient.post(`/crews/saved/${crewId}/set-default`);
       toast.success('Default crew updated!');
       fetchSavedCrews();
     } catch (error) {
@@ -131,7 +131,7 @@ export const SavedCrewSelector = ({
     if (!window.confirm('Delete this saved crew?')) return;
     
     try {
-      await apiClient.delete(`/crews/saved/${crewId}?user_id=${user.id}`);
+      await apiClient.delete(`/crews/saved/${crewId}`);
       toast.success('Crew deleted');
       fetchSavedCrews();
     } catch (error) {

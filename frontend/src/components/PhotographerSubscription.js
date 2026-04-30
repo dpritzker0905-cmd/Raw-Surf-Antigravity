@@ -38,7 +38,7 @@ export const PhotographerSubscription = () => {
     try {
       // Redirect to Stripe checkout
       const response = await apiClient.post(
-        `/subscriptions/checkout?user_id=${user.id}`,
+        `/subscriptions/checkout`,
         {
           tier_id: tier.id,
           origin_url: window.location.origin

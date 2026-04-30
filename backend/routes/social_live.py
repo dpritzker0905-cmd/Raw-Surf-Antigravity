@@ -18,6 +18,7 @@ from utils.geo import haversine_distance
 
 from database import get_db
 from models import Profile, SurfSpot, SocialLiveStream, Story, Follow
+from core.security import get_user_id_from_jwt_or_query
 
 logger = logging.getLogger(__name__)
 
@@ -730,7 +731,7 @@ async def post_live_comment(
 @router.post("/social-live/{stream_id}/like")
 async def toggle_live_like(
     stream_id: str,
-    user_id: str = Query(...),
+    user_id: str = Depends(get_user_id_from_jwt_or_query),
     action: str = Query(default="like"),  # "like" or "unlike"
     db: AsyncSession = Depends(get_db)
 ):

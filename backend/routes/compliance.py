@@ -21,6 +21,7 @@ import json
 from database import get_db
 from deps.admin_auth import get_current_admin
 from models import (
+from core.security import get_user_id_from_jwt_or_query
     Profile, TosViolation, TosAcknowledgement, FraudAlert,
     Notification, Booking, DispatchRequest, LiveSession
 )
@@ -348,7 +349,7 @@ async def get_user_violations(
 async def appeal_violation(
     violation_id: str,
     data: AppealViolationRequest,
-    user_id: str = Query(...),
+    user_id: str = Depends(get_user_id_from_jwt_or_query),
     db: AsyncSession = Depends(get_db)
 ):
     """User appeals a ToS violation"""
@@ -461,7 +462,7 @@ async def review_appeal(
 @router.post("/acknowledge-tos")
 async def acknowledge_tos(
     data: AcknowledgeTosRequest,
-    user_id: str = Query(...),
+    user_id: str = Depends(get_user_id_from_jwt_or_query),
     ip_address: Optional[str] = None,
     user_agent: Optional[str] = None,
     db: AsyncSession = Depends(get_db)

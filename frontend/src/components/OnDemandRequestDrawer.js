@@ -348,7 +348,7 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
       try {
         const lat = userLocation?.latitude || photographer?.on_demand_latitude || 28.3667;
         const lng = userLocation?.longitude || photographer?.on_demand_longitude || -80.6067;
-        const response = await apiClient.get(`/surf-spots/nearby?latitude=${lat}&longitude=${lng}&radius_miles=15${user?.id ? `&user_id=${user.id}` : ''}`);
+        const response = await apiClient.get(`/surf-spots/nearby?latitude=${lat}&longitude=${lng}&radius_miles=15${user?.id ? `` : ''}`);
         setNearbySpots(response.data || []);
       } catch (e) {
         logger.error('[OnDemandDrawer] Failed to fetch nearby spots:', e);
@@ -512,7 +512,6 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
     const equalShare = totalPrice / newTotalParticipants;
     const member = {
       id: friend.id,
-      user_id: friend.id,
       value: friend.username ? `@${friend.username}` : friend.full_name,
       name: friend.full_name,
       username: friend.username,
@@ -2247,7 +2246,7 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
                   <Button
                     onClick={async () => {
                       try {
-                        const res = await apiClient.post(`/dispatch/${requestId}/cancel?user_id=${user.id}`, { reason: 'User cancelled' });
+                        const res = await apiClient.post(`/dispatch/${requestId}/cancel`, { reason: 'User cancelled' });
                         const feeAmt = res.data?.fee_amount || 0;
                         const refundAmt = res.data?.refund_amount || 0;
                         if (feeAmt > 0) {
