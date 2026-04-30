@@ -9,6 +9,7 @@ from datetime import datetime, timedelta
 
 from database import get_db
 from models import Profile, Post, PostLike, Comment, PostReaction, PostCollaboration, SurfSpot, RoleEnum
+from core.security import get_user_id_from_jwt_or_query, get_optional_user_id_from_jwt_or_query
 
 router = APIRouter()
 

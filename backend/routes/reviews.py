@@ -17,6 +17,7 @@ import re
 from deps.admin_auth import get_current_admin
 from database import get_db
 from models import Profile, Review, LiveSession, XPTransaction, Badge, LiveSessionParticipant
+from core.security import get_user_id_from_jwt_or_query
 from services.ai_moderation import moderate_review_content
 
 # Import badge check function

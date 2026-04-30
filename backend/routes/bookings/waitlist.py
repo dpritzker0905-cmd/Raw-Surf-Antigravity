@@ -22,6 +22,7 @@ from models import (
 )
 from utils.credits import deduct_credits, add_credits, transfer_credits, refund_credits
 from websocket_manager import broadcast_earnings_update
+from core.security import get_user_id_from_jwt_or_query
 
 try:
     from services.onesignal_service import onesignal_service

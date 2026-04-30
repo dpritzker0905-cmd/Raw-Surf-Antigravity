@@ -13,6 +13,7 @@ import json
 
 from database import get_db
 from models import Profile, SurfSpot, SurfPassportCheckIn, SurfPassportStats
+from core.security import get_user_id_from_jwt_or_query
 
 router = APIRouter()
 
