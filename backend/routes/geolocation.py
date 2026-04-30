@@ -3,7 +3,7 @@ IP Geolocation & Location Services
 Provides fallback location when browser GPS is denied.
 Includes Coastal Snap for inland IP addresses.
 """
-from fastapi import APIRouter, Request, Query
+from fastapi import APIRouter, Depends, Request, Query
 import aiohttp
 import logging
 import math
