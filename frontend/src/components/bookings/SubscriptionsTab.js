@@ -146,13 +146,13 @@ export const SubscriptionsTab = () => {
 
                 {/* Quota Bars */}
                 <div className="p-4 space-y-2.5">
-                  {sub.photos_remaining > 0 || true ? (
+                  {sub.photos_remaining > 0 ? (
                     <QuotaBar icon={Camera} label="Photos" remaining={sub.photos_remaining} total={sub.plan_price ? Math.max(sub.photos_remaining, 1) : 0} color="#06b6d4" />
                   ) : null}
-                  {(sub.videos_remaining > 0 || true) && (
+                  {sub.videos_remaining > 0 && (
                     <QuotaBar icon={Video} label="Videos" remaining={sub.videos_remaining} total={Math.max(sub.videos_remaining, 1)} color="#a855f7" />
                   )}
-                  {(sub.live_session_buyins_remaining > 0 || true) && (
+                  {sub.live_session_buyins_remaining > 0 && (
                     <QuotaBar icon={Zap} label="Live Jump-Ins" remaining={sub.live_session_buyins_remaining} total={Math.max(sub.live_session_buyins_remaining, 1)} color="#ef4444" />
                   )}
                   {sub.sessions_remaining > 0 && (

@@ -12,6 +12,7 @@ import {
   Briefcase
 } from 'lucide-react';
 import { getFullUrl, cacheBustUrl } from '../../utils/media';
+import { formatTimeAgo } from '../../utils/formatTime';
 
 // Inline role icon helper (mirrors MessagesPage logic for ConversationItem)
 const getRoleIcon = (role, isAdmin = false) => {

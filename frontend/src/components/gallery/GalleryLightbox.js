@@ -45,13 +45,11 @@ export const GalleryLightbox = ({
   const containerRef = useRef(null);
   const imgRef = useRef(null);
 
-  if (!item) return null;
-
-  const currentIndex = items.findIndex(i => i.id === item.id);
+  const currentIndex = item ? items.findIndex(i => i.id === item.id) : -1;
   const hasPrev = currentIndex > 0;
   const hasNext = currentIndex < items.length - 1;
-  const isAccessible = item.is_paid || ['included', 'gifted'].includes(item.access_type);
-  const isFavorite = item.is_favorite;
+  const isAccessible = item ? (item.is_paid || ['included', 'gifted'].includes(item.access_type)) : false;
+  const isFavorite = item?.is_favorite;
 
   // Reset zoom when navigating
   useEffect(() => {
@@ -142,6 +140,8 @@ export const GalleryLightbox = ({
       setPurchasing(false);
     }
   };
+
+  if (!item) return null;
 
   // Native download
   const handleNativeDownload = () => {

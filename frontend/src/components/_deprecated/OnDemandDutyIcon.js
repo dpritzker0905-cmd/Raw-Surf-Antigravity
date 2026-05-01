@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Zap, Settings, MapPin, Users, ChevronRight, Loader2 } from 'lucide-react';
@@ -333,6 +333,7 @@ const DesktopOnDemandMenu = ({
 // Main Export
 export const OnDemandDutyIcon = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [onDemandActive, setOnDemandActive] = useState(false);
   const [selectedSpot, setSelectedSpot] = useState(null);
   const [showSpotSelector, setShowSpotSelector] = useState(false);

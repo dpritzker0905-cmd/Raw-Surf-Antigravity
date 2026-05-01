@@ -1,14 +1,12 @@
-﻿import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import apiClient, { BACKEND_URL } from '../../lib/apiClient';
+import { getFullUrl } from '../../utils/media';
 import { toast } from 'sonner';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Dialog, DialogContent, DialogTitle } from './ui/dialog';
 import { 
-
-const getFullUrl = (url) => { if (!url) return url; if (url.startsWith('data:') || url.startsWith('blob:') || url.startsWith('http')) return url; return `\`+url; };
-
   Send, 
   ArrowLeft, 
   MoreVertical, 

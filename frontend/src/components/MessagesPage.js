@@ -1366,20 +1366,27 @@ export const MessagesPage = () => {
   };
 
   // Filter conversations by search
-  const filteredConversations = conversations
-    .filter(c => (c.other_user_name || '').toLowerCase().includes(searchQuery.toLowerCase()))
-    .sort((a, b) => {
-      // Pinned conversations first
-      if (a.is_pinned && !b.is_pinned) return -1;
-      if (!a.is_pinned && b.is_pinned) return 1;
-      // Then by last message time
-      const bTime = new Date(b.last_message_at || 0).getTime();
-      const aTime = new Date(a.last_message_at || 0).getTime();
-      return (isNaN(bTime) ? 0 : bTime) - (isNaN(aTime) ? 0 : aTime);
-    });
+  let filteredConversations = [];
+  try {
+    filteredConversations = conversations
+      .filter(c => (c?.other_user_name || '').toLowerCase().includes((searchQuery || '').toLowerCase()))
+      .sort((a, b) => {
+        // Pinned conversations first
+        if (a.is_pinned && !b.is_pinned) return -1;
+        if (!a.is_pinned && b.is_pinned) return 1;
+        // Then by last message time
+        const bTime = new Date(b.last_message_at || 0).getTime();
+        const aTime = new Date(a.last_message_at || 0).getTime();
+        return (isNaN(bTime) ? 0 : bTime) - (isNaN(aTime) ? 0 : aTime);
+      });
+  } catch (err) {
+    console.error('Error filtering conversations:', err);
+  }
 
   // Render conversation list (shared between mobile and desktop)
-  const renderConversationList = () => (
+  const renderConversationList = () => {
+    try {
+      return (
     <div className="flex flex-col h-full bg-background">
       {/* Mobile Header */}
       <div className="md:hidden flex items-center justify-between px-4 py-3 border-b border-border">
@@ -1406,7 +1413,7 @@ export const MessagesPage = () => {
             type="text"
             placeholder="Search conversations"
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full bg-muted border border-border rounded-lg pl-10 pr-4 py-2.5 text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-ring"
           />
         </div>
@@ -1569,7 +1576,12 @@ export const MessagesPage = () => {
         )}
       </div>
     </div>
-  );
+      );
+    } catch (err) {
+      console.error('Error in renderConversationList:', err);
+      return <div className="p-4 text-red-500">List Error: {err.toString()}</div>;
+    }
+  };
 
   // Render chat view
   const renderChatView = () => {

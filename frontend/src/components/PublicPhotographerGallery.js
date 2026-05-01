@@ -889,6 +889,7 @@ const GalleryItemCard = ({ item, isPurchased, viewMode, isLight, onClick }) => {
       onMouseLeave={() => setIsHovered(false)}
       onClick={onClick}
     >
+      {item.media_type === 'video' ? (
         <video 
           className={`
             w-full h-full object-cover transition-transform duration-300

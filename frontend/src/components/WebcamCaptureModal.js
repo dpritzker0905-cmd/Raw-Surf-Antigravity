@@ -55,7 +55,7 @@ export default function WebcamCaptureModal({ isOpen, onClose, onCapture, maxLeng
     }
     // 3. Destroy WebGL processor (must recreate for new stream dimensions)
     if (processorRef.current) {
-      try { processorRef.current.stop(); } catch (_) {}
+      try { processorRef.current.stop(); } catch (_) { /* ignore */ }
       processorRef.current = null;
     }
     // 4. Clear timer
@@ -109,7 +109,7 @@ export default function WebcamCaptureModal({ isOpen, onClose, onCapture, maxLeng
       
       if (videoRef.current) {
         videoRef.current.srcObject = newStream;
-        await videoRef.current.play().catch(() => {});
+        await videoRef.current.play().catch(() => { /* ignore */ });
       }
     } catch (err) {
       logger.error('Camera access error:', err);
@@ -138,10 +138,10 @@ export default function WebcamCaptureModal({ isOpen, onClose, onCapture, maxLeng
         videoRef.current.srcObject = null;
       }
       if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
-        try { mediaRecorderRef.current.stop(); } catch (_) {}
+        try { mediaRecorderRef.current.stop(); } catch (_) { /* ignore */ }
       }
       if (processorRef.current) {
-        try { processorRef.current.stop(); } catch (_) {}
+        try { processorRef.current.stop(); } catch (_) { /* ignore */ }
         processorRef.current = null;
       }
       if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
@@ -183,7 +183,7 @@ export default function WebcamCaptureModal({ isOpen, onClose, onCapture, maxLeng
   const toggleCamera = useCallback(() => {
     // Kill processor before switching — iOS needs full hardware release
     if (processorRef.current) {
-      try { processorRef.current.stop(); } catch (_) {}
+      try { processorRef.current.stop(); } catch (_) { /* ignore */ }
       processorRef.current = null;
     }
     setFacingMode(prev => prev === 'user' ? 'environment' : 'user');
@@ -363,7 +363,7 @@ export default function WebcamCaptureModal({ isOpen, onClose, onCapture, maxLeng
   useEffect(() => {
     const engine = new HairFilterEngine();
     hairEngineRef.current = engine;
-    engine.init().catch(() => {});
+    engine.init().catch(() => { /* ignore */ });
     return () => {
       engine.dispose();
       hairEngineRef.current = null;
@@ -576,7 +576,7 @@ export default function WebcamCaptureModal({ isOpen, onClose, onCapture, maxLeng
             muted 
             onLoadedMetadata={(e) => { 
               if (e.target) {
-                e.target.play().catch(() => {});
+                e.target.play().catch(() => { /* ignore */ });
                 initProcessor(e.target);
               }
             }} 

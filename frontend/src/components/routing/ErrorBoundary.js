@@ -75,8 +75,8 @@ class ErrorBoundary extends React.Component {
             : "We hit a snag in the wave. Try refreshing — most issues clear up quickly."}
         </p>
 
-        {/* Dev-only stack trace */}
-        {IS_DEV && this.state.error && (
+        {/* ALWAYS SHOW stack trace for debugging */}
+        {this.state.error && (
           <div style={{
             background: '#1e1e1e',
             border: '1px solid #ef4444',

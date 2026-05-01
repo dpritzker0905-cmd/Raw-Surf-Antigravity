@@ -1,14 +1,11 @@
-﻿import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import apiClient, { BACKEND_URL } from '../../lib/apiClient';
 import { Camera, MapPin } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { Badge } from './ui/badge';
 import { ScrollArea } from './ui/scroll-area';
 
-
-
-const getFullUrl = (url) => { if (!url) return url; if (url.startsWith('data:') || url.startsWith('blob:') || url.startsWith('http')) return url; return `\`+url; };
-
+import { getFullUrl } from '../../utils/media';
 export const TopStories = () => {
   const [livePhotographers, setLivePhotographers] = useState([]);
 

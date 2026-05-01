@@ -15,7 +15,7 @@ import { AdCenterPanel } from './settings/AdCenterPanel';
 import useOfflineMode from '../hooks/useOfflineMode';
 import logger from '../utils/logger';
 import { ROLES } from '../constants/roles';
-
+import { getPreferencesByPath, updatePreferenceByPath } from '../services/notificationService';
 
 /**
  * SurfModeCard — Lets non-Grom surfers set their surf mode (Casual / Competitive / Pro).
@@ -1134,7 +1134,7 @@ export const Settings = () => {
   const updateNotifPref = async (key, value) => {
     setNotifLoading(true);
     try {
-      await updatePreferenceByPath(userId, key, value);
+      await updatePreferenceByPath(user.id, key, value);
       setNotifPrefs(prev => ({ ...prev, [key]: value }));
       toast.success('Notification setting updated');
     } catch (error) {
