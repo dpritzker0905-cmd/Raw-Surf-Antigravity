@@ -15,6 +15,7 @@
 export const formatTimeAgo = (dateInput) => {
   if (!dateInput) return '';
   const date = dateInput instanceof Date ? dateInput : new Date(dateInput);
+  if (isNaN(date.getTime())) return '';
   const now = Date.now();
   const diffMs = now - date.getTime();
   const diffMins = Math.floor(diffMs / 60000);
@@ -39,7 +40,9 @@ export const formatTimeAgo = (dateInput) => {
  */
 export const formatTimeAgoCompact = (dateInput) => {
   if (!dateInput) return '';
-  const diff = Date.now() - new Date(dateInput).getTime();
+  const date = new Date(dateInput);
+  if (isNaN(date.getTime())) return '';
+  const diff = Date.now() - date.getTime();
   const m = Math.floor(diff / 60000);
   if (m < 1) return 'now';
   if (m < 60) return `${m}m`;
@@ -99,6 +102,7 @@ export const formatDurationPadded = (seconds) => {
 export const formatClockTime = (dateInput) => {
   if (!dateInput) return '';
   const date = dateInput instanceof Date ? dateInput : new Date(dateInput);
+  if (isNaN(date.getTime())) return '';
   return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 };
 

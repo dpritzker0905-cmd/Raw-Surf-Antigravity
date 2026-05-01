@@ -1622,10 +1622,12 @@ export const MessagesPage = () => {
             ) : (() => {
               const lastActive = conversationDetail?.other_user_last_active;
               if (!lastActive) return <span className="text-muted-foreground">Active recently</span>;
-              const diff = Math.floor((Date.now() - new Date(lastActive).getTime()) / 1000);
+              const lastActiveDate = new Date(lastActive);
+              if (isNaN(lastActiveDate.getTime())) return <span className="text-muted-foreground">Active recently</span>;
+              const diff = Math.floor((Date.now() - lastActiveDate.getTime()) / 1000);
               if (diff < 3600) return <span className="text-muted-foreground">Active {Math.floor(diff / 60)}m ago</span>;
               if (diff < 86400) return <span className="text-muted-foreground">Active {Math.floor(diff / 3600)}h ago</span>;
-              return <span className="text-muted-foreground">Active {new Date(lastActive).toLocaleDateString()}</span>;
+              return <span className="text-muted-foreground">Active {lastActiveDate.toLocaleDateString()}</span>;
             })()}
           </div>
         </div>
