@@ -21,6 +21,7 @@ from .schemas import (
     UpdateBookingDetailsRequest, BookingResponse,
     generate_invite_code, is_photographer_role,
 )
+from datetime import date
 
 router = APIRouter()
 

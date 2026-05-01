@@ -12,6 +12,7 @@ import logging
 from database import get_db
 from models import Profile, PaymentTransaction, RoleEnum
 from utils.grom_parent import is_grom_parent_eligible
+from models import CreditTransaction
 
 router = APIRouter()
 logger = logging.getLogger(__name__)

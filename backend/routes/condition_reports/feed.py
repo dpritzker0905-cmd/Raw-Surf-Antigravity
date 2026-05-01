@@ -1,4 +1,13 @@
 """Condition reports feed — regions, feed listing, archive dates, public galleries."""
+from fastapi import Depends, Query
+from sqlalchemy import and_, desc, or_, select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
+from database import get_db
+from datetime import date, datetime, timedelta, timezone
+from typing import Optional
+from models import ConditionReport, Gallery, LiveSession, SurfSpot
+
 @router.get("/condition-reports/regions")
 async def get_regions():
     """Get list of available surf regions for filtering"""

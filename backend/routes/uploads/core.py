@@ -50,6 +50,7 @@ from utils.video_processor import (
     MAX_GALLERY_HEIGHT,
     MAX_GALLERY_WIDTH
 )
+from sqlalchemy import text
 
 router = APIRouter()
 logger = logging.getLogger(__name__)

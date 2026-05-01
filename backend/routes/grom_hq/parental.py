@@ -1,4 +1,11 @@
 """Grom HQ parental — linking, unlinking, competition toggle, parental controls."""
+from fastapi import Depends, HTTPException
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+from database import get_db
+from models import Profile, RoleEnum
+from models import is_grom_parent_eligible
+
 @router.post("/toggle-competition/{grom_id}")
 async def toggle_grom_competition(
     grom_id: str,

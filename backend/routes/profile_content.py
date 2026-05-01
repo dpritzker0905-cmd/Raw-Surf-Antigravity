@@ -22,6 +22,7 @@ from models import (
     RoleEnum
 )
 import json
+from models import PhotoTag, PostReaction
 
 router = APIRouter()
 

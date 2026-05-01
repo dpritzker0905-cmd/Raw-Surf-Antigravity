@@ -1,4 +1,14 @@
 """Sessions join — surfer join flow with payment."""
+from pydantic import BaseModel
+from fastapi import Depends, HTTPException
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
+from database import get_db
+from datetime import datetime, timedelta, timezone
+import json
+from models import AnalyticsEvent, CreditTransaction, LiveSession, LiveSessionParticipant, Notification, PaymentTransaction, Post, Profile, RoleEnum, XPTransaction
+
 @router.post("/sessions/join")
 async def join_session(data: JoinSessionRequest, surfer_id: str, db: AsyncSession = Depends(get_db)):
     """

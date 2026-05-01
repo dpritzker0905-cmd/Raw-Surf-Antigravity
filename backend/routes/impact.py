@@ -24,6 +24,7 @@ from models import (
     VerifiedCause, InstantShakaVideo, Notification
 )
 from utils.revenue_routing import is_pro_creator, is_hobbyist_creator, is_grom
+from models import Booking, BookingParticipant
 
 router = APIRouter(tags=["Impact Dashboard"])
 

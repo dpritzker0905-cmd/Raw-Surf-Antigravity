@@ -112,6 +112,7 @@ async def get_recent_locations(
 
 from fastapi.responses import HTMLResponse
 from core.security import get_user_id_from_jwt_or_query, get_optional_user_id_from_jwt_or_query
+from pydantic import BaseModel
 
 @router.get("/share/{post_id}", response_class=HTMLResponse)
 async def get_share_page(

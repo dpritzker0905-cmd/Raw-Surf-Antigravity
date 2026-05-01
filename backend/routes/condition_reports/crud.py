@@ -1,4 +1,13 @@
 """Condition reports CRUD — create, spot reports, detail, deactivate, delete, update media."""
+from pydantic import BaseModel
+from fastapi import Depends, HTTPException, Query
+from sqlalchemy import and_, desc, or_, select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
+from database import get_db
+from datetime import datetime, timedelta, timezone
+from typing import Optional
+from models import ConditionReport, LiveSession, Post, Profile, RoleEnum, SurfSpot
 @router.post("/condition-reports")
 async def create_condition_report(
     photographer_id: str,

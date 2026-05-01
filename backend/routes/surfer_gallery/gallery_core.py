@@ -1,4 +1,15 @@
 """Surfer gallery core — locker scanning, gallery listing, visibility, favorites."""
+from pydantic import BaseModel
+from fastapi import Depends, HTTPException, Query
+from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
+from database import get_db
+from datetime import datetime, timezone
+from typing import List, Optional
+import json
+from models import GalleryItem, Notification, Profile, SurfSpot
+
 @router.post("/scan-locker")
 async def scan_locker(
     data: ScanLockerRequest,

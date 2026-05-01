@@ -1,4 +1,12 @@
 """Grom HQ purchase requests — create, list, approve, deny."""
+from fastapi import Depends, HTTPException
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+from database import get_db
+from datetime import datetime, timezone
+import json
+from models import Notification, Profile, RoleEnum, is_grom_parent_eligible
+
 
 @router.post("/purchase-request/{grom_id}")
 async def submit_purchase_request(

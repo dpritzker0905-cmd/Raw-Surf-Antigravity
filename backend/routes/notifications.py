@@ -7,6 +7,7 @@ from datetime import datetime
 
 from database import get_db
 from models import Notification
+from models import Profile
 
 router = APIRouter()
 

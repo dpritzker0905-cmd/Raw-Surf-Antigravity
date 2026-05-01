@@ -1,4 +1,14 @@
 """Grom HQ family — family activity feed and call permission checks."""
+from pydantic import BaseModel
+from fastapi import Depends, HTTPException
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+from database import get_db
+from datetime import datetime, timezone
+from typing import Optional
+import json
+from models import GalleryItem, PhotoTag, Post, Profile, RoleEnum, is_grom_parent_eligible
+
 
 @router.get("/family-activity/{parent_id}")
 async def get_family_activity_feed(

@@ -28,6 +28,7 @@ from models import (
     LiveSessionParticipant, DispatchRequest
 )
 from core.security import get_user_id_from_jwt_or_query
+from models import Gallery, SurfSpot
 
 router = APIRouter(prefix="/surfer-gallery-review", tags=["Surfer Gallery Review"])
 logger = logging.getLogger(__name__)

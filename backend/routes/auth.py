@@ -11,6 +11,7 @@ from database import get_db
 from models import Profile, RoleEnum
 from core.security import create_access_token, get_current_user_id
 from core.rate_limiter import rate_limit_check
+from models import Notification
 
 router = APIRouter()
 

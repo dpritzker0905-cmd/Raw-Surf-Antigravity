@@ -8,6 +8,7 @@ import secrets
 import string
 
 from models import RoleEnum
+from datetime import date
 
 
 # ============ SHARED HELPERS ============

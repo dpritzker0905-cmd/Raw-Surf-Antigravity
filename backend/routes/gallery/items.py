@@ -40,6 +40,7 @@ from .schemas import (
     PurchaseRequest, GalleryCreate, GalleryUpdate,
     get_quality_price
 )
+from models import PhotoTag
 
 router = APIRouter()
 

@@ -19,6 +19,7 @@ from .schemas import (
     CreateAvailabilityRequest, AvailabilityWindowUpdate,
     BlockDateRequest, is_photographer_role,
 )
+from datetime import date
 
 router = APIRouter()
 

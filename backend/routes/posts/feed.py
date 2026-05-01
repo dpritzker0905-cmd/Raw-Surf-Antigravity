@@ -15,6 +15,7 @@ from core.security import get_user_id_from_jwt_or_query, get_optional_user_id_fr
 from .schemas import (
     PostCreate, PostResponse, CommentResponse, ReactionData, CollaboratorData, SpotData
 )
+from models import Notification
 
 router = APIRouter()
 logger = logging.getLogger(__name__)

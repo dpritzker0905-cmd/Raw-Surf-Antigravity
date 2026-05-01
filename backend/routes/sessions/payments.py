@@ -1,4 +1,13 @@
 """Sessions payments — complete payment flow."""
+from fastapi import Depends, HTTPException
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
+from database import get_db
+import json
+from models import LiveSession, Notification, Profile
+from models import LiveSessionParticipant, PaymentTransaction
+
 @router.post("/sessions/complete-payment")
 async def complete_session_payment(data: CompletePaymentRequest, db: AsyncSession = Depends(get_db)):
     """Complete a live session join after successful Stripe payment.

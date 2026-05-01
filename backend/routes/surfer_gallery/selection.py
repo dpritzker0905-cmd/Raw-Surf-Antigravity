@@ -1,4 +1,13 @@
 """Surfer gallery selection — included photos selection system and session browsing."""
+from pydantic import BaseModel
+from fastapi import Depends, HTTPException, Query
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
+from database import get_db
+from datetime import datetime, timezone
+from models import Gallery, GalleryItem, Profile
+
 @router.get("/selection-queue/{surfer_id}")
 async def get_selection_queue(
     surfer_id: str,

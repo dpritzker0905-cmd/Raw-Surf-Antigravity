@@ -1,4 +1,11 @@
 """Grom HQ age verification — Stripe Identity, demo verify, password-protected unlink."""
+from fastapi import Depends, HTTPException
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+from database import get_db
+from models import Profile
+from models import is_grom_parent_eligible
+
 # ============ STRIPE IDENTITY AGE VERIFICATION ============
 
 @router.post("/create-age-verification/{parent_id}")

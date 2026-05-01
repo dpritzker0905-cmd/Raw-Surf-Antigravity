@@ -55,6 +55,12 @@ async def cleanup_orphaned_condition_reports(
 # Secured via JWT admin auth — same pattern as admin_content_mod.py.
 
 from deps.admin_auth import get_current_admin
+from fastapi import Depends, HTTPException, Query
+from sqlalchemy import desc, select
+from sqlalchemy.ext.asyncio import AsyncSession
+from database import get_db
+from typing import Optional
+from models import ConditionReport, Gallery, Profile
 
 
 @router.delete("/admin/condition-reports/{report_id}")

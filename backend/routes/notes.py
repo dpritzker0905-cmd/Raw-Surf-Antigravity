@@ -15,6 +15,7 @@ import asyncio
 from database import get_db
 from models import UserNote, NoteReply, NoteReaction, Profile, Follow, Conversation, Notification
 from core.security import get_user_id_from_jwt_or_query
+from models import Message
 
 # Import OneSignal service for push notifications
 try:

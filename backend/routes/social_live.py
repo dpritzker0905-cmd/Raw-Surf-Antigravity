@@ -19,6 +19,7 @@ from utils.geo import haversine_distance
 from database import get_db
 from models import Profile, SurfSpot, SocialLiveStream, Story, Follow
 from core.security import get_user_id_from_jwt_or_query
+from models import Notification
 
 logger = logging.getLogger(__name__)
 

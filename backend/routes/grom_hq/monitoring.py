@@ -1,4 +1,12 @@
 """Grom HQ monitoring — activity logs, spending summary/controls/alerts."""
+from pydantic import BaseModel
+from fastapi import Depends, HTTPException
+from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession
+from database import get_db
+from typing import Optional
+from models import CreditTransaction, Notification, Post, Profile
+
 # ============ ACTIVITY MONITORING ============
 
 @router.get("/activity/{grom_id}")

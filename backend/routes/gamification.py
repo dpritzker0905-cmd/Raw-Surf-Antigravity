@@ -9,6 +9,7 @@ from datetime import datetime
 
 from database import get_db
 from models import Badge, XPTransaction, Profile
+from models import CreditTransaction, LiveSession, LiveSessionParticipant
 
 router = APIRouter()
 

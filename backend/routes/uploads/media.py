@@ -1,4 +1,15 @@
 """Uploads media — feed uploads, wave videos, user/photographer galleries, watermarking, session photos."""
+from fastapi import Depends, File, Form, HTTPException, UploadFile
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+from database import get_db
+from datetime import datetime
+from typing import Optional
+import uuid
+import json
+import os
+from models import GalleryItem, Profile
+
 @router.post("/upload/feed")
 async def upload_feed_media(
     file: UploadFile = File(...),

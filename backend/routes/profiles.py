@@ -10,6 +10,7 @@ import uuid
 
 from database import get_db
 from models import Profile, RoleEnum
+from models import Booking, BookingParticipant, Gallery, GalleryItem, LiveSession, Post
 
 router = APIRouter()
 

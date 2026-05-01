@@ -109,7 +109,7 @@ def get_severity_points(severity: str) -> int:
 @router.post("/report-location-fraud")
 async def report_location_fraud(
     data: ReportLocationFraudRequest,
-    reporter_id: str = Query(...),
+    reporter_id: str = Depends(get_user_id_from_jwt_or_query),
     db: AsyncSession = Depends(get_db)
 ):
     """

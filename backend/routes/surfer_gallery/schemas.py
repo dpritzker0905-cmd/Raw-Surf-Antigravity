@@ -19,6 +19,7 @@ from typing import Optional, List
 from datetime import datetime, timezone, timedelta
 import logging
 import json
+from models import Gallery
 
 router = APIRouter(prefix="/surfer-gallery", tags=["surfer-gallery"])
 logger = logging.getLogger(__name__)

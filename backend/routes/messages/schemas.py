@@ -15,6 +15,7 @@ import asyncio
 from database import get_db
 from models import Profile, Conversation, Message, Follow, Notification, MessageReaction
 from utils.grom_parent import is_grom_parent_eligible
+from models import RoleEnum
 
 # Import OneSignal service for push notifications
 try:

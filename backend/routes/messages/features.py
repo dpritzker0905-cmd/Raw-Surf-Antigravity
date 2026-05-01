@@ -1,4 +1,16 @@
 """Messages features — reactions, typing indicators, voice notes, media upload, cleanup."""
+from pydantic import BaseModel
+from fastapi import Depends, File, Form, HTTPException, UploadFile
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
+from database import get_db
+from datetime import datetime, timedelta, timezone
+from typing import Optional
+import uuid
+import json
+from models import Conversation, Message, MessageReaction, Notification, Profile
+
 # ===================== MESSAGE REACTIONS =====================
 
 class ReactionRequest(BaseModel):

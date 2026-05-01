@@ -18,6 +18,7 @@ from dotenv import load_dotenv
 
 from database import get_db
 from models import Profile, GalleryItem, Notification, RoleEnum
+from models import AnalyticsEvent, Booking, BookingParticipant, LiveSession, LiveSessionParticipant, PhotoTag
 
 load_dotenv()
 
