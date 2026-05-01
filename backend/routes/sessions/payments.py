@@ -1,5 +1,5 @@
 """Sessions payments — complete payment flow."""
-from fastapi import Depends, HTTPException
+from fastapi import Depends, HTTPException, APIRouter
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -7,6 +7,8 @@ from database import get_db
 import json
 from models import LiveSession, Notification, Profile
 from models import LiveSessionParticipant, PaymentTransaction
+
+router = APIRouter()
 
 @router.post("/sessions/complete-payment")
 async def complete_session_payment(data: CompletePaymentRequest, db: AsyncSession = Depends(get_db)):
@@ -159,6 +161,8 @@ async def complete_session_payment(data: CompletePaymentRequest, db: AsyncSessio
         # Send real-time push notification
         try:
             from routes.push import notify_session_join
+
+
             await notify_session_join(
                 photographer_id=photographer_id,
                 surfer_name=surfer.full_name,

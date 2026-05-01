@@ -1,5 +1,5 @@
 """Messages conversations — thread management, sending, listing, and actions."""
-from fastapi import Depends, HTTPException
+from fastapi import Depends, HTTPException, APIRouter
 from sqlalchemy import and_, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -8,6 +8,8 @@ from datetime import datetime, timedelta, timezone
 import json
 from models import Conversation, Message, MessageReaction, Notification, Profile, RoleEnum
 from utils.grom_parent import is_grom_parent_eligible
+
+router = APIRouter()
 
 @router.get("/messages/check-thread/{user_id}/{recipient_id}")
 async def check_existing_thread(user_id: str, recipient_id: str, db: AsyncSession = Depends(get_db)):
@@ -686,6 +688,8 @@ async def get_family_conversations(
     For Groms: conversations with their Parent
     """
     from models import RoleEnum
+
+
     
     # Get user profile
     user_result = await db.execute(select(Profile).where(Profile.id == user_id))

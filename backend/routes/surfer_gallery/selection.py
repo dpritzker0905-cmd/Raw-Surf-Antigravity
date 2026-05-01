@@ -1,12 +1,14 @@
 """Surfer gallery selection — included photos selection system and session browsing."""
 from pydantic import BaseModel
-from fastapi import Depends, HTTPException, Query
+from fastapi import Depends, HTTPException, Query, APIRouter
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from database import get_db
 from datetime import datetime, timezone
 from models import Gallery, GalleryItem, Profile
+
+router = APIRouter()
 
 @router.get("/selection-queue/{surfer_id}")
 async def get_selection_queue(
@@ -414,6 +416,8 @@ async def browse_session_photos(
     This is the fallback browse view — ensures surfers never miss photos.
     """
     from models import Gallery, GalleryItem
+
+
     
     # Find the gallery for this session
     if session_type == 'live':

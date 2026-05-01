@@ -1,11 +1,13 @@
 """Sessions pricing — capture session unified API and participant lookup."""
 from pydantic import BaseModel
-from fastapi import Depends, HTTPException
+from fastapi import Depends, HTTPException, APIRouter
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from database import get_db
 from models import LiveSession, Profile
 from models import LiveSessionParticipant
+
+router = APIRouter()
 # ============ CAPTURE SESSION UNIFIED API ============
 
 class CaptureSessionPricingRequest(BaseModel):

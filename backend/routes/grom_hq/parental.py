@@ -1,10 +1,12 @@
 """Grom HQ parental — linking, unlinking, competition toggle, parental controls."""
-from fastapi import Depends, HTTPException
+from fastapi import Depends, HTTPException, APIRouter
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from database import get_db
 from models import Profile, RoleEnum
 from utils.grom_parent import is_grom_parent_eligible
+
+router = APIRouter()
 
 @router.post("/toggle-competition/{grom_id}")
 async def toggle_grom_competition(
@@ -196,6 +198,8 @@ async def unlink_grom(
     This can ONLY be done from the parent's side
     """
     from passlib.context import CryptContext
+
+
     pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
     
     # Verify parent exists

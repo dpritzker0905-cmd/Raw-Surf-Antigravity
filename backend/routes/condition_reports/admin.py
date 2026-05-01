@@ -1,4 +1,18 @@
 """Condition reports admin — orphan cleanup, admin delete, admin list, session cleanup."""
+import logging
+from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy import desc, select
+from sqlalchemy.ext.asyncio import AsyncSession
+from typing import Optional
+
+from database import get_db
+from deps.admin_auth import get_current_admin
+from models import ConditionReport, Gallery, Profile
+
+router = APIRouter()
+cr_logger = logging.getLogger(__name__)
+
+
 @router.delete("/condition-reports/cleanup/orphaned")
 async def cleanup_orphaned_condition_reports(
     photographer_id: str,
@@ -53,15 +67,6 @@ async def cleanup_orphaned_condition_reports(
 # Allows admins to remove any condition report (questionable content,
 # stale orphans, etc.) bypassing photographer ownership checks.
 # Secured via JWT admin auth — same pattern as admin_content_mod.py.
-
-from deps.admin_auth import get_current_admin
-from fastapi import Depends, HTTPException, Query
-from sqlalchemy import desc, select
-from sqlalchemy.ext.asyncio import AsyncSession
-from database import get_db
-from typing import Optional
-from models import ConditionReport, Gallery, Profile
-
 
 @router.delete("/admin/condition-reports/{report_id}")
 async def admin_remove_condition_report(

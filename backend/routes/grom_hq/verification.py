@@ -1,10 +1,12 @@
 """Grom HQ age verification — Stripe Identity, demo verify, password-protected unlink."""
-from fastapi import Depends, HTTPException
+from fastapi import Depends, HTTPException, APIRouter
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from database import get_db
 from models import Profile
 from utils.grom_parent import is_grom_parent_eligible
+
+router = APIRouter()
 
 # ============ STRIPE IDENTITY AGE VERIFICATION ============
 
@@ -202,6 +204,8 @@ async def unlink_grom_secure(
     This can ONLY be done from the parent's side with password verification.
     """
     from passlib.context import CryptContext
+
+
     pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
     
     # Verify parent exists

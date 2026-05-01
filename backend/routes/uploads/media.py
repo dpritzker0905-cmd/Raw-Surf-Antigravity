@@ -1,5 +1,5 @@
 """Uploads media — feed uploads, wave videos, user/photographer galleries, watermarking, session photos."""
-from fastapi import Depends, File, Form, HTTPException, UploadFile
+from fastapi import Depends, File, Form, HTTPException, UploadFile, APIRouter
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from database import get_db
@@ -9,6 +9,8 @@ import uuid
 import json
 import os
 from models import GalleryItem, Profile
+
+router = APIRouter()
 
 @router.post("/upload/feed")
 async def upload_feed_media(
@@ -921,6 +923,8 @@ async def upload_session_photo(
     
     # Create gallery item record
     from models import generate_uuid
+
+
     
     gallery_item = GalleryItem(
         id=generate_uuid(),

@@ -1,5 +1,5 @@
 """Condition reports feed — regions, feed listing, archive dates, public galleries."""
-from fastapi import Depends, Query
+from fastapi import Depends, Query, APIRouter
 from sqlalchemy import and_, desc, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -7,6 +7,8 @@ from database import get_db
 from datetime import date, datetime, timedelta, timezone
 from typing import Optional
 from models import ConditionReport, Gallery, LiveSession, SurfSpot
+
+router = APIRouter()
 
 @router.get("/condition-reports/regions")
 async def get_regions():
@@ -344,6 +346,8 @@ async def get_public_gallery_archive(
       - photographer_id: Filter by photographer
     """
     from sqlalchemy import func
+
+
     
     query = select(Gallery).where(
         Gallery.is_public.is_(True),

@@ -1,12 +1,14 @@
 """Sessions active — active session queries and photo purchase."""
 from pydantic import BaseModel
-from fastapi import Depends, HTTPException
+from fastapi import Depends, HTTPException, APIRouter
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from database import get_db
 from typing import Optional
 from models import GalleryItem, LiveSessionParticipant, Profile
+
+router = APIRouter()
 
 @router.get("/sessions/active/{photographer_id}", response_model=Optional[ActiveSessionResponse])
 async def get_active_session(photographer_id: str, db: AsyncSession = Depends(get_db)):
@@ -145,6 +147,8 @@ async def purchase_photo_in_session(
     
     # Check if subscription quota covers this item (photo or video)
     from routes.photo_subscriptions import try_use_subscription_quota
+
+
     quota_type = 'video' if gallery_item.media_type == 'video' else 'photo'
     sub_quota_result = await try_use_subscription_quota(
         db, surfer_id, photographer.id, quota_type

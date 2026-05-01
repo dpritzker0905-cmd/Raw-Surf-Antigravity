@@ -1,6 +1,6 @@
 """Surfer gallery core — locker scanning, gallery listing, visibility, favorites."""
 from pydantic import BaseModel
-from fastapi import Depends, HTTPException, Query
+from fastapi import Depends, HTTPException, Query, APIRouter
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -9,6 +9,8 @@ from datetime import datetime, timezone
 from typing import List, Optional
 import json
 from models import GalleryItem, Notification, Profile, SurfSpot
+
+router = APIRouter()
 
 @router.post("/scan-locker")
 async def scan_locker(
@@ -415,6 +417,8 @@ async def request_edit(
 ):
     """Send an edit request to the photographer"""
     from models import Notification
+
+
     
     # Get the item and photographer
     item = await db.execute(

@@ -1,6 +1,6 @@
 """Messages features — reactions, typing indicators, voice notes, media upload, cleanup."""
 from pydantic import BaseModel
-from fastapi import Depends, File, Form, HTTPException, UploadFile
+from fastapi import Depends, File, Form, HTTPException, UploadFile, APIRouter
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -10,6 +10,8 @@ from typing import Optional
 import uuid
 import json
 from models import Conversation, Message, MessageReaction, Notification, Profile
+
+router = APIRouter()
 
 # ===================== MESSAGE REACTIONS =====================
 
@@ -494,6 +496,8 @@ async def cleanup_duplicate_conversations(db: AsyncSession = Depends(get_db)):
 async def get_conversation_count(user_id: str, db: AsyncSession = Depends(get_db)):
     """Debug endpoint to check for duplicate conversations for a user"""
     from sqlalchemy import text
+
+
     
     result = await db.execute(
         text("""

@@ -1,11 +1,13 @@
 """Grom HQ monitoring — activity logs, spending summary/controls/alerts."""
 from pydantic import BaseModel
-from fastapi import Depends, HTTPException
+from fastapi import Depends, HTTPException, APIRouter
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from database import get_db
 from typing import Optional
 from models import CreditTransaction, Notification, Post, Profile
+
+router = APIRouter()
 
 # ============ ACTIVITY MONITORING ============
 
@@ -329,6 +331,8 @@ async def get_spending_alerts(
     alerts = result.scalars().all()
     
     import json
+
+
     return {
         "alerts": [{
             "id": a.id,
