@@ -1367,13 +1367,15 @@ export const MessagesPage = () => {
 
   // Filter conversations by search
   const filteredConversations = conversations
-    .filter(c => c.other_user_name?.toLowerCase().includes(searchQuery.toLowerCase()))
+    .filter(c => (c.other_user_name || '').toLowerCase().includes(searchQuery.toLowerCase()))
     .sort((a, b) => {
       // Pinned conversations first
       if (a.is_pinned && !b.is_pinned) return -1;
       if (!a.is_pinned && b.is_pinned) return 1;
       // Then by last message time
-      return new Date(b.last_message_at || 0) - new Date(a.last_message_at || 0);
+      const bTime = new Date(b.last_message_at || 0).getTime();
+      const aTime = new Date(a.last_message_at || 0).getTime();
+      return (isNaN(bTime) ? 0 : bTime) - (isNaN(aTime) ? 0 : aTime);
     });
 
   // Render conversation list (shared between mobile and desktop)
