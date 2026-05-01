@@ -152,7 +152,7 @@ def get_download_url_for_tier(gallery_item: GalleryItem, tier: GalleryTierEnum, 
 
 # ============ ROUTES ============
 
-@router.get("")
+@router.get("/")
 async def get_surfer_gallery_main(
     surfer_id: str,
     db: AsyncSession = Depends(get_db)

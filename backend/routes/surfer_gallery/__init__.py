@@ -11,7 +11,7 @@ Exports a single `router` for backward compatibility.
 """
 from fastapi import APIRouter
 
-router = APIRouter()
+router = APIRouter(prefix="/surfer-gallery", tags=["surfer-gallery"])
 
 from .gallery_core import router as core_router
 from .claims import router as claims_router

@@ -3,7 +3,7 @@ Grom HQ package — modular decomposition of the grom headquarters domain.
 Exports a single `router` for backward compatibility.
 """
 from fastapi import APIRouter
-router = APIRouter()
+router = APIRouter(prefix="/grom-hq", tags=["grom-hq"])
 
 from .parental import router as parental_router
 from .verification import router as verification_router
