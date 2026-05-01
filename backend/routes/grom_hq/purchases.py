@@ -5,7 +5,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from database import get_db
 from datetime import datetime, timezone
 import json
-from models import Notification, Profile, RoleEnum, is_grom_parent_eligible
+from models import Notification, Profile, RoleEnum
+from utils.grom_parent import is_grom_parent_eligible
 
 
 @router.post("/purchase-request/{grom_id}")

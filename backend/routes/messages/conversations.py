@@ -6,7 +6,8 @@ from sqlalchemy.orm import selectinload
 from database import get_db
 from datetime import datetime, timedelta, timezone
 import json
-from models import Conversation, Message, MessageReaction, Notification, Profile, RoleEnum, is_grom_parent_eligible
+from models import Conversation, Message, MessageReaction, Notification, Profile, RoleEnum
+from utils.grom_parent import is_grom_parent_eligible
 
 @router.get("/messages/check-thread/{user_id}/{recipient_id}")
 async def check_existing_thread(user_id: str, recipient_id: str, db: AsyncSession = Depends(get_db)):

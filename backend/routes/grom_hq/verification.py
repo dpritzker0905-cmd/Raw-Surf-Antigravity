@@ -4,7 +4,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from database import get_db
 from models import Profile
-from models import is_grom_parent_eligible
+from utils.grom_parent import is_grom_parent_eligible
 
 # ============ STRIPE IDENTITY AGE VERIFICATION ============
 

@@ -7,7 +7,8 @@ from database import get_db
 from datetime import datetime, timezone
 from typing import Optional
 import json
-from models import GalleryItem, PhotoTag, Post, Profile, RoleEnum, is_grom_parent_eligible
+from models import GalleryItem, PhotoTag, Post, Profile, RoleEnum
+from utils.grom_parent import is_grom_parent_eligible
 
 
 @router.get("/family-activity/{parent_id}")

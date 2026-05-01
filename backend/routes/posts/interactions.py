@@ -14,7 +14,8 @@ from models import Profile, Post, PostLike, Comment, PostReaction
 from core.security import get_user_id_from_jwt_or_query
 from .schemas import CommentCreate, CommentUpdate, CommentResponse, ReactionCreate, ReactionData, VALID_REACTIONS
 from pydantic import BaseModel, ConfigDict
-from models import CommentReaction, NotificationType
+from models import CommentReaction
+from utils.notifications import NotificationType
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
