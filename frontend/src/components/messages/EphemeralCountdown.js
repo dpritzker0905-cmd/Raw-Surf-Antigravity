@@ -7,6 +7,7 @@ const EphemeralCountdown = ({ createdAt }) => {
 
   const calcRemaining = () => {
     const startTime = createdAt ? new Date(createdAt).getTime() : Date.now();
+    if (isNaN(startTime)) return 0;
     return EPHEMERAL_MS - (Date.now() - startTime);
   };
 

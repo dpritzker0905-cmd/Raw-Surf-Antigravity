@@ -1504,11 +1504,16 @@ export const MessagesPage = () => {
                       <span>•</span>
                       <span>{chat.status}</span>
                     </div>
-                    {chat.session_date && (
-                      <div className="text-xs text-cyan-400 mt-0.5">
-                        {new Date(chat.session_date).toLocaleDateString()}
-                      </div>
-                    )}
+                    {(() => {
+                      if (!chat.session_date) return null;
+                      const sessionDate = new Date(chat.session_date);
+                      if (isNaN(sessionDate.getTime())) return null;
+                      return (
+                        <div className="text-xs text-cyan-400 mt-0.5">
+                          {sessionDate.toLocaleDateString()}
+                        </div>
+                      );
+                    })()}
                   </div>
                   
                   {/* Arrow */}
