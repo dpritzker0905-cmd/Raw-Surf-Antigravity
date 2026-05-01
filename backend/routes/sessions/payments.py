@@ -1,12 +1,21 @@
 """Sessions payments — complete payment flow."""
+import json
+import logging
+import os
+import stripe
 from fastapi import Depends, HTTPException, APIRouter
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from database import get_db
-import json
 from models import LiveSession, Notification, Profile
 from models import LiveSessionParticipant, PaymentTransaction
+from .join import CompletePaymentRequest
+
+STRIPE_API_KEY = os.environ.get("STRIPE_SECRET_KEY") or os.environ.get("STRIPE_API_KEY")
+if STRIPE_API_KEY:
+    stripe.api_key = STRIPE_API_KEY
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 

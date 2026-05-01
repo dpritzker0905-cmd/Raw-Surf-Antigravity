@@ -10,6 +10,9 @@ from typing import List, Optional
 import json
 from models import GalleryItem, Notification, Profile, SurfSpot
 
+from .schemas import ScanLockerRequest
+from fastapi import BackgroundTasks
+from models import GalleryTierEnum
 router = APIRouter()
 
 @router.post("/scan-locker")

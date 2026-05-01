@@ -9,6 +9,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional
 from models import ConditionReport, LiveSession, Post, Profile, RoleEnum, SurfSpot
 
+from .schemas import ConditionReportCreate
 router = APIRouter()
 @router.post("/condition-reports")
 async def create_condition_report(

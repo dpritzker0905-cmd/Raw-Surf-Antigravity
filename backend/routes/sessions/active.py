@@ -7,6 +7,8 @@ from sqlalchemy.orm import selectinload
 from database import get_db
 from typing import Optional
 from models import GalleryItem, LiveSessionParticipant, Profile
+from .schemas import ActiveSessionResponse, SessionParticipantResponse
+from utils.credits import deduct_credits, add_credits
 
 router = APIRouter()
 

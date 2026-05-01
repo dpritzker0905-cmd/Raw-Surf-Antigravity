@@ -6,6 +6,7 @@ from database import get_db
 from models import Profile
 from utils.grom_parent import is_grom_parent_eligible
 
+from .schemas import AgeVerificationRequest, UnlinkRequest
 router = APIRouter()
 
 # ============ STRIPE IDENTITY AGE VERIFICATION ============

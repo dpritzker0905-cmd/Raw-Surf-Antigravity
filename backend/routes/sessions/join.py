@@ -9,6 +9,12 @@ from datetime import datetime, timedelta, timezone
 import json
 from models import AnalyticsEvent, CreditTransaction, LiveSession, LiveSessionParticipant, Notification, PaymentTransaction, Post, Profile, RoleEnum, XPTransaction
 
+from .schemas import JoinSessionRequest
+from utils.credits import deduct_credits
+import os, stripe, logging
+STRIPE_API_KEY = os.environ.get("STRIPE_SECRET_KEY") or os.environ.get("STRIPE_API_KEY")
+if STRIPE_API_KEY: stripe.api_key = STRIPE_API_KEY
+logger = logging.getLogger(__name__)
 router = APIRouter()
 
 @router.post("/sessions/join")

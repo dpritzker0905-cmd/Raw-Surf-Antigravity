@@ -9,6 +9,7 @@ import json
 from models import Conversation, Message, MessageReaction, Notification, Profile, RoleEnum
 from utils.grom_parent import is_grom_parent_eligible
 
+from .schemas import SendMessageRequest
 router = APIRouter()
 
 @router.get("/messages/check-thread/{user_id}/{recipient_id}")

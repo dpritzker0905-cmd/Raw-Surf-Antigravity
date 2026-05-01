@@ -8,6 +8,7 @@ from database import get_db
 from datetime import datetime, timezone
 from models import Gallery, GalleryItem, Profile
 
+from .claims import SelectPhotosRequest
 router = APIRouter()
 
 @router.get("/selection-queue/{surfer_id}")

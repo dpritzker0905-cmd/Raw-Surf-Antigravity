@@ -10,6 +10,7 @@ from typing import List, Optional
 import json
 from models import Booking, BookingParticipant, LiveSession, PhotoTag, Profile
 
+from .gallery_core import ClaimActionRequest, VisibilityUpdateRequest
 router = APIRouter()
 @router.get("/claim-queue-count/{surfer_id}")
 async def get_claim_queue_count(

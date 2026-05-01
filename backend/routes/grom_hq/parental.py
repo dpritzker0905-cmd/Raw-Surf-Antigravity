@@ -6,6 +6,7 @@ from database import get_db
 from models import Profile, RoleEnum
 from utils.grom_parent import is_grom_parent_eligible
 
+from .schemas import ToggleCompetitionRequest
 router = APIRouter()
 
 @router.post("/toggle-competition/{grom_id}")
