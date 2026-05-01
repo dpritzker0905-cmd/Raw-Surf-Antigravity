@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+// Build trigger: 2026-04-30
 import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import { useAuth } from '../contexts/AuthContext';
 import { usePersona, getExpandedRoleInfo, isProLevelRole, isBusinessRole as isBusinessRoleCheck } from '../contexts/PersonaContext';
