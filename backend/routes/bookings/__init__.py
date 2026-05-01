@@ -1,26 +1,16 @@
 """
 bookings/__init__.py - Bookings package router composition
 
-Architecture: Strangler Fig Pattern — MIGRATION COMPLETE
+Bookings Domain — 5 Focused Modules
 =========================================================
-The bookings domain has been fully migrated from a 5,171-line monolith
-into 5 focused domain modules:
-
   crud.py       — Core CRUD: list, get, create, cancel, complete, share
   payments.py   — Stripe checkout, crew pay, splits, crew hub, escrow
   invites.py    — Crew invites, join-by-code, invite-by-handle, respond
   lineup.py     — Lineup: open, join, leave, lock, close, status, reservation
   waitlist.py   — Waitlist: join, leave, claim, keep-seat
 
-The combined router is exported as `router` for backward compatibility — all
-existing imports in routes/__init__.py continue to work without change:
-
+The combined router is exported as `router` for backward compatibility:
     from .bookings import router as bookings_router  # routes/__init__.py
-
-ROLLBACK PLAN:
-  If any domain causes issues, revert to _monolith.py by changing the
-  last line of this file to:
-      from ._monolith import router
 
 DOMAIN ROUTING TABLE (57 total routes):
   crud.py       (13 routes): /bookings, /bookings/user, /bookings/create,
