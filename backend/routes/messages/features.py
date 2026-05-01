@@ -9,7 +9,18 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional
 import uuid
 import json
+import httpx
+import logging
 from models import Conversation, Message, MessageReaction, Notification, Profile
+
+from .schemas import (
+    ALLOWED_REACTIONS,
+    SUPABASE_URL,
+    SUPABASE_SERVICE_KEY,
+    get_or_create_conversation,
+)
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
