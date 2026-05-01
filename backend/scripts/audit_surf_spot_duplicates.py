@@ -22,7 +22,6 @@ import sys
 import os
 import json
 from collections import defaultdict
-from math import radians, sin, cos, sqrt, atan2
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -31,16 +30,7 @@ from database import AsyncSessionLocal
 from models import SurfSpot
 
 
-def haversine_km(lat1, lon1, lat2, lon2):
-    """Calculate distance between two GPS coordinates in km."""
-    if not all([lat1, lon1, lat2, lon2]):
-        return float('inf')
-    R = 6371  # Earth radius in km
-    dlat = radians(lat2 - lat1)
-    dlon = radians(lon2 - lon1)
-    a = sin(dlat/2)**2 + cos(radians(lat1)) * cos(radians(lat2)) * sin(dlon/2)**2
-    c = 2 * atan2(sqrt(a), sqrt(1-a))
-    return R * c
+from utils.geo import haversine_km
 
 
 def normalize_name(name):

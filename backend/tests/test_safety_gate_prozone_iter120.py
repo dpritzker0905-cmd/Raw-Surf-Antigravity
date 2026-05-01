@@ -10,6 +10,12 @@ Tests:
 import pytest
 import requests
 import os
+import sys
+
+# Allow imports from backend root
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from utils.geo import haversine_distance
 
 BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', '').rstrip('/')
 
@@ -161,54 +167,18 @@ class TestHaversineDistanceCalculation:
     
     def test_same_location_zero_distance(self):
         """Same location should return 0 distance"""
-        import math
-        
-        def haversine_distance(lat1, lon1, lat2, lon2):
-            R = 3959  # Earth radius in miles
-            phi1 = math.radians(lat1)
-            phi2 = math.radians(lat2)
-            delta_phi = math.radians(lat2 - lat1)
-            delta_lambda = math.radians(lon2 - lon1)
-            a = math.sin(delta_phi/2)**2 + math.cos(phi1) * math.cos(phi2) * math.sin(delta_lambda/2)**2
-            c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
-            return R * c
-        
         distance = haversine_distance(26.5, -80.0, 26.5, -80.0)
         assert distance == 0, f"Same location should be 0 distance, got {distance}"
         print("✅ Same location returns 0 distance")
     
     def test_one_degree_latitude_approx_69_miles(self):
         """1 degree latitude should be approximately 69 miles"""
-        import math
-        
-        def haversine_distance(lat1, lon1, lat2, lon2):
-            R = 3959
-            phi1 = math.radians(lat1)
-            phi2 = math.radians(lat2)
-            delta_phi = math.radians(lat2 - lat1)
-            delta_lambda = math.radians(lon2 - lon1)
-            a = math.sin(delta_phi/2)**2 + math.cos(phi1) * math.cos(phi2) * math.sin(delta_lambda/2)**2
-            c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
-            return R * c
-        
         distance = haversine_distance(26.0, -80.0, 27.0, -80.0)
         assert 68 < distance < 70, f"Expected ~69 miles, got {distance}"
         print(f"✅ 1 degree latitude = {distance:.2f} miles (expected ~69)")
     
     def test_half_mile_distance_detection(self):
         """Test 0.5 mile distance detection (Pro-Zone radius)"""
-        import math
-        
-        def haversine_distance(lat1, lon1, lat2, lon2):
-            R = 3959
-            phi1 = math.radians(lat1)
-            phi2 = math.radians(lat2)
-            delta_phi = math.radians(lat2 - lat1)
-            delta_lambda = math.radians(lon2 - lon1)
-            a = math.sin(delta_phi/2)**2 + math.cos(phi1) * math.cos(phi2) * math.sin(delta_lambda/2)**2
-            c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
-            return R * c
-        
         PRO_ZONE_RADIUS = 0.5
         
         # ~0.3 miles should be within Pro-Zone

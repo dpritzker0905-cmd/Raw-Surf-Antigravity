@@ -3,23 +3,18 @@ Pro-Zone Broadcast Restriction Tests
 Tests that Hobbyists/Grom Parents are blocked from going live near active Pros
 """
 import pytest
-import math
-from unittest.mock import MagicMock, AsyncMock, patch
+import os
+import sys
+
+# Allow imports from backend root
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from utils.geo import haversine_distance
 
 
 # Test haversine distance calculation
 def test_haversine_distance_calculation():
     """Test distance calculation between two points"""
-    def haversine_distance(lat1, lon1, lat2, lon2):
-        R = 3959  # Earth radius in miles
-        phi1 = math.radians(lat1)
-        phi2 = math.radians(lat2)
-        delta_phi = math.radians(lat2 - lat1)
-        delta_lambda = math.radians(lon2 - lon1)
-        a = math.sin(delta_phi/2)**2 + math.cos(phi1) * math.cos(phi2) * math.sin(delta_lambda/2)**2
-        c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
-        return R * c
-    
     # Same location should be 0 distance
     assert haversine_distance(26.5, -80.0, 26.5, -80.0) == 0
     
@@ -44,16 +39,6 @@ def test_pro_zone_radius():
 
 def test_pro_zone_logic_blocks_hobbyist():
     """Test that hobbyist within 0.5 miles of active Pro is blocked"""
-    def haversine_distance(lat1, lon1, lat2, lon2):
-        R = 3959
-        phi1 = math.radians(lat1)
-        phi2 = math.radians(lat2)
-        delta_phi = math.radians(lat2 - lat1)
-        delta_lambda = math.radians(lon2 - lon1)
-        a = math.sin(delta_phi/2)**2 + math.cos(phi1) * math.cos(phi2) * math.sin(delta_lambda/2)**2
-        c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
-        return R * c
-    
     PRO_ZONE_RADIUS_MILES = 0.5
     
     # Simulate Pro at position

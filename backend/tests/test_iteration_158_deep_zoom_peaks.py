@@ -13,7 +13,12 @@ Key verifications:
 import pytest
 import requests
 import os
-import math
+import sys
+
+# Allow imports from backend root
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from utils.geo import haversine_meters as haversine_distance_meters
 
 BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'http://localhost:8001').rstrip('/')
 
@@ -59,19 +64,7 @@ PANHANDLE_EXPECTED = {
 }
 
 
-def haversine_distance_meters(lat1, lon1, lat2, lon2):
-    """Calculate distance between two points in meters."""
-    R = 6371000  # Earth's radius in meters
-    lat1_rad = math.radians(lat1)
-    lat2_rad = math.radians(lat2)
-    delta_lat = math.radians(lat2 - lat1)
-    delta_lon = math.radians(lon2 - lon1)
-    
-    a = math.sin(delta_lat / 2) ** 2 + \
-        math.cos(lat1_rad) * math.cos(lat2_rad) * math.sin(delta_lon / 2) ** 2
-    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
-    
-    return R * c
+# haversine_distance_meters imported from utils.geo
 
 
 class TestAPIHealth:
