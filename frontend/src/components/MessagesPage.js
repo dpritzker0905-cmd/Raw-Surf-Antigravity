@@ -722,7 +722,7 @@ export const MessagesPage = () => {
     }
     try {
       logger.debug('[Messages] Fetching conversation:', convId);
-      const response = await apiClient.get(`/messages/conversation/${convId}`);
+      const response = await apiClient.get(`/messages/conversation/${convId}?user_id=${user.id}`);
       setSelectedConversation({
         id: convId,
         other_user_id: response.data.other_user_id,
@@ -825,7 +825,7 @@ export const MessagesPage = () => {
 
   const fetchConversationDetail = async (convId) => {
     try {
-      const response = await apiClient.get(`/messages/conversation/${convId}`);
+      const response = await apiClient.get(`/messages/conversation/${convId}?user_id=${user.id}`);
       setConversationDetail(response.data);
     } catch (error) {
       logger.error('Failed to fetch conversation:', error);
@@ -1169,7 +1169,7 @@ export const MessagesPage = () => {
 
   const handleDeclineRequest = async () => {
     try {
-      await apiClient.delete(`/messages/conversation/${selectedConversation.id}`);
+      await apiClient.delete(`/messages/conversation/${selectedConversation.id}?user_id=${user.id}`);
       toast.success('Request declined');
       setSelectedConversation(null);
       setConversationDetail(null);
@@ -1185,7 +1185,7 @@ export const MessagesPage = () => {
     if (!selectedConversation?.id) return;
     try {
       const response = await apiClient.post(
-        `/messages/conversation/${selectedConversation.id}/pin`
+        `/messages/conversation/${selectedConversation.id}/pin?user_id=${user.id}`
       );
       toast.success(response.data.message);
       fetchConversations();
@@ -1201,7 +1201,7 @@ export const MessagesPage = () => {
     if (!selectedConversation?.id) return;
     try {
       const response = await apiClient.post(
-        `/messages/conversation/${selectedConversation.id}/mute`
+        `/messages/conversation/${selectedConversation.id}/mute?user_id=${user.id}`
       );
       toast.success(response.data.message);
       fetchConversations();
@@ -1217,7 +1217,7 @@ export const MessagesPage = () => {
     if (!selectedConversation?.id) return;
     try {
       const response = await apiClient.post(
-        `/messages/conversation/${selectedConversation.id}/mark-unread`
+        `/messages/conversation/${selectedConversation.id}/mark-unread?user_id=${user.id}`
       );
       toast.success(response.data.message);
       fetchConversations();
@@ -1233,7 +1233,7 @@ export const MessagesPage = () => {
     if (!selectedConversation?.id) return;
     if (!window.confirm('Delete this conversation? It will be hidden from your inbox.')) return;
     try {
-      await apiClient.delete(`/messages/conversation/${selectedConversation.id}`);
+      await apiClient.delete(`/messages/conversation/${selectedConversation.id}?user_id=${user.id}`);
       toast.success('Conversation deleted');
       setSelectedConversation(null);
       setConversationDetail(null);
