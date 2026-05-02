@@ -44,19 +44,27 @@ export const AdminSystemDashboard = () => {
 
   const fetchAllData = async () => {
     try {
-      const [healthRes, jobsRes, alertsRes] = await Promise.all([
-        apiClient.get(`/admin/system/health`),
-        apiClient.get(`/admin/system/jobs`),
-        apiClient.get(`/admin/system/alerts`)
-      ]);
+      const healthRes = await apiClient.get(`/admin/system/health`);
       setHealthData(healthRes.data);
+    } catch (error) {
+      logger.error('Failed to load health data:', error);
+    }
+
+    try {
+      const jobsRes = await apiClient.get(`/admin/system/jobs`);
       setJobs(jobsRes.data.jobs || []);
+    } catch (error) {
+      logger.error('Failed to load jobs data:', error);
+    }
+
+    try {
+      const alertsRes = await apiClient.get(`/admin/system/alerts`);
       setAlerts(alertsRes.data.alerts || []);
     } catch (error) {
-      logger.error('Failed to load system data:', error);
-    } finally {
-      setLoading(false);
+      logger.error('Failed to load alerts data:', error);
     }
+
+    setLoading(false);
   };
 
   const handleToggleJob = async (jobName, currentState) => {
