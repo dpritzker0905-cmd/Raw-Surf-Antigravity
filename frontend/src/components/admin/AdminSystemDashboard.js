@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import apiClient, { BACKEND_URL } from '../../lib/apiClient';
@@ -172,7 +172,7 @@ export const AdminSystemDashboard = () => {
                     <span className="text-xs text-gray-500">{comp.name}</span>
                     {comp.name === 'CPU' && <Cpu className="w-4 h-4 text-gray-500" />}
                     {comp.name === 'Memory' && <Server className="w-4 h-4 text-gray-500" />}
-                    {comp.name === 'Disk' && <HardDrive className="w-4 h-4 text-gray-500" />}
+                    {comp.name === 'Storage' && <HardDrive className="w-4 h-4 text-gray-500" />}
                     {comp.name === 'Database' && <Database className="w-4 h-4 text-gray-500" />}
                   </div>
                   <p className={`text-xl font-bold ${
@@ -220,26 +220,40 @@ export const AdminSystemDashboard = () => {
 
             <Card className={cardBgClass}>
               <CardHeader className="pb-2">
-                <CardTitle className={`text-sm ${textClass}`}>Disk Usage</CardTitle>
+                <CardTitle className={`text-sm ${textClass}`}>App Storage</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-2">
                   <div className="flex justify-between text-xs">
                     <span className="text-muted-foreground">Used</span>
-                    <span className="text-foreground">{formatBytes(healthData.system.disk_used_gb)}</span>
+                    <span className="text-foreground">{formatBytes(healthData.system.storage_used_gb)}</span>
                   </div>
                   <div className="h-2 bg-muted rounded-full overflow-hidden">
                     <div 
                       className={`h-full ${
-                        healthData.system.disk_percent < 70 ? 'bg-green-500' :
-                        healthData.system.disk_percent < 90 ? 'bg-yellow-500' : 'bg-red-500'
+                        healthData.system.storage_percent < 70 ? 'bg-green-500' :
+                        healthData.system.storage_percent < 90 ? 'bg-yellow-500' : 'bg-red-500'
                       }`}
-                      style={{ width: `${healthData.system.disk_percent}%` }}
+                      style={{ width: `${Math.min(healthData.system.storage_percent, 100)}%` }}
                     />
                   </div>
                   <div className="flex justify-between text-xs">
-                    <span className="text-muted-foreground">Total</span>
-                    <span className="text-gray-500">{formatBytes(healthData.system.disk_total_gb)}</span>
+                    <span className="text-muted-foreground">Limit</span>
+                    <span className="text-gray-500">{formatBytes(healthData.system.storage_limit_gb)}</span>
+                  </div>
+                  <div className="pt-2 border-t border-zinc-800 space-y-1">
+                    <div className="flex justify-between text-[10px]">
+                      <span className="text-gray-500">Supabase Buckets</span>
+                      <span className="text-gray-400">{formatBytes(healthData.system.storage_supabase_gb)}</span>
+                    </div>
+                    <div className="flex justify-between text-[10px]">
+                      <span className="text-gray-500">Database</span>
+                      <span className="text-gray-400">{formatBytes(healthData.system.storage_database_gb)}</span>
+                    </div>
+                    <div className="flex justify-between text-[10px]">
+                      <span className="text-gray-500">Local Uploads</span>
+                      <span className="text-gray-400">{formatBytes(healthData.system.storage_local_gb)}</span>
+                    </div>
                   </div>
                 </div>
               </CardContent>

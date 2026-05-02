@@ -13,6 +13,8 @@ from typing import Optional, List
 from datetime import datetime, timezone, timedelta
 import psutil
 import time
+import os
+import logging
 
 from database import get_db
 from deps.admin_auth import get_current_admin
@@ -23,10 +25,82 @@ from models import (
 
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 
 class AcknowledgeAlertRequest(BaseModel):
     alert_ids: List[str]
+
+
+async def _get_app_storage_metrics(db: AsyncSession) -> dict:
+    """
+    Get actual application storage usage from Supabase Storage buckets,
+    PostgreSQL database size, and local uploads directory.
+    Returns sizes in bytes.
+    """
+    storage_used_bytes = 0
+    db_size_bytes = 0
+    local_size_bytes = 0
+    bucket_breakdown = []
+
+    # 1. Supabase Storage — query storage.objects table in Postgres
+    try:
+        # Get per-bucket breakdown
+        bucket_result = await db.execute(text(
+            "SELECT bucket_id, COUNT(*) as file_count, "
+            "COALESCE(SUM((metadata->>'size')::bigint), 0) as total_bytes "
+            "FROM storage.objects "
+            "GROUP BY bucket_id "
+            "ORDER BY total_bytes DESC"
+        ))
+        for row in bucket_result.fetchall():
+            bucket_name = row[0]
+            file_count = row[1]
+            total_bytes = row[2]
+            storage_used_bytes += total_bytes
+            bucket_breakdown.append({
+                "name": bucket_name,
+                "file_count": file_count,
+                "size_bytes": total_bytes,
+                "size_gb": round(total_bytes / (1024**3), 3)
+            })
+    except Exception as e:
+        logger.warning(f"Could not query storage.objects: {e}")
+
+    # 2. PostgreSQL database size
+    try:
+        db_result = await db.execute(text(
+            "SELECT pg_database_size(current_database())"
+        ))
+        db_size_bytes = db_result.scalar() or 0
+    except Exception as e:
+        logger.warning(f"Could not query database size: {e}")
+
+    # 3. Local uploads directory on Render
+    uploads_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'uploads')
+    try:
+        if os.path.exists(uploads_dir):
+            for dirpath, dirnames, filenames in os.walk(uploads_dir):
+                for f in filenames:
+                    fp = os.path.join(dirpath, f)
+                    if os.path.isfile(fp):
+                        local_size_bytes += os.path.getsize(fp)
+    except Exception as e:
+        logger.warning(f"Could not scan uploads directory: {e}")
+
+    total_used_bytes = storage_used_bytes + db_size_bytes + local_size_bytes
+
+    return {
+        "total_used_bytes": total_used_bytes,
+        "total_used_gb": round(total_used_bytes / (1024**3), 2),
+        "supabase_storage_bytes": storage_used_bytes,
+        "supabase_storage_gb": round(storage_used_bytes / (1024**3), 2),
+        "database_bytes": db_size_bytes,
+        "database_gb": round(db_size_bytes / (1024**3), 2),
+        "local_uploads_bytes": local_size_bytes,
+        "local_uploads_gb": round(local_size_bytes / (1024**3), 3),
+        "bucket_breakdown": bucket_breakdown
+    }
 
 
 # --- SYSTEM HEALTH OVERVIEW ---
@@ -40,7 +114,19 @@ async def get_system_health(
     # CPU and Memory usage
     cpu_percent = psutil.cpu_percent(interval=0.1)
     memory = psutil.virtual_memory()
-    disk = psutil.disk_usage('/')
+    
+    # App storage metrics (Supabase + DB + local)
+    storage_metrics = await _get_app_storage_metrics(db)
+    
+    # Supabase free tier: 1 GB database + 1 GB storage
+    # Supabase Pro: 8 GB database + 100 GB storage
+    # We'll use a configurable limit; default to Pro tier totals
+    STORAGE_LIMIT_GB = float(os.environ.get('STORAGE_LIMIT_GB', '100'))
+    DB_LIMIT_GB = float(os.environ.get('DB_LIMIT_GB', '8'))
+    total_limit_gb = STORAGE_LIMIT_GB + DB_LIMIT_GB
+    storage_percent = round(
+        (storage_metrics["total_used_gb"] / total_limit_gb * 100) if total_limit_gb > 0 else 0, 1
+    )
     
     # Database connection test with timing
     start_time = time.time()
@@ -67,9 +153,9 @@ async def get_system_health(
     mem_status = "healthy" if memory.percent < 70 else "warning" if memory.percent < 90 else "critical"
     health_components.append({"name": "Memory", "value": memory.percent, "unit": "%", "status": mem_status})
     
-    # Disk health
-    disk_status = "healthy" if disk.percent < 70 else "warning" if disk.percent < 90 else "critical"
-    health_components.append({"name": "Disk", "value": disk.percent, "unit": "%", "status": disk_status})
+    # Storage health (real app storage, not Render disk)
+    storage_status = "healthy" if storage_percent < 70 else "warning" if storage_percent < 90 else "critical"
+    health_components.append({"name": "Storage", "value": storage_percent, "unit": "%", "status": storage_status})
     
     # DB health
     db_latency_status = "healthy" if db_latency_ms and db_latency_ms < 50 else "warning" if db_latency_ms and db_latency_ms < 200 else "critical"
@@ -101,19 +187,53 @@ async def get_system_health(
             "memory_percent": memory.percent,
             "memory_used_gb": round(memory.used / (1024**3), 2),
             "memory_total_gb": round(memory.total / (1024**3), 2),
-            "disk_percent": disk.percent,
-            "disk_used_gb": round(disk.used / (1024**3), 2),
-            "disk_total_gb": round(disk.total / (1024**3), 2)
+            "storage_percent": storage_percent,
+            "storage_used_gb": storage_metrics["total_used_gb"],
+            "storage_limit_gb": round(total_limit_gb, 2),
+            "storage_supabase_gb": storage_metrics["supabase_storage_gb"],
+            "storage_database_gb": storage_metrics["database_gb"],
+            "storage_local_gb": storage_metrics["local_uploads_gb"],
+            "storage_bucket_breakdown": storage_metrics["bucket_breakdown"]
         },
         "database": {
             "status": db_status,
-            "latency_ms": round(db_latency_ms, 1) if db_latency_ms else None
+            "latency_ms": round(db_latency_ms, 1) if db_latency_ms else None,
+            "size_gb": storage_metrics["database_gb"]
         },
         "api": {
             "error_rate_percent": error_rate,
             "status": "healthy" if error_rate < 1 else "warning" if error_rate < 5 else "critical"
         },
         "unacknowledged_alerts": alerts_count.scalar() or 0
+    }
+
+
+# --- STORAGE BREAKDOWN (DETAILED) ---
+@router.get("/admin/system/storage")
+async def get_storage_breakdown(
+    admin_id: str,
+    db: AsyncSession = Depends(get_db)
+):
+    """Get detailed storage breakdown by bucket, database, and local uploads"""
+    await require_admin(admin_id, db)
+    
+    metrics = await _get_app_storage_metrics(db)
+    
+    return {
+        "total_used_gb": metrics["total_used_gb"],
+        "supabase_storage": {
+            "total_gb": metrics["supabase_storage_gb"],
+            "total_bytes": metrics["supabase_storage_bytes"],
+            "buckets": metrics["bucket_breakdown"]
+        },
+        "database": {
+            "size_gb": metrics["database_gb"],
+            "size_bytes": metrics["database_bytes"]
+        },
+        "local_uploads": {
+            "size_gb": metrics["local_uploads_gb"],
+            "size_bytes": metrics["local_uploads_bytes"]
+        }
     }
 
 
