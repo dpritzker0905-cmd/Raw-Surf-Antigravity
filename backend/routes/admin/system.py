@@ -27,6 +27,9 @@ from models import (
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
+# Prime psutil's CPU baseline so the first health check returns a real value
+psutil.cpu_percent(interval=None)
+
 
 class AcknowledgeAlertRequest(BaseModel):
     alert_ids: List[str]
@@ -145,7 +148,9 @@ async def get_system_health(
     """Get overall system health dashboard"""
     
     # CPU and Memory usage
-    cpu_percent = psutil.cpu_percent(interval=0.1)
+    # Use interval=None (non-blocking) to avoid measuring this request's own CPU load.
+    # Returns CPU% since last call; first call returns 0 which is fine.
+    cpu_percent = psutil.cpu_percent(interval=None)
     memory = psutil.virtual_memory()
     
     # App storage metrics (Supabase + DB + local)
@@ -186,8 +191,8 @@ async def get_system_health(
     # Overall health score
     health_components = []
     
-    # CPU health
-    cpu_status = "healthy" if cpu_percent < 70 else "warning" if cpu_percent < 90 else "critical"
+    # CPU health — thresholds tuned for Render shared containers
+    cpu_status = "healthy" if cpu_percent < 85 else "warning" if cpu_percent < 95 else "critical"
     health_components.append({"name": "CPU", "value": cpu_percent, "unit": "%", "status": cpu_status})
     
     # Memory health
