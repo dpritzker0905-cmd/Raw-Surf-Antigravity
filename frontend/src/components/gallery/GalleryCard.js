@@ -1,10 +1,10 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import {
   Eye, ShoppingCart, Check, Lock, Play, Edit3, Sparkles,
   RotateCcw, UserPlus
 } from 'lucide-react';
-import { Badge } from './ui/badge';
-import { getFullUrl } from '../utils/media';
+import { Badge } from '../ui/badge';
+import { getFullUrl } from '../../utils/media';
 
 const GalleryCard = ({ item, onClick, isOwner, isGromParent, linkedGroms, onTagGrom, onSetCustomPrice, onClearCustomPrice, getDisplayPrice }) => {
   const isVideo = item.media_type === 'video';
