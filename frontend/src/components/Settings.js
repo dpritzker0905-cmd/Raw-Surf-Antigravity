@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
 import { usePersona } from '../contexts/PersonaContext';
-import { LogOut, User, Bell, Shield, Camera, DollarSign, CalendarCheck, ChevronRight, ChevronDown, Users, Eye, EyeOff, MapPin, Loader2, MessageSquare, Heart, UserPlus, Mail, Volume2, VolumeX, Sun, Moon, Waves, Check, Zap, CreditCard, Megaphone, Activity, WifiOff, Download, Trash2, HardDrive, Clock } from 'lucide-react';
+import { LogOut, User, Bell, Shield, Camera, DollarSign, CalendarCheck, ChevronRight, ChevronDown, Users, Eye, EyeOff, MapPin, Loader2, MessageSquare, Heart, UserPlus, Mail, Volume2, VolumeX, Sun, Moon, Waves, Check, Zap, CreditCard, Megaphone, Activity, WifiOff, Download, Trash2, HardDrive, Clock, FileText, Scale, ExternalLink } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from './ui/card';
 import { Button } from './ui/button';
 
@@ -100,16 +100,30 @@ export const Settings = () => {
     security: false,       // Password & Security
     privacy: false,        // Privacy & Safety
     notifications: false,  // Notifications
-    friends: false         // Friends
+    friends: false,        // Friends
+    legal: false           // Legal / Terms of Service
   });
   
-  // Toggle section expand/collapse
   const toggleSection = (section) => {
     setExpandedSections(prev => ({
       ...prev,
       [section]: !prev[section]
     }));
   };
+
+  // ToS / Legal state
+  const CURRENT_TOS_VERSION = '1.0';
+  const [tosStatus, setTosStatus] = useState({ loading: true, acknowledged: false, acknowledged_at: null });
+  const [showTosFullText, setShowTosFullText] = useState(false);
+
+  // Fetch ToS acceptance status
+  useEffect(() => {
+    if (user?.id) {
+      apiClient.get(`/compliance/tos-status/${user.id}?current_version=${CURRENT_TOS_VERSION}`)
+        .then(res => setTosStatus({ loading: false, acknowledged: res.data.acknowledged, acknowledged_at: res.data.acknowledged_at }))
+        .catch(() => setTosStatus({ loading: false, acknowledged: false, acknowledged_at: null }));
+    }
+  }, [user?.id]);
   
   // Fetch privacy settings
   useEffect(() => {
@@ -1093,6 +1107,128 @@ export const Settings = () => {
         </Card>
 
 
+        {/* Legal / Terms of Service */}
+        <Card className={`${cardBgClass} mb-4 transition-colors duration-300`} data-testid="legal-settings-card">
+          <CardHeader className="cursor-pointer" onClick={() => toggleSection('legal')}>
+            <div className="flex items-center justify-between">
+              <CardTitle className={`${textPrimaryClass} flex items-center gap-2`}>
+                <Scale className="w-5 h-5 text-cyan-400" />
+                Legal
+              </CardTitle>
+              <ChevronDown className={`w-5 h-5 ${textSecondaryClass} transition-transform ${expandedSections.legal ? 'rotate-180' : ''}`} />
+            </div>
+          </CardHeader>
+          {expandedSections.legal && (
+            <CardContent className="space-y-4">
+              {/* ToS Acceptance Status */}
+              <div className={`flex items-center justify-between py-2 border-b ${borderClass}`}>
+                <div className="flex items-center gap-2">
+                  <FileText className="w-4 h-4 text-muted-foreground" />
+                  <div>
+                    <span className={textPrimaryClass}>Terms of Service</span>
+                    <p className={`text-xs ${textSecondaryClass}`}>Version {CURRENT_TOS_VERSION}</p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  {tosStatus.loading ? (
+                    <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+                  ) : tosStatus.acknowledged ? (
+                    <div className="flex items-center gap-1.5">
+                      <Check className="w-4 h-4 text-emerald-400" />
+                      <span className="text-xs text-emerald-400">Accepted</span>
+                    </div>
+                  ) : (
+                    <span className="text-xs text-orange-400">Not accepted</span>
+                  )}
+                </div>
+              </div>
+
+              {/* Accepted Date */}
+              {tosStatus.acknowledged && tosStatus.acknowledged_at && (
+                <div className={`flex items-center justify-between py-2 border-b ${borderClass}`}>
+                  <div className="flex items-center gap-2">
+                    <Clock className="w-4 h-4 text-muted-foreground" />
+                    <span className={textPrimaryClass}>Accepted On</span>
+                  </div>
+                  <span className={`text-sm ${textSecondaryClass}`}>
+                    {new Date(tosStatus.acknowledged_at).toLocaleDateString('en-US', {
+                      year: 'numeric', month: 'short', day: 'numeric'
+                    })}
+                  </span>
+                </div>
+              )}
+
+              {/* View Full Terms Button */}
+              <Button
+                onClick={() => setShowTosFullText(!showTosFullText)}
+                variant="outline"
+                className={`w-full ${borderClass} text-cyan-400 hover:bg-cyan-500/10`}
+                data-testid="view-tos-button"
+              >
+                <FileText className="w-4 h-4 mr-2" />
+                {showTosFullText ? 'Hide Terms' : 'View Full Terms of Service'}
+              </Button>
+
+              {/* Full ToS Text (Expandable) */}
+              {showTosFullText && (
+                <div className="rounded-xl border border-border bg-muted/30 p-4 text-sm text-muted-foreground space-y-3 max-h-[50vh] overflow-y-auto" data-testid="tos-full-text">
+                  <p className={`text-xs ${textSecondaryClass} uppercase tracking-wider`}>Version {CURRENT_TOS_VERSION} • Effective May 2026</p>
+
+                  <h4 className={`${textPrimaryClass} font-semibold`}>1. Acceptance of Terms</h4>
+                  <p>By creating an account on Raw Surf, you agree to be bound by these Terms of Service ("Terms"). If you do not agree, you may not use the platform.</p>
+
+                  <h4 className={`${textPrimaryClass} font-semibold`}>2. Account Eligibility</h4>
+                  <p>You must be at least 13 years old to create an account. Users under 18 ("Groms") must have a parent or guardian link their account. You are responsible for maintaining the security of your account credentials.</p>
+
+                  <h4 className={`${textPrimaryClass} font-semibold`}>3. User Content</h4>
+                  <p>You retain ownership of all photos, videos, and content you upload. By posting content publicly, you grant Raw Surf a non-exclusive, royalty-free license to display and distribute that content within the platform. You must not upload content that is illegal, infringing, or violates the rights of others.</p>
+
+                  <h4 className={`${textPrimaryClass} font-semibold`}>4. Photographer Services</h4>
+                  <p>Photographers set their own pricing and availability. Raw Surf facilitates connections between photographers and surfers but is not a party to the service agreement between them. A platform commission applies to all transactions.</p>
+
+                  <h4 className={`${textPrimaryClass} font-semibold`}>5. Payments & Refunds</h4>
+                  <p>All payments are processed through Stripe. Refund eligibility is determined on a case-by-case basis. Disputes can be filed through the platform's dispute resolution system.</p>
+
+                  <h4 className={`${textPrimaryClass} font-semibold`}>6. Location Data</h4>
+                  <p>Certain features (spot check-ins, on-demand booking, live sessions) use your location data. Falsifying your location is a violation of these Terms and may result in account suspension.</p>
+
+                  <h4 className={`${textPrimaryClass} font-semibold`}>7. Community Standards</h4>
+                  <p>Users must treat each other with respect. Harassment, hate speech, spam, and fraud are prohibited. Violations are subject to a progressive strike system: warning → 7-day suspension → 30-day suspension → permanent ban.</p>
+
+                  <h4 className={`${textPrimaryClass} font-semibold`}>8. Privacy</h4>
+                  <p>We collect and process personal data as described in our Privacy Policy. We do not sell your personal information to third parties. You may request deletion of your data at any time through Settings.</p>
+
+                  <h4 className={`${textPrimaryClass} font-semibold`}>9. Limitation of Liability</h4>
+                  <p>Raw Surf is provided "as is" without warranties. We are not liable for any damages arising from your use of the platform, interactions with other users, or third-party services.</p>
+
+                  <h4 className={`${textPrimaryClass} font-semibold`}>10. Modifications</h4>
+                  <p>We may update these Terms from time to time. Material changes will be communicated via in-app notification. Continued use after changes constitutes acceptance of the updated Terms.</p>
+                </div>
+              )}
+
+              {/* Privacy Policy Link */}
+              <div className={`flex items-center justify-between py-2 border-b ${borderClass}`}>
+                <div className="flex items-center gap-2">
+                  <Shield className="w-4 h-4 text-muted-foreground" />
+                  <span className={textPrimaryClass}>Privacy Policy</span>
+                </div>
+                <ExternalLink className={`w-4 h-4 ${textSecondaryClass}`} />
+              </div>
+
+              {/* Data Deletion Request */}
+              <div className={`flex items-center justify-between py-2`}>
+                <div className="flex items-center gap-2">
+                  <Trash2 className="w-4 h-4 text-red-400" />
+                  <div>
+                    <span className={textPrimaryClass}>Request Data Deletion</span>
+                    <p className={`text-xs ${textSecondaryClass}`}>Delete all your personal data from Raw Surf</p>
+                  </div>
+                </div>
+                <ChevronRight className={`w-5 h-5 ${textSecondaryClass}`} />
+              </div>
+            </CardContent>
+          )}
+        </Card>
 
         {/* About Section */}
         <Card className={`${cardBgClass} mb-4 transition-colors duration-300`} data-testid="app-info-card">
