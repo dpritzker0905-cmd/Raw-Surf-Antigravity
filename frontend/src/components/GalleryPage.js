@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { usePricing } from '../contexts/PricingContext';
@@ -8,13 +8,10 @@ import {
   Upload,
   X,
   DollarSign,
-  Eye,
-  ShoppingCart,
   Plus,
   Loader2,
   Image,
   Check,
-  Lock,
   Video,
   Play,
   Settings,
