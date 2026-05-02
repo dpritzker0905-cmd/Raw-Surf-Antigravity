@@ -22,7 +22,7 @@ from .social import router as social_router
 from .stories import router as stories_router
 from .uploads import router as uploads_router
 from .gallery import router as gallery_router
-from .admin import router as admin_router
+from .admin import admin_router
 from .user_media import router as user_media_router
 from .profile_content import router as profile_content_router
 from .photographer import router as photographer_router
@@ -51,7 +51,7 @@ from .crew_chat import router as crew_chat_router
 from .crew_leaderboard import router as crew_leaderboard_router
 from .post_collaboration import router as post_collaboration_router
 from .ad_controls import router as ad_controls_router
-from .admin_analytics import router as admin_analytics_router
+from .admin import admin_analytics_router
 from .health import router as health_router
 from .geolocation import router as geolocation_router
 from .passport import router as passport_router
@@ -62,16 +62,12 @@ from .notes import router as notes_router
 from .meta_sharing import router as meta_sharing_router
 from .surfboards import router as surfboards_router
 from .surfer_gallery import router as surfer_gallery_router
-from .admin_moderation import router as admin_moderation_router
-from .admin_p1 import router as admin_p1_router
-from .admin_p2 import router as admin_p2_router
-from .admin_analytics_enhanced import router as admin_analytics_enhanced_router
-from .admin_support import router as admin_support_router
-from .admin_content_mod import router as admin_content_mod_router
-from .admin_communications import router as admin_communications_router
-from .admin_system import router as admin_system_router
-from .admin_finance import router as admin_finance_router
-from .admin_content_mgmt import router as admin_content_mgmt_router
+from .admin import (
+    admin_moderation_router, admin_p1_router, admin_p2_router,
+    admin_analytics_enhanced_router, admin_support_router,
+    admin_content_mod_router, admin_communications_router,
+    admin_system_router, admin_finance_router, admin_content_mgmt_router,
+)
 from .compliance import router as compliance_router
 from .username import router as username_router
 from .search import router as search_router
