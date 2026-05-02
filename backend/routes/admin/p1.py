@@ -16,7 +16,7 @@ from models import (
     Profile, VerificationRequest, ImpersonationSession, FraudAlert, 
     UserActivityLog, AuditLog, RoleEnum
 )
-from routes.admin_moderation import log_audit
+from .moderation import log_audit
 from models import Booking, CreditTransaction, Post
 
 router = APIRouter()

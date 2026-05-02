@@ -23,7 +23,7 @@ from models import (
     FeaturedContent, HomepageBanner, SpotSEOMetadata,
     AutomatedReport, APIKey, ChangelogEntry, RoleEnum
 )
-from routes.admin_moderation import log_audit
+from .moderation import log_audit
 
 router = APIRouter()
 
