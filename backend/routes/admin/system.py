@@ -66,6 +66,10 @@ async def _get_app_storage_metrics(db: AsyncSession) -> dict:
             })
     except Exception as e:
         logger.warning(f"Could not query storage.objects: {e}")
+        try:
+            await db.rollback()
+        except Exception:
+            pass
 
     # 2. PostgreSQL database size
     try:
@@ -75,9 +79,13 @@ async def _get_app_storage_metrics(db: AsyncSession) -> dict:
         db_size_bytes = db_result.scalar() or 0
     except Exception as e:
         logger.warning(f"Could not query database size: {e}")
+        try:
+            await db.rollback()
+        except Exception:
+            pass
 
-    # 3. Local uploads directory on Render
-    uploads_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'uploads')
+    # 3. Local uploads directory on Render (file is in routes/admin/, need to go up 2 levels to backend/)
+    uploads_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'uploads')
     try:
         if os.path.exists(uploads_dir):
             for dirpath, dirnames, filenames in os.walk(uploads_dir):
@@ -116,7 +124,15 @@ async def get_system_health(
     memory = psutil.virtual_memory()
     
     # App storage metrics (Supabase + DB + local)
-    storage_metrics = await _get_app_storage_metrics(db)
+    try:
+        storage_metrics = await _get_app_storage_metrics(db)
+    except Exception as e:
+        logger.error(f"Failed to get storage metrics: {e}")
+        storage_metrics = {
+            "total_used_gb": 0, "supabase_storage_gb": 0,
+            "database_gb": 0, "local_uploads_gb": 0,
+            "bucket_breakdown": []
+        }
     
     # Supabase free tier: 1 GB database + 1 GB storage
     # Supabase Pro: 8 GB database + 100 GB storage
@@ -211,11 +227,10 @@ async def get_system_health(
 # --- STORAGE BREAKDOWN (DETAILED) ---
 @router.get("/admin/system/storage")
 async def get_storage_breakdown(
-    admin_id: str,
+    admin: Profile = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db)
 ):
     """Get detailed storage breakdown by bucket, database, and local uploads"""
-    await require_admin(admin_id, db)
     
     metrics = await _get_app_storage_metrics(db)
     
