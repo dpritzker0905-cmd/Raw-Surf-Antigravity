@@ -34,42 +34,67 @@ class AcknowledgeAlertRequest(BaseModel):
 
 async def _get_app_storage_metrics(db: AsyncSession) -> dict:
     """
-    Get actual application storage usage from Supabase Storage buckets,
-    PostgreSQL database size, and local uploads directory.
+    Get actual application storage usage from Supabase Storage buckets
+    (via REST API), PostgreSQL database size, and local uploads directory.
     Returns sizes in bytes.
     """
+    import aiohttp
+
     storage_used_bytes = 0
     db_size_bytes = 0
     local_size_bytes = 0
     bucket_breakdown = []
 
-    # 1. Supabase Storage — query storage.objects table in Postgres
-    try:
-        # Get per-bucket breakdown
-        bucket_result = await db.execute(text(
-            "SELECT bucket_id, COUNT(*) as file_count, "
-            "COALESCE(SUM((metadata->>'size')::bigint), 0) as total_bytes "
-            "FROM storage.objects "
-            "GROUP BY bucket_id "
-            "ORDER BY total_bytes DESC"
-        ))
-        for row in bucket_result.fetchall():
-            bucket_name = row[0]
-            file_count = row[1]
-            total_bytes = row[2]
-            storage_used_bytes += total_bytes
-            bucket_breakdown.append({
-                "name": bucket_name,
-                "file_count": file_count,
-                "size_bytes": total_bytes,
-                "size_gb": round(total_bytes / (1024**3), 3)
-            })
-    except Exception as e:
-        logger.warning(f"Could not query storage.objects: {e}")
+    supabase_url = os.environ.get('SUPABASE_URL', '').rstrip('/')
+    supabase_key = os.environ.get('SUPABASE_SERVICE_KEY', '')
+
+    # 1. Supabase Storage — use REST API to list buckets and objects
+    if supabase_url and supabase_key:
+        headers = {
+            "apikey": supabase_key,
+            "Authorization": f"Bearer {supabase_key}",
+        }
         try:
-            await db.rollback()
-        except Exception:
-            pass
+            async with aiohttp.ClientSession() as session:
+                # List all buckets
+                async with session.get(
+                    f"{supabase_url}/storage/v1/bucket",
+                    headers=headers, timeout=aiohttp.ClientTimeout(total=10)
+                ) as resp:
+                    if resp.status == 200:
+                        buckets = await resp.json()
+                        for bucket in buckets:
+                            bucket_id = bucket.get("id") or bucket.get("name")
+                            if not bucket_id:
+                                continue
+                            # List objects in each bucket to get sizes
+                            body = {"prefix": "", "limit": 10000, "offset": 0}
+                            async with session.post(
+                                f"{supabase_url}/storage/v1/object/list/{bucket_id}",
+                                headers=headers, json=body,
+                                timeout=aiohttp.ClientTimeout(total=15)
+                            ) as obj_resp:
+                                if obj_resp.status == 200:
+                                    objects = await obj_resp.json()
+                                    file_count = 0
+                                    total_bytes = 0
+                                    for obj in objects:
+                                        meta = obj.get("metadata") or {}
+                                        size = meta.get("size", 0)
+                                        if size:
+                                            total_bytes += int(size)
+                                            file_count += 1
+                                    storage_used_bytes += total_bytes
+                                    bucket_breakdown.append({
+                                        "name": bucket_id,
+                                        "file_count": file_count,
+                                        "size_bytes": total_bytes,
+                                        "size_gb": round(total_bytes / (1024**3), 3)
+                                    })
+                    else:
+                        logger.warning(f"Supabase bucket list returned {resp.status}")
+        except Exception as e:
+            logger.warning(f"Could not query Supabase Storage API: {e}")
 
     # 2. PostgreSQL database size
     try:
