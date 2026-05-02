@@ -17,7 +17,7 @@ import {
   Crown, Trophy, Radio, MapPin, Camera, Play, Square, Image, Video, 
   Upload, X, Check, User, FileText, ArrowLeft, Settings, Activity,
   Megaphone, History, RefreshCw, TrendingUp, PieChart, BarChart3, Wallet, AlertCircle, Edit, BarChart2,
-  Headphones, Server, Flag, Mail, Layout, Lock, KeyRound
+  Headphones, Server, Flag, Mail, Layout, Lock, KeyRound, Scale
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from './ui/card';
 
@@ -71,6 +71,7 @@ import { AdControlsPanel } from './admin/AdControlsPanel';
 import { AdminSpotsPanel } from './admin/AdminSpotsPanel';
 import { getFullUrl } from '../utils/media';
 import AdminOverviewTab from './admin/AdminOverviewTab';
+import { AdminComplianceDashboard } from './admin/AdminComplianceDashboard';
 
 
 
@@ -416,6 +417,7 @@ const UnifiedAdminConsole = () => {
   const tabs = [
     { id: 'overview', label: 'Overview', icon: Activity },
     { id: 'access', label: 'Access Control', icon: Lock },
+    { id: 'compliance', label: 'Compliance', icon: Scale },
     { id: 'moderation', label: 'Moderation', icon: Shield },
     { id: 'content-mod', label: 'Content Queue', icon: Flag },
     { id: 'verification', label: 'Verification', icon: UserCheck },
@@ -644,6 +646,16 @@ const UnifiedAdminConsole = () => {
               )}
             </CardContent>
           </Card>
+        )}
+
+        {/* Compliance Tab - ToS Violations, Appeals, Fraud */}
+        {activeTab === 'compliance' && (
+          <AdminComplianceDashboard
+            cardBgClass={cardBgClass}
+            textClass={textClass}
+            textSecondary={textSecondary}
+            isLight={isLight}
+          />
         )}
 
         {/* Moderation Tab - Disputes, Reports, Holds, Audit */}
