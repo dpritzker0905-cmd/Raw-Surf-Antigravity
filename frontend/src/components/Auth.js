@@ -139,7 +139,13 @@ export const Auth = () => {
           return;
         }
 
-        // Validate company name for businesses
+        // Validate password length
+        if (formData.password.length < 8) {
+          toast.error('Password must be at least 8 characters');
+          setLoading(false);
+          return;
+        }
+
         // Validate username
         if (!formData.username || formData.username.length < 3) {
           toast.error('Username must be at least 3 characters');

@@ -43,12 +43,15 @@ class LoginRequest(BaseModel):
 class SignupResponse(BaseModel):
     id: str
     email: str
+    username: Optional[str] = None
+    full_name: Optional[str] = None
     role: str
     credit_balance: float
     subscription_tier: Optional[str]
     requires_subscription: bool
     requires_onboarding: bool
     redirect_path: str
+    portfolio_url: Optional[str] = None
     access_token: Optional[str] = None  # JWT — store in localStorage
     token_type: str = "bearer"
 
@@ -94,14 +97,19 @@ class ProfileResponse(BaseModel):
 
 @router.post("/auth/signup", response_model=SignupResponse)
 async def signup(request: Request, data: SignupRequest, db: AsyncSession = Depends(get_db)):
-    # Rate limit: max 3 signup attempts per 5 minutes per IP
-    rate_limit_check(request, max_requests=3, window_seconds=300, key_prefix="signup:")
+    # Rate limit: max 10 signup attempts per 5 minutes per IP
+    # (Relaxed from 3 — validation errors like typos shouldn't lock users out)
+    rate_limit_check(request, max_requests=10, window_seconds=300, key_prefix="signup:")
     import random
     import string
     import re
     from datetime import date
     
     try:
+        # Validate password length
+        if len(data.password) < 8:
+            raise HTTPException(status_code=400, detail="Password must be at least 8 characters")
+        
         # Validate email uniqueness
         result = await db.execute(select(Profile).where(Profile.email == data.email))
         existing = result.scalar_one_or_none()
@@ -310,12 +318,15 @@ async def signup(request: Request, data: SignupRequest, db: AsyncSession = Depen
         return SignupResponse(
             id=profile.id,
             email=profile.email,
+            username=profile.username,
+            full_name=profile.full_name,
             role=profile.role.value,
             credit_balance=profile.credit_balance,
             subscription_tier=profile.subscription_tier,
             requires_subscription=requires_subscription,
             requires_onboarding=requires_onboarding,
             redirect_path=redirect_path,
+            portfolio_url=profile.portfolio_url,
             access_token=token,
         )
     except HTTPException:
