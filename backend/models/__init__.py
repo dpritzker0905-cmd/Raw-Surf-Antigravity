@@ -3,6 +3,9 @@ Models package — re-exports all models from core.py for backward compatibility
 Every route file does `from models import SomeModel` — this shim ensures
 the transition from models.py (monolith) to models/ (package) is zero-breakage.
 """
+# Re-export Base for alembic/env.py compatibility
+from database import Base  # noqa: F401
+
 from .core import (
     generate_uuid, RoleEnum, SubscriptionTierEnum, EliteTierEnum, VerificationStatusEnum, Profile, PasswordResetToken, SurfSpot,
     SpotRefinement, SpotVerification, SpotEditLog, SpotOfTheDay, BoardCatalog, Booking, BookingParticipant, BookingInvite,
