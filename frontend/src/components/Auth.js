@@ -5,8 +5,11 @@ import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Card } from './ui/card';
 import { toast } from 'sonner';
-import { ArrowLeft, User, Camera, Building2, Trophy, Star, Eye, EyeOff } from 'lucide-react';
+import { ArrowLeft, User, Camera, Building2, Trophy, Star, Eye, EyeOff, FileText, X, Shield } from 'lucide-react';
 import { ROLES } from '../constants/roles';
+import apiClient from '../lib/apiClient';
+
+const CURRENT_TOS_VERSION = '1.0';
 
 const ROLE_CONFIG = {
   surfer: {
@@ -57,6 +60,8 @@ export const Auth = () => {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [selectedRole, setSelectedRole] = useState(null);
+  const [tosAccepted, setTosAccepted] = useState(false);
+  const [showTosModal, setShowTosModal] = useState(false);
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -153,6 +158,13 @@ export const Auth = () => {
           return;
         }
         
+        // Validate ToS acceptance
+        if (!tosAccepted) {
+          toast.error('Please accept the Terms of Service to continue');
+          setLoading(false);
+          return;
+        }
+
         const isBusinessCategory = category === 'business';
         if (isBusinessCategory && !formData.company_name) {
           toast.error('Company name is required for business accounts');
@@ -171,6 +183,16 @@ export const Auth = () => {
           selectedRole.requiresParent ? formData.birthdate : null,  // Birthdate for Groms
           selectedRole.id === 'Grom' ? formData.grom_competes : false  // Competition status for Groms
         );
+
+        // Record ToS acceptance on the backend (fire-and-forget)
+        try {
+          await apiClient.post('/compliance/acknowledge-tos', {
+            tos_version: CURRENT_TOS_VERSION
+          });
+        } catch (tosErr) {
+          // Non-blocking — account is created, we just couldn't record ToS
+          console.warn('Failed to record ToS acceptance:', tosErr);
+        }
 
         toast.success('Account created! Welcome to Raw Surf');
         // Clear auth page from history stack before navigating
@@ -537,10 +559,55 @@ export const Auth = () => {
                   </div>
                 </div>
 
+                {/* ToS Acceptance */}
+                <div className="pt-3">
+                  <label className="flex items-start gap-3 cursor-pointer group" data-testid="tos-checkbox-label">
+                    <div
+                      onClick={() => setTosAccepted(!tosAccepted)}
+                      className={`mt-0.5 w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 transition-all ${
+                        tosAccepted
+                          ? 'bg-emerald-500 border-emerald-500'
+                          : 'border-zinc-600 group-hover:border-zinc-400'
+                      }`}
+                      data-testid="tos-checkbox"
+                    >
+                      {tosAccepted && (
+                        <svg className="w-3 h-3 text-white" viewBox="0 0 12 12" fill="none">
+                          <path d="M2 6L5 9L10 3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                        </svg>
+                      )}
+                    </div>
+                    <span className="text-sm text-gray-400 leading-tight">
+                      I agree to the{' '}
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); setShowTosModal(true); }}
+                        className="text-cyan-400 hover:text-cyan-300 underline underline-offset-2"
+                        data-testid="tos-link"
+                      >
+                        Terms of Service
+                      </button>
+                      {' '}and{' '}
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); setShowTosModal(true); }}
+                        className="text-cyan-400 hover:text-cyan-300 underline underline-offset-2"
+                        data-testid="privacy-link"
+                      >
+                        Privacy Policy
+                      </button>
+                    </span>
+                  </label>
+                </div>
+
                 <Button
                   type="submit"
-                  disabled={loading}
-                  className="w-full h-12 bg-gradient-to-r from-emerald-400 via-yellow-400 to-orange-400 hover:from-emerald-500 hover:via-yellow-500 hover:to-orange-500 text-black font-bold mt-4"
+                  disabled={loading || !tosAccepted}
+                  className={`w-full h-12 font-bold mt-4 transition-all ${
+                    tosAccepted
+                      ? 'bg-gradient-to-r from-emerald-400 via-yellow-400 to-orange-400 hover:from-emerald-500 hover:via-yellow-500 hover:to-orange-500 text-black'
+                      : 'bg-zinc-700 text-zinc-400 cursor-not-allowed'
+                  }`}
                   data-testid="signup-submit"
                 >
                   {loading ? 'Creating Account...' : 'Create Account'}
@@ -575,6 +642,83 @@ export const Auth = () => {
           )}
         </div>
       </Card>
+
+      {/* ToS Modal */}
+      {showTosModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+          <div className="w-full max-w-lg max-h-[85vh] bg-zinc-900 border border-zinc-700 rounded-2xl flex flex-col overflow-hidden shadow-2xl">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-cyan-500/10">
+                  <Shield className="w-5 h-5 text-cyan-400" />
+                </div>
+                <h2 className="text-lg font-semibold text-white">Terms of Service</h2>
+              </div>
+              <button
+                onClick={() => setShowTosModal(false)}
+                className="p-1 rounded-full hover:bg-zinc-800 text-gray-400 hover:text-white transition-colors"
+                data-testid="tos-modal-close"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Scrollable Content */}
+            <div className="flex-1 overflow-y-auto px-6 py-4 text-sm text-gray-300 space-y-4" style={{ maxHeight: '60vh' }}>
+              <p className="text-xs text-gray-500 uppercase tracking-wider">Version {CURRENT_TOS_VERSION} • Effective May 2026</p>
+
+              <h3 className="text-white font-semibold text-base">1. Acceptance of Terms</h3>
+              <p>By creating an account on Raw Surf, you agree to be bound by these Terms of Service ("Terms"). If you do not agree, you may not use the platform.</p>
+
+              <h3 className="text-white font-semibold text-base">2. Account Eligibility</h3>
+              <p>You must be at least 13 years old to create an account. Users under 18 ("Groms") must have a parent or guardian link their account. You are responsible for maintaining the security of your account credentials.</p>
+
+              <h3 className="text-white font-semibold text-base">3. User Content</h3>
+              <p>You retain ownership of all photos, videos, and content you upload. By posting content publicly, you grant Raw Surf a non-exclusive, royalty-free license to display and distribute that content within the platform. You must not upload content that is illegal, infringing, or violates the rights of others.</p>
+
+              <h3 className="text-white font-semibold text-base">4. Photographer Services</h3>
+              <p>Photographers set their own pricing and availability. Raw Surf facilitates connections between photographers and surfers but is not a party to the service agreement between them. A platform commission applies to all transactions.</p>
+
+              <h3 className="text-white font-semibold text-base">5. Payments & Refunds</h3>
+              <p>All payments are processed through Stripe. Refund eligibility is determined on a case-by-case basis. Disputes can be filed through the platform's dispute resolution system.</p>
+
+              <h3 className="text-white font-semibold text-base">6. Location Data</h3>
+              <p>Certain features (spot check-ins, on-demand booking, live sessions) use your location data. Falsifying your location is a violation of these Terms and may result in account suspension.</p>
+
+              <h3 className="text-white font-semibold text-base">7. Community Standards</h3>
+              <p>Users must treat each other with respect. Harassment, hate speech, spam, and fraud are prohibited. Violations are subject to a progressive strike system: warning → 7-day suspension → 30-day suspension → permanent ban.</p>
+
+              <h3 className="text-white font-semibold text-base">8. Privacy</h3>
+              <p>We collect and process personal data as described in our Privacy Policy. We do not sell your personal information to third parties. You may request deletion of your data at any time through Settings.</p>
+
+              <h3 className="text-white font-semibold text-base">9. Limitation of Liability</h3>
+              <p>Raw Surf is provided "as is" without warranties. We are not liable for any damages arising from your use of the platform, interactions with other users, or third-party services.</p>
+
+              <h3 className="text-white font-semibold text-base">10. Modifications</h3>
+              <p>We may update these Terms from time to time. Material changes will be communicated via in-app notification. Continued use after changes constitutes acceptance of the updated Terms.</p>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="px-6 py-4 border-t border-zinc-800 flex gap-3">
+              <Button
+                onClick={() => setShowTosModal(false)}
+                variant="outline"
+                className="flex-1 border-zinc-700 text-gray-300 hover:bg-zinc-800"
+              >
+                Close
+              </Button>
+              <Button
+                onClick={() => { setTosAccepted(true); setShowTosModal(false); }}
+                className="flex-1 bg-gradient-to-r from-emerald-400 via-yellow-400 to-orange-400 text-black font-semibold"
+                data-testid="tos-accept-button"
+              >
+                I Agree
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
