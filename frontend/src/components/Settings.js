@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
 import { usePersona } from '../contexts/PersonaContext';
-import { LogOut, User, Bell, Shield, Camera, DollarSign, CalendarCheck, ChevronRight, ChevronDown, Users, Eye, EyeOff, MapPin, Loader2, MessageSquare, Heart, UserPlus, Mail, Volume2, VolumeX, Sun, Moon, Waves, Check, Zap, CreditCard, Megaphone, Activity, WifiOff, Download, Trash2, HardDrive, Clock, FileText, Scale, ExternalLink } from 'lucide-react';
+import { LogOut, User, Bell, Shield, Camera, DollarSign, CalendarCheck, ChevronRight, ChevronDown, Users, Eye, EyeOff, MapPin, Loader2, MessageSquare, Heart, UserPlus, Mail, Volume2, VolumeX, Sun, Moon, Waves, Check, Zap, CreditCard, Megaphone, Activity, WifiOff, Download, Trash2, HardDrive, Clock, FileText, Scale, ExternalLink, AlertTriangle } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from './ui/card';
 import { Button } from './ui/button';
 
@@ -122,6 +122,18 @@ export const Settings = () => {
       apiClient.get(`/compliance/tos-status/${user.id}?current_version=${CURRENT_TOS_VERSION}`)
         .then(res => setTosStatus({ loading: false, acknowledged: res.data.acknowledged, acknowledged_at: res.data.acknowledged_at }))
         .catch(() => setTosStatus({ loading: false, acknowledged: false, acknowledged_at: null }));
+    }
+  }, [user?.id]);
+
+  // Violation history state
+  const [violationHistory, setViolationHistory] = useState({ loading: true, data: null });
+  const [showViolations, setShowViolations] = useState(false);
+
+  useEffect(() => {
+    if (user?.id) {
+      apiClient.get(`/compliance/violations/${user.id}`)
+        .then(res => setViolationHistory({ loading: false, data: res.data }))
+        .catch(() => setViolationHistory({ loading: false, data: null }));
     }
   }, [user?.id]);
   
@@ -1213,6 +1225,68 @@ export const Settings = () => {
                   <span className={textPrimaryClass}>Privacy Policy</span>
                 </div>
                 <ExternalLink className={`w-4 h-4 ${textSecondaryClass}`} />
+              </div>
+
+              {/* Violation History */}
+              <div className={`py-2 border-b ${borderClass}`}>
+                <button
+                  onClick={() => setShowViolations(!showViolations)}
+                  className="w-full flex items-center justify-between"
+                  data-testid="violation-history-toggle"
+                >
+                  <div className="flex items-center gap-2">
+                    <AlertTriangle className="w-4 h-4 text-muted-foreground" />
+                    <div className="text-left">
+                      <span className={textPrimaryClass}>Violation History</span>
+                      <p className={`text-xs ${textSecondaryClass}`}>
+                        {violationHistory.loading
+                          ? 'Loading...'
+                          : violationHistory.data?.violations?.length
+                          ? `${violationHistory.data.violations.length} record${violationHistory.data.violations.length !== 1 ? 's' : ''} • ${violationHistory.data.total_strikes || 0} strike${(violationHistory.data.total_strikes || 0) !== 1 ? 's' : ''}`
+                          : 'No violations — clean record ✅'}
+                      </p>
+                    </div>
+                  </div>
+                  <ChevronDown className={`w-4 h-4 ${textSecondaryClass} transition-transform ${showViolations ? 'rotate-180' : ''}`} />
+                </button>
+
+                {showViolations && violationHistory.data && (
+                  <div className="mt-3 space-y-2">
+                    {violationHistory.data.violations?.length === 0 ? (
+                      <div className="py-4 text-center">
+                        <Check className="w-6 h-6 text-emerald-400 mx-auto mb-1" />
+                        <p className={`text-sm ${textSecondaryClass}`}>No violations on your account</p>
+                      </div>
+                    ) : (
+                      violationHistory.data.violations.map(v => (
+                        <div key={v.id} className={`p-3 rounded-lg border border-border bg-muted/20`}>
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex-1 min-w-0">
+                              <p className={`text-sm font-medium ${textPrimaryClass}`}>{v.title}</p>
+                              <p className={`text-xs ${textSecondaryClass} mt-0.5`}>
+                                {v.violation_type?.replace(/_/g, ' ')} • {v.severity} • {new Date(v.created_at).toLocaleDateString()}
+                              </p>
+                            </div>
+                            <div className="flex-shrink-0">
+                              {v.appeal_status === 'pending' && (
+                                <span className="text-xs px-2 py-0.5 rounded-full bg-yellow-500/20 text-yellow-400">Under Review</span>
+                              )}
+                              {v.appeal_status === 'approved' && (
+                                <span className="text-xs px-2 py-0.5 rounded-full bg-green-500/20 text-green-400">Overturned</span>
+                              )}
+                              {v.appeal_status === 'denied' && (
+                                <span className="text-xs px-2 py-0.5 rounded-full bg-red-500/20 text-red-400">Denied</span>
+                              )}
+                              {v.status === 'active' && !v.is_appealed && (
+                                <span className="text-xs px-2 py-0.5 rounded-full bg-orange-500/20 text-orange-400">Active</span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* Data Deletion Request */}

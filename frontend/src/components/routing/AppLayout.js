@@ -26,6 +26,7 @@ import IncomingCallModal from '../messages/IncomingCallModal';
 import OutgoingCallModal from '../messages/OutgoingCallModal';
 import InCallView from '../messages/InCallView';
 import PermissionDeniedModal from '../messages/PermissionDeniedModal';
+import ViolationBanner from '../ViolationBanner';
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
@@ -215,6 +216,9 @@ const AppLayout = ({ children, hideNav = false, hideTopNav = false }) => {
       {/* Navigation chrome */}
       {showSidebar && <Sidebar />}
       {showTopNav && <TopNav />}
+
+      {/* Violation awareness banner — appears below nav when user has strikes */}
+      <ViolationBanner />
 
       {/* Page content */}
       <main
