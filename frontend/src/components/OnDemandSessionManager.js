@@ -2102,7 +2102,7 @@ export const OnDemandSessionManager = () => {
                   </div>
                   
                   {/* Spots List */}
-                  <div className="space-y-2 max-h-80 overflow-y-auto pr-1" style={{ WebkitOverflowScrolling: 'touch' }}>
+                  <div className="space-y-2 max-h-80 overflow-y-auto pr-1" className="scroll-touch">
                     {nearbySpots.length === 0 ? (
                       <p className={`text-center py-4 ${textSecondary}`}>
                         {locationLoading ? 'Finding nearby spots...' : 'No spots found nearby'}

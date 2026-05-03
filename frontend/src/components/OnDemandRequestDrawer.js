@@ -999,7 +999,7 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
                 <p className={`text-sm ${textSecondary}`}>Finding spots near you...</p>
               </div>
             ) : (
-              <div className="space-y-2 max-h-[40vh] sm:max-h-[320px] overflow-y-auto pr-1" style={{ WebkitOverflowScrolling: 'touch' }}>
+              <div className="space-y-2 max-h-[40vh] sm:max-h-[320px] overflow-y-auto pr-1" className="scroll-touch">
                 {/* Use Current Location — hidden when typing custom location */}
                 {!(keyboardOpen && useCustomLocation) && (
                 <button

@@ -217,7 +217,7 @@ export const JumpInSessionModal = ({ photographer, onClose, onSuccess }) => {
           </div>
 
           {/* Scrollable Content */}
-          <div className="flex-1 overflow-y-auto overscroll-contain" style={{ WebkitOverflowScrolling: 'touch' }}>
+          <div className="flex-1 overflow-y-auto overscroll-contain" className="scroll-touch">
             <div className="p-4 pb-8">
             
             {/* Step: Options */}

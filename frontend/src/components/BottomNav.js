@@ -9,6 +9,7 @@ import { PhotoToolsDrawer } from './PhotoToolsDrawer';
 import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import logger from '../utils/logger';
 import { ROLES } from '../constants/roles';
+import useRoutePreloader from '../hooks/useRoutePreloader';
 
 
 /**
@@ -114,6 +115,7 @@ export const BottomNav = () => {
   const { getEffectiveRole } = usePersona();
   const navigate = useNavigate();
   const location = useLocation();
+  const preload = useRoutePreloader();
   
   // State for Photo Tools drawer and unread messages
   const [showPhotoTools, setShowPhotoTools] = useState(false);
@@ -298,6 +300,8 @@ export const BottomNav = () => {
           // Surfers get Explore navigation + new photos badge
           <button
             onClick={() => handleNavigation(actionConfig.path)}
+            onMouseEnter={() => preload('explore')}
+            onTouchStart={() => preload('explore')}
             className={`flex flex-col items-center gap-0.5 min-w-[56px] py-1 ${isPathActive(actionConfig.path) ? actionConfig.activeColor : textInactiveClass}`}
             data-testid="bottomnav-action-center"
           >
@@ -326,6 +330,8 @@ export const BottomNav = () => {
         {/* Tab 4: Messages - HIGH-FREQUENCY THUMB ACCESS (moved from TopNav) */}
         <button
           onClick={() => handleNavigation('/messages')}
+          onMouseEnter={() => preload('messages')}
+          onTouchStart={() => preload('messages')}
           className={`flex flex-col items-center gap-0.5 min-w-[56px] py-1 relative ${isPathActive('/messages') ? 'text-blue-400' : textInactiveClass}`}
           data-testid="bottomnav-messages"
         >
@@ -345,6 +351,8 @@ export const BottomNav = () => {
         {/* Tab 5: Me - Universal Profile with Mini Photo */}
         <button
           onClick={() => handleNavigation(getProfileDestination())}
+          onMouseEnter={() => preload('profile')}
+          onTouchStart={() => preload('profile')}
           className="flex flex-col items-center gap-0.5 min-w-[56px] py-1"
           data-testid="bottomnav-me"
         >

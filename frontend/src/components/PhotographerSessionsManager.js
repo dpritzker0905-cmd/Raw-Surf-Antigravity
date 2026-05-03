@@ -1263,7 +1263,7 @@ export const PhotographerSessionsManager = () => {
               Session Rates & Settings
             </DialogTitle>
           </DialogHeader>
-          <div className="flex-1 overflow-y-auto px-4 sm:px-6" style={{ WebkitOverflowScrolling: 'touch' }}>
+          <div className="flex-1 overflow-y-auto px-4 sm:px-6" className="scroll-touch">
             <div className="space-y-3 py-4">
             {/* Live Savings Preview - Shows only in Promotional mode with savings */}
             {hasSavings && sessionSettings.pricing_mode === 'promotional' && (
@@ -1875,7 +1875,7 @@ export const PhotographerSessionsManager = () => {
               Go Live - Select Location
             </DialogTitle>
           </DialogHeader>
-          <div className="flex-1 overflow-y-auto px-4 sm:px-6" style={{ WebkitOverflowScrolling: 'touch' }}>
+          <div className="flex-1 overflow-y-auto px-4 sm:px-6" className="scroll-touch">
             <div className="space-y-4 py-4">
             {/* Current Settings Summary */}
             <div className={`p-3 rounded-xl ${isLight ? 'bg-gray-100' : 'bg-zinc-800/50'}`}>

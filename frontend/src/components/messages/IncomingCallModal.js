@@ -120,7 +120,7 @@ export default function IncomingCallModal({
           className="group flex flex-col items-center gap-2"
           data-testid="accept-call-btn"
         >
-          <div className="w-16 h-16 rounded-full bg-green-500 hover:bg-green-400 flex items-center justify-center shadow-lg shadow-green-500/30 transition-all hover:scale-110 active:scale-95 animate-pulse" style={{ animationDuration: '2s' }}>
+          <div className="w-16 h-16 rounded-full bg-green-500 hover:bg-green-400 flex items-center justify-center shadow-lg shadow-green-500/30 transition-all hover:scale-110 active:scale-95 animate-pulse" className="animate-duration-2s">
             {callType === 'video' ? (
               <Video className="w-7 h-7 text-white" />
             ) : (

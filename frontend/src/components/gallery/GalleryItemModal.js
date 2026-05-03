@@ -6,7 +6,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import apiClient from '../../lib/apiClient';
 import { getFullUrl } from '../../utils/media';
-import { isGrom } from '../../lib/roles';
+import { isGrom } from '../../constants/roles';
 import { submitPurchaseRequest } from '../../utils/gromPurchase';
 import { 
   Lock, Eye, ShoppingCart, Download, DollarSign, Edit3, Loader2, Check,

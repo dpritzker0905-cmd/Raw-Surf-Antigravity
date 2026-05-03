@@ -82,7 +82,7 @@ const CategoryTabs = ({ active, onChange, size = 'sm' }) => {
       <div
         ref={tabsRef}
         className="flex overflow-x-auto px-1 py-1.5 gap-0.5"
-        style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+        className="scrollbar-none"
       >
         {CATEGORY_NAMES.map((cat) => (
           <button

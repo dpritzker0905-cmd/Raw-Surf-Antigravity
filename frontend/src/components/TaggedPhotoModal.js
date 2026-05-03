@@ -13,7 +13,7 @@ import { Badge } from './ui/badge';
 import { Avatar, AvatarImage, AvatarFallback } from './ui/avatar';
 import { toast } from 'sonner';
 import logger from '../utils/logger';
-import { isGrom } from '../lib/roles';
+import { isGrom } from '../constants/roles';
 import { submitPurchaseRequest } from '../utils/gromPurchase';
 
 

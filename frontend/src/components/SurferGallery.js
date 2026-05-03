@@ -45,7 +45,7 @@ import { VisibilityOnboarding } from './gallery/DownloadVisibility';
 import { GalleryLightbox } from './gallery/GalleryLightbox';
 import logger from '../utils/logger';
 import { getFullUrl } from '../utils/media';
-import { isGrom } from '../lib/roles';
+import { isGrom } from '../constants/roles';
 
 /**
  * Gallery Item Card Component - Enhanced with favorites and sharing

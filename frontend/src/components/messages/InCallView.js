@@ -435,7 +435,7 @@ export default function InCallView({
               }}
             >
               <div className="relative">
-                <div className="absolute inset-0 -m-4 rounded-full border-2 border-cyan-400/20 animate-ping" style={{ animationDuration: '2s' }} />
+                <div className="absolute inset-0 -m-4 rounded-full border-2 border-cyan-400/20 animate-ping" className="animate-duration-2s" />
                 <div className="absolute inset-0 -m-2 rounded-full border border-cyan-400/10" />
                 <div className="w-28 h-28 md:w-32 md:h-32 rounded-full overflow-hidden ring-4 ring-cyan-400/30 shadow-[0_0_60px_rgba(6,182,212,0.2)]">
                   {remoteUserInfo.avatar ? (

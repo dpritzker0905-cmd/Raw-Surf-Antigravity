@@ -438,7 +438,7 @@ export const NotificationsPage = () => {
             <div
               ref={tabsContainerRef}
               className="flex gap-1 overflow-x-auto pb-1 scrollbar-hide scroll-smooth flex-1"
-              style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+              className="scrollbar-none"
             >
               {TABS.map(tab => {
                 const Icon = tab.icon;

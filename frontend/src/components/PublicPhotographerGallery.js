@@ -17,7 +17,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { toast } from 'sonner';
 import logger from '../utils/logger';
 import { getFullUrl } from '../utils/media';
-import { isGrom } from '../lib/roles';
+import { isGrom } from '../constants/roles';
 
 
 // Gallery View Modes

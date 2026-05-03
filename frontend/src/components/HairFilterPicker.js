@@ -71,7 +71,7 @@ export const HairFilterPicker = ({
       exit={{ opacity: 0, x: -20, scale: 0.95 }}
       transition={{ type: 'spring', duration: 0.3 }}
       className={`w-72 max-h-[50vh] overflow-y-auto p-3 rounded-2xl ${colors.overlayBg} ${colors.border} border z-50 overscroll-contain`}
-      style={{ WebkitOverflowScrolling: 'touch' }}
+      className="scroll-touch"
     >
       {/* Header */}
       <div className="flex items-center justify-between mb-3">

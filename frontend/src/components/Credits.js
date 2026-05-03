@@ -7,7 +7,7 @@ import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { toast } from 'sonner';
 import logger from '../utils/logger';
-import { isGrom } from '../lib/roles';
+import { isGrom } from '../constants/roles';
 import { submitPurchaseRequest } from '../utils/gromPurchase';
 
 

@@ -62,7 +62,7 @@ export default function OutgoingCallModal({
       {/* Subtle outgoing pulse */}
       <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
         <div className="absolute w-48 h-48 rounded-full border-2 border-cyan-400/15 animate-ping" 
-          style={{ animationDuration: '3s' }} />
+          className="animate-duration-3s" />
         <div className="absolute w-64 h-64 rounded-full border border-cyan-400/10 animate-ping" 
           style={{ animationDuration: '3.5s', animationDelay: '0.5s' }} />
       </div>

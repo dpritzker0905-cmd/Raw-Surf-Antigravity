@@ -302,20 +302,30 @@ export const Profile = () => {
       return;
     }
     
+    // Capture previous state for rollback
+    const wasFollowing = isFollowing;
+    const prevFollowers = socialStats.followers;
+    
+    // Optimistic update — instant UI
+    setIsFollowing(!wasFollowing);
+    setSocialStats(prev => ({
+      ...prev,
+      followers: wasFollowing ? Math.max(0, prev.followers - 1) : prev.followers + 1
+    }));
     setFollowLoading(true);
+    
     try {
-      if (isFollowing) {
+      if (wasFollowing) {
         await apiClient.delete(`/follow/${profileUserId}?follower_id=${user.id}`);
-        setIsFollowing(false);
-        setSocialStats(prev => ({ ...prev, followers: Math.max(0, prev.followers - 1) }));
         toast.success(`Unfollowed ${profile.full_name}`);
       } else {
         await apiClient.post(`/follow/${profileUserId}?follower_id=${user.id}`);
-        setIsFollowing(true);
-        setSocialStats(prev => ({ ...prev, followers: prev.followers + 1 }));
         toast.success(`Following ${profile.full_name}`);
       }
     } catch (error) {
+      // Rollback on failure
+      setIsFollowing(wasFollowing);
+      setSocialStats(prev => ({ ...prev, followers: prevFollowers }));
       toast.error(error.response?.data?.detail || 'Failed to update follow status');
     } finally {
       setFollowLoading(false);

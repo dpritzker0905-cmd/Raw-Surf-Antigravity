@@ -845,7 +845,7 @@ const SpotHub = () => {
         >
           {/* Animated gradient background */}
           <div className="absolute inset-0 bg-gradient-to-r from-red-600/20 via-orange-500/20 to-red-600/20 animate-pulse" />
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(239,68,68,0.3),transparent_70%)] animate-ping opacity-30" style={{ animationDuration: '2s' }} />
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(239,68,68,0.3),transparent_70%)] animate-ping opacity-30" className="animate-duration-2s" />
           
           <div className="relative p-3 bg-black/60 backdrop-blur-sm">
             <div className="flex items-center justify-between mb-2">

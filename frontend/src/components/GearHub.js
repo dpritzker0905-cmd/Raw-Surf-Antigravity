@@ -12,7 +12,7 @@ import {
 } from 'lucide-react';
 import logger from '../utils/logger';
 import { ROLES } from '../constants/roles';
-import { isGrom } from '../lib/roles';
+import { isGrom } from '../constants/roles';
 import { submitPurchaseRequest } from '../utils/gromPurchase';
 import { getFullUrl } from '../utils/media';
 

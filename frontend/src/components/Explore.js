@@ -1058,7 +1058,7 @@ export const Explore = () => {
         <div 
           ref={tabsContainerRef}
           className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide scroll-smooth flex-1"
-          style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+          className="scrollbar-none"
         >
           {tabs.map((tab) => {
             const Icon = tab.icon;
