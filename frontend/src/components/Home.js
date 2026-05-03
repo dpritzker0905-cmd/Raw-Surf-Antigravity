@@ -90,7 +90,7 @@ export const Home = () => {
               alt="Raw Surf"
               className="w-8 h-8"
             />
-            <span className="text-lg font-bold" style={{ fontFamily: 'Oswald' }}>Raw Surf</span>
+            <span className="text-lg font-bold font-oswald" >Raw Surf</span>
           </div>
           <Button
             onClick={() => navigate('/auth?tab=login')}
@@ -127,7 +127,7 @@ export const Home = () => {
 
           {/* Headline */}
           <div className="space-y-4">
-            <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold leading-tight" style={{ fontFamily: 'Oswald' }}>
+            <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold leading-tight font-oswald" >
               <span className="text-white">Your surf.</span>
               <br />
               <span className="bg-gradient-to-r from-emerald-400 via-yellow-400 to-orange-400 bg-clip-text text-transparent">
@@ -211,7 +211,7 @@ export const Home = () => {
       {/* Features Section */}
       <section className="relative py-20 px-4 bg-zinc-900/30">
         <div className="container mx-auto max-w-6xl">
-          <h2 className="text-3xl sm:text-4xl font-bold text-center mb-12" style={{ fontFamily: 'Oswald' }}>
+          <h2 className="text-3xl sm:text-4xl font-bold text-center mb-12 font-oswald" >
             Built for the lineup
           </h2>
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -225,7 +225,7 @@ export const Home = () => {
                   <div className="w-10 h-10 rounded-lg bg-gradient-to-r from-emerald-400 via-yellow-400 to-orange-400 flex items-center justify-center mb-4">
                     <Icon className="w-5 h-5 text-black" />
                   </div>
-                  <h3 className="text-lg font-bold mb-2 text-white" style={{ fontFamily: 'Oswald' }}>
+                  <h3 className="text-lg font-bold mb-2 text-white font-oswald" >
                     {feature.title}
                   </h3>
                   <p className="text-gray-400 text-sm">{feature.description}</p>
@@ -244,7 +244,7 @@ export const Home = () => {
             background: 'linear-gradient(135deg, rgba(52,211,153,0.9) 0%, rgba(250,204,21,0.9) 50%, rgba(249,115,22,0.9) 100%)'
           }}
         >
-          <h2 className="text-3xl sm:text-4xl font-bold text-black mb-4" style={{ fontFamily: 'Oswald' }}>
+          <h2 className="text-3xl sm:text-4xl font-bold text-black mb-4 font-oswald" >
             Ready to paddle out?
           </h2>
           <p className="text-black/80 mb-8">
@@ -268,7 +268,7 @@ export const Home = () => {
               alt="Raw Surf"
               className="w-8 h-8"
             />
-            <span className="text-lg font-bold text-white" style={{ fontFamily: 'Oswald' }}>Raw Surf</span>
+            <span className="text-lg font-bold text-white font-oswald" >Raw Surf</span>
           </div>
           <p className="text-gray-500 text-sm">© 2026 Raw Surf. All rights reserved.</p>
         </div>

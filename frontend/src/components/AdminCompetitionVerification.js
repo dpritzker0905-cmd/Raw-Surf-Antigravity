@@ -117,7 +117,7 @@ export const AdminCompetitionVerification = () => {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className={`text-xl font-bold ${textPrimary} flex items-center gap-2`} style={{ fontFamily: 'Oswald' }}>
+          <h2 className={`text-xl font-bold ${textPrimary} flex items-center gap-2 font-oswald`} >
             <Trophy className="w-6 h-6 text-yellow-400" />
             Competition Verification
           </h2>

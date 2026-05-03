@@ -2049,7 +2049,7 @@ const MapPageContent = () => {
                 </div>
                 <div className="flex-1">
                   <div className="flex items-center gap-2">
-                    <h3 className="text-xl font-bold text-white" style={{ fontFamily: 'Oswald' }}>
+                    <h3 className="text-xl font-bold text-white font-oswald" >
                       {selectedPhotographer.full_name}
                     </h3>
                     {selectedPhotographer.is_streaming ? (

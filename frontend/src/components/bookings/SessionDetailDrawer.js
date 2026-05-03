@@ -263,7 +263,7 @@ const SessionDetailDrawer = ({
                     <OutcomeBadge session={session} isLight={isLight} />
                     <SessionTypeIcon type={sessionType} />
                   </div>
-                  <h2 className={`text-xl font-bold ${isLight ? 'text-gray-900' : 'text-white'}`} style={{ fontFamily: 'Oswald' }}>
+                  <h2 className={`text-xl font-bold ${isLight ? 'text-gray-900' : 'text-white'} font-oswald`} >
                     {location}
                   </h2>
                 </div>

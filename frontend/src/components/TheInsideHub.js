@@ -114,7 +114,7 @@ export const TheInsideHub = () => {
     >
       {/* Header */}
       <div className="text-center">
-        <h1 className={`text-3xl font-bold ${textPrimary} flex items-center justify-center gap-2`} style={{ fontFamily: 'Oswald' }}>
+        <h1 className={`text-3xl font-bold ${textPrimary} flex items-center justify-center gap-2 font-oswald`} >
           <Baby className="w-8 h-8 text-cyan-400" />
           The Inside
         </h1>

@@ -255,7 +255,7 @@ export const Auth = () => {
               alt="Raw Surf"
               className="w-10 h-10"
             />
-            <span className="text-2xl font-bold text-white" style={{ fontFamily: 'Oswald' }}>Raw Surf</span>
+            <span className="text-2xl font-bold text-white font-oswald" >Raw Surf</span>
           </div>
 
           {/* Login / Sign Up Tabs */}

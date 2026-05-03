@@ -1080,7 +1080,7 @@ const JumpInFlow = ({ photographer, onBack, onSuccess }) => {
             <div className="w-20 h-20 mx-auto rounded-full bg-emerald-500/20 flex items-center justify-center">
               <Check className="w-10 h-10 text-emerald-400" />
             </div>
-            <h3 className="text-2xl font-bold text-white" style={{ fontFamily: 'Oswald' }}>
+            <h3 className="text-2xl font-bold text-white font-oswald" >
               You're In!
             </h3>
             <p className="text-gray-400">
@@ -1646,8 +1646,8 @@ const UnifiedSpotDrawer = ({
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                       <h2
-                        className={`${textPrimary} font-bold text-lg cursor-pointer hover:text-cyan-400 transition-colors truncate`}
-                        style={{ fontFamily: 'Oswald' }}
+                        className={`${textPrimary} font-bold text-lg cursor-pointer hover:text-cyan-400 transition-colors truncate font-oswald`}
+                        
                         onClick={() => { navigate(`/spot-hub/${spot.id}`); onClose?.(); }}
                         title="View Spot Hub"
                       >

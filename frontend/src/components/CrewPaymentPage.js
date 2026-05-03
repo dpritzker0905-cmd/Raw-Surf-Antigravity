@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 
 import { useParams, useNavigate } from 'react-router-dom';
 
@@ -173,7 +173,7 @@ const CrewPaymentPage = () => {
 
       {/* Header */}
       <div className="text-center">
-        <h1 className={`text-2xl font-bold ${isLight ? 'text-gray-900' : 'text-white'}`} style={{ fontFamily: 'Oswald' }}>
+        <h1 className={`text-2xl font-bold ${isLight ? 'text-gray-900' : 'text-white'} font-oswald`} >
           Crew Payment
         </h1>
         <p className={`${isLight ? 'text-gray-600' : 'text-gray-400'}`}>

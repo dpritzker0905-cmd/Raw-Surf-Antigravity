@@ -54,7 +54,7 @@ export const ProOnboarding = () => {
           <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-gradient-to-r from-emerald-400 via-yellow-400 to-orange-400 flex items-center justify-center">
             <ShieldCheck className="w-10 h-10 text-black" />
           </div>
-          <h1 className="text-4xl font-bold text-white mb-3" style={{ fontFamily: 'Oswald' }}>
+          <h1 className="text-4xl font-bold text-white mb-3 font-oswald" >
             Approved Pro Application
           </h1>
           <p className="text-gray-400 text-lg max-w-xl mx-auto">

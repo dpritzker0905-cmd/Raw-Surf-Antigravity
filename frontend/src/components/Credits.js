@@ -129,7 +129,7 @@ export const Credits = () => {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] p-4">
         <Loader2 className="w-12 h-12 text-yellow-400 animate-spin mb-4" />
-        <h2 className="text-xl font-bold text-white mb-2" style={{ fontFamily: 'Oswald' }}>
+        <h2 className="text-xl font-bold text-white mb-2 font-oswald" >
           Verifying Payment
         </h2>
         <p className="text-gray-400">Please wait while we confirm your purchase...</p>
@@ -172,7 +172,7 @@ export const Credits = () => {
         <div className="w-20 h-20 rounded-full bg-emerald-500/20 flex items-center justify-center mb-6">
           <CheckCircle className="w-10 h-10 text-emerald-400" />
         </div>
-        <h2 className="text-3xl font-bold text-white mb-2" style={{ fontFamily: 'Oswald' }}>
+        <h2 className="text-3xl font-bold text-white mb-2 font-oswald" >
           Purchase Complete!
         </h2>
         <p className="text-gray-400 mb-6">
@@ -206,7 +206,7 @@ export const Credits = () => {
         <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-r from-yellow-400 to-orange-400 flex items-center justify-center">
           <Coins className="w-8 h-8 text-black" />
         </div>
-        <h1 className="text-3xl font-bold text-white mb-2" style={{ fontFamily: 'Oswald' }}>
+        <h1 className="text-3xl font-bold text-white mb-2 font-oswald" >
           Buy Credits
         </h1>
         <p className="text-gray-400">1 Credit = $1 USD • Use for sessions, tips, and more</p>
@@ -227,7 +227,7 @@ export const Credits = () => {
 
       {/* Quick Packages */}
       <div className="mb-6">
-        <h3 className="text-lg font-bold text-white mb-4" style={{ fontFamily: 'Oswald' }}>
+        <h3 className="text-lg font-bold text-white mb-4 font-oswald" >
           Quick Packages
         </h3>
         <div className="grid grid-cols-2 gap-3">

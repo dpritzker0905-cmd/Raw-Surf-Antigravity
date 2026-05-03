@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
@@ -736,7 +736,7 @@ export const PhotographerBookingsManager = () => {
       <div className="max-w-2xl mx-auto p-4">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
-          <h1 className={`text-2xl font-bold ${textPrimaryClass}`} style={{ fontFamily: 'Oswald' }}>
+          <h1 className={`text-2xl font-bold ${textPrimaryClass} font-oswald`} >
             Bookings Manager
           </h1>
           <div className="flex items-center gap-2">
@@ -825,7 +825,7 @@ export const PhotographerBookingsManager = () => {
               <div className={`p-3 rounded-lg ${isLight ? 'bg-gray-100' : 'bg-zinc-800/50'}`}>
                 <p className={`text-xs ${textSecondaryClass} mb-1`}>Photos Included</p>
                 <p className={`text-xl font-bold ${bookingPricing.booking_full_gallery ? 'text-green-400' : textPrimaryClass}`}>
-                  {bookingPricing.booking_full_gallery ? '∞ Full' : bookingPricing.booking_photos_included}
+                  {bookingPricing.booking_full_gallery ? '8 Full' : bookingPricing.booking_photos_included}
                 </p>
                 <p className={`text-xs ${textSecondaryClass}`}>{bookingPricing.booking_full_gallery ? 'gallery' : 'photos'}</p>
               </div>
@@ -1554,7 +1554,7 @@ export const PhotographerBookingsManager = () => {
                 Crew Split Pricing
               </h4>
               <p className={`text-xs ${textSecondaryClass} mb-4`}>
-                Formula: Base Session Price + (Per Surfer × Additional Crew)
+                Formula: Base Session Price + (Per Surfer � Additional Crew)
               </p>
               <NumericStepper
                 label="Price Per Additional Surfer"
@@ -1766,7 +1766,7 @@ export const PhotographerBookingsManager = () => {
                   {!bookingPricing.home_latitude && (
                     <div className={`mt-2 p-2 rounded-lg ${isLight ? 'bg-amber-50' : 'bg-amber-500/10'} border border-amber-500/30`}>
                       <p className={`text-xs ${isLight ? 'text-amber-700' : 'text-amber-400'}`}>
-                        ⚠️ Set your location so surfers can see if you're in their area and calculate travel fees.
+                        ?? Set your location so surfers can see if you're in their area and calculate travel fees.
                       </p>
                     </div>
                   )}

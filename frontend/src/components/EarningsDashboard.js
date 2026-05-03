@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { usePersona } from '../contexts/PersonaContext';
@@ -586,7 +586,7 @@ export const EarningsDashboard = () => {
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className={`text-3xl font-bold ${textPrimaryClass}`} style={{ fontFamily: 'Oswald' }}>
+            <h1 className={`text-3xl font-bold ${textPrimaryClass} font-oswald`} >
               {isPro ? 'Earnings Dashboard' : 'Impact Dashboard'}
             </h1>
             <p className={`${textSecondaryClass} flex items-center gap-2`}>

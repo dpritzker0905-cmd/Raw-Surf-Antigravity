@@ -272,7 +272,7 @@ export const Sidebar = () => {
             } group-hover:scale-110`}
             style={{ transition: logoSpinning ? 'transform 0.6s cubic-bezier(0.34,1.56,0.64,1)' : 'transform 0.2s ease' }}
           />
-          <span className={`text-base font-bold ${textPrimaryClass} group-hover:opacity-80 transition-opacity`} style={{ fontFamily: 'Oswald' }}>Raw Surf</span>
+          <span className={`text-base font-bold ${textPrimaryClass} group-hover:opacity-80 transition-opacity font-oswald`} >Raw Surf</span>
         </button>
         
         {/* Role badge - shows actual role or persona when masking */}

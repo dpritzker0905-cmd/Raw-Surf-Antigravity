@@ -886,7 +886,7 @@ export const PhotographerSessionsManager = () => {
       <div className="max-w-2xl mx-auto p-4">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
-          <h1 className={`text-3xl font-bold ${textPrimaryClass}`} style={{ fontFamily: 'Oswald' }}>
+          <h1 className={`text-3xl font-bold ${textPrimaryClass} font-oswald`} >
             Live Sessions
           </h1>
         </div>
@@ -1176,7 +1176,7 @@ export const PhotographerSessionsManager = () => {
 
         {/* Session History */}
         <div>
-          <h2 className={`text-xl font-bold ${textPrimaryClass} mb-4`} style={{ fontFamily: 'Oswald' }}>
+          <h2 className={`text-xl font-bold ${textPrimaryClass} mb-4 font-oswald`} >
             Session History
           </h2>
           

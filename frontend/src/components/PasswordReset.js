@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import { Button } from './ui/button';
@@ -47,7 +47,7 @@ export const ForgotPassword = () => {
               alt="Raw Surf"
               className="w-10 h-10"
             />
-            <span className="text-2xl font-bold text-white" style={{ fontFamily: 'Oswald' }}>Raw Surf</span>
+            <span className="text-2xl font-bold text-white font-oswald" >Raw Surf</span>
           </div>
           <h2 className="text-xl font-bold text-white">Forgot Password</h2>
           <p className="text-gray-400 mt-2 text-sm">
@@ -298,7 +298,7 @@ export const ResetPassword = () => {
               alt="Raw Surf"
               className="w-10 h-10"
             />
-            <span className="text-2xl font-bold text-white" style={{ fontFamily: 'Oswald' }}>Raw Surf</span>
+            <span className="text-2xl font-bold text-white font-oswald" >Raw Surf</span>
           </div>
           <h2 className="text-xl font-bold text-white">
             {success ? 'Password Reset!' : 'Create New Password'}

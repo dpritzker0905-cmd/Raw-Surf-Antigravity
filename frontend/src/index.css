@@ -496,3 +496,78 @@ input[type="range"].appearance-none::-moz-range-track {
   border-radius: 9999px;
   background: transparent;
 }
+
+/* ─── Utility Classes — Inline Style Replacements ─────────────────────────── */
+
+/* Font family: Oswald (used across challenges, hubs, leaderboards) */
+.font-oswald {
+  font-family: 'Oswald', sans-serif;
+}
+
+/* Safe-area bottom padding for mobile nav */
+.pb-safe-bottom-nav {
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 80px);
+}
+
+.pb-safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 16px);
+}
+
+/* Smooth scrolling for touch devices */
+.scroll-touch {
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Hide scrollbar (cross-browser) */
+.scrollbar-none {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+
+/* Animation duration overrides */
+.animate-duration-2s {
+  animation-duration: 2s;
+}
+
+.animate-duration-3s {
+  animation-duration: 3s;
+}
+
+/* Status indicator backgrounds (challenges, badges) */
+.bg-blue-indicator {
+  background: rgba(59, 130, 246, 0.08);
+  border: 1px solid rgba(59, 130, 246, 0.15);
+}
+
+.bg-red-indicator {
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.15);
+}
+
+.bg-green-indicator {
+  background: rgba(16, 185, 129, 0.08);
+  border: 1px solid rgba(16, 185, 129, 0.15);
+}
+
+/* Z-index utilities */
+.z-max {
+  z-index: 9999;
+}
+
+/* Drop shadow for overlays */
+.drop-shadow-overlay {
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+}
+
+/* Subtle glass border */
+.border-glass {
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+/* Pointer events override */
+.pointer-events-auto {
+  pointer-events: auto;
+}

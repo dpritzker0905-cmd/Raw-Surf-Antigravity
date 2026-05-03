@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Button } from './ui/button';
@@ -74,7 +74,7 @@ export const SubscriptionSuccess = () => {
     return (
       <div className="min-h-screen bg-black flex flex-col items-center justify-center p-4">
         <Loader2 className="w-16 h-16 text-yellow-400 animate-spin mb-6" />
-        <h1 className="text-2xl font-bold text-white mb-2" style={{ fontFamily: 'Oswald' }}>
+        <h1 className="text-2xl font-bold text-white mb-2 font-oswald" >
           Verifying Payment
         </h1>
         <p className="text-gray-400 text-center">
@@ -90,7 +90,7 @@ export const SubscriptionSuccess = () => {
         <div className="w-20 h-20 rounded-full bg-red-500/20 flex items-center justify-center mb-6">
           <XCircle className="w-10 h-10 text-red-400" />
         </div>
-        <h1 className="text-3xl font-bold text-white mb-2" style={{ fontFamily: 'Oswald' }}>
+        <h1 className="text-3xl font-bold text-white mb-2 font-oswald" >
           Something Went Wrong
         </h1>
         <p className="text-gray-400 text-center mb-8 max-w-md">
@@ -124,7 +124,7 @@ export const SubscriptionSuccess = () => {
         </div>
 
         {/* Title */}
-        <h1 className="text-4xl font-bold text-white mb-3" style={{ fontFamily: 'Oswald' }}>
+        <h1 className="text-4xl font-bold text-white mb-3 font-oswald" >
           Welcome Aboard!
         </h1>
         

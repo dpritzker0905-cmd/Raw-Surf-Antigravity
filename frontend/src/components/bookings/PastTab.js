@@ -165,7 +165,7 @@ export const PastTab = ({
           } flex items-center justify-center`}>
             <History className={`w-10 h-10 ${textSecondary}`} />
           </div>
-          <h3 className={`text-xl font-bold ${textPrimary} mb-2`} style={{ fontFamily: 'Oswald' }}>
+          <h3 className={`text-xl font-bold ${textPrimary} mb-2 font-oswald`} >
             No Past Sessions
           </h3>
           <p className={`text-sm ${textSecondary} max-w-xs mx-auto`}>

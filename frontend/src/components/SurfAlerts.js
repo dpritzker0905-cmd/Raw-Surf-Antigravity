@@ -524,7 +524,7 @@ export const SurfAlerts = () => {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-foreground flex items-center gap-2" style={{ fontFamily: 'Oswald' }}>
+          <h1 className="text-2xl font-bold text-foreground flex items-center gap-2 font-oswald" >
             <BellRing className="w-6 h-6 text-yellow-500 dark:text-yellow-400" />
             Surf Alerts
           </h1>

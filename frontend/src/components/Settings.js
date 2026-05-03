@@ -307,7 +307,7 @@ export const Settings = () => {
   return (
     <div className={`pb-20 ${mainBgClass} min-h-screen transition-colors duration-300`} data-testid="settings-page">
       <div className="max-w-md mx-auto p-4">
-        <h1 className={`text-3xl font-bold mb-6 ${textPrimaryClass}`} style={{ fontFamily: 'Oswald' }} data-testid="settings-title">
+        <h1 className={`text-3xl font-bold mb-6 ${textPrimaryClass} font-oswald`}  data-testid="settings-title">
           Settings
         </h1>
 

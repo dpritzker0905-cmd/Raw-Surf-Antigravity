@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Button } from './ui/button';
@@ -99,7 +99,7 @@ export const HobbyistFunnel = ({ onBack, onComplete }) => {
           <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-gradient-to-br from-orange-400 to-pink-500 flex items-center justify-center">
             <Heart className="w-10 h-10 text-white" />
           </div>
-          <h1 className="text-3xl font-bold text-white mb-3" style={{ fontFamily: 'Oswald' }}>
+          <h1 className="text-3xl font-bold text-white mb-3 font-oswald" >
             Join as a Hobbyist
           </h1>
           <p className="text-gray-400 text-lg max-w-xl mx-auto">
@@ -187,7 +187,7 @@ export const HobbyistFunnel = ({ onBack, onComplete }) => {
         </div>
 
         {/* Hobbyist Plans */}
-        <h2 className="text-xl font-bold text-white mb-4" style={{ fontFamily: 'Oswald' }}>
+        <h2 className="text-xl font-bold text-white mb-4 font-oswald" >
           Choose Your Hobbyist Plan
         </h2>
         

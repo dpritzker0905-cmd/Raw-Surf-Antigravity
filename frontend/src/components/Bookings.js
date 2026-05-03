@@ -961,7 +961,7 @@ export const Bookings = () => {
     <div className={`pb-20 min-h-screen ${mainBgClass} transition-colors duration-300`} data-testid="bookings-page">
       <div className="max-w-lg mx-auto p-4">
         <div className="flex items-center justify-between mb-6">
-          <h1 className={`text-3xl font-bold ${textPrimaryClass}`} style={{ fontFamily: 'Oswald' }} data-testid="bookings-title">
+          <h1 className={`text-3xl font-bold ${textPrimaryClass} font-oswald`}  data-testid="bookings-title">
             Sessions & Bookings
           </h1>
           <div className="flex items-center gap-2">

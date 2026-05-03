@@ -627,7 +627,7 @@ export const PhotographerGalleryManager = () => {
             <ArrowLeft className="w-5 h-5" />
           </Button>
           <div className="flex-1">
-            <h1 className={`text-2xl font-bold ${textPrimaryClass}`} style={{ fontFamily: 'Oswald' }}>
+            <h1 className={`text-2xl font-bold ${textPrimaryClass} font-oswald`} >
               {gallery.title}
             </h1>
             <div className="flex items-center gap-3 mt-1 flex-wrap">

@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Button } from './ui/button';
@@ -78,7 +78,7 @@ export const PhotographerSubscription = () => {
             alt="Raw Surf"
             className="w-16 h-16 mx-auto mb-4"
           />
-          <h1 className="text-4xl font-bold text-white mb-3" style={{ fontFamily: 'Oswald' }}>
+          <h1 className="text-4xl font-bold text-white mb-3 font-oswald" >
             {isVerifiedPro ? 'Verified Pro Plans' : 'Start Earning'}
           </h1>
           <p className="text-gray-400 text-lg max-w-2xl mx-auto">
@@ -152,7 +152,7 @@ export const PhotographerSubscription = () => {
               )}
               <CardContent className="p-6">
                 <div className="text-center mb-6">
-                  <h3 className="text-2xl font-bold text-white mb-1" style={{ fontFamily: 'Oswald' }}>
+                  <h3 className="text-2xl font-bold text-white mb-1 font-oswald" >
                     {tier.name}
                   </h3>
                   <p className="text-gray-400 text-sm mb-4">{tier.description}</p>

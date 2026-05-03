@@ -34,7 +34,7 @@ export const StokedLockedPage = () => {
 
       {/* Title */}
       <div className="text-center">
-        <h1 className={`text-2xl font-bold ${textPrimary}`} style={{ fontFamily: 'Oswald' }}>
+        <h1 className={`text-2xl font-bold ${textPrimary} font-oswald`} >
           Stoked is Locked
         </h1>
         <p className={`${textSecondary} mt-2 max-w-sm mx-auto`}>

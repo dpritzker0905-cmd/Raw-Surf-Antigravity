@@ -168,7 +168,7 @@ export const PhotographerSessionDashboard = ({ onClose }) => {
           </div>
           
           {/* Requester Info */}
-          <h3 className="text-lg font-bold text-white mb-1 text-center" style={{ fontFamily: 'Oswald' }}>
+          <h3 className="text-lg font-bold text-white mb-1 text-center font-oswald" >
             {firstRequest.requester_name || 'Surfer'}
             {firstRequest.requester_username && (
               <span className="text-cyan-400 text-sm font-normal ml-2">@{firstRequest.requester_username}</span>
@@ -257,7 +257,7 @@ export const PhotographerSessionDashboard = ({ onClose }) => {
           </div>
           
           {/* Session Info */}
-          <h3 className="text-lg font-bold text-white mb-1 text-center" style={{ fontFamily: 'Oswald' }}>
+          <h3 className="text-lg font-bold text-white mb-1 text-center font-oswald" >
             {activeDispatch.status === 'arrived' ? 'Now Shooting' : 'On-Demand Session'}
           </h3>
           
@@ -341,7 +341,7 @@ export const PhotographerSessionDashboard = ({ onClose }) => {
             />
           </div>
           
-          <h3 className="text-lg font-bold text-white mb-2" style={{ fontFamily: 'Oswald' }}>
+          <h3 className="text-lg font-bold text-white mb-2 font-oswald" >
             No Active Session
           </h3>
           <p className="text-gray-400 text-sm">
@@ -367,7 +367,7 @@ export const PhotographerSessionDashboard = ({ onClose }) => {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-3 h-3 bg-emerald-400 rounded-full animate-pulse"></div>
-            <span className="text-white font-bold" style={{ fontFamily: 'Oswald' }}>Live Session</span>
+            <span className="text-white font-bold font-oswald" >Live Session</span>
           </div>
           <Button
             onClick={handleStopSession}
