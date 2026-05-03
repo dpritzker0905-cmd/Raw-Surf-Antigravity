@@ -517,6 +517,41 @@ async def get_tos_status(
     }
 
 
+@router.get("/acceptance-history/{user_id}")
+async def get_acceptance_history(
+    user_id: str,
+    db: AsyncSession = Depends(get_db)
+):
+    """Return all ToS acceptance records for a user (for Settings > Legal)"""
+    result = await db.execute(
+        select(TosAcknowledgement)
+        .where(TosAcknowledgement.user_id == user_id)
+        .order_by(TosAcknowledgement.acknowledged_at.desc())
+    )
+    records = result.scalars().all()
+    
+    history = []
+    for r in records:
+        # Mask IP for privacy: show first two octets only
+        masked_ip = None
+        if r.ip_address:
+            parts = r.ip_address.split('.')
+            if len(parts) == 4:
+                masked_ip = f"{parts[0]}.{parts[1]}.x.x"
+            else:
+                masked_ip = "x.x.x.x"
+        
+        history.append({
+            "version": r.tos_version,
+            "accepted_at": r.acknowledged_at.isoformat() if r.acknowledged_at else None,
+            "ip_address": masked_ip,
+            "user_agent": r.user_agent,
+            "section": r.section
+        })
+    
+    return {"user_id": user_id, "history": history}
+
+
 # ============ COMPLIANCE DASHBOARD ============
 
 @router.get("/dashboard")

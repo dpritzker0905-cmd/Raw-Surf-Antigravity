@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
 import { usePersona } from '../contexts/PersonaContext';
-import { LogOut, User, Bell, Shield, Camera, DollarSign, CalendarCheck, ChevronRight, ChevronDown, Users, Eye, EyeOff, MapPin, Loader2, MessageSquare, Heart, UserPlus, Mail, Volume2, VolumeX, Sun, Moon, Waves, Check, Zap, CreditCard, Megaphone, Activity, WifiOff, Download, Trash2, HardDrive, Clock, FileText, Scale, ExternalLink, AlertTriangle } from 'lucide-react';
+import { LogOut, User, Bell, Shield, Camera, DollarSign, CalendarCheck, ChevronRight, ChevronDown, Users, Eye, EyeOff, MapPin, Loader2, MessageSquare, Heart, UserPlus, Mail, Volume2, VolumeX, Sun, Moon, Waves, Check, Zap, CreditCard, Megaphone, Activity, WifiOff, Download, Trash2, HardDrive, Clock, FileText, Scale, AlertTriangle } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from './ui/card';
 import { Button } from './ui/button';
 
@@ -115,13 +115,19 @@ export const Settings = () => {
   const CURRENT_TOS_VERSION = '1.0';
   const [tosStatus, setTosStatus] = useState({ loading: true, acknowledged: false, acknowledged_at: null });
   const [showTosFullText, setShowTosFullText] = useState(false);
+  const [showPrivacyPolicy, setShowPrivacyPolicy] = useState(false);
+  const [acceptanceHistory, setAcceptanceHistory] = useState({ loading: true, data: [] });
 
-  // Fetch ToS acceptance status
+  // Fetch ToS acceptance status + full acceptance history
   useEffect(() => {
     if (user?.id) {
       apiClient.get(`/compliance/tos-status/${user.id}?current_version=${CURRENT_TOS_VERSION}`)
         .then(res => setTosStatus({ loading: false, acknowledged: res.data.acknowledged, acknowledged_at: res.data.acknowledged_at }))
         .catch(() => setTosStatus({ loading: false, acknowledged: false, acknowledged_at: null }));
+      
+      apiClient.get(`/compliance/acceptance-history/${user.id}`)
+        .then(res => setAcceptanceHistory({ loading: false, data: res.data.history || [] }))
+        .catch(() => setAcceptanceHistory({ loading: false, data: [] }));
     }
   }, [user?.id]);
 
@@ -1218,13 +1224,90 @@ export const Settings = () => {
                 </div>
               )}
 
-              {/* Privacy Policy Link */}
-              <div className={`flex items-center justify-between py-2 border-b ${borderClass}`}>
-                <div className="flex items-center gap-2">
-                  <Shield className="w-4 h-4 text-muted-foreground" />
-                  <span className={textPrimaryClass}>Privacy Policy</span>
+              {/* Privacy Policy */}
+              <Button
+                onClick={() => setShowPrivacyPolicy(!showPrivacyPolicy)}
+                variant="outline"
+                className={`w-full ${borderClass} text-cyan-400 hover:bg-cyan-500/10`}
+                data-testid="view-privacy-button"
+              >
+                <Shield className="w-4 h-4 mr-2" />
+                {showPrivacyPolicy ? 'Hide Privacy Policy' : 'View Privacy Policy'}
+              </Button>
+
+              {showPrivacyPolicy && (
+                <div className="rounded-xl border border-border bg-muted/30 p-4 text-sm text-muted-foreground space-y-3 max-h-[50vh] overflow-y-auto" data-testid="privacy-full-text">
+                  <p className={`text-xs ${textSecondaryClass} uppercase tracking-wider`}>Privacy Policy • Effective May 2026</p>
+
+                  <h4 className={`${textPrimaryClass} font-semibold`}>1. Information We Collect</h4>
+                  <p>We collect information you provide directly: name, email, profile photo, surf spot check-ins, and uploaded content. We also collect device information, IP addresses, and usage analytics to improve the platform.</p>
+
+                  <h4 className={`${textPrimaryClass} font-semibold`}>2. How We Use Your Data</h4>
+                  <p>Your data is used to provide and improve Raw Surf's services: matching surfers with photos, processing payments, delivering notifications, and personalizing your experience. We use AI to tag and match photos — this processing happens on our servers and is not shared externally.</p>
+
+                  <h4 className={`${textPrimaryClass} font-semibold`}>3. Location Data</h4>
+                  <p>Surf spot check-ins, on-demand booking, and live sessions use your location. Location data is used for service delivery and anti-fraud verification. You can disable location features in your device settings, though some features will be unavailable.</p>
+
+                  <h4 className={`${textPrimaryClass} font-semibold`}>4. Data Sharing</h4>
+                  <p>We do not sell your personal data to third parties. We share data with: Stripe (payments), Supabase (infrastructure), and OneSignal (push notifications). These providers are contractually bound to protect your data.</p>
+
+                  <h4 className={`${textPrimaryClass} font-semibold`}>5. Children's Privacy (Groms)</h4>
+                  <p>Users under 18 ("Groms") require parental consent via the Grom HQ parent-linking system. Grom accounts have restricted messaging, content visibility, and commerce features controlled by their parent/guardian.</p>
+
+                  <h4 className={`${textPrimaryClass} font-semibold`}>6. Data Retention</h4>
+                  <p>We retain your data for as long as your account is active. Deleted accounts have their personal data purged within 30 days. Transaction records are retained for 7 years as required by financial regulations.</p>
+
+                  <h4 className={`${textPrimaryClass} font-semibold`}>7. Your Rights</h4>
+                  <p>You have the right to: access your data, correct inaccuracies, request deletion, export your data, and withdraw consent. Exercise these rights through Settings or by contacting support@rawsurf.com.</p>
+
+                  <h4 className={`${textPrimaryClass} font-semibold`}>8. Cookies & Tracking</h4>
+                  <p>We use essential cookies for authentication and session management. We do not use third-party advertising trackers. Analytics are collected in aggregate to improve platform performance.</p>
+
+                  <h4 className={`${textPrimaryClass} font-semibold`}>9. Changes to This Policy</h4>
+                  <p>We may update this Privacy Policy from time to time. Material changes will be communicated via in-app notification. Your continued use of Raw Surf after changes constitutes acceptance.</p>
                 </div>
-                <ExternalLink className={`w-4 h-4 ${textSecondaryClass}`} />
+              )}
+
+              {/* Acceptance History */}
+              <div className={`py-2 border-b ${borderClass}`}>
+                <div className="flex items-center gap-2 mb-2">
+                  <Clock className="w-4 h-4 text-muted-foreground" />
+                  <span className={`${textPrimaryClass} text-sm font-medium`}>Acceptance History</span>
+                </div>
+                {acceptanceHistory.loading ? (
+                  <div className="flex justify-center py-3">
+                    <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+                  </div>
+                ) : acceptanceHistory.data.length === 0 ? (
+                  <p className={`text-xs ${textSecondaryClass} py-2`}>No acceptance records found.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {acceptanceHistory.data.map((record, idx) => (
+                      <div key={idx} className="p-3 rounded-lg border border-border bg-muted/20">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <Check className="w-4 h-4 text-emerald-400" />
+                            <span className={`text-sm font-medium ${textPrimaryClass}`}>
+                              Version {record.version}
+                            </span>
+                            {idx === 0 && (
+                              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400">Latest</span>
+                            )}
+                          </div>
+                        </div>
+                        <div className={`mt-1.5 text-xs ${textSecondaryClass} space-y-0.5`}>
+                          {record.accepted_at && (
+                            <p>Accepted: {new Date(record.accepted_at).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>
+                          )}
+                          {record.ip_address && <p>IP: {record.ip_address}</p>}
+                          {record.user_agent && (
+                            <p>Device: {record.user_agent.length > 60 ? record.user_agent.substring(0, 60) + '…' : record.user_agent}</p>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* Violation History */}
