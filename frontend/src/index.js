@@ -97,3 +97,19 @@ root.render(
   </React.StrictMode>,
 );
 
+// ── Service Worker Registration ─────────────────────────────────────────────
+// Enables offline caching, push notifications, and PWA installability.
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/service-worker.js')
+      .then((registration) => {
+        // Check for updates every 60 minutes
+        setInterval(() => {
+          registration.update();
+        }, 60 * 60 * 1000);
+      })
+      .catch((error) => {
+        console.warn('[SW] Registration failed:', error);
+      });
+  });
+}

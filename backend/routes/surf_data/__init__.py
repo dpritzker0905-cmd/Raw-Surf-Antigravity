@@ -7,6 +7,7 @@ from .alerts import router as alerts_router
 from .waves import router as waves_router
 from .surf_log import router as surf_log_router
 from .surfboards import router as surfboards_router
+from .checkins import router as checkins_router
 
 router = APIRouter()
 router.include_router(conditions_router)
@@ -15,3 +16,4 @@ router.include_router(alerts_router)
 router.include_router(waves_router)
 router.include_router(surf_log_router)
 router.include_router(surfboards_router)
+router.include_router(checkins_router)

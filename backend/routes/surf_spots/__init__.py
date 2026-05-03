@@ -27,6 +27,8 @@ from .refinements import router as refinements_router
 from .spot_of_day import router as spot_of_day_router
 from .conditions import router as conditions_router
 from .crowd import router as crowd_router
+from .spot_admin import router as spot_admin_router
+from .spot_admin import verification_router
 
 router.include_router(spots_router)
 router.include_router(live_router)
@@ -36,3 +38,5 @@ router.include_router(refinements_router)
 router.include_router(spot_of_day_router)
 router.include_router(conditions_router)
 router.include_router(crowd_router)
+router.include_router(spot_admin_router)
+router.include_router(verification_router)

@@ -12,6 +12,12 @@ from .career_hub import router as career_hub_router
 from .live import router as live_router
 from .surf_data import router as surf_data_router
 from .explore_discover import router as explore_discover_router
+from .auth_pkg import router as auth_pkg_router
+from .ai import router as ai_router
+from .content import router as content_router
+from .commerce import router as commerce_router
+from .reviews_pkg import router as reviews_pkg_router
+from .surfer_gallery_review_pkg import router as surfer_gallery_review_router
 
 # ─── Existing domain packages ───────────────────────────────────────────────────
 from .posts import router as posts_router
@@ -34,28 +40,11 @@ from .admin import (
     admin_analytics_enhanced_router, admin_support_router,
     admin_content_mod_router, admin_communications_router,
     admin_system_router, admin_finance_router, admin_content_mgmt_router,
+    admin_ab_analytics_router,
 )
 
-# ─── Standalone route files (small, focused — no package needed) ─────────────────
-from .auth import router as auth_router
-from .password_reset import router as password_reset_router
-from .checkins import router as checkins_router
-from .stories import router as stories_router
-from .ai_tagging import router as ai_tagging_router
-from .ai_health import router as ai_health_router
-from .ad_controls import router as ad_controls_router
-from .gear_hub import router as gear_hub_router
-from .reviews import router as reviews_router
-from .notes import router as notes_router
-from .meta_sharing import router as meta_sharing_router
-from .spot_admin import router as spot_admin_router
-from .spot_admin import verification_router as spot_verification_router
-from .analytics import router as analytics_router
-from .pricing_config import router as pricing_config_router
+# ─── Standalone route files (infrastructure — no package needed) ─────────────────
 from .health import router as health_router
-from .payments import router as payments_router
-from .post_collaboration import router as post_collaboration_router
-from .surfer_gallery_review import router as surfer_gallery_review_router
 
 # Create main API router
 api_router = APIRouter(prefix="/api")
@@ -71,6 +60,12 @@ api_router.include_router(career_hub_router, tags=["Career Hub"])
 api_router.include_router(live_router, tags=["Live"])
 api_router.include_router(surf_data_router, tags=["Surf Data"])
 api_router.include_router(explore_discover_router, tags=["Explore"])
+api_router.include_router(auth_pkg_router, tags=["Auth"])
+api_router.include_router(ai_router, tags=["AI"])
+api_router.include_router(content_router, tags=["Content"])
+api_router.include_router(commerce_router, tags=["Commerce"])
+api_router.include_router(reviews_pkg_router, tags=["Reviews"])
+api_router.include_router(surfer_gallery_review_router, tags=["Surfer Gallery Review"])
 
 # ─── Include existing packages ──────────────────────────────────────────────────
 api_router.include_router(posts_router, tags=["Posts"])
@@ -101,27 +96,10 @@ api_router.include_router(admin_communications_router, tags=["Admin Communicatio
 api_router.include_router(admin_system_router, tags=["Admin System"])
 api_router.include_router(admin_finance_router, tags=["Admin Finance"])
 api_router.include_router(admin_content_mgmt_router, tags=["Admin Content Management"])
+api_router.include_router(admin_ab_analytics_router, tags=["Admin A/B Analytics"])
 
 # ─── Include standalone routes ──────────────────────────────────────────────────
-api_router.include_router(auth_router, tags=["Auth"])
-api_router.include_router(password_reset_router, tags=["Auth"])
-api_router.include_router(checkins_router, tags=["Check-ins"])
-api_router.include_router(stories_router, tags=["Stories"])
-api_router.include_router(ai_tagging_router, tags=["AI Tagging"])
-api_router.include_router(ai_health_router, tags=["AI Health"])
-api_router.include_router(ad_controls_router, tags=["Ad Controls"])
-api_router.include_router(gear_hub_router, tags=["Gear Hub"])
-api_router.include_router(reviews_router, tags=["Reviews"])
-api_router.include_router(notes_router, tags=["Notes"])
-api_router.include_router(meta_sharing_router, tags=["Meta Sharing"])
-api_router.include_router(spot_admin_router, tags=["Admin Spots"])
-api_router.include_router(spot_verification_router, tags=["Spot Verification"])
-api_router.include_router(analytics_router, tags=["Admin Analytics"])
-api_router.include_router(pricing_config_router, tags=["Pricing Config"])
 api_router.include_router(health_router, tags=["Health"])
-api_router.include_router(payments_router, tags=["Payments"])
-api_router.include_router(post_collaboration_router, tags=["Post Collaboration"])
-api_router.include_router(surfer_gallery_review_router, tags=["Surfer Gallery Review"])
 
 
 @api_router.get("/")

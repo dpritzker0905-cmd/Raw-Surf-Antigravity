@@ -14,3 +14,4 @@ from .p1 import router as admin_p1_router
 from .p2 import router as admin_p2_router
 from .support import router as admin_support_router
 from .system import router as admin_system_router
+from .ab_analytics import router as admin_ab_analytics_router
