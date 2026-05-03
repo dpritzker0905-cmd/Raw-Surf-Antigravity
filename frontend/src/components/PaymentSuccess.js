@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Payment Success Page
  * Polls Stripe for payment status and shows confirmation
  */
@@ -76,14 +76,14 @@ const PaymentSuccess = () => {
             </div>
             <h2 className="text-2xl font-bold text-white mb-2">Payment Successful!</h2>
             <p className="text-gray-400 mb-4">
-              Your deposit of ${(paymentData?.amount_total / 100).toFixed(2)} has been received.
+              Your payment of ${(paymentData?.amount_total / 100).toFixed(2)} has been received and is held securely.
             </p>
             <div className="bg-zinc-800/50 rounded-lg p-4 mb-6 text-left">
-              <p className="text-sm text-gray-400 mb-1">Amount</p>
+              <p className="text-sm text-gray-400 mb-1">Amount Held in Escrow</p>
               <p className="text-lg text-white font-bold">${(paymentData?.amount_total / 100).toFixed(2)} {paymentData?.currency?.toUpperCase()}</p>
             </div>
             <p className="text-sm text-gray-500 mb-6">
-              Credits have been added to your wallet. You can now request a photographer!
+              Your payment is held securely until your session is complete. Searching for a photographer now!
             </p>
             <Button 
               onClick={() => navigate('/map')}

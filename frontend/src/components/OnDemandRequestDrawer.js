@@ -2167,7 +2167,7 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
                 </div>
                 <div>
                   <p className={`font-medium ${textPrimary}`}>Your Payment Confirmed</p>
-                  <p className={`text-xs ${textSecondary}`}>${captainPayAmount.toFixed(2)} deposit secured</p>
+                  <p className={`text-xs ${textSecondary}`}>${captainPayAmount.toFixed(2)} payment held in escrow</p>
                 </div>
               </div>
               <div className="flex items-center gap-3">
@@ -2230,7 +2230,7 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
                 </p>
                 <p className={`text-xs ${textSecondary} text-center`}>
                   {photographer?.on_demand_cancellation_fee_pct === 0
-                    ? 'Your deposit will be fully refunded to your account credits.'
+                    ? 'Your payment will be fully refunded to your account credits.'
                     : photographer?.on_demand_cancellation_fee_pct === 100
                       ? 'This photographer has a non-refundable cancellation policy.'
                       : `A ${photographer?.on_demand_cancellation_fee_pct || 100}% cancellation fee will be applied. You may request an emergency exception after cancelling.`}
@@ -2252,7 +2252,7 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
                         if (feeAmt > 0) {
                           toast.info(`Cancelled. $${refundAmt.toFixed(2)} refunded, $${feeAmt.toFixed(2)} fee applied.`, { duration: 6000 });
                         } else {
-                          toast.info('Request cancelled. Your deposit has been refunded.');
+                          toast.info('Request cancelled. Your payment has been refunded to credits.');
                         }
                       } catch (e) {
                         toast.error('Failed to cancel request');

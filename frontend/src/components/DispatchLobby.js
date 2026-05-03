@@ -518,7 +518,7 @@ export const DispatchLobby = () => {
           { duration: 6000 }
         );
       } else {
-        toast.info('Session cancelled. Your deposit has been refunded.');
+        toast.info('Session cancelled. Your payment has been refunded to credits.');
       }
       navigate(`/bookings?tab=on_demand&highlight=${dispatchId}`);
     } catch {
@@ -1228,7 +1228,7 @@ export const DispatchLobby = () => {
               <p className={`text-xs ${textSecondary}`}>
                 {photographerAccepted
                   ? 'A cancellation fee may apply based on the photographer\'s policy.'
-                  : 'Your deposit will be refunded to your account credits.'}
+                  : 'Your payment will be refunded to your account credits.'}
               </p>
               <div className="flex gap-3">
                 <Button

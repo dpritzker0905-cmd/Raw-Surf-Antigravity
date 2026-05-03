@@ -206,8 +206,9 @@ export const RequestProModal = ({
   );
   const captainPayAmount = totalCost - crewCoversAmount;
   const isShared         = crewMembers.length > 0;
-  // For solo bookings: 25% deposit. For shared: captain pays their full share upfront.
-  const depositAmount    = isShared ? captainPayAmount.toFixed(0) : (totalCost * 0.25).toFixed(0);
+  // Full payment upfront (escrow) — we hold funds until session completion.
+  // For shared bookings: captain pays their share. Solo: captain pays full total.
+  const depositAmount    = isShared ? captainPayAmount.toFixed(0) : totalCost.toFixed(0);
 
   // ── Debounced user search for crew autocomplete ─────────────────────────
   useEffect(() => {
@@ -836,7 +837,7 @@ export const RequestProModal = ({
             </div>
             <div className={`px-3 py-2.5 border-t ${isDark ? 'border-cyan-500/20 bg-cyan-500/5' : 'border-cyan-200 bg-cyan-50'} flex items-center justify-between`}>
               <span className="text-cyan-600 dark:text-cyan-400 font-medium text-sm">
-                {isShared ? "Captain's Share" : 'Deposit (25%)'}
+                {isShared ? "Captain's Share" : 'Amount Due'}
               </span>
               <span className="text-cyan-600 dark:text-cyan-400 font-bold text-base">${depositAmount}</span>
             </div>
@@ -876,7 +877,7 @@ export const RequestProModal = ({
           <p className="text-[10px] text-gray-500 text-center">
             {isShared
               ? 'Crew members have 10 minutes to accept. Your share is charged now.'
-              : 'Deposit is non-refundable once a Pro accepts and starts traveling to you.'}
+              : 'Full payment held in escrow. Refundable to credits until a Pro accepts and starts traveling.'}
           </p>
         </div>
 
@@ -900,7 +901,7 @@ export const RequestProModal = ({
             ) : isShared ? (
               `Send Invites & Pay $${depositAmount}`
             ) : (
-              `Pay $${depositAmount} Deposit`
+              `Pay $${depositAmount} — Book Session`
             )}
           </Button>
         </DialogFooter>

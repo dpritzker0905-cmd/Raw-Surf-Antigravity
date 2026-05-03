@@ -294,7 +294,7 @@ const IncomingRequestCard = ({
         {isExpanded && (
           <div className={`mb-4 p-4 rounded-xl ${sectionBg} space-y-3`}>
             <div className="flex justify-between text-sm">
-              <span className={textSecondary}>Deposit Paid</span>
+              <span className={textSecondary}>Payment Secured</span>
               <span className="text-green-400 font-medium">${request.deposit_amount?.toFixed(2) || '0.00'}</span>
             </div>
             <div className="flex justify-between text-sm">
@@ -2023,7 +2023,7 @@ export const OnDemandSessionManager = () => {
                         🛡️ Cancellation Fee
                       </p>
                       <p className={`text-xs ${textSecondary} mb-3`}>
-                        Percentage of deposit kept when a surfer cancels after you accept. 0% = fully refundable.
+                        Percentage of payment kept when a surfer cancels after you accept. 0% = fully refundable.
                       </p>
                       <NumericStepper
                         label="Fee Percentage"
@@ -2037,8 +2037,8 @@ export const OnDemandSessionManager = () => {
                       />
                       <div className={`mt-2 text-xs ${textSecondary} flex items-center gap-1`}>
                         <Info className="w-3 h-3" />
-                        {cancellationFeePct === 0 ? 'Fully refundable — surfers get full deposit back' :
-                         cancellationFeePct === 100 ? 'Non-refundable — you keep the entire deposit' :
+                        {cancellationFeePct === 0 ? 'Fully refundable — surfers get full payment back' :
+                         cancellationFeePct === 100 ? 'Non-refundable — you keep the entire payment' :
                          `Surfer receives ${100 - cancellationFeePct}% refund on cancellation`}
                       </div>
                     </div>
@@ -2260,7 +2260,7 @@ export const OnDemandSessionManager = () => {
             </div>
             <AlertDialogDescription className="text-gray-400 text-sm leading-relaxed">
               This will end the on-demand session and notify the surfer.
-              Any held deposit will be refunded to their account.
+              Any held payment will be refunded to the surfer's account credits.
               This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
