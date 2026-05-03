@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from './ui/button';
@@ -61,6 +61,7 @@ export const Auth = () => {
   const [selectedRole, setSelectedRole] = useState(null);
   const [tosAccepted, setTosAccepted] = useState(false);
   const [showTosModal, setShowTosModal] = useState(false);
+  const [authTosContent, setAuthTosContent] = useState({ sections: [], version: '', effective_date: '' });
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -75,6 +76,15 @@ export const Auth = () => {
   const categoryConfig = category ? ROLE_CONFIG[category] : null;
   const isLogin = tab === 'login';
   const showCategorySelection = tab === 'signup' && !category;
+
+  // Fetch ToS content from DB when modal opens
+  useEffect(() => {
+    if (showTosModal && authTosContent.sections.length === 0) {
+      apiClient.get('/compliance/tos-content/current?doc_type=tos')
+        .then(res => setAuthTosContent(res.data))
+        .catch(() => {});
+    }
+  }, [showTosModal]);
 
   const handleTabChange = (newTab) => {
     if (newTab === 'login') {
@@ -665,37 +675,18 @@ export const Auth = () => {
 
             {/* Scrollable Content */}
             <div className="flex-1 overflow-y-auto px-6 py-4 text-sm text-gray-300 space-y-4" style={{ maxHeight: '60vh' }}>
-              <p className="text-xs text-gray-500 uppercase tracking-wider">Version {CURRENT_TOS_VERSION} • Effective May 2026</p>
-
-              <h3 className="text-white font-semibold text-base">1. Acceptance of Terms</h3>
-              <p>By creating an account on Raw Surf, you agree to be bound by these Terms of Service ("Terms"). If you do not agree, you may not use the platform.</p>
-
-              <h3 className="text-white font-semibold text-base">2. Account Eligibility</h3>
-              <p>You must be at least 13 years old to create an account. Users under 18 ("Groms") must have a parent or guardian link their account. You are responsible for maintaining the security of your account credentials.</p>
-
-              <h3 className="text-white font-semibold text-base">3. User Content</h3>
-              <p>You retain ownership of all photos, videos, and content you upload. By posting content publicly, you grant Raw Surf a non-exclusive, royalty-free license to display and distribute that content within the platform. You must not upload content that is illegal, infringing, or violates the rights of others.</p>
-
-              <h3 className="text-white font-semibold text-base">4. Photographer Services</h3>
-              <p>Photographers set their own pricing and availability. Raw Surf facilitates connections between photographers and surfers but is not a party to the service agreement between them. A platform commission applies to all transactions.</p>
-
-              <h3 className="text-white font-semibold text-base">5. Payments & Refunds</h3>
-              <p>All payments are processed through Stripe. Refund eligibility is determined on a case-by-case basis. Disputes can be filed through the platform's dispute resolution system.</p>
-
-              <h3 className="text-white font-semibold text-base">6. Location Data</h3>
-              <p>Certain features (spot check-ins, on-demand booking, live sessions) use your location data. Falsifying your location is a violation of these Terms and may result in account suspension.</p>
-
-              <h3 className="text-white font-semibold text-base">7. Community Standards</h3>
-              <p>Users must treat each other with respect. Harassment, hate speech, spam, and fraud are prohibited. Violations are subject to a progressive strike system: warning → 7-day suspension → 30-day suspension → permanent ban.</p>
-
-              <h3 className="text-white font-semibold text-base">8. Privacy</h3>
-              <p>We collect and process personal data as described in our Privacy Policy. We do not sell your personal information to third parties. You may request deletion of your data at any time through Settings.</p>
-
-              <h3 className="text-white font-semibold text-base">9. Limitation of Liability</h3>
-              <p>Raw Surf is provided "as is" without warranties. We are not liable for any damages arising from your use of the platform, interactions with other users, or third-party services.</p>
-
-              <h3 className="text-white font-semibold text-base">10. Modifications</h3>
-              <p>We may update these Terms from time to time. Material changes will be communicated via in-app notification. Continued use after changes constitutes acceptance of the updated Terms.</p>
+              <p className="text-xs text-gray-500 uppercase tracking-wider">Version {authTosContent.version || CURRENT_TOS_VERSION} • Effective {authTosContent.effective_date || 'May 2026'}</p>
+              {(authTosContent.sections || []).map((section, idx) => (
+                <React.Fragment key={idx}>
+                  <h3 className="text-white font-semibold text-base">{section.title}</h3>
+                  <p>{section.body}</p>
+                </React.Fragment>
+              ))}
+              {(!authTosContent.sections || authTosContent.sections.length === 0) && (
+                <div className="flex justify-center py-8">
+                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-cyan-400"></div>
+                </div>
+              )}
             </div>
 
             {/* Modal Footer */}

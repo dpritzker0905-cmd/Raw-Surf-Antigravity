@@ -21,13 +21,22 @@ const TosReacceptanceGate = ({ children }) => {
   const [status, setStatus] = useState('loading'); // 'loading' | 'accepted' | 'needs_acceptance'
   const [submitting, setSubmitting] = useState(false);
   const [showFullText, setShowFullText] = useState(false);
+  const [tosSections, setTosSections] = useState([]);
 
   useEffect(() => {
     if (!user?.id) return;
 
     apiClient.get(`/compliance/tos-status/${user.id}?current_version=${CURRENT_TOS_VERSION}`)
       .then(res => {
-        setStatus(res.data.acknowledged ? 'accepted' : 'needs_acceptance');
+        if (res.data.acknowledged) {
+          setStatus('accepted');
+        } else {
+          // Fetch ToS content for display
+          apiClient.get('/compliance/tos-content/current?doc_type=tos')
+            .then(r => setTosSections(r.data.sections || []))
+            .catch(() => {}); // Fallback: empty sections, user can still accept
+          setStatus('needs_acceptance');
+        }
       })
       .catch(() => {
         // If check fails, don't block the user — fail open
@@ -109,35 +118,16 @@ const TosReacceptanceGate = ({ children }) => {
 
             {showFullText && (
               <div className="rounded-xl border border-zinc-700 bg-zinc-800/50 p-4 text-sm text-zinc-400 space-y-3 max-h-[40vh] overflow-y-auto">
-                <h4 className="text-white font-semibold">1. Acceptance of Terms</h4>
-                <p>By creating an account on Raw Surf, you agree to be bound by these Terms of Service ("Terms"). If you do not agree, you may not use the platform.</p>
-
-                <h4 className="text-white font-semibold">2. Account Eligibility</h4>
-                <p>You must be at least 13 years old to create an account. Users under 18 ("Groms") must have a parent or guardian link their account. You are responsible for maintaining the security of your account credentials.</p>
-
-                <h4 className="text-white font-semibold">3. User Content</h4>
-                <p>You retain ownership of all photos, videos, and content you upload. By posting content publicly, you grant Raw Surf a non-exclusive, royalty-free license to display and distribute that content within the platform.</p>
-
-                <h4 className="text-white font-semibold">4. Photographer Services</h4>
-                <p>Photographers set their own pricing and availability. Raw Surf facilitates connections between photographers and surfers but is not a party to the service agreement between them.</p>
-
-                <h4 className="text-white font-semibold">5. Payments & Refunds</h4>
-                <p>All payments are processed through Stripe. Refund eligibility is determined on a case-by-case basis.</p>
-
-                <h4 className="text-white font-semibold">6. Location Data</h4>
-                <p>Certain features use your location data. Falsifying your location is a violation of these Terms.</p>
-
-                <h4 className="text-white font-semibold">7. Community Standards</h4>
-                <p>Harassment, hate speech, spam, and fraud are prohibited. Violations follow a progressive strike system: warning → 7-day suspension → 30-day suspension → permanent ban.</p>
-
-                <h4 className="text-white font-semibold">8. Privacy</h4>
-                <p>We do not sell your personal information to third parties. You may request deletion of your data at any time.</p>
-
-                <h4 className="text-white font-semibold">9. Limitation of Liability</h4>
-                <p>Raw Surf is provided "as is" without warranties.</p>
-
-                <h4 className="text-white font-semibold">10. Modifications</h4>
-                <p>We may update these Terms from time to time. Material changes will be communicated via in-app notification.</p>
+                {tosSections.length > 0 ? (
+                  tosSections.map((section, idx) => (
+                    <React.Fragment key={idx}>
+                      <h4 className="text-white font-semibold">{section.title}</h4>
+                      <p>{section.body}</p>
+                    </React.Fragment>
+                  ))
+                ) : (
+                  <p className="text-zinc-500">Loading terms...</p>
+                )}
               </div>
             )}
           </div>

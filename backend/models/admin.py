@@ -1,4 +1,4 @@
-﻿"""Admin: disputes, reports, blocks, audits, fraud, ToS, verification."""
+"""Admin: disputes, reports, blocks, audits, fraud, ToS, verification."""
 from sqlalchemy import Column, String, Integer, Float, Boolean, ForeignKey, DateTime, Date, Enum, Text, Index, JSON
 from sqlalchemy.orm import relationship, backref
 from database import Base
@@ -490,6 +490,46 @@ class UserActivityLog(Base):
     __table_args__ = (
         Index('ix_activity_user_created', 'user_id', 'created_at'),
         Index('ix_activity_type_created', 'activity_type', 'created_at'),
+    )
+
+
+class TosContent(Base):
+    """
+    Admin-managed Terms of Service and Privacy Policy content.
+    Stored in Supabase so admins can edit without code deploys.
+    Each row is a versioned document (tos or privacy).
+    """
+    __tablename__ = 'tos_content'
+    
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    
+    # Document type: 'tos' or 'privacy'
+    doc_type = Column(String(20), nullable=False, index=True)
+    
+    # Versioning
+    version = Column(String(20), nullable=False)  # e.g., "1.0", "2.0"
+    
+    # Content stored as JSON array of sections: [{title, body}]
+    sections = Column(JSON, nullable=False, default=list)
+    
+    # Metadata
+    effective_date = Column(String(50), nullable=True)  # e.g., "May 2026"
+    is_active = Column(Boolean, default=False, index=True)  # Only one active per doc_type
+    
+    # Audit
+    created_by = Column(String(36), ForeignKey('profiles.id', ondelete='SET NULL'), nullable=True)
+    updated_by = Column(String(36), ForeignKey('profiles.id', ondelete='SET NULL'), nullable=True)
+    
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+    
+    # Relationships
+    creator = relationship('Profile', foreign_keys=[created_by])
+    updater = relationship('Profile', foreign_keys=[updated_by])
+    
+    __table_args__ = (
+        Index('ix_tos_content_type_version', 'doc_type', 'version', unique=True),
+        Index('ix_tos_content_active', 'doc_type', 'is_active'),
     )
 
 

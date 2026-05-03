@@ -117,8 +117,10 @@ export const Settings = () => {
   const [showTosFullText, setShowTosFullText] = useState(false);
   const [showPrivacyPolicy, setShowPrivacyPolicy] = useState(false);
   const [acceptanceHistory, setAcceptanceHistory] = useState({ loading: true, data: [] });
+  const [tosContent, setTosContent] = useState({ sections: [], version: '', effective_date: '' });
+  const [privacyContent, setPrivacyContent] = useState({ sections: [], effective_date: '' });
 
-  // Fetch ToS acceptance status + full acceptance history
+  // Fetch ToS acceptance status + full acceptance history + content from DB
   useEffect(() => {
     if (user?.id) {
       apiClient.get(`/compliance/tos-status/${user.id}?current_version=${CURRENT_TOS_VERSION}`)
@@ -129,6 +131,14 @@ export const Settings = () => {
         .then(res => setAcceptanceHistory({ loading: false, data: res.data.history || [] }))
         .catch(() => setAcceptanceHistory({ loading: false, data: [] }));
     }
+
+    // Fetch content (no auth required)
+    apiClient.get('/compliance/tos-content/current?doc_type=tos')
+      .then(res => setTosContent(res.data))
+      .catch(() => {});
+    apiClient.get('/compliance/tos-content/current?doc_type=privacy')
+      .then(res => setPrivacyContent(res.data))
+      .catch(() => {});
   }, [user?.id]);
 
   // Violation history state
@@ -1190,37 +1200,16 @@ export const Settings = () => {
               {/* Full ToS Text (Expandable) */}
               {showTosFullText && (
                 <div className="rounded-xl border border-border bg-muted/30 p-4 text-sm text-muted-foreground space-y-3 max-h-[50vh] overflow-y-auto" data-testid="tos-full-text">
-                  <p className={`text-xs ${textSecondaryClass} uppercase tracking-wider`}>Version {CURRENT_TOS_VERSION} • Effective May 2026</p>
-
-                  <h4 className={`${textPrimaryClass} font-semibold`}>1. Acceptance of Terms</h4>
-                  <p>By creating an account on Raw Surf, you agree to be bound by these Terms of Service ("Terms"). If you do not agree, you may not use the platform.</p>
-
-                  <h4 className={`${textPrimaryClass} font-semibold`}>2. Account Eligibility</h4>
-                  <p>You must be at least 13 years old to create an account. Users under 18 ("Groms") must have a parent or guardian link their account. You are responsible for maintaining the security of your account credentials.</p>
-
-                  <h4 className={`${textPrimaryClass} font-semibold`}>3. User Content</h4>
-                  <p>You retain ownership of all photos, videos, and content you upload. By posting content publicly, you grant Raw Surf a non-exclusive, royalty-free license to display and distribute that content within the platform. You must not upload content that is illegal, infringing, or violates the rights of others.</p>
-
-                  <h4 className={`${textPrimaryClass} font-semibold`}>4. Photographer Services</h4>
-                  <p>Photographers set their own pricing and availability. Raw Surf facilitates connections between photographers and surfers but is not a party to the service agreement between them. A platform commission applies to all transactions.</p>
-
-                  <h4 className={`${textPrimaryClass} font-semibold`}>5. Payments & Refunds</h4>
-                  <p>All payments are processed through Stripe. Refund eligibility is determined on a case-by-case basis. Disputes can be filed through the platform's dispute resolution system.</p>
-
-                  <h4 className={`${textPrimaryClass} font-semibold`}>6. Location Data</h4>
-                  <p>Certain features (spot check-ins, on-demand booking, live sessions) use your location data. Falsifying your location is a violation of these Terms and may result in account suspension.</p>
-
-                  <h4 className={`${textPrimaryClass} font-semibold`}>7. Community Standards</h4>
-                  <p>Users must treat each other with respect. Harassment, hate speech, spam, and fraud are prohibited. Violations are subject to a progressive strike system: warning → 7-day suspension → 30-day suspension → permanent ban.</p>
-
-                  <h4 className={`${textPrimaryClass} font-semibold`}>8. Privacy</h4>
-                  <p>We collect and process personal data as described in our Privacy Policy. We do not sell your personal information to third parties. You may request deletion of your data at any time through Settings.</p>
-
-                  <h4 className={`${textPrimaryClass} font-semibold`}>9. Limitation of Liability</h4>
-                  <p>Raw Surf is provided "as is" without warranties. We are not liable for any damages arising from your use of the platform, interactions with other users, or third-party services.</p>
-
-                  <h4 className={`${textPrimaryClass} font-semibold`}>10. Modifications</h4>
-                  <p>We may update these Terms from time to time. Material changes will be communicated via in-app notification. Continued use after changes constitutes acceptance of the updated Terms.</p>
+                  <p className={`text-xs ${textSecondaryClass} uppercase tracking-wider`}>Version {tosContent.version || CURRENT_TOS_VERSION} • Effective {tosContent.effective_date || 'May 2026'}</p>
+                  {(tosContent.sections || []).map((section, idx) => (
+                    <React.Fragment key={idx}>
+                      <h4 className={`${textPrimaryClass} font-semibold`}>{section.title}</h4>
+                      <p>{section.body}</p>
+                    </React.Fragment>
+                  ))}
+                  {(!tosContent.sections || tosContent.sections.length === 0) && (
+                    <p className={`${textSecondaryClass}`}>Loading terms...</p>
+                  )}
                 </div>
               )}
 
@@ -1237,34 +1226,16 @@ export const Settings = () => {
 
               {showPrivacyPolicy && (
                 <div className="rounded-xl border border-border bg-muted/30 p-4 text-sm text-muted-foreground space-y-3 max-h-[50vh] overflow-y-auto" data-testid="privacy-full-text">
-                  <p className={`text-xs ${textSecondaryClass} uppercase tracking-wider`}>Privacy Policy • Effective May 2026</p>
-
-                  <h4 className={`${textPrimaryClass} font-semibold`}>1. Information We Collect</h4>
-                  <p>We collect information you provide directly: name, email, profile photo, surf spot check-ins, and uploaded content. We also collect device information, IP addresses, and usage analytics to improve the platform.</p>
-
-                  <h4 className={`${textPrimaryClass} font-semibold`}>2. How We Use Your Data</h4>
-                  <p>Your data is used to provide and improve Raw Surf's services: matching surfers with photos, processing payments, delivering notifications, and personalizing your experience. We use AI to tag and match photos — this processing happens on our servers and is not shared externally.</p>
-
-                  <h4 className={`${textPrimaryClass} font-semibold`}>3. Location Data</h4>
-                  <p>Surf spot check-ins, on-demand booking, and live sessions use your location. Location data is used for service delivery and anti-fraud verification. You can disable location features in your device settings, though some features will be unavailable.</p>
-
-                  <h4 className={`${textPrimaryClass} font-semibold`}>4. Data Sharing</h4>
-                  <p>We do not sell your personal data to third parties. We share data with: Stripe (payments), Supabase (infrastructure), and OneSignal (push notifications). These providers are contractually bound to protect your data.</p>
-
-                  <h4 className={`${textPrimaryClass} font-semibold`}>5. Children's Privacy (Groms)</h4>
-                  <p>Users under 18 ("Groms") require parental consent via the Grom HQ parent-linking system. Grom accounts have restricted messaging, content visibility, and commerce features controlled by their parent/guardian.</p>
-
-                  <h4 className={`${textPrimaryClass} font-semibold`}>6. Data Retention</h4>
-                  <p>We retain your data for as long as your account is active. Deleted accounts have their personal data purged within 30 days. Transaction records are retained for 7 years as required by financial regulations.</p>
-
-                  <h4 className={`${textPrimaryClass} font-semibold`}>7. Your Rights</h4>
-                  <p>You have the right to: access your data, correct inaccuracies, request deletion, export your data, and withdraw consent. Exercise these rights through Settings or by contacting support@rawsurf.com.</p>
-
-                  <h4 className={`${textPrimaryClass} font-semibold`}>8. Cookies & Tracking</h4>
-                  <p>We use essential cookies for authentication and session management. We do not use third-party advertising trackers. Analytics are collected in aggregate to improve platform performance.</p>
-
-                  <h4 className={`${textPrimaryClass} font-semibold`}>9. Changes to This Policy</h4>
-                  <p>We may update this Privacy Policy from time to time. Material changes will be communicated via in-app notification. Your continued use of Raw Surf after changes constitutes acceptance.</p>
+                  <p className={`text-xs ${textSecondaryClass} uppercase tracking-wider`}>Privacy Policy • Effective {privacyContent.effective_date || 'May 2026'}</p>
+                  {(privacyContent.sections || []).map((section, idx) => (
+                    <React.Fragment key={idx}>
+                      <h4 className={`${textPrimaryClass} font-semibold`}>{section.title}</h4>
+                      <p>{section.body}</p>
+                    </React.Fragment>
+                  ))}
+                  {(!privacyContent.sections || privacyContent.sections.length === 0) && (
+                    <p className={`${textSecondaryClass}`}>Loading privacy policy...</p>
+                  )}
                 </div>
               )}
 

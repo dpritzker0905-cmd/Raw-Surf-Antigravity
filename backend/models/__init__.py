@@ -90,7 +90,7 @@ from .marketplace import (  # noqa: F401
 from .admin import (  # noqa: F401
     Dispute, DisputeMessage, UserReport, UserBlock, PayoutHold,
     AuditLog, VerificationRequest, ImpersonationSession, FraudAlert,
-    TosViolation, TosAcknowledgement, UserActivityLog,
+    TosViolation, TosAcknowledgement, TosContent, UserActivityLog,
 )
 
 from .admin_ops import (  # noqa: F401
