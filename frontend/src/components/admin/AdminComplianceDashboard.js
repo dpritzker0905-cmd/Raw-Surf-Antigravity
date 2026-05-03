@@ -476,7 +476,6 @@ export const AdminComplianceDashboard = ({ cardBgClass, textClass, textSecondary
           </CardContent>
         </Card>
       )}
-    </div>
 
       {/* ── ToS & Privacy Content Editor ─────────────────────── */}
       <Card className={`${card} mt-6`}>

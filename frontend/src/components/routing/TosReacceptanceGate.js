@@ -22,6 +22,7 @@ const TosReacceptanceGate = ({ children }) => {
   const [submitting, setSubmitting] = useState(false);
   const [showFullText, setShowFullText] = useState(false);
   const [tosSections, setTosSections] = useState([]);
+  const [hasReadConfirm, setHasReadConfirm] = useState(false);
 
   useEffect(() => {
     if (!user?.id) return;
@@ -133,11 +134,42 @@ const TosReacceptanceGate = ({ children }) => {
           </div>
 
           {/* Footer */}
-          <div className="px-6 py-4 border-t border-zinc-800 bg-zinc-900/50">
+          <div className="px-6 py-4 border-t border-zinc-800 bg-zinc-900/50 space-y-3">
+            {/* Confirmation checkbox */}
+            <label
+              className="flex items-start gap-3 cursor-pointer group"
+              data-testid="tos-gate-confirm-checkbox"
+            >
+              <div className="relative mt-0.5 flex-shrink-0">
+                <input
+                  type="checkbox"
+                  checked={hasReadConfirm}
+                  onChange={(e) => setHasReadConfirm(e.target.checked)}
+                  className="sr-only peer"
+                />
+                <div className={`w-5 h-5 rounded border-2 transition-all duration-200 flex items-center justify-center ${
+                  hasReadConfirm
+                    ? 'bg-emerald-500 border-emerald-500'
+                    : 'border-zinc-500 group-hover:border-zinc-400'
+                }`}>
+                  {hasReadConfirm && <Check className="w-3.5 h-3.5 text-black" />}
+                </div>
+              </div>
+              <span className={`text-sm transition-colors ${
+                hasReadConfirm ? 'text-zinc-200' : 'text-zinc-400'
+              }`}>
+                I have read and understood the updated Terms of Service
+              </span>
+            </label>
+
             <Button
               onClick={handleAccept}
-              disabled={submitting}
-              className="w-full bg-gradient-to-r from-emerald-500 via-yellow-500 to-orange-500 text-black font-bold py-3 rounded-xl hover:opacity-90 transition-opacity"
+              disabled={submitting || !hasReadConfirm}
+              className={`w-full font-bold py-3 rounded-xl transition-all duration-200 ${
+                hasReadConfirm
+                  ? 'bg-gradient-to-r from-emerald-500 via-yellow-500 to-orange-500 text-black hover:opacity-90'
+                  : 'bg-zinc-700 text-zinc-400 cursor-not-allowed'
+              }`}
               data-testid="tos-gate-accept-button"
             >
               {submitting ? (
@@ -147,7 +179,7 @@ const TosReacceptanceGate = ({ children }) => {
               )}
               {submitting ? 'Recording...' : 'I Agree to the Updated Terms'}
             </Button>
-            <p className="text-xs text-zinc-500 text-center mt-2">
+            <p className="text-xs text-zinc-500 text-center">
               By clicking "I Agree", you acknowledge that you have read and agree to the updated Terms of Service and Privacy Policy.
             </p>
           </div>
