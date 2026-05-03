@@ -14,6 +14,7 @@ import { AdCenterPanel } from './settings/AdCenterPanel';
 import useOfflineMode from '../hooks/useOfflineMode';
 import logger from '../utils/logger';
 import { ROLES } from '../constants/roles';
+import { CURRENT_TOS_VERSION } from '../constants/tos';
 import { getPreferencesByPath, updatePreferenceByPath } from '../services/notificationService';
 
 import { SurfModeCard } from './settings/SurfModeCard';
@@ -112,7 +113,6 @@ export const Settings = () => {
   };
 
   // ToS / Legal state
-  const CURRENT_TOS_VERSION = '1.0';
   const [tosStatus, setTosStatus] = useState({ loading: true, acknowledged: false, acknowledged_at: null });
   const [showTosFullText, setShowTosFullText] = useState(false);
   const [showPrivacyPolicy, setShowPrivacyPolicy] = useState(false);

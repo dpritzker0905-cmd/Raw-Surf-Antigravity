@@ -7,9 +7,8 @@ import { Card } from './ui/card';
 import { toast } from 'sonner';
 import { ArrowLeft, User, Camera, Building2, Trophy, Star, Eye, EyeOff, FileText, X, Shield } from 'lucide-react';
 import { ROLES } from '../constants/roles';
+import { CURRENT_TOS_VERSION } from '../constants/tos';
 import apiClient from '../lib/apiClient';
-
-const CURRENT_TOS_VERSION = '1.0';
 
 const ROLE_CONFIG = {
   surfer: {
