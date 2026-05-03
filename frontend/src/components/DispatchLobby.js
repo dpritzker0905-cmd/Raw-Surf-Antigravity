@@ -196,7 +196,7 @@ const PhotographerCard = ({ photographer, eta, status, isLight, wasDeclined }) =
       )}
       {reSearching && (
         <div className="w-8 h-8 rounded-full bg-red-500/20 flex items-center justify-center flex-shrink-0">
-          <RefreshCw className="w-4 h-4 text-red-400 animate-spin" className="animate-duration-3s" />
+          <RefreshCw className="w-4 h-4 text-red-400 animate-spin animate-duration-3s" />
         </div>
       )}
       {!accepted && !reSearching && (
@@ -624,7 +624,7 @@ export const DispatchLobby = () => {
               isLight ? 'bg-amber-50 border-amber-300' : 'bg-amber-500/10 border-amber-500/30'
             }`}
           >
-            <RefreshCw className="w-5 h-5 text-amber-400 animate-spin flex-shrink-0" className="animate-duration-3s" />
+            <RefreshCw className="w-5 h-5 text-amber-400 animate-spin flex-shrink-0 animate-duration-3s" />
             <div className="flex-1">
               <p className={`text-sm font-medium ${textPrimary}`}>Finding a new photographer</p>
               <p className={`text-xs ${textSecondary}`}>

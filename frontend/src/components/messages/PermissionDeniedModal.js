@@ -52,7 +52,7 @@ export default function PermissionDeniedModal({ onRetry, onDismiss }) {
 
       {/* Shield icon with pulse */}
       <div className="relative mb-6">
-        <div className="absolute inset-0 w-24 h-24 rounded-full bg-red-500/10 animate-ping" className="animate-duration-3s" />
+        <div className="absolute inset-0 w-24 h-24 rounded-full bg-red-500/10 animate-ping animate-duration-3s" />
         <div className="w-24 h-24 rounded-full bg-red-500/20 border-2 border-red-500/40 flex items-center justify-center">
           <Shield className="w-12 h-12 text-red-400" />
         </div>

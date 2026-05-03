@@ -518,8 +518,7 @@ const UnifiedAdminConsole = () => {
           
           <div 
             id="admin-tabs-container"
-            className="flex overflow-x-auto px-12 pb-2 gap-1 scroll-smooth"
-            className="scrollbar-none"
+            className="flex overflow-x-auto px-12 pb-2 gap-1 scroll-smooth scrollbar-none"
           >
             {tabs.map((tab) => {
               const Icon = tab.icon;

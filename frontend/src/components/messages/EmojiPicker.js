@@ -94,8 +94,7 @@ const EmojiPicker = ({ show, onSelect, onClose }) => {
         {/* Tab bar */}
         <div
           ref={tabsRef}
-          className="flex overflow-x-auto px-1 py-1.5 gap-0.5"
-          className="scrollbar-none"
+          className="flex overflow-x-auto px-1 py-1.5 gap-0.5 scrollbar-none"
         >
           {CATEGORY_NAMES.map((cat) => (
             <button

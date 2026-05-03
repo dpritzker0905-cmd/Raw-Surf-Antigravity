@@ -692,7 +692,7 @@ export const OnDemandSettingsPage = () => {
             </div>
             
             {/* Spots List - High-Contrast Checkbox Style */}
-            <div className="space-y-2 max-h-80 overflow-y-auto pr-1" className="scroll-touch">
+            <div className="space-y-2 max-h-80 overflow-y-auto pr-1 scroll-touch">
               {nearbySpots.length === 0 ? (
                 <p className={`text-center py-4 ${textSecondary}`}>
                   {locationLoading ? 'Finding nearby spots...' : 'No spots found nearby'}

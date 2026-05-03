@@ -1057,8 +1057,7 @@ export const Explore = () => {
         {/* Tabs Container — Yellow pill buttons */}
         <div 
           ref={tabsContainerRef}
-          className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide scroll-smooth flex-1"
-          className="scrollbar-none"
+          className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide scroll-smooth flex-1 scrollbar-none"
         >
           {tabs.map((tab) => {
             const Icon = tab.icon;

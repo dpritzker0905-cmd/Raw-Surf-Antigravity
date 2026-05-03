@@ -173,6 +173,16 @@ const getFolders = (userRole, _isAdmin = false, effectiveRole = null, _isMasked 
 // GifPicker extracted to ./messages/GifPicker.js
 
 // Shaka SVG Icon Component
+const ShakaIcon = ({ className = "w-16 h-16" }) => (
+  <svg className={className} viewBox="0 0 64 64" fill="none" stroke="currentColor" strokeWidth="2">
+    <path d="M20 44 C18 42 16 38 16 32 C16 26 18 22 22 20 L26 18 C28 17 30 18 30 20 L30 28" strokeLinecap="round" />
+    <path d="M30 28 L30 16 C30 14 32 12 34 12 C36 12 38 14 38 16 L38 28" strokeLinecap="round" />
+    <path d="M38 20 L38 14 C38 12 40 10 42 10 C44 10 46 12 46 14 L46 28" strokeLinecap="round" />
+    <path d="M46 22 L46 18 C46 16 48 14 50 14 C52 14 54 16 54 18 L54 32 C54 42 48 50 38 52 L28 54 C24 54 20 52 18 48" strokeLinecap="round" />
+    <path d="M30 28 L26 32 C24 34 22 38 22 42" strokeLinecap="round" />
+  </svg>
+);
+
 // StoryBubble extracted → ./messages/StoryBubble.js
 // CreateNoteModal extracted → ./messages/CreateNoteModal.js
 // ViewNoteModal extracted → ./messages/ViewNoteModal.js
