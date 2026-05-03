@@ -606,9 +606,20 @@ export const MessagesPage = () => {
   // Fetch conversations on folder change
   useEffect(() => {
     if (user?.id) {
+      // Clear stale conversation data immediately so old-folder items
+      // don't flash in the new tab before fresh data arrives
+      setConversations([]);
+      setLoading(true);
       fetchConversations();
       fetchStories();
     }
+
+    // Cleanup: abort in-flight fetch if the folder changes before it completes
+    return () => {
+      if (fetchAbortRef.current) {
+        fetchAbortRef.current.abort();
+      }
+    };
   }, [user?.id, activeFolder]);
 
   // Fetch conversation detail when selected
@@ -771,12 +782,20 @@ export const MessagesPage = () => {
     }
   };
 
+  // AbortController ref — cancels in-flight conversation fetches when the user
+  // switches folders. This prevents stale responses from overwriting fresh data.
+  const fetchAbortRef = useRef(null);
+
   const fetchConversations = async () => {
+    // Abort any in-flight fetch first
+    if (fetchAbortRef.current) {
+      fetchAbortRef.current.abort();
+    }
+    const abortController = new AbortController();
+    fetchAbortRef.current = abortController;
+
     try {
       // CRITICAL: Read from ref to avoid stale-closure bugs.
-      // The polling interval (10s) captures this function once; without the ref,
-      // switching to The Channel would be overwritten by a stale poll still
-      // fetching 'primary' conversations.
       const currentFolder = activeFolderRef.current;
       const isGromZone = currentFolder === 'grom_zone';
       const isFamily = currentFolder === 'family';
@@ -791,22 +810,22 @@ export const MessagesPage = () => {
         path = `/messages/conversations/${user.id}?inbox_type=${currentFolder}`;
       }
       
-      // Fetch conversations + unread counts in parallel (2 requests max, not 8)
-      // /messages/unread-counts returns primary, requests, grom_zone totals in ONE call
+      // Fetch conversations + unread counts in parallel
       const [response, countsResp, familyCountResp] = await Promise.all([
-        apiClient.get(path),
-        apiClient.get(`/messages/unread-counts/${user.id}`).catch(() => ({ data: { primary: 0, requests: 0, grom_zone: 0 } })),
-        apiClient.get(`/messages/conversations/${user.id}/family`).catch(() => ({ data: [] }))
+        apiClient.get(path, { signal: abortController.signal }),
+        apiClient.get(`/messages/unread-counts/${user.id}`, { signal: abortController.signal }).catch(() => ({ data: { primary: 0, requests: 0, grom_zone: 0 } })),
+        apiClient.get(`/messages/conversations/${user.id}/family`, { signal: abortController.signal }).catch(() => ({ data: [] }))
       ]);
       
       // RACE CONDITION GUARD: Only apply results if the user hasn't switched
-      // folders while this request was in-flight. Without this, a slow 'primary'
-      // fetch could resolve AFTER a fast 'requests' fetch, overwriting the
-      // requests list with primary conversations and making them "flash then vanish".
+      // folders while this request was in-flight.
       if (activeFolderRef.current !== currentFolder) {
+        console.log(`[MSG] DISCARDED stale fetch: requested=${currentFolder}, current=${activeFolderRef.current}`);
         return; // Stale response — user switched tabs, discard
       }
       
+      console.log(`[MSG] APPLYING fetch for folder=${currentFolder}, count=${(response.data || []).length}, items=`, (response.data || []).map(c => c.other_user_name));
+
       setConversations(response.data);
       
       // Build folder counts from the single unread-counts response
@@ -825,6 +844,10 @@ export const MessagesPage = () => {
         hidden: 0
       });
     } catch (error) {
+      // Aborted requests are expected — don't log them
+      if (error?.name === 'AbortError' || error?.name === 'CanceledError' || error?.code === 'ERR_CANCELED') {
+        return;
+      }
       logger.error('Failed to fetch conversations:', error);
     } finally {
       setLoading(false);
