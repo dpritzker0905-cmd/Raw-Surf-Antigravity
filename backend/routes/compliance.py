@@ -591,8 +591,11 @@ async def get_compliance_dashboard(
                 "violation_type": v.violation_type,
                 "severity": v.severity,
                 "title": v.title,
+                "description": v.description,
                 "action_taken": v.action_taken,
                 "appeal_status": v.appeal_status,
+                "appeal_text": v.appeal_text,
+                "is_appealed": v.is_appealed,
                 "created_at": v.created_at.isoformat(),
                 "distance_discrepancy_miles": v.distance_discrepancy_miles
             }

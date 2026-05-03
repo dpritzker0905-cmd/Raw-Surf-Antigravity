@@ -11,7 +11,7 @@ import apiClient from '../../lib/apiClient';
 import {
   Shield, AlertTriangle, Scale, Users, Ban, Clock,
   Check, X, Loader2, ChevronDown, ChevronRight,
-  MapPin, Eye, RefreshCw, FileText, Gavel, ExternalLink
+  MapPin, Eye, RefreshCw, FileText, Gavel, ExternalLink, MessageSquare
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '../ui/card';
 import { Button } from '../ui/button';
@@ -231,6 +231,21 @@ export const AdminComplianceDashboard = ({ cardBgClass, textClass, textSecondary
                     </div>
                     <AppealBadge status={v.appeal_status} />
                   </div>
+
+                  {/* User's Appeal Message */}
+                  {v.appeal_text && (
+                    <div className={`mt-3 p-3 rounded-lg border-l-4 border-yellow-400 ${
+                      isLight ? 'bg-yellow-50' : 'bg-yellow-500/5'
+                    }`}>
+                      <div className="flex items-center gap-1.5 mb-1">
+                        <MessageSquare className="w-3.5 h-3.5 text-yellow-400" />
+                        <span className={`text-xs font-medium ${isLight ? 'text-yellow-700' : 'text-yellow-400'}`}>User's Appeal</span>
+                      </div>
+                      <p className={`text-sm ${isLight ? 'text-gray-700' : 'text-gray-300'}`}>
+                        "{v.appeal_text}"
+                      </p>
+                    </div>
+                  )}
 
                   {/* Review Panel */}
                   {reviewingId === v.id ? (
