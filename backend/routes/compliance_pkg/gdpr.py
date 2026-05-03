@@ -10,13 +10,16 @@ from datetime import datetime, timezone
 
 from database import get_db
 from deps.admin_auth import get_current_admin
+from core.security import get_current_user_id
 from models import (
     Profile, TosViolation, TosAcknowledgement,
     Post, Comment, Booking, GalleryPurchase, PaymentTransaction,
     Message, Follow, CheckIn, Review
 )
+import logging
 
 router = APIRouter(prefix="/compliance", tags=["compliance"])
+logger = logging.getLogger(__name__)
 
 
 # ============ HELPERS ============
@@ -159,3 +162,86 @@ async def export_user_data(
     }
     
     return export
+
+
+# ============ GDPR SELF-SERVICE DATA DELETION (Article 17) ============
+
+@router.post("/delete-my-data")
+async def request_data_deletion(
+    user_id: str = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db)
+):
+    """GDPR Article 17 — Right to Erasure. User can request deletion of their own data.
+
+    What gets deleted:
+    - Posts, comments, reactions
+    - Follows (follower + following)
+    - Check-ins, reviews
+    - Messages (sender side anonymized)
+    - Profile data is anonymized (name, bio, avatar cleared)
+
+    What is RETAINED for legal/financial compliance:
+    - Payment transactions (required for tax/audit)
+    - Booking records (financial obligation)
+    - ToS violations (legal hold)
+    - ToS acknowledgements (proof of consent)
+
+    This is irreversible.
+    """
+    from sqlalchemy import delete, update
+
+    # Verify user exists
+    profile_result = await db.execute(select(Profile).where(Profile.id == user_id))
+    profile = profile_result.scalar_one_or_none()
+    if not profile:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    logger.info(f"GDPR deletion request for user {user_id}")
+
+    # 1. Delete posts and comments
+    await db.execute(delete(Comment).where(Comment.author_id == user_id))
+    await db.execute(delete(Post).where(Post.author_id == user_id))
+
+    # 2. Delete social graph
+    await db.execute(delete(Follow).where(
+        (Follow.follower_id == user_id) | (Follow.followed_id == user_id)
+    ))
+
+    # 3. Delete check-ins
+    await db.execute(delete(CheckIn).where(CheckIn.user_id == user_id))
+
+    # 4. Delete reviews given
+    await db.execute(delete(Review).where(Review.reviewer_id == user_id))
+
+    # 5. Anonymize messages (don't delete — recipient still has the conversation)
+    await db.execute(
+        update(Message)
+        .where(Message.sender_id == user_id)
+        .values(content="[deleted]", media_url=None)
+    )
+
+    # 6. Anonymize profile (don't delete — foreign keys in bookings, payments)
+    profile.full_name = "Deleted User"
+    profile.username = f"deleted_{user_id[:8]}"
+    profile.bio = None
+    profile.avatar_url = None
+    profile.email = f"deleted_{user_id[:8]}@deleted.rawsurf.app"
+    profile.phone = None
+    profile.instagram_handle = None
+    profile.website = None
+    profile.wetsuit_color = None
+    profile.rash_guard_color = None
+    profile.board_description = None
+    profile.stance = None
+    profile.is_active = False
+    profile.is_deleted = True
+
+    await db.commit()
+
+    logger.info(f"GDPR deletion completed for user {user_id}")
+
+    return {
+        "success": True,
+        "message": "Your account data has been deleted. Profile has been anonymized. Financial records are retained for legal compliance.",
+        "retained": ["payment_transactions", "bookings", "tos_acknowledgements", "tos_violations"]
+    }

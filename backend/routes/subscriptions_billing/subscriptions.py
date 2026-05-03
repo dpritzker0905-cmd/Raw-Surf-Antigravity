@@ -13,6 +13,7 @@ from database import get_db
 from models import Profile, PaymentTransaction, RoleEnum
 from utils.grom_parent import is_grom_parent_eligible
 from models import CreditTransaction
+from core.security import get_user_id_from_jwt_or_query
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -81,7 +82,7 @@ async def get_subscription_plans():
 @router.post("/subscriptions/checkout", response_model=SubscriptionCheckoutResponse)
 async def create_subscription_checkout(
     data: SubscriptionCheckoutRequest, 
-    user_id: str, 
+    user_id: str = Depends(get_user_id_from_jwt_or_query), 
     db: AsyncSession = Depends(get_db)
 ):
     if not STRIPE_API_KEY:

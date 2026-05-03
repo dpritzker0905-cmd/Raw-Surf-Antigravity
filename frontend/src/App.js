@@ -6,6 +6,7 @@ import { PricingProvider } from './contexts/PricingContext';
 import { PersonaProvider } from './contexts/PersonaContext';
 import { Toaster } from './components/ui/sonner';
 import AccessCodeScreen from './components/AccessCodeScreen';
+import CookieConsentBanner from './components/ui/CookieConsentBanner';
 
 // ─── Routing utilities ─────────────────────────────────────────────────────────
 import ErrorBoundary from './components/routing/ErrorBoundary';
@@ -104,9 +105,11 @@ const PageLoader = () => (
   </div>
 );
 
-// ─── Wrapper to apply Suspense on every lazy route ────────────────────────────
+// ─── Wrapper to apply Suspense + ErrorBoundary on every lazy route ─────────────
 const Lazy = ({ children }) => (
-  <Suspense fallback={<PageLoader />}>{children}</Suspense>
+  <ErrorBoundary>
+    <Suspense fallback={<PageLoader />}>{children}</Suspense>
+  </ErrorBoundary>
 );
 
 // ─── Subscription-only gate ────────────────────────────────────────────────────
@@ -213,6 +216,7 @@ function App() {
             <Route path="*" element={<Home />} />
           </Routes>
           <Toaster position="top-center" richColors />
+          <CookieConsentBanner />
         </BrowserRouter>
         </AccessCodeScreen>
       </PricingProvider>

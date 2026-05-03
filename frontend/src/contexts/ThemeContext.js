@@ -11,7 +11,13 @@ const THEME_COLORS = {
 
 export const ThemeProvider = ({ children }) => {
   const [theme, setTheme] = useState(() => {
-    return localStorage.getItem('raw-surf-theme') || 'light';
+    const saved = localStorage.getItem('raw-surf-theme');
+    if (saved) return saved;
+    // Auto-detect system preference on first visit
+    if (typeof window !== 'undefined' && window.matchMedia?.('(prefers-color-scheme: dark)').matches) {
+      return 'dark';
+    }
+    return 'light';
   });
 
   useEffect(() => {
