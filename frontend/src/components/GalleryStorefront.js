@@ -169,6 +169,55 @@ export const GalleryStorefront = () => {
 
   const isSelf = user?.id === photographer.id;
 
+  // Dynamic Open Graph meta tags for social sharing / link previews
+  useEffect(() => {
+    const ogTags = [];
+    const setMeta = (property, content) => {
+      if (!content) return;
+      let tag = document.querySelector(`meta[property="${property}"]`);
+      if (!tag) {
+        tag = document.createElement('meta');
+        tag.setAttribute('property', property);
+        document.head.appendChild(tag);
+        ogTags.push(tag);
+      }
+      tag.setAttribute('content', content);
+    };
+    const setName = (name, content) => {
+      if (!content) return;
+      let tag = document.querySelector(`meta[name="${name}"]`);
+      if (!tag) {
+        tag = document.createElement('meta');
+        tag.setAttribute('name', name);
+        document.head.appendChild(tag);
+        ogTags.push(tag);
+      }
+      tag.setAttribute('content', content);
+    };
+
+    const title = `${photographer.full_name} — Raw Surf Photography`;
+    const desc = photographer.bio || `Browse surf photography by ${photographer.full_name} on Raw Surf`;
+    const image = photographer.avatar_url ? getFullUrl(photographer.avatar_url) : null;
+    const url = `${window.location.origin}/gallery/${username}`;
+
+    document.title = title;
+    setMeta('og:title', title);
+    setMeta('og:description', desc);
+    setMeta('og:image', image);
+    setMeta('og:url', url);
+    setMeta('og:type', 'profile');
+    setMeta('og:site_name', 'Raw Surf');
+    setName('twitter:card', 'summary_large_image');
+    setName('twitter:title', title);
+    setName('twitter:description', desc);
+    setName('twitter:image', image);
+
+    return () => {
+      document.title = 'Raw Surf';
+      ogTags.forEach(tag => tag.remove());
+    };
+  }, [photographer, username]);
+
   return (
     <div className={`min-h-screen ${pageBg} pb-24 md:pb-8`}>
       {/* JSON-LD Structured Data for SEO */}

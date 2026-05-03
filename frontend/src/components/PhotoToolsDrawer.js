@@ -12,6 +12,7 @@ import { Badge } from './ui/badge';
 import { toast } from 'sonner';
 import logger from '../utils/logger';
 import { ROLES } from '../constants/roles';
+import useEscapeKey from '../hooks/useEscapeKey';
 
 
 /**
@@ -23,6 +24,7 @@ export const PhotoToolsDrawer = ({ isOpen, onClose }) => {
   const { user } = useAuth();
   const { theme } = useTheme();
   const { getEffectiveRole } = usePersona();
+  useEscapeKey(isOpen, onClose);
   const [onDemandActive, setOnDemandActive] = useState(false);
   const [_onDemandLoading, setOnDemandLoading] = useState(false);
   const [stats, setStats] = useState({

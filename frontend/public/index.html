@@ -9,6 +9,16 @@
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <meta name="description" content="Raw Surf — surf photography, live streams, and community for surfers worldwide." />
+        <meta property="og:title" content="Raw Surf — Surf Photography & Community" />
+        <meta property="og:description" content="Live surf photography, session booking, and community for surfers worldwide." />
+        <meta property="og:image" content="https://customer-assets.emergentagent.com/job_raw-surf-os/artifacts/9llcl5mg_Rawig6-500x500.png" />
+        <meta property="og:url" content="https://rawsurf.netlify.app" />
+        <meta property="og:type" content="website" />
+        <meta property="og:site_name" content="Raw Surf" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="Raw Surf — Surf Photography & Community" />
+        <meta name="twitter:description" content="Live surf photography, session booking, and community for surfers worldwide." />
+        <meta name="twitter:image" content="https://customer-assets.emergentagent.com/job_raw-surf-os/artifacts/9llcl5mg_Rawig6-500x500.png" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@600&display=swap" rel="stylesheet" />
@@ -42,6 +52,8 @@
         <script src="https://assets.emergent.sh/scripts/emergent-main.js"></script>
     </head>
     <body>
+        <!-- Skip to main content link for screen readers / keyboard navigation (WCAG 2.1) -->
+        <a href="#main-content" style="position:absolute;left:-9999px;top:auto;width:1px;height:1px;overflow:hidden;z-index:10000;background:#06b6d4;color:#fff;padding:8px 16px;font-size:14px;font-weight:600;border-radius:0 0 8px 0;text-decoration:none;" onfocus="this.style.left='0';this.style.width='auto';this.style.height='auto'" onblur="this.style.left='-9999px';this.style.width='1px';this.style.height='1px'">Skip to main content</a>
         <noscript>You need to enable JavaScript to run this app.</noscript>
         <!-- CRITICAL: Clear God Mode localStorage if no user - runs BEFORE React -->
         <script>
@@ -73,7 +85,7 @@
                 opacity: 0 !important;
             }
         </style>
-        <div id="root"></div>
+        <div id="root" role="main" aria-label="Main content"></div>
         <!--
       This HTML file is a template.
       If you open it directly in the browser, you will see an empty page.

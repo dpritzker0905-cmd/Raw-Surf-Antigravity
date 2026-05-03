@@ -43,6 +43,7 @@ import { SelfieCapture } from './SelfieCapture';
 import logger from '../utils/logger';
 import { getFullUrl } from '../utils/media';
 import { ROLES } from '../constants/roles';
+import useHapticFeedback from '../hooks/useHapticFeedback';
 
 
 
@@ -1712,6 +1713,7 @@ export const ScheduledBookingDrawer = ({
 }) => {
   const { user, updateUser } = useAuth();
   const { theme } = useTheme();
+  const haptic = useHapticFeedback();
   
   // Step management: 'time' -> 'location' -> 'crew' -> 'payment' -> 'selfie' -> 'confirm' -> 'success'
   const [step, setStep] = useState('time');
@@ -1989,6 +1991,8 @@ export const ScheduledBookingDrawer = ({
       
       setStep('success');
       toast.success('Session booked successfully!');
+      // Haptic feedback for premium mobile feel
+      if (typeof haptic === 'function') haptic('success');
       
     } catch (error) {
       logger.error('Booking error:', error);

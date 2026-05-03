@@ -801,7 +801,7 @@ const MapPageContent = () => {
             <div class="relative w-10 h-10 rounded-full p-[2px] bg-gradient-to-r from-yellow-400 to-orange-400">
               <div class="w-full h-full rounded-full bg-black flex items-center justify-center overflow-hidden">
                 ${friend.avatar_url 
-                  ? `<img loading="lazy" decoding="async" src="${friend.avatar_url}" class="w-full h-full object-cover" />`
+                  ? `<img loading="lazy" decoding="async" src="${friend.avatar_url}" alt="${friend.full_name || 'Friend'} avatar" class="w-full h-full object-cover" />`
                   : `<span class="text-sm text-yellow-400 font-bold">${friend.full_name?.charAt(0) || '?'}</span>`
                 }
               </div>
@@ -908,7 +908,7 @@ const MapPageContent = () => {
             <div class="relative w-12 h-12 rounded-full bg-gradient-to-br ${colors.gradient} p-[3px] shadow-lg shadow-${colors.shadow}-500/50">
               <div class="w-full h-full rounded-full bg-black flex items-center justify-center overflow-hidden">
                 ${request.requester_avatar 
-                  ? `<img loading="lazy" decoding="async" src="${request.requester_avatar}" class="w-full h-full object-cover" />`
+                  ? `<img loading="lazy" decoding="async" src="${request.requester_avatar}" alt="${request.requester_name || 'Requester'} avatar" class="w-full h-full object-cover" />`
                   : `<span class="text-${colors.bg}-400 text-lg font-bold">${request.requester_name?.charAt(0) || 'S'}</span>`
                 }
               </div>
@@ -1445,7 +1445,7 @@ const MapPageContent = () => {
                 <div class="photographer-pin-avatar p-[3px] rounded-full ${ringClass || ''}" style="${!ringClass ? `background: ${isPulsing ? `linear-gradient(135deg, ${ELECTRIC_CYAN}, #0099CC)` : 'linear-gradient(to right, rgb(34 211 238), rgb(59 130 246))'}` : ''}">
                   <div class="w-full h-full rounded-full bg-black flex items-center justify-center overflow-hidden">
                     ${photographer.avatar_url 
-                      ? `<img loading="lazy" decoding="async" src="${photographer.avatar_url}" class="w-full h-full object-cover" />`
+                      ? `<img loading="lazy" decoding="async" src="${photographer.avatar_url}" alt="${photographer.full_name || 'Photographer'} avatar" class="w-full h-full object-cover" />`
                       : `<span class="text-lg ${isBoth ? 'text-purple-400' : isShootingLive ? 'text-red-400' : isOnDemand ? 'text-green-400' : ''}" style="${!isBoth && !isShootingLive && !isOnDemand ? `color: ${isPulsing ? ELECTRIC_CYAN : 'rgb(34 211 238)'}` : ''}">${photographer.full_name?.charAt(0) || '?'}</span>`
                     }
                   </div>
@@ -1464,7 +1464,7 @@ const MapPageContent = () => {
                 <div class="relative w-12 h-12 rounded-full p-[3px]" style="background: linear-gradient(135deg, #f97316, #eab308);">
                   <div class="w-full h-full rounded-full bg-black flex items-center justify-center overflow-hidden">
                     ${photographer.avatar_url 
-                      ? `<img loading="lazy" decoding="async" src="${photographer.avatar_url}" class="w-full h-full object-cover" />`
+                      ? `<img loading="lazy" decoding="async" src="${photographer.avatar_url}" alt="${photographer.full_name || 'Photographer'} avatar" class="w-full h-full object-cover" />`
                       : `<span class="text-lg text-orange-400">${photographer.full_name?.charAt(0) || '?'}</span>`
                     }
                   </div>
