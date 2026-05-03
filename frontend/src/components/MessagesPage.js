@@ -606,10 +606,6 @@ export const MessagesPage = () => {
   // Fetch conversations on folder change
   useEffect(() => {
     if (user?.id) {
-      // Clear stale conversation data immediately so old-folder items
-      // don't flash in the new tab before fresh data arrives
-      setConversations([]);
-      setLoading(true);
       fetchConversations();
       fetchStories();
     }
@@ -1393,11 +1389,22 @@ export const MessagesPage = () => {
     }
   };
 
-  // Filter conversations by search
+  // Filter conversations by search AND by active folder.
+  // The folder filter is CRITICAL: it prevents conversations from the previous
+  // tab from flashing in the new tab during the React render cycle. Without this,
+  // switching from Channel (7 items) to Requests (0 items) shows Channel items
+  // for one frame because state updates (useEffect) run AFTER the render.
   let filteredConversations = [];
   try {
     filteredConversations = conversations
-      .filter(c => (c?.other_user_name || '').toLowerCase().includes((searchQuery || '').toLowerCase()))
+      .filter(c => {
+        // Folder guard: only show conversations that belong to the active folder.
+        // The backend already returns folder-filtered data, but during tab
+        // transitions, stale data from the previous folder may still be in state.
+        if (c.folder && c.folder !== activeFolder) return false;
+        // Search filter
+        return (c?.other_user_name || '').toLowerCase().includes((searchQuery || '').toLowerCase());
+      })
       .sort((a, b) => {
         // Pinned conversations first
         if (a.is_pinned && !b.is_pinned) return -1;
