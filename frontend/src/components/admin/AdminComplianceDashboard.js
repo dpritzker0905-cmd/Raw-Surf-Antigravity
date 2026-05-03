@@ -110,7 +110,7 @@ export const AdminComplianceDashboard = ({ cardBgClass, textClass, textSecondary
   const fetchDashboard = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await apiClient.get('/compliance/compliance-dashboard');
+      const res = await apiClient.get('/compliance/dashboard');
       setDashboard(res.data);
     } catch (err) {
       logger.error('Failed to fetch compliance dashboard:', err);

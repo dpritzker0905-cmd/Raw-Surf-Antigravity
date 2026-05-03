@@ -45,7 +45,7 @@ const ViolationBanner = () => {
   const fetchViolations = useCallback(async () => {
     if (!user?.id) return;
     try {
-      const res = await apiClient.get(`/compliance/violations/${user.id}`);
+      const res = await apiClient.get(`/compliance/violations/user/${user.id}`);
       const data = res.data;
       // Only show banner if there are active violations (not overturned)
       const activeViolations = (data.violations || []).filter(v => v.status !== 'overturned');

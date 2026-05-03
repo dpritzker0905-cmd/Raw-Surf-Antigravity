@@ -131,7 +131,7 @@ export const Settings = () => {
 
   useEffect(() => {
     if (user?.id) {
-      apiClient.get(`/compliance/violations/${user.id}`)
+      apiClient.get(`/compliance/violations/user/${user.id}`)
         .then(res => setViolationHistory({ loading: false, data: res.data }))
         .catch(() => setViolationHistory({ loading: false, data: null }));
     }
