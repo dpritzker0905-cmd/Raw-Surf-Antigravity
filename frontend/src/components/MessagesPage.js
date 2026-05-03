@@ -799,6 +799,14 @@ export const MessagesPage = () => {
         apiClient.get(`/messages/conversations/${user.id}/family`).catch(() => ({ data: [] }))
       ]);
       
+      // RACE CONDITION GUARD: Only apply results if the user hasn't switched
+      // folders while this request was in-flight. Without this, a slow 'primary'
+      // fetch could resolve AFTER a fast 'requests' fetch, overwriting the
+      // requests list with primary conversations and making them "flash then vanish".
+      if (activeFolderRef.current !== currentFolder) {
+        return; // Stale response — user switched tabs, discard
+      }
+      
       setConversations(response.data);
       
       // Build folder counts from the single unread-counts response
