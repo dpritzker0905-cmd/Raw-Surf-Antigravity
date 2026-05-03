@@ -2041,7 +2041,7 @@ const MapPageContent = () => {
                 <div className="w-14 h-14 rounded-full p-[2px] bg-gradient-to-r from-cyan-400 to-blue-500">
                   <div className="w-full h-full rounded-full bg-zinc-800 flex items-center justify-center overflow-hidden">
                     {selectedPhotographer.avatar_url ? (
-                      <img loading="lazy" decoding="async" src={getFullUrl(selectedPhotographer.avatar_url)} className="w-full h-full object-cover" />
+                      <img loading="lazy" decoding="async" src={getFullUrl(selectedPhotographer.avatar_url)} alt={selectedPhotographer.full_name || 'Photographer'} className="w-full h-full object-cover" />
                     ) : (
                       <span className="text-xl text-cyan-400">{selectedPhotographer.full_name?.charAt(0)}</span>
                     )}
