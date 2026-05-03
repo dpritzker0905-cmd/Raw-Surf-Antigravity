@@ -16,6 +16,7 @@ import {
   Heart, MessageCircle, ShieldCheck, RefreshCw, Sparkles
 } from 'lucide-react';
 import logger from '../utils/logger';
+import { ProfileHeaderSkeleton, GallerySkeleton } from './ui/SkeletonVariants';
 import { PhotographerSubscriptionPlans } from './PhotographerSubscriptionPlans';
 import { FindMeModal } from './gallery/FindMeModal';
 
@@ -130,11 +131,9 @@ export const GalleryStorefront = () => {
   // ── Loading state ──
   if (loading) {
     return (
-      <div className={`min-h-screen ${pageBg} flex items-center justify-center`}>
-        <div className="text-center">
-          <Loader2 className="w-10 h-10 text-cyan-400 animate-spin mx-auto mb-3" />
-          <p className={textSecondary}>Loading portfolio...</p>
-        </div>
+      <div className={`min-h-screen ${pageBg} p-4 max-w-4xl mx-auto`}>
+        <ProfileHeaderSkeleton />
+        <div className="mt-6"><GallerySkeleton /></div>
       </div>
     );
   }

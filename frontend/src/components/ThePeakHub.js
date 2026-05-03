@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
@@ -15,8 +15,10 @@ import { Input } from './ui/input';
 import { toast } from 'sonner';
 import apiClient from '../lib/apiClient';
 import { GoldPassSlotCard } from './GoldPassSlotCard';
+import ChallengesTab from './career/ChallengesTab';
 import logger from '../utils/logger';
 import { getFullUrl } from '../utils/media';
+import { GenericPageSkeleton } from './ui/SkeletonVariants';
 
 /**
  * The Peak - Career Hub for Pro-Elite (⭐+) and Competitive (🏄) surfers
@@ -102,11 +104,7 @@ export const ThePeakHub = () => {
   };
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="w-8 h-8 text-yellow-400 animate-spin" />
-      </div>
-    );
+    return <GenericPageSkeleton />;
   }
 
   return (
@@ -368,6 +366,19 @@ export const ThePeakHub = () => {
           </CardContent>
         </Card>
       )}
+
+      {/* Weekly Challenges */}
+      <Card className={`${cardBg}`}>
+        <CardHeader>
+          <CardTitle className={`${textPrimary} flex items-center gap-2`}>
+            <Trophy className="w-5 h-5 text-cyan-400" />
+            Weekly Challenges
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ChallengesTab userId={user?.id} />
+        </CardContent>
+      </Card>
 
       {/* Elite Photographers Directory */}
       <Card className={`${cardBg} border-2 border-yellow-500/30`}>

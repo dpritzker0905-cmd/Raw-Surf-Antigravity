@@ -4,6 +4,7 @@ import {
   RotateCcw, UserPlus
 } from 'lucide-react';
 import { Badge } from '../ui/badge';
+import ResponsiveImage from '../ui/ResponsiveImage';
 import { getFullUrl } from '../../utils/media';
 
 const GalleryCard = ({ item, onClick, isOwner, isGromParent, linkedGroms, onTagGrom, onSetCustomPrice, onClearCustomPrice, getDisplayPrice }) => {
@@ -53,10 +54,11 @@ const GalleryCard = ({ item, onClick, isOwner, isGromParent, linkedGroms, onTagG
             playsInline
           />
         ) : (
-          <img
+          <ResponsiveImage
             src={getFullUrl(item.preview_url)}
             alt={item.title || 'Gallery photo'}
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+            loading="lazy"
           />
         )}
       </div>

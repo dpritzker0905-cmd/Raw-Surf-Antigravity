@@ -28,6 +28,8 @@ import EmojiPicker from './messages/EmojiPicker';
 import EphemeralCountdown from './messages/EphemeralCountdown';
 import ComposeModal from './messages/ComposeModal';
 import ConversationItem from './messages/ConversationItem';
+import usePullToRefresh from '../hooks/usePullToRefresh';
+import PullToRefreshIndicator from './ui/PullToRefreshIndicator';
 import MessageBubble from './messages/MessageBubble';
 import { ROLES } from '../constants/roles';
 import usePresence from '../hooks/usePresence';
@@ -526,6 +528,12 @@ export const MessagesPage = () => {
   // conversations with primary ones.
   const activeFolderRef = useRef(activeFolder);
   useEffect(() => { activeFolderRef.current = activeFolder; }, [activeFolder]);
+
+  // Pull-to-refresh for mobile — triggers conversation list refresh on swipe-down
+  const { pullRef: msgPullRef, isPulling: msgPulling, pullProgress: msgPullProgress, isRefreshing: msgPtrRefreshing } = usePullToRefresh(
+    async () => { await fetchConversations(); },
+    { threshold: 60, enabled: !loading && !selectedConversation }
+  );
 
   // Handle direct conversation routing
   useEffect(() => {
@@ -1422,7 +1430,8 @@ export const MessagesPage = () => {
   const renderConversationList = () => {
     try {
       return (
-    <div className="flex flex-col h-full bg-background">
+    <div ref={msgPullRef} className="flex flex-col h-full bg-background">
+      <PullToRefreshIndicator isPulling={msgPulling} progress={msgPullProgress} isRefreshing={msgPtrRefreshing} />
       {/* Mobile Header */}
       <div className="md:hidden flex items-center justify-between px-4 py-3 border-b border-border">
         <button 

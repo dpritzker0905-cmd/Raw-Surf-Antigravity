@@ -12,6 +12,7 @@ import { HairFilterEngine } from '../utils/HairFilterEngine';
 import { HairFilterPicker } from './HairFilterPicker';
 import logger from '../utils/logger';
 import { formatDurationPadded } from '../utils/formatTime';
+import useFocusTrap from '../hooks/useFocusTrap';
 
 export default function WebcamCaptureModal({ isOpen, onClose, onCapture, maxLength = null }) {
   const [stream, setStream] = useState(null);
@@ -40,6 +41,10 @@ export default function WebcamCaptureModal({ isOpen, onClose, onCapture, maxLeng
   const streamRef = useRef(null); // REF mirror of stream — avoids stale closures on iOS
   const compositeCanvasRef = useRef(null); // Hidden 2D canvas for compositing WebGL + hair for recording
   const compositeRafRef = useRef(null); // rAF ID for composite render loop
+  const modalRef = useRef(null);
+
+  // Trap focus within the camera modal for keyboard accessibility
+  useFocusTrap(modalRef, isOpen);
 
   // ── Reliable track cleanup via refs (avoids iOS stale closure bugs) ──
   const killAllTracks = useCallback(() => {
@@ -425,7 +430,7 @@ export default function WebcamCaptureModal({ isOpen, onClose, onCapture, maxLeng
   ];
 
   return (
-    <div className="fixed inset-0 z-[99999] flex items-center justify-center p-0 sm:p-6">
+    <div ref={modalRef} className="fixed inset-0 z-[99999] flex items-center justify-center p-0 sm:p-6">
       <div className="fixed inset-0 bg-black/80 backdrop-blur-sm hidden sm:block" onClick={onClose} />
       
       <div className="relative w-full h-full sm:w-[1100px] sm:h-[720px] sm:max-h-[90vh] sm:rounded-2xl sm:overflow-hidden bg-black shadow-2xl flex flex-col">

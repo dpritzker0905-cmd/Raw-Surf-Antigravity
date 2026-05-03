@@ -16,6 +16,7 @@
 
 import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { X, ZoomIn, ZoomOut, Check, RotateCcw } from 'lucide-react';
+import useFocusTrap from '../hooks/useFocusTrap';
 
 const OUTPUT_SIZE = 800; // Final avatar dimensions (800×800)
 const MIN_ZOOM = 1;
@@ -25,6 +26,10 @@ export default function AvatarCropModal({ imageFile, onConfirm, onCancel }) {
   const canvasRef = useRef(null);
   const imageRef = useRef(null);
   const containerRef = useRef(null);
+  const modalRef = useRef(null);
+
+  // Trap focus within the crop modal for keyboard accessibility
+  useFocusTrap(modalRef, !!imageFile);
 
   // Transform state
   const [zoom, setZoom] = useState(1);
@@ -263,7 +268,7 @@ export default function AvatarCropModal({ imageFile, onConfirm, onCancel }) {
   if (!imageFile) return null;
 
   return (
-    <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/80 backdrop-blur-md">
+    <div ref={modalRef} className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/80 backdrop-blur-md">
       <div 
         className="relative w-[95vw] max-w-[440px] bg-zinc-900/95 border border-zinc-700/50 rounded-3xl overflow-hidden shadow-2xl shadow-black/60"
         style={{ backdropFilter: 'blur(20px)' }}

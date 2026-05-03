@@ -22,6 +22,7 @@ import { GromParentCard } from './settings/GromParentCard';
 import { UsernameCard } from './settings/UsernameCard';
 import { MetaConnectionsCard } from './settings/MetaConnectionsCard';
 import { PasswordSecurityCard } from './settings/PasswordSecurityCard';
+import DeleteAccountSection from './settings/DeleteAccountSection';
 
 
 
@@ -1344,16 +1345,7 @@ export const Settings = () => {
               </div>
 
               {/* Data Deletion Request */}
-              <div className={`flex items-center justify-between py-2`}>
-                <div className="flex items-center gap-2">
-                  <Trash2 className="w-4 h-4 text-red-400" />
-                  <div>
-                    <span className={textPrimaryClass}>Request Data Deletion</span>
-                    <p className={`text-xs ${textSecondaryClass}`}>Delete all your personal data from Raw Surf</p>
-                  </div>
-                </div>
-                <ChevronRight className={`w-5 h-5 ${textSecondaryClass}`} />
-              </div>
+              <DeleteAccountSection />
             </CardContent>
           )}
         </Card>

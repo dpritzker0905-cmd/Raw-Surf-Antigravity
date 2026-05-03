@@ -17,6 +17,7 @@ import { getFullUrl } from '../utils/media';
 import { formatTimeAgo, formatDuration } from '../utils/formatTime';
 import { REACTION_EMOJIS } from '../constants/emojis';
 import EmojiPicker from './EmojiPicker';
+import useFocusTrap from '../hooks/useFocusTrap';
 
 
 // Reaction emojis — imported from centralized constants/emojis.js
@@ -434,6 +435,9 @@ const PostModal = ({ post, isOpen, onClose, _onPostUpdated, posts, onNavigatePos
   const lastTapRef = useRef(0);
   
   const modalRef = useRef(null);
+  
+  // Trap focus within the modal for keyboard accessibility
+  useFocusTrap(modalRef, isOpen);
   
   // Double-tap to like handler
   const handleDoubleTap = useCallback(() => {

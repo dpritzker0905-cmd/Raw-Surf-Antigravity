@@ -291,3 +291,51 @@ export const LeaderboardSkeleton = ({ count = 10 }) => (
     ))}
   </div>
 );
+
+// ─── Gallery Page Skeleton ────────────────────────────────────────────────────
+export const GallerySkeleton = () => (
+  <div className="space-y-4">
+    <div className="flex items-center justify-between">
+      <div className="space-y-2">
+        <Skeleton className="h-6 w-40 rounded" />
+        <Skeleton className="h-3.5 w-24 rounded" />
+      </div>
+      <Skeleton className="h-10 w-28 rounded-xl" />
+    </div>
+    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+      {Array.from({ length: 8 }).map((_, i) => (
+        <Skeleton key={i} className="aspect-square rounded-xl" />
+      ))}
+    </div>
+  </div>
+);
+
+// ─── Bookings List Skeleton ───────────────────────────────────────────────────
+export const BookingsSkeleton = ({ count = 4 }) => (
+  <div className="space-y-3 p-4">
+    <Skeleton className="h-5 w-32 rounded" />
+    {Array.from({ length: count }).map((_, i) => (
+      <BookingDetailSkeleton key={i} />
+    ))}
+  </div>
+);
+
+// ─── Generic Page Skeleton (for hub/dashboard pages) ──────────────────────────
+export const GenericPageSkeleton = () => (
+  <div className="p-4 max-w-4xl mx-auto space-y-4">
+    <div className="flex items-center gap-3">
+      <Skeleton className="w-10 h-10 rounded-xl" />
+      <Skeleton className="h-6 w-48 rounded" />
+    </div>
+    <div className="grid grid-cols-2 gap-3">
+      <Skeleton className="h-24 rounded-xl" />
+      <Skeleton className="h-24 rounded-xl" />
+    </div>
+    <Skeleton className="h-48 rounded-xl" />
+    <div className="space-y-2">
+      <Skeleton className="h-4 w-full rounded" />
+      <Skeleton className="h-4 w-3/4 rounded" />
+      <Skeleton className="h-4 w-1/2 rounded" />
+    </div>
+  </div>
+);

@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useLocation, useSearchParams } from 'react-router-dom';
 import apiClient, { BACKEND_URL } from '../lib/apiClient';
@@ -16,6 +16,7 @@ import { Switch } from './ui/switch';
 import { Input } from './ui/input';
 import { toast } from 'sonner';
 import logger from '../utils/logger';
+import { AlertCardSkeleton } from './ui/SkeletonVariants';
 
 
 // Time window options
@@ -510,8 +511,10 @@ export const SurfAlerts = () => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="w-8 h-8 animate-spin text-yellow-400" />
+      <div className="p-4 space-y-3">
+        <AlertCardSkeleton />
+        <AlertCardSkeleton />
+        <AlertCardSkeleton />
       </div>
     );
   }

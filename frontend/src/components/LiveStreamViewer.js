@@ -24,6 +24,7 @@ import '@livekit/components-styles';
 import { Track } from 'livekit-client';
 import logger from '../utils/logger';
 import { getFullUrl } from '../utils/media';
+import useFocusTrap from '../hooks/useFocusTrap';
 
 const CONNECTION_TIMEOUT = 15000;
 
@@ -317,6 +318,10 @@ const LiveStreamViewer = ({ isOpen, onClose, streamInfo }) => {
   const timeoutRef      = useRef(null);
   const isMountedRef    = useRef(true);
   const hasFetchedRef   = useRef(false);
+  const viewerModalRef  = useRef(null);
+
+  // Trap focus within the live stream viewer for keyboard accessibility
+  useFocusTrap(viewerModalRef, isOpen);
 
   useEffect(() => {
     isMountedRef.current = true;
@@ -434,7 +439,7 @@ const LiveStreamViewer = ({ isOpen, onClose, streamInfo }) => {
 
   return (
     /* Fullscreen on mobile │ Centred 1100×720 popup on desktop — matches GoLiveModal exactly */
-    <div className="fixed inset-0 z-[110] flex items-center justify-center" data-testid="live-stream-viewer">
+    <div ref={viewerModalRef} className="fixed inset-0 z-[110] flex items-center justify-center" data-testid="live-stream-viewer">
       {/* Desktop backdrop */}
       <div
         className="fixed inset-0 bg-black/80 backdrop-blur-sm hidden sm:block"

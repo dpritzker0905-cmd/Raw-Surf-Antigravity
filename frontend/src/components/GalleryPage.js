@@ -57,6 +57,9 @@ import { getFullUrl } from '../utils/media';
 
 
 import { getErrorMessage } from '../utils/errors';
+import usePullToRefresh from '../hooks/usePullToRefresh';
+import PullToRefreshIndicator from './ui/PullToRefreshIndicator';
+import { GallerySkeleton } from './ui/SkeletonVariants';
 
 export const GalleryPage = () => {
   const { user } = useAuth();
@@ -987,16 +990,23 @@ export const GalleryPage = () => {
     }
   };
 
+  // Pull-to-refresh for mobile — triggers gallery refresh on swipe-down
+  const { pullRef: galleryPullRef, isPulling: galleryPulling, pullProgress: galleryPullProgress, isRefreshing: galleryPtrRefreshing } = usePullToRefresh(
+    async () => { await fetchGallery(); if (isPhotographer) await fetchGalleries(); },
+    { threshold: 60, enabled: !loading }
+  );
+
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="w-8 h-8 animate-spin text-yellow-400" />
+      <div className="p-4 max-w-6xl mx-auto">
+        <GallerySkeleton />
       </div>
     );
   }
 
   return (
-    <div className="p-4 max-w-6xl mx-auto" data-testid="gallery-page">
+    <div ref={galleryPullRef} className="p-4 max-w-6xl mx-auto" data-testid="gallery-page">
+      <PullToRefreshIndicator isPulling={galleryPulling} progress={galleryPullProgress} isRefreshing={galleryPtrRefreshing} />
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>

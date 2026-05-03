@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
@@ -16,7 +16,9 @@ import { Input } from './ui/input';
 import { toast } from 'sonner';
 import { CrewLeaderboard } from './CrewLeaderboard';
 import apiClient, { BACKEND_URL } from '../lib/apiClient';
+import ChallengesTab from './career/ChallengesTab';
 import logger from '../utils/logger';
+import { GenericPageSkeleton } from './ui/SkeletonVariants';
 
 
 /**
@@ -101,11 +103,7 @@ export const TheInsideHub = () => {
   ];
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="w-8 h-8 text-cyan-400 animate-spin" />
-      </div>
-    );
+    return <GenericPageSkeleton />;
   }
 
   return (
@@ -465,6 +463,19 @@ export const TheInsideHub = () => {
               </div>
             ))}
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Weekly Challenges */}
+      <Card className={cardBg}>
+        <CardHeader>
+          <CardTitle className={`${textPrimary} flex items-center gap-2`}>
+            <Sparkles className="w-5 h-5 text-cyan-400" />
+            Weekly Challenges
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ChallengesTab userId={user?.id} />
         </CardContent>
       </Card>
 

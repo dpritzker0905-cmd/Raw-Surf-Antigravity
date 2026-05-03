@@ -20,6 +20,7 @@ import {
 import { Button } from '../ui/button';
 import { toast } from 'sonner';
 import { getFullUrl } from '../../utils/media';
+import useFocusTrap from '../../hooks/useFocusTrap';
 
 export const GalleryLightbox = ({
   item,
@@ -44,6 +45,9 @@ export const GalleryLightbox = ({
   const [imgLoaded, setImgLoaded] = useState(false);
   const containerRef = useRef(null);
   const imgRef = useRef(null);
+
+  // Trap focus within the lightbox for keyboard accessibility
+  useFocusTrap(containerRef, !!item);
 
   const currentIndex = item ? items.findIndex(i => i.id === item.id) : -1;
   const hasPrev = currentIndex > 0;

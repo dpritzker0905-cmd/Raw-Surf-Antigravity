@@ -33,6 +33,7 @@ import logger from '../utils/logger';
 import { getFullUrl } from '../utils/media';
 import { getThemeTokens } from '../utils/themeTokens';
 import { ROLES } from '../constants/roles';
+import { SpotCardSkeleton, AlertCardSkeleton } from './ui/SkeletonVariants';
 
 
 
@@ -719,10 +720,10 @@ const SpotHub = () => {
 
   if (loading) {
     return (
-      <div className="max-w-xl mx-auto p-4">
-        <div className="flex items-center justify-center py-20">
-          <Loader2 className="w-8 h-8 animate-spin text-cyan-400" />
-        </div>
+      <div className="max-w-xl mx-auto p-4 space-y-3">
+        <SpotCardSkeleton />
+        <AlertCardSkeleton />
+        <AlertCardSkeleton />
       </div>
     );
   }

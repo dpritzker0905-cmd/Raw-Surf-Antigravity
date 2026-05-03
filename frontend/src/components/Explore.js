@@ -53,6 +53,7 @@ import ExploreSpotCard from './ExploreSpotCard';
 
 import logger from '../utils/logger';
 import { getFullUrl } from '../utils/media';
+import ResponsiveImage from './ui/ResponsiveImage';
 
 
 
@@ -103,7 +104,7 @@ const PostMediaPreview = ({ post, isHoverScale = true }) => {
 
   if (finalThumbnailUrl || finalMediaUrl) {
     return (
-      <img
+      <ResponsiveImage
         src={finalThumbnailUrl || finalMediaUrl}
         alt=""
         className={`w-full h-full object-cover absolute inset-0 ${hoverClass}`}

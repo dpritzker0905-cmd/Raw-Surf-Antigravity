@@ -14,6 +14,7 @@ import PostMenu, { SharePostModal } from './PostMenu';
 import { toast } from 'sonner';
 import logger from '../utils/logger';
 import { REACTION_EMOJIS } from '../constants/emojis';
+import { FeedPostSkeleton } from './ui/SkeletonVariants';
 
 
 const SinglePost = () => {
@@ -367,8 +368,8 @@ const SinglePost = () => {
 
   if (loading) {
     return (
-      <div className={`min-h-screen ${bgClass} flex items-center justify-center`}>
-        <Loader2 className={`w-8 h-8 animate-spin ${textSecondaryClass}`} />
+      <div className={`min-h-screen ${bgClass} p-4 max-w-2xl mx-auto`}>
+        <FeedPostSkeleton />
       </div>
     );
   }

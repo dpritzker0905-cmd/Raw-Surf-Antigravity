@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
@@ -14,7 +14,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Input } from './ui/input';
 import { toast } from 'sonner';
 import apiClient, { BACKEND_URL } from '../lib/apiClient';
+import ChallengesTab from './career/ChallengesTab';
 import logger from '../utils/logger';
+import { GenericPageSkeleton } from './ui/SkeletonVariants';
 
 
 /**
@@ -83,11 +85,7 @@ export const ImpactZoneHub = () => {
   };
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="w-8 h-8 animate-spin text-orange-500" />
-      </div>
-    );
+    return <GenericPageSkeleton />;
   }
 
   return (
@@ -335,6 +333,19 @@ export const ImpactZoneHub = () => {
               Browse Heat Videos
             </Button>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Weekly Challenges */}
+      <Card className={`${cardBg}`}>
+        <CardHeader className="pb-2">
+          <CardTitle className={`${textPrimary} text-lg flex items-center gap-2`}>
+            <Flame className="w-5 h-5 text-orange-500" />
+            Weekly Challenges
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ChallengesTab userId={user?.id} />
         </CardContent>
       </Card>
 

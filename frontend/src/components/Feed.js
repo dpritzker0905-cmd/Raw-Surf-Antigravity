@@ -33,6 +33,8 @@ import { getFullUrl } from '../utils/media';
 import { ROLES } from '../constants/roles';
 import { REACTION_EMOJIS } from '../constants/emojis';
 import useSwipeTabs from '../hooks/useSwipeTabs';
+import usePullToRefresh from '../hooks/usePullToRefresh';
+import PullToRefreshIndicator from './ui/PullToRefreshIndicator';
 
 // Tab order for the feed — used by swipe navigation and sliding indicator
 const FEED_TABS = ['for_you', 'waves', 'following'];
@@ -1348,6 +1350,12 @@ export const Feed = () => {
   const swipeHandlers = useSwipeTabs(FEED_TABS, activeTab, setActiveTab);
   const activeTabIndex = FEED_TABS.indexOf(activeTab);
 
+  // Pull-to-refresh for mobile — triggers feed refresh on swipe-down
+  const { pullRef, isPulling, pullProgress, isRefreshing: isPtrRefreshing } = usePullToRefresh(
+    async () => { await fetchPosts(); },
+    { threshold: 60, enabled: !loading }
+  );
+
   if (loading) {
     return (
       <div className="max-w-xl mx-auto theme-main-content pt-4 px-2">
@@ -1371,7 +1379,9 @@ export const Feed = () => {
   const borderClass = isLight ? 'border-gray-200' : isBeach ? 'border-zinc-900' : 'border-zinc-800';
 
   return (
-    <div className={`max-w-xl mx-auto ${mainBgClass} min-h-screen transition-colors duration-300`} data-testid="feed-container">
+    <div ref={pullRef} className={`max-w-xl mx-auto ${mainBgClass} min-h-screen transition-colors duration-300`} data-testid="feed-container">
+      {/* Pull to Refresh Indicator */}
+      <PullToRefreshIndicator isPulling={isPulling} progress={pullProgress} isRefreshing={isPtrRefreshing} />
       {/* Offline / stale data banner */}
       <LastUpdatedBanner
         lastUpdatedAt={feedLastUpdated}
