@@ -820,11 +820,8 @@ export const MessagesPage = () => {
       // RACE CONDITION GUARD: Only apply results if the user hasn't switched
       // folders while this request was in-flight.
       if (activeFolderRef.current !== currentFolder) {
-        console.log(`[MSG] DISCARDED stale fetch: requested=${currentFolder}, current=${activeFolderRef.current}`);
         return; // Stale response — user switched tabs, discard
       }
-      
-      console.log(`[MSG] APPLYING fetch for folder=${currentFolder}, count=${(response.data || []).length}, items=`, (response.data || []).map(c => c.other_user_name));
 
       setConversations(response.data);
       
