@@ -759,8 +759,15 @@ async def cancel_dispatch(
     if not dispatch:
         raise HTTPException(status_code=404, detail="Dispatch request not found")
     
-    # Only requester or photographer can cancel
-    if user_id not in [dispatch.requester_id, dispatch.photographer_id]:
+    # Reject if already cancelled or completed
+    if dispatch.status in [DispatchRequestStatusEnum.CANCELLED, DispatchRequestStatusEnum.COMPLETED]:
+        raise HTTPException(status_code=400, detail=f"Dispatch is already {dispatch.status.value}")
+    
+    # Only requester or photographer can cancel (normalize to str for safe comparison)
+    allowed_ids = [str(dispatch.requester_id)]
+    if dispatch.photographer_id:
+        allowed_ids.append(str(dispatch.photographer_id))
+    if str(user_id) not in allowed_ids:
         raise HTTPException(status_code=403, detail="Only requester or photographer can cancel")
     
     now = datetime.now(timezone.utc)
@@ -770,12 +777,14 @@ async def cancel_dispatch(
     refund_type = 'none'
     photographer_fee_pct = 0  # Default for non-immediate dispatches
     
+    safe_deposit = dispatch.deposit_amount or 0
+    
     if dispatch.status == DispatchRequestStatusEnum.PENDING_PAYMENT:
         # Not paid yet - no refund needed
         refund_type = 'none'
     elif dispatch.status == DispatchRequestStatusEnum.SEARCHING_FOR_PRO:
         # Still searching - full refund
-        refund_amount = dispatch.deposit_amount
+        refund_amount = safe_deposit
         refund_type = 'full'
     elif dispatch.is_immediate:
         # On-demand after acceptance — fee logic depends on WHO cancelled

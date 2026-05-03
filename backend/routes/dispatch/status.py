@@ -280,7 +280,8 @@ async def get_active_dispatch(
             "id": dispatch.id,
             "status": dispatch.status.value,
             "role": role,
-            "photographer_id": dispatch.photographer_id or dispatch.target_photographer_id,
+            "photographer_id": dispatch.photographer_id,  # Only set after acceptance
+            "target_photographer_id": dispatch.target_photographer_id,  # Quick Book target (not yet accepted)
             "photographer_name": dispatch.photographer.full_name if dispatch.photographer else None,
             "requester_id": dispatch.requester_id,
             "requester_name": dispatch.requester.full_name if dispatch.requester else None,
