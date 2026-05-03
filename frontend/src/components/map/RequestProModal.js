@@ -14,11 +14,11 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
-
   Camera, MapPin, Clock, Loader2, Target, Check,
   X, Zap, ChevronDown, ChevronUp, Plus, Award, Calculator,
-  Wallet, Users,
+  Wallet, Users, CreditCard, ChevronLeft,
 } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
@@ -31,6 +31,8 @@ import apiClient from '../../lib/apiClient';
 import { getFullUrl } from '../../utils/media';
 import { ROLES } from '../../constants/roles';
 import { useTheme } from '../../contexts/ThemeContext';
+import { useAuth } from '../../contexts/AuthContext';
+import logger from '../../utils/logger';
 
 
 
@@ -150,6 +152,12 @@ export const RequestProModal = ({
 }) => {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
+  const navigate = useNavigate();
+  const { user: authUser, updateUser } = useAuth();
+
+  // ── Step flow: 'configure' → 'confirm' ─────────────────────────────────
+  const [step, setStep] = useState('configure');
+
   // ── Photographer selection ──────────────────────────────────────────────
   const [selectedPro, setSelectedPro]         = useState(null);
   const [proListExpanded, setProListExpanded] = useState(false);
@@ -172,12 +180,40 @@ export const RequestProModal = ({
   // ── Boost ───────────────────────────────────────────────────────────────
   const [boostHours, setBoostHours] = useState(0);
 
+  // ── Payment ─────────────────────────────────────────────────────────────
+  const [paymentMethod, setPaymentMethod] = useState('card');
+  const [localCredits, setLocalCredits]   = useState(0);
+  const [creditsFetched, setCreditsFetched] = useState(false);
+
   // ── Submission ──────────────────────────────────────────────────────────
   const [loading, setLoading] = useState(false);
+
+  // Fetch credit balance when modal opens
+  useEffect(() => {
+    const fetchCredits = async () => {
+      const uid = userId || user?.id || authUser?.id;
+      if (uid && isOpen && !creditsFetched) {
+        try {
+          const res = await apiClient.get(`/credits/balance/${uid}`);
+          if (res.data?.balance !== undefined) {
+            const balance = res.data.balance;
+            setLocalCredits(balance);
+            setCreditsFetched(true);
+            if (balance > 0) setPaymentMethod('credits');
+          }
+        } catch (e) {
+          logger.error('[RequestProModal] Failed to fetch credits:', e);
+          setCreditsFetched(true);
+        }
+      }
+    };
+    fetchCredits();
+  }, [isOpen, userId, user?.id, authUser?.id, creditsFetched]);
 
   // Reset on close
   useEffect(() => {
     if (!isOpen) {
+      setStep('configure');
       setSelectedPro(null);
       setProListExpanded(false);
       setStartTimeOption(30);
@@ -189,6 +225,9 @@ export const RequestProModal = ({
       setFriendSearchResults([]);
       setShowCaptainsHub(false);
       setBoostHours(0);
+      setPaymentMethod('card');
+      setLocalCredits(0);
+      setCreditsFetched(false);
       setLoading(false);
     }
   }, [isOpen]);
@@ -209,6 +248,10 @@ export const RequestProModal = ({
   // Full payment upfront (escrow) — we hold funds until session completion.
   // For shared bookings: captain pays their share. Solo: captain pays full total.
   const depositAmount    = isShared ? captainPayAmount.toFixed(0) : totalCost.toFixed(0);
+  const amountToCharge   = isShared ? captainPayAmount : totalCost;
+  const hasEnoughCredits = isShared
+    ? (captainPayAmount === 0 || localCredits >= captainPayAmount)
+    : localCredits >= totalCost;
 
   // ── Debounced user search for crew autocomplete ─────────────────────────
   useEffect(() => {
@@ -289,7 +332,7 @@ export const RequestProModal = ({
     if (!userLocation) { toast.error('Location required to request a Pro'); return; }
     setLoading(true);
     try {
-      const uid = userId || user?.id;
+      const uid = userId || user?.id || authUser?.id;
       const requestedStartTime = new Date(Date.now() + startTimeOption * 60000).toISOString();
 
       const crewSharesPayload = crewMembers.length > 0
@@ -300,6 +343,7 @@ export const RequestProModal = ({
           }))
         : null;
 
+      // Step 1: Create dispatch request
       const response = await apiClient.post(
         `/dispatch/request?requester_id=${uid}`,
         {
@@ -320,20 +364,15 @@ export const RequestProModal = ({
       );
 
       const dispatchId = response.data.id;
-      const payAmount  = parseFloat(response.data.captain_share_amount ?? response.data.deposit_amount ?? depositAmount);
 
-      onClose();
+      // Step 2: Process payment based on selected method
+      if (paymentMethod === 'credits') {
+        // Pay with credits — immediate confirmation
+        const payResponse = await apiClient.post(`/dispatch/${dispatchId}/pay?payer_id=${uid}`);
 
-      if (crewMembers.length > 0) {
-        toast.success(`Request sent! Invites sent to ${crewMembers.length} crew member${crewMembers.length > 1 ? 's' : ''} (10 min to accept)`);
-      } else {
-        toast.success('Request created! Processing payment…');
-      }
-
-      // ── Payment: try credits first, fall back to Stripe Checkout ──
-      try {
-        await apiClient.post(`/dispatch/${dispatchId}/pay?payer_id=${uid}`);
-        toast.success('Payment confirmed! Searching for a Pro…');
+        if (payResponse.data.remaining_credits !== undefined) {
+          updateUser({ credit_balance: payResponse.data.remaining_credits });
+        }
 
         // Apply boost if selected
         if (boostHours > 0) {
@@ -345,36 +384,48 @@ export const RequestProModal = ({
             toast.error(e.response?.data?.detail || 'Failed to boost');
           }
         }
-        onSuccess?.(dispatchId);
-      } catch (payError) {
-        const errDetail = payError?.response?.data?.detail || '';
-        const isInsufficientCredits = typeof errDetail === 'string' && errDetail.toLowerCase().includes('insufficient');
 
-        if (isInsufficientCredits) {
-          // Fall back to Stripe card checkout
-          toast('Redirecting to card payment…', { icon: '💳' });
-          try {
-            const checkoutRes = await apiClient.post('/dispatch/checkout', {
-              dispatch_id: payAmount > 0 ? dispatchId : dispatchId,
-              payer_id:    uid,
-              amount:      payAmount,
-              origin_url:  window.location.origin,
-            });
-            if (checkoutRes.data?.checkout_url) {
-              window.location.href = checkoutRes.data.checkout_url;
-              return; // Redirect — don't show error
-            }
-          } catch (checkoutErr) {
-            toast.error(checkoutErr?.response?.data?.detail || 'Could not start card payment. Please try again.');
+        toast.success('Payment confirmed! 🤙 Setting up your session...');
+        onClose();
+        // Navigate to full lobby page — has chat, waiting UI, selfie prompt
+        navigate(`/dispatch/${dispatchId}/lobby`, {
+          state: {
+            crewMembers,
+            photographer: selectedPro,
+            captainPayAmount,
+            needsSelfie: true,
           }
+        });
+      } else {
+        // Pay with card — redirect to Stripe Checkout
+        const checkoutResponse = await apiClient.post('/dispatch/checkout', {
+          dispatch_id: dispatchId,
+          payer_id:    uid,
+          amount:      amountToCharge,
+          origin_url:  window.location.origin,
+        });
+
+        if (checkoutResponse.data?.checkout_url) {
+          toast.info('Redirecting to secure payment...');
+          window.location.href = checkoutResponse.data.checkout_url;
         } else {
-          toast.error(typeof errDetail === 'string' ? errDetail : 'Payment failed. Please try again.');
+          throw new Error('Failed to create checkout session');
         }
       }
 
+      onSuccess?.(dispatchId);
+
     } catch (error) {
-      const detail = error?.response?.data?.detail;
-      toast.error(typeof detail === 'string' ? detail : 'Failed to create request');
+      const errorDetail = error?.response?.data?.detail;
+      if (typeof errorDetail === 'object' && errorDetail.refunded) {
+        toast.info(`Request failed but $${errorDetail.refund_amount?.toFixed(2) || '0.00'} credits refunded.`);
+        if (errorDetail.new_balance !== undefined) {
+          updateUser({ credit_balance: errorDetail.new_balance });
+        }
+      } else {
+        const message = typeof errorDetail === 'string' ? errorDetail : 'Failed to create request';
+        toast.error(message);
+      }
     } finally {
       setLoading(false);
     }
@@ -390,18 +441,30 @@ export const RequestProModal = ({
         {/* ── STICKY HEADER ───────────────────────────────────────────────── */}
         <DialogHeader className={`border-b ${isDark ? 'border-zinc-800 bg-zinc-900' : 'border-gray-200 bg-white'}`}>
           <DialogTitle className="text-lg font-bold flex items-center gap-2">
+            {step === 'confirm' && (
+              <button
+                onClick={() => setStep('configure')}
+                className={`p-1.5 rounded-lg ${isDark ? 'hover:bg-zinc-800' : 'hover:bg-gray-100'} transition-colors`}
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+            )}
             <span className="w-8 h-8 rounded-xl bg-gradient-to-br from-cyan-500/30 to-blue-500/30 flex items-center justify-center">
               <Camera className="w-4 h-4 text-cyan-400" />
             </span>
-            Request a Pro
+            {step === 'configure' ? 'Request a Pro' : 'Confirm & Pay'}
           </DialogTitle>
           <p className={`${isDark ? 'text-gray-400' : 'text-gray-500'} text-xs mt-0.5`}>
-            On-demand surf photographer — at your break within the hour
+            {step === 'configure'
+              ? 'On-demand surf photographer — at your break within the hour'
+              : 'Review your session and choose payment method'}
           </p>
         </DialogHeader>
 
         {/* ── SCROLLABLE BODY ─────────────────────────────────────────────── */}
         <div className="modal-body px-4 sm:px-5 py-4 space-y-4">
+
+        {step === 'configure' && (<>
 
           {/* ── 1. Photographer selection ──────────────────────────────────── */}
           <section className="space-y-2">
@@ -873,37 +936,188 @@ export const RequestProModal = ({
             )}
           </div>
 
-          {/* Disclaimer */}
+        </>)}
+
+        {/* ── CONFIRM & PAY STEP ──────────────────────────────────────────── */}
+        {step === 'confirm' && (<>
+
+          {/* Session Summary Card */}
+          <div className={`p-4 rounded-2xl ${isDark ? 'bg-zinc-800/60' : 'bg-gray-50'}`}>
+            <div className="flex items-center gap-4 mb-3">
+              <div className="w-12 h-12 rounded-full overflow-hidden ring-2 ring-cyan-400">
+                {selectedPro?.avatar_url ? (
+                  <img src={getFullUrl(selectedPro.avatar_url)} alt="" className="w-full h-full object-cover" />
+                ) : (
+                  <div className={`w-full h-full flex items-center justify-center ${isDark ? 'bg-zinc-700' : 'bg-gray-200'}`}>
+                    <Camera className="w-5 h-5 text-cyan-400" />
+                  </div>
+                )}
+              </div>
+              <div className="flex-1">
+                <p className={`font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                  {selectedPro?.full_name || 'Auto-Match (Nearest Pro)'}
+                </p>
+                <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                  {duration * 60} min session
+                </p>
+              </div>
+              <div className="text-right">
+                <p className="text-cyan-400 font-bold">${totalCost.toFixed(0)}</p>
+                {isShared && (
+                  <p className="text-xs text-green-400">You: ${captainPayAmount.toFixed(0)}</p>
+                )}
+              </div>
+            </div>
+
+            <div className={`grid grid-cols-3 gap-3 pt-3 border-t ${isDark ? 'border-zinc-700' : 'border-gray-200'}`}>
+              <div className="text-center">
+                <MapPin className="w-4 h-4 mx-auto text-yellow-400 mb-1" />
+                <p className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>Location</p>
+                <p className={`text-sm font-medium ${isDark ? 'text-white' : 'text-gray-900'} truncate`}>
+                  {nearestSpot?.name || 'GPS'}
+                </p>
+              </div>
+              <div className="text-center">
+                <Clock className="w-4 h-4 mx-auto text-cyan-400 mb-1" />
+                <p className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>Duration</p>
+                <p className={`text-sm font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>{duration * 60} min</p>
+              </div>
+              <div className="text-center">
+                <Users className="w-4 h-4 mx-auto text-purple-400 mb-1" />
+                <p className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>Surfers</p>
+                <p className={`text-sm font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>{totalParticipants}</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Price Breakdown */}
+          <div className={`${isDark ? 'bg-gradient-to-r from-cyan-900/30 to-blue-900/30 border-cyan-500/25' : 'bg-gradient-to-r from-cyan-50 to-blue-50 border-cyan-200'} rounded-xl border overflow-hidden`}>
+            <div className="px-3 pt-3 pb-2 space-y-1.5">
+              <div className="flex items-center justify-between text-sm">
+                <span className={isDark ? 'text-gray-400' : 'text-gray-500'}>Rate</span>
+                <span className={isDark ? 'text-white' : 'text-gray-900'}>${hourlyRate}/hr × {duration}h</span>
+              </div>
+              <div className="flex items-center justify-between text-sm">
+                <span className={isDark ? 'text-gray-400' : 'text-gray-500'}>Session Total</span>
+                <span className={`${isDark ? 'text-white' : 'text-gray-900'} font-semibold`}>${totalCost.toFixed(0)}</span>
+              </div>
+              {isShared && (
+                <div className={`flex items-center justify-between text-sm pt-1 border-t ${isDark ? 'border-zinc-700/50' : 'border-gray-200'}`}>
+                  <span className="text-emerald-400">Your Share ({totalParticipants} split)</span>
+                  <span className="text-emerald-400 font-semibold">~${captainPayAmount.toFixed(0)}</span>
+                </div>
+              )}
+            </div>
+            <div className={`px-3 py-2.5 border-t ${isDark ? 'border-cyan-500/20 bg-cyan-500/5' : 'border-cyan-200 bg-cyan-50'} flex items-center justify-between`}>
+              <span className="text-cyan-600 dark:text-cyan-400 font-medium text-sm">
+                {isShared ? "Captain's Share" : 'Amount Due'}
+              </span>
+              <span className="text-cyan-600 dark:text-cyan-400 font-bold text-base">${depositAmount}</span>
+            </div>
+          </div>
+
+          {/* Payment Method Selection */}
+          <div className="space-y-3">
+            <p className={`text-sm font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>Payment Method</p>
+
+            {localCredits > 0 && (
+              <button
+                onClick={() => setPaymentMethod('credits')}
+                className={`w-full p-4 rounded-xl border-2 flex items-center justify-between transition-all ${
+                  paymentMethod === 'credits'
+                    ? 'border-amber-400 bg-amber-500/10'
+                    : isDark ? 'border-zinc-700' : 'border-gray-200'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-amber-500/20 flex items-center justify-center">
+                    <Wallet className="w-5 h-5 text-amber-400" />
+                  </div>
+                  <div className="text-left">
+                    <p className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>Surf Credits</p>
+                    <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                      Balance: ${localCredits.toFixed(2)}
+                      {!hasEnoughCredits && ' (insufficient)'}
+                    </p>
+                  </div>
+                </div>
+                <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${paymentMethod === 'credits' ? 'border-amber-400 bg-amber-400' : isDark ? 'border-zinc-500' : 'border-gray-400'}`}>
+                  {paymentMethod === 'credits' && <Check className="w-3 h-3 text-black" />}
+                </div>
+              </button>
+            )}
+
+            <button
+              onClick={() => setPaymentMethod('card')}
+              className={`w-full p-4 rounded-xl border-2 flex items-center justify-between transition-all ${
+                paymentMethod === 'card'
+                  ? 'border-cyan-400 bg-cyan-500/10'
+                  : isDark ? 'border-zinc-700' : 'border-gray-200'
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-cyan-500/20 flex items-center justify-center">
+                  <CreditCard className="w-5 h-5 text-cyan-400" />
+                </div>
+                <div className="text-left">
+                  <p className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>Card Payment</p>
+                  <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Visa, Mastercard, etc.</p>
+                </div>
+              </div>
+              <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${paymentMethod === 'card' ? 'border-cyan-400 bg-cyan-400' : isDark ? 'border-zinc-500' : 'border-gray-400'}`}>
+                {paymentMethod === 'card' && <Check className="w-3 h-3 text-black" />}
+              </div>
+            </button>
+          </div>
+
+          {/* Escrow Disclaimer */}
           <p className="text-[10px] text-gray-500 text-center">
             {isShared
               ? 'Crew members have 10 minutes to accept. Your share is charged now.'
               : 'Full payment held in escrow. Refundable to credits until a Pro accepts and starts traveling.'}
           </p>
+
+        </>)}
+
         </div>
 
         {/* ── STICKY FOOTER ───────────────────────────────────────────────── */}
         <DialogFooter className={`${isDark ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-gray-200'} gap-2`}>
           <Button
             variant="outline"
-            onClick={onClose}
+            onClick={step === 'confirm' ? () => setStep('configure') : onClose}
             className={`${isDark ? 'border-zinc-600 text-white hover:bg-zinc-800' : 'border-gray-300 text-gray-700 hover:bg-gray-100'} flex-1 sm:flex-none`}
           >
-            Cancel
+            {step === 'confirm' ? 'Back' : 'Cancel'}
           </Button>
-          <Button
-            onClick={handleSubmit}
-            disabled={loading || !userLocation}
-            className="bg-gradient-to-r from-cyan-400 to-blue-500 text-black font-bold flex-1 sm:flex-none disabled:opacity-50"
-            data-testid="request-pro-submit"
-          >
-            {loading ? (
-              <Loader2 className="w-5 h-5 animate-spin" />
-            ) : isShared ? (
-              `Send Invites & Pay $${depositAmount}`
-            ) : (
-              `Pay $${depositAmount} — Book Session`
-            )}
-          </Button>
+
+          {step === 'configure' && (
+            <Button
+              onClick={() => setStep('confirm')}
+              disabled={!userLocation}
+              className="bg-gradient-to-r from-cyan-400 to-blue-500 text-black font-bold flex-1 sm:flex-none disabled:opacity-50"
+              data-testid="request-pro-continue"
+            >
+              Review & Pay <ChevronLeft className="w-4 h-4 ml-1 rotate-180" />
+            </Button>
+          )}
+
+          {step === 'confirm' && (
+            <Button
+              onClick={handleSubmit}
+              disabled={loading || !userLocation || (paymentMethod === 'credits' && !hasEnoughCredits)}
+              className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-black font-bold flex-1 sm:flex-none disabled:opacity-50"
+              data-testid="request-pro-submit"
+            >
+              {loading ? (
+                <Loader2 className="w-5 h-5 animate-spin" />
+              ) : paymentMethod === 'credits' ? (
+                <><Wallet className="w-4 h-4 mr-2" />Pay ${depositAmount} with Credits</>
+              ) : (
+                <><CreditCard className="w-4 h-4 mr-2" />Pay ${depositAmount} with Card</>
+              )}
+            </Button>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>
