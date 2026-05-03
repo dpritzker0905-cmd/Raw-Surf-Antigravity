@@ -212,7 +212,7 @@ async def send_push_endpoint(payload: PushNotificationPayload):
 # Helper functions for specific notification types
 async def notify_new_message(recipient_id: str, sender_name: str, preview: str, db: AsyncSession = None):
     """Push notification for new message - checks user preferences"""
-    from routes.notification_preferences import should_send_notification
+    from routes.notifications.notification_preferences import should_send_notification
     from database import AsyncSessionLocal
     
     # Create session if not provided
@@ -241,7 +241,7 @@ async def notify_new_message(recipient_id: str, sender_name: str, preview: str, 
 
 async def notify_dispatch_alert(photographer_id: str, spot_name: str, surfer_name: str, db: AsyncSession = None):
     """Push notification for dispatch request - checks user preferences"""
-    from routes.notification_preferences import should_send_notification
+    from routes.notifications.notification_preferences import should_send_notification
     from database import AsyncSessionLocal
     
     close_session = False
@@ -268,7 +268,7 @@ async def notify_dispatch_alert(photographer_id: str, spot_name: str, surfer_nam
 
 async def notify_post_reaction(author_id: str, reactor_name: str, emoji: str, db: AsyncSession = None):
     """Push notification for post reaction - checks user preferences"""
-    from routes.notification_preferences import should_send_notification
+    from routes.notifications.notification_preferences import should_send_notification
     from database import AsyncSessionLocal
     
     close_session = False
@@ -295,7 +295,7 @@ async def notify_post_reaction(author_id: str, reactor_name: str, emoji: str, db
 
 async def notify_new_follower(user_id: str, follower_name: str, db: AsyncSession = None):
     """Push notification for new follower - checks user preferences"""
-    from routes.notification_preferences import should_send_notification
+    from routes.notifications.notification_preferences import should_send_notification
     from database import AsyncSessionLocal
     
     close_session = False
@@ -322,7 +322,7 @@ async def notify_new_follower(user_id: str, follower_name: str, db: AsyncSession
 
 async def notify_booking(user_id: str, title: str, message: str, db: AsyncSession = None):
     """Push notification for booking updates - checks user preferences"""
-    from routes.notification_preferences import should_send_notification
+    from routes.notifications.notification_preferences import should_send_notification
     from database import AsyncSessionLocal
     
     close_session = False
@@ -351,7 +351,7 @@ async def notify_booking(user_id: str, title: str, message: str, db: AsyncSessio
 
 async def notify_session_join(photographer_id: str, surfer_name: str, amount: float, spot_name: str, db: AsyncSession = None):
     """Push notification to photographer when surfer joins their live session - checks user preferences"""
-    from routes.notification_preferences import should_send_notification
+    from routes.notifications.notification_preferences import should_send_notification
     from database import AsyncSessionLocal
     
     close_session = False
@@ -650,7 +650,7 @@ async def notify_photographer_arrived(
     db: AsyncSession = None
 ):
     """Push notification when photographer arrives at the meeting point."""
-    from routes.notification_preferences import should_send_notification
+    from routes.notifications.notification_preferences import should_send_notification
     from database import AsyncSessionLocal
 
     close_session = False
@@ -687,7 +687,7 @@ async def notify_session_completed(
     db: AsyncSession = None
 ):
     """Push notification when session is marked complete."""
-    from routes.notification_preferences import should_send_notification
+    from routes.notifications.notification_preferences import should_send_notification
     from database import AsyncSessionLocal
 
     close_session = False
@@ -727,7 +727,7 @@ async def notify_photos_ready(
     db: AsyncSession = None
 ):
     """Push notification when gallery photos are uploaded and ready for selection."""
-    from routes.notification_preferences import should_send_notification
+    from routes.notifications.notification_preferences import should_send_notification
     from database import AsyncSessionLocal
 
     close_session = False
@@ -765,7 +765,7 @@ async def notify_photos_found_ai(
     db: AsyncSession = None
 ):
     """Push notification after AI Find-Me scan discovers photos of the user."""
-    from routes.notification_preferences import should_send_notification
+    from routes.notifications.notification_preferences import should_send_notification
     from database import AsyncSessionLocal
 
     close_session = False
@@ -803,7 +803,7 @@ async def notify_new_comment(
     db: AsyncSession = None
 ):
     """Push notification for new comment on a post."""
-    from routes.notification_preferences import should_send_notification
+    from routes.notifications.notification_preferences import should_send_notification
     from database import AsyncSessionLocal
 
     close_session = False
@@ -841,7 +841,7 @@ async def notify_mention(
     db: AsyncSession = None
 ):
     """Push notification when a user is @mentioned in a post or comment."""
-    from routes.notification_preferences import should_send_notification
+    from routes.notifications.notification_preferences import should_send_notification
     from database import AsyncSessionLocal
 
     close_session = False
@@ -877,7 +877,7 @@ async def notify_surf_alert_triggered(
     db: AsyncSession = None
 ):
     """Push notification when a user's surf alert conditions are met."""
-    from routes.notification_preferences import should_send_notification
+    from routes.notifications.notification_preferences import should_send_notification
     from database import AsyncSessionLocal
 
     close_session = False
@@ -914,7 +914,7 @@ async def notify_booking_reminder(
     db: AsyncSession = None
 ):
     """Push notification for upcoming booking reminder (1hr / 24hr before)."""
-    from routes.notification_preferences import should_send_notification
+    from routes.notifications.notification_preferences import should_send_notification
     from database import AsyncSessionLocal
 
     close_session = False
@@ -951,7 +951,7 @@ async def notify_gallery_purchase(
     db: AsyncSession = None
 ):
     """Push notification to photographer when someone purchases gallery items."""
-    from routes.notification_preferences import should_send_notification
+    from routes.notifications.notification_preferences import should_send_notification
     from database import AsyncSessionLocal
 
     close_session = False
@@ -990,7 +990,7 @@ async def notify_review_received(
     db: AsyncSession = None
 ):
     """Push notification to photographer when they receive a new review."""
-    from routes.notification_preferences import should_send_notification
+    from routes.notifications.notification_preferences import should_send_notification
     from database import AsyncSessionLocal
 
     close_session = False

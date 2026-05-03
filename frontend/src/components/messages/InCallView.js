@@ -15,17 +15,22 @@
  *   - Uses HairFilterPicker component (same as GoLive)
  */
 
-import React, { useRef, useEffect, useState, useCallback } from 'react';
+import React, { useRef, useEffect, useState, useCallback } from 'react';import { logger } from '../../utils/logger';
+
 import { 
   Mic, MicOff, Video, VideoOff, PhoneOff, 
   Volume2, VolumeX, Maximize2, Minimize2, Signal, SignalLow, SignalZero,
   Sparkles, X, Scissors, SwitchCamera,
   Sunset, Waves, Moon, Zap, Eye, Grid, CircleDot
-} from 'lucide-react';
-import { HairFilterPicker } from '../HairFilterPicker';
-import { WebGLVideoProcessor } from '../../utils/WebGLFilterEngine';
+} from 'lucide-react';import { logger } from '../../utils/logger';
+
+import { HairFilterPicker } from '../HairFilterPicker';import { logger } from '../../utils/logger';
+
+import { WebGLVideoProcessor } from '../../utils/WebGLFilterEngine';import { logger } from '../../utils/logger';
+
 import { HairFilterEngine } from '../../utils/HairFilterEngine';
 
+import { logger } from '../../utils/logger';
 // ── Duration formatter ──────────────────────────────────────────────
 function formatDuration(seconds) {
   const h = Math.floor(seconds / 3600);
@@ -182,7 +187,7 @@ export default function InCallView({
     // Only re-set srcObject if the stream actually changed
     // (prevents iOS from interrupting playback on duplicate ontrack events)
     if (videoEl.srcObject !== remoteStream) {
-      console.log('[InCallView] Attaching remote stream to video element');
+      logger.debug('[InCallView] Attaching remote stream to video element');
       videoEl.srcObject = remoteStream;
     }
 
@@ -193,12 +198,12 @@ export default function InCallView({
     const maxRetries = 8;
     const tryPlay = () => {
       videoEl.play().then(() => {
-        console.log('[InCallView] ✅ Remote video playing (muted)');
+        logger.debug('[InCallView] ✅ Remote video playing (muted)');
         // Now unmute to hear audio — this works even outside user gesture
         // because the element is already playing
         setTimeout(() => {
           videoEl.muted = speakerOffRef.current;
-          console.log('[InCallView] ✅ Remote audio unmuted, speakerOff:', speakerOffRef.current);
+          logger.debug('[InCallView] ✅ Remote audio unmuted, speakerOff:', speakerOffRef.current);
         }, 100); // Small delay ensures iOS processes the play state first
       }).catch((err) => {
         console.warn(`[InCallView] play() attempt ${retries + 1} failed:`, err.name, err.message);
@@ -218,7 +223,7 @@ export default function InCallView({
 
     // When remote replaces their video track (camera toggle), nudge playback
     const handleTrackAdded = () => {
-      console.log('[InCallView] Remote track added, nudging play()');
+      logger.debug('[InCallView] Remote track added, nudging play()');
       videoEl.play().catch(() => {});
     };
     remoteStream.addEventListener('addtrack', handleTrackAdded);
@@ -641,7 +646,7 @@ export default function InCallView({
                 // Toggle muted on the single remote video element
                 if (remoteVideoRef.current) {
                   remoteVideoRef.current.muted = newMuted;
-                  console.log('[InCallView] Speaker toggled:', newMuted ? 'OFF' : 'ON');
+                  logger.debug('[InCallView] Speaker toggled:', newMuted ? 'OFF' : 'ON');
                 }
                 // Also toggle track.enabled as a backup
                 if (remoteStream) {

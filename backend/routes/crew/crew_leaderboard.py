@@ -336,7 +336,7 @@ async def get_user_crew_summary(
     # PostgreSQL: Check if user_id is in the member_ids JSON array
     crews_result = await db.execute(
         select(CrewStats)
-        .where(text(f"member_ids::jsonb @> '\"{user_id}\"'::jsonb"))
+        .where(text("member_ids::jsonb @> :uid_json").bindparams(uid_json=f'"{user_id}"'))
         .order_by(desc(CrewStats.total_sessions))
         .limit(5)
     )

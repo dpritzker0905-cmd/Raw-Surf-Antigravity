@@ -35,7 +35,7 @@ export async function cacheForOffline(mediaUrl) {
     }
 
     await cache.put(mediaUrl, response);
-    console.log('[OfflineGallery] Cached:', mediaUrl.substring(0, 80));
+    logger.debug('[OfflineGallery] Cached:', mediaUrl.substring(0, 80));
     return true;
   } catch (err) {
     console.error('[OfflineGallery] Cache failed:', err);

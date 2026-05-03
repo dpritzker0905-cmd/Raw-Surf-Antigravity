@@ -14,11 +14,15 @@
  *   5. Either: endCall() → cleanup
  */
 
-import { useState, useRef, useCallback, useEffect } from 'react';
-import apiClient, { BACKEND_URL } from '../lib/apiClient';
-import { toast } from 'sonner';
+import { useState, useRef, useCallback, useEffect } from 'react';import { logger } from '../utils/logger';
+
+import apiClient, { BACKEND_URL } from '../lib/apiClient';import { logger } from '../utils/logger';
+
+import { toast } from 'sonner';import { logger } from '../utils/logger';
+
 import { unlockAudioNow } from '../utils/audioUnlock';
 
+import { logger } from '../utils/logger';
 // STUN + TURN servers for reliable NAT traversal
 // STUN alone fails ~15-20% of the time (symmetric NAT, mobile carriers, corporate networks)
 // TURN from Metered.ca (rawsurf app) + Google STUN
@@ -99,9 +103,9 @@ async function getMediaStream(type = 'audio', facingMode = 'user') {
   // ── Step 1: Always acquire audio first ──
   let audioStream;
   try {
-    console.log('[WebRTC] Step 1 — requesting audio-only…');
+    logger.debug('[WebRTC] Step 1 — requesting audio-only…');
     audioStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-    console.log('[WebRTC] ✅ Audio acquired:', audioStream.getAudioTracks().length, 'track(s)');
+    logger.debug('[WebRTC] ✅ Audio acquired:', audioStream.getAudioTracks().length, 'track(s)');
   } catch (err) {
     console.error('[WebRTC] ❌ Audio request failed:', err.name, err.message);
     throw err; // No audio = no call possible
@@ -122,9 +126,9 @@ async function getMediaStream(type = 'audio', facingMode = 'user') {
   let videoStream = null;
   for (const constraints of videoConstraintChain) {
     try {
-      console.log('[WebRTC] Step 2 — trying video with:', JSON.stringify(constraints));
+      logger.debug('[WebRTC] Step 2 — trying video with:', JSON.stringify(constraints));
       videoStream = await navigator.mediaDevices.getUserMedia(constraints);
-      console.log('[WebRTC] ✅ Video acquired:', videoStream.getVideoTracks().length, 'track(s)');
+      logger.debug('[WebRTC] ✅ Video acquired:', videoStream.getVideoTracks().length, 'track(s)');
       break;
     } catch (err) {
       console.warn('[WebRTC] Video attempt failed:', constraints, err.name, err.message);
@@ -136,7 +140,7 @@ async function getMediaStream(type = 'audio', facingMode = 'user') {
     const combined = new MediaStream();
     audioStream.getAudioTracks().forEach(t => combined.addTrack(t));
     videoStream.getVideoTracks().forEach(t => combined.addTrack(t));
-    console.log('[WebRTC] ✅ Combined stream:', combined.getAudioTracks().length, 'audio,', combined.getVideoTracks().length, 'video');
+    logger.debug('[WebRTC] ✅ Combined stream:', combined.getAudioTracks().length, 'audio,', combined.getVideoTracks().length, 'video');
     return combined;
   }
 
@@ -203,7 +207,7 @@ export function useWebRTCCall(userId, userInfo = {}) {
       wsRef.current = ws;
 
       ws.onopen = () => {
-        console.log('[WebRTC] ✅ Signaling WS connected to:', wsUrl);
+        logger.debug('[WebRTC] ✅ Signaling WS connected to:', wsUrl);
         // Reset reconnect backoff on success
         reconnectAttemptsRef.current = 0;
         // Flush any pending ICE candidates
@@ -305,7 +309,7 @@ export function useWebRTCCall(userId, userInfo = {}) {
             
             // Flush any ICE candidates that arrived before we had the remote description
             if (earlyIceCandidatesRef.current.length > 0) {
-              console.log(`[WebRTC] Flushing ${earlyIceCandidatesRef.current.length} early ICE candidates after setRemoteDescription`);
+              logger.debug(`[WebRTC] Flushing ${earlyIceCandidatesRef.current.length} early ICE candidates after setRemoteDescription`);
               for (const candidate of earlyIceCandidatesRef.current) {
                 try {
                   await pc.addIceCandidate(new RTCIceCandidate(candidate));
@@ -477,7 +481,7 @@ export function useWebRTCCall(userId, userInfo = {}) {
       if (pc.iceConnectionState === 'connected' || pc.iceConnectionState === 'completed') {
         // If connectionState hasn't already handled this, force IN_CALL
         if (callStateRef.current !== CALL_STATE.IN_CALL) {
-          console.log('[WebRTC] ✅ ICE connected — forcing IN_CALL state (iOS Safari fix)');
+          logger.debug('[WebRTC] ✅ ICE connected — forcing IN_CALL state (iOS Safari fix)');
           setCallState(CALL_STATE.IN_CALL);
           startCallTimer();
           startStatsMonitor(pc);
@@ -509,11 +513,11 @@ export function useWebRTCCall(userId, userInfo = {}) {
       // For the second track on the same stream, the stream object is identical —
       // no need to re-set srcObject or re-call play().
       if (remoteStreamRef.current !== incomingStream) {
-        console.log('[WebRTC] New remote stream attached (first track)');
+        logger.debug('[WebRTC] New remote stream attached (first track)');
         remoteStreamRef.current = incomingStream;
         setRemoteStream(incomingStream);
       } else {
-        console.log('[WebRTC] Additional track on existing stream — no re-render needed');
+        logger.debug('[WebRTC] Additional track on existing stream — no re-render needed');
         // Force a state update with a new ref to nudge the video element
         // This handles the case where video track arrives after audio is already playing
         setRemoteStream(prev => {
@@ -689,7 +693,7 @@ export function useWebRTCCall(userId, userInfo = {}) {
       // Apply any ICE candidates that arrived before we created the real PeerConnection
       // (Samsung→iPhone race: caller sends ICE fast, but user hasn't tapped Accept yet)
       if (earlyIceCandidatesRef.current.length > 0) {
-        console.log(`[WebRTC] Applying ${earlyIceCandidatesRef.current.length} buffered ICE candidates`);
+        logger.debug(`[WebRTC] Applying ${earlyIceCandidatesRef.current.length} buffered ICE candidates`);
         for (const candidate of earlyIceCandidatesRef.current) {
           try {
             await pc.addIceCandidate(new RTCIceCandidate(candidate));
@@ -805,7 +809,7 @@ export function useWebRTCCall(userId, userInfo = {}) {
           );
           if (videoSender) {
             await videoSender.replaceTrack(freshVideoTrack);
-            console.log('[WebRTC] ✅ Replaced sender track with fresh camera track');
+            logger.debug('[WebRTC] ✅ Replaced sender track with fresh camera track');
           }
         }
 
@@ -816,7 +820,7 @@ export function useWebRTCCall(userId, userInfo = {}) {
         setLocalStream(updatedStream);
         setIsCameraOff(false);
 
-        console.log('[WebRTC] ✅ Camera re-enabled with fresh track');
+        logger.debug('[WebRTC] ✅ Camera re-enabled with fresh track');
       } catch (err) {
         console.error('[WebRTC] Failed to re-enable camera:', err);
         if (err.name === 'NotAllowedError') {
@@ -874,7 +878,7 @@ export function useWebRTCCall(userId, userInfo = {}) {
       localStreamRef.current = updatedStream;
       setLocalStream(updatedStream);
       setFacingMode(newFacing);
-      console.log(`[WebRTC] ✅ Camera flipped to ${newFacing}`);
+      logger.debug(`[WebRTC] ✅ Camera flipped to ${newFacing}`);
     } catch (err) {
       console.error('[WebRTC] Failed to flip camera:', err);
       // Some devices don't support exact facingMode — try without 'exact'
@@ -901,7 +905,7 @@ export function useWebRTCCall(userId, userInfo = {}) {
           localStreamRef.current = updated;
           setLocalStream(updated);
           setFacingMode(fallbackFacing);
-          console.log(`[WebRTC] ✅ Camera flipped (fallback) to ${fallbackFacing}`);
+          logger.debug(`[WebRTC] ✅ Camera flipped (fallback) to ${fallbackFacing}`);
         }
       } catch (fallbackErr) {
         console.error('[WebRTC] Flip camera fallback also failed:', fallbackErr);
@@ -980,7 +984,7 @@ export function useWebRTCCall(userId, userInfo = {}) {
     const videoSender = senders.find(s => s.track && s.track.kind === 'video');
     if (videoSender) {
       videoSender.replaceTrack(newVideoTrack)
-        .then(() => console.log('[WebRTC] ✅ Video track replaced with filtered canvas track'))
+        .then(() => logger.debug('[WebRTC] ✅ Video track replaced with filtered canvas track'))
         .catch(err => console.error('[WebRTC] Failed to replace video track:', err));
     } else {
       console.warn('[WebRTC] No video sender found to replace track on');
