@@ -280,7 +280,7 @@ export const AdminCompetitionVerification = () => {
                   </div>
                   <a 
                     href={selectedResult.proof_image_url} 
-                    target="_blank" 
+                    target="_blank" rel="noopener noreferrer" 
                     rel="noopener noreferrer"
                     className="text-sm text-cyan-400 hover:underline flex items-center gap-1"
                   >

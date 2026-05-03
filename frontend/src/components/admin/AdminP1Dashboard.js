@@ -606,7 +606,7 @@ export const AdminP1Dashboard = () => {
                             {req.wsl_profile_url && (
                               <a 
                                 href={req.wsl_profile_url} 
-                                target="_blank" 
+                                target="_blank" rel="noopener noreferrer" 
                                 rel="noopener noreferrer"
                                 onClick={(e) => e.stopPropagation()}
                                 className="flex items-center gap-1 text-cyan-400 hover:underline"
@@ -617,7 +617,7 @@ export const AdminP1Dashboard = () => {
                             {req.instagram_url && (
                               <a 
                                 href={req.instagram_url} 
-                                target="_blank" 
+                                target="_blank" rel="noopener noreferrer" 
                                 rel="noopener noreferrer"
                                 onClick={(e) => e.stopPropagation()}
                                 className="flex items-center gap-1 text-pink-400 hover:underline"
@@ -628,7 +628,7 @@ export const AdminP1Dashboard = () => {
                             {req.portfolio_website && (
                               <a 
                                 href={req.portfolio_website} 
-                                target="_blank" 
+                                target="_blank" rel="noopener noreferrer" 
                                 rel="noopener noreferrer"
                                 onClick={(e) => e.stopPropagation()}
                                 className="flex items-center gap-1 text-blue-400 hover:underline"
@@ -1522,7 +1522,7 @@ export const AdminP1Dashboard = () => {
                   {selectedVerification.wsl_profile_url && (
                     <a 
                       href={selectedVerification.wsl_profile_url}
-                      target="_blank"
+                      target="_blank" rel="noopener noreferrer"
                       rel="noopener noreferrer"
                       className="flex items-center gap-2 p-3 bg-cyan-500/10 border border-cyan-500/30 rounded-lg hover:bg-cyan-500/20 transition-colors"
                     >
@@ -1540,7 +1540,7 @@ export const AdminP1Dashboard = () => {
                           <a 
                             key={idx}
                             href={url}
-                            target="_blank"
+                            target="_blank" rel="noopener noreferrer"
                             rel="noopener noreferrer"
                             className="flex items-center gap-2 text-sm text-blue-400 hover:underline"
                           >
@@ -1562,7 +1562,7 @@ export const AdminP1Dashboard = () => {
                     {selectedVerification.instagram_url && (
                       <a 
                         href={selectedVerification.instagram_url}
-                        target="_blank"
+                        target="_blank" rel="noopener noreferrer"
                         rel="noopener noreferrer"
                         className="flex items-center gap-2 p-3 bg-pink-500/10 border border-pink-500/30 rounded-lg hover:bg-pink-500/20"
                       >
@@ -1575,7 +1575,7 @@ export const AdminP1Dashboard = () => {
                     {selectedVerification.portfolio_website && (
                       <a 
                         href={selectedVerification.portfolio_website}
-                        target="_blank"
+                        target="_blank" rel="noopener noreferrer"
                         rel="noopener noreferrer"
                         className="flex items-center gap-2 p-3 bg-blue-500/10 border border-blue-500/30 rounded-lg hover:bg-blue-500/20"
                       >
@@ -1608,7 +1608,7 @@ export const AdminP1Dashboard = () => {
                           <a 
                             key={idx}
                             href={url}
-                            target="_blank"
+                            target="_blank" rel="noopener noreferrer"
                             rel="noopener noreferrer"
                             className="flex items-center gap-2 text-sm text-green-400 hover:underline"
                           >
@@ -1627,7 +1627,7 @@ export const AdminP1Dashboard = () => {
                           <a 
                             key={idx}
                             href={url}
-                            target="_blank"
+                            target="_blank" rel="noopener noreferrer"
                             rel="noopener noreferrer"
                             className="aspect-square bg-muted rounded-lg overflow-hidden hover:ring-2 ring-purple-500"
                           >
@@ -1646,7 +1646,7 @@ export const AdminP1Dashboard = () => {
                   <p className="text-xs text-gray-500 mb-2">Photo ID</p>
                   <a 
                     href={selectedVerification.photo_id_url}
-                    target="_blank"
+                    target="_blank" rel="noopener noreferrer"
                     rel="noopener noreferrer"
                     className="flex items-center gap-2 p-3 bg-muted rounded-lg hover:bg-input"
                   >

@@ -960,7 +960,7 @@ export default function CrewChat() {
                 {msg.message_type === 'file' && (
                   <a 
                                     href={`${BACKEND_URL}${msg.media_url}`}
-                    target="_blank"
+                    target="_blank" rel="noopener noreferrer"
                     rel="noopener noreferrer"
                     className={`flex items-center gap-3 px-4 py-3 rounded-2xl transition-colors ${
                       isMe 

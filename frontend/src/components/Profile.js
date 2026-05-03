@@ -820,7 +820,7 @@ export const Profile = () => {
             {profile.instagram_url && (
               <a 
                 href={profile.instagram_url.startsWith('http') ? profile.instagram_url : `https://instagram.com/${profile.instagram_url.replace(/^@/, '')}`}
-                target="_blank"
+                target="_blank" rel="noopener noreferrer"
                 rel="noopener noreferrer"
                 className="flex items-center gap-1.5 text-blue-400 hover:text-blue-300 transition-colors"
               >
@@ -831,7 +831,7 @@ export const Profile = () => {
             {profile.website_url && (
               <a 
                 href={profile.website_url}
-                target="_blank"
+                target="_blank" rel="noopener noreferrer"
                 rel="noopener noreferrer"
                 className="flex items-center gap-1.5 text-blue-400 hover:text-blue-300 transition-colors"
               >
