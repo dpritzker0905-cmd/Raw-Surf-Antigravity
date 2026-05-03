@@ -6,11 +6,12 @@
  * Data comes from GET /compliance/compliance-dashboard (admin-only).
  */
 import React, { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import apiClient from '../../lib/apiClient';
 import {
   Shield, AlertTriangle, Scale, Users, Ban, Clock,
   Check, X, Loader2, ChevronDown, ChevronRight,
-  MapPin, Eye, RefreshCw, FileText, Gavel
+  MapPin, Eye, RefreshCw, FileText, Gavel, ExternalLink
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '../ui/card';
 import { Button } from '../ui/button';
@@ -101,6 +102,7 @@ export const AdminComplianceDashboard = ({ cardBgClass, textClass, textSecondary
   const [reviewNotes, setReviewNotes] = useState('');
   const [reviewLoading, setReviewLoading] = useState(false);
   const [expandedViolation, setExpandedViolation] = useState(null);
+  const navigate = useNavigate();
 
   // Use fallback classes if not provided (standalone usage)
   const card = cardBgClass || 'bg-card border-border';
@@ -216,7 +218,15 @@ export const AdminComplianceDashboard = ({ cardBgClass, textClass, textSecondary
                         {violationTypeLabel(v.violation_type)} • {new Date(v.created_at).toLocaleDateString()}
                       </p>
                       <p className={`text-xs ${textSec} mt-0.5`}>
-                        User: <span className="font-mono text-xs">{v.user_id?.slice(0, 8)}...</span>
+                        User:{' '}
+                        <button
+                          onClick={(e) => { e.stopPropagation(); navigate(`/profile/${v.user_id}`); }}
+                          className="font-mono text-xs text-cyan-400 hover:text-cyan-300 hover:underline inline-flex items-center gap-1 transition-colors"
+                          title="View user profile"
+                        >
+                          {v.user_id?.slice(0, 8)}...
+                          <ExternalLink className="w-3 h-3" />
+                        </button>
                       </p>
                     </div>
                     <AppealBadge status={v.appeal_status} />
@@ -335,8 +345,15 @@ export const AdminComplianceDashboard = ({ cardBgClass, textClass, textSecondary
                           <p className={text}>{actionLabel(v.action_taken)}</p>
                         </div>
                         <div>
-                          <span className={textSec}>User ID</span>
-                          <p className="font-mono text-xs text-cyan-400">{v.user_id?.slice(0, 12)}...</p>
+                          <span className={textSec}>User</span>
+                          <button
+                            onClick={() => navigate(`/profile/${v.user_id}`)}
+                            className="font-mono text-xs text-cyan-400 hover:text-cyan-300 hover:underline flex items-center gap-1 transition-colors mt-0.5"
+                            title="View user profile"
+                          >
+                            {v.user_id?.slice(0, 12)}...
+                            <ExternalLink className="w-3 h-3" />
+                          </button>
                         </div>
                         {v.distance_discrepancy_miles && (
                           <div>
