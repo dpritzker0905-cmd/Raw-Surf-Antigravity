@@ -2246,7 +2246,7 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
                   <Button
                     onClick={async () => {
                       try {
-                        const res = await apiClient.post(`/dispatch/${requestId}/cancel`, { reason: 'User cancelled' });
+                        const res = await apiClient.post(`/dispatch/${requestId}/cancel?user_id=${user.id}`, { reason: 'User cancelled' });
                         const feeAmt = res.data?.fee_amount || 0;
                         const refundAmt = res.data?.refund_amount || 0;
                         if (feeAmt > 0) {
