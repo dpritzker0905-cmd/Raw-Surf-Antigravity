@@ -22,7 +22,9 @@ from database import get_db
 from deps.admin_auth import get_current_admin
 from models import (
     Profile, TosViolation, TosAcknowledgement, TosContent, FraudAlert,
-    Notification, Booking, DispatchRequest, LiveSession
+    Notification, Booking, DispatchRequest, LiveSession,
+    Post, Comment, Follow, CheckIn, GalleryPurchase, PaymentTransaction,
+    Message, Review
 )
 from core.security import get_user_id_from_jwt_or_query
 
@@ -882,3 +884,275 @@ async def bulk_review_appeals(
         "errors": errors if errors else None
     }
 
+
+# ============ GDPR DATA MANAGEMENT ============
+
+def _serialize_row(row, exclude_fields=None):
+    """Convert a SQLAlchemy row to a safe dict, excluding sensitive fields."""
+    exclude = set(exclude_fields or [])
+    exclude.update({'password_hash', '_sa_instance_state'})
+    result = {}
+    for key in row.__table__.columns.keys():
+        if key in exclude:
+            continue
+        val = getattr(row, key, None)
+        if isinstance(val, datetime):
+            result[key] = val.isoformat()
+        elif hasattr(val, 'value'):  # Enum
+            result[key] = val.value
+        else:
+            result[key] = val
+    return result
+
+
+@router.post("/data-export/{user_id}")
+async def export_user_data(
+    user_id: str,
+    admin: Profile = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db)
+):
+    """GDPR Article 20 — Data Portability. Export all user data as structured JSON.
+    Admin-only. Collects data across all tables and returns a downloadable package."""
+    
+    # Verify user exists
+    profile_result = await db.execute(select(Profile).where(Profile.id == user_id))
+    profile = profile_result.scalar_one_or_none()
+    if not profile:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    export = {
+        "export_meta": {
+            "exported_at": datetime.now(timezone.utc).isoformat(),
+            "exported_by_admin": admin.id,
+            "user_id": user_id,
+            "format_version": "1.0"
+        },
+        "profile": _serialize_row(profile),
+    }
+    
+    # Posts
+    posts_result = await db.execute(
+        select(Post).where(Post.author_id == user_id).order_by(Post.created_at.desc())
+    )
+    export["posts"] = [_serialize_row(p) for p in posts_result.scalars().all()]
+    
+    # Comments
+    comments_result = await db.execute(
+        select(Comment).where(Comment.author_id == user_id).order_by(Comment.created_at.desc())
+    )
+    export["comments"] = [_serialize_row(c) for c in comments_result.scalars().all()]
+    
+    # Bookings (as photographer or surfer)
+    bookings_result = await db.execute(
+        select(Booking).where(
+            (Booking.photographer_id == user_id) | (Booking.surfer_id == user_id)
+        ).order_by(Booking.created_at.desc())
+    )
+    export["bookings"] = [_serialize_row(b) for b in bookings_result.scalars().all()]
+    
+    # Gallery purchases
+    purchases_result = await db.execute(
+        select(GalleryPurchase).where(GalleryPurchase.buyer_id == user_id)
+    )
+    export["gallery_purchases"] = [_serialize_row(p) for p in purchases_result.scalars().all()]
+    
+    # Payment transactions
+    payments_result = await db.execute(
+        select(PaymentTransaction).where(PaymentTransaction.user_id == user_id)
+    )
+    export["payment_transactions"] = [_serialize_row(t) for t in payments_result.scalars().all()]
+    
+    # Messages sent
+    messages_result = await db.execute(
+        select(Message).where(Message.sender_id == user_id).order_by(Message.created_at.desc()).limit(500)
+    )
+    export["messages_sent"] = [_serialize_row(m) for m in messages_result.scalars().all()]
+    
+    # Check-ins
+    checkins_result = await db.execute(
+        select(CheckIn).where(CheckIn.user_id == user_id)
+    )
+    export["check_ins"] = [_serialize_row(c) for c in checkins_result.scalars().all()]
+    
+    # Follows (who they follow)
+    follows_result = await db.execute(
+        select(Follow).where(Follow.follower_id == user_id)
+    )
+    export["following"] = [_serialize_row(f) for f in follows_result.scalars().all()]
+    
+    # Followers
+    followers_result = await db.execute(
+        select(Follow).where(Follow.followed_id == user_id)
+    )
+    export["followers"] = [_serialize_row(f) for f in followers_result.scalars().all()]
+    
+    # Reviews (given and received)
+    reviews_given = await db.execute(
+        select(Review).where(Review.reviewer_id == user_id)
+    )
+    export["reviews_given"] = [_serialize_row(r) for r in reviews_given.scalars().all()]
+    
+    reviews_received = await db.execute(
+        select(Review).where(Review.reviewed_id == user_id)
+    )
+    export["reviews_received"] = [_serialize_row(r) for r in reviews_received.scalars().all()]
+    
+    # ToS acknowledgements
+    tos_result = await db.execute(
+        select(TosAcknowledgement).where(TosAcknowledgement.user_id == user_id)
+    )
+    export["tos_acknowledgements"] = [_serialize_row(t) for t in tos_result.scalars().all()]
+    
+    # Violations
+    violations_result = await db.execute(
+        select(TosViolation).where(TosViolation.user_id == user_id)
+    )
+    export["tos_violations"] = [_serialize_row(v) for v in violations_result.scalars().all()]
+    
+    # Summary stats
+    export["summary"] = {
+        "total_posts": len(export["posts"]),
+        "total_comments": len(export["comments"]),
+        "total_bookings": len(export["bookings"]),
+        "total_purchases": len(export["gallery_purchases"]),
+        "total_payments": len(export["payment_transactions"]),
+        "total_messages": len(export["messages_sent"]),
+        "total_check_ins": len(export["check_ins"]),
+        "total_following": len(export["following"]),
+        "total_followers": len(export["followers"]),
+    }
+    
+    return export
+
+
+class DataDeletionRequest(BaseModel):
+    confirm_phrase: str  # Must be "DELETE" to confirm
+    reason: Optional[str] = None
+
+
+@router.post("/data-deletion/{user_id}")
+async def delete_user_data(
+    user_id: str,
+    data: DataDeletionRequest,
+    admin: Profile = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db)
+):
+    """GDPR Article 17 — Right to Erasure. Anonymizes user PII while preserving
+    financial records for regulatory compliance (7-year retention).
+    Admin-only. Requires confirmation phrase 'DELETE'."""
+    
+    if data.confirm_phrase != "DELETE":
+        raise HTTPException(status_code=400, detail="Confirmation phrase must be exactly 'DELETE'")
+    
+    # Verify user exists
+    profile_result = await db.execute(select(Profile).where(Profile.id == user_id))
+    profile = profile_result.scalar_one_or_none()
+    if not profile:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Prevent self-deletion or admin deletion
+    if user_id == admin.id:
+        raise HTTPException(status_code=400, detail="Cannot delete your own account via this endpoint")
+    if profile.is_admin:
+        raise HTTPException(status_code=400, detail="Cannot delete admin accounts")
+    
+    original_username = profile.username
+    original_email = profile.email
+    
+    # ── Anonymize PII fields ──────────────────────────────
+    deleted_marker = f"deleted_{user_id[:8]}"
+    profile.full_name = "Deleted User"
+    profile.email = f"{deleted_marker}@deleted.rawsurf.com"
+    profile.username = deleted_marker
+    profile.bio = None
+    profile.avatar_url = None
+    profile.location = None
+    profile.company_name = None
+    profile.portfolio_url = None
+    profile.instagram_url = None
+    profile.website_url = None
+    profile.home_break = None
+    profile.wetsuit_color = None
+    profile.rash_guard_color = None
+    profile.home_location_name = None
+    profile.home_latitude = None
+    profile.home_longitude = None
+    profile.meta_connections = None
+    profile.password_hash = None  # Prevent login
+    
+    # Disable account
+    profile.is_banned = True
+    profile.banned_at = datetime.now(timezone.utc)
+    profile.is_suspended = True
+    profile.suspended_reason = f"Account deleted per GDPR request. Reason: {data.reason or 'User request'}"
+    
+    # ── Delete user-generated content ──────────────────────────────
+    # Messages (soft-delete by clearing content)
+    messages = await db.execute(select(Message).where(Message.sender_id == user_id))
+    msg_count = 0
+    for msg in messages.scalars().all():
+        msg.content = "[Message deleted per data erasure request]"
+        msg_count += 1
+    
+    # Comments (anonymize)
+    comments = await db.execute(select(Comment).where(Comment.author_id == user_id))
+    comment_count = 0
+    for comment in comments.scalars().all():
+        comment.content = "[Comment removed per data erasure request]"
+        comment_count += 1
+    
+    # Delete posts
+    posts = await db.execute(select(Post).where(Post.author_id == user_id))
+    post_count = 0
+    for post in posts.scalars().all():
+        await db.delete(post)
+        post_count += 1
+    
+    # Delete check-ins
+    checkins = await db.execute(select(CheckIn).where(CheckIn.user_id == user_id))
+    checkin_count = 0
+    for ci in checkins.scalars().all():
+        await db.delete(ci)
+        checkin_count += 1
+    
+    # Delete follows
+    follows_out = await db.execute(select(Follow).where(Follow.follower_id == user_id))
+    follows_in = await db.execute(select(Follow).where(Follow.followed_id == user_id))
+    follow_count = 0
+    for f in follows_out.scalars().all():
+        await db.delete(f)
+        follow_count += 1
+    for f in follows_in.scalars().all():
+        await db.delete(f)
+        follow_count += 1
+    
+    # Delete notifications
+    notifs = await db.execute(select(Notification).where(Notification.user_id == user_id))
+    notif_count = 0
+    for n in notifs.scalars().all():
+        await db.delete(n)
+        notif_count += 1
+    
+    # NOTE: Payment transactions and bookings are PRESERVED for financial compliance
+    
+    await db.commit()
+    
+    return {
+        "message": "User data deleted/anonymized successfully",
+        "user_id": user_id,
+        "original_username": original_username,
+        "original_email": original_email,
+        "deleted_at": datetime.now(timezone.utc).isoformat(),
+        "deleted_by": admin.id,
+        "summary": {
+            "profile_anonymized": True,
+            "posts_deleted": post_count,
+            "comments_anonymized": comment_count,
+            "messages_anonymized": msg_count,
+            "check_ins_deleted": checkin_count,
+            "follows_deleted": follow_count,
+            "notifications_deleted": notif_count,
+            "payments_preserved": True,  # Financial compliance
+            "bookings_preserved": True   # Financial compliance
+        }
+    }

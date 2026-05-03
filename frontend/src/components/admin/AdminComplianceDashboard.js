@@ -12,7 +12,8 @@ import {
   Shield, AlertTriangle, Scale, Users, Ban, Clock,
   Check, X, Loader2, ChevronDown, ChevronRight,
   MapPin, Eye, RefreshCw, FileText, Gavel, ExternalLink, MessageSquare,
-  Plus, Trash2, Save, Edit3, ScrollText
+  Plus, Trash2, Save, Edit3, ScrollText, Download, Upload, Search,
+  UserX, Database, AlertOctagon
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '../ui/card';
 import { Button } from '../ui/button';
@@ -162,6 +163,136 @@ export const AdminComplianceDashboard = ({ cardBgClass, textClass, textSecondary
 
   const updateSection = (idx, field, value) => {
     setEditSections(prev => prev.map((s, i) => i === idx ? { ...s, [field]: value } : s));
+  };
+
+  // ── ToS Import/Export helpers ──────────────────────────────────
+  const exportAsJson = () => {
+    const payload = {
+      doc_type: editingDocType,
+      version: editVersion,
+      effective_date: editEffectiveDate,
+      sections: editSections,
+      exported_at: new Date().toISOString()
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${editingDocType}_v${editVersion}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success('Exported as JSON');
+  };
+
+  const exportAsCsv = () => {
+    const escCsv = (str) => `"${(str || '').replace(/"/g, '""')}"`;
+    const header = 'Section Number,Title,Body';
+    const rows = editSections.map((s, i) => `${i + 1},${escCsv(s.title)},${escCsv(s.body)}`);
+    const csv = [header, ...rows].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${editingDocType}_v${editVersion}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success('Exported as CSV (spreadsheet)');
+  };
+
+  const handleImport = (file) => {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const text = e.target.result;
+        if (file.name.endsWith('.json')) {
+          const data = JSON.parse(text);
+          if (data.sections && Array.isArray(data.sections)) {
+            setEditSections(data.sections);
+            if (data.version) setEditVersion(data.version);
+            if (data.effective_date) setEditEffectiveDate(data.effective_date);
+            toast.success(`Imported ${data.sections.length} sections from JSON`);
+          } else {
+            toast.error('Invalid JSON: must contain a "sections" array');
+          }
+        } else if (file.name.endsWith('.csv')) {
+          // Parse CSV: expects columns Title, Body (with optional Section Number)
+          const lines = text.split('\n').filter(l => l.trim());
+          const sections = [];
+          for (let i = 1; i < lines.length; i++) { // Skip header
+            const match = lines[i].match(/(?:"([^"]*(?:""[^"]*)*)"|([^,]*))/g);
+            if (match && match.length >= 2) {
+              const clean = (s) => (s || '').replace(/^"|"$/g, '').replace(/""/g, '"').trim();
+              // If 3 columns: number, title, body. If 2: title, body
+              const title = match.length >= 3 ? clean(match[1]) : clean(match[0]);
+              const body = match.length >= 3 ? clean(match[2]) : clean(match[1]);
+              if (title) sections.push({ title, body });
+            }
+          }
+          if (sections.length > 0) {
+            setEditSections(sections);
+            toast.success(`Imported ${sections.length} sections from CSV`);
+          } else {
+            toast.error('No valid sections found in CSV');
+          }
+        } else {
+          toast.error('Unsupported file type. Use .json or .csv');
+        }
+      } catch (err) {
+        toast.error('Failed to parse file: ' + err.message);
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  // ── Data Management state ──────────────────────────────────
+  const [dataManagementOpen, setDataManagementOpen] = useState(false);
+  const [exportUserId, setExportUserId] = useState('');
+  const [exportLoading, setExportLoading] = useState(false);
+  const [deleteUserId, setDeleteUserId] = useState('');
+  const [deleteConfirm, setDeleteConfirm] = useState('');
+  const [deleteReason, setDeleteReason] = useState('');
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [deletionResult, setDeletionResult] = useState(null);
+
+  const handleDataExport = async () => {
+    if (!exportUserId.trim()) return toast.error('Enter a user ID');
+    setExportLoading(true);
+    try {
+      const res = await apiClient.post(`/compliance/data-export/${exportUserId.trim()}`);
+      const blob = new Blob([JSON.stringify(res.data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `user_data_export_${exportUserId.trim().slice(0, 8)}_${new Date().toISOString().slice(0, 10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success(`Exported data for user: ${res.data.summary?.total_posts || 0} posts, ${res.data.summary?.total_messages || 0} messages`);
+    } catch (err) {
+      toast.error(err?.response?.data?.detail || 'Export failed');
+    } finally {
+      setExportLoading(false);
+    }
+  };
+
+  const handleDataDeletion = async () => {
+    if (!deleteUserId.trim()) return toast.error('Enter a user ID');
+    if (deleteConfirm !== 'DELETE') return toast.error('Type DELETE to confirm');
+    setDeleteLoading(true);
+    try {
+      const res = await apiClient.post(`/compliance/data-deletion/${deleteUserId.trim()}`, {
+        confirm_phrase: 'DELETE',
+        reason: deleteReason || null
+      });
+      setDeletionResult(res.data);
+      toast.success('User data deleted/anonymized');
+      setDeleteConfirm('');
+      setDeleteReason('');
+    } catch (err) {
+      toast.error(err?.response?.data?.detail || 'Deletion failed');
+    } finally {
+      setDeleteLoading(false);
+    }
   };
 
   const fetchDashboard = useCallback(async () => {
@@ -571,15 +702,38 @@ export const AdminComplianceDashboard = ({ cardBgClass, textClass, textSecondary
                   ))}
                 </div>
 
-                {/* Add section + Publish */}
-                <div className="flex items-center gap-3">
+                {/* Import/Export + Add section + Publish */}
+                <div className="flex flex-wrap items-center gap-2">
                   <Button variant="outline" size="sm" onClick={addSection} className="flex items-center gap-1.5">
                     <Plus className="w-4 h-4" /> Add Section
                   </Button>
+
+                  <div className="flex items-center gap-1 border-l border-zinc-700 pl-2 ml-1">
+                    <Button variant="outline" size="sm" onClick={exportAsJson} className="flex items-center gap-1" title="Export as JSON">
+                      <Download className="w-3.5 h-3.5" /> JSON
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={exportAsCsv} className="flex items-center gap-1" title="Export as CSV (spreadsheet)">
+                      <Download className="w-3.5 h-3.5" /> CSV
+                    </Button>
+                    <label className="cursor-pointer">
+                      <input
+                        type="file"
+                        accept=".json,.csv"
+                        className="hidden"
+                        onChange={(e) => { handleImport(e.target.files[0]); e.target.value = ''; }}
+                      />
+                      <span className={`inline-flex items-center gap-1 px-3 py-1.5 text-sm rounded-md border transition-colors hover:bg-muted/50 cursor-pointer ${
+                        isLight ? 'border-gray-300 text-gray-700' : 'border-zinc-700 text-zinc-300'
+                      }`}>
+                        <Upload className="w-3.5 h-3.5" /> Import
+                      </span>
+                    </label>
+                  </div>
+
                   <Button
                     onClick={saveTosContent}
                     disabled={editorSaving}
-                    className="flex-1 bg-gradient-to-r from-emerald-500 via-yellow-500 to-orange-500 text-black font-bold hover:opacity-90"
+                    className="flex-1 min-w-[200px] bg-gradient-to-r from-emerald-500 via-yellow-500 to-orange-500 text-black font-bold hover:opacity-90"
                   >
                     {editorSaving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
                     {editorSaving ? 'Publishing...' : `Publish ${editingDocType === 'tos' ? 'ToS' : 'Privacy Policy'} v${editVersion}`}
@@ -592,6 +746,116 @@ export const AdminComplianceDashboard = ({ cardBgClass, textClass, textSecondary
                 </p>
               </>
             )}
+          </CardContent>
+        )}
+      </Card>
+
+      {/* ── Data Management (Export / Deletion) ─────────────────────── */}
+      <Card className={`${card} mt-6`}>
+        <CardHeader className="cursor-pointer" onClick={() => setDataManagementOpen(!dataManagementOpen)}>
+          <div className="flex items-center justify-between">
+            <CardTitle className={`${text} flex items-center gap-2`}>
+              <Database className="w-5 h-5 text-emerald-400" />
+              User Data Management (GDPR)
+            </CardTitle>
+            <ChevronDown className={`w-5 h-5 ${textSec} transition-transform ${dataManagementOpen ? 'rotate-180' : ''}`} />
+          </div>
+        </CardHeader>
+
+        {dataManagementOpen && (
+          <CardContent className="space-y-6">
+            {/* ── Data Export ── */}
+            <div className={`p-4 rounded-xl border ${isLight ? 'bg-emerald-50/50 border-emerald-200' : 'bg-emerald-500/5 border-emerald-500/20'}`}>
+              <div className="flex items-center gap-2 mb-3">
+                <Download className="w-5 h-5 text-emerald-400" />
+                <h3 className={`${text} font-semibold`}>Data Export (GDPR Art. 20)</h3>
+              </div>
+              <p className={`text-xs ${textSec} mb-3`}>
+                Export all user data as a structured JSON file. Includes profile, posts, messages, bookings, payments, and more.
+              </p>
+              <div className="flex gap-2">
+                <input
+                  value={exportUserId}
+                  onChange={e => setExportUserId(e.target.value)}
+                  placeholder="User ID (e.g. abc123...)"
+                  className={`flex-1 px-3 py-2 rounded-lg border text-sm ${isLight ? 'bg-white border-gray-300 text-gray-900' : 'bg-zinc-800 border-zinc-700 text-white'}`}
+                />
+                <Button
+                  onClick={handleDataExport}
+                  disabled={exportLoading || !exportUserId.trim()}
+                  className="bg-emerald-600 hover:bg-emerald-500 text-white"
+                >
+                  {exportLoading ? <Loader2 className="w-4 h-4 animate-spin mr-1.5" /> : <Download className="w-4 h-4 mr-1.5" />}
+                  {exportLoading ? 'Exporting...' : 'Export'}
+                </Button>
+              </div>
+            </div>
+
+            {/* ── Data Deletion ── */}
+            <div className={`p-4 rounded-xl border ${isLight ? 'bg-red-50/50 border-red-200' : 'bg-red-500/5 border-red-500/20'}`}>
+              <div className="flex items-center gap-2 mb-3">
+                <UserX className="w-5 h-5 text-red-400" />
+                <h3 className={`${text} font-semibold`}>Data Deletion (GDPR Art. 17)</h3>
+                <Badge className="bg-red-500/20 text-red-400 text-xs">Destructive</Badge>
+              </div>
+              <p className={`text-xs ${textSec} mb-1`}>
+                Anonymizes all PII and deletes user content. Payment and booking records are preserved for financial compliance (7-year retention).
+              </p>
+              <p className={`text-xs text-red-400 mb-3 flex items-center gap-1`}>
+                <AlertOctagon className="w-3.5 h-3.5" /> This action cannot be undone.
+              </p>
+
+              <div className="space-y-2">
+                <input
+                  value={deleteUserId}
+                  onChange={e => setDeleteUserId(e.target.value)}
+                  placeholder="User ID to delete"
+                  className={`w-full px-3 py-2 rounded-lg border text-sm ${isLight ? 'bg-white border-gray-300 text-gray-900' : 'bg-zinc-800 border-zinc-700 text-white'}`}
+                />
+                <input
+                  value={deleteReason}
+                  onChange={e => setDeleteReason(e.target.value)}
+                  placeholder="Reason (optional, e.g. 'User requested account deletion')"
+                  className={`w-full px-3 py-2 rounded-lg border text-sm ${isLight ? 'bg-white border-gray-300 text-gray-900' : 'bg-zinc-800 border-zinc-700 text-white'}`}
+                />
+                <div className="flex gap-2">
+                  <input
+                    value={deleteConfirm}
+                    onChange={e => setDeleteConfirm(e.target.value)}
+                    placeholder='Type "DELETE" to confirm'
+                    className={`flex-1 px-3 py-2 rounded-lg border text-sm font-mono ${isLight ? 'bg-white border-red-300 text-gray-900' : 'bg-zinc-800 border-red-500/30 text-white'}`}
+                  />
+                  <Button
+                    onClick={handleDataDeletion}
+                    disabled={deleteLoading || deleteConfirm !== 'DELETE' || !deleteUserId.trim()}
+                    className={`transition-all ${
+                      deleteConfirm === 'DELETE' && deleteUserId.trim()
+                        ? 'bg-red-600 hover:bg-red-500 text-white'
+                        : 'bg-zinc-700 text-zinc-400 cursor-not-allowed'
+                    }`}
+                  >
+                    {deleteLoading ? <Loader2 className="w-4 h-4 animate-spin mr-1.5" /> : <Trash2 className="w-4 h-4 mr-1.5" />}
+                    {deleteLoading ? 'Deleting...' : 'Delete User Data'}
+                  </Button>
+                </div>
+              </div>
+
+              {/* Deletion result */}
+              {deletionResult && (
+                <div className={`mt-3 p-3 rounded-lg border text-sm ${isLight ? 'bg-gray-50 border-gray-200' : 'bg-zinc-800/50 border-zinc-700'}`}>
+                  <p className="text-emerald-400 font-medium mb-1">✓ Deletion complete</p>
+                  <div className={`text-xs ${textSec} space-y-0.5`}>
+                    <p>User: {deletionResult.original_username} ({deletionResult.original_email})</p>
+                    <p>Posts deleted: {deletionResult.summary?.posts_deleted || 0}</p>
+                    <p>Comments anonymized: {deletionResult.summary?.comments_anonymized || 0}</p>
+                    <p>Messages anonymized: {deletionResult.summary?.messages_anonymized || 0}</p>
+                    <p>Check-ins deleted: {deletionResult.summary?.check_ins_deleted || 0}</p>
+                    <p>Follows removed: {deletionResult.summary?.follows_deleted || 0}</p>
+                    <p className="text-amber-400 mt-1">⚠ Payments & bookings preserved (financial compliance)</p>
+                  </div>
+                </div>
+              )}
+            </div>
           </CardContent>
         )}
       </Card>
