@@ -522,7 +522,7 @@ async def create_user_booking(
     db: AsyncSession = Depends(get_db)
 ):
     """User creates a booking with a photographer - supports account credit application"""
-    from routes.push import notify_booking
+    from routes.notifications.push import notify_booking
     
     # Verify user
     user_result = await db.execute(select(Profile).where(Profile.id == user_id))
@@ -812,7 +812,7 @@ async def cancel_booking(
     
     Refund goes to user's Account Credit balance.
     """
-    from routes.push import notify_booking
+    from routes.notifications.push import notify_booking
     
     # Get booking
     result = await db.execute(

@@ -25,7 +25,7 @@ from models import (
     ConditionReport
 )
 
-from routes.gamification import check_badge_milestones
+from routes.career_hub.gamification import check_badge_milestones
 from services.gallery_sync import (
     distribute_gallery_item_to_participants,
     manually_assign_item_to_surfer,

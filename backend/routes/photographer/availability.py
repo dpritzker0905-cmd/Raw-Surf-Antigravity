@@ -285,7 +285,7 @@ async def get_photographer_availability(
     - Non-Gold users see slots locked for 2 hours after creation (120 min time-gate)
     """
     from datetime import timedelta
-    from routes.subscriptions import GOLD_PASS_BOOKING_WINDOW_HOURS
+    from routes.subscriptions_billing.subscriptions import GOLD_PASS_BOOKING_WINDOW_HOURS
     
     result = await db.execute(
         select(PhotographerAvailability).where(

@@ -1,4 +1,4 @@
-﻿"""Monthly leaderboard reset — runs 1st of each month at 00:05 UTC."""
+"""Monthly leaderboard reset � runs 1st of each month at 00:05 UTC."""
 import logging
 
 logger = logging.getLogger(__name__)
@@ -8,7 +8,7 @@ async def monthly_leaderboard_reset_task():
     Runs on the 1st of each month at 00:05 UTC.
     """
     from database import async_session_maker
-    from routes.leaderboard import monthly_leaderboard_reset
+    from routes.career_hub.leaderboard import monthly_leaderboard_reset
     
     logger.info("[Scheduler] Running monthly leaderboard reset...")
     

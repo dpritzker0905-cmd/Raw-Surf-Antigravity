@@ -16,7 +16,7 @@ from models import (
     EliteTierEnum, XPTransaction, Badge, RoleEnum,
     SponsorshipTransaction, SponsorshipType, CreditTransaction
 )
-from routes.gamification import check_badge_milestones
+from routes.career_hub.gamification import check_badge_milestones
 from utils.parental_alerts import check_and_send_spending_alert
 
 # WebSocket broadcasts for real-time updates

@@ -85,7 +85,7 @@ async def send_go_live_notifications(
     Creates its own database session to avoid connection issues.
     """
     try:
-        from routes.push import send_push_notification
+        from routes.notifications.push import send_push_notification
         from database import async_session_maker
         from models import Notification
         import json

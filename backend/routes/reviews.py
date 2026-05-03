@@ -21,7 +21,7 @@ from core.security import get_user_id_from_jwt_or_query
 from services.ai_moderation import moderate_review_content
 
 # Import badge check function
-from routes.gamification import check_badge_milestones
+from routes.career_hub.gamification import check_badge_milestones
 
 router = APIRouter(prefix="/reviews", tags=["reviews"])
 

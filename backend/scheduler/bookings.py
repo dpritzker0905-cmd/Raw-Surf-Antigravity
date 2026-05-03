@@ -1,4 +1,4 @@
-﻿"""Booking-related scheduler tasks.
+"""Booking-related scheduler tasks.
 - Payment window expiry check (5min)
 - Payment expiry reminders (5min)
 - Session reminders (5min)
@@ -22,7 +22,7 @@ async def check_payment_window_expiry_task():
     from sqlalchemy import select
     from sqlalchemy.orm import selectinload
     from models import Booking, BookingParticipant, Notification, Profile
-    from routes.push import notify_crew_session_confirmed
+    from routes.notifications.push import notify_crew_session_confirmed
     
     logger.info("[Scheduler] Checking payment window expiry...")
     
@@ -112,7 +112,7 @@ async def send_payment_expiry_reminders_task():
     from sqlalchemy import select
     from sqlalchemy.orm import selectinload
     from models import Booking, BookingParticipant, Notification
-    from routes.push import notify_crew_payment_expiring
+    from routes.notifications.push import notify_crew_payment_expiring
     from datetime import timedelta
     
     logger.info("[Scheduler] Checking for payment expiry reminders...")
@@ -165,7 +165,7 @@ async def send_payment_expiry_reminders_task():
                         notification = Notification(
                             user_id=p.participant_id,
                             type='payment_expiry_reminder',
-                            title='â° Payment Reminder!',
+                            title='⏰ Payment Reminder!',
                             body=f'Only {minutes_left} minutes left to pay ${share:.2f} for {captain_name}\'s session!',
                             data=json.dumps({
                                 "booking_id": booking.id,
@@ -193,7 +193,7 @@ async def send_session_reminders_task():
     from sqlalchemy import select, and_
     from sqlalchemy.orm import selectinload
     from models import Booking, Profile, Notification
-    from routes.push import send_push_notification
+    from routes.notifications.push import send_push_notification
     
     logger.info("[Scheduler] Checking for session reminders...")
     
@@ -442,7 +442,7 @@ async def expire_booking_invites_task():
                             waitlist_notification = Notification(
                                 user_id=next_in_line.user_id,
                                 type='waitlist_spot_open',
-                                title='ðŸŽ‰ Spot Available!',
+                                title='🎉 Spot Available!',
                                 body=f'A spot opened up for {booking.location}! Claim it within {claim_minutes} minutes.',
                                 data=json.dumps({
                                     "booking_id": invite.booking_id,
@@ -491,7 +491,7 @@ async def expire_booking_invites_task():
                         waitlist_notification = Notification(
                             user_id=next_person.user_id,
                             type='waitlist_spot_open',
-                            title='ðŸŽ‰ Spot Available!',
+                            title='🎉 Spot Available!',
                             body=f'A spot opened up for {booking.location}! Claim it within {claim_minutes} minutes.',
                             data=json.dumps({
                                 "booking_id": claim.booking_id,

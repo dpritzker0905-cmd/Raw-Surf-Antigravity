@@ -78,7 +78,7 @@ async def send_go_live_notifications(
     Send push notifications to followers when a user goes live via LiveKit.
     """
     try:
-        from routes.push import send_push_notification
+        from routes.notifications.push import send_push_notification
         
         async with async_session_maker() as db:
             # Get all followers of the broadcaster

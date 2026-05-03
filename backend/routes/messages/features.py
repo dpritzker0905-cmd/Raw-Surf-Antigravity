@@ -280,7 +280,7 @@ async def upload_voice_note(
     
     # Send push notification via OneSignal
     try:
-        from routes.push import notify_new_message
+        from routes.notifications.push import notify_new_message
         await notify_new_message(
             recipient_id=recipient_id,
             sender_name=sender.full_name if sender else "Someone",
@@ -425,7 +425,7 @@ async def upload_message_media(
     
     # Send push notification via OneSignal
     try:
-        from routes.push import notify_new_message
+        from routes.notifications.push import notify_new_message
         await notify_new_message(
             recipient_id=recipient_id,
             sender_name=sender.full_name if sender else "Someone",
