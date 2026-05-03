@@ -477,14 +477,14 @@ export const Bookings = () => {
     }
   }, [tabFromUrl]);
 
-  // Fetch all data on mount (when user is available).
-  // fetchData() loads everything in parallel regardless of active tab,
-  // so there's no reason to re-fetch when switching tabs.
+  // Fetch all data on mount and when navigating back to this page.
+  // location.key changes on every navigation entry, ensuring we re-fetch
+  // stale data (e.g., after cancelling from the DispatchLobby).
   useEffect(() => {
     if (user?.id) {
       fetchData();
     }
-  }, [user?.id]);
+  }, [user?.id, location.key]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Fetch on-demand photographers when On-Demand tab is selected
   useEffect(() => {
