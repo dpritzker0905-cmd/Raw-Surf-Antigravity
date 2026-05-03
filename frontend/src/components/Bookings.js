@@ -1233,18 +1233,9 @@ export const Bookings = () => {
               onManualLocationSelect={fetchOnDemandByManualLocation}
               onSelectPhotographer={handleSelectOnDemandPro}
               onResumeDispatch={(dispatch) => {
-                // If photographer already accepted/en_route/arrived, go directly to interactive lobby
-                if (['accepted', 'en_route', 'arrived'].includes(dispatch.status)) {
-                  navigate(`/dispatch/${dispatch.id}/lobby`);
-                  return;
-                }
-                // Otherwise resume the "Finding Your Photographer" workflow drawer
-                setSelectedOnDemandPro({ 
-                  id: dispatch.photographer_id || 'unknown', 
-                  full_name: dispatch.photographer_name || 'Photographer'
-                });
-                setResumeDispatchId(dispatch.id);
-                setShowOnDemandDrawer(true);
+                // Always navigate to the full-featured lobby page
+                // It handles all states: searching, accepted, en_route, arrived
+                navigate(`/dispatch/${dispatch.id}/lobby`);
               }}
               crewInvites={crewInvites}
               onPayCrewShare={handlePayCrewShare}
