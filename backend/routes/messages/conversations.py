@@ -150,6 +150,14 @@ async def send_message(data: SendMessageRequest, sender_id: str, db: AsyncSessio
     conversation.last_message_preview = preview
     conversation.last_message_at = datetime.now(timezone.utc)
     
+    # Auto-unhide: if the sender had hidden this conversation, replying
+    # should bring it back to their primary inbox (mirrors IG/WhatsApp behavior)
+    is_sender_participant_one = conversation.participant_one_id == sender_id
+    if is_sender_participant_one and conversation.status_for_one == 'hidden':
+        conversation.status_for_one = 'primary'
+    elif not is_sender_participant_one and conversation.status_for_two == 'hidden':
+        conversation.status_for_two = 'primary'
+    
     notification = Notification(
         user_id=data.recipient_id,
         type='new_message',
