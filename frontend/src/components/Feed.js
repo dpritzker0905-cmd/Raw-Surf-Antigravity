@@ -1592,8 +1592,33 @@ export const Feed = () => {
             )}
             
             {posts.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-20 text-center">
-                <p className={textSecondaryClass}>No posts yet. Be the first to share!</p>
+              <div className="flex flex-col items-center justify-center py-20 text-center px-6">
+                {activeTab === 'following' ? (
+                  <>
+                    <Users className={`w-12 h-12 mb-3 ${textSecondaryClass} opacity-40`} />
+                    <p className={`font-semibold text-lg mb-1 ${textPrimaryClass}`}>Your feed is empty</p>
+                    <p className={`text-sm mb-5 ${textSecondaryClass}`}>Follow photographers and surfers to see their latest posts here.</p>
+                    <button
+                      onClick={() => navigate('/explore')}
+                      className="px-6 py-2.5 rounded-full bg-gradient-to-r from-cyan-500 to-blue-500 text-white text-sm font-semibold shadow-lg shadow-cyan-500/25 hover:shadow-cyan-500/40 transition-all active:scale-95"
+                      aria-label="Discover photographers to follow"
+                    >
+                      Discover Photographers
+                    </button>
+                  </>
+                ) : activeTab === 'waves' ? (
+                  <>
+                    <Play className={`w-12 h-12 mb-3 ${textSecondaryClass} opacity-40`} />
+                    <p className={`font-semibold text-lg mb-1 ${textPrimaryClass}`}>No waves yet</p>
+                    <p className={`text-sm ${textSecondaryClass}`}>Short video clips from the surf community will appear here.</p>
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className={`w-12 h-12 mb-3 ${textSecondaryClass} opacity-40`} />
+                    <p className={`font-semibold text-lg mb-1 ${textPrimaryClass}`}>No posts yet</p>
+                    <p className={`text-sm ${textSecondaryClass}`}>Be the first to share a moment from the water!</p>
+                  </>
+                )}
               </div>
             ) : (
           injectAdsIntoPosts(posts, user?.is_ad_supported).map((post, index) => (
@@ -1769,6 +1794,16 @@ export const Feed = () => {
                     )}
                     {gpsLoading ? 'Finding your location\u2026' : checkInData.latitude ? '\u2713 GPS Location Detected' : 'Use My GPS Location'}
                   </Button>
+
+                  {/* GPS accuracy progress bar */}
+                  {gpsLoading && (
+                    <div className="mt-2 space-y-1.5">
+                      <div className="h-1.5 rounded-full bg-zinc-700 overflow-hidden">
+                        <div className="h-full bg-gradient-to-r from-cyan-400 to-emerald-400 rounded-full animate-pulse" style={{ width: '65%', transition: 'width 2s ease-out' }} />
+                      </div>
+                      <p className="text-xs text-zinc-400 text-center">Acquiring GPS signal — keep screen on</p>
+                    </div>
+                  )}
 
                   {/* GPS feedback */}
                   {nearestSpot && checkInData.latitude && (

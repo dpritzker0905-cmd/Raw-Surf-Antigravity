@@ -819,13 +819,13 @@ export const Profile = () => {
           <div className="flex items-center justify-center gap-4 text-sm mb-4">
             {profile.instagram_url && (
               <a 
-                href={`https://instagram.com/${profile.instagram_url.replace('@', '')}`}
+                href={profile.instagram_url.startsWith('http') ? profile.instagram_url : `https://instagram.com/${profile.instagram_url.replace(/^@/, '')}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center gap-1.5 text-blue-400 hover:text-blue-300 transition-colors"
               >
                 <Instagram className="w-4 h-4" />
-                {profile.instagram_url}
+                @{profile.instagram_url.replace(/^@/, '').replace(/^https?:\/\/(www\.)?instagram\.com\//, '').replace(/\/.*$/, '')}
               </a>
             )}
             {profile.website_url && (

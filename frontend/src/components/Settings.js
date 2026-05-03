@@ -1365,8 +1365,8 @@ export const Settings = () => {
           </CardContent>
         </Card>
 
-        {/* Theme Section - Mobile Only (md:hidden) */}
-        <Card className={`${cardBgClass} mb-4 transition-colors duration-300 md:hidden`} data-testid="theme-settings-mobile">
+        {/* Theme Section — Appearance */}
+        <Card className={`${cardBgClass} mb-4 transition-colors duration-300`} data-testid="theme-settings-card">
           <CardHeader>
             <button 
               onClick={() => setThemeDrawerOpen(!themeDrawerOpen)}

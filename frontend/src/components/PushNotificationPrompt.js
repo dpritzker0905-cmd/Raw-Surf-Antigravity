@@ -80,10 +80,10 @@ const PushNotificationPrompt = () => {
 
   return (
     <div
-      className={`fixed bottom-20 left-4 right-4 z-50 md:left-auto md:right-6 md:bottom-6 md:max-w-sm transition-all duration-300 ${
+      className={`fixed bottom-24 left-4 right-4 z-50 md:left-auto md:right-6 md:bottom-6 md:max-w-sm transition-all duration-300 ${
         animatingOut ? 'translate-y-full opacity-0' : 'translate-y-0 opacity-100'
       }`}
-      style={{ animation: animatingOut ? 'none' : 'slideUpBounce 0.5s ease-out' }}
+      style={{ animation: animatingOut ? 'none' : 'slideUpBounce 0.5s ease-out', paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
       role="dialog"
       aria-label="Enable push notifications"
     >

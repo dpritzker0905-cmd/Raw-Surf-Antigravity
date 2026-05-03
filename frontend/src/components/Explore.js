@@ -90,6 +90,10 @@ export const Explore = () => {
   const [activeTab, setActiveTab] = useState('all');
   const [isSearching, setIsSearching] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
+  const [recentSearches, setRecentSearches] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('rs-recent-searches') || '[]'); } catch { return []; }
+  });
   
   // Tabs carousel refs and state
   const tabsContainerRef = useRef(null);
@@ -461,6 +465,13 @@ export const Explore = () => {
         params: { q: searchQuery, type: activeTab }
       });
       setSearchResults(response.data);
+      // Save to recent searches
+      const query = searchQuery.trim();
+      if (query.length >= 2) {
+        const updated = [query, ...recentSearches.filter(s => s !== query)].slice(0, 5);
+        setRecentSearches(updated);
+        localStorage.setItem('rs-recent-searches', JSON.stringify(updated));
+      }
     } catch (error) {
       logger.error('Error searching:', error);
     } finally {
@@ -1027,6 +1038,8 @@ export const Explore = () => {
           placeholder="Search surfers, photographers, spots..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
+          onFocus={() => setIsSearchFocused(true)}
+          onBlur={() => setTimeout(() => setIsSearchFocused(false), 200)}
           className="pl-12 pr-10 h-12 bg-card border-zinc-700 text-foreground placeholder-gray-500 focus:border-yellow-400"
           data-testid="explore-search-input"
         />
@@ -1039,6 +1052,37 @@ export const Explore = () => {
           </button>
         )}
       </div>
+
+      {/* Recent Searches Dropdown */}
+      {isSearchFocused && !searchQuery && recentSearches.length > 0 && (
+        <div className={`mb-4 p-3 rounded-xl border ${isLight ? 'bg-white border-gray-200' : 'bg-zinc-900 border-zinc-700'}`}>
+          <div className="flex items-center justify-between mb-2">
+            <span className={`text-xs font-medium ${isLight ? 'text-gray-500' : 'text-zinc-400'}`}>Recent searches</span>
+            <button
+              onClick={() => { setRecentSearches([]); localStorage.removeItem('rs-recent-searches'); }}
+              className="text-xs text-zinc-500 hover:text-red-400 transition-colors"
+              aria-label="Clear recent searches"
+            >
+              Clear all
+            </button>
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {recentSearches.map((term, i) => (
+              <button
+                key={i}
+                onClick={() => setSearchQuery(term)}
+                className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
+                  isLight
+                    ? 'bg-gray-100 text-gray-700 hover:bg-cyan-50 hover:text-cyan-700'
+                    : 'bg-zinc-800 text-zinc-300 hover:bg-cyan-500/20 hover:text-cyan-400'
+                }`}
+              >
+                {term}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Search Tabs - Horizontally scrollable with arrow navigation */}
       <div className="flex items-center gap-2 mb-6">

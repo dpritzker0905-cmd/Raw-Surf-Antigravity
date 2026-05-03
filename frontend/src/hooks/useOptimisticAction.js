@@ -35,6 +35,11 @@ const useOptimisticAction = () => {
     if (key && pendingRef.current.has(key)) return;
     if (key) pendingRef.current.add(key);
 
+    // Haptic feedback — light vibration on mobile for premium feel
+    if (navigator.vibrate) {
+      navigator.vibrate(8);
+    }
+
     // Optimistic update — instant UI change
     onOptimistic?.();
 
