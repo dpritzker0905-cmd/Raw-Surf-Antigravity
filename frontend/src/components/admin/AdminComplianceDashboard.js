@@ -763,6 +763,7 @@ export const AdminComplianceDashboard = ({ cardBgClass, textClass, textSecondary
                   {exportLoading ? 'Exporting...' : 'Export'}
                 </Button>
               </div>
+            </div>
           </CardContent>
         )}
       </Card>
