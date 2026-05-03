@@ -1,4 +1,4 @@
-﻿"""Weekly Grom parent reports — runs Sunday 9am EST."""
+"""Weekly Grom parent reports — runs Sunday 9am EST."""
 import logging
 from datetime import datetime, timezone, timedelta
 import json

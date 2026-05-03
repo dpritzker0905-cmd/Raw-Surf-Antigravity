@@ -1,4 +1,4 @@
-﻿"""Conversations, messages, reactions, voice notes, and user notes."""
+"""Conversations, messages, reactions, voice notes, and user notes."""
 from sqlalchemy import Column, String, Integer, Float, Boolean, ForeignKey, DateTime, Date, Enum, Text, Index, JSON
 from sqlalchemy.orm import relationship, backref
 from database import Base

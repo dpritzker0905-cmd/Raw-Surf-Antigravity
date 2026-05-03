@@ -1,4 +1,4 @@
-﻿"""Surf alert checking — runs every 15 minutes."""
+"""Surf alert checking — runs every 15 minutes."""
 import logging
 import json
 from datetime import datetime, timezone

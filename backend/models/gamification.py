@@ -1,4 +1,4 @@
-﻿"""Gamification: badges, XP, challenges, leaderboards, sponsorships, surf passport."""
+"""Gamification: badges, XP, challenges, leaderboards, sponsorships, surf passport."""
 from sqlalchemy import Column, String, Integer, Float, Boolean, ForeignKey, DateTime, Date, Enum, Text, Index, JSON
 from sqlalchemy.orm import relationship, backref
 from database import Base

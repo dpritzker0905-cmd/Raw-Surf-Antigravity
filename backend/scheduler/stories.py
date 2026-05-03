@@ -1,4 +1,4 @@
-﻿"""Story expiration cleanup — runs every hour."""
+"""Story expiration cleanup — runs every hour."""
 import logging
 from datetime import datetime, timezone
 

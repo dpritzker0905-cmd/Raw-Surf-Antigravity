@@ -1,4 +1,4 @@
-﻿"""Gallery selection deadline expiry processing — runs daily at 4am UTC."""
+"""Gallery selection deadline expiry processing — runs daily at 4am UTC."""
 import logging
 import json
 from datetime import datetime, timezone

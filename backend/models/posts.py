@@ -1,4 +1,4 @@
-﻿"""Posts, comments, reactions, stories, hashtags, and user media."""
+"""Posts, comments, reactions, stories, hashtags, and user media."""
 from sqlalchemy import Column, String, Integer, Float, Boolean, ForeignKey, DateTime, Date, Enum, Text, Index, JSON
 from sqlalchemy.orm import relationship, backref
 from database import Base

@@ -1,4 +1,4 @@
-﻿"""All enum classes used across models."""
+"""All enum classes used across models."""
 import enum
 
 class RoleEnum(enum.Enum):

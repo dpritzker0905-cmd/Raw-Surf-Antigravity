@@ -1,4 +1,4 @@
-﻿"""Shared infrastructure: generate_uuid helper."""
+"""Shared infrastructure: generate_uuid helper."""
 import uuid
 
 def generate_uuid():

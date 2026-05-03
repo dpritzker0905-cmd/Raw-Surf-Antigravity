@@ -1,4 +1,4 @@
-﻿"""Platform metrics aggregation — runs every 6 hours."""
+"""Platform metrics aggregation — runs every 6 hours."""
 import logging
 
 logger = logging.getLogger(__name__)

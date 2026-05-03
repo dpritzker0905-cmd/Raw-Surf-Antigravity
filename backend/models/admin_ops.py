@@ -1,4 +1,4 @@
-﻿"""Admin ops: tickets, promos, feature flags, campaigns, system health, platform config."""
+"""Admin ops: tickets, promos, feature flags, campaigns, system health, platform config."""
 from sqlalchemy import Column, String, Integer, Float, Boolean, ForeignKey, DateTime, Date, Enum, Text, Index, JSON
 from sqlalchemy.orm import relationship, backref
 from database import Base

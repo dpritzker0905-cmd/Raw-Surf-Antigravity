@@ -1,4 +1,4 @@
-﻿"""Financial scheduler tasks.
+"""Financial scheduler tasks.
 - Auto-release escrow (daily 3am)
 - Weekly sales reports (Monday 9am)
 - Cleanup abandoned Stripe sessions (30min)

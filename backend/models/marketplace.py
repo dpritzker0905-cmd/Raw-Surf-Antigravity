@@ -1,4 +1,4 @@
-﻿"""Marketplace: photographer subscriptions, photo subs, ad config."""
+"""Marketplace: photographer subscriptions, photo subs, ad config."""
 from sqlalchemy import Column, String, Integer, Float, Boolean, ForeignKey, DateTime, Date, Enum, Text, Index, JSON
 from sqlalchemy.orm import relationship, backref
 from database import Base
