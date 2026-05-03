@@ -251,34 +251,28 @@ async def get_conversations(user_id: str, inbox_type: str = "primary", grom_zone
         # Business roles route to Channel (includes Photographers)
         is_other_business = other_role in ['Photographer', 'Approved Pro', 'Hobbyist', 'Shop', 'Shaper', 'Surf School', 'Resort']
         
-        # ── STEP 1: Determine if this is a request ────────────────────────
-        # Requests take absolute priority over all other routing.
+        # Determine folder based on status AND roles
         folder = 'primary'  # Default
         
+        # PRIORITY 1: REQUESTS - Messages from non-followers go to requests
         if my_status == 'request':
             folder = 'requests'
+        
+        # PRIORITY 2: HIDDEN - Muted conversations
         elif my_status == 'hidden':
             folder = 'hidden'
-        elif my_status in (None, 'primary'):
-            # Dynamic follow check for legacy conversations that pre-date the
-            # request system. Their status_for_* may be NULL or 'primary' even
-            # though the sender never followed the recipient.
-            other_follows_me = await db.execute(
-                select(Follow.id).where(
-                    Follow.follower_id == (other_user.id if other_user else ''),
-                    Follow.following_id == user_id
-                ).limit(1)
-            )
-            if other_follows_me.scalar_one_or_none() is None:
-                folder = 'requests'
         
-        # ── STEP 2: Route accepted conversations by role ──────────────────
-        # Only applies to conversations that are NOT requests/hidden.
-        if folder == 'primary':
-            if is_current_user_pro and is_other_pro:
-                folder = 'pro_lounge'
-            elif (is_current_user_business and not is_other_business) or (is_other_business and not is_current_user_business):
-                folder = 'channel'
+        # PRIORITY 3: THE PRO LOUNGE - Pro-to-Pro communication
+        elif is_current_user_pro and is_other_pro:
+            folder = 'pro_lounge'
+        
+        # PRIORITY 4: THE CHANNEL - Business/Photographer ↔ Surfer communication
+        elif (is_current_user_business and not is_other_business) or (is_other_business and not is_current_user_business):
+            folder = 'channel'
+        
+        # PRIORITY 5: PRIMARY - Standard surfer-to-surfer (default)
+        else:
+            folder = 'primary'
         
         # Privacy: Hide Pro Lounge from non-pro users
         if folder == 'pro_lounge' and not is_current_user_pro:
@@ -573,26 +567,11 @@ async def get_unread_counts(user_id: str, db: AsyncSession = Depends(get_db)):
             
         unread = sum(1 for m in conv.messages if not m.is_read and m.sender_id != user_id)
         
-        # Determine effective folder (mirrors get_conversations logic)
-        if my_status == 'request':
-            effective_folder = 'requests'
-        elif my_status in (None, 'primary'):
-            # Dynamic follow check for legacy conversations
-            other_follows_me = await db.execute(
-                select(Follow.id).where(
-                    Follow.follower_id == (other_user.id if other_user else ''),
-                    Follow.following_id == user_id
-                ).limit(1)
-            )
-            effective_folder = 'requests' if other_follows_me.scalar_one_or_none() is None else 'primary'
-        else:
-            effective_folder = my_status
-        
         if is_grom_conversation:
             grom_zone_unread += unread
-        elif effective_folder == 'primary':
+        elif my_status == 'primary':
             primary_unread += unread
-        elif effective_folder == 'requests':
+        elif my_status == 'request':
             request_unread += unread
     
     return {
