@@ -171,6 +171,26 @@ export const GalleryStorefront = () => {
 
   return (
     <div className={`min-h-screen ${pageBg} pb-24 md:pb-8`}>
+      {/* JSON-LD Structured Data for SEO */}
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({
+        '@context': 'https://schema.org',
+        '@type': 'Person',
+        name: photographer.full_name,
+        url: `${window.location.origin}/gallery/${username}`,
+        image: photographer.avatar_url ? getFullUrl(photographer.avatar_url) : undefined,
+        description: photographer.bio || `Surf photographer on Raw Surf`,
+        jobTitle: 'Surf Photographer',
+        ...(photographer.location && { address: { '@type': 'PostalAddress', addressLocality: photographer.location } }),
+        ...(photographer.instagram_url && { sameAs: [photographer.instagram_url] }),
+        ...(stats && { 
+          aggregateRating: stats.avg_rating > 0 ? {
+            '@type': 'AggregateRating',
+            ratingValue: stats.avg_rating,
+            bestRating: 5,
+            ratingCount: stats.session_count || 1,
+          } : undefined
+        }),
+      }) }} />
       {/* ── Hero Banner ── */}
       <div className="relative">
         <div className="h-40 md:h-52 bg-gradient-to-br from-cyan-900/60 via-zinc-900 to-emerald-900/40 overflow-hidden">

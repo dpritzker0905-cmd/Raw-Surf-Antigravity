@@ -30,9 +30,7 @@ const SpotConditionCard = ({ spot, conditions, onNavigate }) => {
       
       {/* Content: Tagged media, spot image, or map fallback */}
       {displayImage ? (
-        <img loading="lazy" decoding="async" 
-          loading="lazy"
-          decoding="async"
+        <img loading="lazy" decoding="async"
           src={displayImage} 
           alt={spot.name} 
           className="w-full h-full object-cover group-hover:scale-105 transition-transform" 
@@ -52,9 +50,7 @@ const SpotConditionCard = ({ spot, conditions, onNavigate }) => {
         />
       ) : spot.latitude && spot.longitude ? (
         <div className="w-full h-full bg-muted relative">
-          <img loading="lazy" decoding="async" 
-            loading="lazy"
-            decoding="async"
+          <img loading="lazy" decoding="async"
             src={`https://static-maps.yandex.ru/1.x/?lang=en_US&ll=${spot.longitude},${spot.latitude}&z=12&l=sat&size=400,300`}
             alt={`Map of ${spot.name}`}
             className="w-full h-full object-cover opacity-60 group-hover:opacity-80 transition-opacity"

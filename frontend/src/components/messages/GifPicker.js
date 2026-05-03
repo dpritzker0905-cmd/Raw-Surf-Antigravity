@@ -66,15 +66,15 @@ const GifPicker = ({ show, onSelect, onClose }) => {
     };
   }, [show, onClose]);
 
-  // Debounced search
+  // Debounced search — 400ms delay with 2-char minimum
   useEffect(() => {
     const id = setTimeout(() => {
-      if (searchTerm.trim()) {
+      if (searchTerm.trim().length >= 2) {
         searchGifs(searchTerm.trim());
       } else {
         setGifs([]);
       }
-    }, 300);
+    }, 400);
     return () => clearTimeout(id);
   }, [searchTerm]);
 
@@ -179,7 +179,6 @@ const GifPicker = ({ show, onSelect, onClose }) => {
                   src={previewUrl}
                   alt={gif.title || 'GIF'}
                   className="w-full h-full object-cover pointer-events-none select-none"
-                  loading="lazy"
                   draggable={false}
                 />
               </button>

@@ -204,8 +204,17 @@ export const Feed = () => {
   
   // Get effective role for UI rendering (respects God Mode persona masking)
   const effectiveRole = getEffectiveRole(user?.role);
-  const [posts, setPosts] = useState([]);
-  const [loading, setLoading] = useState(true);
+  // Stale-while-revalidate: load cached feed instantly, refresh in background
+  const [posts, setPosts] = useState(() => {
+    try {
+      const cached = localStorage.getItem('rawsurf_cached_feed');
+      if (cached) return JSON.parse(cached);
+    } catch { /* ignore parse errors */ }
+    return [];
+  });
+  const [loading, setLoading] = useState(() => {
+    try { return !localStorage.getItem('rawsurf_cached_feed'); } catch { return true; }
+  });
   const [feedLastUpdated, setFeedLastUpdated] = useState(null);
   const { isOnline, _queueAction } = useOfflineQueue();
   const [streak, setStreak] = useState({ current_streak: 0, checked_in_today: false });

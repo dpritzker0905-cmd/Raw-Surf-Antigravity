@@ -1175,7 +1175,10 @@ export const MessagesPage = () => {
         >
           <Filter className="w-5 h-5" />
         </button>
-        <h1 className="text-lg font-bold text-foreground font-oswald" >Messages</h1>
+        <h1 className="text-lg font-bold text-foreground font-oswald flex items-center gap-2">
+          Messages
+          <span className={`w-2 h-2 rounded-full ${isOnline ? 'bg-emerald-400' : 'bg-amber-400 animate-pulse'}`} title={isOnline ? 'Connected' : 'Reconnecting...'} />
+        </h1>
         <button 
           onClick={handleComposeNew}
           className="p-2 text-muted-foreground hover:text-foreground"
