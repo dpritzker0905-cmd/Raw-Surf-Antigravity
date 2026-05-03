@@ -27,6 +27,7 @@ import OutgoingCallModal from '../messages/OutgoingCallModal';
 import InCallView from '../messages/InCallView';
 import PermissionDeniedModal from '../messages/PermissionDeniedModal';
 import ViolationBanner from '../ViolationBanner';
+import PushNotificationPrompt from '../PushNotificationPrompt';
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
@@ -229,6 +230,7 @@ const AppLayout = ({ children, hideNav = false, hideTopNav = false }) => {
       </main>
 
       {showBottomNav && <ActiveSessionBanner />}
+      <PushNotificationPrompt />
       {showBottomNav && <BottomNav />}
     </div>
   );
