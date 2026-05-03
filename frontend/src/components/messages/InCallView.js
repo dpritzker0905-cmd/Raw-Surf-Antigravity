@@ -15,22 +15,18 @@
  *   - Uses HairFilterPicker component (same as GoLive)
  */
 
-import React, { useRef, useEffect, useState, useCallback } from 'react';import { logger } from '../../utils/logger';
-
+import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { 
   Mic, MicOff, Video, VideoOff, PhoneOff, 
   Volume2, VolumeX, Maximize2, Minimize2, Signal, SignalLow, SignalZero,
   Sparkles, X, Scissors, SwitchCamera,
   Sunset, Waves, Moon, Zap, Eye, Grid, CircleDot
-} from 'lucide-react';import { logger } from '../../utils/logger';
-
-import { HairFilterPicker } from '../HairFilterPicker';import { logger } from '../../utils/logger';
-
-import { WebGLVideoProcessor } from '../../utils/WebGLFilterEngine';import { logger } from '../../utils/logger';
-
+} from 'lucide-react';
+import { HairFilterPicker } from '../HairFilterPicker';
+import { WebGLVideoProcessor } from '../../utils/WebGLFilterEngine';
 import { HairFilterEngine } from '../../utils/HairFilterEngine';
-
 import { logger } from '../../utils/logger';
+
 // ── Duration formatter ──────────────────────────────────────────────
 function formatDuration(seconds) {
   const h = Math.floor(seconds / 3600);

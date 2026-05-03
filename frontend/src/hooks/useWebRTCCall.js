@@ -14,15 +14,12 @@
  *   5. Either: endCall() → cleanup
  */
 
-import { useState, useRef, useCallback, useEffect } from 'react';import { logger } from '../utils/logger';
-
-import apiClient, { BACKEND_URL } from '../lib/apiClient';import { logger } from '../utils/logger';
-
-import { toast } from 'sonner';import { logger } from '../utils/logger';
-
+import { useState, useRef, useCallback, useEffect } from 'react';
+import apiClient, { BACKEND_URL } from '../lib/apiClient';
+import { toast } from 'sonner';
 import { unlockAudioNow } from '../utils/audioUnlock';
-
 import { logger } from '../utils/logger';
+
 // STUN + TURN servers for reliable NAT traversal
 // STUN alone fails ~15-20% of the time (symmetric NAT, mobile carriers, corporate networks)
 // TURN from Metered.ca (rawsurf app) + Google STUN

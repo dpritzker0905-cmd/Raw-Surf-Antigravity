@@ -1,4 +1,4 @@
-"""Monthly leaderboard reset — runs 1st of each month at 00:05 UTC."""
+"""Monthly leaderboard reset â€” runs 1st of each month at 00:05 UTC."""
 import logging
 
 logger = logging.getLogger(__name__)
