@@ -396,7 +396,7 @@ const ConditionsModal = ({
                     data-testid="media-preview-video"
                   />
                 ) : (
-                  <img 
+                  <img loading="lazy" decoding="async" 
                     src={mediaPreview} 
                     alt="Conditions preview" 
                     className="w-full h-full object-cover"

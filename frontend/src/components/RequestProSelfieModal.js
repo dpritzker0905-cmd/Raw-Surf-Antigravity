@@ -158,7 +158,7 @@ export const RequestProSelfieModal = ({ dispatchId, isOpen, onClose, onSuccess }
                   )}
                 </>
               ) : (
-                <img src={selfieUrl} alt="Your selfie" className="w-full h-full object-cover" />
+                <img loading="lazy" decoding="async" src={selfieUrl} alt="Your selfie" className="w-full h-full object-cover" />
               )}
               <canvas ref={canvasRef} className="hidden" />
             </div>

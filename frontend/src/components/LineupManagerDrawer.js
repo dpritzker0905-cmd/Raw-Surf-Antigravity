@@ -184,7 +184,7 @@ const SurferPosition = ({
             isCaptain ? 'ring-4 ring-yellow-400' : ''
           } transition-all group-hover:scale-105`}>
             {member.avatar_url ? (
-              <img src={getFullUrl(member.avatar_url)} alt={member.name} className="w-full h-full object-cover" />
+              <img loading="lazy" decoding="async" src={getFullUrl(member.avatar_url)} alt={member.name} className="w-full h-full object-cover" />
             ) : (
               <div className={`w-full h-full flex items-center justify-center ${
                 isCaptain ? 'bg-gradient-to-br from-yellow-400 to-orange-500' : 'bg-gradient-to-br from-cyan-400 to-blue-500'
@@ -622,7 +622,7 @@ const AutoFillPanel = ({
               >
                 <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0">
                   {person.avatar_url ? (
-                    <img src={getFullUrl(person.avatar_url)} alt="" className="w-full h-full object-cover" />
+                    <img loading="lazy" decoding="async" src={getFullUrl(person.avatar_url)} alt="" className="w-full h-full object-cover" />
                   ) : (
                     <div className={`w-full h-full flex items-center justify-center bg-gradient-to-br from-cyan-400 to-blue-500 text-white text-sm font-bold`}>
                       {person.full_name?.[0] || '?'}
@@ -1129,7 +1129,7 @@ export const LineupManagerDrawer = ({
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-full overflow-hidden bg-zinc-700">
                           {result.avatar_url ? (
-                            <img src={getFullUrl(result.avatar_url)} alt="" className="w-full h-full object-cover" />
+                            <img loading="lazy" decoding="async" src={getFullUrl(result.avatar_url)} alt="" className="w-full h-full object-cover" />
                           ) : (
                             <div className="w-full h-full flex items-center justify-center text-gray-400">
                               {result.full_name?.[0] || '?'}
@@ -1181,7 +1181,7 @@ export const LineupManagerDrawer = ({
                             <div className="flex items-center gap-3">
                               <div className="w-10 h-10 rounded-full overflow-hidden">
                                 {friend.avatar_url ? (
-                                  <img src={getFullUrl(friend.avatar_url)} alt="" className="w-full h-full object-cover" />
+                                  <img loading="lazy" decoding="async" src={getFullUrl(friend.avatar_url)} alt="" className="w-full h-full object-cover" />
                                 ) : (
                                   <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-green-400 to-emerald-500 text-white font-bold">
                                     {friend.full_name?.[0] || '?'}
@@ -1226,7 +1226,7 @@ export const LineupManagerDrawer = ({
                             <div className="flex items-center gap-3">
                               <div className="w-10 h-10 rounded-full overflow-hidden">
                                 {surfer.avatar_url ? (
-                                  <img src={getFullUrl(surfer.avatar_url)} alt="" className="w-full h-full object-cover" />
+                                  <img loading="lazy" decoding="async" src={getFullUrl(surfer.avatar_url)} alt="" className="w-full h-full object-cover" />
                                 ) : (
                                   <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-blue-400 to-indigo-500 text-white font-bold">
                                     {surfer.full_name?.[0] || '?'}

@@ -97,7 +97,7 @@ const SpotOfTheDayBadge = ({ spotOfTheDay, onClick }) => {
         
         {spotOfTheDay.featured_photographer && (
           <div className="flex items-center gap-2">
-            <img src={getFullUrl(spotOfTheDay.featured_photographer.avatar_url || '/default-avatar.png')}
+            <img loading="lazy" decoding="async" src={getFullUrl(spotOfTheDay.featured_photographer.avatar_url || '/default-avatar.png')}
               alt={spotOfTheDay.featured_photographer.full_name}
               className="w-8 h-8 rounded-full border-2 border-white/30"
             />
@@ -107,7 +107,7 @@ const SpotOfTheDayBadge = ({ spotOfTheDay, onClick }) => {
       
       {spotOfTheDay.featured_photo_url && (
         <div className="mt-2 rounded-lg overflow-hidden">
-          <img 
+          <img loading="lazy" decoding="async" 
             src={spotOfTheDay.featured_photo_url} 
             alt="Conditions" 
             className="w-full h-24 object-cover"
@@ -174,7 +174,7 @@ const ReviewsCarousel = ({ reviews }) => {
           <div className="flex items-center gap-2 mb-1">
             <div className="w-6 h-6 rounded-full bg-zinc-700 overflow-hidden">
               {review.reviewer_avatar ? (
-                <img src={review.reviewer_avatar} className="w-full h-full object-cover" alt="" />
+                <img loading="lazy" decoding="async" src={review.reviewer_avatar} className="w-full h-full object-cover" alt="" />
               ) : (
                 <span className="flex items-center justify-center h-full text-xs text-gray-400">
                   {review.reviewer_name?.[0]}
@@ -255,7 +255,7 @@ const PhotographerProfile = ({ photographer, onBack, onJumpIn }) => {
           <div className="w-16 h-16 rounded-full p-[2px] bg-gradient-to-r from-cyan-400 to-blue-500">
             <div className="w-full h-full rounded-full bg-zinc-800 overflow-hidden">
               {photographer?.avatar_url ? (
-                <img src={getFullUrl(photographer.avatar_url)} className="w-full h-full object-cover" alt="" />
+                <img loading="lazy" decoding="async" src={getFullUrl(photographer.avatar_url)} className="w-full h-full object-cover" alt="" />
               ) : (
                 <span className="flex items-center justify-center h-full text-2xl text-cyan-400">
                   {photographer?.full_name?.charAt(0)}
@@ -407,7 +407,7 @@ const PhotographerProfileContent = ({ photographer }) => {
         <div className="w-16 h-16 rounded-full p-[2px] bg-gradient-to-r from-cyan-400 to-blue-500">
           <div className="w-full h-full rounded-full bg-zinc-800 overflow-hidden">
             {photographer?.avatar_url ? (
-              <img src={getFullUrl(photographer.avatar_url)} className="w-full h-full object-cover" alt="" />
+              <img loading="lazy" decoding="async" src={getFullUrl(photographer.avatar_url)} className="w-full h-full object-cover" alt="" />
             ) : (
               <span className="flex items-center justify-center h-full text-2xl text-cyan-400">
                 {photographer?.full_name?.charAt(0)}
@@ -862,7 +862,7 @@ const JumpInFlow = ({ photographer, onBack, onSuccess }) => {
           <div className="w-12 h-12 rounded-full p-[2px] bg-gradient-to-r from-cyan-400 to-blue-500">
             <div className="w-full h-full rounded-full bg-zinc-800 overflow-hidden">
               {photographer?.avatar_url ? (
-                <img src={getFullUrl(photographer.avatar_url)} className="w-full h-full object-cover" alt="" />
+                <img loading="lazy" decoding="async" src={getFullUrl(photographer.avatar_url)} className="w-full h-full object-cover" alt="" />
               ) : (
                 <span className="flex items-center justify-center h-full text-lg text-cyan-400">
                   {photographer?.full_name?.charAt(0)}
@@ -923,7 +923,7 @@ const JumpInFlow = ({ photographer, onBack, onSuccess }) => {
                     )}
                   </>
                 ) : (
-                  <img src={selfieUrl} alt="Your selfie" className="w-full h-full object-cover" />
+                  <img loading="lazy" decoding="async" src={selfieUrl} alt="Your selfie" className="w-full h-full object-cover" />
                 )}
                 <canvas ref={canvasRef} className="hidden" />
               </div>
@@ -1818,7 +1818,7 @@ const UnifiedSpotDrawer = ({
                                   <div className="w-12 h-12 rounded-full p-[2px] bg-gradient-to-r from-green-400 to-cyan-400">
                                     <div className="w-full h-full rounded-full bg-zinc-800 overflow-hidden">
                                       {shooter.avatar_url ? (
-                                        <img src={getFullUrl(shooter.avatar_url)} className="w-full h-full object-cover" alt="" />
+                                        <img loading="lazy" decoding="async" src={getFullUrl(shooter.avatar_url)} className="w-full h-full object-cover" alt="" />
                                       ) : (
                                         <span className="flex items-center justify-center h-full text-cyan-400">
                                           {shooter.full_name?.[0]}
@@ -1907,7 +1907,7 @@ const UnifiedSpotDrawer = ({
                               <div className="flex items-center justify-between mb-2">
                                 <div className="flex items-center gap-2">
                                   {booking.photographer_avatar ? (
-                                    <img 
+                                    <img loading="lazy" decoding="async" 
                                       src={booking.photographer_avatar}
                                       alt=""
                                       className="w-8 h-8 rounded-full object-cover border border-cyan-500/30"
@@ -1999,7 +1999,7 @@ const UnifiedSpotDrawer = ({
                               <div className="flex items-center gap-2">
                                 <div className="w-8 h-8 rounded-full overflow-hidden ring-2 ring-cyan-500 shrink-0">
                                   {report.photographer_avatar ? (
-                                    <img src={getFullUrl(report.photographer_avatar)} className="w-full h-full object-cover" alt="" />
+                                    <img loading="lazy" decoding="async" src={getFullUrl(report.photographer_avatar)} className="w-full h-full object-cover" alt="" />
                                   ) : (
                                     <div className="w-full h-full bg-cyan-500 flex items-center justify-center text-xs font-bold text-white">{report.photographer_name?.[0]}</div>
                                   )}
@@ -2024,7 +2024,7 @@ const UnifiedSpotDrawer = ({
                               {(() => {
                                 const urls = [report.thumbnail_url, report.media_url].filter(u => u && u.trim() && !u.startsWith('/api/uploads/'));
                                 if (!urls[0]) return null;
-                                return (<img src={getFullUrl(urls[0])} alt="" className="mt-2 w-full h-48 object-cover rounded-lg cursor-pointer hover:opacity-90 transition-opacity" onClick={() => setLightboxUrl(getFullUrl(urls[0]))} onError={(e) => { if (urls[1] && e.target.src !== getFullUrl(urls[1])) { e.target.src = getFullUrl(urls[1]); } else { e.target.style.display = 'none'; } }} />);
+                                return (<img loading="lazy" decoding="async" src={getFullUrl(urls[0])} alt="" className="mt-2 w-full h-48 object-cover rounded-lg cursor-pointer hover:opacity-90 transition-opacity" onClick={() => setLightboxUrl(getFullUrl(urls[0]))} onError={(e) => { if (urls[1] && e.target.src !== getFullUrl(urls[1])) { e.target.src = getFullUrl(urls[1]); } else { e.target.style.display = 'none'; } }} />);
                               })()}
                             </div>
                           )) : (
@@ -2043,7 +2043,7 @@ const UnifiedSpotDrawer = ({
                             <div className="grid grid-cols-3 gap-1.5">
                               {proPhotos.slice(0, 9).map((post) => (
                                 <div key={post.id} className="aspect-square rounded-lg overflow-hidden cursor-pointer hover:opacity-80 transition-opacity" onClick={() => { navigate(`/post/${post.id}`); onClose?.(); }}>
-                                  <img src={getFullUrl(post.thumbnail_url || post.media_url)} alt="" className="w-full h-full object-cover" onError={(e) => { e.target.style.display = 'none'; }} />
+                                  <img loading="lazy" decoding="async" src={getFullUrl(post.thumbnail_url || post.media_url)} alt="" className="w-full h-full object-cover" onError={(e) => { e.target.style.display = 'none'; }} />
                                 </div>
                               ))}
                             </div>
@@ -2063,7 +2063,7 @@ const UnifiedSpotDrawer = ({
                             <div className="grid grid-cols-3 gap-1.5">
                               {communityPhotos.slice(0, 9).map((post) => (
                                 <div key={post.id} className="aspect-square rounded-lg overflow-hidden cursor-pointer hover:opacity-80 transition-opacity" onClick={() => { navigate(`/post/${post.id}`); onClose?.(); }}>
-                                  <img src={getFullUrl(post.thumbnail_url || post.media_url)} alt="" className="w-full h-full object-cover" onError={(e) => { e.target.style.display = 'none'; }} />
+                                  <img loading="lazy" decoding="async" src={getFullUrl(post.thumbnail_url || post.media_url)} alt="" className="w-full h-full object-cover" onError={(e) => { e.target.style.display = 'none'; }} />
                                 </div>
                               ))}
                             </div>
@@ -2409,7 +2409,7 @@ const UnifiedSpotDrawer = ({
           >
             <X className="w-8 h-8" />
           </button>
-          <img 
+          <img loading="lazy" decoding="async" 
             src={lightboxUrl} 
             alt="Condition report" 
             className="max-w-full max-h-[90vh] object-contain rounded-lg"

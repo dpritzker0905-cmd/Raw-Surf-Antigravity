@@ -447,7 +447,7 @@ const StoryCircle = ({ authorGroup, onClick, isConnecting = false }) => {
         <div className="p-[2px] rounded-full bg-black">
           <div className="w-14 h-14 rounded-full overflow-hidden bg-zinc-800">
             {authorGroup.author_avatar ? (
-              <img
+              <img loading="lazy" decoding="async"
                 src={getFullUrl(authorGroup.author_avatar)}
                 alt={authorGroup.author_name}
                 className="w-full h-full object-cover"
@@ -622,7 +622,7 @@ const StoryViewer = ({ authorGroup, viewerId, _viewerLocation, onClose, onNaviga
           <div className={`p-[2px] rounded-full ${getStoryRingColor(authorGroup)}`}>
             <div className="w-10 h-10 rounded-full overflow-hidden bg-black">
               {authorGroup.author_avatar ? (
-                <img src={getFullUrl(authorGroup.author_avatar)} alt="" className="w-full h-full object-cover" />
+                <img loading="lazy" decoding="async" src={getFullUrl(authorGroup.author_avatar)} alt="" className="w-full h-full object-cover" />
               ) : (
                 <div className="w-full h-full flex items-center justify-center text-white font-bold">
                   {authorGroup.author_name?.[0]}
@@ -676,7 +676,7 @@ const StoryViewer = ({ authorGroup, viewerId, _viewerLocation, onClose, onNaviga
               playsInline
             />
           ) : (
-            <img
+            <img loading="lazy" decoding="async"
               src={getFullUrl(currentStory.media_url)}
               alt=""
               className="max-w-full max-h-full object-contain"
@@ -870,7 +870,7 @@ export const CreateStoryModal = ({ isOpen, onClose, onCreated }) => {
                     {mediaType === 'video' ? (
                       <video src={previewUrl} className="w-full h-full object-cover" controls />
                     ) : (
-                      <img src={previewUrl} alt="Preview" className="w-full h-full object-cover" />
+                      <img loading="lazy" decoding="async" src={previewUrl} alt="Preview" className="w-full h-full object-cover" />
                     )}
                   </div>
                   <button
@@ -936,7 +936,7 @@ export const CreateStoryModal = ({ isOpen, onClose, onCreated }) => {
                   {mediaType === 'video' ? (
                     <video src={mediaUrl} className="w-full h-full object-cover" controls />
                   ) : (
-                    <img src={mediaUrl} alt="Preview" className="w-full h-full object-cover" />
+                    <img loading="lazy" decoding="async" src={mediaUrl} alt="Preview" className="w-full h-full object-cover" />
                   )}
                 </div>
               )}

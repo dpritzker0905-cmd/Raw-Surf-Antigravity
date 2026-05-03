@@ -1,4 +1,4 @@
-﻿/**
+/**
  * CreateAdModal - User-facing ad submission for Self-Serve Ad Engine
  * Similar flow to creating a social post - supports images and videos
  */
@@ -234,7 +234,7 @@ export const CreateAdModal = ({ isOpen, onClose, onSuccess }) => {
                         controls 
                       />
                     ) : (
-                      <img 
+                      <img loading="lazy" decoding="async" 
                         src={mediaPreview} 
                         alt="Ad preview" 
                         className="w-full h-40 object-cover" 
@@ -430,7 +430,7 @@ export const CreateAdModal = ({ isOpen, onClose, onSuccess }) => {
                       {mediaType === 'video' ? (
                         <video src={mediaPreview} className="w-full h-32 object-cover" />
                       ) : (
-                        <img src={mediaPreview} alt="Ad" className="w-full h-32 object-cover" />
+                        <img loading="lazy" decoding="async" src={mediaPreview} alt="Ad" className="w-full h-32 object-cover" />
                       )}
                     </div>
                   )}

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * SessionLogHeader - Displays session metadata on feed posts
  * Shows: Location, Time, Conditions, Collaborators
  * "Strava for Surfing" - Rich metadata on every session post
@@ -34,8 +34,8 @@ const SESSION_LABEL_ICONS = {
 
 // Wind direction display
 const _WIND_ARROWS = {
-  'N': '↓', 'NE': '↙', 'E': '←', 'SE': '↖',
-  'S': '↑', 'SW': '↗', 'W': '→', 'NW': '↘'
+  'N': '?', 'NE': '?', 'E': '?', 'SE': '?',
+  'S': '?', 'SW': '?', 'W': '?', 'NW': '?'
 };
 
 /**
@@ -133,7 +133,7 @@ const CollaboratorsRow = ({ collaborators, onViewAll, isLight }) => {
             style={{ zIndex: 4 - idx }}
           >
             {collab.avatar_url ? (
-              <img src={getFullUrl(collab.avatar_url)} alt="" className="w-full h-full object-cover" />
+              <img loading="lazy" decoding="async" src={getFullUrl(collab.avatar_url)} alt="" className="w-full h-full object-cover" />
             ) : (
               <span className="text-white text-xs font-bold">
                 {collab.full_name?.charAt(0) || '?'}

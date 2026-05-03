@@ -213,7 +213,7 @@ export const OnDemandTab = ({
                   {/* Captain avatar */}
                   <div className="w-12 h-12 rounded-full overflow-hidden flex-shrink-0 ring-2 ring-cyan-400">
                     {invite.captain?.avatar_url ? (
-                      <img src={getFullUrl(invite.captain.avatar_url)} alt="" className="w-full h-full object-cover" />
+                      <img loading="lazy" decoding="async" src={getFullUrl(invite.captain.avatar_url)} alt="" className="w-full h-full object-cover" />
                     ) : (
                       <div className="w-full h-full bg-gradient-to-br from-cyan-400 to-blue-500 flex items-center justify-center">
                         <Users className="w-6 h-6 text-white" />
@@ -372,7 +372,7 @@ export const OnDemandTab = ({
                     {activeDispatch.crew.slice(0, 3).map((member, idx) => (
                       <div key={idx} className="w-6 h-6 rounded-full bg-zinc-700 overflow-hidden border border-cyan-400/30">
                         {member.avatar_url ? (
-                          <img src={getFullUrl(member.avatar_url)} alt="" className="w-full h-full object-cover" />
+                          <img loading="lazy" decoding="async" src={getFullUrl(member.avatar_url)} alt="" className="w-full h-full object-cover" />
                         ) : (
                           <div className="w-full h-full flex items-center justify-center text-[10px] text-cyan-400">
                             {member.name?.charAt(0) || '?'}
@@ -602,7 +602,7 @@ export const OnDemandTab = ({
                         isPro ? 'ring-2 ring-yellow-400' : 'ring-2 ring-cyan-400/50'
                       }`}>
                         {pro.avatar_url ? (
-                          <img src={getFullUrl(pro.avatar_url)} alt={pro.full_name} className="w-full h-full object-cover" />
+                          <img loading="lazy" decoding="async" src={getFullUrl(pro.avatar_url)} alt={pro.full_name} className="w-full h-full object-cover" />
                         ) : (
                           <div className={`w-full h-full flex items-center justify-center ${isLight ? 'bg-gray-100' : 'bg-zinc-700'}`}>
                             <Camera className="w-6 h-6 text-gray-400" />

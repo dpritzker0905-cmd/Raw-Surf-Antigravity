@@ -1,5 +1,5 @@
-﻿/**
- * Spot UI Components — Reusable sub-components for the UnifiedSpotDrawer.
+/**
+ * Spot UI Components � Reusable sub-components for the UnifiedSpotDrawer.
  * Includes: SpotOfTheDayBadge, LiveSavingsBadge, StarRating, ReviewsCarousel.
  * 
  * Extracted from UnifiedSpotDrawer.js for maintainability.
@@ -51,7 +51,7 @@ const SpotOfTheDayBadge = ({ spotOfTheDay, onClick }) => {
         
         {spotOfTheDay.featured_photographer && (
           <div className="flex items-center gap-2">
-            <img src={getFullUrl(spotOfTheDay.featured_photographer.avatar_url || '/default-avatar.png')}
+            <img loading="lazy" decoding="async" src={getFullUrl(spotOfTheDay.featured_photographer.avatar_url || '/default-avatar.png')}
               alt={spotOfTheDay.featured_photographer.full_name}
               className="w-8 h-8 rounded-full border-2 border-white/30"
             />
@@ -61,7 +61,7 @@ const SpotOfTheDayBadge = ({ spotOfTheDay, onClick }) => {
       
       {spotOfTheDay.featured_photo_url && (
         <div className="mt-2 rounded-lg overflow-hidden">
-          <img 
+          <img loading="lazy" decoding="async" 
             src={spotOfTheDay.featured_photo_url} 
             alt="Conditions" 
             className="w-full h-24 object-cover"
@@ -128,7 +128,7 @@ const ReviewsCarousel = ({ reviews }) => {
           <div className="flex items-center gap-2 mb-1">
             <div className="w-6 h-6 rounded-full bg-zinc-700 overflow-hidden">
               {review.reviewer_avatar ? (
-                <img src={review.reviewer_avatar} className="w-full h-full object-cover" alt="" />
+                <img loading="lazy" decoding="async" src={review.reviewer_avatar} className="w-full h-full object-cover" alt="" />
               ) : (
                 <span className="flex items-center justify-center h-full text-xs text-gray-400">
                   {review.reviewer_name?.[0]}

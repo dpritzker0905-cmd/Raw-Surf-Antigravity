@@ -1,5 +1,5 @@
-﻿/**
- * PhotographerProfile — Photographer profile card for spot drawer.
+/**
+ * PhotographerProfile � Photographer profile card for spot drawer.
  * Shows photographer info, reviews, portfolio, and booking CTAs.
  * 
  * Extracted from UnifiedSpotDrawer.js for maintainability.
@@ -78,7 +78,7 @@ const PhotographerProfile = ({ photographer, onBack, onJumpIn }) => {
           <div className="w-16 h-16 rounded-full p-[2px] bg-gradient-to-r from-cyan-400 to-blue-500">
             <div className="w-full h-full rounded-full bg-zinc-800 overflow-hidden">
               {photographer?.avatar_url ? (
-                <img src={getFullUrl(photographer.avatar_url)} className="w-full h-full object-cover" alt="" />
+                <img loading="lazy" decoding="async" src={getFullUrl(photographer.avatar_url)} className="w-full h-full object-cover" alt="" />
               ) : (
                 <span className="flex items-center justify-center h-full text-2xl text-cyan-400">
                   {photographer?.full_name?.charAt(0)}
@@ -230,7 +230,7 @@ const PhotographerProfileContent = ({ photographer }) => {
         <div className="w-16 h-16 rounded-full p-[2px] bg-gradient-to-r from-cyan-400 to-blue-500">
           <div className="w-full h-full rounded-full bg-zinc-800 overflow-hidden">
             {photographer?.avatar_url ? (
-              <img src={getFullUrl(photographer.avatar_url)} className="w-full h-full object-cover" alt="" />
+              <img loading="lazy" decoding="async" src={getFullUrl(photographer.avatar_url)} className="w-full h-full object-cover" alt="" />
             ) : (
               <span className="flex items-center justify-center h-full text-2xl text-cyan-400">
                 {photographer?.full_name?.charAt(0)}

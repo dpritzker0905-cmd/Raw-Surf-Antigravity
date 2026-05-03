@@ -124,7 +124,7 @@ export const createPhotographerIcon = (photographer) => {
         <div class="w-12 h-12 rounded-full bg-gradient-to-r from-cyan-400 to-blue-500 p-0.5">
           <div class="w-full h-full rounded-full bg-zinc-900 flex items-center justify-center overflow-hidden">
             ${photographer.avatar_url 
-              ? `<img src="${photographer.avatar_url}" class="w-full h-full object-cover" alt="${photographer.full_name}" />`
+              ? `<img loading="lazy" decoding="async" src="${photographer.avatar_url}" class="w-full h-full object-cover" alt="${photographer.full_name}" />`
               : `<span class="text-cyan-400 font-bold">${photographer.full_name?.charAt(0) || 'P'}</span>`
             }
           </div>
@@ -209,7 +209,7 @@ export const createFriendIcon = (friend) => {
         <div class="w-10 h-10 rounded-full bg-gradient-to-r from-purple-400 to-pink-500 p-0.5">
           <div class="w-full h-full rounded-full bg-zinc-900 flex items-center justify-center overflow-hidden">
             ${friend.avatar_url 
-              ? `<img src="${friend.avatar_url}" class="w-full h-full object-cover" />`
+              ? `<img loading="lazy" decoding="async" src="${friend.avatar_url}" class="w-full h-full object-cover" />`
               : `<span class="text-purple-400 font-bold">${friend.full_name?.charAt(0) || '?'}</span>`
             }
           </div>

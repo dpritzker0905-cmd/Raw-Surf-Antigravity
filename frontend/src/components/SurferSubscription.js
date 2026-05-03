@@ -68,7 +68,7 @@ export const SurferSubscription = () => {
       <div className="max-w-5xl mx-auto">
         {/* Header */}
         <div className="text-center mb-8">
-          <img
+          <img loading="lazy" decoding="async"
             src="https://customer-assets.emergentagent.com/job_raw-surf-os/artifacts/9llcl5mg_Rawig6-500x500.png"
             alt="Raw Surf"
             className="w-16 h-16 mx-auto mb-4"

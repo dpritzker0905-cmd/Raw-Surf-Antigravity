@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search, X, MapPin, User, FileText, Hash, Loader2, TrendingUp } from 'lucide-react';
 import { Input } from './ui/input';
@@ -358,7 +358,7 @@ export const GlobalSearchBar = ({
                       data-testid={`search-result-post-${post.id}`}
                     >
                       {post.image_url ? (
-                        <img 
+                        <img loading="lazy" decoding="async" 
                           src={getFullUrl(post.image_url)} 
                           alt="" 
                           className="w-8 h-8 rounded object-cover"

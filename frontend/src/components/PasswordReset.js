@@ -42,7 +42,7 @@ export const ForgotPassword = () => {
         {/* Header */}
         <div className="text-center pt-8 pb-4">
           <div className="flex items-center justify-center gap-2 mb-6">
-            <img
+            <img loading="lazy" decoding="async"
               src="https://customer-assets.emergentagent.com/job_raw-surf-os/artifacts/9llcl5mg_Rawig6-500x500.png"
               alt="Raw Surf"
               className="w-10 h-10"
@@ -293,7 +293,7 @@ export const ResetPassword = () => {
         {/* Header */}
         <div className="text-center pt-8 pb-4">
           <div className="flex items-center justify-center gap-2 mb-6">
-            <img
+            <img loading="lazy" decoding="async"
               src="https://customer-assets.emergentagent.com/job_raw-surf-os/artifacts/9llcl5mg_Rawig6-500x500.png"
               alt="Raw Surf"
               className="w-10 h-10"

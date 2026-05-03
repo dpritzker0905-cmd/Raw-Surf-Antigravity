@@ -56,7 +56,7 @@ export const SessionRosterCard = ({
           {roster.slice(0, 4).map((surfer, i) => (
             <div key={surfer.surfer_id} className="relative" style={{ zIndex: 4 - i }}>
               {surfer.avatar_url ? (
-                <img src={surfer.avatar_url} alt="" className="w-6 h-6 rounded-full border-2 object-cover"
+                <img loading="lazy" decoding="async" src={surfer.avatar_url} alt="" className="w-6 h-6 rounded-full border-2 object-cover"
                   style={{ borderColor: (surfer.credits_remaining || 0) > 0 ? '#f59e0b' : '#10b981' }} />
               ) : (
                 <div className="w-6 h-6 rounded-full border-2 flex items-center justify-center text-[8px] font-bold text-white"
@@ -197,7 +197,7 @@ const SurferPanel = ({ surfer, galleryId, photographerId, onRosterUpdate }) => {
         <button onClick={togglePanel} className="w-full flex items-center gap-3 p-3 hover:bg-white/5 transition-colors">
           <div className="relative flex-shrink-0">
             {displayPhoto ? (
-              <img src={displayPhoto} alt={full_name}
+              <img loading="lazy" decoding="async" src={displayPhoto} alt={full_name}
                 className="w-11 h-11 rounded-xl object-cover"
                 style={{ border: `2px solid ${isComplete ? '#10b981' : hasCredits ? '#f59e0b' : '#6b7280'}` }} />
             ) : (
@@ -246,7 +246,7 @@ const SurferPanel = ({ surfer, galleryId, photographerId, onRosterUpdate }) => {
             <div className="flex gap-3 pt-3">
               {(selfie_url || avatar_url) && (
                 <div className="flex-shrink-0 relative group cursor-pointer" onClick={() => setSelfieZoom(true)}>
-                  <img src={selfie_url || avatar_url} alt={`${full_name} reference`}
+                  <img loading="lazy" decoding="async" src={selfie_url || avatar_url} alt={`${full_name} reference`}
                     className="w-20 h-20 rounded-xl object-cover shadow-lg"
                     style={{ border: '2px solid rgba(6,182,212,0.3)' }} />
                   <div className="absolute inset-0 rounded-xl bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
@@ -332,7 +332,7 @@ const SurferPanel = ({ surfer, galleryId, photographerId, onRosterUpdate }) => {
               className="absolute -top-3 -right-3 w-8 h-8 rounded-full bg-black/60 border border-white/20 flex items-center justify-center z-10 hover:bg-white/20 transition-colors">
               <X className="w-4 h-4 text-white" />
             </button>
-            <img src={selfie_url || avatar_url} alt={`${full_name}`}
+            <img loading="lazy" decoding="async" src={selfie_url || avatar_url} alt={`${full_name}`}
               className="w-full rounded-2xl shadow-2xl object-cover" style={{ maxHeight: '70vh' }} />
             <div className="absolute bottom-0 left-0 right-0 p-4 rounded-b-2xl" style={{ background: 'linear-gradient(transparent, rgba(0,0,0,0.8))' }}>
               <p className="text-white font-semibold text-base">{full_name}</p>
@@ -402,7 +402,7 @@ const TaggedItemThumb = ({ item, onUntag, isUntagging }) => {
     <div className="relative flex-shrink-0 group">
       <div className="w-16 h-16 rounded-lg overflow-hidden relative" style={{ border: `2px solid ${accessColor}30` }}>
         {thumbUrl ? (
-          <img src={thumbUrl} alt="Tagged" className="w-full h-full object-cover" />
+          <img loading="lazy" decoding="async" src={thumbUrl} alt="Tagged" className="w-full h-full object-cover" />
         ) : (
           <div className="w-full h-full flex items-center justify-center" style={{ background: 'rgba(255,255,255,0.06)' }}>
             {isVideo ? <Video className="w-4 h-4 text-muted-foreground" /> : <ImageIcon className="w-4 h-4 text-muted-foreground" />}

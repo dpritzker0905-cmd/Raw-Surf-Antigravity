@@ -1396,7 +1396,7 @@ export const GalleryPage = () => {
                 {linkedGroms.map((grom) => (
                   <div key={grom.id} className="flex items-center gap-2 px-3 py-1.5 bg-muted rounded-full text-sm">
                     {grom.avatar ? (
-                      <img src={grom.avatar} alt={grom.name} className="w-5 h-5 rounded-full" />
+                      <img loading="lazy" decoding="async" src={grom.avatar} alt={grom.name} className="w-5 h-5 rounded-full" />
                     ) : (
                       <div className="w-5 h-5 rounded-full bg-cyan-500 flex items-center justify-center text-xs text-black font-bold">
                         {grom.name?.charAt(0) || 'G'}
@@ -1419,14 +1419,14 @@ export const GalleryPage = () => {
                   className="relative aspect-square rounded-lg overflow-hidden group"
                 >
                   {item.media_type === 'video' ? (
-                    <img 
+                    <img loading="lazy" decoding="async" 
                       src={getFullUrl(item.thumbnail_url || item.preview_url)} 
                       alt={item.title || 'Grom video'} 
                       className="w-full h-full object-cover"
                       loading="lazy"
                     />
                   ) : (
-                    <img 
+                    <img loading="lazy" decoding="async" 
                       src={getFullUrl(item.thumbnail_url || item.preview_url)} 
                       alt={item.title || 'Grom photo'} 
                       className="w-full h-full object-cover"
@@ -1526,7 +1526,7 @@ export const GalleryPage = () => {
                       
                       if (coverUrl) {
                         return (
-                          <img 
+                          <img loading="lazy" decoding="async" 
                             src={coverUrl} 
                             alt={gal.title}
                             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
@@ -1539,7 +1539,7 @@ export const GalleryPage = () => {
                       // Fallback 2: use first_item_preview from API as real thumbnail
                       if (gal.first_item_preview && !brokenCoverImages.has(`${gal.id}_fallback`)) {
                         return (
-                          <img 
+                          <img loading="lazy" decoding="async" 
                             src={getFullUrl(gal.first_item_preview)} 
                             alt={gal.title}
                             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
@@ -2242,7 +2242,7 @@ export const GalleryPage = () => {
               <div className="flex items-center gap-3">
                 <div className="relative w-24 h-16 rounded-lg overflow-hidden flex-shrink-0 cursor-pointer hover:ring-2 hover:ring-cyan-500/50 transition-all bg-background" onClick={() => setShowWatermarkSettings(true)} data-testid="pricing-watermark-preview">
                   {watermarkPreviewUrl ? (
-                    <img src={watermarkPreviewUrl} alt="Watermark preview" className="w-full h-full object-cover" />
+                    <img loading="lazy" decoding="async" src={watermarkPreviewUrl} alt="Watermark preview" className="w-full h-full object-cover" />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center">
                       <Droplet className="w-6 h-6 text-cyan-400/30" />
@@ -2326,7 +2326,7 @@ export const GalleryPage = () => {
                     onClick={() => handleAddToGallery(item.id)}
                     className="relative aspect-square rounded-lg overflow-hidden bg-muted hover:ring-2 hover:ring-cyan-400 transition-all"
                   >
-                    <img
+                    <img loading="lazy" decoding="async"
                       src={getFullUrl(item.thumbnail_url || item.preview_url)}
                       alt={item.title || 'Photo'}
                       className="w-full h-full object-cover"
@@ -2593,7 +2593,7 @@ export const GalleryPage = () => {
                     {item.media_type === 'video' ? (
                       <video src={getFullUrl(item.preview_url)} className="w-full h-full object-cover" muted />
                     ) : (
-                      <img src={getFullUrl(item.preview_url || item.thumbnail_url)} alt="" className="w-full h-full object-cover" />
+                      <img loading="lazy" decoding="async" src={getFullUrl(item.preview_url || item.thumbnail_url)} alt="" className="w-full h-full object-cover" />
                     )}
                     {item.media_type === 'video' && (
                       <div className="absolute bottom-0 left-0 right-0 bg-purple-600/80 text-[6px] text-white text-center font-bold">VID</div>
@@ -2652,7 +2652,7 @@ export const GalleryPage = () => {
                         {/* Avatar */}
                         <div className="relative flex-shrink-0">
                           {p.avatar_url || p.selfie_url ? (
-                            <img src={getFullUrl(p.selfie_url || p.avatar_url)} alt={p.full_name}
+                            <img loading="lazy" decoding="async" src={getFullUrl(p.selfie_url || p.avatar_url)} alt={p.full_name}
                               className="w-11 h-11 rounded-xl object-cover"
                               style={{ border: `2px solid ${isFullyDistributed ? '#10b981' : hasCredits ? '#f59e0b' : '#6b7280'}` }} />
                           ) : (
@@ -2784,7 +2784,7 @@ export const GalleryPage = () => {
                       <div key={surfer.id}
                         className="flex items-center gap-3 p-2.5 rounded-lg bg-muted/30 border border-border/50 hover:border-amber-500/50 transition-all">
                         {surfer.avatar_url ? (
-                          <img src={getFullUrl(surfer.avatar_url)} alt={surfer.full_name} className="w-9 h-9 rounded-full object-cover border border-border" />
+                          <img loading="lazy" decoding="async" src={getFullUrl(surfer.avatar_url)} alt={surfer.full_name} className="w-9 h-9 rounded-full object-cover border border-border" />
                         ) : (
                           <div className="w-9 h-9 rounded-full bg-amber-500/20 flex items-center justify-center text-amber-400 font-bold text-xs">
                             {(surfer.full_name || surfer.username || '?').charAt(0).toUpperCase()}
@@ -2867,7 +2867,7 @@ export const GalleryPage = () => {
                     className="relative aspect-square rounded-lg overflow-hidden bg-muted hover:ring-2 hover:ring-cyan-400 transition-all group/thumb disabled:opacity-50"
                     data-testid={`thumbnail-pick-${item.id}`}
                   >
-                    <img
+                    <img loading="lazy" decoding="async"
                       src={getFullUrl(item.thumbnail_url || item.preview_url)}
                       alt={item.title || 'Photo'}
                       className="w-full h-full object-cover group-hover/thumb:scale-105 transition-transform duration-200"

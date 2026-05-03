@@ -175,7 +175,7 @@ const GifPicker = ({ show, onSelect, onClose }) => {
                 className="relative rounded-lg overflow-hidden hover:ring-2 hover:ring-cyan-500 transition-all aspect-square cursor-pointer bg-zinc-800 touch-manipulation"
                 data-testid="gif-item"
               >
-                <img
+                <img loading="lazy" decoding="async"
                   src={previewUrl}
                   alt={gif.title || 'GIF'}
                   className="w-full h-full object-cover pointer-events-none select-none"

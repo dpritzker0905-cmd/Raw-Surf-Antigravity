@@ -79,7 +79,7 @@ const SurferDetailModal = ({
             {/* Large Selfie/Avatar */}
             <div className="relative w-full aspect-square rounded-xl overflow-hidden bg-zinc-800">
               {displayImage ? (
-                <img 
+                <img loading="lazy" decoding="async" 
                   src={displayImage} 
                   alt={surfer.name} 
                   className="w-full h-full object-cover"
@@ -217,7 +217,7 @@ const SurferCard = ({ surfer, onClick, isLight, textPrimaryClass, textSecondaryC
       {/* Selfie/Avatar */}
       <div className="aspect-square relative">
         {displayImage ? (
-          <img 
+          <img loading="lazy" decoding="async" 
             src={displayImage} 
             alt={surfer.name} 
             className="w-full h-full object-cover"

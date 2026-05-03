@@ -1,4 +1,4 @@
-﻿import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 
 import { useAuth } from '../contexts/AuthContext';
 
@@ -267,7 +267,7 @@ export const PhotoUploadModal = ({
                   or click to browse
                 </p>
                 <p className={`text-xs ${textSecondaryClass} mt-2`}>
-                  Photos: JPG, PNG, HEIC (20MB) • Videos: MP4, MOV, WebM (100MB)
+                  Photos: JPG, PNG, HEIC (20MB) � Videos: MP4, MOV, WebM (100MB)
                 </p>
                 <input
                   ref={fileInputRef}
@@ -318,7 +318,7 @@ export const PhotoUploadModal = ({
                             </div>
                           </div>
                         ) : (
-                          <img 
+                          <img loading="lazy" decoding="async" 
                             src={fileData.preview} 
                             alt="" 
                             className="w-full h-full object-cover"
@@ -380,7 +380,7 @@ export const PhotoUploadModal = ({
                       controls
                     />
                   ) : (
-                    <img 
+                    <img loading="lazy" decoding="async" 
                       src={selectedFiles[currentPhotoIndex].preview}
                       alt=""
                       className="w-full h-full object-contain"
@@ -411,7 +411,7 @@ export const PhotoUploadModal = ({
                       >
                         <div className={`w-10 h-10 rounded-full ${isLight ? 'bg-gray-200' : 'bg-zinc-700'} overflow-hidden`}>
                           {surfer.avatar_url ? (
-                            <img src={getFullUrl(surfer.avatar_url)} className="w-full h-full object-cover" alt="" />
+                            <img loading="lazy" decoding="async" src={getFullUrl(surfer.avatar_url)} className="w-full h-full object-cover" alt="" />
                           ) : (
                             <span className="flex items-center justify-center h-full text-gray-400">
                               {surfer.name?.[0] || '?'}
@@ -435,7 +435,7 @@ export const PhotoUploadModal = ({
                 onClick={() => setStep('confirm')}
                 className={`w-full text-center text-sm ${textSecondaryClass} hover:text-gray-300`}
               >
-                Skip tagging remaining photos →
+                Skip tagging remaining photos ?
               </button>
             </div>
           )}
@@ -482,7 +482,7 @@ export const PhotoUploadModal = ({
                               <Video className="w-4 h-4 text-purple-400" />
                             </div>
                           ) : (
-                            <img src={fileData.preview} className="w-full h-full object-cover" alt="" />
+                            <img loading="lazy" decoding="async" src={fileData.preview} className="w-full h-full object-cover" alt="" />
                           )}
                         </div>
                         <div className="flex-1">

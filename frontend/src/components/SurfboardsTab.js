@@ -1,4 +1,4 @@
-﻿/**
+/**
  * SurfboardsTab - Display and manage user's surfboard quiver
  * Features:
  * - Grid display of surfboards with photos
@@ -73,7 +73,7 @@ const SurfboardCard = ({ board, onClick, isLight }) => {
       }`}
     >
       {primaryPhoto ? (
-        <img 
+        <img loading="lazy" decoding="async" 
           src={primaryPhoto} 
           alt={board.name || 'Surfboard'} 
           className="w-full h-full object-cover"
@@ -258,7 +258,7 @@ const SurfboardModal = ({ isOpen, onClose, board, onSave, userId }) => {
             <div className="grid grid-cols-5 gap-2 mt-2">
               {formData.photo_urls.map((url, idx) => (
                 <div key={idx} className="relative aspect-square rounded-lg overflow-hidden group">
-                  <img src={url} alt="" className="w-full h-full object-cover" />
+                  <img loading="lazy" decoding="async" src={url} alt="" className="w-full h-full object-cover" />
                   <button
                     onClick={() => handleRemovePhoto(idx)}
                     className="absolute top-1 right-1 w-5 h-5 rounded-full bg-red-500 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
@@ -501,7 +501,7 @@ const SurfboardDetailModal = ({ isOpen, onClose, board, onEdit, onDelete, isOwnP
         {/* Photo Gallery */}
         <div className="relative aspect-[4/3] bg-black">
           {photos.length > 0 ? (
-            <img 
+            <img loading="lazy" decoding="async" 
               src={photos[currentPhotoIndex]} 
               alt="" 
               className="w-full h-full object-contain"

@@ -88,7 +88,7 @@ const MediaItem = ({ item, onClick }) => (
     onClick={onClick}
     className="relative aspect-square bg-zinc-800 rounded-lg overflow-hidden cursor-pointer group"
   >
-    <img 
+    <img loading="lazy" decoding="async" 
       src={getFullUrl(item.thumbnail_url || item.media_url || item.image_url)} 
       alt="" 
       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
@@ -321,7 +321,7 @@ const PhotographerRequestModal = ({ isOpen, onClose, spot, spotId, onSuccess }) 
         {/* Spot Info */}
         <div className={`p-3 rounded-xl ${cardBg} mb-4 flex items-center gap-3`}>
           {spot?.image_url && (
-            <img src={getFullUrl(spot.image_url)} alt={spot.name} className="w-14 h-14 rounded-lg object-cover" />
+            <img loading="lazy" decoding="async" src={getFullUrl(spot.image_url)} alt={spot.name} className="w-14 h-14 rounded-lg object-cover" />
           )}
           <div>
             <span className={`font-medium ${textPrimary}`}>{spot?.name}</span>
@@ -791,7 +791,7 @@ const SpotHub = () => {
       <div ref={heroRef} className="relative overflow-hidden min-h-[180px] flex items-end">
         {/* Background: try spot image → map → gradient */}
         <div className="absolute inset-0">
-          <img 
+          <img loading="lazy" decoding="async" 
             src={spot.image_url || (spot.longitude && spot.latitude ? `https://static-maps.yandex.ru/1.x/?lang=en_US&ll=${spot.longitude},${spot.latitude}&z=12&l=sat&size=400,300` : '')}
             alt=""
             className="w-full h-full object-cover"
@@ -1277,7 +1277,7 @@ const SpotHub = () => {
                       if (!primaryUrl) return null;
                       
                       return (
-                        <img 
+                        <img loading="lazy" decoding="async" 
                           src={getFullUrl(primaryUrl)} 
                           alt="" 
                           className="mt-2 w-full h-56 object-cover rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
@@ -1655,7 +1655,7 @@ const SpotHub = () => {
           >
             <X className="w-8 h-8" />
           </button>
-          <img 
+          <img loading="lazy" decoding="async" 
             src={lightboxUrl} 
             alt="Condition report" 
             className="max-w-full max-h-[90vh] object-contain rounded-lg"

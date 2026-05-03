@@ -91,7 +91,7 @@ const GalleryItemCard = ({
         
         {/* Thumbnail */}
         <div className="relative w-16 h-16 rounded-lg overflow-hidden flex-shrink-0">
-          <img 
+          <img loading="lazy" decoding="async" 
             src={item.thumbnail_url || item.url} 
             alt=""
             className="w-full h-full object-cover"
@@ -220,7 +220,7 @@ const GalleryItemCard = ({
       
       {/* Image */}
       <div className="aspect-square bg-muted cursor-pointer" onClick={() => onImageClick?.(item)}>
-        <img 
+        <img loading="lazy" decoding="async" 
           src={item.thumbnail_url || item.url} 
           alt=""
           className={`w-full h-full object-cover transition-all ${
@@ -320,7 +320,7 @@ const ClaimQueueItem = ({ item, onAction }) => (
   <div className="p-3 bg-muted rounded-xl border border-purple-500/20">
     <div className="flex gap-3">
       <div className="w-20 h-20 rounded-lg overflow-hidden flex-shrink-0">
-        <img 
+        <img loading="lazy" decoding="async" 
           src={item.thumbnail_url || item.url} 
           alt=""
           className="w-full h-full object-cover"
@@ -478,7 +478,7 @@ const ShareModal = ({ item, isOpen, onClose }) => {
         <div className="space-y-4">
           {/* Preview */}
           <div className="aspect-video rounded-lg overflow-hidden bg-muted">
-            <img src={item.thumbnail_url || item.url} alt="" className="w-full h-full object-cover" />
+            <img loading="lazy" decoding="async" src={item.thumbnail_url || item.url} alt="" className="w-full h-full object-cover" />
           </div>
           
           {/* Copy link */}
@@ -633,7 +633,7 @@ const PurchaseHistoryModal = ({ isOpen, onClose, userId }) => {
                 <div key={purchase.id} className="p-3 bg-muted rounded-lg border border-zinc-700">
                   <div className="flex gap-3">
                     <div className="w-16 h-16 rounded overflow-hidden flex-shrink-0">
-                      <img src={getFullUrl(purchase.thumbnail_url)} alt="" className="w-full h-full object-cover" />
+                      <img loading="lazy" decoding="async" src={getFullUrl(purchase.thumbnail_url)} alt="" className="w-full h-full object-cover" />
                     </div>
                     <div className="flex-1">
                       <div className="flex justify-between">
@@ -1388,7 +1388,7 @@ export const SurferGallery = () => {
                         {/* Session thumbnail */}
                         <div className="w-20 h-20 rounded-lg overflow-hidden bg-muted flex-shrink-0">
                           {session.thumbnail_url ? (
-                            <img 
+                            <img loading="lazy" decoding="async" 
                               src={getFullUrl(session.thumbnail_url)} 
                               alt="" 
                               className="w-full h-full object-cover"

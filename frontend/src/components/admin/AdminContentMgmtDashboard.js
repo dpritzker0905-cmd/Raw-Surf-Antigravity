@@ -324,7 +324,7 @@ export const AdminContentMgmtDashboard = () => {
                         <div className="flex items-start justify-between">
                           <div className="flex gap-3">
                             {banner.image_url && (
-                              <img src={getFullUrl(banner.image_url)} alt={banner.title} className="w-20 h-12 object-cover rounded" />
+                              <img loading="lazy" decoding="async" src={getFullUrl(banner.image_url)} alt={banner.title} className="w-20 h-12 object-cover rounded" />
                             )}
                             <div>
                               <p className={`font-medium ${textClass}`}>{banner.title}</p>

@@ -486,7 +486,7 @@ export const GromHQ = () => {
                           {activity.media_type === 'video' ? (
                             <video src={getFullUrl(activity.media_url)} poster={getFullUrl(activity.thumbnail_url)} className="w-full h-auto" muted />
                           ) : (
-                            <img src={getFullUrl(activity.thumbnail_url || activity.media_url)} alt="Activity" className="w-full h-auto" />
+                            <img loading="lazy" decoding="async" src={getFullUrl(activity.thumbnail_url || activity.media_url)} alt="Activity" className="w-full h-auto" />
                           )}
                         </div>
                       )}

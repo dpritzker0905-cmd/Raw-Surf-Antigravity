@@ -129,7 +129,7 @@ export const SubscriptionsTab = () => {
                   <div className="w-11 h-11 rounded-full bg-gradient-to-br from-violet-400 to-cyan-500 p-0.5">
                     <div className="w-full h-full rounded-full bg-zinc-900 flex items-center justify-center overflow-hidden">
                       {sub.photographer_avatar ? (
-                        <img src={getFullUrl(sub.photographer_avatar)} className="w-full h-full object-cover" alt="" />
+                        <img loading="lazy" decoding="async" src={getFullUrl(sub.photographer_avatar)} className="w-full h-full object-cover" alt="" />
                       ) : (
                         <span className="text-violet-400 font-bold">{sub.photographer_name?.[0]}</span>
                       )}
@@ -215,7 +215,7 @@ export const SubscriptionsTab = () => {
               <div key={sub.id} className="flex items-center gap-3 p-3 rounded-lg bg-zinc-800/30 border border-zinc-800 opacity-60">
                 <div className="w-9 h-9 rounded-full bg-zinc-700 flex items-center justify-center">
                   {sub.photographer_avatar ? (
-                    <img src={getFullUrl(sub.photographer_avatar)} className="w-full h-full rounded-full object-cover" alt="" />
+                    <img loading="lazy" decoding="async" src={getFullUrl(sub.photographer_avatar)} className="w-full h-full rounded-full object-cover" alt="" />
                   ) : (
                     <span className="text-xs text-muted-foreground font-bold">{sub.photographer_name?.[0]}</span>
                   )}

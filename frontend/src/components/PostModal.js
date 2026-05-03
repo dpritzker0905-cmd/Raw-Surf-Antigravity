@@ -24,7 +24,7 @@ import useFocusTrap from '../hooks/useFocusTrap';
 
 // Shaka Icon Component
 const ShakaIcon = ({ filled, size = 28 }) => (
-  <img 
+  <img loading="lazy" decoding="async" 
     src="https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/svg/1f919.svg"
     alt="shaka"
     style={{ 
@@ -297,7 +297,7 @@ const ImageCarousel = ({ images, mediaType }) => {
           className="w-full h-full"
         />
       ) : (
-        <img
+        <img loading="lazy" decoding="async"
           src={mediaUrl}
           alt="Post media"
           className="max-w-full max-h-full object-contain"
@@ -373,7 +373,7 @@ const CommentItem = ({ comment, userId, _onReact }) => {
     <div className="flex gap-3 py-2">
       <div className="w-8 h-8 rounded-full bg-zinc-700 flex items-center justify-center overflow-hidden flex-shrink-0">
         {comment.author_avatar ? (
-          <img src={getFullUrl(comment.author_avatar)} alt="" className="w-full h-full object-cover" />
+          <img loading="lazy" decoding="async" src={getFullUrl(comment.author_avatar)} alt="" className="w-full h-full object-cover" />
         ) : (
           <span className="text-xs text-gray-400">{comment.author_name?.charAt(0)}</span>
         )}
@@ -816,7 +816,7 @@ const PostModal = ({ post, isOpen, onClose, _onPostUpdated, posts, onNavigatePos
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 rounded-full bg-zinc-700 overflow-hidden ring-2 ring-white/20">
                 {post.author_avatar ? (
-                  <img src={getFullUrl(post.author_avatar)} alt="" className="w-full h-full object-cover" />
+                  <img loading="lazy" decoding="async" src={getFullUrl(post.author_avatar)} alt="" className="w-full h-full object-cover" />
                 ) : (
                   <span className="w-full h-full flex items-center justify-center text-sm text-white">
                     {post.author_name?.charAt(0)}
@@ -1161,7 +1161,7 @@ const PostModal = ({ post, isOpen, onClose, _onPostUpdated, posts, onNavigatePos
           {/* Double-tap shaka animation */}
           {showDoubleTapHeart && (
             <div className="absolute inset-0 flex items-center justify-center z-20 pointer-events-none">
-              <img 
+              <img loading="lazy" decoding="async" 
                 src="https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/svg/1f919.svg"
                 alt="shaka"
                 className="w-24 h-24 animate-ping"
@@ -1179,7 +1179,7 @@ const PostModal = ({ post, isOpen, onClose, _onPostUpdated, posts, onNavigatePos
           <div className="flex items-center gap-3 p-4 border-b border-zinc-800">
             <div className="w-8 h-8 rounded-full bg-zinc-700 overflow-hidden">
               {post.author_avatar ? (
-                <img src={getFullUrl(post.author_avatar)} alt="" className="w-full h-full object-cover" />
+                <img loading="lazy" decoding="async" src={getFullUrl(post.author_avatar)} alt="" className="w-full h-full object-cover" />
               ) : (
                 <span className="w-full h-full flex items-center justify-center text-sm text-gray-400">
                   {post.author_name?.charAt(0)}
@@ -1222,7 +1222,7 @@ const PostModal = ({ post, isOpen, onClose, _onPostUpdated, posts, onNavigatePos
               <div className="flex gap-3 p-4">
                 <div className="w-8 h-8 rounded-full bg-zinc-700 overflow-hidden flex-shrink-0">
                   {post.author_avatar ? (
-                    <img src={getFullUrl(post.author_avatar)} alt="" className="w-full h-full object-cover" />
+                    <img loading="lazy" decoding="async" src={getFullUrl(post.author_avatar)} alt="" className="w-full h-full object-cover" />
                   ) : (
                     <span className="w-full h-full flex items-center justify-center text-sm text-gray-400">
                       {post.author_name?.charAt(0)}
@@ -1273,7 +1273,7 @@ const PostModal = ({ post, isOpen, onClose, _onPostUpdated, posts, onNavigatePos
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-4">
                 <button onClick={handleLike} className="hover:opacity-70 transition-opacity">
-                  <img 
+                  <img loading="lazy" decoding="async" 
                     src="https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/svg/1f919.svg"
                     alt="shaka"
                     className="w-6 h-6"

@@ -217,7 +217,7 @@ const GalleryCard = ({ item, onClick, isOwner, isGromParent, linkedGroms, onTagG
                       className="w-full flex items-center gap-2 p-2 hover:bg-zinc-800 rounded text-left"
                     >
                       {grom.avatar ? (
-                        <img src={grom.avatar} alt={grom.name} className="w-5 h-5 rounded-full" />
+                        <img loading="lazy" decoding="async" src={grom.avatar} alt={grom.name} className="w-5 h-5 rounded-full" />
                       ) : (
                         <div className="w-5 h-5 rounded-full bg-cyan-500 flex items-center justify-center text-xs text-black font-bold">
                           {grom.name?.charAt(0) || 'G'}

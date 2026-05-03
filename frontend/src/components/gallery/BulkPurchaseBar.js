@@ -1,4 +1,4 @@
-﻿/**
+/**
  * BulkPurchaseBar - TICKET-005
  * Floating action bar for bulk photo/video purchases with volume discounts
  * Shows running total and applies automatic tier-based discounts
@@ -71,7 +71,7 @@ const getNextTierHint = (itemCount, tiers = DEFAULT_DISCOUNT_TIERS) => {
 const SelectedItemChip = ({ item, onRemove }) => (
   <div className="relative group">
     <div className="w-12 h-12 rounded-lg overflow-hidden border border-zinc-700">
-      <img 
+      <img loading="lazy" decoding="async" 
         src={item.thumbnail_url || item.url} 
         alt="" 
         className="w-full h-full object-cover"

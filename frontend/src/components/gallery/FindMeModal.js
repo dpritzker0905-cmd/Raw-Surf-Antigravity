@@ -152,7 +152,7 @@ export const FindMeModal = ({ open, onClose, galleryId, userId }) => {
               <label className="text-sm font-medium text-foreground">Your Selfie *</label>
               {selfiePreview ? (
                 <div className="relative w-24 h-24 rounded-xl overflow-hidden border-2 border-cyan-500/40">
-                  <img src={selfiePreview} alt="Selfie" className="w-full h-full object-cover" />
+                  <img loading="lazy" decoding="async" src={selfiePreview} alt="Selfie" className="w-full h-full object-cover" />
                   <button
                     onClick={() => {
                       setSelfieFile(null);
@@ -278,7 +278,7 @@ export const FindMeModal = ({ open, onClose, galleryId, userId }) => {
                     key={match.gallery_item_id}
                     className="relative rounded-xl overflow-hidden bg-zinc-800 group cursor-pointer"
                   >
-                    <img
+                    <img loading="lazy" decoding="async"
                       src={match.preview_url || match.thumbnail_url}
                       alt={`Match ${i + 1}`}
                       className="w-full aspect-square object-cover group-hover:scale-105 transition-transform"

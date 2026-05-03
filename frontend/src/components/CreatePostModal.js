@@ -467,7 +467,7 @@ const CreatePostModal = ({ isOpen, onClose, onCreated }) => {
                     className="w-full aspect-video object-cover rounded-lg"
                   />
                 ) : (
-                  <img
+                  <img loading="lazy" decoding="async"
                     src={previewUrls[currentPreviewIndex]}
                     alt={`Preview ${currentPreviewIndex + 1}`}
                     className="w-full aspect-video object-cover rounded-lg"
@@ -527,7 +527,7 @@ const CreatePostModal = ({ isOpen, onClose, onCreated }) => {
                           idx === currentPreviewIndex ? 'border-blue-500' : 'border-transparent'
                         }`}
                       >
-                        <img src={url} alt={`Thumb ${idx + 1}`} className="w-full h-full object-cover" />
+                        <img loading="lazy" decoding="async" src={url} alt={`Thumb ${idx + 1}`} className="w-full h-full object-cover" />
                       </button>
                       <button
                         onClick={() => removeImage(idx)}

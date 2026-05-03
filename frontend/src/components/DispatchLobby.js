@@ -76,7 +76,7 @@ const SurfboardAvatar = ({ member, index, isCaptain, isPaid, isPending, isLight 
           } ${isPending ? 'opacity-50' : ''}`}
         >
           {member.avatar_url || member.selfie_url ? (
-            <img
+            <img loading="lazy" decoding="async"
               src={getFullUrl(member.selfie_url || member.avatar_url)}
               alt={member.name || 'Surfer'}
               className="w-full h-full object-cover"
@@ -163,7 +163,7 @@ const PhotographerCard = ({ photographer, eta, status, isLight, wasDeclined }) =
         className={`w-12 h-12 rounded-full overflow-hidden flex-shrink-0 ${ringClass}`}
       >
         {photographer?.avatar_url || photographer?.avatar ? (
-          <img
+          <img loading="lazy" decoding="async"
             src={getFullUrl(photographer.avatar_url || photographer.avatar)}
             alt={photographer.full_name || photographer.name}
             className="w-full h-full object-cover"
@@ -675,7 +675,7 @@ export const DispatchLobby = () => {
               <div className="flex items-center gap-3">
                 <div className="w-14 h-14 rounded-xl overflow-hidden ring-2 ring-green-400 flex-shrink-0">
                   {photographerAvatarUrl ? (
-                    <img
+                    <img loading="lazy" decoding="async"
                       src={getFullUrl(photographerAvatarUrl)}
                       alt={photographerName}
                       className="w-full h-full object-cover"
@@ -975,7 +975,7 @@ export const DispatchLobby = () => {
               isLight ? 'bg-green-50' : 'bg-green-500/10'
             } border border-green-400/30`}
           >
-            <img
+            <img loading="lazy" decoding="async"
               src={getFullUrl(dispatch.selfie_url)}
               alt="Your selfie"
               className="w-10 h-10 rounded-full object-cover ring-2 ring-green-400 flex-shrink-0"

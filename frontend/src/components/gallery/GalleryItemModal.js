@@ -261,7 +261,7 @@ export const GalleryItemModal = ({ item, onClose, onPurchased, galleryId, onSetA
           ) : (
             // Image preview
             mediaUrl && !imgError ? (
-              <img
+              <img loading="lazy" decoding="async"
                 src={mediaUrl}
                 alt={item.title || 'Gallery photo'}
                 className="w-full max-h-[50vh] object-contain"
@@ -486,7 +486,7 @@ export const GalleryItemModal = ({ item, onClose, onPurchased, galleryId, onSetA
                           <Loader2 className="w-10 h-10 animate-spin text-purple-400 shrink-0" />
                         ) : selfieOrAvatar ? (
                           <div className="relative shrink-0">
-                            <img
+                            <img loading="lazy" decoding="async"
                               src={selfieOrAvatar}
                               alt={`Reference: ${p.full_name}`}
                               className={`w-10 h-10 rounded-full object-cover border-2 ${

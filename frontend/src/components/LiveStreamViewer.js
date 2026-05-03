@@ -210,7 +210,7 @@ const ViewerRoomContent = ({
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-red-500 flex-shrink-0">
                   {broadcaster?.avatar_url
-                    ? <img src={getFullUrl(broadcaster.avatar_url)} alt={broadcaster.name} className="w-full h-full object-cover" />
+                    ? <img loading="lazy" decoding="async" src={getFullUrl(broadcaster.avatar_url)} alt={broadcaster.name} className="w-full h-full object-cover" />
                     : <div className="w-full h-full bg-zinc-700 flex items-center justify-center text-white font-bold">{broadcaster?.name?.[0] || '?'}</div>
                   }
                 </div>

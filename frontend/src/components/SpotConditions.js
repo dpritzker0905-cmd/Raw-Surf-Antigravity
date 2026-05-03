@@ -428,7 +428,7 @@ export const SpotConditions = ({ spotId, spotName, compact = false }) => {
                     <div className="flex items-center gap-2 mb-2">
                       <div className={`w-6 h-6 rounded-full ${isLight ? 'bg-gray-200' : 'bg-zinc-700'} flex items-center justify-center`}>
                         {report.user_avatar ? (
-                          <img src={report.user_avatar} alt="" className="w-full h-full rounded-full object-cover" />
+                          <img loading="lazy" decoding="async" src={report.user_avatar} alt="" className="w-full h-full rounded-full object-cover" />
                         ) : (
                           <span className={`text-[10px] ${tSecondary}`}>{report.user_name?.charAt(0)}</span>
                         )}

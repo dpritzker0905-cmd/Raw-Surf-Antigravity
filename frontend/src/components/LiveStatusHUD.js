@@ -226,7 +226,7 @@ const LiveStatusPanel = ({
                 >
                   <div className="w-5 h-5 rounded-full bg-zinc-700 overflow-hidden">
                     {p.avatar_url ? (
-                      <img src={getFullUrl(p.avatar_url)} alt={p.name} className="w-full h-full object-cover" />
+                      <img loading="lazy" decoding="async" src={getFullUrl(p.avatar_url)} alt={p.name} className="w-full h-full object-cover" />
                     ) : (
                       <span className="flex items-center justify-center h-full text-[10px] text-white/70">
                         {p.name?.[0] || '?'}

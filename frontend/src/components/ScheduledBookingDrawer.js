@@ -1036,7 +1036,7 @@ const SchedSurfboardAvatar = ({ member, index, isCaptain, onRemove, isLight }) =
           isCaptain ? 'ring-2 ring-yellow-400' : 'ring-2 ring-cyan-400/50'
         } transition-all group-hover:scale-105`}>
           {member.avatar_url ? (
-            <img src={getFullUrl(member.avatar_url)} alt={member.name} className="w-full h-full object-cover" />
+            <img loading="lazy" decoding="async" src={getFullUrl(member.avatar_url)} alt={member.name} className="w-full h-full object-cover" />
           ) : (
             <div className={`w-full h-full flex items-center justify-center ${
               isCaptain ? 'bg-gradient-to-br from-yellow-400 to-orange-500' : 'bg-gradient-to-br from-cyan-400 to-blue-500'
@@ -1415,7 +1415,7 @@ const CrewSplitSection = ({
                       >
                         <div className="w-8 h-8 rounded-full bg-gradient-to-br from-cyan-400 to-blue-500 flex items-center justify-center overflow-hidden">
                           {result.avatar_url ? (
-                            <img src={getFullUrl(result.avatar_url)} alt={result.full_name} className="w-full h-full object-cover" />
+                            <img loading="lazy" decoding="async" src={getFullUrl(result.avatar_url)} alt={result.full_name} className="w-full h-full object-cover" />
                           ) : (
                             <span className="text-white font-bold text-xs">{result.full_name?.[0]?.toUpperCase() || '?'}</span>
                           )}
@@ -1446,7 +1446,7 @@ const CrewSplitSection = ({
                   >
                     <div className="w-6 h-6 rounded-full bg-gradient-to-br from-cyan-400 to-blue-500 flex items-center justify-center overflow-hidden">
                       {person.avatar_url ? (
-                        <img src={getFullUrl(person.avatar_url)} alt={person.full_name} className="w-full h-full object-cover" />
+                        <img loading="lazy" decoding="async" src={getFullUrl(person.avatar_url)} alt={person.full_name} className="w-full h-full object-cover" />
                       ) : (
                         <span className="text-white font-bold text-xs">{person.full_name?.[0]?.toUpperCase() || '?'}</span>
                       )}
@@ -2040,7 +2040,7 @@ export const ScheduledBookingDrawer = ({
               <div className="flex items-center gap-2">
                 <div className={`w-8 h-8 rounded-full overflow-hidden flex-shrink-0 ${isPro ? 'ring-2 ring-yellow-400' : 'ring-1 ring-cyan-400/50'}`}>
                   {photographer?.avatar_url ? (
-                    <img src={getFullUrl(photographer.avatar_url)} alt={photographer.full_name} className="w-full h-full object-cover" />
+                    <img loading="lazy" decoding="async" src={getFullUrl(photographer.avatar_url)} alt={photographer.full_name} className="w-full h-full object-cover" />
                   ) : (
                     <div className={`w-full h-full flex items-center justify-center ${isLight ? 'bg-gray-200' : 'bg-zinc-700'}`}>
                       <Camera className="w-3 h-3 text-gray-400" />
@@ -2370,7 +2370,7 @@ export const ScheduledBookingDrawer = ({
               {selfieUrl ? (
                 <div className="space-y-3">
                   <div className="relative aspect-[4/3] rounded-xl overflow-hidden">
-                    <img src={selfieUrl} alt="Your selfie" className="w-full h-full object-cover" />
+                    <img loading="lazy" decoding="async" src={selfieUrl} alt="Your selfie" className="w-full h-full object-cover" />
                     <Badge className="absolute top-2 right-2 bg-green-500 text-white">
                       <Check className="w-3 h-3 mr-1" /> Saved
                     </Badge>

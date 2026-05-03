@@ -501,7 +501,7 @@ const ReactionIcon = ({ post, userId, isLiked, isPressing }) => {
           {userReaction.emoji}
         </span>
       ) : (
-        <img 
+        <img loading="lazy" decoding="async" 
           key={shakaIsChecked ? "shaka-checked" : "shaka-unchecked"}
           src="https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/svg/1f919.svg"
           alt="shaka"
@@ -529,7 +529,7 @@ const ReactionIcon = ({ post, userId, isLiked, isPressing }) => {
 
 // Shaka icon using Twemoji image for consistent rendering
 const _ShakaIcon = ({ filled }) => (
-  <img 
+  <img loading="lazy" decoding="async" 
     src="https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/svg/1f919.svg"
     alt="shaka"
     style={{ 
@@ -759,7 +759,7 @@ const PostCard = ({
             <div className={`${liveUsers.includes(post.author_id) ? 'p-[2px] rounded-full bg-gradient-to-r from-red-500 via-red-600 to-red-500 animate-pulse' : ''}`}>
               <div className={`w-10 h-10 rounded-full ${isLight ? 'bg-gray-200' : 'bg-zinc-700'} ${liveUsers.includes(post.author_id) ? 'border-2 border-black' : ''} flex items-center justify-center overflow-hidden`}>
                 {post.author_avatar ? (
-                  <img 
+                  <img loading="lazy" decoding="async" 
                     src={getFullUrl(post.author_avatar)} 
                     alt={post.author_name} 
                     className="w-full h-full object-cover"
@@ -857,7 +857,7 @@ const PostCard = ({
         {/* Double-tap shaka animation */}
         {showDoubleTapHeart && (
           <div className="absolute inset-0 flex items-center justify-center z-20 pointer-events-none">
-            <img 
+            <img loading="lazy" decoding="async" 
               src="https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/svg/1f919.svg"
               alt="shaka"
               className="w-24 h-24 animate-ping"
@@ -1015,7 +1015,7 @@ const PostCard = ({
           </>
           )
         ) : (
-          <img
+          <imgloading="lazy" decoding="async" 
             src={getFullUrl(post.media_url || post.image_url)}
             alt={post.caption || 'Surf photo'}
             className="w-full h-full object-cover"

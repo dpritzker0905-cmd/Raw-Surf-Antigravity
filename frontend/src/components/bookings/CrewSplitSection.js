@@ -1,5 +1,5 @@
-﻿/**
- * CrewSplitSection — Crew member management for scheduled bookings.
+/**
+ * CrewSplitSection � Crew member management for scheduled bookings.
  * Handles adding friends, splitting costs, and surfboard avatars.
  * 
  * Extracted from ScheduledBookingDrawer.js for maintainability.
@@ -19,7 +19,7 @@ import apiClient from '../lib/apiClient';
 import { getFullUrl } from '../utils/media';
 import logger from '../utils/logger';
 const SCHED_BOARD_COLORS = [
-  { fill: '#FCD34D', stroke: '#F59E0B' }, // Yellow â€” captain
+  { fill: '#FCD34D', stroke: '#F59E0B' }, // Yellow — captain
   { fill: '#22D3EE', stroke: '#0891B2' }, // Cyan
   { fill: '#F472B6', stroke: '#DB2777' }, // Pink
   { fill: '#A78BFA', stroke: '#7C3AED' }, // Purple
@@ -44,7 +44,7 @@ const SchedSurfboardAvatar = ({ member, index, isCaptain, onRemove, isLight }) =
           isCaptain ? 'ring-2 ring-yellow-400' : 'ring-2 ring-cyan-400/50'
         } transition-all group-hover:scale-105`}>
           {member.avatar_url ? (
-            <img src={getFullUrl(member.avatar_url)} alt={member.name} className="w-full h-full object-cover" />
+            <img loading="lazy" decoding="async" src={getFullUrl(member.avatar_url)} alt={member.name} className="w-full h-full object-cover" />
           ) : (
             <div className={`w-full h-full flex items-center justify-center ${
               isCaptain ? 'bg-gradient-to-br from-yellow-400 to-orange-500' : 'bg-gradient-to-br from-cyan-400 to-blue-500'
@@ -199,7 +199,7 @@ const CrewSplitSection = ({
 
   return (
     <div className="space-y-4">
-      {/* â”€â”€ Split Toggle â”€â”€ */}
+      {/* ── Split Toggle ── */}
       <div className={`flex items-center justify-between p-4 rounded-xl border transition-all ${
         enabled
           ? isLight ? 'bg-cyan-50 border-cyan-200' : 'bg-cyan-500/10 border-cyan-500/30'
@@ -212,7 +212,7 @@ const CrewSplitSection = ({
           <div>
             <p className={`font-medium ${textPrimary}`}>Split with Crew?</p>
             <p className={`text-sm ${textSecondary}`}>
-              {enabled ? `${totalCrew} surfers â€¢ you pay $${captainActualPay.toFixed(2)}` : 'Share the cost with friends'}
+              {enabled ? `${totalCrew} surfers • you pay $${captainActualPay.toFixed(2)}` : 'Share the cost with friends'}
             </p>
           </div>
         </div>
@@ -222,7 +222,7 @@ const CrewSplitSection = ({
       {enabled && (
         <div className="space-y-4">
 
-          {/* â”€â”€ Ocean / Surfboard Viz â”€â”€ */}
+          {/* ── Ocean / Surfboard Viz ── */}
           <div className={`relative p-4 rounded-2xl overflow-visible ${
             isLight
               ? 'bg-gradient-to-b from-cyan-100 via-blue-50 to-white'
@@ -269,7 +269,7 @@ const CrewSplitSection = ({
             </div>
           </div>
 
-          {/* â”€â”€ Per-Member Coverage Sliders â”€â”€ */}
+          {/* ── Per-Member Coverage Sliders ── */}
           {crewMembers.length > 0 && (
             <div className="space-y-3">
               <div className="flex items-center justify-between">
@@ -337,7 +337,7 @@ const CrewSplitSection = ({
                       </div>
                     </div>
 
-                    {/* % Slider â€” how much captain covers of this member's share */}
+                    {/* % Slider — how much captain covers of this member's share */}
                     <div>
                       <div className="flex items-center justify-between mb-1">
                         <span className={`text-xs ${textSecondary}`}>
@@ -372,7 +372,7 @@ const CrewSplitSection = ({
             </div>
           )}
 
-          {/* â”€â”€ Search / Add Crew â”€â”€ */}
+          {/* ── Search / Add Crew ── */}
           <div className="space-y-2">
             {!showSearch ? (
               <button
@@ -424,7 +424,7 @@ const CrewSplitSection = ({
                       >
                         <div className="w-8 h-8 rounded-full bg-gradient-to-br from-cyan-400 to-blue-500 flex items-center justify-center overflow-hidden">
                           {result.avatar_url ? (
-                            <img src={getFullUrl(result.avatar_url)} alt={result.full_name} className="w-full h-full object-cover" />
+                            <img loading="lazy" decoding="async" src={getFullUrl(result.avatar_url)} alt={result.full_name} className="w-full h-full object-cover" />
                           ) : (
                             <span className="text-white font-bold text-xs">{result.full_name?.[0]?.toUpperCase() || '?'}</span>
                           )}
@@ -442,7 +442,7 @@ const CrewSplitSection = ({
             )}
           </div>
 
-          {/* â”€â”€ Quick Add Pills (Recent / Following) â”€â”€ */}
+          {/* ── Quick Add Pills (Recent / Following) ── */}
           {suggestions.length > 0 && searchQuery.length < 2 && (
             <div className="space-y-2">
               <Label className={textSecondary}>Quick Add</Label>
@@ -455,7 +455,7 @@ const CrewSplitSection = ({
                   >
                     <div className="w-6 h-6 rounded-full bg-gradient-to-br from-cyan-400 to-blue-500 flex items-center justify-center overflow-hidden">
                       {person.avatar_url ? (
-                        <img src={getFullUrl(person.avatar_url)} alt={person.full_name} className="w-full h-full object-cover" />
+                        <img loading="lazy" decoding="async" src={getFullUrl(person.avatar_url)} alt={person.full_name} className="w-full h-full object-cover" />
                       ) : (
                         <span className="text-white font-bold text-xs">{person.full_name?.[0]?.toUpperCase() || '?'}</span>
                       )}
@@ -468,7 +468,7 @@ const CrewSplitSection = ({
             </div>
           )}
 
-          {/* â”€â”€ Saved Crews â”€â”€ */}
+          {/* ── Saved Crews ── */}
           <SavedCrewSelector
             onSelect={(members) => {
               onCrewChange(members.map(m => ({
@@ -486,7 +486,7 @@ const CrewSplitSection = ({
             compact={true}
           />
 
-          {/* â”€â”€ Split Summary â”€â”€ */}
+          {/* ── Split Summary ── */}
           <div className={`p-4 rounded-xl ${
             isLight
               ? 'bg-gradient-to-r from-cyan-50 to-blue-50'

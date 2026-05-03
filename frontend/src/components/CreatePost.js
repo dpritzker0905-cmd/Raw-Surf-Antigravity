@@ -801,7 +801,7 @@ export const CreatePost = () => {
                 />
               ) : (
                 <div className="relative">
-                  <img
+                  <img loading="lazy" decoding="async"
                     src={previewUrls[currentPreviewIndex]}
                     alt={`Preview ${currentPreviewIndex + 1}`}
                     className="w-full aspect-square object-cover"
@@ -860,7 +860,7 @@ export const CreatePost = () => {
               <div className="flex gap-2 overflow-x-auto pb-2">
                 {previewUrls.map((url, i) => (
                   <div key={i} className="relative flex-shrink-0">
-                    <img
+                    <img loading="lazy" decoding="async"
                       src={url}
                       alt={`Thumb ${i + 1}`}
                       onClick={() => setCurrentPreviewIndex(i)}

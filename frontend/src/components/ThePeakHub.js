@@ -231,7 +231,7 @@ export const ThePeakHub = () => {
               {sponsorships.map((sponsor) => (
                 <div key={sponsor.id} className="flex items-center gap-3 p-3 bg-zinc-800/50 rounded-lg">
                   {sponsor.sponsor_logo_url ? (
-                    <img src={sponsor.sponsor_logo_url} alt={sponsor.sponsor_name} className="w-12 h-12 rounded-lg object-contain bg-white p-1" />
+                    <img loading="lazy" decoding="async" src={sponsor.sponsor_logo_url} alt={sponsor.sponsor_name} className="w-12 h-12 rounded-lg object-contain bg-white p-1" />
                   ) : (
                     <div className="w-12 h-12 rounded-lg bg-emerald-500/20 flex items-center justify-center">
                       <Award className="w-6 h-6 text-emerald-400" />

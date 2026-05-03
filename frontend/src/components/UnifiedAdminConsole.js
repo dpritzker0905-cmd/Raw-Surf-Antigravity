@@ -846,7 +846,7 @@ const UnifiedAdminConsole = () => {
                           {conditionMediaType === 'video' ? (
                             <video src={mediaPreview} className="w-full h-24 object-cover rounded-lg" controls />
                           ) : (
-                            <img src={mediaPreview} alt="Conditions" className="w-full h-24 object-cover rounded-lg" />
+                            <img loading="lazy" decoding="async" src={mediaPreview} alt="Conditions" className="w-full h-24 object-cover rounded-lg" />
                           )}
                           <button
                             onClick={clearMedia}

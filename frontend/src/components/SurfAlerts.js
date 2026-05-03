@@ -600,7 +600,7 @@ export const SurfAlerts = () => {
                   {/* Spot Image */}
                   <div className="w-20 h-20 rounded-lg overflow-hidden flex-shrink-0 bg-muted">
                     {alert.spot_image ? (
-                      <img src={alert.spot_image} alt={alert.spot_name} className="w-full h-full object-cover" />
+                      <img loading="lazy" decoding="async" src={alert.spot_image} alt={alert.spot_name} className="w-full h-full object-cover" />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center">
                         <MapPin className="w-8 h-8 text-muted-foreground" />

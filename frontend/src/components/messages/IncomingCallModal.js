@@ -85,7 +85,7 @@ export default function IncomingCallModal({
       <div className="relative mb-6">
         <div className="w-32 h-32 rounded-full overflow-hidden ring-4 ring-green-400/30 shadow-[0_0_60px_rgba(34,197,94,0.15)]">
           {callerAvatar ? (
-            <img src={callerAvatar} className="w-full h-full object-cover" alt={callerName} />
+            <img loading="lazy" decoding="async" src={callerAvatar} className="w-full h-full object-cover" alt={callerName} />
           ) : (
             <div className="w-full h-full bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center">
               <span className="text-4xl text-white font-bold">

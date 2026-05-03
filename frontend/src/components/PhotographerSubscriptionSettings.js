@@ -343,7 +343,7 @@ const PhotographerSubscriptionSettings = () => {
                   <div className="w-10 h-10 rounded-full bg-gradient-to-br from-cyan-400 to-violet-500 p-0.5">
                     <div className="w-full h-full rounded-full bg-zinc-900 flex items-center justify-center overflow-hidden">
                       {sub.surfer_avatar ? (
-                        <img src={getFullUrl(sub.surfer_avatar)} className="w-full h-full object-cover" alt="" />
+                        <img loading="lazy" decoding="async" src={getFullUrl(sub.surfer_avatar)} className="w-full h-full object-cover" alt="" />
                       ) : (
                         <span className="text-cyan-400 font-bold text-sm">{sub.surfer_name?.[0] || '?'}</span>
                       )}

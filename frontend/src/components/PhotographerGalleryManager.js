@@ -876,7 +876,7 @@ export const PhotographerGalleryManager = () => {
                         {/* Avatar */}
                         <div className="w-9 h-9 rounded-full overflow-hidden bg-zinc-700 flex-shrink-0 ring-2 ring-offset-1 ring-offset-transparent ring-cyan-500/30">
                           {participant.avatar_url ? (
-                            <img
+                            <img loading="lazy" decoding="async"
                               src={getFullUrl(participant.avatar_url)}
                               alt={participant.full_name}
                               className="w-full h-full object-cover"
@@ -1255,7 +1255,7 @@ export const PhotographerGalleryManager = () => {
                 )}
                 
                 {item.media_type === 'video' ? (
-                  <img
+                  <img loading="lazy" decoding="async"
                     src={item.thumbnail_url || item.preview_url}
                     alt={item.title || 'Video thumbnail'}
                     className="w-full h-full object-cover"
@@ -1263,7 +1263,7 @@ export const PhotographerGalleryManager = () => {
                     onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling && (e.target.nextSibling.style.display = 'flex'); }}
                   />
                 ) : (
-                  <img 
+                  <img loading="lazy" decoding="async" 
                     src={item.preview_url || item.thumbnail_url} 
                     alt={item.title || 'Gallery item'}
                     className="w-full h-full object-cover"
@@ -1575,7 +1575,7 @@ export const PhotographerGalleryManager = () => {
             {/* Preview Image */}
             {selectedItem && (
               <div className="flex justify-center">
-                <img 
+                <img loading="lazy" decoding="async" 
                   src={getFullUrl(selectedItem.preview_url)} 
                   alt="Photo to tag" 
                   className="max-h-48 rounded-lg object-contain"
@@ -1621,7 +1621,7 @@ export const PhotographerGalleryManager = () => {
                     >
                       <div className="w-9 h-9 rounded-full overflow-hidden bg-zinc-700 flex-shrink-0">
                         {suggestion.avatar_url ? (
-                          <img src={getFullUrl(suggestion.avatar_url)} alt={suggestion.name} className="w-full h-full object-cover" />
+                          <img loading="lazy" decoding="async" src={getFullUrl(suggestion.avatar_url)} alt={suggestion.name} className="w-full h-full object-cover" />
                         ) : (
                           <Users className="w-4 h-4 m-auto mt-2.5 text-zinc-500" />
                         )}
@@ -1686,7 +1686,7 @@ export const PhotographerGalleryManager = () => {
                       >
                         <div className="w-9 h-9 rounded-full overflow-hidden bg-zinc-700 flex-shrink-0">
                           {participant.avatar_url ? (
-                            <img src={getFullUrl(participant.avatar_url)} alt={participant.full_name} className="w-full h-full object-cover" />
+                            <img loading="lazy" decoding="async" src={getFullUrl(participant.avatar_url)} alt={participant.full_name} className="w-full h-full object-cover" />
                           ) : (
                             <Users className="w-4 h-4 m-auto mt-2.5 text-zinc-500" />
                           )}
@@ -1811,7 +1811,7 @@ export const PhotographerGalleryManager = () => {
           )}
           
           {/* Image */}
-          <img
+          <img loading="lazy" decoding="async"
             src={lightboxItem.preview_url || lightboxItem.original_url}
             alt={lightboxItem.title || 'Gallery item'}
             className="max-w-[90vw] max-h-[85vh] object-contain"
@@ -1886,11 +1886,11 @@ export const PhotographerGalleryManager = () => {
                   <div className="space-y-2">
                     {salesData.sales.map(sale => (
                       <div key={sale.id} className={`flex items-center gap-3 p-3 rounded-lg ${isLight ? 'bg-gray-50' : 'bg-zinc-800/50'}`}>
-                        <img src={sale.item_thumbnail} alt="" className="w-12 h-12 rounded object-cover" />
+                        <img loading="lazy" decoding="async" src={sale.item_thumbnail} alt="" className="w-12 h-12 rounded object-cover" />
                         <div className="flex-1 min-w-0">
                           <p className={`text-sm font-medium truncate ${textPrimaryClass}`}>{sale.item_title || 'Untitled'}</p>
                           <div className="flex items-center gap-2 text-xs">
-                            <img src={sale.buyer_avatar || '/default-avatar.png'} alt="" className="w-4 h-4 rounded-full" />
+                            <img loading="lazy" decoding="async" src={sale.buyer_avatar || '/default-avatar.png'} alt="" className="w-4 h-4 rounded-full" />
                             <span className={textSecondaryClass}>{sale.buyer_name}</span>
                             <Badge variant="outline" className="text-[10px]">{sale.quality_tier}</Badge>
                           </div>
@@ -1961,7 +1961,7 @@ export const PhotographerGalleryManager = () => {
                   <div className="space-y-2">
                     {clientsData.clients.map(client => (
                       <div key={client.id} className={`flex items-center gap-3 p-3 rounded-lg ${isLight ? 'bg-gray-50' : 'bg-zinc-800/50'}`}>
-                        <img src={client.avatar || '/default-avatar.png'} alt="" className="w-10 h-10 rounded-full object-cover" />
+                        <img loading="lazy" decoding="async" src={client.avatar || '/default-avatar.png'} alt="" className="w-10 h-10 rounded-full object-cover" />
                         <div className="flex-1 min-w-0">
                           <p className={`text-sm font-medium ${textPrimaryClass}`}>{client.name}</p>
                           <p className={`text-xs ${textSecondaryClass}`}>
@@ -2107,7 +2107,7 @@ export const PhotographerGalleryManager = () => {
           <div className="py-4 space-y-4">
             {assigningItem && (
               <div className="flex justify-center mb-4">
-                <img 
+                <img loading="lazy" decoding="async" 
                   src={getFullUrl(assigningItem.preview_url)} 
                   alt="Item to assign" 
                   className="max-h-32 rounded-lg object-contain"
@@ -2131,7 +2131,7 @@ export const PhotographerGalleryManager = () => {
                   >
                     <div className="w-9 h-9 rounded-full overflow-hidden bg-zinc-700 flex-shrink-0">
                       {participant.avatar_url ? (
-                        <img src={getFullUrl(participant.avatar_url)} alt={participant.full_name} className="w-full h-full object-cover" />
+                        <img loading="lazy" decoding="async" src={getFullUrl(participant.avatar_url)} alt={participant.full_name} className="w-full h-full object-cover" />
                       ) : (
                         <Users className="w-4 h-4 m-auto mt-2.5 text-zinc-500" />
                       )}

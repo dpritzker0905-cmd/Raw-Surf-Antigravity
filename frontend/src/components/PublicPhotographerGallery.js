@@ -402,7 +402,7 @@ export const PublicPhotographerGallery = () => {
             {/* Avatar */}
             <div className={`w-28 h-28 rounded-full border-4 ${avatarBorder} overflow-hidden ${avatarBg}`}>
               {photographer?.avatar_url ? (
-                <img 
+                <img loading="lazy" decoding="async" 
                   src={getFullUrl(photographer.avatar_url)}
                   alt={photographer?.full_name}
                   className="w-full h-full object-cover"
@@ -695,7 +695,7 @@ export const PublicPhotographerGallery = () => {
                     poster={selectedItem.thumbnail_url || undefined}
                   />
                 ) : (
-                  <img 
+                  <img loading="lazy" decoding="async" 
                     src={selectedItem.preview_url || selectedItem.thumbnail_url}
                     alt={selectedItem.title || 'Gallery item'}
                     className="w-full h-full object-contain"
@@ -771,7 +771,7 @@ export const PublicPhotographerGallery = () => {
               <div className={`flex items-center gap-3 p-3 ${cardItemBg} rounded-lg`}>
                 <div className={`w-10 h-10 rounded-full ${isLight ? 'bg-gray-300' : 'bg-zinc-700'} overflow-hidden`}>
                   {selectedItem.photographer_avatar ? (
-                    <img src={selectedItem.photographer_avatar} alt="" className="w-full h-full object-cover" />
+                    <img loading="lazy" decoding="async" src={selectedItem.photographer_avatar} alt="" className="w-full h-full object-cover" />
                   ) : (
                     <User className="w-6 h-6 text-zinc-500 m-auto mt-2" />
                   )}
@@ -836,7 +836,7 @@ export const PublicPhotographerGallery = () => {
                     setShowPurchaseModal(true);
                   }}
                 >
-                  <img 
+                  <img loading="lazy" decoding="async" 
                     src={match.preview_url || match.thumbnail_url}
                     alt="Matched photo"
                     className="w-full h-full object-cover"
@@ -902,7 +902,7 @@ const GalleryItemCard = ({ item, isPurchased, viewMode, isLight, onClick }) => {
           poster={item.thumbnail_url || undefined}
         />
       ) : (
-        <img 
+        <img loading="lazy" decoding="async" 
           src={item.thumbnail_url || item.preview_url}
           alt={item.title || 'Gallery item'}
           className={`

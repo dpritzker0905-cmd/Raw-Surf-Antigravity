@@ -1631,7 +1631,7 @@ export const AdminP1Dashboard = () => {
                             rel="noopener noreferrer"
                             className="aspect-square bg-muted rounded-lg overflow-hidden hover:ring-2 ring-purple-500"
                           >
-                            <img src={url} alt={`Sample ${idx + 1}`} className="w-full h-full object-cover" />
+                            <img loading="lazy" decoding="async" src={url} alt={`Sample ${idx + 1}`} className="w-full h-full object-cover" />
                           </a>
                         ))}
                       </div>

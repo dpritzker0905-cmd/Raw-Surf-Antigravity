@@ -194,7 +194,7 @@ const SafetyGateUI = ({ gromStatus, onRefresh }) => {
               <div className="flex items-center gap-3 p-3 bg-zinc-800 rounded-lg">
                 <div className="w-10 h-10 rounded-full bg-cyan-500/20 flex items-center justify-center">
                   {gromStatus.parent_info.avatar_url ? (
-                    <img 
+                    <img loading="lazy" decoding="async" 
                     src={getFullUrl(gromStatus.parent_info.avatar_url)} 
                       alt="" 
                       className="w-10 h-10 rounded-full"

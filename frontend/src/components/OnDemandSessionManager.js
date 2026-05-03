@@ -109,14 +109,14 @@ const IncomingRequestCard = ({
             >
               {request.requester_selfie ? (
                 <div className="w-14 h-14 rounded-xl overflow-hidden ring-2 ring-amber-400 flex-shrink-0 cursor-pointer group-hover:ring-cyan-400 transition-all">
-                  <img src={getImageUrl(request.requester_selfie)} alt="Surfer" className="w-full h-full object-cover" />
+                  <img loading="lazy" decoding="async" src={getImageUrl(request.requester_selfie)} alt="Surfer" className="w-full h-full object-cover" />
                   <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all flex items-center justify-center">
                     <Eye className="w-5 h-5 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
                   </div>
                 </div>
               ) : request.requester_avatar ? (
                 <div className="w-14 h-14 rounded-xl overflow-hidden ring-2 ring-amber-400/50 flex-shrink-0">
-                  <img src={getFullUrl(getImageUrl(request.requester_avatar))} alt="Surfer" className="w-full h-full object-cover" />
+                  <img loading="lazy" decoding="async" src={getFullUrl(getImageUrl(request.requester_avatar))} alt="Surfer" className="w-full h-full object-cover" />
                 </div>
               ) : (
                 <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center">
@@ -212,9 +212,9 @@ const IncomingRequestCard = ({
                 {/* Captain/Requester first */}
                 <div className="relative w-7 h-7 rounded-full overflow-hidden ring-2 ring-cyan-400 first:ml-0">
                   {request.requester_selfie ? (
-                    <img src={getImageUrl(request.requester_selfie)} alt="" className="w-full h-full object-cover" />
+                    <img loading="lazy" decoding="async" src={getImageUrl(request.requester_selfie)} alt="" className="w-full h-full object-cover" />
                   ) : request.requester_avatar ? (
-                    <img src={getFullUrl(getImageUrl(request.requester_avatar))} alt="" className="w-full h-full object-cover" />
+                    <img loading="lazy" decoding="async" src={getFullUrl(getImageUrl(request.requester_avatar))} alt="" className="w-full h-full object-cover" />
                   ) : (
                     <div className="w-full h-full bg-cyan-500/30 flex items-center justify-center text-[8px] text-cyan-300">
                       {request.requester_name?.[0]?.toUpperCase() || '?'}
@@ -226,9 +226,9 @@ const IncomingRequestCard = ({
                 {request.crew?.slice(0, 3).map((member, idx) => (
                   <div key={member.id || idx} className="relative w-7 h-7 rounded-full overflow-hidden ring-1 ring-purple-400/50 -ml-1">
                     {member.selfie_url ? (
-                      <img src={getImageUrl(member.selfie_url)} alt="" className="w-full h-full object-cover" />
+                      <img loading="lazy" decoding="async" src={getImageUrl(member.selfie_url)} alt="" className="w-full h-full object-cover" />
                     ) : member.avatar_url ? (
-                      <img src={getFullUrl(getImageUrl(member.avatar_url))} alt="" className="w-full h-full object-cover" />
+                      <img loading="lazy" decoding="async" src={getFullUrl(getImageUrl(member.avatar_url))} alt="" className="w-full h-full object-cover" />
                     ) : (
                       <div className="w-full h-full bg-purple-500/30 flex items-center justify-center text-[8px] text-purple-300">
                         {member.name?.[0]?.toUpperCase() || '?'}
@@ -324,7 +324,7 @@ const IncomingRequestCard = ({
             {request.requester_selfie && (
               <div className="mt-3">
                 <p className={`text-xs ${textSecondary} mb-2`}>Surfer Photo (for identification):</p>
-                <img 
+                <img loading="lazy" decoding="async" 
                   src={getImageUrl(request.requester_selfie)} 
                   alt="Surfer" 
                   className="w-24 h-24 rounded-xl object-cover border-2 border-cyan-400/30"
@@ -393,7 +393,7 @@ const IncomingRequestCard = ({
           
           {/* Large Selfie */}
           <div className="relative aspect-square">
-            <img 
+            <img loading="lazy" decoding="async" 
               src={getImageUrl(request.requester_selfie)} 
               alt="Surfer Identification" 
               className="w-full h-full object-cover"
@@ -411,7 +411,7 @@ const IncomingRequestCard = ({
             {/* Name & Basic Info */}
             <div className="flex items-center gap-4">
               {request.requester_avatar ? (
-                <img src={getFullUrl(getImageUrl(request.requester_avatar))} alt="" className="w-14 h-14 rounded-full object-cover ring-2 ring-cyan-400" />
+                <img loading="lazy" decoding="async" src={getFullUrl(getImageUrl(request.requester_avatar))} alt="" className="w-14 h-14 rounded-full object-cover ring-2 ring-cyan-400" />
               ) : (
                 <div className="w-14 h-14 rounded-full bg-cyan-500/20 flex items-center justify-center">
                   <User className="w-7 h-7 text-cyan-400" />
@@ -467,14 +467,14 @@ const IncomingRequestCard = ({
                   <div className="flex items-center gap-3 p-2 rounded-lg bg-zinc-800/50 border border-cyan-500/30">
                     <div className="relative">
                       {request.requester_selfie ? (
-                        <img 
+                        <img loading="lazy" decoding="async" 
                           src={getImageUrl(request.requester_selfie)} 
                           alt="" 
                           className="w-12 h-12 rounded-full object-cover ring-2 ring-cyan-400 cursor-pointer hover:ring-cyan-300"
                           onClick={() => window.open(getImageUrl(request.requester_selfie), '_blank')}
                         />
                       ) : request.requester_avatar ? (
-                        <img src={getFullUrl(getImageUrl(request.requester_avatar))} alt="" className="w-12 h-12 rounded-full object-cover ring-2 ring-cyan-400/50" />
+                        <img loading="lazy" decoding="async" src={getFullUrl(getImageUrl(request.requester_avatar))} alt="" className="w-12 h-12 rounded-full object-cover ring-2 ring-cyan-400/50" />
                       ) : (
                         <div className="w-12 h-12 rounded-full bg-cyan-500/30 flex items-center justify-center text-lg text-cyan-300 ring-2 ring-cyan-400/30">
                           {request.requester_name?.[0]?.toUpperCase() || '?'}
@@ -500,14 +500,14 @@ const IncomingRequestCard = ({
                     <div key={member.id || idx} className="flex items-center gap-3 p-2 rounded-lg bg-zinc-800/50">
                       <div className="relative">
                         {member.selfie_url ? (
-                          <img 
+                          <img loading="lazy" decoding="async" 
                             src={getImageUrl(member.selfie_url)} 
                             alt="" 
                             className="w-12 h-12 rounded-full object-cover ring-2 ring-purple-400/50 cursor-pointer hover:ring-purple-400"
                             onClick={() => setSelectedCrewSelfie(member)}
                           />
                         ) : member.avatar_url ? (
-                          <img src={getFullUrl(getImageUrl(member.avatar_url))} alt="" className="w-12 h-12 rounded-full object-cover ring-2 ring-purple-400/30" />
+                          <img loading="lazy" decoding="async" src={getFullUrl(getImageUrl(member.avatar_url))} alt="" className="w-12 h-12 rounded-full object-cover ring-2 ring-purple-400/30" />
                         ) : (
                           <div className="w-12 h-12 rounded-full bg-purple-500/30 flex items-center justify-center text-lg text-purple-300 ring-2 ring-purple-400/30">
                             {member.name?.[0]?.toUpperCase() || '?'}
@@ -577,7 +577,7 @@ const IncomingRequestCard = ({
           
           {/* Large Selfie */}
           <div className="relative aspect-square">
-            <img 
+            <img loading="lazy" decoding="async" 
               src={getImageUrl(selectedCrewSelfie.selfie_url)} 
               alt="Crew Member Identification" 
               className="w-full h-full object-cover"
@@ -594,7 +594,7 @@ const IncomingRequestCard = ({
           <div className="p-5 space-y-4">
             <div className="flex items-center gap-4">
               {selectedCrewSelfie.avatar_url ? (
-                <img src={getFullUrl(getImageUrl(selectedCrewSelfie.avatar_url))} alt="" className="w-14 h-14 rounded-full object-cover ring-2 ring-purple-400" />
+                <img loading="lazy" decoding="async" src={getFullUrl(getImageUrl(selectedCrewSelfie.avatar_url))} alt="" className="w-14 h-14 rounded-full object-cover ring-2 ring-purple-400" />
               ) : (
                 <div className="w-14 h-14 rounded-full bg-purple-500/20 flex items-center justify-center">
                   <User className="w-7 h-7 text-purple-400" />
@@ -696,9 +696,9 @@ const ActiveSessionCard = ({
         <div className="flex items-center gap-4">
           <div className="w-16 h-16 rounded-xl overflow-hidden bg-zinc-700 flex-shrink-0 ring-2 ring-cyan-400/30">
             {session.requester_selfie ? (
-              <img src={getImageUrl(session.requester_selfie)} alt="Surfer" className="w-full h-full object-cover" />
+              <img loading="lazy" decoding="async" src={getImageUrl(session.requester_selfie)} alt="Surfer" className="w-full h-full object-cover" />
             ) : session.requester_avatar ? (
-              <img src={getFullUrl(getImageUrl(session.requester_avatar))} alt="Surfer" className="w-full h-full object-cover" />
+              <img loading="lazy" decoding="async" src={getFullUrl(getImageUrl(session.requester_avatar))} alt="Surfer" className="w-full h-full object-cover" />
             ) : (
               <div className="w-full h-full flex items-center justify-center">
                 <User className="w-8 h-8 text-zinc-500" />
@@ -765,9 +765,9 @@ const ActiveSessionCard = ({
               >
                 <div className="w-12 h-12 rounded-full overflow-hidden ring-2 ring-amber-400/50 flex-shrink-0">
                   {session.requester_selfie ? (
-                    <img src={getImageUrl(session.requester_selfie)} alt="" className="w-full h-full object-cover" />
+                    <img loading="lazy" decoding="async" src={getImageUrl(session.requester_selfie)} alt="" className="w-full h-full object-cover" />
                   ) : session.requester_avatar ? (
-                    <img src={getFullUrl(getImageUrl(session.requester_avatar))} alt="" className="w-full h-full object-cover" />
+                    <img loading="lazy" decoding="async" src={getFullUrl(getImageUrl(session.requester_avatar))} alt="" className="w-full h-full object-cover" />
                   ) : (
                     <div className="w-full h-full bg-amber-500/30 flex items-center justify-center">
                       <User className="w-6 h-6 text-amber-400" />
@@ -789,9 +789,9 @@ const ActiveSessionCard = ({
                 >
                   <div className="w-12 h-12 rounded-full overflow-hidden ring-2 ring-purple-400/50 flex-shrink-0">
                     {member.selfie_url ? (
-                      <img src={getImageUrl(member.selfie_url)} alt="" className="w-full h-full object-cover" />
+                      <img loading="lazy" decoding="async" src={getImageUrl(member.selfie_url)} alt="" className="w-full h-full object-cover" />
                     ) : member.avatar_url ? (
-                      <img src={getFullUrl(getImageUrl(member.avatar_url))} alt="" className="w-full h-full object-cover" />
+                      <img loading="lazy" decoding="async" src={getFullUrl(getImageUrl(member.avatar_url))} alt="" className="w-full h-full object-cover" />
                     ) : (
                       <div className="w-full h-full bg-purple-500/30 flex items-center justify-center">
                         <User className="w-6 h-6 text-purple-400" />
@@ -2270,9 +2270,9 @@ export const OnDemandSessionManager = () => {
             <div className="p-3 rounded-xl bg-zinc-800/70 border border-zinc-700 flex items-center gap-3">
               <div className="w-10 h-10 rounded-full overflow-hidden bg-zinc-700 flex-shrink-0">
                 {activeSession.requester_selfie ? (
-                  <img src={getImageUrl(activeSession.requester_selfie)} alt="" className="w-full h-full object-cover" />
+                  <img loading="lazy" decoding="async" src={getImageUrl(activeSession.requester_selfie)} alt="" className="w-full h-full object-cover" />
                 ) : activeSession.requester_avatar ? (
-                  <img src={getFullUrl(getImageUrl(activeSession.requester_avatar))} alt="" className="w-full h-full object-cover" />
+                  <img loading="lazy" decoding="async" src={getFullUrl(getImageUrl(activeSession.requester_avatar))} alt="" className="w-full h-full object-cover" />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center">
                     <User className="w-5 h-5 text-zinc-500" />

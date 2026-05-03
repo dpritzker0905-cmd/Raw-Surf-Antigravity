@@ -206,7 +206,7 @@ const ComposeModal = ({ isOpen, onClose, onSelectUser, currentUserId }) => {
                     user.isBusiness ? 'ring-2 ring-purple-400/50' : ''
                   }`}>
                     {user.avatar ? (
-                      <img src={user.avatar} alt="" className="w-full h-full object-cover" />
+                      <img loading="lazy" decoding="async" src={user.avatar} alt="" className="w-full h-full object-cover" />
                     ) : (
                       <div className="w-full h-full bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center text-white text-lg font-semibold">
                         {user.name?.charAt(0)}

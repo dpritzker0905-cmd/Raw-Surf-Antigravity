@@ -1386,7 +1386,7 @@ export const MessagesPage = () => {
           title="View profile"
         >
           {chatAvatarWithCacheBust ? (
-            <img 
+            <img loading="lazy" decoding="async" 
               src={chatAvatarWithCacheBust} 
               className="w-full h-full object-cover" 
               alt=""
@@ -1545,7 +1545,7 @@ export const MessagesPage = () => {
           <div className="flex flex-col items-center justify-center h-full text-center">
             <div className="w-20 h-20 rounded-full bg-muted overflow-hidden mb-4">
               {selectedConversation.other_user_avatar ? (
-                <img src={selectedConversation.other_user_avatar} className="w-full h-full object-cover" alt="" />
+                <img loading="lazy" decoding="async" src={selectedConversation.other_user_avatar} className="w-full h-full object-cover" alt="" />
               ) : (
                 <span className="w-full h-full flex items-center justify-center text-3xl text-muted-foreground">
                   {selectedConversation.other_user_name?.charAt(0)}

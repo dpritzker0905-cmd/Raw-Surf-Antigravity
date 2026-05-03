@@ -439,7 +439,7 @@ export default function InCallView({
                 <div className="absolute inset-0 -m-2 rounded-full border border-cyan-400/10" />
                 <div className="w-28 h-28 md:w-32 md:h-32 rounded-full overflow-hidden ring-4 ring-cyan-400/30 shadow-[0_0_60px_rgba(6,182,212,0.2)]">
                   {remoteUserInfo.avatar ? (
-                    <img src={remoteUserInfo.avatar} className="w-full h-full object-cover" alt="" />
+                    <img loading="lazy" decoding="async" src={remoteUserInfo.avatar} className="w-full h-full object-cover" alt="" />
                   ) : (
                     <div className="w-full h-full bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center">
                       <span className="text-3xl md:text-4xl text-white font-bold">
@@ -491,7 +491,7 @@ export default function InCallView({
               <div className="flex items-center gap-2">
                 <div className="w-7 h-7 md:w-8 md:h-8 rounded-full overflow-hidden ring-2 ring-white/20">
                   {remoteUserInfo.avatar ? (
-                    <img src={remoteUserInfo.avatar} className="w-full h-full object-cover" alt="" />
+                    <img loading="lazy" decoding="async" src={remoteUserInfo.avatar} className="w-full h-full object-cover" alt="" />
                   ) : (
                     <div className="w-full h-full bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center">
                       <span className="text-[10px] md:text-xs text-white font-bold">

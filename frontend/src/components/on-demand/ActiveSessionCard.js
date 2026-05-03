@@ -1,5 +1,5 @@
-﻿/**
- * ActiveSessionCard — Shows the current active on-demand session.
+/**
+ * ActiveSessionCard � Shows the current active on-demand session.
  * Displays surfer info, timer, crew, chat preview, and session actions.
  * 
  * Extracted from OnDemandSessionManager.js for maintainability.
@@ -87,9 +87,9 @@ const ActiveSessionCard = ({
         <div className="flex items-center gap-4">
           <div className="w-16 h-16 rounded-xl overflow-hidden bg-zinc-700 flex-shrink-0 ring-2 ring-cyan-400/30">
             {session.requester_selfie ? (
-              <img src={getImageUrl(session.requester_selfie)} alt="Surfer" className="w-full h-full object-cover" />
+              <img loading="lazy" decoding="async" src={getImageUrl(session.requester_selfie)} alt="Surfer" className="w-full h-full object-cover" />
             ) : session.requester_avatar ? (
-              <img src={getFullUrl(getImageUrl(session.requester_avatar))} alt="Surfer" className="w-full h-full object-cover" />
+              <img loading="lazy" decoding="async" src={getFullUrl(getImageUrl(session.requester_avatar))} alt="Surfer" className="w-full h-full object-cover" />
             ) : (
               <div className="w-full h-full flex items-center justify-center">
                 <User className="w-8 h-8 text-zinc-500" />
@@ -128,15 +128,15 @@ const ActiveSessionCard = ({
         {/* Surfer Identification Details */}
         {(session.requester_stance || session.requester_board_description) && (
           <div className={`p-3 rounded-xl bg-cyan-500/10 border border-cyan-400/20`}>
-            <p className={`text-[10px] font-semibold ${textSecondary} uppercase tracking-wider mb-2`}>ðŸ„ Surfer Identification</p>
+            <p className={`text-[10px] font-semibold ${textSecondary} uppercase tracking-wider mb-2`}>🏄 Surfer Identification</p>
             <div className="flex flex-wrap items-center gap-2">
               {session.requester_stance && (
                 <span className="text-xs font-medium px-2 py-1 rounded-full bg-purple-500/20 text-purple-400">
-                  {session.requester_stance === 'goofy' ? 'ðŸ¦¶ Goofy Foot' : 'ðŸ¦¶ Regular'}
+                  {session.requester_stance === 'goofy' ? '🦶 Goofy Foot' : '🦶 Regular'}
                 </span>
               )}
               {session.requester_board_description && (
-                <span className={`text-xs font-medium ${textPrimary}`}>ðŸ„â€â™‚ï¸ {session.requester_board_description}</span>
+                <span className={`text-xs font-medium ${textPrimary}`}>🏄‍♂️ {session.requester_board_description}</span>
               )}
             </div>
           </div>
@@ -156,9 +156,9 @@ const ActiveSessionCard = ({
               >
                 <div className="w-12 h-12 rounded-full overflow-hidden ring-2 ring-amber-400/50 flex-shrink-0">
                   {session.requester_selfie ? (
-                    <img src={getImageUrl(session.requester_selfie)} alt="" className="w-full h-full object-cover" />
+                    <img loading="lazy" decoding="async" src={getImageUrl(session.requester_selfie)} alt="" className="w-full h-full object-cover" />
                   ) : session.requester_avatar ? (
-                    <img src={getFullUrl(getImageUrl(session.requester_avatar))} alt="" className="w-full h-full object-cover" />
+                    <img loading="lazy" decoding="async" src={getFullUrl(getImageUrl(session.requester_avatar))} alt="" className="w-full h-full object-cover" />
                   ) : (
                     <div className="w-full h-full bg-amber-500/30 flex items-center justify-center">
                       <User className="w-6 h-6 text-amber-400" />
@@ -180,9 +180,9 @@ const ActiveSessionCard = ({
                 >
                   <div className="w-12 h-12 rounded-full overflow-hidden ring-2 ring-purple-400/50 flex-shrink-0">
                     {member.selfie_url ? (
-                      <img src={getImageUrl(member.selfie_url)} alt="" className="w-full h-full object-cover" />
+                      <img loading="lazy" decoding="async" src={getImageUrl(member.selfie_url)} alt="" className="w-full h-full object-cover" />
                     ) : member.avatar_url ? (
-                      <img src={getFullUrl(getImageUrl(member.avatar_url))} alt="" className="w-full h-full object-cover" />
+                      <img loading="lazy" decoding="async" src={getFullUrl(getImageUrl(member.avatar_url))} alt="" className="w-full h-full object-cover" />
                     ) : (
                       <div className="w-full h-full bg-purple-500/30 flex items-center justify-center">
                         <User className="w-6 h-6 text-purple-400" />
@@ -247,8 +247,8 @@ const ActiveSessionCard = ({
                 chatUnreadCount > 0 ? 'text-white font-medium' : 'text-zinc-400'
               }`}>
                 {chatLatestMessage.message_type === 'voice_note'
-                  ? 'ðŸŽ¤ Voice note'
-                  : (chatLatestMessage.content || 'ðŸ“Ž Media')}
+                  ? '🎤 Voice note'
+                  : (chatLatestMessage.content || '📎 Media')}
               </p>
             </div>
           </button>

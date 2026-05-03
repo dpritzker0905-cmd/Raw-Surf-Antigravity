@@ -186,7 +186,7 @@ const WaveCard = ({
           data-testid="wave-author-avatar"
         >
           {wave.author_avatar ? (
-            <img 
+            <img loading="lazy" decoding="async" 
               src={wave.author_avatar} 
               alt={wave.author_name}
               className="w-12 h-12 rounded-full border-2 border-white object-cover"

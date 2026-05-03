@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 
 import { useNavigate } from 'react-router-dom';
 
@@ -26,8 +26,8 @@ import { ROLES } from '../constants/roles';
 
 // Default stoke level for new/empty users
 const DEFAULT_STOKE_LEVEL = {
-  current: { min: 0, name: "Rising Tide", emoji: "🌊", color: "blue" },
-  next: { min: 100, name: "Wave Rider", emoji: "🏄", color: "cyan" },
+  current: { min: 0, name: "Rising Tide", emoji: "??", color: "blue" },
+  next: { min: 100, name: "Wave Rider", emoji: "??", color: "cyan" },
   progress_percent: 0,
   credits_to_next: 100
 };
@@ -36,26 +36,26 @@ const DEFAULT_STOKE_LEVEL = {
 const getDefaultCreditUses = (effectiveRole) => {
   if (effectiveRole === ROLES.GROM) {
     return [
-      { icon: "🏄", title: "Gear & Equipment", description: "Boards, wetsuits, and accessories" },
-      { icon: "🎓", title: "Surf Lessons", description: "Training with local coaches" },
-      { icon: "🏆", title: "Competition Entry", description: "Local and regional contests" },
+      { icon: "??", title: "Gear & Equipment", description: "Boards, wetsuits, and accessories" },
+      { icon: "??", title: "Surf Lessons", description: "Training with local coaches" },
+      { icon: "??", title: "Competition Entry", description: "Local and regional contests" },
     ];
   } else if (effectiveRole === ROLES.COMP_SURFER) {
     return [
-      { icon: "✈️", title: "Travel & Contests", description: "Competition travel expenses" },
-      { icon: "🏄", title: "Pro Equipment", description: "High-performance gear" },
+      { icon: "??", title: "Travel & Contests", description: "Competition travel expenses" },
+      { icon: "??", title: "Pro Equipment", description: "High-performance gear" },
     ];
   } else if (effectiveRole === ROLES.PRO) {
     return [
-      { icon: "💰", title: "Cash Out", description: "Withdraw to your bank account" },
-      { icon: "🎁", title: "Pay It Forward", description: "Support other surfers" },
-      { icon: "🏄", title: "Premium Gear", description: "Top-tier equipment" },
+      { icon: "??", title: "Cash Out", description: "Withdraw to your bank account" },
+      { icon: "??", title: "Pay It Forward", description: "Support other surfers" },
+      { icon: "??", title: "Premium Gear", description: "Top-tier equipment" },
     ];
   }
   return [
-    { icon: "🏄", title: "Gear & Equipment", description: "Boards, wetsuits, and accessories" },
-    { icon: "📸", title: "Photo Sessions", description: "Book pro photographers" },
-    { icon: "🎓", title: "Coaching", description: "Level up your skills" },
+    { icon: "??", title: "Gear & Equipment", description: "Boards, wetsuits, and accessories" },
+    { icon: "??", title: "Photo Sessions", description: "Book pro photographers" },
+    { icon: "??", title: "Coaching", description: "Level up your skills" },
   ];
 };
 
@@ -150,7 +150,7 @@ export const StokedTab = ({ userId, isOwnProfile }) => {
           <div className="bg-gradient-to-br from-yellow-500/20 to-orange-500/20 rounded-2xl p-6 border border-yellow-500/30">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-3">
-                <div className="text-4xl">{stoke_level?.current?.emoji || '🌊'}</div>
+                <div className="text-4xl">{stoke_level?.current?.emoji || '??'}</div>
                 <div>
                   <h3 className="text-white font-bold text-lg">{stoke_level?.current?.name || 'Rising Tide'}</h3>
                   <p className="text-yellow-400/80 text-sm">Stoke Level</p>
@@ -298,7 +298,7 @@ export const StokedTab = ({ userId, isOwnProfile }) => {
                   <div className="text-right">
                     <p className="text-emerald-400 font-medium text-sm">+${transaction.amount?.toFixed(0)}</p>
                     {transaction.shaka_sent && (
-                      <span className="text-xs text-yellow-400">🤙 Thanked</span>
+                      <span className="text-xs text-yellow-400">?? Thanked</span>
                     )}
                   </div>
                 </div>
@@ -350,7 +350,7 @@ export const StokedTab = ({ userId, isOwnProfile }) => {
                   data-testid={`gear-purchase-${purchase.id}`}
                 >
                   {purchase.item_image ? (
-                    <img 
+                    <img loading="lazy" decoding="async" 
                       src={purchase.item_image} 
                       alt={purchase.item_name}
                       className="w-14 h-14 rounded-lg object-cover bg-zinc-800"

@@ -1164,7 +1164,7 @@ export const Explore = () => {
                       >
                         <div className="w-12 h-12 rounded-full bg-zinc-700 flex items-center justify-center overflow-hidden">
                           {user.avatar_url ? (
-                            <img src={getFullUrl(user.avatar_url)} alt={user.full_name} className="w-full h-full object-cover" />
+                            <img loading="lazy" decoding="async" src={getFullUrl(user.avatar_url)} alt={user.full_name} className="w-full h-full object-cover" />
                           ) : (
                             <span className="text-lg font-medium text-muted-foreground">
                               {user.full_name?.charAt(0) || '?'}
@@ -1205,7 +1205,7 @@ export const Explore = () => {
                         {/* Thumbnail */}
                         <div className="w-14 h-14 rounded-lg overflow-hidden flex-shrink-0 bg-muted">
                           {spot.image_url ? (
-                            <img 
+                            <img loading="lazy" decoding="async" 
                               src={getFullUrl(spot.image_url)} 
                               alt={spot.name} 
                               className="w-full h-full object-cover group-hover:scale-110 transition-transform"
@@ -1400,7 +1400,7 @@ export const Explore = () => {
                       <div className="w-full h-full rounded-full bg-card p-0.5">
                         <div className="w-full h-full rounded-full bg-zinc-700 flex items-center justify-center overflow-hidden">
                           {user.avatar_url ? (
-                            <img src={getFullUrl(user.avatar_url)} alt={user.full_name} className="w-full h-full object-cover" />
+                            <img loading="lazy" decoding="async" src={getFullUrl(user.avatar_url)} alt={user.full_name} className="w-full h-full object-cover" />
                           ) : (
                             <span className="text-lg font-medium text-muted-foreground">
                               {user.full_name?.charAt(0) || '?'}
@@ -1445,7 +1445,7 @@ export const Explore = () => {
                       
                       {/* Content: Tagged media, spot image, or map fallback */}
                       {displayImage ? (
-                        <img 
+                        <img loading="lazy" decoding="async" 
                           src={displayImage} 
                           alt={spot.name} 
                           className="w-full h-full object-cover group-hover:scale-105 transition-transform" 
@@ -1468,7 +1468,7 @@ export const Explore = () => {
                       ) : spot.latitude && spot.longitude ? (
                         // Map fallback with location pin
                         <div className="w-full h-full bg-muted relative">
-                          <img 
+                          <img loading="lazy" decoding="async" 
                             src={`https://static-maps.yandex.ru/1.x/?lang=en_US&ll=${spot.longitude},${spot.latitude}&z=12&l=sat&size=400,300`}
                             alt={`Map of ${spot.name}`}
                             className="w-full h-full object-cover opacity-60 group-hover:opacity-80 transition-opacity"
@@ -1516,7 +1516,7 @@ export const Explore = () => {
                         {hasTaggedContent && thumbnail.contributor_name && (
                           <div className="flex items-center gap-1.5 mt-1.5">
                             {thumbnail.contributor_avatar ? (
-                              <img 
+                              <img loading="lazy" decoding="async" 
                                 src={thumbnail.contributor_avatar} 
                                 alt={thumbnail.contributor_name} 
                                 className="w-4 h-4 rounded-full border border-white/30"
@@ -1645,7 +1645,7 @@ export const Explore = () => {
                       <div className={`w-full h-full rounded-full p-0.5 ${isLight ? 'bg-white' : 'bg-card'}`}>
                         <div className="w-full h-full rounded-full bg-zinc-700 flex items-center justify-center overflow-hidden">
                           {person.avatar_url ? (
-                            <img src={getFullUrl(person.avatar_url)} alt={person.full_name} className="w-full h-full object-cover" />
+                            <img loading="lazy" decoding="async" src={getFullUrl(person.avatar_url)} alt={person.full_name} className="w-full h-full object-cover" />
                           ) : (
                             <span className="text-lg font-medium text-muted-foreground">{person.full_name?.[0] || '?'}</span>
                           )}
@@ -2168,7 +2168,7 @@ export const Explore = () => {
                     {/* Author row */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
                       {wave.author_avatar ? (
-                        <img
+                        <img loading="lazy" decoding="async"
                           src={wave.author_avatar}
                           alt={wave.author_name}
                           style={{
@@ -2691,7 +2691,7 @@ export const Explore = () => {
                           {/* Cover thumbnail */}
                           <div className="relative w-16 h-16 rounded-lg overflow-hidden flex-shrink-0 bg-zinc-700">
                             {gallery.cover_image_url ? (
-                              <img 
+                              <img loading="lazy" decoding="async" 
                                 src={gallery.cover_image_url} 
                                 alt={gallery.title} 
                                 className="w-full h-full object-cover group-hover:scale-105 transition-transform"
@@ -2724,7 +2724,7 @@ export const Explore = () => {
                             </div>
                             <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-0.5">
                               {gallery.photographer_avatar ? (
-                                <img src={gallery.photographer_avatar} alt="" className="w-3.5 h-3.5 rounded-full object-cover" />
+                                <img loading="lazy" decoding="async" src={gallery.photographer_avatar} alt="" className="w-3.5 h-3.5 rounded-full object-cover" />
                               ) : (
                                 <Camera className="w-3.5 h-3.5 text-yellow-400" />
                               )}
@@ -2807,7 +2807,7 @@ export const Explore = () => {
                     {/* Thumbnail */}
                     <div className="relative w-20 h-20 rounded-lg overflow-hidden flex-shrink-0 bg-zinc-700">
                       {(report.thumbnail_url || report.media_url) ? (
-                        <img 
+                        <img loading="lazy" decoding="async" 
                           src={report.thumbnail_url || report.media_url} 
                           alt={report.spot_name || 'Conditions'} 
                           className="w-full h-full object-cover group-hover:scale-105 transition-transform"
@@ -2851,7 +2851,7 @@ export const Explore = () => {
                       <div className="flex items-center gap-2 text-sm text-muted-foreground">
                         <div className="flex items-center gap-1.5">
                           {report.photographer_avatar ? (
-                            <img 
+                            <img loading="lazy" decoding="async" 
                               src={report.photographer_avatar} 
                               alt={report.photographer_name} 
                               className="w-4 h-4 rounded-full object-cover"

@@ -198,7 +198,7 @@ export const JumpInSessionModal = ({ photographer, onClose, onSuccess }) => {
             <div className="w-12 h-12 rounded-full bg-gradient-to-br from-cyan-400 to-blue-600 p-0.5">
               <div className="w-full h-full rounded-full bg-zinc-900 flex items-center justify-center overflow-hidden">
                 {photographer?.avatar_url ? (
-                  <img src={getFullUrl(photographer.avatar_url)} className="w-full h-full object-cover" alt="" />
+                  <img loading="lazy" decoding="async" src={getFullUrl(photographer.avatar_url)} className="w-full h-full object-cover" alt="" />
                 ) : (
                   <span className="text-cyan-400 font-bold">{photographer?.full_name?.[0]}</span>
                 )}
@@ -276,7 +276,7 @@ export const JumpInSessionModal = ({ photographer, onClose, onSuccess }) => {
                   />
                   
                   {selfieUrl && (
-                    <img src={selfieUrl} alt="Selfie" className="w-full h-full object-cover" />
+                    <img loading="lazy" decoding="async" src={selfieUrl} alt="Selfie" className="w-full h-full object-cover" />
                   )}
                   
                   {!cameraReady && !selfieUrl && (

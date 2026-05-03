@@ -116,7 +116,7 @@ const ZoomLens = ({ imageRef, zoomPosition, zoomLevel = 2 }) => {
         zIndex: 100
       }}
     >
-      <img src={croppedImage} alt="Zoomed" className="w-full h-full" />
+      <img loading="lazy" decoding="async" src={croppedImage} alt="Zoomed" className="w-full h-full" />
       <div className="absolute bottom-1 right-1 px-1.5 py-0.5 bg-black/70 rounded text-[10px] text-cyan-400">
         {zoomLevel}x
       </div>
@@ -338,7 +338,7 @@ export const QualityComparisonModal = ({
                 onMouseMove={handleMouseMove}
                 onMouseLeave={handleMouseLeave}
               >
-                <img
+                <img loading="lazy" decoding="async"
                   ref={imageRef}
                   src={previewUrls[selectedTier] || previewUrls.standard || ''}
                   alt={`${selectedTier} quality preview`}

@@ -275,7 +275,7 @@ export const GalleryLightbox = ({
                 <Loader2 className="w-8 h-8 animate-spin text-cyan-400" />
               </div>
             )}
-            <img
+            <img loading="lazy" decoding="async"
               ref={imgRef}
               src={mediaUrl}
               alt={item.title || 'Gallery photo'}

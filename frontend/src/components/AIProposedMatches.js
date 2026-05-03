@@ -170,7 +170,7 @@ const MatchCard = ({
               onMouseLeave={(e) => e.target.pause()}
             />
           ) : (
-            <img
+            <img loading="lazy" decoding="async"
               src={isPaidAccount ? match.preview_url : match.thumbnail_url}
               alt=""
               className="w-full h-full object-cover"
@@ -653,7 +653,7 @@ const AIProposedMatches = ({
                 preload="metadata"
               />
             ) : (
-              <img
+              <img loading="lazy" decoding="async"
                 src={previewMatch.original_url || previewMatch.preview_url}
                 alt=""
                 className="w-full h-auto max-h-[80vh] object-contain"

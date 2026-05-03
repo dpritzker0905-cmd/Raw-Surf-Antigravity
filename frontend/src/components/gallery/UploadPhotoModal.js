@@ -500,7 +500,7 @@ export const UploadPhotoModal = ({
                       {f.type === 'video' ? (
                         <Film className="w-5 h-5 text-purple-400" />
                       ) : f.preview ? (
-                        <img src={f.preview} alt="" className="w-full h-full object-cover" />
+                        <img loading="lazy" decoding="async" src={f.preview} alt="" className="w-full h-full object-cover" />
                       ) : (
                         <Camera className="w-5 h-5 text-cyan-400" />
                       )}

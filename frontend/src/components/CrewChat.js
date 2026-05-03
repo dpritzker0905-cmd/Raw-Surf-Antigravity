@@ -916,7 +916,7 @@ export default function CrewChat() {
                 {/* Image message */}
                 {msg.message_type === 'image' && (
                   <div className={`rounded-2xl overflow-hidden ${isMe ? 'rounded-br-md' : 'rounded-bl-md'}`}>
-                    <img
+                    <img loading="lazy" decoding="async"
                                       src={`${BACKEND_URL}${msg.media_url}`}
                       alt="Shared"
                       className="max-w-[250px] max-h-[300px] object-cover cursor-pointer"
@@ -1193,7 +1193,7 @@ export default function CrewChat() {
             </Button>
           </div>
           <div className="flex-1 flex items-center justify-center p-4">
-            <img
+            <img loading="lazy" decoding="async"
               src={URL.createObjectURL(selectedImage)}
               alt="Preview"
               className="max-w-full max-h-[60vh] object-contain rounded-lg"
@@ -1224,7 +1224,7 @@ export default function CrewChat() {
           >
             <X className="h-6 w-6" />
           </Button>
-          <img
+          <img loading="lazy" decoding="async"
                           src={`${BACKEND_URL}${expandedImage}`}
             alt="Full size"
             className="max-w-full max-h-full object-contain"

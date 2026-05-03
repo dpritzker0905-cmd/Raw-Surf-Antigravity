@@ -283,7 +283,7 @@ const DirectoryPhotographerCard = ({ photographer, onSelect, onBook, onViewGalle
               <div className="grid grid-cols-4 gap-1.5">
                 {photographer.portfolio_images.slice(0, 4).map((url, i) => (
                   <div key={i} className="aspect-square rounded-lg overflow-hidden bg-zinc-800">
-                    <img
+                    <img loading="lazy" decoding="async"
                       src={getFullUrl(url)}
                       alt=""
                       className="w-full h-full object-cover"

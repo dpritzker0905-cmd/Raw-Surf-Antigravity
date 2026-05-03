@@ -49,7 +49,7 @@ const MessageBubble = ({ message, onReact, _onReply, onNavigateProfile }) => {
     
     if (message.message_type === 'image' && mediaUrl) {
       return (
-        <img 
+        <img loading="lazy" decoding="async" 
           src={mediaUrl} 
           alt="Shared" 
           className="max-w-full rounded-lg mb-1 cursor-pointer hover:opacity-90"
@@ -89,7 +89,7 @@ const MessageBubble = ({ message, onReact, _onReply, onNavigateProfile }) => {
     // Handle GIF messages
     if (message.message_type === 'gif' && mediaUrl) {
       return (
-        <img 
+        <img loading="lazy" decoding="async" 
           src={mediaUrl} 
           alt="GIF" 
           className="max-w-full rounded-lg mb-1"
@@ -116,7 +116,7 @@ const MessageBubble = ({ message, onReact, _onReply, onNavigateProfile }) => {
           title={`View ${message.sender_name || 'profile'}`}
         >
           {message.sender_avatar ? (
-            <img src={message.sender_avatar} alt="" className="w-full h-full object-cover" />
+            <img loading="lazy" decoding="async" src={message.sender_avatar} alt="" className="w-full h-full object-cover" />
           ) : (
             <span className="w-full h-full flex items-center justify-center text-[10px] text-muted-foreground font-semibold">
               {message.sender_name?.charAt(0) || '?'}

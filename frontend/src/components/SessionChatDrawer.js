@@ -412,7 +412,7 @@ export const SessionChatDrawer = ({
           <div className="flex items-center gap-3 flex-1">
             <div className="w-9 h-9 rounded-full overflow-hidden ring-2 ring-cyan-400/50 flex-shrink-0">
               {otherUserAvatar ? (
-                <img
+                <img loading="lazy" decoding="async"
                   src={getFullUrl(otherUserAvatar)}
                   alt={otherUserName}
                   className="w-full h-full object-cover"

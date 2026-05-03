@@ -199,7 +199,7 @@ export const ScheduledTab = ({
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex items-center gap-3">
                     {invite.captain?.avatar_url ? (
-                      <img src={getFullUrl(invite.captain.avatar_url)} alt="" className="w-10 h-10 rounded-full object-cover" />
+                      <img loading="lazy" decoding="async" src={getFullUrl(invite.captain.avatar_url)} alt="" className="w-10 h-10 rounded-full object-cover" />
                     ) : (
                       <div className="w-10 h-10 rounded-full bg-cyan-500/20 flex items-center justify-center">
                         <span className="text-cyan-400 font-bold">{invite.captain?.name?.[0] || '?'}</span>

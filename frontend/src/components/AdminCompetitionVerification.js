@@ -272,7 +272,7 @@ export const AdminCompetitionVerification = () => {
                 <div className="space-y-2">
                   <div className="text-sm text-gray-400">Proof Image:</div>
                   <div className="relative aspect-video bg-black rounded-lg overflow-hidden">
-                    <img 
+                    <img loading="lazy" decoding="async" 
                       src={selectedResult.proof_image_url} 
                       alt="Competition proof" 
                       className="w-full h-full object-contain"

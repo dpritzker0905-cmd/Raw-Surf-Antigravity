@@ -200,7 +200,7 @@ const InviteModalContent = ({ booking, user, isLight, textPrimaryClass, textSeco
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-full overflow-hidden bg-zinc-700">
                         {result.avatar_url ? (
-                          <img src={getFullUrl(result.avatar_url)} alt="" className="w-full h-full object-cover" />
+                          <img loading="lazy" decoding="async" src={getFullUrl(result.avatar_url)} alt="" className="w-full h-full object-cover" />
                         ) : (
                           <div className="w-full h-full flex items-center justify-center text-muted-foreground">
                             {result.full_name?.[0] || '?'}

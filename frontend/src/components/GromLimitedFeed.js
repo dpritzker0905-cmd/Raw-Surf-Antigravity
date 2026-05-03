@@ -142,7 +142,7 @@ const GromLimitedFeed = ({ gromStatus, _onCopyCode }) => {
                   <div className="flex items-center gap-3 p-3">
                     <div className="w-10 h-10 rounded-full bg-gradient-to-br from-cyan-500 to-blue-500 flex items-center justify-center">
                       {post.author_avatar ? (
-                        <img src={getFullUrl(post.author_avatar)} alt="" className="w-10 h-10 rounded-full object-cover" />
+                        <img loading="lazy" decoding="async" src={getFullUrl(post.author_avatar)} alt="" className="w-10 h-10 rounded-full object-cover" />
                       ) : (
                         <span className="text-white font-bold text-sm">
                           {post.author_name?.charAt(0) || 'G'}
@@ -163,7 +163,7 @@ const GromLimitedFeed = ({ gromStatus, _onCopyCode }) => {
                   {/* Post Media */}
                   {(post.thumbnail_url || post.media_url) && (
                     <div className="relative aspect-square bg-zinc-800">
-                      <img 
+                      <img loading="lazy" decoding="async" 
                         src={getFullUrl(post.thumbnail_url || post.media_url)} 
                         alt="" 
                         className="w-full h-full object-cover"

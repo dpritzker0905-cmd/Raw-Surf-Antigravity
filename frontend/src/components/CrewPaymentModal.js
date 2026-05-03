@@ -174,7 +174,7 @@ export const CrewPaymentModal = ({
             {/* Captain Card */}
             <div className={`flex items-center gap-3 p-3 rounded-xl ${sectionBg}`}>
               {invite.captain?.avatar_url ? (
-                <img 
+                <img loading="lazy" decoding="async" 
                   src={getFullUrl(invite.captain.avatar_url)} 
                   alt="" 
                   className="w-10 h-10 rounded-full object-cover ring-2 ring-cyan-400"
@@ -320,7 +320,7 @@ export const CrewPaymentModal = ({
                 </div>
               ) : selfieUrl ? (
                 <div className="relative">
-                  <img 
+                  <img loading="lazy" decoding="async" 
                     src={selfieUrl} 
                     alt="Your selfie" 
                     className="w-32 h-32 rounded-full mx-auto object-cover ring-4 ring-green-400/50"

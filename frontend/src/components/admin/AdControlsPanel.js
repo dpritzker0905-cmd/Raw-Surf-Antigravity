@@ -390,7 +390,7 @@ const AdControlsPanel = ({ user }) => {
                             </>
                           ) : (
                             <>
-                              <img 
+                              <img loading="lazy" decoding="async" 
                                 src={getFullUrl(ad.image_url)} 
                                 alt="Ad preview" 
                                 className="w-full h-32 object-cover" 

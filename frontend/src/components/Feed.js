@@ -90,7 +90,7 @@ const _ReactionIcon = ({ post, userId, isLiked }) => {
         </span>
       ) : (
         // Show default Shaka - colored if checked, grayscale if unchecked
-        <img 
+        <img loading="lazy" decoding="async" 
           key={shakaIsChecked ? "shaka-checked" : "shaka-unchecked"} // Key forces re-render
           src="https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/svg/1f919.svg"
           alt="shaka"
@@ -110,7 +110,7 @@ const _ReactionIcon = ({ post, userId, isLiked }) => {
 
 // Shaka icon using Twemoji image for consistent rendering (kept for backwards compat)
 const _ShakaIcon = ({ filled }) => (
-  <img 
+  <img loading="lazy" decoding="async" 
     src="https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/svg/1f919.svg"
     alt="shaka"
     style={{ 
@@ -2094,7 +2094,7 @@ export const Feed = () => {
               >
                 <div className="w-10 h-10 rounded-full bg-gradient-to-br from-cyan-400 to-blue-500 flex items-center justify-center overflow-hidden">
                   {collab.avatar_url ? (
-                    <img src={getFullUrl(collab.avatar_url)} alt="" className="w-full h-full object-cover" />
+                    <img loading="lazy" decoding="async" src={getFullUrl(collab.avatar_url)} alt="" className="w-full h-full object-cover" />
                   ) : (
                     <span className="text-white font-bold">{collab.full_name?.charAt(0) || '?'}</span>
                   )}

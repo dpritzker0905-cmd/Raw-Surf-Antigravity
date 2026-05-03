@@ -1,5 +1,5 @@
-﻿/**
- * JumpInFlow — Live session join flow for surfers.
+/**
+ * JumpInFlow � Live session join flow for surfers.
  * Handles crew formation, selfie capture, payment, and session entry.
  * 
  * Extracted from UnifiedSpotDrawer.js for maintainability.
@@ -287,7 +287,7 @@ const JumpInFlow = ({ photographer, onBack, onSuccess }) => {
           <div className="w-12 h-12 rounded-full p-[2px] bg-gradient-to-r from-cyan-400 to-blue-500">
             <div className="w-full h-full rounded-full bg-zinc-800 overflow-hidden">
               {photographer?.avatar_url ? (
-                <img src={getFullUrl(photographer.avatar_url)} className="w-full h-full object-cover" alt="" />
+                <img loading="lazy" decoding="async" src={getFullUrl(photographer.avatar_url)} className="w-full h-full object-cover" alt="" />
               ) : (
                 <span className="flex items-center justify-center h-full text-lg text-cyan-400">
                   {photographer?.full_name?.charAt(0)}
@@ -348,7 +348,7 @@ const JumpInFlow = ({ photographer, onBack, onSuccess }) => {
                     )}
                   </>
                 ) : (
-                  <img src={selfieUrl} alt="Your selfie" className="w-full h-full object-cover" />
+                  <img loading="lazy" decoding="async" src={selfieUrl} alt="Your selfie" className="w-full h-full object-cover" />
                 )}
                 <canvas ref={canvasRef} className="hidden" />
               </div>
@@ -357,7 +357,7 @@ const JumpInFlow = ({ photographer, onBack, onSuccess }) => {
               <div className="mt-4 p-4 bg-cyan-500/20 border-2 border-cyan-500/40 rounded-xl w-full md:max-w-[400px]">
                 <div className="flex items-center gap-3">
                   <div className="w-12 h-12 rounded-full bg-cyan-500/30 flex items-center justify-center shrink-0">
-                    <span className="text-2xl">ðŸ„</span>
+                    <span className="text-2xl">🏄</span>
                   </div>
                   <div>
                     <p className="text-cyan-300 font-bold">Hold your surfboard up!</p>
@@ -494,7 +494,7 @@ const JumpInFlow = ({ photographer, onBack, onSuccess }) => {
               onClick={() => setStep('selfie')}
               className="w-full text-center text-gray-500 text-sm hover:text-gray-300"
             >
-              â† Back to selfie
+              ← Back to selfie
             </button>
           </div>
         )}

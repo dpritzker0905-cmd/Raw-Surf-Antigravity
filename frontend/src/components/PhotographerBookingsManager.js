@@ -1406,7 +1406,7 @@ export const PhotographerBookingsManager = () => {
                   <div className="flex items-center gap-3">
                     <div className={`w-10 h-10 rounded-full ${isLight ? 'bg-gray-200' : 'bg-zinc-700'} flex items-center justify-center overflow-hidden`}>
                       {p.avatar_url ? (
-                        <img src={getFullUrl(p.avatar_url)} alt={p.name} className="w-full h-full object-cover" />
+                        <img loading="lazy" decoding="async" src={getFullUrl(p.avatar_url)} alt={p.name} className="w-full h-full object-cover" />
                       ) : (
                         <span className={textSecondaryClass}>{p.name?.[0] || '?'}</span>
                       )}

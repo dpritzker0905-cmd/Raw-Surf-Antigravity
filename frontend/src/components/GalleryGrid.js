@@ -125,7 +125,7 @@ export const GalleryGridItem = ({
         )}
         
         {isVideo && videoSrc ? (
-          <img
+          <img loading="lazy" decoding="async"
             src={imgSrc || undefined}
             alt={item.title || 'Video thumbnail'}
             className={`w-full h-full object-cover transition-transform duration-300 group-hover:scale-105 relative z-[1]`}
@@ -133,7 +133,7 @@ export const GalleryGridItem = ({
             onError={() => setImgError(true)}
           />
         ) : imgSrc ? (
-          <img
+          <img loading="lazy" decoding="async"
             src={imgSrc}
             alt={item.title || (isVideo ? 'Video' : 'Photo')}
             className={`w-full h-full object-cover transition-transform duration-300 group-hover:scale-105 relative z-[1] ${imgError ? 'opacity-0' : ''}`}
@@ -172,7 +172,7 @@ export const GalleryGridItem = ({
               style={{ zIndex: 10 - idx }}
             >
               {s.avatar_url ? (
-                <img
+                <img loading="lazy" decoding="async"
                   src={getFullUrl(s.avatar_url)}
                   alt={s.full_name}
                   className="w-full h-full object-cover"

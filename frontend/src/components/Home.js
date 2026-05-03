@@ -85,7 +85,7 @@ export const Home = () => {
       <nav className="fixed top-0 left-0 right-0 z-50 bg-black/80 backdrop-blur-sm border-b border-zinc-800/50">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
           <div className="flex items-center gap-3">
-            <img
+            <img loading="lazy" decoding="async"
               src="https://customer-assets.emergentagent.com/job_raw-surf-os/artifacts/9llcl5mg_Rawig6-500x500.png"
               alt="Raw Surf"
               className="w-8 h-8"
@@ -107,7 +107,7 @@ export const Home = () => {
         <div className="container mx-auto max-w-4xl text-center space-y-8">
           {/* Logo */}
           <div className="flex justify-center">
-            <img
+            <img loading="lazy" decoding="async"
               src="https://customer-assets.emergentagent.com/job_raw-surf-os/artifacts/9llcl5mg_Rawig6-500x500.png"
               alt="Raw Surf"
               className="w-24 h-24"
@@ -263,7 +263,7 @@ export const Home = () => {
       <footer className="relative py-12 px-4 bg-black border-t border-zinc-800">
         <div className="container mx-auto text-center space-y-4">
           <div className="flex justify-center items-center gap-2">
-            <img
+            <img loading="lazy" decoding="async"
               src="https://customer-assets.emergentagent.com/job_raw-surf-os/artifacts/9llcl5mg_Rawig6-500x500.png"
               alt="Raw Surf"
               className="w-8 h-8"

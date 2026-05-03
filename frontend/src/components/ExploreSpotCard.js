@@ -160,7 +160,7 @@ const ExploreSpotCard = ({ spot, userSubscriptionTier = 'free' }) => {
       {/* Image Header */}
       <div className="relative h-32 overflow-hidden">
         {showPrimaryImage ? (
-          <img 
+          <img loading="lazy" decoding="async" 
             src={displayImage.startsWith('http') ? displayImage : getFullUrl(displayImage)} 
             alt={spot.name}
             onError={() => setImageError(true)}
@@ -171,7 +171,7 @@ const ExploreSpotCard = ({ spot, userSubscriptionTier = 'free' }) => {
         ) : showMapFallback ? (
           /* Map satellite fallback — same as Popular Spots on All tab */
           <div className="w-full h-full bg-muted relative">
-            <img 
+            <img loading="lazy" decoding="async" 
               src={`https://static-maps.yandex.ru/1.x/?lang=en_US&ll=${spot.longitude},${spot.latitude}&z=12&l=sat&size=400,300`}
               alt={`Map of ${spot.name}`}
               onError={() => setMapError(true)}

@@ -154,7 +154,7 @@ export const SelfieCapture = ({
         
         {/* Captured selfie preview */}
         {selfieUrl && (
-          <img 
+          <img loading="lazy" decoding="async" 
             src={selfieUrl} 
             alt="Your selfie" 
             className="w-full h-full object-cover"

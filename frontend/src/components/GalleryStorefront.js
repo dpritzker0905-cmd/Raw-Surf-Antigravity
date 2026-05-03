@@ -399,7 +399,7 @@ export const GalleryStorefront = () => {
                 {/* Cover image */}
                 <div className="aspect-[4/3] bg-zinc-800 relative overflow-hidden">
                   {gallery.cover_image_url ? (
-                    <img
+                    <img loading="lazy" decoding="async"
                       src={getFullUrl(gallery.cover_image_url)}
                       alt={gallery.title}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"

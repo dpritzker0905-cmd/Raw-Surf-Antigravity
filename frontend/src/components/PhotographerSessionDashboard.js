@@ -139,7 +139,7 @@ export const PhotographerSessionDashboard = ({ onClose }) => {
             
             {/* Profile image or selfie */}
             {firstRequest.requester_selfie ? (
-              <img 
+              <img loading="lazy" decoding="async" 
                 src={firstRequest.requester_selfie.startsWith('/') 
                   ? `${process.env.REACT_APP_BACKEND_URL}${firstRequest.requester_selfie}`
                   : firstRequest.requester_selfie
@@ -148,7 +148,7 @@ export const PhotographerSessionDashboard = ({ onClose }) => {
                 className="relative w-full h-full rounded-full object-cover border-4 border-green-400"
               />
             ) : firstRequest.requester_avatar ? (
-              <img 
+              <img loading="lazy" decoding="async" 
                 src={firstRequest.requester_avatar}
                 alt="Surfer"
                 className="relative w-full h-full rounded-full object-cover border-4 border-green-400"
@@ -437,13 +437,13 @@ export const PhotographerSessionDashboard = ({ onClose }) => {
                 {/* Selfie / Avatar */}
                 <div className="w-12 h-12 rounded-full overflow-hidden bg-zinc-700 flex-shrink-0">
                   {participant.selfie_url ? (
-                    <img
+                    <img loading="lazy" decoding="async"
                       src={participant.selfie_url}
                       alt={participant.surfer_name}
                       className="w-full h-full object-cover"
                     />
                   ) : participant.surfer_avatar ? (
-                    <img
+                    <img loading="lazy" decoding="async"
                       src={participant.surfer_avatar}
                       alt={participant.surfer_name}
                       className="w-full h-full object-cover"

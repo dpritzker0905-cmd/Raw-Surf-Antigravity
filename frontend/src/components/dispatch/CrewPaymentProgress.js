@@ -56,7 +56,7 @@ const CrewMemberChip = ({ member, _isLight }) => {
             <div className="relative">
               <div className="w-6 h-6 rounded-full overflow-hidden bg-zinc-700">
                 {member.avatar_url ? (
-                  <img src={getFullUrl(member.avatar_url)} alt="" className="w-full h-full object-cover" />
+                  <img loading="lazy" decoding="async" src={getFullUrl(member.avatar_url)} alt="" className="w-full h-full object-cover" />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center text-xs text-zinc-400">
                     {member.name?.charAt(0) || '?'}
@@ -398,7 +398,7 @@ const CrewPaymentDetails = ({
                 <div className="flex items-center gap-2">
                   <div className="w-8 h-8 rounded-full overflow-hidden bg-zinc-700">
                     {member.avatar_url ? (
-                      <img src={getFullUrl(member.avatar_url)} alt="" className="w-full h-full object-cover" />
+                      <img loading="lazy" decoding="async" src={getFullUrl(member.avatar_url)} alt="" className="w-full h-full object-cover" />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center text-sm text-zinc-400">
                         {member.name?.charAt(0) || '?'}

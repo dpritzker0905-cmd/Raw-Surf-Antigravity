@@ -1,4 +1,4 @@
-﻿/**
+/**
  * PhotographerSessionManager - Photographer's Command Center for Session Management
  * 
  * This is the photographer's counterpart to the surfer's LineupManagerDrawer.
@@ -136,7 +136,7 @@ const ParticipantCard = ({
             statusInfo.color === 'blue' ? 'ring-blue-400' : 'ring-gray-400'
           }`}>
             {participant.avatar_url ? (
-              <img src={getFullUrl(participant.avatar_url)} alt={participant.name} className="w-full h-full object-cover" />
+              <img loading="lazy" decoding="async" src={getFullUrl(participant.avatar_url)} alt={participant.name} className="w-full h-full object-cover" />
             ) : (
               <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-cyan-400 to-blue-500 text-white font-bold">
                 {participant.name?.[0]?.toUpperCase() || '?'}
@@ -221,7 +221,7 @@ const ParticipantCard = ({
             <div className="p-4 border-b border-zinc-800 flex items-center justify-between">
               <div className="flex items-center gap-3">
                 {participant.avatar_url ? (
-                  <img src={getFullUrl(participant.avatar_url)} alt="" className="w-10 h-10 rounded-full object-cover" />
+                  <img loading="lazy" decoding="async" src={getFullUrl(participant.avatar_url)} alt="" className="w-10 h-10 rounded-full object-cover" />
                 ) : (
                   <div className="w-10 h-10 rounded-full bg-gradient-to-br from-cyan-400 to-blue-500 flex items-center justify-center text-white font-bold">
                     {participant.name?.[0]?.toUpperCase() || '?'}
@@ -240,7 +240,7 @@ const ParticipantCard = ({
               </button>
             </div>
             <div className="relative aspect-[3/4] bg-black">
-              <img 
+              <img loading="lazy" decoding="async" 
                 src={participant.selfie_url || participant.media_url} 
                 alt={`${participant.name}'s ID selfie`}
                 className="w-full h-full object-contain"
@@ -825,7 +825,7 @@ export const PhotographerSessionManager = ({
           </div>
           <DialogDescription className={`${textSecondary} flex items-center gap-2`}>
             <MapPin className="w-4 h-4" />
-            {booking.location} · {new Date(booking.session_date).toLocaleDateString()}
+            {booking.location} � {new Date(booking.session_date).toLocaleDateString()}
           </DialogDescription>
         </DialogHeader>
 
@@ -972,7 +972,7 @@ export const PhotographerSessionManager = ({
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-full overflow-hidden bg-zinc-700">
                           {result.avatar_url ? (
-                            <img src={getFullUrl(result.avatar_url)} alt="" className="w-full h-full object-cover" />
+                            <img loading="lazy" decoding="async" src={getFullUrl(result.avatar_url)} alt="" className="w-full h-full object-cover" />
                           ) : (
                             <div className="w-full h-full flex items-center justify-center text-gray-400">
                               {result.full_name?.[0] || '?'}
