@@ -12,9 +12,9 @@
  */
 import React, { useState, useEffect, useCallback } from 'react';
 import { Bell, X, Camera, Waves } from 'lucide-react';
-import { useTheme } from '../../contexts/ThemeContext';
-import { useAuth } from '../../contexts/AuthContext';
-import { usePushNotifications } from '../../hooks/usePushNotifications';
+import { useTheme } from '../contexts/ThemeContext';
+import { useAuth } from '../contexts/AuthContext';
+import { usePushNotifications } from '../hooks/usePushNotifications';
 import { toast } from 'sonner';
 
 const DISMISS_KEY = 'rs-push-prompt-dismissed';
