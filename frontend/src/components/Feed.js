@@ -1454,6 +1454,7 @@ export const Feed = () => {
             activeTab === 'for_you' ? textPrimaryClass : textSecondaryClass
           }`}
           data-testid="tab-for-you"
+          aria-label="For You feed tab"
         >
           For You
         </button>
@@ -1463,6 +1464,7 @@ export const Feed = () => {
             activeTab === 'waves' ? textPrimaryClass : textSecondaryClass
           }`}
           data-testid="tab-waves"
+          aria-label="Waves video tab"
         >
           <span className="flex items-center justify-center gap-1">
             <Play className="w-3.5 h-3.5" />
@@ -1475,6 +1477,7 @@ export const Feed = () => {
             activeTab === 'following' ? textPrimaryClass : textSecondaryClass
           }`}
           data-testid="tab-following"
+          aria-label="Following feed tab"
         >
           Following
         </button>
