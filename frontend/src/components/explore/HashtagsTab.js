@@ -11,7 +11,7 @@
 import React from 'react';
 import { Hash, X, ChevronRight, Loader2 } from 'lucide-react';
 import { Badge } from '../ui/badge';
-import PostMediaPreview from '../PostMediaPreview';
+import PostMediaPreview from './PostMediaPreview';
 
 const HashtagsTab = ({
   trendingHashtags,

@@ -55,6 +55,9 @@ import logger from '../utils/logger';
 import { getFullUrl } from '../utils/media';
 import ResponsiveImage from './ui/ResponsiveImage';
 import PostMediaPreview from './explore/PostMediaPreview';
+import BrowseMode from './explore/BrowseMode';
+import NearbyMode from './explore/NearbyMode';
+import HashtagsTab from './explore/HashtagsTab';
 
 // PostMediaPreview extracted → ./explore/PostMediaPreview.js
 
@@ -1734,284 +1737,53 @@ export const Explore = () => {
             </button>
           </div>
           
-          {/* ============ BROWSE MODE ============ */}
+          {/* ============ BROWSE MODE (extracted → explore/BrowseMode.js) ============ */}
           {discoveryMode === 'browse' && (
-            <>
-              {/* Cascading Location Dropdowns */}
-              <div className="space-y-3">
-                {/* Country Dropdown */}
-                <div>
-                  <label className={`block text-xs uppercase tracking-wider font-medium mb-1.5 ${labelClass}`}>Country</label>
-                  <div className="relative">
-                    <Globe className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-cyan-400 pointer-events-none z-10" />
-                    <select
-                      value={selectedCountry}
-                      onChange={(e) => handleCountryChange(e.target.value)}
-                      className={`w-full pl-10 pr-10 py-3 ${dropdownBg} border ${dropdownBorder} rounded-xl ${dropdownText} text-sm focus:outline-none ${dropdownFocus} focus:ring-1 transition-all appearance-none cursor-pointer`}
-                      data-testid="country-dropdown"
-                    >
-                      <option value="">Select a country...</option>
-                      {countryOptions.map(name => (
-                        <option key={name} value={name}>{getCountryFlag(name)} {name}</option>
-                      ))}
-                    </select>
-                    <ChevronDown className={`absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 ${isLight ? 'text-gray-400' : 'text-gray-500'} pointer-events-none`} />
-                  </div>
-                </div>
-                
-                {/* State/Province Dropdown — appears when country selected and has states */}
-                {selectedCountry && stateOptions.length > 0 && (
-                  <div>
-                    <label className={`block text-xs uppercase tracking-wider font-medium mb-1.5 ${labelClass}`}>State / Province</label>
-                    <div className="relative">
-                      <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-blue-400 pointer-events-none z-10" />
-                      <select
-                        value={selectedState}
-                        onChange={(e) => handleStateChange(e.target.value)}
-                        className={`w-full pl-10 pr-10 py-3 ${dropdownBg} border ${dropdownBorder} rounded-xl ${dropdownText} text-sm focus:outline-none ${isLight ? 'focus:border-blue-500 focus:ring-blue-200/30' : 'focus:border-blue-500/50 focus:ring-blue-500/20'} focus:ring-1 transition-all appearance-none cursor-pointer`}
-                        data-testid="state-dropdown"
-                      >
-                        <option value="">Select state / province...</option>
-                        {stateOptions.map(name => (
-                          <option key={name} value={name}>{name}</option>
-                        ))}
-                      </select>
-                      <ChevronDown className={`absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 ${isLight ? 'text-gray-400' : 'text-gray-500'} pointer-events-none`} />
-                    </div>
-                  </div>
-                )}
-                
-                {/* City/Area Dropdown — appears when state selected and has cities */}
-                {selectedState && cityOptions.length > 0 && (
-                  <div>
-                    <label className={`block text-xs uppercase tracking-wider font-medium mb-1.5 ${labelClass}`}>City / Area</label>
-                    <div className="relative">
-                      <Navigation className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-emerald-400 pointer-events-none z-10" />
-                      <select
-                        value={selectedCity}
-                        onChange={(e) => handleCityChange(e.target.value)}
-                        className={`w-full pl-10 pr-10 py-3 ${dropdownBg} border ${dropdownBorder} rounded-xl ${dropdownText} text-sm focus:outline-none ${isLight ? 'focus:border-emerald-500 focus:ring-emerald-200/30' : 'focus:border-emerald-500/50 focus:ring-emerald-500/20'} focus:ring-1 transition-all appearance-none cursor-pointer`}
-                        data-testid="city-dropdown"
-                      >
-                        <option value="">Select city / area...</option>
-                        {cityOptions.map(name => (
-                          <option key={name} value={name}>{name}</option>
-                        ))}
-                      </select>
-                      <ChevronDown className={`absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 ${isLight ? 'text-gray-400' : 'text-gray-500'} pointer-events-none`} />
-                    </div>
-                  </div>
-                )}
-              </div>
-              
-              {/* Spot Name Search — appears once a country is selected */}
-              {selectedCountry && (
-                <div className="relative">
-                  <Search className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${isLight ? 'text-gray-400' : 'text-gray-500'}`} />
-                  <input
-                    type="text"
-                    placeholder="Search spots by name..."
-                    value={spotSearchQuery}
-                    onChange={(e) => setSpotSearchQuery(e.target.value)}
-                    className={`w-full pl-10 pr-10 py-3 ${dropdownBg} border ${dropdownBorder} rounded-xl ${dropdownText} ${isLight ? 'placeholder-gray-400' : 'placeholder-gray-500'} text-sm focus:outline-none ${dropdownFocus} focus:ring-1 transition-all`}
-                    data-testid="spot-search-input"
-                  />
-                  {spotSearchQuery && (
-                    <button onClick={() => setSpotSearchQuery('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300">
-                      <X className="w-4 h-4" />
-                    </button>
-                  )}
-                </div>
-              )}
-              
-              {/* Popular Destinations — show only when no country selected */}
-              {!selectedCountry && (
-                <div>
-                  <p className={`text-xs uppercase tracking-wider font-medium mb-2 ${labelClass}`}>Popular Destinations</p>
-                  <div className="flex flex-wrap gap-2">
-                    {popularLocations.map((loc, i) => (
-                      <button
-                        key={i}
-                        onClick={() => jumpToLocation(loc)}
-                        className={`px-3 py-1.5 border rounded-full text-xs transition-all ${chipBg}`}
-                        data-testid={`quick-loc-${i}`}
-                      >
-                        {loc.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-              
-              {/* Selection breadcrumb summary + Clear button */}
-              {selectedCountry && (
-                <div className="flex items-center gap-1.5 text-sm flex-wrap">
-                  <span className="text-lg">{getCountryFlag(selectedCountry)}</span>
-                  <span className={`${breadcrumbText} font-medium`}>{selectedCountry}</span>
-                  {selectedState && (
-                    <>
-                      <ChevronRight className="w-3.5 h-3.5 text-gray-600" />
-                      <span className={isLight ? 'text-blue-600' : 'text-blue-400'}>{selectedState}</span>
-                    </>
-                  )}
-                  {selectedCity && (
-                    <>
-                      <ChevronRight className="w-3.5 h-3.5 text-gray-600" />
-                      <span className={isLight ? 'text-emerald-600' : 'text-emerald-400'}>{selectedCity}</span>
-                    </>
-                  )}
-                  <button
-                    onClick={() => { setSelectedCountry(''); setSelectedState(''); setSelectedCity(''); setSurfSpots([]); setSpotSearchQuery(''); }}
-                    className={`ml-auto text-xs flex items-center gap-1 px-2 py-1 rounded-md transition-colors ${isLight ? 'text-gray-500 hover:text-gray-700 hover:bg-gray-100' : 'text-gray-500 hover:text-gray-300 hover:bg-zinc-800'}`}
-                  >
-                    <X className="w-3 h-3" /> Clear
-                  </button>
-                </div>
-              )}
-              
-              {/* Loading State */}
-              {surfSpotsLoading && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {[1, 2, 3, 4].map((i) => (
-                    <div key={i} className="bg-card/80 border border-border rounded-xl overflow-hidden animate-pulse">
-                      <div className="h-32 bg-muted" />
-                      <div className="px-3 py-2 border-b border-border flex items-center gap-3">
-                        <div className="h-5 w-12 bg-zinc-700 rounded" />
-                        <div className="h-4 w-16 bg-zinc-700 rounded" />
-                      </div>
-                      <div className="px-3 py-2 flex gap-2">
-                        <div className="flex-1 h-9 bg-zinc-700 rounded-lg" />
-                        <div className="h-9 w-16 bg-muted rounded-lg" />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-              
-              {/* Spot Cards */}
-              {!surfSpotsLoading && surfSpots.length > 0 && (
-                <>
-                  <div className="p-3 bg-gradient-to-r from-cyan-500/10 to-blue-500/10 border border-cyan-500/20 rounded-lg">
-                    <div className="flex items-center gap-2 text-xs text-cyan-400">
-                      <Waves className="w-4 h-4" />
-                      <span>
-                        <strong>Today</strong> = Current Conditions • <strong>Forecast:</strong> 3 days free, 7 paid, 10 premium
-                      </span>
-                    </div>
-                  </div>
-                  
-                  <Badge className="bg-cyan-500/20 text-cyan-400 text-xs">
-                    {surfSpots.filter(s => !spotSearchQuery || s.name?.toLowerCase().includes(spotSearchQuery.toLowerCase())).length} spots
-                    {selectedCity ? ` in ${selectedCity}` : selectedState ? ` in ${selectedState}` : ` in ${selectedCountry}`}
-                  </Badge>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {surfSpots
-                      .filter(s => !spotSearchQuery || s.name?.toLowerCase().includes(spotSearchQuery.toLowerCase()))
-                      .map((spot) => (
-                      <ExploreSpotCard 
-                        key={spot.id} 
-                        spot={spot} 
-                        userSubscriptionTier={user?.subscription_tier || 'free'}
-                      />
-                    ))}
-                  </div>
-                </>
-              )}
-              
-              {/* Empty State */}
-              {selectedCountry && !surfSpotsLoading && surfSpots.length === 0 && (selectedCity || (stateOptions.length === 0) || (selectedState && cityOptions.length === 0)) && (
-                <div className="text-center py-12 text-muted-foreground">
-                  <Navigation className="w-12 h-12 mx-auto mb-3 opacity-30" />
-                  <p className="font-medium mb-1">No spots found</p>
-                  <p className="text-sm text-gray-500">Try selecting a different area</p>
-                </div>
-              )}
-            </>
+            <BrowseMode
+              selectedCountry={selectedCountry}
+              selectedState={selectedState}
+              selectedCity={selectedCity}
+              countryOptions={countryOptions}
+              stateOptions={stateOptions}
+              cityOptions={cityOptions}
+              handleCountryChange={handleCountryChange}
+              handleStateChange={handleStateChange}
+              handleCityChange={handleCityChange}
+              jumpToLocation={jumpToLocation}
+              spotSearchQuery={spotSearchQuery}
+              setSpotSearchQuery={setSpotSearchQuery}
+              surfSpots={surfSpots}
+              surfSpotsLoading={surfSpotsLoading}
+              popularLocations={popularLocations}
+              user={user}
+              isLight={isLight}
+              getCountryFlag={getCountryFlag}
+              dropdownBg={dropdownBg}
+              dropdownBorder={dropdownBorder}
+              dropdownText={dropdownText}
+              dropdownFocus={dropdownFocus}
+              labelClass={labelClass}
+              chipBg={chipBg}
+              breadcrumbText={breadcrumbText}
+              setSurfSpots={setSurfSpots}
+              setSelectedCountry={setSelectedCountry}
+              setSelectedState={setSelectedState}
+              setSelectedCity={setSelectedCity}
+            />
           )}
           
-          {/* ============ NEARBY MODE ============ */}
+          {/* ============ NEARBY MODE (extracted → explore/NearbyMode.js) ============ */}
           {discoveryMode === 'nearby' && (
-            <>
-              {/* GPS Status */}
-              {userLocation && (
-                <div className="flex items-center gap-2 p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl">
-                  <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                  <span className="text-xs text-emerald-400">
-                    Located: {userLocation.lat.toFixed(4)}, {userLocation.lng.toFixed(4)}
-                  </span>
-                  <button
-                    onClick={() => fetchNearbySpots(userLocation.lat, userLocation.lng)}
-                    className="ml-auto text-xs text-emerald-400 hover:text-emerald-300 underline"
-                  >
-                    Refresh
-                  </button>
-                </div>
-              )}
-              
-              {/* Tiered Forecast Info Banner */}
-              <div className="p-3 bg-gradient-to-r from-cyan-500/10 to-blue-500/10 border border-cyan-500/20 rounded-lg">
-                <div className="flex items-center gap-2 text-xs text-cyan-400">
-                  <Waves className="w-4 h-4" />
-                  <span>
-                    <strong>Today</strong> = Current Conditions • <strong>Forecast:</strong> 3 days free, 7 paid, 10 premium
-                  </span>
-                </div>
-              </div>
-              
-              {/* Nearby Spots Results */}
-              {nearbyLoading ? (
-                <div className="flex flex-col items-center justify-center py-16 gap-3">
-                  <div className="relative">
-                    <Compass className="w-10 h-10 text-emerald-400 animate-spin" />
-                    <div className="absolute inset-0 w-10 h-10 rounded-full border-2 border-emerald-400/20 animate-ping" />
-                  </div>
-                  <p className="text-sm text-gray-400">Finding spots near you...</p>
-                </div>
-              ) : nearbySpots.length === 0 && userLocation ? (
-                <div className="text-center py-16 text-muted-foreground">
-                  <MapPin className="w-16 h-16 mx-auto mb-4 opacity-30" />
-                  <p className="font-medium mb-1">No spots found nearby</p>
-                  <p className="text-sm text-gray-500 mb-4">Try browsing by location instead</p>
-                  <button
-                    onClick={() => setDiscoveryMode('browse')}
-                    className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 rounded-lg text-sm text-gray-300 transition-colors"
-                  >
-                    <Globe className="w-4 h-4 inline mr-2" />
-                    Browse All Locations
-                  </button>
-                </div>
-              ) : nearbySpots.length > 0 ? (
-                <>
-                  <Badge className="bg-emerald-500/20 text-emerald-400 text-xs">
-                    {nearbySpots.filter(s => !spotSearchQuery || s.name?.toLowerCase().includes(spotSearchQuery.toLowerCase())).length} spots near you
-                  </Badge>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {nearbySpots
-                      .filter(s => !spotSearchQuery || s.name?.toLowerCase().includes(spotSearchQuery.toLowerCase()))
-                      .map((spot) => (
-                      <ExploreSpotCard 
-                        key={spot.id} 
-                        spot={spot} 
-                        userSubscriptionTier={user?.subscription_tier || 'free'}
-                      />
-                    ))}
-                  </div>
-                </>
-              ) : !userLocation ? (
-                <div className="text-center py-16 text-muted-foreground">
-                  <Compass className="w-16 h-16 mx-auto mb-4 opacity-30" />
-                  <p className="font-medium mb-1">Enable Location Access</p>
-                  <p className="text-sm text-gray-500 mb-4">Allow location access to find surf spots near you</p>
-                  <button
-                    onClick={activateNearbyMode}
-                    className="px-5 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 rounded-xl text-white text-sm font-medium transition-all shadow-lg shadow-emerald-500/20"
-                  >
-                    <Compass className="w-4 h-4 inline mr-2" />
-                    Use My Location
-                  </button>
-                </div>
-              ) : null}
-            </>
+            <NearbyMode
+              userLocation={userLocation}
+              nearbySpots={nearbySpots}
+              nearbyLoading={nearbyLoading}
+              spotSearchQuery={spotSearchQuery}
+              user={user}
+              fetchNearbySpots={fetchNearbySpots}
+              setDiscoveryMode={setDiscoveryMode}
+              activateNearbyMode={activateNearbyMode}
+            />
           )}
           
           {/* Map View CTA — always visible */}
@@ -2304,123 +2076,18 @@ export const Explore = () => {
         </div>
       )}
 
-      {/* Trending Hashtags Tab */}
+      {/* Trending Hashtags Tab (extracted → explore/HashtagsTab.js) */}
       {activeTab === 'trending' && (
-        <div className="space-y-4" data-testid="trending-hashtags-tab">
-          {/* Header */}
-          <div className="flex items-center gap-2">
-            <Hash className="w-5 h-5 text-yellow-400" />
-            <h2 className="font-bold text-foreground">Trending Hashtags</h2>
-          </div>
-          
-          {/* Selected Hashtag View */}
-          {selectedHashtag ? (
-            <div>
-              {/* Hashtag Header */}
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => {
-                      setSelectedHashtag(null);
-                      setHashtagPosts([]);
-                    }}
-                    className="p-1.5 hover:bg-muted rounded-full transition-colors"
-                  >
-                    <X className="w-5 h-5 text-muted-foreground" />
-                  </button>
-                  <span className="text-xl font-bold text-yellow-400">#{selectedHashtag}</span>
-                </div>
-                <Badge className="bg-yellow-400/20 text-yellow-400">
-                  {hashtagPosts.length} posts
-                </Badge>
-              </div>
-              
-              {/* Posts Grid */}
-              {hashtagLoading ? (
-                <div className="flex justify-center py-10">
-                  <Loader2 className="w-8 h-8 animate-spin text-yellow-400" />
-                </div>
-              ) : hashtagPosts.length === 0 ? (
-                <div className="text-center py-10 text-muted-foreground">
-                  <Hash className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                  <p>No posts with #{selectedHashtag} yet</p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-3 gap-1">
-                  {hashtagPosts.map((post) => (
-                    <div
-                      key={post.id}
-                      onClick={() => navigate(`/post/${post.id}`)}
-                      className="aspect-square bg-muted overflow-hidden cursor-pointer group relative"
-                      data-testid={`hashtag-post-${post.id}`}
-                    >
-                      <PostMediaPreview post={post} isHoverScale={false} />
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          ) : (
-            /* Trending Hashtags List */
-            <div className="space-y-4">
-              {/* Quick Hashtag Pills */}
-              {trendingHashtags.length > 0 && (
-                <div className="flex flex-wrap gap-2">
-                  {trendingHashtags.slice(0, 10).map((tag, index) => (
-                    <button
-                      key={tag.tag}
-                      onClick={() => handleHashtagClick(tag.tag)}
-                      className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
-                        index < 3 
-                          ? 'bg-yellow-400/20 text-yellow-400 hover:bg-yellow-400/30' 
-                          : 'bg-muted text-gray-300 hover:bg-zinc-700'
-                      }`}
-                      data-testid={`trending-hashtag-${tag.tag}`}
-                    >
-                      #{tag.tag}
-                      <span className="ml-1 text-xs opacity-70">{tag.post_count}</span>
-                    </button>
-                  ))}
-                </div>
-              )}
-              
-              {/* Full List */}
-              <div className="space-y-2">
-                {trendingHashtags.map((tag, index) => (
-                  <button
-                    key={tag.tag}
-                    onClick={() => handleHashtagClick(tag.tag)}
-                    className="w-full flex items-center gap-3 p-3 bg-card rounded-xl hover:bg-muted transition-colors"
-                    data-testid={`hashtag-item-${tag.tag}`}
-                  >
-                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                      index < 3 ? 'bg-yellow-400/20' : 'bg-muted'
-                    }`}>
-                      <span className={`text-lg font-bold ${
-                        index < 3 ? 'text-yellow-400' : 'text-muted-foreground'
-                      }`}>
-                        {index + 1}
-                      </span>
-                    </div>
-                    <div className="flex-1 text-left">
-                      <p className="font-medium text-foreground">#{tag.tag}</p>
-                      <p className="text-xs text-muted-foreground">{tag.post_count} posts</p>
-                    </div>
-                    <ChevronRight className="w-5 h-5 text-muted-foreground" />
-                  </button>
-                ))}
-                
-                {trendingHashtags.length === 0 && (
-                  <div className="text-center py-10 text-muted-foreground">
-                    <Hash className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                    <p>No trending hashtags yet</p>
-                    <p className="text-sm mt-1">Start posting with #hashtags to see trends!</p>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-        </div>
+        <HashtagsTab
+          trendingHashtags={trendingHashtags}
+          selectedHashtag={selectedHashtag}
+          hashtagPosts={hashtagPosts}
+          hashtagLoading={hashtagLoading}
+          handleHashtagClick={handleHashtagClick}
+          setSelectedHashtag={setSelectedHashtag}
+          setHashtagPosts={setHashtagPosts}
+          navigate={navigate}
+        />
       )}
 
       {/* Conditions/Reports Tab - 3-tab layout: Today / Yesterday / Archives */}

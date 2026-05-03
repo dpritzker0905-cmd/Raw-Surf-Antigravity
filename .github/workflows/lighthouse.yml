@@ -1,0 +1,41 @@
+# Raw Surf — Lighthouse CI Pipeline
+# Runs Lighthouse performance audit on every push to dev
+# Produces a performance report with scores for Performance, Accessibility, Best Practices, SEO
+name: Lighthouse CI
+
+on:
+  push:
+    branches: [dev]
+  pull_request:
+    branches: [dev, main]
+
+jobs:
+  lighthouse:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use Node.js 18.x
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18.x
+          cache: 'yarn'
+          cache-dependency-path: frontend/yarn.lock
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: yarn install --frozen-lockfile --ignore-engines
+
+      - name: Build frontend
+        working-directory: frontend
+        env:
+          CI: false
+          REACT_APP_BACKEND_URL: https://raw-surf-antigravity.onrender.com
+        run: yarn build
+
+      - name: Run Lighthouse CI
+        uses: treosh/lighthouse-ci-action@v12
+        with:
+          uploadArtifacts: true
+          temporaryPublicStorage: true
+          configPath: ./lighthouserc.json
