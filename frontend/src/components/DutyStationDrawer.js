@@ -501,8 +501,7 @@ const StatusCard = ({
           `}>
             {isActive && (
               <span 
-                className={`absolute inset-0 rounded-2xl ${config.colors.ring} animate-ping`}
-                className="animate-duration-2s"
+                className={`absolute inset-0 rounded-2xl ${config.colors.ring} animate-ping animate-duration-2s`}
               />
             )}
             <Icon className={`w-7 h-7 relative z-10 ${isActive ? config.colors.text : 'text-muted-foreground'}`} />
@@ -1410,8 +1409,7 @@ export const DutyStationIcon = ({ className }) => {
       >
         {isActive && (
           <span 
-            className={`absolute inset-0 rounded-full ${config.colors.ring} animate-ping`}
-            className="animate-duration-2s"
+            className={`absolute inset-0 rounded-full ${config.colors.ring} animate-ping animate-duration-2s`}
           />
         )}
         <Icon className="w-5 h-5 relative z-10" />
