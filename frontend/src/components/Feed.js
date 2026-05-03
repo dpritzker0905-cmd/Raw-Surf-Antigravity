@@ -489,12 +489,20 @@ export const Feed = () => {
       return;
     }
     
+    // Optimistic update — instant UI
+    setFollowingUsers(prev => new Set([...prev, photographerId]));
     setFollowLoading(photographerId);
+    
     try {
       await apiClient.post(`/follow/${photographerId}?follower_id=${user.id}`);
-      setFollowingUsers(prev => new Set([...prev, photographerId]));
       toast.success('Following! Check their profile for availability');
     } catch (error) {
+      // Rollback on failure
+      setFollowingUsers(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(photographerId);
+        return newSet;
+      });
       toast.error(error.response?.data?.detail || 'Failed to follow');
     } finally {
       setFollowLoading(null);
@@ -504,15 +512,20 @@ export const Feed = () => {
   // Handle unfollowing a user from the post menu
   const handleUnfollowFromMenu = async (userId) => {
     if (!user?.id) return;
+    
+    // Optimistic update — instant UI
+    setFollowingUsers(prev => {
+      const newSet = new Set(prev);
+      newSet.delete(userId);
+      return newSet;
+    });
+    
     try {
       await apiClient.delete(`/follow/${userId}?follower_id=${user.id}`);
-      setFollowingUsers(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(userId);
-        return newSet;
-      });
       toast.success('Unfollowed');
     } catch (error) {
+      // Rollback on failure
+      setFollowingUsers(prev => new Set([...prev, userId]));
       toast.error('Failed to unfollow');
     }
   };

@@ -73,6 +73,7 @@ const HomeWaveButton = ({ textActiveClass, textInactiveClass, onNavigate }) => {
       onClick={handleClick}
       className={`flex flex-col items-center gap-0.5 min-w-[56px] py-1 ${isActive ? textActiveClass : textInactiveClass}`}
       data-testid="bottomnav-home"
+      aria-label="Home feed"
     >
       <div 
         className="flex flex-col items-center gap-0.5"
@@ -319,6 +320,7 @@ export const BottomNav = () => {
           onClick={() => handleNavigation('/create')}
           className="flex flex-col items-center gap-0.5 -mt-4 relative"
           data-testid="bottomnav-create"
+          aria-label="Create new post"
           style={{ zIndex: 110 }}
         >
           <div className="w-14 h-14 rounded-full bg-gradient-to-r from-yellow-400 via-orange-400 to-pink-500 flex items-center justify-center shadow-lg shadow-orange-500/30 border-4 border-zinc-950">
@@ -334,6 +336,7 @@ export const BottomNav = () => {
           onTouchStart={() => preload('messages')}
           className={`flex flex-col items-center gap-0.5 min-w-[56px] py-1 relative ${isPathActive('/messages') ? 'text-blue-400' : textInactiveClass}`}
           data-testid="bottomnav-messages"
+          aria-label={`Messages${unreadMessages > 0 ? `, ${unreadMessages} unread` : ''}`}
         >
           <div className="relative">
             <MessageCircle className={`w-6 h-6 ${isPathActive('/messages') ? 'text-blue-400' : textInactiveClass}`} />
@@ -355,6 +358,7 @@ export const BottomNav = () => {
           onTouchStart={() => preload('profile')}
           className="flex flex-col items-center gap-0.5 min-w-[56px] py-1"
           data-testid="bottomnav-me"
+          aria-label="Your profile"
         >
           <Avatar className="w-7 h-7 border-2 border-zinc-700">
             <AvatarImage src={avatarUrl} key={avatarUrl} />

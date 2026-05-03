@@ -9,12 +9,14 @@
  */
 import React, { useState } from 'react';
 import { getFullUrl } from '../../utils/media';
+import useWebPSupport from '../../hooks/useWebPSupport';
 
 /**
  * Generate srcSet entries for Supabase transform URLs.
  * If the URL supports Supabase image transforms (?width=X), we generate multiple sizes.
+ * Appends format=webp when browser supports it for ~30% bandwidth savings.
  */
-function buildSrcSet(src) {
+function buildSrcSet(src, webpSupported) {
   if (!src) return '';
   const url = getFullUrl(src);
   // Only generate srcSet for Supabase storage URLs with transform support
@@ -23,7 +25,8 @@ function buildSrcSet(src) {
     return widths
       .map(w => {
         const separator = url.includes('?') ? '&' : '?';
-        return `${url}${separator}width=${w} ${w}w`;
+        const formatParam = webpSupported ? '&format=webp' : '';
+        return `${url}${separator}width=${w}${formatParam} ${w}w`;
       })
       .join(', ');
   }
@@ -42,8 +45,9 @@ export const ResponsiveImage = ({
   ...props
 }) => {
   const [error, setError] = useState(false);
+  const webpSupported = useWebPSupport();
   const fullSrc = getFullUrl(src);
-  const srcSet = buildSrcSet(src);
+  const srcSet = buildSrcSet(src, webpSupported);
 
   if (error && fallback) return fallback;
   if (!src) return fallback || null;
