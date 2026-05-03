@@ -5,6 +5,7 @@ import App from "./App";
 
 // Initialize i18n before rendering
 import './i18n';
+import reportWebVitals, { logWebVitals } from './reportWebVitals';
 
 // Aggressively suppress ResizeObserver errors - these are benign browser warnings
 // that React's dev overlay incorrectly shows as errors
@@ -113,3 +114,7 @@ if ('serviceWorker' in navigator) {
       });
   });
 }
+
+// ── Core Web Vitals Monitoring ──────────────────────────────────────────────
+// Reports LCP, FID, CLS, TTFB, INP metrics. Logs in dev, ready for analytics.
+reportWebVitals(logWebVitals);
