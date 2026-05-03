@@ -9,7 +9,7 @@ import {
   Navigation,
   X,
   Globe,
-  Map,
+  Map as MapIcon,
   AlertTriangle
 } from 'lucide-react';
 import { Input } from './ui/input';
