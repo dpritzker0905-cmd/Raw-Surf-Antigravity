@@ -484,7 +484,7 @@ export const Bookings = () => {
     if (user?.id) {
       fetchData();
     }
-  }, [user?.id, location.key]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [user?.id, location.key]); // eslint-disable-line
 
   // Fetch on-demand photographers when On-Demand tab is selected
   useEffect(() => {
