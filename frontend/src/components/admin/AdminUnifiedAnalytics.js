@@ -296,7 +296,7 @@ export const AdminUnifiedAnalytics = () => {
               <SelectItem value="90d">90 days</SelectItem>
             </SelectContent>
           </Select>
-          <Button size="sm" variant="outline" onClick={fetchDataForTab} className="h-8">
+          <Button size="sm" variant="outline" onClick={fetchDataForTab} className="h-8" aria-label="Refresh">
             <RefreshCw className="w-3.5 h-3.5" />
           </Button>
         </div>
@@ -752,7 +752,7 @@ export const AdminUnifiedAnalytics = () => {
               <div>
                 <div className="flex justify-between items-center mb-3">
                   <h3 className={`font-medium ${textClass}`}>Promo Codes</h3>
-                  <Button size="sm" onClick={() => setShowCreatePromo(true)} className="bg-green-500 hover:bg-green-600">
+                  <Button size="sm" onClick={() => setShowCreatePromo(true)} className="bg-green-500 hover:bg-green-600" aria-label="Add">
                     <Plus className="w-4 h-4 mr-1" /> Create Code
                   </Button>
                 </div>
@@ -774,7 +774,7 @@ export const AdminUnifiedAnalytics = () => {
                               <code className="font-bold text-foreground bg-muted px-2 py-0.5 rounded text-sm">{p.code}</code>
                               <p className="text-xs text-gray-500 mt-0.5">
                                 {p.code_type === 'percentage' ? `${p.discount_value}% off` : `$${p.discount_value} off`}
-                                {p.campaign_name && ` • ${p.campaign_name}`}
+                                {p.campaign_name && ` ï¿½ ${p.campaign_name}`}
                               </p>
                             </div>
                           </div>
@@ -793,7 +793,7 @@ export const AdminUnifiedAnalytics = () => {
               <div>
                 <div className="flex justify-between items-center mb-3">
                   <h3 className={`font-medium ${textClass}`}>Feature Flags</h3>
-                  <Button size="sm" onClick={() => setShowCreateFlag(true)} className="bg-blue-500 hover:bg-blue-600">
+                  <Button size="sm" onClick={() => setShowCreateFlag(true)} className="bg-blue-500 hover:bg-blue-600" aria-label="Add">
                     <Plus className="w-4 h-4 mr-1" /> Create Flag
                   </Button>
                 </div>
@@ -826,7 +826,7 @@ export const AdminUnifiedAnalytics = () => {
               <div>
                 <div className="flex justify-between items-center mb-3">
                   <h3 className={`font-medium ${textClass}`}>Push Campaigns</h3>
-                  <Button size="sm" onClick={() => setShowCreateCampaign(true)} className="bg-purple-500 hover:bg-purple-600">
+                  <Button size="sm" onClick={() => setShowCreateCampaign(true)} className="bg-purple-500 hover:bg-purple-600" aria-label="Add">
                     <Plus className="w-4 h-4 mr-1" /> Create Campaign
                   </Button>
                 </div>

@@ -221,6 +221,32 @@ export const Explore = () => {
     fetchTrending();
   }, []);
 
+  // Static Open Graph meta tags for Explore page social sharing
+  useEffect(() => {
+    const ogTags = [];
+    const setMeta = (property, content) => {
+      if (!content) return;
+      let tag = document.querySelector(`meta[property="${property}"]`);
+      if (!tag) {
+        tag = document.createElement('meta');
+        tag.setAttribute('property', property);
+        document.head.appendChild(tag);
+        ogTags.push(tag);
+      }
+      tag.setAttribute('content', content);
+    };
+    document.title = 'Explore — Raw Surf';
+    setMeta('og:title', 'Explore — Raw Surf');
+    setMeta('og:description', 'Discover surf spots, live photographers, trending posts, and real-time conditions on Raw Surf.');
+    setMeta('og:url', `${window.location.origin}/explore`);
+    setMeta('og:type', 'website');
+    setMeta('og:site_name', 'Raw Surf');
+    return () => {
+      document.title = 'Raw Surf';
+      ogTags.forEach(tag => tag.remove());
+    };
+  }, []);
+
   useEffect(() => {
     if (activeTab === 'sponsors') {
       fetchLeaderboard();

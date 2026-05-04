@@ -1,4 +1,4 @@
-﻿/**
+/**
  * PhotographerAvailabilityCalendar - Visual calendar showing booking slots
  * Features:
  * - Monthly/Weekly view toggle
@@ -338,7 +338,7 @@ export const PhotographerAvailabilityCalendar = ({ photographerId }) => {
     }
     
     // Next month padding
-    const remaining = 42 - days.length; // 6 rows × 7 days
+    const remaining = 42 - days.length; // 6 rows � 7 days
     for (let i = 1; i <= remaining; i++) {
       const nextMonth = month === 11 ? 0 : month + 1;
       const nextYear = month === 11 ? year + 1 : year;
@@ -578,7 +578,7 @@ export const PhotographerAvailabilityCalendar = ({ photographerId }) => {
       
       {/* Month Navigation */}
       <div className="flex items-center justify-between mb-4">
-        <Button variant="ghost" size="sm" onClick={goToPrevMonth}>
+        <Button variant="ghost" size="sm" onClick={goToPrevMonth} aria-label="Previous">
           <ChevronLeft className="w-4 h-4" />
         </Button>
         
@@ -591,7 +591,7 @@ export const PhotographerAvailabilityCalendar = ({ photographerId }) => {
           </Button>
         </div>
         
-        <Button variant="ghost" size="sm" onClick={goToNextMonth}>
+        <Button variant="ghost" size="sm" onClick={goToNextMonth} aria-label="Next">
           <ChevronRight className="w-4 h-4" />
         </Button>
       </div>

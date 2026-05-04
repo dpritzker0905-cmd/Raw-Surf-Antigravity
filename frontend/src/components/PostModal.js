@@ -1192,7 +1192,7 @@ const PostModal = ({ post, isOpen, onClose, _onPostUpdated, posts, onNavigatePos
                 <p className="text-xs text-gray-400 truncate">{post.location}</p>
               )}
             </div>
-            <button className="text-gray-400 hover:text-white p-1" onClick={(e) => { e.stopPropagation(); setPostMenuOpen(true); }}>
+            <button className="text-gray-400 hover:text-white p-1" onClick={(e) => { e.stopPropagation(); setPostMenuOpen(true); }} aria-label="More options">
               <MoreHorizontal className="w-5 h-5" />
             </button>
           </div>

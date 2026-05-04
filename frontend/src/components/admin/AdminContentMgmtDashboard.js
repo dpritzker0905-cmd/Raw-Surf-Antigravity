@@ -271,7 +271,7 @@ export const AdminContentMgmtDashboard = () => {
             <Card className={cardBgClass}>
               <CardHeader className="pb-2 flex flex-row items-center justify-between">
                 <CardTitle className={`text-sm ${textClass}`}>Featured Content</CardTitle>
-                <Button size="sm" onClick={() => setShowFeaturedForm(true)} className="bg-yellow-500 hover:bg-yellow-600">
+                <Button size="sm" onClick={() => setShowFeaturedForm(true)} className="bg-yellow-500 hover:bg-yellow-600" aria-label="Add">
                   <Plus className="w-4 h-4 mr-1" /> Add
                 </Button>
               </CardHeader>
@@ -307,7 +307,7 @@ export const AdminContentMgmtDashboard = () => {
             <Card className={cardBgClass}>
               <CardHeader className="pb-2 flex flex-row items-center justify-between">
                 <CardTitle className={`text-sm ${textClass}`}>Promotional Banners</CardTitle>
-                <Button size="sm" onClick={() => setShowBannerForm(true)} className="bg-purple-500 hover:bg-purple-600">
+                <Button size="sm" onClick={() => setShowBannerForm(true)} className="bg-purple-500 hover:bg-purple-600" aria-label="Add">
                   <Plus className="w-4 h-4 mr-1" /> Add
                 </Button>
               </CardHeader>
@@ -433,7 +433,7 @@ export const AdminContentMgmtDashboard = () => {
             <Card className={cardBgClass}>
               <CardHeader className="pb-2 flex flex-row items-center justify-between">
                 <CardTitle className={`text-sm ${textClass}`}>API Keys</CardTitle>
-                <Button size="sm" onClick={() => setShowApiKeyForm(true)} className="bg-green-500 hover:bg-green-600">
+                <Button size="sm" onClick={() => setShowApiKeyForm(true)} className="bg-green-500 hover:bg-green-600" aria-label="Add">
                   <Plus className="w-4 h-4 mr-1" /> Generate
                 </Button>
               </CardHeader>
@@ -471,7 +471,7 @@ export const AdminContentMgmtDashboard = () => {
             <Card className={cardBgClass}>
               <CardHeader className="pb-2 flex flex-row items-center justify-between">
                 <CardTitle className={`text-sm ${textClass}`}>Changelog</CardTitle>
-                <Button size="sm" onClick={() => setShowChangelogForm(true)} className="bg-blue-500 hover:bg-blue-600">
+                <Button size="sm" onClick={() => setShowChangelogForm(true)} className="bg-blue-500 hover:bg-blue-600" aria-label="Add">
                   <Plus className="w-4 h-4 mr-1" /> Add Entry
                 </Button>
               </CardHeader>

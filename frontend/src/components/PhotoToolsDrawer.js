@@ -347,7 +347,7 @@ export const PhotoToolsDrawer = ({ isOpen, onClose }) => {
               </p>
             </div>
           </div>
-          <button onClick={onClose} className={`p-2 ${textSecondary} hover:${textPrimary}`}>
+          <button onClick={onClose} className={`p-2 ${textSecondary} hover:${textPrimary}`} aria-label="Close">
             <X className="w-5 h-5" />
           </button>
         </div>

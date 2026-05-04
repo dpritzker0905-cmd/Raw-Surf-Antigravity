@@ -56,7 +56,7 @@ const PhotographerProfile = ({ photographer, onBack, onJumpIn }) => {
     >
       {/* Header - Absolute positioned at top */}
       <div className="absolute top-0 left-0 right-0 z-10 flex items-center gap-3 p-4 border-b border-zinc-800 bg-zinc-900">
-        <button onClick={onBack} className="text-gray-400 hover:text-white p-2 -ml-2">
+        <button onClick={onBack} className="text-gray-400 hover:text-white p-2 -ml-2" aria-label="Go back">
           <ArrowLeft className="w-6 h-6" />
         </button>
         <h3 className="text-white font-bold flex-1">Photographer Profile</h3>

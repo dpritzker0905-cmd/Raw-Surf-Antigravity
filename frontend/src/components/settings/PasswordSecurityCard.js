@@ -81,7 +81,7 @@ export const PasswordSecurityCard = ({ textPrimaryClass, textSecondaryClass, bor
             <label className={`text-xs font-medium ${textSecondaryClass} flex items-center gap-1`}><Shield className="w-3 h-3 text-amber-400" />Current Password (required for verification)</label>
             <div className="relative">
               <Input id="current-password" type={showCurrent ? 'text' : 'password'} value={currentPassword} onChange={(e) => { setCurrentPassword(e.target.value); setError(''); setSuccess(false); }} placeholder="Enter current password" className={`${cardBgClass} ${borderClass} pr-10`} autoComplete="current-password" />
-              <button type="button" onClick={() => setShowCurrent(!showCurrent)} className={`absolute right-3 top-1/2 -translate-y-1/2 ${textSecondaryClass} hover:text-foreground transition-colors`} tabIndex={-1}>
+              <button type="button" onClick={() => setShowCurrent(!showCurrent)} className={`absolute right-3 top-1/2 -translate-y-1/2 ${textSecondaryClass} hover:text-foreground transition-colors`} tabIndex={-1} aria-label="Hide">
                 {showCurrent ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
             </div>
@@ -94,7 +94,7 @@ export const PasswordSecurityCard = ({ textPrimaryClass, textSecondaryClass, bor
             <label className={`text-xs font-medium ${textSecondaryClass}`}>New Password</label>
             <div className="relative">
               <Input id="new-password" type={showNew ? 'text' : 'password'} value={newPassword} onChange={(e) => { setNewPassword(e.target.value); setError(''); setSuccess(false); }} placeholder="Enter new password (min 6 chars)" className={`${cardBgClass} ${borderClass} pr-10`} autoComplete="new-password" />
-              <button type="button" onClick={() => setShowNew(!showNew)} className={`absolute right-3 top-1/2 -translate-y-1/2 ${textSecondaryClass} hover:text-foreground transition-colors`} tabIndex={-1}>
+              <button type="button" onClick={() => setShowNew(!showNew)} className={`absolute right-3 top-1/2 -translate-y-1/2 ${textSecondaryClass} hover:text-foreground transition-colors`} tabIndex={-1} aria-label="Hide">
                 {showNew ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
             </div>
@@ -111,7 +111,7 @@ export const PasswordSecurityCard = ({ textPrimaryClass, textSecondaryClass, bor
             <label className={`text-xs font-medium ${textSecondaryClass}`}>Confirm New Password</label>
             <div className="relative">
               <Input id="confirm-password" type={showConfirm ? 'text' : 'password'} value={confirmPassword} onChange={(e) => { setConfirmPassword(e.target.value); setError(''); }} placeholder="Re-enter new password" className={`${cardBgClass} ${borderClass} pr-10`} autoComplete="new-password" />
-              <button type="button" onClick={() => setShowConfirm(!showConfirm)} className={`absolute right-3 top-1/2 -translate-y-1/2 ${textSecondaryClass} hover:text-foreground transition-colors`} tabIndex={-1}>
+              <button type="button" onClick={() => setShowConfirm(!showConfirm)} className={`absolute right-3 top-1/2 -translate-y-1/2 ${textSecondaryClass} hover:text-foreground transition-colors`} tabIndex={-1} aria-label="Hide">
                 {showConfirm ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
             </div>

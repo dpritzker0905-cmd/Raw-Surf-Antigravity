@@ -1052,7 +1052,7 @@ export const GalleryPage = () => {
               <CardTitle className="text-lg text-foreground flex items-center gap-2">
                 <DollarSign className="w-5 h-5 text-green-400" />
                 Gallery Pricing
-                <button className="md:hidden ml-1 text-muted-foreground">
+                <button className="md:hidden ml-1 text-muted-foreground" aria-label="Collapse">
                   {pricingCollapsed ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
                 </button>
               </CardTitle>
@@ -2235,7 +2235,7 @@ export const GalleryPage = () => {
                   <Droplet className="w-4 h-4 text-cyan-400" />
                   <h4 className="font-medium text-foreground text-sm">Watermark Settings</h4>
                 </div>
-                <Button variant="outline" size="sm" onClick={() => setShowWatermarkSettings(true)} className="border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/10" data-testid="pricing-modal-watermark-btn">
+                <Button variant="outline" size="sm" onClick={() => setShowWatermarkSettings(true)} className="border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/10" data-testid="pricing-modal-watermark-btn" aria-label="Settings">
                   <Settings className="w-3 h-3 mr-1" /> Configure
                 </Button>
               </div>

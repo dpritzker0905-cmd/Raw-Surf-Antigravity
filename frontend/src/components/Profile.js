@@ -187,6 +187,56 @@ export const Profile = () => {
     }
   }, [activeTab, profileUserId, authLoading]);
 
+  // Dynamic Open Graph meta tags for social sharing / link previews
+  useEffect(() => {
+    if (!profile) return;
+    const ogTags = [];
+    const setMeta = (property, content) => {
+      if (!content) return;
+      let tag = document.querySelector(`meta[property="${property}"]`);
+      if (!tag) {
+        tag = document.createElement('meta');
+        tag.setAttribute('property', property);
+        document.head.appendChild(tag);
+        ogTags.push(tag);
+      }
+      tag.setAttribute('content', content);
+    };
+    const setName = (name, content) => {
+      if (!content) return;
+      let tag = document.querySelector(`meta[name="${name}"]`);
+      if (!tag) {
+        tag = document.createElement('meta');
+        tag.setAttribute('name', name);
+        document.head.appendChild(tag);
+        ogTags.push(tag);
+      }
+      tag.setAttribute('content', content);
+    };
+
+    const title = `${profile.full_name || 'User'} — Raw Surf`;
+    const description = profile.bio || `Check out ${profile.full_name || 'this user'}'s profile on Raw Surf`;
+    const image = profile.avatar_url ? getFullUrl(profile.avatar_url) : null;
+    const url = `${window.location.origin}/profile/${profileUserId}`;
+
+    document.title = title;
+    setMeta('og:title', title);
+    setMeta('og:description', description);
+    setMeta('og:image', image);
+    setMeta('og:url', url);
+    setMeta('og:type', 'profile');
+    setMeta('og:site_name', 'Raw Surf');
+    setName('twitter:card', image ? 'summary_large_image' : 'summary');
+    setName('twitter:title', title);
+    setName('twitter:description', description);
+    setName('twitter:image', image);
+
+    return () => {
+      document.title = 'Raw Surf';
+      ogTags.forEach(tag => tag.remove());
+    };
+  }, [profile, profileUserId]);
+
   const fetchProfile = async () => {
     if (!profileUserId) {
       setLoading(false);

@@ -107,7 +107,7 @@ const PhotographerSubscriptionSettings = () => {
     <div className="p-4 max-w-3xl mx-auto pb-32">
       {/* Header */}
       <div className="flex items-center gap-3 mb-6">
-        <button onClick={() => navigate(-1)} className="w-9 h-9 rounded-full bg-zinc-800 flex items-center justify-center text-gray-400 hover:text-white">
+        <button onClick={() => navigate(-1)} className="w-9 h-9 rounded-full bg-zinc-800 flex items-center justify-center text-gray-400 hover:text-white" aria-label="Go back">
           <ArrowLeft className="w-4 h-4" />
         </button>
         <div className="flex-1">
@@ -160,7 +160,7 @@ const PhotographerSubscriptionSettings = () => {
                     </p>
                   </div>
                   <div className="flex items-center gap-1">
-                    <button onClick={() => togglePlanActive(plan)} className="p-2 rounded-lg hover:bg-zinc-700 text-gray-400 hover:text-white transition-colors" title={plan.is_active ? 'Deactivate' : 'Activate'}>
+                    <button onClick={() => togglePlanActive(plan)} className="p-2 rounded-lg hover:bg-zinc-700 text-gray-400 hover:text-white transition-colors" title={plan.is_active ? 'Deactivate' : 'Activate'} aria-label="View">
                       {plan.is_active ? <Eye className="w-4 h-4 text-emerald-400" /> : <EyeOff className="w-4 h-4" />}
                     </button>
                     <button onClick={() => deletePlan(plan.id)} className="p-2 rounded-lg hover:bg-red-500/20 text-gray-400 hover:text-red-400 transition-colors" title="Deactivate">

@@ -339,7 +339,7 @@ export const AdminModerationDashboard = () => {
                     <SelectItem value="fraud">Fraud</SelectItem>
                   </SelectContent>
                 </Select>
-                <Button variant="outline" size="sm" onClick={fetchDisputes}>
+                <Button variant="outline" size="sm" onClick={fetchDisputes} aria-label="Refresh">
                   <RefreshCw className="w-4 h-4" />
                 </Button>
               </div>
@@ -622,7 +622,7 @@ export const AdminModerationDashboard = () => {
                     <SelectItem value="admin">Admin</SelectItem>
                   </SelectContent>
                 </Select>
-                <Button variant="outline" size="sm" onClick={fetchAuditLogs}>
+                <Button variant="outline" size="sm" onClick={fetchAuditLogs} aria-label="Refresh">
                   <RefreshCw className="w-4 h-4" />
                 </Button>
               </div>

@@ -782,11 +782,11 @@ export const EarningsDashboard = () => {
                     <Plane className={`w-5 h-5 mx-auto mb-1 ${textSecondaryClass}`} />
                     <p className={`text-xs ${textSecondaryClass}`}>Travel</p>
                   </button>
-                  <button className={`p-3 rounded-xl ${isLight ? 'bg-gray-100 hover:bg-gray-200' : 'bg-zinc-800 hover:bg-zinc-700'} transition-colors`}>
+                  <button className={`p-3 rounded-xl ${isLight ? 'bg-gray-100 hover:bg-gray-200' : 'bg-zinc-800 hover:bg-zinc-700'} transition-colors`} aria-label="Camera">
                     <Camera className={`w-5 h-5 mx-auto mb-1 ${textSecondaryClass}`} />
                     <p className={`text-xs ${textSecondaryClass}`}>Sessions</p>
                   </button>
-                  <button className={`p-3 rounded-xl ${isLight ? 'bg-gray-100 hover:bg-gray-200' : 'bg-zinc-800 hover:bg-zinc-700'} transition-colors`}>
+                  <button className={`p-3 rounded-xl ${isLight ? 'bg-gray-100 hover:bg-gray-200' : 'bg-zinc-800 hover:bg-zinc-700'} transition-colors`} aria-label="Like">
                     <Heart className={`w-5 h-5 mx-auto mb-1 ${textSecondaryClass}`} />
                     <p className={`text-xs ${textSecondaryClass}`}>Sponsor Grom</p>
                   </button>

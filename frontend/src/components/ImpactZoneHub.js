@@ -200,7 +200,7 @@ export const ImpactZoneHub = () => {
               <Calendar className="w-5 h-5 text-yellow-500" />
               Upcoming Contests
             </CardTitle>
-            <Button variant="ghost" size="sm" className="text-orange-400" onClick={() => navigate('/contest-calendar')}>
+            <Button variant="ghost" size="sm" className="text-orange-400" onClick={() => navigate('/contest-calendar')} aria-label="Next">
               View All <ChevronRight className="w-4 h-4 ml-1" />
             </Button>
           </div>

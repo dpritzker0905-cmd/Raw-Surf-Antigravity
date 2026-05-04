@@ -1349,7 +1349,7 @@ export const PhotographerGalleryManager = () => {
                   {/* Item actions dropdown */}
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button size="sm" variant="ghost" className="h-6 px-2">
+                      <Button size="sm" variant="ghost" className="h-6 px-2" aria-label="More options">
                         <MoreVertical className="w-3 h-3" />
                       </Button>
                     </DropdownMenuTrigger>

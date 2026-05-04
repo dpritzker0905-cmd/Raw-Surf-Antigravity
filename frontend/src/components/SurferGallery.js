@@ -160,7 +160,7 @@ const GalleryItemCard = ({
           </Button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button size="sm" variant="ghost" className="text-muted-foreground">
+              <Button size="sm" variant="ghost" className="text-muted-foreground" aria-label="More options">
                 <MoreHorizontal className="w-4 h-4" />
               </Button>
             </DropdownMenuTrigger>
@@ -488,7 +488,7 @@ const ShareModal = ({ item, isOpen, onClose }) => {
               readOnly 
               className="bg-muted border-zinc-700 text-sm"
             />
-            <Button onClick={handleCopy} className="bg-cyan-500 hover:bg-cyan-600">
+            <Button onClick={handleCopy} className="bg-cyan-500 hover:bg-cyan-600" aria-label="Confirm">
               {copied ? <Check className="w-4 h-4" /> : 'Copy'}
             </Button>
           </div>

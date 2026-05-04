@@ -807,7 +807,7 @@ export default function CrewChat() {
             )}
           </div>
           
-          <Button variant="ghost" size="icon" className="text-zinc-400">
+          <Button variant="ghost" size="icon" className="text-zinc-400" aria-label="More options">
             <MoreVertical className="h-5 w-5" />
           </Button>
         </div>
@@ -1074,7 +1074,7 @@ export default function CrewChat() {
         <div className="bg-zinc-900 border-t border-zinc-800 p-3">
           <div className="flex items-center justify-between mb-2">
             <span className="text-xs text-zinc-500 font-medium">Quick Actions</span>
-            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setShowQuickActions(false)}>
+            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setShowQuickActions(false)} aria-label="Close">
               <X className="h-4 w-4 text-zinc-500" />
             </Button>
           </div>
@@ -1130,7 +1130,7 @@ export default function CrewChat() {
                 )}
               </button>
             </div>
-            <Button variant="ghost" size="icon" className="h-6 w-6 flex-shrink-0" onClick={() => setShowEmojiPicker(false)}>
+            <Button variant="ghost" size="icon" className="h-6 w-6 flex-shrink-0" onClick={() => setShowEmojiPicker(false)} aria-label="Close">
               <X className="h-4 w-4 text-zinc-500" />
             </Button>
           </div>
@@ -1159,7 +1159,7 @@ export default function CrewChat() {
               <span className="text-red-500/50 text-xs">/ {formatDuration(MAX_VOICE_DURATION)}</span>
             </div>
             <div className="flex gap-2">
-              <Button variant="ghost" size="sm" onClick={cancelRecording} className="text-zinc-400">
+              <Button variant="ghost" size="sm" onClick={cancelRecording} className="text-zinc-400" aria-label="Close">
                 <X className="h-4 w-4 mr-1" /> Cancel
               </Button>
               <Button size="sm" onClick={stopRecording} className="bg-red-600 hover:bg-red-500">
@@ -1180,7 +1180,7 @@ export default function CrewChat() {
       {showImagePreview && selectedImage && (
         <div className="fixed inset-0 bg-black/90 z-50 flex flex-col">
           <div className="flex items-center justify-between p-4">
-            <Button variant="ghost" onClick={() => { setShowImagePreview(false); setSelectedImage(null); }}>
+            <Button variant="ghost" onClick={() => { setShowImagePreview(false); setSelectedImage(null); }} aria-label="Close">
               <X className="h-5 w-5 text-white" />
             </Button>
             <span className="text-white font-medium">Send Photo</span>
@@ -1245,7 +1245,7 @@ export default function CrewChat() {
                   <p className="text-xs text-zinc-400 truncate">{replyingTo.content}</p>
                 </div>
               </div>
-              <Button variant="ghost" size="icon" className="h-6 w-6 flex-shrink-0" onClick={cancelReply}>
+              <Button variant="ghost" size="icon" className="h-6 w-6 flex-shrink-0" onClick={cancelReply} aria-label="Close">
                 <X className="h-4 w-4 text-zinc-500" />
               </Button>
             </div>

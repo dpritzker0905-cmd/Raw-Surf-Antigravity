@@ -971,7 +971,7 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
           <div className="p-4 sm:p-6 space-y-5">
             {/* Header */}
             <div className="flex items-center gap-3 mb-2">
-              <button onClick={() => setStep('timing')} className={`p-2 rounded-lg ${isLight ? 'hover:bg-gray-100' : 'hover:bg-muted'}`}>
+              <button onClick={() => setStep('timing')} className={`p-2 rounded-lg ${isLight ? 'hover:bg-gray-100' : 'hover:bg-muted'}`} aria-label="Next">
                 <ChevronRight className={`w-5 h-5 ${textSecondary} rotate-180`} />
               </button>
               <div>
@@ -1251,7 +1251,7 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
           <div className="p-4 sm:p-6 space-y-5">
             {/* Header with back button */}
             <div className="flex items-center gap-3 mb-2">
-              <button onClick={() => setStep('location')} className={`p-2 rounded-lg ${isLight ? 'hover:bg-gray-100' : 'hover:bg-muted'}`}>
+              <button onClick={() => setStep('location')} className={`p-2 rounded-lg ${isLight ? 'hover:bg-gray-100' : 'hover:bg-muted'}`} aria-label="Next">
                 <ChevronRight className={`w-5 h-5 ${textSecondary} rotate-180`} />
               </button>
               <div>
@@ -1357,7 +1357,7 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
           <div className="p-4 sm:p-6 space-y-5">
             {/* Header */}
             <div className="flex items-center gap-3">
-              <button onClick={() => setStep('duration')} className={`p-2 rounded-lg ${isLight ? 'hover:bg-gray-100' : 'hover:bg-muted'}`}>
+              <button onClick={() => setStep('duration')} className={`p-2 rounded-lg ${isLight ? 'hover:bg-gray-100' : 'hover:bg-muted'}`} aria-label="Next">
                 <ChevronRight className={`w-5 h-5 ${textSecondary} rotate-180`} />
               </button>
               <div>
@@ -1439,7 +1439,7 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
         {step === 'crew' && (
           <div className="p-4 sm:p-6 space-y-5">
             <div className="flex items-center gap-3 mb-2">
-              <button onClick={() => setStep('split_choice')} className={`p-2 rounded-lg ${isLight ? 'hover:bg-gray-100' : 'hover:bg-muted'}`}>
+              <button onClick={() => setStep('split_choice')} className={`p-2 rounded-lg ${isLight ? 'hover:bg-gray-100' : 'hover:bg-muted'}`} aria-label="Next">
                 <ChevronRight className={`w-5 h-5 ${textSecondary} rotate-180`} />
               </button>
               <h2 className={`text-xl font-bold ${textPrimary}`}>Your Crew</h2>
@@ -1678,7 +1678,7 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
         {step === 'crew_payment' && crewMembers.length > 0 && (
           <div className="p-4 sm:p-6 space-y-4">
             <div className="flex items-center gap-3 mb-2">
-              <button onClick={() => setStep('crew')} className={`p-2 rounded-lg ${isLight ? 'hover:bg-gray-100' : 'hover:bg-muted'}`}>
+              <button onClick={() => setStep('crew')} className={`p-2 rounded-lg ${isLight ? 'hover:bg-gray-100' : 'hover:bg-muted'}`} aria-label="Next">
                 <ChevronRight className={`w-5 h-5 ${textSecondary} rotate-180`} />
               </button>
               <div>
@@ -1902,7 +1902,7 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
         {step === 'confirm' && (
           <div className="p-4 sm:p-6 space-y-5">
             <div className="flex items-center gap-3 mb-2">
-              <button onClick={() => setStep(crewMembers.length > 0 ? 'crew_payment' : splitEnabled ? 'crew' : 'split_choice')} className={`p-2 rounded-lg ${isLight ? 'hover:bg-gray-100' : 'hover:bg-muted'}`}>
+              <button onClick={() => setStep(crewMembers.length > 0 ? 'crew_payment' : splitEnabled ? 'crew' : 'split_choice')} className={`p-2 rounded-lg ${isLight ? 'hover:bg-gray-100' : 'hover:bg-muted'}`} aria-label="Next">
                 <ChevronRight className={`w-5 h-5 ${textSecondary} rotate-180`} />
               </button>
               <h2 className={`text-xl font-bold ${textPrimary}`}>Confirm Request</h2>

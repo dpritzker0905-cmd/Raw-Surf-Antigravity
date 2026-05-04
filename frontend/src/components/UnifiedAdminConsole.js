@@ -1474,7 +1474,7 @@ const UsersTabContent = ({
           className="bg-muted border-border text-foreground"
           onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
         />
-        <Button onClick={handleSearch} className="bg-red-500 hover:bg-red-600">
+        <Button onClick={handleSearch} className="bg-red-500 hover:bg-red-600" aria-label="Search">
           <Search className="w-4 h-4" />
         </Button>
       </div>

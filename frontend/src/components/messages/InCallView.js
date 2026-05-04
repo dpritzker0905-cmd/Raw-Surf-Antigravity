@@ -89,7 +89,7 @@ const FilterPicker = ({ isOpen, onClose, activeFilter, onSelectFilter }) => {
           <Sparkles className="w-4 h-4 text-cyan-400" />
           <span className="text-sm font-medium text-white">Surf Filters</span>
         </div>
-        <button onClick={onClose} className="p-1.5 rounded-full bg-white/10 hover:bg-white/20 transition-colors">
+        <button onClick={onClose} className="p-1.5 rounded-full bg-white/10 hover:bg-white/20 transition-colors" aria-label="Close">
           <X className="w-4 h-4 text-white/70" />
         </button>
       </div>

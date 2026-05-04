@@ -137,7 +137,7 @@ const ComposeModal = ({ isOpen, onClose, onSelectUser, currentUserId }) => {
         <div className="flex items-center justify-between px-4 py-4 border-b border-border">
           <div className="w-6" />
           <h2 className="text-lg font-semibold text-foreground">New message</h2>
-          <button onClick={onClose} className="text-muted-foreground hover:text-foreground">
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground" aria-label="Close">
             <X className="w-6 h-6" />
           </button>
         </div>

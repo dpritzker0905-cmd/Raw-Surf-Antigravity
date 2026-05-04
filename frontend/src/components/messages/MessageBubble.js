@@ -193,7 +193,7 @@ const MessageBubble = ({ message, onReact, _onReply, onNavigateProfile }) => {
                 {emoji}
               </button>
             ))}
-            <button onClick={() => setShowReactions(false)} className="text-muted-foreground hover:text-foreground ml-1">
+            <button onClick={() => setShowReactions(false)} className="text-muted-foreground hover:text-foreground ml-1" aria-label="Close">
               <X className="w-4 h-4" />
             </button>
           </div>

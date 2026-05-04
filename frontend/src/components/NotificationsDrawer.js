@@ -342,7 +342,7 @@ export const NotificationsDrawer = ({ isOpen, onClose, onCountUpdate }) => {
                   <CheckCheck className="w-4 h-4" />
                 </Button>
               )}
-              <button onClick={onClose} className={`${colors.closeBtn} p-2 rounded-full transition-colors`}>
+              <button onClick={onClose} className={`${colors.closeBtn} p-2 rounded-full transition-colors`} aria-label="Close">
                 <X className="w-5 h-5" />
               </button>
             </div>

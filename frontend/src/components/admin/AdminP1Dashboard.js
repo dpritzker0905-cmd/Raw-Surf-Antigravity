@@ -553,7 +553,7 @@ export const AdminP1Dashboard = () => {
                     <SelectItem value="approved_pro_photographer">Approved Pro Photographer</SelectItem>
                   </SelectContent>
                 </Select>
-                <Button variant="outline" size="sm" onClick={fetchVerificationQueue}>
+                <Button variant="outline" size="sm" onClick={fetchVerificationQueue} aria-label="Refresh">
                   <RefreshCw className="w-4 h-4" />
                 </Button>
               </div>
@@ -702,7 +702,7 @@ export const AdminP1Dashboard = () => {
                               <p className="text-muted-foreground text-xs">{u.email}</p>
                             </div>
                           </div>
-                          <Button size="sm" className="bg-purple-500 hover:bg-purple-600">
+                          <Button size="sm" className="bg-purple-500 hover:bg-purple-600" aria-label="View">
                             <Eye className="w-3 h-3 mr-1" /> View As
                           </Button>
                         </div>

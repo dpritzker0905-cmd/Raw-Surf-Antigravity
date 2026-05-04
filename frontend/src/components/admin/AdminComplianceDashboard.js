@@ -320,7 +320,7 @@ export const AdminComplianceDashboard = ({ cardBgClass, textClass, textSecondary
         <CardContent className="py-8 text-center">
           <Shield className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
           <p className={textSec}>Unable to load compliance dashboard</p>
-          <Button variant="outline" size="sm" className="mt-3" onClick={fetchDashboard}>
+          <Button variant="outline" size="sm" className="mt-3" onClick={fetchDashboard} aria-label="Refresh">
             <RefreshCw className="w-4 h-4 mr-2" /> Retry
           </Button>
         </CardContent>
@@ -338,7 +338,7 @@ export const AdminComplianceDashboard = ({ cardBgClass, textClass, textSecondary
           <Scale className="w-5 h-5 text-cyan-400" />
           <h2 className={`text-lg font-bold ${text}`}>Compliance & Safety</h2>
         </div>
-        <Button variant="ghost" size="sm" onClick={fetchDashboard} className={textSec}>
+        <Button variant="ghost" size="sm" onClick={fetchDashboard} className={textSec} aria-label="Refresh">
           <RefreshCw className="w-4 h-4 mr-1" /> Refresh
         </Button>
       </div>
@@ -683,10 +683,10 @@ export const AdminComplianceDashboard = ({ cardBgClass, textClass, textSecondary
                   </Button>
 
                   <div className="flex items-center gap-1 border-l border-zinc-700 pl-2 ml-1">
-                    <Button variant="outline" size="sm" onClick={exportAsJson} className="flex items-center gap-1" title="Export as JSON">
+                    <Button variant="outline" size="sm" onClick={exportAsJson} className="flex items-center gap-1" title="Export as JSON" aria-label="Download">
                       <Download className="w-3.5 h-3.5" /> JSON
                     </Button>
-                    <Button variant="outline" size="sm" onClick={exportAsCsv} className="flex items-center gap-1" title="Export as CSV (spreadsheet)">
+                    <Button variant="outline" size="sm" onClick={exportAsCsv} className="flex items-center gap-1" title="Export as CSV (spreadsheet)" aria-label="Download">
                       <Download className="w-3.5 h-3.5" /> CSV
                     </Button>
                     <label className="cursor-pointer">

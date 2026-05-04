@@ -317,7 +317,7 @@ const SurfLog = () => {
       <div className={`sticky top-0 z-40 backdrop-blur-xl border-b ${isLight ? 'bg-white/90 border-gray-200' : 'bg-zinc-900/95 border-zinc-800'}`}>
         <div className="flex items-center justify-between px-4 py-3">
           <div className="flex items-center gap-3">
-            <button onClick={() => navigate(-1)} className={`p-1.5 rounded-full ${isLight ? 'hover:bg-gray-100' : 'hover:bg-zinc-800'} transition-colors md:hidden`}>
+            <button onClick={() => navigate(-1)} className={`p-1.5 rounded-full ${isLight ? 'hover:bg-gray-100' : 'hover:bg-zinc-800'} transition-colors md:hidden`} aria-label="Previous">
               <ChevronLeft className="w-5 h-5" />
             </button>
             <div className="flex items-center gap-2">
@@ -330,7 +330,7 @@ const SurfLog = () => {
               </div>
             </div>
           </div>
-          <Button size="sm" onClick={handleCreate} className="bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white shadow-lg shadow-cyan-500/20 transition-all hover:shadow-cyan-500/40">
+          <Button size="sm" onClick={handleCreate} className="bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white shadow-lg shadow-cyan-500/20 transition-all hover:shadow-cyan-500/40" aria-label="Add">
             <Plus className="w-4 h-4 mr-1" /> Log Session
           </Button>
         </div>
@@ -354,7 +354,7 @@ const SurfLog = () => {
               </div>
               <h3 className={`font-bold text-xl mb-2 ${isLight ? 'text-gray-900' : 'text-white'}`}>No sessions yet</h3>
               <p className={`text-sm mb-6 max-w-xs ${isLight ? 'text-gray-500' : 'text-gray-400'}`}>Start logging your surf sessions to track your progress, conditions, and stoke level.</p>
-              <Button onClick={handleCreate} className="bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white px-6 py-3 shadow-lg shadow-cyan-500/20">
+              <Button onClick={handleCreate} className="bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white px-6 py-3 shadow-lg shadow-cyan-500/20" aria-label="Add">
                 <Plus className="w-4 h-4 mr-1" /> Log Your First Session
               </Button>
             </div>

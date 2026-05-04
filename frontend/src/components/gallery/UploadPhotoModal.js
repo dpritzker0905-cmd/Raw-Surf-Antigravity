@@ -533,7 +533,7 @@ export const UploadPhotoModal = ({
                     {/* Action */}
                     <div className="shrink-0">
                       {f.status === STATUS.QUEUED && !uploading && (
-                        <button onClick={() => removeFile(f.id)} className="p-1 hover:bg-muted rounded-md transition-colors">
+                        <button onClick={() => removeFile(f.id)} className="p-1 hover:bg-muted rounded-md transition-colors" aria-label="Close">
                           <X className="w-4 h-4 text-muted-foreground" />
                         </button>
                       )}
@@ -544,7 +544,7 @@ export const UploadPhotoModal = ({
                         <CheckCircle2 className="w-4 h-4 text-green-400" />
                       )}
                       {f.status === STATUS.ERROR && (
-                        <button onClick={() => retryFile(f.id)} className="p-1 hover:bg-muted rounded-md transition-colors" title="Retry">
+                        <button onClick={() => retryFile(f.id)} className="p-1 hover:bg-muted rounded-md transition-colors" title="Retry" aria-label="Reset">
                           <RotateCcw className="w-4 h-4 text-red-400" />
                         </button>
                       )}

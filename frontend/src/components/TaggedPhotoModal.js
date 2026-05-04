@@ -260,7 +260,7 @@ export const TaggedPhotoModal = ({
                 <Gift className="w-3 h-3 mr-1" /> Gift
               </Badge>
             )}
-            <Button variant="ghost" size="icon" onClick={onClose}>
+            <Button variant="ghost" size="icon" onClick={onClose} aria-label="Close">
               <X className="w-5 h-5" />
             </Button>
           </div>

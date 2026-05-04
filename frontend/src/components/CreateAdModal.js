@@ -441,7 +441,7 @@ export const CreateAdModal = ({ isOpen, onClose, onSuccess }) => {
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Button size="sm" className="bg-purple-600 hover:bg-purple-700">
+                    <Button size="sm" className="bg-purple-600 hover:bg-purple-700" aria-label="Open link">
                       {cta || 'Learn More'}
                       <ExternalLink className="w-3 h-3 ml-1" />
                     </Button>

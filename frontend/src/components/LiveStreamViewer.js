@@ -167,7 +167,7 @@ const StreamUnavailable = ({ onBack, broadcasterName, onRetry }) => (
         <Button onClick={onRetry} variant="outline" className="border-zinc-700 text-white hover:bg-zinc-800 gap-2">
           <Radio className="w-4 h-4" /> Try Again
         </Button>
-        <Button onClick={onBack} className="bg-white text-black hover:bg-gray-200 gap-2">
+        <Button onClick={onBack} className="bg-white text-black hover:bg-gray-200 gap-2" aria-label="Go back">
           <ArrowLeft className="w-4 h-4" /> Back to Feed
         </Button>
       </div>
@@ -255,7 +255,7 @@ const ViewerRoomContent = ({
           {/* Bottom controls — above mobile chat */}
           <div className="absolute bottom-4 sm:bottom-4 left-0 right-0 px-6 flex items-center justify-between pointer-events-none z-10">
             <div className="flex items-center gap-4 pointer-events-auto">
-              <button className="p-3 bg-black/40 hover:bg-red-500/20 text-white hover:text-red-400 rounded-full transition-all group backdrop-blur-md">
+              <button className="p-3 bg-black/40 hover:bg-red-500/20 text-white hover:text-red-400 rounded-full transition-all group backdrop-blur-md" aria-label="Like">
                 <Heart className="w-6 h-6 group-active:scale-125 transition-transform" />
               </button>
               <button className="p-3 bg-black/40 hover:bg-blue-500/20 text-white hover:text-blue-400 rounded-full transition-all group backdrop-blur-md">

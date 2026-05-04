@@ -440,6 +440,26 @@ const SinglePost = () => {
 
   return (
     <div className={`min-h-screen ${bgClass}`}>
+      {/* JSON-LD Structured Data for SEO */}
+      {post && (
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({
+          '@context': 'https://schema.org',
+          '@type': 'Article',
+          headline: post.content ? post.content.substring(0, 110) : 'Post on Raw Surf',
+          image: post.media_url ? getFullUrl(post.media_url) : undefined,
+          datePublished: post.created_at,
+          author: {
+            '@type': 'Person',
+            name: post.author_full_name || post.author_username || 'Raw Surf User',
+          },
+          publisher: {
+            '@type': 'Organization',
+            name: 'Raw Surf',
+            url: window.location.origin,
+          },
+          mainEntityOfPage: `${window.location.origin}/post/${post.id}`,
+        }) }} />
+      )}
       {/* Header — sticky on mobile for easy back navigation, static on desktop (Instagram pattern) */}
       <div className={`sticky md:relative top-0 z-20 ${isLight ? 'bg-white/95 backdrop-blur-sm' : 'bg-zinc-900/95 backdrop-blur-sm'} border-b ${borderClass}`}>
         <div className="max-w-2xl mx-auto flex items-center gap-3 px-4 py-3">

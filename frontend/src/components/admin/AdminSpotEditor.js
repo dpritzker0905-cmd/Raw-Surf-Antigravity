@@ -543,7 +543,7 @@ export const AdminSpotEditor = () => {
         </div>
 
         {/* Refresh */}
-        <Button variant="outline" onClick={fetchSpots} className="border-input">
+        <Button variant="outline" onClick={fetchSpots} className="border-input" aria-label="Refresh">
           <RefreshCw className="w-4 h-4" />
         </Button>
 

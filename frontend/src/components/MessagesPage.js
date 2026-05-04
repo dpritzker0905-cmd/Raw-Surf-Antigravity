@@ -1577,7 +1577,7 @@ export const MessagesPage = () => {
         <div className="px-4 py-2 bg-muted border-t border-border flex items-center gap-2">
           <Reply className="w-4 h-4 text-cyan-400" />
           <span className="flex-1 text-sm text-muted-foreground truncate">Replying to: {replyingTo.content}</span>
-          <button onClick={() => setReplyingTo(null)} className="text-muted-foreground hover:text-foreground">
+          <button onClick={() => setReplyingTo(null)} className="text-muted-foreground hover:text-foreground" aria-label="Close">
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -1668,7 +1668,7 @@ export const MessagesPage = () => {
                   <button type="button" onClick={() => setShowVideoCapture(true)} className="p-2 text-muted-foreground hover:text-cyan-400 transition-colors">
                     <Video className="w-5 h-5" />
                   </button>
-                  <button type="button" onClick={() => setShowVoiceRecorder(true)} className="p-2 text-muted-foreground hover:text-cyan-400 transition-colors">
+                  <button type="button" onClick={() => setShowVoiceRecorder(true)} className="p-2 text-muted-foreground hover:text-cyan-400 transition-colors" aria-label="Microphone">
                     <Mic className="w-5 h-5" />
                   </button>
                 </div>

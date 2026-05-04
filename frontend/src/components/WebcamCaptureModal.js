@@ -436,7 +436,7 @@ export default function WebcamCaptureModal({ isOpen, onClose, onCapture, maxLeng
       <div className="relative w-full h-full sm:w-[1100px] sm:h-[720px] sm:max-h-[90vh] sm:rounded-2xl sm:overflow-hidden bg-black shadow-2xl flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between p-4 bg-gradient-to-b from-black/80 to-transparent absolute top-0 left-0 right-0 z-20 pointer-events-none">
-          <button onClick={onClose} className="p-2 bg-black/50 rounded-full text-white hover:bg-zinc-800 transition-colors pointer-events-auto">
+          <button onClick={onClose} className="p-2 bg-black/50 rounded-full text-white hover:bg-zinc-800 transition-colors pointer-events-auto" aria-label="Close">
             <X className="w-6 h-6" />
           </button>
           
@@ -537,7 +537,7 @@ export default function WebcamCaptureModal({ isOpen, onClose, onCapture, maxLeng
                   <input type="range" min={slider.min} max={slider.max} value={videoFilters[slider.key]} onChange={(e) => handleFilterChange(slider.key, parseInt(e.target.value))} className="w-full h-1.5 rounded-full appearance-none accent-cyan-500 cursor-pointer" />
                 </div>
               ))}
-              <Button onClick={() => setVideoFilters({ brightness: 100, contrast: 100, saturation: 100, warmth: 100, vignette: 0, presetName: 'None' })} size="sm" variant="outline" className="w-full bg-zinc-800 text-white border-zinc-700 mt-2 hover:bg-zinc-700 hover:text-white">
+              <Button onClick={() => setVideoFilters({ brightness: 100, contrast: 100, saturation: 100, warmth: 100, vignette: 0, presetName: 'None' })} size="sm" variant="outline" className="w-full bg-zinc-800 text-white border-zinc-700 mt-2 hover:bg-zinc-700 hover:text-white" aria-label="Reset">
                 <RotateCcw className="w-3 h-3 mr-2" /> Reset
               </Button>
             </motion.div>

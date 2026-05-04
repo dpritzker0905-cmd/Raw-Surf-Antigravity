@@ -221,7 +221,7 @@ export const AdminContentModDashboard = () => {
               <SelectItem value="condition_report">Condition Reports</SelectItem>
             </SelectContent>
           </Select>
-          <Button size="sm" variant="outline" onClick={() => { fetchQueue(); fetchStats(); }}>
+          <Button size="sm" variant="outline" onClick={() => { fetchQueue(); fetchStats(); }} aria-label="Refresh">
             <RefreshCw className="w-4 h-4" />
           </Button>
           <Button 
@@ -240,7 +240,7 @@ export const AdminContentModDashboard = () => {
         {selectedItems.size > 0 && (
           <div className="flex gap-2 items-center">
             <Badge className="bg-cyan-500/20 text-cyan-400">{selectedItems.size} selected</Badge>
-            <Button size="sm" onClick={() => handleBulkModerate('approve')} disabled={actionLoading} className="bg-green-500 hover:bg-green-600">
+            <Button size="sm" onClick={() => handleBulkModerate('approve')} disabled={actionLoading} className="bg-green-500 hover:bg-green-600" aria-label="Confirm">
               <Check className="w-4 h-4 mr-1" /> Approve All
             </Button>
             <Button size="sm" onClick={() => handleBulkModerate('reject')} disabled={actionLoading} className="bg-red-500 hover:bg-red-600">
@@ -300,15 +300,15 @@ export const AdminContentModDashboard = () => {
                       </p>
                     </div>
                     <div className="flex gap-1">
-                      <Button size="sm" variant="ghost" onClick={() => setSelectedItem(item)}>
+                      <Button size="sm" variant="ghost" onClick={() => setSelectedItem(item)} aria-label="View">
                         <Eye className="w-4 h-4" />
                       </Button>
                       {status === 'pending' && (
                         <>
-                          <Button size="sm" variant="ghost" onClick={() => handleModerate(item.id, 'approve')} className="text-green-400 hover:bg-green-500/20">
+                          <Button size="sm" variant="ghost" onClick={() => handleModerate(item.id, 'approve')} className="text-green-400 hover:bg-green-500/20" aria-label="Confirm">
                             <Check className="w-4 h-4" />
                           </Button>
-                          <Button size="sm" variant="ghost" onClick={() => handleModerate(item.id, 'reject')} className="text-red-400 hover:bg-red-500/20">
+                          <Button size="sm" variant="ghost" onClick={() => handleModerate(item.id, 'reject')} className="text-red-400 hover:bg-red-500/20" aria-label="Close">
                             <X className="w-4 h-4" />
                           </Button>
                         </>

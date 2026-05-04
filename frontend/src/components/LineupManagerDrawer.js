@@ -1094,7 +1094,7 @@ export const LineupManagerDrawer = ({
                     <span className={`font-mono text-2xl font-bold tracking-widest ${textPrimary}`}>
                       {lineup.invite_code}
                     </span>
-                    <Button variant="ghost" size="sm" onClick={copyInviteCode} className="text-cyan-400">
+                    <Button variant="ghost" size="sm" onClick={copyInviteCode} className="text-cyan-400" aria-label="Copy">
                       <Copy className="w-5 h-5" />
                     </Button>
                   </div>

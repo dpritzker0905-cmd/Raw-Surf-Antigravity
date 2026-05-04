@@ -160,7 +160,7 @@ export const AdminSystemDashboard = () => {
                       {healthData.unacknowledged_alerts} Alerts
                     </Badge>
                   )}
-                  <Button size="sm" variant="outline" onClick={fetchAllData}>
+                  <Button size="sm" variant="outline" onClick={fetchAllData} aria-label="Refresh">
                     <RefreshCw className="w-4 h-4" />
                   </Button>
                 </div>
@@ -347,12 +347,12 @@ export const AdminSystemDashboard = () => {
                     </div>
                     <div className="flex gap-1">
                       {!alert.is_acknowledged && (
-                        <Button size="sm" variant="outline" onClick={() => handleAcknowledgeAlert(alert.id)}>
+                        <Button size="sm" variant="outline" onClick={() => handleAcknowledgeAlert(alert.id)} aria-label="Confirm">
                           <Check className="w-3 h-3" />
                         </Button>
                       )}
                       {!alert.is_resolved && (
-                        <Button size="sm" variant="outline" onClick={() => handleResolveAlert(alert.id)}>
+                        <Button size="sm" variant="outline" onClick={() => handleResolveAlert(alert.id)} aria-label="Close">
                           <X className="w-3 h-3" />
                         </Button>
                       )}

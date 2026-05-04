@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import apiClient, { BACKEND_URL } from '../../lib/apiClient';
@@ -228,7 +228,7 @@ export const AdminSupportDashboard = () => {
             <SelectItem value="low">Low</SelectItem>
           </SelectContent>
         </Select>
-        <Button size="sm" variant="outline" onClick={fetchTickets}>
+        <Button size="sm" variant="outline" onClick={fetchTickets} aria-label="Refresh">
           <RefreshCw className="w-4 h-4" />
         </Button>
       </div>
@@ -273,7 +273,7 @@ export const AdminSupportDashboard = () => {
                           )}
                         </div>
                         <p className={`text-sm font-medium ${textClass} truncate`}>{ticket.subject}</p>
-                        <p className="text-xs text-gray-500 truncate">{ticket.user_name} • {ticket.user_email}</p>
+                        <p className="text-xs text-gray-500 truncate">{ticket.user_name} � {ticket.user_email}</p>
                       </div>
                       <Badge className={`text-[10px] ${getStatusColor(ticket.status)}`}>
                         {ticket.status?.replace('_', ' ')}

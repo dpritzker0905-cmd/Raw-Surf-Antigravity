@@ -75,7 +75,7 @@ const ViewNoteModal = ({ isOpen, onClose, note, currentUserId, onReply }) => {
             <p className="font-medium text-foreground">{note.user_name}</p>
             <p className="text-xs text-emerald-500 dark:text-emerald-400">{note.time_remaining} left</p>
           </div>
-          <button onClick={onClose} className="ml-auto text-muted-foreground hover:text-foreground">
+          <button onClick={onClose} className="ml-auto text-muted-foreground hover:text-foreground" aria-label="Close">
             <X className="w-5 h-5" />
           </button>
         </div>

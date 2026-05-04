@@ -123,7 +123,7 @@ const GifPicker = ({ show, onSelect, onClose }) => {
       <div className="p-3 border-b border-border">
         <div className="flex items-center justify-between mb-2">
           <span className="text-sm font-medium text-foreground">GIF Picker</span>
-          <button onClick={onClose} className="p-1 rounded-full hover:bg-muted" type="button">
+          <button onClick={onClose} className="p-1 rounded-full hover:bg-muted" type="button" aria-label="Close">
             <X className="w-5 h-5 text-muted-foreground" />
           </button>
         </div>

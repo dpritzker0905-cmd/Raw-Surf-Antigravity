@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import apiClient, { BACKEND_URL } from '../../lib/apiClient';
@@ -293,7 +293,7 @@ export const AdminCommunicationsDashboard = () => {
             <Card className={cardBgClass}>
               <CardHeader className="pb-2 flex flex-row items-center justify-between">
                 <CardTitle className={`text-sm ${textClass}`}>System Announcements ({filteredAnnouncements.length})</CardTitle>
-                <Button size="sm" onClick={() => setShowAnnouncementForm(true)} className="bg-blue-500 hover:bg-blue-600">
+                <Button size="sm" onClick={() => setShowAnnouncementForm(true)} className="bg-blue-500 hover:bg-blue-600" aria-label="Add">
                   <Plus className="w-4 h-4 mr-1" /> New
                 </Button>
               </CardHeader>
@@ -331,7 +331,7 @@ export const AdminCommunicationsDashboard = () => {
             <Card className={cardBgClass}>
               <CardHeader className="pb-2 flex flex-row items-center justify-between">
                 <CardTitle className={`text-sm ${textClass}`}>Message Templates ({filteredTemplates.length})</CardTitle>
-                <Button size="sm" onClick={() => setShowTemplateForm(true)} className="bg-purple-500 hover:bg-purple-600">
+                <Button size="sm" onClick={() => setShowTemplateForm(true)} className="bg-purple-500 hover:bg-purple-600" aria-label="Add">
                   <Plus className="w-4 h-4 mr-1" /> New
                 </Button>
               </CardHeader>
@@ -354,7 +354,7 @@ export const AdminCommunicationsDashboard = () => {
                             <h4 className={`font-medium ${textClass}`}>{tpl.name}</h4>
                             {tpl.subject && <p className="text-xs text-gray-500">{tpl.subject}</p>}
                           </div>
-                          <Button size="sm" variant="ghost" onClick={() => { navigator.clipboard.writeText(tpl.body); toast.success('Copied!'); }}>
+                          <Button size="sm" variant="ghost" onClick={() => { navigator.clipboard.writeText(tpl.body); toast.success('Copied!'); }} aria-label="Copy">
                             <Copy className="w-4 h-4" />
                           </Button>
                         </div>
@@ -371,7 +371,7 @@ export const AdminCommunicationsDashboard = () => {
             <Card className={cardBgClass}>
               <CardHeader className="pb-2 flex flex-row items-center justify-between">
                 <CardTitle className={`text-sm ${textClass}`}>Bulk Campaigns ({filteredCampaigns.length})</CardTitle>
-                <Button size="sm" onClick={() => setShowCampaignForm(true)} className="bg-green-500 hover:bg-green-600">
+                <Button size="sm" onClick={() => setShowCampaignForm(true)} className="bg-green-500 hover:bg-green-600" aria-label="Add">
                   <Plus className="w-4 h-4 mr-1" /> New
                 </Button>
               </CardHeader>
@@ -399,7 +399,7 @@ export const AdminCommunicationsDashboard = () => {
                             <p className="text-xs text-gray-500 mt-1">{camp.subject}</p>
                             {camp.total_sent > 0 && (
                               <p className="text-xs text-muted-foreground mt-1">
-                                Sent: {camp.total_sent} • Open: {camp.total_opened} ({camp.open_rate}%)
+                                Sent: {camp.total_sent} � Open: {camp.total_opened} ({camp.open_rate}%)
                               </p>
                             )}
                           </div>

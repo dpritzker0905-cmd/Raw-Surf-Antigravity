@@ -27,6 +27,7 @@ import { toast } from 'sonner';
 import { RequestProSelfieModal } from './RequestProSelfieModal';
 import { SessionChatDrawer, SessionChatFAB } from './SessionChatDrawer';
 import { useSessionChatSync } from '../hooks/useSessionChatSync';
+import useHapticFeedback from '../hooks/useHapticFeedback';
 
 // --- Constants ---
 const SURFBOARD_COLORS = [
@@ -242,6 +243,7 @@ export const DispatchLobby = () => {
   const { user } = useAuth();
   const { theme } = useTheme();
   const navigate = useNavigate();
+  const haptic = useHapticFeedback();
 
   const isLight = theme === 'light';
   const textPrimary = isLight ? 'text-gray-900' : 'text-white';
@@ -521,6 +523,7 @@ export const DispatchLobby = () => {
         toast.info('Session cancelled. Your payment has been refunded to credits.');
       }
       navigate(`/bookings?tab=on_demand&highlight=${dispatchId}`);
+      haptic('error');
     } catch {
       toast.error('Failed to cancel. Please try again or contact support.');
     } finally {
