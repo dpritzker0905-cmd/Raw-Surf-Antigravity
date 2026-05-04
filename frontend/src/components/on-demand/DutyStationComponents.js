@@ -11,6 +11,7 @@ import {
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { getFullUrl } from '../../utils/media';
+import { motion } from 'framer-motion';
 import { MODE_CONFIG } from '../DutyStationDrawer';
 
 // Haversine distance calculation

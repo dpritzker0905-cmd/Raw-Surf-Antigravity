@@ -246,6 +246,8 @@ export const PhotographerBookingsManager = () => {
     handleSaveEdit,
   } = useBookingManagerActions({
     user, selectedBooking, bookings, crewMembers, editBooking,
+    selectedDate, selectedTime, newBooking, newAvailability, hours,
+    weeklyGrid, availability, bookingPricing, newCrewInput, existingBookedSlots,
     setActiveTab,
     setAvailability,
     setAvailabilityForm,

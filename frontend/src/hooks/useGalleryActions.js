@@ -69,7 +69,7 @@ const useGalleryActions = ({
   // Context
   updateGeneralSettings,
   setItemCustomPrice,
-  clearItemCustomPrice: clearItemCustomPriceFn,
+  clearItemCustomPrice,
   setShowGalleryPricingModal,
   newFolderName,
   folderToRename,

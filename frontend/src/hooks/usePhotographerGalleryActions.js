@@ -10,7 +10,7 @@ import { getErrorMessage } from '../utils/errors';
 import { useEffect, useMemo } from 'react';
 
 const usePhotographerGalleryActions = ({
-  user, gallery, selectedItems, editData, setAiTagSuggestions,
+  user, gallery, selectedItems, editData, navigate, galleryId, setAiTagSuggestions,
   setAnalyzingPhoto,
   setAssigningItem,
   setBulkMode,
@@ -43,7 +43,7 @@ const usePhotographerGalleryActions = ({
   setShowTaggingModal,
   setTotalGalleryItems,
   setUploading,
-  setItemCustomPrice: setItemCustomPriceFn,}) => {
+}) => {
 
   const fetchGallery = async () => {
     try {

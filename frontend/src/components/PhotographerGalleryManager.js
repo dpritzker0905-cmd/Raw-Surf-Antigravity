@@ -164,7 +164,7 @@ export const PhotographerGalleryManager = () => {
     handleSetCustomPrice,
     openItemPricing,
   } = usePhotographerGalleryActions({
-    user, gallery, selectedItems, editData, setAiTagSuggestions,
+    user, gallery, selectedItems, editData, navigate, galleryId, setAiTagSuggestions,
     setAnalyzingPhoto,
     setAssigningItem,
     setBulkMode,
@@ -197,7 +197,7 @@ export const PhotographerGalleryManager = () => {
     setShowTaggingModal,
     setTotalGalleryItems,
     setUploading,
-    setItemCustomPrice: setItemCustomPriceFn,  });
+    setItemCustomPrice,  });
 
   if (loading) {
     return (

@@ -293,7 +293,7 @@ export const GalleryPage = () => {
     setShowLinkSessionModal, setLinkSessionGallery,
     setRecentSessions, setRecentSessionsLoading, setLinkingSession,
     setLoading, updateGeneralSettings, setItemCustomPrice,
-    clearItemCustomPrice: clearItemCustomPriceFn, setShowGalleryPricingModal,
+    clearItemCustomPrice, setShowGalleryPricingModal,
     newFolderName, folderToRename, folderToDelete, galleryPricing,
   });
 

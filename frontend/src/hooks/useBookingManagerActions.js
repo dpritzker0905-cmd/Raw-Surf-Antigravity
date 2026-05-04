@@ -11,6 +11,8 @@ import { useEffect } from 'react';
 
 const useBookingManagerActions = ({
   user, selectedBooking, bookings, crewMembers, editBooking,
+  selectedDate, selectedTime, newBooking, newAvailability, hours,
+  weeklyGrid, availability, bookingPricing, newCrewInput, existingBookedSlots,
   setActiveTab,
   setAvailability,
   setAvailabilityForm,

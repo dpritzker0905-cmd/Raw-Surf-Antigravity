@@ -10,7 +10,7 @@ import { getErrorMessage } from '../utils/errors';
 import { useCallback } from 'react';
 
 const useOnDemandActions = ({
-  user, settings, activeSession, selectedSpots,
+  user, activeSession, selectedSpots,
   userLocation, nearbySpots, geoRadius, isOnline, isLiveShooting,
   baseRate, peakPricingEnabled, peakMultiplier, cancellationFeePct,
   odPriceWeb, odPriceStandard, odPriceHigh,
