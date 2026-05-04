@@ -302,6 +302,11 @@ export const Profile = () => {
     handleCropConfirm,
   } = useProfileActions({
     user, navigate,
+    profileUserId,
+    profile,
+    editData,
+    updateUser,
+    fileInputRef,
     isFollowing,
     isOwnProfile,
     socialStats,
