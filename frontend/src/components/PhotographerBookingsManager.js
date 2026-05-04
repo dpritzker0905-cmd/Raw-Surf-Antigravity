@@ -248,6 +248,7 @@ export const PhotographerBookingsManager = () => {
     user, selectedBooking, bookings, crewMembers, editBooking,
     selectedDate, selectedTime, newBooking, newAvailability,
     weeklyGrid, availability, bookingPricing, newCrewInput, existingBookedSlots,
+    gridDragMode, isGridDragging, generatedSplitLink, highlightedSessionId, sessionRefs,
     setActiveTab,
     setAvailability,
     setBookingPricing,
