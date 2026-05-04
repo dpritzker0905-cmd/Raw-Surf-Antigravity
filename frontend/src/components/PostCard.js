@@ -509,7 +509,8 @@ const PostCard = ({
   onIWasThere,
   onViewCollaborators,
   onFollowFromFeed,
-  onImageClick  // Opens Instagram-style modal
+  onImageClick,  // Opens Instagram-style modal
+  onDoubleTapLike  // Direct like function for double-tap (bypasses pointer events)
 }) => {
   const navigate = useNavigate();
   
@@ -549,10 +550,9 @@ const PostCard = ({
       e.preventDefault();
       
       // Instagram-style: double-tap always LIKES, never unlikes
-      // Only fire API call if not already liked
-      if (user?.id && post?.id && !post.liked && onLikeStart) {
-        onLikeStart(post.id, e);
-        setTimeout(() => onLikeEnd && onLikeEnd(post.id, e), 50);
+      // Call handleLike directly - no pointer event simulation needed
+      if (user?.id && post?.id && !post.liked && onDoubleTapLike) {
+        onDoubleTapLike(post.id);
       }
       
       // Always show the shaka animation (even if already liked)
@@ -567,7 +567,7 @@ const PostCard = ({
         singleTapTimerRef.current = null;
       }, 300);
     }
-  }, [user?.id, post?.id, post?.liked, onLikeStart, onLikeEnd, onImageClick, post]);
+  }, [user?.id, post?.id, post?.liked, onDoubleTapLike, onImageClick, post]);
 
   // Helper to ensure media paths map to backend directly natively preventing Netlify 404 traps
   const _checkMediaUrl = getFullUrl(post?.media_url || post?.image_url);
