@@ -1,15 +1,16 @@
 /**
- * DutyStationComponents.js � Extracted sub-components from DutyStationDrawer.
+ * DutyStationComponents.js  Extracted sub-components from DutyStationDrawer.
  * GpsProximityCheck (108 lines) and OnDemandSpotSelector (113 lines).
  * Reduces DutyStationDrawer from 54.4KB to ~45KB.
  */
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
-  MapPin, Navigation, Loader2, CheckCircle, AlertTriangle,
-  ChevronDown, X, Search, ArrowUp
+  MapPin, MapPinOff, Navigation, Loader2, CheckCircle, CheckCircle2, AlertTriangle,
+  ChevronDown, X, Search, ArrowUp, Zap, Check
 } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
+import { Checkbox } from '../ui/checkbox';
 import { getFullUrl } from '../../utils/media';
 import { motion } from 'framer-motion';
 import { MODE_CONFIG, LIVE_PROXIMITY_MILES, LIVE_PROXIMITY_METERS } from '../DutyStationDrawer';
