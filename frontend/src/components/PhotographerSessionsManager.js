@@ -301,6 +301,7 @@ export const PhotographerSessionsManager = () => {
     handleGoLiveConfirmed, handleGoLiveWithConditions,
     handleEndSessionClick, handleEndSessionConfirmed,
     handleEndSession, handleSavePricing,
+    commissionRate, isWithinRange, canProceed,
   } = useSessionActions({
     user, navigate, pricing, isHobbyist, isOnDemandActive, manualConfirm,
     endSessionLoading, debugInfo, streamRef,

@@ -611,6 +611,9 @@ const useSessionActions = ({
     handleEndSessionConfirmed,
     handleEndSession,
     handleSavePricing,
+    commissionRate,
+    isWithinRange,
+    canProceed,
   };
 };
 
