@@ -310,7 +310,7 @@ export const Sidebar = () => {
       </div>
 
       {/* Navigation - Scrollable section with minimum height */}
-      <nav className="flex-1 p-2 overflow-y-auto min-h-0 scrollbar-thin scrollbar-thumb-zinc-700 scrollbar-track-transparent">
+      <nav className="flex-1 p-2 overflow-y-auto min-h-0 scrollbar-thin scrollbar-thumb-zinc-700 scrollbar-track-transparent" role="navigation" aria-label="Main navigation">
         {navItems.map((item, _index) => {
           const Icon = item.icon;
           
@@ -442,7 +442,7 @@ export const Sidebar = () => {
               <div className="relative">
                 <Icon className="w-5 h-5" />
                 {item.badge > 0 && (
-                  <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 flex items-center justify-center bg-red-500 text-white text-[10px] font-bold rounded-full">
+                  <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 flex items-center justify-center bg-red-500 text-white text-[10px] font-bold rounded-full" aria-live="polite" aria-atomic="true">
                     {item.badge > 99 ? '99+' : item.badge}
                   </span>
                 )}

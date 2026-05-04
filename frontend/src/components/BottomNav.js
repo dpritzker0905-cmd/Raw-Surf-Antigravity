@@ -341,7 +341,7 @@ export const BottomNav = () => {
           <div className="relative">
             <MessageCircle className={`w-6 h-6 ${isPathActive('/messages') ? 'text-blue-400' : textInactiveClass}`} />
             {unreadMessages > 0 && (
-              <span className="absolute -top-1 -right-1 min-w-[16px] h-[16px] px-0.5 flex items-center justify-center bg-red-500 text-white text-[9px] font-bold rounded-full">
+              <span className="absolute -top-1 -right-1 min-w-[16px] h-[16px] px-0.5 flex items-center justify-center bg-red-500 text-white text-[9px] font-bold rounded-full" aria-live="polite" aria-atomic="true">
                 {unreadMessages > 99 ? '99+' : unreadMessages}
               </span>
             )}

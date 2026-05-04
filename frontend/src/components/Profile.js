@@ -572,6 +572,18 @@ export const Profile = () => {
 
   return (
     <div className="pb-20 bg-background min-h-screen" data-testid="profile-page">
+      {/* JSON-LD Person structured data for SEO */}
+      {profile && (
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({
+          '@context': 'https://schema.org',
+          '@type': 'Person',
+          name: profile.full_name || 'Raw Surf User',
+          image: profile.avatar_url ? getFullUrl(profile.avatar_url) : undefined,
+          url: `${window.location.origin}/profile/${profileUserId}`,
+          description: profile.bio || undefined,
+          jobTitle: profile.role || undefined,
+        }) }} />
+      )}
       {/* Back Button for viewing other profiles */}
       {!isOwnProfile && (
         <div className="sticky top-0 z-10 bg-background/90 backdrop-blur-sm border-b border-border px-4 py-3">

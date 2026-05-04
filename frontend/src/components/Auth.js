@@ -292,6 +292,7 @@ export const Auth = () => {
               <Input
                 type="email"
                 placeholder="Email"
+                aria-label="Email address"
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                 className="bg-zinc-800 border-zinc-700 text-white h-12"
@@ -302,6 +303,7 @@ export const Auth = () => {
                 <Input
                   type={showPassword ? 'text' : 'password'}
                   placeholder="Password"
+                  aria-label="Password"
                   value={formData.password}
                   onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                   className="bg-zinc-800 border-zinc-700 text-white h-12 pr-10"
@@ -312,6 +314,7 @@ export const Auth = () => {
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white"
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
                 >
                   {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                 </button>
@@ -404,6 +407,7 @@ export const Auth = () => {
                   <Input
                     type="text"
                     placeholder="Company Name"
+                    aria-label="Company name"
                     value={formData.company_name}
                     onChange={(e) => setFormData({ ...formData, company_name: e.target.value })}
                     className="bg-zinc-800 border-zinc-700 text-white h-12"
@@ -415,6 +419,7 @@ export const Auth = () => {
                 <Input
                   type="text"
                   placeholder={category === 'business' ? 'Contact Name' : 'Full Name'}
+                  aria-label={category === 'business' ? 'Contact name' : 'Full name'}
                   value={formData.full_name}
                   onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
                   className="bg-zinc-800 border-zinc-700 text-white h-12"
@@ -428,6 +433,7 @@ export const Auth = () => {
                   <Input
                     type="text"
                     placeholder="username"
+                    aria-label="Username"
                     value={formData.username}
                     onChange={(e) => setFormData({ ...formData, username: e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '') })}
                     className="bg-zinc-800 border-zinc-700 text-white h-12 pl-8"
@@ -442,6 +448,7 @@ export const Auth = () => {
                 <Input
                   type="email"
                   placeholder="Email"
+                  aria-label="Email address"
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                   className="bg-zinc-800 border-zinc-700 text-white h-12"
@@ -453,6 +460,7 @@ export const Auth = () => {
                   <Input
                     type={showPassword ? 'text' : 'password'}
                     placeholder="Password"
+                    aria-label="Password"
                     value={formData.password}
                     onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                     className="bg-zinc-800 border-zinc-700 text-white h-12 pr-10"
@@ -463,6 +471,7 @@ export const Auth = () => {
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white"
+                    aria-label={showPassword ? 'Hide password' : 'Show password'}
                   >
                     {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                   </button>
@@ -477,6 +486,7 @@ export const Auth = () => {
                     <Input
                       type="email"
                       placeholder="Parent/Guardian Email"
+                      aria-label="Parent or guardian email"
                       value={formData.parent_email}
                       onChange={(e) => setFormData({ ...formData, parent_email: e.target.value })}
                       className="bg-zinc-800 border-zinc-700 text-white h-12"
@@ -486,6 +496,7 @@ export const Auth = () => {
                     <Input
                       type="date"
                       placeholder="Your Birthdate"
+                      aria-label="Birthdate"
                       value={formData.birthdate}
                       onChange={(e) => setFormData({ ...formData, birthdate: e.target.value })}
                       className="bg-zinc-800 border-zinc-700 text-white h-12"
@@ -505,6 +516,9 @@ export const Auth = () => {
                       </div>
                       <button
                         type="button"
+                        role="switch"
+                        aria-checked={formData.grom_competes}
+                        aria-label="Grom competes in surf competitions"
                         onClick={() => setFormData({ ...formData, grom_competes: !formData.grom_competes })}
                         className={`w-12 h-6 rounded-full transition-colors ${
                           formData.grom_competes ? 'bg-yellow-500' : 'bg-zinc-700'
@@ -667,6 +681,7 @@ export const Auth = () => {
               <button
                 onClick={() => setShowTosModal(false)}
                 className="p-1 rounded-full hover:bg-zinc-800 text-gray-400 hover:text-white transition-colors"
+                aria-label="Close terms of service"
                 data-testid="tos-modal-close"
               >
                 <X className="w-5 h-5" />

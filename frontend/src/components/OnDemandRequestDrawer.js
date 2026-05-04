@@ -1821,6 +1821,9 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
                           </span>
                         </div>
                         <button
+                          role="switch"
+                          aria-checked={isCovered}
+                          aria-label="Cover this surfer"
                           onClick={() => handleToggleCoverMember(member.id)}
                           className={`w-10 h-5 rounded-full transition-colors ${isCovered ? 'bg-purple-500' : 'bg-zinc-600'}`}
                         >

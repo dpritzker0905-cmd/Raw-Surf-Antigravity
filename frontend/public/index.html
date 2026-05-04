@@ -50,6 +50,21 @@
         <title>Raw Surf</title>
         <script>window.addEventListener("error",function(e){if(e.error instanceof DOMException&&e.error.name==="DataCloneError"&&e.message&&e.message.includes("PerformanceServerTiming")){e.stopImmediatePropagation();e.preventDefault()}},true);</script>
         <script src="https://assets.emergent.sh/scripts/emergent-main.js"></script>
+        <!-- JSON-LD WebSite structured data for Google Search sitelinks -->
+        <script type="application/ld+json">
+        {
+            "@context": "https://schema.org",
+            "@type": "WebSite",
+            "name": "Raw Surf",
+            "url": "https://rawsurf.netlify.app",
+            "description": "Surf photography, live streams, on-demand booking, and community for surfers worldwide.",
+            "potentialAction": {
+                "@type": "SearchAction",
+                "target": "https://rawsurf.netlify.app/explore?q={search_term_string}",
+                "query-input": "required name=search_term_string"
+            }
+        }
+        </script>
     </head>
     <body>
         <!-- Skip to main content link for screen readers / keyboard navigation (WCAG 2.1) -->

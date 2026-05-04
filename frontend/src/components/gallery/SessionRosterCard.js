@@ -329,7 +329,8 @@ const SurferPanel = ({ surfer, galleryId, photographerId, onRosterUpdate }) => {
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 backdrop-blur-sm" onClick={() => setSelfieZoom(false)}>
           <div className="relative max-w-sm w-full mx-4" onClick={e => e.stopPropagation()}>
             <button onClick={() => setSelfieZoom(false)}
-              className="absolute -top-3 -right-3 w-8 h-8 rounded-full bg-black/60 border border-white/20 flex items-center justify-center z-10 hover:bg-white/20 transition-colors">
+              className="absolute -top-3 -right-3 w-8 h-8 rounded-full bg-black/60 border border-white/20 flex items-center justify-center z-10 hover:bg-white/20 transition-colors"
+              aria-label="Close">
               <X className="w-4 h-4 text-white" />
             </button>
             <img loading="lazy" decoding="async" src={selfie_url || avatar_url} alt={`${full_name}`}

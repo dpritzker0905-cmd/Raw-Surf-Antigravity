@@ -348,6 +348,32 @@ export const Feed = () => {
     };
   }, [user?.id]);
 
+  // Static Open Graph meta tags for Feed page social sharing
+  useEffect(() => {
+    const ogTags = [];
+    const setMeta = (property, content) => {
+      if (!content) return;
+      let tag = document.querySelector(`meta[property="${property}"]`);
+      if (!tag) {
+        tag = document.createElement('meta');
+        tag.setAttribute('property', property);
+        document.head.appendChild(tag);
+        ogTags.push(tag);
+      }
+      tag.setAttribute('content', content);
+    };
+    document.title = 'Feed — Raw Surf';
+    setMeta('og:title', 'Feed — Raw Surf');
+    setMeta('og:description', 'Your surf feed — posts, waves, live sessions, and community updates on Raw Surf.');
+    setMeta('og:url', `${window.location.origin}/feed`);
+    setMeta('og:type', 'website');
+    setMeta('og:site_name', 'Raw Surf');
+    return () => {
+      document.title = 'Raw Surf';
+      ogTags.forEach(tag => tag.remove());
+    };
+  }, []);
+
   // ── feed:refresh event listener (logo click + 60s auto-refresh from Sidebar) ──
   const handleFeedRefresh = useCallback(async (e) => {
     const silent = e?.detail?.silent === true;
