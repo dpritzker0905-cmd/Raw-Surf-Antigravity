@@ -829,7 +829,7 @@ export const Profile = () => {
               {/* More Options (Block, Report) */}
               <div className="relative">
                 <Button aria-label="More options"
-                  aria-expanded={showMoreMenu} onClick={() => blockHook.setShowMoreMenu(!blockHook.showMoreMenu)}
+                  aria-expanded={blockHook.showMoreMenu} onClick={() => blockHook.setShowMoreMenu(!blockHook.showMoreMenu)}
                   variant="outline"
                   className="h-10 w-10 p-0 border-zinc-700"
                   data-testid="more-options-button"
