@@ -9,8 +9,15 @@ import logger from '../utils/logger';
 import { getErrorMessage } from '../utils/errors';
 
 const useCreatePostActions = ({
-  user, navigate, mediaItems, postText, selectedSpot, taggedUsers, postVisibility,
+  user, navigate, selectedSpot, caption, selectedFiles, previewUrls,
   captionRef, hashtagRef,
+  allSpots, knownSpots, location,
+  sessionDate, sessionStartTime, sessionEndTime,
+  waveHeightFt, wavePeriodSec, waveDirection, waveDirectionDegrees,
+  windSpeedMph, windDirection, tideStatus, tideHeightFt, showSessionData,
+  conditionsSource, mentions, currentPreviewIndex,
+  showMentionAutocomplete, showHashtagAutocomplete, hashtagQuery, hashtagIndex, hashtagEndIndex,
+  mentionRef,
   setAllSpots,
   setCaption,
   setConditionsLoading,
@@ -33,7 +40,6 @@ const useCreatePostActions = ({
   setRecentLocations,
   setSelectedFiles,
   setSelectedSpot,
-  setSelectionRange,
   setShowHashtagAutocomplete,
   setShowMentionAutocomplete,
   setShowRecentLocations,

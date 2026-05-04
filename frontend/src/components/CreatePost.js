@@ -118,8 +118,6 @@ export const CreatePost = () => {
   const [hashtagPosition, setHashtagPosition] = useState({ top: 0, left: 0 });
   const hashtagRef = useRef(null);
 
-  // Fetch known spots on mount
-  useEffect(() => {
   // ============ HANDLERS EXTRACTED ============
   const {
     fetchSpots,
@@ -141,8 +139,15 @@ export const CreatePost = () => {
     compressImageToBase64,
     handleUpload,
   } = useCreatePostActions({
-    user, navigate, mediaItems, postText, selectedSpot, taggedUsers, postVisibility,
+    user, navigate, selectedSpot, caption, selectedFiles, previewUrls,
     captionRef, hashtagRef,
+    allSpots, knownSpots, location,
+    sessionDate, sessionStartTime, sessionEndTime,
+    waveHeightFt, wavePeriodSec, waveDirection, waveDirectionDegrees,
+    windSpeedMph, windDirection, tideStatus, tideHeightFt, showSessionData,
+    conditionsSource, mentions, currentPreviewIndex,
+    showMentionAutocomplete, showHashtagAutocomplete, hashtagQuery, hashtagIndex, hashtagEndIndex,
+    mentionRef: mentionRef,
     setAllSpots,
     setCaption,
     setConditionsLoading,
@@ -165,7 +170,6 @@ export const CreatePost = () => {
     setRecentLocations,
     setSelectedFiles,
     setSelectedSpot,
-    setSelectionRange,
     setShowHashtagAutocomplete,
     setShowMentionAutocomplete,
     setShowRecentLocations,
@@ -180,6 +184,9 @@ export const CreatePost = () => {
     setWindDirection,
     setWindSpeedMph,
   });
+
+  // Fetch known spots on mount
+  useEffect(() => {
     fetchSpots();
   }, []);
 

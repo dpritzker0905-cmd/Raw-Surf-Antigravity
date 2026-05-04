@@ -437,7 +437,6 @@ export const Feed = () => {
     setFollowingUsers,
     setGpsLoading,
     setIsRefreshing,
-    setItem,
     setLiveStreamInfo,
     setLiveUsers,
     setLoading,
