@@ -180,7 +180,7 @@ const SurferDetailModal = ({
                 <StickyNote className="w-4 h-4 text-amber-400" />
                 <span className={`text-sm font-medium ${textPrimaryClass}`}>Your Notes</span>
               </div>
-              <Textarea
+              <Textarea aria-label="Add notes to help identify this surfer... (e.g., 'Red fins, staying near the pier, goofy footer')"
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 placeholder="Add notes to help identify this surfer... (e.g., 'Red fins, staying near the pier, goofy footer')"

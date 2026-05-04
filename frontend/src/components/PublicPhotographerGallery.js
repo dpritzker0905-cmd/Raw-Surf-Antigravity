@@ -588,7 +588,7 @@ export const PublicPhotographerGallery = () => {
           {/* Search */}
           <div className="relative flex-1 min-w-[200px] max-w-md">
             <Search className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${textSecondary}`} />
-            <Input
+            <Input aria-label="Search photos..."
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
               placeholder="Search photos..."

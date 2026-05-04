@@ -147,7 +147,7 @@ const ComposeModal = ({ isOpen, onClose, onSelectUser, currentUserId }) => {
           <div className="flex items-center gap-2">
             <span className="text-muted-foreground text-sm">To:</span>
             <div className="flex-1 relative">
-              <input
+              <input aria-label="Search..."
                 ref={inputRef}
                 type="text"
                 value={searchTerm}

@@ -1050,7 +1050,7 @@ const UnifiedAdminConsole = () => {
             <p className="text-muted-foreground">
               Suspending <span className="text-foreground">{userToSuspend?.email}</span>
             </p>
-            <Textarea
+            <Textarea aria-label="Reason for suspension..."
               value={suspendReason}
               onChange={(e) => setSuspendReason(e.target.value)}
               placeholder="Reason for suspension..."
@@ -1467,7 +1467,7 @@ const UsersTabContent = ({
     <div className="space-y-4">
       {/* Search */}
       <div className="flex gap-2">
-        <Input
+        <Input aria-label="Search by email or name..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           placeholder="Search by email or name..."
@@ -1794,7 +1794,7 @@ const UsersTabContent = ({
               <span className="text-foreground font-medium">{resetPasswordUser?.full_name || resetPasswordUser?.email}</span>
             </p>
             <p className="text-gray-500 text-xs">{resetPasswordUser?.email}</p>
-            <Input
+            <Input aria-label="Enter new password (min 6 characters)"
               type="text"
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}

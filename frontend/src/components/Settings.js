@@ -1012,14 +1012,14 @@ export const Settings = () => {
               </div>
               {notifPrefs.quiet_hours_enabled && (
                 <div className={`flex items-center gap-2 mt-2 pl-6 ${textSecondaryClass}`}>
-                  <input
+                  <input aria-label="Time"
                     type="time"
                     value={notifPrefs.quiet_hours_start}
                     onChange={(e) => updateNotifPref('quiet_hours_start', e.target.value)}
                     className="px-2 py-1 rounded text-sm bg-muted text-foreground"
                   />
                   <span>to</span>
-                  <input
+                  <input aria-label="Time"
                     type="time"
                     value={notifPrefs.quiet_hours_end}
                     onChange={(e) => updateNotifPref('quiet_hours_end', e.target.value)}

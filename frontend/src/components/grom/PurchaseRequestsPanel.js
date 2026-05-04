@@ -229,7 +229,7 @@ export const PurchaseRequestsPanel = () => {
                   <>
                     {showDenyInput === req.id ? (
                       <div className="space-y-2">
-                        <Input
+                        <Input aria-label="Reason (optional)..."
                           placeholder="Reason (optional)..."
                           value={denyReason}
                           onChange={(e) => setDenyReason(e.target.value)}

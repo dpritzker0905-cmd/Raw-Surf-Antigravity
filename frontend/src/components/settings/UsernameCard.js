@@ -74,7 +74,7 @@ export const UsernameCard = ({ userId, _textPrimaryClass, textSecondaryClass, bo
         <div className="space-y-3">
           <div className="relative">
             <span className={`absolute left-3 top-1/2 -translate-y-1/2 ${textSecondaryClass}`}>@</span>
-            <Input value={newUsername} onChange={(e) => setNewUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))} className={`pl-8 ${cardBgClass} ${borderClass}`} placeholder="username" maxLength={30} />
+            <Input aria-label="username" value={newUsername} onChange={(e) => setNewUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))} className={`pl-8 ${cardBgClass} ${borderClass}`} placeholder="username" maxLength={30} />
             <div className="absolute right-3 top-1/2 -translate-y-1/2">
               {checking ? (<Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />) : availability?.available ? (<Check className="w-4 h-4 text-green-500" />) : availability && !availability.available && newUsername !== status?.username ? (<AlertCircle className="w-4 h-4 text-red-500" />) : null}
             </div>

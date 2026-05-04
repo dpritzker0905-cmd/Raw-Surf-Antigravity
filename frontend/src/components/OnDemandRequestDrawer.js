@@ -1303,7 +1303,7 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
               </div>
               
               <div className="px-2">
-                <input
+                <input aria-label="Range slider"
                   type="range"
                   min={minDuration}
                   max={maxDuration}
@@ -1798,7 +1798,7 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
                             ${memberShare.toFixed(2)}
                           </span>
                         </div>
-                        <input
+                        <input aria-label="Range slider"
                           type="range"
                           min={0}
                           max={100}

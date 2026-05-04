@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import apiClient, { BACKEND_URL } from '../lib/apiClient';
@@ -250,7 +250,7 @@ export const SavedCrewSelector = ({
               </div>
               
               <div className="flex items-center gap-2">
-                <input
+                <input aria-label="Checkbox"
                   type="checkbox"
                   id="setDefault"
                   checked={setAsDefault}
@@ -380,7 +380,7 @@ export const SavedCrewSelector = ({
             </div>
             
             <div className="flex items-center gap-2">
-              <input
+              <input aria-label="Checkbox"
                 type="checkbox"
                 id="setDefaultFull"
                 checked={setAsDefault}

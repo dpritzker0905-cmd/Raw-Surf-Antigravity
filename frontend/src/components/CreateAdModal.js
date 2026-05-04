@@ -196,7 +196,7 @@ export const CreateAdModal = ({ isOpen, onClose, onSuccess }) => {
     : 'bg-zinc-800 border-zinc-700 text-white';
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog data-testid="create-ad-modal" open={isOpen} onOpenChange={onClose}>
       <DialogContent className={`${cardBg} border-zinc-800 sm:max-w-md`}>
         <DialogHeader className="shrink-0 border-b border-zinc-700 px-4 sm:px-6 pt-4 pb-3">
           <DialogTitle className={`${textClass} flex items-center gap-2`}>
@@ -467,7 +467,7 @@ export const CreateAdModal = ({ isOpen, onClose, onSuccess }) => {
                 </div>
                 
                 <div className="flex items-center gap-3">
-                  <Input
+                  <Input aria-label="Numeric input"
                     type="number"
                     value={budgetCredits}
                     onChange={(e) => setBudgetCredits(Math.max(10, parseInt(e.target.value) || 10))}

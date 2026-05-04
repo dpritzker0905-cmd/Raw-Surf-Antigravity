@@ -710,7 +710,7 @@ export default function CrewChat() {
       <audio ref={audioRef} hidden />
       
       {/* Hidden file input - accepts images and documents */}
-      <input
+      <input aria-label="Upload file"
         ref={fileInputRef}
         type="file"
         accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.zip"
@@ -729,7 +729,7 @@ export default function CrewChat() {
               <p className="text-zinc-400 text-sm">{formatFileSize(selectedFile.size)}</p>
             </div>
             
-            <Input
+            <Input aria-label="Add a message (optional)"
               value={fileCaption}
               onChange={(e) => setFileCaption(e.target.value)}
               placeholder="Add a message (optional)"
@@ -836,7 +836,7 @@ export default function CrewChat() {
       </div>
       
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4" data-testid="crew-chat-messages">
+      <div className="flex-1 overflow-y-auto p-4 space-y-4" data-testid="crew-chat-messages" aria-live="polite" aria-relevant="additions">
         {messages.length === 0 && !isLoading && (
           <div className="text-center py-12">
             <Users className="h-12 w-12 text-zinc-700 mx-auto mb-3" />
@@ -1200,7 +1200,7 @@ export default function CrewChat() {
             />
           </div>
           <div className="p-4">
-            <Input
+            <Input aria-label="Add a caption..."
               value={imageCaption}
               onChange={(e) => setImageCaption(e.target.value)}
               placeholder="Add a caption..."
@@ -1325,7 +1325,7 @@ export default function CrewChat() {
             </Button>
             
             <div className="flex-1">
-              <Input
+              <Input aria-label="Message your crew..."
                 ref={inputRef}
                 value={inputValue}
                 onChange={handleInputChange}

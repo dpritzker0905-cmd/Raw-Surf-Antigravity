@@ -279,7 +279,7 @@ export const AdminContentModDashboard = () => {
                   }`}
                 >
                   <div className="flex items-start gap-3">
-                    <input
+                    <input aria-label="Checkbox"
                       type="checkbox"
                       checked={selectedItems.has(item.id)}
                       onChange={() => toggleSelect(item.id)}

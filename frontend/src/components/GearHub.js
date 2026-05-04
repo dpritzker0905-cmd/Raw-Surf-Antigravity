@@ -153,7 +153,7 @@ export const GearHub = () => {
   const isHobbyist = user?.role === ROLES.HOBBYIST || user?.role === ROLES.GROM_PARENT || user?.is_grom_parent === true;
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-black via-zinc-950 to-black pb-20 md:pb-6">
+    <div data-testid="gear-hub-page" className="min-h-screen bg-gradient-to-b from-black via-zinc-950 to-black pb-20 md:pb-6">
       {/* Header */}
       <div className="relative bg-gradient-to-r from-amber-600/20 via-orange-500/10 to-amber-600/20 border-b border-amber-500/20">
         <div className="max-w-6xl mx-auto px-4 py-8">
@@ -241,7 +241,7 @@ export const GearHub = () => {
         <div className="flex flex-col md:flex-row gap-4">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-500" />
-            <Input
+            <Input aria-label="Search cameras, lenses, surfboards..."
               type="text"
               placeholder="Search cameras, lenses, surfboards..."
               value={searchQuery}

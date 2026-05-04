@@ -64,7 +64,7 @@ const ForecastDayCard = ({ day, _dayIndex, isLocked = false }) => {
   
   if (isLocked) {
     return (
-      <div className={`flex flex-col items-center p-2 rounded-lg min-w-[55px] ${lockBg}`}>
+      <div data-testid="spot-hub-page" className={`flex flex-col items-center p-2 rounded-lg min-w-[55px] ${lockBg}`}>
         <span className={`text-[10px] ${isLight ? 'text-gray-400' : 'text-gray-500'}`}>{dayName}</span>
         <span className="text-sm font-bold text-gray-600">{dateNum}</span>
         <Lock className="w-3 h-3 text-purple-400 my-0.5" />
@@ -405,7 +405,7 @@ const PhotographerRequestModal = ({ isOpen, onClose, spot, spotId, onSuccess }) 
           </label>
           <div className="relative">
             <span className={`absolute left-3 top-1/2 -translate-y-1/2 ${textSecondary}`}>$</span>
-            <input
+            <input aria-label="e.g. 100"
               type="number"
               value={maxBudget}
               onChange={(e) => setMaxBudget(e.target.value)}

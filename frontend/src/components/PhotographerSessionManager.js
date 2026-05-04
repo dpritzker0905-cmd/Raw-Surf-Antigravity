@@ -427,7 +427,7 @@ const SessionStatusControl = ({
               ))}
               {/* Custom input */}
               <div className="flex items-center gap-1">
-                <input
+                <input aria-label="Custom"
                   type="number"
                   min="1"
                   max="168"
@@ -825,7 +825,7 @@ export const PhotographerSessionManager = ({
           </div>
           <DialogDescription className={`${textSecondary} flex items-center gap-2`}>
             <MapPin className="w-4 h-4" />
-            {booking.location} · {new Date(booking.session_date).toLocaleDateString()}
+            {booking.location} ï¿½ {new Date(booking.session_date).toLocaleDateString()}
           </DialogDescription>
         </DialogHeader>
 

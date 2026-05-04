@@ -298,6 +298,7 @@ export const Auth = () => {
                 className="bg-zinc-800 border-zinc-700 text-white h-12"
                 required
                 data-testid="login-email-input"
+                id="login-email"
               />
               <div className="relative">
                 <Input
@@ -309,6 +310,7 @@ export const Auth = () => {
                   className="bg-zinc-800 border-zinc-700 text-white h-12 pr-10"
                   required
                   data-testid="login-password-input"
+                  id="login-password"
                 />
                 <button
                   type="button"

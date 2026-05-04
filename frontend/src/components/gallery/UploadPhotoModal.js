@@ -420,7 +420,7 @@ export const UploadPhotoModal = ({
           </div>
 
           {/* ── Hidden File Input ── */}
-          <input
+          <input aria-label="Upload file"
             ref={fileInputRef}
             type="file"
             accept="image/*,video/*,.mp4,.mov,.webm,.m4v,.mpeg,.jpg,.jpeg,.png,.gif,.webp"

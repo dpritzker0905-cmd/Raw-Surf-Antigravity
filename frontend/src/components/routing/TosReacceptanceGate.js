@@ -141,7 +141,7 @@ const TosReacceptanceGate = ({ children }) => {
               data-testid="tos-gate-confirm-checkbox"
             >
               <div className="relative mt-0.5 flex-shrink-0">
-                <input
+                <input aria-label="Checkbox"
                   type="checkbox"
                   checked={hasReadConfirm}
                   onChange={(e) => setHasReadConfirm(e.target.checked)}

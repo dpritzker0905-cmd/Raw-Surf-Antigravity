@@ -231,28 +231,28 @@ const WslVerificationForm = ({ wslForm, setWslForm, onSubmit, submitting, textSe
   <div className="space-y-3 p-3 rounded-xl bg-muted/30 border border-border">
     <p className="text-yellow-600 dark:text-yellow-400 text-sm font-semibold flex items-center gap-1"><Star className="w-4 h-4" /> Apply for Pro Verification</p>
     <p className={`text-xs ${textSecondaryClass}`}>Submit your WSL credentials for review. Approval grants Verified Pro status.</p>
-    <Input
+    <Input aria-label="WSL Athlete ID (e.g. 12345)"
       id="wsl-athlete-id"
       placeholder="WSL Athlete ID (e.g. 12345)"
       value={wslForm.wsl_athlete_id}
       onChange={e => setWslForm(f => ({ ...f, wsl_athlete_id: e.target.value }))}
       className="bg-zinc-800 border-zinc-600 text-white text-sm h-9"
     />
-    <Input
+    <Input aria-label="WSL Profile URL (https://...)"
       id="wsl-profile-url"
       placeholder="WSL Profile URL (https://...)"
       value={wslForm.wsl_profile_url}
       onChange={e => setWslForm(f => ({ ...f, wsl_profile_url: e.target.value }))}
       className="bg-zinc-800 border-zinc-600 text-white text-sm h-9"
     />
-    <Input
+    <Input aria-label="Competition result URLs (comma-separated, optional)"
       id="wsl-competition-urls"
       placeholder="Competition result URLs (comma-separated, optional)"
       value={wslForm.competition_history_urls}
       onChange={e => setWslForm(f => ({ ...f, competition_history_urls: e.target.value }))}
       className="bg-zinc-800 border-zinc-600 text-white text-sm h-9"
     />
-    <Input
+    <Input aria-label="Additional notes (optional)"
       id="wsl-notes"
       placeholder="Additional notes (optional)"
       value={wslForm.additional_notes}

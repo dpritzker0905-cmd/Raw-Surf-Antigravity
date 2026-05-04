@@ -2152,7 +2152,7 @@ const UnifiedSpotDrawer = ({
                       </label>
                       <div className="flex items-center gap-3 p-3 bg-zinc-800 rounded-xl">
                         <span className="text-2xl font-bold text-white">$</span>
-                        <Input
+                        <Input aria-label="Numeric input"
                           type="number"
                           value={sessionSettings.price_per_join}
                           onChange={(e) => setSessionSettings(prev => ({ ...prev, price_per_join: parseInt(e.target.value) || 0 }))}
@@ -2171,7 +2171,7 @@ const UnifiedSpotDrawer = ({
                         Photos Included in Buy-in
                       </label>
                       <div className="flex items-center gap-3 p-3 bg-zinc-800 rounded-xl">
-                        <Input
+                        <Input aria-label="Numeric input"
                           type="number"
                           value={sessionSettings.photos_included}
                           onChange={(e) => setSessionSettings(prev => ({ ...prev, photos_included: parseInt(e.target.value) || 0 }))}
@@ -2194,7 +2194,7 @@ const UnifiedSpotDrawer = ({
                       </label>
                       <div className="flex items-center gap-3 p-3 bg-zinc-800 rounded-xl">
                         <span className="text-xl font-bold text-white">$</span>
-                        <Input
+                        <Input aria-label="Numeric input"
                           type="number"
                           value={sessionSettings.live_photo_price}
                           onChange={(e) => setSessionSettings(prev => ({ ...prev, live_photo_price: parseFloat(e.target.value) || 0 }))}
@@ -2221,7 +2221,7 @@ const UnifiedSpotDrawer = ({
                           <p className="text-gray-500 text-xs">Session capacity</p>
                         </div>
                       </div>
-                      <Input
+                      <Input aria-label="Numeric input"
                         type="number"
                         value={sessionSettings.max_surfers}
                         onChange={(e) => setSessionSettings(prev => ({ ...prev, max_surfers: parseInt(e.target.value) || 1 }))}

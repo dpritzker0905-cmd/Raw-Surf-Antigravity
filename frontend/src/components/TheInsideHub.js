@@ -569,27 +569,27 @@ const AddResultForm = ({ userId, defaultTier, onSuccess }) => {
 
   return (
     <div className="space-y-4">
-      <Input
+      <Input aria-label="Event Name *"
         placeholder="Event Name *"
         value={formData.event_name}
         onChange={(e) => setFormData({ ...formData, event_name: e.target.value })}
         className="bg-zinc-800 border-zinc-700"
       />
-      <Input
+      <Input aria-label="Date"
         type="date"
         value={formData.event_date}
         onChange={(e) => setFormData({ ...formData, event_date: e.target.value })}
         className="bg-zinc-800 border-zinc-700"
       />
       <div className="grid grid-cols-2 gap-3">
-        <Input
+        <Input aria-label="Your Placing *"
           type="number"
           placeholder="Your Placing *"
           value={formData.placing}
           onChange={(e) => setFormData({ ...formData, placing: e.target.value })}
           className="bg-zinc-800 border-zinc-700"
         />
-        <Input
+        <Input aria-label="Heat Wins"
           type="number"
           placeholder="Heat Wins"
           value={formData.heat_wins}
@@ -597,7 +597,7 @@ const AddResultForm = ({ userId, defaultTier, onSuccess }) => {
           className="bg-zinc-800 border-zinc-700"
         />
       </div>
-      <Input
+      <Input aria-label="Proof Image URL (optional)"
         placeholder="Proof Image URL (optional)"
         value={formData.proof_image_url}
         onChange={(e) => setFormData({ ...formData, proof_image_url: e.target.value })}
@@ -642,7 +642,7 @@ const AddStokeSponsorForm = ({ userId, onSuccess }) => {
 
   return (
     <div className="space-y-4">
-      <Input
+      <Input aria-label="Sponsor Name *"
         placeholder="Sponsor Name *"
         value={formData.sponsor_name}
         onChange={(e) => setFormData({ ...formData, sponsor_name: e.target.value })}

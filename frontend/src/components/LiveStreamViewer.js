@@ -133,7 +133,7 @@ const LiveChat = ({ streamId, userId, userName, userAvatar }) => {
       </div>
       <form onSubmit={send} className="p-3 border-t border-zinc-800">
         <div className="flex gap-2">
-          <Input
+          <Input aria-label="Say something..."
             value={newComment}
             onChange={(e) => setNewComment(e.target.value)}
             placeholder="Say something..."

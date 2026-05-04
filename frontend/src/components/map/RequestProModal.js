@@ -434,7 +434,7 @@ export const RequestProModal = ({
   // ────────────────────────────────────────────────────────────────────────────
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent
+      <DialogContent data-testid="request-pro-modal" 
         className={`${isDark ? 'bg-zinc-900 border-zinc-800 text-white' : 'bg-white border-gray-200 text-gray-900'} sm:max-w-md`}
         hideCloseButton={false}
       >
@@ -844,7 +844,7 @@ export const RequestProModal = ({
                                   <span className="text-[10px] text-gray-400">Share: {pct.toFixed(0)}%</span>
                                   <span className={`text-xs font-bold ${isCovered ? 'line-through text-gray-500' : 'text-white'}`}>${share.toFixed(2)}</span>
                                 </div>
-                                <input
+                                <input aria-label="Range slider"
                                   type="range" min={0} max={100} value={pct}
                                   onChange={e => handlePercentageChange(m.id, parseFloat(e.target.value))}
                                   disabled={isCovered}

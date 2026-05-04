@@ -72,7 +72,7 @@ const GalleryItemCard = ({
   if (viewMode === 'list') {
     return (
       <div 
-        className={`flex items-center gap-4 p-3 rounded-lg border transition-all ${
+        data-testid="surfer-gallery-page" className={`flex items-center gap-4 p-3 rounded-lg border transition-all ${
           isSelected 
             ? 'bg-cyan-500/10 border-cyan-500/50' 
             : 'bg-card border-border hover:bg-muted/50'
@@ -483,7 +483,7 @@ const ShareModal = ({ item, isOpen, onClose }) => {
           
           {/* Copy link */}
           <div className="flex gap-2">
-            <Input 
+            <Input aria-label="Share URL"
               value={shareUrl} 
               readOnly 
               className="bg-muted border-zinc-700 text-sm"
@@ -563,7 +563,7 @@ const RequestEditModal = ({ item, isOpen, onClose, onSubmit }) => {
           <p className="text-sm text-muted-foreground">
             Send a message to <span className="text-foreground">{item.photographer_name}</span> requesting edits to this photo.
           </p>
-          <textarea
+          <textarea aria-label="E.g., Could you crop tighter on the wave? Or add a slight color boost?"
             value={message}
             onChange={(e) => setMessage(e.target.value)}
             placeholder="E.g., Could you crop tighter on the wave? Or add a slight color boost?"
@@ -1173,7 +1173,7 @@ export const SurferGallery = () => {
               {/* Search */}
               <div className="relative flex-1 max-w-md">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input
+                <Input aria-label="Search by photographer, spot, or title..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Search by photographer, spot, or title..."

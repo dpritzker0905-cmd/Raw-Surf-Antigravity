@@ -236,7 +236,7 @@ const CommentWithReaction = ({
         <div className="flex-1 min-w-0">
           {isEditing ? (
             <div className="flex flex-col gap-2">
-              <textarea
+              <textarea aria-label="Text input"
                 value={editContent}
                 onChange={(e) => setEditContent(e.target.value)}
                 className={`w-full p-2 rounded-lg text-sm resize-none ${
@@ -380,7 +380,7 @@ const CommentWithReaction = ({
       {/* Reply Input */}
       {showReplyInput && (
         <div className="mt-2 ml-6 flex gap-2" data-testid={`reply-input-container-${comment.id}`}>
-          <input
+          <input aria-label="Reply to ${comment.author_name}..."
             type="text"
             value={replyContent}
             onChange={(e) => setReplyContent(e.target.value)}
@@ -961,7 +961,7 @@ const PostCard = ({
                 opacity: showVolSlider ? 1 : 0,
               }}
             >
-              <input
+              <input aria-label="Range slider"
                 type="range"
                 min="0"
                 max="1"

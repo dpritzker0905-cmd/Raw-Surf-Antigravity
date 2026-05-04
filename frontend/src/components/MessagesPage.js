@@ -1191,7 +1191,7 @@ export const MessagesPage = () => {
       <div className="px-4 py-2">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <input
+          <input aria-label="Search conversations"
             type="text"
             placeholder="Search conversations"
             value={searchQuery}
@@ -1617,7 +1617,7 @@ export const MessagesPage = () => {
               <button type="button" onClick={() => fileInputRef.current?.click()} className="p-2 text-muted-foreground hover:text-cyan-400 transition-colors">
                 <Image className="w-5 h-5" />
               </button>
-              <input ref={fileInputRef} type="file" accept="image/*,video/*" onChange={handleMediaUpload} className="hidden" />
+              <input aria-label="Upload file" ref={fileInputRef} type="file" accept="image/*,video/*" onChange={handleMediaUpload} className="hidden" />
               
               {/* GIF button */}
               <button 
@@ -1634,7 +1634,7 @@ export const MessagesPage = () => {
               </button>
               
               <div className="flex-1 relative">
-                <input
+                <input aria-label="Message..."
                   type="text"
                   value={newMessage}
                   onChange={handleInputChange}

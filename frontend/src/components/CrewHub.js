@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -492,7 +492,7 @@ export const CrewHub = ({
                         <span className={`text-sm ${isLight ? 'text-gray-500' : 'text-gray-400'}`}>Or set amount:</span>
                         <div className="flex items-center gap-1 flex-1">
                           <DollarSign className="w-4 h-4 text-gray-400" />
-                          <Input
+                          <Input aria-label="Numeric input"
                             type="number"
                             step="0.01"
                             min="0"

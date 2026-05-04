@@ -66,7 +66,7 @@ const SurfboardCard = ({ board, onClick, isLight }) => {
   const conditionInfo = CONDITIONS.find(c => c.value === board.condition);
   
   return (
-    <div 
+    <div data-testid="surfboards-tab" 
       onClick={onClick}
       className={`relative aspect-[3/4] rounded-xl overflow-hidden cursor-pointer group transition-all hover:scale-[1.02] ${
         isLight ? 'bg-gray-100' : 'bg-zinc-800'
@@ -274,7 +274,7 @@ const SurfboardModal = ({ isOpen, onClose, board, onSave, userId }) => {
                   ) : (
                     <Plus className={`w-6 h-6 ${isLight ? 'text-gray-400' : 'text-zinc-500'}`} />
                   )}
-                  <input
+                  <input aria-label="Upload file"
                     type="file"
                     accept="image/*"
                     multiple
@@ -324,7 +324,7 @@ const SurfboardModal = ({ isOpen, onClose, board, onSave, userId }) => {
                 <p className={`text-xs ${isLight ? 'text-gray-500' : 'text-gray-400'} text-center mt-1`}>ft</p>
               </div>
               <div className="col-span-1">
-                <Input
+                <Input aria-label="10"
                   type="number"
                   value={formData.length_inches}
                   onChange={(e) => setFormData(p => ({ ...p, length_inches: e.target.value }))}
@@ -334,7 +334,7 @@ const SurfboardModal = ({ isOpen, onClose, board, onSave, userId }) => {
                 <p className={`text-xs ${isLight ? 'text-gray-500' : 'text-gray-400'} text-center mt-1`}>in</p>
               </div>
               <div className="col-span-1">
-                <Input
+                <Input aria-label="19.5"
                   type="number"
                   step="0.25"
                   value={formData.width_inches}
@@ -345,7 +345,7 @@ const SurfboardModal = ({ isOpen, onClose, board, onSave, userId }) => {
                 <p className={`text-xs ${isLight ? 'text-gray-500' : 'text-gray-400'} text-center mt-1`}>width</p>
               </div>
               <div className="col-span-1">
-                <Input
+                <Input aria-label="2.5"
                   type="number"
                   step="0.125"
                   value={formData.thickness_inches}
@@ -356,7 +356,7 @@ const SurfboardModal = ({ isOpen, onClose, board, onSave, userId }) => {
                 <p className={`text-xs ${isLight ? 'text-gray-500' : 'text-gray-400'} text-center mt-1`}>thick</p>
               </div>
               <div className="col-span-1">
-                <Input
+                <Input aria-label="28.5"
                   type="number"
                   step="0.1"
                   value={formData.volume_liters}

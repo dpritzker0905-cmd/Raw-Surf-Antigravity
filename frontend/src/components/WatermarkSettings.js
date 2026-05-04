@@ -262,7 +262,7 @@ const WatermarkSettings = ({ open, onOpenChange, theme = 'dark' }) => {
                     transition-all hover:border-cyan-500/50
                     ${bgCardClass} ${borderClass}
                   `}>
-                    <input
+                    <input aria-label="Upload file"
                       type="file"
                       accept="image/*"
                       onChange={handleLogoUpload}

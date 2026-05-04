@@ -1358,7 +1358,7 @@ export const PhotographerSessionsManager = () => {
                       Photos Included in Buy-in
                     </Label>
                     <div className={`flex items-center gap-3 p-3 rounded-xl ${isLight ? 'bg-gray-100' : 'bg-zinc-800'}`}>
-                      <Input
+                      <Input aria-label="Numeric input"
                         type="number"
                         value={sessionSettings.photos_included}
                         onChange={(e) => setSessionSettings(prev => ({ ...prev, photos_included: parseInt(e.target.value) || 0 }))}
@@ -1376,7 +1376,7 @@ export const PhotographerSessionsManager = () => {
                       Videos Included in Buy-in
                     </Label>
                     <div className={`flex items-center gap-3 p-3 rounded-xl ${isLight ? 'bg-gray-100' : 'bg-zinc-800'}`}>
-                      <Input
+                      <Input aria-label="Numeric input"
                         type="number"
                         value={sessionSettings.videos_included}
                         onChange={(e) => setSessionSettings(prev => ({ ...prev, videos_included: parseInt(e.target.value) || 0 }))}
@@ -1452,7 +1452,7 @@ export const PhotographerSessionsManager = () => {
                         <span className="w-3 h-3 rounded-full bg-blue-400"></span>
                         <span className={`text-sm ${textSecondaryClass} flex-1`}>Web-Res</span>
                         <span className={`font-bold ${textPrimaryClass}`}>$</span>
-                        <Input
+                        <Input aria-label="Numeric input"
                           type="number"
                           value={sessionSettings.photo_price_web}
                           onChange={(e) => setSessionSettings(prev => ({ ...prev, photo_price_web: parseFloat(e.target.value) || 0 }))}
@@ -1467,7 +1467,7 @@ export const PhotographerSessionsManager = () => {
                         <span className="w-3 h-3 rounded-full bg-cyan-400"></span>
                         <span className={`text-sm ${textSecondaryClass} flex-1`}>Standard</span>
                         <span className={`font-bold ${textPrimaryClass}`}>$</span>
-                        <Input
+                        <Input aria-label="Numeric input"
                           type="number"
                           value={sessionSettings.photo_price_standard}
                           onChange={(e) => setSessionSettings(prev => ({ ...prev, photo_price_standard: parseFloat(e.target.value) || 0 }))}
@@ -1482,7 +1482,7 @@ export const PhotographerSessionsManager = () => {
                         <span className="w-3 h-3 rounded-full bg-purple-400"></span>
                         <span className={`text-sm ${textSecondaryClass} flex-1`}>High-Res</span>
                         <span className={`font-bold ${textPrimaryClass}`}>$</span>
-                        <Input
+                        <Input aria-label="Numeric input"
                           type="number"
                           value={sessionSettings.photo_price_high}
                           onChange={(e) => setSessionSettings(prev => ({ ...prev, photo_price_high: parseFloat(e.target.value) || 0 }))}
@@ -1515,7 +1515,7 @@ export const PhotographerSessionsManager = () => {
                         </p>
                         <div className={`flex items-center gap-3`}>
                           <span className={`text-2xl font-bold ${textPrimaryClass}`}>$</span>
-                          <Input
+                          <Input aria-label="Numeric input"
                             type="number"
                             value={sessionSettings.live_photo_price}
                             onChange={(e) => setSessionSettings(prev => ({ ...prev, live_photo_price: parseFloat(e.target.value) || 0 }))}
@@ -1603,7 +1603,7 @@ export const PhotographerSessionsManager = () => {
                         <span className="w-3 h-3 rounded-full bg-orange-400"></span>
                         <span className={`text-sm ${textSecondaryClass} flex-1`}>720p HD</span>
                         <span className={`font-bold ${textPrimaryClass}`}>$</span>
-                        <Input
+                        <Input aria-label="Numeric input"
                           type="number"
                           value={sessionSettings.video_price_720p}
                           onChange={(e) => setSessionSettings(prev => ({ ...prev, video_price_720p: parseFloat(e.target.value) || 0 }))}
@@ -1618,7 +1618,7 @@ export const PhotographerSessionsManager = () => {
                         <span className="w-3 h-3 rounded-full bg-red-400"></span>
                         <span className={`text-sm ${textSecondaryClass} flex-1`}>1080p Full HD</span>
                         <span className={`font-bold ${textPrimaryClass}`}>$</span>
-                        <Input
+                        <Input aria-label="Numeric input"
                           type="number"
                           value={sessionSettings.video_price_1080p}
                           onChange={(e) => setSessionSettings(prev => ({ ...prev, video_price_1080p: parseFloat(e.target.value) || 0 }))}
@@ -1633,7 +1633,7 @@ export const PhotographerSessionsManager = () => {
                         <span className="w-3 h-3 rounded-full bg-pink-400"></span>
                         <span className={`text-sm ${textSecondaryClass} flex-1`}>4K Ultra HD</span>
                         <span className={`font-bold ${textPrimaryClass}`}>$</span>
-                        <Input
+                        <Input aria-label="Numeric input"
                           type="number"
                           value={sessionSettings.video_price_4k}
                           onChange={(e) => setSessionSettings(prev => ({ ...prev, video_price_4k: parseFloat(e.target.value) || 0 }))}
@@ -1666,7 +1666,7 @@ export const PhotographerSessionsManager = () => {
                         </p>
                         <div className={`flex items-center gap-3`}>
                           <span className={`text-2xl font-bold ${textPrimaryClass}`}>$</span>
-                          <Input
+                          <Input aria-label="Numeric input"
                             type="number"
                             value={sessionSettings.live_video_price}
                             onChange={(e) => setSessionSettings(prev => ({ ...prev, live_video_price: parseFloat(e.target.value) || 0 }))}
@@ -1716,7 +1716,7 @@ export const PhotographerSessionsManager = () => {
                         <p className={`text-xs ${textSecondaryClass}`}>Limit session capacity</p>
                       </div>
                     </div>
-                    <Input
+                    <Input aria-label="Numeric input"
                       type="number"
                       value={sessionSettings.max_surfers}
                       onChange={(e) => setSessionSettings(prev => ({ ...prev, max_surfers: parseInt(e.target.value) || 1 }))}
@@ -1735,7 +1735,7 @@ export const PhotographerSessionsManager = () => {
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Input
+                      <Input aria-label="Numeric input"
                         type="number"
                         value={sessionSettings.estimated_duration}
                         onChange={(e) => setSessionSettings(prev => ({ ...prev, estimated_duration: parseInt(e.target.value) || 1 }))}
@@ -1935,7 +1935,7 @@ export const PhotographerSessionsManager = () => {
                   {/* Search Input */}
                   <div className="relative mb-3">
                     <Search className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${textSecondaryClass}`} />
-                    <Input
+                    <Input aria-label="Type to search spots..."
                       type="text"
                       placeholder="Type to search spots..."
                       value={spotSearchQuery}

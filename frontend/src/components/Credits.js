@@ -262,7 +262,7 @@ export const Credits = () => {
         <div className="flex gap-3">
           <div className="relative flex-1">
             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">$</span>
-            <Input
+            <Input aria-label="Numeric input"
               type="number"
               min="1"
               step="1"

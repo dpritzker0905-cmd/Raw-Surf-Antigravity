@@ -74,7 +74,7 @@ export const ProfileNoteModal = ({
                 <p className="text-xs text-emerald-400 text-center">
                   Notes disappear after 24 hours
                 </p>
-                <Input
+                <Input aria-label="What's happening? 🤙"
                   value={noteText}
                   onChange={(e) => setNoteText(e.target.value.slice(0, 60))}
                   placeholder="What's happening? 🤙"

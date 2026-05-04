@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import apiClient, { BACKEND_URL } from '../../lib/apiClient';
@@ -449,7 +449,7 @@ export const AdminFinanceDashboard = () => {
           </DialogHeader>
           <div>
             <p className="text-sm text-muted-foreground mb-2">Reason for rejection:</p>
-            <Textarea
+            <Textarea aria-label="Explain why this refund is being rejected..."
               value={rejectionReason}
               onChange={(e) => setRejectionReason(e.target.value)}
               placeholder="Explain why this refund is being rejected..."

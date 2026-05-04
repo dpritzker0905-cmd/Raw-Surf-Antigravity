@@ -533,7 +533,7 @@ export const AdminSpotEditor = () => {
         <div className="flex-1 max-w-xs">
           <div className="relative">
             <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-            <Input
+            <Input aria-label="Search spots..."
               placeholder="Search spots..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
@@ -690,14 +690,14 @@ export const AdminSpotEditor = () => {
               Coordinates: ({pendingCoords?.lat.toFixed(6)}, {pendingCoords?.lng.toFixed(6)})
             </p>
             
-            <Input
+            <Input aria-label="Spot Name *"
               placeholder="Spot Name *"
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               className="bg-muted border-border"
             />
             
-            <Input
+            <Input aria-label="Region (e.g., Central Florida)"
               placeholder="Region (e.g., Central Florida)"
               value={formData.region}
               onChange={(e) => setFormData({ ...formData, region: e.target.value })}
@@ -705,13 +705,13 @@ export const AdminSpotEditor = () => {
             />
             
             <div className="grid grid-cols-2 gap-4">
-              <Input
+              <Input aria-label="Secondary City (e.g., Cocoa Beach)"
                 placeholder="Secondary City (e.g., Cocoa Beach)"
                 value={formData.secondary_city}
                 onChange={(e) => setFormData({ ...formData, secondary_city: e.target.value })}
                 className="bg-muted border-border"
               />
-              <Input
+              <Input aria-label="Secondary Area (e.g., Space Coast)"
                 placeholder="Secondary Area (e.g., Space Coast)"
                 value={formData.secondary_area}
                 onChange={(e) => setFormData({ ...formData, secondary_area: e.target.value })}
@@ -788,14 +788,14 @@ export const AdminSpotEditor = () => {
           </DialogHeader>
           
           <div className="space-y-4">
-            <Input
+            <Input aria-label="Spot Name"
               placeholder="Spot Name"
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               className="bg-muted border-border"
             />
             
-            <Input
+            <Input aria-label="Region"
               placeholder="Region"
               value={formData.region}
               onChange={(e) => setFormData({ ...formData, region: e.target.value })}
@@ -803,13 +803,13 @@ export const AdminSpotEditor = () => {
             />
             
             <div className="grid grid-cols-2 gap-4">
-              <Input
+              <Input aria-label="Secondary City (e.g., Cocoa Beach)"
                 placeholder="Secondary City (e.g., Cocoa Beach)"
                 value={formData.secondary_city}
                 onChange={(e) => setFormData({ ...formData, secondary_city: e.target.value })}
                 className="bg-muted border-border"
               />
-              <Input
+              <Input aria-label="Secondary Area (e.g., Space Coast)"
                 placeholder="Secondary Area (e.g., Space Coast)"
                 value={formData.secondary_area}
                 onChange={(e) => setFormData({ ...formData, secondary_area: e.target.value })}

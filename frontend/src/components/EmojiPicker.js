@@ -360,7 +360,7 @@ export const CommentInputWithEmoji = ({
       </button>
 
       {/* Input */}
-      <input
+      <input aria-label="Text input"
         ref={inputRef}
         type="text"
         placeholder={placeholder}
@@ -432,7 +432,7 @@ export const TextareaWithEmoji = ({
 
   return (
     <div className="relative">
-      <textarea
+      <textarea aria-label="Text input"
         ref={textareaRef}
         value={value}
         onChange={(e) => onChange(e.target.value)}

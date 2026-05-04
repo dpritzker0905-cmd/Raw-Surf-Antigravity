@@ -528,7 +528,7 @@ const ConditionsModal = ({
                   <span className="text-muted-foreground text-sm">Upload from gallery</span>
                 </button>
                 
-                <input
+                <input aria-label="Upload file"
                   ref={fileInputRef}
                   type="file"
                   accept="image/*,video/*"
@@ -546,7 +546,7 @@ const ConditionsModal = ({
               <FileText className="w-4 h-4" />
               Spot Notes <span className="text-muted-foreground/60">(optional)</span>
             </label>
-            <Textarea
+            <Textarea aria-label="E.g., Clean 3-4ft sets, offshore winds, best at mid-tide..."
               value={spotNotes}
               onChange={(e) => setSpotNotes(e.target.value)}
               placeholder="E.g., Clean 3-4ft sets, offshore winds, best at mid-tide..."

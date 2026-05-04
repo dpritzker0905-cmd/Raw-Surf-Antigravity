@@ -128,7 +128,7 @@ const BrowseMode = ({
       {selectedCountry && (
         <div className="relative">
           <Search className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${isLight ? 'text-gray-400' : 'text-gray-500'}`} />
-          <input
+          <input aria-label="Search spots by name..."
             type="text"
             placeholder="Search spots by name..."
             value={spotSearchQuery}

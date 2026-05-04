@@ -102,7 +102,7 @@ const DeleteAccountSection = ({ onDeleted }) => {
             ⚠️ This will permanently delete your posts, comments, follows, check-ins, and reviews.
             Your profile will be anonymized. Type <strong>DELETE</strong> to confirm.
           </div>
-          <input
+          <input aria-label="Text input"
             type="text"
             value={confirmText}
             onChange={(e) => setConfirmText(e.target.value)}

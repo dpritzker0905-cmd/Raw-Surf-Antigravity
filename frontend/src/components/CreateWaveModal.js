@@ -198,7 +198,7 @@ export const CreateWaveModal = ({ isOpen, onClose, onSuccess }) => {
   
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className={`${bgClass} ${textClass} max-w-md mx-auto p-0 overflow-hidden`}>
+      <DialogContent data-testid="create-wave-modal"  className={`${bgClass} ${textClass} max-w-md mx-auto p-0 overflow-hidden`}>
         <DialogHeader className={`p-4 border-b ${borderClass}`}>
           <DialogTitle className="flex items-center gap-2">
             <Video className="w-5 h-5 text-cyan-500" />
@@ -222,7 +222,7 @@ export const CreateWaveModal = ({ isOpen, onClose, onSuccess }) => {
                 </p>
               </div>
               
-              <input
+              <input aria-label="Upload file"
                 ref={fileInputRef}
                 type="file"
                 accept="video/*"
@@ -289,7 +289,7 @@ export const CreateWaveModal = ({ isOpen, onClose, onSuccess }) => {
                           opacity: showVolumeSlider ? 1 : 0,
                         }}
                       >
-                        <input
+                        <input aria-label="Range slider"
                           type="range"
                           min="0"
                           max="1"
@@ -419,7 +419,7 @@ export const CreateWaveModal = ({ isOpen, onClose, onSuccess }) => {
                 </label>
                 <div className="relative">
                   <MapPin className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${mutedClass}`} />
-                  <Input
+                  <Input aria-label="Add location..."
                     value={location}
                     onChange={(e) => setLocation(e.target.value)}
                     placeholder="Add location..."

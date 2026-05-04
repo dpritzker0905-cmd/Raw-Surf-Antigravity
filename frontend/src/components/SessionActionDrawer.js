@@ -1,4 +1,4 @@
-﻿/**
+/**
  * SessionActionDrawer - Command Center for managing scheduled bookings
  * 
  * Features:
@@ -390,7 +390,7 @@ export const SessionActionDrawer = ({
               </div>
             </div>
             
-            <Textarea
+            <Textarea aria-label="Reason for cancellation (optional)"
               value={cancellationReason}
               onChange={(e) => setCancellationReason(e.target.value)}
               placeholder="Reason for cancellation (optional)"

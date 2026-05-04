@@ -410,7 +410,7 @@ export const AdminComplianceDashboard = ({ cardBgClass, textClass, textSecondary
                   {/* Review Panel */}
                   {reviewingId === v.id ? (
                     <div className="mt-3 space-y-2 pt-3 border-t border-border">
-                      <Textarea
+                      <Textarea aria-label="Review notes (optional)..."
                         placeholder="Review notes (optional)..."
                         value={reviewNotes}
                         onChange={(e) => setReviewNotes(e.target.value)}
@@ -652,7 +652,7 @@ export const AdminComplianceDashboard = ({ cardBgClass, textClass, textSecondary
                     <div key={idx} className={`p-3 rounded-lg border ${isLight ? 'bg-gray-50 border-gray-200' : 'bg-zinc-800/50 border-zinc-700'}`}>
                       <div className="flex items-center gap-2 mb-2">
                         <span className={`text-xs font-mono ${textSec}`}>§{idx + 1}</span>
-                        <input
+                        <input aria-label="Text input"
                           value={section.title}
                           onChange={e => updateSection(idx, 'title', e.target.value)}
                           className={`flex-1 px-2 py-1 rounded border text-sm font-medium ${isLight ? 'bg-white border-gray-300 text-gray-900' : 'bg-zinc-900 border-zinc-600 text-white'}`}
@@ -665,7 +665,7 @@ export const AdminComplianceDashboard = ({ cardBgClass, textClass, textSecondary
                           <Trash2 className="w-4 h-4" />
                         </button>
                       </div>
-                      <Textarea
+                      <Textarea aria-label="Section content..."
                         value={section.body}
                         onChange={e => updateSection(idx, 'body', e.target.value)}
                         rows={3}
@@ -748,7 +748,7 @@ export const AdminComplianceDashboard = ({ cardBgClass, textClass, textSecondary
                 Export all user data as a structured JSON file. Includes profile, posts, messages, bookings, payments, and more.
               </p>
               <div className="flex gap-2">
-                <input
+                <input aria-label="User ID (e.g. abc123...)"
                   value={exportUserId}
                   onChange={e => setExportUserId(e.target.value)}
                   placeholder="User ID (e.g. abc123...)"

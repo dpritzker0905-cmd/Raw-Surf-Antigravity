@@ -665,7 +665,7 @@ export const AdminP1Dashboard = () => {
                 <CardContent className="space-y-3">
                   <div className="relative">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
-                    <Input
+                    <Input aria-label="Search user by name or email..."
                       placeholder="Search user by name or email..."
                       value={searchUserQuery}
                       onChange={(e) => {
@@ -676,7 +676,7 @@ export const AdminP1Dashboard = () => {
                     />
                   </div>
                   
-                  <Input
+                  <Input aria-label="Reason for impersonation (optional)"
                     placeholder="Reason for impersonation (optional)"
                     value={impersonationReason}
                     onChange={(e) => setImpersonationReason(e.target.value)}
@@ -1066,7 +1066,7 @@ export const AdminP1Dashboard = () => {
                       >
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-3">
-                            <input
+                            <input aria-label="Checkbox"
                               type="checkbox"
                               checked={selectedAppeals.has(violation.id)}
                               onChange={() => toggleAppealSelection(violation.id)}
@@ -1203,7 +1203,7 @@ export const AdminP1Dashboard = () => {
                 <CardContent>
                   <div className="relative">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
-                    <Input
+                    <Input aria-label="Search user by name or email..."
                       placeholder="Search user by name or email..."
                       value={searchUserQuery}
                       onChange={(e) => {
@@ -1682,7 +1682,7 @@ export const AdminP1Dashboard = () => {
                   </Select>
                   
                   {reviewStatus === 'rejected' && (
-                    <Textarea
+                    <Textarea aria-label="Reason for rejection (shown to user)..."
                       placeholder="Reason for rejection (shown to user)..."
                       value={rejectionReason}
                       onChange={(e) => setRejectionReason(e.target.value)}
@@ -1690,7 +1690,7 @@ export const AdminP1Dashboard = () => {
                     />
                   )}
                   
-                  <Textarea
+                  <Textarea aria-label="Internal admin notes..."
                     placeholder="Internal admin notes..."
                     value={adminNotes}
                     onChange={(e) => setAdminNotes(e.target.value)}
@@ -1777,7 +1777,7 @@ export const AdminP1Dashboard = () => {
                     </SelectContent>
                   </Select>
                   
-                  <Textarea
+                  <Textarea aria-label="Resolution notes..."
                     placeholder="Resolution notes..."
                     value={resolutionNotes}
                     onChange={(e) => setResolutionNotes(e.target.value)}
@@ -1857,7 +1857,7 @@ export const AdminP1Dashboard = () => {
                     <span className="font-medium text-orange-400">Appeal Pending Review</span>
                   </div>
                   
-                  <Textarea
+                  <Textarea aria-label="Add notes for this appeal review..."
                     placeholder="Add notes for this appeal review..."
                     value={appealNotes}
                     onChange={(e) => setAppealNotes(e.target.value)}

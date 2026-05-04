@@ -742,7 +742,7 @@ export const SurfAlerts = () => {
               
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
-                <Input
+                <Input aria-label="Text input"
                   type="text"
                   placeholder={userLocation ? "Search or pick nearby spot..." : "Search for a spot..."}
                   value={spotSearchQuery}

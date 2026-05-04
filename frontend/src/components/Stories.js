@@ -843,7 +843,7 @@ export const CreateStoryModal = ({ isOpen, onClose, onCreated }) => {
           {/* File Upload Mode */}
           {uploadMode === 'file' && (
             <div>
-              <input
+              <input aria-label="Upload file"
                 ref={fileInputRef}
                 type="file"
                 accept="image/*,video/*"

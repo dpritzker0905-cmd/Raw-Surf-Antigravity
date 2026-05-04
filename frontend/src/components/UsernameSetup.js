@@ -180,7 +180,7 @@ const UsernameSetup = ({ onComplete, skipAllowed = false }) => {
               <span className={`absolute left-3 top-1/2 -translate-y-1/2 ${textSecondary} font-medium`}>
                 @
               </span>
-              <Input
+              <Input aria-label="username"
                 type="text"
                 value={username}
                 onChange={handleUsernameChange}

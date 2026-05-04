@@ -359,7 +359,7 @@ const CreatePostModal = ({ isOpen, onClose, onCreated }) => {
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent 
+      <DialogContent data-testid="create-post-dialog"  
         className="bg-zinc-900 border-zinc-800 text-white sm:max-w-lg" 
         aria-describedby="create-post-description"
       >

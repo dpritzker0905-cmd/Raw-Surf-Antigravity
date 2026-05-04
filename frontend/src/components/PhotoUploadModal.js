@@ -227,7 +227,7 @@ export const PhotoUploadModal = ({
   
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className={`${isLight ? 'bg-white' : 'bg-zinc-900'} border ${borderClass} sm:max-w-2xl`}>
+      <DialogContent data-testid="photo-upload-modal"  className={`${isLight ? 'bg-white' : 'bg-zinc-900'} border ${borderClass} sm:max-w-2xl`}>
         <DialogHeader className="shrink-0 border-b border-inherit px-4 sm:px-6 pt-4 pb-3">
           <DialogTitle className={`${textPrimaryClass} flex items-center gap-2`}>
             <Upload className="w-5 h-5 text-cyan-400" />
@@ -267,9 +267,9 @@ export const PhotoUploadModal = ({
                   or click to browse
                 </p>
                 <p className={`text-xs ${textSecondaryClass} mt-2`}>
-                  Photos: JPG, PNG, HEIC (20MB) • Videos: MP4, MOV, WebM (100MB)
+                  Photos: JPG, PNG, HEIC (20MB) ï¿½ Videos: MP4, MOV, WebM (100MB)
                 </p>
-                <input
+                <input aria-label="Upload file"
                   ref={fileInputRef}
                   type="file"
                   accept="image/*,video/*"

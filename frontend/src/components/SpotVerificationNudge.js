@@ -229,7 +229,7 @@ export const SpotVerificationNudge = ({ spot, userLocation, _onClose }) => {
           </div>
           
           {/* Note */}
-          <textarea
+          <textarea aria-label="Why should the pin move? (optional)"
             placeholder="Why should the pin move? (optional)"
             value={suggestionNote}
             onChange={(e) => setSuggestionNote(e.target.value)}

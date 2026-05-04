@@ -444,7 +444,7 @@ export const SessionChatDrawer = ({
         </div>
 
         {/* ============ MESSAGES AREA ============ */}
-        <div className={`flex-1 overflow-y-auto px-4 py-3 ${bgMessages}`}>
+        <div className={`flex-1 overflow-y-auto px-4 py-3 ${bgMessages}`} aria-live="polite" aria-relevant="additions" data-testid="session-chat-messages">
           {isLoading ? (
             <div className="flex items-center justify-center h-full">
               <Loader2 className="w-8 h-8 text-cyan-400 animate-spin" />
@@ -540,7 +540,7 @@ export const SessionChatDrawer = ({
 
             {/* Text input */}
             <div className={`flex-1 flex items-center rounded-full border ${bgInput} px-3`}>
-              <input
+              <input aria-label="Text input"
                 ref={inputRef}
                 type="text"
                 value={inputValue}

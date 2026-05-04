@@ -54,7 +54,7 @@ const CreateNoteModal = ({ isOpen, onClose, onSubmit }) => {
         <p className="text-xs text-emerald-500 dark:text-emerald-400 mb-4 text-center">Notes disappear after 24 hours</p>
         
         <form onSubmit={handleSubmit}>
-          <Input
+          <Input aria-label="What's on your mind? 🤙"
             ref={inputRef}
             value={noteText}
             onChange={(e) => setNoteText(e.target.value.slice(0, 60))}

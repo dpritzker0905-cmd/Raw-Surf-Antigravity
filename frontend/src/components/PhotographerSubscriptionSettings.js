@@ -258,7 +258,7 @@ const PhotographerSubscriptionSettings = () => {
               </label>
               <div className="relative">
                 <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <input type="number" min={newPlan.interval === 'weekly' ? 5 : 15} step="1" value={newPlan.price} onChange={e => setNewPlan(p => ({ ...p, price: parseFloat(e.target.value) || 0 }))} className="w-full pl-8 pr-3 py-2.5 bg-zinc-800 border border-zinc-700 rounded-lg text-foreground text-sm focus:ring-2 focus:ring-violet-500" />
+                <input aria-label="Numeric input" type="number" min={newPlan.interval === 'weekly' ? 5 : 15} step="1" value={newPlan.price} onChange={e => setNewPlan(p => ({ ...p, price: parseFloat(e.target.value) || 0 }))} className="w-full pl-8 pr-3 py-2.5 bg-zinc-800 border border-zinc-700 rounded-lg text-foreground text-sm focus:ring-2 focus:ring-violet-500" />
               </div>
             </div>
 
@@ -274,7 +274,7 @@ const PhotographerSubscriptionSettings = () => {
                 ].map(({ key, icon: Icon, label, color }) => (
                   <div key={key} className="flex items-center gap-2 p-2.5 rounded-lg" style={{ background: `rgba(${color === 'cyan' ? '6,182,212' : color === 'purple' ? '168,85,247' : color === 'red' ? '239,68,68' : '59,130,246'},0.08)`, border: `1px solid rgba(${color === 'cyan' ? '6,182,212' : color === 'purple' ? '168,85,247' : color === 'red' ? '239,68,68' : '59,130,246'},0.2)` }}>
                     <Icon className={`w-4 h-4 text-${color}-400`} style={{ color: color === 'cyan' ? '#06b6d4' : color === 'purple' ? '#a855f7' : color === 'red' ? '#ef4444' : '#3b82f6' }} />
-                    <input type="number" min={0} value={newPlan[key]} onChange={e => setNewPlan(p => ({ ...p, [key]: parseInt(e.target.value) || 0 }))} className="w-14 text-center bg-zinc-900 border border-zinc-700 rounded text-sm text-foreground py-1" />
+                    <input aria-label="Numeric input" type="number" min={0} value={newPlan[key]} onChange={e => setNewPlan(p => ({ ...p, [key]: parseInt(e.target.value) || 0 }))} className="w-14 text-center bg-zinc-900 border border-zinc-700 rounded text-sm text-foreground py-1" />
                     <span className="text-xs text-muted-foreground">{label}</span>
                   </div>
                 ))}

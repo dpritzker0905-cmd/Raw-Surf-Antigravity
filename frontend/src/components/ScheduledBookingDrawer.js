@@ -1341,7 +1341,7 @@ const CrewSplitSection = ({
                           {coverPct === 0 ? 'They pay full' : coverPct === 100 ? 'You cover all' : `$${captainCoversAmt.toFixed(2)} covered`}
                         </span>
                       </div>
-                      <input
+                      <input aria-label="Range slider"
                         type="range"
                         min={0}
                         max={100}

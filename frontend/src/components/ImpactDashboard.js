@@ -441,7 +441,7 @@ export const ImpactDashboard = () => {
           <div className="space-y-4">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-              <Input
+              <Input aria-label="Search for a Grom to support..."
                 type="text"
                 placeholder="Search for a Grom to support..."
                 value={searchQuery}

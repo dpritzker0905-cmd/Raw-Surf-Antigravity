@@ -163,7 +163,7 @@ const InviteModalContent = ({ booking, user, isLight, textPrimaryClass, textSeco
           {/* Search Input */}
           <div className="relative">
             <Search className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${textSecondaryClass}`} />
-            <Input
+            <Input aria-label="Type a name to search..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Type a name to search..."
@@ -406,6 +406,33 @@ export const Bookings = () => {
     const main = document.querySelector('main');
     if (main) main.scrollTop = 0;
   }, []);
+
+  // Static Open Graph meta tags for Bookings page SEO
+  useEffect(() => {
+    const ogTags = [];
+    const setMeta = (property, content) => {
+      if (!content) return;
+      let tag = document.querySelector(`meta[property="${property}"]`);
+      if (!tag) {
+        tag = document.createElement('meta');
+        tag.setAttribute('property', property);
+        document.head.appendChild(tag);
+        ogTags.push(tag);
+      }
+      tag.setAttribute('content', content);
+    };
+    document.title = 'Bookings — Raw Surf';
+    setMeta('og:title', 'Bookings — Raw Surf');
+    setMeta('og:description', 'Book surf photography sessions, find live photographers, and manage your upcoming shoots on Raw Surf.');
+    setMeta('og:url', `${window.location.origin}/bookings`);
+    setMeta('og:type', 'website');
+    setMeta('og:site_name', 'Raw Surf');
+    return () => {
+      document.title = 'Raw Surf';
+      ogTags.forEach(tag => tag.remove());
+    };
+  }, []);
+
 
   const [bookings, setBookings] = useState([]);
   const [liveSessions, setLiveSessions] = useState([]);

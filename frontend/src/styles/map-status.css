@@ -216,3 +216,13 @@
   background: linear-gradient(to top, rgb(24 24 27) 90%, transparent);
   padding: 16px 0;
 }
+
+
+/* WCAG 2.3.3 — Respect reduced motion for map animations */
+@media (prefers-reduced-motion: reduce) {
+  .map-status-pulse,
+  .map-status-glow,
+  .map-status-wave {
+    animation: none !important;
+  }
+}

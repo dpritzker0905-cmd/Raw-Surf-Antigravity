@@ -195,7 +195,7 @@ export const AdminSupportDashboard = () => {
         <div className="flex-1 min-w-[200px]">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
-            <Input
+            <Input aria-label="Search tickets..."
               placeholder="Search tickets..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
@@ -273,7 +273,7 @@ export const AdminSupportDashboard = () => {
                           )}
                         </div>
                         <p className={`text-sm font-medium ${textClass} truncate`}>{ticket.subject}</p>
-                        <p className="text-xs text-gray-500 truncate">{ticket.user_name} • {ticket.user_email}</p>
+                        <p className="text-xs text-gray-500 truncate">{ticket.user_name} ï¿½ {ticket.user_email}</p>
                       </div>
                       <Badge className={`text-[10px] ${getStatusColor(ticket.status)}`}>
                         {ticket.status?.replace('_', ' ')}
@@ -369,7 +369,7 @@ export const AdminSupportDashboard = () => {
 
                 {/* Reply */}
                 <div className="space-y-2 pt-2 border-t border-border">
-                  <Textarea
+                  <Textarea aria-label="Type your reply..."
                     placeholder="Type your reply..."
                     value={replyText}
                     onChange={(e) => setReplyText(e.target.value)}

@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
@@ -332,7 +332,7 @@ export const CrewPaymentDashboard = ({ booking, onUpdate }) => {
                 </div>
                 <div className="flex items-center gap-2">
                   <DollarSign className="w-4 h-4 text-gray-400" />
-                  <Input
+                  <Input aria-label="Numeric input"
                     type="number"
                     step="0.01"
                     min="0"

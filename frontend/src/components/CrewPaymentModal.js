@@ -151,7 +151,7 @@ export const CrewPaymentModal = ({
   if (!invite) return null;
   
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog data-testid="crew-payment-modal" open={isOpen} onOpenChange={onClose}>
       <DialogContent 
         className={`${bgCard} border-border sm:max-w-md`}
       >
@@ -304,7 +304,7 @@ export const CrewPaymentModal = ({
               } p-4 text-center cursor-pointer transition-all hover:border-cyan-400/50`}
               onClick={() => fileInputRef.current?.click()}
             >
-              <input
+              <input aria-label="Upload file"
                 ref={fileInputRef}
                 type="file"
                 accept="image/*"

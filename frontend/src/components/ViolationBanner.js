@@ -254,7 +254,7 @@ const ViolationBanner = () => {
                 <>
                   {appealingId === v.id ? (
                     <div className="mt-3 space-y-2 pt-2 border-t border-border">
-                      <Textarea
+                      <Textarea aria-label="I believe this was a mistake because..."
                         placeholder="I believe this was a mistake because..."
                         value={appealText}
                         onChange={(e) => setAppealText(e.target.value)}

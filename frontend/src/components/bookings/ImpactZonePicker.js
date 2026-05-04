@@ -1,4 +1,4 @@
-﻿/**
+/**
  * ImpactZonePicker — Location selection for scheduled bookings.
  * Features: GPS-based nearest spots, photographer range validation,
  * travel surcharge calculation, manual browse by country/state.
@@ -720,7 +720,7 @@ const ImpactZonePicker = ({
           
           {/* Search within spots */}
           {nearbySpots.length > 8 && (
-            <Input
+            <Input aria-label="Search spots..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search spots..."
@@ -800,7 +800,7 @@ const ImpactZonePicker = ({
       <div className="space-y-1.5">
         <span className={`text-xs ${textSecondary}`}>Or describe a meetup spot:</span>
         <div className="flex gap-2">
-          <Input
+          <Input aria-label="e.g., North side of the pier"
             value={manualInput}
             onChange={(e) => setManualInput(e.target.value)}
             placeholder="e.g., North side of the pier"

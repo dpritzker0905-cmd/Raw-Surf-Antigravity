@@ -705,7 +705,7 @@ export const Profile = () => {
                 )}
               </button>
             )}
-            <input
+            <input aria-label="Upload file"
               ref={fileInputRef}
               type="file"
               accept="image/*"

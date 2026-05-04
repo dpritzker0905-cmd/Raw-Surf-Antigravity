@@ -307,13 +307,13 @@ const AdControlsPanel = ({ user }) => {
                   {editingAd === ad.id ? (
                     // Edit Mode
                     <div className="space-y-3">
-                      <Input
+                      <Input aria-label="Headline"
                         value={editForm.headline}
                         onChange={(e) => setEditForm(prev => ({ ...prev, headline: e.target.value }))}
                         placeholder="Headline"
                         className="bg-muted border-border text-foreground"
                       />
-                      <Textarea
+                      <Textarea aria-label="Description"
                         value={editForm.description}
                         onChange={(e) => setEditForm(prev => ({ ...prev, description: e.target.value }))}
                         placeholder="Description"
@@ -321,13 +321,13 @@ const AdControlsPanel = ({ user }) => {
                         rows={2}
                       />
                       <div className="grid grid-cols-2 gap-2">
-                        <Input
+                        <Input aria-label="CTA Text"
                           value={editForm.cta}
                           onChange={(e) => setEditForm(prev => ({ ...prev, cta: e.target.value }))}
                           placeholder="CTA Text"
                           className="bg-muted border-border text-foreground"
                         />
-                        <Input
+                        <Input aria-label="CTA Link"
                           value={editForm.cta_link}
                           onChange={(e) => setEditForm(prev => ({ ...prev, cta_link: e.target.value }))}
                           placeholder="CTA Link"

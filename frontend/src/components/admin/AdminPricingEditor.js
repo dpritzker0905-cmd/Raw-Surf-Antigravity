@@ -402,7 +402,7 @@ export const AdminPricingEditor = () => {
                 <Badge className="bg-secondary text-muted-foreground text-xs">No Cash Payouts</Badge>
               </div>
               <div className="flex items-center gap-2">
-                <Input
+                <Input aria-label="Numeric input"
                   type="number"
                   min="0"
                   max="100"
@@ -423,7 +423,7 @@ export const AdminPricingEditor = () => {
                 <Badge className="bg-blue-500/20 text-blue-400 text-xs">Paid Plan</Badge>
               </div>
               <div className="flex items-center gap-2">
-                <Input
+                <Input aria-label="Numeric input"
                   type="number"
                   min="0"
                   max="100"
@@ -444,7 +444,7 @@ export const AdminPricingEditor = () => {
                 <Badge className="bg-yellow-500/20 text-yellow-400 text-xs">Pro Plan</Badge>
               </div>
               <div className="flex items-center gap-2">
-                <Input
+                <Input aria-label="Numeric input"
                   type="number"
                   min="0"
                   max="100"
@@ -502,7 +502,7 @@ export const AdminPricingEditor = () => {
                 <Badge className="bg-secondary text-muted-foreground text-xs">No Discount</Badge>
               </div>
               <div className="flex items-center gap-2">
-                <Input
+                <Input aria-label="Numeric input"
                   type="number"
                   min="0"
                   max="100"
@@ -523,7 +523,7 @@ export const AdminPricingEditor = () => {
                 <Badge className="bg-cyan-500/20 text-cyan-400 text-xs">Subscriber</Badge>
               </div>
               <div className="flex items-center gap-2">
-                <Input
+                <Input aria-label="Numeric input"
                   type="number"
                   min="0"
                   max="100"
@@ -544,7 +544,7 @@ export const AdminPricingEditor = () => {
                 <Badge className="bg-amber-500/20 text-amber-400 text-xs">Pro Subscriber</Badge>
               </div>
               <div className="flex items-center gap-2">
-                <Input
+                <Input aria-label="Numeric input"
                   type="number"
                   min="0"
                   max="100"
@@ -643,7 +643,7 @@ export const AdminPricingEditor = () => {
                               </td>
                               <td className="p-3">
                                 {editingCell === `${cellKey}-name` ? (
-                                  <Input
+                                  <Input aria-label="Text input"
                                     value={tierData.name}
                                     onChange={(e) => handleNameChange(roleKey, tierKey, e.target.value)}
                                     onBlur={() => setEditingCell(null)}
@@ -664,7 +664,7 @@ export const AdminPricingEditor = () => {
                                 {editingCell === `${cellKey}-price` ? (
                                   <div className="flex items-center gap-1">
                                     <span className="text-green-400">$</span>
-                                    <Input
+                                    <Input aria-label="Numeric input"
                                       type="number"
                                       min="0"
                                       step="1"

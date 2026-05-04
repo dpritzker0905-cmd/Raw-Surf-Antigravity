@@ -179,7 +179,7 @@ export const FindMeModal = ({ open, onClose, galleryId, userId }) => {
               {!selfieFile && (
                 <div className="flex items-center gap-2">
                   <span className="text-[10px] text-zinc-500 uppercase">or paste URL</span>
-                  <Input
+                  <Input aria-label="https://..."
                     placeholder="https://..."
                     value={selfieUrl}
                     onChange={(e) => setSelfieUrl(e.target.value)}

@@ -1171,7 +1171,7 @@ export const PhotographerGalleryManager = () => {
           {/* Search */}
           <div className="relative flex-1 min-w-[200px]">
             <Search className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${textSecondaryClass}`} />
-            <Input
+            <Input aria-label="Search by title..."
               placeholder="Search by title..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
@@ -1401,7 +1401,7 @@ export const PhotographerGalleryManager = () => {
             </p>
             <div className="flex items-center gap-2">
               <DollarSign className={`w-5 h-5 ${textSecondaryClass}`} />
-              <Input
+              <Input aria-label="Custom price (credits)"
                 type="number"
                 placeholder="Custom price (credits)"
                 value={itemCustomPrice}

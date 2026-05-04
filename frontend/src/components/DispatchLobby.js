@@ -595,7 +595,7 @@ export const DispatchLobby = () => {
             >
               <ArrowLeft className={`w-5 h-5 ${textPrimary}`} />
             </button>
-            <div>
+            <div aria-live="polite" aria-atomic="true" data-testid="dispatch-status">
               <h1 className={`font-bold text-sm ${textPrimary}`}>
                 {photographerAccepted ? 'Photographer Confirmed!' : 'Session Pending'}
               </h1>
@@ -1093,7 +1093,7 @@ export const DispatchLobby = () => {
 
           {editingLocation ? (
             <div className="space-y-2">
-              <input
+              <input aria-label="e.g. Pier at 2nd Street"
                 type="text"
                 value={newLocationName}
                 onChange={e => setNewLocationName(e.target.value)}

@@ -273,7 +273,7 @@ export const AdminCommunicationsDashboard = () => {
         </div>
         <div className="relative w-full sm:w-64">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-500" />
-          <Input
+          <Input aria-label="Search ${activeTab}..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder={`Search ${activeTab}...`}

@@ -1282,7 +1282,7 @@ export const PhotographerBookingsManager = () => {
                     </div>
                     
                     <div className="flex gap-2 mb-3">
-                      <Input
+                      <Input aria-label="Email or username"
                         value={newCrewInput}
                         onChange={(e) => setNewCrewInput(e.target.value)}
                         placeholder="Email or username"
@@ -1554,7 +1554,7 @@ export const PhotographerBookingsManager = () => {
                 Crew Split Pricing
               </h4>
               <p className={`text-xs ${textSecondaryClass} mb-4`}>
-                Formula: Base Session Price + (Per Surfer × Additional Crew)
+                Formula: Base Session Price + (Per Surfer ï¿½ Additional Crew)
               </p>
               <NumericStepper
                 label="Price Per Additional Surfer"
@@ -1718,7 +1718,7 @@ export const PhotographerBookingsManager = () => {
                   <div className="space-y-2">
                     <p className={`text-xs ${textSecondaryClass}`}>Or search by city/place:</p>
                     <div className="flex gap-2">
-                      <Input
+                      <Input aria-label="e.g., San Diego, CA or Uluwatu, Bali"
                         placeholder="e.g., San Diego, CA or Uluwatu, Bali"
                         value={bookingPricing.location_search || ''}
                         onChange={(e) => setBookingPricing({ ...bookingPricing, location_search: e.target.value })}
@@ -1796,7 +1796,7 @@ export const PhotographerBookingsManager = () => {
                           </span>
                           <div className="flex items-center gap-1">
                             <span className="text-yellow-400 text-sm">+$</span>
-                            <Input
+                            <Input aria-label="Numeric input"
                               type="number"
                               value={tier.surcharge}
                               onChange={(e) => {
@@ -1893,7 +1893,7 @@ export const PhotographerBookingsManager = () => {
                 Share Split Payment Link
               </Label>
               <div className="flex gap-2">
-                <Input
+                <Input aria-label="Text input"
                   value={generatedSplitLink}
                   readOnly
                   className={`flex-1 text-sm ${inputBgClass} ${textPrimaryClass}`}

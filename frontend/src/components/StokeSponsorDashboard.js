@@ -145,7 +145,7 @@ export const StokeSponsorDashboard = () => {
             {/* Search */}
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <Input
+              <Input aria-label="Search surfers by name or home break..."
                 placeholder="Search surfers by name or home break..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -400,7 +400,7 @@ const ContributeModal = ({ isOpen, onClose, surfer, photographerId, userCredits,
           {/* Custom Amount */}
           <div className="relative">
             <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <Input
+            <Input aria-label="Custom amount"
               type="number"
               placeholder="Custom amount"
               value={amount}
@@ -410,7 +410,7 @@ const ContributeModal = ({ isOpen, onClose, surfer, photographerId, userCredits,
           </div>
 
           {/* Message */}
-          <Input
+          <Input aria-label="Add a message (optional)"
             placeholder="Add a message (optional)"
             value={message}
             onChange={(e) => setMessage(e.target.value)}

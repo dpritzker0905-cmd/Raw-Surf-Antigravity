@@ -103,7 +103,7 @@ export const ProOnboarding = () => {
                   <Link2 className="w-4 h-4" />
                   Portfolio URL <span className="text-red-400">*</span>
                 </Label>
-                <Input
+                <Input aria-label="https://yourportfolio.com"
                   id="portfolio_url"
                   type="url"
                   value={formData.portfolio_url}
@@ -124,7 +124,7 @@ export const ProOnboarding = () => {
                   <Instagram className="w-4 h-4" />
                   Instagram Profile
                 </Label>
-                <Input
+                <Input aria-label="https://instagram.com/yourhandle"
                   id="instagram_url"
                   type="url"
                   value={formData.instagram_url}
@@ -141,7 +141,7 @@ export const ProOnboarding = () => {
                   <Globe className="w-4 h-4" />
                   Personal Website
                 </Label>
-                <Input
+                <Input aria-label="https://yourwebsite.com"
                   id="website_url"
                   type="url"
                   value={formData.website_url}

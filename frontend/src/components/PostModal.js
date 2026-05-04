@@ -232,7 +232,7 @@ const ModalVideoPlayer = ({ src, poster, className = '' }) => {
                 opacity: showVolumeSlider ? 1 : 0,
               }}
             >
-              <input
+              <input aria-label="Range slider"
                 type="range"
                 min="0"
                 max="1"
@@ -1068,7 +1068,7 @@ const PostModal = ({ post, isOpen, onClose, _onPostUpdated, posts, onNavigatePos
             >
               <Smile className="w-5 h-5" />
             </button>
-            <input
+            <input aria-label="Add a comment..."
               ref={mobileCommentInputRef}
               type="text"
               placeholder="Add a comment..."
@@ -1330,7 +1330,7 @@ const PostModal = ({ post, isOpen, onClose, _onPostUpdated, posts, onNavigatePos
               >
                 <Smile className="w-5 h-5" />
               </button>
-              <input
+              <input aria-label="Text input"
                 ref={desktopCommentInputRef}
                 type="text"
                 value={commentInput}

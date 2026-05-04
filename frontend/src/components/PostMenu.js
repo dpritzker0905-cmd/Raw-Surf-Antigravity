@@ -788,7 +788,7 @@ const SharePostModal = ({ post, open, onClose, isLight }) => {
 
           {/* Copy Link */}
           <div className={`flex items-center gap-2 p-3 rounded-lg ${isLight ? 'bg-gray-100' : 'bg-zinc-800'}`}>
-            <Input
+            <Input aria-label="Text input"
               value={postUrl}
               readOnly
               className={`flex-1 text-sm ${isLight ? 'bg-white' : 'bg-zinc-900'}`}

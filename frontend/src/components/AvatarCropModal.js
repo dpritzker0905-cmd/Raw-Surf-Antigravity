@@ -343,7 +343,7 @@ export default function AvatarCropModal({ imageFile, onConfirm, onCancel }) {
           <div className="flex items-center gap-3">
             <ZoomOut className="w-4 h-4 text-zinc-500 flex-shrink-0" />
             <div className="flex-1 relative">
-              <input
+              <input aria-label="Range slider"
                 type="range"
                 min={MIN_ZOOM}
                 max={MAX_ZOOM}

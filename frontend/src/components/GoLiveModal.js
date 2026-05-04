@@ -248,7 +248,7 @@ const VideoFilterPanel = ({ isOpen, onClose, filters, onFilterChange, onPresetSe
           </div>
           <span className={`text-xs ${colors.primaryText}`}>{filters.brightness}%</span>
         </div>
-        <input
+        <input aria-label="Range slider"
           type="range"
           min="50"
           max="150"
@@ -267,7 +267,7 @@ const VideoFilterPanel = ({ isOpen, onClose, filters, onFilterChange, onPresetSe
           </div>
           <span className={`text-xs ${colors.primaryText}`}>{filters.contrast}%</span>
         </div>
-        <input
+        <input aria-label="Range slider"
           type="range"
           min="50"
           max="150"
@@ -286,7 +286,7 @@ const VideoFilterPanel = ({ isOpen, onClose, filters, onFilterChange, onPresetSe
           </div>
           <span className={`text-xs ${colors.primaryText}`}>{filters.saturation}%</span>
         </div>
-        <input
+        <input aria-label="Range slider"
           type="range"
           min="50"
           max="150"
@@ -305,7 +305,7 @@ const VideoFilterPanel = ({ isOpen, onClose, filters, onFilterChange, onPresetSe
           </div>
           <span className={`text-xs ${colors.primaryText}`}>{filters.warmth}%</span>
         </div>
-        <input
+        <input aria-label="Range slider"
           type="range"
           min="50"
           max="150"
@@ -324,7 +324,7 @@ const VideoFilterPanel = ({ isOpen, onClose, filters, onFilterChange, onPresetSe
           </div>
           <span className={`text-xs ${colors.primaryText}`}>{filters.vignette}%</span>
         </div>
-        <input
+        <input aria-label="Range slider"
           type="range"
           min="0"
           max="50"
@@ -592,7 +592,7 @@ const LiveCommentsFeed = ({ streamId, colors, onSendComment, onLikeComment, isEx
           {/* Input - pinned to bottom */}
           <form onSubmit={handleSend} style={{ padding: '10px 12px', borderTop: '1px solid #27272a', background: '#09090b', flexShrink: 0 }}>
             <div style={{ display: 'flex', gap: 8 }}>
-              <Input
+              <Input aria-label="Text input"
                 value={newComment}
                 onChange={(e) => setNewComment(e.target.value)}
                 placeholder={replyingTo ? `Reply to @${replyingTo.user_name}...` : 'Say something...'}
@@ -1561,7 +1561,7 @@ const GoLiveModal = ({ isOpen, onClose, onStreamEnded }) => {
               <div className="flex-shrink-0 bg-zinc-950 border-t border-zinc-800 p-4">
                 {/* Stream title input */}
                 <div className="mb-4">
-                  <input
+                  <input aria-label="Add a title for your live (optional)"
                     type="text"
                     value={streamTitle}
                     onChange={e => setStreamTitle(e.target.value)}

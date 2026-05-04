@@ -141,7 +141,7 @@ const MiniCalendar = ({ selectedDate, onSelectDate, _minDate }) => {
                        'July', 'August', 'September', 'October', 'November', 'December'];
   
   return (
-    <div className="space-y-1">
+    <div data-testid="exact-time-slot-picker" className="space-y-1">
       {/* Month Navigation */}
       <div className="flex items-center justify-between">
         <Button variant="ghost" size="sm" onClick={prevMonth} className="h-7 w-7 p-0" aria-label="Previous month">

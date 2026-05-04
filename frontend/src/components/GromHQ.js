@@ -796,7 +796,7 @@ export const GromHQ = () => {
                 <KeyRound className="w-4 h-4 inline mr-1" />
                 Enter your password to confirm
               </label>
-              <Input
+              <Input aria-label="Your password"
                 type="password"
                 placeholder="Your password"
                 value={unlinkPassword}

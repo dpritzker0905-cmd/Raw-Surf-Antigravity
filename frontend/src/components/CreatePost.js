@@ -664,7 +664,7 @@ export const CreatePost = () => {
         </div>
 
         {/* Hidden File Inputs */}
-        <input
+        <input aria-label="Upload file"
           ref={photoInputRef}
           type="file"
           accept="image/*,image/jpeg,image/png,image/heic,image/webp"
@@ -672,14 +672,14 @@ export const CreatePost = () => {
           onChange={handleFileSelect}
           className="hidden"
         />
-        <input
+        <input aria-label="Upload file"
           ref={videoInputRef}
           type="file"
           accept="video/*,video/mp4,video/quicktime,video/webm,video/mov"
           onChange={handleFileSelect}
           className="hidden"
         />
-        <input
+        <input aria-label="Upload file"
           ref={cameraInputRef}
           type="file"
           accept="image/*"
@@ -687,7 +687,7 @@ export const CreatePost = () => {
           onChange={handleFileSelect}
           className="hidden"
         />
-        <input
+        <input aria-label="Upload file"
           ref={cameraVideoInputRef}
           type="file"
           accept="video/*"
@@ -890,7 +890,7 @@ export const CreatePost = () => {
 
             {/* Caption with Emoji and @Mentions */}
             <div className="relative">
-              <Textarea
+              <Textarea aria-label="Text input"
                 ref={captionRef}
                 value={caption}
                 onChange={handleCaptionChange}
@@ -1265,7 +1265,7 @@ export const CreatePost = () => {
 
                   {/* Manual input fallback */}
                   <div className="relative">
-                    <Input
+                    <Input aria-label="Or type a location..."
                       value={location}
                       onChange={(e) => setLocation(e.target.value)}
                       placeholder="Or type a location..."

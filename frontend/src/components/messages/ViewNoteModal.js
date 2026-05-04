@@ -88,7 +88,7 @@ const ViewNoteModal = ({ isOpen, onClose, note, currentUserId, onReply }) => {
         {/* Reply section - only show if not own note */}
         {note.user_id !== currentUserId && (
           <div className="flex gap-2">
-            <Input
+            <Input aria-label="Reply to note..."
               value={replyText}
               onChange={(e) => setReplyText(e.target.value)}
               placeholder="Reply to note..."

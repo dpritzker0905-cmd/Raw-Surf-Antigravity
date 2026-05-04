@@ -2761,7 +2761,7 @@ export const GalleryPage = () => {
                 Manual Assignment
               </h3>
               <div className="relative">
-                <Input
+                <Input aria-label="Search surfer by name or username..."
                   placeholder="Search surfer by name or username..."
                   value={manualSurferSearch}
                   onChange={(e) => {

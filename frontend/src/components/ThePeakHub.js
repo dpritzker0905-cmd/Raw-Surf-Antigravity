@@ -491,20 +491,20 @@ const AddCompetitionResultModal = ({ isOpen, onClose, userId, onSuccess }) => {
           <DialogTitle>Add Competition Result</DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
-          <Input
+          <Input aria-label="Event Name *"
             placeholder="Event Name *"
             value={formData.event_name}
             onChange={(e) => setFormData({ ...formData, event_name: e.target.value })}
             className="bg-zinc-800 border-zinc-700"
           />
-          <Input
+          <Input aria-label="Event Date *"
             type="date"
             placeholder="Event Date *"
             value={formData.event_date}
             onChange={(e) => setFormData({ ...formData, event_date: e.target.value })}
             className="bg-zinc-800 border-zinc-700"
           />
-          <Input
+          <Input aria-label="Location"
             placeholder="Location"
             value={formData.event_location}
             onChange={(e) => setFormData({ ...formData, event_location: e.target.value })}
@@ -522,14 +522,14 @@ const AddCompetitionResultModal = ({ isOpen, onClose, userId, onSuccess }) => {
             <option value="Grom_Series">Grom Series</option>
           </select>
           <div className="grid grid-cols-2 gap-3">
-            <Input
+            <Input aria-label="Your Placing *"
               type="number"
               placeholder="Your Placing *"
               value={formData.placing}
               onChange={(e) => setFormData({ ...formData, placing: e.target.value })}
               className="bg-zinc-800 border-zinc-700"
             />
-            <Input
+            <Input aria-label="Total Competitors"
               type="number"
               placeholder="Total Competitors"
               value={formData.total_competitors}
@@ -538,14 +538,14 @@ const AddCompetitionResultModal = ({ isOpen, onClose, userId, onSuccess }) => {
             />
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <Input
+            <Input aria-label="Heat Wins"
               type="number"
               placeholder="Heat Wins"
               value={formData.heat_wins}
               onChange={(e) => setFormData({ ...formData, heat_wins: e.target.value })}
               className="bg-zinc-800 border-zinc-700"
             />
-            <Input
+            <Input aria-label="Avg Wave Score"
               type="number"
               step="0.1"
               placeholder="Avg Wave Score"
@@ -554,7 +554,7 @@ const AddCompetitionResultModal = ({ isOpen, onClose, userId, onSuccess }) => {
               className="bg-zinc-800 border-zinc-700"
             />
           </div>
-          <Input
+          <Input aria-label="Proof Image URL (trophy/bracket photo)"
             placeholder="Proof Image URL (trophy/bracket photo)"
             value={formData.proof_image_url}
             onChange={(e) => setFormData({ ...formData, proof_image_url: e.target.value })}
@@ -608,7 +608,7 @@ const AddSponsorModal = ({ isOpen, onClose, userId, onSuccess }) => {
           <DialogTitle>Add Sponsor</DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
-          <Input
+          <Input aria-label="Sponsor Name *"
             placeholder="Sponsor Name *"
             value={formData.sponsor_name}
             onChange={(e) => setFormData({ ...formData, sponsor_name: e.target.value })}
@@ -633,13 +633,13 @@ const AddSponsorModal = ({ isOpen, onClose, userId, onSuccess }) => {
             <option value="supporting">Supporting Sponsor</option>
             <option value="stoke">Stoke Sponsor</option>
           </select>
-          <Input
+          <Input aria-label="Logo URL"
             placeholder="Logo URL"
             value={formData.sponsor_logo_url}
             onChange={(e) => setFormData({ ...formData, sponsor_logo_url: e.target.value })}
             className="bg-zinc-800 border-zinc-700"
           />
-          <Input
+          <Input aria-label="Website URL"
             placeholder="Website URL"
             value={formData.sponsor_website}
             onChange={(e) => setFormData({ ...formData, sponsor_website: e.target.value })}

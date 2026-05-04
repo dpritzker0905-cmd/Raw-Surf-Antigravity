@@ -579,7 +579,7 @@ export const AdminP2Dashboard = () => {
                           {/* Rollout slider */}
                           <div className="flex items-center gap-2">
                             <span className="text-xs text-gray-500">Rollout:</span>
-                            <input
+                            <input aria-label="Range slider"
                               type="range"
                               min="0"
                               max="100"

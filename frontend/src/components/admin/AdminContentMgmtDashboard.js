@@ -352,7 +352,7 @@ export const AdminContentMgmtDashboard = () => {
                   <CardTitle className={`text-sm ${textClass}`}>Spot SEO Settings ({seoTotal} spots)</CardTitle>
                   <div className="relative w-full sm:w-64">
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-500" />
-                    <Input
+                    <Input aria-label="Search spots..."
                       value={seoSearch}
                       onChange={(e) => { setSeoSearch(e.target.value); setSeoPage(0); }}
                       placeholder="Search spots..."

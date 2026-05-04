@@ -777,7 +777,7 @@ export const AdminModerationDashboard = () => {
               {/* Refund Input */}
               {['open', 'under_review', 'escalated'].includes(selectedDispute.status) && selectedDispute.amount_disputed && (
                 <div className="flex items-center gap-2">
-                  <Input
+                  <Input aria-label="Refund amount"
                     type="number"
                     placeholder="Refund amount"
                     value={refundAmount}
@@ -825,7 +825,7 @@ export const AdminModerationDashboard = () => {
                 
                 {/* New Message */}
                 <div className="flex gap-2 mt-3">
-                  <Input
+                  <Input aria-label="Type a message..."
                     placeholder="Type a message..."
                     value={newMessage}
                     onChange={(e) => setNewMessage(e.target.value)}
@@ -896,7 +896,7 @@ export const AdminModerationDashboard = () => {
               
               <div>
                 <p className="text-sm text-muted-foreground mb-2">Admin Notes</p>
-                <Textarea
+                <Textarea aria-label="Add notes about this decision..."
                   value={adminNotes}
                   onChange={(e) => setAdminNotes(e.target.value)}
                   placeholder="Add notes about this decision..."

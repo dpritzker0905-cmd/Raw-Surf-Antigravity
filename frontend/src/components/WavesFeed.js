@@ -249,7 +249,7 @@ const WaveCard = ({
             }}
           >
             <div className="relative h-[72px] w-8 flex items-center justify-center">
-              <input
+              <input aria-label="Range slider"
                 type="range"
                 min="0"
                 max="1"

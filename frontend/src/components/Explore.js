@@ -1059,10 +1059,31 @@ export const Explore = () => {
 
   return (
     <div className="max-w-2xl mx-auto p-4" data-testid="explore-page">
+      {/* JSON-LD ItemList for live photographers and popular spots */}
+      {trending.live_photographers?.length > 0 && (
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({
+          '@context': 'https://schema.org',
+          '@type': 'ItemList',
+          name: 'Live Surf Photographers on Raw Surf',
+          itemListOrder: 'https://schema.org/ItemListOrderDescending',
+          numberOfItems: trending.live_photographers.length,
+          itemListElement: trending.live_photographers.slice(0, 10).map((p, i) => ({
+            '@type': 'ListItem',
+            position: i + 1,
+            item: {
+              '@type': 'Person',
+              name: p.full_name || p.username,
+              url: `${window.location.origin}/gallery/${p.username}`,
+              ...(p.avatar_url && { image: p.avatar_url }),
+              jobTitle: 'Surf Photographer',
+            },
+          })),
+        }) }} />
+      )}
       {/* Search Bar */}
       <div className="relative mb-6">
         <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-        <Input
+        <Input aria-label="Search surfers, photographers, spots..."
           type="text"
           placeholder="Search surfers, photographers, spots..."
           value={searchQuery}

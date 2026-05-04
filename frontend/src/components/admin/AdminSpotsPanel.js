@@ -448,7 +448,7 @@ const AdminSpotsPanel = ({ userId }) => {
             </div>
             
             <div className="flex items-start gap-2 p-3 bg-muted rounded-lg border border-border">
-              <input
+              <input aria-label="Checkbox"
                 type="checkbox"
                 id="include-osm"
                 checked={includeOSM}
@@ -491,7 +491,7 @@ const AdminSpotsPanel = ({ userId }) => {
           <div className="flex gap-2 mb-4">
             <div className="flex-1 relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input
+              <Input aria-label="Search spots..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search spots..."

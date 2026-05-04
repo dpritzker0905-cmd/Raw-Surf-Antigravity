@@ -195,7 +195,7 @@ export const GlobalSearchBar = ({
       <form onSubmit={handleSubmit}>
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input
+          <Input aria-label="Text input"
             ref={inputRef}
             type="text"
             placeholder={variant === 'desktop' ? 'Search' : 'Search people, spots, posts...'}

@@ -43,7 +43,7 @@ const StarRating = ({ value, onChange, size = 'md', disabled = false, theme }) =
   const starSize = sizeClasses[size] || sizeClasses.md;
   
   return (
-    <div className="flex items-center gap-1">
+    <div data-testid="review-modal-page" className="flex items-center gap-1">
       {[1, 2, 3, 4, 5].map((star) => {
         const filled = star <= (hoverValue || value);
         return (
@@ -131,7 +131,7 @@ const PersonReviewCard = ({ person, review, onUpdate, index, theme }) => {
       
       {/* Comment */}
       {review.rating > 0 && (
-        <textarea
+        <textarea aria-label="Add a comment (optional)..."
           value={review.comment || ''}
           onChange={(e) => onUpdate(index, 'comment', e.target.value)}
           placeholder="Add a comment (optional)..."

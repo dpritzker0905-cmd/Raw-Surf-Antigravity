@@ -139,7 +139,7 @@ const GalleryCard = ({ item, onClick, isOwner, isGromParent, linkedGroms, onTagG
               <div className="flex items-center gap-2">
                 <div className="relative flex-1">
                   <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400 text-xs">$</span>
-                  <input
+                  <input aria-label="Price"
                     type="number"
                     value={editPrice}
                     onChange={(e) => setEditPrice(e.target.value)}

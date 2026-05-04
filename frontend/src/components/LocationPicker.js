@@ -276,7 +276,7 @@ export const LocationPicker = ({
           <div className="p-3 border-b border-zinc-700 flex-shrink-0">
             <div className="flex gap-2">
               <div className="relative flex-1">
-                <Input
+                <Input aria-label="Search city, beach, or address..."
                   type="text"
                   placeholder="Search city, beach, or address..."
                   value={searchQuery}

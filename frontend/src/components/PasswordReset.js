@@ -60,7 +60,7 @@ export const ForgotPassword = () => {
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                <Input
+                <Input aria-label="Enter your email"
                   type="email"
                   placeholder="Enter your email"
                   value={email}
@@ -313,7 +313,7 @@ export const ResetPassword = () => {
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                <Input
+                <Input aria-label="New password"
                   type={showPassword ? 'text' : 'password'}
                   placeholder="New password"
                   value={password}
@@ -334,7 +334,7 @@ export const ResetPassword = () => {
 
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                <Input
+                <Input aria-label="Confirm new password"
                   type={showPassword ? 'text' : 'password'}
                   placeholder="Confirm new password"
                   value={confirmPassword}

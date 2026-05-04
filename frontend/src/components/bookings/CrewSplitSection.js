@@ -1,5 +1,5 @@
 /**
- * CrewSplitSection — Crew member management for scheduled bookings.
+ * CrewSplitSection ï¿½ Crew member management for scheduled bookings.
  * Handles adding friends, splitting costs, and surfboard avatars.
  * 
  * Extracted from ScheduledBookingDrawer.js for maintainability.
@@ -349,7 +349,7 @@ const CrewSplitSection = ({
                           {coverPct === 0 ? 'They pay full' : coverPct === 100 ? 'You cover all' : `$${captainCoversAmt.toFixed(2)} covered`}
                         </span>
                       </div>
-                      <input
+                      <input aria-label="Range slider"
                         type="range"
                         min={0}
                         max={100}
@@ -388,7 +388,7 @@ const CrewSplitSection = ({
               <div className="space-y-2">
                 <div className="relative">
                   <Search className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${textSecondary}`} />
-                  <Input
+                  <Input aria-label="Search by name or @username..."
                     value={searchQuery}
                     onChange={(e) => handleSearch(e.target.value)}
                     placeholder="Search by name or @username..."
