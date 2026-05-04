@@ -108,6 +108,17 @@ export const Settings = () => {
   });
   
   // ============ HANDLERS EXTRACTED ============
+
+  // ToS / Legal state
+  const [tosStatus, setTosStatus] = useState({ loading: true, acknowledged: false, acknowledged_at: null });
+  const [showTosFullText, setShowTosFullText] = useState(false);
+  const [showPrivacyPolicy, setShowPrivacyPolicy] = useState(false);
+  const [acceptanceHistory, setAcceptanceHistory] = useState({ loading: true, data: [] });
+  const [tosContent, setTosContent] = useState({ sections: [], version: '', effective_date: '' });
+  const [privacyContent, setPrivacyContent] = useState({ sections: [], effective_date: '' });
+
+  // Fetch ToS acceptance status + full acceptance history + content from DB
+
   const {
     toggleSection,
     fetchPrivacySettings,
@@ -128,15 +139,6 @@ export const Settings = () => {
     setPrivacyLoading,
   });
 
-  // ToS / Legal state
-  const [tosStatus, setTosStatus] = useState({ loading: true, acknowledged: false, acknowledged_at: null });
-  const [showTosFullText, setShowTosFullText] = useState(false);
-  const [showPrivacyPolicy, setShowPrivacyPolicy] = useState(false);
-  const [acceptanceHistory, setAcceptanceHistory] = useState({ loading: true, data: [] });
-  const [tosContent, setTosContent] = useState({ sections: [], version: '', effective_date: '' });
-  const [privacyContent, setPrivacyContent] = useState({ sections: [], effective_date: '' });
-
-  // Fetch ToS acceptance status + full acceptance history + content from DB
   useEffect(() => {
     if (user?.id) {
       apiClient.get(`/compliance/tos-status/${user.id}?current_version=${CURRENT_TOS_VERSION}`)
@@ -1157,7 +1159,7 @@ export const Settings = () => {
               {/* Full ToS Text (Expandable) */}
               {showTosFullText && (
                 <div className="rounded-xl border border-border bg-muted/30 p-4 text-sm text-muted-foreground space-y-3 max-h-[50vh] overflow-y-auto" data-testid="tos-full-text">
-                  <p className={`text-xs ${textSecondaryClass} uppercase tracking-wider`}>Version {tosContent.version || CURRENT_TOS_VERSION} • Effective {tosContent.effective_date || 'May 2026'}</p>
+                  <p className={`text-xs ${textSecondaryClass} uppercase tracking-wider`}>Version {tosContent.version || CURRENT_TOS_VERSION} ï¿½ Effective {tosContent.effective_date || 'May 2026'}</p>
                   {(tosContent.sections || []).map((section, idx) => (
                     <React.Fragment key={idx}>
                       <h4 className={`${textPrimaryClass} font-semibold`}>{section.title}</h4>
@@ -1183,7 +1185,7 @@ export const Settings = () => {
 
               {showPrivacyPolicy && (
                 <div className="rounded-xl border border-border bg-muted/30 p-4 text-sm text-muted-foreground space-y-3 max-h-[50vh] overflow-y-auto" data-testid="privacy-full-text">
-                  <p className={`text-xs ${textSecondaryClass} uppercase tracking-wider`}>Privacy Policy • Effective {privacyContent.effective_date || 'May 2026'}</p>
+                  <p className={`text-xs ${textSecondaryClass} uppercase tracking-wider`}>Privacy Policy ï¿½ Effective {privacyContent.effective_date || 'May 2026'}</p>
                   {(privacyContent.sections || []).map((section, idx) => (
                     <React.Fragment key={idx}>
                       <h4 className={`${textPrimaryClass} font-semibold`}>{section.title}</h4>
@@ -1229,7 +1231,7 @@ export const Settings = () => {
                           )}
                           {record.ip_address && <p>IP: {record.ip_address}</p>}
                           {record.user_agent && (
-                            <p>Device: {record.user_agent.length > 60 ? record.user_agent.substring(0, 60) + '…' : record.user_agent}</p>
+                            <p>Device: {record.user_agent.length > 60 ? record.user_agent.substring(0, 60) + 'ï¿½' : record.user_agent}</p>
                           )}
                         </div>
                       </div>
@@ -1253,8 +1255,8 @@ export const Settings = () => {
                         {violationHistory.loading
                           ? 'Loading...'
                           : violationHistory.data?.violations?.length
-                          ? `${violationHistory.data.violations.length} record${violationHistory.data.violations.length !== 1 ? 's' : ''} • ${violationHistory.data.total_strikes || 0} strike${(violationHistory.data.total_strikes || 0) !== 1 ? 's' : ''}`
-                          : 'No violations — clean record ?'}
+                          ? `${violationHistory.data.violations.length} record${violationHistory.data.violations.length !== 1 ? 's' : ''} ï¿½ ${violationHistory.data.total_strikes || 0} strike${(violationHistory.data.total_strikes || 0) !== 1 ? 's' : ''}`
+                          : 'No violations ï¿½ clean record ?'}
                       </p>
                     </div>
                   </div>
@@ -1275,7 +1277,7 @@ export const Settings = () => {
                             <div className="flex-1 min-w-0">
                               <p className={`text-sm font-medium ${textPrimaryClass}`}>{v.title}</p>
                               <p className={`text-xs ${textSecondaryClass} mt-0.5`}>
-                                {v.violation_type?.replace(/_/g, ' ')} • {v.severity} • {new Date(v.created_at).toLocaleDateString()}
+                                {v.violation_type?.replace(/_/g, ' ')} ï¿½ {v.severity} ï¿½ {new Date(v.created_at).toLocaleDateString()}
                               </p>
                             </div>
                             <div className="flex-shrink-0">
@@ -1321,7 +1323,7 @@ export const Settings = () => {
           </CardContent>
         </Card>
 
-        {/* Theme Section — Appearance */}
+        {/* Theme Section ï¿½ Appearance */}
         <Card className={`${cardBgClass} mb-4 transition-colors duration-300`} data-testid="theme-settings-card">
           <CardHeader>
             <button aria-label="Sun" 

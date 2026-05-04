@@ -133,6 +133,8 @@ export const PhotographerGalleryManager = () => {
   }, [gallery?.id]);
 
   // ============ HANDLERS EXTRACTED ============
+
+
   const {
     fetchGallery,
     fetchConditionsStatus,

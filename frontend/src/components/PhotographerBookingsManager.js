@@ -200,6 +200,27 @@ export const PhotographerBookingsManager = () => {
 
   // Handle grid cell click/drag
   // ============ HANDLERS EXTRACTED ============
+
+  const copyInviteCode = (code) => {
+    navigator.clipboard.writeText(code);
+    toast.success('Invite code copied!');
+  };
+
+  const viewParticipants = (booking) => {
+    setSelectedBooking(booking);
+    setShowParticipantsModal(true);
+  };
+
+  const tabs = [
+    { id: 'calendar', label: 'Calendar', icon: LayoutGrid, count: null },
+    { id: 'pending', label: 'Pending', icon: Clock, count: bookings.filter(b => b.status === 'Pending').length },
+    { id: 'confirmed', label: 'Confirmed', icon: CalendarCheck, count: bookings.filter(b => b.status === 'Confirmed').length },
+    { id: 'completed', label: 'Completed', icon: History, count: bookings.filter(b => b.status === 'Completed').length },
+    { id: 'cancelled', label: 'Cancelled', icon: CalendarX, count: bookings.filter(b => b.status === 'Cancelled').length },
+  ];
+
+  const filteredBookings = bookings.filter(b => {
+
   const {
     handleGridCellStart,
     handleGridCellEnter,
@@ -255,25 +276,6 @@ export const PhotographerBookingsManager = () => {
     setWeeklyGrid,
   });
 
-  const copyInviteCode = (code) => {
-    navigator.clipboard.writeText(code);
-    toast.success('Invite code copied!');
-  };
-
-  const viewParticipants = (booking) => {
-    setSelectedBooking(booking);
-    setShowParticipantsModal(true);
-  };
-
-  const tabs = [
-    { id: 'calendar', label: 'Calendar', icon: LayoutGrid, count: null },
-    { id: 'pending', label: 'Pending', icon: Clock, count: bookings.filter(b => b.status === 'Pending').length },
-    { id: 'confirmed', label: 'Confirmed', icon: CalendarCheck, count: bookings.filter(b => b.status === 'Confirmed').length },
-    { id: 'completed', label: 'Completed', icon: History, count: bookings.filter(b => b.status === 'Completed').length },
-    { id: 'cancelled', label: 'Cancelled', icon: CalendarX, count: bookings.filter(b => b.status === 'Cancelled').length },
-  ];
-
-  const filteredBookings = bookings.filter(b => {
     if (activeTab === 'pending') return b.status === 'Pending';
     if (activeTab === 'confirmed') return b.status === 'Confirmed';
     if (activeTab === 'completed') return b.status === 'Completed';

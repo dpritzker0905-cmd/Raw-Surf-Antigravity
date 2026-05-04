@@ -239,44 +239,6 @@ export const Profile = () => {
   }, [profile, profileUserId]);
 
   // ============ HANDLERS EXTRACTED ============
-  const {
-    fetchProfile,
-    fetchStreak,
-    fetchSocialStats,
-    fetchContentStats,
-    fetchImpactScore,
-    fetchGamificationStats,
-    handleFollow,
-    fetchTabContent,
-    toggleLive,
-    handleGoLiveEnded,
-    handleSaveProfile,
-    handleAvatarUpload,
-    handleCropConfirm,
-  } = useProfileActions({
-    user, profileId: id, navigate,
-    isFollowing,
-    isOwnProfile,
-    socialStats,
-    streak,
-    setAvatarUploading,
-    setContentStats,
-    setCropFile,
-    setEditData,
-    setEditLoading,
-    setFollowLoading,
-    setGamificationStats,
-    setImpactScore,
-    setIsFollowing,
-    setLoading,
-    setProfile,
-    setShowEditModal,
-    setShowGoLiveModal,
-    setSocialStats,
-    setStreak,
-    setTabContent,
-    setTabLoading,
-  });
 
 
 
@@ -322,6 +284,46 @@ export const Profile = () => {
   // Step 1: User selects file ? open crop modal
 
   // Step 2: Crop confirmed ? upload the cropped base64
+
+
+  const {
+    fetchProfile,
+    fetchStreak,
+    fetchSocialStats,
+    fetchContentStats,
+    fetchImpactScore,
+    fetchGamificationStats,
+    handleFollow,
+    fetchTabContent,
+    toggleLive,
+    handleGoLiveEnded,
+    handleSaveProfile,
+    handleAvatarUpload,
+    handleCropConfirm,
+  } = useProfileActions({
+    user, profileId: id, navigate,
+    isFollowing,
+    isOwnProfile,
+    socialStats,
+    streak,
+    setAvatarUploading,
+    setContentStats,
+    setCropFile,
+    setEditData,
+    setEditLoading,
+    setFollowLoading,
+    setGamificationStats,
+    setImpactScore,
+    setIsFollowing,
+    setLoading,
+    setProfile,
+    setShowEditModal,
+    setShowGoLiveModal,
+    setSocialStats,
+    setStreak,
+    setTabContent,
+    setTabLoading,
+  });
 
   if (loading || authLoading) {
     return (

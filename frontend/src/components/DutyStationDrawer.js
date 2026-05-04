@@ -46,7 +46,7 @@ const ON_DEMAND_RADIUS = {
 };
 
 // Mode configurations with theming
-const MODE_CONFIG = {
+export const MODE_CONFIG = {
   live: {
     id: 'live',
     label: 'Live',

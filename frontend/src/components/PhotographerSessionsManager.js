@@ -278,6 +278,21 @@ export const PhotographerSessionsManager = () => {
 
   // Toggle collapsible section
   // ============ HANDLERS EXTRACTED TO hooks/useSessionActions.js ============
+
+  const refreshSession = async () => {
+    if (!isLive) return;
+    try {
+      const activeRes = await apiClient.get(`/photographer/${user?.id}/active-session`);
+      if (activeRes.data) {
+        setCurrentSession(activeRes.data);
+      }
+    } catch (error) {
+      logger.error('Error refreshing session:', error);
+    }
+  };
+
+  // Auto-refresh active session every 30 seconds
+
   const {
     toggleSection, fetchCausesAndGroms, fetchSurfSpots, fetchGalleries,
     fetchSessionData, handleSaveSettings, fetchNearbySpots,
@@ -297,19 +312,6 @@ export const PhotographerSessionsManager = () => {
     setSavingPricing, setEditSectionData,
   });
 
-  const refreshSession = async () => {
-    if (!isLive) return;
-    try {
-      const activeRes = await apiClient.get(`/photographer/${user?.id}/active-session`);
-      if (activeRes.data) {
-        setCurrentSession(activeRes.data);
-      }
-    } catch (error) {
-      logger.error('Error refreshing session:', error);
-    }
-  };
-
-  // Auto-refresh active session every 30 seconds
   useEffect(() => {
     let interval;
     if (isLive) {
@@ -660,7 +662,7 @@ export const PhotographerSessionsManager = () => {
                           <span className={`${textPrimaryClass} truncate`}>{session.location}</span>
                         </div>
                         <p className={`text-sm ${textSecondaryClass} mt-1`}>
-                          {new Date(session.started_at).toLocaleDateString()} · {session.duration_mins} mins
+                          {new Date(session.started_at).toLocaleDateString()} ï¿½ {session.duration_mins} mins
                         </p>
                       </div>
                       <div className="flex items-center gap-3">

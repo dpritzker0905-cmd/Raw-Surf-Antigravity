@@ -11,6 +11,7 @@ import {
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { getFullUrl } from '../../utils/media';
+import { MODE_CONFIG } from '../DutyStationDrawer';
 
 // Haversine distance calculation
 const calculateDistance = (lat1, lon1, lat2, lon2) => {

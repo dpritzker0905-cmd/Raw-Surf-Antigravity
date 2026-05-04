@@ -384,6 +384,12 @@ const MapPageContent = () => {
   // Fetch on-demand photographers when modal opens (Uber-style)
   useEffect(() => {
   // ============ HANDLERS EXTRACTED TO hooks/useMapActions.js ============
+    
+    fetchOnDemandPros();
+  }, [showRequestProModal, userLocation]);
+
+  // Fetch friends when invite friends is toggled on
+
   const {
     fetchOnDemandPros,
     fetchFriends,
@@ -397,15 +403,17 @@ const MapPageContent = () => {
     handleSwitchLocation,
     handlePhotographerClick,
   } = useMapActions({
-    user, mapRef, mapInstanceRef, selectedSpot,
+    user, mapInstanceRef, selectedSpot,
+    trackingMarkersRef, userMarkerRef, userAccuracyCircleRef,
+    livePhotographers, surfSpots, userLocation, effectiveLocation,
+    showRequestProModal, inviteFriends, currentUserShooting: !!currentLiveSpot,
+    isValidLatLng, truncateCoord, handleStartGoLiveFlow: startGoLiveFlow,
     setActiveOnDemandRequests,
     setActiveShootersAtSpot,
     setBottomSheetOpen,
     setCurrentLiveSpot,
     setFriendsList,
     setFriendsLoading,
-    setLatLng,
-    setLatLngs,
     setLockedShooterCount,
     setOnDemandLoading,
     setOnDemandPhotographers,
@@ -413,11 +421,7 @@ const MapPageContent = () => {
     setSelectedSpot,
     setUnifiedDrawerOpen,
   });
-    
-    fetchOnDemandPros();
-  }, [showRequestProModal, userLocation]);
 
-  // Fetch friends when invite friends is toggled on
   useEffect(() => {
     
     fetchFriends();

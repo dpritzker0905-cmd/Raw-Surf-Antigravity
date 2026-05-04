@@ -9,15 +9,17 @@ import logger from '../utils/logger';
 import { getErrorMessage } from '../utils/errors';
 
 const useMapActions = ({
-  user, mapRef, mapInstanceRef, selectedSpot,
+  user, mapInstanceRef, selectedSpot,
+  trackingMarkersRef, userMarkerRef, userAccuracyCircleRef,
+  livePhotographers, surfSpots, userLocation, effectiveLocation,
+  showRequestProModal, inviteFriends, currentUserShooting,
+  isValidLatLng, truncateCoord, handleStartGoLiveFlow,
   setActiveOnDemandRequests,
   setActiveShootersAtSpot,
   setBottomSheetOpen,
   setCurrentLiveSpot,
   setFriendsList,
   setFriendsLoading,
-  setLatLng,
-  setLatLngs,
   setLockedShooterCount,
   setOnDemandLoading,
   setOnDemandPhotographers,
