@@ -381,6 +381,9 @@ const useOnDemandActions = ({
     handleAcceptRequest, handleDeclineRequest,
     handleMarkArrived, handleCompleteSession, handleConfirmCancel,
     toggleSpotSelection, saveSettings,
+    clearAllSpots,
+    selectAllSpots,
+    promptCancelSession,
   };
 };
 

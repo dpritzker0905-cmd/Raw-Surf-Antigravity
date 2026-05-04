@@ -486,6 +486,17 @@ const useExploreConditions = ({
     handleCountryChange,
     handleStateChange,
     handleCityChange,
+    // Functions used by Explore JSX
+    activateNearbyMode,
+    clearConditionsLocation,
+    jumpToConditionsLocation,
+    getReportsNearby,
+    conditionsCityOptions,
+    conditionsStateOptions,
+    conditionsCountryOptions,
+    cityOptions,
+    stateOptions,
+    countryOptions,
   };
 };
 

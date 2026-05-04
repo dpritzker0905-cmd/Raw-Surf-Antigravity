@@ -545,6 +545,9 @@ export const Explore = () => {
     fetchSurfSpots, handleSpotsRegionChange,
     fetchLocationHierarchy, fetchNearbySpots,
     handleCountryChange, handleStateChange, handleCityChange,
+    activateNearbyMode, clearConditionsLocation, jumpToConditionsLocation,
+    getReportsNearby, conditionsCityOptions, conditionsStateOptions,
+    conditionsCountryOptions, cityOptions, stateOptions, countryOptions,
   } = useExploreConditions({
     user, locationHierarchy, userLocation, nearbyRadius,
     conditionsSubTab, selectedRegion,

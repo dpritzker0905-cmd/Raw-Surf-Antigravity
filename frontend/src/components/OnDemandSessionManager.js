@@ -1200,6 +1200,7 @@ export const OnDemandSessionManager = () => {
     handleAcceptRequest, handleDeclineRequest,
     handleMarkArrived, handleCompleteSession, handleConfirmCancel,
     toggleSpotSelection, saveSettings,
+    clearAllSpots, selectAllSpots, promptCancelSession,
   } = useOnDemandActions({
     user, activeSession, selectedSpots,
     userLocation, nearbySpots, geoRadius, isOnline, isLiveShooting,
