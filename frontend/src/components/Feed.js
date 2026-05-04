@@ -1453,9 +1453,10 @@ export const Feed = () => {
 
       {/* ── Instagram-style "New Posts" chip ── */}
       {newPostsChip > 0 && (
-        <div className="flex justify-center py-2 sticky top-14 z-20">
+        <div className="flex justify-center py-2 sticky top-14 z-20" aria-live="polite" aria-atomic="true">
           <button
             onClick={handleLoadNewPosts}
+            aria-label={`Load ${newPostsChip} new post${newPostsChip !== 1 ? 's' : ''}`}
             className="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold shadow-lg transition-all active:scale-95
               bg-yellow-400 text-black hover:bg-yellow-300"
           >

@@ -220,17 +220,33 @@ export const GalleryStorefront = () => {
 
   return (
     <div className={`min-h-screen ${pageBg} pb-24 md:pb-8`}>
-      {/* JSON-LD Structured Data for SEO */}
+      {/* JSON-LD Structured Data for SEO — LocalBusiness for business accounts, Person for individuals */}
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({
         '@context': 'https://schema.org',
-        '@type': 'Person',
-        name: photographer.full_name,
+        '@type': photographer.company_name ? 'LocalBusiness' : 'Person',
+        name: photographer.company_name || photographer.full_name,
         url: `${window.location.origin}/gallery/${username}`,
         image: photographer.avatar_url ? getFullUrl(photographer.avatar_url) : undefined,
         description: photographer.bio || `Surf photographer on Raw Surf`,
-        jobTitle: 'Surf Photographer',
+        ...(photographer.company_name ? {
+          // LocalBusiness-specific fields
+          '@id': `${window.location.origin}/gallery/${username}`,
+          priceRange: '$$',
+          makesOffer: {
+            '@type': 'Offer',
+            itemOffered: {
+              '@type': 'Service',
+              name: 'Surf Photography Session',
+              description: `Book a surf photography session with ${photographer.full_name || photographer.company_name}`,
+            },
+          },
+        } : {
+          // Person-specific fields
+          jobTitle: 'Surf Photographer',
+        }),
         ...(photographer.location && { address: { '@type': 'PostalAddress', addressLocality: photographer.location } }),
         ...(photographer.instagram_url && { sameAs: [photographer.instagram_url] }),
+        ...(photographer.website_url && { url: photographer.website_url }),
         ...(stats && { 
           aggregateRating: stats.avg_rating > 0 ? {
             '@type': 'AggregateRating',

@@ -375,7 +375,7 @@ const CreatePostModal = ({ isOpen, onClose, onCreated }) => {
 
         <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4 space-y-4">
           {/* Hidden File Inputs - Separate for Photo, Video, and Camera */}
-          <input
+          <input aria-label="Upload file"
             ref={photoInputRef}
             type="file"
             accept="image/*,image/jpeg,image/png,image/heic,image/webp"
@@ -383,14 +383,14 @@ const CreatePostModal = ({ isOpen, onClose, onCreated }) => {
             onChange={handleFileSelect}
             className="hidden"
           />
-          <input
+          <input aria-label="Upload file"
             ref={videoInputRef}
             type="file"
             accept="video/*,video/mp4,video/quicktime,video/webm,video/mov"
             onChange={handleFileSelect}
             className="hidden"
           />
-          <input
+          <input aria-label="Upload file"
             ref={cameraInputRef}
             type="file"
             accept="image/*"
@@ -586,7 +586,7 @@ const CreatePostModal = ({ isOpen, onClose, onCreated }) => {
           {/* Caption */}
           <div>
             <label className="text-sm text-gray-400 mb-2 block">Caption (optional)</label>
-            <Textarea
+            <Textarea aria-label="What's happening?"
               value={caption}
               onChange={(e) => setCaption(e.target.value)}
               placeholder="What's happening?"
@@ -636,7 +636,7 @@ const CreatePostModal = ({ isOpen, onClose, onCreated }) => {
           {/* Location */}
           <div>
             <label className="text-sm text-gray-400 mb-2 block">Location (optional)</label>
-            <Input
+            <Input aria-label="e.g., Sebastian Inlet, FL"
               value={location}
               onChange={(e) => setLocation(e.target.value)}
               placeholder="e.g., Sebastian Inlet, FL"
@@ -695,7 +695,7 @@ const CreatePostModal = ({ isOpen, onClose, onCreated }) => {
                 <div className="grid grid-cols-3 gap-2">
                   <div>
                     <label className="text-xs text-gray-400 mb-1 block">Date</label>
-                    <Input
+                    <Input aria-label="Date"
                       type="date"
                       value={sessionDate}
                       onChange={(e) => setSessionDate(e.target.value)}
@@ -705,7 +705,7 @@ const CreatePostModal = ({ isOpen, onClose, onCreated }) => {
                   </div>
                   <div>
                     <label className="text-xs text-gray-400 mb-1 block">Start</label>
-                    <Input
+                    <Input aria-label="Time"
                       type="time"
                       value={sessionStartTime}
                       onChange={(e) => setSessionStartTime(e.target.value)}
@@ -714,7 +714,7 @@ const CreatePostModal = ({ isOpen, onClose, onCreated }) => {
                   </div>
                   <div>
                     <label className="text-xs text-gray-400 mb-1 block">End</label>
-                    <Input
+                    <Input aria-label="Time"
                       type="time"
                       value={sessionEndTime}
                       onChange={(e) => setSessionEndTime(e.target.value)}
@@ -729,7 +729,7 @@ const CreatePostModal = ({ isOpen, onClose, onCreated }) => {
                     <label className="text-xs text-gray-400 mb-1 block flex items-center gap-1">
                       <Waves className="w-3 h-3" /> Wave Height (ft)
                     </label>
-                    <Input
+                    <Input aria-label="e.g., 4.5"
                       type="number"
                       step="0.5"
                       value={waveHeightFt}
@@ -740,7 +740,7 @@ const CreatePostModal = ({ isOpen, onClose, onCreated }) => {
                   </div>
                   <div>
                     <label className="text-xs text-gray-400 mb-1 block">Period (sec)</label>
-                    <Input
+                    <Input aria-label="e.g., 12"
                       type="number"
                       value={wavePeriodSec}
                       onChange={(e) => { setWavePeriodSec(e.target.value); setConditionsSource('manual'); }}
@@ -769,7 +769,7 @@ const CreatePostModal = ({ isOpen, onClose, onCreated }) => {
                     <label className="text-xs text-gray-400 mb-1 block flex items-center gap-1">
                       <Wind className="w-3 h-3" /> Wind (mph)
                     </label>
-                    <Input
+                    <Input aria-label="e.g., 8"
                       type="number"
                       step="0.5"
                       value={windSpeedMph}
@@ -812,7 +812,7 @@ const CreatePostModal = ({ isOpen, onClose, onCreated }) => {
                   </div>
                   <div>
                     <label className="text-xs text-gray-400 mb-1 block">Tide Height (ft)</label>
-                    <Input
+                    <Input aria-label="e.g., 2.3"
                       type="number"
                       step="0.1"
                       value={tideHeightFt}

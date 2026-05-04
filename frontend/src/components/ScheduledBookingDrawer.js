@@ -750,7 +750,7 @@ const ImpactZonePicker = ({
           
           {/* Search within spots */}
           {nearbySpots.length > 8 && (
-            <Input
+            <Input aria-label="Search spots..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search spots..."
@@ -830,7 +830,7 @@ const ImpactZonePicker = ({
       <div className="space-y-1.5">
         <span className={`text-xs ${textSecondary}`}>Or describe a meetup spot:</span>
         <div className="flex gap-2">
-          <Input
+          <Input aria-label="e.g., North side of the pier"
             value={manualInput}
             onChange={(e) => setManualInput(e.target.value)}
             placeholder="e.g., North side of the pier"
@@ -1380,7 +1380,7 @@ const CrewSplitSection = ({
               <div className="space-y-2">
                 <div className="relative">
                   <Search className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${textSecondary}`} />
-                  <Input
+                  <Input aria-label="Search by name or @username..."
                     value={searchQuery}
                     onChange={(e) => handleSearch(e.target.value)}
                     placeholder="Search by name or @username..."
@@ -1597,6 +1597,31 @@ const BookingConfirmation = ({
   
   return (
     <div className="text-center py-6 space-y-6">
+      {/* JSON-LD Event schema for booked session */}
+      {booking && (
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({
+          '@context': 'https://schema.org',
+          '@type': 'Event',
+          name: `Surf Photography Session with ${photographer?.full_name || 'Photographer'}`,
+          startDate: booking.session_date || undefined,
+          duration: `PT${booking.duration || 60}M`,
+          location: {
+            '@type': 'Place',
+            name: booking.location || 'Surf Spot',
+          },
+          organizer: {
+            '@type': 'Person',
+            name: photographer?.full_name || 'Raw Surf Photographer',
+          },
+          offers: booking.total_paid ? {
+            '@type': 'Offer',
+            price: booking.total_paid.toFixed(2),
+            priceCurrency: 'USD',
+          } : undefined,
+          eventStatus: 'https://schema.org/EventScheduled',
+          eventAttendanceMode: 'https://schema.org/OfflineEventAttendanceMode',
+        }) }} />
+      )}
       {/* Success Animation */}
       <div className="relative">
         <div className="w-24 h-24 mx-auto rounded-full bg-gradient-to-r from-green-500 to-emerald-500 flex items-center justify-center animate-pulse">

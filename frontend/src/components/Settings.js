@@ -654,6 +654,7 @@ export const Settings = () => {
               </div>
               <select
                 value={privacy.map_visibility}
+                aria-label="Map visibility"
                 onChange={(e) => updatePrivacySetting('map_visibility', e.target.value)}
                 disabled={privacyLoading}
                 className="px-3 py-1 rounded-lg text-sm bg-muted text-foreground"

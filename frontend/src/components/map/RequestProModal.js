@@ -644,6 +644,8 @@ export const RequestProModal = ({
               </div>
               <button
                 onClick={() => setCrewOpen(v => !v)}
+                role="switch"
+                aria-checked={crewOpen}
                 className={`w-11 h-6 rounded-full relative transition-colors duration-200 ${crewOpen ? 'bg-cyan-400' : 'bg-zinc-600'}`}
                 aria-label="Toggle crew invite"
               >
@@ -703,7 +705,7 @@ export const RequestProModal = ({
                     <div className="mt-4 relative z-20">
                       <div className="flex gap-2">
                         <div className="flex-1 relative">
-                          <input
+                          <input aria-label="Search by name or @username"
                             type="text"
                             value={newCrewInput}
                             onChange={e => setNewCrewInput(e.target.value)}
@@ -856,6 +858,9 @@ export const RequestProModal = ({
                                 <span className={`text-xs ${isCovered ? 'text-purple-300' : 'text-gray-400'}`}>I'll cover this surfer</span>
                                 <button
                                   onClick={() => toggleCoverMember(m.id)}
+                                  role="switch"
+                                  aria-checked={isCovered}
+                                  aria-label="Cover this surfer"
                                   className={`w-10 h-5 rounded-full relative transition-colors ${isCovered ? 'bg-purple-500' : 'bg-zinc-600'}`}
                                 >
                                   <div className={`w-4 h-4 rounded-full bg-white absolute top-0.5 transition-transform ${isCovered ? 'translate-x-5' : 'translate-x-0.5'}`} />

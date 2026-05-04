@@ -288,14 +288,14 @@ const PhotographerSubscriptionSettings = () => {
                 <div className="p-2.5 rounded-lg" style={{ background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.2)' }}>
                   <p className="text-[10px] text-muted-foreground mb-1">Booking Discount</p>
                   <div className="flex items-center gap-1">
-                    <input type="number" min={0} max={100} value={newPlan.booking_discount_pct} onChange={e => setNewPlan(p => ({ ...p, booking_discount_pct: parseFloat(e.target.value) || 0 }))} className="w-14 text-center bg-zinc-900 border border-zinc-700 rounded text-sm text-foreground py-1" />
+                    <input type="number" aria-label="Booking discount percentage" min={0} max={100} value={newPlan.booking_discount_pct} onChange={e => setNewPlan(p => ({ ...p, booking_discount_pct: parseFloat(e.target.value) || 0 }))} className="w-14 text-center bg-zinc-900 border border-zinc-700 rounded text-sm text-foreground py-1" />
                     <span className="text-xs text-blue-400">% off</span>
                   </div>
                 </div>
                 <div className="p-2.5 rounded-lg" style={{ background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.2)' }}>
                   <p className="text-[10px] text-muted-foreground mb-1">On-Demand Discount</p>
                   <div className="flex items-center gap-1">
-                    <input type="number" min={0} max={100} value={newPlan.on_demand_discount_pct} onChange={e => setNewPlan(p => ({ ...p, on_demand_discount_pct: parseFloat(e.target.value) || 0 }))} className="w-14 text-center bg-zinc-900 border border-zinc-700 rounded text-sm text-foreground py-1" />
+                    <input type="number" aria-label="On-demand discount percentage" min={0} max={100} value={newPlan.on_demand_discount_pct} onChange={e => setNewPlan(p => ({ ...p, on_demand_discount_pct: parseFloat(e.target.value) || 0 }))} className="w-14 text-center bg-zinc-900 border border-zinc-700 rounded text-sm text-foreground py-1" />
                     <span className="text-xs text-emerald-400">% off</span>
                   </div>
                 </div>

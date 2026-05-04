@@ -986,7 +986,7 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
             {!(keyboardOpen && useCustomLocation) && (
             <div className="relative">
               <Search className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${textSecondary}`} />
-              <Input
+              <Input aria-label="Search surf spots..."
                 value={spotSearchQuery}
                 onChange={(e) => setSpotSearchQuery(e.target.value)}
                 placeholder="Search surf spots..."
@@ -1191,7 +1191,7 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
                 {/* Custom Location Text Input */}
                 {useCustomLocation && (
                   <div className="mt-2 pl-2 space-y-2">
-                    <Input
+                    <Input aria-label="Spot name (e.g. North side of pier)"
                       value={customLocationName}
                       onChange={(e) => setCustomLocationName(e.target.value)}
                       placeholder="Spot name (e.g. North side of pier)"
@@ -1199,7 +1199,7 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
                       autoFocus
                       data-testid="custom-location-input"
                     />
-                    <Input
+                    <Input aria-label="Street address (e.g. 401 Meade Ave, Cocoa Beach, FL)"
                       value={customLocationAddress}
                       onChange={(e) => setCustomLocationAddress(e.target.value)}
                       placeholder="Street address (e.g. 401 Meade Ave, Cocoa Beach, FL)"
@@ -1547,7 +1547,7 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
                 <div className="mt-4 relative" style={{ zIndex: 50 }}>
                   <div className="flex gap-2">
                     <div className="flex-1 relative">
-                      <Input
+                      <Input aria-label="Search by name or @username..."
                         value={newCrewInput}
                         onChange={(e) => setNewCrewInput(e.target.value)}
                         placeholder="Search by name or @username..."
