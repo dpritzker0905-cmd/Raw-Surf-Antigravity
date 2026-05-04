@@ -1,5 +1,5 @@
 /**
- * usePhotographerGalleryActions.js — Extracted from PhotographerGalleryManager.js
+ * usePhotographerGalleryActions.js ï¿½ Extracted from PhotographerGalleryManager.js
  * Gallery management: upload, pricing, tagging, distribution.
  * ~466 lines, 27 handlers extracted.
  */
@@ -7,6 +7,7 @@ import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import { toast } from 'sonner';
 import logger from '../utils/logger';
 import { getErrorMessage } from '../utils/errors';
+import { useEffect, useMemo } from 'react';
 
 const usePhotographerGalleryActions = ({
   user, gallery, selectedGallery, selectedItems, bulkMode,

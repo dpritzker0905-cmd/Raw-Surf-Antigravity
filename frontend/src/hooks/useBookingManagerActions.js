@@ -1,5 +1,5 @@
 /**
- * useBookingManagerActions.js — Extracted from PhotographerBookingsManager.js
+ * useBookingManagerActions.js ï¿½ Extracted from PhotographerBookingsManager.js
  * Booking management handlers: accept, reject, reschedule, pricing.
  * ~498 lines, 22 handlers.
  */
@@ -7,6 +7,7 @@ import apiClient from '../lib/apiClient';
 import { toast } from 'sonner';
 import logger from '../utils/logger';
 import { getErrorMessage } from '../utils/errors';
+import { useEffect } from 'react';
 
 const useBookingManagerActions = ({
   user, selectedBooking, bookingTab,

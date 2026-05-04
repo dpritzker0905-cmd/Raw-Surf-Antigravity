@@ -1,5 +1,5 @@
 /**
- * useOnDemandActions.js — Extracted from OnDemandSessionManager.js
+ * useOnDemandActions.js ï¿½ Extracted from OnDemandSessionManager.js
  * On-demand session management: status toggling, request handling, settings.
  * ~344 lines extracted (19 handlers).
  */
@@ -7,6 +7,7 @@ import apiClient from '../lib/apiClient';
 import { toast } from 'sonner';
 import logger from '../utils/logger';
 import { getErrorMessage } from '../utils/errors';
+import { useCallback } from 'react';
 
 const useOnDemandActions = ({
   user, onDemandStatus, settings, activeSession, selectedSpots,
