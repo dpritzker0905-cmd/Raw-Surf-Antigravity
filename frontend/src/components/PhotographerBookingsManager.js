@@ -246,7 +246,7 @@ export const PhotographerBookingsManager = () => {
     handleSaveEdit,
   } = useBookingManagerActions({
     user, selectedBooking, bookings, crewMembers, editBooking,
-    selectedDate, selectedTime, newBooking, newAvailability, hours,
+    selectedDate, selectedTime, newBooking, newAvailability,
     weeklyGrid, availability, bookingPricing, newCrewInput, existingBookedSlots,
     setActiveTab,
     setAvailability,
@@ -258,7 +258,6 @@ export const PhotographerBookingsManager = () => {
     setExistingBookedSlots,
     setGeneratedSplitLink,
     setGridDragMode,
-    setHours,
     setIsGridDragging,
     setLoading,
     setNewAvailability,

@@ -11,7 +11,7 @@ import { useEffect } from 'react';
 
 const useBookingManagerActions = ({
   user, selectedBooking, bookings, crewMembers, editBooking,
-  selectedDate, selectedTime, newBooking, newAvailability, hours,
+  selectedDate, selectedTime, newBooking, newAvailability,
   weeklyGrid, availability, bookingPricing, newCrewInput, existingBookedSlots,
   setActiveTab,
   setAvailability,
@@ -23,7 +23,6 @@ const useBookingManagerActions = ({
   setExistingBookedSlots,
   setGeneratedSplitLink,
   setGridDragMode,
-  setHours,
   setIsGridDragging,
   setLoading,
   setNewAvailability,
