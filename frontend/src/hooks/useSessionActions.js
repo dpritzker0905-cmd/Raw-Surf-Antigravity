@@ -10,13 +10,17 @@ import { getErrorMessage } from '../utils/errors';
 import { useEffect } from 'react';
 
 const useSessionActions = ({
-  user, navigate,
+  user, navigate, pricing, isHobbyist, isOnDemandActive, manualConfirm,
+  endSessionLoading, debugInfo, streamRef,
+  REQUIRED_DISTANCE_MILES, NEARBY_RADIUS_MILES, getCommissionRate,
   setExpandedSections, setDistanceToSpot, distanceToSpot, showGoLiveModal, sessionSettings, surfSpots,
-  nearbySpots,
-  setNearbySpots,
- 
-  setSurfSpots, setGalleries,
-  setLoading,
+  nearbySpots, setNearbySpots, setSurfSpots, setGalleries, setLoading,
+  setCauses, setGroms, setPricing, setSessionSettings,
+  setIsLive, setCurrentSession, setIsOnDemandActive, setSessionHistory,
+  setDebugInfo, setShowSettingsModal, setNearbySpotsLoading,
+  setUserLocation, setLocationError, setShowGoLiveModal, setShowConditionsModal,
+  setGoLiveLoading, setShowEndSessionModal, setEndSessionLoading,
+  setLastCreatedGallery, setShowGalleryCreatedModal, setShowPricingModal,
 }) => {
 
   const toggleSection = (section) => {
