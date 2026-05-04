@@ -165,6 +165,7 @@ const SinglePost = () => {
   const pressTimerRef = React.useRef(null);
   const isPressingRef = React.useRef(false);
   const pickerShownRef = React.useRef(false);
+  const inFlightRef = React.useRef(false); // Concurrency guard
   
   const VALID_REACTIONS = REACTION_EMOJIS;
   
@@ -225,55 +226,57 @@ const SinglePost = () => {
       return;
     }
     
+    // Concurrency guard
+    if (inFlightRef.current) return;
+    inFlightRef.current = true;
+    
     setShowReactionPicker(false);
     
+    const isShakaEmoji = emoji === '🤙';
+    
     try {
-      const response = await apiClient.post(`/posts/${postId}/reactions`, 
-        { emoji },
-        { }
-      );
+      let response;
+      if (isShakaEmoji) {
+        // Shaka uses the like toggle endpoint
+        response = await apiClient.post(`/posts/${postId}/like`);
+      } else {
+        response = await apiClient.post(`/posts/${postId}/reactions`, { emoji });
+      }
       
       const action = response.data.action;
       
-      if (action === 'added') {
-        // New reaction added - increment count
-        setPost(prev => {
-          const newReactions = [...(prev.reactions || []), { user_id: user.id, emoji }];
-          return {
-            ...prev,
-            liked: true,
-            reactions: newReactions,
-            likes_count: (prev.likes_count || 0) + 1
-          };
-        });
-        toast.success(`Reacted with ${emoji}`);
-      } else if (action === 'changed') {
-        // Changed emoji - update reaction but don't change count
-        setPost(prev => {
-          const filteredReactions = (prev.reactions || []).filter(r => r.user_id !== user.id);
-          const newReactions = [...filteredReactions, { user_id: user.id, emoji }];
-          return {
-            ...prev,
-            liked: true,
-            reactions: newReactions
-            // Don't change likes_count - just swapped emoji
-          };
-        });
-        toast.success(`Changed to ${emoji}`);
-      } else if (action === 'removed') {
-        // Reaction removed - decrement count
-        setPost(prev => {
-          const filteredReactions = (prev.reactions || []).filter(r => r.user_id !== user.id);
-          return {
-            ...prev,
-            liked: false,
-            reactions: filteredReactions,
-            likes_count: Math.max(0, (prev.likes_count || 1) - 1)
-          };
-        });
-      }
+      // Always sync server likes_count
+      setPost(prev => {
+        const serverCount = response.data.likes_count;
+        const newState = { ...prev };
+        
+        if (serverCount !== undefined) {
+          newState.likes_count = serverCount;
+        }
+        
+        if (isShakaEmoji) {
+          newState.liked = response.data.is_liked;
+          // Clear reactions for this user when using shaka
+          newState.reactions = (prev.reactions || []).filter(r => r.user_id !== user.id);
+        } else if (action === 'added') {
+          newState.liked = true;
+          const filtered = (prev.reactions || []).filter(r => r.user_id !== user.id);
+          newState.reactions = [...filtered, { user_id: user.id, emoji }];
+        } else if (action === 'changed') {
+          newState.liked = true;
+          const filtered = (prev.reactions || []).filter(r => r.user_id !== user.id);
+          newState.reactions = [...filtered, { user_id: user.id, emoji }];
+        } else if (action === 'removed') {
+          newState.liked = false;
+          newState.reactions = (prev.reactions || []).filter(r => r.user_id !== user.id);
+        }
+        
+        return newState;
+      });
     } catch (err) {
       toast.error('Failed to add reaction');
+    } finally {
+      inFlightRef.current = false;
     }
   };
 

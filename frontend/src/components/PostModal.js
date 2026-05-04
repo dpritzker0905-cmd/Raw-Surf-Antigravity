@@ -60,6 +60,7 @@ const PostModal = ({ post, isOpen, onClose, _onPostUpdated, posts, onNavigatePos
   const pressTimerRef = useRef(null);
   const isPressingRef = useRef(false); // Ref for synchronous checking
   const pickerShownRef = useRef(false); // Track if picker was shown during this press
+  const inFlightRef = useRef(false); // Concurrency guard for like/reaction API calls
   
   // Double-tap to like state
   const [showDoubleTapHeart, setShowDoubleTapHeart] = useState(false);
@@ -191,18 +192,29 @@ const PostModal = ({ post, isOpen, onClose, _onPostUpdated, posts, onNavigatePos
       return;
     }
     
+    // Concurrency guard
+    if (inFlightRef.current) return;
+    inFlightRef.current = true;
+    
+    // Optimistic update
+    const wasLiked = liked;
+    const prevCount = likeCount;
+    setLiked(!wasLiked);
+    setLikeCount(wasLiked ? Math.max(0, prevCount - 1) : prevCount + 1);
+    
     try {
-      if (liked) {
-        await apiClient.delete(`/posts/${post.id}/like`, { });
-        setLiked(false);
-        setLikeCount(prev => Math.max(0, prev - 1));
-      } else {
-        await apiClient.post(`/posts/${post.id}/like`, null, { });
-        setLiked(true);
-        setLikeCount(prev => prev + 1);
-      }
+      // Always use toggle endpoint for consistency
+      const response = await apiClient.post(`/posts/${post.id}/like`);
+      // Sync with authoritative server state
+      setLiked(response.data.is_liked);
+      setLikeCount(response.data.likes_count);
     } catch (err) {
+      // Revert optimistic update
+      setLiked(wasLiked);
+      setLikeCount(prevCount);
       toast.error('Failed to update like');
+    } finally {
+      inFlightRef.current = false;
     }
   };
   
@@ -298,29 +310,65 @@ const PostModal = ({ post, isOpen, onClose, _onPostUpdated, posts, onNavigatePos
       return;
     }
     
+    // Concurrency guard
+    if (inFlightRef.current) return;
+    inFlightRef.current = true;
+    
     setShowReactionPicker(false);
     
+    const isShakaEmoji = emoji === '🤙';
+    const isRemoving = userReaction?.emoji === emoji;
+    
+    // Snapshot for rollback
+    const prevLiked = liked;
+    const prevCount = likeCount;
+    const prevReaction = userReaction;
+    
+    // Optimistic update
+    if (isRemoving) {
+      setUserReaction(null);
+      setLiked(false);
+      setLikeCount(Math.max(0, prevCount - 1));
+    } else {
+      setUserReaction({ emoji });
+      setLiked(isShakaEmoji || true);
+      // Only increment if user didn't already have a reaction (swap = no count change)
+      if (!prevReaction) {
+        setLikeCount(prevCount + 1);
+      }
+    }
+    
     try {
-      const isRemovingReaction = userReaction?.emoji === emoji;
+      let response;
+      if (isShakaEmoji) {
+        response = await apiClient.post(`/posts/${post.id}/like`);
+      } else {
+        response = await apiClient.post(`/posts/${post.id}/reactions`, { emoji });
+      }
       
-      const response = await apiClient.post(
-        `/posts/${post.id}/reactions`,
-        { emoji }
-      );
-      
-      if (response.data.action === 'removed' || isRemovingReaction) {
+      // Always sync with authoritative server count
+      if (response.data?.likes_count !== undefined) {
+        setLikeCount(response.data.likes_count);
+      }
+      if (isShakaEmoji && response.data?.is_liked !== undefined) {
+        setLiked(response.data.is_liked);
+        // Shaka uses liked state, clear userReaction
+        setUserReaction(response.data.is_liked ? null : null);
+      } else if (response.data?.action === 'removed') {
         setUserReaction(null);
         setLiked(false);
-        setLikeCount(prev => Math.max(0, prev - 1));
-      } else {
+      } else if (response.data?.action === 'added' || response.data?.action === 'changed') {
         setUserReaction({ emoji });
-        if (!liked && !userReaction) {
-          setLikeCount(prev => prev + 1);
-        }
         setLiked(true);
       }
     } catch (err) {
+      // Revert optimistic update
+      setLiked(prevLiked);
+      setLikeCount(prevCount);
+      setUserReaction(prevReaction);
       toast.error('Failed to add reaction');
+    } finally {
+      inFlightRef.current = false;
     }
   };
   
