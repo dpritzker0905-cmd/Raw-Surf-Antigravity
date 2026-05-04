@@ -10,7 +10,7 @@ import { getErrorMessage } from '../utils/errors';
 import { useEffect } from 'react';
 
 const useBookingManagerActions = ({
-  user, selectedBooking, bookingTab,
+  user, selectedBooking, bookingTab, bookings, crewMembers, editBooking,
   setActiveTab,
   setAvailability,
   setAvailabilityForm,

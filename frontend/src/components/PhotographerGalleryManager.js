@@ -174,6 +174,7 @@ export const PhotographerGalleryManager = () => {
     setEditData,
     setGallery,
     setItemCustomPrice,
+    lightboxItem,
     setLightboxItem,
     setLoading,
     setLoadingParticipants,
@@ -307,7 +308,7 @@ export const PhotographerGalleryManager = () => {
                 Set Pricing
               </Button>
             )}
-            {/* Push to Spot Hub — requires linked surf spot AND live session */}
+            {/* Push to Spot Hub ï¿½ requires linked surf spot AND live session */}
             {gallery?.surf_spot_id && (
               <Button
                 variant="outline"
@@ -571,7 +572,7 @@ export const PhotographerGalleryManager = () => {
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
-              {/* This Session's Included Content — editable */}
+              {/* This Session's Included Content ï¿½ editable */}
               {gallery?.session_settings && (
                 <div className="rounded-xl p-4" style={{
                   background: 'linear-gradient(135deg, rgba(6,182,212,0.08), rgba(59,130,246,0.06))',
@@ -579,7 +580,7 @@ export const PhotographerGalleryManager = () => {
                 }}>
                   <div className="flex items-center justify-between mb-3">
                     <h4 className={`text-xs font-bold uppercase tracking-wider ${textSecondaryClass}`}>
-                      This Session — Included Content
+                      This Session ï¿½ Included Content
                     </h4>
                     <span className="text-[10px] text-cyan-400/70">
                       {gallery.session_settings.buyin_price > 0 ? `$${gallery.session_settings.buyin_price} buy-in` : 'Free'}
@@ -1302,7 +1303,7 @@ export const PhotographerGalleryManager = () => {
                           </div>
                           <p className={`text-[10px] ${textSecondaryClass}`}>
                             {participant.items_distributed || 0} items in locker
-                            {participant.status && ` • ${participant.status}`}
+                            {participant.status && ` ï¿½ ${participant.status}`}
                           </p>
                         </div>
                         <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors flex-shrink-0 ${
@@ -1438,7 +1439,7 @@ export const PhotographerGalleryManager = () => {
                 </Button>
               </div>
             </div>
-            <p className="text-center text-white/40 text-xs mt-2">? ? Navigate • Esc Close</p>
+            <p className="text-center text-white/40 text-xs mt-2">? ? Navigate ï¿½ Esc Close</p>
           </div>
         </div>
       )}
@@ -1803,11 +1804,11 @@ const PricingTierRow = ({
       <div className="flex flex-wrap gap-x-4 gap-y-1 text-[10px]">
         <span className={textSecondaryClass}>
           <span className="text-cyan-400/60">Photo:</span>{' '}
-          Web ${photo?.web || '—'} · HD ${photo?.standard || '—'} · 4K ${photo?.high || '—'}
+          Web ${photo?.web || 'ï¿½'} ï¿½ HD ${photo?.standard || 'ï¿½'} ï¿½ 4K ${photo?.high || 'ï¿½'}
         </span>
         <span className={textSecondaryClass}>
           <span className="text-purple-400/60">Video:</span>{' '}
-          720p ${video?.['720p'] || '—'} · 1080p ${video?.['1080p'] || '—'} · 4K ${video?.['4k'] || '—'}
+          720p ${video?.['720p'] || 'ï¿½'} ï¿½ 1080p ${video?.['1080p'] || 'ï¿½'} ï¿½ 4K ${video?.['4k'] || 'ï¿½'}
         </span>
       </div>
     </div>

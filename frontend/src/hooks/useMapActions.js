@@ -1,5 +1,5 @@
 /**
- * useMapActions.js — Extracted from MapPage.js
+ * useMapActions.js ï¿½ Extracted from MapPage.js
  * Map page handlers: data fetching, location, search.
  * ~340 lines, 11 handlers.
  */
@@ -9,7 +9,7 @@ import logger from '../utils/logger';
 import { getErrorMessage } from '../utils/errors';
 
 const useMapActions = ({
-  user, mapRef,
+  user, mapRef, mapInstanceRef, selectedSpot,
   setActiveOnDemandRequests,
   setActiveShootersAtSpot,
   setBottomSheetOpen,

@@ -224,7 +224,7 @@ export const PhotographerBookingsManager = () => {
     openEditModal,
     handleSaveEdit,
   } = useBookingManagerActions({
-    user, selectedBooking, bookingTab,
+    user, selectedBooking, bookingTab, bookings, crewMembers, editBooking,
     setActiveTab,
     setAvailability,
     setAvailabilityForm,

@@ -369,8 +369,8 @@ const MapPageContent = () => {
       }
       tag.setAttribute('content', content);
     };
-    document.title = 'Surf Map — Raw Surf';
-    setMeta('og:title', 'Surf Map — Raw Surf');
+    document.title = 'Surf Map ï¿½ Raw Surf';
+    setMeta('og:title', 'Surf Map ï¿½ Raw Surf');
     setMeta('og:description', 'Live surf spot map with real-time photographer locations, conditions, and on-demand booking on Raw Surf.');
     setMeta('og:url', `${window.location.origin}/map`);
     setMeta('og:type', 'website');
@@ -397,7 +397,7 @@ const MapPageContent = () => {
     handleSwitchLocation,
     handlePhotographerClick,
   } = useMapActions({
-    user, mapRef,
+    user, mapRef, mapInstanceRef, selectedSpot,
     setActiveOnDemandRequests,
     setActiveShootersAtSpot,
     setBottomSheetOpen,
@@ -1077,7 +1077,7 @@ const MapPageContent = () => {
     if (window.visualViewport) {
       const onVisualViewportResize = debounce(() => {
         if (mapInstanceRef.current) {
-          logger.debug('[MAP] visualViewport resized — correcting Leaflet container geometry');
+          logger.debug('[MAP] visualViewport resized ï¿½ correcting Leaflet container geometry');
           mapInstanceRef.current.invalidateSize({ pan: false });
         }
       }, 100);
@@ -1704,11 +1704,11 @@ const MapPageContent = () => {
                   </div>
                   <div className="flex items-center gap-3 mt-2 text-xs text-gray-500">
                     <span>{photographer.total_sessions || 0} sessions</span>
-                    <span>•</span>
+                    <span>ï¿½</span>
                     <span>{photographer.gallery_count || 0} photos</span>
                     {photographer.total_earnings > 0 && (
                       <>
-                        <span>•</span>
+                        <span>ï¿½</span>
                         <span className="text-green-400">${photographer.total_earnings.toFixed(0)} earned</span>
                       </>
                     )}
@@ -1884,7 +1884,7 @@ const MapPageContent = () => {
         />
       )}
 
-      {/* -- Request a Pro Modal — unified component ------------------- */}
+      {/* -- Request a Pro Modal ï¿½ unified component ------------------- */}
       <RequestProModal
         isOpen={showRequestProModal}
         onClose={() => {

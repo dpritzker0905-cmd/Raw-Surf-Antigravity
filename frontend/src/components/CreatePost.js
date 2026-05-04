@@ -142,6 +142,7 @@ export const CreatePost = () => {
     handleUpload,
   } = useCreatePostActions({
     user, navigate, mediaItems, postText, selectedSpot, taggedUsers, postVisibility,
+    captionRef, hashtagRef,
     setAllSpots,
     setCaption,
     setConditionsLoading,
@@ -227,7 +228,7 @@ export const CreatePost = () => {
         } else if (nearest) {
           toast.success(`?? Location found. Nearest: ${nearest.name} (${nearest.distance}km)`);
         } else {
-          toast.success('?? Location detected — select your spot below');
+          toast.success('?? Location detected ï¿½ select your spot below');
         }
         setGpsLoading(false);
       },
@@ -822,7 +823,7 @@ export const CreatePost = () => {
                     </div>
                   )}
 
-                  {/* Quick Select Dropdown — populated from city spots or knownSpots */}
+                  {/* Quick Select Dropdown ï¿½ populated from city spots or knownSpots */}
                   {(() => {
                     // If a city is selected, show spots from that city directly
                     if (selectedCity && selectedCountry && selectedState) {

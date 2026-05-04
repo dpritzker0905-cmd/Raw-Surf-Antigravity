@@ -22,6 +22,7 @@ const usePhotographerGalleryActions = ({
   setEditData,
   setGallery,
   setItemCustomPrice,
+  lightboxItem,
   setLightboxItem,
   setLoading,
   setLoadingParticipants,
@@ -396,7 +397,7 @@ const usePhotographerGalleryActions = ({
   };
 
   // Phase 1: Filter and sort items
-  const filteredItems = React.useMemo(() => {
+  const filteredItems = useMemo(() => {
     if (!gallery?.items) return [];
     
     let items = [...gallery.items];

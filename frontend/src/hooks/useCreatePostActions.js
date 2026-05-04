@@ -1,5 +1,5 @@
 /**
- * useCreatePostActions.js — Extracted from CreatePost.js
+ * useCreatePostActions.js ï¿½ Extracted from CreatePost.js
  * Post creation: media upload, compression, tag, spot selection.
  * 18 pure handlers.
  */
@@ -10,6 +10,7 @@ import { getErrorMessage } from '../utils/errors';
 
 const useCreatePostActions = ({
   user, navigate, mediaItems, postText, selectedSpot, taggedUsers, postVisibility,
+  captionRef, hashtagRef,
   setAllSpots,
   setCaption,
   setConditionsLoading,

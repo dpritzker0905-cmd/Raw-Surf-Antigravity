@@ -10,9 +10,17 @@ import logger from '../utils/logger';
 import { getErrorMessage } from '../utils/errors';
 
 const useFeedActions = ({
-  user, navigate, activeTab, feedFilter, selectedCountry, selectedState, selectedCity,
-  replyingTo, commentText, checkInSpot, posts, expandedComments, commentSections,
+  user, navigate, activeTab, selectedCountry, selectedState, selectedCity, posts,
   latestPostIdRef,
+  isPhotographer,
+  spots,
+  showReactionPicker,
+  commentInputs,
+  postModalOpen,
+  postMenuOpen,
+  showAllComments,
+  nearestSpot,
+  checkInData,
   // State setters
   setAllComments,
   setCheckInData,
@@ -54,6 +62,12 @@ const useFeedActions = ({
   setUpcomingSessions,
   setUpcomingSessionsLoading,
 }) => {
+
+  // Refs for long-press reaction picker
+  const longPressTimerRef = useRef(null);
+  const longPressTriggeredRef = useRef(false);
+  const touchStartTimeRef = useRef(0);
+
 
   const handleFeedRefresh = useCallback(async (e) => {
     const silent = e?.detail?.silent === true;
