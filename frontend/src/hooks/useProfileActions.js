@@ -1,5 +1,5 @@
 /**
- * useProfileActions.js — Extracted from Profile.js
+ * useProfileActions.js ï¿½ Extracted from Profile.js
  * Profile data, social stats, gamification, avatar upload.
  * 13 pure handlers.
  */
@@ -8,7 +8,7 @@ import { toast } from 'sonner';
 import logger from '../utils/logger';
 
 const useProfileActions = ({
-  user, profileId, navigate,
+  user, navigate,
   isFollowing,
   isOwnProfile,
   socialStats,

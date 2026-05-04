@@ -301,7 +301,7 @@ export const Profile = () => {
     handleAvatarUpload,
     handleCropConfirm,
   } = useProfileActions({
-    user, profileId: id, navigate,
+    user: id, navigate,
     isFollowing,
     isOwnProfile,
     socialStats,

@@ -301,15 +301,12 @@ export const PhotographerSessionsManager = () => {
     handleEndSessionClick, handleEndSessionConfirmed,
     handleEndSession, handleSavePricing,
   } = useSessionActions({
-    user, navigate, sessionData, selectedSpot, savedRates,
-    goLiveStep, selectedCause, donationGoal, goLiveData,
-    nearbySpots, editSectionData,
-    setSessions, setSessionData, setGoLiveStep,
+    user, navigate, selectedSpot, savedRates,
+    nearbySpots, setSessions, setSessionData, setGoLiveStep,
     setGoLiveData, setSelectedSpot, setNearbySpots,
     setEndSessionModal, setSessionToEnd, setSavingSettings,
     setDonationCauses, setLinkedGroms, setSurfSpots, setGalleries,
-    setLoading, setCollapsedSections, collapsedSections,
-    setSavingPricing, setEditSectionData,
+    setLoading, setCollapsedSections, setSavingPricing, setEditSectionData,
   });
 
   useEffect(() => {
