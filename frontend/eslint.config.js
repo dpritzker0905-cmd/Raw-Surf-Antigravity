@@ -60,17 +60,17 @@ module.exports = [
       "no-console": "off",
       "no-debugger": "warn",
 
-      // Accessibility (WCAG 2.1 AA) — warn to surface issues without blocking builds
-      "jsx-a11y/alt-text": "warn",
+      // Accessibility (WCAG 2.1 AA)
+      // ERROR — these are fully resolved, block regressions:
+      "jsx-a11y/alt-text": "error",
+      "jsx-a11y/aria-props": "error",
+      "jsx-a11y/aria-proptypes": "error",
+      "jsx-a11y/aria-role": "error",
+      "jsx-a11y/aria-unsupported-elements": "error",
+      "jsx-a11y/heading-has-content": "error",
+      // WARN — surface issues without blocking builds:
       "jsx-a11y/anchor-has-content": "warn",
       "jsx-a11y/anchor-is-valid": "warn",
-      "jsx-a11y/aria-props": "warn",
-      "jsx-a11y/aria-proptypes": "warn",
-      "jsx-a11y/aria-role": "warn",
-      "jsx-a11y/aria-unsupported-elements": "warn",
-      "jsx-a11y/click-events-have-key-events": "off",
-      "jsx-a11y/heading-has-content": "warn",
-      "jsx-a11y/img-redundant-alt": "warn",
       "jsx-a11y/interactive-supports-focus": "warn",
       "jsx-a11y/label-has-associated-control": "warn",
       "jsx-a11y/no-access-key": "warn",

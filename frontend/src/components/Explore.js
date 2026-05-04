@@ -57,19 +57,13 @@ import ResponsiveImage from './ui/ResponsiveImage';
 import PostMediaPreview from './explore/PostMediaPreview';
 import BrowseMode from './explore/BrowseMode';
 import NearbyMode from './explore/NearbyMode';
+import UserRoleBadge from './explore/UserRoleBadge';
 import HashtagsTab from './explore/HashtagsTab';
 
 // PostMediaPreview extracted ? ./explore/PostMediaPreview.js
 
 // Role badge component for user results
-const UserRoleBadge = ({ role }) => {
-  const roleInfo = getExpandedRoleInfo(role);
-  return (
-    <span className={`text-sm ${roleInfo.color}`} title={roleInfo.label}>
-      {roleInfo.icon}
-    </span>
-  );
-};
+// UserRoleBadge extracted to ./explore/UserRoleBadge.js
 
 export const Explore = () => {
   const navigate = useNavigate();

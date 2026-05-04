@@ -40,29 +40,29 @@ import usePresence from '../hooks/usePresence';
 // Role-based icon helper - uses expanded PersonaContext
 const getRoleIcon = (role, isAdmin = false) => {
   const _roleInfo = getExpandedRoleInfo(role, isAdmin);
-  if (isAdmin) return { icon: Shield, color: 'text-red-500', label: 'God Mode', emoji: '??' };
+  if (isAdmin) return { icon: Shield, color: 'text-red-500', label: 'God Mode', emoji: '\u{1F6E1}\u{FE0F}' };
   
   // Map to lucide icons for non-emoji contexts
   switch (role) {
     case 'Pro':
         case 'Comp Surfer':
-      return { icon: Star, color: 'text-amber-400', label: 'Pro', emoji: '?' };
+      return { icon: Star, color: 'text-amber-400', label: 'Pro', emoji: '\u{2B50}' };
     case 'Approved Pro':
-      return { icon: Camera, color: 'text-blue-400', label: 'Pro Photographer', emoji: '??' };
+      return { icon: Camera, color: 'text-blue-400', label: 'Pro Photographer', emoji: '\u{1F4F8}' };
     case 'Photographer':
-      return { icon: Camera, color: 'text-purple-400', label: 'Photographer', emoji: '??' };
+      return { icon: Camera, color: 'text-purple-400', label: 'Photographer', emoji: '\u{1F4F7}' };
     case 'Hobbyist':
-      return { icon: Search, color: 'text-indigo-400', label: 'Hobbyist', emoji: '??' };
+      return { icon: Search, color: 'text-indigo-400', label: 'Hobbyist', emoji: '\u{1F3C4}' };
     case 'Shop':
-      return { icon: Store, color: 'text-pink-400', label: 'Surf Shop', emoji: '???' };
+      return { icon: Store, color: 'text-pink-400', label: 'Surf Shop', emoji: '\u{1F6CD}\u{FE0F}' };
     case 'Surf School':
-      return { icon: Users, color: 'text-teal-400', label: 'Surf School', emoji: '???' };
+      return { icon: Users, color: 'text-teal-400', label: 'Surf School', emoji: '\u{1F3EB}' };
     case 'Shaper':
-      return { icon: Briefcase, color: 'text-orange-400', label: 'Shaper', emoji: '???' };
+      return { icon: Briefcase, color: 'text-orange-400', label: 'Shaper', emoji: '\u{1FA93}' };
     case 'Resort':
-      return { icon: Store, color: 'text-emerald-400', label: 'Resort', emoji: '??' };
+      return { icon: Store, color: 'text-emerald-400', label: 'Resort', emoji: '\u{1F3D6}\u{FE0F}' };
     default:
-      return { icon: null, color: 'text-cyan-400', label: 'Surfer', emoji: '??' };
+      return { icon: null, color: 'text-cyan-400', label: 'Surfer', emoji: '\u{1F30A}' };
   }
 };
 
@@ -94,7 +94,7 @@ const getFolders = (userRole, _isAdmin = false, effectiveRole = null, _isMasked 
     icon: Users, 
     color: 'text-cyan-400', 
     description: isGrom ? 'Chat with other Groms' : 'Friends & surfers',
-    emoji: '??'
+    emoji: '\u{1F4AC}'
   });
   
   // FAMILY CHAT - Grom Parents chat with their linked Groms
@@ -105,7 +105,7 @@ const getFolders = (userRole, _isAdmin = false, effectiveRole = null, _isMasked 
       icon: Users, 
       color: 'text-cyan-400', 
       description: 'Chat with your linked Groms',
-      emoji: '?????',
+      emoji: '\u{1F46A}',
       isFamilyOnly: true
     });
   }
@@ -118,7 +118,7 @@ const getFolders = (userRole, _isAdmin = false, effectiveRole = null, _isMasked 
       icon: Users, 
       color: 'text-emerald-400', 
       description: 'Chat with your parent',
-      emoji: '?????',
+      emoji: '\u{1F46A}',
       isFamilyOnly: true
     });
   }
@@ -131,7 +131,7 @@ const getFolders = (userRole, _isAdmin = false, effectiveRole = null, _isMasked 
       icon: Star, 
       color: 'text-amber-400', 
       description: 'Private athlete ecosystem',
-      emoji: '?'
+      emoji: '\u{1F451}'
     });
   }
   
@@ -143,7 +143,7 @@ const getFolders = (userRole, _isAdmin = false, effectiveRole = null, _isMasked 
       icon: Briefcase, 
       color: 'text-purple-400', 
       description: 'Business & photographer hub',
-      emoji: '??'
+      emoji: '\u{1F4BC}'
     });
   }
   
@@ -154,7 +154,7 @@ const getFolders = (userRole, _isAdmin = false, effectiveRole = null, _isMasked 
     icon: Smile, 
     color: 'text-orange-400', 
     description: 'Message requests',
-    emoji: '??'
+    emoji: '\u{1F4E9}'
   });
   
   // Hidden
@@ -164,7 +164,7 @@ const getFolders = (userRole, _isAdmin = false, effectiveRole = null, _isMasked 
     icon: EyeOff, 
     color: 'text-gray-500', 
     description: 'Muted conversations',
-    emoji: '??'
+    emoji: '\u{1F648}'
   });
   
   return folders;

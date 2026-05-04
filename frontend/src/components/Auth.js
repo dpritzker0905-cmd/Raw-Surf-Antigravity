@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from './ui/button';
@@ -17,8 +17,8 @@ const ROLE_CONFIG = {
     tagline: 'Get your sessions captured by local pros',
     benefits: ['Book photographers on the beach', 'Build your surf portfolio', 'Track streaks & compete'],
     roles: [
-      { id: 'Grom', label: 'Grom', icon: '??', description: 'Under 18 � Parent-linked account', requiresParent: true },
-      { id: 'Surfer', label: 'Surfer', icon: '??', description: 'Casual to committed wave rider' }
+      { id: 'Grom', label: 'Grom', icon: '\u{1F3C4}', description: 'Under 18 � Parent-linked account', requiresParent: true },
+      { id: 'Surfer', label: 'Surfer', icon: '\u{1F30A}', description: 'Casual to committed wave rider' }
     ]
   },
   photographer: {
@@ -27,9 +27,9 @@ const ROLE_CONFIG = {
     tagline: 'Turn your surf shots into income',
     benefits: ['Set your own prices', 'Get booked by surfers', 'AI-powered editing tools'],
     roles: [
-      { id: 'Hobbyist', label: 'Hobbyist', icon: '??', description: 'Free � Contribute � Earn Gear Credits' },
-      { id: 'Photographer', label: 'Photographer', icon: '??', description: 'Unlimited storage � Set your prices � Track surfers' },
-      { id: 'Approved Pro', label: 'Verified Pro Photographer', icon: '?', description: 'Verified badge � Lower commission � Priority placement' }
+      { id: 'Hobbyist', label: 'Hobbyist', icon: '\u{1F4F7}', description: 'Free � Contribute � Earn Gear Credits' },
+      { id: 'Photographer', label: 'Photographer', icon: '\u{1F4F8}', description: 'Unlimited storage � Set your prices � Track surfers' },
+      { id: 'Approved Pro', label: 'Verified Pro Photographer', icon: '\u{2B50}', description: 'Verified badge � Lower commission � Priority placement' }
     ]
   },
   business: {
@@ -38,11 +38,11 @@ const ROLE_CONFIG = {
     tagline: 'Reach the surf community',
     benefits: ['List services & products', 'Book photographers for events', 'Sponsor local talent'],
     roles: [
-      { id: 'School', label: 'Surf School', icon: '??', description: 'Lessons, camps & training' },
-      { id: 'Coach', label: 'Surf Coach', icon: '???', description: 'Personal & group coaching' },
-      { id: 'Shop', label: 'Shop/Brand', icon: '??', description: 'Retail, gear & apparel' },
-      { id: 'Shaper', label: 'Shaper', icon: '??', description: 'Custom boards & repairs' },
-      { id: 'Resort', label: 'Resort/Retreat', icon: '??', description: 'Surf trips & accommodations' }
+      { id: 'School', label: 'Surf School', icon: '\u{1F3EB}', description: 'Lessons, camps & training' },
+      { id: 'Coach', label: 'Surf Coach', icon: '\u{1F3C6}', description: 'Personal & group coaching' },
+      { id: 'Shop', label: 'Shop/Brand', icon: '\u{1F6CD}\u{FE0F}', description: 'Retail, gear & apparel' },
+      { id: 'Shaper', label: 'Shaper', icon: '\u{1FA93}', description: 'Custom boards & repairs' },
+      { id: 'Resort', label: 'Resort/Retreat', icon: '\u{1F3D6}\u{FE0F}', description: 'Surf trips & accommodations' }
     ]
   }
 };
@@ -444,10 +444,12 @@ export const Auth = () => {
                     required
                     minLength={3}
                     maxLength={30}
+                    aria-describedby="username-hint"
                     data-testid="username-input"
                   />
                 </div>
-                <p className="text-xs text-gray-500 -mt-2">Letters, numbers, underscores. 3-30 characters.</p>
+                <p id="username-hint" className="text-xs text-gray-500 -mt-2">Letters, numbers, underscores. 3-30 characters.</p>
+                <p id="password-hint" className="sr-only">Minimum 8 characters</p>
 
                 <Input
                   type="email"
@@ -465,6 +467,7 @@ export const Auth = () => {
                     type={showPassword ? 'text' : 'password'}
                     placeholder="Password"
                     aria-label="Password"
+                    aria-describedby="password-hint"
                     value={formData.password}
                     onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                     className="bg-zinc-800 border-zinc-700 text-white h-12 pr-10"

@@ -27,103 +27,22 @@ import logger from '../utils/logger';
 import { getFullUrl } from '../utils/media';
 import { ROLES } from '../constants/roles';
 import useHapticFeedback from '../hooks/useHapticFeedback';
+import SurfboardAvatar from './on-demand/SurfboardAvatar';
+
+// EmptySeat — placeholder for unfilled crew slots
+const EmptySeat = ({ index }) => (
+  <div className='relative flex flex-col items-center opacity-50'>
+    <div className='w-10 h-20 rounded-full border-2 border-dashed border-border/40 flex items-center justify-center'>
+      <span className='text-xs text-muted-foreground'>+</span>
+    </div>
+    <span className='text-[10px] text-muted-foreground mt-1'>Invite</span>
+  </div>
+);
 
 
 
 // ============ SURFBOARD COLORS FOR CREW VISUALIZATION ============
-const SURFBOARD_COLORS = [
-  { fill: '#FCD34D', stroke: '#F59E0B' }, // Yellow (captain/you)
-  { fill: '#22D3EE', stroke: '#0891B2' }, // Cyan
-  { fill: '#F472B6', stroke: '#DB2777' }, // Pink
-  { fill: '#A78BFA', stroke: '#7C3AED' }, // Purple
-  { fill: '#34D399', stroke: '#059669' }, // Green
-  { fill: '#FB923C', stroke: '#EA580C' }, // Orange
-  { fill: '#60A5FA', stroke: '#2563EB' }, // Blue
-];
-
-// Surfboard SVG Component for crew member
-const SurfboardAvatar = ({ member, index, isCaptain, onRemove, isLight }) => {
-  const boardColor = SURFBOARD_COLORS[index % SURFBOARD_COLORS.length];
-  const textPrimary = isLight ? 'text-gray-900' : 'text-foreground';
-  
-  return (
-    <div className="relative group flex flex-col items-center">
-      {/* Surfboard SVG */}
-      <svg 
-        viewBox="0 0 60 100" 
-        className="absolute left-1/2 -translate-x-1/2 top-2 w-12 h-20 pointer-events-none"
-        style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.3))' }}
-      >
-        <ellipse cx="30" cy="50" rx="12" ry="38" fill={boardColor.fill} stroke={boardColor.stroke} strokeWidth="2" />
-        <line x1="30" y1="14" x2="30" y2="86" stroke={boardColor.stroke} strokeWidth="1.5" opacity="0.6" />
-        <ellipse cx="30" cy="16" rx="3" ry="2.5" fill={boardColor.stroke} opacity="0.4" />
-        <path d="M30 78 L27 86 L30 83 L33 86 Z" fill={boardColor.stroke} opacity="0.7" />
-      </svg>
-      
-      {/* Avatar Circle */}
-      <div className="relative z-10">
-        <div className={`w-11 h-11 rounded-full overflow-hidden ${isCaptain ? 'ring-2 ring-yellow-400' : 'ring-2 ring-cyan-400/50'} transition-all group-hover:scale-105`}>
-          {member.avatar_url ? (
-            <img loading="lazy" decoding="async" src={getFullUrl(member.avatar_url)} alt={member.name || member.value} className="w-full h-full object-cover" />
-          ) : (
-            <div className={`w-full h-full flex items-center justify-center ${isCaptain ? 'bg-gradient-to-br from-yellow-400 to-orange-500' : 'bg-gradient-to-br from-cyan-400 to-blue-500'}`}>
-              <span className="text-foreground font-bold text-sm">
-                {(member.name || member.value)?.[0]?.toUpperCase() || '?'}
-              </span>
-            </div>
-          )}
-        </div>
-        
-        {/* Captain Crown */}
-        {isCaptain && (
-          <div className="absolute -top-2 left-1/2 -translate-x-1/2">
-            <Award className="w-4 h-4 text-yellow-400 drop-shadow-lg" />
-          </div>
-        )}
-        
-        {/* Remove button for crew members */}
-        {!isCaptain && onRemove && (
-          <button
-            onClick={() => onRemove(member.id)}
-            className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-500 text-foreground flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600"
-          >
-            <X className="w-3 h-3" />
-          </button>
-        )}
-      </div>
-      
-      {/* Name Label */}
-      <div className="text-center mt-8 max-w-[70px]">
-        <p className={`text-[10px] font-medium ${textPrimary} truncate`}>
-          {isCaptain ? 'You' : (member.name || member.value?.split('@')[0] || 'Crew')}
-        </p>
-      </div>
-    </div>
-  );
-};
-
-// Empty Seat Surfboard
-const EmptySeat = ({ onClick, isLight }) => {
-  return (
-    <div className="relative group cursor-pointer flex flex-col items-center" onClick={onClick}>
-      <svg 
-        viewBox="0 0 60 100" 
-        className="absolute left-1/2 -translate-x-1/2 top-2 w-12 h-20 pointer-events-none opacity-40 group-hover:opacity-60 transition-opacity"
-      >
-        <ellipse cx="30" cy="50" rx="12" ry="38" fill="none" stroke="#64748B" strokeWidth="2" strokeDasharray="6 4" />
-        <line x1="30" y1="18" x2="30" y2="82" stroke="#64748B" strokeWidth="1" strokeDasharray="4 4" opacity="0.5" />
-      </svg>
-      
-      <div className={`relative z-10 w-11 h-11 rounded-full border-2 border-dashed ${isLight ? 'border-cyan-300 bg-cyan-50/50' : 'border-cyan-500/50 bg-cyan-500/10'} flex items-center justify-center transition-all group-hover:scale-105 group-hover:border-cyan-400`}>
-        <Plus className={`w-5 h-5 ${isLight ? 'text-cyan-400' : 'text-cyan-500'} group-hover:text-cyan-400`} />
-      </div>
-      
-      <div className="text-center mt-8">
-        <p className={`text-[10px] ${isLight ? 'text-muted-foreground' : 'text-gray-500'}`}>Add crew</p>
-      </div>
-    </div>
-  );
-};
+// SURFBOARD_COLORS, SurfboardAvatar, EmptySeat extracted
 
 // On-Demand Request Drawer Component
 export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess, userLocation, _userCredits = 0, resumeDispatchId }) => {
