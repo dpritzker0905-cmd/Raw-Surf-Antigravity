@@ -23,16 +23,16 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node-version }}
-          cache: 'yarn'
-          cache-dependency-path: frontend/yarn.lock
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
 
       - name: Install dependencies
         working-directory: frontend
-        run: yarn install --frozen-lockfile --ignore-engines
+        run: npm ci
 
       - name: Run tests
         working-directory: frontend
-        run: CI=true yarn test --watchAll=false --passWithNoTests
+        run: CI=true npx react-scripts test --watchAll=false --passWithNoTests
         continue-on-error: true  # Don't block deploys on test failures yet
 
       - name: Build frontend
@@ -40,7 +40,7 @@ jobs:
         env:
           CI: false  # Allow warnings to not fail build
           REACT_APP_BACKEND_URL: https://raw-surf-antigravity.onrender.com
-        run: yarn build
+        run: npm run build
 
       - name: Build success
         run: echo "✅ Frontend build verified successfully"

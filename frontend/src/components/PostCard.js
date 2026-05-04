@@ -999,26 +999,16 @@ loading="lazy" decoding="async"
             {/* Shaka Button with count next to it - Instagram style */}
             <div className="flex items-center gap-1.5">
               <button
-                onTouchStart={(e) => {
+                onPointerDown={(e) => {
                   e.preventDefault();
                   onLikeStart(post.id, e);
                 }}
-                onTouchEnd={(e) => {
+                onPointerUp={(e) => {
                   e.preventDefault();
                   onLikeEnd(post.id, e);
                 }}
-                onTouchCancel={(e) => {
-                  e.preventDefault();
-                  onLikeLeave();
-                }}
-                onMouseDown={(e) => onLikeStart(post.id, e)}
-                onMouseUp={(e) => onLikeEnd(post.id, e)}
-                onMouseLeave={onLikeLeave}
-                onClick={(e) => {
-                  // Prevent default click - we handle everything via touch/mouse events
-                  e.preventDefault();
-                  e.stopPropagation();
-                }}
+                onPointerCancel={() => onLikeLeave()}
+                onPointerLeave={() => onLikeLeave()}
                 onContextMenu={(e) => {
                   // Prevent browser context menu on long-press
                   e.preventDefault();
@@ -1035,7 +1025,8 @@ loading="lazy" decoding="async"
                   WebkitTouchCallout: 'none',
                   WebkitUserSelect: 'none',
                   userSelect: 'none',
-                  WebkitTapHighlightColor: 'transparent'
+                  WebkitTapHighlightColor: 'transparent',
+                  touchAction: 'none' // Prevent browser from handling touch gestures
                 }}
                 data-testid={`like-btn-${post.id}`}
                 title="Tap to like, hold for reactions"
