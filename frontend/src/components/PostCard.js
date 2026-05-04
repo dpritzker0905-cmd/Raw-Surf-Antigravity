@@ -540,7 +540,7 @@ const PostCard = ({
 
   const handleMediaTap = useCallback((e) => {
     const now = Date.now();
-    if (now - lastTapRef.current < 300) {
+    if (now - lastTapRef.current < 500) {
       // Double tap detected → cancel pending single tap
       if (singleTapTimerRef.current) {
         clearTimeout(singleTapTimerRef.current);
@@ -550,7 +550,6 @@ const PostCard = ({
       e.preventDefault();
       
       // Instagram-style: double-tap always LIKES, never unlikes
-      // Call handleLike directly - no pointer event simulation needed
       if (user?.id && post?.id && !post.liked && onDoubleTapLike) {
         onDoubleTapLike(post.id);
       }
@@ -565,7 +564,51 @@ const PostCard = ({
       singleTapTimerRef.current = setTimeout(() => {
         onImageClick && onImageClick(post);
         singleTapTimerRef.current = null;
-      }, 300);
+      }, 400);
+    }
+  }, [user?.id, post?.id, post?.liked, onDoubleTapLike, onImageClick, post]);
+
+  // Native onDoubleClick handler — failsafe for browsers where onClick double-tap detection fails
+  const handleNativeDoubleClick = useCallback((e) => {
+    e.stopPropagation();
+    e.preventDefault();
+    // Cancel any pending single-tap timer
+    if (singleTapTimerRef.current) {
+      clearTimeout(singleTapTimerRef.current);
+      singleTapTimerRef.current = null;
+    }
+    if (user?.id && post?.id && !post.liked && onDoubleTapLike) {
+      onDoubleTapLike(post.id);
+    }
+    setShowDoubleTapHeart(true);
+    setTimeout(() => setShowDoubleTapHeart(false), 800);
+    lastTapRef.current = 0;
+  }, [user?.id, post?.id, post?.liked, onDoubleTapLike]);
+
+  // Touch-based double-tap for mobile (bypasses 300ms click delay)
+  const handleTouchEnd = useCallback((e) => {
+    // Only handle single-finger taps
+    if (e.changedTouches?.length !== 1) return;
+    const now = Date.now();
+    if (now - lastTapRef.current < 500) {
+      // Double-tap via touch
+      e.preventDefault(); // Prevent click from also firing
+      if (singleTapTimerRef.current) {
+        clearTimeout(singleTapTimerRef.current);
+        singleTapTimerRef.current = null;
+      }
+      if (user?.id && post?.id && !post.liked && onDoubleTapLike) {
+        onDoubleTapLike(post.id);
+      }
+      setShowDoubleTapHeart(true);
+      setTimeout(() => setShowDoubleTapHeart(false), 800);
+      lastTapRef.current = 0;
+    } else {
+      lastTapRef.current = now;
+      singleTapTimerRef.current = setTimeout(() => {
+        onImageClick && onImageClick(post);
+        singleTapTimerRef.current = null;
+      }, 400);
     }
   }, [user?.id, post?.id, post?.liked, onDoubleTapLike, onImageClick, post]);
 
@@ -790,6 +833,8 @@ const PostCard = ({
       <div 
         className={`aspect-[4/5] ${isLight ? 'bg-gray-100' : 'bg-zinc-800'} relative select-none cursor-pointer`}
         onClick={handleMediaTap}
+        onDoubleClick={handleNativeDoubleClick}
+        onTouchEnd={handleTouchEnd}
         data-testid={`post-image-container-${post.id}`}
       >
         {/* Double-tap shaka animation */}
