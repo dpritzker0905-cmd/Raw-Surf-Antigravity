@@ -14,84 +14,17 @@ import { RichText, CommentText } from './RichText';
 import { MapPin, MessageCircle, Send, Bookmark, MoreHorizontal, Loader2, Play, Radio, Heart, ShoppingBag, ChevronRight, RefreshCw, Volume2, Volume1, VolumeX, Pause } from 'lucide-react';
 import { toast } from 'sonner';
 import { getFullUrl } from '../utils/media';
+import ReplyItem from './social/ReplyItem';
 import { formatTimeAgo } from '../utils/formatTime';
 import { REACTION_EMOJIS } from '../constants/emojis';
 
 
-// Comment reaction emojis — imported from centralized constants/emojis.js
+// Comment reaction emojis ï¿½ imported from centralized constants/emojis.js
 
 /**
  * ReplyItem - Simpler component for reply rendering (non-recursive)
  */
-const ReplyItem = ({ reply, userId, _postId, textPrimaryClass, textSecondaryClass, _isLight }) => {
-  const navigate = useNavigate();
-  const [reactionCount, setReactionCount] = useState(reply.reaction_count || 0);
-  const [viewerReaction, setViewerReaction] = useState(reply.viewer_reaction || null);
-  const [loading, setLoading] = useState(false);
-
-  const handleReaction = async (emoji = '??') => {
-    if (!userId) {
-      toast.error('Please log in to react');
-      return;
-    }
-    
-    setLoading(true);
-    try {
-      const response = await apiClient.post(
-        `/comments/${reply.id}/reactions`,
-        { emoji }
-      );
-      
-      if (response.data.action === 'added') {
-        setReactionCount(prev => prev + 1);
-        setViewerReaction(emoji);
-      } else if (response.data.action === 'removed') {
-        setReactionCount(prev => Math.max(0, prev - 1));
-        setViewerReaction(null);
-      } else if (response.data.action === 'updated') {
-        setViewerReaction(emoji);
-      }
-    } catch (err) {
-      toast.error('Failed to react');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-
-
-  return (
-    <div className="ml-6 pl-3 border-l-2 border-zinc-700/50">
-      <div className="flex items-start gap-2">
-        <div className="flex-1 min-w-0">
-          <span className={`font-medium ${textPrimaryClass} text-sm cursor-pointer hover:underline`}
-            onClick={(e) => { e.stopPropagation(); navigate(`/profile/${reply.author_id}`); }}>
-            {reply.author_name}
-          </span>
-          <CommentText 
-            text={reply.content}
-            className={`${textSecondaryClass} text-sm ml-1`}
-          />
-        </div>
-      </div>
-      <div className={`flex items-center gap-3 mt-1 ${textSecondaryClass} text-xs`}>
-        <span className="opacity-70">{formatTimeAgo(reply.created_at)}</span>
-        {reactionCount > 0 && (
-          <span className="font-medium">{reactionCount} like{reactionCount !== 1 ? 's' : ''}</span>
-        )}
-        <button aria-label="Like"
-          onClick={() => handleReaction('??')}
-          disabled={loading}
-          className={`ml-auto p-1 rounded transition-all ${
-            viewerReaction ? 'text-red-500' : `${textSecondaryClass} hover:text-red-400`
-          }`}
-        >
-          <Heart className="w-3.5 h-3.5" fill={viewerReaction ? 'currentColor' : 'none'} />
-        </button>
-      </div>
-    </div>
-  );
-};
+// ReplyItem extracted to ./social/ReplyItem.js
 
 /**
  * CommentWithReaction - Individual comment with like/reaction button and reply support
@@ -607,7 +540,7 @@ const PostCard = ({
   const handleMediaTap = useCallback((e) => {
     const now = Date.now();
     if (now - lastTapRef.current < 300) {
-      // Double tap detected — cancel pending single tap, trigger like
+      // Double tap detected ï¿½ cancel pending single tap, trigger like
       if (singleTapTimerRef.current) {
         clearTimeout(singleTapTimerRef.current);
         singleTapTimerRef.current = null;
@@ -711,7 +644,7 @@ const PostCard = ({
     }
   };
 
-  // Video URL resolution — extracted here to keep JSX clean (no IIFE needed)
+  // Video URL resolution ï¿½ extracted here to keep JSX clean (no IIFE needed)
   const videoSrc = isVideoItem ? getFullUrl(post.media_url) : null;
   const videoPoster = isVideoItem ? getFullUrl(post.thumbnail_url) : null;
   const videoMimeType = (() => {
@@ -814,7 +747,7 @@ const PostCard = ({
               <span>{formatTimeAgo(post.created_at)}</span>
             )}
             {post.location && post.created_at && (
-              <span className="opacity-50">·</span>
+              <span className="opacity-50">ï¿½</span>
             )}
             {post.location && (
               <span>{post.location}</span>
@@ -873,7 +806,7 @@ const PostCard = ({
               <Play className="w-12 h-12 text-zinc-500 mb-2" />
               <span className="text-zinc-400 text-sm font-medium">Video Unavailable</span>
               <span className="text-zinc-500 text-xs mt-1">This video is no longer accessible</span>
-              {/* Retry button — clears error to re-attempt load */}
+              {/* Retry button ï¿½ clears error to re-attempt load */}
               {videoError && !isDeadLocalVideo && (
                 <button
                   onClick={(e) => {
@@ -905,7 +838,7 @@ const PostCard = ({
             </div>
           ) : (
           /* TikTok/Instagram pattern: video plays as muted preview in feed.
-             NO native controls — tapping opens PostModal for social interaction.
+             NO native controls ï¿½ tapping opens PostModal for social interaction.
              Mute toggle is a separate button that stops propagation. */
           <>
           <video
@@ -931,9 +864,9 @@ const PostCard = ({
             <source src={videoSrc} type={videoMimeType} onError={() => setVideoError(true)} />
             {videoMimeType !== 'video/mp4' && <source src={videoSrc} type="video/mp4" onError={() => setVideoError(true)} />}
           </video>
-          {/* Transparent click overlay — ensures tap opens PostModal, not native player */}
+          {/* Transparent click overlay ï¿½ ensures tap opens PostModal, not native player */}
           <div className="absolute inset-0 z-[1]" />
-          {/* Centered play icon — shows when paused (tap to open modal, not to play) */}
+          {/* Centered play icon ï¿½ shows when paused (tap to open modal, not to play) */}
           {!isPlaying && (
             <div className="absolute inset-0 z-[2] flex items-center justify-center pointer-events-none">
               <div className="w-16 h-16 rounded-full bg-black/50 backdrop-blur-sm flex items-center justify-center">
@@ -941,7 +874,7 @@ const PostCard = ({
               </div>
             </div>
           )}
-          {/* Volume control — bottom-right, progressive disclosure (stops propagation so it doesn't open modal) */}
+          {/* Volume control ï¿½ bottom-right, progressive disclosure (stops propagation so it doesn't open modal) */}
           <div
             className="absolute bottom-3 right-3 z-[3] flex items-center gap-1"
             onClick={(e) => e.stopPropagation()}
@@ -953,7 +886,7 @@ const PostCard = ({
               volTimerRef.current = setTimeout(() => setShowVolSlider(false), 1200);
             }}
           >
-            {/* Horizontal slider — appears to the left of the icon */}
+            {/* Horizontal slider ï¿½ appears to the left of the icon */}
             <div
               className="overflow-hidden transition-all duration-300 ease-out flex items-center"
               style={{

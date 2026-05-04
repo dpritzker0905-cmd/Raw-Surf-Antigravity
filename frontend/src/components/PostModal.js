@@ -3,6 +3,7 @@
  * Opens when clicking on a post in the feed
  */
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import ShakaIcon from './social/ShakaIcon';
 import { useNavigate } from 'react-router-dom';
 import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import { useAuth } from '../contexts/AuthContext';
@@ -20,26 +21,14 @@ import EmojiPicker from './EmojiPicker';
 import useFocusTrap from '../hooks/useFocusTrap';
 
 
-// Reaction emojis — imported from centralized constants/emojis.js
+// Reaction emojis ï¿½ imported from centralized constants/emojis.js
 
 // Shaka Icon Component
-const ShakaIcon = ({ filled, size = 28 }) => (
-  <img loading="lazy" decoding="async" 
-    src="https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/svg/1f919.svg"
-    alt="shaka"
-    style={{ 
-      width: `${size}px`, 
-      height: `${size}px`,
-      filter: filled ? 'none' : 'grayscale(100%) brightness(1.5)',
-      transition: 'filter 0.2s ease, transform 0.2s ease'
-    }}
-    draggable="false"
-  />
-);
+// ShakaIcon extracted to ./social/ShakaIcon.js
 
 
 
-// Custom Video Player for PostModal — TikTok/Instagram style
+// Custom Video Player for PostModal ï¿½ TikTok/Instagram style
 // Tap to play/pause, custom progress bar, volume slider, no native controls
 const ModalVideoPlayer = ({ src, poster, className = '' }) => {
   const videoRef = useRef(null);
@@ -177,7 +166,7 @@ const ModalVideoPlayer = ({ src, poster, className = '' }) => {
         preload="metadata"
       />
 
-      {/* Play/Pause center overlay — fades in/out */}
+      {/* Play/Pause center overlay ï¿½ fades in/out */}
       <div className={`absolute inset-0 flex items-center justify-center pointer-events-none transition-opacity duration-300 ${showControls || !playing ? 'opacity-100' : 'opacity-0'}`}>
         {!playing && (
           <div className="w-16 h-16 rounded-full bg-black/50 backdrop-blur-sm flex items-center justify-center">
@@ -224,7 +213,7 @@ const ModalVideoPlayer = ({ src, poster, className = '' }) => {
             onMouseLeave={handleVolumeAreaLeave}
             onTouchStart={handleVolumeAreaEnter}
           >
-            {/* Volume slider — progressive disclosure */}
+            {/* Volume slider ï¿½ progressive disclosure */}
             <div
               className="overflow-hidden transition-all duration-300 ease-out flex items-center"
               style={{
@@ -266,7 +255,7 @@ const ModalVideoPlayer = ({ src, poster, className = '' }) => {
   );
 };
 
-// Image Carousel Component — handles both images and video
+// Image Carousel Component ï¿½ handles both images and video
 const ImageCarousel = ({ images, mediaType }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
   
@@ -443,7 +432,7 @@ const PostModal = ({ post, isOpen, onClose, _onPostUpdated, posts, onNavigatePos
   const handleDoubleTap = useCallback(() => {
     const now = Date.now();
     if (now - lastTapRef.current < 300) {
-      // Double tap detected — like the post
+      // Double tap detected ï¿½ like the post
       if (!liked && user?.id && post?.id) {
         handleLike();
       }
@@ -1384,7 +1373,7 @@ const PostModal = ({ post, isOpen, onClose, _onPostUpdated, posts, onNavigatePos
         onPostDeleted={() => { onClose(); }}
       />
       
-      {/* Swipe navigation arrows — positioned on the viewport edges */}
+      {/* Swipe navigation arrows ï¿½ positioned on the viewport edges */}
       {!isMobile && posts && onNavigatePost && (() => {
         const idx = posts.findIndex(p => p.id === post?.id);
         if (idx === -1) return null;

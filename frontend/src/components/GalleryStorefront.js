@@ -256,6 +256,16 @@ export const GalleryStorefront = () => {
           } : undefined
         }),
       }) }} />
+            {/* JSON-LD BreadcrumbList for gallery navigation hierarchy */}
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({
+        '@context': 'https://schema.org',
+        '@type': 'BreadcrumbList',
+        'itemListElement': [
+          { '@type': 'ListItem', position: 1, name: 'Explore', item: `+"${window.location.origin}/explore"+` },
+          { '@type': 'ListItem', position: 2, name: photographer.full_name || photographer.company_name || username }
+        ]
+      })}} />
+
       {/* -- Hero Banner -- */}
       <div className="relative">
         <div className="h-40 md:h-52 bg-gradient-to-br from-cyan-900/60 via-zinc-900 to-emerald-900/40 overflow-hidden">

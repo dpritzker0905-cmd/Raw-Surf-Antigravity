@@ -42,6 +42,9 @@ const Toaster = ({
         },
         duration: 4000,
       }}
+      /* WCAG 4.1.3 — Screen reader announcements for toast notifications */
+      aria-label="Notifications"
+      data-testid="toast-container"
       {...props} />
   );
 }

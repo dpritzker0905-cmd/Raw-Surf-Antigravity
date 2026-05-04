@@ -721,6 +721,18 @@ const SpotHub = () => {
   if (loading) {
     return (
       <div className="max-w-xl mx-auto p-4 space-y-3">
+      {/* JSON-LD BreadcrumbList for SEO */}
+      {spot && (
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({
+          '@context': 'https://schema.org',
+          '@type': 'BreadcrumbList',
+          'itemListElement': [
+            { '@type': 'ListItem', position: 1, name: 'Explore', item: window.location.origin + '/explore' },
+            { '@type': 'ListItem', position: 2, name: spot.region || 'Region' },
+            { '@type': 'ListItem', position: 3, name: spot.name }
+          ]
+        })}} />
+      )}
         <SpotCardSkeleton />
         <AlertCardSkeleton />
         <AlertCardSkeleton />

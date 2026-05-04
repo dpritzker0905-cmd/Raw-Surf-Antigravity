@@ -1,11 +1,11 @@
 /**
  * DispatchLobby.js
- * 
+ *
  * Full-page "poker room" lobby for on-demand sessions.
- * 
+ *
  * Flow:
  *   booking_created -> selfie_pending -> crew_paying -> photographer_pending -> accepted -> in_session
- * 
+ *
  * Uses the surfboard lineup visualization from the booking flow all the way through.
  * Polls /dispatch/{id} every 3s for live state updates.
  */
@@ -25,108 +25,13 @@ import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { toast } from 'sonner';
 import { RequestProSelfieModal } from './RequestProSelfieModal';
+import SurfboardAvatar from './on-demand/SurfboardAvatar';
 import { SessionChatDrawer, SessionChatFAB } from './SessionChatDrawer';
 import { useSessionChatSync } from '../hooks/useSessionChatSync';
 import useHapticFeedback from '../hooks/useHapticFeedback';
 
 // --- Constants ---
-const SURFBOARD_COLORS = [
-  { fill: '#FCD34D', stroke: '#F59E0B' }, // Yellow (captain)
-  { fill: '#22D3EE', stroke: '#0891B2' }, // Cyan
-  { fill: '#F472B6', stroke: '#DB2777' }, // Pink
-  { fill: '#A78BFA', stroke: '#7C3AED' }, // Purple
-  { fill: '#34D399', stroke: '#059669' }, // Green
-  { fill: '#FB923C', stroke: '#EA580C' }, // Orange
-  { fill: '#60A5FA', stroke: '#2563EB' }, // Blue
-];
-
-// --- Surfboard Avatar (reused from booking flow) ---
-const SurfboardAvatar = ({ member, index, isCaptain, isPaid, isPending, isLight }) => {
-  const boardColor = SURFBOARD_COLORS[index % SURFBOARD_COLORS.length];
-  const textPrimary = isLight ? 'text-gray-900' : 'text-white';
-
-  return (
-    <div className="relative group flex flex-col items-center">
-      {/* Surfboard */}
-      <svg
-        viewBox="0 0 60 100"
-        className="absolute left-1/2 -translate-x-1/2 top-2 w-12 h-20 pointer-events-none"
-        style={{ filter: 'drop-shadow(0 2px 6px rgba(0,0,0,0.4))' }}
-      >
-        <ellipse cx="30" cy="50" rx="12" ry="38"
-          fill={boardColor.fill} stroke={boardColor.stroke} strokeWidth="2"
-          opacity={isPending ? 0.4 : 1}
-        />
-        <line x1="30" y1="14" x2="30" y2="86"
-          stroke={boardColor.stroke} strokeWidth="1.5" opacity="0.6" />
-        <ellipse cx="30" cy="16" rx="3" ry="2.5"
-          fill={boardColor.stroke} opacity="0.4" />
-        <path d="M30 78 L27 86 L30 83 L33 86 Z"
-          fill={boardColor.stroke} opacity="0.7" />
-      </svg>
-
-      {/* Avatar */}
-      <div className="relative z-10">
-        <div
-          className={`w-11 h-11 rounded-full overflow-hidden transition-all duration-500 ${
-            isCaptain
-              ? 'ring-2 ring-yellow-400'
-              : isPaid
-              ? 'ring-2 ring-green-400'
-              : 'ring-2 ring-amber-400/50'
-          } ${isPending ? 'opacity-50' : ''}`}
-        >
-          {member.avatar_url || member.selfie_url ? (
-            <img loading="lazy" decoding="async"
-              src={getFullUrl(member.selfie_url || member.avatar_url)}
-              alt={member.name || 'Surfer'}
-              className="w-full h-full object-cover"
-            />
-          ) : (
-            <div
-              className={`w-full h-full flex items-center justify-center font-bold text-sm ${
-                isCaptain
-                  ? 'bg-gradient-to-br from-yellow-400 to-orange-500 text-black'
-                  : isPaid
-                  ? 'bg-gradient-to-br from-green-400 to-emerald-500 text-white'
-                  : 'bg-gradient-to-br from-zinc-600 to-zinc-700 text-gray-300'
-              }`}
-            >
-              {(member.name || member.value || '?')[0]?.toUpperCase()}
-            </div>
-          )}
-        </div>
-
-        {/* Status badge */}
-        {isCaptain && (
-          <div className="absolute -top-2 left-1/2 -translate-x-1/2">
-            <Award className="w-4 h-4 text-yellow-400 drop-shadow-lg" />
-          </div>
-        )}
-        {!isCaptain && isPaid && (
-          <div className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-green-500 flex items-center justify-center border border-zinc-900">
-            <Check className="w-2.5 h-2.5 text-white" />
-          </div>
-        )}
-        {!isCaptain && !isPaid && (
-          <div className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-amber-500/80 flex items-center justify-center border border-zinc-900 animate-pulse">
-            <Clock className="w-2.5 h-2.5 text-white" />
-          </div>
-        )}
-      </div>
-
-      {/* Name */}
-      <div className="text-center mt-9 max-w-[72px]">
-        <p className={`text-[10px] font-medium ${textPrimary} truncate`}>
-          {isCaptain ? 'You' : (member.name || member.value?.split('@')[0] || 'Crew')}
-        </p>
-        <p className={`text-[9px] ${isPaid ? 'text-green-400' : 'text-amber-400'} truncate`}>
-          {isCaptain ? 'Captain' : isPaid ? 'Paid' : 'Pending...'}
-        </p>
-      </div>
-    </div>
-  );
-};
+// SURFBOARD_COLORS and SurfboardAvatar extracted to ./routing/SurfboardAvatar.js
 
 // --- Photographer Card ---
 const PhotographerCard = ({ photographer, eta, status, isLight, wasDeclined }) => {
@@ -249,7 +154,6 @@ export const DispatchLobby = () => {
   const textPrimary = isLight ? 'text-gray-900' : 'text-white';
   const textSecondary = isLight ? 'text-gray-500' : 'text-gray-400';
   const bgPage = isLight ? 'bg-gray-50' : 'bg-zinc-950';
-
 
   // -- State --
   const [dispatch, setDispatch] = useState(null);
@@ -416,7 +320,7 @@ export const DispatchLobby = () => {
           } catch (_) { /* audio play failures are non-critical */ }
         }
 
-        // Photographer ARRIVED � notify the surfer
+        // Photographer ARRIVED ï¿½ notify the surfer
         if (newStatus === 'arrived') {
           toast.success('?? Your photographer has arrived! Look for them at the spot.', {
             id: 'photographer-arrived',
@@ -469,7 +373,7 @@ export const DispatchLobby = () => {
       pollAttemptRef.current += 1;
     } catch (err) {
       pollAttemptRef.current += 1;
-      // Don't show error on first few attempts � backend may still be propagating
+      // Don't show error on first few attempts ï¿½ backend may still be propagating
       if (pollAttemptRef.current >= 3) {
         setError('Lost connection - retrying...');
       }
@@ -740,7 +644,7 @@ export const DispatchLobby = () => {
               <p className={`text-xs text-center ${
                 isLight ? 'text-green-600/70' : 'text-green-400/60'
               }`}>
-                Stay nearby � your photographer is capturing the action!
+                Stay nearby ï¿½ your photographer is capturing the action!
               </p>
             </div>
           </div>
@@ -777,7 +681,7 @@ export const DispatchLobby = () => {
                 {photographerName} is on the way! Send a message or voice note to help them find you at the beach.
               </p>
 
-              {/* Inline message preview � shows latest photographer message */}
+              {/* Inline message preview ï¿½ shows latest photographer message */}
               {bgLatestMessage && (
                 <button
                   onClick={() => setShowSessionChat(true)}

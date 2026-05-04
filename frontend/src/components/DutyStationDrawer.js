@@ -26,6 +26,7 @@ import { Badge } from './ui/badge';
 import { Button } from './ui/button';
 import { Checkbox } from './ui/checkbox';
 import { toast } from 'sonner';
+import { GpsProximityCheck, OnDemandSpotSelector, StatusCard } from './on-demand/DutyStationComponents';
 import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import { SpotSelector } from './SpotSelector';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -205,114 +206,7 @@ const GpsWarningBanner = ({ onConfirmAnyway }) => {
 /**
  * GPS Proximity Check Component for Live Mode
  */
-const GpsProximityCheck = ({ 
-  selectedSpot, 
-  userLocation, 
-  gpsAvailable,
-  onProximityConfirmed,
-  onManualConfirm
-}) => {
-  const distance = userLocation && selectedSpot?.latitude 
-    ? calculateDistance(userLocation.lat, userLocation.lng, selectedSpot.latitude, selectedSpot.longitude)
-    : null;
-  
-  const isWithinRange = distance !== null && distance <= LIVE_PROXIMITY_METERS;
-  const distanceMiles = distance ? metersToMiles(distance).toFixed(2) : null;
-  
-  useEffect(() => {
-    if (isWithinRange) {
-      onProximityConfirmed(true);
-    }
-  }, [isWithinRange, onProximityConfirmed]);
-  
-  if (!selectedSpot) return null;
-  
-  // GPS not available
-  if (!gpsAvailable) {
-    return <GpsWarningBanner onConfirmAnyway={onManualConfirm} />;
-  }
-  
-  return (
-    <motion.div
-      initial={{ opacity: 0, height: 0 }}
-      animate={{ opacity: 1, height: 'auto' }}
-      className="space-y-3"
-    >
-      <div className={`
-        p-4 rounded-xl border-2 
-        ${isWithinRange 
-          ? 'bg-emerald-500/10 border-emerald-500/50' 
-          : distance !== null 
-            ? 'bg-amber-500/10 border-amber-500/50'
-            : 'bg-muted/50 border-border'
-        }
-      `}>
-        <div className="flex items-start gap-3">
-          {isWithinRange ? (
-            <CheckCircle2 className="w-5 h-5 text-emerald-400 mt-0.5 flex-shrink-0" />
-          ) : distance !== null ? (
-            <AlertTriangle className="w-5 h-5 text-amber-400 mt-0.5 flex-shrink-0" />
-          ) : (
-            <Navigation className="w-5 h-5 text-muted-foreground mt-0.5 flex-shrink-0 animate-pulse" />
-          )}
-          
-          <div className="flex-1">
-            {isWithinRange ? (
-              <>
-                <p className="text-emerald-300 font-medium">You're at the spot!</p>
-                <p className="text-emerald-400/70 text-sm">
-                  GPS confirmed: {distanceMiles} miles from {selectedSpot.name}
-                </p>
-              </>
-            ) : distance !== null ? (
-              <>
-                <p className="text-amber-300 font-medium">Not at the spot yet</p>
-                <p className="text-amber-400/70 text-sm">
-                  You're {distanceMiles} miles away (need to be within {LIVE_PROXIMITY_MILES} miles)
-                </p>
-              </>
-            ) : (
-              <>
-                <p className="text-foreground font-medium">Checking GPS location...</p>
-                <p className="text-muted-foreground text-sm">Please allow location access</p>
-              </>
-            )}
-          </div>
-        </div>
-      </div>
-      
-      {/* Manual Confirmation Option (when GPS says not at spot) */}
-      {distance !== null && !isWithinRange && (
-        <div className="p-4 rounded-xl bg-card border border-border">
-          <div className="flex items-start gap-3">
-            <MapPinOff className="w-5 h-5 text-muted-foreground mt-0.5 flex-shrink-0" />
-            <div className="flex-1">
-              <p className="text-foreground font-medium text-sm">GPS not accurate?</p>
-              <p className="text-muted-foreground text-xs mt-1">
-                If you're physically at {selectedSpot.name} but GPS shows otherwise, 
-                you can manually confirm.
-              </p>
-              <p className="text-red-400 text-xs mt-2 font-medium">
-                ?? Warning: Going live when not at the spot may result in negative reviews, 
-                selling suspension, or account action.
-              </p>
-              <Button aria-label="Confirm"
-                onClick={onManualConfirm}
-                variant="outline"
-                size="sm"
-                className="mt-3 border-amber-500/50 text-amber-400 hover:bg-amber-500/10"
-                data-testid="manual-confirm-location"
-              >
-                <Check className="w-4 h-4 mr-2" />
-                I confirm I'm at this spot
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
-    </motion.div>
-  );
-};
+// GpsProximityCheck extracted to ./on-demand/DutyStationComponents.js
 
 /**
  * Selected Spot Display with Deselect for Live Mode
@@ -347,210 +241,11 @@ const SelectedSpotDisplay = ({ spot, onDeselect }) => {
   );
 };
 
-/**
- * Multi-Spot Selector for On-Demand Mode
- */
-const OnDemandSpotSelector = ({ 
-  spots, 
-  selectedSpots, 
-  onToggleSpot, 
-  onSelectAll,
-  onDeselectAll,
-  loading,
-  radiusInfo
-}) => {
-  const allSelected = spots.length > 0 && selectedSpots.length === spots.length;
-  
-  return (
-    <div className="space-y-3">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Zap className="w-4 h-4 text-amber-400" />
-          <span className="text-sm font-medium text-foreground">Select Coverage Areas</span>
-        </div>
-        <div className="flex items-center gap-2">
-          {selectedSpots.length > 0 && (
-            <button
-              onClick={onDeselectAll}
-              className="text-xs text-red-400 hover:text-red-300 transition-colors"
-              data-testid="deselect-all-spots"
-            >
-              Clear All
-            </button>
-          )}
-          <button
-            onClick={onSelectAll}
-            className="text-xs text-amber-400 hover:text-amber-300 transition-colors"
-            data-testid="select-all-spots"
-          >
-            {allSelected ? 'Deselect All' : 'Select All'}
-          </button>
-        </div>
-      </div>
-      
-      {/* Radius info badge */}
-      {radiusInfo && (
-        <div className="flex items-center gap-2">
-          <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30 text-xs">
-            {radiusInfo.max} mile radius
-          </Badge>
-          <span className="text-muted-foreground text-xs">based on your tier</span>
-        </div>
-      )}
-      
-      <p className="text-xs text-muted-foreground">
-        Choose which spots you want to be available for on-demand requests
-      </p>
-      
-      {loading ? (
-        <div className="flex items-center justify-center py-8">
-          <Loader2 className="w-6 h-6 animate-spin text-amber-400" />
-        </div>
-      ) : spots.length === 0 ? (
-        <div className="text-center py-8 text-muted-foreground">
-          <MapPinOff className="w-8 h-8 mx-auto mb-2 opacity-50" />
-          <p className="text-sm">No spots within your service range</p>
-          <p className="text-xs mt-1">Enable GPS to find nearby spots</p>
-        </div>
-      ) : (
-        <div className="max-h-[250px] overflow-y-auto space-y-2 pr-1 custom-scrollbar">
-          {spots.map((spot) => {
-            const isSelected = selectedSpots.some(s => s.id === spot.id);
-            return (
-              <motion.div
-                key={spot.id}
-                initial={{ opacity: 0, x: -10 }}
-                animate={{ opacity: 1, x: 0 }}
-                className={`
-                  flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all
-                  ${isSelected 
-                    ? 'bg-amber-500/20 border border-amber-500/50' 
-                    : 'bg-muted/50 border border-border hover:bg-muted'
-                  }
-                `}
-                onClick={() => onToggleSpot(spot)}
-                data-testid={`spot-checkbox-${spot.id}`}
-              >
-                <Checkbox 
-                  checked={isSelected}
-                  className={isSelected ? 'border-amber-500 bg-amber-500' : 'border-muted-foreground'}
-                />
-                <div className="flex-1 min-w-0">
-                  <p className={`text-sm font-medium truncate ${isSelected ? 'text-amber-300' : 'text-foreground'}`}>
-                    {spot.name}
-                  </p>
-                  <p className="text-xs text-muted-foreground truncate">
-                    {spot.region || spot.city || 'Unknown region'}
-                    {spot.distance && ` • ${spot.distance.toFixed(1)} mi`}
-                  </p>
-                </div>
-                {isSelected && (
-                  <CheckCircle2 className="w-5 h-5 text-amber-400 flex-shrink-0" />
-                )}
-              </motion.div>
-            );
-          })}
-        </div>
-      )}
-      
-      {selectedSpots.length > 0 && (
-        <div className="pt-2 border-t border-border">
-          <p className="text-sm text-amber-400">
-            {selectedSpots.length} spot{selectedSpots.length !== 1 ? 's' : ''} selected
-          </p>
-        </div>
-      )}
-    </div>
-  );
-};
 
 /**
  * Status Card - Shows current duty status with toggle
  */
-const StatusCard = ({ 
-  mode, 
-  isActive, 
-  selectedSpot,
-  selectedSpots,
-  onToggle, 
-  loading,
-  canActivate
-}) => {
-  const config = MODE_CONFIG[mode];
-  const Icon = config.icon;
-  const spotCount = mode === 'onDemand' ? selectedSpots?.length : (selectedSpot ? 1 : 0);
-  
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      className={`
-        p-5 rounded-2xl border-2 transition-all duration-300
-        ${isActive 
-          ? `bg-gradient-to-br ${config.colors.gradient} ${config.colors.border} ${config.colors.glow}` 
-          : 'bg-card border-border'
-        }
-      `}
-      data-testid="status-card"
-    >
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <div className={`
-            relative w-14 h-14 rounded-2xl flex items-center justify-center
-            ${isActive ? config.colors.ring : 'bg-muted'}
-          `}>
-            {isActive && (
-              <span 
-                className={`absolute inset-0 rounded-2xl ${config.colors.ring} animate-ping animate-duration-2s`}
-              />
-            )}
-            <Icon className={`w-7 h-7 relative z-10 ${isActive ? config.colors.text : 'text-muted-foreground'}`} />
-          </div>
-          
-          <div>
-            <p className="text-foreground font-semibold text-lg tracking-tight">
-              {mode === 'live' ? 'Go Live' : 'Go On-Demand'}
-            </p>
-            <p className={`text-sm ${isActive ? config.colors.textLight : 'text-muted-foreground'}`}>
-              {isActive 
-                ? `${config.activeText} at ${spotCount} spot${spotCount !== 1 ? 's' : ''}`
-                : spotCount > 0 
-                  ? config.inactiveText
-                  : 'Select spot(s) to enable'
-              }
-            </p>
-          </div>
-        </div>
-        
-        {/* Toggle Switch */}
-        <button
-          onClick={onToggle}
-          disabled={loading}
-          className={`
-            w-14 h-7 rounded-full transition-all duration-300 relative flex-shrink-0
-            ${isActive 
-              ? config.colors.primary 
-              : canActivate 
-                ? 'bg-muted hover:bg-muted/80 cursor-pointer' 
-                : 'bg-muted hover:bg-muted/80 cursor-pointer opacity-70'
-            }
-          `}
-          data-testid="duty-toggle"
-        >
-          {loading ? (
-            <Loader2 className="w-4 h-4 animate-spin absolute top-1.5 left-1/2 -translate-x-1/2 text-white" />
-          ) : (
-            <motion.span 
-              className="absolute top-1 w-5 h-5 rounded-full bg-white shadow-lg"
-              animate={{ left: isActive ? 'calc(100% - 24px)' : '4px' }}
-              transition={{ type: 'spring', stiffness: 500, damping: 30 }}
-            />
-          )}
-        </button>
-      </div>
-    </motion.div>
-  );
-};
+// StatusCard extracted to ./on-demand/DutyStationComponents.js
 
 /**
  * Stats Preview
@@ -651,7 +346,7 @@ export const DutyStationDrawer = ({ isOpen, onClose }) => {
   const [proximityConfirmed, setProximityConfirmed] = useState(false);
   const [stats, setStats] = useState({ todayEarnings: 0, sessionsToday: 0 });
   const [showConditionsModal, setShowConditionsModal] = useState(false);
-  // Photographer pricing config — fetched on mount, included in go-live payload
+  // Photographer pricing config ï¿½ fetched on mount, included in go-live payload
   const [pricingConfig, setPricingConfig] = useState({
     price_per_join: 25,
     live_photo_price: 5,
@@ -739,7 +434,7 @@ export const DutyStationDrawer = ({ isOpen, onClose }) => {
         photo_price_high: g.photo_pricing?.high ?? prev.photo_price_high
       }));
     } catch (err) {
-      logger.warn('[DutyStation] Could not fetch pricing — using defaults:', err.message);
+      logger.warn('[DutyStation] Could not fetch pricing ï¿½ using defaults:', err.message);
     }
   };
   
@@ -809,7 +504,7 @@ export const DutyStationDrawer = ({ isOpen, onClose }) => {
       await fetchStatuses();
     } catch (err) {
       const errDetail = err.response?.data?.detail;
-      // "No active session to end" means the DB is already clean — clear local state
+      // "No active session to end" means the DB is already clean ï¿½ clear local state
       if (errDetail && errDetail.toLowerCase().includes('no active session')) {
         setLiveActive(false);
         toast.success('Session already cleared. You can go live now.');
@@ -937,7 +632,7 @@ export const DutyStationDrawer = ({ isOpen, onClose }) => {
           setOnDemandActive(false);
           toast.info('Switching to Live mode. On-Demand disabled.');
         } catch (odErr) {
-          // Don't block go-live if on-demand toggle fails — backend will auto-disable
+          // Don't block go-live if on-demand toggle fails ï¿½ backend will auto-disable
           logger.warn('[DutyStation] On-Demand toggle failed, backend will handle:', odErr);
         }
       }
@@ -953,7 +648,7 @@ export const DutyStationDrawer = ({ isOpen, onClose }) => {
           const formData = new FormData();
           formData.append('file', conditionsData.media, `conditions${ext}`);
           formData.append('user_id', user.id);
-          logger.log('[DutyStation] Pre-uploading condition media…', { size: conditionsData.media.size, type: mimeType });
+          logger.log('[DutyStation] Pre-uploading condition mediaï¿½', { size: conditionsData.media.size, type: mimeType });
           const uploadStart = Date.now();
           const uploadRes = await apiClient.post('/upload/conditions', formData, {
             headers: { 'Content-Type': undefined }, // Let browser set multipart boundary
@@ -963,21 +658,21 @@ export const DutyStationDrawer = ({ isOpen, onClose }) => {
           conditionMediaUrl = uploadRes.data?.media_url;
           conditionMediaType = uploadRes.data?.media_type || conditionMediaType;
           logger.log('[DutyStation] Condition media uploaded:', conditionMediaUrl, `(${uploadDuration}ms)`);
-          // If upload took > 10s, server was likely cold-starting — it's warm now
+          // If upload took > 10s, server was likely cold-starting ï¿½ it's warm now
           if (uploadDuration > 10000) uploadWokeServer = true;
         } catch (uploadErr) {
           // Non-fatal: proceed without condition media (matches PSM pattern)
           logger.warn('[DutyStation] Condition media upload failed (non-fatal):', uploadErr.message);
           conditionMediaUrl = null;
           conditionMediaType = null;
-          // Upload failure likely means server was sleeping — flag for warm-up
+          // Upload failure likely means server was sleeping ï¿½ flag for warm-up
           uploadWokeServer = true;
         }
       }
       
-      // Step 2: Build go-live request — clean JSON payload with pricing config
+      // Step 2: Build go-live request ï¿½ clean JSON payload with pricing config
       // IMPORTANT: latitude/longitude must be USER's GPS position (not spot coords)
-      // — the backend uses these for Hobbyist proximity checks against nearby Pros
+      // ï¿½ the backend uses these for Hobbyist proximity checks against nearby Pros
       const goLivePayload = {
         // Core spot data
         spot_id: selectedSpot.id,
@@ -986,7 +681,7 @@ export const DutyStationDrawer = ({ isOpen, onClose }) => {
         // User's GPS coords (for Hobbyist proximity check), fall back to spot coords
         latitude: userLocation?.lat || selectedSpot.latitude,
         longitude: userLocation?.lng || selectedSpot.longitude,
-        // Session pricing — mirrors PhotographerSessionsManager
+        // Session pricing ï¿½ mirrors PhotographerSessionsManager
         price_per_join: pricingConfig.price_per_join,
         live_photo_price: pricingConfig.live_photo_price,
         photos_included: pricingConfig.photos_included,
@@ -998,7 +693,7 @@ export const DutyStationDrawer = ({ isOpen, onClose }) => {
         estimated_duration: pricingConfig.estimated_duration,
         max_surfers: pricingConfig.max_surfers,
         auto_accept: pricingConfig.auto_accept,
-        // Condition media (URL only — no base64 fallback)
+        // Condition media (URL only ï¿½ no base64 fallback)
         condition_media_url: conditionMediaUrl || null,
         condition_media_type: conditionMediaType,
         // Spot notes
@@ -1023,15 +718,15 @@ export const DutyStationDrawer = ({ isOpen, onClose }) => {
       
       for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
         try {
-          // ALWAYS warm the server before go-live — cold starts are the #1 failure cause.
+          // ALWAYS warm the server before go-live ï¿½ cold starts are the #1 failure cause.
           // On attempt 1: quick ping to wake if sleeping.
           // On retries: longer wait + ping to let server finish booting.
           if (attempt > 1) {
             const retryDelay = attempt === 2 ? 5000 : 10000; // 5s, then 10s
-            toast.loading(`Server waking up — retry ${attempt - 1} of ${MAX_ATTEMPTS - 1}…`, { id: 'go-live-warmup' });
+            toast.loading(`Server waking up ï¿½ retry ${attempt - 1} of ${MAX_ATTEMPTS - 1}ï¿½`, { id: 'go-live-warmup' });
             await new Promise(r => setTimeout(r, retryDelay));
           } else {
-            toast.loading('Connecting to server…', { id: 'go-live-warmup' });
+            toast.loading('Connecting to serverï¿½', { id: 'go-live-warmup' });
           }
           
           try {
@@ -1040,9 +735,9 @@ export const DutyStationDrawer = ({ isOpen, onClose }) => {
             logger.log(`[DutyStation] Server warm-up ping succeeded (attempt ${attempt})`);
           } catch (pingErr) {
             if (attempt === 1) {
-              // First ping failed — server is definitely cold. Wait for it.
-              logger.warn('[DutyStation] Server cold — waiting 8s for boot…', pingErr.message);
-              toast.loading('Server is starting up…', { id: 'go-live-warmup' });
+              // First ping failed ï¿½ server is definitely cold. Wait for it.
+              logger.warn('[DutyStation] Server cold ï¿½ waiting 8s for bootï¿½', pingErr.message);
+              toast.loading('Server is starting upï¿½', { id: 'go-live-warmup' });
               await new Promise(r => setTimeout(r, 8000));
               // Try ping again after waiting
               try {
@@ -1058,13 +753,13 @@ export const DutyStationDrawer = ({ isOpen, onClose }) => {
           toast.dismiss('go-live-warmup');
           
           const goLiveRes = await apiClient.post(`/photographer/${user.id}/go-live`, goLivePayload, {
-            timeout: 120000 // 120s — matches PSM; accommodates Render cold starts
+            timeout: 120000 // 120s ï¿½ matches PSM; accommodates Render cold starts
           });
           logger.log('[DutyStation] Go-live success:', goLiveRes.data?.live_session_id);
           setLiveActive(true);
           setShowConditionsModal(false);
           toast.success(`Now live at ${selectedSpot.name}!`);
-          return; // ? Success — exit the function
+          return; // ? Success ï¿½ exit the function
         } catch (err) {
           lastError = err;
           toast.dismiss('go-live-warmup');
@@ -1072,28 +767,28 @@ export const DutyStationDrawer = ({ isOpen, onClose }) => {
           const isTimeout = err.code === 'ECONNABORTED' || err.message?.includes('timeout');
           
           // Only retry on cold-start symptoms (no HTTP response, or timeout)
-          // Do NOT retry on 4xx/5xx — those are real server errors
+          // Do NOT retry on 4xx/5xx ï¿½ those are real server errors
           if (hasResponse || attempt >= MAX_ATTEMPTS) {
             break; // Server responded with an error, or out of retries
           }
           
-          // No response or timeout — server is likely still booting
-          logger.warn(`[DutyStation] Go-live attempt ${attempt} failed, will retry…`, err.code, err.message);
+          // No response or timeout ï¿½ server is likely still booting
+          logger.warn(`[DutyStation] Go-live attempt ${attempt} failed, will retryï¿½`, err.code, err.message);
         }
       }
       
-      // If we get here, all attempts failed — surface the error from the last attempt
+      // If we get here, all attempts failed ï¿½ surface the error from the last attempt
       throw lastError;
     } catch (error) {
       const detail = error.response?.data?.detail || '';
       const status = error.response?.status;
       logger.error('[DutyStation] Go-live failed after retries:', { status, detail, message: error.message });
       
-      // Check specific statuses FIRST — before the generic detail fallback
+      // Check specific statuses FIRST ï¿½ before the generic detail fallback
       if (status === 413) {
         toast.error('Media file too large. Please use a shorter video or lower-quality photo.');
       } else if (status === 400 && detail.toLowerCase().includes('already')) {
-        // Stale session blocking new go-live — offer recovery action
+        // Stale session blocking new go-live ï¿½ offer recovery action
         toast.error('You have a stale live session blocking new activations.', {
           duration: 8000,
           action: {
@@ -1107,7 +802,7 @@ export const DutyStationDrawer = ({ isOpen, onClose }) => {
         // Generic backend error message (covers 403 role errors, etc.)
         toast.error(`Go-live error: ${detail}`);
       } else if (error.code === 'ECONNABORTED' || error.message?.includes('timeout')) {
-        toast.error('Server is warming up — please wait a moment and try again.', { duration: 6000 });
+        toast.error('Server is warming up ï¿½ please wait a moment and try again.', { duration: 6000 });
       } else if (!error.response) {
         // Exhausted retries with no server response
         logger.error('[DutyStation] No HTTP response after retries:', error.code, error.message);
@@ -1217,7 +912,7 @@ export const DutyStationDrawer = ({ isOpen, onClose }) => {
               <h2 className="text-lg font-bold text-foreground tracking-tight">Duty Station</h2>
               <p className="text-xs text-muted-foreground">
                 {isActive 
-                  ? `${mode === 'live' ? 'Live' : 'On-Demand'} • Active`
+                  ? `${mode === 'live' ? 'Live' : 'On-Demand'} ï¿½ Active`
                   : 'Manage your availability'
                 }
               </p>

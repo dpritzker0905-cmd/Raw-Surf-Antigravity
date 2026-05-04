@@ -103,7 +103,7 @@ export const Profile = () => {
   const [isFollowing, setIsFollowing] = useState(false);
   const [followLoading, setFollowLoading] = useState(false);
   
-  // Tab state — read ?tab= param from URL to deep-link to a specific tab (e.g. reviews)
+  // Tab state ï¿½ read ?tab= param from URL to deep-link to a specific tab (e.g. reviews)
   const [searchParams] = useSearchParams();
   const initialTab = searchParams.get('tab') || 'posts';
   const [activeTab, setActiveTab] = useState(initialTab);
@@ -214,7 +214,7 @@ export const Profile = () => {
       tag.setAttribute('content', content);
     };
 
-    const title = `${profile.full_name || 'User'} — Raw Surf`;
+    const title = `${profile.full_name || 'User'} ï¿½ Raw Surf`;
     const description = profile.bio || `Check out ${profile.full_name || 'this user'}'s profile on Raw Surf`;
     const image = profile.avatar_url ? getFullUrl(profile.avatar_url) : null;
     const url = `${window.location.origin}/profile/${profileUserId}`;
@@ -335,7 +335,7 @@ export const Profile = () => {
         setIsFollowing(response.data?.is_following === true);
         return;
       } catch (checkErr) {
-        // Endpoint doesn't exist yet — fall back to list search
+        // Endpoint doesn't exist yet ï¿½ fall back to list search
       }
       const response = await apiClient.get(`/following/${user.id}`);
       const following = response.data || [];
@@ -356,7 +356,7 @@ export const Profile = () => {
     const wasFollowing = isFollowing;
     const prevFollowers = socialStats.followers;
     
-    // Optimistic update — instant UI
+    // Optimistic update ï¿½ instant UI
     setIsFollowing(!wasFollowing);
     setSocialStats(prev => ({
       ...prev,
@@ -1168,7 +1168,7 @@ export const Profile = () => {
 
         {/* Tabs */}
         <div className="border-t border-border">
-          <div className="flex justify-around">
+          <div className="flex justify-around" role="tablist" aria-label="Profile sections">
             {tabs.map((tab) => (
               <button
                 key={tab.id}
@@ -1179,8 +1179,10 @@ export const Profile = () => {
                     : 'text-muted-foreground hover:text-foreground/70'
                 }`}
                 data-testid={`tab-${tab.id}`}
+                role="tab"
+                aria-selected={activeTab === tab.id}
               >
-                {/* Active indicator bar — rides the border-t of the container */}
+                {/* Active indicator bar ï¿½ rides the border-t of the container */}
                 {activeTab === tab.id && (
                   <span className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-0.5 rounded-b-full bg-foreground" />
                 )}
@@ -1453,7 +1455,7 @@ export const Profile = () => {
           <div className="grid grid-cols-3 gap-0.5">
             {tabContent
               .filter(item => {
-                // Basic existence check — show all posts regardless of media URL type.
+                // Basic existence check ï¿½ show all posts regardless of media URL type.
                 // Previously this filter hid videos with local /api/uploads/ paths, but
                 // that caused legitimately stored videos to disappear from profile grids.
                 const mediaItem = activeTab === 'saved' ? item?.post : item;
