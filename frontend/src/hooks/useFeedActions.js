@@ -318,7 +318,7 @@ const useFeedActions = ({
             author_avatar: null,
             media_url: 'https://images.unsplash.com/photo-1502680390469-be75c86b636f?w=600',
             media_type: 'image',
-            caption: 'Dawn patrol at its finest! ??',
+            caption: 'Dawn patrol at its finest! 🌊',
             location: 'Pipeline, Hawaii',
             likes_count: 247,
             liked: false,
@@ -372,7 +372,7 @@ const useFeedActions = ({
             author_avatar: null,
             media_url: 'https://images.unsplash.com/photo-1502680390469-be75c86b636f?w=600',
             media_type: 'image',
-            caption: 'Dawn patrol at its finest! ??',
+            caption: 'Dawn patrol at its finest! 🌊',
             location: 'Pipeline, Hawaii',
             likes_count: 247,
             liked: false,
@@ -458,11 +458,11 @@ const useFeedActions = ({
 
       setNearestSpot(nearest);
       if (nearest && minDistance < 10) {
-        toast.success(`\uD83D\uDCCD At ${nearest.name} (${nearest.distance}km) � GPS verified, you'll earn XP!`);
+        toast.success(`📍 At ${nearest.name} (${nearest.distance}km) � GPS verified, you'll earn XP!`);
       } else if (nearest) {
-        toast.success(`\uD83D\uDCCD Location found. Nearest spot: ${nearest.name} (${nearest.distance}km)`);
+        toast.success(`📍 Location found. Nearest spot: ${nearest.name} (${nearest.distance}km)`);
       } else {
-        toast.success('\uD83D\uDCCD Location detected � select your spot to earn XP');
+        toast.success('📍 Location detected � select your spot to earn XP');
       }
       setGpsLoading(false);
     };
@@ -557,7 +557,7 @@ const useFeedActions = ({
     const isLiked = currentPost?.liked;
     
     // Case 1: User has an active non-Shaka reaction (Fire, Wave, Heart) ? CLEAR IT & UNLIKE
-    if (userReaction && userReaction.emoji !== '??') {
+    if (userReaction && userReaction.emoji !== '🤙') {
       // Optimistic update - remove reaction AND set liked to false (unchecked Shaka)
       setPosts(prevPosts => prevPosts.map(p => {
         if (p.id === postId) {
@@ -689,7 +689,7 @@ const useFeedActions = ({
     const isRemoving = !!existingReaction;
     
     // Special handling for shaka emoji - it maps to the "liked" state
-    const isShakaEmoji = emoji === '??';
+    const isShakaEmoji = emoji === '🤙';
     
     // Optimistic update with animation trigger
     setPosts(prevPosts => prevPosts.map(p => {
@@ -937,7 +937,7 @@ const useFeedActions = ({
 
   const handleCheckIn = async () => {
     if (streak.checked_in_today) {
-      toast.info('You already checked in today! Keep the streak going tomorrow ??');
+      toast.info('You already checked in today! Keep the streak going tomorrow 🤙');
       return;
     }
     // Lazy-load spots + location hierarchy on first check-in open
@@ -1025,7 +1025,7 @@ const useFeedActions = ({
           checked_in_today: true
         });
 
-        toast.success(`Checked in! \uD83D\uDD25 ${response.data.current_streak} day streak!`);
+        toast.success(`Checked in! 🔥 ${response.data.current_streak} day streak!`);
         // Close immediately for manual check-in
         setShowCheckInModal(false);
         setCheckInData({ spot_id: '', conditions: '', wave_height: '', notes: '', latitude: null, longitude: null, use_gps: false });

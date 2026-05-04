@@ -13,12 +13,12 @@ import logger from '../utils/logger';
 
 // Badge definitions with icons and descriptions
 const BADGE_INFO = {
-  first_checkin: { icon: '??', name: 'First Wave', description: 'Your first check-in!' },
-  explorer_10: { icon: '???', name: 'Explorer', description: 'Visited 10 unique spots' },
-  globetrotter_5: { icon: '??', name: 'Globetrotter', description: 'Surfed in 5 countries' },
-  streak_7: { icon: '??', name: 'On Fire', description: '7-day check-in streak' },
-  dawn_patrol: { icon: '??', name: 'Dawn Patrol', description: 'Check-in before 7am' },
-  storm_chaser: { icon: '??', name: 'Storm Chaser', description: 'Surfed during large swell' },
+  first_checkin: { icon: '🌊', name: 'First Wave', description: 'Your first check-in!' },
+  explorer_10: { icon: '🧭', name: 'Explorer', description: 'Visited 10 unique spots' },
+  globetrotter_5: { icon: '🌍', name: 'Globetrotter', description: 'Surfed in 5 countries' },
+  streak_7: { icon: '🔥', name: 'On Fire', description: '7-day check-in streak' },
+  dawn_patrol: { icon: '🌅', name: 'Dawn Patrol', description: 'Check-in before 7am' },
+  storm_chaser: { icon: '⛈️', name: 'Storm Chaser', description: 'Surfed during large swell' },
 };
 
 // Level names
@@ -388,7 +388,7 @@ export const SurfPassport = ({ isOpen, onClose }) => {
                         className={`${cardBgClass} px-3 py-2 rounded-lg flex items-center gap-2`}
                         title={BADGE_INFO[badge]?.description}
                       >
-                        <span className="text-xl">{BADGE_INFO[badge]?.icon || '??'}</span>
+                        <span className="text-xl">{BADGE_INFO[badge]?.icon || '🤙'}</span>
                         <span className={`text-sm ${textClass}`}>{BADGE_INFO[badge]?.name || badge}</span>
                       </div>
                     ))}

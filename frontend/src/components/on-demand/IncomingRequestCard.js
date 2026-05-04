@@ -107,7 +107,7 @@ const IncomingRequestCard = ({
                 <span className={`text-sm ${textSecondary}`}>{request.distance_miles?.toFixed(1) || '?'} mi away</span>
                 {request.requester_stance && (
                   <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-purple-500/20 text-purple-400 uppercase tracking-wide">
-                    {request.requester_stance === 'goofy' ? '?? Goofy' : '?? Regular'}
+                    {request.requester_stance === 'goofy' ? '?? Goofy' : 'ðŸ¦¶ Regular'}
                   </span>
                 )}
               </div>
@@ -118,7 +118,7 @@ const IncomingRequestCard = ({
           </div>
         </div>
         
-        {/* Location — Uber-style navigation block */}
+        {/* Location ï¿½ Uber-style navigation block */}
         <div className={`mb-4 rounded-xl overflow-hidden border ${
           'border-cyan-500/30'
         }`}>
@@ -276,7 +276,7 @@ const IncomingRequestCard = ({
                   <div className="flex items-center gap-2 text-sm">
                     <span className={textSecondary}>Stance:</span>
                     <span className={`font-medium ${textPrimary} capitalize`}>
-                      {request.requester_stance === 'goofy' ? '?? Goofy Foot' : '?? Regular'}
+                      {request.requester_stance === 'goofy' ? 'ðŸ¦¶ Goofy Foot' : 'ðŸ¦¶ Regular'}
                     </span>
                   </div>
                 )}
@@ -454,7 +454,7 @@ const IncomingRequestCard = ({
                     <div className="flex-1 min-w-0">
                       <p className="text-sm text-white font-medium truncate">{request.requester_name}</p>
                       <p className="text-xs text-cyan-400">
-                        {request.requester_username ? `@${request.requester_username} • ` : ''}Captain (Paid)
+                        {request.requester_username ? `@${request.requester_username} ï¿½ ` : ''}Captain (Paid)
                       </p>
                     </div>
                     <Badge className="text-xs flex-shrink-0 bg-cyan-500/20 text-cyan-400">

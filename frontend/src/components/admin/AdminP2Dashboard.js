@@ -833,7 +833,7 @@ export const AdminP2Dashboard = () => {
               <Input
                 value={newCampaign.title}
                 onChange={(e) => setNewCampaign({ ...newCampaign, title: e.target.value })}
-                placeholder="?? Don't miss out!"
+                placeholder="🔥 Don't miss out!"
                 className="bg-muted border-border mt-1"
               />
             </div>

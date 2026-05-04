@@ -141,7 +141,7 @@ const IncomingRequestCard = ({
                 <span className={`text-sm ${textSecondary}`}>{request.distance_miles?.toFixed(1) || '?'} mi away</span>
                 {request.requester_stance && (
                   <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-purple-500/20 text-purple-400 uppercase tracking-wide">
-                    {request.requester_stance === 'goofy' ? '?? Goofy' : '?? Regular'}
+                    {request.requester_stance === 'goofy' ? '🦶 Goofy' : '🦶 Regular'}
                   </span>
                 )}
               </div>
@@ -305,12 +305,12 @@ const IncomingRequestCard = ({
             {/* Surfer Identification Section */}
             {(request.requester_stance || request.requester_board_description) && (
               <div className="p-3 rounded-xl bg-cyan-500/10 border border-cyan-400/20 space-y-2">
-                <p className={`text-xs font-semibold ${textSecondary} uppercase tracking-wider`}>?? Surfer ID</p>
+                <p className={`text-xs font-semibold ${textSecondary} uppercase tracking-wider`}>🔍 Surfer ID</p>
                 {request.requester_stance && (
                   <div className="flex items-center gap-2 text-sm">
                     <span className={textSecondary}>Stance:</span>
                     <span className={`font-medium ${textPrimary} capitalize`}>
-                      {request.requester_stance === 'goofy' ? '?? Goofy Foot' : '?? Regular'}
+                      {request.requester_stance === 'goofy' ? '🦶 Goofy Foot' : '🦶 Regular'}
                     </span>
                   </div>
                 )}
@@ -738,15 +738,15 @@ const ActiveSessionCard = ({
         {/* Surfer Identification Details */}
         {(session.requester_stance || session.requester_board_description) && (
           <div className={`p-3 rounded-xl bg-cyan-500/10 border border-cyan-400/20`}>
-            <p className={`text-[10px] font-semibold ${textSecondary} uppercase tracking-wider mb-2`}>?? Surfer Identification</p>
+            <p className={`text-[10px] font-semibold ${textSecondary} uppercase tracking-wider mb-2`}>🔍 Surfer Identification</p>
             <div className="flex flex-wrap items-center gap-2">
               {session.requester_stance && (
                 <span className="text-xs font-medium px-2 py-1 rounded-full bg-purple-500/20 text-purple-400">
-                  {session.requester_stance === 'goofy' ? '?? Goofy Foot' : '?? Regular'}
+                  {session.requester_stance === 'goofy' ? '🦶 Goofy Foot' : '🦶 Regular'}
                 </span>
               )}
               {session.requester_board_description && (
-                <span className={`text-xs font-medium ${textPrimary}`}>????? {session.requester_board_description}</span>
+                <span className={`text-xs font-medium ${textPrimary}`}>🏄 {session.requester_board_description}</span>
               )}
             </div>
           </div>
@@ -857,8 +857,8 @@ const ActiveSessionCard = ({
                 chatUnreadCount > 0 ? 'text-white font-medium' : 'text-zinc-400'
               }`}>
                 {chatLatestMessage.message_type === 'voice_note'
-                  ? '?? Voice note'
-                  : (chatLatestMessage.content || '?? Media')}
+                  ? '🎙️ Voice note'
+                  : (chatLatestMessage.content || '📷 Media')}
               </p>
             </div>
           </button>
@@ -1468,7 +1468,7 @@ export const OnDemandSessionManager = () => {
                         <div>
                           <p className={`font-semibold ${textPrimary}`}>{exc.requester_name}</p>
                           <p className={`text-xs ${textSecondary}`}>
-                            {exc.category === 'emergency' ? '?? Emergency' : exc.category === 'weather' ? '??? Weather' : exc.category === 'injury' ? '?? Injury' : '?? Other'}
+                            {exc.category === 'emergency' ? '🚨 Emergency' : exc.category === 'weather' ? '⛈️ Weather' : exc.category === 'injury' ? '?? Injury' : '?? Other'}
                           </p>
                         </div>
                         <p className="text-amber-400 font-bold">${exc.fee_amount?.toFixed(2)}</p>

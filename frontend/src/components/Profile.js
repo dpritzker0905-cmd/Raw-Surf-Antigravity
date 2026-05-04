@@ -529,7 +529,7 @@ export const Profile = () => {
                 title={profile.is_logo_avatar ? 'Switch to Photo mode' : 'Switch to Logo mode'}
               >
                 <span className="text-[10px] font-bold text-zinc-300 group-hover/logo:text-cyan-400">
-                  {profile.is_logo_avatar ? '??' : '???'}
+                  {profile.is_logo_avatar ? '🤙' : '???'}
                 </span>
               </button>
             )}
@@ -1002,7 +1002,7 @@ export const Profile = () => {
               {/* Impact Level */}
               <div className="bg-gradient-to-br from-cyan-500/20 to-blue-500/20 rounded-xl p-6 text-center border border-cyan-500/30">
                 <div className="text-4xl mb-2">
-                  {impactScore.impact_score?.level?.emoji || '??'}
+                  {impactScore.impact_score?.level?.emoji || '🤙'}
                 </div>
                 <p className="text-white font-bold text-xl mb-1">
                   {impactScore.impact_score?.level?.name || 'Starter'}
@@ -1079,7 +1079,7 @@ export const Profile = () => {
                         title={badge.description}
                       >
                         <div className="w-10 h-10 rounded-full bg-gradient-to-br from-yellow-400 to-orange-500 flex items-center justify-center mb-1">
-                          {badge.icon_emoji || '??'}
+                          {badge.icon_emoji || '🤙'}
                         </div>
                         <span className="text-[10px] text-gray-400 text-center truncate w-full">{badge.name}</span>
                       </div>
@@ -1186,7 +1186,7 @@ export const Profile = () => {
                         title={badge.description}
                       >
                         <div className="w-10 h-10 rounded-full bg-gradient-to-br from-yellow-400 to-orange-500 flex items-center justify-center mb-1">
-                          {badge.icon_emoji || '??'}
+                          {badge.icon_emoji || '🤙'}
                         </div>
                         <span className="text-[10px] text-gray-400 text-center truncate w-full">{badge.name}</span>
                       </div>

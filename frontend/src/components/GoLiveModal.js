@@ -470,7 +470,7 @@ const LiveCommentsFeed = ({ streamId, colors, onSendComment, onLikeComment, isEx
       try {
         const response = await apiClient.get(`/social-live/${streamId}/comments`);
         if (response.data?.comments) {
-          // Lightweight update check — compare length + latest ID instead of full JSON serialize
+          // Lightweight update check ï¿½ compare length + latest ID instead of full JSON serialize
           setComments(prev => {
             const newComments = response.data.comments;
             const lastPrevId = prev.length > 0 ? prev[prev.length - 1]?.id : null;
@@ -526,7 +526,7 @@ const LiveCommentsFeed = ({ streamId, colors, onSendComment, onLikeComment, isEx
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: isExpanded ? '100%' : 'auto', overflow: 'hidden', background: 'rgba(9,9,11,0.92)', backdropFilter: 'blur(12px)' }}>
-      {/* Header — Live pulse + count */}
+      {/* Header ï¿½ Live pulse + count */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', borderBottom: '1px solid rgba(39,39,42,0.8)', flexShrink: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           {/* Animated live pulse dot */}
@@ -622,12 +622,12 @@ const LiveCommentsFeed = ({ streamId, colors, onSendComment, onLikeComment, isEx
  */
 const QuickReactions = ({ onReact, colors }) => {
   const reactions = [
-    { emoji: '??', label: 'shaka' },
-    { emoji: '??', label: 'wave' },
-    { emoji: '??', label: 'fire' },
-    { emoji: '??', label: 'love' },
-    { emoji: '??', label: 'surf' },
-    { emoji: '??', label: 'wow' },
+    { emoji: 'ðŸ¤™', label: 'shaka' },
+    { emoji: 'ðŸŒŠ', label: 'wave' },
+    { emoji: 'ðŸ”¥', label: 'fire' },
+    { emoji: 'â¤ï¸', label: 'love' },
+    { emoji: 'ðŸ„', label: 'surf' },
+    { emoji: 'ðŸ˜®', label: 'wow' },
   ];
 
   return (
@@ -891,7 +891,7 @@ const BroadcasterControls = ({
     setActiveHairStyle(styleId);
     setShowHairPicker(false); // Auto-close picker on selection
     if (styleId) {
-      toast.success('Hair filter applied! ??');
+      toast.success('Hair filter applied! âœ¨');
     }
   }, []);
 
@@ -992,7 +992,7 @@ const BroadcasterControls = ({
                 isCameraOff={isCameraOff}
                 isFrontCamera={isFrontCamera}
               />
-              {/* Hair filter canvas overlay — matches WebGL canvas: video-resolution buffer + object-cover + mirror */}
+              {/* Hair filter canvas overlay ï¿½ matches WebGL canvas: video-resolution buffer + object-cover + mirror */}
               <canvas
                 ref={hairCanvasRef}
                 className={`absolute inset-0 w-full h-full object-cover pointer-events-none ${isFrontCamera ? 'scale-x-[-1]' : ''}`}
@@ -1287,7 +1287,7 @@ const GoLiveModal = ({ isOpen, onClose, onStreamEnded }) => {
       }
     } catch (err) {
       logger.warn('[GoLiveModal] Camera preview unavailable:', err);
-      // Not fatal — user may grant camera on actual go-live
+      // Not fatal ï¿½ user may grant camera on actual go-live
     }
   }, []);
 
@@ -1356,7 +1356,7 @@ const GoLiveModal = ({ isOpen, onClose, onStreamEnded }) => {
 
       logger.info('[GoLiveModal] Stream started:', response.data);
 
-      // Stop camera preview — LiveKit will take over camera
+      // Stop camera preview ï¿½ LiveKit will take over camera
       stopCameraPreview();
 
       setBroadcasterToken({
@@ -1401,8 +1401,8 @@ const GoLiveModal = ({ isOpen, onClose, onStreamEnded }) => {
   // -- Initiate countdown then start stream --
   const handleGoLive = useCallback(() => {
     if (signalQuality === 'poor') {
-      toast.warning('?? Poor signal detected. Your stream may be unstable.');
-      // Don't block — let user decide
+      toast.warning('âš ï¸ Poor signal detected. Your stream may be unstable.');
+      // Don't block ï¿½ let user decide
     }
     setPhase('countdown');
     setCountdownValue(3);
@@ -1457,7 +1457,7 @@ const GoLiveModal = ({ isOpen, onClose, onStreamEnded }) => {
     if (phase === 'live' || phase === 'countdown') {
       // During live or countdown: require confirmation
       if (phase === 'countdown') {
-        // Abort countdown — just go back to pre-live
+        // Abort countdown ï¿½ just go back to pre-live
         setPhase('pre_live');
         return;
       }
@@ -1480,12 +1480,12 @@ const GoLiveModal = ({ isOpen, onClose, onStreamEnded }) => {
   return (
     /* -- Mobile: fullscreen  |  Desktop: centred popup -- */
     <div className="fixed inset-0 z-[99999] flex items-center justify-center p-0 sm:p-6" data-testid="go-live-modal" data-theme={theme}>
-      {/* Dark backdrop — click away closes only if pre-live or shows confirmation if live */}
+      {/* Dark backdrop ï¿½ click away closes only if pre-live or shows confirmation if live */}
       <div
         className="fixed inset-0 bg-black/80 backdrop-blur-sm hidden sm:block"
         onClick={handleClose}
       />
-      {/* Inner container — fullscreen on mobile, popup on desktop */}
+      {/* Inner container ï¿½ fullscreen on mobile, popup on desktop */}
       <div className="relative w-full h-full sm:w-[1100px] sm:h-[720px] sm:max-h-[90vh] sm:rounded-2xl sm:overflow-hidden bg-black shadow-2xl shadow-black/60">
 
         {/* -- PRE-LIVE SCREEN -- */}
@@ -1530,7 +1530,7 @@ const GoLiveModal = ({ isOpen, onClose, onStreamEnded }) => {
                   </div>
                 )}
 
-                {/* Signal quality overlay — top right */}
+                {/* Signal quality overlay ï¿½ top right */}
                 <div className="absolute top-3 right-3">
                   <ConnectionQualityBadge quality={signalQuality} />
                   {signalQuality === 'poor' && (
@@ -1655,7 +1655,7 @@ const GoLiveModal = ({ isOpen, onClose, onStreamEnded }) => {
                   className="absolute bottom-8 flex items-center gap-2 bg-red-950/80 border border-red-700/40 rounded-xl px-4 py-2.5"
                 >
                   <AlertTriangle className="w-4 h-4 text-red-400" />
-                  <span className="text-red-300 text-sm">Poor signal — stream may be unstable</span>
+                  <span className="text-red-300 text-sm">Poor signal ï¿½ stream may be unstable</span>
                 </motion.div>
               )}
             </motion.div>

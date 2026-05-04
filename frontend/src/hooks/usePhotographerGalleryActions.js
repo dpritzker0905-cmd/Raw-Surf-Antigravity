@@ -102,7 +102,7 @@ const usePhotographerGalleryActions = ({
         {}
       );
       const data = response.data;
-      toast.success(`?? ${data.message}`);
+      toast.success(`📸 ${data.message}`);
       await fetchConditionsStatus();
     } catch (error) {
       toast.error(error.response?.data?.detail || 'Failed to push conditions report');

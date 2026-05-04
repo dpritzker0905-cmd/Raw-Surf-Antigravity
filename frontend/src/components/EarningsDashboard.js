@@ -395,28 +395,28 @@ export const EarningsDashboard = () => {
     
     switch (update.type) {
       case 'new_sale':
-        toast.success(`?? New sale: +$${amount}`, { 
+        toast.success(`💰 New sale: +$${amount}`, { 
           description: details.item_title ? `"${details.item_title}" purchased by ${details.buyer_name}` : undefined,
           duration: 5000 
         });
         setLoading(true);
         break;
       case 'booking_paid':
-        toast.success(`?? Booking payment: +$${amount}`, {
+        toast.success(`💰 Booking payment: +$${amount}`, {
           description: `${details.buyer_name} joined your session at ${details.booking_location}`,
           duration: 5000
         });
         setLoading(true);
         break;
       case 'tip_received':
-        toast.success(`?? Tip received: +$${amount}`, {
+        toast.success(`💝 Tip received: +$${amount}`, {
           description: `From ${details.donor_name}`,
           duration: 5000
         });
         setLoading(true);
         break;
       case 'payout_complete':
-        toast.success(`?? Payout complete: $${amount} transferred`, { duration: 4000 });
+        toast.success(`✅ Payout complete: $${amount} transferred`, { duration: 4000 });
         setLoading(true);
         break;
       default:

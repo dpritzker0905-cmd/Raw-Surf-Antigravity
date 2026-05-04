@@ -72,7 +72,7 @@ const PersonaMaskBanner = () => {
   
   const currentRoleInfo = activePersona 
     ? getExpandedRoleInfo(activePersona) 
-    : { icon: '??', label: 'God Mode', color: 'text-red-500' };
+    : { icon: '👑', label: 'God Mode', color: 'text-red-500' };
 
   const handleSelectPersona = (personaId) => {
     if (personaId !== 'God') {

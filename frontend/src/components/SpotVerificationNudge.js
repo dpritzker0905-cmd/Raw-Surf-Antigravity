@@ -74,7 +74,7 @@ export const SpotVerificationNudge = ({ spot, userLocation, _onClose }) => {
       );
       
       if (response.data.is_now_community_verified) {
-        toast.success(`${spot.name} is now Community Verified! ??`);
+        toast.success(`${spot.name} is now Community Verified! ✅`);
       } else {
         toast.success('Thanks for verifying this spot!');
       }

@@ -298,7 +298,7 @@ export const Sidebar = () => {
               <>
                 <span className={`text-[10px] ${textSecondaryClass}`}>Your Role</span>
                 <div className="mt-0.5 flex items-center gap-1">
-                  <span className="text-sm">{getExpandedRoleInfo(user.role)?.icon || '??'}</span>
+                  <span className="text-sm">{getExpandedRoleInfo(user.role)?.icon || '🤙'}</span>
                   <span className={`text-[11px] font-medium ${getExpandedRoleInfo(user.role)?.color || 'text-cyan-400'}`}>
                     {getExpandedRoleInfo(user.role)?.label || user.role}
                   </span>
@@ -458,7 +458,7 @@ export const Sidebar = () => {
           ].filter(Boolean));
         })}
 
-        {/* Active Session Indicator � standalone, visible to ALL roles */}
+        {/* Active Session Indicator � standalone, visible to ALL roles */}
         {activeSession && (
           <button
             onClick={() => {
@@ -477,13 +477,13 @@ export const Sidebar = () => {
               }`}
             >
               {activeSession.status === 'in_session'
-                ? '?? Live Shooting Session Active'
+                ? '📸 Live Shooting Session Active'
                 : activeSession.status === 'searching_for_pro'
-                ? '?? On-Demand Session Searching...'
+                ? '🔍 On-Demand Session Searching...'
                 : activeSession.status === 'en_route'
-                ? '?? Photographer On The Way'
+                ? '🏃 Photographer On The Way'
                 : activeSession.status === 'arrived'
-                ? '?? Photographer Arrived'
+                ? '📍 Photographer Arrived'
                 : '? On-Demand Session Active'
               }
             </span>

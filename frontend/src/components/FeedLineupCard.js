@@ -85,7 +85,7 @@ export const FeedLineupCard = ({
       });
       
       setJoined(true);
-      toast.success('You joined the lineup! ??');
+      toast.success('You joined the lineup! 🤙');
       onJoinSuccess?.(lineup);
     } catch (error) {
       logger.error('Join error:', error);

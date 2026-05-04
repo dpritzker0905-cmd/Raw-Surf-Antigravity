@@ -218,7 +218,7 @@ export const CreateWaveModal = ({ isOpen, onClose, onSuccess }) => {
                 <Upload className={`w-12 h-12 mx-auto mb-4 ${mutedClass}`} />
                 <p className={`font-medium mb-1 ${textClass}`}>Select a video</p>
                 <p className={`text-sm ${mutedClass}`}>
-                  MP4, MOV, or WebM • Max {MAX_DURATION} seconds
+                  MP4, MOV, or WebM ï¿½ Max {MAX_DURATION} seconds
                 </p>
               </div>
               
@@ -281,7 +281,7 @@ export const CreateWaveModal = ({ isOpen, onClose, onSuccess }) => {
                       <span className="text-sm">
                         {formatDuration(videoInfo?.duration || 0)}
                       </span>
-                      {/* Volume slider — progressive disclosure */}
+                      {/* Volume slider ï¿½ progressive disclosure */}
                       <div
                         className="overflow-hidden transition-all duration-300 ease-out flex items-center"
                         style={{
@@ -348,11 +348,11 @@ export const CreateWaveModal = ({ isOpen, onClose, onSuccess }) => {
               {/* Video info */}
               <div className={`flex items-center justify-center gap-4 text-sm ${mutedClass}`}>
                 <span>{videoInfo?.width}x{videoInfo?.height}</span>
-                <span>•</span>
+                <span>ï¿½</span>
                 <span>{formatDuration(videoInfo?.duration || 0)}</span>
                 {videoInfo?.isVertical && (
                   <>
-                    <span>•</span>
+                    <span>ï¿½</span>
                     <span className="text-green-500 flex items-center gap-1">
                       <CheckCircle className="w-3 h-3" /> Vertical
                     </span>
@@ -403,7 +403,7 @@ export const CreateWaveModal = ({ isOpen, onClose, onSuccess }) => {
                 <TextareaWithEmoji
                   value={caption}
                   onChange={(val) => setCaption(val.length <= 500 ? val : val.slice(0, 500))}
-                  placeholder="Add a caption... ??"
+                  placeholder="Add a caption... ðŸŒŠ"
                   rows={3}
                   isLight={isLight}
                 />

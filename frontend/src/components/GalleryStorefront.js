@@ -430,7 +430,7 @@ export const GalleryStorefront = () => {
                 <div className={`w-3 h-3 rounded-full ${stats.is_shooting ? 'bg-red-500' : 'bg-emerald-500'} animate-pulse`} />
                 <div>
                   <p className={`font-semibold ${textPrimary}`}>
-                    {stats.is_shooting ? '?? Currently Shooting Live' : '?? Available for On-Demand'}
+                    {stats.is_shooting ? '📸 Currently Shooting Live' : '🟢 Available for On-Demand'}
                   </p>
                   <p className={`text-xs ${textSecondary}`}>
                     {stats.is_shooting ? 'Join the session now!' : 'Request a session at your spot'}

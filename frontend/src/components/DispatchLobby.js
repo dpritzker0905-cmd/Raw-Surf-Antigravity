@@ -232,7 +232,7 @@ export const DispatchLobby = () => {
         // Photographer ACCEPTED
         if (['accepted', 'en_route'].includes(newStatus) && !acceptSoundPlayedRef.current) {
           acceptSoundPlayedRef.current = true;
-          toast.success('?? Photographer accepted! They\'re on their way.', {
+          toast.success('📸 Photographer accepted! They\'re on their way.', {
             id: 'photographer-accepted',
             duration: 6000,
           });
@@ -245,7 +245,7 @@ export const DispatchLobby = () => {
 
         // Photographer ARRIVED Ã¯Â¿Â½ notify the surfer
         if (newStatus === 'arrived') {
-          toast.success('?? Your photographer has arrived! Look for them at the spot.', {
+          toast.success('📍 Your photographer has arrived! Look for them at the spot.', {
             id: 'photographer-arrived',
             duration: 8000,
           });
@@ -279,7 +279,7 @@ export const DispatchLobby = () => {
         const diff = newPaidCount - prevPaidCountRef.current;
         const newlyPaid = newCrew.filter(m => m.paid).slice(-diff);
         const names = newlyPaid.map(m => m.name || 'A crew member').join(', ');
-        toast.success(`${names} joined the session! ??`, {
+        toast.success(`${names} joined the session! 🏄`, {
           id: `crew-paid-${newPaidCount}`,
           duration: 4000,
         });
@@ -521,7 +521,7 @@ export const DispatchLobby = () => {
                     {photographerName}
                   </p>
                   <p className={`text-sm ${isLight ? 'text-green-600' : 'text-green-400'}`}>
-                    ?? Shooting your session now
+                    📸 Shooting your session now
                   </p>
                 </div>
                 <Badge className="bg-green-500/20 text-green-400 border-green-500/30 text-xs flex-shrink-0">
@@ -642,8 +642,8 @@ export const DispatchLobby = () => {
                       chatUnreadCount > 0 ? (isLight ? 'text-gray-900 font-medium' : 'text-white font-medium') : (isLight ? 'text-gray-500' : 'text-zinc-400')
                     }`}>
                       {bgLatestMessage.message_type === 'voice_note'
-                        ? '?? Voice note'
-                        : (bgLatestMessage.content || '?? Media')}
+                        ? '🎙️ Voice note'
+                        : (bgLatestMessage.content || '📷 Media')}
                     </p>
                   </div>
                 </button>

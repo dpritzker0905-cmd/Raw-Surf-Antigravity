@@ -269,7 +269,7 @@ export const SurfAlerts = () => {
         notify_push: newAlert.notify_push
       });
       
-      toast.success('Surf alert created! ??');
+      toast.success('Surf alert created! 🌊');
       setShowCreateModal(false);
       resetNewAlert();
       fetchAlerts();
@@ -343,7 +343,7 @@ export const SurfAlerts = () => {
         notify_push: newAlert.notify_push
       });
       
-      toast.success('Alert updated! ??');
+      toast.success('Alert updated! ✅');
       setShowCreateModal(false);
       resetNewAlert();
       fetchAlerts();
@@ -403,7 +403,7 @@ export const SurfAlerts = () => {
         recipient_identifier: shareRecipient.trim()
       });
       
-      toast.success(`Alert shared with ${shareRecipient}! ??`);
+      toast.success(`Alert shared with ${shareRecipient}! 📤`);
       setShowShareModal(false);
       setAlertToShare(null);
       setShareRecipient('');

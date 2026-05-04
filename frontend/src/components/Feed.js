@@ -62,7 +62,7 @@ const _RoleBadge = ({ role }) => {
 const _ReactionIcon = ({ post, userId, isLiked }) => {
   // Find user's reaction on this post
   const userReaction = post.reactions?.find(r => r.user_id === userId);
-  const hasNonShakaReaction = userReaction && userReaction.emoji !== '??';
+  const hasNonShakaReaction = userReaction && userReaction.emoji !== '🤙';
   
   // Determine if Shaka should be colored (checked) or grayscale (unchecked)
   // Only colored if liked AND no other reaction
@@ -994,7 +994,7 @@ export const Feed = () => {
                       <span className="font-medium">{nearestSpot.name}</span>
                       {' '}&mdash; {nearestSpot.distance}km away
                       {parseFloat(nearestSpot.distance) < 10
-                        ? ' � ?? Within range � you\'ll earn Passport XP!'
+                        ? ' � 📍 Within range � you\'ll earn Passport XP!'
                         : ' � Outside 10km check-in zone'}
                     </div>
                   )}
@@ -1241,8 +1241,8 @@ export const Feed = () => {
                     <>
                       <Flame className="w-5 h-5 mr-2" />
                       {checkInData.use_gps && (checkInData.spot_id || nearestSpot)
-                        ? 'Check In + Earn XP ??'
-                        : 'Check In & Keep Streak ??'}
+                        ? 'Check In + Earn XP 🏄'
+                        : 'Check In & Keep Streak 🔥'}
                     </>
                   )}
                 </Button>

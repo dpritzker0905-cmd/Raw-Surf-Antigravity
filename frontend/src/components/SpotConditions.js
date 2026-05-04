@@ -138,7 +138,7 @@ export const SpotConditions = ({ spotId, spotName, compact = false }) => {
         spot_id: spotId,
         ...reportData
       });
-      toast.success('Report submitted! Thanks for sharing ??');
+      toast.success('Report submitted! Thanks for sharing ğŸŒŠ');
       setShowReportModal(false);
       setReportData({ wave_height: '', conditions: '', wind_direction: '', crowd_level: '', rating: 0, notes: '' });
       fetchTodaysReports();
@@ -212,7 +212,7 @@ export const SpotConditions = ({ spotId, spotName, compact = false }) => {
               <div className="flex items-center gap-2">
                 <Compass className="w-4 h-4 text-yellow-400" />
                 <span className={`text-sm ${tSecondary}`}>
-                  {current.wave_direction ? `${current.wave_direction}°` : 'N/A'}
+                  {current.wave_direction ? `${current.wave_direction}ï¿½` : 'N/A'}
                 </span>
               </div>
               <div className="flex items-center gap-2">
@@ -229,7 +229,7 @@ export const SpotConditions = ({ spotId, spotName, compact = false }) => {
 
         {/* Source attribution */}
         <p className={`text-[10px] ${tMuted} mt-3`}>
-          Data from Open-Meteo Marine API • Updated: {current?.updated_at ? new Date(current.updated_at).toLocaleTimeString() : 'N/A'}
+          Data from Open-Meteo Marine API ï¿½ Updated: {current?.updated_at ? new Date(current.updated_at).toLocaleTimeString() : 'N/A'}
         </p>
       </div>
 
@@ -543,8 +543,8 @@ export const SpotConditions = ({ spotId, spotName, compact = false }) => {
                   <SelectItem value="Empty" className="text-white">??? Empty</SelectItem>
                   <SelectItem value="Light" className="text-white">?? Light</SelectItem>
                   <SelectItem value="Moderate" className="text-white">?? Moderate</SelectItem>
-                  <SelectItem value="Crowded" className="text-white">??????????? Crowded</SelectItem>
-                  <SelectItem value="Packed" className="text-white">???????????? Packed</SelectItem>
+                  <SelectItem value="Crowded" className="text-white">??????ğŸ„ Crowded</SelectItem>
+                  <SelectItem value="Packed" className="text-white">???????ğŸ„ Packed</SelectItem>
                 </SelectContent>
               </Select>
             </div>

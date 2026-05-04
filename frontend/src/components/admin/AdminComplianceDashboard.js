@@ -1,5 +1,5 @@
 /**
- * AdminComplianceDashboard.js � Compliance tab for the Unified Admin Console.
+ * AdminComplianceDashboard.js � Compliance tab for the Unified Admin Console.
  *
  * Shows ToS violation stats, pending appeals queue, recent violations list,
  * and provides approve/deny actions for user appeals.
@@ -67,13 +67,13 @@ const AppealBadge = ({ status }) => {
 // --- Violation Type Label -----------------------------------------------------
 const violationTypeLabel = (type) => {
   const map = {
-    location_fraud: '?? Location Fraud',
+    location_fraud: '📍 Location Fraud',
     fake_reviews: '? Fake Reviews',
-    harassment: '?? Harassment',
-    spam: '?? Spam',
-    impersonation: '?? Impersonation',
-    copyright: '�? Copyright',
-    tos_violation: '?? ToS Violation',
+    harassment: '⚠️ Harassment',
+    spam: '🚫 Spam',
+    impersonation: '🎭 Impersonation',
+    copyright: '�? Copyright',
+    tos_violation: '📋 ToS Violation',
   };
   return map[type] || type?.replace(/_/g, ' ');
 };
@@ -81,10 +81,10 @@ const violationTypeLabel = (type) => {
 // --- Action Taken Label -------------------------------------------------------
 const actionLabel = (action) => {
   const map = {
-    warning: '?? Warning',
-    suspension_7d: '?? 7-Day Suspension',
-    suspension_30d: '?? 30-Day Suspension',
-    permanent_ban: '?? Permanent Ban',
+    warning: '⚠️ Warning',
+    suspension_7d: '🔒 7-Day Suspension',
+    suspension_30d: '🔒 30-Day Suspension',
+    permanent_ban: '🚫 Permanent Ban',
   };
   return map[action] || action?.replace(/_/g, ' ');
 };
@@ -294,7 +294,7 @@ export const AdminComplianceDashboard = ({ cardBgClass, textClass, textSecondary
         approved,
         notes: reviewNotes || null,
       });
-      toast.success(approved ? 'Appeal approved � strike removed' : 'Appeal denied');
+      toast.success(approved ? 'Appeal approved � strike removed' : 'Appeal denied');
       setReviewingId(null);
       setReviewNotes('');
       fetchDashboard(); // Refresh stats
@@ -375,7 +375,7 @@ export const AdminComplianceDashboard = ({ cardBgClass, textClass, textSecondary
                         <SeverityBadge severity={v.severity} />
                       </div>
                       <p className={`text-xs ${textSec} mt-1`}>
-                        {violationTypeLabel(v.violation_type)} � {new Date(v.created_at).toLocaleDateString()}
+                        {violationTypeLabel(v.violation_type)} � {new Date(v.created_at).toLocaleDateString()}
                       </p>
                       <p className={`text-xs ${textSec} mt-0.5`}>
                         User:{' '}
@@ -613,7 +613,7 @@ export const AdminComplianceDashboard = ({ cardBgClass, textClass, textSecondary
                     ? 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30'
                     : `${isLight ? 'border-gray-300' : 'border-zinc-700'}`}
                 >
-                  {dt === 'tos' ? '?? Terms of Service' : '??? Privacy Policy'}
+                  {dt === 'tos' ? '📜 Terms of Service' : '🔒 Privacy Policy'}
                 </Button>
               ))}
             </div>
@@ -651,7 +651,7 @@ export const AdminComplianceDashboard = ({ cardBgClass, textClass, textSecondary
                   {editSections.map((section, idx) => (
                     <div key={idx} className={`p-3 rounded-lg border ${isLight ? 'bg-gray-50 border-gray-200' : 'bg-zinc-800/50 border-zinc-700'}`}>
                       <div className="flex items-center gap-2 mb-2">
-                        <span className={`text-xs font-mono ${textSec}`}>�{idx + 1}</span>
+                        <span className={`text-xs font-mono ${textSec}`}>�{idx + 1}</span>
                         <input aria-label="Text input"
                           value={section.title}
                           onChange={e => updateSection(idx, 'title', e.target.value)}

@@ -1,5 +1,5 @@
 /**
- * GalleryLightbox ó Fullscreen immersive photo/video viewer
+ * GalleryLightbox ÔøΩ Fullscreen immersive photo/video viewer
  * 
  * Features:
  * - Swipe-to-navigate (touch + keyboard arrows)
@@ -319,7 +319,7 @@ export const GalleryLightbox = ({
                 {purchasing ? (
                   <Loader2 className="w-5 h-5 animate-spin" />
                 ) : isGromUser ? (
-                  <>????? Ask Parent to Approve</>
+                  <>üèÑ Ask Parent to Approve</>
                 ) : (
                   <>
                     <ShoppingCart className="w-4 h-4 mr-2" />
@@ -392,7 +392,7 @@ export const GalleryLightbox = ({
             </div>
 
             <div className="flex items-center gap-2">
-              {/* Download ó only for accessible items */}
+              {/* Download ÔøΩ only for accessible items */}
               {(isAccessible || unlocked) && (
                 <Button aria-label="Download"
                   onClick={(e) => { e.stopPropagation(); handleNativeDownload(); }}
@@ -407,7 +407,7 @@ export const GalleryLightbox = ({
 
           {/* Keyboard hints (desktop only) */}
           <p className="text-center text-white/25 text-xs mt-3 hidden md:block">
-            ? ? Navigate ï F Favorite ï +/- Zoom ï 0 Reset ï Esc Close
+            ? ? Navigate ÔøΩ F Favorite ÔøΩ +/- Zoom ÔøΩ 0 Reset ÔøΩ Esc Close
           </p>
         </div>
       </div>

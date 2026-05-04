@@ -1223,8 +1223,8 @@ export const Explore = () => {
                             )}
                             <span className="text-[10px] text-muted-foreground truncate">
                               {['PHOTOGRAPHER', 'APPROVED_PRO', 'HOBBYIST'].includes(thumbnail.contributor_role?.toUpperCase()) 
-                                ? '??' 
-                                : '??'} {thumbnail.contributor_name}
+                                ? '📸' 
+                                : '🏄'} {thumbnail.contributor_name}
                             </span>
                           </div>
                         )}
@@ -1303,10 +1303,10 @@ export const Explore = () => {
             <h4 className={`text-sm font-semibold uppercase tracking-wider mb-3 ${isLight ? 'text-gray-500' : 'text-muted-foreground'}`}>Browse by Role</h4>
             <div className="flex flex-wrap gap-2">
               {[
-                { label: '?? Photographers', query: 'photographer' },
-                { label: '?? Surfers', query: 'surfer' },
-                { label: '?? Videographers', query: 'videographer' },
-                { label: '?? Locals', query: 'local' },
+                { label: '📸 Photographers', query: 'photographer' },
+                { label: '🏄 Surfers', query: 'surfer' },
+                { label: '🎬 Videographers', query: 'videographer' },
+                { label: '📍 Locals', query: 'local' },
               ].map(cat => (
                 <button
                   key={cat.query}

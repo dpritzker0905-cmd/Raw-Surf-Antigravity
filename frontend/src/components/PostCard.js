@@ -58,7 +58,7 @@ const CommentWithReaction = ({
   const [localIsEdited, setLocalIsEdited] = useState(comment.is_edited || false);
   const [showMenu, setShowMenu] = useState(false);
 
-  const handleReaction = async (emoji = '??') => {
+  const handleReaction = async (emoji = '🤙') => {
     if (!userId) {
       toast.error('Please log in to react');
       return;
@@ -269,7 +269,7 @@ const CommentWithReaction = ({
         
         <div className="relative ml-auto">
           <button
-            onClick={() => viewerReaction ? handleReaction(viewerReaction) : handleReaction('??')}
+            onClick={() => viewerReaction ? handleReaction(viewerReaction) : handleReaction('🤙')}
             onContextMenu={(e) => { e.preventDefault(); setShowReactionPicker(true); }}
             disabled={loading}
             className={`p-1 rounded transition-all ${
@@ -277,7 +277,7 @@ const CommentWithReaction = ({
             } ${loading ? 'opacity-50' : ''}`}
             data-testid={`comment-like-${comment.id}`}
           >
-            {viewerReaction && viewerReaction !== '??' ? (
+            {viewerReaction && viewerReaction !== '🤙' ? (
               <span className="text-sm">{viewerReaction}</span>
             ) : (
               <Heart className="w-3.5 h-3.5" fill={viewerReaction ? 'currentColor' : 'none'} />
@@ -395,7 +395,7 @@ const RoleBadge = ({ role }) => {
 // Reaction icon component - Shows user's reaction or default Shaka
 const ReactionIcon = ({ post, userId, isLiked, isPressing }) => {
   const userReaction = post.reactions?.find(r => r.user_id === userId);
-  const hasNonShakaReaction = userReaction && userReaction.emoji !== '??';
+  const hasNonShakaReaction = userReaction && userReaction.emoji !== '🤙';
   
   // Determine if Shaka should be colored (checked) or grayscale (unchecked)
   // Also show colored when pressing (holding down) for visual feedback
@@ -632,7 +632,7 @@ const PostCard = ({
           user_name: l.full_name,
           avatar_url: l.avatar_url,
           user_role: l.role,
-          emoji: '??'
+          emoji: '🤙'
         }))
       ];
       setDetailedReactions(allReactors);

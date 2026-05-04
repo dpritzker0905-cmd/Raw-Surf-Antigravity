@@ -100,7 +100,7 @@ export const StoriesBar = ({ onCreateStory, onTierChange, selectedTier }) => {
 
           // Show notification toast for new stories
           const isPhotographer = ['Photographer', 'Approved Pro', 'Hobbyist'].includes(payload.new.author_role);
-          const icon = isPhotographer ? '??' : '??';
+          const icon = isPhotographer ? 'ðŸ“¸' : 'ðŸ„';
           
           setNewStoryNotification(payload.new);
           toast(`${icon} New story!`, {
@@ -109,7 +109,7 @@ export const StoriesBar = ({ onCreateStory, onTierChange, selectedTier }) => {
               label: 'View',
               onClick: async () => {
                 setNewStoryNotification(null);
-                // Check if the author is currently live — deep-link straight into the viewer
+                // Check if the author is currently live ï¿½ deep-link straight into the viewer
                 try {
                   const streamsRes = await apiClient.get('/livekit/active-streams');
                   const liveStream = streamsRes.data.streams?.find(
@@ -126,7 +126,7 @@ export const StoriesBar = ({ onCreateStory, onTierChange, selectedTier }) => {
                       title: liveStream.title
                     });
                     setShowLiveViewer(true);
-                    return; // Skip generic refresh — we're opening the viewer
+                    return; // Skip generic refresh ï¿½ we're opening the viewer
                   }
                 } catch {
                   // Fall through to normal refresh if stream lookup fails
@@ -784,7 +784,7 @@ export const CreateStoryModal = ({ isOpen, onClose, onCreated }) => {
         caption: caption || null
       });
       
-      toast.success('Story posted! ??');
+      toast.success('Story posted! ðŸ¤™');
       onCreated?.();
       handleClose();
     } catch (error) {

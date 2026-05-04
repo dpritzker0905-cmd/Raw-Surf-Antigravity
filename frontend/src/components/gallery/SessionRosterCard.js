@@ -39,11 +39,11 @@ export const SessionRosterCard = ({
   if (!roster || roster.length === 0) return null;
 
   const sessionLabel = {
-    live: { text: 'Live Session', color: '#10b981', emoji: '??' },
-    booking: { text: 'Booking', color: '#3b82f6', emoji: '??' },
+    live: { text: 'Live Session', color: '#10b981', emoji: '📸' },
+    booking: { text: 'Booking', color: '#3b82f6', emoji: '📸' },
     on_demand: { text: 'On-Demand', color: '#f59e0b', emoji: '?' },
-    manual: { text: 'Manual', color: '#6b7280', emoji: '??' }
-  }[sessionType] || { text: 'Session', color: '#6b7280', emoji: '??' };
+    manual: { text: 'Manual', color: '#6b7280', emoji: '📸' }
+  }[sessionType] || { text: 'Session', color: '#6b7280', emoji: '📸' };
 
   // -- COMPACT MODE --
   if (compact) {
@@ -270,7 +270,7 @@ const SurferPanel = ({ surfer, galleryId, photographerId, onRosterUpdate }) => {
                     delivered={items_delivered} included={photos_included} remaining={credits_remaining} color="#06b6d4" />
                 )}
                 <div className="flex items-center gap-2 mt-1 flex-wrap">
-                  <MiniPill icon={payment_method === 'credits' ? '?' : '??'}
+                  <MiniPill icon={payment_method === 'credits' ? '?' : '📸'}
                     text={amount_paid > 0 ? `$${amount_paid} paid` : 'Free'} />
                   <MiniPill icon={<Shield className="w-3 h-3" style={{ color: isComplete ? '#10b981' : '#f59e0b' }} />}
                     text={isComplete ? 'Fully delivered' : hasCredits ? `${credits_remaining} left` : 'Awaiting'} />
@@ -412,7 +412,7 @@ const TaggedItemThumb = ({ item, onUntag, isUntagging }) => {
         {/* Media type badge */}
         <div className="absolute bottom-0.5 left-0.5 text-[7px] px-1 py-0.5 rounded font-semibold"
           style={{ background: isVideo ? 'rgba(139,92,246,0.85)' : 'rgba(6,182,212,0.85)', color: 'white' }}>
-          {isVideo ? '?? Vid' : '??'}
+          {isVideo ? '?? Vid' : '📸'}
         </div>
         {/* Access indicator dot */}
         <div className="absolute top-0.5 right-0.5 w-2.5 h-2.5 rounded-full" style={{ background: accessColor, boxShadow: `0 0 4px ${accessColor}` }} />

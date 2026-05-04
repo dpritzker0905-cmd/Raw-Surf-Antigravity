@@ -115,7 +115,7 @@ const GpsProximityCheck = ({
                 you can manually confirm.
               </p>
               <p className="text-red-400 text-xs mt-2 font-medium">
-                ?? Warning: Going live when not at the spot may result in negative reviews, 
+                ⚠️ Warning: Going live when not at the spot may result in negative reviews, 
                 selling suspension, or account action.
               </p>
               <Button aria-label="Confirm"

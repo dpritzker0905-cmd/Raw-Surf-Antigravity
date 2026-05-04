@@ -241,9 +241,9 @@ export const PhotographerGalleryManager = () => {
                   gallery.session_type === 'on_demand' ? 'border-orange-500/50 text-orange-400 text-[10px]' :
                   'border-zinc-500/50 text-zinc-400 text-[10px]'
                 }>
-                  {gallery.session_type === 'live' ? '?? Live Session' : 
-                   gallery.session_type === 'booking' ? '?? Booking' : 
-                   gallery.session_type === 'on_demand' ? '? On-Demand' : gallery.session_type}
+                  {gallery.session_type === 'live' ? '📸 Live Session' : 
+                   gallery.session_type === 'booking' ? '📅 Booking' : 
+                   gallery.session_type === 'on_demand' ? '⚡ On-Demand' : gallery.session_type}
                 </Badge>
               )}
               {gallery.session_type === 'manual' && (
@@ -278,7 +278,7 @@ export const PhotographerGalleryManager = () => {
                   const willPublish = !gallery?.is_public;
                   await apiClient.post(`/gallery/${galleryId}/publish?photographer_id=${user?.profile_id}`, { is_published: willPublish });
                   setGallery(prev => ({ ...prev, is_public: willPublish, is_featured: willPublish }));
-                  toast.success(willPublish ? '?? Gallery published to your Sessions tab!' : 'Gallery unpublished');
+                  toast.success(willPublish ? '📸 Gallery published to your Sessions tab!' : 'Gallery unpublished');
                 } catch (err) {
                   toast.error('Failed to publish gallery');
                 } finally {
@@ -563,9 +563,9 @@ export const PhotographerGalleryManager = () => {
                     gallery.session_settings.session_type === 'on_demand' ? 'border-amber-500/50 text-amber-400' :
                     'border-zinc-500/50 text-zinc-400'
                   }>
-                    {gallery.session_settings.session_type === 'live' ? '?? Live Session' :
-                     gallery.session_settings.session_type === 'booking' ? '?? Booking' :
-                     gallery.session_settings.session_type === 'on_demand' ? '? On-Demand' : '?? Manual'}
+                    {gallery.session_settings.session_type === 'live' ? '📸 Live Session' :
+                     gallery.session_settings.session_type === 'booking' ? '📅 Booking' :
+                     gallery.session_settings.session_type === 'on_demand' ? '⚡ On-Demand' : '✏️ Manual'}
                   </Badge>
                 )}
               </div>
@@ -1658,9 +1658,9 @@ export const PhotographerGalleryManager = () => {
                             session.session_type === 'booking' ? 'border-blue-500/50 text-blue-400' :
                             'border-orange-500/50 text-orange-400'
                           }`}>
-                            {session.session_type === 'live' ? '?? Live' :
-                             session.session_type === 'booking' ? '?? Booking' :
-                             '? On-Demand'}
+                            {session.session_type === 'live' ? '📸 Live' :
+                             session.session_type === 'booking' ? '📅 Booking' :
+                             '⚡ On-Demand'}
                           </Badge>
                         )}
                       </div>

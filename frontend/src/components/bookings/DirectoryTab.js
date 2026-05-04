@@ -47,10 +47,10 @@ const SKILL_LEVELS = [
 // Region options
 const REGIONS = [
   { id: 'all', label: 'All Regions' },
-  { id: 'ny', label: 'New York', flag: '??' },
-  { id: 'fl', label: 'Florida', flag: '??' },
-  { id: 'ca', label: 'California', flag: '??' },
-  { id: 'hi', label: 'Hawaii', flag: '??' },
+  { id: 'ny', label: 'New York', flag: '🗽' },
+  { id: 'fl', label: 'Florida', flag: '🌴' },
+  { id: 'ca', label: 'California', flag: '🌊' },
+  { id: 'hi', label: 'Hawaii', flag: '🌺' },
   { id: 'cr', label: 'Costa Rica', flag: '????' },
   { id: 'pr', label: 'Puerto Rico', flag: '????' },
   { id: 'mx', label: 'Mexico', flag: '????' },

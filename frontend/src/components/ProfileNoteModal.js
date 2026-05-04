@@ -5,7 +5,7 @@ import { Button } from './ui/button';
 import { Input } from './ui/input';
 
 /**
- * Note modal � allows users to create, view, and delete Instagram-style
+ * Note modal � allows users to create, view, and delete Instagram-style
  * 24-hour ephemeral status notes.
  * Extracted from Profile.js to reduce god-component complexity.
  */
@@ -74,17 +74,17 @@ export const ProfileNoteModal = ({
                 <p className="text-xs text-emerald-400 text-center">
                   Notes disappear after 24 hours
                 </p>
-                <Input aria-label="What's happening? ??"
+                <Input aria-label="What's happening? 🌊"
                   value={noteText}
                   onChange={(e) => setNoteText(e.target.value.slice(0, 60))}
-                  placeholder="What's happening? ??"
+                  placeholder="What's happening? 🌊"
                   className="bg-zinc-800 border-zinc-700 text-white text-lg text-center h-14"
                   maxLength={60}
                   data-testid="note-input"
                 />
                 {/* Quick Emoji Picker */}
                 <div className="flex justify-center flex-wrap gap-2" data-testid="emoji-picker">
-                  {['??', '??', '??', '??', '??', '??', '??', '??', '??', '??', '??', '?'].map((emoji) => (
+                  {['🏄', '🌊', '🤙', '🔥', '☀️', '🐚', '🦈', '🌴', '💪', '🎯', '📸', '🏆'].map((emoji) => (
                     <button
                       key={emoji}
                       type="button"

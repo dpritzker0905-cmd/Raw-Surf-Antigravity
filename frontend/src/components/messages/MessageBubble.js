@@ -13,9 +13,9 @@ import EphemeralCountdown from './EphemeralCountdown';
 import logger from '../../utils/logger';
 import { formatClockTime } from '../../utils/formatTime';
 
-const REACTIONS = ['??', '??', '??', '??', '??', '??'];
+const REACTIONS = ['💬', '💬', '💬', '💬', '💬', '💬'];
 
-// Format timestamp for message bubble � shared utility
+// Format timestamp for message bubble � shared utility
 const formatTime = formatClockTime;
 
 

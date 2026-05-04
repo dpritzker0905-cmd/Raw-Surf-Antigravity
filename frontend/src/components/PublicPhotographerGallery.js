@@ -200,7 +200,7 @@ export const PublicPhotographerGallery = () => {
       return;
     }
     if (isGrom(user)) {
-      toast.info('?? Ask your parent to approve this purchase!');
+      toast.info('ðŸ‘¨â€ðŸ‘§ Ask your parent to approve this purchase!');
       return;
     }
     
@@ -287,7 +287,7 @@ export const PublicPhotographerGallery = () => {
           return;
         }
       }
-      // No deep-link or target not found — default to first gallery
+      // No deep-link or target not found ï¿½ default to first gallery
       setSelectedGallery(galleries[0]);
     }
   }, [deepLinkGalleryId, galleries, selectedGallery]);
@@ -508,7 +508,7 @@ export const PublicPhotographerGallery = () => {
           </div>
         )}
 
-        {/* Swipeable content area — swipe left/right to switch gallery folders on mobile */}
+        {/* Swipeable content area ï¿½ swipe left/right to switch gallery folders on mobile */}
         <div
           className="relative overflow-hidden"
           onTouchStart={(e) => {

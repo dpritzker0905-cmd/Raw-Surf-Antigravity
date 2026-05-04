@@ -592,7 +592,7 @@ export const Bookings = () => {
           
           
           if (response.data.success) {
-            toast.success(`You're in the session with ${response.data.photographer_name || 'the photographer'}! ??`, { duration: 5000 });
+            toast.success(`You're in the session with ${response.data.photographer_name || 'the photographer'}! 🤙`, { duration: 5000 });
             // Switch to live_sessions tab to show the active session
             setActiveTab('live_sessions');
             // Refresh live sessions

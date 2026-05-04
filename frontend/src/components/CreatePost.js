@@ -231,11 +231,11 @@ export const CreatePost = () => {
         setNearestSpot(nearest);
         if (nearest && minDistance < 10) {
           setLocation(nearest.name);
-          toast.success(`?? Near ${nearest.name} (${nearest.distance}km)`);
+          toast.success(`📍 Near ${nearest.name} (${nearest.distance}km)`);
         } else if (nearest) {
-          toast.success(`?? Location found. Nearest: ${nearest.name} (${nearest.distance}km)`);
+          toast.success(`📍 Location found. Nearest: ${nearest.name} (${nearest.distance}km)`);
         } else {
-          toast.success('?? Location detected � select your spot below');
+          toast.success('📍 Location detected � select your spot below');
         }
         setGpsLoading(false);
       },

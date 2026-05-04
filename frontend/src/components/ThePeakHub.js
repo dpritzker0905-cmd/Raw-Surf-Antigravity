@@ -196,11 +196,11 @@ export const ThePeakHub = () => {
                     result.placing === 3 ? 'bg-amber-600 text-white' :
                     'bg-zinc-700 text-white'
                   }`}>
-                    {result.placing === 1 ? '??' : result.placing === 2 ? '??' : result.placing === 3 ? '??' : result.placing}
+                    {result.placing === 1 ? '🥇' : result.placing === 2 ? '🥈' : result.placing === 3 ? '🥉' : result.placing}
                   </div>
                   <div>
                     <div className={`font-medium ${textPrimary}`}>{result.event_name}</div>
-                    <div className={`text-xs ${textSecondary}`}>{result.event_date} � {result.event_location}</div>
+                    <div className={`text-xs ${textSecondary}`}>{result.event_date} � {result.event_location}</div>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">

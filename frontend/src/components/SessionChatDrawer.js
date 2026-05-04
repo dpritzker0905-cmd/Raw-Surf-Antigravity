@@ -31,16 +31,16 @@ import logger from '../utils/logger';
 
 // Quick replies for on-demand session coordination
 const SESSION_QUICK_REPLIES = [
-  { id: 'omw', text: "On my way! ??", icon: '??' },
-  { id: 'arrived', text: "Just arrived at the spot ??", icon: '??' },
-  { id: 'parking', text: "Looking for parking ???", icon: '???' },
-  { id: 'ready', text: "Ready when you are! ??", icon: '?' },
-  { id: 'where', text: "Where exactly are you?", icon: '??' },
+  { id: 'omw', text: "On my way! 🏃", icon: '🏃' },
+  { id: 'arrived', text: "Just arrived at the spot 📍", icon: '📍' },
+  { id: 'parking', text: "Looking for parking 🅿️", icon: '🅿️' },
+  { id: 'ready', text: "Ready when you are! 🤙", icon: '🤙' },
+  { id: 'where', text: "Where exactly are you?", icon: '📍' },
   { id: 'running_late', text: "Running a few minutes late ?", icon: '?' },
-  { id: 'looking', text: "I'm looking for you ??", icon: '??' },
-  { id: 'found', text: "Found you! Starting session ??", icon: '??' },
-  { id: 'waves', text: "Waves are looking good! ??", icon: '??' },
-  { id: 'thanks', text: "Thanks for the session! ??", icon: '??' },
+  { id: 'looking', text: "I'm looking for you 👀", icon: '👀' },
+  { id: 'found', text: "Found you! Starting session 📸", icon: '📸' },
+  { id: 'waves', text: "Waves are looking good! 🌊", icon: '🌊' },
+  { id: 'thanks', text: "Thanks for the session! 🤙", icon: '🤙' },
 ];
 
 const MAX_VOICE_DURATION = 30; // seconds

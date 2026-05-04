@@ -172,7 +172,7 @@ const useExploreConditions = ({
           };
           setUserLocation(newLocation);
           fetchConditionReports('All', newLocation, conditionsSubTab, null, { country: '', state: '', city: '' });
-          toast.success('?? Showing nearby reports first');
+          toast.success('📍 Showing nearby reports first');
         },
         (error) => {
           logger.error('Geolocation error:', error);

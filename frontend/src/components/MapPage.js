@@ -558,7 +558,7 @@ const MapPageContent = () => {
             fetchLivePhotographers();
             
             // Show toast notification
-            toast.success('?? A surfer just jumped in!', {
+            toast.success('🏄 A surfer just jumped in!', {
               description: 'Someone joined a live session'
             });
           }
@@ -814,7 +814,7 @@ const MapPageContent = () => {
             <!-- Priority/Boosted badge (top right) -->
             <div class="absolute -top-2 -right-2 z-10 flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-${colors.bg}-500/90 text-white text-[8px] font-bold shadow-md ${isBoosted || badge.level === 'pro' ? 'animate-pulse' : ''}">
               ${badgeIcon}
-              ${isBoosted ? '??' : badge.level === 'pro' ? 'PRO' : badge.level === 'comp' ? 'COMP' : ''}
+              ${isBoosted ? '🚀' : badge.level === 'pro' ? 'PRO' : badge.level === 'comp' ? 'COMP' : ''}
             </div>
             
             ${/* Boost timer badge (top left for boosted) */ ''}
@@ -840,7 +840,7 @@ const MapPageContent = () => {
             
             <!-- Label with priority color -->
             <div class="absolute -bottom-1 left-1/2 -translate-x-1/2 px-2 py-0.5 bg-${colors.bg}-500 rounded text-[9px] text-white font-bold whitespace-nowrap animate-pulse">
-              ${isBoosted ? 'BOOSTED ??' : 'NEEDS PRO'}
+              ${isBoosted ? 'BOOSTED 🚀' : 'NEEDS PRO'}
             </div>
           </div>
         `,
@@ -857,7 +857,7 @@ const MapPageContent = () => {
           <div class="text-center p-2 min-w-[150px]">
             <!-- Priority badge in popup -->
             <div class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full mb-2" style="background: ${popupBgColor}">
-              <span class="text-[10px] font-bold text-white">${isBoosted ? 'BOOSTED ??' : badge.label.toUpperCase()}</span>
+              <span class="text-[10px] font-bold text-white">${isBoosted ? 'BOOSTED 🚀' : badge.label.toUpperCase()}</span>
             </div>
             
             <p class="font-bold text-sm" style="color: ${popupTextColor}">${request.requester_name}</p>
@@ -1508,7 +1508,7 @@ const MapPageContent = () => {
                   Finding location...
                 </span>
               ) : (
-                'Request a ??????'
+                'Request a 📸'
               )}
             </button>
             

@@ -29,7 +29,7 @@ import { ROLES } from '../constants/roles';
 import useHapticFeedback from '../hooks/useHapticFeedback';
 import SurfboardAvatar from './on-demand/SurfboardAvatar';
 
-// EmptySeat ó placeholder for unfilled crew slots
+// EmptySeat ÔøΩ placeholder for unfilled crew slots
 const EmptySeat = ({ index }) => (
   <div className='relative flex flex-col items-center opacity-50'>
     <div className='w-10 h-20 rounded-full border-2 border-dashed border-border/40 flex items-center justify-center'>
@@ -156,7 +156,7 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
     }
   }, [step]);
 
-  // Geocode custom address when user finishes typing ó GPS-biased
+  // Geocode custom address when user finishes typing ÔøΩ GPS-biased
   useEffect(() => {
     if (!useCustomLocation || !customLocationAddress || customLocationAddress.trim().length < 5) {
       setCustomLocationCoords(null);
@@ -167,7 +167,7 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
       try {
         const encoded = encodeURIComponent(customLocationAddress.trim());
         
-        // Build GPS-biased Nominatim URL ó constrain results near the user's location
+        // Build GPS-biased Nominatim URL ÔøΩ constrain results near the user's location
         // so "401 Meade Ave" resolves to Cape Canaveral, not Virginia
         const refLat = userLocation?.latitude || photographer?.on_demand_latitude || 28.3667;
         const refLng = userLocation?.longitude || photographer?.on_demand_longitude || -80.6067;
@@ -565,7 +565,7 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
       // Determine the location name from selection (include address if provided)
       const baseLocationName = selectedSpot?.name || (useCustomLocation && customLocationName ? customLocationName : null) || photographer?.on_demand_city || 'Current Location';
       const locationName = useCustomLocation && customLocationAddress
-        ? `${baseLocationName} ó ${customLocationAddress}`
+        ? `${baseLocationName} ÔøΩ ${customLocationAddress}`
         : baseLocationName;
       
       // Calculate requested start time based on user's timing selection
@@ -607,9 +607,9 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
           updateUser({ credit_balance: payResponse.data.remaining_credits });
         }
         
-        toast.success('Payment confirmed! ?? Setting up your session...');
+        toast.success('Payment confirmed! ‚úÖ Setting up your session...');
         haptic('success');
-        // Navigate to full lobby page ó selfie prompt lives there
+        // Navigate to full lobby page ÔøΩ selfie prompt lives there
         const lobbyState = {
           crewMembers,
           photographer,
@@ -707,7 +707,7 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
           haptic('success');
           toast.success(`${data.photographer?.name || 'A photographer'} is on their way! ETA: ~${data.gps?.eta_minutes || estimatedResponse} min`, {
             duration: 5000,
-            icon: '??'
+            icon: 'üì∏'
           });
           
           setTimeout(() => {
@@ -896,12 +896,12 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
               <div>
                 <h2 className={`text-xl font-bold ${textPrimary}`}>Where do you want to surf?</h2>
                 <p className={`text-xs ${textSecondary}`}>
-                  Starting in {startTimeOption} min ï {photographer?.full_name}
+                  Starting in {startTimeOption} min ÔøΩ {photographer?.full_name}
                 </p>
               </div>
             </div>
 
-            {/* Search / Filter ó hidden when typing custom location on mobile */}
+            {/* Search / Filter ÔøΩ hidden when typing custom location on mobile */}
             {!(keyboardOpen && useCustomLocation) && (
             <div className="relative">
               <Search className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${textSecondary}`} />
@@ -923,7 +923,7 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
               </div>
             ) : (
               <div className="space-y-2 max-h-[40vh] sm:max-h-[320px] overflow-y-auto pr-1 scroll-touch">
-                {/* Use Current Location ó hidden when typing custom location */}
+                {/* Use Current Location ÔøΩ hidden when typing custom location */}
                 {!(keyboardOpen && useCustomLocation) && (
                 <button
                   onClick={() => {
@@ -957,7 +957,7 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
                 </button>
                 )}
 
-                {/* Recently Visited Spots ó hidden when typing custom location */}
+                {/* Recently Visited Spots ÔøΩ hidden when typing custom location */}
                 {!(keyboardOpen && useCustomLocation) && recentSpots.length > 0 && !spotSearchQuery && (
                   <>
                     <div className={`flex items-center gap-2 mt-3 mb-1 px-1`}>
@@ -1027,7 +1027,7 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
                   </>
                 )}
 
-                {/* Nearby Mapped Spots ó hidden when typing custom location */}
+                {/* Nearby Mapped Spots ÔøΩ hidden when typing custom location */}
                 {!(keyboardOpen && useCustomLocation) && nearbySpots
                   .filter(s => !spotSearchQuery || s.name?.toLowerCase().includes(spotSearchQuery.toLowerCase()) || s.region?.toLowerCase().includes(spotSearchQuery.toLowerCase()))
                   .slice(0, 20)
@@ -1127,11 +1127,11 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
                     />
                     <p className={`text-xs ${textSecondary} mt-1`}>
                       {geocodingAddress
-                        ? '?? Finding location...'
+                        ? 'üìç Finding location...'
                         : customLocationCoords
-                          ? '? Address found ó photographer will be directed here'
+                          ? '? Address found ÔøΩ photographer will be directed here'
                           : customLocationAddress && customLocationAddress.trim().length >= 5
-                            ? '?? Could not find address ó photographer will use your GPS'
+                            ? 'üìç Could not find address ÔøΩ photographer will use your GPS'
                             : 'Optional: add a street address for more precise directions'}
                     </p>
                   </div>
@@ -1148,7 +1148,7 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
               </div>
             )}
 
-            {/* Selected spot summary ó hidden when keyboard is up */}
+            {/* Selected spot summary ÔøΩ hidden when keyboard is up */}
             {!keyboardOpen && (selectedSpot || useCustomLocation) && (
               <div className={`flex items-center gap-3 p-3 rounded-xl ${isLight ? 'bg-green-50' : 'bg-green-500/10'} border border-green-400/30`}>
                 <MapPin className="w-4 h-4 text-green-400 flex-shrink-0" />
@@ -1176,7 +1176,7 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
               <div>
                 <h2 className={`text-xl font-bold ${textPrimary}`}>Session Duration</h2>
                 <p className={`text-xs ${textSecondary}`}>
-                  Starting in {startTimeOption} min ï {selectedSpot?.name || customLocationName || 'Current Location'} ï {photographer?.full_name}
+                  Starting in {startTimeOption} min ÔøΩ {selectedSpot?.name || customLocationName || 'Current Location'} ÔøΩ {photographer?.full_name}
                 </p>
               </div>
             </div>
@@ -1281,7 +1281,7 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
               </button>
               <div>
                 <h2 className={`text-xl font-bold ${textPrimary}`}>Just you, or bringing crew?</h2>
-                <p className={`text-xs ${textSecondary}`}>{formatDuration(requestDuration)} session ï {photographer?.full_name}</p>
+                <p className={`text-xs ${textSecondary}`}>{formatDuration(requestDuration)} session ÔøΩ {photographer?.full_name}</p>
               </div>
             </div>
 
@@ -1298,10 +1298,10 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
               >
                 <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-2xl flex-shrink-0 ${
                   !splitEnabled ? 'bg-amber-500' : isLight ? 'bg-gray-200' : 'bg-zinc-700'
-                }`}>??</div>
+                }`}>üì∏</div>
                 <div className="flex-1">
                   <p className={`font-bold text-base ${textPrimary}`}>Just Me</p>
-                  <p className={`text-sm ${textSecondary}`}>Solo session ó I'll pay the full rate</p>
+                  <p className={`text-sm ${textSecondary}`}>Solo session ÔøΩ I'll pay the full rate</p>
                   <p className="text-amber-400 font-bold mt-1">${totalPrice.toFixed(2)}</p>
                 </div>
                 <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
@@ -1322,7 +1322,7 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
               >
                 <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-2xl flex-shrink-0 ${
                   splitEnabled ? 'bg-cyan-500' : isLight ? 'bg-gray-200' : 'bg-zinc-700'
-                }`}>??</div>
+                }`}>üì∏</div>
                 <div className="flex-1">
                   <p className={`font-bold text-base ${textPrimary}`}>Split with Crew</p>
                   <p className={`text-sm ${textSecondary}`}>Share the session cost with friends</p>
@@ -1704,7 +1704,7 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
                   className="w-full py-4 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white font-bold rounded-xl"
                 >
                   <Check className="w-5 h-5 mr-2" />
-                  I'm Confirmed ó Close Window
+                  I'm Confirmed ÔøΩ Close Window
                 </Button>
                 <p className={`text-xs ${textSecondary} text-center`}>
                   Your booking is saved. Check the Bookings tab anytime for updates.
@@ -1859,7 +1859,7 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
                 onClick={() => setStep('split_choice')}
                 className="w-full py-4 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-black font-bold text-base rounded-xl"
               >
-                Continue ó ${totalPrice.toFixed(2)} <ChevronRight className="w-5 h-5 ml-1" />
+                Continue ÔøΩ ${totalPrice.toFixed(2)} <ChevronRight className="w-5 h-5 ml-1" />
               </Button>
             )}
             {step === 'split_choice' && (

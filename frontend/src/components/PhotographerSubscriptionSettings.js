@@ -244,7 +244,7 @@ const PhotographerSubscriptionSettings = () => {
                 <div className="flex rounded-lg overflow-hidden border border-zinc-700">
                   {['weekly', 'monthly'].map(int => (
                     <button key={int} onClick={() => setNewPlan(p => ({ ...p, interval: int }))} className={`flex-1 py-2.5 text-sm font-semibold transition-all ${newPlan.interval === int ? 'bg-violet-500/20 text-violet-400' : 'bg-zinc-800 text-muted-foreground hover:bg-zinc-700'}`}>
-                      {int === 'weekly' ? '?? Weekly' : '?? Monthly'}
+                      {int === 'weekly' ? '📅 Weekly' : '📅 Monthly'}
                     </button>
                   ))}
                 </div>

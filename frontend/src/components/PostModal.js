@@ -279,7 +279,7 @@ const PostModal = ({ post, isOpen, onClose, _onPostUpdated, posts, onNavigatePos
     
     // Quick tap = toggle shaka
     if (wasPressing) {
-      await handleReaction('??');
+      await handleReaction('🤙');
     }
   };
   
@@ -367,7 +367,7 @@ const PostModal = ({ post, isOpen, onClose, _onPostUpdated, posts, onNavigatePos
     try {
       const _response = await apiClient.post(
         `/comments/${commentId}/reactions`,
-        { emoji: '??' }
+        { emoji: '🤙' }
       );
       
       // Update comments state with new like
@@ -379,7 +379,7 @@ const PostModal = ({ post, isOpen, onClose, _onPostUpdated, posts, onNavigatePos
             likes_count: wasLiked ? (c.likes_count || 1) - 1 : (c.likes_count || 0) + 1,
             reactions: wasLiked 
               ? (c.reactions || []).filter(r => r.user_id !== user.id)
-              : [...(c.reactions || []), { user_id: user.id, emoji: '??' }]
+              : [...(c.reactions || []), { user_id: user.id, emoji: '🤙' }]
           };
         }
         return c;

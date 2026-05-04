@@ -206,7 +206,7 @@ export const TheInsideHub = () => {
           <div className="mt-4 text-center">
             <div className="text-3xl font-bold text-cyan-400">{roadToThePeakProgress}%</div>
             <div className={`text-sm ${textSecondary}`}>
-              {careerStats?.total_xp || 0} XP earned � {careerStats?.verified_results_count || 0} verified results
+              {careerStats?.total_xp || 0} XP earned � {careerStats?.verified_results_count || 0} verified results
             </div>
           </div>
         </CardContent>
@@ -310,7 +310,7 @@ export const TheInsideHub = () => {
                       result.placing === 3 ? 'bg-amber-600 text-white' :
                       'bg-zinc-700 text-white'
                     }`}>
-                      {result.placing === 1 ? '??' : result.placing === 2 ? '??' : result.placing === 3 ? '??' : result.placing}
+                      {result.placing === 1 ? '🥇' : result.placing === 2 ? '🥈' : result.placing === 3 ? '🥉' : result.placing}
                     </div>
                     <div>
                       <div className={`font-medium ${textPrimary}`}>{result.event_name}</div>
