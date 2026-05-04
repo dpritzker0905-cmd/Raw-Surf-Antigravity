@@ -540,17 +540,22 @@ const PostCard = ({
   const handleMediaTap = useCallback((e) => {
     const now = Date.now();
     if (now - lastTapRef.current < 300) {
-      // Double tap detected � cancel pending single tap, trigger like
+      // Double tap detected → cancel pending single tap
       if (singleTapTimerRef.current) {
         clearTimeout(singleTapTimerRef.current);
         singleTapTimerRef.current = null;
       }
       e.stopPropagation();
       e.preventDefault();
-      if (user?.id && post?.id && onLikeStart) {
+      
+      // Instagram-style: double-tap always LIKES, never unlikes
+      // Only fire API call if not already liked
+      if (user?.id && post?.id && !post.liked && onLikeStart) {
         onLikeStart(post, e);
         setTimeout(() => onLikeEnd && onLikeEnd(post, e), 50);
       }
+      
+      // Always show the shaka animation (even if already liked)
       setShowDoubleTapHeart(true);
       setTimeout(() => setShowDoubleTapHeart(false), 800);
       lastTapRef.current = 0;
@@ -562,7 +567,7 @@ const PostCard = ({
         singleTapTimerRef.current = null;
       }, 300);
     }
-  }, [user?.id, post?.id, onLikeStart, onLikeEnd, onImageClick, post]);
+  }, [user?.id, post?.id, post?.liked, onLikeStart, onLikeEnd, onImageClick, post]);
 
   // Helper to ensure media paths map to backend directly natively preventing Netlify 404 traps
   const _checkMediaUrl = getFullUrl(post?.media_url || post?.image_url);

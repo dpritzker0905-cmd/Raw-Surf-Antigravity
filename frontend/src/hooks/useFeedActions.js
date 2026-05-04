@@ -67,6 +67,9 @@ const useFeedActions = ({
   const longPressTriggeredRef = useRef(false);
   const touchStartTimeRef = useRef(0);
 
+  // In-flight guard: prevents concurrent like/reaction API calls for same post
+  const likingInFlight = useRef(new Set());
+
 
   const handleFeedRefresh = useCallback(async (e) => {
     const silent = e?.detail?.silent === true;
@@ -509,12 +512,16 @@ const useFeedActions = ({
       return;
     }
     
-    // Find current post state
+    // In-flight guard: skip if a like/reaction call is already running for this post
+    if (likingInFlight.current.has(postId)) return;
+    likingInFlight.current.add(postId);
+    
+    // Snapshot current state BEFORE optimistic update
     const currentPost = posts.find(p => p.id === postId);
     const isCurrentlyLiked = currentPost?.liked;
     const currentLikesCount = currentPost?.likes_count || 0;
     
-    // Optimistic update with toggle using functional update
+    // Optimistic update with toggle
     setPosts(prevPosts => prevPosts.map(p =>
       p.id === postId ? { 
         ...p, 
@@ -525,7 +532,7 @@ const useFeedActions = ({
     
     try {
       const response = await apiClient.post(`/posts/${postId}/like`);
-      // Update with actual server response using functional update
+      // Sync with authoritative server count (prevents double-count drift)
       setPosts(prevPosts => prevPosts.map(p =>
         p.id === postId ? { 
           ...p, 
@@ -534,7 +541,7 @@ const useFeedActions = ({
         } : p
       ));
     } catch (error) {
-      // Revert on error using functional update
+      // Revert to pre-optimistic state
       setPosts(prevPosts => prevPosts.map(p =>
         p.id === postId ? { 
           ...p, 
@@ -543,6 +550,8 @@ const useFeedActions = ({
         } : p
       ));
       toast.error('Failed to update like');
+    } finally {
+      likingInFlight.current.delete(postId);
     }
   };
 
@@ -552,18 +561,22 @@ const useFeedActions = ({
       return;
     }
     
+    // In-flight guard: skip if already processing this post
+    if (likingInFlight.current.has(postId)) return;
+    
     const currentPost = posts.find(p => p.id === postId);
     const userReaction = currentPost?.reactions?.find(r => r.user_id === user.id);
-    const isLiked = currentPost?.liked;
     
-    // Case 1: User has an active non-Shaka reaction (Fire, Wave, Heart) ? CLEAR IT & UNLIKE
+    // Case 1: User has a non-Shaka reaction (Fire, Wave, Heart) → clear it via reactions API
     if (userReaction && userReaction.emoji !== '🤙') {
-      // Optimistic update - remove reaction AND set liked to false (unchecked Shaka)
+      likingInFlight.current.add(postId);
+      
+      // Optimistic: remove reaction, set to unchecked shaka
       setPosts(prevPosts => prevPosts.map(p => {
         if (p.id === postId) {
           return {
             ...p,
-            liked: false, // Global reset to unchecked state
+            liked: false,
             likes_count: Math.max(0, (p.likes_count || 1) - 1),
             reactions: (p.reactions || []).filter(r => r.user_id !== user.id)
           };
@@ -572,23 +585,25 @@ const useFeedActions = ({
       }));
       
       try {
-        // Call API to remove the reaction (toggle it off)
-        await apiClient.post(`/posts/${postId}/reactions`, { 
+        // Single API call: toggle off the current reaction (backend decrements likes_count)
+        const response = await apiClient.post(`/posts/${postId}/reactions`, { 
           emoji: userReaction.emoji 
         });
-        // Also unlike if was liked
-        if (isLiked) {
-          await apiClient.post(`/posts/${postId}/like`);
+        // Sync server count
+        if (response.data?.likes_count !== undefined) {
+          setPosts(prevPosts => prevPosts.map(p =>
+            p.id === postId ? { ...p, likes_count: response.data.likes_count } : p
+          ));
         }
       } catch (error) {
-        toast.error('Failed to clear reaction');
-        fetchPosts();
+        logger.error('Failed to clear reaction:', error);
+      } finally {
+        likingInFlight.current.delete(postId);
       }
       return;
     }
     
-    // Case 2: User has liked (checked Shaka) ? Unlike (revert to unchecked)
-    // Case 3: User has unchecked Shaka ? Like (check it)
+    // Case 2 & 3: Toggle shaka like on/off via the like endpoint
     handleLike(postId);
   };
 
@@ -676,9 +691,13 @@ const useFeedActions = ({
       return;
     }
     
+    // In-flight guard
+    if (likingInFlight.current.has(postId)) return;
+    likingInFlight.current.add(postId);
+    
     setShowReactionPicker(null);
-    setPickerAnchor(null);  // Clear anchor position
-    setPressingPostId(null); // Clear pressing state when picker closes
+    setPickerAnchor(null);
+    setPressingPostId(null);
 
     
     // Find the post to get author info for notification
@@ -710,14 +729,13 @@ const useFeedActions = ({
           // Add reaction - replace any existing reaction from this user
           const filteredReactions = reactions.filter(r => r.user_id !== user.id);
           
-          // If selecting shaka, set liked=true; otherwise liked=false (emoji replaces shaka)
           return {
             ...p,
             liked: isShakaEmoji,
             // Only increment count if user didn't already have a reaction (swap = no count change)
             likes_count: hadAnyReaction ? (p.likes_count || 0) : (p.likes_count || 0) + 1,
             reactions: isShakaEmoji 
-              ? filteredReactions // Shaka uses liked state, not reactions array
+              ? filteredReactions
               : [...filteredReactions, { emoji, user_id: user.id, user_name: user.full_name }]
           };
         }
@@ -728,10 +746,22 @@ const useFeedActions = ({
     try {
       let response;
       if (isShakaEmoji) {
-        // Shaka emoji uses the like endpoint
         response = await apiClient.post(`/posts/${postId}/like`);
       } else {
         response = await apiClient.post(`/posts/${postId}/reactions`, { emoji });
+      }
+      
+      // Sync authoritative server likes_count to prevent drift
+      if (response.data?.likes_count !== undefined) {
+        setPosts(prevPosts => prevPosts.map(p =>
+          p.id === postId ? { ...p, likes_count: response.data.likes_count } : p
+        ));
+      }
+      // For like endpoint, also sync liked state
+      if (isShakaEmoji && response.data?.is_liked !== undefined) {
+        setPosts(prevPosts => prevPosts.map(p =>
+          p.id === postId ? { ...p, liked: response.data.is_liked } : p
+        ));
       }
       
       // Broadcast reaction update via Supabase Realtime for social sync
@@ -754,7 +784,6 @@ const useFeedActions = ({
       // Send notification to post author if adding a reaction (not removing)
       const action = response?.data?.action || (isRemoving ? 'removed' : 'added');
       if (action === 'added' && targetPost && targetPost.author_id !== user.id) {
-        // Create notification via API
         await createNotification({
           user_id: targetPost.author_id,
           type: 'post_reaction',
@@ -771,7 +800,17 @@ const useFeedActions = ({
     } catch (error) {
       logger.error('Reaction error:', error);
       toast.error('Failed to add reaction');
-      fetchPosts(); // Refresh to get correct state
+      // Revert by re-fetching authoritative state instead of full fetchPosts
+      try {
+        const postResponse = await apiClient.get(`/posts/${postId}`);
+        if (postResponse.data) {
+          setPosts(prevPosts => prevPosts.map(p =>
+            p.id === postId ? { ...postResponse.data, liked: postResponse.data.is_liked_by_user } : p
+          ));
+        }
+      } catch { /* silent - UI may be slightly stale */ }
+    } finally {
+      likingInFlight.current.delete(postId);
     }
   };
 
