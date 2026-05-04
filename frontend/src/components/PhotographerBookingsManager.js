@@ -283,6 +283,14 @@ export const PhotographerBookingsManager = () => {
     return true;
   });
 
+
+  // Safety timeout: prevent infinite spinner if API is unreachable
+  useEffect(() => {
+    if (loading) {
+      const timeout = setTimeout(() => setLoading(false), 10000);
+      return () => clearTimeout(timeout);
+    }
+  }, [loading]);
   if (loading) {
     return (
       <div className={`flex items-center justify-center min-h-screen ${mainBgClass}`}>
