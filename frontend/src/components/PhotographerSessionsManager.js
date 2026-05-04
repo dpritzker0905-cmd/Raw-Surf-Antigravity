@@ -303,11 +303,11 @@ export const PhotographerSessionsManager = () => {
   } = useSessionActions({
     user, navigate,
     setExpandedSections, setDistanceToSpot, distanceToSpot, showGoLiveModal, sessionSettings, surfSpots,
-    nearbySpots, setSessions, setSessionData, setGoLiveStep,
-    setGoLiveData, setSelectedSpot, setNearbySpots,
-    setEndSessionModal, setSessionToEnd, setSavingSettings,
-    setDonationCauses, setLinkedGroms, setSurfSpots, setGalleries,
-    setLoading, setCollapsedSections, setSavingPricing, setEditSectionData,
+    nearbySpots,
+    setNearbySpots,
+   
+    setSurfSpots, setGalleries,
+    setLoading,
   });
 
   useEffect(() => {
