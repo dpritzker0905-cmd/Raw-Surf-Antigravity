@@ -14,6 +14,7 @@ const useBookingManagerActions = ({
   selectedDate, selectedTime, newBooking, newAvailability,
   weeklyGrid, availability, bookingPricing, newCrewInput, existingBookedSlots,
   gridDragMode, isGridDragging, generatedSplitLink, highlightedSessionId, sessionRefs,
+  weekDays, gridHours,
   setActiveTab,
   setAvailability,
   setBookingPricing,
@@ -548,7 +549,6 @@ const useBookingManagerActions = ({
     fetchBookedSlots,
     calculateCrewTotal,
     calculatePerPersonSplit,
-    updatedBooking,
     fetchAvailability,
     handleSaveAvailability,
     handleDeleteAvailability,
@@ -563,6 +563,14 @@ const useBookingManagerActions = ({
     handleUpdateStatus,
     openEditModal,
     handleSaveEdit,
+    // Functions used by PBM JSX
+    isDateDisabled,
+    isSlotBooked,
+    isTimeSlotWithinLeadTime,
+    copySplitLink,
+    resetAvailabilityForm,
+    resetCreateForm,
+    generateSplitLink,
   };
 };
 
