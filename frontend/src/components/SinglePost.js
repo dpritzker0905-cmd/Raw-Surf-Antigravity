@@ -15,6 +15,7 @@ import { toast } from 'sonner';
 import logger from '../utils/logger';
 import { REACTION_EMOJIS } from '../constants/emojis';
 import { FeedPostSkeleton } from './ui/SkeletonVariants';
+import { getFullUrl } from '../utils/media';
 
 
 const SinglePost = () => {
@@ -79,6 +80,57 @@ const SinglePost = () => {
       setShowAllComments(prev => ({ ...prev, [post.id]: true }));
     }
   }, [post?.id]);
+
+  // Dynamic Open Graph meta tags for social sharing / link previews
+  useEffect(() => {
+    if (!post) return;
+    const ogTags = [];
+    const setMeta = (property, content) => {
+      if (!content) return;
+      let tag = document.querySelector(`meta[property="${property}"]`);
+      if (!tag) {
+        tag = document.createElement('meta');
+        tag.setAttribute('property', property);
+        document.head.appendChild(tag);
+        ogTags.push(tag);
+      }
+      tag.setAttribute('content', content);
+    };
+    const setName = (name, content) => {
+      if (!content) return;
+      let tag = document.querySelector(`meta[name="${name}"]`);
+      if (!tag) {
+        tag = document.createElement('meta');
+        tag.setAttribute('name', name);
+        document.head.appendChild(tag);
+        ogTags.push(tag);
+      }
+      tag.setAttribute('content', content);
+    };
+
+    const authorName = post.author_full_name || post.author_username || 'Someone';
+    const snippet = post.content ? post.content.substring(0, 120) : 'Check out this post on Raw Surf';
+    const title = `${authorName} on Raw Surf`;
+    const image = post.media_url ? getFullUrl(post.media_url) : null;
+    const url = `${window.location.origin}/post/${post.id}`;
+
+    document.title = title;
+    setMeta('og:title', title);
+    setMeta('og:description', snippet);
+    setMeta('og:image', image);
+    setMeta('og:url', url);
+    setMeta('og:type', 'article');
+    setMeta('og:site_name', 'Raw Surf');
+    setName('twitter:card', image ? 'summary_large_image' : 'summary');
+    setName('twitter:title', title);
+    setName('twitter:description', snippet);
+    setName('twitter:image', image);
+
+    return () => {
+      document.title = 'Raw Surf';
+      ogTags.forEach(tag => tag.remove());
+    };
+  }, [post]);
 
   const fetchPost = async () => {
     try {
@@ -396,6 +448,7 @@ const SinglePost = () => {
             size="sm" 
             onClick={handleBack}
             className={textPrimaryClass}
+            aria-label="Go back"
           >
             <ArrowLeft className="w-5 h-5" />
           </Button>
@@ -489,6 +542,7 @@ const SinglePost = () => {
             <button 
               onClick={() => setShowReactionPicker(false)}
               className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-white border-l border-zinc-600 ml-1 hover:bg-zinc-700/50 rounded-full touch-manipulation"
+              aria-label="Close reaction picker"
             >
               <X className="w-4 h-4" />
             </button>

@@ -56,6 +56,8 @@ const ViewNoteModal = ({ isOpen, onClose, note, currentUserId, onReply }) => {
                 src={avatarWithCacheBust} 
                 alt="" 
                 className="w-full h-full object-cover"
+                loading="lazy"
+                decoding="async"
                 onError={(e) => {
                   e.target.style.display = 'none';
                   if (e.target.nextSibling) e.target.nextSibling.style.display = 'flex';

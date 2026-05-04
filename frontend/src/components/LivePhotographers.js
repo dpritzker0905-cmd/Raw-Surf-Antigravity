@@ -76,6 +76,8 @@ export const LivePhotographers = () => {
                       src={getFullUrl(user.avatar_url)} 
                       alt={user.full_name}
                       className="w-full h-full object-cover rounded-full"
+                      loading="lazy"
+                      decoding="async"
                     />
                   ) : (
                     <div className="w-full h-full rounded-full bg-zinc-700 flex items-center justify-center">

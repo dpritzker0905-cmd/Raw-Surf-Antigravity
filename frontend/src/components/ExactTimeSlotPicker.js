@@ -144,13 +144,13 @@ const MiniCalendar = ({ selectedDate, onSelectDate, _minDate }) => {
     <div className="space-y-1">
       {/* Month Navigation */}
       <div className="flex items-center justify-between">
-        <Button variant="ghost" size="sm" onClick={prevMonth} className="h-7 w-7 p-0">
+        <Button variant="ghost" size="sm" onClick={prevMonth} className="h-7 w-7 p-0" aria-label="Previous month">
           <ChevronLeft className="w-3.5 h-3.5" />
         </Button>
         <span className={`font-medium text-sm ${textPrimary}`}>
           {monthNames[currentMonth.getMonth()]} {currentMonth.getFullYear()}
         </span>
-        <Button variant="ghost" size="sm" onClick={nextMonth} className="h-7 w-7 p-0">
+        <Button variant="ghost" size="sm" onClick={nextMonth} className="h-7 w-7 p-0" aria-label="Next month">
           <ChevronRight className="w-3.5 h-3.5" />
         </Button>
       </div>

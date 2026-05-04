@@ -213,7 +213,7 @@ const VideoFilterPanel = ({ isOpen, onClose, filters, onFilterChange, onPresetSe
           <Sparkles className={`w-4 h-4 ${colors.accentText}`} />
           <span className={`text-sm font-medium ${colors.primaryText}`}>Surf Filters</span>
         </div>
-        <button onClick={onClose} className={`p-1.5 rounded-full ${colors.buttonBg}`}>
+        <button onClick={onClose} className={`p-1.5 rounded-full ${colors.buttonBg}`} aria-label="Close filter panel">
           <X className={`w-4 h-4 ${colors.secondaryText}`} />
         </button>
       </div>
@@ -433,6 +433,7 @@ const CommentTile = React.memo(({ comment, colors, onReply, onLike, currentUserI
         <button 
           onClick={handleLike}
           className={`p-1 rounded-full ${colors.buttonBg} transition-all ${liked ? 'scale-110' : 'opacity-60 hover:opacity-100'}`}
+          aria-label={liked ? 'Unlike comment' : 'Like comment'}
         >
           <Heart className={`w-3 h-3 ${liked ? 'text-red-500 fill-red-500' : colors.secondaryText}`} />
         </button>
@@ -440,6 +441,7 @@ const CommentTile = React.memo(({ comment, colors, onReply, onLike, currentUserI
         <button 
           onClick={() => onReply(comment)}
           className={`p-1 rounded-full ${colors.buttonBg} opacity-60 hover:opacity-100`}
+          aria-label="Reply to comment"
         >
           <MessageCircle className={`w-3 h-3 ${colors.secondaryText}`} />
         </button>
@@ -535,7 +537,7 @@ const LiveCommentsFeed = ({ streamId, colors, onSendComment, onLikeComment, isEx
           <span style={{ fontSize: 13, fontWeight: 700, color: '#fff', letterSpacing: '0.02em' }}>LIVE CHAT</span>
           <span style={{ fontSize: 11, color: '#71717a', background: 'rgba(39,39,42,0.7)', padding: '1px 6px', borderRadius: 8 }}>{comments.length}</span>
         </div>
-        <button onClick={onToggleExpand} className={`sm:hidden p-1.5 rounded-lg ${colors.buttonBg} transition-colors`}>
+        <button onClick={onToggleExpand} className={`sm:hidden p-1.5 rounded-lg ${colors.buttonBg} transition-colors`} aria-label={isExpanded ? 'Collapse chat' : 'Expand chat'}>
           {isExpanded ? <ChevronDown className={`w-4 h-4 ${colors.secondaryText}`} /> : <ChevronUp className={`w-4 h-4 ${colors.secondaryText}`} />}
         </button>
       </div>
@@ -580,7 +582,7 @@ const LiveCommentsFeed = ({ streamId, colors, onSendComment, onLikeComment, isEx
               >
                 <span className={`text-xs ${colors.secondaryText}`}>Replying to</span>
                 <span className={`text-xs font-semibold ${colors.accentText}`}>@{replyingTo.user_name}</span>
-                <button onClick={() => setReplyingTo(null)} className="ml-auto">
+                <button onClick={() => setReplyingTo(null)} className="ml-auto" aria-label="Cancel reply">
                   <X className={`w-3 h-3 ${colors.secondaryText}`} />
                 </button>
               </motion.div>

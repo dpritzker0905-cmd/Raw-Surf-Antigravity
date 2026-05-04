@@ -47,7 +47,9 @@ const StoryBubble = ({ story, onClick, isOwnNote = false, _showCreateOption = fa
                 <img 
                   src={story.avatar} 
                   alt="" 
-                  className="w-full h-full object-cover" 
+                  className="w-full h-full object-cover"
+                  loading="lazy"
+                  decoding="async" 
                   onError={(e) => { 
                     e.target.style.display = 'none'; 
                     e.target.nextSibling && (e.target.nextSibling.style.display = 'flex');

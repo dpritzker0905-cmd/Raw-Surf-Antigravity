@@ -186,7 +186,7 @@ const MobileEmojiSheet = ({ isOpen, onClose, onSelect }) => {
         {/* Header */}
         <div className="flex items-center justify-between px-4 pb-3 border-b border-zinc-800">
           <span className="text-white text-lg font-semibold">Emojis</span>
-          <button onClick={onClose} className="p-2 hover:bg-zinc-700 rounded-full transition-colors">
+          <button onClick={onClose} className="p-2 hover:bg-zinc-700 rounded-full transition-colors" aria-label="Close emoji picker">
             <X className="w-5 h-5 text-gray-400" />
           </button>
         </div>
@@ -245,7 +245,7 @@ const DesktopEmojiPopover = ({ isOpen, onClose, onSelect, position = 'above' }) 
       {/* Header */}
       <div className="flex items-center justify-between px-3 py-2 border-b border-zinc-700">
         <span className="text-white text-sm font-medium">Emojis</span>
-        <button onClick={onClose} className="p-1 hover:bg-zinc-700 rounded-full">
+        <button onClick={onClose} className="p-1 hover:bg-zinc-700 rounded-full" aria-label="Close emoji picker">
           <X className="w-4 h-4 text-gray-400" />
         </button>
       </div>
@@ -354,6 +354,7 @@ export const CommentInputWithEmoji = ({
           showEmojiPicker ? 'bg-yellow-500/20 text-yellow-400' : 'hover:bg-zinc-700 text-gray-400 hover:text-white'
         }`}
         data-testid={`emoji-btn-${postId}`}
+        aria-label="Open emoji picker"
       >
         <Smile className="w-5 h-5" />
       </button>
@@ -453,6 +454,7 @@ export const TextareaWithEmoji = ({
               : 'hover:bg-zinc-700 text-gray-400 hover:text-white'
         }`}
         data-testid="textarea-emoji-btn"
+        aria-label="Open emoji picker"
       >
         <Smile className="w-5 h-5" />
       </button>

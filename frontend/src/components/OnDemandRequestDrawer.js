@@ -26,6 +26,7 @@ import { QualityTierBadge } from './gallery/PriceSourceBadge';
 import logger from '../utils/logger';
 import { getFullUrl } from '../utils/media';
 import { ROLES } from '../constants/roles';
+import useHapticFeedback from '../hooks/useHapticFeedback';
 
 
 
@@ -129,6 +130,7 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
   const { user, updateUser } = useAuth();
   const { theme } = useTheme();
   const navigate = useNavigate();
+  const haptic = useHapticFeedback();
   // Flow: 'timing' -> 'location' -> 'duration' -> 'crew' -> 'confirm' -> 'selfie' -> 'waiting' -> 'success'
   const [step, setStep] = useState('timing');
   const [paymentMethod, setPaymentMethod] = useState('card');
@@ -687,6 +689,7 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
         }
         
         toast.success('Payment confirmed! 🤙 Setting up your session...');
+        haptic('success');
         // Navigate to full lobby page — selfie prompt lives there
         const lobbyState = {
           crewMembers,
@@ -782,6 +785,7 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
           });
           
           setStep('success');
+          haptic('success');
           toast.success(`${data.photographer?.name || 'A photographer'} is on their way! ETA: ~${data.gps?.eta_minutes || estimatedResponse} min`, {
             duration: 5000,
             icon: '🏄'
