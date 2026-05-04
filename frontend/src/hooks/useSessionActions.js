@@ -10,7 +10,7 @@ import { getErrorMessage } from '../utils/errors';
 import { useEffect } from 'react';
 
 const useSessionActions = ({
-  user, navigate, savedRates,
+  user, navigate,
   setExpandedSections, setDistanceToSpot, distanceToSpot, showGoLiveModal, sessionSettings, surfSpots,
   nearbySpots, setSessions, setSessionData, setGoLiveStep,
   setGoLiveData, setSelectedSpot, setNearbySpots,

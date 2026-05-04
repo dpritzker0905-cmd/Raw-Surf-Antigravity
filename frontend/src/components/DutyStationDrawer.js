@@ -36,8 +36,8 @@ import { ROLES } from '../constants/roles';
 
 
 // Distance constants
-const LIVE_PROXIMITY_MILES = 0.2; // Must be within 0.2 miles to go live
-const LIVE_PROXIMITY_METERS = LIVE_PROXIMITY_MILES * 1609.34;
+export const LIVE_PROXIMITY_MILES = 0.2; // Must be within 0.2 miles to go live
+export const LIVE_PROXIMITY_METERS = LIVE_PROXIMITY_MILES * 1609.34;
 
 // On-Demand radius by role (in miles)
 const ON_DEMAND_RADIUS = {
