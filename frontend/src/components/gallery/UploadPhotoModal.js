@@ -44,7 +44,7 @@ const ACCEPTED_IMAGE = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
  * IMPORTANT: This always uses the photographer's General Gallery Pricing
  * (photo_price_standard / video_price_1080p). Session-specific discounts
  * (live session jump-in rates, booking rates) are applied at PURCHASE TIME
- * by the backend based on participant status — NOT baked into the item here.
+ * by the backend based on participant status � NOT baked into the item here.
  * 
  * This ensures that anonymous gallery visitors who weren't part of a session
  * see the photographer's intended standard rates.
@@ -161,7 +161,7 @@ export const UploadPhotoModal = ({
   // Get selected folder name for dropdown label
   const selectedFolderLabel = selectedFolderId 
     ? galleries.find(g => g.id === selectedFolderId)?.title || 'Selected Folder'
-    : 'Select a folder…';
+    : 'Select a folder�';
 
   const addFiles = useCallback((newFiles) => {
     const entries = [];
@@ -288,11 +288,11 @@ export const UploadPhotoModal = ({
       let msg = 'Upload failed';
       if (typeof detail === 'string') msg = detail;
       else if (detail?.msg) msg = detail.msg;
-      else if (status === 503) msg = 'Server starting up — tap retry in 30s';
+      else if (status === 503) msg = 'Server starting up � tap retry in 30s';
       else if (status === 413) msg = 'File too large for server';
-      else if (error.code === 'ECONNABORTED') msg = 'Upload timed out — try a smaller file or retry';
-      else if (!error.response && error.message?.includes('Network')) msg = 'Server may be restarting — tap retry in 30s';
-      else if (!error.response) msg = `Connection failed (${error.code || 'network'}) — retry shortly`;
+      else if (error.code === 'ECONNABORTED') msg = 'Upload timed out � try a smaller file or retry';
+      else if (!error.response && error.message?.includes('Network')) msg = 'Server may be restarting � tap retry in 30s';
+      else if (!error.response) msg = `Connection failed (${error.code || 'network'}) � retry shortly`;
 
       setFiles(prev => prev.map(f => 
         f.id === fileEntry.id ? { ...f, status: STATUS.ERROR, error: msg } : f
@@ -362,10 +362,10 @@ export const UploadPhotoModal = ({
 
         <div className="px-4 pb-4 space-y-3">
 
-          {/* ── Folder Dropdown ── */}
+          {/* -- Folder Dropdown -- */}
           {galleries && galleries.length > 0 && (
             <div className="relative">
-              <button
+              <button aria-label="Folder"
                 onClick={() => setFolderDropdownOpen(!folderDropdownOpen)}
                 disabled={uploading}
                 className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg bg-card border border-border text-sm text-foreground hover:border-cyan-500/40 transition-colors"
@@ -384,7 +384,7 @@ export const UploadPhotoModal = ({
                   
                   <div className="absolute z-20 mt-1 w-full bg-card border border-border rounded-lg shadow-xl max-h-48 overflow-y-auto">
                     {galleries.map((folder) => (
-                      <button
+                      <button aria-label="Folder"
                         key={folder.id}
                         onClick={() => { setSelectedFolderId(folder.id); setFolderDropdownOpen(false); }}
                         className={`w-full text-left px-3 py-2.5 text-sm hover:bg-muted/60 transition-colors flex items-center gap-2 border-b border-border/30 last:border-0 ${
@@ -401,7 +401,7 @@ export const UploadPhotoModal = ({
             </div>
           )}
 
-          {/* ── Pricing Banner ── */}
+          {/* -- Pricing Banner -- */}
           <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-gradient-to-r from-cyan-500/8 to-blue-500/8 border border-cyan-500/15">
             <Info className="w-4 h-4 text-cyan-400 shrink-0" />
             <div className="flex items-center gap-3 text-xs flex-wrap">
@@ -419,7 +419,7 @@ export const UploadPhotoModal = ({
             </div>
           </div>
 
-          {/* ── Hidden File Input ── */}
+          {/* -- Hidden File Input -- */}
           <input aria-label="Upload file"
             ref={fileInputRef}
             type="file"
@@ -429,7 +429,7 @@ export const UploadPhotoModal = ({
             className="hidden"
           />
 
-          {/* ── Empty State / Drop Zone ── */}
+          {/* -- Empty State / Drop Zone -- */}
           {files.length === 0 ? (
             <button
               onClick={() => fileInputRef.current?.click()}
@@ -448,13 +448,13 @@ export const UploadPhotoModal = ({
               <div className="text-center px-4">
                 <p className="text-foreground font-semibold text-sm">Select photos & videos</p>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Select multiple files • Images up to 50MB • Videos up to 100MB ({isPaidPhotographer ? '4K' : '1080p'})
+                  Select multiple files � Images up to 50MB � Videos up to 100MB ({isPaidPhotographer ? '4K' : '1080p'})
                 </p>
               </div>
             </button>
           ) : (
             <>
-              {/* ── File Count + Add More ── */}
+              {/* -- File Count + Add More -- */}
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-1.5 text-xs">
                   {files.filter(f => f.type === 'image').length > 0 && (
@@ -474,7 +474,7 @@ export const UploadPhotoModal = ({
                   )}
                 </div>
                 {!uploading && (
-                  <button
+                  <button aria-label="Add"
                     onClick={() => fileInputRef.current?.click()}
                     className="flex items-center gap-1 text-xs text-cyan-400 hover:text-cyan-300 font-medium px-2 py-1 rounded-md hover:bg-cyan-500/10 transition-colors"
                   >
@@ -483,7 +483,7 @@ export const UploadPhotoModal = ({
                 )}
               </div>
 
-              {/* ── File List ── */}
+              {/* -- File List -- */}
               <div className="space-y-1.5 max-h-56 overflow-y-auto rounded-lg">
                 {files.map((f) => (
                   <div
@@ -513,7 +513,7 @@ export const UploadPhotoModal = ({
                       </p>
                       <div className="flex items-center gap-2 mt-0.5">
                         <span className="text-[10px] text-muted-foreground">
-                          {formatFileSize(f.size)} • {f.type === 'video' ? 'Video' : 'Photo'}
+                          {formatFileSize(f.size)} � {f.type === 'video' ? 'Video' : 'Photo'}
                         </span>
                         {f.status === STATUS.UPLOADING && (
                           <span className="text-[10px] text-cyan-400 font-medium">{f.progress}%</span>
@@ -553,7 +553,7 @@ export const UploadPhotoModal = ({
                 ))}
               </div>
 
-              {/* ── Global Progress ── */}
+              {/* -- Global Progress -- */}
               {uploading && (
                 <div className="space-y-1.5">
                   <div className="h-2 bg-muted rounded-full overflow-hidden">
@@ -563,12 +563,12 @@ export const UploadPhotoModal = ({
                     />
                   </div>
                   <p className="text-xs text-muted-foreground text-center">
-                    Uploading… {globalProgress}%
+                    Uploading� {globalProgress}%
                   </p>
                 </div>
               )}
 
-              {/* ── Upload Complete Summary ── */}
+              {/* -- Upload Complete Summary -- */}
               {uploadComplete && (
                 <div className={`flex items-center gap-2 p-3 rounded-lg border ${
                   errorFiles.length > 0 && doneFiles.length > 0 
@@ -584,9 +584,9 @@ export const UploadPhotoModal = ({
                   )}
                   <p className="text-xs text-foreground">
                     {doneFiles.length > 0 && `${doneFiles.length} uploaded`}
-                    {doneFiles.length > 0 && errorFiles.length > 0 && ' • '}
+                    {doneFiles.length > 0 && errorFiles.length > 0 && ' � '}
                     {errorFiles.length > 0 && (
-                      <span className="text-red-400">{errorFiles.length} failed — tap <RotateCcw className="w-3 h-3 inline" /> to retry</span>
+                      <span className="text-red-400">{errorFiles.length} failed � tap <RotateCcw className="w-3 h-3 inline" /> to retry</span>
                     )}
                   </p>
                 </div>
@@ -594,10 +594,10 @@ export const UploadPhotoModal = ({
             </>
           )}
 
-          {/* ── Actions ── */}
+          {/* -- Actions -- */}
           <div className="flex gap-2 pt-1">
             {!uploadComplete ? (
-              <Button
+              <Button aria-label="Loader2"
                 onClick={handleUploadAll}
                 disabled={uploading || queuedFiles.length === 0 || !selectedFolderId}
                 className="flex-1 h-12 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white font-bold rounded-xl disabled:opacity-50"
@@ -606,7 +606,7 @@ export const UploadPhotoModal = ({
                 {uploading ? (
                   <span className="flex items-center gap-2">
                     <Loader2 className="w-5 h-5 animate-spin" />
-                    Uploading…
+                    Uploading�
                   </span>
                 ) : (
                   `Upload ${queuedFiles.length} file${queuedFiles.length !== 1 ? 's' : ''}`

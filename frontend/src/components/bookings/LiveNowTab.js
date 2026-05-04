@@ -53,7 +53,7 @@ export const LiveNowTab = ({
               </p>
               <p className={`text-xs ${textSecondaryClass}`}>
                 {subscriptionTier === 'Free' ? (
-                  <>Upgrade to <span className="text-yellow-400">Basic ($9.99/mo)</span> for 5 Miles • <span className="text-yellow-400">Premium ($19.99/mo)</span> for unlimited</>
+                  <>Upgrade to <span className="text-yellow-400">Basic ($9.99/mo)</span> for 5 Miles ? <span className="text-yellow-400">Premium ($19.99/mo)</span> for unlimited</>
                 ) : subscriptionTier === 'Basic' ? (
                   <>Upgrade to <span className="text-yellow-400">Premium ($19.99/mo)</span> for unlimited worldwide tracking</>
                 ) : (
@@ -107,7 +107,7 @@ export const LiveNowTab = ({
                         <LiveSavingsBadge generalPrice={generalPhotoPrice} livePrice={livePhotoPrice} />
                       </div>
                       <p className="text-gray-400 text-xs mt-1">
-                        ${photographer.session_price || 25} buy-in • ${livePhotoPrice}/photo vs ${generalPhotoPrice} gallery
+                        ${photographer.session_price || 25} buy-in ? ${livePhotoPrice}/photo vs ${generalPhotoPrice} gallery
                       </p>
                     </div>
                   )}
@@ -159,7 +159,7 @@ export const LiveNowTab = ({
           })}
           
           {/* View Map Button */}
-          <Button
+          <Button aria-label="Location"
             onClick={onNavigateToMap}
             variant="outline"
             className={`w-full ${isLight ? 'border-gray-300' : 'border-zinc-700'}`}

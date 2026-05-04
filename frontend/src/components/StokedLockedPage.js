@@ -88,7 +88,7 @@ export const StokedLockedPage = () => {
             </div>
           </div>
 
-          <Button 
+          <Button aria-label="Next" 
             className="w-full mt-6 bg-gradient-to-r from-yellow-400 to-orange-400 text-black font-bold"
             onClick={() => navigate('/career/the-peak')}
           >

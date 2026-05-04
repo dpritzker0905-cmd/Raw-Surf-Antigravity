@@ -85,7 +85,7 @@ export const HobbyistFunnel = ({ onBack, onComplete }) => {
       <div className="max-w-2xl mx-auto">
         {/* Back Button */}
         {onBack && (
-          <button
+          <button aria-label="Go back"
             onClick={onBack}
             className="flex items-center gap-2 text-gray-400 hover:text-white mb-6 transition-colors"
           >
@@ -249,7 +249,7 @@ export const HobbyistFunnel = ({ onBack, onComplete }) => {
                     ))}
                   </ul>
 
-                  <Button
+                  <Button aria-label="Loader2"
                     disabled={loading && selectedPlan === plan.id}
                     className={`w-full ${
                       plan.popular
@@ -293,7 +293,7 @@ export const HobbyistFunnel = ({ onBack, onComplete }) => {
           <p className="text-gray-400 text-sm mb-3">
             Want to earn real money from your photos?
           </p>
-          <Button
+          <Button aria-label="Camera"
             variant="outline"
             onClick={onBack}
             className="border-purple-500/50 text-purple-400 hover:bg-purple-500/10"

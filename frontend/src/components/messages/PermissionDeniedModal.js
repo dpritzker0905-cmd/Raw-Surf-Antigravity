@@ -1,5 +1,5 @@
 /**
- * PermissionDeniedModal — Full-screen overlay shown when camera/mic is blocked.
+ * PermissionDeniedModal � Full-screen overlay shown when camera/mic is blocked.
  *
  * iOS Safari permanently remembers denied permissions. This modal guides the
  * user through re-enabling them, with a deep-link to Settings on iOS.
@@ -21,7 +21,7 @@ export default function PermissionDeniedModal({ onRetry, onDismiss }) {
   }, []);
 
   const handleRetry = useCallback(async () => {
-    // Attempt to re-request permissions — this will show the native prompt
+    // Attempt to re-request permissions � this will show the native prompt
     // if the user hasn't permanently denied yet, or if they've re-enabled
     // in Settings and returned to the app.
     try {
@@ -30,7 +30,7 @@ export default function PermissionDeniedModal({ onRetry, onDismiss }) {
       stream.getTracks().forEach(t => t.stop());
       if (onRetry) onRetry();
     } catch (err) {
-      // Still denied — the modal stays open
+      // Still denied � the modal stays open
       logger.warn('[PermissionDenied] Retry failed:', err.name);
     }
   }, [onRetry]);
@@ -70,7 +70,7 @@ export default function PermissionDeniedModal({ onRetry, onDismiss }) {
       {isIOS ? (
         <div className="w-full max-w-sm space-y-3 mb-8">
           {/* Step 1 */}
-          <button
+          <button aria-label="div"
             onClick={handleOpenSettings}
             className="w-full flex items-center gap-4 p-4 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition-colors text-left group"
           >
@@ -87,11 +87,11 @@ export default function PermissionDeniedModal({ onRetry, onDismiss }) {
           {/* Step 2 */}
           <div className="w-full flex items-center gap-4 p-4 rounded-xl bg-white/5 border border-white/10">
             <div className="w-10 h-10 rounded-full bg-cyan-500/20 flex items-center justify-center flex-shrink-0">
-              <span className="text-lg">🧭</span>
+              <span className="text-lg">??</span>
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-white font-medium text-sm">2. Find Safari</p>
-              <p className="text-gray-500 text-xs">Scroll down and tap "Apps" → "Safari"</p>
+              <p className="text-gray-500 text-xs">Scroll down and tap "Apps" ? "Safari"</p>
             </div>
           </div>
 
@@ -122,11 +122,11 @@ export default function PermissionDeniedModal({ onRetry, onDismiss }) {
         <div className="w-full max-w-sm space-y-3 mb-8">
           <div className="w-full flex items-center gap-4 p-4 rounded-xl bg-white/5 border border-white/10">
             <div className="w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center flex-shrink-0">
-              <span className="text-lg">🔒</span>
+              <span className="text-lg">??</span>
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-white font-medium text-sm">1. Click the lock icon</p>
-              <p className="text-gray-500 text-xs">In your browser's address bar, click the 🔒 or ⓘ icon</p>
+              <p className="text-gray-500 text-xs">In your browser's address bar, click the ?? or ? icon</p>
             </div>
           </div>
 
@@ -155,7 +155,7 @@ export default function PermissionDeniedModal({ onRetry, onDismiss }) {
       {/* Action buttons */}
       <div className="w-full max-w-sm space-y-3">
         {isIOS && (
-          <button
+          <button aria-label="Settings"
             onClick={handleOpenSettings}
             className="w-full py-3.5 rounded-xl bg-blue-500 hover:bg-blue-400 text-white font-semibold text-base transition-all hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-2 shadow-lg shadow-blue-500/30"
           >
@@ -164,7 +164,7 @@ export default function PermissionDeniedModal({ onRetry, onDismiss }) {
           </button>
         )}
 
-        <button
+        <button aria-label="Refresh"
           onClick={handleRetry}
           className="w-full py-3.5 rounded-xl bg-green-500 hover:bg-green-400 text-white font-semibold text-base transition-all hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-2 shadow-lg shadow-green-500/30"
         >

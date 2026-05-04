@@ -28,7 +28,7 @@ import useFocusTrap from '../hooks/useFocusTrap';
 
 const CONNECTION_TIMEOUT = 15000;
 
-// ─── Theme colours (mirrors GoLiveModal.getThemeColors) ───────────────────────
+// --- Theme colours (mirrors GoLiveModal.getThemeColors) -----------------------
 const getThemeColors = (theme) => {
   if (theme === 'light') return {
     overlayBg: 'bg-white/90',   border: 'border-gray-200',
@@ -56,7 +56,7 @@ const getThemeColors = (theme) => {
 
 
 
-// ─── Live Chat ────────────────────────────────────────────────────────────────
+// --- Live Chat ----------------------------------------------------------------
 const ChatMessage = ({ message, isOwn }) => (
   <div className={`flex gap-2 ${isOwn ? 'flex-row-reverse' : ''}`}>
     <Avatar className="w-7 h-7 flex-shrink-0">
@@ -110,7 +110,7 @@ const LiveChat = ({ streamId, userId, userName, userAvatar }) => {
 
   return (
     <div className="flex flex-col h-full" style={{ background: 'rgba(9,9,11,0.92)', backdropFilter: 'blur(12px)' }}>
-      {/* Header — live pulse dot matching broadcaster */}
+      {/* Header � live pulse dot matching broadcaster */}
       <div className="px-4 py-3 border-b flex items-center gap-2" style={{ borderColor: 'rgba(39,39,42,0.8)', flexShrink: 0 }}>
         <div style={{ position: 'relative', width: 10, height: 10, flexShrink: 0 }}>
           <div className="animate-ping" style={{ position: 'absolute', inset: 0, borderRadius: '50%', background: '#f59e0b', opacity: 0.6 }} />
@@ -140,7 +140,7 @@ const LiveChat = ({ streamId, userId, userName, userAvatar }) => {
             className="flex-1 bg-zinc-800 border-zinc-700 text-white placeholder:text-zinc-500 h-10"
             maxLength={200} disabled={sending}
           />
-          <Button type="submit" size="icon"
+          <Button aria-label="Loader2" type="submit" size="icon"
             disabled={!newComment.trim() || sending}
             className="bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600 h-10 w-10"
           >
@@ -152,7 +152,7 @@ const LiveChat = ({ streamId, userId, userName, userAvatar }) => {
   );
 };
 
-// ─── Stream Unavailable ───────────────────────────────────────────────────────
+// --- Stream Unavailable -------------------------------------------------------
 const StreamUnavailable = ({ onBack, broadcasterName, onRetry }) => (
   <div className="absolute inset-0 flex items-center justify-center bg-zinc-950">
     <div className="text-center p-6 max-w-md">
@@ -175,7 +175,7 @@ const StreamUnavailable = ({ onBack, broadcasterName, onRetry }) => (
   </div>
 );
 
-// ─── Viewer Room Content (inside LiveKitRoom) ─────────────────────────────────
+// --- Viewer Room Content (inside LiveKitRoom) ---------------------------------
 const ViewerRoomContent = ({
   broadcaster, onLeave, viewerCount, onViewProfile,
   streamId, userId, userName, userAvatar, colors
@@ -188,7 +188,7 @@ const ViewerRoomContent = ({
   return (
     <div className="w-full h-full flex flex-col sm:flex-row overflow-hidden">
 
-      {/* ── Left: Video + Mobile Chat ── */}
+      {/* -- Left: Video + Mobile Chat -- */}
       <div className="flex-1 relative bg-black flex flex-col min-w-0">
         {/* Video area */}
         <div className="flex-1 relative overflow-hidden">
@@ -252,18 +252,18 @@ const ViewerRoomContent = ({
             </div>
           </div>
 
-          {/* Bottom controls — above mobile chat */}
+          {/* Bottom controls � above mobile chat */}
           <div className="absolute bottom-4 sm:bottom-4 left-0 right-0 px-6 flex items-center justify-between pointer-events-none z-10">
             <div className="flex items-center gap-4 pointer-events-auto">
               <button className="p-3 bg-black/40 hover:bg-red-500/20 text-white hover:text-red-400 rounded-full transition-all group backdrop-blur-md" aria-label="Like">
                 <Heart className="w-6 h-6 group-active:scale-125 transition-transform" />
               </button>
-              <button className="p-3 bg-black/40 hover:bg-blue-500/20 text-white hover:text-blue-400 rounded-full transition-all group backdrop-blur-md">
+              <button aria-label="Share" className="p-3 bg-black/40 hover:bg-blue-500/20 text-white hover:text-blue-400 rounded-full transition-all group backdrop-blur-md">
                 <Share2 className="w-6 h-6 group-active:scale-125 transition-transform" />
               </button>
             </div>
             <div className="pointer-events-auto">
-              <Button
+              <Button aria-label="User Plus"
                 variant="outline" size="sm"
                 className="bg-black/40 border-white/20 text-white hover:bg-white/10 backdrop-blur-md px-6 rounded-full"
                 onClick={onViewProfile}
@@ -275,14 +275,14 @@ const ViewerRoomContent = ({
           </div>
         </div>
 
-        {/* Mobile chat — OUTSIDE the overflow-hidden video area so it isn't clipped.
+        {/* Mobile chat � OUTSIDE the overflow-hidden video area so it isn't clipped.
             Uses pb-[env(safe-area-inset-bottom)] + extra padding to clear BottomNav. */}
         <div className="sm:hidden h-[40%] min-h-[180px] flex-shrink-0" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
           <LiveChat streamId={streamId} userId={userId} userName={userName} userAvatar={userAvatar} />
         </div>
       </div>
 
-      {/* ── Right: Desktop Chat Sidebar (animated slide) ── */}
+      {/* -- Right: Desktop Chat Sidebar (animated slide) -- */}
       <AnimatePresence>
         {isChatOpen && (
           <motion.div
@@ -302,7 +302,7 @@ const ViewerRoomContent = ({
   );
 };
 
-// ─── Main LiveStreamViewer ────────────────────────────────────────────────────
+// --- Main LiveStreamViewer ----------------------------------------------------
 const LiveStreamViewer = ({ isOpen, onClose, streamInfo }) => {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -331,7 +331,7 @@ const LiveStreamViewer = ({ isOpen, onClose, streamInfo }) => {
     };
   }, []);
 
-  // ── Fetch viewer token ────────────────────────────────────────────────────
+  // -- Fetch viewer token ----------------------------------------------------
   useEffect(() => {
     if (isOpen && streamInfo?.room_name && user?.id && !hasFetchedRef.current) {
       hasFetchedRef.current = true;
@@ -438,7 +438,7 @@ const LiveStreamViewer = ({ isOpen, onClose, streamInfo }) => {
   };
 
   return (
-    /* Fullscreen on mobile │ Centred 1100×720 popup on desktop — matches GoLiveModal exactly */
+    /* Fullscreen on mobile � Centred 1100�720 popup on desktop � matches GoLiveModal exactly */
     <div ref={viewerModalRef} className="fixed inset-0 z-[110] flex items-center justify-center" data-testid="live-stream-viewer">
       {/* Desktop backdrop */}
       <div
@@ -446,7 +446,7 @@ const LiveStreamViewer = ({ isOpen, onClose, streamInfo }) => {
         onClick={handleLeave}
       />
 
-      {/* ── Container: fullscreen mobile / 1100×720 desktop ── */}
+      {/* -- Container: fullscreen mobile / 1100�720 desktop -- */}
       <div className="relative w-full h-full sm:w-[1100px] sm:h-[720px] sm:max-h-[90vh] sm:rounded-2xl sm:overflow-hidden bg-black shadow-2xl shadow-black/60">
 
         {/* Loading */}

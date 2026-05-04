@@ -61,7 +61,7 @@ export const GalleryPricingCard = ({
             <span className="text-emerald-400">${generalSettings?.video_price_4k?.toFixed(2) || '30.00'}</span>
           </div>
         </div>
-        <Button 
+        <Button aria-label="Settings" 
           size="sm" 
           variant="outline" 
           className="w-full mt-3 border-zinc-600 text-white hover:bg-zinc-700"

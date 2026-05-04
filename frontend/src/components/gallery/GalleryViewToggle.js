@@ -13,7 +13,7 @@ export const GalleryViewToggle = ({
 }) => {
   return (
     <div className="flex items-center gap-1 bg-zinc-800 rounded-lg p-1">
-      <button
+      <button aria-label="Grid3 X3"
         onClick={() => onViewChange('grid')}
         className={`p-2 rounded transition-colors ${
           viewMode === 'grid' 
@@ -24,7 +24,7 @@ export const GalleryViewToggle = ({
       >
         <Grid3X3 className="w-4 h-4" />
       </button>
-      <button
+      <button aria-label="List"
         onClick={() => onViewChange('list')}
         className={`p-2 rounded transition-colors ${
           viewMode === 'list' 
@@ -36,7 +36,7 @@ export const GalleryViewToggle = ({
         <List className="w-4 h-4" />
       </button>
       {onToggleFolders && (
-        <button
+        <button aria-label="Folder"
           onClick={onToggleFolders}
           className={`p-2 rounded transition-colors ${
             showFolders 

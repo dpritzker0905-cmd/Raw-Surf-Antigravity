@@ -1,5 +1,5 @@
 /**
- * NearbyMode â€” GPS-based spot discovery for Explore.
+ * NearbyMode — GPS-based spot discovery for Explore.
  * Extracted from Explore.js to reduce file size.
  * 
  * Features:
@@ -48,7 +48,7 @@ const NearbyMode = ({
         <div className="flex items-center gap-2 text-xs text-cyan-400">
           <Waves className="w-4 h-4" />
           <span>
-            <strong>Today</strong> = Current Conditions â€¢ <strong>Forecast:</strong> 3 days free, 7 paid, 10 premium
+            <strong>Today</strong> = Current Conditions • <strong>Forecast:</strong> 3 days free, 7 paid, 10 premium
           </span>
         </div>
       </div>
@@ -67,7 +67,7 @@ const NearbyMode = ({
           <MapPin className="w-16 h-16 mx-auto mb-4 opacity-30" />
           <p className="font-medium mb-1">No spots found nearby</p>
           <p className="text-sm text-gray-500 mb-4">Try browsing by location instead</p>
-          <button
+          <button aria-label="Globe"
             onClick={() => setDiscoveryMode('browse')}
             className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 rounded-lg text-sm text-gray-300 transition-colors"
           >
@@ -97,7 +97,7 @@ const NearbyMode = ({
           <Compass className="w-16 h-16 mx-auto mb-4 opacity-30" />
           <p className="font-medium mb-1">Enable Location Access</p>
           <p className="text-sm text-gray-500 mb-4">Allow location access to find surf spots near you</p>
-          <button
+          <button aria-label="Explore"
             onClick={activateNearbyMode}
             className="px-5 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 rounded-xl text-white text-sm font-medium transition-all shadow-lg shadow-emerald-500/20"
           >

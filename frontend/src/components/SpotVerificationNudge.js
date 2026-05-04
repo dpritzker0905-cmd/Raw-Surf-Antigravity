@@ -138,7 +138,7 @@ export const SpotVerificationNudge = ({ spot, userLocation, _onClose }) => {
           
           {/* Vote Buttons */}
           <div className="flex items-center gap-2">
-            <Button
+            <Button aria-label="Loader2"
               onClick={() => handleVote(true)}
               disabled={loading}
               className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white h-9"
@@ -153,7 +153,7 @@ export const SpotVerificationNudge = ({ spot, userLocation, _onClose }) => {
                 </>
               )}
             </Button>
-            <Button
+            <Button aria-label="Alert Circle"
               onClick={handleSuggestMove}
               disabled={loading}
               variant="outline"
@@ -216,7 +216,7 @@ export const SpotVerificationNudge = ({ spot, userLocation, _onClose }) => {
             </div>
             
             {userLocation && (
-              <Button
+              <Button aria-label="Location"
                 variant="outline"
                 size="sm"
                 onClick={() => setSuggestedCoords({ lat: userLocation.lat, lng: userLocation.lng })}
@@ -237,7 +237,7 @@ export const SpotVerificationNudge = ({ spot, userLocation, _onClose }) => {
           />
           
           {/* Submit */}
-          <Button
+          <Button aria-label="Loader2"
             onClick={handleSubmitSuggestion}
             disabled={loading || !suggestedCoords?.lat || !suggestedCoords?.lng}
             className="w-full bg-orange-500 hover:bg-orange-600 text-white"

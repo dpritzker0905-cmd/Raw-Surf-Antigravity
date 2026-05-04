@@ -92,7 +92,7 @@ const PhotographerSubscriptionSettings = () => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
+      <div data-testid="photographer-subscription-settings" className="flex items-center justify-center h-64">
         <Loader2 className="w-8 h-8 animate-spin text-violet-400" />
       </div>
     );
@@ -163,7 +163,7 @@ const PhotographerSubscriptionSettings = () => {
                     <button onClick={() => togglePlanActive(plan)} className="p-2 rounded-lg hover:bg-zinc-700 text-gray-400 hover:text-white transition-colors" title={plan.is_active ? 'Deactivate' : 'Activate'} aria-label="View">
                       {plan.is_active ? <Eye className="w-4 h-4 text-emerald-400" /> : <EyeOff className="w-4 h-4" />}
                     </button>
-                    <button onClick={() => deletePlan(plan.id)} className="p-2 rounded-lg hover:bg-red-500/20 text-gray-400 hover:text-red-400 transition-colors" title="Deactivate">
+                    <button aria-label="Delete" onClick={() => deletePlan(plan.id)} className="p-2 rounded-lg hover:bg-red-500/20 text-gray-400 hover:text-red-400 transition-colors" title="Deactivate">
                       <Trash2 className="w-4 h-4" />
                     </button>
                   </div>
@@ -244,7 +244,7 @@ const PhotographerSubscriptionSettings = () => {
                 <div className="flex rounded-lg overflow-hidden border border-zinc-700">
                   {['weekly', 'monthly'].map(int => (
                     <button key={int} onClick={() => setNewPlan(p => ({ ...p, interval: int }))} className={`flex-1 py-2.5 text-sm font-semibold transition-all ${newPlan.interval === int ? 'bg-violet-500/20 text-violet-400' : 'bg-zinc-800 text-muted-foreground hover:bg-zinc-700'}`}>
-                      {int === 'weekly' ? '📅 Weekly' : '📆 Monthly'}
+                      {int === 'weekly' ? '?? Weekly' : '?? Monthly'}
                     </button>
                   ))}
                 </div>
@@ -311,21 +311,21 @@ const PhotographerSubscriptionSettings = () => {
             {/* Actions */}
             <div className="flex gap-3">
               <Button onClick={() => setShowNewPlan(false)} variant="outline" className="flex-1 border-zinc-700">Cancel</Button>
-              <Button onClick={handleCreatePlan} disabled={saving} className="flex-1 bg-gradient-to-r from-violet-500 to-cyan-500 text-white font-bold">
+              <Button aria-label="Loader2" onClick={handleCreatePlan} disabled={saving} className="flex-1 bg-gradient-to-r from-violet-500 to-cyan-500 text-white font-bold">
                 {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Save className="w-4 h-4 mr-2" /> Create Plan</>}
               </Button>
             </div>
           </div>
         </div>
       ) : (
-        <Button onClick={() => setShowNewPlan(true)} className="w-full mb-6 bg-gradient-to-r from-violet-500/20 to-cyan-500/20 text-violet-400 border border-violet-500/30 hover:bg-violet-500/30 font-semibold py-3">
+        <Button aria-label="Add" onClick={() => setShowNewPlan(true)} className="w-full mb-6 bg-gradient-to-r from-violet-500/20 to-cyan-500/20 text-violet-400 border border-violet-500/30 hover:bg-violet-500/30 font-semibold py-3">
           <Plus className="w-5 h-5 mr-2" /> Create New Subscription Plan
         </Button>
       )}
 
       {/* Subscribers Section */}
       <div className="rounded-xl overflow-hidden" style={{ background: 'rgba(39,39,42,0.5)', border: '1px solid rgba(63,63,70,0.5)' }}>
-        <button onClick={() => setSubscribersExpanded(!subscribersExpanded)} className="w-full p-4 flex items-center justify-between">
+        <button aria-label="Users" onClick={() => setSubscribersExpanded(!subscribersExpanded)} className="w-full p-4 flex items-center justify-between">
           <h3 className="font-semibold text-foreground flex items-center gap-2">
             <Users className="w-4 h-4 text-cyan-400" />
             Active Subscribers ({totalSubscribers})
@@ -351,7 +351,7 @@ const PhotographerSubscriptionSettings = () => {
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold text-foreground truncate">{sub.surfer_name || 'Unknown'}</p>
-                    <p className="text-xs text-muted-foreground">{sub.plan_name} • expires {new Date(sub.expires_at).toLocaleDateString()}</p>
+                    <p className="text-xs text-muted-foreground">{sub.plan_name} � expires {new Date(sub.expires_at).toLocaleDateString()}</p>
                   </div>
                   <span className="text-sm font-bold text-emerald-400">${sub.plan_price}/{sub.plan_interval === 'weekly' ? 'wk' : 'mo'}</span>
                 </div>

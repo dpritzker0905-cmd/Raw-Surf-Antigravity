@@ -405,7 +405,7 @@ export const DispatchLobby = () => {
         // Photographer ACCEPTED
         if (['accepted', 'en_route'].includes(newStatus) && !acceptSoundPlayedRef.current) {
           acceptSoundPlayedRef.current = true;
-          toast.success('🎉 Photographer accepted! They\'re on their way.', {
+          toast.success('?? Photographer accepted! They\'re on their way.', {
             id: 'photographer-accepted',
             duration: 6000,
           });
@@ -416,9 +416,9 @@ export const DispatchLobby = () => {
           } catch (_) { /* audio play failures are non-critical */ }
         }
 
-        // Photographer ARRIVED — notify the surfer
+        // Photographer ARRIVED � notify the surfer
         if (newStatus === 'arrived') {
-          toast.success('📸 Your photographer has arrived! Look for them at the spot.', {
+          toast.success('?? Your photographer has arrived! Look for them at the spot.', {
             id: 'photographer-arrived',
             duration: 8000,
           });
@@ -452,7 +452,7 @@ export const DispatchLobby = () => {
         const diff = newPaidCount - prevPaidCountRef.current;
         const newlyPaid = newCrew.filter(m => m.paid).slice(-diff);
         const names = newlyPaid.map(m => m.name || 'A crew member').join(', ');
-        toast.success(`${names} joined the session! 🏄`, {
+        toast.success(`${names} joined the session! ??`, {
           id: `crew-paid-${newPaidCount}`,
           duration: 4000,
         });
@@ -469,7 +469,7 @@ export const DispatchLobby = () => {
       pollAttemptRef.current += 1;
     } catch (err) {
       pollAttemptRef.current += 1;
-      // Don't show error on first few attempts — backend may still be propagating
+      // Don't show error on first few attempts � backend may still be propagating
       if (pollAttemptRef.current >= 3) {
         setError('Lost connection - retrying...');
       }
@@ -694,7 +694,7 @@ export const DispatchLobby = () => {
                     {photographerName}
                   </p>
                   <p className={`text-sm ${isLight ? 'text-green-600' : 'text-green-400'}`}>
-                    📸 Shooting your session now
+                    ?? Shooting your session now
                   </p>
                 </div>
                 <Badge className="bg-green-500/20 text-green-400 border-green-500/30 text-xs flex-shrink-0">
@@ -705,7 +705,7 @@ export const DispatchLobby = () => {
 
               {/* Communication Buttons */}
               <div className="grid grid-cols-2 gap-3">
-                <button
+                <button aria-label="Message"
                   onClick={() => setShowSessionChat(true)}
                   className={`flex items-center justify-center gap-2 py-3.5 rounded-xl font-semibold text-sm transition-all active:scale-[0.97] ${
                     isLight
@@ -722,7 +722,7 @@ export const DispatchLobby = () => {
                     </span>
                   )}
                 </button>
-                <button
+                <button aria-label="Microphone"
                   onClick={() => setShowSessionChat(true)}
                   className={`flex items-center justify-center gap-2 py-3.5 rounded-xl font-semibold text-sm transition-all active:scale-[0.97] ${
                     isLight
@@ -740,7 +740,7 @@ export const DispatchLobby = () => {
               <p className={`text-xs text-center ${
                 isLight ? 'text-green-600/70' : 'text-green-400/60'
               }`}>
-                Stay nearby — your photographer is capturing the action!
+                Stay nearby � your photographer is capturing the action!
               </p>
             </div>
           </div>
@@ -777,7 +777,7 @@ export const DispatchLobby = () => {
                 {photographerName} is on the way! Send a message or voice note to help them find you at the beach.
               </p>
 
-              {/* Inline message preview — shows latest photographer message */}
+              {/* Inline message preview � shows latest photographer message */}
               {bgLatestMessage && (
                 <button
                   onClick={() => setShowSessionChat(true)}
@@ -815,14 +815,14 @@ export const DispatchLobby = () => {
                       chatUnreadCount > 0 ? (isLight ? 'text-gray-900 font-medium' : 'text-white font-medium') : (isLight ? 'text-gray-500' : 'text-zinc-400')
                     }`}>
                       {bgLatestMessage.message_type === 'voice_note'
-                        ? '🎤 Voice note'
-                        : (bgLatestMessage.content || '📎 Media')}
+                        ? '?? Voice note'
+                        : (bgLatestMessage.content || '?? Media')}
                     </p>
                   </div>
                 </button>
               )}
               <div className="grid grid-cols-2 gap-3">
-                <button
+                <button aria-label="Message"
                   onClick={() => setShowSessionChat(true)}
                   className={`flex items-center justify-center gap-2 py-3 rounded-xl font-semibold text-sm transition-all active:scale-[0.97] ${
                     isLight
@@ -839,7 +839,7 @@ export const DispatchLobby = () => {
                     </span>
                   )}
                 </button>
-                <button
+                <button aria-label="Microphone"
                   onClick={() => setShowSessionChat(true)}
                   className={`flex items-center justify-center gap-2 py-3 rounded-xl font-semibold text-sm transition-all active:scale-[0.97] ${
                     isLight
@@ -949,7 +949,7 @@ export const DispatchLobby = () => {
 
         {/* --- Selfie prompt (if missing) --- */}
         {!captainSelfieUploaded && (
-          <button
+          <button aria-label="div"
             onClick={() => setShowSelfieModal(true)}
             className={`w-full flex items-center gap-3 p-4 rounded-2xl border-2 border-dashed transition-all ${
               isLight
@@ -1078,7 +1078,7 @@ export const DispatchLobby = () => {
               </div>
             </div>
             {!locationLocked && !editingLocation && (
-              <button
+              <button aria-label="Edit"
                 onClick={() => { setEditingLocation(true); setNewLocationName(dispatch?.location_name || ''); }}
                 className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${
                   isLight
@@ -1115,7 +1115,7 @@ export const DispatchLobby = () => {
                   className={`flex-1 text-xs py-1.5 ${isLight ? 'bg-gray-100 text-gray-600' : 'bg-zinc-800 text-zinc-400'}`}
                   disabled={savingLocation}
                 >Cancel</Button>
-                <Button
+                <Button aria-label="Loader2"
                   onClick={handleUpdateLocation}
                   disabled={savingLocation || !newLocationName.trim()}
                   className="flex-1 text-xs py-1.5 bg-cyan-500 hover:bg-cyan-600 text-white font-bold"
@@ -1185,7 +1185,7 @@ export const DispatchLobby = () => {
         {/* --- Go to Bookings + Cancel --- */}
         <div className="space-y-3 pt-2">
           {/* Primary: Go back to Bookings */}
-          <Button
+          <Button aria-label="Go back"
             onClick={() => navigate(`/bookings?tab=on_demand&highlight=${dispatchId}`)}
             className={`w-full py-4 rounded-xl font-bold ${
               isLight
@@ -1241,7 +1241,7 @@ export const DispatchLobby = () => {
                 >
                   Keep Session
                 </Button>
-                <Button
+                <Button aria-label="Loader2"
                   onClick={handleCancelSession}
                   disabled={cancelLoading}
                   className="flex-1 bg-red-500 hover:bg-red-600 text-white font-bold"

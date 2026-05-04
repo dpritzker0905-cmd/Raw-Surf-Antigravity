@@ -21,7 +21,7 @@ import { getFullUrl } from '../utils/media';
 import { GenericPageSkeleton } from './ui/SkeletonVariants';
 
 /**
- * The Peak - Career Hub for Pro-Elite (⭐+) and Competitive (🏄) surfers
+ * The Peak - Career Hub for Pro-Elite (?+) and Competitive (??) surfers
  * Features: Competition Stats, Sponsorship Manager, Gold-Pass Booking, Elite Talent Feed
  */
 export const ThePeakHub = () => {
@@ -160,7 +160,7 @@ export const ThePeakHub = () => {
             </div>
           )}
 
-          <Button 
+          <Button aria-label="Add" 
             onClick={() => setShowAddResultModal(true)}
             className="w-full mt-4 bg-zinc-800 hover:bg-zinc-700 text-white"
           >
@@ -196,11 +196,11 @@ export const ThePeakHub = () => {
                     result.placing === 3 ? 'bg-amber-600 text-white' :
                     'bg-zinc-700 text-white'
                   }`}>
-                    {result.placing === 1 ? '🥇' : result.placing === 2 ? '🥈' : result.placing === 3 ? '🥉' : result.placing}
+                    {result.placing === 1 ? '??' : result.placing === 2 ? '??' : result.placing === 3 ? '??' : result.placing}
                   </div>
                   <div>
                     <div className={`font-medium ${textPrimary}`}>{result.event_name}</div>
-                    <div className={`text-xs ${textSecondary}`}>{result.event_date} • {result.event_location}</div>
+                    <div className={`text-xs ${textSecondary}`}>{result.event_date} � {result.event_location}</div>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -250,7 +250,7 @@ export const ThePeakHub = () => {
           ) : (
             <p className={`text-center ${textSecondary} py-4`}>No sponsorships yet</p>
           )}
-          <Button 
+          <Button aria-label="Add" 
             onClick={() => setShowAddSponsorModal(true)}
             variant="outline" 
             className="w-full mt-4 border-zinc-700"
@@ -354,7 +354,7 @@ export const ThePeakHub = () => {
               ))}
             </div>
             {goldPassSlots.length > 3 && (
-              <Button 
+              <Button aria-label="Next" 
                 variant="ghost" 
                 className="w-full mt-3 text-yellow-400 hover:bg-yellow-500/10"
                 onClick={() => navigate('/bookings')}
@@ -564,7 +564,7 @@ const AddCompetitionResultModal = ({ isOpen, onClose, userId, onSuccess }) => {
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose} className="border-zinc-700">Cancel</Button>
-          <Button onClick={handleSubmit} disabled={loading} className="bg-yellow-500 text-black hover:bg-yellow-400">
+          <Button aria-label="Loader2" onClick={handleSubmit} disabled={loading} className="bg-yellow-500 text-black hover:bg-yellow-400">
             {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Add Result'}
           </Button>
         </DialogFooter>
@@ -648,7 +648,7 @@ const AddSponsorModal = ({ isOpen, onClose, userId, onSuccess }) => {
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose} className="border-zinc-700">Cancel</Button>
-          <Button onClick={handleSubmit} disabled={loading} className="bg-emerald-500 text-black hover:bg-emerald-400">
+          <Button aria-label="Loader2" onClick={handleSubmit} disabled={loading} className="bg-emerald-500 text-black hover:bg-emerald-400">
             {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Add Sponsor'}
           </Button>
         </DialogFooter>

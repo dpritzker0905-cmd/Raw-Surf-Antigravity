@@ -138,7 +138,7 @@ export const SpotConditions = ({ spotId, spotName, compact = false }) => {
         spot_id: spotId,
         ...reportData
       });
-      toast.success('Report submitted! Thanks for sharing 🤙');
+      toast.success('Report submitted! Thanks for sharing ??');
       setShowReportModal(false);
       setReportData({ wave_height: '', conditions: '', wind_direction: '', crowd_level: '', rating: 0, notes: '' });
       fetchTodaysReports();
@@ -212,7 +212,7 @@ export const SpotConditions = ({ spotId, spotName, compact = false }) => {
               <div className="flex items-center gap-2">
                 <Compass className="w-4 h-4 text-yellow-400" />
                 <span className={`text-sm ${tSecondary}`}>
-                  {current.wave_direction ? `${current.wave_direction}°` : 'N/A'}
+                  {current.wave_direction ? `${current.wave_direction}�` : 'N/A'}
                 </span>
               </div>
               <div className="flex items-center gap-2">
@@ -229,7 +229,7 @@ export const SpotConditions = ({ spotId, spotName, compact = false }) => {
 
         {/* Source attribution */}
         <p className={`text-[10px] ${tMuted} mt-3`}>
-          Data from Open-Meteo Marine API • Updated: {current?.updated_at ? new Date(current.updated_at).toLocaleTimeString() : 'N/A'}
+          Data from Open-Meteo Marine API � Updated: {current?.updated_at ? new Date(current.updated_at).toLocaleTimeString() : 'N/A'}
         </p>
       </div>
 
@@ -295,7 +295,7 @@ export const SpotConditions = ({ spotId, spotName, compact = false }) => {
       {/* Forecast Section - Tiered Access */}
       {forecast.length > 0 && (
         <div className={`border-t ${containerBorder}`}>
-          <button
+          <button aria-label="Calendar"
             onClick={() => setForecastExpanded(!forecastExpanded)}
             className={`w-full flex items-center justify-between p-4 ${hoverBg} transition-colors`}
           >
@@ -363,7 +363,7 @@ export const SpotConditions = ({ spotId, spotName, compact = false }) => {
                     </div>
                     <span className="text-purple-400 text-xs">+{Math.min(forecast.length - forecastDaysAllowed, 7)} more days locked</span>
                   </div>
-                  <Button
+                  <Button aria-label="Crown"
                     size="sm"
                     className="w-full mt-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white text-xs"
                     onClick={() => window.location.href = '/settings?tab=billing'}
@@ -385,8 +385,8 @@ export const SpotConditions = ({ spotId, spotName, compact = false }) => {
 
       {/* Community Reports Section */}
       <div className={`border-t ${containerBorder}`}>
-        <button
-          onClick={() => setExpanded(!expanded)}
+        <button aria-label="Users"
+          aria-expanded={expanded} onClick={() => setExpanded(!expanded)}
           className={`w-full flex items-center justify-between p-4 ${hoverBg} transition-colors`}
         >
           <div className="flex items-center gap-2">
@@ -452,7 +452,7 @@ export const SpotConditions = ({ spotId, spotName, compact = false }) => {
             )}
 
             {/* Submit Report Button */}
-            <Button
+            <Button aria-label="Message Square"
               onClick={() => setShowReportModal(true)}
               className="w-full bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white"
               data-testid="submit-report-btn"
@@ -505,12 +505,12 @@ export const SpotConditions = ({ spotId, spotName, compact = false }) => {
                   <SelectValue placeholder="How's it looking?" />
                 </SelectTrigger>
                 <SelectContent className="bg-zinc-800 border-zinc-700">
-                  <SelectItem value="Glassy" className="text-white">🪞 Glassy</SelectItem>
-                  <SelectItem value="Clean" className="text-white">✨ Clean</SelectItem>
-                  <SelectItem value="Fair" className="text-white">👍 Fair</SelectItem>
-                  <SelectItem value="Choppy" className="text-white">🌊 Choppy</SelectItem>
-                  <SelectItem value="Messy" className="text-white">💨 Messy</SelectItem>
-                  <SelectItem value="Blown Out" className="text-white">🌀 Blown Out</SelectItem>
+                  <SelectItem value="Glassy" className="text-white">?? Glassy</SelectItem>
+                  <SelectItem value="Clean" className="text-white">? Clean</SelectItem>
+                  <SelectItem value="Fair" className="text-white">?? Fair</SelectItem>
+                  <SelectItem value="Choppy" className="text-white">?? Choppy</SelectItem>
+                  <SelectItem value="Messy" className="text-white">?? Messy</SelectItem>
+                  <SelectItem value="Blown Out" className="text-white">?? Blown Out</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -523,11 +523,11 @@ export const SpotConditions = ({ spotId, spotName, compact = false }) => {
                   <SelectValue placeholder="Wind direction" />
                 </SelectTrigger>
                 <SelectContent className="bg-zinc-800 border-zinc-700">
-                  <SelectItem value="Offshore" className="text-white">🏄 Offshore (Good)</SelectItem>
-                  <SelectItem value="Light Onshore" className="text-white">🌬️ Light Onshore</SelectItem>
-                  <SelectItem value="Onshore" className="text-white">💨 Onshore</SelectItem>
-                  <SelectItem value="Cross-shore" className="text-white">↔️ Cross-shore</SelectItem>
-                  <SelectItem value="No Wind" className="text-white">🪶 No Wind</SelectItem>
+                  <SelectItem value="Offshore" className="text-white">?? Offshore (Good)</SelectItem>
+                  <SelectItem value="Light Onshore" className="text-white">??? Light Onshore</SelectItem>
+                  <SelectItem value="Onshore" className="text-white">?? Onshore</SelectItem>
+                  <SelectItem value="Cross-shore" className="text-white">?? Cross-shore</SelectItem>
+                  <SelectItem value="No Wind" className="text-white">?? No Wind</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -540,11 +540,11 @@ export const SpotConditions = ({ spotId, spotName, compact = false }) => {
                   <SelectValue placeholder="How crowded?" />
                 </SelectTrigger>
                 <SelectContent className="bg-zinc-800 border-zinc-700">
-                  <SelectItem value="Empty" className="text-white">🏝️ Empty</SelectItem>
-                  <SelectItem value="Light" className="text-white">👤 Light</SelectItem>
-                  <SelectItem value="Moderate" className="text-white">👥 Moderate</SelectItem>
-                  <SelectItem value="Crowded" className="text-white">👨‍👩‍👧‍👦 Crowded</SelectItem>
-                  <SelectItem value="Packed" className="text-white">🚶‍♂️🚶‍♂️🚶 Packed</SelectItem>
+                  <SelectItem value="Empty" className="text-white">??? Empty</SelectItem>
+                  <SelectItem value="Light" className="text-white">?? Light</SelectItem>
+                  <SelectItem value="Moderate" className="text-white">?? Moderate</SelectItem>
+                  <SelectItem value="Crowded" className="text-white">??????????? Crowded</SelectItem>
+                  <SelectItem value="Packed" className="text-white">???????????? Packed</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -578,7 +578,7 @@ export const SpotConditions = ({ spotId, spotName, compact = false }) => {
               />
             </div>
 
-            <Button
+            <Button aria-label="Loader2"
               onClick={submitReport}
               disabled={reportLoading || (!reportData.wave_height && !reportData.conditions)}
               className="w-full h-12 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-bold"

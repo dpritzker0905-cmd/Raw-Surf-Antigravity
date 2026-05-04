@@ -1,5 +1,5 @@
 /**
- * PhotographerProfile — Photographer profile card for spot drawer.
+ * PhotographerProfile ? Photographer profile card for spot drawer.
  * Shows photographer info, reviews, portfolio, and booking CTAs.
  * 
  * Extracted from UnifiedSpotDrawer.js for maintainability.
@@ -181,7 +181,7 @@ const PhotographerProfile = ({ photographer, onBack, onJumpIn }) => {
       
       {/* Fixed Bottom Button - Absolute positioned */}
       <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-zinc-800 bg-zinc-900" style={{ paddingBottom: 'env(safe-area-inset-bottom, 16px)' }}>
-        <Button
+        <Button aria-label="Users"
           onClick={onJumpIn}
           className="w-full h-12 bg-gradient-to-r from-yellow-400 to-orange-400 text-black font-bold text-lg"
         >

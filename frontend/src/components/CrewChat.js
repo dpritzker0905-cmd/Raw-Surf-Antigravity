@@ -1283,7 +1283,7 @@ export default function CrewChat() {
             <Button 
               variant="ghost" 
               size="icon"
-              onClick={() => setShowQuickActions(!showQuickActions)}
+              aria-expanded={showQuickActions} onClick={() => setShowQuickActions(!showQuickActions)}
               className={`text-zinc-500 hover:text-white flex-shrink-0 ${showQuickActions ? 'text-cyan-400' : ''}`}
               data-testid="quick-actions-toggle"
             >
@@ -1317,7 +1317,7 @@ export default function CrewChat() {
             <Button 
               variant="ghost" 
               size="icon"
-              onClick={() => { setShowEmojiPicker(!showEmojiPicker); setShowQuickActions(false); }}
+              aria-expanded={showEmojiPicker} onClick={() => { setShowEmojiPicker(!showEmojiPicker); setShowQuickActions(false); }}
               className={`flex-shrink-0 ${showEmojiPicker ? 'text-yellow-400' : 'text-zinc-500 hover:text-white'}`}
               data-testid="emoji-picker-btn"
             >

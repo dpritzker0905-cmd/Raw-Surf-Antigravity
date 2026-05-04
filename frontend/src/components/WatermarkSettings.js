@@ -342,7 +342,7 @@ const WatermarkSettings = ({ open, onOpenChange, theme = 'dark' }) => {
             <div className={`p-4 rounded-xl ${bgCardClass} border ${borderClass}`}>
               <div className="flex items-center justify-between mb-3">
                 <Label className={textPrimaryClass}>Preview</Label>
-                <Button
+                <Button aria-label="Loader2"
                   data-testid="generate-preview-btn"
                   variant="outline"
                   size="sm"
@@ -420,7 +420,7 @@ const WatermarkSettings = ({ open, onOpenChange, theme = 'dark' }) => {
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button
+          <Button aria-label="Loader2"
             data-testid="save-watermark-settings-btn"
             onClick={handleSaveSettings}
             disabled={saving}

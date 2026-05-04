@@ -1,5 +1,5 @@
 /**
- * JumpInFlow � Live session join flow for surfers.
+ * JumpInFlow ? Live session join flow for surfers.
  * Handles crew formation, selfie capture, payment, and session entry.
  * 
  * Extracted from UnifiedSpotDrawer.js for maintainability.
@@ -263,7 +263,7 @@ const JumpInFlow = ({ photographer, onBack, onSuccess }) => {
             </div>
           )}
           
-          <Button
+          <Button aria-label="Camera"
             onClick={requestCameraPermission}
             className="w-full max-w-xs bg-gradient-to-r from-yellow-400 to-orange-400 text-black font-bold py-3"
             data-testid="enable-camera-btn"
@@ -357,7 +357,7 @@ const JumpInFlow = ({ photographer, onBack, onSuccess }) => {
               <div className="mt-4 p-4 bg-cyan-500/20 border-2 border-cyan-500/40 rounded-xl w-full md:max-w-[400px]">
                 <div className="flex items-center gap-3">
                   <div className="w-12 h-12 rounded-full bg-cyan-500/30 flex items-center justify-center shrink-0">
-                    <span className="text-2xl">🏄</span>
+                    <span className="text-2xl">??</span>
                   </div>
                   <div>
                     <p className="text-cyan-300 font-bold">Hold your surfboard up!</p>
@@ -371,7 +371,7 @@ const JumpInFlow = ({ photographer, onBack, onSuccess }) => {
               {/* Desktop Camera Controls - Hidden on mobile (uses sticky footer) */}
               <div className="hidden md:flex gap-3 justify-center md:max-w-[400px] mx-auto w-full mt-4">
                 {!selfieUrl ? (
-                  <Button
+                  <Button aria-label="Camera"
                     onClick={captureSelfie}
                     disabled={!cameraActive}
                     className="flex-1 bg-gradient-to-r from-yellow-400 to-orange-400 text-black font-bold"
@@ -382,7 +382,7 @@ const JumpInFlow = ({ photographer, onBack, onSuccess }) => {
                   </Button>
                 ) : (
                   <>
-                    <Button
+                    <Button aria-label="Refresh"
                       onClick={retakeSelfie}
                       variant="outline"
                       className="flex-1 border-zinc-600 text-white hover:bg-zinc-800"
@@ -494,7 +494,7 @@ const JumpInFlow = ({ photographer, onBack, onSuccess }) => {
               onClick={() => setStep('selfie')}
               className="w-full text-center text-gray-500 text-sm hover:text-gray-300"
             >
-              ← Back to selfie
+              ? Back to selfie
             </button>
           </div>
         )}
@@ -525,7 +525,7 @@ const JumpInFlow = ({ photographer, onBack, onSuccess }) => {
       {/* Fixed Bottom Button - Pay Now - Absolute positioned */}
       {step === 'payment' && (
         <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-zinc-800 bg-zinc-900" style={{ paddingBottom: 'env(safe-area-inset-bottom, 16px)' }}>
-          <Button
+          <Button aria-label="Loader2"
             onClick={handleJoinSession}
             disabled={loading || (paymentMethod === 'credits' && !hasEnoughCredits)}
             className="w-full h-12 bg-gradient-to-r from-yellow-400 to-orange-400 text-black font-bold text-lg"
@@ -545,7 +545,7 @@ const JumpInFlow = ({ photographer, onBack, onSuccess }) => {
         <div className="absolute bottom-0 left-0 right-0 md:hidden p-4 border-t border-zinc-800 bg-zinc-900" style={{ paddingBottom: 'env(safe-area-inset-bottom, 16px)' }}>
           <div className="flex gap-3">
             {!selfieUrl ? (
-              <Button
+              <Button aria-label="Camera"
                 onClick={captureSelfie}
                 disabled={!cameraActive}
                 className="flex-1 h-12 bg-gradient-to-r from-yellow-400 to-orange-400 text-black font-bold text-lg"
@@ -556,7 +556,7 @@ const JumpInFlow = ({ photographer, onBack, onSuccess }) => {
               </Button>
             ) : (
               <>
-                <Button
+                <Button aria-label="Refresh"
                   onClick={retakeSelfie}
                   variant="outline"
                   className="flex-1 h-12 border-zinc-600 text-white hover:bg-zinc-800"

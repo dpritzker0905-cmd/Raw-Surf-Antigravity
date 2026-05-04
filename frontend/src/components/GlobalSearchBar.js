@@ -206,7 +206,7 @@ export const GlobalSearchBar = ({
             data-testid="global-search-input"
           />
           {query && (
-            <button
+            <button aria-label="Loader2"
               type="button"
               onClick={clearSearch}
               className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
@@ -268,7 +268,7 @@ export const GlobalSearchBar = ({
                   {results.users.map((user) => {
                     const roleInfo = getExpandedRoleInfo(user.role);
                     return (
-                      <button
+                      <button aria-label="Avatar"
                         key={user.id}
                         onClick={() => handleSelect('user', user)}
                         className="w-full flex items-center gap-3 px-3 py-2 hover:bg-muted transition-colors"
@@ -301,7 +301,7 @@ export const GlobalSearchBar = ({
                     <span className="text-xs font-medium text-muted-foreground uppercase">Spots</span>
                   </div>
                   {results.spots.map((spot) => (
-                    <button
+                    <button aria-label="div"
                       key={spot.id}
                       onClick={() => handleSelect('spot', spot)}
                       className="w-full flex items-center gap-3 px-3 py-2 hover:bg-muted transition-colors"
@@ -326,7 +326,7 @@ export const GlobalSearchBar = ({
                     <span className="text-xs font-medium text-muted-foreground uppercase">Hashtags</span>
                   </div>
                   {results.hashtags.map((tag) => (
-                    <button
+                    <button aria-label="div"
                       key={tag.tag}
                       onClick={() => handleSelect('hashtag', tag)}
                       className="w-full flex items-center gap-3 px-3 py-2 hover:bg-muted transition-colors"

@@ -470,7 +470,7 @@ const LiveCommentsFeed = ({ streamId, colors, onSendComment, onLikeComment, isEx
       try {
         const response = await apiClient.get(`/social-live/${streamId}/comments`);
         if (response.data?.comments) {
-          // Lightweight update check — compare length + latest ID instead of full JSON serialize
+          // Lightweight update check � compare length + latest ID instead of full JSON serialize
           setComments(prev => {
             const newComments = response.data.comments;
             const lastPrevId = prev.length > 0 ? prev[prev.length - 1]?.id : null;
@@ -526,7 +526,7 @@ const LiveCommentsFeed = ({ streamId, colors, onSendComment, onLikeComment, isEx
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: isExpanded ? '100%' : 'auto', overflow: 'hidden', background: 'rgba(9,9,11,0.92)', backdropFilter: 'blur(12px)' }}>
-      {/* Header — Live pulse + count */}
+      {/* Header � Live pulse + count */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', borderBottom: '1px solid rgba(39,39,42,0.8)', flexShrink: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           {/* Animated live pulse dot */}
@@ -600,7 +600,7 @@ const LiveCommentsFeed = ({ streamId, colors, onSendComment, onLikeComment, isEx
                 maxLength={200}
                 disabled={sending}
               />
-              <Button
+              <Button aria-label="Loader2"
                 type="submit"
                 size="sm"
                 disabled={!newComment.trim() || sending}
@@ -622,12 +622,12 @@ const LiveCommentsFeed = ({ streamId, colors, onSendComment, onLikeComment, isEx
  */
 const QuickReactions = ({ onReact, colors }) => {
   const reactions = [
-    { emoji: '🤙', label: 'shaka' },
-    { emoji: '🌊', label: 'wave' },
-    { emoji: '🔥', label: 'fire' },
-    { emoji: '❤️', label: 'love' },
-    { emoji: '🏄', label: 'surf' },
-    { emoji: '😮', label: 'wow' },
+    { emoji: '??', label: 'shaka' },
+    { emoji: '??', label: 'wave' },
+    { emoji: '??', label: 'fire' },
+    { emoji: '??', label: 'love' },
+    { emoji: '??', label: 'surf' },
+    { emoji: '??', label: 'wow' },
   ];
 
   return (
@@ -827,7 +827,7 @@ const BroadcasterControls = ({
     }, 1500);
   }, []);
 
-  // ── Hair Filter Engine lifecycle ──
+  // -- Hair Filter Engine lifecycle --
   useEffect(() => {
     const engine = new HairFilterEngine();
     hairEngineRef.current = engine;
@@ -891,7 +891,7 @@ const BroadcasterControls = ({
     setActiveHairStyle(styleId);
     setShowHairPicker(false); // Auto-close picker on selection
     if (styleId) {
-      toast.success('Hair filter applied! 💇');
+      toast.success('Hair filter applied! ??');
     }
   }, []);
 
@@ -981,7 +981,7 @@ const BroadcasterControls = ({
 
   return (
     <div className="w-full h-full flex flex-col sm:flex-row overflow-hidden" data-theme={theme}>
-      {/* ── Main Video Section ── */}
+      {/* -- Main Video Section -- */}
       <div className="flex-1 relative bg-black flex flex-col min-w-0">
         {/* Actual Video */}
         <div className="flex-1 relative overflow-hidden">
@@ -992,7 +992,7 @@ const BroadcasterControls = ({
                 isCameraOff={isCameraOff}
                 isFrontCamera={isFrontCamera}
               />
-              {/* Hair filter canvas overlay — matches WebGL canvas: video-resolution buffer + object-cover + mirror */}
+              {/* Hair filter canvas overlay � matches WebGL canvas: video-resolution buffer + object-cover + mirror */}
               <canvas
                 ref={hairCanvasRef}
                 className={`absolute inset-0 w-full h-full object-cover pointer-events-none ${isFrontCamera ? 'scale-x-[-1]' : ''}`}
@@ -1073,7 +1073,7 @@ const BroadcasterControls = ({
             </button>
 
             <button
-              onClick={() => setShowFilters(!showFilters)}
+              aria-expanded={showFilters} onClick={() => setShowFilters(!showFilters)}
               className={`p-3 rounded-full ${colors.overlayBg} ${colors.border} border transition-all active:scale-95 shadow-md ${showFilters ? colors.accentBg : ''}`}
               title="Surf Filters"
             >
@@ -1081,7 +1081,7 @@ const BroadcasterControls = ({
             </button>
 
             <button
-              onClick={() => setShowHairPicker(!showHairPicker)}
+              aria-expanded={showHairPicker} onClick={() => setShowHairPicker(!showHairPicker)}
               className={`p-3 rounded-full ${colors.overlayBg} ${colors.border} border transition-all active:scale-95 shadow-md ${showHairPicker ? 'bg-yellow-500' : activeHairStyle ? 'bg-yellow-500/30 border-yellow-500/50' : ''}`}
               title="Hair Filters"
             >
@@ -1121,7 +1121,7 @@ const BroadcasterControls = ({
             <QuickReactions onReact={handleReaction} colors={colors} />
           </div>
 
-          {/* ── BROADCASTER CONTROLS: float over video bottom ── */}
+          {/* -- BROADCASTER CONTROLS: float over video bottom -- */}
           <div style={{
             position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: 20,
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
@@ -1164,7 +1164,7 @@ const BroadcasterControls = ({
         </div>{/* end video+overlay area */}
       </div>{/* end video column */}
 
-      {/* ── Desktop Sidebar: Live Chat ── */}
+      {/* -- Desktop Sidebar: Live Chat -- */}
       <AnimatePresence>
         {isChatOpen && (
           <motion.div
@@ -1212,7 +1212,7 @@ const BroadcasterControls = ({
 
 /**
  * GoLiveModal - Full-screen live streaming with LiveKit
- * Phase machine: pre_live → countdown → live
+ * Phase machine: pre_live ? countdown ? live
  * No auto-start. User must explicitly press Go Live.
  */
 const GoLiveModal = ({ isOpen, onClose, onStreamEnded }) => {
@@ -1251,7 +1251,7 @@ const GoLiveModal = ({ isOpen, onClose, onStreamEnded }) => {
     userIdRef.current = user?.id;
   }, [user?.id]);
 
-  // ── Reset phase when modal opens/closes ──
+  // -- Reset phase when modal opens/closes --
   useEffect(() => {
     if (isOpen) {
       setPhase('pre_live');
@@ -1277,7 +1277,7 @@ const GoLiveModal = ({ isOpen, onClose, onStreamEnded }) => {
     };
   }, [isOpen]);
 
-  // ── Camera preview for pre-live screen ──
+  // -- Camera preview for pre-live screen --
   const startCameraPreview = useCallback(async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false });
@@ -1287,7 +1287,7 @@ const GoLiveModal = ({ isOpen, onClose, onStreamEnded }) => {
       }
     } catch (err) {
       logger.warn('[GoLiveModal] Camera preview unavailable:', err);
-      // Not fatal — user may grant camera on actual go-live
+      // Not fatal � user may grant camera on actual go-live
     }
   }, []);
 
@@ -1305,7 +1305,7 @@ const GoLiveModal = ({ isOpen, onClose, onStreamEnded }) => {
     }
   }, [cameraPreviewStream]);
 
-  // ── Signal quality estimation via navigator.connection or RTT probe ──
+  // -- Signal quality estimation via navigator.connection or RTT probe --
   const checkSignalQuality = useCallback(async () => {
     setSignalQuality('unknown');
     try {
@@ -1335,7 +1335,7 @@ const GoLiveModal = ({ isOpen, onClose, onStreamEnded }) => {
     }
   }, []);
 
-  // ── Start stream (called after countdown) ──
+  // -- Start stream (called after countdown) --
   const startStream = useCallback(async () => {
     if (!user?.id) {
       setError('Please log in to go live');
@@ -1356,7 +1356,7 @@ const GoLiveModal = ({ isOpen, onClose, onStreamEnded }) => {
 
       logger.info('[GoLiveModal] Stream started:', response.data);
 
-      // Stop camera preview — LiveKit will take over camera
+      // Stop camera preview � LiveKit will take over camera
       stopCameraPreview();
 
       setBroadcasterToken({
@@ -1398,17 +1398,17 @@ const GoLiveModal = ({ isOpen, onClose, onStreamEnded }) => {
     }
   }, [user, streamTitle, stopCameraPreview]);
 
-  // ── Initiate countdown then start stream ──
+  // -- Initiate countdown then start stream --
   const handleGoLive = useCallback(() => {
     if (signalQuality === 'poor') {
-      toast.warning('⚠️ Poor signal detected. Your stream may be unstable.');
-      // Don't block — let user decide
+      toast.warning('?? Poor signal detected. Your stream may be unstable.');
+      // Don't block � let user decide
     }
     setPhase('countdown');
     setCountdownValue(3);
   }, [signalQuality]);
 
-  // ── Countdown tick → triggers startStream when done ──
+  // -- Countdown tick ? triggers startStream when done --
   useEffect(() => {
     if (phase !== 'countdown') return;
     if (countdownValue <= 0) {
@@ -1419,7 +1419,7 @@ const GoLiveModal = ({ isOpen, onClose, onStreamEnded }) => {
     return () => clearTimeout(timer);
   }, [phase, countdownValue, startStream]);
 
-  // ── End stream ──
+  // -- End stream --
   const endStream = useCallback(async () => {
     logger.info('[GoLiveModal] Ending stream...');
     
@@ -1452,12 +1452,12 @@ const GoLiveModal = ({ isOpen, onClose, onStreamEnded }) => {
     onClose();
   }, [streamData, user, onStreamEnded, onClose]);
 
-  // ── Phase-aware close handler ──
+  // -- Phase-aware close handler --
   const handleClose = useCallback(() => {
     if (phase === 'live' || phase === 'countdown') {
       // During live or countdown: require confirmation
       if (phase === 'countdown') {
-        // Abort countdown — just go back to pre-live
+        // Abort countdown � just go back to pre-live
         setPhase('pre_live');
         return;
       }
@@ -1478,17 +1478,17 @@ const GoLiveModal = ({ isOpen, onClose, onStreamEnded }) => {
   if (!isOpen) return null;
 
   return (
-    /* ── Mobile: fullscreen  |  Desktop: centred popup ── */
+    /* -- Mobile: fullscreen  |  Desktop: centred popup -- */
     <div className="fixed inset-0 z-[99999] flex items-center justify-center p-0 sm:p-6" data-testid="go-live-modal" data-theme={theme}>
-      {/* Dark backdrop — click away closes only if pre-live or shows confirmation if live */}
+      {/* Dark backdrop � click away closes only if pre-live or shows confirmation if live */}
       <div
         className="fixed inset-0 bg-black/80 backdrop-blur-sm hidden sm:block"
         onClick={handleClose}
       />
-      {/* Inner container — fullscreen on mobile, popup on desktop */}
+      {/* Inner container � fullscreen on mobile, popup on desktop */}
       <div className="relative w-full h-full sm:w-[1100px] sm:h-[720px] sm:max-h-[90vh] sm:rounded-2xl sm:overflow-hidden bg-black shadow-2xl shadow-black/60">
 
-        {/* ── PRE-LIVE SCREEN ── */}
+        {/* -- PRE-LIVE SCREEN -- */}
         <AnimatePresence>
           {phase === 'pre_live' && (
             <motion.div
@@ -1530,7 +1530,7 @@ const GoLiveModal = ({ isOpen, onClose, onStreamEnded }) => {
                   </div>
                 )}
 
-                {/* Signal quality overlay — top right */}
+                {/* Signal quality overlay � top right */}
                 <div className="absolute top-3 right-3">
                   <ConnectionQualityBadge quality={signalQuality} />
                   {signalQuality === 'poor' && (
@@ -1548,7 +1548,7 @@ const GoLiveModal = ({ isOpen, onClose, onStreamEnded }) => {
                 </div>
 
                 {/* Recheck signal button */}
-                <button
+                <button aria-label="Refresh"
                   onClick={checkSignalQuality}
                   className="absolute bottom-3 right-3 flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-zinc-800/80 text-zinc-400 text-xs hover:bg-zinc-700/80 transition-colors"
                 >
@@ -1578,7 +1578,7 @@ const GoLiveModal = ({ isOpen, onClose, onStreamEnded }) => {
                 </div>
 
                 {/* Go Live button */}
-                <button
+                <button aria-label="Radio"
                   onClick={handleGoLive}
                   className="w-full flex items-center justify-center gap-3 py-4 rounded-2xl bg-red-600 hover:bg-red-500 active:scale-[0.98] transition-all font-bold text-white text-lg shadow-lg shadow-red-900/40"
                 >
@@ -1591,7 +1591,7 @@ const GoLiveModal = ({ isOpen, onClose, onStreamEnded }) => {
           )}
         </AnimatePresence>
 
-        {/* ── COUNTDOWN OVERLAY ── */}
+        {/* -- COUNTDOWN OVERLAY -- */}
         <AnimatePresence>
           {phase === 'countdown' && (
             <motion.div
@@ -1602,7 +1602,7 @@ const GoLiveModal = ({ isOpen, onClose, onStreamEnded }) => {
               className="absolute inset-0 flex flex-col items-center justify-center bg-black z-50"
             >
               {/* Abort countdown button */}
-              <button
+              <button aria-label="Go back"
                 onClick={() => setPhase('pre_live')}
                 className="absolute top-4 left-4 flex items-center gap-2 px-3 py-2 rounded-full bg-zinc-800/80 text-zinc-400 text-sm hover:bg-zinc-700 transition-colors"
               >
@@ -1655,14 +1655,14 @@ const GoLiveModal = ({ isOpen, onClose, onStreamEnded }) => {
                   className="absolute bottom-8 flex items-center gap-2 bg-red-950/80 border border-red-700/40 rounded-xl px-4 py-2.5"
                 >
                   <AlertTriangle className="w-4 h-4 text-red-400" />
-                  <span className="text-red-300 text-sm">Poor signal — stream may be unstable</span>
+                  <span className="text-red-300 text-sm">Poor signal � stream may be unstable</span>
                 </motion.div>
               )}
             </motion.div>
           )}
         </AnimatePresence>
 
-        {/* ── LOADING (connecting after countdown) ── */}
+        {/* -- LOADING (connecting after countdown) -- */}
         {isLoading && (
           <div className="absolute inset-0 flex items-center justify-center bg-black z-40">
             <div className="text-center">
@@ -1676,7 +1676,7 @@ const GoLiveModal = ({ isOpen, onClose, onStreamEnded }) => {
           </div>
         )}
 
-        {/* ── ERROR STATE ── */}
+        {/* -- ERROR STATE -- */}
         {error && !isLoading && (
           <div className="absolute inset-0 flex items-center justify-center bg-black p-6 z-40">
             <div className={`${colors.overlayBg} rounded-2xl p-6 max-w-sm text-center`}>
@@ -1695,7 +1695,7 @@ const GoLiveModal = ({ isOpen, onClose, onStreamEnded }) => {
           </div>
         )}
 
-        {/* ── LIVE BROADCAST ── */}
+        {/* -- LIVE BROADCAST -- */}
         {phase === 'live' && broadcasterToken && !error && (
           <div className="relative w-full h-full">
             <LiveKitRoom
@@ -1724,7 +1724,7 @@ const GoLiveModal = ({ isOpen, onClose, onStreamEnded }) => {
           </div>
         )}
 
-        {/* ── End stream confirmation dialog ── */}
+        {/* -- End stream confirmation dialog -- */}
         <EndStreamDialog
           isOpen={showEndDialog}
           onConfirm={endStream}

@@ -1,16 +1,16 @@
 /**
- * RequestProModal — Unified "Request a Pro Photographer" flow
+ * RequestProModal � Unified "Request a Pro Photographer" flow
  *
  * Features:
- *  ● Auto-match or specific photographer selection (Uber style)
- *  ● Location display (nearest surf spot or GPS coordinates)
- *  ● Scheduled arrival time: 30 / 60 / 90 minutes from now
- *  ● Session duration: 0.5 / 1 / 2 / 3 hours
- *  ● Crew / Split Fare — full surfboard lineup UI (pool-table style)
- *  ● Captain's Hub: per-member % slider + "I'll cover" toggle
- *  ● Live cost breakdown (rate × duration, split share, captain's share)
- *  ● Boost Your Request (credits-based priority)
- *  ● Proper sticky header / scrollable body / sticky footer layout
+ *  ? Auto-match or specific photographer selection (Uber style)
+ *  ? Location display (nearest surf spot or GPS coordinates)
+ *  ? Scheduled arrival time: 30 / 60 / 90 minutes from now
+ *  ? Session duration: 0.5 / 1 / 2 / 3 hours
+ *  ? Crew / Split Fare � full surfboard lineup UI (pool-table style)
+ *  ? Captain's Hub: per-member % slider + "I'll cover" toggle
+ *  ? Live cost breakdown (rate � duration, split share, captain's share)
+ *  ? Boost Your Request (credits-based priority)
+ *  ? Proper sticky header / scrollable body / sticky footer layout
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -36,9 +36,9 @@ import logger from '../../utils/logger';
 
 
 
-// ─── Surfboard colour palette (matches OnDemandRequestDrawer) ────────────────
+// --- Surfboard colour palette (matches OnDemandRequestDrawer) ----------------
 const SURFBOARD_COLORS = [
-  { fill: '#FCD34D', stroke: '#F59E0B' }, // Yellow — captain/you
+  { fill: '#FCD34D', stroke: '#F59E0B' }, // Yellow � captain/you
   { fill: '#22D3EE', stroke: '#0891B2' }, // Cyan
   { fill: '#F472B6', stroke: '#DB2777' }, // Pink
   { fill: '#A78BFA', stroke: '#7C3AED' }, // Purple
@@ -47,7 +47,7 @@ const SURFBOARD_COLORS = [
   { fill: '#60A5FA', stroke: '#2563EB' }, // Blue
 ];
 
-// ─── Surfboard + avatar compound component ───────────────────────────────────
+// --- Surfboard + avatar compound component -----------------------------------
 const SurfboardAvatar = ({ member, index, isCaptain, onRemove }) => {
   const board = SURFBOARD_COLORS[index % SURFBOARD_COLORS.length];
   return (
@@ -102,7 +102,7 @@ const SurfboardAvatar = ({ member, index, isCaptain, onRemove }) => {
   );
 };
 
-// ─── Empty seat (dashed surfboard) ──────────────────────────────────────────
+// --- Empty seat (dashed surfboard) ------------------------------------------
 const EmptySeat = ({ onClick }) => (
   <div className="relative group cursor-pointer flex flex-col items-center" onClick={onClick}>
     <svg viewBox="0 0 60 100" className="absolute left-1/2 -translate-x-1/2 top-2 w-12 h-20 pointer-events-none opacity-40 group-hover:opacity-60 transition-opacity">
@@ -118,7 +118,7 @@ const EmptySeat = ({ onClick }) => (
   </div>
 );
 
-// ─── Duration pills ──────────────────────────────────────────────────────────
+// --- Duration pills ----------------------------------------------------------
 const DURATIONS = [
   { value: 0.5, label: '30m' },
   { value: 1,   label: '1h'  },
@@ -126,14 +126,14 @@ const DURATIONS = [
   { value: 3,   label: '3h'  },
 ];
 
-// ─── Boost options ───────────────────────────────────────────────────────────
+// --- Boost options -----------------------------------------------------------
 const BOOST_OPTIONS = [
   { hours: 1, credits: 5,  label: '1h' },
   { hours: 2, credits: 10, label: '2h' },
   { hours: 4, credits: 20, label: '4h' },
 ];
 
-// ─── Main component ───────────────────────────────────────────────────────────
+// --- Main component -----------------------------------------------------------
 export const RequestProModal = ({
   isOpen,
   onClose,
@@ -143,7 +143,7 @@ export const RequestProModal = ({
   // Location
   userLocation,
   nearestSpot,
-  // On-demand photographers nearby (optional — pre-fetched by MapPage)
+  // On-demand photographers nearby (optional � pre-fetched by MapPage)
   onDemandPhotographers = [],
   onDemandLoading = false,
   // Callbacks
@@ -155,20 +155,20 @@ export const RequestProModal = ({
   const navigate = useNavigate();
   const { user: authUser, updateUser } = useAuth();
 
-  // ── Step flow: 'configure' → 'confirm' ─────────────────────────────────
+  // -- Step flow: 'configure' ? 'confirm' ---------------------------------
   const [step, setStep] = useState('configure');
 
-  // ── Photographer selection ──────────────────────────────────────────────
+  // -- Photographer selection ----------------------------------------------
   const [selectedPro, setSelectedPro]         = useState(null);
   const [proListExpanded, setProListExpanded] = useState(false);
 
-  // ── Scheduled start time ────────────────────────────────────────────────
+  // -- Scheduled start time ------------------------------------------------
   const [startTimeOption, setStartTimeOption] = useState(30);
 
-  // ── Session duration ────────────────────────────────────────────────────
+  // -- Session duration ----------------------------------------------------
   const [duration, setDuration] = useState(1);
 
-  // ── Crew / split state (mirrors OnDemandRequestDrawer) ─────────────────
+  // -- Crew / split state (mirrors OnDemandRequestDrawer) -----------------
   const [crewOpen, setCrewOpen]                   = useState(false);
   const [crewMembers, setCrewMembers]             = useState([]);
   const [showAddCrewInput, setShowAddCrewInput]   = useState(false);
@@ -177,15 +177,15 @@ export const RequestProModal = ({
   const [searchingFriends, setSearchingFriends]   = useState(false);
   const [showCaptainsHub, setShowCaptainsHub]     = useState(false);
 
-  // ── Boost ───────────────────────────────────────────────────────────────
+  // -- Boost ---------------------------------------------------------------
   const [boostHours, setBoostHours] = useState(0);
 
-  // ── Payment ─────────────────────────────────────────────────────────────
+  // -- Payment -------------------------------------------------------------
   const [paymentMethod, setPaymentMethod] = useState('card');
   const [localCredits, setLocalCredits]   = useState(0);
   const [creditsFetched, setCreditsFetched] = useState(false);
 
-  // ── Submission ──────────────────────────────────────────────────────────
+  // -- Submission ----------------------------------------------------------
   const [loading, setLoading] = useState(false);
 
   // Fetch credit balance when modal opens
@@ -232,7 +232,7 @@ export const RequestProModal = ({
     }
   }, [isOpen]);
 
-  // ── Pricing ─────────────────────────────────────────────────────────────
+  // -- Pricing -------------------------------------------------------------
   const hourlyRate       = selectedPro?.on_demand_hourly_rate || 75;
   const totalCost        = hourlyRate * duration;
   const totalParticipants = crewMembers.length + 1;
@@ -245,7 +245,7 @@ export const RequestProModal = ({
   );
   const captainPayAmount = totalCost - crewCoversAmount;
   const isShared         = crewMembers.length > 0;
-  // Full payment upfront (escrow) — we hold funds until session completion.
+  // Full payment upfront (escrow) � we hold funds until session completion.
   // For shared bookings: captain pays their share. Solo: captain pays full total.
   const depositAmount    = isShared ? captainPayAmount.toFixed(0) : totalCost.toFixed(0);
   const amountToCharge   = isShared ? captainPayAmount : totalCost;
@@ -253,7 +253,7 @@ export const RequestProModal = ({
     ? (captainPayAmount === 0 || localCredits >= captainPayAmount)
     : localCredits >= totalCost;
 
-  // ── Debounced user search for crew autocomplete ─────────────────────────
+  // -- Debounced user search for crew autocomplete -------------------------
   useEffect(() => {
     if (newCrewInput.length < 2) { setFriendSearchResults([]); return; }
     const tid = setTimeout(async () => {
@@ -268,7 +268,7 @@ export const RequestProModal = ({
     return () => clearTimeout(tid);
   }, [newCrewInput, userId, user?.id, crewMembers]);
 
-  // ── Crew helpers ─────────────────────────────────────────────────────────
+  // -- Crew helpers ---------------------------------------------------------
   const addCrewMember = useCallback((friend) => {
     const newTotal = crewMembers.length + 2;
     const share = totalCost / newTotal;
@@ -324,10 +324,10 @@ export const RequestProModal = ({
 
   const coverAll = () => {
     setCrewMembers(prev => prev.map(m => ({ ...m, share_amount: 0, covered_by_captain: true })));
-    toast.success("You're covering the whole crew! 🤙");
+    toast.success("You're covering the whole crew! ??");
   };
 
-  // ── Submit ───────────────────────────────────────────────────────────────
+  // -- Submit ---------------------------------------------------------------
   const handleSubmit = async () => {
     if (!userLocation) { toast.error('Location required to request a Pro'); return; }
     setLoading(true);
@@ -367,7 +367,7 @@ export const RequestProModal = ({
 
       // Step 2: Process payment based on selected method
       if (paymentMethod === 'credits') {
-        // Pay with credits — immediate confirmation
+        // Pay with credits � immediate confirmation
         const payResponse = await apiClient.post(`/dispatch/${dispatchId}/pay?payer_id=${uid}`);
 
         if (payResponse.data.remaining_credits !== undefined) {
@@ -378,16 +378,16 @@ export const RequestProModal = ({
         if (boostHours > 0) {
           try {
             await apiClient.post(`/dispatch/request/${dispatchId}/boost`, { boost_hours: boostHours });
-            toast.success(`🚀 Boosted! You'll appear first for ${boostHours}h`);
+            toast.success(`?? Boosted! You'll appear first for ${boostHours}h`);
             onBoostApplied?.();
           } catch (e) {
             toast.error(e.response?.data?.detail || 'Failed to boost');
           }
         }
 
-        toast.success('Payment confirmed! 🤙 Setting up your session...');
+        toast.success('Payment confirmed! ?? Setting up your session...');
         onClose();
-        // Navigate to full lobby page — has chat, waiting UI, selfie prompt
+        // Navigate to full lobby page � has chat, waiting UI, selfie prompt
         navigate(`/dispatch/${dispatchId}/lobby`, {
           state: {
             crewMembers,
@@ -397,7 +397,7 @@ export const RequestProModal = ({
           }
         });
       } else {
-        // Pay with card — redirect to Stripe Checkout
+        // Pay with card � redirect to Stripe Checkout
         const checkoutResponse = await apiClient.post('/dispatch/checkout', {
           dispatch_id: dispatchId,
           payer_id:    uid,
@@ -431,18 +431,18 @@ export const RequestProModal = ({
     }
   };
 
-  // ────────────────────────────────────────────────────────────────────────────
+  // ----------------------------------------------------------------------------
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent data-testid="request-pro-modal" 
         className={`${isDark ? 'bg-zinc-900 border-zinc-800 text-white' : 'bg-white border-gray-200 text-gray-900'} sm:max-w-md`}
         hideCloseButton={false}
       >
-        {/* ── STICKY HEADER ───────────────────────────────────────────────── */}
+        {/* -- STICKY HEADER ------------------------------------------------- */}
         <DialogHeader className={`border-b ${isDark ? 'border-zinc-800 bg-zinc-900' : 'border-gray-200 bg-white'}`}>
           <DialogTitle className="text-lg font-bold flex items-center gap-2">
             {step === 'confirm' && (
-              <button
+              <button aria-label="Previous"
                 onClick={() => setStep('configure')}
                 className={`p-1.5 rounded-lg ${isDark ? 'hover:bg-zinc-800' : 'hover:bg-gray-100'} transition-colors`}
               >
@@ -456,22 +456,22 @@ export const RequestProModal = ({
           </DialogTitle>
           <p className={`${isDark ? 'text-gray-400' : 'text-gray-500'} text-xs mt-0.5`}>
             {step === 'configure'
-              ? 'On-demand surf photographer — at your break within the hour'
+              ? 'On-demand surf photographer � at your break within the hour'
               : 'Review your session and choose payment method'}
           </p>
         </DialogHeader>
 
-        {/* ── SCROLLABLE BODY ─────────────────────────────────────────────── */}
+        {/* -- SCROLLABLE BODY ----------------------------------------------- */}
         <div className="modal-body px-4 sm:px-5 py-4 space-y-4">
 
         {step === 'configure' && (<>
 
-          {/* ── 1. Photographer selection ──────────────────────────────────── */}
+          {/* -- 1. Photographer selection ------------------------------------ */}
           <section className="space-y-2">
             <div className="flex items-center justify-between">
               <span className="text-sm font-medium text-gray-300">
                 {onDemandLoading
-                  ? 'Finding pros near you…'
+                  ? 'Finding pros near you�'
                   : onDemandPhotographers.length > 0
                     ? `${onDemandPhotographers.length} Pro${onDemandPhotographers.length > 1 ? 's' : ''} Nearby`
                     : 'No pros available right now'}
@@ -491,7 +491,7 @@ export const RequestProModal = ({
             ) : onDemandPhotographers.length > 0 ? (
               <div className="space-y-1.5">
                 {/* Auto-match pill */}
-                <button
+                <button aria-label="div"
                   onClick={() => setSelectedPro(null)}
                   className={`w-full px-3 py-2.5 rounded-xl flex items-center gap-3 transition-all ${
                     selectedPro === null
@@ -536,7 +536,7 @@ export const RequestProModal = ({
                       </p>
                       <p className="text-xs text-gray-400 flex items-center gap-1.5">
                         {pro.distance != null && <span>{pro.distance} mi</span>}
-                        <span>·</span>
+                        <span>�</span>
                         <span>${pro.on_demand_hourly_rate}/hr</span>
                       </p>
                     </div>
@@ -545,7 +545,7 @@ export const RequestProModal = ({
                 ))}
 
                 {onDemandPhotographers.length > 3 && (
-                  <button
+                  <button aria-label="Collapse"
                     onClick={() => setProListExpanded(v => !v)}
                     className="w-full py-1.5 text-xs text-cyan-400 hover:text-cyan-300 flex items-center justify-center gap-1 transition-colors"
                   >
@@ -561,7 +561,7 @@ export const RequestProModal = ({
             )}
           </section>
 
-          {/* ── 2. Location ────────────────────────────────────────────────── */}
+          {/* -- 2. Location -------------------------------------------------- */}
           <div className="flex items-center gap-2 px-3 py-2.5 bg-zinc-800/50 rounded-xl">
             <MapPin className="w-4 h-4 text-yellow-400 shrink-0" />
             <div className="min-w-0">
@@ -576,7 +576,7 @@ export const RequestProModal = ({
             </div>
           </div>
 
-          {/* ── 3. Scheduled arrival time ───────────────────────────────────── */}
+          {/* -- 3. Scheduled arrival time ------------------------------------- */}
           <div className="space-y-2">
             <label className="flex items-center gap-1.5 text-sm font-medium text-gray-300">
               <Clock className="w-4 h-4" />
@@ -608,7 +608,7 @@ export const RequestProModal = ({
             </div>
           </div>
 
-          {/* ── 4. Session duration ─────────────────────────────────────────── */}
+          {/* -- 4. Session duration ------------------------------------------- */}
           <div className="space-y-2">
             <label className="flex items-center gap-1.5 text-sm font-medium text-gray-300">
               <Clock className="w-4 h-4" />
@@ -631,7 +631,7 @@ export const RequestProModal = ({
             </div>
           </div>
 
-          {/* ── 5. Crew / Split — surfboard lineup ─────────────────────────── */}
+          {/* -- 5. Crew / Split � surfboard lineup --------------------------- */}
           <div className="bg-zinc-800/50 rounded-xl">
             {/* Toggle header */}
             <div className="flex items-center justify-between px-3 py-3">
@@ -640,7 +640,7 @@ export const RequestProModal = ({
                   <Users className="w-4 h-4 text-cyan-400" />
                   Invite Crew to Split
                 </p>
-                <p className="text-xs text-gray-400">10 min to accept · cost split equally</p>
+                <p className="text-xs text-gray-400">10 min to accept � cost split equally</p>
               </div>
               <button
                 onClick={() => setCrewOpen(v => !v)}
@@ -656,7 +656,7 @@ export const RequestProModal = ({
             {crewOpen && (
               <div className="border-t border-zinc-700">
 
-                {/* ── OCEAN / LINEUP VISUALIZATION ── */}
+                {/* -- OCEAN / LINEUP VISUALIZATION -- */}
                 <div className="relative p-4 bg-gradient-to-b from-cyan-900/30 via-blue-900/20 to-zinc-900 overflow-visible">
                   {/* Wave SVG background */}
                   <div className="absolute inset-0 opacity-20 overflow-hidden rounded-b-none">
@@ -674,7 +674,7 @@ export const RequestProModal = ({
 
                   {/* Surfboard arc */}
                   <div className="relative pt-6">
-                    {/* Captain (you) — top center */}
+                    {/* Captain (you) � top center */}
                     <div className="flex justify-center mb-2">
                       <SurfboardAvatar
                         member={{ name: user?.full_name || 'You', avatar_url: user?.avatar_url }}
@@ -719,11 +719,11 @@ export const RequestProModal = ({
                             <div className="absolute top-full left-0 right-0 mt-1 rounded-xl shadow-2xl border border-zinc-600 bg-zinc-800" style={{ zIndex: 9999 }}>
                               {searchingFriends && (
                                 <div className="p-3 flex items-center gap-2 text-sm text-gray-400">
-                                  <Loader2 className="w-4 h-4 animate-spin" /> Searching…
+                                  <Loader2 className="w-4 h-4 animate-spin" /> Searching�
                                 </div>
                               )}
                               {friendSearchResults.map(friend => (
-                                <button
+                                <button aria-label="div"
                                   key={friend.id}
                                   onClick={() => addCrewMember(friend)}
                                   className="w-full p-3 flex items-center gap-3 text-left hover:bg-zinc-700 transition-colors"
@@ -747,7 +747,7 @@ export const RequestProModal = ({
                             </div>
                           )}
                         </div>
-                        <button
+                        <button aria-label="Add"
                           onClick={() => newCrewInput.trim() && addCrewMember(null)}
                           disabled={!newCrewInput.trim()}
                           className="px-3 py-2 bg-cyan-500 hover:bg-cyan-600 disabled:opacity-40 text-black rounded-lg transition-colors"
@@ -765,11 +765,11 @@ export const RequestProModal = ({
                   )}
                 </div>
 
-                {/* ── CAPTAIN'S HUB (only when crew present) ── */}
+                {/* -- CAPTAIN'S HUB (only when crew present) -- */}
                 {crewMembers.length > 0 && (
                   <div className="p-3 space-y-3 bg-zinc-800/80">
                     {/* Captain's Hub toggle header */}
-                    <button
+                    <button aria-label="Award"
                       onClick={() => setShowCaptainsHub(v => !v)}
                       className="w-full flex items-center justify-between text-sm font-medium text-white"
                     >
@@ -796,13 +796,13 @@ export const RequestProModal = ({
                       <div className="space-y-3 pt-1 border-t border-zinc-700">
                         {/* Quick actions */}
                         <div className="flex gap-2">
-                          <button
+                          <button aria-label="Calculator"
                             onClick={distributeEvenly}
                             className="flex-1 flex items-center justify-center gap-1 px-3 py-2 rounded-lg bg-zinc-700 hover:bg-zinc-600 text-xs text-gray-200 transition-colors"
                           >
                             <Calculator className="w-3.5 h-3.5" /> Even Split
                           </button>
-                          <button
+                          <button aria-label="Wallet"
                             onClick={coverAll}
                             className="flex-1 flex items-center justify-center gap-1 px-3 py-2 rounded-lg bg-purple-500/20 hover:bg-purple-500/30 text-xs text-purple-300 border border-purple-500/30 transition-colors"
                           >
@@ -885,12 +885,12 @@ export const RequestProModal = ({
             )}
           </div>
 
-          {/* ── 6. Price breakdown ─────────────────────────────────────────── */}
+          {/* -- 6. Price breakdown ------------------------------------------- */}
           <div className={`${isDark ? 'bg-gradient-to-r from-cyan-900/30 to-blue-900/30 border-cyan-500/25' : 'bg-gradient-to-r from-cyan-50 to-blue-50 border-cyan-200'} rounded-xl border overflow-hidden`}>
             <div className="px-3 pt-3 pb-2 space-y-1.5">
               <div className="flex items-center justify-between text-sm">
                 <span className={isDark ? 'text-gray-400' : 'text-gray-500'}>Rate</span>
-                <span className={isDark ? 'text-white' : 'text-gray-900'}>${hourlyRate}/hr × {duration}h</span>
+                <span className={isDark ? 'text-white' : 'text-gray-900'}>${hourlyRate}/hr � {duration}h</span>
               </div>
               <div className="flex items-center justify-between text-sm">
                 <span className={isDark ? 'text-gray-400' : 'text-gray-500'}>Session Total</span>
@@ -911,7 +911,7 @@ export const RequestProModal = ({
             </div>
           </div>
 
-          {/* ── 7. Boost Your Request ───────────────────────────────────────── */}
+          {/* -- 7. Boost Your Request ----------------------------------------- */}
           <div className="bg-gradient-to-r from-orange-900/30 to-red-900/25 rounded-xl border border-orange-500/25 p-3 space-y-2.5">
             <div className="flex items-center gap-2">
               <Zap className="w-4 h-4 text-orange-400" />
@@ -936,14 +936,14 @@ export const RequestProModal = ({
             </div>
             {boostHours > 0 && (
               <p className="text-xs text-orange-300/80">
-                🚀 Your request will appear first to all pros for {boostHours} hour{boostHours > 1 ? 's' : ''}
+                ?? Your request will appear first to all pros for {boostHours} hour{boostHours > 1 ? 's' : ''}
               </p>
             )}
           </div>
 
         </>)}
 
-        {/* ── CONFIRM & PAY STEP ──────────────────────────────────────────── */}
+        {/* -- CONFIRM & PAY STEP -------------------------------------------- */}
         {step === 'confirm' && (<>
 
           {/* Session Summary Card */}
@@ -1000,7 +1000,7 @@ export const RequestProModal = ({
             <div className="px-3 pt-3 pb-2 space-y-1.5">
               <div className="flex items-center justify-between text-sm">
                 <span className={isDark ? 'text-gray-400' : 'text-gray-500'}>Rate</span>
-                <span className={isDark ? 'text-white' : 'text-gray-900'}>${hourlyRate}/hr × {duration}h</span>
+                <span className={isDark ? 'text-white' : 'text-gray-900'}>${hourlyRate}/hr � {duration}h</span>
               </div>
               <div className="flex items-center justify-between text-sm">
                 <span className={isDark ? 'text-gray-400' : 'text-gray-500'}>Session Total</span>
@@ -1026,7 +1026,7 @@ export const RequestProModal = ({
             <p className={`text-sm font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>Payment Method</p>
 
             {localCredits > 0 && (
-              <button
+              <button aria-label="div"
                 onClick={() => setPaymentMethod('credits')}
                 className={`w-full p-4 rounded-xl border-2 flex items-center justify-between transition-all ${
                   paymentMethod === 'credits'
@@ -1052,7 +1052,7 @@ export const RequestProModal = ({
               </button>
             )}
 
-            <button
+            <button aria-label="div"
               onClick={() => setPaymentMethod('card')}
               className={`w-full p-4 rounded-xl border-2 flex items-center justify-between transition-all ${
                 paymentMethod === 'card'
@@ -1086,7 +1086,7 @@ export const RequestProModal = ({
 
         </div>
 
-        {/* ── STICKY FOOTER ───────────────────────────────────────────────── */}
+        {/* -- STICKY FOOTER ------------------------------------------------- */}
         <DialogFooter className={`${isDark ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-gray-200'} gap-2`}>
           <Button
             variant="outline"
@@ -1097,7 +1097,7 @@ export const RequestProModal = ({
           </Button>
 
           {step === 'configure' && (
-            <Button
+            <Button aria-label="Previous"
               onClick={() => setStep('confirm')}
               disabled={!userLocation}
               className="bg-gradient-to-r from-cyan-400 to-blue-500 text-black font-bold flex-1 sm:flex-none disabled:opacity-50"
@@ -1108,7 +1108,7 @@ export const RequestProModal = ({
           )}
 
           {step === 'confirm' && (
-            <Button
+            <Button aria-label="Loader2"
               onClick={handleSubmit}
               disabled={loading || !userLocation || (paymentMethod === 'credits' && !hasEnoughCredits)}
               className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-black font-bold flex-1 sm:flex-none disabled:opacity-50"

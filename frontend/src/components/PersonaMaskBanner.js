@@ -72,7 +72,7 @@ const PersonaMaskBanner = () => {
   
   const currentRoleInfo = activePersona 
     ? getExpandedRoleInfo(activePersona) 
-    : { icon: '🔴', label: 'God Mode', color: 'text-red-500' };
+    : { icon: '??', label: 'God Mode', color: 'text-red-500' };
 
   const handleSelectPersona = (personaId) => {
     if (personaId !== 'God') {
@@ -128,7 +128,7 @@ const PersonaMaskBanner = () => {
           !activePersona ? 'bg-zinc-800 border-l-2 border-red-400' : ''
         }`}
       >
-        <span className="text-xl">🔴</span>
+        <span className="text-xl">??</span>
         <div className="flex-1 text-left">
           <span className="text-white font-medium">God Mode (Default)</span>
           <p className="text-gray-500 text-xs">Full admin access</p>
@@ -205,7 +205,7 @@ const PersonaMaskBanner = () => {
               data-testid="persona-mask-banner-mobile"
             >
               {/* Eye Icon - Click to MINIMIZE */}
-              <button
+              <button aria-label="View"
                 onClick={() => setIsMobileMinimized(true)}
                 className="w-9 h-9 rounded-full flex items-center justify-center hover:bg-black/10"
                 data-testid="persona-mask-minimize-btn"
@@ -215,7 +215,7 @@ const PersonaMaskBanner = () => {
               
               {/* Persona Info - Click to open sheet */}
               <SheetTrigger asChild>
-                <button className="flex items-center gap-1.5 pr-3">
+                <button aria-label="Expand" className="flex items-center gap-1.5 pr-3">
                   <span className="text-lg">{currentRoleInfo.icon}</span>
                   <span className="text-black font-bold text-xs whitespace-nowrap">{currentRoleInfo.label.toUpperCase()}</span>
                   <ChevronDown className="w-3.5 h-3.5 text-black" />
@@ -245,7 +245,7 @@ const PersonaMaskBanner = () => {
       <div className="hidden md:block">
         {isDesktopMinimized ? (
           /* MINIMIZED: Small icon tab in top-left corner */
-          <button
+          <button aria-label="View"
             onClick={() => setIsDesktopMinimized(false)}
             className="fixed top-2 left-2 z-[9999] w-9 h-9 rounded-full shadow-lg flex items-center justify-center border-2 border-white/30"
             style={{ 
@@ -289,7 +289,7 @@ const PersonaMaskBanner = () => {
               </div>
               
               {/* Minimize button */}
-              <button
+              <button aria-label="Minimize2"
                 onClick={() => setIsDesktopMinimized(true)}
                 className="ml-2 p-1.5 bg-black/20 hover:bg-black/30 rounded-full transition-colors"
                 title="Minimize God Mode bar"

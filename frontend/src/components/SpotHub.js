@@ -270,9 +270,9 @@ const PhotographerRequestModal = ({ isOpen, onClose, spot, spotId, onSuccess }) 
   const [isSubmitting, setIsSubmitting] = useState(false);
   
   const urgencyOptions = [
-    { id: 'now', label: 'Right Now', emoji: 'ðŸš¨', description: 'ASAP (expires in 2 hours)' },
-    { id: 'today', label: 'Today', emoji: 'ðŸ“¸', description: 'Within the day (expires in 12 hours)' },
-    { id: 'flexible', label: 'Flexible', emoji: 'ðŸ“·', description: 'Anytime works (expires in 3 days)' }
+    { id: 'now', label: 'Right Now', emoji: '??', description: 'ASAP (expires in 2 hours)' },
+    { id: 'today', label: 'Today', emoji: '??', description: 'Within the day (expires in 12 hours)' },
+    { id: 'flexible', label: 'Flexible', emoji: '??', description: 'Anytime works (expires in 3 days)' }
   ];
   
   const timeOptions = ['Dawn Patrol', 'Morning', 'Midday', 'Afternoon', 'Sunset', 'Flexible'];
@@ -428,7 +428,7 @@ const PhotographerRequestModal = ({ isOpen, onClose, spot, spotId, onSuccess }) 
         </div>
         
         {/* Submit Button */}
-        <Button
+        <Button aria-label="Loader2"
           onClick={handleSubmit}
           disabled={isSubmitting}
           className="w-full mt-4 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-bold py-3"
@@ -497,7 +497,7 @@ const SpotHub = () => {
   // Lightbox state for condition report media
   const [lightboxUrl, setLightboxUrl] = useState(null);
   
-  // Intelligence state â€” crowd prediction + optimal time
+  // Intelligence state — crowd prediction + optimal time
   const [crowdPrediction, setCrowdPrediction] = useState(null);
   const [optimalTime, setOptimalTime] = useState(null);
   const [intelLoading, setIntelLoading] = useState(false);
@@ -568,7 +568,7 @@ const SpotHub = () => {
     // eslint-disable-next-line
   }, [spotId, user?.id]);
   
-  // IntersectionObserver for collapsible header â€” detects when hero scrolls out of view
+  // IntersectionObserver for collapsible header — detects when hero scrolls out of view
   useEffect(() => {
     const heroEl = heroRef.current;
     if (!heroEl) return;
@@ -632,7 +632,7 @@ const SpotHub = () => {
     }
   };
 
-  // Fetch intelligence data (crowd prediction + optimal time) â€” only when Intel tab is opened
+  // Fetch intelligence data (crowd prediction + optimal time) — only when Intel tab is opened
   const fetchIntelData = async () => {
     if (!spotId || crowdPrediction) return; // Don't refetch if already loaded
     setIntelLoading(true);
@@ -667,7 +667,7 @@ const SpotHub = () => {
       if (res.data?.message === 'Already reported') {
         toast.info('You have already reported this content');
       } else {
-        toast.success('Report submitted â€” our team will review it');
+        toast.success('Report submitted — our team will review it');
       }
     } catch (error) {
       const detail = error?.response?.data?.detail;
@@ -748,7 +748,7 @@ const SpotHub = () => {
 
   return (
     <div className={`max-w-xl mx-auto pb-4 ${isLight ? 'bg-gray-50/50 min-h-screen' : ''}`}>
-      {/* ===== COMPACT STICKY BAR â€” appears when hero scrolls out ===== */}
+      {/* ===== COMPACT STICKY BAR — appears when hero scrolls out ===== */}
       <div 
         className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ease-out ${
           isHeroVisible 
@@ -762,7 +762,7 @@ const SpotHub = () => {
               ? 'bg-white/90 border-gray-200 shadow-sm' 
               : 'bg-zinc-900/95 border-zinc-800 shadow-lg shadow-black/20'
           }`}>
-            <button 
+            <button aria-label="Previous" 
               onClick={handleClose}
               className={`p-1.5 rounded-full transition-colors ${
                 isLight ? 'hover:bg-gray-100 text-gray-700' : 'hover:bg-zinc-800 text-gray-300'
@@ -787,9 +787,9 @@ const SpotHub = () => {
         </div>
       </div>
 
-      {/* ===== FULL HERO HEADER â€” scrolls away naturally ===== */}
+      {/* ===== FULL HERO HEADER — scrolls away naturally ===== */}
       <div ref={heroRef} className="relative overflow-hidden min-h-[180px] flex items-end">
-        {/* Background: try spot image â†’ map â†’ gradient */}
+        {/* Background: try spot image ? map ? gradient */}
         <div className="absolute inset-0">
           <img loading="lazy" decoding="async" 
             src={spot.image_url || (spot.longitude && spot.latitude ? `https://static-maps.yandex.ru/1.x/?lang=en_US&ll=${spot.longitude},${spot.latitude}&z=12&l=sat&size=400,300` : '')}
@@ -800,7 +800,7 @@ const SpotHub = () => {
               e.target.style.display = 'none';
             }}
           />
-          {/* Gradient base layer behind img â€” always visible as ultimate fallback */}
+          {/* Gradient base layer behind img — always visible as ultimate fallback */}
           <div className="absolute inset-0 bg-gradient-to-br from-cyan-700 to-blue-900 -z-10" />
         </div>
         {/* Dark gradient overlay to guarantee text legibility */}
@@ -903,7 +903,7 @@ const SpotHub = () => {
             {/* Book Now CTA */}
             {livePulse.live_photographers.length > 0 && (
               <div className="mt-2 pt-2 border-t border-red-500/20">
-                <button
+                <button aria-label="Zap"
                   onClick={() => {
                     const firstPhotographer = livePulse.live_photographers[0];
                     navigate(`/bookings?tab=live_now&photographer=${firstPhotographer.photographer_id}&spot=${spotId}`);
@@ -965,7 +965,7 @@ const SpotHub = () => {
                       <p className={`text-sm ${textSecondary}`}>Hidden Photographer</p>
                       <p className="text-[10px] text-purple-400">Upgrade to view</p>
                     </div>
-                    <Button 
+                    <Button aria-label="Crown" 
                       size="sm" 
                       onClick={() => navigate('/settings?tab=billing')}
                       className="text-[10px] bg-purple-500/20 hover:bg-purple-500/30 text-purple-400 h-7 px-2"
@@ -1022,7 +1022,7 @@ const SpotHub = () => {
                       </span>
                     </div>
                   </div>
-                  {/* Context-aware pricing: on-demand â†’ hourly rate, live â†’ session price, scheduled â†’ booking rate */}
+                  {/* Context-aware pricing: on-demand ? hourly rate, live ? session price, scheduled ? booking rate */}
                   {(() => {
                     const isOnDemand = photographer.status === 'on_demand' || photographer.is_on_demand;
                     const isLive = photographer.status === 'live_shooting' || photographer.is_shooting;
@@ -1078,7 +1078,7 @@ const SpotHub = () => {
           {/* Upgrade prompt for free/paid users - only show if NOT within proximity */}
           {!isWithinProximity && userTier !== 'premium' && activePhotographers.length > (userTier === 'free' ? 1 : 3) && (
             <div className="mt-2 pt-2 border-t border-zinc-700">
-              <button 
+              <button aria-label="Crown" 
                 onClick={() => navigate('/settings?tab=billing')}
                 className="w-full flex items-center justify-center gap-1 text-xs text-purple-400 hover:text-purple-300"
               >
@@ -1130,7 +1130,7 @@ const SpotHub = () => {
               >
                 <Compass className="w-4 h-4 mx-auto text-emerald-400 mb-0.5" />
               </div>
-              <p className={`text-lg font-bold ${textPrimary}`}>{currentConditions.wave_direction || '-'}Â°</p>
+              <p className={`text-lg font-bold ${textPrimary}`}>{currentConditions.wave_direction || '-'}°</p>
               <p className={`text-[10px] ${textSecondary}`}>Direction</p>
             </div>
             <div className="text-center">
@@ -1151,7 +1151,7 @@ const SpotHub = () => {
               {forecastDaysAllowed}-Day Forecast (Tomorrow onwards)
             </span>
             {userTier !== 'premium' && (
-              <button 
+              <button aria-label="Crown" 
                 onClick={() => navigate('/settings?tab=billing')}
                 className="text-[10px] text-purple-400 flex items-center gap-1"
               >
@@ -1230,7 +1230,7 @@ const SpotHub = () => {
                           {report.conditions_label}
                         </Badge>
                       )}
-                      <button
+                      <button aria-label="Report"
                         onClick={(e) => { e.stopPropagation(); handleReportConditionReport(report.id); }}
                         className={`p-1.5 rounded-full transition-colors ${isLight ? 'hover:bg-red-50 text-gray-400 hover:text-red-500' : 'hover:bg-red-500/10 text-gray-600 hover:text-red-400'}`}
                         title="Report this content"
@@ -1239,9 +1239,9 @@ const SpotHub = () => {
                         <Flag className="w-3.5 h-3.5" />
                       </button>
                     </div>
-                    {/* Captured timestamp â€” exact time the media was shot */}
+                    {/* Captured timestamp — exact time the media was shot */}
                     <p className={`text-xs mt-1.5 ${textSecondary}`}>
-                      Captured {new Date(report.created_at).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })} at {new Date(report.created_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true })} â€” {report.spot_name || spot?.name || 'Unknown Spot'}
+                      Captured {new Date(report.created_at).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })} at {new Date(report.created_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true })} — {report.spot_name || spot?.name || 'Unknown Spot'}
                     </p>
                     <div className="flex items-center gap-3 mt-1.5">
                       {report.wave_height_ft && (
@@ -1424,7 +1424,7 @@ const SpotHub = () => {
           </div>
         )}
 
-        {/* Intelligence Tab â€” Crowd Prediction + Optimal Time */}
+        {/* Intelligence Tab — Crowd Prediction + Optimal Time */}
         {activeTab === 'intel' && (
           <div className="space-y-4">
             {intelLoading ? (
@@ -1483,7 +1483,7 @@ const SpotHub = () => {
                   </div>
                 )}
 
-                {/* Optimal Time â€” No Data State */}
+                {/* Optimal Time — No Data State */}
                 {optimalTime && !optimalTime.has_data && (
                   <div className={`p-4 rounded-xl border ${isLight ? 'bg-gray-50 border-gray-200' : 'bg-zinc-800/40 border-zinc-700'}`}>
                     <div className="flex items-center gap-2 mb-2">
@@ -1494,7 +1494,7 @@ const SpotHub = () => {
                   </div>
                 )}
 
-                {/* Crowd Prediction â€” Current Level */}
+                {/* Crowd Prediction — Current Level */}
                 {crowdPrediction && crowdPrediction.current_prediction && (
                   <div className={`p-4 rounded-xl border ${isLight ? 'bg-white border-gray-200' : 'bg-zinc-800/60 border-zinc-700'}`}>
                     <div className="flex items-center gap-2 mb-3">
@@ -1546,7 +1546,7 @@ const SpotHub = () => {
                   </div>
                 )}
 
-                {/* Surf Log CTA â€” Help build accurate intel */}
+                {/* Surf Log CTA — Help build accurate intel */}
                 <div 
                   className={`p-3.5 rounded-xl border cursor-pointer group transition-all ${
                     isLight 

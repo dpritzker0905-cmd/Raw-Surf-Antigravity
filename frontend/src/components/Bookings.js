@@ -129,7 +129,7 @@ const InviteModalContent = ({ booking, user, isLight, textPrimaryClass, textSeco
     <div className="py-4 space-y-4">
       {/* Tab Switcher */}
       <div className="flex border-b border-zinc-700">
-        <button
+        <button aria-label="At Sign"
           onClick={() => setActiveTab('handle')}
           className={`flex-1 py-2 text-sm font-medium flex items-center justify-center gap-2 transition-colors ${
             activeTab === 'handle' 
@@ -140,7 +140,7 @@ const InviteModalContent = ({ booking, user, isLight, textPrimaryClass, textSeco
           <AtSign className="w-4 h-4" />
           Invite by Name
         </button>
-        <button
+        <button aria-label="Copy"
           onClick={() => setActiveTab('code')}
           className={`flex-1 py-2 text-sm font-medium flex items-center justify-center gap-2 transition-colors ${
             activeTab === 'code' 
@@ -218,7 +218,7 @@ const InviteModalContent = ({ booking, user, isLight, textPrimaryClass, textSeco
                       </div>
                     </div>
                     
-                    <Button
+                    <Button aria-label="Loader2"
                       size="sm"
                       onClick={() => handleInviteByHandle(result)}
                       disabled={inviting === result.user_id || alreadySent}
@@ -259,7 +259,7 @@ const InviteModalContent = ({ booking, user, isLight, textPrimaryClass, textSeco
           {sentInvites.length > 0 && (
             <div className={`p-3 rounded-lg ${isLight ? 'bg-green-50' : 'bg-green-500/10'} border ${isLight ? 'border-green-200' : 'border-green-500/30'}`}>
               <p className={`text-sm ${isLight ? 'text-green-700' : 'text-green-400'}`}>
-                ✓ {sentInvites.length} invite{sentInvites.length > 1 ? 's' : ''} sent! They'll receive a notification.
+                ? {sentInvites.length} invite{sentInvites.length > 1 ? 's' : ''} sent! They'll receive a notification.
               </p>
             </div>
           )}
@@ -280,7 +280,7 @@ const InviteModalContent = ({ booking, user, isLight, textPrimaryClass, textSeco
                   <span className={`font-mono text-2xl font-bold tracking-widest ${textPrimaryClass}`}>
                     {booking.invite_code}
                   </span>
-                  <Button
+                  <Button aria-label="Copy"
                     variant="ghost"
                     size="sm"
                     onClick={() => onCopyCode(booking.invite_code)}
@@ -382,7 +382,7 @@ export const Bookings = () => {
         const btnLeft = activeBtn.offsetLeft;
         const btnWidth = activeBtn.offsetWidth;
         const targetScroll = btnLeft - (stripWidth / 2) + (btnWidth / 2);
-        // Always instant scroll — the sliding indicator CSS transition provides
+        // Always instant scroll � the sliding indicator CSS transition provides
         // the smooth visual feedback. Smooth scroll + indicator transition together
         // create competing animations that look like "spinning".
         tabStrip.scrollTo({ left: targetScroll, behavior: 'instant' });
@@ -421,8 +421,8 @@ export const Bookings = () => {
       }
       tag.setAttribute('content', content);
     };
-    document.title = 'Bookings — Raw Surf';
-    setMeta('og:title', 'Bookings — Raw Surf');
+    document.title = 'Bookings � Raw Surf';
+    setMeta('og:title', 'Bookings � Raw Surf');
     setMeta('og:description', 'Book surf photography sessions, find live photographers, and manage your upcoming shoots on Raw Surf.');
     setMeta('og:url', `${window.location.origin}/bookings`);
     setMeta('og:type', 'website');
@@ -592,7 +592,7 @@ export const Bookings = () => {
           
           
           if (response.data.success) {
-            toast.success(`You're in the session with ${response.data.photographer_name || 'the photographer'}! 🏄`, { duration: 5000 });
+            toast.success(`You're in the session with ${response.data.photographer_name || 'the photographer'}! ??`, { duration: 5000 });
             // Switch to live_sessions tab to show the active session
             setActiveTab('live_sessions');
             // Refresh live sessions
@@ -666,7 +666,7 @@ export const Bookings = () => {
       // Past live session history (completed/left live sessions)
       setSessionHistory(historyRes.status === 'fulfilled' ? (historyRes.value.data || []) : []);
       
-      // Fetch nearby splittable bookings (if user has location) — kept async since geolocation is callback-based
+      // Fetch nearby splittable bookings (if user has location) � kept async since geolocation is callback-based
       try {
         if (navigator.geolocation) {
           navigator.geolocation.getCurrentPosition(async (position) => {
@@ -780,10 +780,10 @@ export const Bookings = () => {
     };
 
     if (crewInvites.length > 0) {
-      // Already loaded — open immediately
+      // Already loaded � open immediately
       tryOpen(crewInvites);
     } else {
-      // Race condition: invites not loaded yet — fetch directly and open
+      // Race condition: invites not loaded yet � fetch directly and open
       apiClient.get(`/dispatch/user/${user?.id}/crew-invites`)
         .then(res => {
           const fresh = res.data?.crew_invites || [];
@@ -860,7 +860,7 @@ export const Bookings = () => {
             setOnDemandLoading(false);
           },
           (_error) => {
-            // GPS denied/unavailable — show manual location selector
+            // GPS denied/unavailable � show manual location selector
             setGpsUnavailable(true);
             setOnDemandLoading(false);
           }
@@ -931,7 +931,7 @@ export const Bookings = () => {
     setShowInviteModal(true);
   };
 
-  // ─── Date-based booking lifecycle helper ────────────────────────────────────
+  // --- Date-based booking lifecycle helper ------------------------------------
   // A booking is "past" if its session_date + duration has elapsed.
   // This catches sessions the photographer never explicitly ended.
   const isBookingPast = (b) => {
@@ -943,10 +943,10 @@ export const Bookings = () => {
 
   const LOBBY_PHASE = ['open', 'filling', 'ready'];
 
-  // ─── Derived lists ─────────────────────────────────────────────────────────
+  // --- Derived lists ---------------------------------------------------------
   // Scheduled = future confirmed/pending bookings only
   const scheduledBookings = bookings.filter(b => {
-    if (isBookingPast(b)) return false; // past-dated → Past tab
+    if (isBookingPast(b)) return false; // past-dated ? Past tab
     if (b.status === 'Confirmed') return true;
     if (b.status === 'Pending' && LOBBY_PHASE.includes(b.lineup_status)) return false;
     return b.status === 'Pending';
@@ -992,7 +992,7 @@ export const Bookings = () => {
             Sessions & Bookings
           </h1>
           <div className="flex items-center gap-2">
-            <Button
+            <Button aria-label="Search"
               onClick={() => setActiveTab('directory')}
               size="sm"
               className="bg-gradient-to-r from-yellow-500 to-amber-500 hover:from-yellow-600 hover:to-amber-600 text-black font-semibold"
@@ -1000,7 +1000,7 @@ export const Bookings = () => {
               <Search className="w-4 h-4 mr-1.5" />
               Find Photogs
             </Button>
-            <Button
+            <Button aria-label="User Plus"
               onClick={() => setShowJoinCodeModal(true)}
               variant="outline"
               size="sm"
@@ -1037,7 +1037,7 @@ export const Bookings = () => {
         )}
 
 
-        {/* Tabs — scrolls with content */}
+        {/* Tabs � scrolls with content */}
         <div
           ref={stickyTabRef}
           className="relative z-10"
@@ -1049,7 +1049,7 @@ export const Bookings = () => {
           <div className="relative">
             {/* Scrollable tab strip with orange underline indicator */}
             <div
-              ref={tabScrollRef}
+              ref={tabScrollRef} role="tablist" aria-label="Booking sections"
               onScroll={updateArrows}
               onMouseDown={(e) => {
                 isDraggingRef.current = true;
@@ -1098,6 +1098,8 @@ export const Bookings = () => {
                       marginBottom: '-1px',
                     }}
                     data-testid={`tab-${tab.id}`}
+                    role="tab"
+                    aria-selected={isActive}
                   >
                     <Icon className="w-4 h-4" />
                     {tab.label}
@@ -1213,7 +1215,7 @@ export const Bookings = () => {
               const nextIdx = goingLeft ? currentIdx + 1 : currentIdx - 1;
 
               if (nextIdx >= 0 && nextIdx < tabIds.length) {
-                // Simple instant switch — no multi-stage animation
+                // Simple instant switch � no multi-stage animation
                 setActiveTab(tabIds[nextIdx]);
                 return;
               }

@@ -1,5 +1,5 @@
-﻿/**
- * BookingConfirmation — Success confirmation modal after booking.
+/**
+ * BookingConfirmation � Success confirmation modal after booking.
  * Shows booking details, next steps, and cross-sell suggestions.
  * 
  * Extracted from ScheduledBookingDrawer.js for maintainability.
@@ -26,7 +26,7 @@ const CrossSellSuggestion = ({ type, _photographerName, onAction, isLight }) => 
             <p className={`font-medium ${textPrimary}`}>Can't Wait?</p>
             <p className={`text-sm ${textSecondary}`}>Check if photographers are live NOW</p>
           </div>
-          <Button
+          <Button aria-label="Zap"
             size="sm"
             onClick={() => onAction('live_now')}
             className="bg-green-500 hover:bg-green-600 text-black"
@@ -133,7 +133,7 @@ const BookingConfirmation = ({
       
       {/* Actions */}
       <div className="flex flex-col gap-3">
-        <Button
+        <Button aria-label="Location"
           onClick={onAddAnotherSpot}
           className="w-full bg-gradient-to-r from-cyan-400 to-blue-500 hover:from-cyan-500 hover:to-blue-600 text-black font-bold"
           data-testid="add-another-spot-btn"

@@ -516,7 +516,7 @@ const ImpactZonePicker = ({
             {userCoords ? 'GPS Active' : gpsError ? 'GPS Unavailable' : 'Use My Location'}
           </span>
           {userCoords && nearbySpots.length > 0 && (
-            <span className="text-[10px] text-green-400 ml-2">• {nearbySpots.length} spots found</span>
+            <span className="text-[10px] text-green-400 ml-2">� {nearbySpots.length} spots found</span>
           )}
         </div>
         {userCoords && <Check className="w-4 h-4 text-green-400" />}
@@ -524,7 +524,7 @@ const ImpactZonePicker = ({
       
       {/* GPS Fallback - Browse Spots Manually */}
       {(gpsError || (!userCoords && !showBrowseSpots)) && (
-        <Button
+        <Button aria-label="Loader2"
           variant="outline"
           onClick={handleBrowseSpots}
           disabled={spotsLoading || locationLoading}
@@ -683,7 +683,7 @@ const ImpactZonePicker = ({
               <p className={textSecondary}>
                 {travelSurcharges.filter(t => t.surcharge > 0).slice(0, 3).map(t => 
                   `${t.min_miles}-${t.max_miles}mi: +$${t.surcharge}`
-                ).join(' • ')}
+                ).join(' � ')}
               </p>
             </div>
           </div>
@@ -812,7 +812,7 @@ const ImpactZonePicker = ({
           {/* Show more button */}
           {filteredSpots.length > 6 && (
             <button 
-              onClick={() => setShowAllSpots(!showAllSpots)}
+              aria-expanded={showAllSpots} onClick={() => setShowAllSpots(!showAllSpots)}
               className={`w-full text-center text-[10px] text-cyan-400 hover:underline py-1`}
             >
               {showAllSpots ? 'Show less' : `Show all ${filteredSpots.length} spots`}
@@ -995,9 +995,9 @@ const _AccountCreditSection = ({
           <div className={`text-xs ${isLight ? 'text-amber-700' : 'text-amber-300'}`}>
             <strong>Cancellation Policy:</strong>
             <ul className="mt-1 ml-2 space-y-0.5">
-              <li>• More than 48hrs before: 90% refund</li>
-              <li>• 24-48hrs before: 50% refund</li>
-              <li>• Less than 24hrs: No refund</li>
+              <li>� More than 48hrs before: 90% refund</li>
+              <li>� 24-48hrs before: 50% refund</li>
+              <li>� Less than 24hrs: No refund</li>
             </ul>
             <p className="mt-1">Refunds go to your Account Credit balance.</p>
           </div>
@@ -1012,7 +1012,7 @@ const _AccountCreditSection = ({
 // SHARED SURFBOARD VISUALIZATION (mirrored from OnDemandRequestDrawer)
 // ====================================================================
 const SCHED_BOARD_COLORS = [
-  { fill: '#FCD34D', stroke: '#F59E0B' }, // Yellow — captain
+  { fill: '#FCD34D', stroke: '#F59E0B' }, // Yellow � captain
   { fill: '#22D3EE', stroke: '#0891B2' }, // Cyan
   { fill: '#F472B6', stroke: '#DB2777' }, // Pink
   { fill: '#A78BFA', stroke: '#7C3AED' }, // Purple
@@ -1191,7 +1191,7 @@ const CrewSplitSection = ({
 
   return (
     <div className="space-y-4">
-      {/* ── Split Toggle ── */}
+      {/* -- Split Toggle -- */}
       <div className={`flex items-center justify-between p-4 rounded-xl border transition-all ${
         enabled
           ? isLight ? 'bg-cyan-50 border-cyan-200' : 'bg-cyan-500/10 border-cyan-500/30'
@@ -1204,7 +1204,7 @@ const CrewSplitSection = ({
           <div>
             <p className={`font-medium ${textPrimary}`}>Split with Crew?</p>
             <p className={`text-sm ${textSecondary}`}>
-              {enabled ? `${totalCrew} surfers • you pay $${captainActualPay.toFixed(2)}` : 'Share the cost with friends'}
+              {enabled ? `${totalCrew} surfers � you pay $${captainActualPay.toFixed(2)}` : 'Share the cost with friends'}
             </p>
           </div>
         </div>
@@ -1214,7 +1214,7 @@ const CrewSplitSection = ({
       {enabled && (
         <div className="space-y-4">
 
-          {/* ── Ocean / Surfboard Viz ── */}
+          {/* -- Ocean / Surfboard Viz -- */}
           <div className={`relative p-4 rounded-2xl overflow-visible ${
             isLight
               ? 'bg-gradient-to-b from-cyan-100 via-blue-50 to-white'
@@ -1261,7 +1261,7 @@ const CrewSplitSection = ({
             </div>
           </div>
 
-          {/* ── Per-Member Coverage Sliders ── */}
+          {/* -- Per-Member Coverage Sliders -- */}
           {crewMembers.length > 0 && (
             <div className="space-y-3">
               <div className="flex items-center justify-between">
@@ -1329,7 +1329,7 @@ const CrewSplitSection = ({
                       </div>
                     </div>
 
-                    {/* % Slider — how much captain covers of this member's share */}
+                    {/* % Slider � how much captain covers of this member's share */}
                     <div>
                       <div className="flex items-center justify-between mb-1">
                         <span className={`text-xs ${textSecondary}`}>
@@ -1364,10 +1364,10 @@ const CrewSplitSection = ({
             </div>
           )}
 
-          {/* ── Search / Add Crew ── */}
+          {/* -- Search / Add Crew -- */}
           <div className="space-y-2">
             {!showSearch ? (
-              <button
+              <button aria-label="User Plus"
                 onClick={() => setShowSearch(true)}
                 className={`w-full flex items-center gap-2 p-3 rounded-xl border-2 border-dashed ${
                   isLight ? 'border-cyan-300 text-cyan-600' : 'border-cyan-500/40 text-cyan-400'
@@ -1407,7 +1407,7 @@ const CrewSplitSection = ({
                     isLight ? 'border-gray-200 bg-white' : 'border-zinc-700 bg-zinc-900'
                   } max-h-48 overflow-y-auto shadow-xl`}>
                     {searchResults.map((result) => (
-                      <button
+                      <button aria-label="div"
                         key={result.id}
                         onClick={() => addMember(result)}
                         className={`w-full flex items-center gap-3 p-3 hover:${
@@ -1434,13 +1434,13 @@ const CrewSplitSection = ({
             )}
           </div>
 
-          {/* ── Quick Add Pills (Recent / Following) ── */}
+          {/* -- Quick Add Pills (Recent / Following) -- */}
           {suggestions.length > 0 && searchQuery.length < 2 && (
             <div className="space-y-2">
               <Label className={textSecondary}>Quick Add</Label>
               <div className="flex flex-wrap gap-2">
                 {suggestions.map((person) => (
-                  <button
+                  <button aria-label="div"
                     key={person.id}
                     onClick={() => addMember(person)}
                     className={`flex items-center gap-2 px-3 py-2 rounded-full ${cardBg} hover:ring-2 ring-cyan-500/50 transition-all`}
@@ -1460,7 +1460,7 @@ const CrewSplitSection = ({
             </div>
           )}
 
-          {/* ── Saved Crews ── */}
+          {/* -- Saved Crews -- */}
           <SavedCrewSelector
             onSelect={(members) => {
               onCrewChange(members.map(m => ({
@@ -1478,7 +1478,7 @@ const CrewSplitSection = ({
             compact={true}
           />
 
-          {/* ── Split Summary ── */}
+          {/* -- Split Summary -- */}
           <div className={`p-4 rounded-xl ${
             isLight
               ? 'bg-gradient-to-r from-cyan-50 to-blue-50'
@@ -1565,7 +1565,7 @@ const CrossSellSuggestion = ({ type, _photographerName, onAction, isLight }) => 
             <p className={`font-medium ${textPrimary}`}>Can't Wait?</p>
             <p className={`text-sm ${textSecondary}`}>Check if photographers are live NOW</p>
           </div>
-          <Button
+          <Button aria-label="Zap"
             size="sm"
             onClick={() => onAction('live_now')}
             className="bg-green-500 hover:bg-green-600 text-black"
@@ -1699,7 +1699,7 @@ const BookingConfirmation = ({
       
       {/* Actions */}
       <div className="flex flex-col gap-3">
-        <Button
+        <Button aria-label="Location"
           onClick={onAddAnotherSpot}
           className="w-full bg-gradient-to-r from-cyan-400 to-blue-500 hover:from-cyan-500 hover:to-blue-600 text-black font-bold"
           data-testid="add-another-spot-btn"
@@ -2405,7 +2405,7 @@ export const ScheduledBookingDrawer = ({
                     </Badge>
                   </div>
                   <div className="flex gap-2">
-                    <Button
+                    <Button aria-label="Camera"
                       variant="outline"
                       onClick={() => setSelfieUrl(null)}
                       className="flex-1"
@@ -2413,7 +2413,7 @@ export const ScheduledBookingDrawer = ({
                       <Camera className="w-4 h-4 mr-2" />
                       Retake
                     </Button>
-                    <Button
+                    <Button aria-label="Next"
                       onClick={() => setStep('confirm')}
                       className="flex-1 bg-gradient-to-r from-yellow-500 to-orange-500 text-black font-bold"
                     >
@@ -2518,7 +2518,7 @@ export const ScheduledBookingDrawer = ({
         {step !== 'success' && (
           <div className={`flex-shrink-0 px-4 py-2 border-t ${isLight ? 'border-gray-200 bg-white' : 'border-zinc-800 bg-zinc-900'}`}>
             {step === 'time' && (
-              <Button
+              <Button aria-label="Next"
                 onClick={handleNext}
                 disabled={!canProceedFromTime}
                 className="w-full bg-yellow-500 hover:bg-yellow-600 text-black font-bold h-10"
@@ -2531,7 +2531,7 @@ export const ScheduledBookingDrawer = ({
             
             {step === 'location' && (
               <div className="flex gap-2">
-                <Button
+                <Button aria-label="Previous"
                   variant="outline"
                   onClick={handleBack}
                   className={`flex-1 h-10 ${isLight ? 'border-gray-300' : 'border-zinc-700'}`}
@@ -2539,7 +2539,7 @@ export const ScheduledBookingDrawer = ({
                   <ChevronLeft className="w-4 h-4 mr-1" />
                   Back
                 </Button>
-                <Button
+                <Button aria-label="Next"
                   onClick={handleNext}
                   disabled={!canProceedFromLocation}
                   className="flex-1 bg-yellow-500 hover:bg-yellow-600 text-black font-bold h-10"
@@ -2553,7 +2553,7 @@ export const ScheduledBookingDrawer = ({
             
             {step === 'crew' && (
               <div className="flex gap-2">
-                <Button
+                <Button aria-label="Previous"
                   variant="outline"
                   onClick={handleBack}
                   className={`flex-1 h-10 ${isLight ? 'border-gray-300' : 'border-zinc-700'}`}
@@ -2561,7 +2561,7 @@ export const ScheduledBookingDrawer = ({
                   <ChevronLeft className="w-4 h-4 mr-1" />
                   Back
                 </Button>
-                <Button
+                <Button aria-label="Next"
                   onClick={handleNext}
                   disabled={!canProceedFromCrew}
                   className="flex-1 bg-yellow-500 hover:bg-yellow-600 text-black font-bold h-10"
@@ -2575,7 +2575,7 @@ export const ScheduledBookingDrawer = ({
             
             {step === 'payment' && (
               <div className="flex gap-2">
-                <Button
+                <Button aria-label="Previous"
                   variant="outline"
                   onClick={handleBack}
                   className={`flex-1 h-10 ${isLight ? 'border-gray-300' : 'border-zinc-700'}`}
@@ -2583,7 +2583,7 @@ export const ScheduledBookingDrawer = ({
                   <ChevronLeft className="w-4 h-4 mr-1" />
                   Back
                 </Button>
-                <Button
+                <Button aria-label="Next"
                   onClick={handleNext}
                   className="flex-1 bg-yellow-500 hover:bg-yellow-600 text-black font-bold h-10"
                   data-testid="review-booking-btn"
@@ -2596,7 +2596,7 @@ export const ScheduledBookingDrawer = ({
             
             {step === 'confirm' && (
               <div className="flex gap-2">
-                <Button
+                <Button aria-label="Previous"
                   variant="outline"
                   onClick={handleBack}
                   className="flex-1 h-10 border-zinc-700"
@@ -2604,7 +2604,7 @@ export const ScheduledBookingDrawer = ({
                   <ChevronLeft className="w-4 h-4 mr-1" />
                   Back
                 </Button>
-                <Button
+                <Button aria-label="Loader2"
                   onClick={handleSubmitBooking}
                   disabled={loading}
                   className="flex-1 bg-gradient-to-r from-yellow-400 to-orange-400 hover:from-yellow-500 hover:to-orange-500 text-black font-bold h-10"

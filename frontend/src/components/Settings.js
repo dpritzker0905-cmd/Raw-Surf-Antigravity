@@ -289,7 +289,7 @@ export const Settings = () => {
 
   // Settings menu item component
   const SettingsMenuItem = ({ icon: Icon, label, description, onClick, color = 'text-muted-foreground' }) => (
-    <button
+    <button aria-label="div"
       onClick={onClick}
       className="w-full flex items-center gap-3 p-3 rounded-lg transition-colors hover:bg-muted"
     >
@@ -343,7 +343,7 @@ export const Settings = () => {
           </Card>
         )}
 
-        {/* Surf Mode â€” Competitive/Pro progression for non-Grom surfers */}
+        {/* Surf Mode — Competitive/Pro progression for non-Grom surfers */}
         {isSurfer && !isGrom && (
           <SurfModeCard
             textPrimaryClass={textPrimaryClass}
@@ -352,7 +352,7 @@ export const Settings = () => {
           />
         )}
 
-        {/* Grom Parent â€” AND-able toggle for surfers who are also parents */}
+        {/* Grom Parent — AND-able toggle for surfers who are also parents */}
         {isSurfer && !isGrom && (
           <GromParentCard
             textPrimaryClass={textPrimaryClass}
@@ -541,7 +541,7 @@ export const Settings = () => {
                   <span className={textPrimaryClass}>Spot Data Cache</span>
                   <p className={`text-xs ${textSecondaryClass}`}>
                     {spotsCached || nearbyCached 
-                      ? `${getCacheSize()} MB â€¢ Updated ${formatCacheTime()}` 
+                      ? `${getCacheSize()} MB • Updated ${formatCacheTime()}` 
                       : 'Not cached'}
                   </p>
                 </div>
@@ -604,7 +604,7 @@ export const Settings = () => {
 
             {/* Clear Cache */}
             {(spotsCached || nearbyCached) && (
-              <Button
+              <Button aria-label="Delete"
                 onClick={() => {
                   clearOfflineCache();
                   toast.success('Offline cache cleared');
@@ -1189,8 +1189,8 @@ export const Settings = () => {
               )}
 
               {/* View Full Terms Button */}
-              <Button
-                onClick={() => setShowTosFullText(!showTosFullText)}
+              <Button aria-label="File Text"
+                aria-expanded={showTosFullText} onClick={() => setShowTosFullText(!showTosFullText)}
                 variant="outline"
                 className={`w-full ${borderClass} text-cyan-400 hover:bg-cyan-500/10`}
                 data-testid="view-tos-button"
@@ -1202,7 +1202,7 @@ export const Settings = () => {
               {/* Full ToS Text (Expandable) */}
               {showTosFullText && (
                 <div className="rounded-xl border border-border bg-muted/30 p-4 text-sm text-muted-foreground space-y-3 max-h-[50vh] overflow-y-auto" data-testid="tos-full-text">
-                  <p className={`text-xs ${textSecondaryClass} uppercase tracking-wider`}>Version {tosContent.version || CURRENT_TOS_VERSION} • Effective {tosContent.effective_date || 'May 2026'}</p>
+                  <p className={`text-xs ${textSecondaryClass} uppercase tracking-wider`}>Version {tosContent.version || CURRENT_TOS_VERSION} � Effective {tosContent.effective_date || 'May 2026'}</p>
                   {(tosContent.sections || []).map((section, idx) => (
                     <React.Fragment key={idx}>
                       <h4 className={`${textPrimaryClass} font-semibold`}>{section.title}</h4>
@@ -1216,8 +1216,8 @@ export const Settings = () => {
               )}
 
               {/* Privacy Policy */}
-              <Button
-                onClick={() => setShowPrivacyPolicy(!showPrivacyPolicy)}
+              <Button aria-label="Shield"
+                aria-expanded={showPrivacyPolicy} onClick={() => setShowPrivacyPolicy(!showPrivacyPolicy)}
                 variant="outline"
                 className={`w-full ${borderClass} text-cyan-400 hover:bg-cyan-500/10`}
                 data-testid="view-privacy-button"
@@ -1228,7 +1228,7 @@ export const Settings = () => {
 
               {showPrivacyPolicy && (
                 <div className="rounded-xl border border-border bg-muted/30 p-4 text-sm text-muted-foreground space-y-3 max-h-[50vh] overflow-y-auto" data-testid="privacy-full-text">
-                  <p className={`text-xs ${textSecondaryClass} uppercase tracking-wider`}>Privacy Policy • Effective {privacyContent.effective_date || 'May 2026'}</p>
+                  <p className={`text-xs ${textSecondaryClass} uppercase tracking-wider`}>Privacy Policy � Effective {privacyContent.effective_date || 'May 2026'}</p>
                   {(privacyContent.sections || []).map((section, idx) => (
                     <React.Fragment key={idx}>
                       <h4 className={`${textPrimaryClass} font-semibold`}>{section.title}</h4>
@@ -1274,7 +1274,7 @@ export const Settings = () => {
                           )}
                           {record.ip_address && <p>IP: {record.ip_address}</p>}
                           {record.user_agent && (
-                            <p>Device: {record.user_agent.length > 60 ? record.user_agent.substring(0, 60) + '…' : record.user_agent}</p>
+                            <p>Device: {record.user_agent.length > 60 ? record.user_agent.substring(0, 60) + '�' : record.user_agent}</p>
                           )}
                         </div>
                       </div>
@@ -1285,8 +1285,8 @@ export const Settings = () => {
 
               {/* Violation History */}
               <div className={`py-2 border-b ${borderClass}`}>
-                <button
-                  onClick={() => setShowViolations(!showViolations)}
+                <button aria-label="Alert Triangle"
+                  aria-expanded={showViolations} onClick={() => setShowViolations(!showViolations)}
                   className="w-full flex items-center justify-between"
                   data-testid="violation-history-toggle"
                 >
@@ -1298,8 +1298,8 @@ export const Settings = () => {
                         {violationHistory.loading
                           ? 'Loading...'
                           : violationHistory.data?.violations?.length
-                          ? `${violationHistory.data.violations.length} record${violationHistory.data.violations.length !== 1 ? 's' : ''} • ${violationHistory.data.total_strikes || 0} strike${(violationHistory.data.total_strikes || 0) !== 1 ? 's' : ''}`
-                          : 'No violations — clean record ✅'}
+                          ? `${violationHistory.data.violations.length} record${violationHistory.data.violations.length !== 1 ? 's' : ''} � ${violationHistory.data.total_strikes || 0} strike${(violationHistory.data.total_strikes || 0) !== 1 ? 's' : ''}`
+                          : 'No violations � clean record ?'}
                       </p>
                     </div>
                   </div>
@@ -1320,7 +1320,7 @@ export const Settings = () => {
                             <div className="flex-1 min-w-0">
                               <p className={`text-sm font-medium ${textPrimaryClass}`}>{v.title}</p>
                               <p className={`text-xs ${textSecondaryClass} mt-0.5`}>
-                                {v.violation_type?.replace(/_/g, ' ')} • {v.severity} • {new Date(v.created_at).toLocaleDateString()}
+                                {v.violation_type?.replace(/_/g, ' ')} � {v.severity} � {new Date(v.created_at).toLocaleDateString()}
                               </p>
                             </div>
                             <div className="flex-shrink-0">
@@ -1366,10 +1366,10 @@ export const Settings = () => {
           </CardContent>
         </Card>
 
-        {/* Theme Section — Appearance */}
+        {/* Theme Section � Appearance */}
         <Card className={`${cardBgClass} mb-4 transition-colors duration-300`} data-testid="theme-settings-card">
           <CardHeader>
-            <button 
+            <button aria-label="Sun" 
               onClick={() => setThemeDrawerOpen(!themeDrawerOpen)}
               className="w-full flex items-center justify-between"
             >
@@ -1462,7 +1462,7 @@ export const Settings = () => {
               <p className={`text-sm ${textSecondaryClass}`}>
                 Full platform control: user management, personas, pricing, live sessions, and more
               </p>
-              <Button 
+              <Button aria-label="Shield" 
                 onClick={() => navigate('/admin')}
                 className="w-full bg-gradient-to-r from-red-500 via-orange-500 to-yellow-400 hover:from-red-600 hover:via-orange-600 hover:to-yellow-500 text-black font-bold"
                 data-testid="admin-console-button"
@@ -1476,7 +1476,7 @@ export const Settings = () => {
         )}
 
         {/* Logout Button */}
-        <Button
+        <Button aria-label="Log Out"
           onClick={handleLogout}
           variant="outline"
           className="w-full h-12 border-red-500/50 text-red-400 hover:bg-red-500/10 hover:text-red-300"

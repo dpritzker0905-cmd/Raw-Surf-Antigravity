@@ -31,16 +31,16 @@ import logger from '../utils/logger';
 
 // Quick replies for on-demand session coordination
 const SESSION_QUICK_REPLIES = [
-  { id: 'omw', text: "On my way! 🏄", icon: '🚗' },
-  { id: 'arrived', text: "Just arrived at the spot 📍", icon: '📍' },
-  { id: 'parking', text: "Looking for parking 🅿️", icon: '🅿️' },
-  { id: 'ready', text: "Ready when you are! 🤙", icon: '✅' },
-  { id: 'where', text: "Where exactly are you?", icon: '📍' },
-  { id: 'running_late', text: "Running a few minutes late ⏰", icon: '⏰' },
-  { id: 'looking', text: "I'm looking for you 👀", icon: '👀' },
-  { id: 'found', text: "Found you! Starting session 📸", icon: '📸' },
-  { id: 'waves', text: "Waves are looking good! 🌊", icon: '🌊' },
-  { id: 'thanks', text: "Thanks for the session! 🤙", icon: '🙏' },
+  { id: 'omw', text: "On my way! ??", icon: '??' },
+  { id: 'arrived', text: "Just arrived at the spot ??", icon: '??' },
+  { id: 'parking', text: "Looking for parking ???", icon: '???' },
+  { id: 'ready', text: "Ready when you are! ??", icon: '?' },
+  { id: 'where', text: "Where exactly are you?", icon: '??' },
+  { id: 'running_late', text: "Running a few minutes late ?", icon: '?' },
+  { id: 'looking', text: "I'm looking for you ??", icon: '??' },
+  { id: 'found', text: "Found you! Starting session ??", icon: '??' },
+  { id: 'waves', text: "Waves are looking good! ??", icon: '??' },
+  { id: 'thanks', text: "Thanks for the session! ??", icon: '??' },
 ];
 
 const MAX_VOICE_DURATION = 30; // seconds
@@ -170,7 +170,7 @@ export const SessionChatDrawer = ({
         setMessages(msgRes.data.messages || []);
         scrollToBottom();
       } else {
-        // No conversation yet — will be created on first message
+        // No conversation yet � will be created on first message
         setConversationId(null);
         setMessages([]);
       }
@@ -390,7 +390,7 @@ export const SessionChatDrawer = ({
         onClick={onClose}
       />
 
-      {/* Drawer Content — full screen on mobile, side panel on desktop */}
+      {/* Drawer Content � full screen on mobile, side panel on desktop */}
       <div
         className={`relative w-full sm:ml-auto sm:w-[420px] h-full sm:h-full flex flex-col ${bgDrawer} sm:rounded-none shadow-2xl animate-in slide-in-from-bottom sm:slide-in-from-right duration-300`}
       >
@@ -444,7 +444,7 @@ export const SessionChatDrawer = ({
         </div>
 
         {/* ============ MESSAGES AREA ============ */}
-        <div className={`flex-1 overflow-y-auto px-4 py-3 ${bgMessages}`} aria-live="polite" aria-relevant="additions" data-testid="session-chat-messages">
+        <div className={`flex-1 overflow-y-auto px-4 py-3 ${bgMessages}`} aria-live="polite" aria-relevant="additions" data-testid="session-chat-messages" data-testid="session-chat-messages">
           {isLoading ? (
             <div className="flex items-center justify-center h-full">
               <Loader2 className="w-8 h-8 text-cyan-400 animate-spin" />
@@ -456,7 +456,7 @@ export const SessionChatDrawer = ({
               </div>
               <p className={`font-semibold ${textPrimary} mb-1`}>Session Chat</p>
               <p className={`text-sm ${textSecondary}`}>
-                Coordinate with {otherUserName || 'your partner'} — send a message or quick reply below!
+                Coordinate with {otherUserName || 'your partner'} � send a message or quick reply below!
               </p>
             </div>
           ) : (
@@ -509,7 +509,7 @@ export const SessionChatDrawer = ({
             >
               Cancel
             </button>
-            <button
+            <button aria-label="Stop Circle"
               onClick={stopRecording}
               className="w-9 h-9 rounded-full bg-red-500 hover:bg-red-600 flex items-center justify-center text-white transition-colors"
             >
@@ -525,7 +525,7 @@ export const SessionChatDrawer = ({
           >
             {/* Quick reply toggle */}
             <button
-              onClick={() => setShowQuickReplies(!showQuickReplies)}
+              aria-expanded={showQuickReplies} onClick={() => setShowQuickReplies(!showQuickReplies)}
               className={`w-9 h-9 rounded-full flex items-center justify-center transition-colors flex-shrink-0 ${
                 showQuickReplies
                   ? 'bg-cyan-500/20 text-cyan-400'
@@ -560,7 +560,7 @@ export const SessionChatDrawer = ({
 
             {/* Send or Mic button */}
             {inputValue.trim() ? (
-              <button
+              <button aria-label="Loader2"
                 onClick={() => sendMessage()}
                 disabled={isSending}
                 className="w-9 h-9 rounded-full bg-gradient-to-r from-cyan-500 to-blue-500 flex items-center justify-center text-white transition-all hover:scale-105 active:scale-95 flex-shrink-0"
@@ -605,7 +605,7 @@ export const SessionChatFAB = ({
   isLight = false,
 }) => {
   return (
-    <button
+    <button aria-label="Message"
       onClick={onClick}
       className={`relative w-14 h-14 rounded-full shadow-lg flex items-center justify-center transition-all hover:scale-105 active:scale-95 ${
         isLight

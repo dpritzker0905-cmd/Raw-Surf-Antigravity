@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
@@ -124,7 +124,7 @@ export const GromManage = () => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <div data-testid="grom-manage" className="flex items-center justify-center min-h-screen">
         <Loader2 className="w-8 h-8 text-cyan-400 animate-spin" />
       </div>
     );
@@ -137,7 +137,7 @@ export const GromManage = () => {
       {/* Header */}
       <div className="bg-gradient-to-r from-cyan-500 to-blue-600 px-4 py-4">
         <div className="max-w-4xl mx-auto">
-          <button 
+          <button aria-label="Go back" 
             onClick={() => navigate('/grom-hq')}
             className="flex items-center gap-2 text-white/80 hover:text-white mb-3"
           >
@@ -371,7 +371,7 @@ export const GromManage = () => {
                   />
                 </div>
                 
-                <Button 
+                <Button aria-label="Loader2" 
                   onClick={saveSpendingControls}
                   disabled={saving}
                   className="w-full bg-gradient-to-r from-yellow-500 to-orange-500 text-black"
@@ -433,7 +433,7 @@ export const GromManage = () => {
                 </div>
               ))}
               
-              <Button 
+              <Button aria-label="Loader2" 
                 onClick={saveControls}
                 disabled={saving}
                 className="w-full bg-gradient-to-r from-cyan-500 to-blue-500 text-white mt-4"

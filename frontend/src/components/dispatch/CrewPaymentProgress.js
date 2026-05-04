@@ -231,7 +231,7 @@ export const CrewPaymentProgress = ({
           <div>
             <p className={`font-medium ${textPrimaryClass}`}>All Crew Paid!</p>
             <p className={`text-sm ${textSecondaryClass}`}>
-              {totalCount} members � ${totalAmount.toFixed(2)} total
+              {totalCount} members ? ${totalAmount.toFixed(2)} total
             </p>
           </div>
         </div>
@@ -244,7 +244,7 @@ export const CrewPaymentProgress = ({
     return (
       <Collapsible open={isExpanded} onOpenChange={setIsExpanded}>
         <CollapsibleTrigger asChild>
-          <button 
+          <button aria-label="Users" 
             className={`w-full p-3 rounded-lg ${bgCardClass} hover:bg-opacity-80 transition-all`}
             data-testid="crew-payment-progress-compact"
           >
@@ -366,7 +366,7 @@ const CrewPaymentDetails = ({
       {isCaptain && unpaidMembers.length > 0 && (
         <div className={`pt-4 border-t ${isLight ? 'border-gray-200' : 'border-zinc-700'}`}>
           {/* Cover remaining button */}
-          <Button
+          <Button aria-label="Loader2"
             onClick={onCoverRemaining}
             disabled={covering}
             className="w-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-black font-medium mb-3"
@@ -414,7 +414,7 @@ const CrewPaymentDetails = ({
                     </p>
                   </div>
                 </div>
-                <Button
+                <Button aria-label="Loader2"
                   size="sm"
                   variant="outline"
                   onClick={() => onSendReminder(member.user_id)}

@@ -163,7 +163,7 @@ export const StokeSponsorDashboard = () => {
               >
                 All
               </Button>
-              <Button
+              <Button aria-label="Baby"
                 variant={tierFilter === 'grom_rising' ? 'default' : 'outline'}
                 size="sm"
                 onClick={() => setTierFilter('grom_rising')}
@@ -171,7 +171,7 @@ export const StokeSponsorDashboard = () => {
               >
                 <Baby className="w-3 h-3 mr-1" /> Groms
               </Button>
-              <Button
+              <Button aria-label="Trophy"
                 variant={tierFilter === 'competitive' ? 'default' : 'outline'}
                 size="sm"
                 onClick={() => setTierFilter('competitive')}
@@ -179,7 +179,7 @@ export const StokeSponsorDashboard = () => {
               >
                 <Trophy className="w-3 h-3 mr-1" /> Competitive
               </Button>
-              <Button
+              <Button aria-label="Medal"
                 variant={tierFilter === 'pro_elite' ? 'default' : 'outline'}
                 size="sm"
                 onClick={() => setTierFilter('pro_elite')}
@@ -225,7 +225,7 @@ export const StokeSponsorDashboard = () => {
                     )}
                   </div>
                 </div>
-                <Button
+                <Button aria-label="Gift"
                   size="sm"
                   onClick={() => {
                     setSelectedSurfer(surfer);
@@ -432,7 +432,7 @@ const ContributeModal = ({ isOpen, onClose, surfer, photographerId, userCredits,
           <Button variant="outline" onClick={onClose} className="border-zinc-700">
             Cancel
           </Button>
-          <Button 
+          <Button aria-label="Loader2" 
             onClick={handleSubmit} 
             disabled={loading || !amount || parseFloat(amount) <= 0}
             className="bg-pink-500 text-white hover:bg-pink-400"

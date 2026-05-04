@@ -60,7 +60,7 @@ const DispatchPaymentSuccess = () => {
             );
             
             if (!verifyResponse.data.verified && pollCountRef.current < maxAttempts) {
-              // Metadata not stored yet â€” retry verification only, not the whole flow
+              // Metadata not stored yet — retry verification only, not the whole flow
               confirmedRef.current = false; // allow one more attempt
               pollCountRef.current += 1;
               setTimeout(confirmDispatchPayment, 2000);
@@ -93,7 +93,7 @@ const DispatchPaymentSuccess = () => {
             logger.warn('Could not refresh user data');
           }
         } else {
-          // Payment not yet confirmed â€” poll again
+          // Payment not yet confirmed — poll again
           if (pollCountRef.current < maxAttempts) {
             pollCountRef.current += 1;
             setTimeout(confirmDispatchPayment, 2000);
@@ -174,7 +174,7 @@ const DispatchPaymentSuccess = () => {
                 Take a quick selfie with your surfboard so the photographer can identify you when they arrive.
               </p>
               
-              <Button
+              <Button aria-label="Upload"
                 onClick={() => setShowSelfieModal(true)}
                 className="w-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-black font-bold"
                 data-testid="add-selfie-btn"

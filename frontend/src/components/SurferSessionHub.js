@@ -36,7 +36,7 @@ const SurferHubContent = ({ onClose, navigate, liveCount, upcomingBookings, aiMa
   return (
     <div className="space-y-3">
       {/* ============ LIVE SESSIONS - Direct Link ============ */}
-      <button
+      <button aria-label="div"
         onClick={() => {
           navigate('/bookings?tab=live_now');
           onClose?.();
@@ -62,7 +62,7 @@ const SurferHubContent = ({ onClose, navigate, liveCount, upcomingBookings, aiMa
       </button>
 
       {/* ============ REQUEST A PRO / ON-DEMAND - Direct Link ============ */}
-      <button
+      <button aria-label="div"
         onClick={() => {
           navigate('/bookings?tab=on_demand');
           onClose?.();
@@ -81,7 +81,7 @@ const SurferHubContent = ({ onClose, navigate, liveCount, upcomingBookings, aiMa
       </button>
 
       {/* ============ MY BOOKINGS ============ */}
-      <button
+      <button aria-label="div"
         onClick={() => {
           navigate('/bookings?tab=scheduled');
           onClose?.();
@@ -216,7 +216,7 @@ const PhotographerHubContent = ({
           </div>
           <div className="flex items-center gap-2">
             {/* Settings shortcut arrow */}
-            <button
+            <button aria-label="Next"
               onClick={(e) => {
                 e.stopPropagation();
                 navigate('/photographer/on-demand-settings');
@@ -257,7 +257,7 @@ const PhotographerHubContent = ({
             />
             {/* Activate button after spot selection */}
             {selectedSpot && (
-              <button
+              <button aria-label="Zap"
                 onClick={onConfirmToggle}
                 className="w-full mt-3 py-2.5 rounded-xl bg-yellow-500 hover:bg-yellow-400 text-black font-medium text-sm flex items-center justify-center gap-2"
                 data-testid="activate-on-demand-btn"
@@ -310,7 +310,7 @@ const PhotographerHubContent = ({
         </div>
         <div className="flex items-center gap-2">
           {/* Settings shortcut arrow - mirrors On-Demand */}
-          <button
+          <button aria-label="Next"
             onClick={(e) => {
               e.stopPropagation();
               navigate('/photographer/sessions');
@@ -367,7 +367,7 @@ const PhotographerHubContent = ({
           />
           {/* Activate button after spot selection - matches On-Demand */}
           {selectedLiveSpot && (
-            <button
+            <button aria-label="Play"
               onClick={() => {
                 onGoLive(selectedLiveSpot);
                 setShowLiveSpotSelector(false);
@@ -402,7 +402,7 @@ const PhotographerHubContent = ({
     </div>
 
     {/* 3. Other Shooters Nearby */}
-    <button
+    <button aria-label="div"
       onClick={() => {
         navigate('/map?filter=photographers');
         onClose?.();
@@ -428,7 +428,7 @@ const PhotographerHubContent = ({
     </button>
 
     {/* 4. Scheduled Sessions (Today's Agenda Only) */}
-    <button
+    <button aria-label="div"
       onClick={() => {
         navigate('/photographer/bookings?view=today');
         onClose?.();
@@ -506,7 +506,7 @@ const MobileSessionHub = ({
             {/* GPS Status - Header aligned right */}
             {gpsStatus && !spotsLoaded && (
               <div className="flex items-center gap-1.5 text-xs text-cyan-400 animate-pulse">
-                <span>🛰️</span>
+                <span>???</span>
                 <span>{gpsStatus}</span>
               </div>
             )}
@@ -606,7 +606,7 @@ const DesktopSessionHub = ({
           {/* GPS Status - Header aligned right */}
           {gpsStatus && !spotsLoaded && (
             <div className="flex items-center gap-1.5 text-xs text-cyan-400 animate-pulse">
-              <span>🛰️</span>
+              <span>???</span>
               <span>{gpsStatus}</span>
             </div>
           )}

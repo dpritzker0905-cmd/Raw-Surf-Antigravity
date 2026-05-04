@@ -70,8 +70,8 @@ export const PhotographerSubscriptionPlans = ({ photographerId, photographerName
   return (
     <div className="mb-4">
       {/* Collapsed toggle */}
-      <button
-        onClick={() => setExpanded(!expanded)}
+      <button aria-label="Refresh"
+        aria-expanded={expanded} onClick={() => setExpanded(!expanded)}
         className="w-full flex items-center justify-between p-3 rounded-xl bg-violet-500/10 border border-violet-500/30 hover:border-violet-400/50 transition-all"
       >
         <div className="flex items-center gap-2">

@@ -293,7 +293,7 @@ export const LocationPicker = ({
                   </button>
                 )}
               </div>
-              <Button
+              <Button aria-label="Search"
                 onClick={handleSearch}
                 disabled={searching || !searchQuery.trim()}
                 className="bg-cyan-600 hover:bg-cyan-700"
@@ -306,7 +306,7 @@ export const LocationPicker = ({
             {searchResults.length > 0 && (
               <div className="mt-2 bg-zinc-800 rounded-lg border border-zinc-600 max-h-32 overflow-y-auto">
                 {searchResults.map((result, idx) => (
-                  <button
+                  <button aria-label="Location"
                     key={idx}
                     onClick={() => goToLocation(result)}
                     className="w-full p-2 text-left hover:bg-zinc-700 text-sm text-gray-200 border-b border-zinc-700 last:border-b-0"
@@ -335,14 +335,14 @@ export const LocationPicker = ({
               </div>
               {selectedLocation && (
                 <p className="text-xs text-gray-400 mt-1">
-                  {selectedLocation.lat.toFixed(4)}Â°N, {Math.abs(selectedLocation.lng).toFixed(4)}Â°W
+                  {selectedLocation.lat.toFixed(4)}°N, {Math.abs(selectedLocation.lng).toFixed(4)}°W
                 </p>
               )}
             </div>
 
             {/* Quick Actions */}
             <div className="absolute top-3 right-3 flex flex-col gap-2">
-              <Button
+              <Button aria-label="Location"
                 onClick={goToNearestSpot}
                 size="sm"
                 className="bg-zinc-800/90 hover:bg-zinc-700 text-white text-xs"
@@ -356,7 +356,7 @@ export const LocationPicker = ({
 
           {/* Confirm Button */}
           <div className="p-3 border-t border-zinc-700 bg-zinc-800 flex-shrink-0">
-            <Button
+            <Button aria-label="Confirm"
               onClick={handleConfirm}
               disabled={!selectedLocation}
               className="w-full bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600"

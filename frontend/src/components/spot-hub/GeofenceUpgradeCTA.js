@@ -1,5 +1,5 @@
-﻿/**
- * GeofenceUpgradeCTA — Geofence upgrade call-to-action for subscription upsell.
+/**
+ * GeofenceUpgradeCTA � Geofence upgrade call-to-action for subscription upsell.
  * 
  * Extracted from UnifiedSpotDrawer.js for maintainability.
  */
@@ -61,7 +61,7 @@ const GeofenceUpgradeCTA = ({ distanceMiles, _visibilityRadius, activePhotograph
       </div>
       
       <div className="grid grid-cols-2 gap-2">
-        <Button
+        <Button aria-label="Crown"
           onClick={() => navigate('/settings?tab=billing')}
           className="bg-gradient-to-r from-purple-500 to-pink-500 text-white font-medium"
           data-testid="upgrade-plan-btn"

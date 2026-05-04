@@ -6,7 +6,7 @@ import { Input } from './ui/input';
 import { Textarea } from './ui/textarea';
 
 /**
- * Edit Profile modal â€” allows users to update their profile info.
+ * Edit Profile modal — allows users to update their profile info.
  * Extracted from Profile.js to reduce god-component complexity.
  */
 export const ProfileEditModal = ({
@@ -28,7 +28,7 @@ export const ProfileEditModal = ({
           Cancel
         </button>
         <DialogTitle className="text-lg font-bold">Edit Profile</DialogTitle>
-        <Button
+        <Button aria-label="Loader2"
           onClick={onSave}
           disabled={editLoading}
           size="sm"

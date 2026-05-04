@@ -36,7 +36,7 @@ import useSwipeTabs from '../hooks/useSwipeTabs';
 import usePullToRefresh from '../hooks/usePullToRefresh';
 import PullToRefreshIndicator from './ui/PullToRefreshIndicator';
 
-// Tab order for the feed — used by swipe navigation and sliding indicator
+// Tab order for the feed � used by swipe navigation and sliding indicator
 const FEED_TABS = ['for_you', 'waves', 'following'];
 
 
@@ -50,7 +50,7 @@ const _RoleBadge = ({ role }) => {
   );
 };
 
-// Reaction emojis — imported from centralized constants/emojis.js
+// Reaction emojis � imported from centralized constants/emojis.js
 
 // Dynamic Reaction Icon - Shows user's reaction or default Shaka
 // Uses spring transition for smooth morphing animation (both ways)
@@ -61,7 +61,7 @@ const _RoleBadge = ({ role }) => {
 const _ReactionIcon = ({ post, userId, isLiked }) => {
   // Find user's reaction on this post
   const userReaction = post.reactions?.find(r => r.user_id === userId);
-  const hasNonShakaReaction = userReaction && userReaction.emoji !== '🤙';
+  const hasNonShakaReaction = userReaction && userReaction.emoji !== '??';
   
   // Determine if Shaka should be colored (checked) or grayscale (unchecked)
   // Only colored if liked AND no other reaction
@@ -164,7 +164,7 @@ const ReactionPicker = ({ show, onSelect, onClose, anchor }) => {
       >
         <X className="w-3.5 h-3.5" />
       </button>
-      {/* 5×2 grid of emojis */}
+      {/* 5�2 grid of emojis */}
       <div className="grid grid-cols-5 gap-1 justify-items-center">
         {REACTION_EMOJIS.map((emoji) => (
           <button
@@ -224,7 +224,7 @@ export const Feed = () => {
   const [showCreateWaveModal, setShowCreateWaveModal] = useState(false);
   const [checkInLoading, setCheckInLoading] = useState(false);
   const [spots, setSpots] = useState([]);
-  // Read ?tab= from URL to allow deep-linking (e.g. from Explore → View All Waves)
+  // Read ?tab= from URL to allow deep-linking (e.g. from Explore ? View All Waves)
   const initialTab = (() => {
     const params = new URLSearchParams(location.search);
     const t = params.get('tab');
@@ -244,7 +244,7 @@ export const Feed = () => {
   const [gpsLoading, setGpsLoading] = useState(false);
   const [nearestSpot, setNearestSpot] = useState(null);
   const [storiesKey, setStoriesKey] = useState(0);
-  // Location hierarchy for manual drill-down: Country → State/Province → City/Area → Spot
+  // Location hierarchy for manual drill-down: Country ? State/Province ? City/Area ? Spot
   const [locationHierarchy, setLocationHierarchy] = useState({ countries: [] });
   const [selectedCountry, setSelectedCountry] = useState('');
   const [selectedState, setSelectedState] = useState('');
@@ -259,7 +259,7 @@ export const Feed = () => {
   const [liveUsers, setLiveUsers] = useState([]);
   const [connectingToStream, setConnectingToStream] = useState(null);
 
-  // ── Instagram-style "new posts" chip state ──────────────────────────────────────
+  // -- Instagram-style "new posts" chip state --------------------------------------
   const [newPostsChip, setNewPostsChip] = useState(0); // count of new posts waiting to load
   const [isRefreshing, setIsRefreshing] = useState(false);
   const latestPostIdRef = useRef(null); // track the most-recent post id we've rendered
@@ -362,9 +362,9 @@ export const Feed = () => {
       }
       tag.setAttribute('content', content);
     };
-    document.title = 'Feed — Raw Surf';
-    setMeta('og:title', 'Feed — Raw Surf');
-    setMeta('og:description', 'Your surf feed — posts, waves, live sessions, and community updates on Raw Surf.');
+    document.title = 'Feed � Raw Surf';
+    setMeta('og:title', 'Feed � Raw Surf');
+    setMeta('og:description', 'Your surf feed � posts, waves, live sessions, and community updates on Raw Surf.');
     setMeta('og:url', `${window.location.origin}/feed`);
     setMeta('og:type', 'website');
     setMeta('og:site_name', 'Raw Surf');
@@ -374,7 +374,7 @@ export const Feed = () => {
     };
   }, []);
 
-  // ── feed:refresh event listener (logo click + 60s auto-refresh from Sidebar) ──
+  // -- feed:refresh event listener (logo click + 60s auto-refresh from Sidebar) --
   const handleFeedRefresh = useCallback(async (e) => {
     const silent = e?.detail?.silent === true;
     setIsRefreshing(true);
@@ -430,7 +430,7 @@ export const Feed = () => {
         latestPostIdRef.current = incoming[0]?.id ?? null;
         window.scrollTo({ top: 0, behavior: 'smooth' });
       }
-    } catch { /* silent – non-critical refresh */ }
+    } catch { /* silent � non-critical refresh */ }
     setNewPostsChip(0);
     setIsRefreshing(false);
   }, [user?.id]);
@@ -524,7 +524,7 @@ export const Feed = () => {
       return;
     }
     
-    // Optimistic update — instant UI
+    // Optimistic update � instant UI
     setFollowingUsers(prev => new Set([...prev, photographerId]));
     setFollowLoading(photographerId);
     
@@ -548,7 +548,7 @@ export const Feed = () => {
   const handleUnfollowFromMenu = async (userId) => {
     if (!user?.id) return;
     
-    // Optimistic update — instant UI
+    // Optimistic update � instant UI
     setFollowingUsers(prev => {
       const newSet = new Set(prev);
       newSet.delete(userId);
@@ -645,7 +645,7 @@ export const Feed = () => {
             author_avatar: null,
             media_url: 'https://images.unsplash.com/photo-1502680390469-be75c86b636f?w=600',
             media_type: 'image',
-            caption: 'Dawn patrol at its finest! 🤙',
+            caption: 'Dawn patrol at its finest! ??',
             location: 'Pipeline, Hawaii',
             likes_count: 247,
             liked: false,
@@ -699,7 +699,7 @@ export const Feed = () => {
             author_avatar: null,
             media_url: 'https://images.unsplash.com/photo-1502680390469-be75c86b636f?w=600',
             media_type: 'image',
-            caption: 'Dawn patrol at its finest! 🤙',
+            caption: 'Dawn patrol at its finest! ??',
             location: 'Pipeline, Hawaii',
             likes_count: 247,
             liked: false,
@@ -752,7 +752,7 @@ export const Feed = () => {
     return R * c;
   };
 
-  // Get GPS location for check-in — two-attempt strategy for iPhone 16 / iOS Safari
+  // Get GPS location for check-in � two-attempt strategy for iPhone 16 / iOS Safari
   const getGpsLocation = () => {
     if (!navigator.geolocation) {
       toast.error('Geolocation is not supported by your browser');
@@ -785,11 +785,11 @@ export const Feed = () => {
 
       setNearestSpot(nearest);
       if (nearest && minDistance < 10) {
-        toast.success(`\uD83D\uDCCD At ${nearest.name} (${nearest.distance}km) — GPS verified, you'll earn XP!`);
+        toast.success(`\uD83D\uDCCD At ${nearest.name} (${nearest.distance}km) � GPS verified, you'll earn XP!`);
       } else if (nearest) {
         toast.success(`\uD83D\uDCCD Location found. Nearest spot: ${nearest.name} (${nearest.distance}km)`);
       } else {
-        toast.success('\uD83D\uDCCD Location detected — select your spot to earn XP');
+        toast.success('\uD83D\uDCCD Location detected � select your spot to earn XP');
       }
       setGpsLoading(false);
     };
@@ -811,7 +811,7 @@ export const Feed = () => {
 
     const handleErrorWithRetry = (error) => {
       if (error.code === 2 || error.code === 3) {
-        // POSITION_UNAVAILABLE or TIMEOUT — retry with high accuracy & fresh fix
+        // POSITION_UNAVAILABLE or TIMEOUT � retry with high accuracy & fresh fix
         navigator.geolocation.getCurrentPosition(
           handlePosition,
           handleErrorFinal,
@@ -822,7 +822,7 @@ export const Feed = () => {
       }
     };
 
-    // First attempt: low-accuracy / cached — fast on most devices
+    // First attempt: low-accuracy / cached � fast on most devices
     navigator.geolocation.getCurrentPosition(
       handlePosition,
       handleErrorWithRetry,
@@ -880,8 +880,8 @@ export const Feed = () => {
   const touchStartTimeRef = useRef(0);
   
   // Handle tap on Shaka button - Toggle logic
-  // Tap on ANY active state → revert to UNCHECKED Shaka
-  // Tap on unchecked Shaka → check it (like)
+  // Tap on ANY active state ? revert to UNCHECKED Shaka
+  // Tap on unchecked Shaka ? check it (like)
   const handleShakaTapToggle = async (postId) => {
     if (!user?.id) {
       toast.error('Please log in to react');
@@ -892,8 +892,8 @@ export const Feed = () => {
     const userReaction = currentPost?.reactions?.find(r => r.user_id === user.id);
     const isLiked = currentPost?.liked;
     
-    // Case 1: User has an active non-Shaka reaction (Fire, Wave, Heart) → CLEAR IT & UNLIKE
-    if (userReaction && userReaction.emoji !== '🤙') {
+    // Case 1: User has an active non-Shaka reaction (Fire, Wave, Heart) ? CLEAR IT & UNLIKE
+    if (userReaction && userReaction.emoji !== '??') {
       // Optimistic update - remove reaction AND set liked to false (unchecked Shaka)
       setPosts(prevPosts => prevPosts.map(p => {
         if (p.id === postId) {
@@ -923,8 +923,8 @@ export const Feed = () => {
       return;
     }
     
-    // Case 2: User has liked (checked Shaka) → Unlike (revert to unchecked)
-    // Case 3: User has unchecked Shaka → Like (check it)
+    // Case 2: User has liked (checked Shaka) ? Unlike (revert to unchecked)
+    // Case 3: User has unchecked Shaka ? Like (check it)
     handleLike(postId);
   };
   
@@ -1025,7 +1025,7 @@ export const Feed = () => {
     const isRemoving = !!existingReaction;
     
     // Special handling for shaka emoji - it maps to the "liked" state
-    const isShakaEmoji = emoji === '🤙';
+    const isShakaEmoji = emoji === '??';
     
     // Optimistic update with animation trigger
     setPosts(prevPosts => prevPosts.map(p => {
@@ -1276,7 +1276,7 @@ export const Feed = () => {
 
   const handleCheckIn = async () => {
     if (streak.checked_in_today) {
-      toast.info('You already checked in today! Keep the streak going tomorrow 🔥');
+      toast.info('You already checked in today! Keep the streak going tomorrow ??');
       return;
     }
     setShowCheckInModal(true);
@@ -1292,7 +1292,7 @@ export const Feed = () => {
 
     try {
       if (checkInData.use_gps && checkInData.latitude && checkInData.longitude && spotId) {
-        // GPS path → Passport check-in (XP + stamps + badges)
+        // GPS path ? Passport check-in (XP + stamps + badges)
         const passportResponse = await apiClient.post(`/passport/checkin`, {
           spot_id: spotId,
           latitude: checkInData.latitude,
@@ -1342,7 +1342,7 @@ export const Feed = () => {
         });
 
       } else {
-        // Manual (non-GPS) path → legacy streak only, no passport XP
+        // Manual (non-GPS) path ? legacy streak only, no passport XP
         const response = await apiClient.post(`/check-in`, {
           spot_id: spotId || null,
           spot_name: spotName,
@@ -1394,11 +1394,11 @@ export const Feed = () => {
     setSelectedCity('');
   };
 
-  // Swipeable tab navigation — hooks must be called before any early returns
+  // Swipeable tab navigation � hooks must be called before any early returns
   const swipeHandlers = useSwipeTabs(FEED_TABS, activeTab, setActiveTab);
   const activeTabIndex = FEED_TABS.indexOf(activeTab);
 
-  // Pull-to-refresh for mobile — triggers feed refresh on swipe-down
+  // Pull-to-refresh for mobile � triggers feed refresh on swipe-down
   const { pullRef, isPulling, pullProgress, isRefreshing: isPtrRefreshing } = usePullToRefresh(
     async () => { await fetchPosts(); },
     { threshold: 60, enabled: !loading }
@@ -1451,7 +1451,7 @@ export const Feed = () => {
         onCreated={() => setStoriesKey(k => k + 1)}
       />
 
-      {/* ── Instagram-style "New Posts" chip ── */}
+      {/* -- Instagram-style "New Posts" chip -- */}
       {newPostsChip > 0 && (
         <div className="flex justify-center py-2 sticky top-14 z-20" aria-live="polite" aria-atomic="true">
           <button
@@ -1482,7 +1482,7 @@ export const Feed = () => {
       {/* Live Photographers Section (for surfers) */}
       {!isPhotographer && <LivePhotographers />}
 
-      {/* Feed Tabs — with sliding indicator */}
+      {/* Feed Tabs � with sliding indicator */}
       <div className={`relative flex border-b ${borderClass}`}>
         <button
           onClick={() => setActiveTab('for_you')}
@@ -1494,7 +1494,7 @@ export const Feed = () => {
         >
           For You
         </button>
-        <button
+        <button aria-label="Play"
           onClick={() => setActiveTab('waves')}
           className={`flex-1 py-3 text-sm font-medium transition-colors ${
             activeTab === 'waves' ? textPrimaryClass : textSecondaryClass
@@ -1517,7 +1517,7 @@ export const Feed = () => {
         >
           Following
         </button>
-        {/* Sliding indicator — transitions smoothly between tabs */}
+        {/* Sliding indicator � transitions smoothly between tabs */}
         <div
           className="absolute bottom-0 h-0.5 rounded-full transition-all duration-300 ease-out"
           style={{
@@ -1530,7 +1530,7 @@ export const Feed = () => {
         />
       </div>
 
-      {/* Swipeable content area — touch handlers enable left/right tab swiping */}
+      {/* Swipeable content area � touch handlers enable left/right tab swiping */}
       <div {...swipeHandlers} style={{ touchAction: 'pan-y' }}>
 
       {/* Waves Tab - Full Screen Video Feed */}
@@ -1538,7 +1538,7 @@ export const Feed = () => {
         <div className="relative" style={{ height: 'calc(100vh - 200px)', minHeight: '500px' }}>
           <WavesFeed feedType="for_you" onCreateWave={() => setShowCreateWaveModal(true)} />
           {/* Floating Create Wave Button */}
-          <button
+          <button aria-label="Add"
             onClick={() => setShowCreateWaveModal(true)}
             className="absolute bottom-6 right-6 w-14 h-14 rounded-full bg-gradient-to-r from-cyan-500 to-blue-500 shadow-lg flex items-center justify-center text-white z-10 hover:scale-105 transition-transform"
             data-testid="create-wave-fab"
@@ -1578,7 +1578,7 @@ export const Feed = () => {
               </span>
             </div>
 
-            <button
+            <button aria-label="Add"
               onClick={() => setShowCreatePostModal(true)}
               className="ml-auto flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-yellow-400 to-orange-400 hover:from-yellow-500 hover:to-orange-500 rounded-full text-sm text-black font-medium transition-colors"
               data-testid="create-post-btn"
@@ -1757,13 +1757,13 @@ export const Feed = () => {
             </DialogDescription>
           </DialogHeader>
 
-          {/* Gamification Reward Card — shown after GPS check-in */}
+          {/* Gamification Reward Card � shown after GPS check-in */}
           {checkInReward ? (
             <div className="flex-1 flex flex-col items-center justify-center px-6 py-8 text-center">
               <div className="w-20 h-20 rounded-full bg-gradient-to-br from-yellow-400 to-orange-500 flex items-center justify-center mb-4 shadow-lg shadow-yellow-400/30">
                 <Flame className="w-10 h-10 text-white" />
               </div>
-              <h3 className="text-2xl font-black text-white mb-1">Checked In! 🤙</h3>
+              <h3 className="text-2xl font-black text-white mb-1">Checked In! ??</h3>
               <p className="text-gray-400 text-sm mb-6">{checkInReward.spot_name}</p>
 
               {/* XP earned */}
@@ -1776,13 +1776,13 @@ export const Feed = () => {
 
               {/* First visit bonus */}
               {checkInReward.is_first_visit && (
-                <div className="text-blue-400 text-sm font-medium mb-2">🆕 First visit to this spot!</div>
+                <div className="text-blue-400 text-sm font-medium mb-2">?? First visit to this spot!</div>
               )}
 
               {/* Badge earned */}
               {checkInReward.badge_earned && (
                 <div className="flex items-center gap-2 bg-purple-500/10 border border-purple-500/30 rounded-xl px-5 py-3 mb-3">
-                  <span className="text-lg">🏅</span>
+                  <span className="text-lg">??</span>
                   <div className="text-left">
                     <div className="text-xs text-purple-400 uppercase tracking-wide">Badge Earned</div>
                     <div className="text-white font-semibold capitalize">{checkInReward.badge_earned.replace(/_/g, ' ')}</div>
@@ -1793,8 +1793,8 @@ export const Feed = () => {
               {/* Streak */}
               {checkInReward.streak_days > 0 && (
                 <div className="text-orange-400 text-sm mb-6">
-                  🔥 {checkInReward.streak_days} day streak
-                  {checkInReward.streak_days >= 7 ? ' — on fire!' : ' — keep it going!'}
+                  ?? {checkInReward.streak_days} day streak
+                  {checkInReward.streak_days >= 7 ? ' � on fire!' : ' � keep it going!'}
                 </div>
               )}
 
@@ -1802,7 +1802,7 @@ export const Feed = () => {
                 onClick={closeCheckInModal}
                 className="w-full bg-gradient-to-r from-yellow-400 to-orange-400 hover:from-yellow-500 hover:to-orange-500 text-black font-bold h-12"
               >
-                Awesome! 🤙
+                Awesome! ??
               </Button>
             </div>
           ) : (
@@ -1837,7 +1837,7 @@ export const Feed = () => {
                       <div className="h-1.5 rounded-full bg-zinc-700 overflow-hidden">
                         <div className="h-full bg-gradient-to-r from-cyan-400 to-emerald-400 rounded-full animate-pulse" style={{ width: '65%', transition: 'width 2s ease-out' }} />
                       </div>
-                      <p className="text-xs text-zinc-400 text-center">Acquiring GPS signal — keep screen on</p>
+                      <p className="text-xs text-zinc-400 text-center">Acquiring GPS signal � keep screen on</p>
                     </div>
                   )}
 
@@ -1851,8 +1851,8 @@ export const Feed = () => {
                       <span className="font-medium">{nearestSpot.name}</span>
                       {' '}&mdash; {nearestSpot.distance}km away
                       {parseFloat(nearestSpot.distance) < 10
-                        ? ' · 🏆 Within range — you\'ll earn Passport XP!'
-                        : ' · Outside 10km check-in zone'}
+                        ? ' � ?? Within range � you\'ll earn Passport XP!'
+                        : ' � Outside 10km check-in zone'}
                     </div>
                   )}
                 </div>
@@ -1887,7 +1887,7 @@ export const Feed = () => {
                   </Select>
                 </div>
 
-                {/* State/Province selector — only shown when country selected */}
+                {/* State/Province selector � only shown when country selected */}
                 {selectedCountry && (() => {
                   const countryData = locationHierarchy.countries.find(c => c.name === selectedCountry);
                   const states = countryData?.states || [];
@@ -1914,7 +1914,7 @@ export const Feed = () => {
                   );
                 })()}
 
-                {/* City / Area selector — shown when state is selected */}
+                {/* City / Area selector � shown when state is selected */}
                 {selectedState && (() => {
                   // First try cities from the hierarchy API response
                   const countryData = locationHierarchy.countries.find(c => c.name === selectedCountry);
@@ -1945,7 +1945,7 @@ export const Feed = () => {
                           <SelectValue placeholder="All areas (or pick one to narrow)" />
                         </SelectTrigger>
                         <SelectContent className="bg-zinc-800 border-zinc-700 max-h-60 overflow-y-auto">
-                          <SelectItem value="__all__" className="text-zinc-400 hover:bg-zinc-700 italic">— All areas —</SelectItem>
+                          <SelectItem value="__all__" className="text-zinc-400 hover:bg-zinc-700 italic">� All areas �</SelectItem>
                           {derivedCities.map(c => (
                             <SelectItem key={c.name} value={c.name} className="text-white hover:bg-zinc-700">
                               {c.name} <span className="text-gray-500 text-xs ml-1">({c.spot_count} {c.spot_count === 1 ? 'spot' : 'spots'})</span>
@@ -1957,12 +1957,12 @@ export const Feed = () => {
                   );
                 })()}
 
-                {/* Spot selector — GPS-sorted when GPS active, filtered by hierarchy when manual */}
+                {/* Spot selector � GPS-sorted when GPS active, filtered by hierarchy when manual */}
                 <div>
                   <label className="text-sm text-gray-400 mb-2 block">
                     Surf Spot
                     {checkInData.use_gps && checkInData.latitude && (
-                      <span className="ml-2 text-xs text-cyan-400">📍 sorted by distance</span>
+                      <span className="ml-2 text-xs text-cyan-400">?? sorted by distance</span>
                     )}
                   </label>
                   <Select
@@ -2005,7 +2005,7 @@ export const Feed = () => {
                             ));
                         }
 
-                        // MANUAL MODE: filter by country → state → city hierarchy, sorted alphabetically
+                        // MANUAL MODE: filter by country ? state ? city hierarchy, sorted alphabetically
                         return spots
                           .filter(spot => {
                             if (!selectedCountry) return true;
@@ -2018,7 +2018,7 @@ export const Feed = () => {
                           .map((spot) => (
                             <SelectItem key={spot.id} value={spot.id} className="text-white hover:bg-zinc-700">
                               {spot.name}
-                              {spot.region && <span className="text-gray-500 text-xs ml-1"> — {spot.region}</span>}
+                              {spot.region && <span className="text-gray-500 text-xs ml-1"> � {spot.region}</span>}
                             </SelectItem>
                           ));
                       })()}
@@ -2034,11 +2034,11 @@ export const Feed = () => {
                       <SelectValue placeholder="How's it looking?" />
                     </SelectTrigger>
                     <SelectContent className="bg-zinc-800 border-zinc-700">
-                      <SelectItem value="Glassy" className="text-white hover:bg-zinc-700">🪞 Glassy</SelectItem>
-                      <SelectItem value="Clean" className="text-white hover:bg-zinc-700">✨ Clean</SelectItem>
-                      <SelectItem value="Choppy" className="text-white hover:bg-zinc-700">🌊 Choppy</SelectItem>
-                      <SelectItem value="Messy" className="text-white hover:bg-zinc-700">💨 Messy</SelectItem>
-                      <SelectItem value="Blown Out" className="text-white hover:bg-zinc-700">🌀 Blown Out</SelectItem>
+                      <SelectItem value="Glassy" className="text-white hover:bg-zinc-700">?? Glassy</SelectItem>
+                      <SelectItem value="Clean" className="text-white hover:bg-zinc-700">? Clean</SelectItem>
+                      <SelectItem value="Choppy" className="text-white hover:bg-zinc-700">?? Choppy</SelectItem>
+                      <SelectItem value="Messy" className="text-white hover:bg-zinc-700">?? Messy</SelectItem>
+                      <SelectItem value="Blown Out" className="text-white hover:bg-zinc-700">?? Blown Out</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -2086,7 +2086,7 @@ export const Feed = () => {
 
               {/* Fixed footer */}
               <div className="px-6 pb-6 pt-3 shrink-0 border-t border-zinc-800">
-                <Button
+                <Button aria-label="Loader2"
                   onClick={submitCheckIn}
                   disabled={checkInLoading}
                   className="w-full h-12 bg-gradient-to-r from-yellow-400 to-orange-400 hover:from-yellow-500 hover:to-orange-500 text-black font-bold"
@@ -2098,8 +2098,8 @@ export const Feed = () => {
                     <>
                       <Flame className="w-5 h-5 mr-2" />
                       {checkInData.use_gps && (checkInData.spot_id || nearestSpot)
-                        ? 'Check In + Earn XP 🏅'
-                        : 'Check In & Keep Streak 🔥'}
+                        ? 'Check In + Earn XP ??'
+                        : 'Check In & Keep Streak ??'}
                     </>
                   )}
                 </Button>

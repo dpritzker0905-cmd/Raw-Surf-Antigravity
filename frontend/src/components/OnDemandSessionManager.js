@@ -103,7 +103,7 @@ const IncomingRequestCard = ({
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
             {/* Clickable Selfie/Avatar */}
-            <button 
+            <button aria-label="div" 
               onClick={() => request.requester_selfie && setShowSelfieModal(true)}
               className="relative group"
             >
@@ -140,7 +140,7 @@ const IncomingRequestCard = ({
                 <span className={`text-sm ${textSecondary}`}>{request.distance_miles?.toFixed(1) || '?'} mi away</span>
                 {request.requester_stance && (
                   <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-purple-500/20 text-purple-400 uppercase tracking-wide">
-                    {request.requester_stance === 'goofy' ? '🦶 Goofy' : '🦶 Regular'}
+                    {request.requester_stance === 'goofy' ? '?? Goofy' : '?? Regular'}
                   </span>
                 )}
               </div>
@@ -151,7 +151,7 @@ const IncomingRequestCard = ({
           </div>
         </div>
         
-        {/* Location — Uber-style navigation block */}
+        {/* Location � Uber-style navigation block */}
         <div className={`mb-4 rounded-xl overflow-hidden border ${
           'border-cyan-500/30'
         }`}>
@@ -187,7 +187,7 @@ const IncomingRequestCard = ({
           </div>
           {/* Navigate button */}
           {request.location?.lat && request.location?.lng && (
-            <button
+            <button aria-label="Navigation"
               onClick={(e) => {
                 e.stopPropagation();
                 const url = `https://www.google.com/maps/dir/?api=1&destination=${request.location.lat},${request.location.lng}`;
@@ -304,12 +304,12 @@ const IncomingRequestCard = ({
             {/* Surfer Identification Section */}
             {(request.requester_stance || request.requester_board_description) && (
               <div className="p-3 rounded-xl bg-cyan-500/10 border border-cyan-400/20 space-y-2">
-                <p className={`text-xs font-semibold ${textSecondary} uppercase tracking-wider`}>🏄 Surfer ID</p>
+                <p className={`text-xs font-semibold ${textSecondary} uppercase tracking-wider`}>?? Surfer ID</p>
                 {request.requester_stance && (
                   <div className="flex items-center gap-2 text-sm">
                     <span className={textSecondary}>Stance:</span>
                     <span className={`font-medium ${textPrimary} capitalize`}>
-                      {request.requester_stance === 'goofy' ? '🦶 Goofy Foot' : '🦶 Regular'}
+                      {request.requester_stance === 'goofy' ? '?? Goofy Foot' : '?? Regular'}
                     </span>
                   </div>
                 )}
@@ -334,7 +334,7 @@ const IncomingRequestCard = ({
           </div>
         )}
         
-        <button 
+        <button aria-label="Collapse" 
           onClick={() => setIsExpanded(!isExpanded)}
           className={`w-full text-center text-sm ${textSecondary} mb-4 flex items-center justify-center gap-1 hover:text-cyan-400 transition-colors`}
         >
@@ -354,7 +354,7 @@ const IncomingRequestCard = ({
             <X className="w-5 h-5 mr-2" />
             Decline
           </Button>
-          <Button
+          <Button aria-label="Loader2"
             onClick={() => onAccept(request.dispatch_id)}
             className="flex-1 py-5 bg-gradient-to-r from-green-400 to-cyan-400 hover:from-green-500 hover:to-cyan-500 text-black font-bold"
             disabled={isAccepting}
@@ -487,7 +487,7 @@ const IncomingRequestCard = ({
                     <div className="flex-1 min-w-0">
                       <p className="text-sm text-white font-medium truncate">{request.requester_name}</p>
                       <p className="text-xs text-cyan-400">
-                        {request.requester_username ? `@${request.requester_username} • ` : ''}Captain (Paid)
+                        {request.requester_username ? `@${request.requester_username} � ` : ''}Captain (Paid)
                       </p>
                     </div>
                     <Badge className="text-xs flex-shrink-0 bg-cyan-500/20 text-cyan-400">
@@ -535,7 +535,7 @@ const IncomingRequestCard = ({
             )}
             
             {/* Quick Accept Button */}
-            <Button
+            <Button aria-label="Loader2"
               onClick={() => {
                 setShowSelfieModal(false);
                 onAccept(request.dispatch_id);
@@ -737,15 +737,15 @@ const ActiveSessionCard = ({
         {/* Surfer Identification Details */}
         {(session.requester_stance || session.requester_board_description) && (
           <div className={`p-3 rounded-xl bg-cyan-500/10 border border-cyan-400/20`}>
-            <p className={`text-[10px] font-semibold ${textSecondary} uppercase tracking-wider mb-2`}>🏄 Surfer Identification</p>
+            <p className={`text-[10px] font-semibold ${textSecondary} uppercase tracking-wider mb-2`}>?? Surfer Identification</p>
             <div className="flex flex-wrap items-center gap-2">
               {session.requester_stance && (
                 <span className="text-xs font-medium px-2 py-1 rounded-full bg-purple-500/20 text-purple-400">
-                  {session.requester_stance === 'goofy' ? '🦶 Goofy Foot' : '🦶 Regular'}
+                  {session.requester_stance === 'goofy' ? '?? Goofy Foot' : '?? Regular'}
                 </span>
               )}
               {session.requester_board_description && (
-                <span className={`text-xs font-medium ${textPrimary}`}>🏄‍♂️ {session.requester_board_description}</span>
+                <span className={`text-xs font-medium ${textPrimary}`}>????? {session.requester_board_description}</span>
               )}
             </div>
           </div>
@@ -856,8 +856,8 @@ const ActiveSessionCard = ({
                 chatUnreadCount > 0 ? 'text-white font-medium' : 'text-zinc-400'
               }`}>
                 {chatLatestMessage.message_type === 'voice_note'
-                  ? '🎤 Voice note'
-                  : (chatLatestMessage.content || '📎 Media')}
+                  ? '?? Voice note'
+                  : (chatLatestMessage.content || '?? Media')}
               </p>
             </div>
           </button>
@@ -867,7 +867,7 @@ const ActiveSessionCard = ({
         <div className="space-y-3">
           {/* Communication Buttons */}
           <div className="grid grid-cols-2 gap-3">
-            <button
+            <button aria-label="Message"
               onClick={onOpenChat}
               className="relative flex items-center justify-center gap-2 py-3 rounded-xl font-semibold text-sm transition-all active:scale-[0.97] bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white"
               data-testid="photographer-chat-btn"
@@ -880,7 +880,7 @@ const ActiveSessionCard = ({
                 </span>
               )}
             </button>
-            <button
+            <button aria-label="Microphone"
               onClick={onOpenChat}
               className="flex items-center justify-center gap-2 py-3 rounded-xl font-semibold text-sm transition-all active:scale-[0.97] bg-zinc-800 hover:bg-zinc-700 text-white border border-zinc-700"
               data-testid="photographer-voice-btn"
@@ -891,7 +891,7 @@ const ActiveSessionCard = ({
           </div>
 
           {isEnRoute && (
-            <Button
+            <Button aria-label="Confirm"
               onClick={() => onMarkArrived(session.id)}
               className="w-full py-5 bg-gradient-to-r from-green-400 to-cyan-400 hover:from-green-500 hover:to-cyan-500 text-black font-bold"
               data-testid="mark-arrived-btn"
@@ -902,7 +902,7 @@ const ActiveSessionCard = ({
           )}
           
           {isArrived && (
-            <Button
+            <Button aria-label="Square"
               onClick={() => onComplete(session.id)}
               className="w-full py-5 bg-gradient-to-r from-amber-400 to-orange-500 hover:from-amber-500 hover:to-orange-600 text-black font-bold"
               data-testid="complete-session-btn"
@@ -1554,12 +1554,12 @@ export const OnDemandSessionManager = () => {
             On-Demand Hub
           </h1>
           <p className={`${textSecondary} text-sm mt-1`}>
-            {selectedSpots.length} coverage spots • {geoRadius.min}-{geoRadius.max} mile range
+            {selectedSpots.length} coverage spots � {geoRadius.min}-{geoRadius.max} mile range
           </p>
         </div>
         
         <div className="flex items-center gap-3">
-          <button
+          <button aria-label="Volume2"
             onClick={() => setSoundEnabled(!soundEnabled)}
             className={`p-2 rounded-xl ${sectionBg} hover:opacity-80 transition-opacity`}
             data-testid="sound-toggle-btn"
@@ -1572,7 +1572,7 @@ export const OnDemandSessionManager = () => {
           </button>
           
           {activeTab === 'settings' && (
-            <Button
+            <Button aria-label="Loader2"
               onClick={saveSettings}
               disabled={saving}
               className="bg-gradient-to-r from-green-400 to-cyan-400 text-black font-bold"
@@ -1784,7 +1784,7 @@ export const OnDemandSessionManager = () => {
                         <div>
                           <p className={`font-semibold ${textPrimary}`}>{exc.requester_name}</p>
                           <p className={`text-xs ${textSecondary}`}>
-                            {exc.category === 'emergency' ? '🚨 Emergency' : exc.category === 'weather' ? '🌧️ Weather' : exc.category === 'injury' ? '🩹 Injury' : '📋 Other'}
+                            {exc.category === 'emergency' ? '?? Emergency' : exc.category === 'weather' ? '??? Weather' : exc.category === 'injury' ? '?? Injury' : '?? Other'}
                           </p>
                         </div>
                         <p className="text-amber-400 font-bold">${exc.fee_amount?.toFixed(2)}</p>
@@ -1806,7 +1806,7 @@ export const OnDemandSessionManager = () => {
                                   approved: true,
                                   resolution_note: 'Approved by photographer'
                                 });
-                                toast.success('Waiver approved — surfer refunded');
+                                toast.success('Waiver approved � surfer refunded');
                                 setExceptionRequests(prev => prev.filter(e => e.id !== exc.id));
                               } catch (err) {
                                 toast.error('Failed to approve waiver');
@@ -1859,10 +1859,10 @@ export const OnDemandSessionManager = () => {
                     <DollarSign className="w-5 h-5 text-green-400" />
                     On-Demand Pricing
                   </CardTitle>
-                  <Button 
+                  <Button aria-label="Settings" 
                     variant="outline" 
                     size="sm"
-                    onClick={() => setShowPricingSection(!showPricingSection)}
+                    aria-expanded={showPricingSection} onClick={() => setShowPricingSection(!showPricingSection)}
                     className={borderClass}
                   >
                     <Settings className="w-4 h-4 mr-2" />
@@ -1887,7 +1887,7 @@ export const OnDemandSessionManager = () => {
                     <div className={`p-3 rounded-xl ${sectionBg}`}>
                       <p className={`text-xs ${textSecondary} mb-1`}>Photos Included</p>
                       <p className={`text-xl font-bold ${onDemandFullGallery ? 'text-green-400' : textPrimary}`}>
-                        {onDemandFullGallery ? '∞ Full' : onDemandPhotosIncluded}
+                        {onDemandFullGallery ? '8 Full' : onDemandPhotosIncluded}
                       </p>
                     </div>
                     <div className={`p-3 rounded-xl ${sectionBg}`}>
@@ -1994,8 +1994,8 @@ export const OnDemandSessionManager = () => {
                     {/* Photo Download Prices */}
                     <div className={`mt-4 p-4 rounded-xl border ${isLight ? 'bg-blue-50 border-blue-200' : 'bg-blue-500/10 border-blue-500/20'}`}>
                       <p className={`text-sm font-semibold mb-3 flex items-center gap-2 ${textPrimary}`}>
-                        📸 Photo Download Prices
-                        <span className={`text-xs font-normal ${textSecondary}`}>(per resolution — independent from Gallery)</span>
+                        ?? Photo Download Prices
+                        <span className={`text-xs font-normal ${textSecondary}`}>(per resolution � independent from Gallery)</span>
                       </p>
                       <div className="grid grid-cols-1 gap-3">
                         <NumericStepper label="Web Quality (800px)" value={odPriceWeb} onChange={setOdPriceWeb} min={0} max={500} step={0.5} prefix="$" theme={theme} />
@@ -2007,8 +2007,8 @@ export const OnDemandSessionManager = () => {
                     {/* Video Download Prices */}
                     <div className={`mt-4 p-4 rounded-xl border ${isLight ? 'bg-purple-50 border-purple-200' : 'bg-purple-500/10 border-purple-500/20'}`}>
                       <p className={`text-sm font-semibold mb-3 flex items-center gap-2 ${textPrimary}`}>
-                        🎬 Video Download Prices
-                        <span className={`text-xs font-normal ${textSecondary}`}>(per resolution — independent from Gallery)</span>
+                        ?? Video Download Prices
+                        <span className={`text-xs font-normal ${textSecondary}`}>(per resolution � independent from Gallery)</span>
                       </p>
                       <div className="grid grid-cols-1 gap-3">
                         <NumericStepper label="720p HD" value={odVideo720p} onChange={setOdVideo720p} min={0} max={500} step={0.5} prefix="$" theme={theme} />
@@ -2020,7 +2020,7 @@ export const OnDemandSessionManager = () => {
                     {/* Cancellation Fee */}
                     <div className={`mt-4 p-4 rounded-xl border ${isLight ? 'bg-red-50 border-red-200' : 'bg-red-500/10 border-red-500/20'}`}>
                       <p className={`text-sm font-semibold mb-1 flex items-center gap-2 ${textPrimary}`}>
-                        🛡️ Cancellation Fee
+                        ??? Cancellation Fee
                       </p>
                       <p className={`text-xs ${textSecondary} mb-3`}>
                         Percentage of payment kept when a surfer cancels after you accept. 0% = fully refundable.
@@ -2037,8 +2037,8 @@ export const OnDemandSessionManager = () => {
                       />
                       <div className={`mt-2 text-xs ${textSecondary} flex items-center gap-1`}>
                         <Info className="w-3 h-3" />
-                        {cancellationFeePct === 0 ? 'Fully refundable — surfers get full payment back' :
-                         cancellationFeePct === 100 ? 'Non-refundable — you keep the entire payment' :
+                        {cancellationFeePct === 0 ? 'Fully refundable � surfers get full payment back' :
+                         cancellationFeePct === 100 ? 'Non-refundable � you keep the entire payment' :
                          `Surfer receives ${100 - cancellationFeePct}% refund on cancellation`}
                       </div>
                     </div>
@@ -2058,10 +2058,10 @@ export const OnDemandSessionManager = () => {
                       {geoRadius.min}-{geoRadius.max} mi
                     </Badge>
                   </CardTitle>
-                  <Button 
+                  <Button aria-label="Collapse" 
                     variant="outline" 
                     size="sm"
-                    onClick={() => setShowSpotsList(!showSpotsList)}
+                    aria-expanded={showSpotsList} onClick={() => setShowSpotsList(!showSpotsList)}
                     className={borderClass}
                   >
                     {showSpotsList ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
@@ -2134,7 +2134,7 @@ export const OnDemandSessionManager = () => {
                             <p className={`font-medium ${textPrimary}`}>{spot.name}</p>
                             <p className={`text-xs ${textSecondary}`}>
                               {spot.region || spot.city || 'Florida'}
-                              {spot.distance_miles && ` • ${spot.distance_miles.toFixed(1)} mi`}
+                              {spot.distance_miles && ` � ${spot.distance_miles.toFixed(1)} mi`}
                             </p>
                           </div>
                           
@@ -2208,7 +2208,7 @@ export const OnDemandSessionManager = () => {
                           <p className={`font-medium ${textPrimary}`}>{session.location_name}</p>
                           <p className={`text-sm ${textSecondary}`}>
                             {session.date ? new Date(session.date).toLocaleDateString() : 'Unknown'}
-                            {session.requester_name && ` • ${session.requester_name}`}
+                            {session.requester_name && ` � ${session.requester_name}`}
                           </p>
                           <p className={`text-xs ${textSecondary} mt-1`}>
                             {durationMins > 0 ? `${durationMins} min` : ''}

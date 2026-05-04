@@ -163,7 +163,7 @@ const CrewPaymentPage = () => {
   return (
     <div className="max-w-lg mx-auto p-4 space-y-6" data-testid="crew-payment-page">
       {/* Back Button */}
-      <button
+      <button aria-label="Go back"
         onClick={() => navigate('/bookings')}
         className={`flex items-center gap-2 ${isLight ? 'text-gray-600' : 'text-gray-400'} hover:text-white transition-colors`}
       >
@@ -311,7 +311,7 @@ const CrewPaymentPage = () => {
               </div>
 
               {/* Pay Button */}
-              <Button
+              <Button aria-label="Loader2"
                 onClick={handlePayWithCredits}
                 disabled={paying || isExpired || (user?.credit_balance || 0) < (myShare?.share_amount || 0)}
                 className="w-full bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-400 hover:to-blue-400 text-white font-bold py-6 text-lg"
@@ -327,7 +327,7 @@ const CrewPaymentPage = () => {
               
               {(user?.credit_balance || 0) < (myShare?.share_amount || 0) && (
                 <div className="mt-3 text-center">
-                  <Button
+                  <Button aria-label="Credit Card"
                     variant="outline"
                     onClick={() => navigate('/credits')}
                     className={isLight ? 'border-gray-300 text-gray-600' : 'border-zinc-600 text-gray-400'}
@@ -364,7 +364,7 @@ const CrewPaymentPage = () => {
       )}
 
       {/* Crew Chat Button */}
-      <Button
+      <Button aria-label="Message"
         onClick={() => navigate(`/bookings/${bookingId}/chat`)}
         variant="outline"
         className={`w-full flex items-center justify-center gap-2 ${isLight ? 'border-cyan-500 text-cyan-600 hover:bg-cyan-50' : 'border-cyan-500/50 text-cyan-400 hover:bg-cyan-500/10'}`}

@@ -1,5 +1,5 @@
 /**
- * ViolationBanner.js — User-facing violation awareness notification.
+ * ViolationBanner.js � User-facing violation awareness notification.
  *
  * Displays active ToS violations, strike count, suspension status,
  * and provides an inline appeal submission form.
@@ -24,7 +24,7 @@ import { Button } from './ui/button';
 import { Textarea } from './ui/textarea';
 import { toast } from 'sonner';
 
-// ─── Severity config ──────────────────────────────────────────────────────────
+// --- Severity config ----------------------------------------------------------
 const SEVERITY_CONFIG = {
   minor:    { color: 'blue',   label: 'Minor' },
   moderate: { color: 'yellow', label: 'Moderate' },
@@ -78,7 +78,7 @@ const ViolationBanner = () => {
       await apiClient.post(`/compliance/violations/${violationId}/appeal`, {
         appeal_text: appealText.trim()
       });
-      toast.success('Appeal submitted — we\'ll review it shortly');
+      toast.success('Appeal submitted � we\'ll review it shortly');
       setAppealingId(null);
       setAppealText('');
       fetchViolations();
@@ -89,7 +89,7 @@ const ViolationBanner = () => {
     }
   };
 
-  // ─── Don't render conditions ────────────────────────────────────────────────
+  // --- Don't render conditions ------------------------------------------------
   // Hide on admin pages (admins manage violations from the dashboard, not a banner)
   const isAdminPage = location.pathname.startsWith('/admin');
   const isAuthPage = location.pathname.startsWith('/auth') || location.pathname === '/';
@@ -101,7 +101,7 @@ const ViolationBanner = () => {
 
   const isCritical = is_banned || is_suspended;
 
-  // ─── Collapsed pill (always visible) ────────────────────────────────────────
+  // --- Collapsed pill (always visible) ----------------------------------------
   if (!expanded) {
     return (
       <button
@@ -139,7 +139,7 @@ const ViolationBanner = () => {
     );
   }
 
-  // ─── Expanded panel (floating card) ─────────────────────────────────────────
+  // --- Expanded panel (floating card) -----------------------------------------
   return (
     <div
       className={`fixed z-[200] animate-in slide-in-from-bottom-4 duration-300
@@ -194,7 +194,7 @@ const ViolationBanner = () => {
         <div className={`p-2.5 rounded-lg text-xs flex items-start gap-2
           ${isLight ? 'bg-blue-50 text-blue-700' : 'bg-blue-950/30 text-blue-300'}`}>
           <Scale className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
-          <p>You may appeal any violation you believe was issued in error. Appeals are typically reviewed within 24–48 hours.</p>
+          <p>You may appeal any violation you believe was issued in error. Appeals are typically reviewed within 24�48 hours.</p>
         </div>
 
         {/* Violation list */}
@@ -221,7 +221,7 @@ const ViolationBanner = () => {
                     </span>
                   </div>
                   <p className={`text-xs mt-1 ${isLight ? 'text-gray-500' : 'text-gray-400'}`}>
-                    {v.violation_type?.replace(/_/g, ' ')} • {new Date(v.created_at).toLocaleDateString()}
+                    {v.violation_type?.replace(/_/g, ' ')} � {new Date(v.created_at).toLocaleDateString()}
                   </p>
                   {v.description && (
                     <p className={`text-xs mt-1.5 ${isLight ? 'text-gray-600' : 'text-gray-300'}`}>
@@ -262,7 +262,7 @@ const ViolationBanner = () => {
                         data-testid={`appeal-text-${v.id}`}
                       />
                       <div className="flex gap-2">
-                        <Button
+                        <Button aria-label="Loader2"
                           size="sm"
                           onClick={() => handleSubmitAppeal(v.id)}
                           disabled={appealSubmitting || !appealText.trim()}
@@ -284,7 +284,7 @@ const ViolationBanner = () => {
                       </div>
                     </div>
                   ) : (
-                    <Button
+                    <Button aria-label="File Text"
                       size="sm"
                       variant="outline"
                       className={`mt-2 text-xs ${isLight ? 'text-blue-600 border-blue-300 hover:bg-blue-50' : 'text-cyan-400 border-cyan-500/30 hover:bg-cyan-500/10'}`}
@@ -299,7 +299,7 @@ const ViolationBanner = () => {
 
               {isPending && (
                 <p className={`text-xs mt-2 ${isLight ? 'text-yellow-600' : 'text-yellow-400/80'}`}>
-                  ⏳ Your appeal is under review. You'll be notified of the decision.
+                  ? Your appeal is under review. You'll be notified of the decision.
                 </p>
               )}
             </div>
@@ -310,10 +310,10 @@ const ViolationBanner = () => {
         <div className={`p-2.5 rounded-lg text-xs ${isLight ? 'bg-gray-100 text-gray-500' : 'bg-zinc-800/30 text-gray-500'}`}>
           <p className="font-medium mb-1">Strike System</p>
           <div className="grid grid-cols-2 gap-1">
-            <span>1 strike → Warning</span>
-            <span>2 → 7-day suspension</span>
-            <span>3 → 30-day suspension</span>
-            <span>4+ → Permanent ban</span>
+            <span>1 strike ? Warning</span>
+            <span>2 ? 7-day suspension</span>
+            <span>3 ? 30-day suspension</span>
+            <span>4+ ? Permanent ban</span>
           </div>
         </div>
       </div>

@@ -1,5 +1,5 @@
 /**
- * ImpactZonePicker — Location selection for scheduled bookings.
+ * ImpactZonePicker � Location selection for scheduled bookings.
  * Features: GPS-based nearest spots, photographer range validation,
  * travel surcharge calculation, manual browse by country/state.
  * 
@@ -486,7 +486,7 @@ const ImpactZonePicker = ({
             {userCoords ? 'GPS Active' : gpsError ? 'GPS Unavailable' : 'Use My Location'}
           </span>
           {userCoords && nearbySpots.length > 0 && (
-            <span className="text-[10px] text-green-400 ml-2">â€¢ {nearbySpots.length} spots found</span>
+            <span className="text-[10px] text-green-400 ml-2">• {nearbySpots.length} spots found</span>
           )}
         </div>
         {userCoords && <Check className="w-4 h-4 text-green-400" />}
@@ -494,7 +494,7 @@ const ImpactZonePicker = ({
       
       {/* GPS Fallback - Browse Spots Manually */}
       {(gpsError || (!userCoords && !showBrowseSpots)) && (
-        <Button
+        <Button aria-label="Loader2"
           variant="outline"
           onClick={handleBrowseSpots}
           disabled={spotsLoading || locationLoading}
@@ -653,7 +653,7 @@ const ImpactZonePicker = ({
               <p className={textSecondary}>
                 {travelSurcharges.filter(t => t.surcharge > 0).slice(0, 3).map(t => 
                   `${t.min_miles}-${t.max_miles}mi: +$${t.surcharge}`
-                ).join(' â€¢ ')}
+                ).join(' • ')}
               </p>
             </div>
           </div>
@@ -782,7 +782,7 @@ const ImpactZonePicker = ({
           {/* Show more button */}
           {filteredSpots.length > 6 && (
             <button 
-              onClick={() => setShowAllSpots(!showAllSpots)}
+              aria-expanded={showAllSpots} onClick={() => setShowAllSpots(!showAllSpots)}
               className={`w-full text-center text-[10px] text-cyan-400 hover:underline py-1`}
             >
               {showAllSpots ? 'Show less' : `Show all ${filteredSpots.length} spots`}
@@ -965,9 +965,9 @@ const _AccountCreditSection = ({
           <div className={`text-xs ${isLight ? 'text-amber-700' : 'text-amber-300'}`}>
             <strong>Cancellation Policy:</strong>
             <ul className="mt-1 ml-2 space-y-0.5">
-              <li>â€¢ More than 48hrs before: 90% refund</li>
-              <li>â€¢ 24-48hrs before: 50% refund</li>
-              <li>â€¢ Less than 24hrs: No refund</li>
+              <li>• More than 48hrs before: 90% refund</li>
+              <li>• 24-48hrs before: 50% refund</li>
+              <li>• Less than 24hrs: No refund</li>
             </ul>
             <p className="mt-1">Refunds go to your Account Credit balance.</p>
           </div>

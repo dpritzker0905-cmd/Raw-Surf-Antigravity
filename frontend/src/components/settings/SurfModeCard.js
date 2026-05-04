@@ -9,7 +9,7 @@ import apiClient from '../../lib/apiClient';
 import { ROLES } from '../../constants/roles';
 
 /**
- * SurfModeCard — Lets non-Grom surfers set their surf mode (Casual / Competitive / Pro).
+ * SurfModeCard � Lets non-Grom surfers set their surf mode (Casual / Competitive / Pro).
  * Competitive = behavioral label only. Pro = triggers WSL verification flow (existing backend route).
  * Legend = admin-assigned via elite_tier; shown read-only.
  */
@@ -85,18 +85,18 @@ export const SurfModeCard = ({ textPrimaryClass, textSecondaryClass, cardBgClass
     }
   };
 
-  // Only 2 selectable modes — Pro is not a surf mode you pick, it's verified status
+  // Only 2 selectable modes � Pro is not a surf mode you pick, it's verified status
   const modes = [
-    { id: 'casual',      label: 'Casual',      icon: '🌊' },
-    { id: 'competitive', label: 'Competitive', icon: '🏆' },
+    { id: 'casual',      label: 'Casual',      icon: '??' },
+    { id: 'competitive', label: 'Competitive', icon: '??' },
   ];
 
   // Pro section header label based on current state
   const proSectionLabel = loadingVerif ? 'Apply for Pro Verification'
-    : isVerifiedPro ? '⭐ Verified Pro'
-    : isLegend ? '🎖️ Legend'
-    : verificationStatus === 'pending' || verificationStatus === 'under_review' ? '⏳ Verification Pending'
-    : verificationStatus === 'rejected' ? '❌ Reapply for Pro Verification'
+    : isVerifiedPro ? '? Verified Pro'
+    : isLegend ? '??? Legend'
+    : verificationStatus === 'pending' || verificationStatus === 'under_review' ? '? Verification Pending'
+    : verificationStatus === 'rejected' ? '? Reapply for Pro Verification'
     : 'Apply for Pro Verification';
 
   return (
@@ -107,12 +107,12 @@ export const SurfModeCard = ({ textPrimaryClass, textSecondaryClass, cardBgClass
           Surf Mode
           {isLegend && (
             <span className="ml-auto px-2 py-0.5 bg-amber-500/20 text-amber-400 text-xs rounded-full border border-amber-500/30">
-              🎖️ Legend
+              ??? Legend
             </span>
           )}
           {isVerifiedPro && !isLegend && (
             <span className="ml-auto px-2 py-0.5 bg-emerald-500/20 text-emerald-400 text-xs rounded-full border border-emerald-500/30">
-              ✅ Verified Pro
+              ? Verified Pro
             </span>
           )}
         </CardTitle>
@@ -122,9 +122,9 @@ export const SurfModeCard = ({ textPrimaryClass, textSecondaryClass, cardBgClass
         {/* Legend read-only display */}
         {isLegend ? (
           <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-center">
-            <p className="text-amber-400 font-semibold">🎖️ Legend</p>
+            <p className="text-amber-400 font-semibold">??? Legend</p>
             <p className={`text-xs ${textSecondaryClass} mt-1`}>
-              This status was personally assigned by Raw Surf — reserved for icons of the sport.
+              This status was personally assigned by Raw Surf � reserved for icons of the sport.
             </p>
           </div>
         ) : (
@@ -152,7 +152,7 @@ export const SurfModeCard = ({ textPrimaryClass, textSecondaryClass, cardBgClass
         {/* Contextual sub-panel for Casual */}
         {!isLegend && (surfMode === 'casual') && (
           <p className={`text-xs ${textSecondaryClass}`}>
-            Standard surfer profile — book sessions, collect photos, track your journey.
+            Standard surfer profile � book sessions, collect photos, track your journey.
           </p>
         )}
 
@@ -161,14 +161,14 @@ export const SurfModeCard = ({ textPrimaryClass, textSecondaryClass, cardBgClass
           <div className="p-3 rounded-xl bg-purple-500/10 border border-purple-500/20">
             <p className="text-purple-400 text-sm font-semibold flex items-center gap-1"><Trophy className="w-4 h-4" /> Competitive Mode Active</p>
             <ul className={`text-xs ${textSecondaryClass} mt-2 space-y-1 list-none`}>
-              <li>✓ Appears on contest boards &amp; community rankings</li>
-              <li>✓ Stoked dashboard activated</li>
-              <li>✓ Visible to photographers as a competitive athlete</li>
+              <li>? Appears on contest boards &amp; community rankings</li>
+              <li>? Stoked dashboard activated</li>
+              <li>? Visible to photographers as a competitive athlete</li>
             </ul>
           </div>
         )}
 
-        {/* ── Pro Verification — collapsible section, not a selectable pill ── */}
+        {/* -- Pro Verification � collapsible section, not a selectable pill -- */}
         {!isLegend && (
           <div className="rounded-xl border border-border overflow-hidden mt-3">
             <button
@@ -190,19 +190,19 @@ export const SurfModeCard = ({ textPrimaryClass, textSecondaryClass, cardBgClass
                   </div>
                 ) : isVerifiedPro ? (
                   <div className="text-center py-2">
-                    <p className="text-emerald-400 font-semibold">✅ WSL Verified Pro</p>
+                    <p className="text-emerald-400 font-semibold">? WSL Verified Pro</p>
                     <p className={`text-xs ${textSecondaryClass} mt-1`}>Your pro status is confirmed. Welcome to The Peak.</p>
                   </div>
                 ) : verificationStatus === 'pending' || verificationStatus === 'under_review' ? (
                   <div className="text-center py-2">
-                    <p className="text-yellow-400 font-semibold">⏳ Verification Under Review</p>
-                    <p className={`text-xs ${textSecondaryClass} mt-1`}>Our team is reviewing your credentials. You'll hear back within 24–48 hours.</p>
+                    <p className="text-yellow-400 font-semibold">? Verification Under Review</p>
+                    <p className={`text-xs ${textSecondaryClass} mt-1`}>Our team is reviewing your credentials. You'll hear back within 24�48 hours.</p>
                   </div>
                 ) : (
                   <>
                     {verificationStatus === 'rejected' && (
                       <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20">
-                        <p className="text-red-400 text-sm font-semibold">❌ Previous request was not approved</p>
+                        <p className="text-red-400 text-sm font-semibold">? Previous request was not approved</p>
                         <p className={`text-xs ${textSecondaryClass} mt-1`}>You may reapply with updated credentials below.</p>
                       </div>
                     )}
@@ -259,7 +259,7 @@ const WslVerificationForm = ({ wslForm, setWslForm, onSubmit, submitting, textSe
       onChange={e => setWslForm(f => ({ ...f, additional_notes: e.target.value }))}
       className="bg-zinc-800 border-zinc-600 text-white text-sm h-9"
     />
-    <Button
+    <Button aria-label="Loader2"
       id="submit-pro-verification"
       onClick={onSubmit}
       disabled={submitting}

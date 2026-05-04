@@ -80,7 +80,7 @@ const GalleryItemCard = ({
         data-testid={`gallery-item-${item.id}`}
       >
         {/* Selection checkbox */}
-        <button
+        <button aria-label="Confirm"
           onClick={() => onSelect?.(item.id)}
           className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${
             isSelected ? 'bg-cyan-500 border-cyan-500' : 'border-zinc-600 hover:border-cyan-400'
@@ -149,7 +149,7 @@ const GalleryItemCard = ({
           >
             <Heart className={`w-4 h-4 ${isFavorite ? 'fill-current' : ''}`} />
           </Button>
-          <Button
+          <Button aria-label="Download"
             size="sm"
             variant="ghost"
             onClick={() => onDownload?.(item)}
@@ -195,7 +195,7 @@ const GalleryItemCard = ({
       data-testid={`gallery-item-${item.id}`}
     >
       {/* Selection checkbox */}
-      <button
+      <button aria-label="Confirm"
         onClick={() => onSelect?.(item.id)}
         className={`absolute top-2 left-2 z-10 w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${
           isSelected 
@@ -267,7 +267,7 @@ const GalleryItemCard = ({
           <div className="flex items-center gap-1">
             {/* Quick Message to Photographer */}
             {item.photographer_id && (
-              <Button
+              <Button aria-label="Message Square"
                 size="sm"
                 variant="ghost"
                 onClick={() => onMessage?.(item.photographer_id, item.photographer_name)}
@@ -277,7 +277,7 @@ const GalleryItemCard = ({
                 <MessageSquare className="w-4 h-4" />
               </Button>
             )}
-            <Button
+            <Button aria-label="Share"
               size="sm"
               variant="ghost"
               onClick={() => onShare?.(item)}
@@ -285,7 +285,7 @@ const GalleryItemCard = ({
             >
               <Share2 className="w-4 h-4" />
             </Button>
-            <Button
+            <Button aria-label="Download"
               size="sm"
               variant="ghost"
               onClick={() => onDownload?.(item)}
@@ -300,7 +300,7 @@ const GalleryItemCard = ({
       
       {/* Visibility indicator */}
       <div className="absolute bottom-2 left-2 opacity-0 group-hover:opacity-100 transition-opacity">
-        <button
+        <button aria-label="View"
           onClick={() => onVisibilityToggle?.(item.id, !item.is_public)}
           className={`p-1.5 rounded-full ${
             item.is_public ? 'bg-green-500/80' : 'bg-zinc-700/80'
@@ -340,7 +340,7 @@ const ClaimQueueItem = ({ item, onAction }) => (
           {item.spot_name && ` at ${item.spot_name}`}
         </p>
         <div className="flex gap-2 mt-2">
-          <Button
+          <Button aria-label="Check Circle"
             size="sm"
             onClick={() => onAction(item.id, 'claim')}
             className="bg-green-500 hover:bg-green-600 text-foreground h-7 text-xs"
@@ -348,7 +348,7 @@ const ClaimQueueItem = ({ item, onAction }) => (
             <CheckCircle className="w-3 h-3 mr-1" />
             That's me!
           </Button>
-          <Button
+          <Button aria-label="Cancel"
             size="sm"
             variant="outline"
             onClick={() => onAction(item.id, 'reject')}
@@ -500,7 +500,7 @@ const ShareModal = ({ item, isOpen, onClose }) => {
               onClick={() => handleSocialShare('twitter')}
               className="flex-1 border-zinc-700"
             >
-              ùïè Twitter
+              ?? Twitter
             </Button>
             <Button
               variant="outline"
@@ -575,7 +575,7 @@ const RequestEditModal = ({ item, isOpen, onClose, onSubmit }) => {
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Cancel</Button>
-          <Button onClick={handleSubmit} disabled={loading} className="bg-cyan-500 hover:bg-cyan-600">
+          <Button aria-label="Loader2" onClick={handleSubmit} disabled={loading} className="bg-cyan-500 hover:bg-cyan-600">
             {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Send Request'}
           </Button>
         </DialogFooter>
@@ -1019,13 +1019,13 @@ export const SurferGallery = () => {
               My Gallery
             </h1>
             <p className={`text-sm ${textSecondaryClass} mt-1`}>
-              Your private media locker ‚Ä¢ {stats.total || 0} items
+              Your private media locker ï {stats.total || 0} items
             </p>
           </div>
           
           {/* Quick actions */}
           <div className="flex items-center gap-2">
-            <Button
+            <Button aria-label="Scan Face"
               variant="outline"
               size="sm"
               onClick={() => setScanModal(true)}
@@ -1034,7 +1034,7 @@ export const SurferGallery = () => {
               <ScanFace className="w-4 h-4 mr-1" />
               <span className="hidden sm:inline">Find Me</span>
             </Button>
-            <Button
+            <Button aria-label="History"
               variant="outline"
               size="sm"
               onClick={() => setShowPurchaseHistory(true)}
@@ -1082,7 +1082,7 @@ export const SurferGallery = () => {
         
         {/* Pending Selections Banner */}
         {pendingSelections > 0 && (
-          <button
+          <button aria-label="div"
             data-testid="pending-selections-banner"
             onClick={() => setShowSelectionQueue(true)}
             className="w-full mb-6 p-4 rounded-xl bg-gradient-to-r from-green-500/20 to-emerald-500/20 
@@ -1109,7 +1109,7 @@ export const SurferGallery = () => {
         
         {/* AI Match Queue Banner - TICKET-007 */}
         {claimQueue.length > 0 && activeTab !== 'claims' && (
-          <button
+          <button aria-label="div"
             data-testid="ai-match-banner"
             onClick={() => setActiveTab('claims')}
             className="w-full mb-6 p-4 rounded-xl bg-gradient-to-r from-purple-500/20 to-cyan-500/20 
@@ -1222,13 +1222,13 @@ export const SurferGallery = () => {
                 
                 {/* View mode toggle */}
                 <div className="flex border border-zinc-700 rounded-lg overflow-hidden">
-                  <button
+                  <button aria-label="Grid view"
                     onClick={() => setViewMode('grid')}
                     className={`p-2 ${viewMode === 'grid' ? 'bg-cyan-500 text-foreground' : 'bg-muted text-muted-foreground'}`}
                   >
                     <Grid className="w-4 h-4" />
                   </button>
-                  <button
+                  <button aria-label="List"
                     onClick={() => setViewMode('list')}
                     className={`p-2 ${viewMode === 'list' ? 'bg-cyan-500 text-foreground' : 'bg-muted text-muted-foreground'}`}
                   >
@@ -1259,7 +1259,7 @@ export const SurferGallery = () => {
                 <span className="text-cyan-400 font-medium">
                   {selectedItems.size} selected
                 </span>
-                <Button size="sm" onClick={handleBulkDownload} className="bg-cyan-500 hover:bg-cyan-600">
+                <Button aria-label="Download" size="sm" onClick={handleBulkDownload} className="bg-cyan-500 hover:bg-cyan-600">
                   <Download className="w-4 h-4 mr-1" />
                   Download All
                 </Button>
@@ -1518,9 +1518,9 @@ export const SurferGallery = () => {
         />
       )}
       
-      {/* Find Me FAB ‚Äî one-tap selfie scanner access */}
+      {/* Find Me FAB ó one-tap selfie scanner access */}
       {!multiSelectMode && !lightboxItem && (
-        <button
+        <button aria-label="Scan Face"
           onClick={() => setScanModal(true)}
           className="fixed bottom-24 right-4 z-40 w-14 h-14 rounded-full bg-gradient-to-r from-cyan-500 to-blue-500 text-white shadow-lg shadow-cyan-500/40 flex items-center justify-center hover:scale-110 active:scale-95 transition-transform md:hidden"
           title="Find My Photos"

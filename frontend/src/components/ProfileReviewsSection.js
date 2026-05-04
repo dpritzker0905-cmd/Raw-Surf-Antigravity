@@ -28,7 +28,7 @@ const RatingBar = ({ stars, count, total, theme }) => {
   const pct = total > 0 ? Math.round((count / total) * 100) : 0;
   
   return (
-    <div className="flex items-center gap-2 text-sm">
+    <div data-testid="profile-reviews-section" className="flex items-center gap-2 text-sm">
       <span className={`w-3 text-right ${isLight ? 'text-gray-500' : 'text-gray-400'}`}>{stars}</span>
       <Star className="w-3 h-3 text-yellow-400 fill-yellow-400" />
       <div className={`flex-1 h-2 rounded-full ${isLight ? 'bg-gray-200' : 'bg-zinc-700'} overflow-hidden`}>

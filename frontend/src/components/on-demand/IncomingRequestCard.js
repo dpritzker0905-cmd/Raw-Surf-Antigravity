@@ -1,5 +1,5 @@
 /**
- * IncomingRequestCard � Displays an incoming on-demand session request.
+ * IncomingRequestCard ? Displays an incoming on-demand session request.
  * Shows surfer info, location, earnings, crew details, and accept/decline actions.
  * 
  * Extracted from OnDemandSessionManager.js for maintainability.
@@ -70,7 +70,7 @@ const IncomingRequestCard = ({
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
             {/* Clickable Selfie/Avatar */}
-            <button 
+            <button aria-label="div" 
               onClick={() => request.requester_selfie && setShowSelfieModal(true)}
               className="relative group"
             >
@@ -107,7 +107,7 @@ const IncomingRequestCard = ({
                 <span className={`text-sm ${textSecondary}`}>{request.distance_miles?.toFixed(1) || '?'} mi away</span>
                 {request.requester_stance && (
                   <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-purple-500/20 text-purple-400 uppercase tracking-wide">
-                    {request.requester_stance === 'goofy' ? '🦶 Goofy' : '🦶 Regular'}
+                    {request.requester_stance === 'goofy' ? '?? Goofy' : '?? Regular'}
                   </span>
                 )}
               </div>
@@ -118,7 +118,7 @@ const IncomingRequestCard = ({
           </div>
         </div>
         
-        {/* Location — Uber-style navigation block */}
+        {/* Location � Uber-style navigation block */}
         <div className={`mb-4 rounded-xl overflow-hidden border ${
           'border-cyan-500/30'
         }`}>
@@ -154,7 +154,7 @@ const IncomingRequestCard = ({
           </div>
           {/* Navigate button */}
           {request.location?.lat && request.location?.lng && (
-            <button
+            <button aria-label="Navigation"
               onClick={(e) => {
                 e.stopPropagation();
                 const url = `https://www.google.com/maps/dir/?api=1&destination=${request.location.lat},${request.location.lng}`;
@@ -271,12 +271,12 @@ const IncomingRequestCard = ({
             {/* Surfer Identification Section */}
             {(request.requester_stance || request.requester_board_description) && (
               <div className="p-3 rounded-xl bg-cyan-500/10 border border-cyan-400/20 space-y-2">
-                <p className={`text-xs font-semibold ${textSecondary} uppercase tracking-wider`}>🏄 Surfer ID</p>
+                <p className={`text-xs font-semibold ${textSecondary} uppercase tracking-wider`}>?? Surfer ID</p>
                 {request.requester_stance && (
                   <div className="flex items-center gap-2 text-sm">
                     <span className={textSecondary}>Stance:</span>
                     <span className={`font-medium ${textPrimary} capitalize`}>
-                      {request.requester_stance === 'goofy' ? '🦶 Goofy Foot' : '🦶 Regular'}
+                      {request.requester_stance === 'goofy' ? '?? Goofy Foot' : '?? Regular'}
                     </span>
                   </div>
                 )}
@@ -301,7 +301,7 @@ const IncomingRequestCard = ({
           </div>
         )}
         
-        <button 
+        <button aria-label="Collapse" 
           onClick={() => setIsExpanded(!isExpanded)}
           className={`w-full text-center text-sm ${textSecondary} mb-4 flex items-center justify-center gap-1 hover:text-cyan-400 transition-colors`}
         >
@@ -321,7 +321,7 @@ const IncomingRequestCard = ({
             <X className="w-5 h-5 mr-2" />
             Decline
           </Button>
-          <Button
+          <Button aria-label="Loader2"
             onClick={() => onAccept(request.dispatch_id)}
             className="flex-1 py-5 bg-gradient-to-r from-green-400 to-cyan-400 hover:from-green-500 hover:to-cyan-500 text-black font-bold"
             disabled={isAccepting}
@@ -454,7 +454,7 @@ const IncomingRequestCard = ({
                     <div className="flex-1 min-w-0">
                       <p className="text-sm text-white font-medium truncate">{request.requester_name}</p>
                       <p className="text-xs text-cyan-400">
-                        {request.requester_username ? `@${request.requester_username} • ` : ''}Captain (Paid)
+                        {request.requester_username ? `@${request.requester_username} � ` : ''}Captain (Paid)
                       </p>
                     </div>
                     <Badge className="text-xs flex-shrink-0 bg-cyan-500/20 text-cyan-400">
@@ -502,7 +502,7 @@ const IncomingRequestCard = ({
             )}
             
             {/* Quick Accept Button */}
-            <Button
+            <Button aria-label="Loader2"
               onClick={() => {
                 setShowSelfieModal(false);
                 onAccept(request.dispatch_id);

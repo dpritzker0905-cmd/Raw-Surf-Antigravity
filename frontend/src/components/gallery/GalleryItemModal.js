@@ -109,9 +109,9 @@ export const GalleryItemModal = ({ item, onClose, onPurchased, galleryId, onSetA
       } else {
         const accessType = response.data.access_type;
         const accessLabel = accessType === 'included' 
-          ? '— Full resolution (included in buy-in 🌟)' 
-          : '— Added to Locker';
-        toast.success(`✅ Tagged to ${surferName} ${accessLabel}`);
+          ? '� Full resolution (included in buy-in ??)' 
+          : '� Added to Locker';
+        toast.success(`? Tagged to ${surferName} ${accessLabel}`);
         
         // Mark as tagged in local state
         setTaggedIds(prev => new Set([...prev, surferId]));
@@ -184,7 +184,7 @@ export const GalleryItemModal = ({ item, onClose, onPurchased, galleryId, onSetA
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      toast.success(`📸 Saved! ${response.data.downloads_remaining} downloads remaining`);
+      toast.success(`?? Saved! ${response.data.downloads_remaining} downloads remaining`);
     } catch (error) {
       toast.error(getErrorMessage(error, 'Download failed'));
     }
@@ -224,7 +224,7 @@ export const GalleryItemModal = ({ item, onClose, onPurchased, galleryId, onSetA
   };
 
   return (
-    <Dialog open={true} onOpenChange={onClose}>
+    <Dialog data-testid="gallery-item-modal" open={true} onOpenChange={onClose}>
       <DialogContent className="bg-zinc-900 border-zinc-800 text-white max-w-2xl max-h-[95vh] overflow-y-auto p-0">
         <DialogTitle className="sr-only">{item.title || 'Gallery Item'}</DialogTitle>
         
@@ -236,7 +236,7 @@ export const GalleryItemModal = ({ item, onClose, onPurchased, galleryId, onSetA
           <X className="w-5 h-5" />
         </button>
 
-        {/* ── Media Preview ── */}
+        {/* -- Media Preview -- */}
         <div className="relative bg-black w-full">
           {isVideo ? (
             // Video player
@@ -293,14 +293,14 @@ export const GalleryItemModal = ({ item, onClose, onPurchased, galleryId, onSetA
                 <div className="w-20 h-20 rounded-full bg-gradient-to-r from-emerald-400 to-cyan-400 flex items-center justify-center mx-auto mb-3 shadow-lg shadow-emerald-500/50">
                   <Check className="w-10 h-10 text-white" />
                 </div>
-                <p className="text-white text-xl font-bold">🎉 Unlocked!</p>
+                <p className="text-white text-xl font-bold">?? Unlocked!</p>
                 <p className="text-emerald-400 text-sm mt-1">Full resolution available</p>
               </div>
             </div>
           )}
         </div>
 
-        {/* ── Item Info ── */}
+        {/* -- Item Info -- */}
         <div className="px-5 pb-5 pt-3">
           {item.title && (
             <h3 className="text-lg font-bold text-white">{item.title}</h3>
@@ -332,7 +332,7 @@ export const GalleryItemModal = ({ item, onClose, onPurchased, galleryId, onSetA
                   Pricing
                 </h4>
                 {!editMode && (
-                  <Button
+                  <Button aria-label="Edit3"
                     size="sm"
                     variant="outline"
                     className="border-zinc-700 text-gray-400"
@@ -387,7 +387,7 @@ export const GalleryItemModal = ({ item, onClose, onPurchased, galleryId, onSetA
                   </div>
                   
                   <div className="flex gap-2">
-                    <Button
+                    <Button aria-label="Loader2"
                       onClick={handleSavePrice}
                       disabled={saving}
                       className="flex-1 bg-green-500 hover:bg-green-600 text-white"
@@ -428,10 +428,10 @@ export const GalleryItemModal = ({ item, onClose, onPurchased, galleryId, onSetA
             </div>
           )}
 
-          {/* ── Per-Image Tag to Surfer (Owner Only) ── */}
+          {/* -- Per-Image Tag to Surfer (Owner Only) -- */}
           {isOwner && galleryId && (
             <div className="mt-4 p-4 bg-zinc-800/80 rounded-lg border border-purple-500/20">
-              {/* Status header — immediately tells photographer what happened */}
+              {/* Status header � immediately tells photographer what happened */}
               <div className="flex items-center justify-between mb-3">
                 <h4 className="font-medium text-white flex items-center gap-2">
                   <Send className="w-4 h-4 text-purple-400" />
@@ -440,15 +440,15 @@ export const GalleryItemModal = ({ item, onClose, onPurchased, galleryId, onSetA
                 {/* AI status badge */}
                 {item.ai_suggested_count > 0 ? (
                   <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium bg-cyan-500/15 text-cyan-400 border border-cyan-500/30">
-                    🤖 AI matched to {item.ai_suggested_count} surfer{item.ai_suggested_count !== 1 ? 's' : ''}
+                    ?? AI matched to {item.ai_suggested_count} surfer{item.ai_suggested_count !== 1 ? 's' : ''}
                   </span>
                 ) : item.distributed_count > 0 ? (
                   <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
-                    ✅ Distributed to {item.distributed_count}
+                    ? Distributed to {item.distributed_count}
                   </span>
                 ) : (
                   <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium bg-amber-500/15 text-amber-400 border border-amber-500/30">
-                    👤 Needs manual tagging
+                    ?? Needs manual tagging
                   </span>
                 )}
               </div>
@@ -481,7 +481,7 @@ export const GalleryItemModal = ({ item, onClose, onPurchased, galleryId, onSetA
                               : 'border-zinc-600 bg-zinc-700/50 hover:bg-zinc-700 hover:border-purple-500/50'
                         }`}
                       >
-                        {/* Selfie / Avatar — shown larger as reference */}
+                        {/* Selfie / Avatar � shown larger as reference */}
                         {isLoading ? (
                           <Loader2 className="w-10 h-10 animate-spin text-purple-400 shrink-0" />
                         ) : selfieOrAvatar ? (
@@ -495,10 +495,10 @@ export const GalleryItemModal = ({ item, onClose, onPurchased, galleryId, onSetA
                             />
                             {/* Provenance mini-badge on avatar */}
                             {isTagged && isAiMatch && (
-                              <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-cyan-500 flex items-center justify-center text-[8px]" title="AI matched">🤖</span>
+                              <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-cyan-500 flex items-center justify-center text-[8px]" title="AI matched">??</span>
                             )}
                             {isTagged && !isAiMatch && (
-                              <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-purple-500 flex items-center justify-center text-[8px]" title="Manually tagged">👤</span>
+                              <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-purple-500 flex items-center justify-center text-[8px]" title="Manually tagged">??</span>
                             )}
                           </div>
                         ) : (
@@ -515,13 +515,13 @@ export const GalleryItemModal = ({ item, onClose, onPurchased, galleryId, onSetA
                           <p className="text-[11px] text-gray-400">
                             {isTagged ? (
                               <span className="text-emerald-400 font-medium">
-                                ✅ Tagged — {isAiMatch ? 'AI matched' : 'manually tagged'}
+                                ? Tagged � {isAiMatch ? 'AI matched' : 'manually tagged'}
                                 {matchConfidence ? ` (${Math.round(matchConfidence * 100)}%)` : ''}
                               </span>
                             ) : hasCredits ? (
-                              <span className="text-emerald-400">🎟️ {p.photos_credit_remaining} credits left — tap to tag</span>
+                              <span className="text-emerald-400">??? {p.photos_credit_remaining} credits left � tap to tag</span>
                             ) : (
-                              <span>💰 Extra item — tap to add to locker</span>
+                              <span>?? Extra item � tap to add to locker</span>
                             )}
                           </p>
                         </div>
@@ -578,7 +578,7 @@ export const GalleryItemModal = ({ item, onClose, onPurchased, galleryId, onSetA
           <div className="flex gap-3 mt-5">
             {isOwner ? (
               <>
-                <Button
+                <Button aria-label="Download"
                   onClick={() => window.open(getFullUrl(item.original_url), '_blank')}
                   className="flex-1 bg-cyan-500 hover:bg-cyan-600 text-black"
                 >
@@ -586,7 +586,7 @@ export const GalleryItemModal = ({ item, onClose, onPurchased, galleryId, onSetA
                   Download Original
                 </Button>
                 {onSetAsCover && !isVideo && (
-                  <Button
+                  <Button aria-label="Image Plus"
                     variant="outline"
                     onClick={() => onSetAsCover(item.id)}
                     className="border-cyan-500/40 text-cyan-400 hover:bg-cyan-500/10"
@@ -606,7 +606,7 @@ export const GalleryItemModal = ({ item, onClose, onPurchased, galleryId, onSetA
               </>
             ) : item.is_purchased ? (
               <>
-                <Button
+                <Button aria-label="Download"
                   onClick={handleDownload}
                   className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white"
                 >
@@ -622,13 +622,13 @@ export const GalleryItemModal = ({ item, onClose, onPurchased, galleryId, onSetA
                 </Button>
               </>
             ) : userIsGrom ? (
-              /* ── GROM: Parent-mediated purchase ── */
+              /* -- GROM: Parent-mediated purchase -- */
               <>
                 <Button
                   onClick={handlePurchase}
                   className="flex-1 font-bold bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white"
                 >
-                  👨‍👧 Ask Parent to Approve
+                  ????? Ask Parent to Approve
                 </Button>
                 <Button
                   variant="outline"
@@ -640,7 +640,7 @@ export const GalleryItemModal = ({ item, onClose, onPurchased, galleryId, onSetA
               </>
             ) : (
               <>
-                <Button
+                <Button aria-label="Loader2"
                   onClick={handlePurchase}
                   disabled={purchasing || loadingPricing}
                   className={`flex-1 font-bold ${

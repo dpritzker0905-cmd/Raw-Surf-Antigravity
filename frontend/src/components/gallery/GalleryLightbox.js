@@ -1,5 +1,5 @@
 /**
- * GalleryLightbox — Fullscreen immersive photo/video viewer
+ * GalleryLightbox � Fullscreen immersive photo/video viewer
  * 
  * Features:
  * - Swipe-to-navigate (touch + keyboard arrows)
@@ -126,7 +126,7 @@ export const GalleryLightbox = ({
   // Handle purchase with unlock animation
   const handlePurchaseClick = async () => {
     if (isGromUser) {
-      toast.info('🤙 Ask your parent to approve this purchase!');
+      toast.info('?? Ask your parent to approve this purchase!');
       return;
     }
     if (!onPurchase) return;
@@ -157,7 +157,7 @@ export const GalleryLightbox = ({
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    toast.success('📸 Saved to device!');
+    toast.success('?? Saved to device!');
   };
 
   const mediaUrl = getFullUrl(
@@ -198,7 +198,7 @@ export const GalleryLightbox = ({
 
         {/* Zoom controls */}
         <div className="flex items-center gap-1">
-          <button
+          <button aria-label="Zoom out"
             onClick={() => setZoom(z => Math.max(z - 0.5, 1))}
             disabled={zoom <= 1}
             className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-white hover:bg-white/20 disabled:opacity-30 transition"
@@ -206,7 +206,7 @@ export const GalleryLightbox = ({
             <ZoomOut className="w-4 h-4" />
           </button>
           <span className="text-white/60 text-xs w-10 text-center">{Math.round(zoom * 100)}%</span>
-          <button
+          <button aria-label="Zoom in"
             onClick={() => setZoom(z => Math.min(z + 0.5, 5))}
             disabled={zoom >= 5}
             className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-white hover:bg-white/20 disabled:opacity-30 transition"
@@ -214,7 +214,7 @@ export const GalleryLightbox = ({
             <ZoomIn className="w-4 h-4" />
           </button>
           {zoom > 1 && (
-            <button
+            <button aria-label="Maximize2"
               onClick={() => { setZoom(1); setPanOffset({ x: 0, y: 0 }); }}
               className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-white hover:bg-white/20 transition"
             >
@@ -226,7 +226,7 @@ export const GalleryLightbox = ({
 
       {/* Navigation arrows */}
       {hasPrev && (
-        <button
+        <button aria-label="Previous"
           className="absolute left-4 top-1/2 -translate-y-1/2 z-10 w-12 h-12 rounded-full bg-white/10 backdrop-blur-sm flex items-center justify-center text-white hover:bg-white/20 transition-all"
           onClick={(e) => { e.stopPropagation(); onNavigate?.(items[currentIndex - 1]); }}
         >
@@ -234,7 +234,7 @@ export const GalleryLightbox = ({
         </button>
       )}
       {hasNext && (
-        <button
+        <button aria-label="Next"
           className="absolute right-4 top-1/2 -translate-y-1/2 z-10 w-12 h-12 rounded-full bg-white/10 backdrop-blur-sm flex items-center justify-center text-white hover:bg-white/20 transition-all"
           onClick={(e) => { e.stopPropagation(); onNavigate?.(items[currentIndex + 1]); }}
         >
@@ -251,7 +251,7 @@ export const GalleryLightbox = ({
               <div className="w-20 h-20 rounded-full bg-gradient-to-r from-emerald-400 to-cyan-400 flex items-center justify-center mx-auto mb-3 shadow-lg shadow-emerald-500/50">
                 <Check className="w-10 h-10 text-white" />
               </div>
-              <p className="text-white text-xl font-bold">🎉 Unlocked!</p>
+              <p className="text-white text-xl font-bold">?? Unlocked!</p>
               <p className="text-emerald-400 text-sm mt-1">Full resolution available</p>
             </div>
           </div>
@@ -307,7 +307,7 @@ export const GalleryLightbox = ({
               <p className="text-zinc-400 text-sm mb-4">
                 Purchase this {item.media_type === 'video' ? 'video' : 'photo'} to download in full quality
               </p>
-              <Button
+              <Button aria-label="Loader2"
                 onClick={handlePurchaseClick}
                 disabled={purchasing}
                 className={`w-full font-bold py-3 ${
@@ -319,7 +319,7 @@ export const GalleryLightbox = ({
                 {purchasing ? (
                   <Loader2 className="w-5 h-5 animate-spin" />
                 ) : isGromUser ? (
-                  <>👨‍👧 Ask Parent to Approve</>
+                  <>????? Ask Parent to Approve</>
                 ) : (
                   <>
                     <ShoppingCart className="w-4 h-4 mr-2" />
@@ -372,7 +372,7 @@ export const GalleryLightbox = ({
               </button>
 
               {/* Share */}
-              <button
+              <button aria-label="Share"
                 onClick={(e) => { e.stopPropagation(); onShare?.(item); }}
                 className="w-11 h-11 rounded-full bg-white/10 text-white hover:bg-white/20 flex items-center justify-center transition-all"
               >
@@ -381,7 +381,7 @@ export const GalleryLightbox = ({
 
               {/* Message photographer */}
               {item.photographer_id && onMessage && (
-                <button
+                <button aria-label="Camera"
                   onClick={(e) => { e.stopPropagation(); onMessage?.(item.photographer_id, item.photographer_name); }}
                   className="w-11 h-11 rounded-full bg-white/10 text-white hover:bg-cyan-500/30 flex items-center justify-center transition-all"
                   title="Message photographer"
@@ -392,9 +392,9 @@ export const GalleryLightbox = ({
             </div>
 
             <div className="flex items-center gap-2">
-              {/* Download — only for accessible items */}
+              {/* Download � only for accessible items */}
               {(isAccessible || unlocked) && (
-                <Button
+                <Button aria-label="Download"
                   onClick={(e) => { e.stopPropagation(); handleNativeDownload(); }}
                   className="bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white font-semibold px-5"
                 >
@@ -407,7 +407,7 @@ export const GalleryLightbox = ({
 
           {/* Keyboard hints (desktop only) */}
           <p className="text-center text-white/25 text-xs mt-3 hidden md:block">
-            ← → Navigate • F Favorite • +/− Zoom • 0 Reset • Esc Close
+            ? ? Navigate � F Favorite � +/- Zoom � 0 Reset � Esc Close
           </p>
         </div>
       </div>

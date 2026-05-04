@@ -116,7 +116,7 @@ export const PhotographerSubscription = () => {
             >
               Monthly
             </button>
-            <button
+            <button aria-label="Calendar"
               onClick={() => setBillingPeriod('annual')}
               className={`px-6 py-2 rounded-full text-sm font-medium transition-all flex items-center gap-2 ${
                 billingPeriod === 'annual'
@@ -237,7 +237,7 @@ export const PhotographerSubscription = () => {
                 </p>
               </div>
             </div>
-            <Button
+            <Button aria-label="Like"
               onClick={() => setShowHobbyistFunnel(true)}
               variant="outline"
               className="border-orange-400/50 text-orange-400 hover:bg-orange-500/10 whitespace-nowrap"

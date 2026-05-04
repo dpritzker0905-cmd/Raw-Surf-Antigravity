@@ -1,8 +1,8 @@
 /**
- * IncomingCallModal â€” Full-screen overlay for INCOMING calls.
+ * IncomingCallModal — Full-screen overlay for INCOMING calls.
  * 
  * Ringer: Uses HTML Audio with generated WAV data URI.
- * No AudioContext needed â€” works reliably after any prior user gesture.
+ * No AudioContext needed — works reliably after any prior user gesture.
  */
 
 import React, { useEffect, useState, useRef, useCallback } from 'react';
@@ -98,12 +98,12 @@ export default function IncomingCallModal({
 
       {/* Caller name */}
       <h2 className="text-2xl font-semibold text-white mb-2">{callerName || 'Unknown'}</h2>
-      <p className="text-gray-400 text-sm mb-20">is calling youâ€¦</p>
+      <p className="text-gray-400 text-sm mb-20">is calling you…</p>
 
       {/* Accept / Reject buttons */}
       <div className="flex items-center gap-16">
         {/* Reject */}
-        <button 
+        <button aria-label="div" 
           onClick={handleReject} 
           className="group flex flex-col items-center gap-2"
           data-testid="reject-call-btn"
@@ -115,7 +115,7 @@ export default function IncomingCallModal({
         </button>
 
         {/* Accept */}
-        <button 
+        <button aria-label="div" 
           onClick={handleAccept} 
           className="group flex flex-col items-center gap-2"
           data-testid="accept-call-btn"

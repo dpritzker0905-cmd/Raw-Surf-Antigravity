@@ -200,7 +200,7 @@ export const PublicPhotographerGallery = () => {
       return;
     }
     if (isGrom(user)) {
-      toast.info('ðŸ¤™ Ask your parent to approve this purchase!');
+      toast.info('?? Ask your parent to approve this purchase!');
       return;
     }
     
@@ -287,7 +287,7 @@ export const PublicPhotographerGallery = () => {
           return;
         }
       }
-      // No deep-link or target not found â€” default to first gallery
+      // No deep-link or target not found — default to first gallery
       setSelectedGallery(galleries[0]);
     }
   }, [deepLinkGalleryId, galleries, selectedGallery]);
@@ -390,7 +390,7 @@ export const PublicPhotographerGallery = () => {
         <div className="max-w-7xl mx-auto px-4 -mt-16">
           <div className="flex flex-col md:flex-row items-start md:items-end gap-4 pb-6">
             {/* Back button */}
-            <Button 
+            <Button aria-label="Go back" 
               variant="ghost" 
               onClick={() => navigate(-1)}
               className={`absolute top-4 left-4 ${isLight ? 'text-gray-500 hover:text-gray-900' : 'text-white/70 hover:text-white'}`}
@@ -445,7 +445,7 @@ export const PublicPhotographerGallery = () => {
               >
                 View Profile
               </Button>
-              <Button 
+              <Button aria-label="Calendar Check" 
                 onClick={() => navigate(`/profile/${photographerId}`)}
                 className="bg-gradient-to-r from-emerald-500 to-yellow-500 text-black font-semibold"
               >
@@ -472,7 +472,7 @@ export const PublicPhotographerGallery = () => {
                   <p className={`${textSecondary} text-sm`}>Let AI find photos of you using facial recognition</p>
                 </div>
               </div>
-              <Button 
+              <Button aria-label="Scan Face" 
                 onClick={() => setScanModalOpen(true)}
                 className="bg-cyan-600 hover:bg-cyan-700 text-white font-semibold"
               >
@@ -489,7 +489,7 @@ export const PublicPhotographerGallery = () => {
             <h2 className={`text-lg font-semibold ${textPrimary} mb-3`}>Session Galleries</h2>
             <div ref={galleryPillsRef} className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
               {galleries.map(gallery => (
-                <button
+                <button aria-label="Folder"
                   key={gallery.id}
                   data-gallery-id={gallery.id}
                   onClick={() => setSelectedGallery(gallery)}
@@ -508,7 +508,7 @@ export const PublicPhotographerGallery = () => {
           </div>
         )}
 
-        {/* Swipeable content area â€” swipe left/right to switch gallery folders on mobile */}
+        {/* Swipeable content area — swipe left/right to switch gallery folders on mobile */}
         <div
           className="relative overflow-hidden"
           onTouchStart={(e) => {
@@ -793,7 +793,7 @@ export const PublicPhotographerGallery = () => {
             <Button variant="outline" onClick={() => setShowPurchaseModal(false)} className={borderColor}>
               Cancel
             </Button>
-            <Button 
+            <Button aria-label="div" 
               onClick={handlePurchase}
               disabled={purchaseLoading}
               className="bg-gradient-to-r from-emerald-500 to-yellow-500 text-black font-semibold"
@@ -966,7 +966,7 @@ const GalleryItemCard = ({ item, isPurchased, viewMode, isLight, onClick }) => {
           </p>
         </div>
         {!isPurchased && (
-          <Button size="sm" className="bg-white/20 hover:bg-white/30 text-white">
+          <Button aria-label="Shopping Cart" size="sm" className="bg-white/20 hover:bg-white/30 text-white">
             <ShoppingCart className="w-4 h-4" />
           </Button>
         )}

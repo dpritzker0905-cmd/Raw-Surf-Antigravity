@@ -304,7 +304,7 @@ const PhotoSelectionQueue = ({ open, onOpenChange, theme = 'dark', onSelectionCo
                           {quota.photographer_name || 'Session'}
                         </p>
                         <p className={`text-sm ${textSecondaryClass}`}>
-                          {quota.spot_name} • {quota.session_date ? new Date(quota.session_date).toLocaleDateString() : 'Recent'}
+                          {quota.spot_name} ? {quota.session_date ? new Date(quota.session_date).toLocaleDateString() : 'Recent'}
                         </p>
                       </div>
                       <div className="text-right">
@@ -581,7 +581,7 @@ const PhotoSelectionQueue = ({ open, onOpenChange, theme = 'dark', onSelectionCo
             </Button>
             
             {selectedQuota && selectedItems.size > 0 && (
-              <Button
+              <Button aria-label="Loader2"
                 data-testid="confirm-selection-btn"
                 onClick={handleSubmitSelections}
                 disabled={submitting}

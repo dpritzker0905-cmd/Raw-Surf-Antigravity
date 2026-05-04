@@ -38,7 +38,7 @@ export default function WebcamCaptureModal({ isOpen, onClose, onCapture, maxLeng
   const timerRef = useRef(null);
   const timerStartRef = useRef(null); // Track timer start time for accurate counting
   const processorRef = useRef(null);
-  const streamRef = useRef(null); // REF mirror of stream — avoids stale closures on iOS
+  const streamRef = useRef(null); // REF mirror of stream � avoids stale closures on iOS
   const compositeCanvasRef = useRef(null); // Hidden 2D canvas for compositing WebGL + hair for recording
   const compositeRafRef = useRef(null); // rAF ID for composite render loop
   const modalRef = useRef(null);
@@ -46,7 +46,7 @@ export default function WebcamCaptureModal({ isOpen, onClose, onCapture, maxLeng
   // Trap focus within the camera modal for keyboard accessibility
   useFocusTrap(modalRef, isOpen);
 
-  // ── Reliable track cleanup via refs (avoids iOS stale closure bugs) ──
+  // -- Reliable track cleanup via refs (avoids iOS stale closure bugs) --
   const killAllTracks = useCallback(() => {
     // 1. Stop the ref-tracked stream (always current)
     if (streamRef.current) {
@@ -92,7 +92,7 @@ export default function WebcamCaptureModal({ isOpen, onClose, onCapture, maxLeng
           audio: true
         });
       } catch (exactErr) {
-        // Fallback: use 'ideal' (soft hint) — works better on some iPhones
+        // Fallback: use 'ideal' (soft hint) � works better on some iPhones
         logger.warn('Exact facingMode failed, falling back to ideal:', exactErr.message);
         try {
           newStream = await navigator.mediaDevices.getUserMedia({
@@ -133,7 +133,7 @@ export default function WebcamCaptureModal({ isOpen, onClose, onCapture, maxLeng
     }
     
     return () => {
-      // Unmount safety net — uses refs so never stale
+      // Unmount safety net � uses refs so never stale
       if (streamRef.current) {
         streamRef.current.getTracks().forEach(t => t.stop());
         streamRef.current = null;
@@ -186,7 +186,7 @@ export default function WebcamCaptureModal({ isOpen, onClose, onCapture, maxLeng
   }, [stream, videoFilters.presetName, initProcessor]);
 
   const toggleCamera = useCallback(() => {
-    // Kill processor before switching — iOS needs full hardware release
+    // Kill processor before switching � iOS needs full hardware release
     if (processorRef.current) {
       try { processorRef.current.stop(); } catch (_) { /* ignore */ }
       processorRef.current = null;
@@ -252,7 +252,7 @@ export default function WebcamCaptureModal({ isOpen, onClose, onCapture, maxLeng
     
     const mimeType = MediaRecorder.isTypeSupported('video/mp4') ? 'video/mp4' : 'video/webm;codecs=vp8,opus';
     
-    // ── Composite Canvas Approach ──
+    // -- Composite Canvas Approach --
     // iOS Safari's captureStream() on WebGL canvases is unreliable.
     // Also, hair filters live on a separate canvas overlay and aren't captured.
     // Solution: Create a hidden 2D canvas, composite both layers each frame,
@@ -324,7 +324,7 @@ export default function WebcamCaptureModal({ isOpen, onClose, onCapture, maxLeng
     mediaRecorder.start(100);
     setIsRecording(true);
     
-    // Simple, reliable timer using Date.now() — immune to iOS Safari setInterval throttling
+    // Simple, reliable timer using Date.now() � immune to iOS Safari setInterval throttling
     timerStartRef.current = Date.now();
     timerRef.current = setInterval(() => {
       const elapsed = Math.floor((Date.now() - timerStartRef.current) / 1000);
@@ -350,7 +350,7 @@ export default function WebcamCaptureModal({ isOpen, onClose, onCapture, maxLeng
     if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
     
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
-      mediaRecorderRef.current.stop(); // triggers onstop → killAllTracks → onCapture → onClose
+      mediaRecorderRef.current.stop(); // triggers onstop ? killAllTracks ? onCapture ? onClose
     }
     setIsRecording(false);
   }, []);
@@ -364,7 +364,7 @@ export default function WebcamCaptureModal({ isOpen, onClose, onCapture, maxLeng
     toast.success('Filter active');
   };
 
-  // ── Hair Filter Engine lifecycle ──
+  // -- Hair Filter Engine lifecycle --
   useEffect(() => {
     const engine = new HairFilterEngine();
     hairEngineRef.current = engine;
@@ -414,7 +414,7 @@ export default function WebcamCaptureModal({ isOpen, onClose, onCapture, maxLeng
   const handleSelectHairStyle = useCallback((styleId) => {
     setActiveHairStyle(styleId);
     setShowHairPicker(false); // Auto-close picker on selection
-    if (styleId) toast.success('Hair filter applied! 💇');
+    if (styleId) toast.success('Hair filter applied! ??');
   }, []);
 
   if (!isOpen) return null;
@@ -456,29 +456,29 @@ export default function WebcamCaptureModal({ isOpen, onClose, onCapture, maxLeng
             )}
           </div>
 
-          <button onClick={toggleCamera} disabled={isRecording} className={`p-2 bg-black/50 rounded-full text-white hover:bg-zinc-800 transition-colors ${isRecording ? 'opacity-50' : ''} pointer-events-auto`}>
+          <button aria-label="Refresh Ccw" onClick={toggleCamera} disabled={isRecording} className={`p-2 bg-black/50 rounded-full text-white hover:bg-zinc-800 transition-colors ${isRecording ? 'opacity-50' : ''} pointer-events-auto`}>
             <RefreshCcw className="w-5 h-5" />
           </button>
         </div>
 
         {/* Floating Side Tools (Exactly like GoLiveModal transparent buttons) */}
         <div className="absolute right-3 top-1/2 -translate-y-1/2 flex flex-col gap-3 z-[60] pointer-events-auto">
-          <button
-            onClick={() => { setShowPresets(!showPresets); setShowSliders(false); setShowHairPicker(false); }}
+          <button aria-label="Sparkles"
+            aria-expanded={showPresets} onClick={() => { setShowPresets(!showPresets); setShowSliders(false); setShowHairPicker(false); }}
             className={`p-3 rounded-full bg-black/40 backdrop-blur border border-white/20 transition-all active:scale-95 shadow-md ${showPresets ? 'bg-cyan-500 text-white border-transparent' : 'text-white'}`}
             title="Surf Filters"
           >
             <Sparkles className="w-5 h-5" />
           </button>
-          <button
-            onClick={() => { setShowSliders(!showSliders); setShowPresets(false); setShowHairPicker(false); }}
+          <button aria-label="Sliders Horizontal"
+            aria-expanded={showSliders} onClick={() => { setShowSliders(!showSliders); setShowPresets(false); setShowHairPicker(false); }}
             className={`p-3 rounded-full bg-black/40 backdrop-blur border border-white/20 transition-all active:scale-95 shadow-md ${showSliders ? 'bg-cyan-500 text-white border-transparent' : 'text-white'}`}
             title="Filter Adjustments"
           >
             <SlidersHorizontal className="w-5 h-5" />
           </button>
-          <button
-            onClick={() => { setShowHairPicker(!showHairPicker); setShowPresets(false); setShowSliders(false); }}
+          <button aria-label="Scissors"
+            aria-expanded={showHairPicker} onClick={() => { setShowHairPicker(!showHairPicker); setShowPresets(false); setShowSliders(false); }}
             className={`p-3 rounded-full bg-black/40 backdrop-blur border border-white/20 transition-all active:scale-95 shadow-md ${showHairPicker ? 'bg-yellow-500 text-white border-transparent' : activeHairStyle ? 'bg-yellow-500/30 border-yellow-500/50 text-white' : 'text-white'}`}
             title="Hair Filters"
           >
@@ -500,7 +500,7 @@ export default function WebcamCaptureModal({ isOpen, onClose, onCapture, maxLeng
                 {presets.map(preset => {
                   const Icon = preset.icon;
                   return (
-                    <button key={preset.name} onClick={() => handlePresetSelect(preset)}
+                    <button aria-label="Icon" key={preset.name} onClick={() => handlePresetSelect(preset)}
                       className={`flex flex-col items-center gap-1 p-2 rounded-lg transition-transform hover:scale-105 ${videoFilters.presetName === preset.name ? 'bg-cyan-500/30 border border-cyan-500' : 'bg-zinc-800/60'}`}
                     >
                       <Icon className="w-4 h-4 text-cyan-400" />
@@ -591,13 +591,13 @@ export default function WebcamCaptureModal({ isOpen, onClose, onCapture, maxLeng
               opacity: 1,
             }}
           />
-          {/* WebGL filtered canvas sits on top — if it renders, it covers the raw video */}
+          {/* WebGL filtered canvas sits on top � if it renders, it covers the raw video */}
           <canvas 
             ref={canvasRef} 
             className="absolute inset-0 w-full h-full object-cover z-10" 
             style={{ transform: facingMode === 'user' ? 'scaleX(-1)' : 'none' }}
           />
-          {/* Hair filter canvas overlay — must mirror when front camera is active (matching GoLiveModal) */}
+          {/* Hair filter canvas overlay � must mirror when front camera is active (matching GoLiveModal) */}
           <canvas 
             ref={hairCanvasRef} 
             className="absolute inset-0 w-full h-full object-cover pointer-events-none z-[15]" 
@@ -613,7 +613,7 @@ export default function WebcamCaptureModal({ isOpen, onClose, onCapture, maxLeng
 
         {/* Controls */}
         <div className="absolute bottom-0 left-0 right-0 h-40 bg-gradient-to-t from-black/95 via-black/50 to-transparent flex items-center justify-center gap-12 pb-6 z-20 pointer-events-auto">
-          <Button
+          <Button aria-label="div"
             onClick={takePhoto}
             disabled={isRecording}
             variant="ghost"
@@ -634,7 +634,7 @@ export default function WebcamCaptureModal({ isOpen, onClose, onCapture, maxLeng
             </button>
           </div>
 
-          <Button disabled variant="ghost" className="flex flex-col items-center gap-2 hover:bg-transparent opacity-0 pointer-events-none">
+          <Button aria-label="div" disabled variant="ghost" className="flex flex-col items-center gap-2 hover:bg-transparent opacity-0 pointer-events-none">
             <div className="w-12 h-12 rounded-full border-2 border-transparent" />
             <span className="text-transparent font-medium text-xs">Blank</span>
           </Button>

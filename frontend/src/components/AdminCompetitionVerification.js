@@ -185,7 +185,7 @@ export const AdminCompetitionVerification = () => {
                   {/* Actions */}
                   <div className="flex flex-col gap-2">
                     {result.proof_image_url && (
-                      <Button
+                      <Button aria-label="View"
                         variant="outline"
                         size="sm"
                         className="border-cyan-500/50 text-cyan-400 hover:bg-cyan-500/10"
@@ -199,7 +199,7 @@ export const AdminCompetitionVerification = () => {
                       </Button>
                     )}
                     <div className="flex gap-2">
-                      <Button
+                      <Button aria-label="Check Circle"
                         size="sm"
                         className="bg-emerald-500 hover:bg-emerald-400 text-white"
                         onClick={() => handleVerify(result.id, true)}
@@ -207,7 +207,7 @@ export const AdminCompetitionVerification = () => {
                       >
                         <CheckCircle className="w-4 h-4" />
                       </Button>
-                      <Button
+                      <Button aria-label="Cancel"
                         size="sm"
                         variant="outline"
                         className="border-red-500/50 text-red-400 hover:bg-red-500/10"
@@ -311,7 +311,7 @@ export const AdminCompetitionVerification = () => {
             >
               Cancel
             </Button>
-            <Button 
+            <Button aria-label="Loader2" 
               variant="outline"
               className="border-red-500/50 text-red-400 hover:bg-red-500/10"
               onClick={() => handleVerify(selectedResult?.id, false)}
@@ -320,7 +320,7 @@ export const AdminCompetitionVerification = () => {
               {processing ? <Loader2 className="w-4 h-4 animate-spin" /> : <XCircle className="w-4 h-4 mr-1" />}
               Reject
             </Button>
-            <Button 
+            <Button aria-label="Loader2" 
               className="bg-emerald-500 hover:bg-emerald-400 text-white"
               onClick={() => handleVerify(selectedResult?.id, true)}
               disabled={processing}

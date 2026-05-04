@@ -80,8 +80,8 @@ const getCommissionRate = (subscriptionTier) => {
   return COMMISSION_RATES[tier] || COMMISSION_RATES.free;
 };
 
-// LiveSavingsBadge → imported from ./sessions/LiveSavingsBadge
-// PotentialEarningsCalculator → imported from ./sessions/PotentialEarningsCalculator
+// LiveSavingsBadge ? imported from ./sessions/LiveSavingsBadge
+// PotentialEarningsCalculator ? imported from ./sessions/PotentialEarningsCalculator
 
 // Promotional Preview Component - Shows how deal appears to surfers
 const _PromotionalPreview = ({ 
@@ -657,17 +657,17 @@ export const PhotographerSessionsManager = () => {
 
       const selectedSpot = surfSpots.find(s => s.id === sessionSettings.surf_spot_id);
 
-      // ─── STEP A: Upload conditions media (multipart — avoids large JSON body) ───
+      // --- STEP A: Upload conditions media (multipart � avoids large JSON body) ---
       let conditionMediaUrl = null;
       let conditionMediaType = null;
       if (conditionsData.media) {
         try {
-          toast.info('Uploading conditions photo…', { id: 'cond-upload', duration: 8000 });
+          toast.info('Uploading conditions photo�', { id: 'cond-upload', duration: 8000 });
           const fd = new FormData();
           const ext = conditionsData.mediaType === 'video' ? 'webm' : 'jpg';
           fd.append('file', conditionsData.media, `conditions.${ext}`);
           fd.append('user_id', user?.id);
-          // ⚠️ Do NOT set Content-Type manually — browser must set it with boundary
+          // ?? Do NOT set Content-Type manually � browser must set it with boundary
           const uploadRes = await apiClient.post('/upload/conditions', fd, {
             headers: { 'Content-Type': undefined },
             timeout: 60000
@@ -683,7 +683,7 @@ export const PhotographerSessionsManager = () => {
         }
       }
 
-      // ─── STEP B: Go Live — small JSON payload (no media bytes inline) ───
+      // --- STEP B: Go Live � small JSON payload (no media bytes inline) ---
       // 120s timeout: Render free tier cold starts can take 30-60s
       const response = await apiClient.post(
         `/photographer/${user?.id}/go-live`,
@@ -737,9 +737,9 @@ export const PhotographerSessionsManager = () => {
       const isNetwork = !error.response && !isTimeout;
       let detail;
       if (isTimeout) {
-        detail = 'Server is warming up — please wait a moment and try again.';
+        detail = 'Server is warming up � please wait a moment and try again.';
       } else if (isNetwork) {
-        detail = 'Network error — check your connection and try again.';
+        detail = 'Network error � check your connection and try again.';
       } else {
         detail = error.response?.data?.detail || error.message || 'Failed to start session';
       }
@@ -928,7 +928,7 @@ export const PhotographerSessionsManager = () => {
               
               {isLive ? (
                 <div className="flex flex-wrap gap-2 justify-end">
-                  <Button
+                  <Button aria-label="Upload"
                     onClick={() => setShowPhotoUpload(true)}
                     variant="outline"
                     className="border-cyan-500/50 text-cyan-400 hover:bg-cyan-500/10"
@@ -937,7 +937,7 @@ export const PhotographerSessionsManager = () => {
                     <Upload className="w-4 h-4 mr-2" />
                     Upload Media
                   </Button>
-                  <Button
+                  <Button aria-label="Refresh"
                     onClick={refreshSession}
                     variant="outline"
                     size="icon"
@@ -945,7 +945,7 @@ export const PhotographerSessionsManager = () => {
                   >
                     <RefreshCw className="w-4 h-4" />
                   </Button>
-                  <Button
+                  <Button aria-label="Square"
                     onClick={handleEndSession}
                     className="bg-red-500 hover:bg-red-600 text-white shrink-0"
                     data-testid="end-session-btn"
@@ -955,7 +955,7 @@ export const PhotographerSessionsManager = () => {
                   </Button>
                 </div>
               ) : (
-                <Button
+                <Button aria-label="Play"
                   onClick={startSequentialGoLive}
                   className="bg-gradient-to-r from-green-400 to-emerald-500 hover:from-green-500 hover:to-emerald-600 text-black font-medium"
                   data-testid="go-live-btn"
@@ -1211,7 +1211,7 @@ export const PhotographerSessionsManager = () => {
                           <span className={`${textPrimaryClass} truncate`}>{session.location}</span>
                         </div>
                         <p className={`text-sm ${textSecondaryClass} mt-1`}>
-                          {new Date(session.started_at).toLocaleDateString()} · {session.duration_mins} mins
+                          {new Date(session.started_at).toLocaleDateString()} � {session.duration_mins} mins
                         </p>
                       </div>
                       <div className="flex items-center gap-3">
@@ -1323,7 +1323,7 @@ export const PhotographerSessionsManager = () => {
 
             {/* Collapsible Section: Session Buy-in */}
             <div className={`rounded-xl border ${borderClass} overflow-hidden`}>
-              <button
+              <button aria-label="Dollar Sign"
                 onClick={() => toggleSection('buyin')}
                 className={`w-full flex items-center justify-between p-3 ${isLight ? 'bg-gray-50 hover:bg-gray-100' : 'bg-zinc-800/50 hover:bg-zinc-800'} transition-colors`}
               >
@@ -1393,7 +1393,7 @@ export const PhotographerSessionsManager = () => {
 
             {/* Collapsible Section: Resolution-Based Pricing */}
             <div className={`rounded-xl border ${borderClass} overflow-hidden`}>
-              <button
+              <button aria-label="Tag"
                 onClick={() => toggleSection('pricing')}
                 className={`w-full flex items-center justify-between p-3 ${isLight ? 'bg-gray-50 hover:bg-gray-100' : 'bg-zinc-800/50 hover:bg-zinc-800'} transition-colors`}
               >
@@ -1544,7 +1544,7 @@ export const PhotographerSessionsManager = () => {
 
             {/* Collapsible Section: Video Pricing */}
             <div className={`rounded-xl border ${borderClass} overflow-hidden`}>
-              <button
+              <button aria-label="Video"
                 onClick={() => toggleSection('videoPricing')}
                 className={`w-full flex items-center justify-between p-3 ${isLight ? 'bg-gray-50 hover:bg-gray-100' : 'bg-zinc-800/50 hover:bg-zinc-800'} transition-colors`}
               >
@@ -1695,7 +1695,7 @@ export const PhotographerSessionsManager = () => {
 
             {/* Collapsible Section: Session Settings */}
             <div className={`rounded-xl border ${borderClass} overflow-hidden`}>
-              <button
+              <button aria-label="Clock"
                 onClick={() => toggleSection('settings')}
                 className={`w-full flex items-center justify-between p-3 ${isLight ? 'bg-gray-50 hover:bg-gray-100' : 'bg-zinc-800/50 hover:bg-zinc-800'} transition-colors`}
               >
@@ -1767,7 +1767,7 @@ export const PhotographerSessionsManager = () => {
             {/* Collapsible Section: Earnings Destination (Hobbyists only) */}
             {isHobbyist && (
               <div className={`rounded-xl border ${isLight ? 'border-amber-200' : 'border-amber-500/30'} overflow-hidden`}>
-                <button
+                <button aria-label="Like"
                   onClick={() => toggleSection('earnings')}
                   className={`w-full flex items-center justify-between p-3 ${isLight ? 'bg-amber-50 hover:bg-amber-100' : 'bg-amber-900/20 hover:bg-amber-900/30'} transition-colors`}
                 >
@@ -1854,7 +1854,7 @@ export const PhotographerSessionsManager = () => {
             <Button variant="outline" onClick={() => setShowSettingsModal(false)}>
               Cancel
             </Button>
-            <Button
+            <Button aria-label="Confirm"
               onClick={handleSaveSettings}
               className="bg-gradient-to-r from-cyan-400 to-blue-500 text-black font-medium"
               data-testid="save-settings-btn"
@@ -2267,7 +2267,7 @@ export const PhotographerSessionsManager = () => {
             <Button variant="outline" onClick={() => setShowGoLiveModal(false)}>
               Cancel
             </Button>
-            <Button
+            <Button aria-label="Play"
               onClick={handleGoLiveConfirmed}
               disabled={!sessionSettings.surf_spot_id || !canProceed}
               className="bg-gradient-to-r from-green-400 to-emerald-500 text-black font-medium disabled:opacity-50"
@@ -2392,7 +2392,7 @@ export const PhotographerSessionsManager = () => {
             <Button variant="outline" onClick={() => setShowGalleryCreatedModal(false)}>
               Close
             </Button>
-            <Button
+            <Button aria-label="Image Icon"
               onClick={() => {
                 setShowGalleryCreatedModal(false);
                 navigate(`/photographer/galleries/${lastCreatedGallery?.id}`);

@@ -89,7 +89,7 @@ export const ImpactZoneHub = () => {
   }
 
   return (
-    <div className="space-y-6 pb-20">
+    <div data-testid="impact-zone-hub" className="space-y-6 pb-20">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -254,7 +254,7 @@ export const ImpactZoneHub = () => {
               <Award className="w-5 h-5 text-purple-500" />
               Competition Results
             </CardTitle>
-            <Button 
+            <Button aria-label="Add" 
               variant="outline" 
               size="sm" 
               className="border-orange-500/50 text-orange-400 hover:bg-orange-500/10"
@@ -303,7 +303,7 @@ export const ImpactZoneHub = () => {
               <Trophy className="w-12 h-12 mx-auto mb-3 text-zinc-600" />
               <p className={textSecondary}>No competition results yet</p>
               <p className={`text-xs ${textSecondary} mt-1`}>Add your first result to track your progress</p>
-              <Button 
+              <Button aria-label="Add" 
                 className="mt-4 bg-orange-500 hover:bg-orange-600"
                 onClick={() => setShowAddResultModal(true)}
               >
@@ -351,7 +351,7 @@ export const ImpactZoneHub = () => {
 
       {/* Quick Actions */}
       <div className="grid grid-cols-2 gap-3">
-        <Button 
+        <Button aria-label="Users" 
           variant="outline" 
           className="h-auto py-4 border-orange-500/30 hover:bg-orange-500/10 flex flex-col items-center gap-2"
           onClick={() => navigate('/explore?filter=comp')}
@@ -359,7 +359,7 @@ export const ImpactZoneHub = () => {
           <Users className="w-6 h-6 text-orange-400" />
           <span className={textPrimary}>Comp Crew</span>
         </Button>
-        <Button 
+        <Button aria-label="Favorite" 
           variant="outline" 
           className="h-auto py-4 border-yellow-500/30 hover:bg-yellow-500/10 flex flex-col items-center gap-2"
           onClick={() => navigate('/stoked')}

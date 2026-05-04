@@ -141,7 +141,7 @@ export const Home = () => {
 
           {/* CTA Buttons */}
           <div className="flex flex-col sm:flex-row gap-3 justify-center items-center pt-4">
-            <Button
+            <Button aria-label="User"
               onClick={() => navigate('/auth?tab=signup&category=surfer')}
               className="min-w-[180px] h-12 text-base font-bold bg-gradient-to-r from-emerald-400 via-yellow-400 to-orange-400 hover:from-emerald-500 hover:via-yellow-500 hover:to-orange-500 text-black border-0"
               data-testid="cta-surfer"
@@ -150,7 +150,7 @@ export const Home = () => {
               I'm a Surfer
             </Button>
 
-            <Button
+            <Button aria-label="Camera"
               onClick={() => navigate('/auth?tab=signup&category=photographer')}
               className="min-w-[180px] h-12 text-base font-medium bg-zinc-900 hover:bg-zinc-800 text-white border border-zinc-700 hover:border-zinc-600"
               data-testid="cta-photographer"
@@ -159,7 +159,7 @@ export const Home = () => {
               I Shoot Surf
             </Button>
 
-            <Button
+            <Button aria-label="Building2"
               onClick={() => navigate('/auth?tab=signup&category=business')}
               className="min-w-[180px] h-12 text-base font-medium bg-zinc-900 hover:bg-zinc-800 text-white border border-zinc-700 hover:border-zinc-600"
               data-testid="cta-business"
@@ -177,9 +177,9 @@ export const Home = () => {
                 Surfers
               </div>
               <ul className="text-gray-400 text-sm space-y-1">
-                <li>â€¢ Book photographers on the beach</li>
-                <li>â€¢ Build your session portfolio</li>
-                <li>â€¢ Get discounts on photo packages</li>
+                <li>• Book photographers on the beach</li>
+                <li>• Build your session portfolio</li>
+                <li>• Get discounts on photo packages</li>
               </ul>
             </div>
             <div className="bg-zinc-900/60 border border-zinc-800 rounded-lg p-4">
@@ -188,9 +188,9 @@ export const Home = () => {
                 Photographers
               </div>
               <ul className="text-gray-400 text-sm space-y-1">
-                <li>â€¢ Set your own session prices</li>
-                <li>â€¢ Get booked by local surfers</li>
-                <li>â€¢ 15-20% platform fee on sales</li>
+                <li>• Set your own session prices</li>
+                <li>• Get booked by local surfers</li>
+                <li>• 15-20% platform fee on sales</li>
               </ul>
             </div>
             <div className="bg-zinc-900/60 border border-zinc-800 rounded-lg p-4">
@@ -199,9 +199,9 @@ export const Home = () => {
                 Businesses
               </div>
               <ul className="text-gray-400 text-sm space-y-1">
-                <li>â€¢ List services & products</li>
-                <li>â€¢ Book event photographers</li>
-                <li>â€¢ Sponsor local talent</li>
+                <li>• List services & products</li>
+                <li>• Book event photographers</li>
+                <li>• Sponsor local talent</li>
               </ul>
             </div>
           </div>
@@ -254,7 +254,7 @@ export const Home = () => {
             onClick={() => navigate('/auth?tab=signup')}
             className="min-w-[200px] h-14 text-lg font-bold bg-black hover:bg-zinc-900 text-white"
           >
-            Create Account â†’
+            Create Account ?
           </Button>
         </div>
       </section>
@@ -270,7 +270,7 @@ export const Home = () => {
             />
             <span className="text-lg font-bold text-white font-oswald" >Raw Surf</span>
           </div>
-          <p className="text-gray-500 text-sm">Â© 2026 Raw Surf. All rights reserved.</p>
+          <p className="text-gray-500 text-sm">© 2026 Raw Surf. All rights reserved.</p>
         </div>
       </footer>
     </div>

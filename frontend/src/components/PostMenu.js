@@ -65,7 +65,7 @@ const MenuItem = ({
   };
 
   return (
-    <button
+    <button aria-label="Loader2"
       onClick={onClick}
       disabled={disabled || loading}
       className={`w-full flex items-center gap-3 px-4 py-3 text-left ${variants[variant]} transition-colors disabled:opacity-50`}
@@ -240,9 +240,9 @@ const EditPostModal = ({ post, open, onClose, onSave, isLight }) => {
           </div>
 
           {/* Conditions Toggle */}
-          <button
+          <button aria-label="Waves"
             type="button"
-            onClick={() => setShowConditions(!showConditions)}
+            aria-expanded={showConditions} onClick={() => setShowConditions(!showConditions)}
             className={`w-full flex items-center justify-between p-3 rounded-lg border ${isLight ? 'border-gray-200 bg-gray-50' : 'border-zinc-700 bg-zinc-800/50'}`}
           >
             <div className="flex items-center gap-2">
@@ -355,7 +355,7 @@ const EditPostModal = ({ post, open, onClose, onSave, isLight }) => {
           <Button variant="outline" onClick={onClose} disabled={loading}>
             Cancel
           </Button>
-          <Button 
+          <Button aria-label="Loader2" 
             onClick={handleSave} 
             disabled={loading}
             className="bg-gradient-to-r from-cyan-500 to-blue-600"
@@ -403,7 +403,7 @@ const DeleteConfirmModal = ({ open, onClose, onConfirm, isLight }) => {
           <Button variant="outline" onClick={onClose} disabled={loading}>
             Cancel
           </Button>
-          <Button 
+          <Button aria-label="Loader2" 
             variant="destructive"
             onClick={handleConfirm} 
             disabled={loading}
@@ -508,7 +508,7 @@ const ReportPostModal = ({ post, open, onClose, isLight }) => {
           <Button variant="outline" onClick={onClose} disabled={loading}>
             Cancel
           </Button>
-          <Button 
+          <Button aria-label="Loader2" 
             variant="destructive"
             onClick={handleReport} 
             disabled={loading || !reason}
@@ -626,7 +626,7 @@ const SharePostModal = ({ post, open, onClose, isLight }) => {
   };
 
   const handleShare = async (platform) => {
-    const shareText = `Check out this surf session on Raw Surf! 🏄`;
+    const shareText = `Check out this surf session on Raw Surf! ??`;
     
     // Instagram handling - use native share on mobile, copy link on desktop
     if (platform === 'instagram') {
@@ -708,11 +708,11 @@ const SharePostModal = ({ post, open, onClose, isLight }) => {
           {!checkingMeta && metaStatus && (metaStatus.facebook_connected || metaStatus.instagram_connected) && (
             <div className={`p-3 rounded-lg ${isLight ? 'bg-gradient-to-r from-blue-50 to-pink-50 border border-blue-100' : 'bg-gradient-to-r from-blue-900/30 to-pink-900/30 border border-blue-800'}`}>
               <p className={`text-xs font-medium mb-2 ${isLight ? 'text-gray-700' : 'text-gray-300'}`}>
-                🚀 Direct Post to Your Feed
+                ?? Direct Post to Your Feed
               </p>
               <div className="flex gap-2">
                 {metaStatus.facebook_connected && (
-                  <Button
+                  <Button aria-label="Loader2"
                     size="sm"
                     onClick={handleDirectShareFacebook}
                     disabled={directShareLoading === 'facebook'}
@@ -730,7 +730,7 @@ const SharePostModal = ({ post, open, onClose, isLight }) => {
                   </Button>
                 )}
                 {metaStatus.instagram_connected && (
-                  <Button
+                  <Button aria-label="Loader2"
                     size="sm"
                     onClick={handleDirectShareInstagram}
                     disabled={directShareLoading === 'instagram'}
@@ -741,7 +741,7 @@ const SharePostModal = ({ post, open, onClose, isLight }) => {
                       <Loader2 className="w-4 h-4 animate-spin" />
                     ) : (
                       <>
-                        <span className="text-lg mr-1">📸</span>
+                        <span className="text-lg mr-1">??</span>
                         Post to IG
                       </>
                     )}
@@ -764,7 +764,7 @@ const SharePostModal = ({ post, open, onClose, isLight }) => {
               data-testid="connect-meta-cta"
             >
               <p className={`text-sm font-medium ${isLight ? 'text-gray-800' : 'text-white'}`}>
-                🔗 Connect Facebook & Instagram
+                ?? Connect Facebook & Instagram
               </p>
               <p className={`text-xs mt-0.5 ${isLight ? 'text-gray-500' : 'text-gray-400'}`}>
                 Post directly to your social feeds
@@ -793,7 +793,7 @@ const SharePostModal = ({ post, open, onClose, isLight }) => {
               readOnly
               className={`flex-1 text-sm ${isLight ? 'bg-white' : 'bg-zinc-900'}`}
             />
-            <Button 
+            <Button aria-label="Confirm" 
               size="sm" 
               onClick={handleCopyLink}
               className={copied ? 'bg-green-500' : ''}
@@ -810,7 +810,7 @@ const SharePostModal = ({ post, open, onClose, isLight }) => {
               className="flex-col h-auto py-3"
               data-testid="share-twitter-btn"
             >
-              <span className="text-2xl">𝕏</span>
+              <span className="text-2xl">??</span>
               <span className="text-xs mt-1">Twitter</span>
             </Button>
             <Button
@@ -829,7 +829,7 @@ const SharePostModal = ({ post, open, onClose, isLight }) => {
               title={isMobile ? "Share via your device's share menu" : "Copy link to share on Instagram"}
               data-testid="share-instagram-link-btn"
             >
-              <span className="text-2xl">📸</span>
+              <span className="text-2xl">??</span>
               <span className="text-xs mt-1">Link</span>
             </Button>
             <Button
@@ -838,14 +838,14 @@ const SharePostModal = ({ post, open, onClose, isLight }) => {
               className="flex-col h-auto py-3"
               data-testid="share-whatsapp-btn"
             >
-              <span className="text-2xl text-green-500">💬</span>
+              <span className="text-2xl text-green-500">??</span>
               <span className="text-xs mt-1">WhatsApp</span>
             </Button>
           </div>
           
           {/* Native Share (Mobile) */}
           {typeof navigator !== 'undefined' && navigator.share && (
-            <Button
+            <Button aria-label="Share"
               variant="outline"
               onClick={() => handleShare('native')}
               className="w-full"
@@ -859,7 +859,7 @@ const SharePostModal = ({ post, open, onClose, isLight }) => {
           {/* Instagram note for desktop - only show if not connected */}
           {!isMobile && !metaStatus?.instagram_connected && (
             <p className={`text-xs ${isLight ? 'text-gray-500' : 'text-gray-400'} text-center`}>
-              💡 Instagram doesn't support web sharing. Connect your account above to post directly!
+              ?? Instagram doesn't support web sharing. Connect your account above to post directly!
             </p>
           )}
         </div>

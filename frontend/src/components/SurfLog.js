@@ -16,11 +16,11 @@ import logger from '../utils/logger';
 import { getThemeTokens } from '../utils/themeTokens';
 
 const MOODS = [
-  { id: 'stoked', label: 'Stoked', icon: '🤙', color: 'text-green-400' },
-  { id: 'happy', label: 'Happy', icon: '😄', color: 'text-yellow-400' },
-  { id: 'mellow', label: 'Mellow', icon: '😌', color: 'text-blue-400' },
-  { id: 'frustrated', label: 'Frustrated', icon: '😤', color: 'text-orange-400' },
-  { id: 'exhausted', label: 'Exhausted', icon: '😩', color: 'text-red-400' },
+  { id: 'stoked', label: 'Stoked', icon: '??', color: 'text-green-400' },
+  { id: 'happy', label: 'Happy', icon: '??', color: 'text-yellow-400' },
+  { id: 'mellow', label: 'Mellow', icon: '??', color: 'text-blue-400' },
+  { id: 'frustrated', label: 'Frustrated', icon: '??', color: 'text-orange-400' },
+  { id: 'exhausted', label: 'Exhausted', icon: '??', color: 'text-red-400' },
 ];
 
 const CROWD_LEVELS = ['Empty', 'Light', 'Moderate', 'Crowded', 'Packed'];
@@ -28,13 +28,13 @@ const TIDE_OPTIONS = ['Low', 'Rising', 'High', 'Falling'];
 const WIND_OPTIONS = ['Offshore', 'Cross-offshore', 'Cross-shore', 'Cross-onshore', 'Onshore', 'Calm'];
 const TIME_OPTIONS = ['Dawn Patrol', 'Morning', 'Midday', 'Afternoon', 'Sunset', 'Night'];
 
-/* ─── Stats Banner ──────────────────────────────────────────── */
+/* --- Stats Banner -------------------------------------------- */
 const StatsBanner = ({ stats, isLight }) => {
   if (!stats || stats.total_sessions === 0) return null;
   const items = [
     { label: 'Sessions', value: stats.total_sessions, icon: Waves, gradient: 'from-cyan-500/20 to-blue-500/20', border: 'border-cyan-500/30' },
     { label: 'Hours', value: stats.total_hours, icon: Clock, gradient: 'from-purple-500/20 to-pink-500/20', border: 'border-purple-500/30' },
-    { label: 'Avg Rating', value: stats.avg_personal_rating ?? '—', icon: Star, gradient: 'from-yellow-500/20 to-orange-500/20', border: 'border-yellow-500/30' },
+    { label: 'Avg Rating', value: stats.avg_personal_rating ?? '�', icon: Star, gradient: 'from-yellow-500/20 to-orange-500/20', border: 'border-yellow-500/30' },
   ];
   return (
     <div className="px-4 md:px-0 mb-4">
@@ -59,7 +59,7 @@ const StatsBanner = ({ stats, isLight }) => {
   );
 };
 
-/* ─── Entry Card ────────────────────────────────────────────── */
+/* --- Entry Card ---------------------------------------------- */
 const EntryCard = ({ entry, isLight, onEdit, onDelete }) => {
   const mood = MOODS.find(m => m.id === entry.mood);
   return (
@@ -74,8 +74,8 @@ const EntryCard = ({ entry, isLight, onEdit, onDelete }) => {
           {mood && <span title={mood.label}>{mood.icon}</span>}
         </div>
         <div className="flex items-center gap-1">
-          <button onClick={() => onEdit(entry)} className={`p-1.5 rounded-lg ${isLight ? 'hover:bg-gray-100' : 'hover:bg-zinc-700'}`}><Edit3 className="w-3.5 h-3.5 text-gray-400" /></button>
-          <button onClick={() => onDelete(entry.id)} className={`p-1.5 rounded-lg ${isLight ? 'hover:bg-red-50' : 'hover:bg-red-500/10'}`}><Trash2 className="w-3.5 h-3.5 text-red-400" /></button>
+          <button aria-label="Edit3" onClick={() => onEdit(entry)} className={`p-1.5 rounded-lg ${isLight ? 'hover:bg-gray-100' : 'hover:bg-zinc-700'}`}><Edit3 className="w-3.5 h-3.5 text-gray-400" /></button>
+          <button aria-label="Delete" onClick={() => onDelete(entry.id)} className={`p-1.5 rounded-lg ${isLight ? 'hover:bg-red-50' : 'hover:bg-red-500/10'}`}><Trash2 className="w-3.5 h-3.5 text-red-400" /></button>
         </div>
       </div>
 
@@ -92,7 +92,7 @@ const EntryCard = ({ entry, isLight, onEdit, onDelete }) => {
         {entry.wind_direction && <Badge className="bg-teal-500/20 text-teal-400 border-teal-500/30 text-[10px]"><Wind className="w-2.5 h-2.5 mr-0.5" />{entry.wind_direction}</Badge>}
         {entry.crowd_level && <Badge className="bg-orange-500/20 text-orange-400 border-orange-500/30 text-[10px]"><Users className="w-2.5 h-2.5 mr-0.5" />{entry.crowd_level}</Badge>}
         {entry.water_temp && <Badge className="bg-cyan-500/20 text-cyan-400 border-cyan-500/30 text-[10px]"><Thermometer className="w-2.5 h-2.5 mr-0.5" />{entry.water_temp}</Badge>}
-        {entry.board_model && <Badge className="bg-yellow-500/20 text-yellow-400 border-yellow-500/30 text-[10px]">🏄 {entry.board_model}</Badge>}
+        {entry.board_model && <Badge className="bg-yellow-500/20 text-yellow-400 border-yellow-500/30 text-[10px]">?? {entry.board_model}</Badge>}
       </div>
 
       {entry.personal_rating && (
@@ -107,7 +107,7 @@ const EntryCard = ({ entry, isLight, onEdit, onDelete }) => {
   );
 };
 
-/* ─── Create / Edit Modal ───────────────────────────────────── */
+/* --- Create / Edit Modal ------------------------------------- */
 const EntryModal = ({ isOpen, onClose, entry, userId, onSaved }) => {
   const { theme } = useTheme();
   const isLight = theme === 'light';
@@ -152,7 +152,7 @@ const EntryModal = ({ isOpen, onClose, entry, userId, onSaved }) => {
         toast.success('Entry updated');
       } else {
         await apiClient.post(`/surf-log/${userId}`, payload);
-        toast.success('Session logged! 🤙');
+        toast.success('Session logged! ??');
       }
       onSaved();
       onClose();
@@ -210,7 +210,7 @@ const EntryModal = ({ isOpen, onClose, entry, userId, onSaved }) => {
             <p className={`text-xs font-semibold ${isLight ? 'text-blue-700' : 'text-blue-300'} flex items-center gap-1`}><Waves className="w-3.5 h-3.5" /> Conditions</p>
             <div className="grid grid-cols-2 gap-3">
               <div><label className={`text-xs ${isLight ? 'text-gray-600' : 'text-gray-400'}`}>Wave Height</label><input type="text" value={form.wave_height} onChange={e => set('wave_height', e.target.value)} placeholder="3-5ft" className={inputCls} /></div>
-              <div><label className={`text-xs ${isLight ? 'text-gray-600' : 'text-gray-400'}`}>Water Temp</label><input type="text" value={form.water_temp} onChange={e => set('water_temp', e.target.value)} placeholder="72°F" className={inputCls} /></div>
+              <div><label className={`text-xs ${isLight ? 'text-gray-600' : 'text-gray-400'}`}>Water Temp</label><input type="text" value={form.water_temp} onChange={e => set('water_temp', e.target.value)} placeholder="72�F" className={inputCls} /></div>
             </div>
             <ChipSelect label="Wind" options={WIND_OPTIONS} value={form.wind_direction} onChange={v => set('wind_direction', v)} />
             <ChipSelect label="Tide" options={TIDE_OPTIONS} value={form.tide_status} onChange={v => set('tide_status', v)} />
@@ -223,7 +223,7 @@ const EntryModal = ({ isOpen, onClose, entry, userId, onSaved }) => {
 
           {/* Gear */}
           <div className={`p-3 rounded-xl ${isLight ? 'bg-yellow-50' : 'bg-yellow-500/10'} space-y-3`}>
-            <p className={`text-xs font-semibold ${isLight ? 'text-yellow-700' : 'text-yellow-300'}`}>🏄 Gear</p>
+            <p className={`text-xs font-semibold ${isLight ? 'text-yellow-700' : 'text-yellow-300'}`}>?? Gear</p>
             <div className="grid grid-cols-2 gap-3">
               <div><label className={`text-xs ${isLight ? 'text-gray-600' : 'text-gray-400'}`}>Board</label><input type="text" value={form.board_model} onChange={e => set('board_model', e.target.value)} placeholder="6'2 shortboard" className={inputCls} /></div>
               <div><label className={`text-xs ${isLight ? 'text-gray-600' : 'text-gray-400'}`}>Wetsuit</label><input type="text" value={form.wetsuit} onChange={e => set('wetsuit', e.target.value)} placeholder="3/2mm" className={inputCls} /></div>
@@ -256,7 +256,7 @@ const EntryModal = ({ isOpen, onClose, entry, userId, onSaved }) => {
               className={`${inputCls} mt-1`} maxLength={1000} />
           </div>
 
-          <Button onClick={handleSave} disabled={saving} className="w-full bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white font-bold py-3">
+          <Button aria-label="Loader2" onClick={handleSave} disabled={saving} className="w-full bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white font-bold py-3">
             {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
             {entry ? 'Update Session' : 'Log Session'}
           </Button>
@@ -266,7 +266,7 @@ const EntryModal = ({ isOpen, onClose, entry, userId, onSaved }) => {
   );
 };
 
-/* ─── Main SurfLog Page ─────────────────────────────────────── */
+/* --- Main SurfLog Page --------------------------------------- */
 const SurfLog = () => {
   const navigate = useNavigate();
   const { user } = useAuth();

@@ -106,7 +106,7 @@ export const StokeSponsorLeaderboard = ({ compact = false }) => {
                   <div className="text-pink-400 font-bold text-sm">${sponsor.total_contributed.toFixed(0)}</div>
                 </div>
               ))}
-              <Button 
+              <Button aria-label="Next" 
                 variant="ghost" 
                 size="sm" 
                 className="w-full text-pink-400 hover:bg-pink-500/10"
@@ -245,7 +245,7 @@ export const StokeSponsorLeaderboard = ({ compact = false }) => {
               <Heart className="w-12 h-12 text-pink-400/30 mx-auto mb-3" />
               <p className={`${textSecondary}`}>No stoke sponsors yet</p>
               <p className={`text-sm ${textSecondary}`}>Be the first to support the surf community!</p>
-              <Button 
+              <Button aria-label="Like" 
                 className="mt-4 bg-pink-500 text-white hover:bg-pink-400"
                 onClick={() => navigate('/career/stoke-sponsor')}
               >

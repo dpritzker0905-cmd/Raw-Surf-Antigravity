@@ -39,7 +39,7 @@ const CreatePostModal = ({ isOpen, onClose, onCreated }) => {
 
   // Session metadata state
   const [showSessionData, setShowSessionData] = useState(false);
-  // Helper: get today's date in local time (avoids UTC day-shift â€” e.g. 11 PM EDT = next day UTC)
+  // Helper: get today's date in local time (avoids UTC day-shift — e.g. 11 PM EDT = next day UTC)
   const todayLocal = () => {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -293,7 +293,7 @@ const CreatePostModal = ({ isOpen, onClose, onCreated }) => {
       // Add session metadata if enabled
       if (showSessionData) {
         if (sessionDate) {
-          // Send as noon UTC for the selected date â€” avoids timezone boundary issues on the backend
+          // Send as noon UTC for the selected date — avoids timezone boundary issues on the backend
           postData.session_date = sessionDate + 'T12:00:00.000Z';
         }
         if (sessionStartTime) postData.session_start_time = sessionStartTime;
@@ -406,7 +406,7 @@ const CreatePostModal = ({ isOpen, onClose, onCreated }) => {
               {/* Media Selection Buttons */}
               <div className="flex gap-4">
                 {/* Photo Button */}
-                <button
+                <button aria-label="Image"
                   onClick={() => photoInputRef.current?.click()}
                   className="flex flex-col items-center gap-2 p-4 rounded-xl bg-zinc-700/50 hover:bg-zinc-700 border border-zinc-600 hover:border-blue-500 transition-all"
                   data-testid="post-photo-select"
@@ -417,7 +417,7 @@ const CreatePostModal = ({ isOpen, onClose, onCreated }) => {
                 </button>
 
                 {/* Video Button */}
-                <button
+                <button aria-label="Video"
                   onClick={() => videoInputRef.current?.click()}
                   className="flex flex-col items-center gap-2 p-4 rounded-xl bg-zinc-700/50 hover:bg-zinc-700 border border-zinc-600 hover:border-purple-500 transition-all"
                   data-testid="post-video-select"
@@ -428,7 +428,7 @@ const CreatePostModal = ({ isOpen, onClose, onCreated }) => {
                 </button>
 
                 {/* Camera Button - Mobile only shows camera app */}
-                <button
+                <button aria-label="Camera"
                   onClick={() => cameraInputRef.current?.click()}
                   className="flex flex-col items-center gap-2 p-4 rounded-xl bg-zinc-700/50 hover:bg-zinc-700 border border-zinc-600 hover:border-yellow-500 transition-all"
                   data-testid="post-camera-capture"
@@ -447,7 +447,7 @@ const CreatePostModal = ({ isOpen, onClose, onCreated }) => {
               <div className="w-full h-px bg-zinc-700 my-2" />
 
               {/* Create Ad Button */}
-              <button
+              <button aria-label="Megaphone"
                 onClick={() => setShowCreateAdModal(true)}
                 className="flex items-center justify-center gap-3 w-full p-3 rounded-xl bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/30 hover:border-purple-500 transition-all"
                 data-testid="post-create-ad"
@@ -477,7 +477,7 @@ const CreatePostModal = ({ isOpen, onClose, onCreated }) => {
                 {/* Navigation arrows for carousel */}
                 {previewUrls.length > 1 && (
                   <>
-                    <button
+                    <button aria-label="svg"
                       onClick={() => setCurrentPreviewIndex(prev => (prev - 1 + previewUrls.length) % previewUrls.length)}
                       className="absolute left-2 top-1/2 -translate-y-1/2 p-1.5 bg-black/70 rounded-full hover:bg-black"
                     >
@@ -485,7 +485,7 @@ const CreatePostModal = ({ isOpen, onClose, onCreated }) => {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                       </svg>
                     </button>
-                    <button
+                    <button aria-label="svg"
                       onClick={() => setCurrentPreviewIndex(prev => (prev + 1) % previewUrls.length)}
                       className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 bg-black/70 rounded-full hover:bg-black"
                     >
@@ -539,7 +539,7 @@ const CreatePostModal = ({ isOpen, onClose, onCreated }) => {
                   ))}
                   {/* Add more photos button */}
                   {previewUrls.length < 10 && mediaType === 'image' && (
-                    <button
+                    <button aria-label="svg"
                       onClick={() => photoInputRef.current?.click()}
                       className="w-16 h-16 rounded-lg border-2 border-dashed border-zinc-600 flex items-center justify-center hover:border-zinc-500 transition-colors flex-shrink-0"
                     >
@@ -605,7 +605,7 @@ const CreatePostModal = ({ isOpen, onClose, onCreated }) => {
                 </label>
                 <button
                   type="button"
-                  onClick={() => setShowRecentLocations(!showRecentLocations)}
+                  aria-expanded={showRecentLocations} onClick={() => setShowRecentLocations(!showRecentLocations)}
                   className="text-xs text-cyan-400 hover:text-cyan-300"
                 >
                   {showRecentLocations ? 'Hide' : 'Show'}
@@ -614,7 +614,7 @@ const CreatePostModal = ({ isOpen, onClose, onCreated }) => {
               {showRecentLocations && (
                 <div className="flex flex-wrap gap-2">
                   {recentLocations.slice(0, 5).map((loc, idx) => (
-                    <button
+                    <button aria-label="Location"
                       key={idx}
                       type="button"
                       onClick={() => handleRecentLocationSelect(loc)}
@@ -646,9 +646,9 @@ const CreatePostModal = ({ isOpen, onClose, onCreated }) => {
 
           {/* Session Data Toggle */}
           <div className="border border-zinc-700 rounded-lg overflow-hidden">
-            <button
+            <button aria-label="Waves"
               type="button"
-              onClick={() => setShowSessionData(!showSessionData)}
+              aria-expanded={showSessionData} onClick={() => setShowSessionData(!showSessionData)}
               className="w-full flex items-center justify-between p-3 bg-zinc-800/50 hover:bg-zinc-800 transition-colors"
               data-testid="toggle-session-data"
             >
@@ -678,7 +678,7 @@ const CreatePostModal = ({ isOpen, onClose, onCreated }) => {
                       ))}
                     </SelectContent>
                   </Select>
-                  <Button
+                  <Button aria-label="Loader2"
                     type="button"
                     variant="outline"
                     size="sm"
@@ -854,7 +854,7 @@ const CreatePostModal = ({ isOpen, onClose, onCreated }) => {
 
         {/* Fixed Footer with Submit Button */}
         <div className="shrink-0 px-4 sm:px-6 py-4 border-t border-zinc-800" style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom, 0px))' }}>
-          <Button
+          <Button aria-label="Loader2"
             onClick={handleUpload}
             disabled={loading || selectedFiles.length === 0}
             className="w-full h-12 bg-gradient-to-r from-yellow-400 to-orange-400 hover:from-yellow-500 hover:to-orange-500 text-black font-bold"

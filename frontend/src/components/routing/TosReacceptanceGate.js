@@ -1,11 +1,11 @@
 /**
- * TosReacceptanceGate — Blocking modal that requires users to accept updated ToS.
+ * TosReacceptanceGate � Blocking modal that requires users to accept updated ToS.
  *
  * Wraps authenticated routes. On mount, checks if the user has acknowledged
  * the current ToS version. If not, renders a full-screen modal with the
  * updated terms. The user must click "I Agree" to proceed.
  *
- * Pattern: Same as GromSafetyGate — wraps children, blocks until condition met.
+ * Pattern: Same as GromSafetyGate � wraps children, blocks until condition met.
  * Styling: Matches existing modal patterns (bg-black/80 backdrop-blur, zinc cards).
  */
 import React, { useState, useEffect, useCallback } from 'react';
@@ -40,7 +40,7 @@ const TosReacceptanceGate = ({ children }) => {
         }
       })
       .catch(() => {
-        // If check fails, don't block the user — fail open
+        // If check fails, don't block the user � fail open
         setStatus('accepted');
       });
   }, [user?.id]);
@@ -55,7 +55,7 @@ const TosReacceptanceGate = ({ children }) => {
         params: { user_id: user.id }
       });
       setStatus('accepted');
-      toast.success('Terms accepted — welcome back!');
+      toast.success('Terms accepted � welcome back!');
     } catch (error) {
       toast.error('Failed to record acceptance. Please try again.');
     } finally {
@@ -63,17 +63,17 @@ const TosReacceptanceGate = ({ children }) => {
     }
   }, [user?.id]);
 
-  // Loading state — show nothing extra while checking
+  // Loading state � show nothing extra while checking
   if (status === 'loading') {
     return children;
   }
 
-  // User has accepted current version — render normally
+  // User has accepted current version � render normally
   if (status === 'accepted') {
     return children;
   }
 
-  // ── Blocking modal ────────────────────────────────────────────────
+  // -- Blocking modal ------------------------------------------------
   return (
     <>
       {/* Render the app behind the overlay so it doesn't flash white */}
@@ -108,8 +108,8 @@ const TosReacceptanceGate = ({ children }) => {
             </div>
 
             {/* Toggle full text */}
-            <button
-              onClick={() => setShowFullText(!showFullText)}
+            <button aria-label="File Text"
+              aria-expanded={showFullText} onClick={() => setShowFullText(!showFullText)}
               className="text-sm text-cyan-400 hover:text-cyan-300 transition-colors flex items-center gap-1.5"
               data-testid="tos-gate-toggle-full-text"
             >

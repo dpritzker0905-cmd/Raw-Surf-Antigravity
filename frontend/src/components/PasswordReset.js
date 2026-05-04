@@ -71,7 +71,7 @@ export const ForgotPassword = () => {
                 />
               </div>
 
-              <Button
+              <Button aria-label="Loader2"
                 type="submit"
                 disabled={loading}
                 className="w-full h-12 bg-gradient-to-r from-emerald-400 via-yellow-400 to-orange-400 hover:from-emerald-500 hover:via-yellow-500 hover:to-orange-500 text-black font-bold"
@@ -115,7 +115,7 @@ export const ForgotPassword = () => {
 
           {/* Back to login link */}
           {!sent && (
-            <button
+            <button aria-label="Go back"
               onClick={() => navigate('/auth?tab=login')}
               className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors mt-4 mx-auto"
             >
@@ -323,9 +323,9 @@ export const ResetPassword = () => {
                   minLength={6}
                   data-testid="new-password-input"
                 />
-                <button
+                <button aria-label="Hide"
                   type="button"
-                  onClick={() => setShowPassword(!showPassword)}
+                  aria-expanded={showPassword} onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white"
                 >
                   {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
@@ -348,7 +348,7 @@ export const ResetPassword = () => {
 
               <p className="text-xs text-gray-500">Password must be at least 6 characters</p>
 
-              <Button
+              <Button aria-label="Loader2"
                 type="submit"
                 disabled={loading}
                 className="w-full h-12 bg-gradient-to-r from-emerald-400 via-yellow-400 to-orange-400 hover:from-emerald-500 hover:via-yellow-500 hover:to-orange-500 text-black font-bold"

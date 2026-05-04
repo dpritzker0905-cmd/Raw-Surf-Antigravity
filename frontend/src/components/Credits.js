@@ -209,7 +209,7 @@ export const Credits = () => {
         <h1 className="text-3xl font-bold text-white mb-2 font-oswald" >
           Buy Credits
         </h1>
-        <p className="text-gray-400">1 Credit = $1 USD â€¢ Use for sessions, tips, and more</p>
+        <p className="text-gray-400">1 Credit = $1 USD • Use for sessions, tips, and more</p>
       </div>
 
       {/* Current Balance */}
@@ -276,7 +276,7 @@ export const Credits = () => {
       </div>
 
       {/* Purchase Button */}
-      <Button
+      <Button aria-label="Loader2"
         onClick={handlePurchase}
         disabled={loading || amount < 1}
         className="w-full h-14 text-lg bg-gradient-to-r from-emerald-400 via-yellow-400 to-orange-400 hover:from-emerald-500 hover:via-yellow-500 hover:to-orange-500 text-black font-bold"

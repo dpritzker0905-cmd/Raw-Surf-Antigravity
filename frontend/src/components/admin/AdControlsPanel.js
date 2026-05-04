@@ -19,7 +19,7 @@ import logger from '../../utils/logger';
 import { AdminPrecisionQueue } from './AdminPrecisionQueue';
 
 /**
- * AdControlsPanel â€” Extracted from UnifiedAdminConsole
+ * AdControlsPanel — Extracted from UnifiedAdminConsole
  * Admin control for ad frequency, approval queue, and variant management.
  */
 // Ad Controls Panel Component with Approval Queue
@@ -335,7 +335,7 @@ const AdControlsPanel = ({ user }) => {
                         />
                       </div>
                       <div className="flex gap-2">
-                        <Button
+                        <Button aria-label="Loader2"
                           onClick={() => handleEditAd(ad.id)}
                           disabled={processingAd === ad.id}
                           className="flex-1 bg-cyan-500 hover:bg-cyan-600"
@@ -407,7 +407,7 @@ const AdControlsPanel = ({ user }) => {
                       )}
                       
                       <div className="flex gap-2">
-                        <Button
+                        <Button aria-label="Loader2"
                           onClick={() => handleApproveAd(ad.id)}
                           disabled={processingAd === ad.id}
                           className="flex-1 bg-green-500 hover:bg-green-600"
@@ -427,7 +427,7 @@ const AdControlsPanel = ({ user }) => {
                           <X className="w-4 h-4 mr-1" />
                           Reject
                         </Button>
-                        <Button
+                        <Button aria-label="File Text"
                           variant="outline"
                           onClick={() => startEditing(ad)}
                           className="border-border"
@@ -457,7 +457,7 @@ const AdControlsPanel = ({ user }) => {
                   <div className="flex-1">
                     <p className="text-foreground font-medium text-sm">{variant.headline}</p>
                     <p className="text-muted-foreground text-xs">
-                      {variant.type} â€¢ {variant.cta}
+                      {variant.type} • {variant.cta}
                       {variant.submitted_by_name && (
                         <span className="text-cyan-400 ml-2">by {variant.submitted_by_name}</span>
                       )}

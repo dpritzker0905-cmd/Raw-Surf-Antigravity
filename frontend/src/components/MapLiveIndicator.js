@@ -38,7 +38,7 @@ const useSessionTimer = (startTime) => {
   return elapsed;
 };
 
-// Format seconds to HH:MM:SS or MM:SS â€” using shared utility
+// Format seconds to HH:MM:SS or MM:SS — using shared utility
 const formatTime = formatDuration;
 
 // Soft Red Pulsing Live Indicator
@@ -135,7 +135,7 @@ export const MapLiveFloatingIsland = ({ session, onEndSession, className = '' })
       </div>
       
       {/* Right Side: End Button */}
-      <Button
+      <Button aria-label="Square"
         onClick={onEndSession}
         size="sm"
         className="bg-red-500 hover:bg-red-600 text-white font-bold text-xs px-3 py-1.5 h-7"
@@ -150,7 +150,7 @@ export const MapLiveFloatingIsland = ({ session, onEndSession, className = '' })
 
 // Compact End Session Button (Top right corner)
 export const MapEndSessionButton = ({ onEndSession, className = '' }) => (
-  <Button
+  <Button aria-label="Square"
     onClick={onEndSession}
     size="sm"
     className={`bg-red-500/90 hover:bg-red-600 text-white font-bold text-xs px-3 py-1.5 h-8 shadow-lg backdrop-blur-sm ${className}`}

@@ -203,7 +203,7 @@ export const PhotographerSessionDashboard = ({ onClose }) => {
           {/* CTA */}
           <div className="bg-gradient-to-r from-green-500 to-cyan-500 rounded-lg py-2 px-4 text-center">
             <p className="text-black font-bold text-sm">
-              Tap to View & Accept →
+              Tap to View & Accept ?
             </p>
           </div>
           
@@ -288,7 +288,7 @@ export const PhotographerSessionDashboard = ({ onClose }) => {
           
           {/* View Details Link */}
           <p className="text-xs text-center text-cyan-400 mt-3 hover:text-cyan-300">
-            Tap to view session details →
+            Tap to view session details ?
           </p>
         </div>
         
@@ -414,7 +414,7 @@ export const PhotographerSessionDashboard = ({ onClose }) => {
       <div className="p-4">
         <div className="flex items-center justify-between mb-3">
           <h4 className="text-sm font-medium text-gray-400">Participants</h4>
-          <button
+          <button aria-label="Refresh"
             onClick={fetchSession}
             className="text-gray-500 hover:text-gray-300 transition-colors"
           >
@@ -479,7 +479,7 @@ export const PhotographerSessionDashboard = ({ onClose }) => {
       {/* Tip */}
       <div className="p-4 bg-zinc-800/50 border-t border-zinc-800">
         <p className="text-xs text-gray-500 text-center">
-          💡 Surfers take selfies when joining so you can identify them in the water
+          ?? Surfers take selfies when joining so you can identify them in the water
         </p>
       </div>
     </div>

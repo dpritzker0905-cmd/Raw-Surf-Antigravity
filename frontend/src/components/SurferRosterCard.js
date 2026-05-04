@@ -186,7 +186,7 @@ const SurferDetailModal = ({
                 placeholder="Add notes to help identify this surfer... (e.g., 'Red fins, staying near the pier, goofy footer')"
                 className={`${isLight ? 'bg-gray-100' : 'bg-zinc-800'} ${textPrimaryClass} min-h-[80px]`}
               />
-              <Button
+              <Button aria-label="Save"
                 onClick={handleSaveNotes}
                 disabled={saving}
                 className="w-full bg-gradient-to-r from-cyan-500 to-blue-500 text-white mb-4"
@@ -391,7 +391,7 @@ export const SurferRosterCard = ({
             
             <div className="flex items-center gap-2">
               {/* Sound toggle */}
-              <Button
+              <Button aria-label="Volume2"
                 variant="ghost"
                 size="sm"
                 onClick={() => setSoundEnabled(!soundEnabled)}

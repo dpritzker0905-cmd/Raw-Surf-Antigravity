@@ -187,7 +187,7 @@ const GpsWarningBanner = ({ onConfirmAnyway }) => {
           </div>
           
           {confirmed && (
-            <Button
+            <Button aria-label="Shield"
               onClick={onConfirmAnyway}
               size="sm"
               className="mt-3 bg-red-500/20 hover:bg-red-500/30 text-red-300 border border-red-500/50"
@@ -293,10 +293,10 @@ const GpsProximityCheck = ({
                 you can manually confirm.
               </p>
               <p className="text-red-400 text-xs mt-2 font-medium">
-                ‚ö†Ô∏è Warning: Going live when not at the spot may result in negative reviews, 
+                ?? Warning: Going live when not at the spot may result in negative reviews, 
                 selling suspension, or account action.
               </p>
-              <Button
+              <Button aria-label="Confirm"
                 onClick={onManualConfirm}
                 variant="outline"
                 size="sm"
@@ -441,7 +441,7 @@ const OnDemandSpotSelector = ({
                   </p>
                   <p className="text-xs text-muted-foreground truncate">
                     {spot.region || spot.city || 'Unknown region'}
-                    {spot.distance && ` ‚Ä¢ ${spot.distance.toFixed(1)} mi`}
+                    {spot.distance && ` ï ${spot.distance.toFixed(1)} mi`}
                   </p>
                 </div>
                 {isSelected && (
@@ -584,7 +584,7 @@ const QuickActions = ({ mode, onClose, nearbyShooters }) => {
   
   return (
     <div className="space-y-2">
-      <button
+      <button aria-label="div"
         onClick={() => {
           navigate('/map?view=photographers');
           onClose?.();
@@ -605,7 +605,7 @@ const QuickActions = ({ mode, onClose, nearbyShooters }) => {
         <ChevronRight className="w-4 h-4 text-muted-foreground" />
       </button>
       
-      <button
+      <button aria-label="div"
         onClick={() => {
           navigate(mode === 'live' ? '/photographer/sessions' : '/photographer/on-demand-settings');
           onClose?.();
@@ -651,7 +651,7 @@ export const DutyStationDrawer = ({ isOpen, onClose }) => {
   const [proximityConfirmed, setProximityConfirmed] = useState(false);
   const [stats, setStats] = useState({ todayEarnings: 0, sessionsToday: 0 });
   const [showConditionsModal, setShowConditionsModal] = useState(false);
-  // Photographer pricing config ‚Äî fetched on mount, included in go-live payload
+  // Photographer pricing config ó fetched on mount, included in go-live payload
   const [pricingConfig, setPricingConfig] = useState({
     price_per_join: 25,
     live_photo_price: 5,
@@ -739,7 +739,7 @@ export const DutyStationDrawer = ({ isOpen, onClose }) => {
         photo_price_high: g.photo_pricing?.high ?? prev.photo_price_high
       }));
     } catch (err) {
-      logger.warn('[DutyStation] Could not fetch pricing ‚Äî using defaults:', err.message);
+      logger.warn('[DutyStation] Could not fetch pricing ó using defaults:', err.message);
     }
   };
   
@@ -809,7 +809,7 @@ export const DutyStationDrawer = ({ isOpen, onClose }) => {
       await fetchStatuses();
     } catch (err) {
       const errDetail = err.response?.data?.detail;
-      // "No active session to end" means the DB is already clean ‚Äî clear local state
+      // "No active session to end" means the DB is already clean ó clear local state
       if (errDetail && errDetail.toLowerCase().includes('no active session')) {
         setLiveActive(false);
         toast.success('Session already cleared. You can go live now.');
@@ -937,7 +937,7 @@ export const DutyStationDrawer = ({ isOpen, onClose }) => {
           setOnDemandActive(false);
           toast.info('Switching to Live mode. On-Demand disabled.');
         } catch (odErr) {
-          // Don't block go-live if on-demand toggle fails ‚Äî backend will auto-disable
+          // Don't block go-live if on-demand toggle fails ó backend will auto-disable
           logger.warn('[DutyStation] On-Demand toggle failed, backend will handle:', odErr);
         }
       }
@@ -953,7 +953,7 @@ export const DutyStationDrawer = ({ isOpen, onClose }) => {
           const formData = new FormData();
           formData.append('file', conditionsData.media, `conditions${ext}`);
           formData.append('user_id', user.id);
-          logger.log('[DutyStation] Pre-uploading condition media‚Ä¶', { size: conditionsData.media.size, type: mimeType });
+          logger.log('[DutyStation] Pre-uploading condition mediaÖ', { size: conditionsData.media.size, type: mimeType });
           const uploadStart = Date.now();
           const uploadRes = await apiClient.post('/upload/conditions', formData, {
             headers: { 'Content-Type': undefined }, // Let browser set multipart boundary
@@ -963,21 +963,21 @@ export const DutyStationDrawer = ({ isOpen, onClose }) => {
           conditionMediaUrl = uploadRes.data?.media_url;
           conditionMediaType = uploadRes.data?.media_type || conditionMediaType;
           logger.log('[DutyStation] Condition media uploaded:', conditionMediaUrl, `(${uploadDuration}ms)`);
-          // If upload took > 10s, server was likely cold-starting ‚Äî it's warm now
+          // If upload took > 10s, server was likely cold-starting ó it's warm now
           if (uploadDuration > 10000) uploadWokeServer = true;
         } catch (uploadErr) {
           // Non-fatal: proceed without condition media (matches PSM pattern)
           logger.warn('[DutyStation] Condition media upload failed (non-fatal):', uploadErr.message);
           conditionMediaUrl = null;
           conditionMediaType = null;
-          // Upload failure likely means server was sleeping ‚Äî flag for warm-up
+          // Upload failure likely means server was sleeping ó flag for warm-up
           uploadWokeServer = true;
         }
       }
       
-      // Step 2: Build go-live request ‚Äî clean JSON payload with pricing config
+      // Step 2: Build go-live request ó clean JSON payload with pricing config
       // IMPORTANT: latitude/longitude must be USER's GPS position (not spot coords)
-      // ‚Äî the backend uses these for Hobbyist proximity checks against nearby Pros
+      // ó the backend uses these for Hobbyist proximity checks against nearby Pros
       const goLivePayload = {
         // Core spot data
         spot_id: selectedSpot.id,
@@ -986,7 +986,7 @@ export const DutyStationDrawer = ({ isOpen, onClose }) => {
         // User's GPS coords (for Hobbyist proximity check), fall back to spot coords
         latitude: userLocation?.lat || selectedSpot.latitude,
         longitude: userLocation?.lng || selectedSpot.longitude,
-        // Session pricing ‚Äî mirrors PhotographerSessionsManager
+        // Session pricing ó mirrors PhotographerSessionsManager
         price_per_join: pricingConfig.price_per_join,
         live_photo_price: pricingConfig.live_photo_price,
         photos_included: pricingConfig.photos_included,
@@ -998,7 +998,7 @@ export const DutyStationDrawer = ({ isOpen, onClose }) => {
         estimated_duration: pricingConfig.estimated_duration,
         max_surfers: pricingConfig.max_surfers,
         auto_accept: pricingConfig.auto_accept,
-        // Condition media (URL only ‚Äî no base64 fallback)
+        // Condition media (URL only ó no base64 fallback)
         condition_media_url: conditionMediaUrl || null,
         condition_media_type: conditionMediaType,
         // Spot notes
@@ -1014,7 +1014,7 @@ export const DutyStationDrawer = ({ isOpen, onClose }) => {
         condition_media_url: goLivePayload.condition_media_url ? '(url set)' : null
       });
       
-      // ‚îÄ‚îÄ Go-live POST with automatic retry for cold-start resilience ‚îÄ‚îÄ
+      // -- Go-live POST with automatic retry for cold-start resilience --
       // Render free tier drops the first request while waking up.
       // Strategy: always warm the server with a lightweight ping first,
       // then POST go-live. If that fails with no response, wait and retry.
@@ -1023,15 +1023,15 @@ export const DutyStationDrawer = ({ isOpen, onClose }) => {
       
       for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
         try {
-          // ALWAYS warm the server before go-live ‚Äî cold starts are the #1 failure cause.
+          // ALWAYS warm the server before go-live ó cold starts are the #1 failure cause.
           // On attempt 1: quick ping to wake if sleeping.
           // On retries: longer wait + ping to let server finish booting.
           if (attempt > 1) {
             const retryDelay = attempt === 2 ? 5000 : 10000; // 5s, then 10s
-            toast.loading(`Server waking up ‚Äî retry ${attempt - 1} of ${MAX_ATTEMPTS - 1}‚Ä¶`, { id: 'go-live-warmup' });
+            toast.loading(`Server waking up ó retry ${attempt - 1} of ${MAX_ATTEMPTS - 1}Ö`, { id: 'go-live-warmup' });
             await new Promise(r => setTimeout(r, retryDelay));
           } else {
-            toast.loading('Connecting to server‚Ä¶', { id: 'go-live-warmup' });
+            toast.loading('Connecting to serverÖ', { id: 'go-live-warmup' });
           }
           
           try {
@@ -1040,9 +1040,9 @@ export const DutyStationDrawer = ({ isOpen, onClose }) => {
             logger.log(`[DutyStation] Server warm-up ping succeeded (attempt ${attempt})`);
           } catch (pingErr) {
             if (attempt === 1) {
-              // First ping failed ‚Äî server is definitely cold. Wait for it.
-              logger.warn('[DutyStation] Server cold ‚Äî waiting 8s for boot‚Ä¶', pingErr.message);
-              toast.loading('Server is starting up‚Ä¶', { id: 'go-live-warmup' });
+              // First ping failed ó server is definitely cold. Wait for it.
+              logger.warn('[DutyStation] Server cold ó waiting 8s for bootÖ', pingErr.message);
+              toast.loading('Server is starting upÖ', { id: 'go-live-warmup' });
               await new Promise(r => setTimeout(r, 8000));
               // Try ping again after waiting
               try {
@@ -1058,13 +1058,13 @@ export const DutyStationDrawer = ({ isOpen, onClose }) => {
           toast.dismiss('go-live-warmup');
           
           const goLiveRes = await apiClient.post(`/photographer/${user.id}/go-live`, goLivePayload, {
-            timeout: 120000 // 120s ‚Äî matches PSM; accommodates Render cold starts
+            timeout: 120000 // 120s ó matches PSM; accommodates Render cold starts
           });
           logger.log('[DutyStation] Go-live success:', goLiveRes.data?.live_session_id);
           setLiveActive(true);
           setShowConditionsModal(false);
           toast.success(`Now live at ${selectedSpot.name}!`);
-          return; // ‚Üê Success ‚Äî exit the function
+          return; // ? Success ó exit the function
         } catch (err) {
           lastError = err;
           toast.dismiss('go-live-warmup');
@@ -1072,28 +1072,28 @@ export const DutyStationDrawer = ({ isOpen, onClose }) => {
           const isTimeout = err.code === 'ECONNABORTED' || err.message?.includes('timeout');
           
           // Only retry on cold-start symptoms (no HTTP response, or timeout)
-          // Do NOT retry on 4xx/5xx ‚Äî those are real server errors
+          // Do NOT retry on 4xx/5xx ó those are real server errors
           if (hasResponse || attempt >= MAX_ATTEMPTS) {
             break; // Server responded with an error, or out of retries
           }
           
-          // No response or timeout ‚Äî server is likely still booting
-          logger.warn(`[DutyStation] Go-live attempt ${attempt} failed, will retry‚Ä¶`, err.code, err.message);
+          // No response or timeout ó server is likely still booting
+          logger.warn(`[DutyStation] Go-live attempt ${attempt} failed, will retryÖ`, err.code, err.message);
         }
       }
       
-      // If we get here, all attempts failed ‚Äî surface the error from the last attempt
+      // If we get here, all attempts failed ó surface the error from the last attempt
       throw lastError;
     } catch (error) {
       const detail = error.response?.data?.detail || '';
       const status = error.response?.status;
       logger.error('[DutyStation] Go-live failed after retries:', { status, detail, message: error.message });
       
-      // Check specific statuses FIRST ‚Äî before the generic detail fallback
+      // Check specific statuses FIRST ó before the generic detail fallback
       if (status === 413) {
         toast.error('Media file too large. Please use a shorter video or lower-quality photo.');
       } else if (status === 400 && detail.toLowerCase().includes('already')) {
-        // Stale session blocking new go-live ‚Äî offer recovery action
+        // Stale session blocking new go-live ó offer recovery action
         toast.error('You have a stale live session blocking new activations.', {
           duration: 8000,
           action: {
@@ -1107,7 +1107,7 @@ export const DutyStationDrawer = ({ isOpen, onClose }) => {
         // Generic backend error message (covers 403 role errors, etc.)
         toast.error(`Go-live error: ${detail}`);
       } else if (error.code === 'ECONNABORTED' || error.message?.includes('timeout')) {
-        toast.error('Server is warming up ‚Äî please wait a moment and try again.', { duration: 6000 });
+        toast.error('Server is warming up ó please wait a moment and try again.', { duration: 6000 });
       } else if (!error.response) {
         // Exhausted retries with no server response
         logger.error('[DutyStation] No HTTP response after retries:', error.code, error.message);
@@ -1217,7 +1217,7 @@ export const DutyStationDrawer = ({ isOpen, onClose }) => {
               <h2 className="text-lg font-bold text-foreground tracking-tight">Duty Station</h2>
               <p className="text-xs text-muted-foreground">
                 {isActive 
-                  ? `${mode === 'live' ? 'Live' : 'On-Demand'} ‚Ä¢ Active`
+                  ? `${mode === 'live' ? 'Live' : 'On-Demand'} ï Active`
                   : 'Manage your availability'
                 }
               </p>

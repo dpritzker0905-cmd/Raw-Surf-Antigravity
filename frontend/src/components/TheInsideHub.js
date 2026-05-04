@@ -22,7 +22,7 @@ import { GenericPageSkeleton } from './ui/SkeletonVariants';
 
 
 /**
- * The Inside - Career Hub for Grom (🍼) surfers
+ * The Inside - Career Hub for Grom (??) surfers
  * Features: Road to the Peak progress, Grom Series results, Stoke Sponsors, Grom-Friendly coaches
  */
 export const TheInsideHub = () => {
@@ -120,7 +120,7 @@ export const TheInsideHub = () => {
         </h1>
         <p className={`${textSecondary} mt-1`}>Your Grom Career Journey</p>
         <Badge className="mt-2 bg-cyan-500/20 text-cyan-400 border-cyan-500/30">
-          🍼 Grom Rising
+          ?? Grom Rising
         </Badge>
       </div>
 
@@ -149,7 +149,7 @@ export const TheInsideHub = () => {
                   }`}
                   style={{ marginLeft: idx === 0 ? '0' : 'auto', marginRight: idx === milestones.length - 1 ? '0' : 'auto' }}
                 >
-                  {getMilestoneStatus(milestone.threshold) === 'completed' ? '✓' : milestone.threshold}
+                  {getMilestoneStatus(milestone.threshold) === 'completed' ? '?' : milestone.threshold}
                 </div>
               ))}
             </div>
@@ -195,7 +195,7 @@ export const TheInsideHub = () => {
               <p className={`text-sm ${textSecondary}`}>
                 You've completed The Road to The Peak! Contact your manager to transition to Competitive status.
               </p>
-              <Button className="mt-3 bg-cyan-500 text-black hover:bg-cyan-400">
+              <Button aria-label="Zap" className="mt-3 bg-cyan-500 text-black hover:bg-cyan-400">
                 <Zap className="w-4 h-4 mr-2" />
                 Request Promotion
               </Button>
@@ -206,7 +206,7 @@ export const TheInsideHub = () => {
           <div className="mt-4 text-center">
             <div className="text-3xl font-bold text-cyan-400">{roadToThePeakProgress}%</div>
             <div className={`text-sm ${textSecondary}`}>
-              {careerStats?.total_xp || 0} XP earned • {careerStats?.verified_results_count || 0} verified results
+              {careerStats?.total_xp || 0} XP earned � {careerStats?.verified_results_count || 0} verified results
             </div>
           </div>
         </CardContent>
@@ -226,7 +226,7 @@ export const TheInsideHub = () => {
           <div className="mb-4">
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
-                <span className="text-xl">🏄</span>
+                <span className="text-xl">??</span>
                 <div>
                   <div className={`font-medium ${textPrimary}`}>New Shortboard</div>
                   <div className={`text-xs ${textSecondary}`}>Target: $450</div>
@@ -310,7 +310,7 @@ export const TheInsideHub = () => {
                       result.placing === 3 ? 'bg-amber-600 text-white' :
                       'bg-zinc-700 text-white'
                     }`}>
-                      {result.placing === 1 ? '🥇' : result.placing === 2 ? '🥈' : result.placing === 3 ? '🥉' : result.placing}
+                      {result.placing === 1 ? '??' : result.placing === 2 ? '??' : result.placing === 3 ? '??' : result.placing}
                     </div>
                     <div>
                       <div className={`font-medium ${textPrimary}`}>{result.event_name}</div>
@@ -324,7 +324,7 @@ export const TheInsideHub = () => {
           ) : (
             <p className={`text-center ${textSecondary} py-4`}>No competition results yet. Start competing!</p>
           )}
-          <Button 
+          <Button aria-label="Add" 
             onClick={() => setShowAddResultModal(true)}
             className="w-full mt-4 bg-zinc-800 hover:bg-zinc-700 text-white"
           >
@@ -361,7 +361,7 @@ export const TheInsideHub = () => {
           ) : (
             <p className={`text-center ${textSecondary} py-4`}>Add your supporters!</p>
           )}
-          <Button 
+          <Button aria-label="Add" 
             onClick={() => setShowAddSponsorModal(true)}
             variant="outline" 
             className="w-full mt-4 border-zinc-700"
@@ -604,7 +604,7 @@ const AddResultForm = ({ userId, defaultTier, onSuccess }) => {
         className="bg-zinc-800 border-zinc-700"
       />
       <DialogFooter>
-        <Button onClick={handleSubmit} disabled={loading} className="w-full bg-cyan-500 text-black hover:bg-cyan-400">
+        <Button aria-label="Loader2" onClick={handleSubmit} disabled={loading} className="w-full bg-cyan-500 text-black hover:bg-cyan-400">
           {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Add Result'}
         </Button>
       </DialogFooter>
@@ -658,7 +658,7 @@ const AddStokeSponsorForm = ({ userId, onSuccess }) => {
         <option value="stoke_sponsor">Stoke Sponsor</option>
       </select>
       <DialogFooter>
-        <Button onClick={handleSubmit} disabled={loading} className="w-full bg-pink-500 text-black hover:bg-pink-400">
+        <Button aria-label="Loader2" onClick={handleSubmit} disabled={loading} className="w-full bg-pink-500 text-black hover:bg-pink-400">
           {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Add Sponsor'}
         </Button>
       </DialogFooter>

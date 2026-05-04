@@ -47,22 +47,22 @@ const SKILL_LEVELS = [
 // Region options
 const REGIONS = [
   { id: 'all', label: 'All Regions' },
-  { id: 'ny', label: 'New York', flag: '🗽' },
-  { id: 'fl', label: 'Florida', flag: '🌴' },
-  { id: 'ca', label: 'California', flag: '☀️' },
-  { id: 'hi', label: 'Hawaii', flag: '🌺' },
-  { id: 'cr', label: 'Costa Rica', flag: '🇨🇷' },
-  { id: 'pr', label: 'Puerto Rico', flag: '🇵🇷' },
-  { id: 'mx', label: 'Mexico', flag: '🇲🇽' },
-  { id: 'id', label: 'Indonesia', flag: '🇮🇩' },
-  { id: 'au', label: 'Australia', flag: '🇦🇺' },
+  { id: 'ny', label: 'New York', flag: '??' },
+  { id: 'fl', label: 'Florida', flag: '??' },
+  { id: 'ca', label: 'California', flag: '??' },
+  { id: 'hi', label: 'Hawaii', flag: '??' },
+  { id: 'cr', label: 'Costa Rica', flag: '????' },
+  { id: 'pr', label: 'Puerto Rico', flag: '????' },
+  { id: 'mx', label: 'Mexico', flag: '????' },
+  { id: 'id', label: 'Indonesia', flag: '????' },
+  { id: 'au', label: 'Australia', flag: '????' },
 ];
 
 // Sort options
 const SORT_OPTIONS = [
   { id: 'rating', label: 'Highest Rated' },
-  { id: 'price_asc', label: 'Price: Low → High' },
-  { id: 'price_desc', label: 'Price: High → Low' },
+  { id: 'price_asc', label: 'Price: Low ? High' },
+  { id: 'price_desc', label: 'Price: High ? Low' },
   { id: 'sessions', label: 'Most Sessions' },
   { id: 'distance', label: 'Nearest First' },
 ];
@@ -106,7 +106,7 @@ const DirectoryPhotographerCard = ({ photographer, onSelect, onBook, onViewGalle
       onClick={() => onSelect(photographer)}
     >
       <CardContent className="p-4">
-        <div className="flex items-start gap-3">
+        <div data-testid="directory-tab" className="flex items-start gap-3">
           {/* Avatar with live indicator */}
           <div className="relative shrink-0">
             <Avatar className={`w-14 h-14 border-2 ${isLight ? 'border-gray-200' : 'border-zinc-700'}`}>
@@ -146,7 +146,7 @@ const DirectoryPhotographerCard = ({ photographer, onSelect, onBook, onViewGalle
               </span>
               {photographer.distance_miles != null && subscriptionTier !== 'Free' && (
                 <span className={`text-xs ${textSecondary} ml-1`}>
-                  • {photographer.distance_miles.toFixed(1)} mi
+                  � {photographer.distance_miles.toFixed(1)} mi
                 </span>
               )}
             </div>
@@ -207,11 +207,11 @@ const DirectoryPhotographerCard = ({ photographer, onSelect, onBook, onViewGalle
           </div>
         </div>
         
-        {/* Action buttons — 2-row layout for mobile friendliness */}
+        {/* Action buttons � 2-row layout for mobile friendliness */}
         <div className="mt-3 pt-3 border-t border-dashed border-zinc-700/50 space-y-2">
           {/* Primary row: Book + Subscribe (Subscribe only for Pro photographers) */}
           <div className="flex items-stretch gap-2">
-            <Button
+            <Button aria-label="Calendar Plus"
               size="sm"
               className={`${canSubscribe ? 'flex-1' : 'w-full'} bg-gradient-to-r from-yellow-500 to-amber-500 hover:from-yellow-600 hover:to-amber-600 text-black font-semibold h-9`}
               onClick={(e) => { e.stopPropagation(); onBook(photographer); }}
@@ -220,7 +220,7 @@ const DirectoryPhotographerCard = ({ photographer, onSelect, onBook, onViewGalle
               Book Session
             </Button>
             {canSubscribe && (
-              <Button
+              <Button aria-label="Refresh"
                 size="sm"
                 className={`flex-1 h-9 font-semibold ${
                   isLight
@@ -235,7 +235,7 @@ const DirectoryPhotographerCard = ({ photographer, onSelect, onBook, onViewGalle
             )}
           </div>
 
-          {/* Subscribe benefit hint — only for pro photographers */}
+          {/* Subscribe benefit hint � only for pro photographers */}
           {canSubscribe && (
             <div className={`flex items-center gap-1.5 px-1 ${textSecondary}`}>
               <Bell className="w-3 h-3 shrink-0 text-violet-400" />
@@ -247,7 +247,7 @@ const DirectoryPhotographerCard = ({ photographer, onSelect, onBook, onViewGalle
 
           {/* Secondary row: Reviews + Gallery */}
           <div className="flex items-center gap-2">
-            <button
+            <button aria-label="User"
               className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-md text-xs font-medium transition-colors ${
                 isLight ? 'text-gray-600 hover:bg-gray-100' : 'text-gray-400 hover:bg-zinc-800'
               }`}
@@ -257,7 +257,7 @@ const DirectoryPhotographerCard = ({ photographer, onSelect, onBook, onViewGalle
               Reviews
             </button>
             <div className={`w-px h-4 ${isLight ? 'bg-gray-200' : 'bg-zinc-700'}`} />
-            <button
+            <button aria-label="Image"
               className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-md text-xs font-medium transition-colors ${
                 isLight ? 'text-blue-600 hover:bg-blue-50' : 'text-cyan-400 hover:bg-cyan-900/20'
               }`}
@@ -302,7 +302,7 @@ const DirectoryPhotographerCard = ({ photographer, onSelect, onBook, onViewGalle
             <div className="flex items-center gap-2 py-1">
               <Image className={`w-4 h-4 ${textSecondary}`} />
               <span className={`text-xs ${textSecondary}`}>
-                {photographer.gallery_count} gallery photos • No portfolio preview yet
+                {photographer.gallery_count} gallery photos � No portfolio preview yet
               </span>
             </div>
           </div>
@@ -362,7 +362,7 @@ const DirectoryFilterSheet = ({ isOpen, onClose, filters, onFiltersChange, theme
               {GEAR_TYPES.map((gear) => {
                 const Icon = gear.icon;
                 return (
-                  <Button
+                  <Button aria-label="Icon"
                     key={gear.id}
                     variant="outline"
                     size="sm"
@@ -495,7 +495,7 @@ export const DirectoryTab = ({
     }
   }, [filters, searchQuery, sortBy, userLocation]);
   
-  // Client-side sort — only as a defensive fallback.
+  // Client-side sort � only as a defensive fallback.
   // The server already returns results sorted by `sort_by`, so we skip
   // re-sorting for server-handled fields to avoid wasted CPU.
   // Distance is the exception: the server only sorts by distance if
@@ -566,7 +566,7 @@ export const DirectoryTab = ({
       
       {/* Filter & Sort row */}
       <div className="flex items-center gap-2">
-        <Button
+        <Button aria-label="Filter"
           variant="outline"
           size="sm"
           onClick={() => setShowFilters(true)}
@@ -661,7 +661,7 @@ export const DirectoryTab = ({
         
         <div className="flex-1" />
         
-        <Button
+        <Button aria-label="Map"
           variant="outline"
           size="sm"
           onClick={handleViewOnMap}

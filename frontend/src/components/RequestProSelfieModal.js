@@ -140,7 +140,7 @@ export const RequestProSelfieModal = ({ dispatchId, isOpen, onClose, onSuccess }
               Take a quick selfie so your photographer knows who to look for at the beach!
             </p>
             
-            {/* Camera Preview — constrained height on mobile */}
+            {/* Camera Preview � constrained height on mobile */}
             <div className="relative bg-black rounded-xl overflow-hidden" style={{ aspectRatio: '4/3', maxHeight: '45vh' }}>
               {!selfieUrl ? (
                 <>
@@ -166,14 +166,14 @@ export const RequestProSelfieModal = ({ dispatchId, isOpen, onClose, onSuccess }
             {/* Pro Tip - Surfboard Identification */}
             <div className="px-4 py-3 bg-cyan-500/10 border border-cyan-500/30 rounded-lg text-center">
               <p className="text-cyan-400 text-sm font-medium">
-                🏄 Hold your surfboard in the frame so your Pro can find you in the lineup!
+                ?? Hold your surfboard in the frame so your Pro can find you in the lineup!
               </p>
             </div>
             
             {/* Camera Controls */}
             <div className="flex gap-3">
               {!selfieUrl ? (
-                <Button
+                <Button aria-label="Camera"
                   onClick={captureSelfie}
                   disabled={!cameraActive}
                   className="flex-1 py-4 bg-gradient-to-r from-cyan-400 to-blue-500 text-black font-bold rounded-xl"
@@ -183,7 +183,7 @@ export const RequestProSelfieModal = ({ dispatchId, isOpen, onClose, onSuccess }
                 </Button>
               ) : (
                 <>
-                  <Button
+                  <Button aria-label="Refresh"
                     onClick={retakeSelfie}
                     variant="outline"
                     className="flex-1 py-4 border-zinc-600 text-white hover:bg-zinc-800 rounded-xl"
@@ -191,7 +191,7 @@ export const RequestProSelfieModal = ({ dispatchId, isOpen, onClose, onSuccess }
                     <RefreshCw className="w-4 h-4 mr-2" />
                     Retake
                   </Button>
-                  <Button
+                  <Button aria-label="Loader2"
                     onClick={uploadSelfie}
                     disabled={uploading}
                     className="flex-1 py-4 bg-gradient-to-r from-cyan-400 to-blue-500 text-black font-bold rounded-xl"

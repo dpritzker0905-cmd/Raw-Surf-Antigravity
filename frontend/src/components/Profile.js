@@ -103,7 +103,7 @@ export const Profile = () => {
   const [isFollowing, setIsFollowing] = useState(false);
   const [followLoading, setFollowLoading] = useState(false);
   
-  // Tab state — read ?tab= param from URL to deep-link to a specific tab (e.g. reviews)
+  // Tab state � read ?tab= param from URL to deep-link to a specific tab (e.g. reviews)
   const [searchParams] = useSearchParams();
   const initialTab = searchParams.get('tab') || 'posts';
   const [activeTab, setActiveTab] = useState(initialTab);
@@ -214,7 +214,7 @@ export const Profile = () => {
       tag.setAttribute('content', content);
     };
 
-    const title = `${profile.full_name || 'User'} — Raw Surf`;
+    const title = `${profile.full_name || 'User'} � Raw Surf`;
     const description = profile.bio || `Check out ${profile.full_name || 'this user'}'s profile on Raw Surf`;
     const image = profile.avatar_url ? getFullUrl(profile.avatar_url) : null;
     const url = `${window.location.origin}/profile/${profileUserId}`;
@@ -335,7 +335,7 @@ export const Profile = () => {
         setIsFollowing(response.data?.is_following === true);
         return;
       } catch (checkErr) {
-        // Endpoint doesn't exist yet — fall back to list search
+        // Endpoint doesn't exist yet � fall back to list search
       }
       const response = await apiClient.get(`/following/${user.id}`);
       const following = response.data || [];
@@ -356,7 +356,7 @@ export const Profile = () => {
     const wasFollowing = isFollowing;
     const prevFollowers = socialStats.followers;
     
-    // Optimistic update — instant UI
+    // Optimistic update � instant UI
     setIsFollowing(!wasFollowing);
     setSocialStats(prev => ({
       ...prev,
@@ -488,7 +488,7 @@ export const Profile = () => {
     }
   };
 
-  // Step 1: User selects file → open crop modal
+  // Step 1: User selects file ? open crop modal
   const handleAvatarUpload = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -504,7 +504,7 @@ export const Profile = () => {
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
-  // Step 2: Crop confirmed → upload the cropped base64
+  // Step 2: Crop confirmed ? upload the cropped base64
   const handleCropConfirm = async (croppedBase64) => {
     setCropFile(null);
     setAvatarUploading(true);
@@ -587,7 +587,7 @@ export const Profile = () => {
       {/* Back Button for viewing other profiles */}
       {!isOwnProfile && (
         <div className="sticky top-0 z-10 bg-background/90 backdrop-blur-sm border-b border-border px-4 py-3">
-          <button
+          <button aria-label="Go back"
             onClick={() => navigate(-1)}
             className="flex items-center gap-2 text-white hover:text-gray-300"
             data-testid="back-button"
@@ -624,7 +624,7 @@ export const Profile = () => {
               </p>
             </div>
             {blockHook.isBlocked && !blockHook.isBlockedByThem && (
-              <Button
+              <Button aria-label="Loader2"
                 onClick={() => blockHook.handleUnblockUser(profile?.full_name)}
                 disabled={blockHook.blockLoading}
                 size="sm"
@@ -692,7 +692,7 @@ export const Profile = () => {
             
             {/* Avatar upload overlay */}
             {isOwnProfile && (
-              <button
+              <button aria-label="Loader2"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={avatarUploading}
                 className="absolute inset-0 flex items-center justify-center bg-black/60 rounded-full opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
@@ -731,7 +731,7 @@ export const Profile = () => {
                 title={profile.is_logo_avatar ? 'Switch to Photo mode' : 'Switch to Logo mode'}
               >
                 <span className="text-[10px] font-bold text-zinc-300 group-hover/logo:text-cyan-400">
-                  {profile.is_logo_avatar ? '📷' : '🏷️'}
+                  {profile.is_logo_avatar ? '??' : '???'}
                 </span>
               </button>
             )}
@@ -917,7 +917,7 @@ export const Profile = () => {
                 Edit profile
               </Button>
               {/* Social Go Live Button */}
-              <Button
+              <Button aria-label="Radio"
                 onClick={toggleLive}
                 className={`text-sm h-10 px-4 ${
                   profile.is_live
@@ -936,7 +936,7 @@ export const Profile = () => {
                 </div>
               )}
               {isPhotographer && (
-                <Button
+                <Button aria-label="Like"
                   onClick={() => navigate('/career/stoke-sponsor')}
                   variant="outline"
                   className="h-10 px-3 border-pink-500/50 text-pink-400 hover:bg-pink-500/10"
@@ -946,7 +946,7 @@ export const Profile = () => {
                   Stoke
                 </Button>
               )}
-              <Button
+              <Button aria-label="Settings"
                 onClick={() => navigate('/settings')}
                 variant="outline"
                 className="h-10 w-10 p-0 border-border text-foreground hover:bg-accent"
@@ -1013,7 +1013,7 @@ export const Profile = () => {
               </Button>
               {/* View Gallery CTA for Photographers */}
               {['Photographer', 'Approved Pro', 'photographer', 'approved_pro'].includes(profile.role) && (
-                <Button
+                <Button aria-label="Image"
                   onClick={() => navigate(`/photographer/${profileUserId}/gallery`)}
                   className="h-10 px-4 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-600 hover:to-yellow-600 text-black font-semibold"
                   data-testid="view-gallery-button"
@@ -1025,8 +1025,8 @@ export const Profile = () => {
               
               {/* More Options (Block, Report) */}
               <div className="relative">
-                <Button
-                  onClick={() => blockHook.setShowMoreMenu(!blockHook.showMoreMenu)}
+                <Button aria-label="More options"
+                  aria-expanded={showMoreMenu} onClick={() => blockHook.setShowMoreMenu(!blockHook.showMoreMenu)}
                   variant="outline"
                   className="h-10 w-10 p-0 border-zinc-700"
                   data-testid="more-options-button"
@@ -1045,7 +1045,7 @@ export const Profile = () => {
                     {/* Menu dropdown */}
                     <div className="absolute right-0 top-12 z-50 w-48 bg-zinc-800 border border-zinc-700 rounded-xl shadow-xl py-1">
                       {blockHook.isBlocked ? (
-                        <button
+                        <button aria-label="Loader2"
                           onClick={() => {
                             blockHook.setShowMoreMenu(false);
                             blockHook.handleUnblockUser(profile?.full_name);
@@ -1062,7 +1062,7 @@ export const Profile = () => {
                           Unblock User
                         </button>
                       ) : (
-                        <button
+                        <button aria-label="Ban"
                           onClick={() => {
                             blockHook.setShowMoreMenu(false);
                             blockHook.setShowBlockModal(true);
@@ -1075,7 +1075,7 @@ export const Profile = () => {
                         </button>
                       )}
                       
-                      <button
+                      <button aria-label="Report"
                         onClick={() => {
                           blockHook.setShowMoreMenu(false);
                           // Could navigate to report page or open report modal
@@ -1108,7 +1108,7 @@ export const Profile = () => {
               onRequestOnDemand={() => quickBookHook.handleQuickBookOpen('on-demand')}
               onBook={() => quickBookHook.handleQuickBookOpen('scheduled')}
               trigger={
-                <Button
+                <Button aria-label="Camera"
                   className="w-full h-12 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white font-bold"
                   data-testid="photographer-availability-btn"
                 >
@@ -1180,7 +1180,7 @@ export const Profile = () => {
                 }`}
                 data-testid={`tab-${tab.id}`}
               >
-                {/* Active indicator bar — rides the border-t of the container */}
+                {/* Active indicator bar � rides the border-t of the container */}
                 {activeTab === tab.id && (
                   <span className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-0.5 rounded-b-full bg-foreground" />
                 )}
@@ -1202,7 +1202,7 @@ export const Profile = () => {
               {/* Impact Level */}
               <div className="bg-gradient-to-br from-cyan-500/20 to-blue-500/20 rounded-xl p-6 text-center border border-cyan-500/30">
                 <div className="text-4xl mb-2">
-                  {impactScore.impact_score?.level?.emoji || '🌱'}
+                  {impactScore.impact_score?.level?.emoji || '??'}
                 </div>
                 <p className="text-white font-bold text-xl mb-1">
                   {impactScore.impact_score?.level?.name || 'Starter'}
@@ -1279,7 +1279,7 @@ export const Profile = () => {
                         title={badge.description}
                       >
                         <div className="w-10 h-10 rounded-full bg-gradient-to-br from-yellow-400 to-orange-500 flex items-center justify-center mb-1">
-                          {badge.icon_emoji || '🏆'}
+                          {badge.icon_emoji || '??'}
                         </div>
                         <span className="text-[10px] text-gray-400 text-center truncate w-full">{badge.name}</span>
                       </div>
@@ -1386,7 +1386,7 @@ export const Profile = () => {
                         title={badge.description}
                       >
                         <div className="w-10 h-10 rounded-full bg-gradient-to-br from-yellow-400 to-orange-500 flex items-center justify-center mb-1">
-                          {badge.icon_emoji || '🏆'}
+                          {badge.icon_emoji || '??'}
                         </div>
                         <span className="text-[10px] text-gray-400 text-center truncate w-full">{badge.name}</span>
                       </div>
@@ -1453,7 +1453,7 @@ export const Profile = () => {
           <div className="grid grid-cols-3 gap-0.5">
             {tabContent
               .filter(item => {
-                // Basic existence check — show all posts regardless of media URL type.
+                // Basic existence check � show all posts regardless of media URL type.
                 // Previously this filter hid videos with local /api/uploads/ paths, but
                 // that caused legitimately stored videos to disappear from profile grids.
                 const mediaItem = activeTab === 'saved' ? item?.post : item;

@@ -147,7 +147,7 @@ const EndSessionModal = ({
           >
             Keep Shooting
           </Button>
-          <Button
+          <Button aria-label="Loader2"
             onClick={onConfirm}
             disabled={isLoading}
             className="flex-1 bg-red-500 hover:bg-red-600 text-white font-bold"

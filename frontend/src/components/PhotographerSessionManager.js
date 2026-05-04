@@ -146,7 +146,7 @@ const ParticipantCard = ({
           
           {/* Selfie indicator badge */}
           {hasSelfie && (
-            <button
+            <button aria-label="Camera"
               onClick={() => setShowSelfie(true)}
               className="absolute -bottom-1 -right-1 z-20 w-5 h-5 bg-cyan-500 rounded-full flex items-center justify-center shadow-lg hover:bg-cyan-400 transition-colors"
               title="View ID selfie"
@@ -176,7 +176,7 @@ const ParticipantCard = ({
         
         {/* Selfie View Button (if available) */}
         {hasSelfie && (
-          <button
+          <button aria-label="User Circle"
             onClick={() => setShowSelfie(true)}
             className={`p-1.5 rounded-lg text-cyan-400 hover:bg-cyan-500/10 transition-colors ${
               isLight ? 'hover:bg-cyan-100' : ''
@@ -197,7 +197,7 @@ const ParticipantCard = ({
         
         {/* Remove Button */}
         {canRemove && (
-          <button
+          <button aria-label="Loader2"
             onClick={() => onRemove(participant.participant_id || participant.id, participant.name)}
             disabled={loading}
             className="p-2 rounded-full text-red-400 hover:bg-red-500/10 opacity-0 group-hover:opacity-100 transition-all"
@@ -502,7 +502,7 @@ const SessionStatusControl = ({
       {/* Action Buttons */}
       <div className="grid grid-cols-2 gap-2">
         {!isLocked && isOpen && (
-          <Button
+          <Button aria-label="Loader2"
             onClick={onLockSession}
             disabled={loading}
             className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white"
@@ -513,7 +513,7 @@ const SessionStatusControl = ({
           </Button>
         )}
         
-        <Button
+        <Button aria-label="Loader2"
           onClick={onCancelSession}
           disabled={loading}
           variant="outline"
@@ -825,7 +825,7 @@ export const PhotographerSessionManager = ({
           </div>
           <DialogDescription className={`${textSecondary} flex items-center gap-2`}>
             <MapPin className="w-4 h-4" />
-            {booking.location} � {new Date(booking.session_date).toLocaleDateString()}
+            {booking.location} ? {new Date(booking.session_date).toLocaleDateString()}
           </DialogDescription>
         </DialogHeader>
 
@@ -858,7 +858,7 @@ export const PhotographerSessionManager = ({
 
         {/* Tab Switcher */}
         <div className="flex border-b border-zinc-700">
-          <button
+          <button aria-label="Users"
             onClick={() => setActiveTab('participants')}
             className={`flex-1 py-2 text-sm font-medium flex items-center justify-center gap-2 transition-colors ${
               activeTab === 'participants' 
@@ -869,7 +869,7 @@ export const PhotographerSessionManager = ({
             <Users className="w-4 h-4" />
             Surfers ({participants.length})
           </button>
-          <button
+          <button aria-label="User Plus"
             onClick={() => setActiveTab('invite')}
             className={`flex-1 py-2 text-sm font-medium flex items-center justify-center gap-2 transition-colors ${
               activeTab === 'invite' 
@@ -880,7 +880,7 @@ export const PhotographerSessionManager = ({
             <UserPlus className="w-4 h-4" />
             Invite
           </button>
-          <button
+          <button aria-label="Settings"
             onClick={() => setActiveTab('settings')}
             className={`flex-1 py-2 text-sm font-medium flex items-center justify-center gap-2 transition-colors ${
               activeTab === 'settings' 
@@ -984,7 +984,7 @@ export const PhotographerSessionManager = ({
                           <p className={`text-xs ${textSecondary}`}>{result.role || 'Surfer'}</p>
                         </div>
                       </div>
-                      <Button
+                      <Button aria-label="Loader2"
                         size="sm"
                         onClick={() => handleInviteSurfer(result)}
                         disabled={inviting === result.user_id}

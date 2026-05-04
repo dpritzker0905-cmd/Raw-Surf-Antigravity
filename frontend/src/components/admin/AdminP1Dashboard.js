@@ -516,11 +516,11 @@ export const AdminP1Dashboard = () => {
                   Viewing as: {activeImpersonation.target_user.full_name}
                 </p>
                 <p className="text-purple-300 text-xs">
-                  {activeImpersonation.target_user.email} â€¢ {activeImpersonation.is_read_only ? 'Read-only' : 'Full access'}
+                  {activeImpersonation.target_user.email} • {activeImpersonation.is_read_only ? 'Read-only' : 'Full access'}
                 </p>
               </div>
             </div>
-            <Button
+            <Button aria-label="Loader2"
               size="sm"
               variant="destructive"
               onClick={endImpersonation}
@@ -916,7 +916,7 @@ export const AdminP1Dashboard = () => {
                         <Calendar className="w-5 h-5 text-blue-400" />
                         <span className={textClass}>This Week: <strong>{complianceStats.violations_this_week}</strong> new violations</span>
                       </div>
-                      <Button
+                      <Button aria-label="Refresh"
                         size="sm"
                         variant="outline"
                         onClick={fetchComplianceData}
@@ -966,7 +966,7 @@ export const AdminP1Dashboard = () => {
                                 fraud.severity === 'severe' ? 'bg-orange-500/20 text-orange-400' :
                                 'bg-yellow-500/20 text-yellow-400'
                               }`}>
-                                {fraud.severity} â€¢ {fraud.distance_miles?.toFixed(1)} mi
+                                {fraud.severity} • {fraud.distance_miles?.toFixed(1)} mi
                               </Badge>
                               <span className={`text-[10px] ${textSecondary}`}>
                                 {formatDate(fraud.created_at)}
@@ -1028,7 +1028,7 @@ export const AdminP1Dashboard = () => {
                         
                         {selectedAppeals.size > 0 && (
                           <>
-                            <Button
+                            <Button aria-label="Loader2"
                               size="sm"
                               variant="outline"
                               onClick={() => handleBulkReviewAppeals(true)}
@@ -1038,7 +1038,7 @@ export const AdminP1Dashboard = () => {
                               {bulkProcessing ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <ThumbsUp className="w-3 h-3 mr-1" />}
                               Approve ({selectedAppeals.size})
                             </Button>
-                            <Button
+                            <Button aria-label="Loader2"
                               size="sm"
                               variant="outline"
                               onClick={() => handleBulkReviewAppeals(false)}
@@ -1082,7 +1082,7 @@ export const AdminP1Dashboard = () => {
                             >
                               <p className={`font-medium ${textClass}`}>{violation.title}</p>
                               <p className={`text-xs ${textSecondary}`}>
-                                {violation.violation_type.replace(/_/g, ' ')} â€¢ User: {violation.user_id.slice(0, 8)}...
+                                {violation.violation_type.replace(/_/g, ' ')} • User: {violation.user_id.slice(0, 8)}...
                               </p>
                             </div>
                           </div>
@@ -1361,7 +1361,7 @@ export const AdminP1Dashboard = () => {
                         placeholder="Test123!"
                       />
                     </div>
-                    <Button
+                    <Button aria-label="Loader2"
                       onClick={seedAllRoleAccounts}
                       disabled={seedingAccounts}
                       className="bg-green-500 hover:bg-green-600 text-white"
@@ -1434,7 +1434,7 @@ export const AdminP1Dashboard = () => {
                           {account.is_approved_pro && (
                             <Badge className="bg-purple-500/20 text-purple-400 shrink-0">Pro</Badge>
                           )}
-                          <Button
+                          <Button aria-label="Copy"
                             size="sm"
                             variant="outline"
                             onClick={() => copyCredentials(account)}
@@ -1442,7 +1442,7 @@ export const AdminP1Dashboard = () => {
                           >
                             <Copy className="w-4 h-4" />
                           </Button>
-                          <Button
+                          <Button aria-label="View"
                             size="sm"
                             onClick={() => {
                               setSearchUserQuery('');
@@ -1697,7 +1697,7 @@ export const AdminP1Dashboard = () => {
                     className="bg-muted border-border"
                   />
                   
-                  <Button
+                  <Button aria-label="Loader2"
                     onClick={() => handleReviewVerification(selectedVerification.id)}
                     disabled={!reviewStatus || actionLoading}
                     className={`w-full ${
@@ -1784,7 +1784,7 @@ export const AdminP1Dashboard = () => {
                     className="bg-muted border-border"
                   />
                   
-                  <Button
+                  <Button aria-label="Loader2"
                     onClick={() => handleResolveFraudAlert(selectedAlert.id)}
                     disabled={!actionTaken || actionLoading}
                     className="w-full bg-red-500 hover:bg-red-600"
@@ -1866,7 +1866,7 @@ export const AdminP1Dashboard = () => {
                   />
                   
                   <div className="flex gap-2">
-                    <Button
+                    <Button aria-label="Loader2"
                       variant="outline"
                       className="flex-1 border-green-500 text-green-400 hover:bg-green-500/20"
                       onClick={() => handleReviewAppeal(selectedViolation.id, true)}
@@ -1875,7 +1875,7 @@ export const AdminP1Dashboard = () => {
                       {actionLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <ThumbsUp className="w-4 h-4 mr-2" />}
                       Approve Appeal
                     </Button>
-                    <Button
+                    <Button aria-label="Loader2"
                       variant="outline"
                       className="flex-1 border-red-500 text-red-400 hover:bg-red-500/20"
                       onClick={() => handleReviewAppeal(selectedViolation.id, false)}

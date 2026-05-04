@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
@@ -13,12 +13,12 @@ import logger from '../utils/logger';
 
 // Badge definitions with icons and descriptions
 const BADGE_INFO = {
-  first_checkin: { icon: '🎯', name: 'First Wave', description: 'Your first check-in!' },
-  explorer_10: { icon: '🗺️', name: 'Explorer', description: 'Visited 10 unique spots' },
-  globetrotter_5: { icon: '🌍', name: 'Globetrotter', description: 'Surfed in 5 countries' },
-  streak_7: { icon: '🔥', name: 'On Fire', description: '7-day check-in streak' },
-  dawn_patrol: { icon: '🌅', name: 'Dawn Patrol', description: 'Check-in before 7am' },
-  storm_chaser: { icon: '⛈️', name: 'Storm Chaser', description: 'Surfed during large swell' },
+  first_checkin: { icon: '??', name: 'First Wave', description: 'Your first check-in!' },
+  explorer_10: { icon: '???', name: 'Explorer', description: 'Visited 10 unique spots' },
+  globetrotter_5: { icon: '??', name: 'Globetrotter', description: 'Surfed in 5 countries' },
+  streak_7: { icon: '??', name: 'On Fire', description: '7-day check-in streak' },
+  dawn_patrol: { icon: '??', name: 'Dawn Patrol', description: 'Check-in before 7am' },
+  storm_chaser: { icon: '??', name: 'Storm Chaser', description: 'Surfed during large swell' },
 };
 
 // Level names
@@ -214,7 +214,7 @@ export const SurfPassport = ({ isOpen, onClose }) => {
   const xpProgress = stats ? (stats.total_xp_earned / (stats.total_xp_earned + (stats.xp_to_next_level || 1))) * 100 : 0;
 
   return (
-    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 pb-24 md:pb-4">
+    <div data-testid="surf-passport" className="fixed inset-0 z-[200] flex items-center justify-center p-4 pb-24 md:pb-4">
       {/* Backdrop */}
       <div 
         className="absolute inset-0 bg-black/60 backdrop-blur-sm"
@@ -289,7 +289,7 @@ export const SurfPassport = ({ isOpen, onClose }) => {
                 <div>
                   <p className={`text-sm font-medium ${textClass}`}>{nearbySpot.name}</p>
                   <p className={`text-xs ${textSecondaryClass}`}>
-                    {nearbySpot.distance}m away • {nearbySpot.country}
+                    {nearbySpot.distance}m away � {nearbySpot.country}
                   </p>
                 </div>
               </div>
@@ -298,7 +298,7 @@ export const SurfPassport = ({ isOpen, onClose }) => {
                   Get within 500m
                 </span>
               ) : (
-                <button
+                <button aria-label="Check Circle2"
                   onClick={handleCheckIn}
                   disabled={checkingIn}
                   className="flex items-center gap-2 bg-gradient-to-r from-emerald-400 to-yellow-400 text-black text-sm font-medium px-4 py-2 rounded-full hover:opacity-90 transition-opacity disabled:opacity-50"
@@ -388,7 +388,7 @@ export const SurfPassport = ({ isOpen, onClose }) => {
                         className={`${cardBgClass} px-3 py-2 rounded-lg flex items-center gap-2`}
                         title={BADGE_INFO[badge]?.description}
                       >
-                        <span className="text-xl">{BADGE_INFO[badge]?.icon || '🏅'}</span>
+                        <span className="text-xl">{BADGE_INFO[badge]?.icon || '??'}</span>
                         <span className={`text-sm ${textClass}`}>{BADGE_INFO[badge]?.name || badge}</span>
                       </div>
                     ))}
@@ -414,13 +414,13 @@ export const SurfPassport = ({ isOpen, onClose }) => {
                         }}
                       >
                         <div className="w-12 h-12 rounded-full bg-gradient-to-br from-emerald-400/30 to-yellow-400/30 flex items-center justify-center flex-shrink-0">
-                          <span className="text-2xl">🏄</span>
+                          <span className="text-2xl">??</span>
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className={`text-sm font-medium ${textClass} truncate`}>{spot.spot_name}</p>
-                          <p className={`text-xs ${textSecondaryClass}`}>{spot.country} • {spot.region}</p>
+                          <p className={`text-xs ${textSecondaryClass}`}>{spot.country} � {spot.region}</p>
                           <p className={`text-xs text-emerald-500`}>
-                            {spot.visit_count}x visited • +{spot.total_xp_earned} XP
+                            {spot.visit_count}x visited � +{spot.total_xp_earned} XP
                           </p>
                         </div>
                         <ChevronRight className={`w-4 h-4 ${textSecondaryClass}`} />
@@ -504,7 +504,7 @@ export const SurfPassport = ({ isOpen, onClose }) => {
                       <div className="flex-1 min-w-0">
                         <p className={`text-sm font-medium ${textClass} truncate`}>{entry.full_name}</p>
                         <p className={`text-xs ${textSecondaryClass}`}>
-                          Level {entry.passport_level} • {entry.unique_spots_visited} spots • {entry.unique_countries_visited} countries
+                          Level {entry.passport_level} � {entry.unique_spots_visited} spots � {entry.unique_countries_visited} countries
                         </p>
                       </div>
                       <div className="text-right">

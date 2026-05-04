@@ -580,7 +580,7 @@ export const AdminModerationDashboard = () => {
                           <p className="text-xl font-bold text-orange-400">${hold.amount}</p>
                           <p className={`text-xs ${textSecondary}`}>{formatDate(hold.created_at)}</p>
                           {hold.is_active && (
-                            <Button
+                            <Button aria-label="Loader2"
                               size="sm"
                               variant="outline"
                               onClick={() => handleReleaseHold(hold.id)}
@@ -666,7 +666,7 @@ export const AdminModerationDashboard = () => {
                                   <span>By: {log.actor?.full_name || log.actor_email}</span>
                                 )}
                                 {log.target_email && (
-                                  <span>â€¢ Target: {log.target_email}</span>
+                                  <span>• Target: {log.target_email}</span>
                                 )}
                               </div>
                             </div>
@@ -832,7 +832,7 @@ export const AdminModerationDashboard = () => {
                     className="bg-muted border-border"
                     onKeyPress={(e) => e.key === 'Enter' && handleAddDisputeMessage(selectedDispute.id)}
                   />
-                  <Button
+                  <Button aria-label="Loader2"
                     onClick={() => handleAddDisputeMessage(selectedDispute.id)}
                     disabled={!newMessage.trim() || actionLoading}
                     className="bg-blue-500 hover:bg-blue-600"
@@ -910,7 +910,7 @@ export const AdminModerationDashboard = () => {
             <Button variant="outline" onClick={() => setShowReportReview(false)}>
               Cancel
             </Button>
-            <Button
+            <Button aria-label="Loader2"
               onClick={() => handleReviewReport(selectedReport?.id)}
               disabled={!reviewAction || actionLoading}
               className="bg-blue-500 hover:bg-blue-600"

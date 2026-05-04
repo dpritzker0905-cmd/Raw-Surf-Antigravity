@@ -17,8 +17,8 @@ const ROLE_CONFIG = {
     tagline: 'Get your sessions captured by local pros',
     benefits: ['Book photographers on the beach', 'Build your surf portfolio', 'Track streaks & compete'],
     roles: [
-      { id: 'Grom', label: 'Grom', icon: '👶', description: 'Under 18 • Parent-linked account', requiresParent: true },
-      { id: 'Surfer', label: 'Surfer', icon: '🏄', description: 'Casual to committed wave rider' }
+      { id: 'Grom', label: 'Grom', icon: '??', description: 'Under 18 � Parent-linked account', requiresParent: true },
+      { id: 'Surfer', label: 'Surfer', icon: '??', description: 'Casual to committed wave rider' }
     ]
   },
   photographer: {
@@ -27,9 +27,9 @@ const ROLE_CONFIG = {
     tagline: 'Turn your surf shots into income',
     benefits: ['Set your own prices', 'Get booked by surfers', 'AI-powered editing tools'],
     roles: [
-      { id: 'Hobbyist', label: 'Hobbyist', icon: '📷', description: 'Free • Contribute • Earn Gear Credits' },
-      { id: 'Photographer', label: 'Photographer', icon: '📸', description: 'Unlimited storage • Set your prices • Track surfers' },
-      { id: 'Approved Pro', label: 'Verified Pro Photographer', icon: '✨', description: 'Verified badge • Lower commission • Priority placement' }
+      { id: 'Hobbyist', label: 'Hobbyist', icon: '??', description: 'Free � Contribute � Earn Gear Credits' },
+      { id: 'Photographer', label: 'Photographer', icon: '??', description: 'Unlimited storage � Set your prices � Track surfers' },
+      { id: 'Approved Pro', label: 'Verified Pro Photographer', icon: '?', description: 'Verified badge � Lower commission � Priority placement' }
     ]
   },
   business: {
@@ -38,11 +38,11 @@ const ROLE_CONFIG = {
     tagline: 'Reach the surf community',
     benefits: ['List services & products', 'Book photographers for events', 'Sponsor local talent'],
     roles: [
-      { id: 'School', label: 'Surf School', icon: '🎓', description: 'Lessons, camps & training' },
-      { id: 'Coach', label: 'Surf Coach', icon: '🏋️', description: 'Personal & group coaching' },
-      { id: 'Shop', label: 'Shop/Brand', icon: '🏪', description: 'Retail, gear & apparel' },
-      { id: 'Shaper', label: 'Shaper', icon: '🔨', description: 'Custom boards & repairs' },
-      { id: 'Resort', label: 'Resort/Retreat', icon: '🏨', description: 'Surf trips & accommodations' }
+      { id: 'School', label: 'Surf School', icon: '??', description: 'Lessons, camps & training' },
+      { id: 'Coach', label: 'Surf Coach', icon: '???', description: 'Personal & group coaching' },
+      { id: 'Shop', label: 'Shop/Brand', icon: '??', description: 'Retail, gear & apparel' },
+      { id: 'Shaper', label: 'Shaper', icon: '??', description: 'Custom boards & repairs' },
+      { id: 'Resort', label: 'Resort/Retreat', icon: '??', description: 'Surf trips & accommodations' }
     ]
   }
 };
@@ -199,7 +199,7 @@ export const Auth = () => {
             tos_version: CURRENT_TOS_VERSION
           });
         } catch (tosErr) {
-          // Non-blocking — account is created, we just couldn't record ToS
+          // Non-blocking � account is created, we just couldn't record ToS
           console.warn('Failed to record ToS acceptance:', tosErr);
         }
 
@@ -289,6 +289,7 @@ export const Auth = () => {
           {/* Login Form */}
           {isLogin && (
             <form onSubmit={handleSubmit} className="space-y-4 mt-6">
+              <label htmlFor="login-email" className="sr-only">Email address</label>
               <Input
                 type="email"
                 placeholder="Email"
@@ -301,6 +302,7 @@ export const Auth = () => {
                 id="login-email"
               />
               <div className="relative">
+                <label htmlFor="login-password" className="sr-only">Password</label>
                 <Input
                   type={showPassword ? 'text' : 'password'}
                   placeholder="Password"
@@ -314,7 +316,7 @@ export const Auth = () => {
                 />
                 <button
                   type="button"
-                  onClick={() => setShowPassword(!showPassword)}
+                  aria-expanded={showPassword} onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white"
                   aria-label={showPassword ? 'Hide password' : 'Show password'}
                 >
@@ -349,7 +351,7 @@ export const Auth = () => {
                 {Object.entries(ROLE_CONFIG).map(([key, config]) => {
                   const Icon = config.icon;
                   return (
-                    <button
+                    <button aria-label="div"
                       key={key}
                       onClick={() => handleCategorySelect(key)}
                       className="w-full flex items-start gap-4 p-4 bg-zinc-800 hover:bg-zinc-700 rounded-lg border border-zinc-700 hover:border-zinc-600 transition-all text-left"
@@ -386,7 +388,7 @@ export const Auth = () => {
           {!isLogin && category && categoryConfig && (
             <div className="mt-4">
               {/* Back to Categories */}
-              <button
+              <button aria-label="Go back"
                 onClick={handleBackToCategories}
                 className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors mb-4"
                 data-testid="back-to-categories"
@@ -471,7 +473,7 @@ export const Auth = () => {
                   />
                   <button
                     type="button"
-                    onClick={() => setShowPassword(!showPassword)}
+                    aria-expanded={showPassword} onClick={() => setShowPassword(!showPassword)}
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white"
                     aria-label={showPassword ? 'Hide password' : 'Show password'}
                   >
@@ -692,7 +694,7 @@ export const Auth = () => {
 
             {/* Scrollable Content */}
             <div className="flex-1 overflow-y-auto px-6 py-4 text-sm text-gray-300 space-y-4" style={{ maxHeight: '60vh' }}>
-              <p className="text-xs text-gray-500 uppercase tracking-wider">Version {authTosContent.version || CURRENT_TOS_VERSION} • Effective {authTosContent.effective_date || 'May 2026'}</p>
+              <p className="text-xs text-gray-500 uppercase tracking-wider">Version {authTosContent.version || CURRENT_TOS_VERSION} � Effective {authTosContent.effective_date || 'May 2026'}</p>
               {(authTosContent.sections || []).map((section, idx) => (
                 <React.Fragment key={idx}>
                   <h3 className="text-white font-semibold text-base">{section.title}</h3>

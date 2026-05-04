@@ -202,7 +202,7 @@ const WaveCard = ({
         </button>
         
         {/* Like */}
-        <button
+        <button aria-label="Like"
           onClick={(e) => { e.stopPropagation(); handleLikeButton(); }}
           className="flex flex-col items-center gap-1"
           data-testid="wave-like-btn"
@@ -214,7 +214,7 @@ const WaveCard = ({
         </button>
         
         {/* Comments */}
-        <button
+        <button aria-label="div"
           onClick={(e) => { e.stopPropagation(); onComment(wave); }}
           className="flex flex-col items-center gap-1"
           data-testid="wave-comment-btn"
@@ -226,7 +226,7 @@ const WaveCard = ({
         </button>
         
         {/* Share */}
-        <button
+        <button aria-label="div"
           onClick={(e) => { e.stopPropagation(); onShare(wave); }}
           className="flex flex-col items-center gap-1"
           data-testid="wave-share-btn"
@@ -239,7 +239,7 @@ const WaveCard = ({
         
         {/* Sound control with volume slider */}
         <div className="relative flex flex-col items-center gap-1">
-          {/* Vertical volume slider — appears above the button */}
+          {/* Vertical volume slider � appears above the button */}
           <div
             className="flex flex-col items-center transition-all duration-300 ease-out overflow-hidden"
             style={{
@@ -312,7 +312,7 @@ const WaveCard = ({
             @{wave.author_username || wave.author_name?.toLowerCase().replace(/\s+/g, '')}
           </span>
           {wave.author_verified && (
-            <span className="text-blue-400 text-sm">✓</span>
+            <span className="text-blue-400 text-sm">?</span>
           )}
         </button>
         

@@ -1,5 +1,5 @@
 /**
- * PostSessionSummary â€” Photographer post-session action dashboard
+ * PostSessionSummary — Photographer post-session action dashboard
  * 
  * Shows for session galleries that ended recently (< 48 hours).
  * One-click distribute, AI match status, and distribution progress.
@@ -53,8 +53,8 @@ export const PostSessionSummary = ({
   return (
     <div className="mb-6 overflow-hidden rounded-xl border border-emerald-500/30 bg-gradient-to-r from-emerald-900/20 via-zinc-900/80 to-cyan-900/20">
       {/* Header */}
-      <button
-        onClick={() => setCollapsed(!collapsed)}
+      <button aria-label="div"
+        aria-expanded={collapsed} onClick={() => setCollapsed(!collapsed)}
         className="w-full flex items-center justify-between p-4 hover:bg-white/5 transition-colors"
       >
         <div className="flex items-center gap-3">
@@ -140,7 +140,7 @@ export const PostSessionSummary = ({
 
           {/* Action buttons */}
           <div className="flex flex-wrap gap-2">
-            <Button
+            <Button aria-label="Loader2"
               onClick={onDistributeAll}
               disabled={isDistributing || stats.totalSurfers === 0}
               className="flex-1 bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-600 hover:to-cyan-600 text-white font-semibold"
@@ -158,7 +158,7 @@ export const PostSessionSummary = ({
               )}
             </Button>
 
-            <Button
+            <Button aria-label="Loader2"
               onClick={onAiAutoTag}
               disabled={isAiTagging}
               variant="outline"
@@ -172,7 +172,7 @@ export const PostSessionSummary = ({
               AI Tag
             </Button>
 
-            <Button
+            <Button aria-label="Users"
               onClick={onOpenTagAssign}
               variant="outline"
               className="border-zinc-600 text-zinc-300 hover:bg-zinc-800"

@@ -359,7 +359,7 @@ export const QualityComparisonModal = ({
                 </div>
                 
                 {/* Zoom toggle */}
-                <Button
+                <Button aria-label="Zoom out"
                   size="sm"
                   variant="outline"
                   className={`absolute top-3 right-3 ${zoomEnabled ? 'bg-cyan-500 text-black border-cyan-500' : 'bg-black/50 border-zinc-600'}`}
@@ -450,7 +450,7 @@ export const QualityComparisonModal = ({
                 <Button variant="outline" onClick={() => onOpenChange(false)}>
                   Cancel
                 </Button>
-                <Button 
+                <Button aria-label="Download" 
                   className="bg-gradient-to-r from-cyan-500 to-blue-500 text-white"
                   onClick={() => {
                     onSelectTier?.(selectedTier);

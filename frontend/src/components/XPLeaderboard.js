@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Trophy, Medal, Crown, Star, ChevronRight, Users, Camera, Waves } from 'lucide-react';
 import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
@@ -119,7 +119,7 @@ export const XPLeaderboard = ({ compact = false, limit = 10 }) => {
               </div>
             ))}
           </div>
-          <Button 
+          <Button aria-label="Next" 
             variant="ghost" 
             size="sm" 
             className="w-full mt-2 text-cyan-400"

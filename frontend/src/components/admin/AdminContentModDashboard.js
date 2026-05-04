@@ -224,7 +224,7 @@ export const AdminContentModDashboard = () => {
           <Button size="sm" variant="outline" onClick={() => { fetchQueue(); fetchStats(); }} aria-label="Refresh">
             <RefreshCw className="w-4 h-4" />
           </Button>
-          <Button 
+          <Button aria-label="Delete" 
             size="sm" 
             variant="outline" 
             onClick={handlePurgeOrphans} 
@@ -243,7 +243,7 @@ export const AdminContentModDashboard = () => {
             <Button size="sm" onClick={() => handleBulkModerate('approve')} disabled={actionLoading} className="bg-green-500 hover:bg-green-600" aria-label="Confirm">
               <Check className="w-4 h-4 mr-1" /> Approve All
             </Button>
-            <Button size="sm" onClick={() => handleBulkModerate('reject')} disabled={actionLoading} className="bg-red-500 hover:bg-red-600">
+            <Button aria-label="Delete" size="sm" onClick={() => handleBulkModerate('reject')} disabled={actionLoading} className="bg-red-500 hover:bg-red-600">
               <Trash2 className="w-4 h-4 mr-1" /> Remove All
             </Button>
           </div>
@@ -296,7 +296,7 @@ export const AdminContentModDashboard = () => {
                       </div>
                       <p className={`text-sm ${textClass} line-clamp-2`}>{item.content_preview}</p>
                       <p className="text-xs text-gray-500 mt-1">
-                        By: {item.user_name || 'Unknown'} â€¢ {item.created_at ? new Date(item.created_at).toLocaleDateString() : ''}
+                        By: {item.user_name || 'Unknown'} • {item.created_at ? new Date(item.created_at).toLocaleDateString() : ''}
                       </p>
                     </div>
                     <div className="flex gap-1">
@@ -380,10 +380,10 @@ export const AdminContentModDashboard = () => {
           {status === 'pending' && selectedItem && (
             <DialogFooter className="gap-2">
               <Button variant="outline" onClick={() => setSelectedItem(null)}>Cancel</Button>
-              <Button onClick={() => handleModerate(selectedItem.id, 'approve')} disabled={actionLoading} className="bg-green-500 hover:bg-green-600">
+              <Button aria-label="Confirm" onClick={() => handleModerate(selectedItem.id, 'approve')} disabled={actionLoading} className="bg-green-500 hover:bg-green-600">
                 <Check className="w-4 h-4 mr-1" /> Approve
               </Button>
-              <Button onClick={() => handleModerate(selectedItem.id, 'reject')} disabled={actionLoading} className="bg-red-500 hover:bg-red-600">
+              <Button aria-label="Delete" onClick={() => handleModerate(selectedItem.id, 'reject')} disabled={actionLoading} className="bg-red-500 hover:bg-red-600">
                 <Trash2 className="w-4 h-4 mr-1" /> Reject
               </Button>
             </DialogFooter>

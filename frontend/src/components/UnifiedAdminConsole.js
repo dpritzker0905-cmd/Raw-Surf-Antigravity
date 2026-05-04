@@ -159,7 +159,7 @@ const UnifiedAdminConsole = () => {
     try {
       const handle401 = (label) => (err) => {
         if (err?.response?.status === 401) {
-          logger.warn(`[Admin] ${label}: 401 — token may be expired`);
+          logger.warn(`[Admin] ${label}: 401 � token may be expired`);
         }
         return { data: null };
       };
@@ -172,7 +172,7 @@ const UnifiedAdminConsole = () => {
       
       // If ALL admin calls returned null, the token is likely expired
       if (!statsRes.data && !usersRes.data && !logsRes.data && !settingsRes.data) {
-        toast.error('Admin session may have expired — try logging out and back in.', { duration: 5000 });
+        toast.error('Admin session may have expired � try logging out and back in.', { duration: 5000 });
       }
       
       setStats(statsRes.data);
@@ -444,7 +444,7 @@ const UnifiedAdminConsole = () => {
       {/* Header */}
       <div className={`sticky top-0 z-[1100] ${isLight ? 'bg-white/90 border-b border-gray-200' : 'bg-black/90 border-b border-border'} backdrop-blur-lg`}>
         <div className="flex items-center justify-between p-4">
-          <button 
+          <button aria-label="Go back" 
             onClick={() => navigate(-1)}
             className={`flex items-center gap-2 ${isLight ? 'text-gray-500 hover:text-black' : 'text-muted-foreground hover:text-foreground'} transition-colors`}
           >
@@ -456,7 +456,7 @@ const UnifiedAdminConsole = () => {
             Admin Console
           </h1>
           <div className="flex items-center gap-2">
-            <Button
+            <Button aria-label="Refresh"
               variant="ghost"
               size="sm"
               onClick={() => { fetchData(); fetchSessionData(); }}
@@ -612,7 +612,7 @@ const UnifiedAdminConsole = () => {
                           className="bg-input border-input text-foreground uppercase tracking-widest font-mono"
                           data-testid="access-code-input"
                         />
-                        <Button
+                        <Button aria-label="Loader2"
                           onClick={() => updateSiteSettings({ access_code: siteSettings.access_code })}
                           disabled={savingSettings}
                           className="bg-cyan-500 hover:bg-cyan-600"
@@ -622,7 +622,7 @@ const UnifiedAdminConsole = () => {
                         </Button>
                       </div>
                       <p className="text-yellow-400 text-xs mt-2">
-                        ⚠️ Changing the code will require ALL users to re-enter the new code
+                        ?? Changing the code will require ALL users to re-enter the new code
                       </p>
                     </div>
                   )}
@@ -637,8 +637,8 @@ const UnifiedAdminConsole = () => {
                       siteSettings.access_code_enabled ? 'text-yellow-400' : 'text-green-400'
                     }`}>
                       {siteSettings.access_code_enabled 
-                        ? `🔒 Site is protected - Current code: ${siteSettings.access_code || 'Not set'}` 
-                        : '🌐 Site is public - Anyone can access'}
+                        ? `?? Site is protected - Current code: ${siteSettings.access_code || 'Not set'}` 
+                        : '?? Site is public - Anyone can access'}
                     </p>
                   </div>
                 </div>
@@ -742,7 +742,7 @@ const UnifiedAdminConsole = () => {
                           )}
                         </div>
                         <p className={`text-xs ${textSecondary}`}>
-                          {roleInfo?.category || 'User'} • {roleInfo?.description || 'Test this role'}
+                          {roleInfo?.category || 'User'} � {roleInfo?.description || 'Test this role'}
                         </p>
                       </div>
                       {isActive && <Check className="w-5 h-5 text-yellow-400" />}
@@ -856,7 +856,7 @@ const UnifiedAdminConsole = () => {
                           </button>
                         </div>
                       ) : (
-                        <Button
+                        <Button aria-label="Upload"
                           variant="outline"
                           size="sm"
                           onClick={() => fileInputRef.current?.click()}
@@ -879,7 +879,7 @@ const UnifiedAdminConsole = () => {
                       />
                     </div>
                     
-                    <Button
+                    <Button aria-label="Loader2"
                       onClick={handleForceStart}
                       disabled={forceStartLoading || !selectedPhotographer || !selectedSpot}
                       className="w-full bg-green-600 hover:bg-green-700 text-white font-bold"
@@ -932,7 +932,7 @@ const UnifiedAdminConsole = () => {
                                 {session.spot_name}
                               </p>
                             </div>
-                            <Button
+                            <Button aria-label="Loader2"
                               size="sm"
                               variant="destructive"
                               onClick={() => handleForceEnd(session.photographer_id)}
@@ -1147,7 +1147,7 @@ const UserDetailModal = ({ user: targetUser, onClose, onToggleAdmin }) => {
           </div>
 
           <div className="flex gap-2 pt-2">
-            <Button
+            <Button aria-label="Crown"
               variant="outline"
               onClick={() => onToggleAdmin(targetUser)}
               className={`flex-1 border-border ${targetUser.is_admin ? 'text-yellow-400' : 'text-foreground'}`}
@@ -1211,7 +1211,7 @@ const DropdownBadge = ({ value, options, onChange, colorClass, isLoading }) => {
   
   return (
     <div className="relative" ref={dropdownRef}>
-      <button
+      <button aria-label="Loader2"
         onClick={() => setIsOpen(!isOpen)}
         disabled={isLoading}
         className={`px-2 py-0.5 rounded text-xs font-medium cursor-pointer hover:opacity-80 transition-opacity flex items-center gap-1 ${colorClass}`}
@@ -1547,7 +1547,7 @@ const UsersTabContent = ({
             </div>
             
             {/* Bulk Delete */}
-            <Button
+            <Button aria-label="Loader2"
               size="sm"
               variant="outline"
               onClick={() => handleBulkDelete()}
@@ -1605,7 +1605,7 @@ const UsersTabContent = ({
 
       {/* Select All Header */}
       <div className="flex items-center gap-2 px-1">
-        <button
+        <button aria-label="Confirm"
           onClick={toggleSelectAll}
           className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${
             allSelected 
@@ -1635,7 +1635,7 @@ const UsersTabContent = ({
               <CardContent className="p-3 overflow-visible">
                 <div className="flex items-center gap-3">
                   {/* Checkbox */}
-                  <button
+                  <button aria-label="Confirm"
                     onClick={() => toggleUserSelection(u.id)}
                     className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors flex-shrink-0 ${
                       isSelected 
@@ -1661,7 +1661,7 @@ const UsersTabContent = ({
                     <p className={`text-xs ${textSecondary} truncate`}>{u.email}</p>
                   </div>
                   <div className="flex items-center gap-1">
-                    <Button
+                    <Button aria-label="View"
                       size="sm"
                       variant="ghost"
                       onClick={() => setSelectedUser(u)}
@@ -1669,7 +1669,7 @@ const UsersTabContent = ({
                     >
                       <Eye className="w-4 h-4" />
                     </Button>
-                    <Button
+                    <Button aria-label="Check Circle"
                       size="sm"
                       variant="ghost"
                       onClick={() => handleVerify(u)}
@@ -1691,7 +1691,7 @@ const UsersTabContent = ({
                       <KeyRound className="w-4 h-4" />
                     </Button>
                     {u.is_suspended ? (
-                      <Button
+                      <Button aria-label="User Check"
                         size="sm"
                         onClick={() => handleUnsuspend(u)}
                         className="bg-emerald-500 hover:bg-emerald-600 h-8 w-8 p-0"
@@ -1699,7 +1699,7 @@ const UsersTabContent = ({
                         <UserCheck className="w-4 h-4" />
                       </Button>
                     ) : (
-                      <Button
+                      <Button aria-label="User X"
                         size="sm"
                         onClick={() => { setUserToSuspend(u); setShowSuspendModal(true); }}
                         className="bg-red-500 hover:bg-red-600 h-8 w-8 p-0"
@@ -1813,7 +1813,7 @@ const UsersTabContent = ({
               >
                 Cancel
               </Button>
-              <Button
+              <Button aria-label="Loader2"
                 onClick={handleResetPassword}
                 disabled={!newPassword || newPassword.length < 6 || resetPasswordLoading}
                 className="flex-1 bg-amber-500 hover:bg-amber-600 text-black font-semibold"
@@ -1827,7 +1827,7 @@ const UsersTabContent = ({
               </Button>
             </div>
             <p className="text-yellow-500/60 text-xs text-center">
-              ⚠️ The user will need to log in with this new password
+              ?? The user will need to log in with this new password
             </p>
           </div>
         </DialogContent>
@@ -1897,7 +1897,7 @@ const AnalyticsTabContent = ({ user, cardBgClass, textClass, textSecondary }) =>
           <TrendingUp className="w-5 h-5 text-cyan-400" />
           Platform Mission Control
         </h2>
-        <Button
+        <Button aria-label="Loader2"
           size="sm"
           variant="outline"
           onClick={handleRefreshCache}

@@ -94,7 +94,7 @@ const LineupCard = ({
     setLoading(true);
     try {
       await onJoin(lineup.id);
-      toast.success('Joined the lineup! 🤙');
+      toast.success('Joined the lineup! ??');
       onRefresh?.();
     } catch (error) {
       toast.error(error.response?.data?.detail || 'Failed to join lineup');
@@ -305,7 +305,7 @@ const LineupCard = ({
         {/* Action Buttons */}
         <div className="flex gap-2">
           {isCaptain ? (
-            <Button
+            <Button aria-label="Next"
               onClick={() => onManage(lineup)}
               className="flex-1 bg-gradient-to-r from-yellow-400 to-orange-400 hover:from-yellow-500 hover:to-orange-500 text-black"
               data-testid={`manage-lineup-${lineup.id}`}
@@ -314,7 +314,7 @@ const LineupCard = ({
               <ChevronRight className="w-4 h-4 ml-1" />
             </Button>
           ) : isInLineup ? (
-            <Button
+            <Button aria-label="Loader2"
               onClick={handleLeave}
               disabled={loading || lineup.lineup_status === 'locked'}
               variant="outline"
@@ -324,7 +324,7 @@ const LineupCard = ({
               {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Leave Lineup'}
             </Button>
           ) : (
-            <Button
+            <Button aria-label="Loader2"
               onClick={handleJoin}
               disabled={loading || lineup.lineup_status === 'locked' || currentCrew >= maxCrew}
               className="flex-1 bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white"
@@ -460,7 +460,7 @@ export const LineupTab = ({
                 </p>
               </div>
             </div>
-            <Button
+            <Button aria-label="User Plus"
               onClick={onOpenDirectory}
               className="bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white"
               data-testid="start-lineup-btn"
@@ -547,7 +547,7 @@ export const LineupTab = ({
         </div>
       )}
 
-      {/* Confirmed lineups banner — moved to Scheduled */}
+      {/* Confirmed lineups banner � moved to Scheduled */}
       {confirmedLineupCount > 0 && (
         <div className={`flex items-center gap-3 p-3 rounded-xl border ${
           isLight
@@ -577,7 +577,7 @@ export const LineupTab = ({
             <p className={`${textSecondaryClass} mb-6`}>
               Start a lineup to book a session with friends, or join an open one nearby!
             </p>
-            <Button
+            <Button aria-label="User Plus"
               onClick={onOpenDirectory}
               className="bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white"
             >

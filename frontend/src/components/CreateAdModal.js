@@ -254,7 +254,7 @@ export const CreateAdModal = ({ isOpen, onClose, onSuccess }) => {
                     </div>
                   </div>
                 ) : (
-                  <button
+                  <button aria-label="Loader2"
                     onClick={() => fileInputRef.current?.click()}
                     disabled={uploadingMedia}
                     className={`w-full h-32 border-2 border-dashed rounded-xl flex flex-col items-center justify-center gap-2 transition-colors ${
@@ -499,7 +499,7 @@ export const CreateAdModal = ({ isOpen, onClose, onSuccess }) => {
                 >
                   Back
                 </Button>
-                <Button
+                <Button aria-label="Loader2"
                   onClick={handleSubmit}
                   disabled={!canSubmit || submitting || (user?.credit_balance || 0) < budgetCredits}
                   className="flex-1 bg-green-600 hover:bg-green-700"

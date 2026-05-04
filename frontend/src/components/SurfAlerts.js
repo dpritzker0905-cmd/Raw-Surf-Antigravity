@@ -39,28 +39,28 @@ const TIDE_STATES = [
 // Surf condition options
 const SURF_CONDITIONS = [
   // Surface conditions
-  { id: 'glassy', label: 'Glassy', description: 'Mirror-like surface', category: 'surface', emoji: '🪞' },
-  { id: 'clean', label: 'Clean', description: 'Light texture, good shape', category: 'surface', emoji: '✨' },
-  { id: 'choppy', label: 'Choppy', description: 'Bumpy, textured surface', category: 'surface', emoji: '🌊' },
-  { id: 'messy', label: 'Messy', description: 'Disorganized waves', category: 'surface', emoji: '💨' },
+  { id: 'glassy', label: 'Glassy', description: 'Mirror-like surface', category: 'surface', emoji: '??' },
+  { id: 'clean', label: 'Clean', description: 'Light texture, good shape', category: 'surface', emoji: '?' },
+  { id: 'choppy', label: 'Choppy', description: 'Bumpy, textured surface', category: 'surface', emoji: '??' },
+  { id: 'messy', label: 'Messy', description: 'Disorganized waves', category: 'surface', emoji: '??' },
   
   // Wind conditions
-  { id: 'offshore', label: 'Offshore Wind', description: 'Wind from land to sea', category: 'wind', emoji: '🌬️' },
-  { id: 'onshore', label: 'Onshore Wind', description: 'Wind from sea to land', category: 'wind', emoji: '💨' },
-  { id: 'cross-shore', label: 'Cross-shore', description: 'Side wind', category: 'wind', emoji: '↔️' },
-  { id: 'light-wind', label: 'Light Wind', description: 'Under 10 knots', category: 'wind', emoji: '🍃' },
-  { id: 'no-wind', label: 'No Wind', description: 'Calm conditions', category: 'wind', emoji: '😌' },
+  { id: 'offshore', label: 'Offshore Wind', description: 'Wind from land to sea', category: 'wind', emoji: '???' },
+  { id: 'onshore', label: 'Onshore Wind', description: 'Wind from sea to land', category: 'wind', emoji: '??' },
+  { id: 'cross-shore', label: 'Cross-shore', description: 'Side wind', category: 'wind', emoji: '??' },
+  { id: 'light-wind', label: 'Light Wind', description: 'Under 10 knots', category: 'wind', emoji: '??' },
+  { id: 'no-wind', label: 'No Wind', description: 'Calm conditions', category: 'wind', emoji: '??' },
   
   // Wave quality
-  { id: 'hollow', label: 'Hollow', description: 'Barreling waves', category: 'quality', emoji: '🫗' },
-  { id: 'steep', label: 'Steep', description: 'Fast, vertical faces', category: 'quality', emoji: '📐' },
-  { id: 'mellow', label: 'Mellow', description: 'Gentle, forgiving waves', category: 'quality', emoji: '😊' },
-  { id: 'powerful', label: 'Powerful', description: 'Strong, heavy waves', category: 'quality', emoji: '💪' },
-  { id: 'peaky', label: 'Peaky', description: 'A-frame peaks', category: 'quality', emoji: '⛰️' },
-  { id: 'walled', label: 'Walled', description: 'Long, unbroken faces', category: 'quality', emoji: '🧱' },
+  { id: 'hollow', label: 'Hollow', description: 'Barreling waves', category: 'quality', emoji: '??' },
+  { id: 'steep', label: 'Steep', description: 'Fast, vertical faces', category: 'quality', emoji: '??' },
+  { id: 'mellow', label: 'Mellow', description: 'Gentle, forgiving waves', category: 'quality', emoji: '??' },
+  { id: 'powerful', label: 'Powerful', description: 'Strong, heavy waves', category: 'quality', emoji: '??' },
+  { id: 'peaky', label: 'Peaky', description: 'A-frame peaks', category: 'quality', emoji: '??' },
+  { id: 'walled', label: 'Walled', description: 'Long, unbroken faces', category: 'quality', emoji: '??' },
   
   // Crowd conditions
-  { id: 'uncrowded', label: 'Uncrowded', description: 'Few surfers out', category: 'crowd', emoji: '🏝️' },
+  { id: 'uncrowded', label: 'Uncrowded', description: 'Few surfers out', category: 'crowd', emoji: '???' },
 ];
 
 // Calculate distance between two coordinates
@@ -312,7 +312,7 @@ export const SurfAlerts = () => {
         notify_push: newAlert.notify_push
       });
       
-      toast.success('Surf alert created! 🌊');
+      toast.success('Surf alert created! ??');
       setShowCreateModal(false);
       resetNewAlert();
       fetchAlerts();
@@ -386,7 +386,7 @@ export const SurfAlerts = () => {
         notify_push: newAlert.notify_push
       });
       
-      toast.success('Alert updated! 🌊');
+      toast.success('Alert updated! ??');
       setShowCreateModal(false);
       resetNewAlert();
       fetchAlerts();
@@ -446,7 +446,7 @@ export const SurfAlerts = () => {
         recipient_identifier: shareRecipient.trim()
       });
       
-      toast.success(`Alert shared with ${shareRecipient}! 🎉`);
+      toast.success(`Alert shared with ${shareRecipient}! ??`);
       setShowShareModal(false);
       setAlertToShare(null);
       setShareRecipient('');
@@ -530,7 +530,7 @@ export const SurfAlerts = () => {
           </h1>
           <p className="text-muted-foreground text-sm mt-1">Get notified when conditions are perfect</p>
         </div>
-        <Button
+        <Button aria-label="Add"
           onClick={() => setShowCreateModal(true)}
           className="bg-gradient-to-r from-yellow-400 to-orange-400 hover:from-yellow-500 hover:to-orange-500 text-black font-bold"
           data-testid="create-alert-btn"
@@ -613,7 +613,7 @@ export const SurfAlerts = () => {
                     <div className="flex items-center justify-between mb-2">
                       <h3 className="font-bold text-foreground truncate">{alert.spot_name}</h3>
                       <div className="flex items-center gap-2">
-                        <button
+                        <button aria-label="Edit"
                           onClick={() => openEditModal(alert)}
                           className="p-1 text-gray-400 hover:text-yellow-400 transition-colors"
                           title="Edit alert"
@@ -621,7 +621,7 @@ export const SurfAlerts = () => {
                         >
                           <Pencil className="w-4 h-4" />
                         </button>
-                        <button
+                        <button aria-label="Share"
                           onClick={() => openShareModal(alert)}
                           className="p-1 text-gray-400 hover:text-blue-400 transition-colors"
                           title="Share alert"
@@ -632,7 +632,7 @@ export const SurfAlerts = () => {
                           checked={alert.is_active}
                           onCheckedChange={() => toggleAlert(alert.id, alert.is_active)}
                         />
-                        <button
+                        <button aria-label="Delete"
                           onClick={() => deleteAlert(alert.id)}
                           className="p-1 text-gray-400 hover:text-red-400 transition-colors"
                         >
@@ -914,8 +914,8 @@ export const SurfAlerts = () => {
 
             {/* Advanced Options Toggle */}
             <div className="pt-2">
-              <button
-                onClick={() => setShowAdvanced(!showAdvanced)}
+              <button aria-label="Settings"
+                aria-expanded={showAdvanced} onClick={() => setShowAdvanced(!showAdvanced)}
                 className="flex items-center justify-between w-full p-4 bg-zinc-900 rounded-xl border border-zinc-800 hover:bg-zinc-800 transition-colors"
               >
                 <div className="flex items-center gap-2 font-medium text-sm text-gray-300">
@@ -1045,7 +1045,7 @@ export const SurfAlerts = () => {
                 />
               </div>
 
-              <Button
+              <Button aria-label="Loader2"
                 onClick={handleSaveAlert}
                 disabled={createLoading || !newAlert.spot_id}
                 className="w-full h-14 rounded-xl bg-gradient-to-r from-yellow-400 to-orange-400 hover:from-yellow-500 hover:to-orange-500 text-black font-bold shadow-lg shadow-yellow-500/20 text-base"
@@ -1099,7 +1099,7 @@ export const SurfAlerts = () => {
                 />
               </div>
               
-              <Button
+              <Button aria-label="Loader2"
                 onClick={shareAlert}
                 disabled={shareLoading || !shareRecipient.trim()}
                 className="w-full h-12 rounded-xl bg-blue-500 hover:bg-blue-600 text-white font-semibold shadow-lg shadow-blue-500/20"
@@ -1117,7 +1117,7 @@ export const SurfAlerts = () => {
               </div>
               
               {/* Copy link */}
-              <Button
+              <Button aria-label="Copy"
                 onClick={copyAlertLink}
                 variant="outline"
                 className="w-full h-12 rounded-xl border-zinc-700 bg-zinc-950 text-white hover:bg-zinc-800 hover:text-white"

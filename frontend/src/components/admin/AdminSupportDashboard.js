@@ -273,7 +273,7 @@ export const AdminSupportDashboard = () => {
                           )}
                         </div>
                         <p className={`text-sm font-medium ${textClass} truncate`}>{ticket.subject}</p>
-                        <p className="text-xs text-gray-500 truncate">{ticket.user_name} � {ticket.user_email}</p>
+                        <p className="text-xs text-gray-500 truncate">{ticket.user_name} ? {ticket.user_email}</p>
                       </div>
                       <Badge className={`text-[10px] ${getStatusColor(ticket.status)}`}>
                         {ticket.status?.replace('_', ' ')}
@@ -385,7 +385,7 @@ export const AdminSupportDashboard = () => {
                       />
                       Internal note
                     </label>
-                    <Button
+                    <Button aria-label="Loader2"
                       size="sm"
                       onClick={handleReply}
                       disabled={actionLoading || !replyText.trim()}

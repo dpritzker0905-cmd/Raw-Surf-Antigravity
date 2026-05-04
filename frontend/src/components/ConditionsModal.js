@@ -442,7 +442,7 @@ const ConditionsModal = ({
                 {/* Camera controls */}
                 <div className="absolute bottom-3 left-0 right-0 flex justify-center items-center gap-3">
                   {/* Flip Camera Button */}
-                  <Button
+                  <Button aria-label="Refresh"
                     onClick={flipCamera}
                     variant="outline"
                     className="w-10 h-10 rounded-full border-border text-white hover:bg-black/50 p-0"
@@ -453,7 +453,7 @@ const ConditionsModal = ({
                   
                   {/* Main Capture Button */}
                   {cameraMode === 'photo' ? (
-                    <Button
+                    <Button aria-label="Camera"
                       onClick={capturePhoto}
                       className="w-14 h-14 rounded-full bg-white hover:bg-gray-100"
                       data-testid="capture-photo-btn"
@@ -461,7 +461,7 @@ const ConditionsModal = ({
                       <Camera className="w-6 h-6 text-black" />
                     </Button>
                   ) : (
-                    <Button
+                    <Button aria-label="span"
                       onClick={toggleVideoRecording}
                       className={`w-14 h-14 rounded-full ${isRecording ? 'bg-red-500 hover:bg-red-600' : 'bg-red-500 hover:bg-red-600'}`}
                       data-testid="record-video-btn"
@@ -493,7 +493,7 @@ const ConditionsModal = ({
             ) : (
               <div className="grid grid-cols-2 gap-3">
                 {/* Capture Photo */}
-                <button
+                <button aria-label="div"
                   onClick={() => startCamera('photo')}
                   className="flex flex-col items-center justify-center gap-2 p-4 bg-card hover:bg-muted border border-border hover:border-cyan-500/50 rounded-xl transition-all"
                   data-testid="start-photo-capture"
@@ -506,7 +506,7 @@ const ConditionsModal = ({
                 </button>
                 
                 {/* Capture Video */}
-                <button
+                <button aria-label="div"
                   onClick={() => startCamera('video')}
                   className="flex flex-col items-center justify-center gap-2 p-4 bg-card hover:bg-muted border border-border hover:border-purple-500/50 rounded-xl transition-all"
                   data-testid="start-video-capture"
@@ -519,7 +519,7 @@ const ConditionsModal = ({
                 </button>
                 
                 {/* Upload from Gallery */}
-                <button
+                <button aria-label="Upload"
                   onClick={() => fileInputRef.current?.click()}
                   className="col-span-2 flex items-center justify-center gap-3 p-3 bg-muted/50 hover:bg-muted border border-dashed border-border hover:border-muted-foreground rounded-xl transition-all"
                   data-testid="upload-media-btn"

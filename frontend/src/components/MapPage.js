@@ -368,8 +368,8 @@ const MapPageContent = () => {
       }
       tag.setAttribute('content', content);
     };
-    document.title = 'Surf Map — Raw Surf';
-    setMeta('og:title', 'Surf Map — Raw Surf');
+    document.title = 'Surf Map � Raw Surf';
+    setMeta('og:title', 'Surf Map � Raw Surf');
     setMeta('og:description', 'Live surf spot map with real-time photographer locations, conditions, and on-demand booking on Raw Surf.');
     setMeta('og:url', `${window.location.origin}/map`);
     setMeta('og:type', 'website');
@@ -578,7 +578,7 @@ const MapPageContent = () => {
         html: `
           <div class="relative">
             <div class="w-10 h-10 rounded-full bg-gradient-to-r from-yellow-400 to-orange-500 flex items-center justify-center shadow-lg ring-4 ring-yellow-400/30">
-              <span class="text-xl">🏄</span>
+              <span class="text-xl">??</span>
             </div>
             <div class="absolute -bottom-3 left-1/2 -translate-x-1/2 px-2 py-0.5 bg-yellow-500 rounded-full text-[10px] text-black font-bold">
               YOU
@@ -626,7 +626,7 @@ const MapPageContent = () => {
   // Supabase Realtime subscription for "Jump In" events
   // NOTE: Kept as postgres_changes because live_session_participants is very low-volume
   // and instant updates are critical for the live shooting experience.
-  // The real egress savings come from the N+1 query fix in explore.py (30+ queries → 1).
+  // The real egress savings come from the N+1 query fix in explore.py (30+ queries ? 1).
   useEffect(() => {
     const channel = supabase
       .channel('live-session-participants')
@@ -660,7 +660,7 @@ const MapPageContent = () => {
             fetchLivePhotographers();
             
             // Show toast notification
-            toast.success('🏄 A surfer just jumped in!', {
+            toast.success('?? A surfer just jumped in!', {
               description: 'Someone joined a live session'
             });
           }
@@ -916,7 +916,7 @@ const MapPageContent = () => {
             <!-- Priority/Boosted badge (top right) -->
             <div class="absolute -top-2 -right-2 z-10 flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-${colors.bg}-500/90 text-white text-[8px] font-bold shadow-md ${isBoosted || badge.level === 'pro' ? 'animate-pulse' : ''}">
               ${badgeIcon}
-              ${isBoosted ? '🚀' : badge.level === 'pro' ? 'PRO' : badge.level === 'comp' ? 'COMP' : ''}
+              ${isBoosted ? '??' : badge.level === 'pro' ? 'PRO' : badge.level === 'comp' ? 'COMP' : ''}
             </div>
             
             ${/* Boost timer badge (top left for boosted) */ ''}
@@ -942,7 +942,7 @@ const MapPageContent = () => {
             
             <!-- Label with priority color -->
             <div class="absolute -bottom-1 left-1/2 -translate-x-1/2 px-2 py-0.5 bg-${colors.bg}-500 rounded text-[9px] text-white font-bold whitespace-nowrap animate-pulse">
-              ${isBoosted ? 'BOOSTED 🚀' : 'NEEDS PRO'}
+              ${isBoosted ? 'BOOSTED ??' : 'NEEDS PRO'}
             </div>
           </div>
         `,
@@ -959,14 +959,14 @@ const MapPageContent = () => {
           <div class="text-center p-2 min-w-[150px]">
             <!-- Priority badge in popup -->
             <div class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full mb-2" style="background: ${popupBgColor}">
-              <span class="text-[10px] font-bold text-white">${isBoosted ? 'BOOSTED 🚀' : badge.label.toUpperCase()}</span>
+              <span class="text-[10px] font-bold text-white">${isBoosted ? 'BOOSTED ??' : badge.label.toUpperCase()}</span>
             </div>
             
             <p class="font-bold text-sm" style="color: ${popupTextColor}">${request.requester_name}</p>
             <p class="text-xs text-gray-500">Looking for a Pro</p>
             <p class="text-xs text-gray-400 mt-1">${request.location_name || 'Nearby'}</p>
             <p class="text-xs font-medium mt-1" style="color: ${badge.color === 'yellow' ? '#ca8a04' : badge.color === 'purple' ? '#9333ea' : '#0891b2'}">${request.estimated_duration}h session</p>
-            ${badge.level === 'pro' ? '<p class="text-[10px] font-bold text-yellow-600 mt-2">⭐ PRIORITY REQUEST</p>' : ''}
+            ${badge.level === 'pro' ? '<p class="text-[10px] font-bold text-yellow-600 mt-2">? PRIORITY REQUEST</p>' : ''}
           </div>
         `);
       
@@ -1169,7 +1169,7 @@ const MapPageContent = () => {
     
     map.on('moveend', debouncedMoveEnd);
 
-    // ─── ANDROID FOLDABLE FIX: visualViewport resize listener ────────────────
+    // --- ANDROID FOLDABLE FIX: visualViewport resize listener ----------------
     // Samsung Galaxy Z Fold 7 (and other foldable / large-screen Android devices)
     // report a visual viewport that can shift vertically relative to the layout
     // viewport whenever the screen folds/unfolds, the soft keyboard appears, or
@@ -1183,7 +1183,7 @@ const MapPageContent = () => {
     if (window.visualViewport) {
       const onVisualViewportResize = debounce(() => {
         if (mapInstanceRef.current) {
-          logger.debug('[MAP] visualViewport resized — correcting Leaflet container geometry');
+          logger.debug('[MAP] visualViewport resized � correcting Leaflet container geometry');
           mapInstanceRef.current.invalidateSize({ pan: false });
         }
       }, 100);
@@ -1197,7 +1197,7 @@ const MapPageContent = () => {
         window.visualViewport.removeEventListener('scroll', onVisualViewportResize);
       });
     }
-    // ─────────────────────────────────────────────────────────────────────────
+    // -------------------------------------------------------------------------
     
     mapInstanceRef.current = map;
     logger.debug('[MAP] Map initialized with clustering successfully');
@@ -1802,7 +1802,7 @@ const MapPageContent = () => {
                   Finding location...
                 </span>
               ) : (
-                'Request a 🌊📸🎥'
+                'Request a ??????'
               )}
             </button>
             
@@ -1915,7 +1915,7 @@ const MapPageContent = () => {
         
         {/* Featured Photographers Button */}
         <Button
-          onClick={() => setShowFeaturedPanel(!showFeaturedPanel)}
+          aria-expanded={showFeaturedPanel} onClick={() => setShowFeaturedPanel(!showFeaturedPanel)}
           className={`bg-zinc-800/90 backdrop-blur-sm hover:bg-zinc-700 text-white rounded-full w-12 h-12 p-0 ${showFeaturedPanel ? 'ring-2 ring-yellow-400' : ''}`}
           data-testid="featured-photographers-btn"
         >
@@ -1924,7 +1924,7 @@ const MapPageContent = () => {
         
         {/* Friends on Map Toggle */}
         <Button
-          onClick={() => setShowFriendsOnMap(!showFriendsOnMap)}
+          aria-expanded={showFriendsOnMap} onClick={() => setShowFriendsOnMap(!showFriendsOnMap)}
           className={`bg-zinc-800/90 backdrop-blur-sm hover:bg-zinc-700 text-white rounded-full w-12 h-12 p-0 ${showFriendsOnMap ? 'ring-2 ring-yellow-400' : ''}`}
           data-testid="friends-on-map-btn"
         >
@@ -1985,7 +1985,7 @@ const MapPageContent = () => {
                       <p className="text-sm font-medium text-white truncate">
                         {photographer.full_name}
                         {photographer.is_verified && (
-                          <span className="ml-1 text-blue-400">✓</span>
+                          <span className="ml-1 text-blue-400">?</span>
                         )}
                       </p>
                       <p className="text-xs text-gray-400 truncate">
@@ -2002,11 +2002,11 @@ const MapPageContent = () => {
                   </div>
                   <div className="flex items-center gap-3 mt-2 text-xs text-gray-500">
                     <span>{photographer.total_sessions || 0} sessions</span>
-                    <span>•</span>
+                    <span>�</span>
                     <span>{photographer.gallery_count || 0} photos</span>
                     {photographer.total_earnings > 0 && (
                       <>
-                        <span>•</span>
+                        <span>�</span>
                         <span className="text-green-400">${photographer.total_earnings.toFixed(0)} earned</span>
                       </>
                     )}
@@ -2112,7 +2112,7 @@ const MapPageContent = () => {
                   <Users className="w-4 h-4 mr-2" />
                   Jump In Session
                 </Button>
-                <Button
+                <Button aria-label="Message"
                   variant="outline"
                   className="border-zinc-600 text-white hover:bg-zinc-800"
                 >
@@ -2182,7 +2182,7 @@ const MapPageContent = () => {
         />
       )}
 
-      {/* ── Request a Pro Modal — unified component ─────────────────── */}
+      {/* -- Request a Pro Modal � unified component ------------------- */}
       <RequestProModal
         isOpen={showRequestProModal}
         onClose={() => {

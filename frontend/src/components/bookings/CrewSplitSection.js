@@ -1,5 +1,5 @@
 /**
- * CrewSplitSection � Crew member management for scheduled bookings.
+ * CrewSplitSection ? Crew member management for scheduled bookings.
  * Handles adding friends, splitting costs, and surfboard avatars.
  * 
  * Extracted from ScheduledBookingDrawer.js for maintainability.
@@ -19,7 +19,7 @@ import apiClient from '../lib/apiClient';
 import { getFullUrl } from '../utils/media';
 import logger from '../utils/logger';
 const SCHED_BOARD_COLORS = [
-  { fill: '#FCD34D', stroke: '#F59E0B' }, // Yellow — captain
+  { fill: '#FCD34D', stroke: '#F59E0B' }, // Yellow � captain
   { fill: '#22D3EE', stroke: '#0891B2' }, // Cyan
   { fill: '#F472B6', stroke: '#DB2777' }, // Pink
   { fill: '#A78BFA', stroke: '#7C3AED' }, // Purple
@@ -199,7 +199,7 @@ const CrewSplitSection = ({
 
   return (
     <div className="space-y-4">
-      {/* ── Split Toggle ── */}
+      {/* -- Split Toggle -- */}
       <div className={`flex items-center justify-between p-4 rounded-xl border transition-all ${
         enabled
           ? isLight ? 'bg-cyan-50 border-cyan-200' : 'bg-cyan-500/10 border-cyan-500/30'
@@ -212,7 +212,7 @@ const CrewSplitSection = ({
           <div>
             <p className={`font-medium ${textPrimary}`}>Split with Crew?</p>
             <p className={`text-sm ${textSecondary}`}>
-              {enabled ? `${totalCrew} surfers • you pay $${captainActualPay.toFixed(2)}` : 'Share the cost with friends'}
+              {enabled ? `${totalCrew} surfers � you pay $${captainActualPay.toFixed(2)}` : 'Share the cost with friends'}
             </p>
           </div>
         </div>
@@ -222,7 +222,7 @@ const CrewSplitSection = ({
       {enabled && (
         <div className="space-y-4">
 
-          {/* ── Ocean / Surfboard Viz ── */}
+          {/* -- Ocean / Surfboard Viz -- */}
           <div className={`relative p-4 rounded-2xl overflow-visible ${
             isLight
               ? 'bg-gradient-to-b from-cyan-100 via-blue-50 to-white'
@@ -269,7 +269,7 @@ const CrewSplitSection = ({
             </div>
           </div>
 
-          {/* ── Per-Member Coverage Sliders ── */}
+          {/* -- Per-Member Coverage Sliders -- */}
           {crewMembers.length > 0 && (
             <div className="space-y-3">
               <div className="flex items-center justify-between">
@@ -337,7 +337,7 @@ const CrewSplitSection = ({
                       </div>
                     </div>
 
-                    {/* % Slider — how much captain covers of this member's share */}
+                    {/* % Slider � how much captain covers of this member's share */}
                     <div>
                       <div className="flex items-center justify-between mb-1">
                         <span className={`text-xs ${textSecondary}`}>
@@ -372,10 +372,10 @@ const CrewSplitSection = ({
             </div>
           )}
 
-          {/* ── Search / Add Crew ── */}
+          {/* -- Search / Add Crew -- */}
           <div className="space-y-2">
             {!showSearch ? (
-              <button
+              <button aria-label="User Plus"
                 onClick={() => setShowSearch(true)}
                 className={`w-full flex items-center gap-2 p-3 rounded-xl border-2 border-dashed ${
                   isLight ? 'border-cyan-300 text-cyan-600' : 'border-cyan-500/40 text-cyan-400'
@@ -415,7 +415,7 @@ const CrewSplitSection = ({
                     isLight ? 'border-gray-200 bg-white' : 'border-zinc-700 bg-zinc-900'
                   } max-h-48 overflow-y-auto shadow-xl`}>
                     {searchResults.map((result) => (
-                      <button
+                      <button aria-label="div"
                         key={result.id}
                         onClick={() => addMember(result)}
                         className={`w-full flex items-center gap-3 p-3 hover:${
@@ -442,13 +442,13 @@ const CrewSplitSection = ({
             )}
           </div>
 
-          {/* ── Quick Add Pills (Recent / Following) ── */}
+          {/* -- Quick Add Pills (Recent / Following) -- */}
           {suggestions.length > 0 && searchQuery.length < 2 && (
             <div className="space-y-2">
               <Label className={textSecondary}>Quick Add</Label>
               <div className="flex flex-wrap gap-2">
                 {suggestions.map((person) => (
-                  <button
+                  <button aria-label="div"
                     key={person.id}
                     onClick={() => addMember(person)}
                     className={`flex items-center gap-2 px-3 py-2 rounded-full ${cardBg} hover:ring-2 ring-cyan-500/50 transition-all`}
@@ -468,7 +468,7 @@ const CrewSplitSection = ({
             </div>
           )}
 
-          {/* ── Saved Crews ── */}
+          {/* -- Saved Crews -- */}
           <SavedCrewSelector
             onSelect={(members) => {
               onCrewChange(members.map(m => ({
@@ -486,7 +486,7 @@ const CrewSplitSection = ({
             compact={true}
           />
 
-          {/* ── Split Summary ── */}
+          {/* -- Split Summary -- */}
           <div className={`p-4 rounded-xl ${
             isLight
               ? 'bg-gradient-to-r from-cyan-50 to-blue-50'

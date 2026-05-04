@@ -174,7 +174,7 @@ const SafetyGateUI = ({ gromStatus, onRefresh }) => {
                   <div className="text-3xl font-mono font-bold text-cyan-400 tracking-wider">
                     {gromStatus.guardian_code}
                   </div>
-                  <Button 
+                  <Button aria-label="Check Circle" 
                     size="sm" 
                     variant="outline"
                     className="border-cyan-500/50 text-cyan-400"

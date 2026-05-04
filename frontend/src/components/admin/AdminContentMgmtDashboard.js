@@ -383,7 +383,7 @@ export const AdminContentMgmtDashboard = () => {
                               }`}>SEO: {spot.seo_score}</Badge>
                             )}
                           </div>
-                          <Button size="sm" variant="outline" onClick={() => {
+                          <Button aria-label="Edit" size="sm" variant="outline" onClick={() => {
                             setSelectedSeoSpot(spot);
                             setSeoForm({
                               meta_title: spot.meta_title || '',
@@ -403,7 +403,7 @@ export const AdminContentMgmtDashboard = () => {
                           Showing {seoPage * SEO_PAGE_SIZE + 1}-{Math.min((seoPage + 1) * SEO_PAGE_SIZE, seoTotal)} of {seoTotal}
                         </p>
                         <div className="flex gap-2">
-                          <Button
+                          <Button aria-label="Previous"
                             size="sm"
                             variant="outline"
                             disabled={seoPage === 0}
@@ -411,7 +411,7 @@ export const AdminContentMgmtDashboard = () => {
                           >
                             <ChevronLeft className="w-4 h-4" />
                           </Button>
-                          <Button
+                          <Button aria-label="Next"
                             size="sm"
                             variant="outline"
                             disabled={(seoPage + 1) * SEO_PAGE_SIZE >= seoTotal}
@@ -454,7 +454,7 @@ export const AdminContentMgmtDashboard = () => {
                             <Badge variant="outline" className="text-[10px]">{key.permissions}</Badge>
                           </div>
                           <p className="text-xs text-gray-500 mt-1">
-                            Calls: {key.total_calls} â€¢ Limit: {key.rate_limit}/day
+                            Calls: {key.total_calls} • Limit: {key.rate_limit}/day
                           </p>
                         </div>
                         <Switch checked={key.is_active} />
@@ -558,7 +558,7 @@ export const AdminContentMgmtDashboard = () => {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowFeaturedForm(false)}>Cancel</Button>
-            <Button onClick={handleCreateFeatured} disabled={actionLoading} className="bg-yellow-500">
+            <Button aria-label="Loader2" onClick={handleCreateFeatured} disabled={actionLoading} className="bg-yellow-500">
               {actionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Add'}
             </Button>
           </DialogFooter>
@@ -611,7 +611,7 @@ export const AdminContentMgmtDashboard = () => {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowBannerForm(false)}>Cancel</Button>
-            <Button onClick={handleCreateBanner} disabled={actionLoading} className="bg-purple-500">
+            <Button aria-label="Loader2" onClick={handleCreateBanner} disabled={actionLoading} className="bg-purple-500">
               {actionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Create'}
             </Button>
           </DialogFooter>
@@ -640,7 +640,7 @@ export const AdminContentMgmtDashboard = () => {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setSelectedSeoSpot(null)}>Cancel</Button>
-            <Button onClick={handleUpdateSeo} disabled={actionLoading} className="bg-green-500">
+            <Button aria-label="Loader2" onClick={handleUpdateSeo} disabled={actionLoading} className="bg-green-500">
               {actionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Save'}
             </Button>
           </DialogFooter>
@@ -678,7 +678,7 @@ export const AdminContentMgmtDashboard = () => {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowApiKeyForm(false)}>Cancel</Button>
-            <Button onClick={handleCreateApiKey} disabled={actionLoading} className="bg-green-500">
+            <Button aria-label="Loader2" onClick={handleCreateApiKey} disabled={actionLoading} className="bg-green-500">
               {actionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Generate'}
             </Button>
           </DialogFooter>
@@ -721,7 +721,7 @@ export const AdminContentMgmtDashboard = () => {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowChangelogForm(false)}>Cancel</Button>
-            <Button onClick={handleCreateChangelog} disabled={actionLoading} className="bg-blue-500">
+            <Button aria-label="Loader2" onClick={handleCreateChangelog} disabled={actionLoading} className="bg-blue-500">
               {actionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Create'}
             </Button>
           </DialogFooter>

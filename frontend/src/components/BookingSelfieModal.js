@@ -102,7 +102,7 @@ export const BookingSelfieModal = ({
                 >
                   Skip for Now
                 </Button>
-                <Button
+                <Button aria-label="Camera"
                   onClick={() => setStep('capture')}
                   className="flex-1 bg-gradient-to-r from-cyan-500 to-blue-500 text-white"
                 >

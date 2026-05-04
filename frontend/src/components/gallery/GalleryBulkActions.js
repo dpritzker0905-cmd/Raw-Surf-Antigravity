@@ -29,7 +29,7 @@ export const GalleryBulkActions = ({
         
         <div className="h-4 w-px bg-zinc-700" />
         
-        <Button
+        <Button aria-label="Folder"
           size="sm"
           variant="ghost"
           onClick={onMove}
@@ -40,7 +40,7 @@ export const GalleryBulkActions = ({
           Move
         </Button>
         
-        <Button
+        <Button aria-label="Copy"
           size="sm"
           variant="ghost"
           onClick={onCopy}
@@ -51,7 +51,7 @@ export const GalleryBulkActions = ({
           Copy
         </Button>
         
-        <Button
+        <Button aria-label="Delete"
           size="sm"
           variant="ghost"
           onClick={onDelete}

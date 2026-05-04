@@ -40,29 +40,29 @@ import usePresence from '../hooks/usePresence';
 // Role-based icon helper - uses expanded PersonaContext
 const getRoleIcon = (role, isAdmin = false) => {
   const _roleInfo = getExpandedRoleInfo(role, isAdmin);
-  if (isAdmin) return { icon: Shield, color: 'text-red-500', label: 'God Mode', emoji: '🔴' };
+  if (isAdmin) return { icon: Shield, color: 'text-red-500', label: 'God Mode', emoji: '??' };
   
   // Map to lucide icons for non-emoji contexts
   switch (role) {
     case 'Pro':
         case 'Comp Surfer':
-      return { icon: Star, color: 'text-amber-400', label: 'Pro', emoji: '⭐' };
+      return { icon: Star, color: 'text-amber-400', label: 'Pro', emoji: '?' };
     case 'Approved Pro':
-      return { icon: Camera, color: 'text-blue-400', label: 'Pro Photographer', emoji: '📸' };
+      return { icon: Camera, color: 'text-blue-400', label: 'Pro Photographer', emoji: '??' };
     case 'Photographer':
-      return { icon: Camera, color: 'text-purple-400', label: 'Photographer', emoji: '📷' };
+      return { icon: Camera, color: 'text-purple-400', label: 'Photographer', emoji: '??' };
     case 'Hobbyist':
-      return { icon: Search, color: 'text-indigo-400', label: 'Hobbyist', emoji: '🔍' };
+      return { icon: Search, color: 'text-indigo-400', label: 'Hobbyist', emoji: '??' };
     case 'Shop':
-      return { icon: Store, color: 'text-pink-400', label: 'Surf Shop', emoji: '🛍️' };
+      return { icon: Store, color: 'text-pink-400', label: 'Surf Shop', emoji: '???' };
     case 'Surf School':
-      return { icon: Users, color: 'text-teal-400', label: 'Surf School', emoji: '🌬️' };
+      return { icon: Users, color: 'text-teal-400', label: 'Surf School', emoji: '???' };
     case 'Shaper':
-      return { icon: Briefcase, color: 'text-orange-400', label: 'Shaper', emoji: '🛠️' };
+      return { icon: Briefcase, color: 'text-orange-400', label: 'Shaper', emoji: '???' };
     case 'Resort':
-      return { icon: Store, color: 'text-emerald-400', label: 'Resort', emoji: '🌴' };
+      return { icon: Store, color: 'text-emerald-400', label: 'Resort', emoji: '??' };
     default:
-      return { icon: null, color: 'text-cyan-400', label: 'Surfer', emoji: '🏄' };
+      return { icon: null, color: 'text-cyan-400', label: 'Surfer', emoji: '??' };
   }
 };
 
@@ -94,7 +94,7 @@ const getFolders = (userRole, _isAdmin = false, effectiveRole = null, _isMasked 
     icon: Users, 
     color: 'text-cyan-400', 
     description: isGrom ? 'Chat with other Groms' : 'Friends & surfers',
-    emoji: '🏄'
+    emoji: '??'
   });
   
   // FAMILY CHAT - Grom Parents chat with their linked Groms
@@ -105,7 +105,7 @@ const getFolders = (userRole, _isAdmin = false, effectiveRole = null, _isMasked 
       icon: Users, 
       color: 'text-cyan-400', 
       description: 'Chat with your linked Groms',
-      emoji: '👨‍👧',
+      emoji: '?????',
       isFamilyOnly: true
     });
   }
@@ -118,7 +118,7 @@ const getFolders = (userRole, _isAdmin = false, effectiveRole = null, _isMasked 
       icon: Users, 
       color: 'text-emerald-400', 
       description: 'Chat with your parent',
-      emoji: '👨‍👧',
+      emoji: '?????',
       isFamilyOnly: true
     });
   }
@@ -131,7 +131,7 @@ const getFolders = (userRole, _isAdmin = false, effectiveRole = null, _isMasked 
       icon: Star, 
       color: 'text-amber-400', 
       description: 'Private athlete ecosystem',
-      emoji: '⭐'
+      emoji: '?'
     });
   }
   
@@ -143,7 +143,7 @@ const getFolders = (userRole, _isAdmin = false, effectiveRole = null, _isMasked 
       icon: Briefcase, 
       color: 'text-purple-400', 
       description: 'Business & photographer hub',
-      emoji: '📷'
+      emoji: '??'
     });
   }
   
@@ -154,7 +154,7 @@ const getFolders = (userRole, _isAdmin = false, effectiveRole = null, _isMasked 
     icon: Smile, 
     color: 'text-orange-400', 
     description: 'Message requests',
-    emoji: '📩'
+    emoji: '??'
   });
   
   // Hidden
@@ -164,7 +164,7 @@ const getFolders = (userRole, _isAdmin = false, effectiveRole = null, _isMasked 
     icon: EyeOff, 
     color: 'text-gray-500', 
     description: 'Muted conversations',
-    emoji: '🔇'
+    emoji: '??'
   });
   
   return folders;
@@ -183,21 +183,21 @@ const ShakaIcon = ({ className = "w-16 h-16" }) => (
   </svg>
 );
 
-// StoryBubble extracted → ./messages/StoryBubble.js
-// CreateNoteModal extracted → ./messages/CreateNoteModal.js
-// ViewNoteModal extracted → ./messages/ViewNoteModal.js
+// StoryBubble extracted ? ./messages/StoryBubble.js
+// CreateNoteModal extracted ? ./messages/CreateNoteModal.js
+// ViewNoteModal extracted ? ./messages/ViewNoteModal.js
 
 // Conversation List Item Component
-// ConversationItem extracted → ./messages/ConversationItem.js
+// ConversationItem extracted ? ./messages/ConversationItem.js
 
 // Emoji Picker Component
-// EmojiPicker extracted → ./messages/EmojiPicker.js
+// EmojiPicker extracted ? ./messages/EmojiPicker.js
 // EphemeralCountdown - Live ticking countdown badge for 24hr ephemeral videos
 // Uses setInterval to update every minute so the display actually ticks down
-// EphemeralCountdown extracted → ./messages/EphemeralCountdown.js
+// EphemeralCountdown extracted ? ./messages/EphemeralCountdown.js
 
 // Message Bubble Component
-// MessageBubble extracted → ./messages/MessageBubble.js
+// MessageBubble extracted ? ./messages/MessageBubble.js
 
 // Helper functions
 // formatTime was consolidated into ../utils/formatTime.js (formatClockTime)
@@ -258,13 +258,13 @@ export const MessagesPage = () => {
   const fileInputRef = useRef(null);
   const typingTimeoutRef = useRef(null);
 
-  // Ref to track current activeFolder — prevents stale-closure bugs in polling
+  // Ref to track current activeFolder � prevents stale-closure bugs in polling
   // intervals that capture an old fetchConversations and overwrite channel/pro-lounge
   // conversations with primary ones.
   const activeFolderRef = useRef(activeFolder);
   useEffect(() => { activeFolderRef.current = activeFolder; }, [activeFolder]);
 
-  // Pull-to-refresh for mobile — triggers conversation list refresh on swipe-down
+  // Pull-to-refresh for mobile � triggers conversation list refresh on swipe-down
   const { pullRef: msgPullRef, isPulling: msgPulling, pullProgress: msgPullProgress, isRefreshing: msgPtrRefreshing } = usePullToRefresh(
     async () => { await fetchConversations(); },
     { threshold: 60, enabled: !loading && !selectedConversation }
@@ -316,7 +316,7 @@ export const MessagesPage = () => {
 
     const prev = prevPersonaRef.current;
 
-    // On first run after mount, just record the current values — don't reset folder
+    // On first run after mount, just record the current values � don't reset folder
     if (!prev.initialized) {
       prevPersonaRef.current = { effectiveRole, isGodMode, activePersona, initialized: true };
       return;
@@ -330,7 +330,7 @@ export const MessagesPage = () => {
 
     if (!personaChanged) return;
 
-    // Genuine persona switch — update ref
+    // Genuine persona switch � update ref
     prevPersonaRef.current = { effectiveRole, isGodMode, activePersona, initialized: true };
 
     // Reset to appropriate default folder based on effective role
@@ -395,7 +395,7 @@ export const MessagesPage = () => {
       }, (payload) => {
         const msg = payload.new;
         if (msg.sender_id !== user.id) {
-          // Append the incoming message directly to local state — no API refetch
+          // Append the incoming message directly to local state � no API refetch
           setConversationDetail(prev => {
             if (!prev?.messages) return prev;
             // Deduplicate: don't add if already present (e.g., from optimistic insert)
@@ -521,7 +521,7 @@ export const MessagesPage = () => {
     }
   };
 
-  // AbortController ref — cancels in-flight conversation fetches when the user
+  // AbortController ref � cancels in-flight conversation fetches when the user
   // switches folders. This prevents stale responses from overwriting fresh data.
   const fetchAbortRef = useRef(null);
 
@@ -559,7 +559,7 @@ export const MessagesPage = () => {
       // RACE CONDITION GUARD: Only apply results if the user hasn't switched
       // folders while this request was in-flight.
       if (activeFolderRef.current !== currentFolder) {
-        return; // Stale response — user switched tabs, discard
+        return; // Stale response � user switched tabs, discard
       }
 
       setConversations(response.data);
@@ -580,7 +580,7 @@ export const MessagesPage = () => {
         hidden: 0
       });
     } catch (error) {
-      // Aborted requests are expected — don't log them
+      // Aborted requests are expected � don't log them
       if (error?.name === 'AbortError' || error?.name === 'CanceledError' || error?.code === 'ERR_CANCELED') {
         return;
       }
@@ -792,7 +792,7 @@ export const MessagesPage = () => {
     const messageContent = newMessage.trim();
     const tempId = `temp_${Date.now()}_${Math.random().toString(36).slice(2)}`;
     
-    // ── Optimistic insert: show message instantly ──
+    // -- Optimistic insert: show message instantly --
     setConversationDetail(prev => {
       if (!prev?.messages) return prev;
       return {
@@ -1169,8 +1169,8 @@ export const MessagesPage = () => {
       <PullToRefreshIndicator isPulling={msgPulling} progress={msgPullProgress} isRefreshing={msgPtrRefreshing} />
       {/* Mobile Header */}
       <div className="md:hidden flex items-center justify-between px-4 py-3 border-b border-border">
-        <button 
-          onClick={() => setShowMobileTools(!showMobileTools)}
+        <button aria-label="Filter" 
+          aria-expanded={showMobileTools} onClick={() => setShowMobileTools(!showMobileTools)}
           className="p-2 text-muted-foreground hover:text-foreground"
         >
           <Filter className="w-5 h-5" />
@@ -1179,7 +1179,7 @@ export const MessagesPage = () => {
           Messages
           <span className={`w-2 h-2 rounded-full ${isOnline ? 'bg-emerald-400' : 'bg-amber-400 animate-pulse'}`} title={isOnline ? 'Connected' : 'Reconnecting...'} />
         </h1>
-        <button 
+        <button aria-label="Edit3" 
           onClick={handleComposeNew}
           className="p-2 text-muted-foreground hover:text-foreground"
         >
@@ -1269,7 +1269,7 @@ export const MessagesPage = () => {
           ) : (
             <div className="space-y-1">
               {crewChats.map((chat) => (
-                <button
+                <button aria-label="div"
                   key={chat.id}
                   onClick={() => navigate(`/bookings/${chat.id}/chat`)}
                   className="w-full flex items-center gap-3 px-4 py-3 hover:bg-muted/50 transition-colors border-b border-border/50"
@@ -1292,7 +1292,7 @@ export const MessagesPage = () => {
                     </div>
                     <div className="flex items-center gap-2 text-xs text-gray-500">
                       <span>{chat.chatInfo?.participants?.length || 0} participants</span>
-                      <span>•</span>
+                      <span>�</span>
                       <span>{chat.status}</span>
                     </div>
                     {(() => {
@@ -1330,7 +1330,7 @@ export const MessagesPage = () => {
                   <span className="text-sm text-gray-400">
                     {filteredConversations.length} pending request{filteredConversations.length > 1 ? 's' : ''}
                   </span>
-                  <Button
+                  <Button aria-label="Confirm"
                     onClick={handleAcceptAllRequests}
                     size="sm"
                     className="bg-gradient-to-r from-cyan-500 to-blue-600 text-white text-xs font-bold px-3 py-1 h-7"
@@ -1376,7 +1376,7 @@ export const MessagesPage = () => {
     <div className="flex flex-col h-full bg-background messages-chat-view">
       {/* Chat Header */}
       <div className="flex items-center gap-3 px-4 py-3 border-b border-border bg-background/80 backdrop-blur-sm">
-        <button
+        <button aria-label="Previous"
           onClick={handleBackNavigation}
           className="text-muted-foreground hover:text-foreground"
           data-testid="back-button"
@@ -1433,7 +1433,7 @@ export const MessagesPage = () => {
           </div>
         </div>
         
-        {/* Call Buttons — Audio & Video */}
+        {/* Call Buttons � Audio & Video */}
         {!selectedConversation?.is_new_chat && !selectedConversation?.is_request && (
           <div className="flex items-center gap-1">
             <button
@@ -1478,7 +1478,7 @@ export const MessagesPage = () => {
         {/* Conversation Controls Dropdown */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <button 
+            <button aria-label="More options" 
               className="text-muted-foreground hover:text-foreground p-2 rounded-lg hover:bg-muted transition-colors"
               data-testid="conversation-menu-btn"
             >
@@ -1641,9 +1641,9 @@ export const MessagesPage = () => {
                   placeholder="Message..."
                   className="w-full bg-muted rounded-full px-4 py-2.5 text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:ring-1 focus:ring-cyan-500"
                 />
-                <button
+                <button aria-label="Emoji"
                   type="button"
-                  onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                  aria-expanded={showEmojiPicker} onClick={() => setShowEmojiPicker(!showEmojiPicker)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white"
                 >
                   <Smile className="w-5 h-5" />
@@ -1656,7 +1656,7 @@ export const MessagesPage = () => {
               </div>
 
               {newMessage.trim() ? (
-                <button
+                <button aria-label="Send"
                   type="submit"
                   disabled={sendingMessage}
                   className="p-2.5 bg-gradient-to-r from-cyan-500 to-blue-600 rounded-full text-white disabled:opacity-50"

@@ -46,7 +46,7 @@ function ConnectionQualityBadge({ quality }) {
   const info = config[quality] || config.good;
   const Icon = info.icon;
   return (
-    <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full ${info.bg} backdrop-blur-md`}>
+    <div data-testid="in-call-view" className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full ${info.bg} backdrop-blur-md`}>
       <Icon className={`w-3.5 h-3.5 ${info.color}`} />
       <span className={`text-[10px] font-medium ${info.color}`}>{info.label}</span>
     </div>

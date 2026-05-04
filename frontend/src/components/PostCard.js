@@ -18,7 +18,7 @@ import { formatTimeAgo } from '../utils/formatTime';
 import { REACTION_EMOJIS } from '../constants/emojis';
 
 
-// Comment reaction emojis — imported from centralized constants/emojis.js
+// Comment reaction emojis � imported from centralized constants/emojis.js
 
 /**
  * ReplyItem - Simpler component for reply rendering (non-recursive)
@@ -29,7 +29,7 @@ const ReplyItem = ({ reply, userId, _postId, textPrimaryClass, textSecondaryClas
   const [viewerReaction, setViewerReaction] = useState(reply.viewer_reaction || null);
   const [loading, setLoading] = useState(false);
 
-  const handleReaction = async (emoji = '❤️') => {
+  const handleReaction = async (emoji = '??') => {
     if (!userId) {
       toast.error('Please log in to react');
       return;
@@ -79,8 +79,8 @@ const ReplyItem = ({ reply, userId, _postId, textPrimaryClass, textSecondaryClas
         {reactionCount > 0 && (
           <span className="font-medium">{reactionCount} like{reactionCount !== 1 ? 's' : ''}</span>
         )}
-        <button
-          onClick={() => handleReaction('❤️')}
+        <button aria-label="Like"
+          onClick={() => handleReaction('??')}
           disabled={loading}
           className={`ml-auto p-1 rounded transition-all ${
             viewerReaction ? 'text-red-500' : `${textSecondaryClass} hover:text-red-400`
@@ -125,7 +125,7 @@ const CommentWithReaction = ({
   const [localIsEdited, setLocalIsEdited] = useState(comment.is_edited || false);
   const [showMenu, setShowMenu] = useState(false);
 
-  const handleReaction = async (emoji = '❤️') => {
+  const handleReaction = async (emoji = '??') => {
     if (!userId) {
       toast.error('Please log in to react');
       return;
@@ -288,8 +288,8 @@ const CommentWithReaction = ({
         {/* Edit/Delete menu for owner */}
         {isOwner && !isEditing && (
           <div className="relative">
-            <button
-              onClick={() => setShowMenu(!showMenu)}
+            <button aria-label="More options"
+              aria-expanded={showMenu} onClick={() => setShowMenu(!showMenu)}
               className={`p-1 rounded ${textSecondaryClass} hover:opacity-80`}
               data-testid={`comment-menu-${comment.id}`}
             >
@@ -327,7 +327,7 @@ const CommentWithReaction = ({
         )}
         
         <button 
-          onClick={() => setShowReplyInput(!showReplyInput)}
+          aria-expanded={showReplyInput} onClick={() => setShowReplyInput(!showReplyInput)}
           className="hover:opacity-80 font-medium"
           data-testid={`reply-btn-${comment.id}`}
         >
@@ -336,7 +336,7 @@ const CommentWithReaction = ({
         
         <div className="relative ml-auto">
           <button
-            onClick={() => viewerReaction ? handleReaction(viewerReaction) : handleReaction('❤️')}
+            onClick={() => viewerReaction ? handleReaction(viewerReaction) : handleReaction('??')}
             onContextMenu={(e) => { e.preventDefault(); setShowReactionPicker(true); }}
             disabled={loading}
             className={`p-1 rounded transition-all ${
@@ -344,7 +344,7 @@ const CommentWithReaction = ({
             } ${loading ? 'opacity-50' : ''}`}
             data-testid={`comment-like-${comment.id}`}
           >
-            {viewerReaction && viewerReaction !== '❤️' ? (
+            {viewerReaction && viewerReaction !== '??' ? (
               <span className="text-sm">{viewerReaction}</span>
             ) : (
               <Heart className="w-3.5 h-3.5" fill={viewerReaction ? 'currentColor' : 'none'} />
@@ -396,7 +396,7 @@ const CommentWithReaction = ({
             }}
             data-testid={`reply-input-${comment.id}`}
           />
-          <button
+          <button aria-label="Loader2"
             onClick={handleSubmitReply}
             disabled={!replyContent.trim() || submittingReply}
             className={`px-3 py-1.5 text-sm font-medium rounded-full transition-colors ${
@@ -411,7 +411,7 @@ const CommentWithReaction = ({
       
       {/* View/Hide Replies Toggle */}
       {replyCount > 0 && !showReplies && (
-        <button
+        <button aria-label="span"
           onClick={() => setShowReplies(true)}
           className={`mt-2 ml-6 text-xs ${textSecondaryClass} hover:opacity-80 flex items-center gap-1`}
         >
@@ -424,7 +424,7 @@ const CommentWithReaction = ({
       {showReplies && localReplies.length > 0 && (
         <div className="mt-2 space-y-2">
           {localReplies.length > 0 && (
-            <button
+            <button aria-label="span"
               onClick={() => setShowReplies(false)}
               className={`ml-6 text-xs ${textSecondaryClass} hover:opacity-80 flex items-center gap-1`}
             >
@@ -462,7 +462,7 @@ const RoleBadge = ({ role }) => {
 // Reaction icon component - Shows user's reaction or default Shaka
 const ReactionIcon = ({ post, userId, isLiked, isPressing }) => {
   const userReaction = post.reactions?.find(r => r.user_id === userId);
-  const hasNonShakaReaction = userReaction && userReaction.emoji !== '🤙';
+  const hasNonShakaReaction = userReaction && userReaction.emoji !== '??';
   
   // Determine if Shaka should be colored (checked) or grayscale (unchecked)
   // Also show colored when pressing (holding down) for visual feedback
@@ -607,7 +607,7 @@ const PostCard = ({
   const handleMediaTap = useCallback((e) => {
     const now = Date.now();
     if (now - lastTapRef.current < 300) {
-      // Double tap detected — cancel pending single tap, trigger like
+      // Double tap detected � cancel pending single tap, trigger like
       if (singleTapTimerRef.current) {
         clearTimeout(singleTapTimerRef.current);
         singleTapTimerRef.current = null;
@@ -699,7 +699,7 @@ const PostCard = ({
           user_name: l.full_name,
           avatar_url: l.avatar_url,
           user_role: l.role,
-          emoji: '❤️'
+          emoji: '??'
         }))
       ];
       setDetailedReactions(allReactors);
@@ -711,7 +711,7 @@ const PostCard = ({
     }
   };
 
-  // Video URL resolution — extracted here to keep JSX clean (no IIFE needed)
+  // Video URL resolution � extracted here to keep JSX clean (no IIFE needed)
   const videoSrc = isVideoItem ? getFullUrl(post.media_url) : null;
   const videoPoster = isVideoItem ? getFullUrl(post.thumbnail_url) : null;
   const videoMimeType = (() => {
@@ -814,7 +814,7 @@ const PostCard = ({
               <span>{formatTimeAgo(post.created_at)}</span>
             )}
             {post.location && post.created_at && (
-              <span className="opacity-50">·</span>
+              <span className="opacity-50">�</span>
             )}
             {post.location && (
               <span>{post.location}</span>
@@ -822,7 +822,7 @@ const PostCard = ({
           </p>
         </div>
         </div>
-        <button 
+        <button aria-label="More options" 
           onClick={() => onPostMenuOpen(post)}
           className={`${textSecondaryClass} hover:${textPrimaryClass} p-2`}
           data-testid={`post-menu-btn-${post.id}`}
@@ -834,7 +834,7 @@ const PostCard = ({
       {/* Shop This Photographer's Work CTA - for verified photographers */}
       {['Photographer', 'Approved Pro'].includes(post.author_role) && post.author_id !== user?.id && (
         <div className="px-4 py-2 border-b border-border/50">
-          <button
+          <button aria-label="Shopping Bag"
             onClick={() => navigate(`/photographer/${post.author_id}/gallery`)}
             className="w-full flex items-center justify-center gap-2 py-2 px-4 rounded-lg bg-gradient-to-r from-amber-500/10 to-yellow-500/10 hover:from-amber-500/20 hover:to-yellow-500/20 border border-amber-500/30 transition-all group"
             data-testid={`shop-photographer-${post.id}`}
@@ -873,7 +873,7 @@ const PostCard = ({
               <Play className="w-12 h-12 text-zinc-500 mb-2" />
               <span className="text-zinc-400 text-sm font-medium">Video Unavailable</span>
               <span className="text-zinc-500 text-xs mt-1">This video is no longer accessible</span>
-              {/* Retry button — clears error to re-attempt load */}
+              {/* Retry button � clears error to re-attempt load */}
               {videoError && !isDeadLocalVideo && (
                 <button
                   onClick={(e) => {
@@ -905,7 +905,7 @@ const PostCard = ({
             </div>
           ) : (
           /* TikTok/Instagram pattern: video plays as muted preview in feed.
-             NO native controls — tapping opens PostModal for social interaction.
+             NO native controls � tapping opens PostModal for social interaction.
              Mute toggle is a separate button that stops propagation. */
           <>
           <video
@@ -931,9 +931,9 @@ const PostCard = ({
             <source src={videoSrc} type={videoMimeType} onError={() => setVideoError(true)} />
             {videoMimeType !== 'video/mp4' && <source src={videoSrc} type="video/mp4" onError={() => setVideoError(true)} />}
           </video>
-          {/* Transparent click overlay — ensures tap opens PostModal, not native player */}
+          {/* Transparent click overlay � ensures tap opens PostModal, not native player */}
           <div className="absolute inset-0 z-[1]" />
-          {/* Centered play icon — shows when paused (tap to open modal, not to play) */}
+          {/* Centered play icon � shows when paused (tap to open modal, not to play) */}
           {!isPlaying && (
             <div className="absolute inset-0 z-[2] flex items-center justify-center pointer-events-none">
               <div className="w-16 h-16 rounded-full bg-black/50 backdrop-blur-sm flex items-center justify-center">
@@ -941,7 +941,7 @@ const PostCard = ({
               </div>
             </div>
           )}
-          {/* Volume control — bottom-right, progressive disclosure (stops propagation so it doesn't open modal) */}
+          {/* Volume control � bottom-right, progressive disclosure (stops propagation so it doesn't open modal) */}
           <div
             className="absolute bottom-3 right-3 z-[3] flex items-center gap-1"
             onClick={(e) => e.stopPropagation()}
@@ -953,7 +953,7 @@ const PostCard = ({
               volTimerRef.current = setTimeout(() => setShowVolSlider(false), 1200);
             }}
           >
-            {/* Horizontal slider — appears to the left of the icon */}
+            {/* Horizontal slider � appears to the left of the icon */}
             <div
               className="overflow-hidden transition-all duration-300 ease-out flex items-center"
               style={{
@@ -1015,7 +1015,8 @@ const PostCard = ({
           </>
           )
         ) : (
-          <imgloading="lazy" decoding="async" 
+          <img
+loading="lazy" decoding="async" 
             src={getFullUrl(post.media_url || post.image_url)}
             alt={post.caption || 'Surf photo'}
             className="w-full h-full object-cover"
@@ -1117,7 +1118,7 @@ const PostCard = ({
             </div>
             {/* Comment button - hidden if comments are disabled */}
             {!post.comments_disabled && (
-              <button 
+              <button aria-label="Message" 
                 className={`${textPrimaryClass} hover:${textSecondaryClass} transition-colors`}
                 onClick={() => {
                   const input = document.querySelector(`[data-testid="comment-input-${post.id}"]`);
@@ -1128,7 +1129,7 @@ const PostCard = ({
                 <MessageCircle className="w-6 h-6" />
               </button>
             )}
-            <button 
+            <button aria-label="Send" 
               className={`${textPrimaryClass} hover:${textSecondaryClass} transition-colors`}
               onClick={() => onSharePost(post)}
               data-testid={`share-btn-${post.id}`}
@@ -1136,7 +1137,7 @@ const PostCard = ({
               <Send className="w-6 h-6" />
             </button>
           </div>
-          <button 
+          <button aria-label="Bookmark" 
             onClick={(e) => {
               e.preventDefault();
               onSavePost(post.id, post.saved);
@@ -1181,7 +1182,7 @@ const PostCard = ({
         <div className="mt-3 space-y-2">
           {/* View all comments link */}
           {(post.comments_count > 0) && !showAllComments[post.id] && (
-            <button 
+            <button aria-label="Loader2" 
               onClick={() => onLoadAllComments(post.id)}
               className={`${textSecondaryClass} text-sm hover:opacity-80`}
               data-testid={`view-comments-${post.id}`}

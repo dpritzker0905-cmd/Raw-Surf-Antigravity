@@ -10,7 +10,7 @@ import {
  * Smart Emoji Picker for Comments & Captions
  *
  * Redesigned following industry best practices (WhatsApp/Telegram/Slack):
- *  - Always shows ALL categories — no confusing More/Less toggle
+ *  - Always shows ALL categories � no confusing More/Less toggle
  *  - Icon-only category tabs (compact, instantly scannable)
  *  - Desktop: scroll-arrow indicators for tab overflow
  *  - Mobile: full-width bottom sheet with swipe-to-close
@@ -24,11 +24,11 @@ const ALL_CATEGORIES = {
   ...ALL_EMOJI_CATEGORIES,
 };
 const CATEGORY_NAMES = Object.keys(ALL_CATEGORIES);
-const TAB_ICONS = { Quick: '⚡', ...CATEGORY_ICONS };
+const TAB_ICONS = { Quick: '?', ...CATEGORY_ICONS };
 
-// ─────────────────────────────────────────────────
+// -------------------------------------------------
 //  Shared: Icon-based category tab bar with scroll arrows
-// ─────────────────────────────────────────────────
+// -------------------------------------------------
 const CategoryTabs = ({ active, onChange, size = 'sm' }) => {
   const tabsRef = useRef(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
@@ -113,9 +113,9 @@ const CategoryTabs = ({ active, onChange, size = 'sm' }) => {
   );
 };
 
-// ─────────────────────────────────────────────────
+// -------------------------------------------------
 //  Mobile Bottom Sheet Emoji Picker
-// ─────────────────────────────────────────────────
+// -------------------------------------------------
 const MobileEmojiSheet = ({ isOpen, onClose, onSelect }) => {
   const [activeCategory, setActiveCategory] = useState('Quick');
   const [lastSelected, setLastSelected] = useState(null);
@@ -191,7 +191,7 @@ const MobileEmojiSheet = ({ isOpen, onClose, onSelect }) => {
           </button>
         </div>
 
-        {/* Category tabs — icon based */}
+        {/* Category tabs � icon based */}
         <CategoryTabs active={activeCategory} onChange={setActiveCategory} size="lg" />
 
         {/* Emoji grid */}
@@ -220,9 +220,9 @@ const MobileEmojiSheet = ({ isOpen, onClose, onSelect }) => {
   );
 };
 
-// ─────────────────────────────────────────────────
+// -------------------------------------------------
 //  Desktop Popover Emoji Picker
-// ─────────────────────────────────────────────────
+// -------------------------------------------------
 const DesktopEmojiPopover = ({ isOpen, onClose, onSelect, position = 'above' }) => {
   const [activeCategory, setActiveCategory] = useState('Quick');
   const pickerRef = useRef(null);
@@ -250,7 +250,7 @@ const DesktopEmojiPopover = ({ isOpen, onClose, onSelect, position = 'above' }) 
         </button>
       </div>
 
-      {/* Category tabs — icon based */}
+      {/* Category tabs � icon based */}
       <CategoryTabs active={activeCategory} onChange={setActiveCategory} size="sm" />
 
       {/* Grid */}
@@ -276,9 +276,9 @@ const DesktopEmojiPopover = ({ isOpen, onClose, onSelect, position = 'above' }) 
   );
 };
 
-// ─────────────────────────────────────────────────
-//  Main Emoji Picker — auto-switches mobile/desktop
-// ─────────────────────────────────────────────────
+// -------------------------------------------------
+//  Main Emoji Picker � auto-switches mobile/desktop
+// -------------------------------------------------
 const EmojiPicker = ({ isOpen, onClose, onSelect, position = 'above' }) => {
   const [isMobile, setIsMobile] = useState(false);
 
@@ -303,9 +303,9 @@ const EmojiPicker = ({ isOpen, onClose, onSelect, position = 'above' }) => {
   return <DesktopEmojiPopover isOpen={isOpen} onClose={onClose} onSelect={onSelect} position={position} />;
 };
 
-// ─────────────────────────────────────────────────
+// -------------------------------------------------
 //  Comment Input with Emoji Picker
-// ─────────────────────────────────────────────────
+// -------------------------------------------------
 export const CommentInputWithEmoji = ({
   value,
   onChange,
@@ -348,8 +348,8 @@ export const CommentInputWithEmoji = ({
   return (
     <div className={`relative flex items-center gap-2 pt-3 border-t ${borderClass}`}>
       {/* Emoji Button */}
-      <button
-        onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+      <button aria-label="Emoji"
+        aria-expanded={showEmojiPicker} onClick={() => setShowEmojiPicker(!showEmojiPicker)}
         className={`flex-shrink-0 p-1.5 rounded-full transition-colors ${
           showEmojiPicker ? 'bg-yellow-500/20 text-yellow-400' : 'hover:bg-zinc-700 text-gray-400 hover:text-white'
         }`}
@@ -396,9 +396,9 @@ export const CommentInputWithEmoji = ({
   );
 };
 
-// ─────────────────────────────────────────────────
-//  Textarea with Emoji Picker — for captions, edit post
-// ─────────────────────────────────────────────────
+// -------------------------------------------------
+//  Textarea with Emoji Picker � for captions, edit post
+// -------------------------------------------------
 export const TextareaWithEmoji = ({
   value,
   onChange,
@@ -445,7 +445,7 @@ export const TextareaWithEmoji = ({
       {/* Emoji Button - Positioned in top right */}
       <button
         type="button"
-        onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+        aria-expanded={showEmojiPicker} onClick={() => setShowEmojiPicker(!showEmojiPicker)}
         className={`absolute top-2 right-2 p-1.5 rounded-full transition-colors ${
           showEmojiPicker
             ? 'bg-yellow-500/20 text-yellow-400'

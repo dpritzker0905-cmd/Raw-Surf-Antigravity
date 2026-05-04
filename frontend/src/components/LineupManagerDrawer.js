@@ -345,7 +345,7 @@ const QuickActionsPanel = ({
   if (!isCaptain) {
     return (
       <div className={`p-3 rounded-xl ${isLight ? 'bg-orange-50 border border-orange-200' : 'bg-orange-500/10 border border-orange-500/30'}`}>
-        <Button
+        <Button aria-label="Loader2"
           onClick={onLeave}
           disabled={loading}
           variant="outline"
@@ -366,7 +366,7 @@ const QuickActionsPanel = ({
   const ACTIVE_STATUSES = ['open', 'filling', 'ready'];
   const isActive = ACTIVE_STATUSES.includes(lineup.lineup_status);
 
-  // ── LOCKED STATE ────────────────────────────────────────────────
+  // -- LOCKED STATE ------------------------------------------------
   if (lineup.lineup_status === 'locked') {
     return (
       <div className="space-y-2">
@@ -383,7 +383,7 @@ const QuickActionsPanel = ({
             Need to cancel this session?
           </button>
         ) : (
-          <Button
+          <Button aria-label="Ban"
             onClick={onCancelAll}
             disabled={loading}
             variant="outline"
@@ -398,11 +398,11 @@ const QuickActionsPanel = ({
     );
   }
 
-  // ── ACTIVE STATE (open / filling / ready) ───────────────────────
+  // -- ACTIVE STATE (open / filling / ready) -----------------------
   return (
     <div className="space-y-2">
 
-      {/* ── State A: Not enough crew yet ── */}
+      {/* -- State A: Not enough crew yet -- */}
       {!isReady && isActive && (
         <div className={`p-3 rounded-xl ${isLight ? 'bg-cyan-50 border border-cyan-200' : 'bg-cyan-500/10 border border-cyan-500/30'}`}>
           <div className="flex items-center gap-2 mb-1">
@@ -410,12 +410,12 @@ const QuickActionsPanel = ({
             <p className={`text-sm font-medium ${textPrimary}`}>Keeping a Spot in the Water</p>
           </div>
           <p className={`text-xs ${textSecondary}`}>
-            Your lineup is open. Use the invite panel above to fill the remaining spots — the session stays open until you're ready to lock it.
+            Your lineup is open. Use the invite panel above to fill the remaining spots � the session stays open until you're ready to lock it.
           </p>
         </div>
       )}
 
-      {/* ── State B: Ready to lock ── */}
+      {/* -- State B: Ready to lock -- */}
       {isReady && isActive && (
         <>
           <div className={`p-3 rounded-xl ${isLight ? 'bg-green-50 border border-green-200' : 'bg-green-500/10 border border-green-500/30'}`}>
@@ -428,8 +428,8 @@ const QuickActionsPanel = ({
             </p>
           </div>
 
-          {/* 1 — Lock (primary) */}
-          <Button
+          {/* 1 � Lock (primary) */}
+          <Button aria-label="Loader2"
             onClick={onLock}
             disabled={loading}
             className="w-full bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white py-5 text-sm font-bold"
@@ -440,9 +440,9 @@ const QuickActionsPanel = ({
         </>
       )}
 
-      {/* 2 — Leave Open & Come Back Later (always shown when active) */}
+      {/* 2 � Leave Open & Come Back Later (always shown when active) */}
       {isActive && (
-        <Button
+        <Button aria-label="Waves"
           onClick={onClose}
           variant="outline"
           size="sm"
@@ -456,7 +456,7 @@ const QuickActionsPanel = ({
 
       {/* Close to new surfers (open status only) */}
       {lineup.lineup_status === 'open' && (
-        <Button
+        <Button aria-label="Unlock"
           onClick={onCloseToInvites}
           disabled={loading}
           variant="outline"
@@ -469,7 +469,7 @@ const QuickActionsPanel = ({
         </Button>
       )}
 
-      {/* Cancel — tap to reveal, discourages accidental cancels */}
+      {/* Cancel � tap to reveal, discourages accidental cancels */}
       {!showCancelRow ? (
         <button
           onClick={() => setShowCancelRow(true)}
@@ -479,7 +479,7 @@ const QuickActionsPanel = ({
           Need to cancel this lineup?
         </button>
       ) : (
-        <Button
+        <Button aria-label="Ban"
           onClick={onCancelAll}
           disabled={loading}
           variant="outline"
@@ -579,8 +579,8 @@ const AutoFillPanel = ({
         : 'bg-gradient-to-br from-purple-500/10 to-cyan-500/10 border border-purple-500/30'
     }`}>
       {/* Header - Collapsible */}
-      <button
-        onClick={() => setExpanded(!expanded)}
+      <button aria-label="Sparkles"
+        aria-expanded={expanded} onClick={() => setExpanded(!expanded)}
         className="w-full flex items-center justify-between p-3 hover:bg-white/5 transition-colors"
       >
         <div className="flex items-center gap-2">
@@ -598,7 +598,7 @@ const AutoFillPanel = ({
         <div className="p-3 pt-0 space-y-3">
           {/* Invite All Button */}
           {allSuggestions.length >= 2 && spotsLeft >= 2 && (
-            <Button
+            <Button aria-label="Users"
               onClick={() => onInviteAll(allSuggestions.slice(0, spotsLeft))}
               disabled={inviting}
               size="sm"
@@ -612,7 +612,7 @@ const AutoFillPanel = ({
           {/* Individual suggestions */}
           <div className="grid grid-cols-2 gap-2">
             {allSuggestions.slice(0, 4).map((person) => (
-              <button
+              <button aria-label="div"
                 key={person.user_id}
                 onClick={() => onInvite(person)}
                 disabled={inviting === person.user_id}
@@ -927,7 +927,7 @@ export const LineupManagerDrawer = ({
           </div>
           <DialogDescription className={`${textSecondary} flex items-center gap-2 mt-1`}>
             <MapPin className="w-4 h-4" />
-            {lineup.location} · {new Date(lineup.session_date).toLocaleDateString()}
+            {lineup.location} � {new Date(lineup.session_date).toLocaleDateString()}
           </DialogDescription>
           <LineupCountdown closesAt={lineup.lineup_closes_at} isLight={isLight} />
         </div>
@@ -968,7 +968,7 @@ export const LineupManagerDrawer = ({
 
         {/* Tab Switcher */}
         <div className="flex border-b border-zinc-700">
-          <button
+          <button aria-label="Anchor"
             onClick={() => setActiveTab('lineup')}
             className={`flex-1 py-2 text-sm font-medium flex items-center justify-center gap-2 transition-colors ${
               activeTab === 'lineup' 
@@ -979,7 +979,7 @@ export const LineupManagerDrawer = ({
             <Anchor className="w-4 h-4" />
             Lineup ({currentCrew})
           </button>
-          <button
+          <button aria-label="User Plus"
             onClick={() => setActiveTab('invite')}
             className={`flex-1 py-2 text-sm font-medium flex items-center justify-center gap-2 transition-colors ${
               activeTab === 'invite' 
@@ -1064,7 +1064,7 @@ export const LineupManagerDrawer = ({
                 
                 {/* "Shore" Label */}
                 <div className="absolute bottom-2 left-1/2 -translate-x-1/2 text-xs text-yellow-600 font-medium flex items-center gap-1">
-                  <span>🏖️</span>
+                  <span>???</span>
                   SHORE
                 </div>
               </div>
@@ -1143,7 +1143,7 @@ export const LineupManagerDrawer = ({
                           </p>
                         </div>
                       </div>
-                      <Button
+                      <Button aria-label="Loader2"
                         size="sm"
                         onClick={() => handleInvite(result)}
                         disabled={inviting === result.user_id}
@@ -1193,7 +1193,7 @@ export const LineupManagerDrawer = ({
                                 <p className="text-xs text-green-400">Mutual friend</p>
                               </div>
                             </div>
-                            <Button
+                            <Button aria-label="Loader2"
                               size="sm"
                               onClick={() => handleInvite(friend)}
                               disabled={inviting === friend.user_id}
@@ -1238,7 +1238,7 @@ export const LineupManagerDrawer = ({
                                 <p className="text-xs text-blue-400">Nearby</p>
                               </div>
                             </div>
-                            <Button
+                            <Button aria-label="Loader2"
                               size="sm"
                               onClick={() => handleInvite(surfer)}
                               disabled={inviting === surfer.user_id}
@@ -1386,7 +1386,7 @@ export const LineupManagerDrawer = ({
               </div>
             </div>
             <div className="flex gap-2">
-              <Button
+              <Button aria-label="Loader2"
                 onClick={handleCancelAll}
                 disabled={loading}
                 size="sm"
@@ -1424,7 +1424,7 @@ export const LineupManagerDrawer = ({
               </div>
             </div>
             <div className="flex gap-2">
-              <Button
+              <Button aria-label="Loader2"
                 onClick={handleLockLineup}
                 disabled={loading}
                 size="sm"

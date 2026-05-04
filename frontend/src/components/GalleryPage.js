@@ -420,7 +420,7 @@ export const GalleryPage = () => {
         {}
       );
       const data = response.data;
-      toast.success(`ðŸ“¡ ${data.message}`);
+      toast.success(`📡 ${data.message}`);
       // Refresh status
       await fetchConditionsStatus(selectedGallery.id);
     } catch (error) {
@@ -684,7 +684,7 @@ export const GalleryPage = () => {
         const tierMsg = hasCredits 
           ? `${Math.min(count, participant.photos_credit_remaining)} included (full-res)` 
           : 'as previews';
-        toast.success(`âœ… Pushed ${count} items to ${surferName}'s Locker ${tierMsg}!`);
+        toast.success(`✅ Pushed ${count} items to ${surferName}'s Locker ${tierMsg}!`);
       } else if (skipped > 0) {
         toast.info(`All items already in ${surferName}'s Locker`);
       } else {
@@ -717,7 +717,7 @@ export const GalleryPage = () => {
       );
       const total = response.data.total_distributed || 0;
       setDistributeProgress({ current: totalItems, total: totalItems });
-      toast.success(`âœ… Distributed ${total} locker items to all participants!`);
+      toast.success(`✅ Distributed ${total} locker items to all participants!`);
       
       // Refresh to update counts
       await fetchParticipants(selectedGallery.id);
@@ -744,9 +744,9 @@ export const GalleryPage = () => {
       const matched = response.data.matches_found || 0;
       const processed = response.data.items_processed || 0;
       if (matched > 0) {
-        toast.success(`ðŸ¤– AI matched ${matched} items to surfers! (${processed} processed)`);
+        toast.success(`🤖 AI matched ${matched} items to surfers! (${processed} processed)`);
       } else {
-        toast.info(`ðŸ¤– AI processed ${processed} items â€” no confident matches found. Try manual tagging.`);
+        toast.info(`🤖 AI processed ${processed} items — no confident matches found. Try manual tagging.`);
       }
       // Refresh gallery to show updated AI status
       if (selectedGallery) {
@@ -795,9 +795,9 @@ export const GalleryPage = () => {
       if (alreadyTagged > 0) parts.push(`${alreadyTagged} already pending`);
       
       if (tagged > 0) {
-        toast.success(`âœ… ${parts.join(' â€¢ ')} â†’ ${surferName}`);
+        toast.success(`✅ ${parts.join(' • ')} → ${surferName}`);
       } else {
-        toast.info(`${parts.join(' â€¢ ')} for ${surferName}`);
+        toast.info(`${parts.join(' • ')} for ${surferName}`);
       }
       // Refresh
       await fetchGalleryItems(selectedGallery.id);
@@ -893,7 +893,7 @@ export const GalleryPage = () => {
         `/galleries/${thumbnailPickerGallery.id}/set-thumbnail?photographer_id=${user.id}`,
         { item_id: itemId }
       );
-      toast.success('ðŸ“¸ Folder thumbnail updated!');
+      toast.success('📸 Folder thumbnail updated!');
       setShowThumbnailPicker(false);
       setThumbnailPickerGallery(null);
       // Clear broken cover cache for this gallery
@@ -917,7 +917,7 @@ export const GalleryPage = () => {
       await apiClient.patch(
         `/galleries/${galleryId}/clear-thumbnail?photographer_id=${user.id}`
       );
-      toast.success('Thumbnail reset â€” will auto-select on next load');
+      toast.success('Thumbnail reset — will auto-select on next load');
       setShowThumbnailPicker(false);
       setThumbnailPickerGallery(null);
       fetchGalleries();
@@ -934,7 +934,7 @@ export const GalleryPage = () => {
         `/galleries/${selectedGallery.id}/set-thumbnail?photographer_id=${user.id}`,
         { item_id: itemId }
       );
-      toast.success('ðŸ“¸ Set as folder cover!');
+      toast.success('📸 Set as folder cover!');
       setBrokenCoverImages(prev => {
         const newSet = new Set(prev);
         newSet.delete(selectedGallery.id);
@@ -979,7 +979,7 @@ export const GalleryPage = () => {
       );
       const typeLabel = session.session_type === 'live' ? 'Live Session' :
         session.session_type === 'booking' ? 'Booking' : 'On-Demand';
-      toast.success(`âœ… Folder linked to ${typeLabel}! Participants and distribution are now available.`);
+      toast.success(`✅ Folder linked to ${typeLabel}! Participants and distribution are now available.`);
       setShowLinkSessionModal(false);
       setLinkSessionGallery(null);
       fetchGalleries();
@@ -990,7 +990,7 @@ export const GalleryPage = () => {
     }
   };
 
-  // Pull-to-refresh for mobile — triggers gallery refresh on swipe-down
+  // Pull-to-refresh for mobile � triggers gallery refresh on swipe-down
   const { pullRef: galleryPullRef, isPulling: galleryPulling, pullProgress: galleryPullProgress, isRefreshing: galleryPtrRefreshing } = usePullToRefresh(
     async () => { await fetchGallery(); if (isPhotographer) await fetchGalleries(); },
     { threshold: 60, enabled: !loading }
@@ -1015,12 +1015,12 @@ export const GalleryPage = () => {
             Gallery Hub
           </h1>
           <p className="text-muted-foreground text-sm mt-1">
-            {gallery.length} items â€¢ Manage your sessions, folders & distribution
+            {gallery.length} items • Manage your sessions, folders & distribution
           </p>
         </div>
         
         {isPhotographer && (
-          <Button
+          <Button aria-label="Add"
             onClick={() => setShowUploadModal(true)}
             className="bg-gradient-to-r from-yellow-400 to-orange-400 text-black font-bold"
           >
@@ -1030,7 +1030,7 @@ export const GalleryPage = () => {
         )}
       </div>
 
-      {/* Post-Session Summary â€” shows for recent galleries when inside a gallery folder */}
+      {/* Post-Session Summary — shows for recent galleries when inside a gallery folder */}
       {selectedGallery && (
         <PostSessionSummary
           gallery={selectedGallery}
@@ -1044,7 +1044,7 @@ export const GalleryPage = () => {
         />
       )}
 
-      {/* Gallery Pricing Card â€“ Tabbed Per-Service Pricing */}
+      {/* Gallery Pricing Card – Tabbed Per-Service Pricing */}
       {showPricing && (
         <Card className="mb-6 bg-card border-border">
           <CardHeader className="cursor-pointer md:cursor-default" onClick={() => setPricingCollapsed(!pricingCollapsed)}>
@@ -1056,7 +1056,7 @@ export const GalleryPage = () => {
                   {pricingCollapsed ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
                 </button>
               </CardTitle>
-              <Button 
+              <Button aria-label="Settings" 
                 variant="outline" 
                 size="sm"
                 onClick={(e) => { e.stopPropagation(); setShowGalleryPricingModal(true); }}
@@ -1105,11 +1105,11 @@ export const GalleryPage = () => {
               ))}
             </div>
 
-            {/* â”€â”€â”€ Gallery Tab â”€â”€â”€ */}
+            {/* ─── Gallery Tab ─── */}
             {(pricingTab || 'gallery') === 'gallery' && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">ðŸ“· Photo Pricing</p>
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">📷 Photo Pricing</p>
                   <div className="space-y-1.5">
                     {[
                       { label: 'Web (800px)', val: galleryPricing.photo_price_web },
@@ -1124,7 +1124,7 @@ export const GalleryPage = () => {
                   </div>
                 </div>
                 <div>
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">ðŸŽ¬ Video Pricing</p>
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">🎬 Video Pricing</p>
                   <div className="space-y-1.5">
                     {[
                       { label: '720p HD', val: galleryPricing.video_price_720p },
@@ -1141,16 +1141,16 @@ export const GalleryPage = () => {
               </div>
             )}
 
-            {/* â”€â”€â”€ Live Session Tab â”€â”€â”€ */}
+            {/* ─── Live Session Tab ─── */}
             {pricingTab === 'live' && (
               <div>
                 <div className="p-2.5 rounded-lg mb-3 flex items-center justify-between" style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)' }}>
-                  <span className="text-xs text-muted-foreground">ðŸŽŸï¸ Session Buy-In</span>
+                  <span className="text-xs text-muted-foreground">🎟️ Session Buy-In</span>
                   <span className="text-sm font-bold text-red-400">${galleryPricing.live_buyin_price}</span>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-3">
                   <div>
-                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">ðŸ“· Photo Pricing</p>
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">📷 Photo Pricing</p>
                     <div className="space-y-1.5">
                       {[
                         { label: 'Web (800px)', val: galleryPricing.live_price_web },
@@ -1165,7 +1165,7 @@ export const GalleryPage = () => {
                     </div>
                   </div>
                   <div>
-                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">ðŸŽ¬ Video Pricing</p>
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">🎬 Video Pricing</p>
                     <div className="space-y-1.5">
                       {[
                         { label: '720p HD', val: galleryPricing.live_video_720p },
@@ -1191,7 +1191,7 @@ export const GalleryPage = () => {
                   </div>
                 </div>
                 {/* Advanced settings deep-link */}
-                <button
+                <button aria-label="Radio"
                   onClick={() => navigate('/photographer/sessions')}
                   className="w-full mt-3 p-3 rounded-lg flex items-center justify-between group/link transition-all hover:scale-[1.01]"
                   style={{ background: 'linear-gradient(135deg, rgba(239,68,68,0.08), rgba(245,158,11,0.08))', border: '1px dashed rgba(239,68,68,0.3)' }}
@@ -1208,16 +1208,16 @@ export const GalleryPage = () => {
               </div>
             )}
 
-            {/* â”€â”€â”€ Booking Tab â”€â”€â”€ */}
+            {/* ─── Booking Tab ─── */}
             {pricingTab === 'booking' && (
               <div>
                 <div className="p-2.5 rounded-lg mb-3 flex items-center justify-between" style={{ background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.2)' }}>
-                  <span className="text-xs text-muted-foreground">â± Hourly Rate</span>
+                  <span className="text-xs text-muted-foreground">⏱ Hourly Rate</span>
                   <span className="text-sm font-bold text-blue-400">${galleryPricing.booking_hourly_rate}/hr</span>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-3">
                   <div>
-                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">ðŸ“· Photo Pricing</p>
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">📷 Photo Pricing</p>
                     <div className="space-y-1.5">
                       {[
                         { label: 'Web (800px)', val: galleryPricing.booking_price_web },
@@ -1232,7 +1232,7 @@ export const GalleryPage = () => {
                     </div>
                   </div>
                   <div>
-                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">ðŸŽ¬ Video Pricing</p>
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">🎬 Video Pricing</p>
                     <div className="space-y-1.5">
                       {[
                         { label: '720p HD', val: galleryPricing.booking_video_720p },
@@ -1262,28 +1262,28 @@ export const GalleryPage = () => {
                   {/* Quick-glance pills for advanced settings */}
                   <div className="flex flex-wrap gap-1.5">
                     <div className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px]" style={{ background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.15)' }}>
-                      <span className="text-muted-foreground">â± Min Hours:</span>
+                      <span className="text-muted-foreground">⏱ Min Hours:</span>
                       <span className="font-semibold text-blue-400">{galleryPricing.booking_min_hours}h</span>
                     </div>
                     <div className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px]" style={{ background: galleryPricing.charges_travel_fees ? 'rgba(245,158,11,0.1)' : 'rgba(59,130,246,0.08)', border: `1px solid ${galleryPricing.charges_travel_fees ? 'rgba(245,158,11,0.2)' : 'rgba(59,130,246,0.15)'}` }}>
-                      <span className="text-muted-foreground">ðŸš— Travel Fees:</span>
+                      <span className="text-muted-foreground">🚗 Travel Fees:</span>
                       <span className={`font-semibold ${galleryPricing.charges_travel_fees ? 'text-amber-400' : 'text-muted-foreground'}`}>
                         {galleryPricing.charges_travel_fees ? 'Enabled' : 'Off'}
                       </span>
                     </div>
                     <div className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px]" style={{ background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.15)' }}>
-                      <span className="text-muted-foreground">ðŸ“ Radius:</span>
+                      <span className="text-muted-foreground">📍 Radius:</span>
                       <span className="font-semibold text-blue-400">{galleryPricing.service_radius_miles} mi</span>
                     </div>
                     {(galleryPricing.group_discount_2_plus > 0 || galleryPricing.group_discount_3_plus > 0 || galleryPricing.group_discount_5_plus > 0) && (
                       <div className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px]" style={{ background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.15)' }}>
-                        <span className="text-muted-foreground">ðŸ‘¥ Group Discounts:</span>
+                        <span className="text-muted-foreground">👥 Group Discounts:</span>
                         <span className="font-semibold text-emerald-400">Active</span>
                       </div>
                     )}
                   </div>
                   {/* Deep-link to full booking settings */}
-                  <button
+                  <button aria-label="Settings"
                     onClick={() => navigate('/photographer/bookings')}
                     className="w-full p-3 rounded-lg flex items-center justify-between group/link transition-all hover:scale-[1.01]"
                     style={{ background: 'linear-gradient(135deg, rgba(59,130,246,0.08), rgba(139,92,246,0.08))', border: '1px dashed rgba(59,130,246,0.3)' }}
@@ -1301,16 +1301,16 @@ export const GalleryPage = () => {
               </div>
             )}
 
-            {/* â”€â”€â”€ On-Demand Tab â”€â”€â”€ */}
+            {/* ─── On-Demand Tab ─── */}
             {pricingTab === 'ondemand' && (
               <div>
                 <div className="p-2.5 rounded-lg mb-3 flex items-center justify-between" style={{ background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.2)' }}>
-                  <span className="text-xs text-muted-foreground">âš¡ Hourly Rate</span>
+                  <span className="text-xs text-muted-foreground">⚡ Hourly Rate</span>
                   <span className="text-sm font-bold text-emerald-400">${galleryPricing.on_demand_hourly_rate}/hr</span>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-3">
                   <div>
-                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">ðŸ“· Photo Pricing</p>
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">📷 Photo Pricing</p>
                     <div className="space-y-1.5">
                       {[
                         { label: 'Web (800px)', val: galleryPricing.on_demand_price_web },
@@ -1325,7 +1325,7 @@ export const GalleryPage = () => {
                     </div>
                   </div>
                   <div>
-                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">ðŸŽ¬ Video Pricing</p>
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">🎬 Video Pricing</p>
                     <div className="space-y-1.5">
                       {[
                         { label: '720p HD', val: galleryPricing.on_demand_video_720p },
@@ -1351,7 +1351,7 @@ export const GalleryPage = () => {
                   </div>
                 </div>
                 {/* Advanced settings deep-link */}
-                <button
+                <button aria-label="Location"
                   onClick={() => navigate('/photographer/bookings')}
                   className="w-full mt-3 p-3 rounded-lg flex items-center justify-between group/link transition-all hover:scale-[1.01]"
                   style={{ background: 'linear-gradient(135deg, rgba(16,185,129,0.08), rgba(6,182,212,0.08))', border: '1px dashed rgba(16,185,129,0.3)' }}
@@ -1487,7 +1487,7 @@ export const GalleryPage = () => {
             </h2>
             <div className="flex items-center gap-2">
               <span className="text-muted-foreground text-sm">{galleries.length} folders</span>
-              <Button
+              <Button aria-label="Add"
                 onClick={() => {
                   setNewFolderName('');
                   setShowCreateFolderModal(true);
@@ -1570,26 +1570,26 @@ export const GalleryPage = () => {
                         </div>
                       );
                     })()}
-                    {/* Session type badges â€” Phase 5 integration */}
+                    {/* Session type badges — Phase 5 integration */}
                     <div className="absolute top-2 left-2 flex gap-1.5">
                       {gal.live_session_id && (
                         <Badge className="bg-emerald-500/90 text-white text-[10px] shadow-sm px-1.5">
-                          ðŸŸ¢ Live
+                          🟢 Live
                         </Badge>
                       )}
                       {gal.session_type === 'booking' && !gal.live_session_id && (
                         <Badge className="bg-blue-500/90 text-white text-[10px] shadow-sm px-1.5">
-                          ðŸ“… Booking
+                          📅 Booking
                         </Badge>
                       )}
                       {gal.session_type === 'on_demand' && !gal.live_session_id && (
                         <Badge className="bg-orange-500/90 text-white text-[10px] shadow-sm px-1.5">
-                          âš¡ On-Demand
+                          ⚡ On-Demand
                         </Badge>
                       )}
                       {gal.session_type === 'manual' && !gal.live_session_id && (
                         <Badge className="bg-zinc-600/90 text-white text-[10px] shadow-sm px-1.5">
-                          ðŸ“‹ Manual
+                          📋 Manual
                         </Badge>
                       )}
                     </div>
@@ -1600,14 +1600,14 @@ export const GalleryPage = () => {
                       </Badge>
                       {(gal.purchase_count || 0) > 0 && (
                         <Badge className="bg-green-500/80 backdrop-blur-sm text-white text-[10px]">
-                          ðŸ’° {gal.purchase_count} sold
+                          💰 {gal.purchase_count} sold
                         </Badge>
                       )}
                     </div>
-                    {/* Folder actions â€” visible on hover (desktop) or always via overflow menu (mobile) */}
+                    {/* Folder actions — visible on hover (desktop) or always via overflow menu (mobile) */}
                     <div className="absolute top-2 right-2 z-10">
                       <div className="hidden group-hover:flex gap-1">
-                        <button
+                        <button aria-label="Image Plus"
                           className="h-8 w-8 rounded-full bg-black/50 backdrop-blur-sm hover:bg-cyan-500/70 text-white flex items-center justify-center transition-colors"
                           onClick={(e) => {
                             e.stopPropagation();
@@ -1619,7 +1619,7 @@ export const GalleryPage = () => {
                           <ImagePlus className="w-3.5 h-3.5" />
                         </button>
                         {!gal.live_session_id && (
-                          <button
+                          <button aria-label="Link2"
                             className="h-8 w-8 rounded-full bg-black/50 backdrop-blur-sm hover:bg-purple-500/70 text-white flex items-center justify-center transition-colors"
                             onClick={(e) => {
                               e.stopPropagation();
@@ -1631,7 +1631,7 @@ export const GalleryPage = () => {
                             <Link2 className="w-3.5 h-3.5" />
                           </button>
                         )}
-                        <button
+                        <button aria-label="Edit3"
                           className="h-8 w-8 rounded-full bg-black/50 backdrop-blur-sm hover:bg-black/70 text-white flex items-center justify-center transition-colors"
                           onClick={(e) => {
                             e.stopPropagation();
@@ -1643,7 +1643,7 @@ export const GalleryPage = () => {
                         >
                           <Edit3 className="w-3.5 h-3.5" />
                         </button>
-                        <button
+                        <button aria-label="Delete"
                           className="h-8 w-8 rounded-full bg-red-500/60 backdrop-blur-sm hover:bg-red-500/80 text-white flex items-center justify-center transition-colors"
                           onClick={(e) => {
                             e.stopPropagation();
@@ -1714,16 +1714,16 @@ export const GalleryPage = () => {
                   </h2>
                   {/* Session type badge */}
                   {selectedGallery.live_session_id && (
-                    <Badge className="bg-emerald-500/90 text-white text-[10px] px-1.5 flex-shrink-0">ðŸŸ¢ Live</Badge>
+                    <Badge className="bg-emerald-500/90 text-white text-[10px] px-1.5 flex-shrink-0">🟢 Live</Badge>
                   )}
                   {selectedGallery.session_type === 'booking' && !selectedGallery.live_session_id && (
-                    <Badge className="bg-blue-500/90 text-white text-[10px] px-1.5 flex-shrink-0">ðŸ“… Booking</Badge>
+                    <Badge className="bg-blue-500/90 text-white text-[10px] px-1.5 flex-shrink-0">📅 Booking</Badge>
                   )}
                   {selectedGallery.session_type === 'on_demand' && !selectedGallery.live_session_id && (
-                    <Badge className="bg-orange-500/90 text-white text-[10px] px-1.5 flex-shrink-0">âš¡ On-Demand</Badge>
+                    <Badge className="bg-orange-500/90 text-white text-[10px] px-1.5 flex-shrink-0">⚡ On-Demand</Badge>
                   )}
                   {selectedGallery.session_type === 'manual' && !selectedGallery.live_session_id && (
-                    <Badge className="bg-zinc-600/90 text-white text-[10px] px-1.5 flex-shrink-0">ðŸ“‹ Manual</Badge>
+                    <Badge className="bg-zinc-600/90 text-white text-[10px] px-1.5 flex-shrink-0">📋 Manual</Badge>
                   )}
                 </div>
                 <div className="flex items-center gap-3 text-xs text-muted-foreground mt-0.5">
@@ -1743,11 +1743,11 @@ export const GalleryPage = () => {
               </div>
             </div>
             
-            {/* Row 2: Action buttons â€” scrollable on mobile */}
+            {/* Row 2: Action buttons — scrollable on mobile */}
             <div className="flex items-center gap-2 overflow-x-auto pb-1 -mx-1 px-1">
               {bulkSelectMode ? (
                 <>
-                  <Button
+                  <Button aria-label="Confirm"
                     size="sm"
                     variant="outline"
                     className="border-border text-muted-foreground flex-shrink-0"
@@ -1758,7 +1758,7 @@ export const GalleryPage = () => {
                     <Check className="w-4 h-4 mr-1" />
                     All
                   </Button>
-                  <Button
+                  <Button aria-label="Folder"
                     size="sm"
                     variant="outline"
                     className="border-border text-muted-foreground flex-shrink-0"
@@ -1768,7 +1768,7 @@ export const GalleryPage = () => {
                     <Folder className="w-4 h-4 mr-1" />
                     Move
                   </Button>
-                  <Button
+                  <Button aria-label="Copy"
                     size="sm"
                     variant="outline"
                     className="border-cyan-700 text-cyan-400 hover:bg-cyan-500/10 flex-shrink-0"
@@ -1778,7 +1778,7 @@ export const GalleryPage = () => {
                     <Copy className="w-4 h-4 mr-1" />
                     Copy
                   </Button>
-                  <Button
+                  <Button aria-label="Loader2"
                     size="sm"
                     variant="outline"
                     className="border-cyan-600 text-cyan-400 hover:bg-cyan-500/10 flex-shrink-0"
@@ -1809,7 +1809,7 @@ export const GalleryPage = () => {
                     <UserPlus className="w-4 h-4 mr-1" />
                     Tag {selectedItems.size > 0 ? `(${selectedItems.size})` : ''}
                   </Button>
-                  <Button
+                  <Button aria-label="Delete"
                     size="sm"
                     variant="destructive"
                     className="bg-red-500/20 text-red-400 hover:bg-red-500/30 flex-shrink-0"
@@ -1831,7 +1831,7 @@ export const GalleryPage = () => {
                 </>
               ) : (
                 <>
-                  <Button
+                  <Button aria-label="Add"
                     onClick={() => setShowAddToGalleryModal(true)}
                     className="bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-400 hover:to-blue-400 text-white font-semibold flex-shrink-0 shadow-sm"
                     size="sm"
@@ -1839,7 +1839,7 @@ export const GalleryPage = () => {
                     <Plus className="w-4 h-4 mr-1" />
                     Upload
                   </Button>
-                  <Button
+                  <Button aria-label="Loader2"
                     size="sm"
                     variant="outline"
                     className="border-cyan-600 text-cyan-400 hover:bg-cyan-500/10 flex-shrink-0"
@@ -1853,7 +1853,7 @@ export const GalleryPage = () => {
                     )}
                     AI Tag
                   </Button>
-                  <Button
+                  <Button aria-label="User Plus"
                     size="sm"
                     variant="outline"
                     className="border-purple-600 text-purple-400 hover:bg-purple-500/10 flex-shrink-0"
@@ -1862,9 +1862,9 @@ export const GalleryPage = () => {
                     <UserPlus className="w-4 h-4 mr-1" />
                     Tag & Assign
                   </Button>
-                  {/* Link Session button â€” only for unlinked folders */}
+                  {/* Link Session button — only for unlinked folders */}
                   {!selectedGallery.live_session_id && (
-                    <Button
+                    <Button aria-label="Link2"
                       size="sm"
                       variant="outline"
                       className="border-purple-600/50 text-purple-400 hover:bg-purple-500/10 flex-shrink-0"
@@ -1874,7 +1874,7 @@ export const GalleryPage = () => {
                       Link Session
                     </Button>
                   )}
-                  {/* Push to Spot Hub â€” requires linked surf spot AND live session */}
+                  {/* Push to Spot Hub — requires linked surf spot AND live session */}
                   {selectedGallery.surf_spot_id && (
                     <Button
                       size="sm"
@@ -1905,7 +1905,7 @@ export const GalleryPage = () => {
                       {conditionsStatus?.has_active_report ? 'Refresh Spot Hub' : 'Push to Spot Hub'}
                     </Button>
                   )}
-                  <Button
+                  <Button aria-label="Confirm"
                     size="sm"
                     variant="outline"
                     className="border-border text-muted-foreground flex-shrink-0"
@@ -1919,7 +1919,7 @@ export const GalleryPage = () => {
             </div>
           </div>
 
-          {/* â”€â”€ Session Roster: Full surfer delivery tracker â”€â”€ */}
+          {/* ── Session Roster: Full surfer delivery tracker ── */}
           {selectedGallery.session_roster && selectedGallery.session_roster.length > 0 && (
             <div className="mb-4">
               <SessionRosterCard 
@@ -1943,7 +1943,7 @@ export const GalleryPage = () => {
             <div className="text-center py-12 bg-muted/50 rounded-lg">
               <Camera className="w-12 h-12 text-muted-foreground/40 mx-auto mb-3" />
               <p className="text-muted-foreground">No items in this gallery yet</p>
-              <Button
+              <Button aria-label="Add"
                 onClick={() => setShowAddToGalleryModal(true)}
                 className="mt-4 bg-cyan-500 hover:bg-cyan-600 text-black"
               >
@@ -1968,7 +1968,7 @@ export const GalleryPage = () => {
         </div>
       )}
 
-      {/* All Media section removed â€” photographers upload into session folders only */}
+      {/* All Media section removed — photographers upload into session folders only */}
 
       {/* Upload Modal */}
       <UploadPhotoModal
@@ -2043,21 +2043,21 @@ export const GalleryPage = () => {
       <Dialog open={showGalleryPricingModal} onOpenChange={setShowGalleryPricingModal}>
         <DialogContent className="bg-background border-border text-foreground max-h-[90vh] overflow-y-auto max-w-2xl">
           <DialogHeader>
-            <DialogTitle className="text-foreground">Gallery Pricing â€” All Service Types</DialogTitle>
+            <DialogTitle className="text-foreground">Gallery Pricing — All Service Types</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">
             <p className="text-xs text-muted-foreground">
               Each service type has <strong>independent</strong> resolution pricing. Changes here update your photographer profile defaults.
             </p>
 
-            {/* â”€â”€â”€ GALLERY (General) â”€â”€â”€ */}
+            {/* ─── GALLERY (General) ─── */}
             <div className="p-4 rounded-lg bg-card border border-border">
               <h4 className="font-medium text-foreground mb-3 flex items-center gap-2 text-sm">
-                <Image className="w-4 h-4 text-cyan-400" /> Gallery â€” General Pricing
+                <Image className="w-4 h-4 text-cyan-400" /> Gallery — General Pricing
               </h4>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <p className="text-[10px] font-semibold text-muted-foreground uppercase">ðŸ“· Photos</p>
+                  <p className="text-[10px] font-semibold text-muted-foreground uppercase">📷 Photos</p>
                   {[
                     { label: 'Web (800px)', field: 'photo_price_web' },
                     { label: 'Standard (1920px)', field: 'photo_price_standard' },
@@ -2070,7 +2070,7 @@ export const GalleryPage = () => {
                   ))}
                 </div>
                 <div className="space-y-2">
-                  <p className="text-[10px] font-semibold text-muted-foreground uppercase">ðŸŽ¬ Videos</p>
+                  <p className="text-[10px] font-semibold text-muted-foreground uppercase">🎬 Videos</p>
                   {[
                     { label: '720p HD', field: 'video_price_720p' },
                     { label: '1080p Full HD', field: 'video_price_1080p' },
@@ -2085,14 +2085,14 @@ export const GalleryPage = () => {
               </div>
             </div>
 
-            {/* â”€â”€â”€ LIVE SESSION â”€â”€â”€ */}
+            {/* ─── LIVE SESSION ─── */}
             <div className="p-4 rounded-lg border" style={{ background: 'rgba(239,68,68,0.05)', borderColor: 'rgba(239,68,68,0.2)' }}>
               <h4 className="font-medium text-foreground mb-3 flex items-center gap-2 text-sm">
                 <Radio className="w-4 h-4 text-red-400" /> Live Session Pricing
               </h4>
               <div className="grid grid-cols-2 gap-4 mb-3">
                 <div className="space-y-2">
-                  <p className="text-[10px] font-semibold text-muted-foreground uppercase">ðŸ“· Photos</p>
+                  <p className="text-[10px] font-semibold text-muted-foreground uppercase">📷 Photos</p>
                   {[
                     { label: 'Web (800px)', field: 'live_price_web' },
                     { label: 'Standard (1920px)', field: 'live_price_standard' },
@@ -2105,7 +2105,7 @@ export const GalleryPage = () => {
                   ))}
                 </div>
                 <div className="space-y-2">
-                  <p className="text-[10px] font-semibold text-muted-foreground uppercase">ðŸŽ¬ Videos</p>
+                  <p className="text-[10px] font-semibold text-muted-foreground uppercase">🎬 Videos</p>
                   {[
                     { label: '720p HD', field: 'live_video_720p' },
                     { label: '1080p Full HD', field: 'live_video_1080p' },
@@ -2130,7 +2130,7 @@ export const GalleryPage = () => {
               </div>
             </div>
 
-            {/* â”€â”€â”€ ON-DEMAND â”€â”€â”€ */}
+            {/* ─── ON-DEMAND ─── */}
             <div className="p-4 rounded-lg border" style={{ background: 'rgba(16,185,129,0.05)', borderColor: 'rgba(16,185,129,0.2)' }}>
               <h4 className="font-medium text-foreground mb-3 flex items-center gap-2 text-sm">
                 <MapPin className="w-4 h-4 text-emerald-400" /> On-Demand Pricing
@@ -2141,7 +2141,7 @@ export const GalleryPage = () => {
               </div>
               <div className="grid grid-cols-2 gap-4 mb-3">
                 <div className="space-y-2">
-                  <p className="text-[10px] font-semibold text-muted-foreground uppercase">ðŸ“· Photos</p>
+                  <p className="text-[10px] font-semibold text-muted-foreground uppercase">📷 Photos</p>
                   {[
                     { label: 'Web (800px)', field: 'on_demand_price_web' },
                     { label: 'Standard (1920px)', field: 'on_demand_price_standard' },
@@ -2154,7 +2154,7 @@ export const GalleryPage = () => {
                   ))}
                 </div>
                 <div className="space-y-2">
-                  <p className="text-[10px] font-semibold text-muted-foreground uppercase">ðŸŽ¬ Videos</p>
+                  <p className="text-[10px] font-semibold text-muted-foreground uppercase">🎬 Videos</p>
                   {[
                     { label: '720p HD', field: 'on_demand_video_720p' },
                     { label: '1080p Full HD', field: 'on_demand_video_1080p' },
@@ -2179,7 +2179,7 @@ export const GalleryPage = () => {
               </div>
             </div>
 
-            {/* â”€â”€â”€ BOOKING â”€â”€â”€ */}
+            {/* ─── BOOKING ─── */}
             <div className="p-4 rounded-lg border" style={{ background: 'rgba(59,130,246,0.05)', borderColor: 'rgba(59,130,246,0.2)' }}>
               <h4 className="font-medium text-foreground mb-3 flex items-center gap-2 text-sm">
                 <Calendar className="w-4 h-4 text-blue-400" /> Booking Pricing
@@ -2190,7 +2190,7 @@ export const GalleryPage = () => {
               </div>
               <div className="grid grid-cols-2 gap-4 mb-3">
                 <div className="space-y-2">
-                  <p className="text-[10px] font-semibold text-muted-foreground uppercase">ðŸ“· Photos</p>
+                  <p className="text-[10px] font-semibold text-muted-foreground uppercase">📷 Photos</p>
                   {[
                     { label: 'Web (800px)', field: 'booking_price_web' },
                     { label: 'Standard (1920px)', field: 'booking_price_standard' },
@@ -2203,7 +2203,7 @@ export const GalleryPage = () => {
                   ))}
                 </div>
                 <div className="space-y-2">
-                  <p className="text-[10px] font-semibold text-muted-foreground uppercase">ðŸŽ¬ Videos</p>
+                  <p className="text-[10px] font-semibold text-muted-foreground uppercase">🎬 Videos</p>
                   {[
                     { label: '720p HD', field: 'booking_video_720p' },
                     { label: '1080p Full HD', field: 'booking_video_1080p' },
@@ -2277,7 +2277,7 @@ export const GalleryPage = () => {
       </Dialog>
 
 
-      {/* Add Photo to Gallery Modal â€” Upload New + Pick from Library */}
+      {/* Add Photo to Gallery Modal — Upload New + Pick from Library */}
       <Dialog open={showAddToGalleryModal} onOpenChange={setShowAddToGalleryModal}>
         <DialogContent className="bg-background border-border text-foreground max-w-lg max-h-[80vh] overflow-y-auto">
           <DialogHeader>
@@ -2287,8 +2287,8 @@ export const GalleryPage = () => {
             </DialogTitle>
           </DialogHeader>
           <div className="py-4 space-y-4">
-            {/* Upload New â€” Primary CTA */}
-            <button
+            {/* Upload New — Primary CTA */}
+            <button aria-label="Upload"
               onClick={() => {
                 setShowAddToGalleryModal(false);
                 setShowUploadModal(true);
@@ -2316,7 +2316,7 @@ export const GalleryPage = () => {
             {gallery.length === 0 ? (
               <div className="text-center py-6 bg-muted/50 rounded-lg">
                 <Camera className="w-10 h-10 text-muted-foreground/40 mx-auto mb-3" />
-                <p className="text-muted-foreground text-sm">Your library is empty â€” upload your first photo above!</p>
+                <p className="text-muted-foreground text-sm">Your library is empty — upload your first photo above!</p>
               </div>
             ) : (
               <div className="grid grid-cols-3 gap-2 max-h-[40vh] overflow-y-auto rounded-lg">
@@ -2370,7 +2370,7 @@ export const GalleryPage = () => {
             <Button variant="outline" onClick={() => setShowCreateFolderModal(false)} className="border-border">
               Cancel
             </Button>
-            <Button
+            <Button aria-label="Loader2"
               onClick={handleCreateFolder}
               disabled={folderActionLoading || !newFolderName.trim()}
               className="bg-cyan-500 hover:bg-cyan-600 text-black"
@@ -2404,7 +2404,7 @@ export const GalleryPage = () => {
             <Button variant="outline" onClick={() => setShowRenameFolderModal(false)} className="border-border">
               Cancel
             </Button>
-            <Button
+            <Button aria-label="Loader2"
               onClick={handleRenameFolder}
               disabled={folderActionLoading || !newFolderName.trim()}
               className="bg-yellow-500 hover:bg-yellow-600 text-black"
@@ -2443,7 +2443,7 @@ export const GalleryPage = () => {
             >
               Cancel
             </Button>
-            <Button
+            <Button aria-label="Loader2"
               onClick={confirmDeleteFolder}
               disabled={folderActionLoading}
               className="bg-red-500 hover:bg-red-600 text-white"
@@ -2469,7 +2469,7 @@ export const GalleryPage = () => {
               <div className="text-center py-8 bg-muted/50 rounded-lg">
                 <Folder className="w-10 h-10 text-muted-foreground/40 mx-auto mb-2" />
                 <p className="text-muted-foreground text-sm">No folders yet</p>
-                <Button
+                <Button aria-label="Add"
                   onClick={() => {
                     setShowMoveToFolderModal(false);
                     setShowCreateFolderModal(true);
@@ -2483,7 +2483,7 @@ export const GalleryPage = () => {
               </div>
             ) : (
               galleries.map((folder) => (
-                <button
+                <button aria-label="Folder"
                   key={folder.id}
                   onClick={() => handleMoveToFolder(folder.id)}
                   disabled={folderActionLoading}
@@ -2521,7 +2521,7 @@ export const GalleryPage = () => {
               <div className="text-center py-8 bg-muted/50 rounded-lg">
                 <Folder className="w-10 h-10 text-muted-foreground/40 mx-auto mb-2" />
                 <p className="text-muted-foreground text-sm">No folders yet</p>
-                <Button
+                <Button aria-label="Add"
                   onClick={() => {
                     setShowCopyToFolderModal(false);
                     setShowCreateFolderModal(true);
@@ -2535,7 +2535,7 @@ export const GalleryPage = () => {
               </div>
             ) : (
               galleries.map((folder) => (
-                <button
+                <button aria-label="Folder"
                   key={folder.id}
                   onClick={() => handleCopyToFolder(folder.id)}
                   disabled={folderActionLoading}
@@ -2564,7 +2564,7 @@ export const GalleryPage = () => {
           <DialogHeader>
             <DialogTitle className="text-foreground flex items-center gap-2">
               <Sparkles className="w-5 h-5 text-purple-400" />
-              Tag & Assign â€” {selectedGallery?.title || 'Gallery'}
+              Tag & Assign — {selectedGallery?.title || 'Gallery'}
             </DialogTitle>
             <p className="text-xs text-muted-foreground">
               {selectedItems.size > 0 
@@ -2574,14 +2574,14 @@ export const GalleryPage = () => {
           </DialogHeader>
           
           <div className="flex-1 overflow-y-auto space-y-4 pr-1">
-            {/* â”€â”€ Item Preview Strip â”€â”€ */}
+            {/* ── Item Preview Strip ── */}
             <div className="rounded-lg p-2.5" style={{ background: 'rgba(139,92,246,0.06)', border: '1px solid rgba(139,92,246,0.15)' }}>
               <div className="flex items-center gap-2 mb-2">
                 <span className="text-[11px] font-semibold text-purple-400">
-                  ðŸ“¦ {selectedItems.size > 0 ? `${selectedItems.size} Selected` : `All ${galleryItems.length} Items`}
+                  📦 {selectedItems.size > 0 ? `${selectedItems.size} Selected` : `All ${galleryItems.length} Items`}
                 </span>
                 <span className="text-[10px] text-muted-foreground">
-                  {galleryItems.filter(i => i.media_type !== 'video').length} ðŸ“· â€¢ {galleryItems.filter(i => i.media_type === 'video').length} ðŸŽ¬
+                  {galleryItems.filter(i => i.media_type !== 'video').length} 📷 • {galleryItems.filter(i => i.media_type === 'video').length} 🎬
                 </span>
               </div>
               <div className="flex gap-1.5 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
@@ -2608,7 +2608,7 @@ export const GalleryPage = () => {
               </div>
             </div>
 
-            {/* â”€â”€ Session Participants Section â”€â”€ */}
+            {/* ── Session Participants Section ── */}
             {participantsLoading ? (
               <div className="flex items-center justify-center py-8">
                 <Loader2 className="w-6 h-6 animate-spin text-purple-400" />
@@ -2622,7 +2622,7 @@ export const GalleryPage = () => {
                     Session Participants ({participants.length})
                   </h3>
                   {/* AI Auto-tag shortcut */}
-                  <Button size="sm" variant="ghost" className="text-xs text-cyan-400 hover:text-cyan-300 h-7 px-2"
+                  <Button aria-label="Sparkles" size="sm" variant="ghost" className="text-xs text-cyan-400 hover:text-cyan-300 h-7 px-2"
                     onClick={() => { setShowTagAssignModal(false); handleAiAutoTag(); }}
                     disabled={aiAutoTagLoading}>
                     <Sparkles className="w-3 h-3 mr-1" /> AI Match All
@@ -2676,23 +2676,23 @@ export const GalleryPage = () => {
                           </div>
                           {isFullyDistributed ? (
                             <p className="text-[11px] text-emerald-400 font-medium mt-0.5">
-                              âœ… All {p.items_distributed} items already delivered
+                              ✅ All {p.items_distributed} items already delivered
                             </p>
                           ) : (
                             <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                               {p.items_distributed > 0 && (
                                 <span className="text-[10px] px-1.5 py-0.5 rounded-full font-medium" style={{ background: 'rgba(59,130,246,0.15)', color: '#60a5fa' }}>
-                                  ðŸ“¤ {p.items_distributed} sent
+                                  📤 {p.items_distributed} sent
                                 </span>
                               )}
                               {creditsToUse > 0 && (
                                 <span className="text-[10px] px-1.5 py-0.5 rounded-full font-medium" style={{ background: 'rgba(16,185,129,0.15)', color: '#34d399' }}>
-                                  ðŸŽŸï¸ {creditsToUse} included
+                                  🎟️ {creditsToUse} included
                                 </span>
                               )}
                               {previewCount > 0 && (
                                 <span className="text-[10px] px-1.5 py-0.5 rounded-full font-medium" style={{ background: 'rgba(245,158,11,0.15)', color: '#fbbf24' }}>
-                                  ðŸ”’ {previewCount} preview
+                                  🔒 {previewCount} preview
                                 </span>
                               )}
                             </div>
@@ -2702,10 +2702,10 @@ export const GalleryPage = () => {
                         {/* Action */}
                         {isFullyDistributed ? (
                           <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30 text-[10px] flex-shrink-0">
-                            âœ“ Done
+                            ✓ Done
                           </Badge>
                         ) : (
-                          <Button size="sm"
+                          <Button aria-label="Loader2" size="sm"
                             className="bg-purple-500 hover:bg-purple-600 text-white text-xs h-9 px-3 flex-shrink-0 shadow-sm"
                             onClick={() => handleBatchTagToSurfer(p.surfer_id, p.full_name || p.username)}
                             disabled={isLoading || galleryItems.length === 0}>
@@ -2726,7 +2726,7 @@ export const GalleryPage = () => {
                 
                 {/* Distribute All shortcut */}
                 {participants.length > 1 && participants.some(p => p.items_distributed < galleryItems.length) && (
-                  <Button size="sm" variant="outline"
+                  <Button aria-label="Loader2" size="sm" variant="outline"
                     className="w-full border-emerald-600 text-emerald-400 hover:bg-emerald-500/10 text-xs h-9 mt-1"
                     onClick={handleDistributeAll}
                     disabled={distributeAllLoading || galleryItems.length === 0}>
@@ -2735,7 +2735,7 @@ export const GalleryPage = () => {
                     ) : (
                       <Send className="w-3 h-3 mr-1" />
                     )}
-                    Tag All Items â†’ All {participants.length} Participants
+                    Tag All Items → All {participants.length} Participants
                   </Button>
                 )}
               </div>
@@ -2794,7 +2794,7 @@ export const GalleryPage = () => {
                           <p className="text-sm font-medium text-foreground truncate">{surfer.full_name || surfer.username}</p>
                           {surfer.username && <p className="text-[10px] text-muted-foreground">@{surfer.username}</p>}
                         </div>
-                        <Button size="sm"
+                        <Button aria-label="Loader2" size="sm"
                           className="bg-amber-500 hover:bg-amber-600 text-black text-xs h-8 flex-shrink-0"
                           onClick={() => handleBatchTagToSurfer(surfer.id, surfer.full_name || surfer.username)}
                           disabled={isLoading}>
@@ -2893,7 +2893,7 @@ export const GalleryPage = () => {
           </div>
           <DialogFooter className="gap-2">
             {thumbnailPickerGallery?.cover_image_url && (
-              <Button
+              <Button aria-label="Undo"
                 variant="outline"
                 size="sm"
                 onClick={() => handleClearThumbnail(thumbnailPickerGallery.id)}
@@ -2943,7 +2943,7 @@ export const GalleryPage = () => {
                 </div>
               ) : (
               recentSessions.filter(s => s.is_available).map((session) => (
-                <button
+                <button aria-label="div"
                   key={`${session.session_type}-${session.id}`}
                   onClick={() => handleLinkSession(session)}
                   disabled={linkingSession}
@@ -2991,9 +2991,9 @@ export const GalleryPage = () => {
                           ? 'bg-blue-500/20 text-blue-400 border-blue-500/30'
                           : 'bg-orange-500/20 text-orange-400 border-orange-500/30'
                       }`}>
-                        {session.session_type === 'live' ? 'ðŸŸ¢ Live' :
-                         session.session_type === 'booking' ? 'ðŸ“… Booking' :
-                         'âš¡ On-Demand'}
+                        {session.session_type === 'live' ? '🟢 Live' :
+                         session.session_type === 'booking' ? '📅 Booking' :
+                         '⚡ On-Demand'}
                       </Badge>
                       <Badge className={`text-[8px] px-1 py-0 ${
                         session.status === 'active' || session.status === 'shooting'

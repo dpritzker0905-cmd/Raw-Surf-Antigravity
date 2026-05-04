@@ -17,7 +17,7 @@ export const PermissionNudgeDrawer = ({
   const isBooking = action === 'booking';
   
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog data-testid="permission-nudge-drawer" open={isOpen} onOpenChange={onClose}>
       <DialogContent className="bg-zinc-900 border-zinc-700 text-white w-[95vw] max-w-md max-h-[85vh] overflow-hidden flex flex-col p-0 z-[1100]">
         <DialogTitle className="sr-only">Dialog</DialogTitle>
         {/* Header with close button */}
@@ -110,7 +110,7 @@ export const PermissionNudgeDrawer = ({
             >
               Cancel
             </Button>
-            <Button
+            <Button aria-label="Navigation"
               onClick={() => {
                 onRetryLocation?.();
                 onClose();

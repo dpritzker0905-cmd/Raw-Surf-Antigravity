@@ -131,7 +131,7 @@ export const AdminPrecisionQueue = () => {
           </h3>
           <p className="text-muted-foreground text-sm">Spots requiring coordinate verification</p>
         </div>
-        <Button variant="outline" onClick={fetchQueue} className="border-input">
+        <Button aria-label="Refresh" variant="outline" onClick={fetchQueue} className="border-input">
           <RefreshCw className="w-4 h-4 mr-2" />
           Refresh
         </Button>
@@ -182,7 +182,7 @@ export const AdminPrecisionQueue = () => {
                   </div>
                   <div>
                     <h4 className="text-foreground font-medium">{spot.name}</h4>
-                    <p className="text-muted-foreground text-sm">{spot.region} â€¢ {spot.country}</p>
+                    <p className="text-muted-foreground text-sm">{spot.region} • {spot.country}</p>
                     <p className="text-gray-500 text-xs">
                       ({spot.latitude.toFixed(4)}, {spot.longitude.toFixed(4)})
                     </p>
@@ -198,7 +198,7 @@ export const AdminPrecisionQueue = () => {
                     {spot.accuracy_flag || 'Flagged'}
                   </Badge>
                   
-                  <Button
+                  <Button aria-label="Loader2"
                     variant="outline"
                     size="sm"
                     onClick={() => handleSnapOffshore(spot)}
@@ -215,7 +215,7 @@ export const AdminPrecisionQueue = () => {
                     )}
                   </Button>
                   
-                  <Button
+                  <Button aria-label="External Link"
                     variant="outline"
                     size="sm"
                     onClick={() => openInEditor(spot)}
@@ -275,7 +275,7 @@ export const AdminPrecisionQueue = () => {
                   </div>
                   
                   <div className="flex flex-col gap-2">
-                    <Button
+                    <Button aria-label="Loader2"
                       size="sm"
                       onClick={() => handleApplySuggestion(suggestion)}
                       disabled={processing === suggestion.id}

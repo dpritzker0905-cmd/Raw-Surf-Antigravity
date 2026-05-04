@@ -188,7 +188,7 @@ export const PhotographerGalleryManager = () => {
         {}
       );
       const data = response.data;
-      toast.success(`📡 ${data.message}`);
+      toast.success(`?? ${data.message}`);
       await fetchConditionsStatus();
     } catch (error) {
       toast.error(error.response?.data?.detail || 'Failed to push conditions report');
@@ -619,7 +619,7 @@ export const PhotographerGalleryManager = () => {
       <div className="max-w-4xl mx-auto p-4">
         {/* Header */}
         <div className="flex items-center gap-4 mb-6">
-          <Button
+          <Button aria-label="Go back"
             variant="ghost"
             onClick={() => navigate('/photographer/sessions')}
             className={textSecondaryClass}
@@ -639,13 +639,13 @@ export const PhotographerGalleryManager = () => {
                   gallery.session_type === 'on_demand' ? 'border-orange-500/50 text-orange-400 text-[10px]' :
                   'border-zinc-500/50 text-zinc-400 text-[10px]'
                 }>
-                  {gallery.session_type === 'live' ? '🟢 Live Session' : 
-                   gallery.session_type === 'booking' ? '📅 Booking' : 
-                   gallery.session_type === 'on_demand' ? '⚡ On-Demand' : gallery.session_type}
+                  {gallery.session_type === 'live' ? '?? Live Session' : 
+                   gallery.session_type === 'booking' ? '?? Booking' : 
+                   gallery.session_type === 'on_demand' ? '? On-Demand' : gallery.session_type}
                 </Badge>
               )}
               {gallery.session_type === 'manual' && (
-                <Badge variant="outline" className="border-zinc-600 text-zinc-500 text-[10px]">📋 Manual</Badge>
+                <Badge variant="outline" className="border-zinc-600 text-zinc-500 text-[10px]">?? Manual</Badge>
               )}
               {gallery.surf_spot_name && (
                 <span className={`text-sm ${textSecondaryClass} flex items-center gap-1`}>
@@ -660,7 +660,7 @@ export const PhotographerGalleryManager = () => {
             </div>
           </div>
           <div className="flex gap-2">
-            <Button
+            <Button aria-label="Settings"
               variant="outline"
               onClick={() => setShowEditModal(true)}
               className={borderClass}
@@ -676,7 +676,7 @@ export const PhotographerGalleryManager = () => {
                   const willPublish = !gallery?.is_public;
                   await apiClient.post(`/gallery/${galleryId}/publish?photographer_id=${user?.profile_id}`, { is_published: willPublish });
                   setGallery(prev => ({ ...prev, is_public: willPublish, is_featured: willPublish }));
-                  toast.success(willPublish ? '🌐 Gallery published to your Sessions tab!' : 'Gallery unpublished');
+                  toast.success(willPublish ? '?? Gallery published to your Sessions tab!' : 'Gallery unpublished');
                 } catch (err) {
                   toast.error('Failed to publish gallery');
                 } finally {
@@ -694,10 +694,10 @@ export const PhotographerGalleryManager = () => {
               ) : (
                 <Globe className="w-4 h-4 mr-2" />
               )}
-              {gallery?.is_public ? '✓ Published' : 'Publish Gallery'}
+              {gallery?.is_public ? '? Published' : 'Publish Gallery'}
             </Button>
             {showPricing && (
-              <Button
+              <Button aria-label="Dollar Sign"
                 onClick={() => setShowPricingModal(true)}
                 className="bg-gradient-to-r from-green-400 to-emerald-500 text-black"
               >
@@ -705,7 +705,7 @@ export const PhotographerGalleryManager = () => {
                 Set Pricing
               </Button>
             )}
-            {/* Push to Spot Hub — requires linked surf spot AND live session */}
+            {/* Push to Spot Hub � requires linked surf spot AND live session */}
             {gallery?.surf_spot_id && (
               <Button
                 variant="outline"
@@ -807,7 +807,7 @@ export const PhotographerGalleryManager = () => {
                       <RefreshCw className={`w-3.5 h-3.5 ${loadingParticipants ? 'animate-spin' : ''}`} />
                     </Button>
                     {sessionParticipants.length > 0 && totalGalleryItems > 0 && (
-                      <Button
+                      <Button aria-label="Loader2"
                         size="sm"
                         onClick={handleDistributeAll}
                         disabled={distributing === 'all'}
@@ -832,7 +832,7 @@ export const PhotographerGalleryManager = () => {
                     <span className={`font-medium ${textPrimaryClass}`}>No Session Linked</span>
                     <span className={`text-xs ${textSecondaryClass}`}>Distribution unavailable</span>
                   </div>
-                  <Button
+                  <Button aria-label="Link2"
                     size="sm"
                     onClick={() => { setShowLinkSessionModal(true); fetchRecentSessions(); }}
                     className="bg-gradient-to-r from-amber-400 to-orange-500 text-black h-7 px-3 text-xs font-medium"
@@ -912,7 +912,7 @@ export const PhotographerGalleryManager = () => {
 
                         {/* Action Button */}
                         {!isFullyDistributed ? (
-                          <Button
+                          <Button aria-label="Loader2"
                             size="sm"
                             variant="ghost"
                             onClick={() => handleDistributeToSurfer(participant.surfer_id, participant.full_name)}
@@ -930,7 +930,7 @@ export const PhotographerGalleryManager = () => {
                           </Button>
                         ) : (
                           <Badge variant="outline" className="border-emerald-500/50 text-emerald-400 text-[10px] h-7">
-                            ✓ Delivered
+                            ? Delivered
                           </Badge>
                         )}
                       </div>
@@ -961,15 +961,15 @@ export const PhotographerGalleryManager = () => {
                     gallery.session_settings.session_type === 'on_demand' ? 'border-amber-500/50 text-amber-400' :
                     'border-zinc-500/50 text-zinc-400'
                   }>
-                    {gallery.session_settings.session_type === 'live' ? '🟢 Live Session' :
-                     gallery.session_settings.session_type === 'booking' ? '📅 Booking' :
-                     gallery.session_settings.session_type === 'on_demand' ? '⚡ On-Demand' : '📁 Manual'}
+                    {gallery.session_settings.session_type === 'live' ? '?? Live Session' :
+                     gallery.session_settings.session_type === 'booking' ? '?? Booking' :
+                     gallery.session_settings.session_type === 'on_demand' ? '? On-Demand' : '?? Manual'}
                   </Badge>
                 )}
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
-              {/* This Session's Included Content — editable */}
+              {/* This Session's Included Content � editable */}
               {gallery?.session_settings && (
                 <div className="rounded-xl p-4" style={{
                   background: 'linear-gradient(135deg, rgba(6,182,212,0.08), rgba(59,130,246,0.06))',
@@ -977,7 +977,7 @@ export const PhotographerGalleryManager = () => {
                 }}>
                   <div className="flex items-center justify-between mb-3">
                     <h4 className={`text-xs font-bold uppercase tracking-wider ${textSecondaryClass}`}>
-                      This Session — Included Content
+                      This Session � Included Content
                     </h4>
                     <span className="text-[10px] text-cyan-400/70">
                       {gallery.session_settings.buyin_price > 0 ? `$${gallery.session_settings.buyin_price} buy-in` : 'Free'}
@@ -1003,7 +1003,7 @@ export const PhotographerGalleryManager = () => {
                           }}
                           className="w-7 h-7 rounded-md flex items-center justify-center text-sm font-bold text-white hover:bg-white/10 transition-colors"
                           style={{ border: '1px solid rgba(255,255,255,0.15)' }}
-                        >−</button>
+                        >-</button>
                         <span className="text-xl font-bold text-cyan-400 w-8 text-center">{gallery.session_settings?.photos_included ?? 3}</span>
                         <button
                           onClick={async () => {
@@ -1039,7 +1039,7 @@ export const PhotographerGalleryManager = () => {
                           }}
                           className="w-7 h-7 rounded-md flex items-center justify-center text-sm font-bold text-white hover:bg-white/10 transition-colors"
                           style={{ border: '1px solid rgba(255,255,255,0.15)' }}
-                        >−</button>
+                        >-</button>
                         <span className="text-xl font-bold text-purple-400 w-8 text-center">{gallery.session_settings?.videos_included ?? 0}</span>
                         <button
                           onClick={async () => {
@@ -1069,7 +1069,7 @@ export const PhotographerGalleryManager = () => {
                   {/* Live Session Pricing */}
                   <PricingTierRow
                     label="Live Session"
-                    emoji="🟢"
+                    emoji="??"
                     color="emerald"
                     photosIncluded={gallery.photographer_pricing.live_session?.photos_included}
                     videosIncluded={gallery.photographer_pricing.live_session?.videos_included}
@@ -1083,7 +1083,7 @@ export const PhotographerGalleryManager = () => {
                   {/* Booking Pricing */}
                   <PricingTierRow
                     label="Booking"
-                    emoji="📅"
+                    emoji="??"
                     color="blue"
                     photosIncluded={gallery.photographer_pricing.booking?.photos_included}
                     videosIncluded={gallery.photographer_pricing.booking?.videos_included}
@@ -1098,7 +1098,7 @@ export const PhotographerGalleryManager = () => {
                   {/* On-Demand Pricing */}
                   <PricingTierRow
                     label="On-Demand"
-                    emoji="⚡"
+                    emoji="?"
                     color="amber"
                     photosIncluded={gallery.photographer_pricing.on_demand?.photos_included}
                     videosIncluded={gallery.photographer_pricing.on_demand?.videos_included}
@@ -1191,9 +1191,9 @@ export const PhotographerGalleryManager = () => {
               <SelectItem value="videos">Videos Only</SelectItem>
               <SelectItem value="tagged">Tagged</SelectItem>
               <SelectItem value="untagged">Untagged</SelectItem>
-              <SelectItem value="distributed">✅ Distributed</SelectItem>
-              <SelectItem value="undistributed">⬜ Undistributed</SelectItem>
-              <SelectItem value="ai_pending">🤖 AI Pending</SelectItem>
+              <SelectItem value="distributed">? Distributed</SelectItem>
+              <SelectItem value="undistributed">? Undistributed</SelectItem>
+              <SelectItem value="ai_pending">?? AI Pending</SelectItem>
             </SelectContent>
           </Select>
           
@@ -1210,7 +1210,7 @@ export const PhotographerGalleryManager = () => {
           </Select>
           
           {/* Bulk Mode Toggle */}
-          <Button
+          <Button aria-label="Confirm"
             variant={bulkMode ? "default" : "outline"}
             size="sm"
             onClick={() => { setBulkMode(!bulkMode); setSelectedItems(new Set()); }}
@@ -1229,7 +1229,7 @@ export const PhotographerGalleryManager = () => {
               {selectedItems.size === filteredItems.length ? 'Deselect All' : 'Select All'}
             </Button>
             <div className="flex-1" />
-            <Button size="sm" variant="destructive" onClick={handleBulkDelete}>
+            <Button aria-label="Delete" size="sm" variant="destructive" onClick={handleBulkDelete}>
               <Trash2 className="w-4 h-4 mr-1" /> Delete Selected
             </Button>
           </div>
@@ -1242,7 +1242,7 @@ export const PhotographerGalleryManager = () => {
               <div className="aspect-square relative">
                 {/* Bulk selection checkbox */}
                 {bulkMode && (
-                  <button
+                  <button aria-label="Confirm"
                     onClick={() => handleToggleSelect(item.id)}
                     className={`absolute top-2 left-2 z-10 w-6 h-6 rounded border-2 flex items-center justify-center transition-all ${
                       selectedItems.has(item.id) 
@@ -1322,7 +1322,7 @@ export const PhotographerGalleryManager = () => {
                 {/* Hover overlay with actions */}
                 {!bulkMode && (
                   <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                    <Button
+                    <Button aria-label="View"
                       size="sm"
                       onClick={() => setLightboxItem(item)}
                       variant="outline"
@@ -1330,7 +1330,7 @@ export const PhotographerGalleryManager = () => {
                     >
                       <Eye className="w-4 h-4 mr-1" /> View
                     </Button>
-                    <Button
+                    <Button aria-label="Sparkles"
                       size="sm"
                       onClick={() => handleOpenTagging(item)}
                       className="bg-gradient-to-r from-purple-400 to-pink-500 text-black"
@@ -1543,7 +1543,7 @@ export const PhotographerGalleryManager = () => {
             </div>
             
             <div className="pt-4 border-t border-zinc-700">
-              <Button
+              <Button aria-label="Delete"
                 variant="destructive"
                 onClick={handleDeleteGallery}
                 className="w-full"
@@ -1583,13 +1583,13 @@ export const PhotographerGalleryManager = () => {
               </div>
             )}
 
-            {/* ─── AI Analysis Section ─── */}
+            {/* --- AI Analysis Section --- */}
             <div className={`rounded-xl p-4 ${isLight ? 'bg-purple-50 border border-purple-200' : 'bg-purple-500/10 border border-purple-500/20'}`}>
               <div className="flex items-center gap-2 mb-3">
                 <Sparkles className="w-4 h-4 text-purple-400" />
                 <h4 className={`font-semibold text-sm ${textPrimaryClass}`}>AI Recognition</h4>
                 {!analyzingPhoto && aiTagSuggestions.length === 0 && (
-                  <Button
+                  <Button aria-label="Sparkles"
                     size="sm"
                     onClick={handleAnalyzePhoto}
                     disabled={selectedItem?.media_type === 'video'}
@@ -1662,7 +1662,7 @@ export const PhotographerGalleryManager = () => {
               )}
             </div>
 
-            {/* ─── Manual Assignment Section (Session Participants) ─── */}
+            {/* --- Manual Assignment Section (Session Participants) --- */}
             <div className={`rounded-xl p-4 ${isLight ? 'bg-cyan-50 border border-cyan-200' : 'bg-cyan-500/10 border border-cyan-500/20'}`}>
               <div className="flex items-center gap-2 mb-3">
                 <Users className="w-4 h-4 text-cyan-400" />
@@ -1695,12 +1695,12 @@ export const PhotographerGalleryManager = () => {
                           <div className="flex items-center gap-1.5">
                             <p className={`text-sm font-medium ${textPrimaryClass}`}>{participant.full_name}</p>
                             {isAiMatch && (
-                              <Badge className="bg-purple-500/20 text-purple-400 text-[8px] px-1 py-0">AI ✓</Badge>
+                              <Badge className="bg-purple-500/20 text-purple-400 text-[8px] px-1 py-0">AI ?</Badge>
                             )}
                           </div>
                           <p className={`text-[10px] ${textSecondaryClass}`}>
                             {participant.items_distributed || 0} items in locker
-                            {participant.status && ` • ${participant.status}`}
+                            {participant.status && ` � ${participant.status}`}
                           </p>
                         </div>
                         <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors flex-shrink-0 ${
@@ -1786,7 +1786,7 @@ export const PhotographerGalleryManager = () => {
           
           {/* Navigation arrows */}
           {filteredItems.findIndex(i => i.id === lightboxItem.id) > 0 && (
-            <button
+            <button aria-label="Go back"
               className="absolute left-4 text-white/70 hover:text-white p-2"
               onClick={(e) => {
                 e.stopPropagation();
@@ -1798,7 +1798,7 @@ export const PhotographerGalleryManager = () => {
             </button>
           )}
           {filteredItems.findIndex(i => i.id === lightboxItem.id) < filteredItems.length - 1 && (
-            <button
+            <button aria-label="Go back"
               className="absolute right-4 text-white/70 hover:text-white p-2"
               onClick={(e) => {
                 e.stopPropagation();
@@ -1826,7 +1826,7 @@ export const PhotographerGalleryManager = () => {
                 <p className="text-white/60 text-sm">{new Date(lightboxItem.created_at).toLocaleDateString()}</p>
               </div>
               <div className="flex gap-2">
-                <Button
+                <Button aria-label="Sparkles"
                   size="sm"
                   variant="ghost"
                   className="text-white"
@@ -1836,7 +1836,7 @@ export const PhotographerGalleryManager = () => {
                 </Button>
               </div>
             </div>
-            <p className="text-center text-white/40 text-xs mt-2">← → Navigate • Esc Close</p>
+            <p className="text-center text-white/40 text-xs mt-2">? ? Navigate � Esc Close</p>
           </div>
         </div>
       )}
@@ -2056,9 +2056,9 @@ export const PhotographerGalleryManager = () => {
                             session.session_type === 'booking' ? 'border-blue-500/50 text-blue-400' :
                             'border-orange-500/50 text-orange-400'
                           }`}>
-                            {session.session_type === 'live' ? '🟢 Live' :
-                             session.session_type === 'booking' ? '📅 Booking' :
-                             '⚡ On-Demand'}
+                            {session.session_type === 'live' ? '?? Live' :
+                             session.session_type === 'booking' ? '?? Booking' :
+                             '? On-Demand'}
                           </Badge>
                         )}
                       </div>
@@ -2095,7 +2095,7 @@ export const PhotographerGalleryManager = () => {
         </DialogContent>
       </Dialog>
 
-      {/* ============ ASSIGN DRAWER (Individual Item → Surfer) ============ */}
+      {/* ============ ASSIGN DRAWER (Individual Item ? Surfer) ============ */}
       <Dialog open={showAssignDrawer} onOpenChange={setShowAssignDrawer}>
         <DialogContent className={`${isLight ? 'bg-white' : 'bg-zinc-900'} border ${borderClass} max-w-md`}>
           <DialogHeader>
@@ -2161,7 +2161,7 @@ export const PhotographerGalleryManager = () => {
   );
 };
 
-// ── Pricing Tier Row (for per-service pricing display) ──
+// -- Pricing Tier Row (for per-service pricing display) --
 const PricingTierRow = ({
   label, emoji, color, photosIncluded, videosIncluded,
   buyinPrice, buyinLabel, photo, video,
@@ -2194,18 +2194,18 @@ const PricingTierRow = ({
           {buyinPrice > 0 && (
             <span className={textSecondaryClass}>${buyinPrice}{buyinLabel || ' buy-in'}</span>
           )}
-          <span style={{ color: '#06b6d4' }}>📷 {photosIncluded || 0} incl</span>
-          <span style={{ color: '#8b5cf6' }}>🎬 {videosIncluded || 0} incl</span>
+          <span style={{ color: '#06b6d4' }}>?? {photosIncluded || 0} incl</span>
+          <span style={{ color: '#8b5cf6' }}>?? {videosIncluded || 0} incl</span>
         </div>
       </div>
       <div className="flex flex-wrap gap-x-4 gap-y-1 text-[10px]">
         <span className={textSecondaryClass}>
           <span className="text-cyan-400/60">Photo:</span>{' '}
-          Web ${photo?.web || '—'} · HD ${photo?.standard || '—'} · 4K ${photo?.high || '—'}
+          Web ${photo?.web || '�'} � HD ${photo?.standard || '�'} � 4K ${photo?.high || '�'}
         </span>
         <span className={textSecondaryClass}>
           <span className="text-purple-400/60">Video:</span>{' '}
-          720p ${video?.['720p'] || '—'} · 1080p ${video?.['1080p'] || '—'} · 4K ${video?.['4k'] || '—'}
+          720p ${video?.['720p'] || '�'} � 1080p ${video?.['1080p'] || '�'} � 4K ${video?.['4k'] || '�'}
         </span>
       </div>
     </div>

@@ -740,7 +740,7 @@ export const PhotographerBookingsManager = () => {
             Bookings Manager
           </h1>
           <div className="flex items-center gap-2">
-            <Button
+            <Button aria-label="Calendar Icon"
               variant="outline"
               onClick={() => setShowAvailabilityModal(true)}
               className={`${isLight ? 'border-gray-300' : 'border-zinc-700'}`}
@@ -749,7 +749,7 @@ export const PhotographerBookingsManager = () => {
               <CalendarIcon className="w-4 h-4 mr-2" />
               Set Availability
             </Button>
-            <Button
+            <Button aria-label="Add"
               onClick={() => setShowCreateModal(true)}
               className="bg-gradient-to-r from-cyan-400 to-blue-500 hover:from-cyan-500 hover:to-blue-600 text-black font-medium"
               data-testid="create-session-btn"
@@ -803,7 +803,7 @@ export const PhotographerBookingsManager = () => {
           <CardHeader>
             <div className="flex items-center justify-between">
               <CardTitle className={`text-lg ${textPrimaryClass}`}>Booking Rates</CardTitle>
-              <Button 
+              <Button aria-label="Settings" 
                 variant="outline" 
                 size="sm"
                 onClick={() => setShowPricingModal(true)}
@@ -858,7 +858,7 @@ export const PhotographerBookingsManager = () => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
             return (
-              <button
+              <button aria-label="Icon"
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
                 className={`flex items-center gap-2 px-4 py-3 text-sm font-medium whitespace-nowrap transition-colors relative ${
@@ -985,7 +985,7 @@ export const PhotographerBookingsManager = () => {
                         <span className={`text-sm ${textSecondaryClass}`}>Invite Code:</span>
                         <span className={`font-mono font-bold ${textPrimaryClass}`}>{booking.invite_code}</span>
                       </div>
-                      <Button
+                      <Button aria-label="Copy"
                         variant="ghost"
                         size="sm"
                         onClick={() => copyInviteCode(booking.invite_code)}
@@ -999,7 +999,7 @@ export const PhotographerBookingsManager = () => {
                   {/* Action Buttons for Pending */}
                   {booking.status === 'Pending' && (
                     <div className="flex gap-2">
-                      <Button
+                      <Button aria-label="Confirm"
                         onClick={() => handleUpdateStatus(booking.id, 'Confirmed')}
                         className="flex-1 bg-green-500 hover:bg-green-600 text-white"
                         size="sm"
@@ -1007,7 +1007,7 @@ export const PhotographerBookingsManager = () => {
                         <Check className="w-4 h-4 mr-1" />
                         Confirm
                       </Button>
-                      <Button
+                      <Button aria-label="Settings"
                         onClick={() => openEditModal(booking)}
                         variant="outline"
                         className={`border-zinc-600 ${textSecondaryClass}`}
@@ -1030,7 +1030,7 @@ export const PhotographerBookingsManager = () => {
                   {booking.status === 'Confirmed' && (
                     <div className="flex gap-2">
                       {/* Manage Session - Opens new PhotographerSessionManager */}
-                      <Button
+                      <Button aria-label="Unlock"
                         className="flex-1 bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white"
                         size="sm"
                         onClick={() => {
@@ -1042,7 +1042,7 @@ export const PhotographerBookingsManager = () => {
                         {booking.lineup_status === 'open' ? <Unlock className="w-4 h-4 mr-1" /> : <Lock className="w-4 h-4 mr-1" />}
                         Manage Session
                       </Button>
-                      <Button
+                      <Button aria-label="Users"
                         variant="outline"
                         className={`${isLight ? 'border-gray-300' : 'border-zinc-700'}`}
                         size="sm"
@@ -1051,7 +1051,7 @@ export const PhotographerBookingsManager = () => {
                         <Users className="w-4 h-4 mr-1" />
                         ({booking.current_participants})
                       </Button>
-                      <Button
+                      <Button aria-label="Settings"
                         variant="outline"
                         className={`border-zinc-600 ${textSecondaryClass}`}
                         size="sm"
@@ -1080,7 +1080,7 @@ export const PhotographerBookingsManager = () => {
           <DialogHeader className="shrink-0 border-b border-inherit px-4 sm:px-6 pt-4 pb-3">
             <div className="flex items-center gap-2">
               {calendarStep === 2 && (
-                <button 
+                <button aria-label="Previous" 
                   onClick={() => setCalendarStep(1)}
                   className={`p-1 rounded-lg ${isLight ? 'hover:bg-gray-100' : 'hover:bg-zinc-800'}`}
                 >
@@ -1289,7 +1289,7 @@ export const PhotographerBookingsManager = () => {
                         className={`flex-1 ${inputBgClass} ${textPrimaryClass}`}
                         onKeyDown={(e) => e.key === 'Enter' && handleAddCrewMember()}
                       />
-                      <Button
+                      <Button aria-label="Add"
                         type="button"
                         onClick={handleAddCrewMember}
                         size="sm"
@@ -1554,7 +1554,7 @@ export const PhotographerBookingsManager = () => {
                 Crew Split Pricing
               </h4>
               <p className={`text-xs ${textSecondaryClass} mb-4`}>
-                Formula: Base Session Price + (Per Surfer � Additional Crew)
+                Formula: Base Session Price + (Per Surfer ? Additional Crew)
               </p>
               <NumericStepper
                 label="Price Per Additional Surfer"
@@ -1898,7 +1898,7 @@ export const PhotographerBookingsManager = () => {
                   readOnly
                   className={`flex-1 text-sm ${inputBgClass} ${textPrimaryClass}`}
                 />
-                <Button
+                <Button aria-label="Copy"
                   onClick={copySplitLink}
                   className="bg-cyan-400 hover:bg-cyan-500 text-black"
                   size="sm"
@@ -1922,7 +1922,7 @@ export const PhotographerBookingsManager = () => {
                   className={`flex-1 ${inputBgClass} ${textPrimaryClass}`}
                   onKeyDown={(e) => e.key === 'Enter' && handleAddCrewMember()}
                 />
-                <Button
+                <Button aria-label="Send"
                   onClick={handleAddCrewMember}
                   className="bg-purple-500 hover:bg-purple-600 text-white"
                   size="sm"

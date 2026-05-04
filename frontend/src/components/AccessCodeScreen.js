@@ -149,7 +149,7 @@ export const AccessCodeScreen = ({ children }) => {
               )}
             </div>
 
-            <Button
+            <Button aria-label="Loader2"
               type="submit"
               disabled={verifying || !code.trim()}
               className="w-full bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white font-semibold py-3"

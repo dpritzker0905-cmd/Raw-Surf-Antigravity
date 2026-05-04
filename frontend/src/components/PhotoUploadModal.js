@@ -267,7 +267,7 @@ export const PhotoUploadModal = ({
                   or click to browse
                 </p>
                 <p className={`text-xs ${textSecondaryClass} mt-2`}>
-                  Photos: JPG, PNG, HEIC (20MB) � Videos: MP4, MOV, WebM (100MB)
+                  Photos: JPG, PNG, HEIC (20MB) ? Videos: MP4, MOV, WebM (100MB)
                 </p>
                 <input aria-label="Upload file"
                   ref={fileInputRef}
@@ -547,7 +547,7 @@ export const PhotoUploadModal = ({
           )}
           
           {step === 'confirm' && (
-            <Button
+            <Button aria-label="Loader2"
               onClick={handleUpload}
               disabled={uploading || selectedFiles.length === 0}
               className="bg-gradient-to-r from-cyan-400 to-blue-500 text-black font-medium"

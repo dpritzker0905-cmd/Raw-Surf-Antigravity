@@ -37,7 +37,7 @@ export const FindBuddiesTab = ({
               All Levels
             </Button>
             {['Beginner', 'Intermediate', 'Advanced', 'Expert'].map((level) => (
-              <Button
+              <Button aria-label="Award"
                 key={level}
                 variant={selectedSkillFilter === level ? 'default' : 'outline'}
                 size="sm"
@@ -148,7 +148,7 @@ export const FindBuddiesTab = ({
                     Split {booking.max_participants} ways
                   </p>
                 </div>
-                <Button
+                <Button aria-label="User Plus"
                   onClick={() => onJoinNearbyBooking(booking.id)}
                   className="bg-gradient-to-r from-emerald-400 to-green-500 text-black"
                 >

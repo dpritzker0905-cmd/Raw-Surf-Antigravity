@@ -59,7 +59,7 @@ import BrowseMode from './explore/BrowseMode';
 import NearbyMode from './explore/NearbyMode';
 import HashtagsTab from './explore/HashtagsTab';
 
-// PostMediaPreview extracted → ./explore/PostMediaPreview.js
+// PostMediaPreview extracted ? ./explore/PostMediaPreview.js
 
 // Role badge component for user results
 const UserRoleBadge = ({ role }) => {
@@ -235,8 +235,8 @@ export const Explore = () => {
       }
       tag.setAttribute('content', content);
     };
-    document.title = 'Explore — Raw Surf';
-    setMeta('og:title', 'Explore — Raw Surf');
+    document.title = 'Explore � Raw Surf';
+    setMeta('og:title', 'Explore � Raw Surf');
     setMeta('og:description', 'Discover surf spots, live photographers, trending posts, and real-time conditions on Raw Surf.');
     setMeta('og:url', `${window.location.origin}/explore`);
     setMeta('og:type', 'website');
@@ -681,7 +681,7 @@ export const Explore = () => {
           };
           setUserLocation(newLocation);
           fetchConditionReports('All', newLocation, conditionsSubTab, null, { country: '', state: '', city: '' });
-          toast.success('📍 Showing nearby reports first');
+          toast.success('?? Showing nearby reports first');
         },
         (error) => {
           logger.error('Geolocation error:', error);
@@ -980,44 +980,44 @@ export const Explore = () => {
   // Country flag emoji helper
   const getCountryFlag = (countryName) => {
     const flags = {
-      'USA': '🇺🇸', 'United States': '🇺🇸', 'Australia': '🇦🇺', 'Indonesia': '🇮🇩',
-      'Brazil': '🇧🇷', 'Portugal': '🇵🇹', 'South Africa': '🇿🇦', 'France': '🇫🇷',
-      'Spain': '🇪🇸', 'Mexico': '🇲🇽', 'Costa Rica': '🇨🇷', 'Japan': '🇯🇵',
-      'New Zealand': '🇳🇿', 'Peru': '🇵🇪', 'Morocco': '🇲🇦', 'United Kingdom': '🇬🇧',
-      'UK': '🇬🇧', 'Canada': '🇨🇦', 'Chile': '🇨🇱', 'Hawaii': '🏝️',
-      'Fiji': '🇫🇯', 'French Polynesia': '🇵🇫', 'Tahiti': '🇵🇫', 'Maldives': '🇲🇻',
-      'Philippines': '🇵🇭', 'Sri Lanka': '🇱🇰', 'Nicaragua': '🇳🇮', 'Panama': '🇵🇦',
-      'El Salvador': '🇸🇻', 'Ecuador': '🇪🇨', 'Ireland': '🇮🇪', 'Italy': '🇮🇹',
-      'Thailand': '🇹🇭', 'Colombia': '🇨🇴', 'Dominican Republic': '🇩🇴',
-      'Puerto Rico': '🇵🇷', 'Cuba': '🇨🇺', 'Jamaica': '🇯🇲', 'Barbados': '🇧🇧',
-      'Bahamas': '🇧🇸', 'Bermuda': '🇧🇲', 'Taiwan': '🇹🇼', 'China': '🇨🇳',
-      'India': '🇮🇳', 'Vietnam': '🇻🇳', 'Samoa': '🇼🇸', 'Tonga': '🇹🇴',
-      'Angola': '🇦🇴', 'Senegal': '🇸🇳', 'Ghana': '🇬🇭', 'Madagascar': '🇲🇬',
-      'Mozambique': '🇲🇿', 'Namibia': '🇳🇦', 'Guatemala': '🇬🇹', 'Honduras': '🇭🇳',
-      'Argentina': '🇦🇷', 'Uruguay': '🇺🇾', 'Israel': '🇮🇱', 'Malaysia': '🇲🇾',
-      'Vanuatu': '🇻🇺', 'Papua New Guinea': '🇵🇬', 'Solomon Islands': '🇸🇧',
-      'Saudi Arabia': '🇸🇦', 'United Arab Emirates': '🇦🇪', 'Oman': '🇴🇲',
-      'Qatar': '🇶🇦', 'Norway': '🇳🇴', 'Iceland': '🇮🇸', 'Aruba': '🇦🇼',
-      'Curacao': '🇨🇼', 'Trinidad & Tobago': '🇹🇹', 'Mauritius': '🇲🇺',
-      'Cape Verde': '🇨🇻', 'Cook Islands': '🇨🇰'
+      'USA': '????', 'United States': '????', 'Australia': '????', 'Indonesia': '????',
+      'Brazil': '????', 'Portugal': '????', 'South Africa': '????', 'France': '????',
+      'Spain': '????', 'Mexico': '????', 'Costa Rica': '????', 'Japan': '????',
+      'New Zealand': '????', 'Peru': '????', 'Morocco': '????', 'United Kingdom': '????',
+      'UK': '????', 'Canada': '????', 'Chile': '????', 'Hawaii': '???',
+      'Fiji': '????', 'French Polynesia': '????', 'Tahiti': '????', 'Maldives': '????',
+      'Philippines': '????', 'Sri Lanka': '????', 'Nicaragua': '????', 'Panama': '????',
+      'El Salvador': '????', 'Ecuador': '????', 'Ireland': '????', 'Italy': '????',
+      'Thailand': '????', 'Colombia': '????', 'Dominican Republic': '????',
+      'Puerto Rico': '????', 'Cuba': '????', 'Jamaica': '????', 'Barbados': '????',
+      'Bahamas': '????', 'Bermuda': '????', 'Taiwan': '????', 'China': '????',
+      'India': '????', 'Vietnam': '????', 'Samoa': '????', 'Tonga': '????',
+      'Angola': '????', 'Senegal': '????', 'Ghana': '????', 'Madagascar': '????',
+      'Mozambique': '????', 'Namibia': '????', 'Guatemala': '????', 'Honduras': '????',
+      'Argentina': '????', 'Uruguay': '????', 'Israel': '????', 'Malaysia': '????',
+      'Vanuatu': '????', 'Papua New Guinea': '????', 'Solomon Islands': '????',
+      'Saudi Arabia': '????', 'United Arab Emirates': '????', 'Oman': '????',
+      'Qatar': '????', 'Norway': '????', 'Iceland': '????', 'Aruba': '????',
+      'Curacao': '????', 'Trinidad & Tobago': '????', 'Mauritius': '????',
+      'Cape Verde': '????', 'Cook Islands': '????'
     };
-    return flags[countryName] || '🌊';
+    return flags[countryName] || '??';
   };
   
-  // Popular quick-access locations — uses 'USA' to match DB country name
+  // Popular quick-access locations � uses 'USA' to match DB country name
   const popularLocations = [
-    { label: '🇺🇸 Florida', country: 'USA', state: 'Florida' },
-    { label: '🇺🇸 California', country: 'USA', state: 'California' },
-    { label: '🇺🇸 Hawaii', country: 'USA', state: 'Hawaii' },
-    { label: '🇺🇸 North Carolina', country: 'USA', state: 'North Carolina' },
-    { label: '🇦🇺 Australia', country: 'Australia' },
-    { label: '🇮🇩 Indonesia', country: 'Indonesia' },
-    { label: '🇧🇷 Brazil', country: 'Brazil' },
-    { label: '🇵🇹 Portugal', country: 'Portugal' },
-    { label: '🇨🇷 Costa Rica', country: 'Costa Rica' },
-    { label: '🇲🇽 Mexico', country: 'Mexico' },
-    { label: '🇿🇦 South Africa', country: 'South Africa' },
-    { label: '🇯🇵 Japan', country: 'Japan' },
+    { label: '???? Florida', country: 'USA', state: 'Florida' },
+    { label: '???? California', country: 'USA', state: 'California' },
+    { label: '???? Hawaii', country: 'USA', state: 'Hawaii' },
+    { label: '???? North Carolina', country: 'USA', state: 'North Carolina' },
+    { label: '???? Australia', country: 'Australia' },
+    { label: '???? Indonesia', country: 'Indonesia' },
+    { label: '???? Brazil', country: 'Brazil' },
+    { label: '???? Portugal', country: 'Portugal' },
+    { label: '???? Costa Rica', country: 'Costa Rica' },
+    { label: '???? Mexico', country: 'Mexico' },
+    { label: '???? South Africa', country: 'South Africa' },
+    { label: '???? Japan', country: 'Japan' },
   ];
   
   // Quick jump to a popular location
@@ -1137,7 +1137,7 @@ export const Explore = () => {
       {/* Search Tabs - Horizontally scrollable with arrow navigation */}
       <div className="flex items-center gap-2 mb-6">
         {/* Left Arrow - inline, fades when not needed */}
-        <button
+        <button aria-label="Previous"
           onClick={() => scrollTabs('left')}
           className={`flex-shrink-0 w-8 h-8 rounded-full bg-zinc-800 border border-zinc-600 shadow-lg flex items-center justify-center text-white hover:bg-zinc-700 transition-all ${
             showLeftArrow ? 'opacity-100' : 'opacity-0 pointer-events-none'
@@ -1148,15 +1148,15 @@ export const Explore = () => {
           <ChevronLeft className="w-5 h-5" />
         </button>
         
-        {/* Tabs Container — Yellow pill buttons */}
+        {/* Tabs Container � Yellow pill buttons */}
         <div 
-          ref={tabsContainerRef}
+          ref={tabsContainerRef} role="tablist" aria-label="Explore sections"
           className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide scroll-smooth flex-1 scrollbar-none"
         >
           {tabs.map((tab) => {
             const Icon = tab.icon;
             return (
-              <button
+              <button aria-label="Icon"
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
                 className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors flex-shrink-0 ${
@@ -1174,7 +1174,7 @@ export const Explore = () => {
         </div>
         
         {/* Right Arrow - inline, fades when not needed */}
-        <button
+        <button aria-label="Next"
           onClick={() => scrollTabs('right')}
           className={`flex-shrink-0 w-8 h-8 rounded-full bg-zinc-800 border border-zinc-600 shadow-lg flex items-center justify-center text-white hover:bg-zinc-700 transition-all ${
             showRightArrow ? 'opacity-100' : 'opacity-0 pointer-events-none'
@@ -1226,7 +1226,7 @@ export const Explore = () => {
                             <span className="font-medium text-foreground truncate">{user.full_name}</span>
                             {user.role && <UserRoleBadge role={user.role} />}
                             {user.is_verified && (
-                              <Badge className="bg-blue-500 text-[10px] px-1.5">✓</Badge>
+                              <Badge className="bg-blue-500 text-[10px] px-1.5">?</Badge>
                             )}
                             {user.is_live && (
                               <Badge className="bg-red-500 text-[10px] px-1.5 animate-pulse">LIVE</Badge>
@@ -1275,7 +1275,7 @@ export const Explore = () => {
                         <div className="flex-1 min-w-0">
                           <h4 className="font-semibold text-foreground truncate">{spot.name}</h4>
                           <p className="text-xs text-muted-foreground truncate">
-                            {[spot.secondary_city, spot.region].filter(Boolean).filter((v, i, a) => a.indexOf(v) === i).join(' • ')}
+                            {[spot.secondary_city, spot.region].filter(Boolean).filter((v, i, a) => a.indexOf(v) === i).join(' � ')}
                           </p>
                           {spot.difficulty && (
                             <span className={`inline-block mt-1 text-[10px] font-medium px-1.5 py-0.5 rounded-full ${
@@ -1318,7 +1318,7 @@ export const Explore = () => {
         </div>
       )}
 
-      {/* Tab content — swipeable on mobile */}
+      {/* Tab content � swipeable on mobile */}
       <div
         className="relative overflow-hidden"
         onTouchStart={(e) => {
@@ -1503,7 +1503,7 @@ export const Explore = () => {
                             // If primary image fails, try map fallback
                             if (spot.latitude && spot.longitude) {
                               e.target.onerror = () => {
-                                // Map also failed — show gradient
+                                // Map also failed � show gradient
                                 e.target.style.display = 'none';
                                 e.target.parentElement.classList.add('bg-gradient-to-br', 'from-cyan-600', 'to-blue-800');
                               };
@@ -1578,8 +1578,8 @@ export const Explore = () => {
                             )}
                             <span className="text-[10px] text-muted-foreground truncate">
                               {['PHOTOGRAPHER', 'APPROVED_PRO', 'HOBBYIST'].includes(thumbnail.contributor_role?.toUpperCase()) 
-                                ? '📸' 
-                                : '🏄'} {thumbnail.contributor_name}
+                                ? '??' 
+                                : '??'} {thumbnail.contributor_name}
                             </span>
                           </div>
                         )}
@@ -1629,7 +1629,7 @@ export const Explore = () => {
         </div>
       )}
 
-      {/* People Tab — pre-search discovery state */}
+      {/* People Tab � pre-search discovery state */}
       {activeTab === 'users' && (
         <div className="space-y-6" data-testid="people-tab">
           {/* Search Prompt */}
@@ -1641,7 +1641,7 @@ export const Explore = () => {
             <p className={`text-sm mb-5 ${isLight ? 'text-gray-500' : 'text-muted-foreground'}`}>
               Search for surfers, photographers, and creators
             </p>
-            <button
+            <button aria-label="Search"
               onClick={() => {
                 const input = document.querySelector('[data-testid="explore-search-input"]');
                 if (input) input.focus();
@@ -1658,10 +1658,10 @@ export const Explore = () => {
             <h4 className={`text-sm font-semibold uppercase tracking-wider mb-3 ${isLight ? 'text-gray-500' : 'text-muted-foreground'}`}>Browse by Role</h4>
             <div className="flex flex-wrap gap-2">
               {[
-                { label: '📸 Photographers', query: 'photographer' },
-                { label: '🏄 Surfers', query: 'surfer' },
-                { label: '🎬 Videographers', query: 'videographer' },
-                { label: '🤙 Locals', query: 'local' },
+                { label: '?? Photographers', query: 'photographer' },
+                { label: '?? Surfers', query: 'surfer' },
+                { label: '?? Videographers', query: 'videographer' },
+                { label: '?? Locals', query: 'local' },
               ].map(cat => (
                 <button
                   key={cat.query}
@@ -1678,7 +1678,7 @@ export const Explore = () => {
             </div>
           </div>
 
-          {/* Featured Community — reuse live photographers from trending */}
+          {/* Featured Community � reuse live photographers from trending */}
           {trending.live_photographers?.length > 0 && (
             <div>
               <h4 className={`text-sm font-semibold uppercase tracking-wider mb-3 ${isLight ? 'text-gray-500' : 'text-muted-foreground'}`}>
@@ -1721,7 +1721,7 @@ export const Explore = () => {
               </h4>
               <div className="flex flex-wrap gap-2">
                 {trending.popular_spots.slice(0, 6).map(spot => (
-                  <button
+                  <button aria-label="Location"
                     key={spot.id}
                     onClick={() => navigate(`/spot-hub/${spot.id}`)}
                     className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${isLight ? 'bg-cyan-50 border border-cyan-200 text-cyan-700 hover:bg-cyan-100' : 'bg-cyan-900/20 border border-cyan-800/40 text-cyan-400 hover:bg-cyan-900/40'}`}
@@ -1736,7 +1736,7 @@ export const Explore = () => {
         </div>
       )}
 
-      {/* Search (Spots) Tab — pre-search discovery state */}
+      {/* Search (Spots) Tab � pre-search discovery state */}
       {/* "Search" tab removed - redundant with Surf Spots tab */}
 
       {/* Surf Spots Tab - Comprehensive Location Discovery */}
@@ -1757,7 +1757,7 @@ export const Explore = () => {
           
           {/* Discovery Mode Toggle */}
           <div className="flex gap-2 p-1 bg-zinc-900 rounded-xl border border-zinc-800">
-            <button
+            <button aria-label="Globe"
               onClick={() => { setDiscoveryMode('browse'); setSpotSearchQuery(''); }}
               className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition-all ${
                 discoveryMode === 'browse'
@@ -1769,7 +1769,7 @@ export const Explore = () => {
               <Globe className="w-4 h-4" />
               Browse
             </button>
-            <button
+            <button aria-label="Explore"
               onClick={activateNearbyMode}
               className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition-all ${
                 discoveryMode === 'nearby'
@@ -1784,7 +1784,7 @@ export const Explore = () => {
             </button>
           </div>
           
-          {/* ============ BROWSE MODE (extracted → explore/BrowseMode.js) ============ */}
+          {/* ============ BROWSE MODE (extracted ? explore/BrowseMode.js) ============ */}
           {discoveryMode === 'browse' && (
             <BrowseMode
               selectedCountry={selectedCountry}
@@ -1819,7 +1819,7 @@ export const Explore = () => {
             />
           )}
           
-          {/* ============ NEARBY MODE (extracted → explore/NearbyMode.js) ============ */}
+          {/* ============ NEARBY MODE (extracted ? explore/NearbyMode.js) ============ */}
           {discoveryMode === 'nearby' && (
             <NearbyMode
               userLocation={userLocation}
@@ -1833,9 +1833,9 @@ export const Explore = () => {
             />
           )}
           
-          {/* Map View CTA — always visible */}
+          {/* Map View CTA � always visible */}
           <div className="mt-6">
-            <button
+            <button aria-label="Location"
               onClick={() => navigate('/map')}
               className="w-full flex items-center justify-center gap-2 py-3 bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 rounded-xl text-white font-medium transition-all shadow-lg shadow-cyan-500/10"
               data-testid="view-all-on-map"
@@ -1856,7 +1856,7 @@ export const Explore = () => {
               <Play className="w-5 h-5 text-cyan-400" />
               <h2 className="font-bold text-foreground">Waves</h2>
             </div>
-            <button
+            <button aria-label="Next"
               onClick={() => navigate('/feed?tab=waves')}
               className="text-sm text-cyan-400 hover:text-cyan-300 flex items-center gap-1"
             >
@@ -2068,7 +2068,7 @@ export const Explore = () => {
               <Image className="w-5 h-5 text-purple-400" />
               <h2 className="font-bold text-foreground">Explore Posts</h2>
             </div>
-            <button
+            <button aria-label="Next"
               onClick={() => navigate('/feed')}
               className="text-sm text-purple-400 hover:text-purple-300 flex items-center gap-1"
             >
@@ -2123,7 +2123,7 @@ export const Explore = () => {
         </div>
       )}
 
-      {/* Trending Hashtags Tab (extracted → explore/HashtagsTab.js) */}
+      {/* Trending Hashtags Tab (extracted ? explore/HashtagsTab.js) */}
       {activeTab === 'trending' && (
         <HashtagsTab
           trendingHashtags={trendingHashtags}
@@ -2147,7 +2147,7 @@ export const Explore = () => {
               { id: 'yesterday', label: 'Yesterday', icon: Clock },
               { id: 'archives', label: 'Archives', icon: Archive },
             ].map(({ id, label, icon: Icon }) => (
-              <button
+              <button aria-label="Icon"
                 key={id}
                 onClick={() => handleConditionsSubTabChange(id)}
                 className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-lg text-sm font-medium transition-all ${
@@ -2187,7 +2187,7 @@ export const Explore = () => {
           
           {/* Browse / Nearby Toggle */}
           <div className="flex gap-2 p-1 bg-zinc-900 rounded-xl border border-zinc-800">
-            <button
+            <button aria-label="Globe"
               onClick={() => { setConditionsLocMode('browse'); setUserLocation(null); }}
               className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-medium transition-all ${
                 conditionsLocMode === 'browse'
@@ -2199,7 +2199,7 @@ export const Explore = () => {
               <Globe className="w-4 h-4" />
               Browse
             </button>
-            <button
+            <button aria-label="Explore"
               onClick={getReportsNearby}
               className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-medium transition-all ${
                 conditionsLocMode === 'nearby'
@@ -2281,7 +2281,7 @@ export const Explore = () => {
                 </div>
               )}
               
-              {/* Popular Destinations — show when no country selected */}
+              {/* Popular Destinations � show when no country selected */}
               {!conditionsCountry && (
                 <div>
                   <p className={`text-xs uppercase tracking-wider font-medium mb-2 ${labelClass}`}>Popular Destinations</p>
@@ -2416,7 +2416,7 @@ export const Explore = () => {
                               </div>
                             )}
                             <div className="absolute bottom-0.5 right-0.5 bg-black/70 rounded px-1 py-0.5">
-                              <span className="text-[9px] font-bold text-white">{gallery.item_count} 📸</span>
+                              <span className="text-[9px] font-bold text-white">{gallery.item_count} ??</span>
                             </div>
                           </div>
                           {/* Info */}
@@ -2507,7 +2507,7 @@ export const Explore = () => {
                   className={`bg-muted/50 rounded-xl overflow-hidden transition-colors ${isLight ? 'hover:bg-gray-100' : 'hover:bg-zinc-700/50'}`}
                   data-testid={`condition-report-${report.id}`}
                 >
-                  {/* Main card body — clicks to SpotHub */}
+                  {/* Main card body � clicks to SpotHub */}
                   <div
                     onClick={() => {
                       if (report.spot_id) {
@@ -2545,7 +2545,7 @@ export const Explore = () => {
                       {/* Gallery link badge */}
                       {hasGallery && (
                         <div className="absolute top-1 left-1 bg-black/70 backdrop-blur-sm rounded px-1 py-0.5">
-                          <span className="text-[9px] font-bold text-cyan-400">📸 {report.gallery_item_count}</span>
+                          <span className="text-[9px] font-bold text-cyan-400">?? {report.gallery_item_count}</span>
                         </div>
                       )}
                     </div>
@@ -2575,7 +2575,7 @@ export const Explore = () => {
                           )}
                           <span className="truncate">{report.photographer_name || 'Photographer'}</span>
                         </div>
-                        <span className="text-gray-600">•</span>
+                        <span className="text-gray-600">�</span>
                         <span className="flex items-center gap-1">
                           <Clock className="w-3 h-3" />
                           {report.time_ago}
@@ -2592,7 +2592,7 @@ export const Explore = () => {
                     <ChevronRight className="w-5 h-5 text-gray-600 group-hover:text-cyan-400 transition-colors flex-shrink-0" />
                   </div>
 
-                  {/* Action buttons row — View Spot always, View Gallery when gallery linked */}
+                  {/* Action buttons row � View Spot always, View Gallery when gallery linked */}
                   <div className={`flex gap-2 px-4 pb-3 pt-0`}>
                     <button
                       onClick={(e) => {
@@ -2613,7 +2613,7 @@ export const Explore = () => {
                       View Spot
                     </button>
                     {hasGallery && (
-                      <button
+                      <button aria-label="Camera"
                         onClick={(e) => {
                           e.stopPropagation();
                           navigate(`/photographer/${report.photographer_id}/gallery?gallery=${report.gallery_id}`);
@@ -2809,7 +2809,7 @@ export const Explore = () => {
                 >
                   View Profile
                 </button>
-                <button
+                <button aria-label="Message"
                   onClick={() => navigate(`/messages?to=${selectedSponsor.photographer_id}`)}
                   className="flex-1 bg-muted text-foreground font-semibold py-3 rounded-lg hover:bg-zinc-700 transition-all flex items-center justify-center gap-2"
                 >

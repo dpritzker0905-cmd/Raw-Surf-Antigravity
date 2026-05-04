@@ -266,7 +266,7 @@ export const GearHub = () => {
           {Object.entries(CATEGORY_LABELS).map(([key, label]) => {
             const Icon = CATEGORY_ICONS[key];
             return (
-              <button
+              <button aria-label="Icon"
                 key={key}
                 onClick={() => setSelectedCategory(key)}
                 className={`px-4 py-2 rounded-full text-sm font-medium transition-all flex items-center gap-2 ${
@@ -385,7 +385,7 @@ export const GearHub = () => {
                     {/* Actions */}
                     <div className="flex gap-2">
                       {canAfford ? (
-                        <Button
+                        <Button aria-label="Loader2"
                           onClick={() => handlePurchase(item)}
                           disabled={purchasing === item.id}
                           className="flex-1 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-black font-semibold"
@@ -399,7 +399,7 @@ export const GearHub = () => {
                           Redeem Credits
                         </Button>
                       ) : (
-                        <Button
+                        <Button aria-label="Target"
                           onClick={() => setAsTarget(item)}
                           variant="outline"
                           className="flex-1 border-amber-500/50 text-amber-400 hover:bg-amber-500/10"
@@ -408,7 +408,7 @@ export const GearHub = () => {
                           Set as Goal
                         </Button>
                       )}
-                      <Button
+                      <Button aria-label="External Link"
                         variant="ghost"
                         size="icon"
                         onClick={() => window.open(item.affiliate_url, '_blank')}

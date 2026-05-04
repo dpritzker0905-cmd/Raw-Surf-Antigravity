@@ -130,7 +130,7 @@ export const BottomNav = () => {
       try {
         const response = await apiClient.get(`/profiles/${user.id}`);
         const avatarFromApi = response.data.avatar_url;
-        // Store raw URL — never add ?v= to data: or blob: URLs
+        // Store raw URL � never add ?v= to data: or blob: URLs
         setFreshAvatarUrl(avatarFromApi || null);
       } catch (error) {
         logger.error('Failed to fetch fresh avatar:', error);
@@ -265,7 +265,7 @@ export const BottomNav = () => {
   };
 
   return (
-    <nav 
+    <nav aria-label="Main navigation" 
       ref={navRef}
       className={`fixed bottom-0 left-0 right-0 z-[100] ${navBgClass} border-t md:hidden`}
       style={{ 
@@ -290,7 +290,7 @@ export const BottomNav = () => {
             className={`flex flex-col items-center gap-0.5 min-w-[56px] py-1 ${
               showPhotoTools ? actionConfig.activeColor : textInactiveClass
             }`}
-            data-testid="bottomnav-action-center"
+            data-testid="bottomnav-action-center" aria-current={isPathActive(actionConfig.path) ? "page" : undefined}
           >
             <ActionIcon className={`w-6 h-6 ${showPhotoTools ? actionConfig.activeColor : textInactiveClass}`} />
             <span className={`text-[10px] font-medium ${showPhotoTools ? actionConfig.activeColor : textInactiveClass}`}>
@@ -304,7 +304,7 @@ export const BottomNav = () => {
             onMouseEnter={() => preload('explore')}
             onTouchStart={() => preload('explore')}
             className={`flex flex-col items-center gap-0.5 min-w-[56px] py-1 ${isPathActive(actionConfig.path) ? actionConfig.activeColor : textInactiveClass}`}
-            data-testid="bottomnav-action-center"
+            data-testid="bottomnav-action-center" aria-current={isPathActive(actionConfig.path) ? "page" : undefined}
           >
             <div className="relative">
               <ActionIcon className={`w-6 h-6 ${isPathActive(actionConfig.path) ? actionConfig.activeColor : textInactiveClass}`} />
@@ -335,7 +335,7 @@ export const BottomNav = () => {
           onMouseEnter={() => preload('messages')}
           onTouchStart={() => preload('messages')}
           className={`flex flex-col items-center gap-0.5 min-w-[56px] py-1 relative ${isPathActive('/messages') ? 'text-blue-400' : textInactiveClass}`}
-          data-testid="bottomnav-messages"
+          data-testid="bottomnav-messages" aria-current={isPathActive('/messages') ? "page" : undefined}
           aria-label={`Messages${unreadMessages > 0 ? `, ${unreadMessages} unread` : ''}`}
         >
           <div className="relative">
@@ -352,7 +352,7 @@ export const BottomNav = () => {
         </button>
 
         {/* Tab 5: Me - Universal Profile with Mini Photo */}
-        <button
+        <button aria-label="Avatar"
           onClick={() => handleNavigation(getProfileDestination())}
           onMouseEnter={() => preload('profile')}
           onTouchStart={() => preload('profile')}

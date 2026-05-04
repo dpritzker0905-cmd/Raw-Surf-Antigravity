@@ -669,7 +669,7 @@ export const EarningsDashboard = () => {
                     <Wallet className="w-5 h-5 text-cyan-400" />
                     Split-Pocket Settings
                   </CardTitle>
-                  <Button
+                  <Button aria-label="Settings"
                     variant="outline"
                     size="sm"
                     onClick={() => setShowSplitPocketModal(true)}
@@ -837,7 +837,7 @@ export const EarningsDashboard = () => {
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => setShowHistoryChart(!showHistoryChart)}
+                    aria-expanded={showHistoryChart} onClick={() => setShowHistoryChart(!showHistoryChart)}
                     className={textSecondaryClass}
                   >
                     {showHistoryChart ? 'Hide' : 'Show'}

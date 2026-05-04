@@ -438,7 +438,7 @@ export const StokedTab = ({ userId, isOwnProfile }) => {
                 Use your credits at the Gear Hub or book photo sessions!
               </p>
               {isOwnProfile && (
-                <Button 
+                <Button aria-label="Shopping Bag" 
                   onClick={() => navigate('/gear-hub')}
                   className="bg-gradient-to-r from-purple-500 to-pink-500 text-white"
                 >

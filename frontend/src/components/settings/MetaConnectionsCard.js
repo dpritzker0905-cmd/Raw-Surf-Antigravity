@@ -63,21 +63,21 @@ export const MetaConnectionsCard = ({ userId, textPrimaryClass, textSecondaryCla
                 <span className="px-2 py-0.5 bg-green-500/20 text-green-400 text-xs rounded-full">Connected</span>
               </div>
               {metaStatus.facebook_connected && (<div className={`flex items-center gap-2 py-1.5 ${textSecondaryClass} text-sm`}><span className="text-blue-500 text-lg">f</span><span>Facebook Page: {metaStatus.facebook_name || 'Connected'}</span></div>)}
-              {metaStatus.instagram_connected && (<div className={`flex items-center gap-2 py-1.5 ${textSecondaryClass} text-sm`}><span className="text-pink-500 text-lg">📸</span><span>Instagram: @{metaStatus.instagram_username || 'Connected'}</span></div>)}
+              {metaStatus.instagram_connected && (<div className={`flex items-center gap-2 py-1.5 ${textSecondaryClass} text-sm`}><span className="text-pink-500 text-lg">??</span><span>Instagram: @{metaStatus.instagram_username || 'Connected'}</span></div>)}
             </div>
             <p className={`text-xs ${textSecondaryClass}`}>You can now share surf sessions directly to your Facebook Page and Instagram feed from any post's share menu.</p>
-            <Button onClick={handleDisconnect} disabled={disconnecting} variant="outline" className={`w-full ${borderClass} text-red-400 hover:bg-red-500/10`} data-testid="disconnect-meta-btn">
+            <Button aria-label="Loader2" onClick={handleDisconnect} disabled={disconnecting} variant="outline" className={`w-full ${borderClass} text-red-400 hover:bg-red-500/10`} data-testid="disconnect-meta-btn">
               {disconnecting ? (<Loader2 className="w-4 h-4 animate-spin mr-2" />) : null}Disconnect Meta Accounts
             </Button>
           </>
         ) : (
           <>
             <div className="text-center py-4">
-              <div className="flex items-center justify-center gap-4 mb-3"><span className="text-3xl text-blue-500">f</span><span className={`text-lg ${textSecondaryClass}`}>+</span><span className="text-3xl">📸</span></div>
+              <div className="flex items-center justify-center gap-4 mb-3"><span className="text-3xl text-blue-500">f</span><span className={`text-lg ${textSecondaryClass}`}>+</span><span className="text-3xl">??</span></div>
               <p className={`text-sm ${textPrimaryClass} font-medium mb-1`}>Connect Facebook & Instagram</p>
               <p className={`text-xs ${textSecondaryClass} mb-4`}>Share your surf sessions directly to your social feeds</p>
             </div>
-            <Button onClick={handleConnect} disabled={connecting} className="w-full bg-gradient-to-r from-blue-500 to-pink-500 hover:from-blue-600 hover:to-pink-600 text-foreground" data-testid="connect-meta-btn">
+            <Button aria-label="Loader2" onClick={handleConnect} disabled={connecting} className="w-full bg-gradient-to-r from-blue-500 to-pink-500 hover:from-blue-600 hover:to-pink-600 text-foreground" data-testid="connect-meta-btn">
               {connecting ? (<><Loader2 className="w-4 h-4 animate-spin mr-2" />Connecting...</>) : (<><ExternalLink className="w-4 h-4 mr-2" />Connect with Meta</>)}
             </Button>
             <p className={`text-xs ${textSecondaryClass} text-center`}>Requires a Facebook Page and/or Instagram Business account</p>

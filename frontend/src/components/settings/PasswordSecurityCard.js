@@ -7,7 +7,7 @@ import { toast } from 'sonner';
 import apiClient from '../../lib/apiClient';
 
 /**
- * PasswordSecurityCard â€” Allows authenticated users to change their password.
+ * PasswordSecurityCard — Allows authenticated users to change their password.
  * Uses current password as 2FA verification before accepting a new password.
  */
 export const PasswordSecurityCard = ({ textPrimaryClass, textSecondaryClass, borderClass, cardBgClass, expandedSections, toggleSection }) => {
@@ -81,7 +81,7 @@ export const PasswordSecurityCard = ({ textPrimaryClass, textSecondaryClass, bor
             <label className={`text-xs font-medium ${textSecondaryClass} flex items-center gap-1`}><Shield className="w-3 h-3 text-amber-400" />Current Password (required for verification)</label>
             <div className="relative">
               <Input id="current-password" type={showCurrent ? 'text' : 'password'} value={currentPassword} onChange={(e) => { setCurrentPassword(e.target.value); setError(''); setSuccess(false); }} placeholder="Enter current password" className={`${cardBgClass} ${borderClass} pr-10`} autoComplete="current-password" />
-              <button type="button" onClick={() => setShowCurrent(!showCurrent)} className={`absolute right-3 top-1/2 -translate-y-1/2 ${textSecondaryClass} hover:text-foreground transition-colors`} tabIndex={-1} aria-label="Hide">
+              <button type="button" aria-expanded={showCurrent} onClick={() => setShowCurrent(!showCurrent)} className={`absolute right-3 top-1/2 -translate-y-1/2 ${textSecondaryClass} hover:text-foreground transition-colors`} tabIndex={-1} aria-label="Hide">
                 {showCurrent ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
             </div>
@@ -94,14 +94,14 @@ export const PasswordSecurityCard = ({ textPrimaryClass, textSecondaryClass, bor
             <label className={`text-xs font-medium ${textSecondaryClass}`}>New Password</label>
             <div className="relative">
               <Input id="new-password" type={showNew ? 'text' : 'password'} value={newPassword} onChange={(e) => { setNewPassword(e.target.value); setError(''); setSuccess(false); }} placeholder="Enter new password (min 6 chars)" className={`${cardBgClass} ${borderClass} pr-10`} autoComplete="new-password" />
-              <button type="button" onClick={() => setShowNew(!showNew)} className={`absolute right-3 top-1/2 -translate-y-1/2 ${textSecondaryClass} hover:text-foreground transition-colors`} tabIndex={-1} aria-label="Hide">
+              <button type="button" aria-expanded={showNew} onClick={() => setShowNew(!showNew)} className={`absolute right-3 top-1/2 -translate-y-1/2 ${textSecondaryClass} hover:text-foreground transition-colors`} tabIndex={-1} aria-label="Hide">
                 {showNew ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
             </div>
             {newPassword && (
               <div className="space-y-1">
                 <div className="flex gap-1">{[1,2,3,4].map((level) => (<div key={level} className={`h-1.5 flex-1 rounded-full transition-all duration-300 ${level <= strength.score ? strength.color : 'bg-muted'}`} />))}</div>
-                <p className={`text-xs ${strength.score <= 1 ? 'text-red-400' : strength.score === 2 ? 'text-orange-400' : strength.score === 3 ? 'text-yellow-400' : 'text-green-400'}`}>{strength.label}{strength.score <= 2 && ' â€” try adding uppercase, numbers, or symbols'}</p>
+                <p className={`text-xs ${strength.score <= 1 ? 'text-red-400' : strength.score === 2 ? 'text-orange-400' : strength.score === 3 ? 'text-yellow-400' : 'text-green-400'}`}>{strength.label}{strength.score <= 2 && ' — try adding uppercase, numbers, or symbols'}</p>
               </div>
             )}
           </div>
@@ -111,7 +111,7 @@ export const PasswordSecurityCard = ({ textPrimaryClass, textSecondaryClass, bor
             <label className={`text-xs font-medium ${textSecondaryClass}`}>Confirm New Password</label>
             <div className="relative">
               <Input id="confirm-password" type={showConfirm ? 'text' : 'password'} value={confirmPassword} onChange={(e) => { setConfirmPassword(e.target.value); setError(''); }} placeholder="Re-enter new password" className={`${cardBgClass} ${borderClass} pr-10`} autoComplete="new-password" />
-              <button type="button" onClick={() => setShowConfirm(!showConfirm)} className={`absolute right-3 top-1/2 -translate-y-1/2 ${textSecondaryClass} hover:text-foreground transition-colors`} tabIndex={-1} aria-label="Hide">
+              <button type="button" aria-expanded={showConfirm} onClick={() => setShowConfirm(!showConfirm)} className={`absolute right-3 top-1/2 -translate-y-1/2 ${textSecondaryClass} hover:text-foreground transition-colors`} tabIndex={-1} aria-label="Hide">
                 {showConfirm ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
             </div>
@@ -120,7 +120,7 @@ export const PasswordSecurityCard = ({ textPrimaryClass, textSecondaryClass, bor
 
           {/* Actions */}
           <div className="flex gap-2 pt-1">
-            <Button id="change-password-btn" onClick={handleChangePassword} disabled={!canSubmit} className="flex-1 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-black font-bold disabled:opacity-40" data-testid="change-password-btn">
+            <Button aria-label="Loader2" id="change-password-btn" onClick={handleChangePassword} disabled={!canSubmit} className="flex-1 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-black font-bold disabled:opacity-40" data-testid="change-password-btn">
               {saving ? (<><Loader2 className="w-4 h-4 animate-spin mr-2" /> Updating...</>) : (<><Lock className="w-4 h-4 mr-2" /> Update Password</>)}
             </Button>
             {(currentPassword || newPassword || confirmPassword) && (<Button variant="outline" onClick={resetForm} className={`${borderClass} ${textSecondaryClass}`}>Clear</Button>)}
@@ -130,10 +130,10 @@ export const PasswordSecurityCard = ({ textPrimaryClass, textSecondaryClass, bor
           <div className={`p-3 rounded-xl bg-muted/40 border ${borderClass} mt-2`}>
             <p className={`text-xs font-medium ${textPrimaryClass} mb-1.5 flex items-center gap-1`}><Shield className="w-3 h-3 text-amber-400" /> Security Tips</p>
             <ul className={`text-xs ${textSecondaryClass} space-y-1 list-none`}>
-              <li>â€¢ Use a unique password you don't use elsewhere</li>
-              <li>â€¢ Mix uppercase, lowercase, numbers & symbols</li>
-              <li>â€¢ Aim for 10+ characters for maximum security</li>
-              <li>â€¢ Never share your password with anyone</li>
+              <li>• Use a unique password you don't use elsewhere</li>
+              <li>• Mix uppercase, lowercase, numbers & symbols</li>
+              <li>• Aim for 10+ characters for maximum security</li>
+              <li>• Never share your password with anyone</li>
             </ul>
           </div>
         </CardContent>

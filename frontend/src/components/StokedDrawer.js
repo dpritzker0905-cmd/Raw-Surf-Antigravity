@@ -150,7 +150,7 @@ export const StokedDrawer = ({ isOpen, onClose }) => {
           
           {/* View Full Dashboard Link */}
           <div className={!['Pro', 'Comp Surfer', 'Grom'].includes(effectiveRole) ? 'hidden md:block' : 'block'}>
-            <Button
+            <Button aria-label="Next"
               variant="ghost"
               className="w-full text-yellow-400 hover:text-yellow-300 hover:bg-yellow-500/10"
               onClick={handleViewFull}

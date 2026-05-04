@@ -399,12 +399,12 @@ export const AdminCommunicationsDashboard = () => {
                             <p className="text-xs text-gray-500 mt-1">{camp.subject}</p>
                             {camp.total_sent > 0 && (
                               <p className="text-xs text-muted-foreground mt-1">
-                                Sent: {camp.total_sent} � Open: {camp.total_opened} ({camp.open_rate}%)
+                                Sent: {camp.total_sent} ? Open: {camp.total_opened} ({camp.open_rate}%)
                               </p>
                             )}
                           </div>
                           {camp.status === 'draft' && (
-                            <Button size="sm" onClick={() => handleSendCampaign(camp.id)} disabled={actionLoading} className="bg-green-500 hover:bg-green-600">
+                            <Button aria-label="Send" size="sm" onClick={() => handleSendCampaign(camp.id)} disabled={actionLoading} className="bg-green-500 hover:bg-green-600">
                               <Send className="w-4 h-4 mr-1" /> Send
                             </Button>
                           )}
@@ -463,7 +463,7 @@ export const AdminCommunicationsDashboard = () => {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowAnnouncementForm(false)}>Cancel</Button>
-            <Button onClick={handleCreateAnnouncement} disabled={actionLoading} className="bg-blue-500">
+            <Button aria-label="Loader2" onClick={handleCreateAnnouncement} disabled={actionLoading} className="bg-blue-500">
               {actionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Create'}
             </Button>
           </DialogFooter>
@@ -517,7 +517,7 @@ export const AdminCommunicationsDashboard = () => {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowTemplateForm(false)}>Cancel</Button>
-            <Button onClick={handleCreateTemplate} disabled={actionLoading} className="bg-purple-500">
+            <Button aria-label="Loader2" onClick={handleCreateTemplate} disabled={actionLoading} className="bg-purple-500">
               {actionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Create'}
             </Button>
           </DialogFooter>
@@ -570,7 +570,7 @@ export const AdminCommunicationsDashboard = () => {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowCampaignForm(false)}>Cancel</Button>
-            <Button onClick={handleCreateCampaign} disabled={actionLoading} className="bg-green-500">
+            <Button aria-label="Loader2" onClick={handleCreateCampaign} disabled={actionLoading} className="bg-green-500">
               {actionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Create'}
             </Button>
           </DialogFooter>

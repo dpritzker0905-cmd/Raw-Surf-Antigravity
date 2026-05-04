@@ -444,7 +444,7 @@ const SurfboardModal = ({ isOpen, onClose, board, onSave, userId }) => {
         {/* Fixed Footer */}
         <DialogFooter className="p-4 pt-2 border-t border-zinc-800 flex-shrink-0 gap-2">
           <Button variant="outline" onClick={onClose} className="flex-1 sm:flex-none">Cancel</Button>
-          <Button 
+          <Button aria-label="Loader2" 
             onClick={handleSubmit}
             disabled={loading}
             className="flex-1 sm:flex-none bg-gradient-to-r from-cyan-500 to-blue-600"
@@ -515,13 +515,13 @@ const SurfboardDetailModal = ({ isOpen, onClose, board, onEdit, onDelete, isOwnP
           {/* Photo Navigation */}
           {photos.length > 1 && (
             <>
-              <button
+              <button aria-label="Previous"
                 onClick={() => setCurrentPhotoIndex(i => (i - 1 + photos.length) % photos.length)}
                 className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/50 text-white flex items-center justify-center"
               >
                 <ChevronLeft className="w-5 h-5" />
               </button>
-              <button
+              <button aria-label="Next"
                 onClick={() => setCurrentPhotoIndex(i => (i + 1) % photos.length)}
                 className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/50 text-white flex items-center justify-center"
               >
@@ -590,7 +590,7 @@ const SurfboardDetailModal = ({ isOpen, onClose, board, onEdit, onDelete, isOwnP
           {/* Actions */}
           {isOwnProfile && (
             <div className="flex gap-2 pt-2 border-t border-zinc-800">
-              <Button
+              <Button aria-label="Edit"
                 variant="outline"
                 onClick={() => {
                   onClose();
@@ -610,7 +610,7 @@ const SurfboardDetailModal = ({ isOpen, onClose, board, onEdit, onDelete, isOwnP
                   >
                     Cancel
                   </Button>
-                  <Button
+                  <Button aria-label="Loader2"
                     onClick={handleDelete}
                     disabled={deleting}
                     className="bg-red-500 hover:bg-red-600"
@@ -620,7 +620,7 @@ const SurfboardDetailModal = ({ isOpen, onClose, board, onEdit, onDelete, isOwnP
                   </Button>
                 </div>
               ) : (
-                <Button
+                <Button aria-label="Delete"
                   variant="outline"
                   onClick={() => setDeleteConfirm(true)}
                   className="text-red-400 hover:text-red-300"
@@ -699,7 +699,7 @@ export const SurfboardsTab = ({ userId, isOwnProfile }) => {
           </p>
         </div>
         {isOwnProfile && (
-          <Button
+          <Button aria-label="Add"
             onClick={() => {
               setEditingBoard(null);
               setShowAddModal(true);
@@ -726,7 +726,7 @@ export const SurfboardsTab = ({ userId, isOwnProfile }) => {
               : 'No surfboards in this quiver yet'}
           </p>
           {isOwnProfile && (
-            <Button
+            <Button aria-label="Add"
               onClick={() => {
                 setEditingBoard(null);
                 setShowAddModal(true);

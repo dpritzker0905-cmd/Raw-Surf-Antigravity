@@ -20,7 +20,7 @@ import EmojiPicker from './EmojiPicker';
 import useFocusTrap from '../hooks/useFocusTrap';
 
 
-// Reaction emojis — imported from centralized constants/emojis.js
+// Reaction emojis � imported from centralized constants/emojis.js
 
 // Shaka Icon Component
 const ShakaIcon = ({ filled, size = 28 }) => (
@@ -39,7 +39,7 @@ const ShakaIcon = ({ filled, size = 28 }) => (
 
 
 
-// Custom Video Player for PostModal — TikTok/Instagram style
+// Custom Video Player for PostModal � TikTok/Instagram style
 // Tap to play/pause, custom progress bar, volume slider, no native controls
 const ModalVideoPlayer = ({ src, poster, className = '' }) => {
   const videoRef = useRef(null);
@@ -177,7 +177,7 @@ const ModalVideoPlayer = ({ src, poster, className = '' }) => {
         preload="metadata"
       />
 
-      {/* Play/Pause center overlay — fades in/out */}
+      {/* Play/Pause center overlay � fades in/out */}
       <div className={`absolute inset-0 flex items-center justify-center pointer-events-none transition-opacity duration-300 ${showControls || !playing ? 'opacity-100' : 'opacity-0'}`}>
         {!playing && (
           <div className="w-16 h-16 rounded-full bg-black/50 backdrop-blur-sm flex items-center justify-center">
@@ -224,7 +224,7 @@ const ModalVideoPlayer = ({ src, poster, className = '' }) => {
             onMouseLeave={handleVolumeAreaLeave}
             onTouchStart={handleVolumeAreaEnter}
           >
-            {/* Volume slider — progressive disclosure */}
+            {/* Volume slider � progressive disclosure */}
             <div
               className="overflow-hidden transition-all duration-300 ease-out flex items-center"
               style={{
@@ -247,7 +247,7 @@ const ModalVideoPlayer = ({ src, poster, className = '' }) => {
                 }}
               />
             </div>
-            <button
+            <button aria-label="Volume Icon"
               onClick={(e) => {
                 toggleMute(e);
                 setShowVolumeSlider(true);
@@ -266,7 +266,7 @@ const ModalVideoPlayer = ({ src, poster, className = '' }) => {
   );
 };
 
-// Image Carousel Component — handles both images and video
+// Image Carousel Component � handles both images and video
 const ImageCarousel = ({ images, mediaType }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
   
@@ -308,13 +308,13 @@ const ImageCarousel = ({ images, mediaType }) => {
       {/* Navigation arrows */}
       {mediaItems.length > 1 && (
         <>
-          <button
+          <button aria-label="Previous"
             onClick={goPrev}
             className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-white/90 rounded-full flex items-center justify-center shadow-lg hover:bg-white transition-colors z-10"
           >
             <ChevronLeft className="w-5 h-5 text-gray-800" />
           </button>
-          <button
+          <button aria-label="Next"
             onClick={goNext}
             className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-white/90 rounded-full flex items-center justify-center shadow-lg hover:bg-white transition-colors z-10"
           >
@@ -354,7 +354,7 @@ const CommentItem = ({ comment, userId, _onReact }) => {
     try {
       const response = await apiClient.post(
         `/comments/${comment.id}/reactions`,
-        { emoji: '❤️' }
+        { emoji: '??' }
       );
       
       if (response.data.action === 'added') {
@@ -392,7 +392,7 @@ const CommentItem = ({ comment, userId, _onReact }) => {
           <button className="hover:text-gray-300">Reply</button>
         </div>
       </div>
-      <button
+      <button aria-label="Like"
         onClick={handleLike}
         className={`flex-shrink-0 p-1 ${liked ? 'text-red-500' : 'text-gray-500 hover:text-gray-300'}`}
       >
@@ -443,7 +443,7 @@ const PostModal = ({ post, isOpen, onClose, _onPostUpdated, posts, onNavigatePos
   const handleDoubleTap = useCallback(() => {
     const now = Date.now();
     if (now - lastTapRef.current < 300) {
-      // Double tap detected — like the post
+      // Double tap detected � like the post
       if (!liked && user?.id && post?.id) {
         handleLike();
       }
@@ -648,7 +648,7 @@ const PostModal = ({ post, isOpen, onClose, _onPostUpdated, posts, onNavigatePos
     
     // Quick tap = toggle shaka
     if (wasPressing) {
-      await handleReaction('🤙');
+      await handleReaction('??');
     }
   };
   
@@ -736,7 +736,7 @@ const PostModal = ({ post, isOpen, onClose, _onPostUpdated, posts, onNavigatePos
     try {
       const _response = await apiClient.post(
         `/comments/${commentId}/reactions`,
-        { emoji: '❤️' }
+        { emoji: '??' }
       );
       
       // Update comments state with new like
@@ -748,7 +748,7 @@ const PostModal = ({ post, isOpen, onClose, _onPostUpdated, posts, onNavigatePos
             likes_count: wasLiked ? (c.likes_count || 1) - 1 : (c.likes_count || 0) + 1,
             reactions: wasLiked 
               ? (c.reactions || []).filter(r => r.user_id !== user.id)
-              : [...(c.reactions || []), { user_id: user.id, emoji: '❤️' }]
+              : [...(c.reactions || []), { user_id: user.id, emoji: '??' }]
           };
         }
         return c;
@@ -954,7 +954,7 @@ const PostModal = ({ post, isOpen, onClose, _onPostUpdated, posts, onNavigatePos
               >
                 <MessageCircle className="w-7 h-7" />
               </button>
-              <button 
+              <button aria-label="Send" 
                 className="p-3 text-white touch-manipulation"
                 onClick={() => setShareModalOpen(true)}
               >
@@ -1060,8 +1060,8 @@ const PostModal = ({ post, isOpen, onClose, _onPostUpdated, posts, onNavigatePos
           
           {/* Comment Input with Emoji Picker */}
           <div className="relative px-4 pb-2 flex items-center gap-2" style={{ pointerEvents: 'auto' }}>
-            <button
-              onClick={() => setShowCommentEmoji(!showCommentEmoji)}
+            <button aria-label="Emoji"
+              aria-expanded={showCommentEmoji} onClick={() => setShowCommentEmoji(!showCommentEmoji)}
               className={`flex-shrink-0 p-1.5 rounded-full transition-colors ${
                 showCommentEmoji ? 'bg-yellow-500/20 text-yellow-400' : 'text-white/50 hover:text-white'
               }`}
@@ -1280,7 +1280,7 @@ const PostModal = ({ post, isOpen, onClose, _onPostUpdated, posts, onNavigatePos
                     style={{ filter: liked ? 'none' : 'grayscale(100%) brightness(1.5)' }}
                   />
                 </button>
-                <button
+                <button aria-label="Message"
                   className="text-white hover:opacity-70 transition-opacity"
                   onClick={() => {
                     if (desktopCommentInputRef.current) desktopCommentInputRef.current.focus();
@@ -1288,14 +1288,14 @@ const PostModal = ({ post, isOpen, onClose, _onPostUpdated, posts, onNavigatePos
                 >
                   <MessageCircle className="w-6 h-6" />
                 </button>
-                <button 
+                <button aria-label="Send" 
                   className="text-white hover:opacity-70 transition-opacity"
                   onClick={() => setShareModalOpen(true)}
                 >
                   <Send className="w-6 h-6" />
                 </button>
               </div>
-              <button 
+              <button aria-label="Bookmark" 
                 onClick={(e) => {
                   e.stopPropagation();
                   handleSave();
@@ -1322,8 +1322,8 @@ const PostModal = ({ post, isOpen, onClose, _onPostUpdated, posts, onNavigatePos
           {/* Comment input with Emoji Picker */}
           <div className="border-t border-zinc-800 p-4">
             <div className="relative flex items-center gap-2">
-              <button
-                onClick={() => setShowCommentEmoji(!showCommentEmoji)}
+              <button aria-label="Emoji"
+                aria-expanded={showCommentEmoji} onClick={() => setShowCommentEmoji(!showCommentEmoji)}
                 className={`flex-shrink-0 p-1.5 rounded-full transition-colors ${
                   showCommentEmoji ? 'bg-yellow-500/20 text-yellow-400' : 'text-gray-400 hover:text-white'
                 }`}
@@ -1346,7 +1346,7 @@ const PostModal = ({ post, isOpen, onClose, _onPostUpdated, posts, onNavigatePos
                 disabled={submittingComment}
               />
               {commentInput.trim() && (
-                <button
+                <button aria-label="Loader2"
                   onClick={() => { handleSubmitComment(); setShowCommentEmoji(false); }}
                   disabled={submittingComment}
                   className="text-blue-500 hover:text-blue-400 text-sm font-semibold"
@@ -1384,14 +1384,14 @@ const PostModal = ({ post, isOpen, onClose, _onPostUpdated, posts, onNavigatePos
         onPostDeleted={() => { onClose(); }}
       />
       
-      {/* Swipe navigation arrows — positioned on the viewport edges */}
+      {/* Swipe navigation arrows � positioned on the viewport edges */}
       {!isMobile && posts && onNavigatePost && (() => {
         const idx = posts.findIndex(p => p.id === post?.id);
         if (idx === -1) return null;
         return (
           <>
             {idx > 0 && (
-              <button
+              <button aria-label="Previous"
                 onClick={(e) => { e.stopPropagation(); onNavigatePost(posts[idx - 1]); }}
                 className="fixed left-3 top-1/2 -translate-y-1/2 z-[60] w-10 h-10 rounded-full bg-white/20 hover:bg-white/40 backdrop-blur-sm flex items-center justify-center text-white transition-all shadow-lg"
                 data-testid="post-modal-prev"
@@ -1400,7 +1400,7 @@ const PostModal = ({ post, isOpen, onClose, _onPostUpdated, posts, onNavigatePos
               </button>
             )}
             {idx < posts.length - 1 && (
-              <button
+              <button aria-label="Next"
                 onClick={(e) => { e.stopPropagation(); onNavigatePost(posts[idx + 1]); }}
                 className="fixed right-3 top-1/2 -translate-y-1/2 z-[60] w-10 h-10 rounded-full bg-white/20 hover:bg-white/40 backdrop-blur-sm flex items-center justify-center text-white transition-all shadow-lg"
                 data-testid="post-modal-next"

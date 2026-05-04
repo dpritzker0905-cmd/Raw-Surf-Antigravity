@@ -13,9 +13,9 @@ import EphemeralCountdown from './EphemeralCountdown';
 import logger from '../../utils/logger';
 import { formatClockTime } from '../../utils/formatTime';
 
-const REACTIONS = ['🤙', '🌊', '❤️', '🔥', '👏', '😂'];
+const REACTIONS = ['??', '??', '??', '??', '??', '??'];
 
-// Format timestamp for message bubble — shared utility
+// Format timestamp for message bubble � shared utility
 const formatTime = formatClockTime;
 
 
@@ -110,7 +110,7 @@ const MessageBubble = ({ message, onReact, _onReply, onNavigateProfile }) => {
     >
       {/* Sender avatar - only for incoming messages, Instagram-style */}
       {!message.is_mine && (
-        <button
+        <button aria-label="span"
           onClick={() => onNavigateProfile && message.sender_id && onNavigateProfile(message.sender_id)}
           className="flex-shrink-0 w-7 h-7 rounded-full overflow-hidden bg-muted ring-1 ring-border hover:ring-cyan-400/60 hover:scale-105 transition-all self-end mb-1 cursor-pointer"
           title={`View ${message.sender_name || 'profile'}`}
@@ -137,7 +137,7 @@ const MessageBubble = ({ message, onReact, _onReply, onNavigateProfile }) => {
       <div className={`max-w-[75%] ${message.is_mine ? 'items-end' : 'items-start'} relative flex flex-col`}>
         {/* Quick React Button - Visible on hover */}
         {!message.is_mine && isHovered && !showReactions && (
-          <button
+          <button aria-label="Emoji"
             onClick={() => setShowReactions(true)}
             className={`absolute right-0 translate-x-[calc(100%+8px)] top-1/2 -translate-y-1/2 p-2 rounded-full text-muted-foreground hover:text-foreground transition-all opacity-0 group-hover:opacity-100 z-10 flex items-center justify-center`}
           >
@@ -163,7 +163,7 @@ const MessageBubble = ({ message, onReact, _onReply, onNavigateProfile }) => {
           )}
           {/* Double-tap hint on mobile */}
           {!message.is_mine && (
-            <button
+            <button aria-label="Like"
               onClick={() => setShowReactions(true)}
               className="ml-1 p-0.5 rounded text-muted-foreground/50 hover:text-muted-foreground md:hidden"
             >

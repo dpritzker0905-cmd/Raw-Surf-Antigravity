@@ -1,5 +1,5 @@
 /**
- * AdminComplianceDashboard.js — Compliance tab for the Unified Admin Console.
+ * AdminComplianceDashboard.js � Compliance tab for the Unified Admin Console.
  *
  * Shows ToS violation stats, pending appeals queue, recent violations list,
  * and provides approve/deny actions for user appeals.
@@ -21,7 +21,7 @@ import { Textarea } from '../ui/textarea';
 import { toast } from 'sonner';
 import logger from '../../utils/logger';
 
-// ─── Stat Card ────────────────────────────────────────────────────────────────
+// --- Stat Card ----------------------------------------------------------------
 const StatCard = ({ icon: Icon, label, value, color = 'cyan' }) => (
   <div className={`p-3 rounded-xl bg-${color}-500/10 border border-${color}-500/20`}>
     <div className="flex items-center gap-2 mb-1">
@@ -32,7 +32,7 @@ const StatCard = ({ icon: Icon, label, value, color = 'cyan' }) => (
   </div>
 );
 
-// ─── Severity Badge ───────────────────────────────────────────────────────────
+// --- Severity Badge -----------------------------------------------------------
 const SeverityBadge = ({ severity }) => {
   const config = {
     minor:    { bg: 'bg-blue-500/20',   text: 'text-blue-400',   label: 'Minor' },
@@ -48,13 +48,13 @@ const SeverityBadge = ({ severity }) => {
   );
 };
 
-// ─── Appeal Status Badge ──────────────────────────────────────────────────────
+// --- Appeal Status Badge ------------------------------------------------------
 const AppealBadge = ({ status }) => {
   if (!status) return null;
   const config = {
-    pending:  { bg: 'bg-yellow-500/20', text: 'text-yellow-400', label: '⏳ Pending' },
-    approved: { bg: 'bg-green-500/20',  text: 'text-green-400',  label: '✅ Approved' },
-    denied:   { bg: 'bg-red-500/20',    text: 'text-red-400',    label: '❌ Denied' },
+    pending:  { bg: 'bg-yellow-500/20', text: 'text-yellow-400', label: '? Pending' },
+    approved: { bg: 'bg-green-500/20',  text: 'text-green-400',  label: '? Approved' },
+    denied:   { bg: 'bg-red-500/20',    text: 'text-red-400',    label: '? Denied' },
   };
   const c = config[status] || config.pending;
   return (
@@ -64,27 +64,27 @@ const AppealBadge = ({ status }) => {
   );
 };
 
-// ─── Violation Type Label ─────────────────────────────────────────────────────
+// --- Violation Type Label -----------------------------------------------------
 const violationTypeLabel = (type) => {
   const map = {
-    location_fraud: '📍 Location Fraud',
-    fake_reviews: '⭐ Fake Reviews',
-    harassment: '🚫 Harassment',
-    spam: '📧 Spam',
-    impersonation: '🎭 Impersonation',
-    copyright: '©️ Copyright',
-    tos_violation: '📋 ToS Violation',
+    location_fraud: '?? Location Fraud',
+    fake_reviews: '? Fake Reviews',
+    harassment: '?? Harassment',
+    spam: '?? Spam',
+    impersonation: '?? Impersonation',
+    copyright: '�? Copyright',
+    tos_violation: '?? ToS Violation',
   };
   return map[type] || type?.replace(/_/g, ' ');
 };
 
-// ─── Action Taken Label ───────────────────────────────────────────────────────
+// --- Action Taken Label -------------------------------------------------------
 const actionLabel = (action) => {
   const map = {
-    warning: '⚠️ Warning',
-    suspension_7d: '🔒 7-Day Suspension',
-    suspension_30d: '🔒 30-Day Suspension',
-    permanent_ban: '🚫 Permanent Ban',
+    warning: '?? Warning',
+    suspension_7d: '?? 7-Day Suspension',
+    suspension_30d: '?? 30-Day Suspension',
+    permanent_ban: '?? Permanent Ban',
   };
   return map[action] || action?.replace(/_/g, ' ');
 };
@@ -110,7 +110,7 @@ export const AdminComplianceDashboard = ({ cardBgClass, textClass, textSecondary
   const text = textClass || 'text-foreground';
   const textSec = textSecondary || 'text-muted-foreground';
 
-  // ── ToS Content Editor state ──────────────────────────────────
+  // -- ToS Content Editor state ----------------------------------
   const [tosEditorOpen, setTosEditorOpen] = useState(false);
   const [editingDocType, setEditingDocType] = useState('tos');
   const [editVersion, setEditVersion] = useState('');
@@ -164,7 +164,7 @@ export const AdminComplianceDashboard = ({ cardBgClass, textClass, textSecondary
     setEditSections(prev => prev.map((s, i) => i === idx ? { ...s, [field]: value } : s));
   };
 
-  // ── ToS Import/Export helpers ──────────────────────────────────
+  // -- ToS Import/Export helpers ----------------------------------
   const exportAsJson = () => {
     const payload = {
       doc_type: editingDocType,
@@ -244,7 +244,7 @@ export const AdminComplianceDashboard = ({ cardBgClass, textClass, textSecondary
     reader.readAsText(file);
   };
 
-  // ── Data Management state ──────────────────────────────────
+  // -- Data Management state ----------------------------------
   const [dataManagementOpen, setDataManagementOpen] = useState(false);
   const [exportUserId, setExportUserId] = useState('');
   const [exportLoading, setExportLoading] = useState(false);
@@ -286,7 +286,7 @@ export const AdminComplianceDashboard = ({ cardBgClass, textClass, textSecondary
     fetchDashboard();
   }, [fetchDashboard]);
 
-  // ─── Appeal Review Handlers ───────────────────────────────────────────────
+  // --- Appeal Review Handlers -----------------------------------------------
   const handleReviewAppeal = async (violationId, approved) => {
     setReviewLoading(true);
     try {
@@ -294,7 +294,7 @@ export const AdminComplianceDashboard = ({ cardBgClass, textClass, textSecondary
         approved,
         notes: reviewNotes || null,
       });
-      toast.success(approved ? 'Appeal approved — strike removed' : 'Appeal denied');
+      toast.success(approved ? 'Appeal approved � strike removed' : 'Appeal denied');
       setReviewingId(null);
       setReviewNotes('');
       fetchDashboard(); // Refresh stats
@@ -375,11 +375,11 @@ export const AdminComplianceDashboard = ({ cardBgClass, textClass, textSecondary
                         <SeverityBadge severity={v.severity} />
                       </div>
                       <p className={`text-xs ${textSec} mt-1`}>
-                        {violationTypeLabel(v.violation_type)} • {new Date(v.created_at).toLocaleDateString()}
+                        {violationTypeLabel(v.violation_type)} � {new Date(v.created_at).toLocaleDateString()}
                       </p>
                       <p className={`text-xs ${textSec} mt-0.5`}>
                         User:{' '}
-                        <button
+                        <button aria-label="External Link"
                           onClick={(e) => { e.stopPropagation(); navigate(`/profile/${v.user_id}`); }}
                           className="font-mono text-xs text-cyan-400 hover:text-cyan-300 hover:underline inline-flex items-center gap-1 transition-colors"
                           title="View user profile"
@@ -417,7 +417,7 @@ export const AdminComplianceDashboard = ({ cardBgClass, textClass, textSecondary
                         className="bg-card border-input text-foreground text-sm h-20"
                       />
                       <div className="flex gap-2">
-                        <Button
+                        <Button aria-label="Loader2"
                           size="sm"
                           onClick={() => handleReviewAppeal(v.id, true)}
                           disabled={reviewLoading}
@@ -426,7 +426,7 @@ export const AdminComplianceDashboard = ({ cardBgClass, textClass, textSecondary
                           {reviewLoading ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <Check className="w-3 h-3 mr-1" />}
                           Approve
                         </Button>
-                        <Button
+                        <Button aria-label="Loader2"
                           size="sm"
                           onClick={() => handleReviewAppeal(v.id, false)}
                           disabled={reviewLoading}
@@ -446,7 +446,7 @@ export const AdminComplianceDashboard = ({ cardBgClass, textClass, textSecondary
                       </div>
                     </div>
                   ) : (
-                    <Button
+                    <Button aria-label="View"
                       size="sm"
                       variant="outline"
                       className="mt-2 text-yellow-400 border-yellow-500/30 hover:bg-yellow-500/10"
@@ -475,7 +475,7 @@ export const AdminComplianceDashboard = ({ cardBgClass, textClass, textSecondary
             <div className="py-8 text-center">
               <Shield className="w-8 h-8 text-green-400 mx-auto mb-2" />
               <p className={`text-sm ${textSec}`}>No violations recorded yet</p>
-              <p className="text-xs text-green-400 mt-1">Community is clean 🤙</p>
+              <p className="text-xs text-green-400 mt-1">Community is clean ??</p>
             </div>
           ) : (
             <div className="space-y-2">
@@ -521,7 +521,7 @@ export const AdminComplianceDashboard = ({ cardBgClass, textClass, textSecondary
                         </div>
                         <div>
                           <span className={textSec}>User</span>
-                          <button
+                          <button aria-label="External Link"
                             onClick={() => navigate(`/profile/${v.user_id}`)}
                             className="font-mono text-xs text-cyan-400 hover:text-cyan-300 hover:underline flex items-center gap-1 transition-colors mt-0.5"
                             title="View user profile"
@@ -582,7 +582,7 @@ export const AdminComplianceDashboard = ({ cardBgClass, textClass, textSecondary
         </Card>
       )}
 
-      {/* ── ToS & Privacy Content Editor ─────────────────────── */}
+      {/* -- ToS & Privacy Content Editor ----------------------- */}
       <Card className={`${card} mt-6`}>
         <CardHeader className="cursor-pointer" onClick={() => {
           if (!tosEditorOpen) {
@@ -613,7 +613,7 @@ export const AdminComplianceDashboard = ({ cardBgClass, textClass, textSecondary
                     ? 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30'
                     : `${isLight ? 'border-gray-300' : 'border-zinc-700'}`}
                 >
-                  {dt === 'tos' ? '📄 Terms of Service' : '🛡️ Privacy Policy'}
+                  {dt === 'tos' ? '?? Terms of Service' : '??? Privacy Policy'}
                 </Button>
               ))}
             </div>
@@ -651,13 +651,13 @@ export const AdminComplianceDashboard = ({ cardBgClass, textClass, textSecondary
                   {editSections.map((section, idx) => (
                     <div key={idx} className={`p-3 rounded-lg border ${isLight ? 'bg-gray-50 border-gray-200' : 'bg-zinc-800/50 border-zinc-700'}`}>
                       <div className="flex items-center gap-2 mb-2">
-                        <span className={`text-xs font-mono ${textSec}`}>§{idx + 1}</span>
+                        <span className={`text-xs font-mono ${textSec}`}>�{idx + 1}</span>
                         <input aria-label="Text input"
                           value={section.title}
                           onChange={e => updateSection(idx, 'title', e.target.value)}
                           className={`flex-1 px-2 py-1 rounded border text-sm font-medium ${isLight ? 'bg-white border-gray-300 text-gray-900' : 'bg-zinc-900 border-zinc-600 text-white'}`}
                         />
-                        <button
+                        <button aria-label="Delete"
                           onClick={() => removeSection(idx)}
                           className="p-1 text-red-400 hover:text-red-300 transition-colors"
                           title="Remove section"
@@ -704,7 +704,7 @@ export const AdminComplianceDashboard = ({ cardBgClass, textClass, textSecondary
                     </label>
                   </div>
 
-                  <Button
+                  <Button aria-label="Loader2"
                     onClick={saveTosContent}
                     disabled={editorSaving}
                     className="flex-1 min-w-[200px] bg-gradient-to-r from-emerald-500 via-yellow-500 to-orange-500 text-black font-bold hover:opacity-90"
@@ -724,7 +724,7 @@ export const AdminComplianceDashboard = ({ cardBgClass, textClass, textSecondary
         )}
       </Card>
 
-      {/* ── Data Management (Export / Deletion) ─────────────────────── */}
+      {/* -- Data Management (Export / Deletion) ----------------------- */}
       <Card className={`${card} mt-6`}>
         <CardHeader className="cursor-pointer" onClick={() => setDataManagementOpen(!dataManagementOpen)}>
           <div className="flex items-center justify-between">
@@ -738,7 +738,7 @@ export const AdminComplianceDashboard = ({ cardBgClass, textClass, textSecondary
 
         {dataManagementOpen && (
           <CardContent className="space-y-6">
-            {/* ── Data Export ── */}
+            {/* -- Data Export -- */}
             <div className={`p-4 rounded-xl border ${isLight ? 'bg-emerald-50/50 border-emerald-200' : 'bg-emerald-500/5 border-emerald-500/20'}`}>
               <div className="flex items-center gap-2 mb-3">
                 <Download className="w-5 h-5 text-emerald-400" />
@@ -754,7 +754,7 @@ export const AdminComplianceDashboard = ({ cardBgClass, textClass, textSecondary
                   placeholder="User ID (e.g. abc123...)"
                   className={`flex-1 px-3 py-2 rounded-lg border text-sm ${isLight ? 'bg-white border-gray-300 text-gray-900' : 'bg-zinc-800 border-zinc-700 text-white'}`}
                 />
-                <Button
+                <Button aria-label="Loader2"
                   onClick={handleDataExport}
                   disabled={exportLoading || !exportUserId.trim()}
                   className="bg-emerald-600 hover:bg-emerald-500 text-white"

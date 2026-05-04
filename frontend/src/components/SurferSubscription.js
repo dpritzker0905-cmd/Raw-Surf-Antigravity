@@ -94,7 +94,7 @@ export const SurferSubscription = () => {
             >
               Monthly
             </button>
-            <button
+            <button aria-label="Calendar"
               onClick={() => setBillingPeriod('annual')}
               className={`px-6 py-2 rounded-full text-sm font-medium transition-all flex items-center gap-2 ${
                 billingPeriod === 'annual'

@@ -218,7 +218,7 @@ export const CreateWaveModal = ({ isOpen, onClose, onSuccess }) => {
                 <Upload className={`w-12 h-12 mx-auto mb-4 ${mutedClass}`} />
                 <p className={`font-medium mb-1 ${textClass}`}>Select a video</p>
                 <p className={`text-sm ${mutedClass}`}>
-                  MP4, MOV, or WebM â€¢ Max {MAX_DURATION} seconds
+                  MP4, MOV, or WebM • Max {MAX_DURATION} seconds
                 </p>
               </div>
               
@@ -264,7 +264,7 @@ export const CreateWaveModal = ({ isOpen, onClose, onSuccess }) => {
                 {/* Video controls */}
                 <div className="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-black/80 to-transparent">
                   <div className="flex items-center justify-between text-white">
-                    <button onClick={togglePlayPause} className="p-2">
+                    <button aria-label="Pause" onClick={togglePlayPause} className="p-2">
                       {isPlaying ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5" />}
                     </button>
                     
@@ -281,7 +281,7 @@ export const CreateWaveModal = ({ isOpen, onClose, onSuccess }) => {
                       <span className="text-sm">
                         {formatDuration(videoInfo?.duration || 0)}
                       </span>
-                      {/* Volume slider â€” progressive disclosure */}
+                      {/* Volume slider — progressive disclosure */}
                       <div
                         className="overflow-hidden transition-all duration-300 ease-out flex items-center"
                         style={{
@@ -348,11 +348,11 @@ export const CreateWaveModal = ({ isOpen, onClose, onSuccess }) => {
               {/* Video info */}
               <div className={`flex items-center justify-center gap-4 text-sm ${mutedClass}`}>
                 <span>{videoInfo?.width}x{videoInfo?.height}</span>
-                <span>â€¢</span>
+                <span>•</span>
                 <span>{formatDuration(videoInfo?.duration || 0)}</span>
                 {videoInfo?.isVertical && (
                   <>
-                    <span>â€¢</span>
+                    <span>•</span>
                     <span className="text-green-500 flex items-center gap-1">
                       <CheckCircle className="w-3 h-3" /> Vertical
                     </span>
@@ -361,7 +361,7 @@ export const CreateWaveModal = ({ isOpen, onClose, onSuccess }) => {
               </div>
               
               <div className="flex gap-2">
-                <Button
+                <Button aria-label="Undo"
                   variant="outline"
                   onClick={resetState}
                   className={`flex-1 ${isLight ? '' : 'border-zinc-700 hover:bg-zinc-800'}`}
@@ -403,7 +403,7 @@ export const CreateWaveModal = ({ isOpen, onClose, onSuccess }) => {
                 <TextareaWithEmoji
                   value={caption}
                   onChange={(val) => setCaption(val.length <= 500 ? val : val.slice(0, 500))}
-                  placeholder="Add a caption... ðŸ¤™"
+                  placeholder="Add a caption... ??"
                   rows={3}
                   isLight={isLight}
                 />

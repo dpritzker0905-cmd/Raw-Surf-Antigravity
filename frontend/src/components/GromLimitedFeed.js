@@ -59,7 +59,7 @@ const GromLimitedFeed = ({ gromStatus, _onCopyCode }) => {
   };
 
   return (
-    <div className={`min-h-screen ${isLight ? 'bg-gray-50' : 'bg-black'} pb-24`}>
+    <div data-testid="grom-limited-feed" className={`min-h-screen ${isLight ? 'bg-gray-50' : 'bg-black'} pb-24`}>
       {/* Safety Banner */}
       <div className="sticky top-0 z-40 bg-gradient-to-r from-cyan-600 to-blue-600 px-4 py-3">
         <div className="flex items-center gap-3 max-w-lg mx-auto">
@@ -99,7 +99,7 @@ const GromLimitedFeed = ({ gromStatus, _onCopyCode }) => {
                 <div className="text-2xl font-mono font-bold text-cyan-500 tracking-wider">
                   {gromStatus.guardian_code}
                 </div>
-                <Button 
+                <Button aria-label="Check Circle" 
                   size="sm" 
                   variant="outline"
                   className="border-cyan-500/50 text-cyan-500"

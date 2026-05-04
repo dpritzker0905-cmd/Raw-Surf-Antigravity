@@ -205,11 +205,11 @@ export const CreatePost = () => {
         setNearestSpot(nearest);
         if (nearest && minDistance < 10) {
           setLocation(nearest.name);
-          toast.success(`📍 Near ${nearest.name} (${nearest.distance}km)`);
+          toast.success(`?? Near ${nearest.name} (${nearest.distance}km)`);
         } else if (nearest) {
-          toast.success(`📍 Location found. Nearest: ${nearest.name} (${nearest.distance}km)`);
+          toast.success(`?? Location found. Nearest: ${nearest.name} (${nearest.distance}km)`);
         } else {
-          toast.success('📍 Location detected — select your spot below');
+          toast.success('?? Location detected � select your spot below');
         }
         setGpsLoading(false);
       },
@@ -652,7 +652,7 @@ export const CreatePost = () => {
             Create Post
           </h1>
           {selectedFiles.length > 0 && (
-            <Button
+            <Button aria-label="Loader2"
               onClick={handleUpload}
               disabled={loading}
               className="bg-gradient-to-r from-yellow-400 to-orange-400 hover:from-yellow-500 hover:to-orange-500 text-black font-bold"
@@ -705,7 +705,7 @@ export const CreatePost = () => {
               
               <div className="flex justify-center gap-4 mb-4">
                 {/* Photo Button */}
-                <button
+                <button aria-label="div"
                   onClick={() => photoInputRef.current?.click()}
                   className="flex flex-col items-center gap-3 p-5 rounded-2xl bg-muted hover:bg-accent border-2 border-transparent hover:border-blue-500 transition-all active:scale-95"
                   data-testid="photo-select-btn"
@@ -718,7 +718,7 @@ export const CreatePost = () => {
                 </button>
 
                 {/* Video Button */}
-                <button
+                <button aria-label="div"
                   onClick={() => videoInputRef.current?.click()}
                   className="flex flex-col items-center gap-3 p-5 rounded-2xl bg-muted hover:bg-accent border-2 border-transparent hover:border-purple-500 transition-all active:scale-95"
                   data-testid="video-select-btn"
@@ -731,7 +731,7 @@ export const CreatePost = () => {
                 </button>
                 
                 {/* Wave (Short Video) Button */}
-                <button
+                <button aria-label="div"
                   onClick={() => setShowCreateWaveModal(true)}
                   className="flex flex-col items-center gap-3 p-5 rounded-2xl bg-muted hover:bg-accent border-2 border-transparent hover:border-cyan-500 transition-all active:scale-95"
                   data-testid="wave-select-btn"
@@ -749,7 +749,7 @@ export const CreatePost = () => {
               </p>
               
               {/* Help Link - Video vs Wave */}
-              <button
+              <button aria-label="Help"
                 onClick={() => setShowVideoInfoModal(true)}
                 className="flex items-center justify-center gap-2 text-sm text-cyan-400 hover:text-cyan-300 mx-auto mt-2"
               >
@@ -759,7 +759,7 @@ export const CreatePost = () => {
             </div>
 
             {/* Camera shortcut */}
-            <Button
+            <Button aria-label="Camera"
               onClick={() => setShowWebcamModal(true)}
               variant="outline"
               className="w-full h-12 border-border text-foreground hover:bg-muted font-medium"
@@ -769,7 +769,7 @@ export const CreatePost = () => {
             </Button>
 
             {/* Go Live Option */}
-            <Button
+            <Button aria-label="Radio"
               onClick={() => setShowGoLiveModal(true)}
               className="w-full h-12 bg-red-500 hover:bg-red-600 text-white border-0 font-bold"
             >
@@ -778,7 +778,7 @@ export const CreatePost = () => {
             </Button>
 
             {/* Create Ad Option */}
-            <Button
+            <Button aria-label="Megaphone"
               onClick={() => setShowCreateAdModal(true)}
               variant="outline"
               className="w-full h-12 border-purple-500/50 text-purple-500 dark:text-purple-400 hover:bg-purple-500/10 hover:border-purple-500"
@@ -810,7 +810,7 @@ export const CreatePost = () => {
                   {previewUrls.length > 1 && (
                     <>
                       {currentPreviewIndex > 0 && (
-                        <button
+                        <button aria-label="Previous"
                           onClick={() => setCurrentPreviewIndex(prev => prev - 1)}
                           className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-black/70 rounded-full flex items-center justify-center hover:bg-black"
                         >
@@ -818,7 +818,7 @@ export const CreatePost = () => {
                         </button>
                       )}
                       {currentPreviewIndex < previewUrls.length - 1 && (
-                        <button
+                        <button aria-label="Next"
                           onClick={() => setCurrentPreviewIndex(prev => prev + 1)}
                           className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-black/70 rounded-full flex items-center justify-center hover:bg-black"
                         >
@@ -922,9 +922,9 @@ export const CreatePost = () => {
                 >
                   <AtSign className="w-4 h-4" />
                 </button>
-                <button
+                <button aria-label="Emoji"
                   type="button"
-                  onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                  aria-expanded={showEmojiPicker} onClick={() => setShowEmojiPicker(!showEmojiPicker)}
                   className={`p-2 rounded-full transition-colors ${
                     showEmojiPicker ? 'bg-yellow-500/20 text-yellow-400' : `${hoverBg} ${labelClass} hover:text-white`
                   }`}
@@ -1005,7 +1005,7 @@ export const CreatePost = () => {
               {/* Location header / selected value */}
               <button
                 type="button"
-                onClick={() => setShowLocationPicker(!showLocationPicker)}
+                aria-expanded={showLocationPicker} onClick={() => setShowLocationPicker(!showLocationPicker)}
                 className={`w-full flex items-center justify-between p-3 ${cardBg} transition-all`}
               >
                 <div className="flex items-center gap-2">
@@ -1015,7 +1015,7 @@ export const CreatePost = () => {
                   </span>
                   {nearestSpot && userLat && (
                     <span className="text-xs text-cyan-500 bg-cyan-500/10 px-2 py-0.5 rounded-full">
-                      📍 {nearestSpot.distance}km
+                      ?? {nearestSpot.distance}km
                     </span>
                   )}
                 </div>
@@ -1026,7 +1026,7 @@ export const CreatePost = () => {
               {showLocationPicker && (
                 <div className={`p-3 space-y-3 border-t ${cardBorder}`}>
                   {/* GPS Button */}
-                  <Button
+                  <Button aria-label="Loader2"
                     type="button"
                     onClick={getGpsLocation}
                     disabled={gpsLoading}
@@ -1072,7 +1072,7 @@ export const CreatePost = () => {
                     <div className={`flex-1 h-px ${isLight ? 'bg-gray-200' : 'bg-zinc-700'}`} />
                   </div>
 
-                  {/* Hierarchical Pickers: Country → State → City → Spot */}
+                  {/* Hierarchical Pickers: Country ? State ? City ? Spot */}
                   <div className="space-y-2">
                     {/* Country */}
                     <Select value={selectedCountry} onValueChange={(val) => { setSelectedCountry(val); setSelectedState(''); setSelectedCity(''); }}>
@@ -1134,7 +1134,7 @@ export const CreatePost = () => {
                       if (citySpots.length === 0) {
                         // No spots? Set city as location
                         return (
-                          <Button
+                          <Button aria-label="Location"
                             type="button"
                             variant="outline"
                             className="w-full border-cyan-500/50 text-cyan-500"
@@ -1152,7 +1152,7 @@ export const CreatePost = () => {
                         <div className={`rounded-lg ${cardBg} p-2 space-y-1`}>
                           <p className={`text-xs ${labelClass} px-2 py-1`}>Surf spots in {selectedCity}</p>
                           {citySpots.map(spot => (
-                            <button
+                            <button aria-label="Location"
                               key={spot.id || spot.name}
                               type="button"
                               onClick={() => {
@@ -1182,7 +1182,7 @@ export const CreatePost = () => {
                       <p className={`text-xs ${labelClass} mb-2`}>Recent locations</p>
                       <div className="flex flex-wrap gap-2">
                         {recentLocations.slice(0, 5).map((loc, i) => (
-                          <button
+                          <button aria-label="Location"
                             key={i}
                             type="button"
                             onClick={() => {
@@ -1199,7 +1199,7 @@ export const CreatePost = () => {
                     </div>
                   )}
 
-                  {/* Quick Select Dropdown — populated from city spots or knownSpots */}
+                  {/* Quick Select Dropdown � populated from city spots or knownSpots */}
                   {(() => {
                     // If a city is selected, show spots from that city directly
                     if (selectedCity && selectedCountry && selectedState) {
@@ -1278,8 +1278,8 @@ export const CreatePost = () => {
             </div>
 
             {/* Session Conditions Toggle */}
-            <button
-              onClick={() => setShowSessionData(!showSessionData)}
+            <button aria-label="Waves"
+              aria-expanded={showSessionData} onClick={() => setShowSessionData(!showSessionData)}
               className={`w-full flex items-center justify-between p-3 rounded-lg border transition-all ${
                 showSessionData 
                   ? 'bg-cyan-500/10 border-cyan-500/50 text-cyan-400' 
@@ -1297,7 +1297,7 @@ export const CreatePost = () => {
             {showSessionData && (
               <div className={`space-y-4 p-4 ${cardBg} rounded-lg border ${cardBorder}`}>
                 {/* Auto-fetch Button */}
-                <Button
+                <Button aria-label="Loader2"
                   onClick={fetchConditionsByLocation}
                   disabled={conditionsLoading}
                   variant="outline"
@@ -1476,7 +1476,7 @@ export const CreatePost = () => {
             )}
 
             {/* Submit Button */}
-            <Button
+            <Button aria-label="Loader2"
               onClick={handleUpload}
               disabled={loading}
               className="w-full h-14 bg-gradient-to-r from-yellow-400 to-orange-400 hover:from-yellow-500 hover:to-orange-500 text-black font-bold text-lg"

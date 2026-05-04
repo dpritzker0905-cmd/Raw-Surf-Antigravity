@@ -358,7 +358,7 @@ const PhotographerProfile = ({ photographer, onBack, onJumpIn }) => {
       
       {/* Fixed Bottom Button - Absolute positioned */}
       <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-zinc-800 bg-zinc-900" style={{ paddingBottom: 'env(safe-area-inset-bottom, 16px)' }}>
-        <Button
+        <Button aria-label="Users"
           onClick={onJumpIn}
           className="w-full h-12 bg-gradient-to-r from-yellow-400 to-orange-400 text-black font-bold text-lg"
         >
@@ -567,7 +567,7 @@ const GeofenceUpgradeCTA = ({ distanceMiles, _visibilityRadius, activePhotograph
       </div>
       
       <div className="grid grid-cols-2 gap-2">
-        <Button
+        <Button aria-label="Crown"
           onClick={() => navigate('/settings?tab=billing')}
           className="bg-gradient-to-r from-purple-500 to-pink-500 text-white font-medium"
           data-testid="upgrade-plan-btn"
@@ -838,7 +838,7 @@ const JumpInFlow = ({ photographer, onBack, onSuccess }) => {
             </div>
           )}
           
-          <Button
+          <Button aria-label="Camera"
             onClick={requestCameraPermission}
             className="w-full max-w-xs bg-gradient-to-r from-yellow-400 to-orange-400 text-black font-bold py-3"
             data-testid="enable-camera-btn"
@@ -932,7 +932,7 @@ const JumpInFlow = ({ photographer, onBack, onSuccess }) => {
               <div className="mt-4 p-4 bg-cyan-500/20 border-2 border-cyan-500/40 rounded-xl w-full md:max-w-[400px]">
                 <div className="flex items-center gap-3">
                   <div className="w-12 h-12 rounded-full bg-cyan-500/30 flex items-center justify-center shrink-0">
-                    <span className="text-2xl">🏄</span>
+                    <span className="text-2xl">??</span>
                   </div>
                   <div>
                     <p className="text-cyan-300 font-bold">Hold your surfboard up!</p>
@@ -946,7 +946,7 @@ const JumpInFlow = ({ photographer, onBack, onSuccess }) => {
               {/* Desktop Camera Controls - Hidden on mobile (uses sticky footer) */}
               <div className="hidden md:flex gap-3 justify-center md:max-w-[400px] mx-auto w-full mt-4">
                 {!selfieUrl ? (
-                  <Button
+                  <Button aria-label="Camera"
                     onClick={captureSelfie}
                     disabled={!cameraActive}
                     className="flex-1 bg-gradient-to-r from-yellow-400 to-orange-400 text-black font-bold"
@@ -957,7 +957,7 @@ const JumpInFlow = ({ photographer, onBack, onSuccess }) => {
                   </Button>
                 ) : (
                   <>
-                    <Button
+                    <Button aria-label="Refresh"
                       onClick={retakeSelfie}
                       variant="outline"
                       className="flex-1 border-zinc-600 text-white hover:bg-zinc-800"
@@ -1069,7 +1069,7 @@ const JumpInFlow = ({ photographer, onBack, onSuccess }) => {
               onClick={() => setStep('selfie')}
               className="w-full text-center text-gray-500 text-sm hover:text-gray-300"
             >
-              ← Back to selfie
+              ? Back to selfie
             </button>
           </div>
         )}
@@ -1100,7 +1100,7 @@ const JumpInFlow = ({ photographer, onBack, onSuccess }) => {
       {/* Fixed Bottom Button - Pay Now - Absolute positioned */}
       {step === 'payment' && (
         <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-zinc-800 bg-zinc-900" style={{ paddingBottom: 'env(safe-area-inset-bottom, 16px)' }}>
-          <Button
+          <Button aria-label="Loader2"
             onClick={handleJoinSession}
             disabled={loading || (paymentMethod === 'credits' && !hasEnoughCredits)}
             className="w-full h-12 bg-gradient-to-r from-yellow-400 to-orange-400 text-black font-bold text-lg"
@@ -1120,7 +1120,7 @@ const JumpInFlow = ({ photographer, onBack, onSuccess }) => {
         <div className="absolute bottom-0 left-0 right-0 md:hidden p-4 border-t border-zinc-800 bg-zinc-900" style={{ paddingBottom: 'env(safe-area-inset-bottom, 16px)' }}>
           <div className="flex gap-3">
             {!selfieUrl ? (
-              <Button
+              <Button aria-label="Camera"
                 onClick={captureSelfie}
                 disabled={!cameraActive}
                 className="flex-1 h-12 bg-gradient-to-r from-yellow-400 to-orange-400 text-black font-bold text-lg"
@@ -1131,7 +1131,7 @@ const JumpInFlow = ({ photographer, onBack, onSuccess }) => {
               </Button>
             ) : (
               <>
-                <Button
+                <Button aria-label="Refresh"
                   onClick={retakeSelfie}
                   variant="outline"
                   className="flex-1 h-12 border-zinc-600 text-white hover:bg-zinc-800"
@@ -1573,7 +1573,7 @@ const UnifiedSpotDrawer = ({
           className={`${drawerBg} border-t ${drawerBorder} max-h-[92vh] focus:outline-none md:max-w-[520px] md:mx-auto md:rounded-t-2xl`}
           data-testid="unified-spot-drawer"
         >
-          {/* Close / Pull-down button — always visible at top */}
+          {/* Close / Pull-down button � always visible at top */}
           <button
             onClick={onClose}
             className={`w-full flex flex-col items-center pt-2 pb-1 cursor-grab active:cursor-grabbing`}
@@ -1586,7 +1586,7 @@ const UnifiedSpotDrawer = ({
             <div className="flex flex-col" style={{ height: '85vh', maxHeight: '85vh' }}>
               {/* Header - Fixed */}
               <div className="flex items-center gap-3 p-4 border-b border-zinc-800 shrink-0">
-                <button onClick={() => {
+                <button aria-label="Go back" onClick={() => {
                   setDrawerMode(DRAWER_MODE.REPORT);
                   setActiveSnapPoint(0.6);
                 }} className="text-gray-400 hover:text-white p-2 -ml-2">
@@ -1612,7 +1612,7 @@ const UnifiedSpotDrawer = ({
               
               {/* Fixed Bottom Button - Opens Jump In Modal */}
               <div className="shrink-0 p-4 border-t border-zinc-800 bg-zinc-900" style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 24px)' }}>
-                <Button
+                <Button aria-label="Users"
                   onClick={() => setShowJumpInModal(true)}
                   className="w-full h-12 bg-gradient-to-r from-yellow-400 to-orange-400 text-black font-bold text-lg"
                   data-testid="jump-in-session-btn"
@@ -1631,7 +1631,7 @@ const UnifiedSpotDrawer = ({
               <div className={`flex items-center justify-between px-4 py-3 border-b ${headerBorder} shrink-0`}>
                 <div className="flex items-center gap-3">
                   {drawerMode === DRAWER_MODE.SETUP && (
-                    <button
+                    <button aria-label="Go back"
                       onClick={() => setDrawerMode(DRAWER_MODE.REPORT)}
                       className="text-gray-400 hover:text-white"
                     >
@@ -1675,7 +1675,7 @@ const UnifiedSpotDrawer = ({
                 <div className="flex items-center gap-2">
                   {/* Refine Peak button - shows when photographer is LIVE at THIS spot */}
                   {isPhotographer && isLiveAtThisSpot && drawerMode === DRAWER_MODE.REPORT && (
-                    <Button
+                    <Button aria-label="Location"
                       onClick={openRefineModal}
                       size="sm"
                       variant="outline"
@@ -1689,7 +1689,7 @@ const UnifiedSpotDrawer = ({
                   
                   {/* Start Shooting button - only for photographers in REPORT mode */}
                   {isPhotographer && drawerMode === DRAWER_MODE.REPORT && (
-                    <Button
+                    <Button aria-label="Loader2"
                       onClick={handleStartShooting}
                       disabled={goLiveLoading}
                       size="sm"
@@ -1842,7 +1842,7 @@ const UnifiedSpotDrawer = ({
                                     )}
                                   </div>
                                 </div>
-                                <Button
+                                <Button aria-label="Users"
                                   size="sm"
                                   variant="outline"
                                   className="border-yellow-500/50 text-yellow-400 hover:bg-yellow-500/10 text-xs"
@@ -1966,7 +1966,7 @@ const UnifiedSpotDrawer = ({
                       </div>
                     )}
                     
-                    {/* ── Tab Navigation (mirrors SpotHub) ──────────── */}
+                    {/* -- Tab Navigation (mirrors SpotHub) ------------ */}
                     <div className={`flex border-t border-b ${headerBorder} mt-2`}>
                       {[
                         { id: 'reports', label: 'Reports', icon: MessageCircle, count: conditionReports.length },
@@ -2012,9 +2012,9 @@ const UnifiedSpotDrawer = ({
                                   <span className="text-[10px] px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-400 font-medium shrink-0">{report.conditions_label}</span>
                                 )}
                               </div>
-                              {/* Captured timestamp — exact time the media was shot */}
+                              {/* Captured timestamp � exact time the media was shot */}
                               <p className={`text-xs mt-1.5 ${textSecondary}`}>
-                                Captured {new Date(report.created_at).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })} at {new Date(report.created_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true })} — {report.spot_name || spot?.name || 'Unknown Spot'}
+                                Captured {new Date(report.created_at).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })} at {new Date(report.created_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true })} � {report.spot_name || spot?.name || 'Unknown Spot'}
                               </p>
                               <div className="flex items-center gap-3 mt-1.5">
                                 {report.wave_height_ft && (<span className="text-xs flex items-center gap-1"><Waves className="w-3 h-3 text-cyan-400" /><span className={textPrimary}>{report.wave_height_ft}ft</span></span>)}
@@ -2078,7 +2078,7 @@ const UnifiedSpotDrawer = ({
                       )}
                     </div>
                     <div className="px-4 py-3">
-                      <button onClick={() => { navigate(`/spot-hub/${spot.id}`); onClose?.(); }} className={`w-full group overflow-hidden rounded-xl border ${isLight ? 'border-cyan-400/40 bg-gradient-to-r from-cyan-50 via-blue-50 to-purple-50 hover:from-cyan-100 hover:via-blue-100 hover:to-purple-100' : 'border-cyan-500/30 bg-gradient-to-r from-cyan-500/10 via-blue-500/10 to-purple-500/10 hover:from-cyan-500/20 hover:via-blue-500/20 hover:to-purple-500/20'} transition-all duration-300`} data-testid="view-spot-hub-btn">
+                      <button aria-label="div" onClick={() => { navigate(`/spot-hub/${spot.id}`); onClose?.(); }} className={`w-full group overflow-hidden rounded-xl border ${isLight ? 'border-cyan-400/40 bg-gradient-to-r from-cyan-50 via-blue-50 to-purple-50 hover:from-cyan-100 hover:via-blue-100 hover:to-purple-100' : 'border-cyan-500/30 bg-gradient-to-r from-cyan-500/10 via-blue-500/10 to-purple-500/10 hover:from-cyan-500/20 hover:via-blue-500/20 hover:to-purple-500/20'} transition-all duration-300`} data-testid="view-spot-hub-btn">
                         <div className="flex items-center justify-between px-4 py-3">
                           <div className="flex items-center gap-3">
                             <div className="w-9 h-9 rounded-full bg-gradient-to-r from-cyan-400 to-blue-500 p-0.5 shrink-0">
@@ -2247,7 +2247,7 @@ const UnifiedSpotDrawer = ({
                     </div>
 
                     {/* Continue Button - Opens Conditions Modal */}
-                    <Button
+                    <Button aria-label="Loader2"
                       onClick={handleConfirmGoLive}
                       disabled={goLiveLoading}
                       className="w-full h-12 bg-zinc-700 hover:bg-zinc-600 text-white font-bold text-lg"
@@ -2352,7 +2352,7 @@ const UnifiedSpotDrawer = ({
               >
                 Cancel
               </Button>
-              <Button
+              <Button aria-label="Loader2"
                 onClick={submitRefinement}
                 disabled={refineLoading}
                 className="flex-1 bg-gradient-to-r from-cyan-400 to-green-400 text-black font-bold"

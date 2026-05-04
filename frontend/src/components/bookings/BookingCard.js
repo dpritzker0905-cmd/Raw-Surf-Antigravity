@@ -1,5 +1,5 @@
 /**
- * BookingCard â€” Individual booking card for photographer bookings manager.
+ * BookingCard — Individual booking card for photographer bookings manager.
  * Extracted from PhotographerBookingsManager.js.
  * 
  * Features:
@@ -123,7 +123,7 @@ const BookingCard = forwardRef(({
           {/* Action Buttons for Pending */}
           {booking.status === 'Pending' && (
             <div className="flex gap-2">
-              <Button
+              <Button aria-label="Confirm"
                 onClick={() => handleUpdateStatus(booking.id, 'Confirmed')}
                 className="flex-1 bg-green-500 hover:bg-green-600 text-white"
                 size="sm"
@@ -131,7 +131,7 @@ const BookingCard = forwardRef(({
                 <Check className="w-4 h-4 mr-1" />
                 Confirm
               </Button>
-              <Button
+              <Button aria-label="Settings"
                 onClick={() => openEditModal(booking)}
                 variant="outline"
                 className={`border-zinc-600 ${textSecondaryClass}`}
@@ -153,7 +153,7 @@ const BookingCard = forwardRef(({
           {/* View participants for confirmed */}
           {booking.status === 'Confirmed' && (
             <div className="flex gap-2">
-              <Button
+              <Button aria-label="Unlock"
                 className="flex-1 bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white"
                 size="sm"
                 onClick={() => onManageSession(booking)}
@@ -162,7 +162,7 @@ const BookingCard = forwardRef(({
                 {booking.lineup_status === 'open' ? <Unlock className="w-4 h-4 mr-1" /> : <Lock className="w-4 h-4 mr-1" />}
                 Manage Session
               </Button>
-              <Button
+              <Button aria-label="Users"
                 variant="outline"
                 className={`${isLight ? 'border-gray-300' : 'border-zinc-700'}`}
                 size="sm"
@@ -171,7 +171,7 @@ const BookingCard = forwardRef(({
                 <Users className="w-4 h-4 mr-1" />
                 ({booking.current_participants})
               </Button>
-              <Button
+              <Button aria-label="Settings"
                 variant="outline"
                 className={`border-zinc-600 ${textSecondaryClass}`}
                 size="sm"

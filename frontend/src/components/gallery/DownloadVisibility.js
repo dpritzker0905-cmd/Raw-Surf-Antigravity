@@ -47,7 +47,7 @@ export const DownloadButton = ({
       <TooltipProvider>
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button
+            <Button aria-label="Alert Circle"
               variant="outline"
               size={size}
               disabled

@@ -103,7 +103,7 @@ export const ScheduledTab = ({
                 </p>
                 <div className="flex flex-wrap gap-2 mt-3">
                   {bookingsNeedingSelfie.slice(0, 2).map((booking) => (
-                    <Button
+                    <Button aria-label="Camera"
                       key={booking.id}
                       size="sm"
                       onClick={() => handleOpenSelfieModal(booking)}
@@ -210,7 +210,7 @@ export const ScheduledTab = ({
                         {invite.captain?.name || 'A friend'} invited you to surf!
                       </h4>
                       <p className={`text-sm ${textSecondaryClass}`}>
-                        On-Demand Session â€¢ {invite.estimated_duration_hours}h
+                        On-Demand Session • {invite.estimated_duration_hours}h
                       </p>
                     </div>
                   </div>
@@ -232,7 +232,7 @@ export const ScheduledTab = ({
                   )}
                 </div>
                 
-                <Button
+                <Button aria-label="Credit Card"
                   onClick={() => onPayCrewShare(invite)}
                   className="w-full bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white"
                   size="sm"

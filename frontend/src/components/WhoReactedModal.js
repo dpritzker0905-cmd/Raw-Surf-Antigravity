@@ -1,4 +1,4 @@
-﻿/**
+/**
  * WhoReactedModal - Shows list of users who reacted to a post
  * Opens when user long-presses on the like count
  */
@@ -54,7 +54,7 @@ const WhoReactedModal = ({ isOpen, onClose, reactions = [], _postAuthorName, loa
           ) : (
             <div className="space-y-1">
               {reactions.map((reaction, index) => (
-                <button
+                <button aria-label="Avatar"
                   key={`${reaction.user_id}-${index}`}
                   onClick={() => handleUserClick(reaction.user_id)}
                   className="w-full flex items-center gap-3 p-2.5 rounded-lg hover:bg-zinc-800 transition-colors text-left"

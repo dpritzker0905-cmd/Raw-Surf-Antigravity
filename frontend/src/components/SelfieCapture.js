@@ -207,7 +207,7 @@ export const SelfieCapture = ({
       <div className="flex gap-2">
         {!selfieUrl ? (
           <>
-            <Button
+            <Button aria-label="Camera"
               onClick={captureSelfie}
               disabled={!cameraReady}
               className="flex-1 bg-gradient-to-r from-cyan-500 to-blue-500 text-white"
@@ -227,7 +227,7 @@ export const SelfieCapture = ({
           </>
         ) : (
           <>
-            <Button
+            <Button aria-label="Refresh"
               onClick={retakeSelfie}
               variant="outline"
               className={`flex-1 ${isLight ? 'border-gray-300' : 'border-zinc-700'}`}
@@ -235,7 +235,7 @@ export const SelfieCapture = ({
               <RefreshCw className="w-4 h-4 mr-2" />
               Retake
             </Button>
-            <Button
+            <Button aria-label="Confirm"
               onClick={confirmSelfie}
               className="flex-1 bg-gradient-to-r from-green-500 to-emerald-500 text-white"
             >

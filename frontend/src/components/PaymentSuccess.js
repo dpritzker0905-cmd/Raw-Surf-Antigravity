@@ -61,7 +61,7 @@ const PaymentSuccess = () => {
     switch (status) {
       case 'checking':
         return (
-          <div className="text-center">
+          <div data-testid="payment-success" className="text-center">
             <Loader2 className="w-16 h-16 text-cyan-400 animate-spin mx-auto mb-4" />
             <h2 className="text-2xl font-bold text-white mb-2">Processing Payment...</h2>
             <p className="text-gray-400">Please wait while we confirm your payment</p>
@@ -157,7 +157,7 @@ const PaymentSuccess = () => {
   return (
     <div className="min-h-screen bg-zinc-900 flex items-center justify-center p-4">
       <div className="max-w-md w-full">
-        <button
+        <button aria-label="Go back"
           onClick={() => navigate('/map')}
           className="flex items-center gap-2 text-gray-400 hover:text-white mb-8 transition-colors"
         >

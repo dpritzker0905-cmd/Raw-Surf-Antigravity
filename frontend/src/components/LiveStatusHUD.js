@@ -40,7 +40,7 @@ const useSessionTimer = (startTime) => {
   return elapsed;
 };
 
-// Format seconds to HH:MM:SS or MM:SS â€” using shared utility
+// Format seconds to HH:MM:SS or MM:SS — using shared utility
 const formatTime = formatDuration;
 
 // Blinking Live Indicator Component
@@ -117,7 +117,7 @@ const LiveStatusBar = ({
           </div>
           
           {/* Expand/Collapse button */}
-          <button
+          <button aria-label="Collapse"
             onClick={onExpand}
             className="p-1 text-white/60 hover:text-white transition-colors"
             data-testid="expand-hud-btn"
@@ -130,7 +130,7 @@ const LiveStatusBar = ({
           </button>
           
           {/* End Session Button */}
-          <Button
+          <Button aria-label="Square"
             onClick={onEndSession}
             size="sm"
             className="bg-white hover:bg-gray-100 text-red-600 font-bold text-xs px-3 py-1 h-7"
@@ -171,7 +171,7 @@ const LiveStatusPanel = ({
             </div>
           </div>
           
-          <button
+          <button aria-label="Collapse"
             onClick={onCollapse}
             className="p-1.5 text-white/60 hover:text-white hover:bg-white/10 rounded transition-colors"
           >
@@ -248,7 +248,7 @@ const LiveStatusPanel = ({
         {/* Action Buttons */}
         <div className="flex gap-3">
           {onUploadPhotos && (
-            <Button
+            <Button aria-label="Camera"
               onClick={onUploadPhotos}
               variant="outline"
               className="flex-1 border-cyan-500/50 text-cyan-400 hover:bg-cyan-500/10"
@@ -259,7 +259,7 @@ const LiveStatusPanel = ({
             </Button>
           )}
           
-          <Button
+          <Button aria-label="Square"
             onClick={onEndSession}
             className="flex-1 bg-red-500 hover:bg-red-600 text-white font-bold"
             data-testid="end-session-btn-panel"

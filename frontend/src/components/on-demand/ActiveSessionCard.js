@@ -1,5 +1,5 @@
 /**
- * ActiveSessionCard � Shows the current active on-demand session.
+ * ActiveSessionCard ? Shows the current active on-demand session.
  * Displays surfer info, timer, crew, chat preview, and session actions.
  * 
  * Extracted from OnDemandSessionManager.js for maintainability.
@@ -128,15 +128,15 @@ const ActiveSessionCard = ({
         {/* Surfer Identification Details */}
         {(session.requester_stance || session.requester_board_description) && (
           <div className={`p-3 rounded-xl bg-cyan-500/10 border border-cyan-400/20`}>
-            <p className={`text-[10px] font-semibold ${textSecondary} uppercase tracking-wider mb-2`}>🏄 Surfer Identification</p>
+            <p className={`text-[10px] font-semibold ${textSecondary} uppercase tracking-wider mb-2`}>?? Surfer Identification</p>
             <div className="flex flex-wrap items-center gap-2">
               {session.requester_stance && (
                 <span className="text-xs font-medium px-2 py-1 rounded-full bg-purple-500/20 text-purple-400">
-                  {session.requester_stance === 'goofy' ? '🦶 Goofy Foot' : '🦶 Regular'}
+                  {session.requester_stance === 'goofy' ? '?? Goofy Foot' : '?? Regular'}
                 </span>
               )}
               {session.requester_board_description && (
-                <span className={`text-xs font-medium ${textPrimary}`}>🏄‍♂️ {session.requester_board_description}</span>
+                <span className={`text-xs font-medium ${textPrimary}`}>????? {session.requester_board_description}</span>
               )}
             </div>
           </div>
@@ -247,8 +247,8 @@ const ActiveSessionCard = ({
                 chatUnreadCount > 0 ? 'text-white font-medium' : 'text-zinc-400'
               }`}>
                 {chatLatestMessage.message_type === 'voice_note'
-                  ? '🎤 Voice note'
-                  : (chatLatestMessage.content || '📎 Media')}
+                  ? '?? Voice note'
+                  : (chatLatestMessage.content || '?? Media')}
               </p>
             </div>
           </button>
@@ -258,7 +258,7 @@ const ActiveSessionCard = ({
         <div className="space-y-3">
           {/* Communication Buttons */}
           <div className="grid grid-cols-2 gap-3">
-            <button
+            <button aria-label="Message"
               onClick={onOpenChat}
               className="relative flex items-center justify-center gap-2 py-3 rounded-xl font-semibold text-sm transition-all active:scale-[0.97] bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white"
               data-testid="photographer-chat-btn"
@@ -271,7 +271,7 @@ const ActiveSessionCard = ({
                 </span>
               )}
             </button>
-            <button
+            <button aria-label="Microphone"
               onClick={onOpenChat}
               className="flex items-center justify-center gap-2 py-3 rounded-xl font-semibold text-sm transition-all active:scale-[0.97] bg-zinc-800 hover:bg-zinc-700 text-white border border-zinc-700"
               data-testid="photographer-voice-btn"
@@ -282,7 +282,7 @@ const ActiveSessionCard = ({
           </div>
 
           {isEnRoute && (
-            <Button
+            <Button aria-label="Confirm"
               onClick={() => onMarkArrived(session.id)}
               className="w-full py-5 bg-gradient-to-r from-green-400 to-cyan-400 hover:from-green-500 hover:to-cyan-500 text-black font-bold"
               data-testid="mark-arrived-btn"
@@ -293,7 +293,7 @@ const ActiveSessionCard = ({
           )}
           
           {isArrived && (
-            <Button
+            <Button aria-label="Square"
               onClick={() => onComplete(session.id)}
               className="w-full py-5 bg-gradient-to-r from-amber-400 to-orange-500 hover:from-amber-500 hover:to-orange-600 text-black font-bold"
               data-testid="complete-session-btn"

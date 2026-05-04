@@ -99,7 +99,7 @@ export const FollowersModal = ({
   const title = type === 'followers' ? 'Followers' : 'Following';
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog data-testid="followers-modal" open={isOpen} onOpenChange={onClose}>
       <DialogContent 
         hideCloseButton
         className="bg-background border-border w-[calc(100%-2rem)] sm:w-[95vw] max-w-md max-h-[80vh] overflow-hidden flex flex-col p-0 mx-auto"
@@ -111,7 +111,7 @@ export const FollowersModal = ({
             <Users className="w-5 h-5 text-muted-foreground" />
             <h2 className="text-lg font-semibold text-foreground">{title}</h2>
             {userName && (
-              <span className="text-sm text-muted-foreground">• {userName}</span>
+              <span className="text-sm text-muted-foreground">? {userName}</span>
             )}
           </div>
           <button
@@ -148,7 +148,7 @@ export const FollowersModal = ({
                     className="flex items-center gap-3 p-4 hover:bg-muted/50 transition-colors"
                   >
                     {/* Avatar - Clickable */}
-                    <button
+                    <button aria-label="Avatar"
                       onClick={() => handleUserClick(listUser.id)}
                       className="flex-shrink-0"
                     >

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * FeedLineupCard - Session lineup card that appears in the Feed
  * 
  * Shows open lineups from friends or nearby surfers
@@ -85,7 +85,7 @@ export const FeedLineupCard = ({
       });
       
       setJoined(true);
-      toast.success('You joined the lineup! 🤙');
+      toast.success('You joined the lineup! ??');
       onJoinSuccess?.(lineup);
     } catch (error) {
       logger.error('Join error:', error);
@@ -196,7 +196,7 @@ export const FeedLineupCard = ({
             </div>
             <p className={`text-xs ${textSecondary}`}>Price splits with more crew</p>
           </div>
-          <Button
+          <Button aria-label="Loader2"
             onClick={handleJoinLineup}
             disabled={loading}
             className="bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white px-6"

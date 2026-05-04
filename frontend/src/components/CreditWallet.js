@@ -152,7 +152,7 @@ export const CreditWallet = () => {
           <h1 className={`text-3xl font-bold ${textPrimaryClass} font-oswald`} >
             Credit Wallet
           </h1>
-          <Button
+          <Button aria-label="Refresh"
             onClick={fetchWalletData}
             variant="ghost"
             size="icon"
@@ -180,7 +180,7 @@ export const CreditWallet = () => {
                 <Wallet className="w-8 h-8 text-green-400" />
               </div>
             </div>
-            <Button
+            <Button aria-label="Add"
               onClick={() => setShowBuyModal(true)}
               className="w-full mt-4 bg-gradient-to-r from-green-400 to-emerald-500 hover:from-green-500 hover:to-emerald-600 text-black font-medium"
               data-testid="add-credits-btn"
@@ -342,7 +342,7 @@ export const CreditWallet = () => {
             <Button variant="outline" onClick={() => setShowBuyModal(false)}>
               Cancel
             </Button>
-            <Button
+            <Button aria-label="Refresh"
               onClick={handleBuyCredits}
               disabled={purchasing}
               className="bg-gradient-to-r from-green-400 to-emerald-500 text-black"

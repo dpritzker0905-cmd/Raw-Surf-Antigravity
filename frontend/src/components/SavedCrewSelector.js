@@ -143,10 +143,10 @@ export const SavedCrewSelector = ({
   if (compact) {
     return (
       <div className="relative" data-testid="saved-crew-selector-compact">
-        <Button
+        <Button aria-label="Users"
           variant="outline"
           size="sm"
-          onClick={() => setShowDropdown(!showDropdown)}
+          aria-expanded={showDropdown} onClick={() => setShowDropdown(!showDropdown)}
           className={`${isLight ? 'border-gray-300' : 'border-zinc-600'} gap-2`}
         >
           <Users className="w-4 h-4" />
@@ -168,7 +168,7 @@ export const SavedCrewSelector = ({
                   No saved crews yet
                 </p>
                 {currentMembers.length > 0 && (
-                  <Button
+                  <Button aria-label="Save"
                     size="sm"
                     onClick={() => { setShowDropdown(false); setShowSaveDialog(true); }}
                     className="mt-2 bg-cyan-500 hover:bg-cyan-400 text-black"
@@ -181,7 +181,7 @@ export const SavedCrewSelector = ({
             ) : (
               <div className="max-h-64 overflow-y-auto">
                 {savedCrews.map((crew) => (
-                  <button
+                  <button aria-label="Favorite"
                     key={crew.id}
                     onClick={() => handleSelectCrew(crew)}
                     className={`w-full p-3 flex items-center justify-between hover:${isLight ? 'bg-gray-50' : 'bg-zinc-800'} transition-colors ${
@@ -203,7 +203,7 @@ export const SavedCrewSelector = ({
                       {selectedCrew?.id === crew.id && (
                         <Check className="w-4 h-4 text-cyan-400" />
                       )}
-                      <button
+                      <button aria-label="Delete"
                         onClick={(e) => handleDeleteCrew(crew.id, e)}
                         className="p-1 hover:bg-red-500/20 rounded"
                       >
@@ -214,7 +214,7 @@ export const SavedCrewSelector = ({
                 ))}
                 
                 {currentMembers.length > 0 && (
-                  <button
+                  <button aria-label="Add"
                     onClick={() => { setShowDropdown(false); setShowSaveDialog(true); }}
                     className={`w-full p-3 flex items-center gap-2 ${isLight ? 'border-t border-gray-100 text-cyan-600' : 'border-t border-zinc-700 text-cyan-400'} hover:${isLight ? 'bg-gray-50' : 'bg-zinc-800'}`}
                   >
@@ -280,7 +280,7 @@ export const SavedCrewSelector = ({
               <Button variant="outline" onClick={() => setShowSaveDialog(false)}>
                 Cancel
               </Button>
-              <Button 
+              <Button aria-label="Loader2" 
                 onClick={handleSaveCurrentCrew}
                 disabled={savingCrew}
                 className="bg-cyan-500 hover:bg-cyan-400 text-black"
@@ -304,7 +304,7 @@ export const SavedCrewSelector = ({
           Saved Crews
         </h4>
         {currentMembers.length > 0 && (
-          <Button
+          <Button aria-label="Add"
             size="sm"
             variant="ghost"
             onClick={() => setShowSaveDialog(true)}
@@ -327,7 +327,7 @@ export const SavedCrewSelector = ({
       ) : (
         <div className="grid grid-cols-2 gap-2">
           {savedCrews.map((crew) => (
-            <button
+            <button aria-label="Favorite"
               key={crew.id}
               onClick={() => handleSelectCrew(crew)}
               className={`p-3 rounded-lg text-left transition-all hover:scale-[1.02] ${
@@ -397,7 +397,7 @@ export const SavedCrewSelector = ({
             <Button variant="outline" onClick={() => setShowSaveDialog(false)}>
               Cancel
             </Button>
-            <Button 
+            <Button aria-label="Loader2" 
               onClick={handleSaveCurrentCrew}
               disabled={savingCrew}
               className="bg-cyan-500 hover:bg-cyan-400 text-black"

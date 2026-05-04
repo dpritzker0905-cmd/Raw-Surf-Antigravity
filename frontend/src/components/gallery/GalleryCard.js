@@ -116,7 +116,7 @@ const GalleryCard = ({ item, onClick, isOwner, isGromParent, linkedGroms, onTagG
           
           {/* Quick Edit Price Button - Owner Only */}
           {isOwner && !showPriceEdit && (
-            <button
+            <button aria-label="Edit3"
               onClick={(e) => {
                 e.stopPropagation();
                 setShowPriceEdit(true);
@@ -160,7 +160,7 @@ const GalleryCard = ({ item, onClick, isOwner, isGromParent, linkedGroms, onTagG
               </div>
               <div className="flex items-center justify-between mt-2">
                 {hasCustomPrice && (
-                  <button
+                  <button aria-label="Undo"
                     onClick={handleClearPrice}
                     disabled={saving}
                     className="flex items-center gap-1 text-xs text-amber-400 hover:text-amber-300"
@@ -185,7 +185,7 @@ const GalleryCard = ({ item, onClick, isOwner, isGromParent, linkedGroms, onTagG
           {/* Tag Grom Button - Grom Parents Only */}
           {isGromParent && linkedGroms && linkedGroms.length > 0 && !showPriceEdit && (
             <div className="relative mt-2">
-              <button
+              <button aria-label="User Plus"
                 onClick={(e) => {
                   e.stopPropagation();
                   setShowTagMenu(!showTagMenu);

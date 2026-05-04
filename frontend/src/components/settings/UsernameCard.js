@@ -81,7 +81,7 @@ export const UsernameCard = ({ userId, _textPrimaryClass, textSecondaryClass, bo
           </div>
           {availability && !availability.available && newUsername !== status?.username && (<p className="text-sm text-red-400 flex items-center gap-1"><AlertCircle className="w-3 h-3" />{availability.reason}</p>)}
           <div className="flex gap-2">
-            <Button onClick={handleSave} disabled={saving || (!availability?.available && newUsername !== status?.username)} className="flex-1 bg-cyan-500 hover:bg-cyan-600">{saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}Save</Button>
+            <Button aria-label="Loader2" onClick={handleSave} disabled={saving || (!availability?.available && newUsername !== status?.username)} className="flex-1 bg-cyan-500 hover:bg-cyan-600">{saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}Save</Button>
             <Button variant="outline" onClick={() => { setEditing(false); setNewUsername(status?.username || ''); }}>Cancel</Button>
           </div>
         </div>

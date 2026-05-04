@@ -247,7 +247,7 @@ export const VoiceRecorder = ({
       {/* Action Buttons */}
       {!audioBlob ? (
         // Recording controls
-        <button
+        <button aria-label="Square"
           onClick={isRecording ? stopRecording : startRecording}
           className={`p-3 rounded-full transition-all ${
             isRecording 
@@ -264,7 +264,7 @@ export const VoiceRecorder = ({
       ) : (
         // Playback and send controls
         <div className="flex items-center gap-2">
-          <button
+          <button aria-label="Pause"
             onClick={togglePlayback}
             className="p-2 bg-zinc-700 hover:bg-zinc-600 rounded-full transition-colors"
           >
@@ -275,7 +275,7 @@ export const VoiceRecorder = ({
             )}
           </button>
           
-          <button
+          <button aria-label="Loader2"
             onClick={handleSend}
             disabled={uploading}
             className="p-3 bg-gradient-to-r from-cyan-400 to-blue-500 hover:from-cyan-300 hover:to-blue-400 rounded-full transition-all"
