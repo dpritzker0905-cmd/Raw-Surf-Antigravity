@@ -219,8 +219,6 @@ export const PhotographerBookingsManager = () => {
     { id: 'cancelled', label: 'Cancelled', icon: CalendarX, count: bookings.filter(b => b.status === 'Cancelled').length },
   ];
 
-  const filteredBookings = bookings.filter(b => {
-
   const {
     handleGridCellStart,
     handleGridCellEnter,
@@ -284,6 +282,7 @@ export const PhotographerBookingsManager = () => {
     setWeeklyGrid,
   });
 
+  const filteredBookings = bookings.filter(b => {
     if (activeTab === 'pending') return b.status === 'Pending';
     if (activeTab === 'confirmed') return b.status === 'Confirmed';
     if (activeTab === 'completed') return b.status === 'Completed';
