@@ -293,6 +293,7 @@ const useFeedActions = ({
   const fetchPosts = async () => {
     try {
       const response = await apiClient.get(`/posts`, {
+        params: { limit: 20 }
       });
       if (response.data && response.data.length > 0) {
         // Map is_liked_by_user to liked for frontend state
@@ -301,8 +302,9 @@ const useFeedActions = ({
           liked: post.is_liked_by_user
         }));
         setPosts(mappedPosts);
+        setLoading(false); // Unblock UI immediately after posts arrive
         setFeedLastUpdated(new Date().toISOString());
-        // Cache last 20 posts for offline fallback
+        // Cache last 20 posts for offline fallback (async, non-blocking)
         try {
           localStorage.setItem('rawsurf_cached_feed', JSON.stringify(mappedPosts.slice(0, 20)));
           localStorage.setItem('rawsurf_cached_feed_ts', new Date().toISOString());
@@ -393,6 +395,7 @@ const useFeedActions = ({
     }
   };
 
+  // Lazy-loaded: only fetches if spots array is empty (deferred until check-in)
   const fetchSpots = async () => {
     try {
       const response = await apiClient.get(`/surf-spots`);
@@ -402,6 +405,7 @@ const useFeedActions = ({
     }
   };
 
+  // Lazy-loaded: only fetches if hierarchy is empty (deferred until check-in)
   const fetchLocationHierarchy = async () => {
     try {
       const response = await apiClient.get(`/surf-spots/locations`);
@@ -936,6 +940,9 @@ const useFeedActions = ({
       toast.info('You already checked in today! Keep the streak going tomorrow ??');
       return;
     }
+    // Lazy-load spots + location hierarchy on first check-in open
+    if (spots.length === 0) fetchSpots();
+    fetchLocationHierarchy();
     setShowCheckInModal(true);
   };
 

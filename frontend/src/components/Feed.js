@@ -312,17 +312,23 @@ export const Feed = () => {
   const canShowSessionDashboard = isPhotographer && !isGromParent;
 
   useEffect(() => {
+    // Critical path: posts load first (blocks UI skeleton)
     fetchPosts();
-    fetchStreak();
-    fetchSpots();
-    fetchLocationHierarchy();
-    fetchLiveUsers();
-    if (user?.id) {
-      fetchFollowing();
-      fetchFeedLineups();
-      fetchUpcomingSessions();
-    }
-    
+    if (user?.id) fetchStreak();
+
+    // Deferred: secondary data loads after posts render (~1.5s delay)
+    // Prevents 8 simultaneous API calls competing on Render cold-starts
+    const deferTimer = setTimeout(() => {
+      fetchLiveUsers();
+      if (user?.id) {
+        fetchFollowing();
+        fetchFeedLineups();
+        fetchUpcomingSessions();
+      }
+    }, 1500);
+
+    // Spots + location hierarchy lazy-loaded on check-in modal open
+
     // Poll for live users every 30 seconds
     const liveInterval = setInterval(fetchLiveUsers, 30000);
     
@@ -343,6 +349,7 @@ export const Feed = () => {
     window.addEventListener('focus', handleFocus);
     
     return () => {
+      clearTimeout(deferTimer);
       clearInterval(liveInterval);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('focus', handleFocus);
