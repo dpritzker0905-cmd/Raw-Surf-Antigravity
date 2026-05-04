@@ -784,18 +784,22 @@ const useFeedActions = ({
       // Send notification to post author if adding a reaction (not removing)
       const action = response?.data?.action || (isRemoving ? 'removed' : 'added');
       if (action === 'added' && targetPost && targetPost.author_id !== user.id) {
-        await createNotification({
-          user_id: targetPost.author_id,
-          type: 'post_reaction',
-          title: `${user.full_name} reacted ${emoji}`,
-          message: `${user.full_name} reacted with ${emoji} to your post`,
-          data: {
-            post_id: postId,
-            reactor_id: user.id,
-            reactor_name: user.full_name,
-            emoji: emoji
-          }
-        }).catch(() => {}); // Silent fail for notification
+        try {
+          await apiClient.post('/notifications', {
+            user_id: targetPost.author_id,
+            type: 'post_reaction',
+            title: `${user.full_name} reacted ${emoji}`,
+            message: `${user.full_name} reacted with ${emoji} to your post`,
+            data: {
+              post_id: postId,
+              reactor_id: user.id,
+              reactor_name: user.full_name,
+              emoji: emoji
+            }
+          });
+        } catch (_notifErr) {
+          // Silent fail - notification is non-critical
+        }
       }
     } catch (error) {
       logger.error('Reaction error:', error);

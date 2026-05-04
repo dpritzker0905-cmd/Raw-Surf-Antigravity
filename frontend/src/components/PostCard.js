@@ -551,8 +551,8 @@ const PostCard = ({
       // Instagram-style: double-tap always LIKES, never unlikes
       // Only fire API call if not already liked
       if (user?.id && post?.id && !post.liked && onLikeStart) {
-        onLikeStart(post, e);
-        setTimeout(() => onLikeEnd && onLikeEnd(post, e), 50);
+        onLikeStart(post.id, e);
+        setTimeout(() => onLikeEnd && onLikeEnd(post.id, e), 50);
       }
       
       // Always show the shaka animation (even if already liked)
