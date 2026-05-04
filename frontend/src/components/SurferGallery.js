@@ -18,7 +18,7 @@ import {
   Image as ImageIcon, Video, Sparkles, Filter, Crown, Gift, Heart,
   Search, Grid, List, Share2, Calendar, SortDesc, Camera, MapPin, History, X,
   MoreHorizontal, MessageSquare, Check,
-  ChevronLeft, ChevronRight, Loader2, ScanFace
+  ChevronLeft, ChevronRight, Loader2, ScanFace,
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
@@ -1019,7 +1019,7 @@ export const SurferGallery = () => {
               My Gallery
             </h1>
             <p className={`text-sm ${textSecondaryClass} mt-1`}>
-              Your private media locker � {stats.total || 0} items
+              Your private media locker ï¿½ {stats.total || 0} items
             </p>
           </div>
           
@@ -1518,7 +1518,7 @@ export const SurferGallery = () => {
         />
       )}
       
-      {/* Find Me FAB � one-tap selfie scanner access */}
+      {/* Find Me FAB ï¿½ one-tap selfie scanner access */}
       {!multiSelectMode && !lightboxItem && (
         <button aria-label="Scan Face"
           onClick={() => setScanModal(true)}

@@ -14,7 +14,7 @@ import {
   Camera,
   Film,
   Bot,
-  Hand
+  Hand,
 } from 'lucide-react';
 import apiClient from '../../lib/apiClient';
 import { getFullUrl } from '../../utils/media';
@@ -22,7 +22,7 @@ import { toast } from 'sonner';
 import logger from '../../utils/logger';
 
 /**
- * SessionRosterCard � Enhanced Surfer Delivery Tracker
+ * SessionRosterCard ï¿½ Enhanced Surfer Delivery Tracker
  * 
  * Features:
  *   - Expandable surfer panels with selfie reference photo (zoomable)
@@ -96,7 +96,7 @@ export const SessionRosterCard = ({
           <div className="text-left">
             <h4 className="text-sm font-semibold text-foreground">Session Roster</h4>
             <p className="text-[11px] text-muted-foreground">
-              {roster.length} surfer{roster.length !== 1 ? 's' : ''} � {sessionLabel.emoji} {sessionLabel.text}
+              {roster.length} surfer{roster.length !== 1 ? 's' : ''} ï¿½ {sessionLabel.emoji} {sessionLabel.text}
             </p>
           </div>
         </div>
@@ -174,7 +174,7 @@ const SurferPanel = ({ surfer, galleryId, photographerId, onRosterUpdate }) => {
       );
       setTaggedItems(prev => prev.filter(i => i.gallery_item_id !== item.gallery_item_id));
       const type = item.media_type === 'video' ? 'video' : 'photo';
-      toast.success(`Untagged ${type} from ${full_name}${item.access_type === 'included' ? ' � credit restored' : ''}`);
+      toast.success(`Untagged ${type} from ${full_name}${item.access_type === 'included' ? ' ï¿½ credit restored' : ''}`);
       if (onRosterUpdate) onRosterUpdate();
     } catch (err) {
       toast.error('Failed to untag item');
@@ -297,7 +297,7 @@ const SurferPanel = ({ surfer, galleryId, photographerId, onRosterUpdate }) => {
                 </span>
                 {taggedItems.length > 0 && (
                   <span className="text-[10px] text-muted-foreground">
-                    {taggedItems.filter(i => i.media_type !== 'video').length} ?? � {taggedItems.filter(i => i.media_type === 'video').length} ??
+                    {taggedItems.filter(i => i.media_type !== 'video').length} ?? ï¿½ {taggedItems.filter(i => i.media_type === 'video').length} ??
                   </span>
                 )}
               </div>
@@ -343,7 +343,7 @@ const SurferPanel = ({ surfer, galleryId, photographerId, onRosterUpdate }) => {
                   {selfie_url ? '?? Session Selfie' : '?? Profile Photo'}
                 </span>
                 <span className="text-[10px] text-white/50">
-                  ?? {photos_delivered}/{photos_included}{videos_included > 0 ? ` � ?? ${videos_delivered}/${videos_included}` : ''}
+                  ?? {photos_delivered}/{photos_included}{videos_included > 0 ? ` ï¿½ ?? ${videos_delivered}/${videos_included}` : ''}
                 </span>
               </div>
             </div>
@@ -397,7 +397,7 @@ const TaggedItemThumb = ({ item, onUntag, isUntagging }) => {
   const videoUrl = isVideo ? getFullUrl(item.preview_url || item.original_url) : null;
   const accessColor = item.access_type === 'included' ? '#10b981' : item.access_type === 'pending_selection' ? '#f59e0b' : '#6b7280';
 
-  // Thumbnail-only in grid � no video autoplay to save bandwidth
+  // Thumbnail-only in grid ï¿½ no video autoplay to save bandwidth
 
   return (
     <div className="relative flex-shrink-0 group">

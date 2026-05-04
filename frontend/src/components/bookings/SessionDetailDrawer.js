@@ -10,7 +10,7 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import {
   X, MapPin, Calendar, Clock, DollarSign, Users, Star,
-  ChevronRight, ImageIcon, Award, Zap, Send
+  ChevronRight, ImageIcon, Award, Zap, Send,
 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { Button } from '../ui/button';
@@ -159,7 +159,7 @@ const SessionDetailDrawer = ({
         try {
           const res = await apiClient.get(`/reviews/check?reviewer_id=${userId}&live_session_id=${sessionId}`);
           if (res.data?.has_reviewed) {
-            // Mark all participants as reviewed (simplified � real check would be per-reviewee)
+            // Mark all participants as reviewed (simplified ï¿½ real check would be per-reviewee)
             const allReviewed = {};
             for (const p of session.participants) {
               allReviewed[p.id] = true;
@@ -230,7 +230,7 @@ const SessionDetailDrawer = ({
         onClick={onClose}
       />
 
-      {/* Drawer � bottom-sheet mobile, centered modal desktop */}
+      {/* Drawer ï¿½ bottom-sheet mobile, centered modal desktop */}
       <div
         className={`fixed z-50 transition-transform duration-300 ease-out
           inset-x-0 bottom-0
@@ -441,7 +441,7 @@ const SessionDetailDrawer = ({
               </div>
             )}
 
-            {/* Bottom safe area padding � clears mobile BottomNav */}
+            {/* Bottom safe area padding ï¿½ clears mobile BottomNav */}
             <div className="h-24" />
           </div>
         </div>

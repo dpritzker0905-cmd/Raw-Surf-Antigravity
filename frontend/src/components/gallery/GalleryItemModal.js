@@ -10,7 +10,7 @@ import { isGrom } from '../../constants/roles';
 import { submitPurchaseRequest } from '../../utils/gromPurchase';
 import { 
   Lock, Eye, ShoppingCart, Download, DollarSign, Edit3, Loader2, Check,
-  Play, Image as ImageIcon, X, Send, UserPlus, ImagePlus
+  Play, Image as ImageIcon, X, Send, UserPlus, ImagePlus,
 } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Dialog, DialogContent, DialogTitle } from '../ui/dialog';
@@ -109,8 +109,8 @@ export const GalleryItemModal = ({ item, onClose, onPurchased, galleryId, onSetA
       } else {
         const accessType = response.data.access_type;
         const accessLabel = accessType === 'included' 
-          ? '� Full resolution (included in buy-in ??)' 
-          : '� Added to Locker';
+          ? 'ï¿½ Full resolution (included in buy-in ??)' 
+          : 'ï¿½ Added to Locker';
         toast.success(`? Tagged to ${surferName} ${accessLabel}`);
         
         // Mark as tagged in local state
@@ -431,7 +431,7 @@ export const GalleryItemModal = ({ item, onClose, onPurchased, galleryId, onSetA
           {/* -- Per-Image Tag to Surfer (Owner Only) -- */}
           {isOwner && galleryId && (
             <div className="mt-4 p-4 bg-zinc-800/80 rounded-lg border border-purple-500/20">
-              {/* Status header � immediately tells photographer what happened */}
+              {/* Status header ï¿½ immediately tells photographer what happened */}
               <div className="flex items-center justify-between mb-3">
                 <h4 className="font-medium text-white flex items-center gap-2">
                   <Send className="w-4 h-4 text-purple-400" />
@@ -481,7 +481,7 @@ export const GalleryItemModal = ({ item, onClose, onPurchased, galleryId, onSetA
                               : 'border-zinc-600 bg-zinc-700/50 hover:bg-zinc-700 hover:border-purple-500/50'
                         }`}
                       >
-                        {/* Selfie / Avatar � shown larger as reference */}
+                        {/* Selfie / Avatar ï¿½ shown larger as reference */}
                         {isLoading ? (
                           <Loader2 className="w-10 h-10 animate-spin text-purple-400 shrink-0" />
                         ) : selfieOrAvatar ? (
@@ -515,13 +515,13 @@ export const GalleryItemModal = ({ item, onClose, onPurchased, galleryId, onSetA
                           <p className="text-[11px] text-gray-400">
                             {isTagged ? (
                               <span className="text-emerald-400 font-medium">
-                                ? Tagged � {isAiMatch ? 'AI matched' : 'manually tagged'}
+                                ? Tagged ï¿½ {isAiMatch ? 'AI matched' : 'manually tagged'}
                                 {matchConfidence ? ` (${Math.round(matchConfidence * 100)}%)` : ''}
                               </span>
                             ) : hasCredits ? (
-                              <span className="text-emerald-400">??? {p.photos_credit_remaining} credits left � tap to tag</span>
+                              <span className="text-emerald-400">??? {p.photos_credit_remaining} credits left ï¿½ tap to tag</span>
                             ) : (
-                              <span>?? Extra item � tap to add to locker</span>
+                              <span>?? Extra item ï¿½ tap to add to locker</span>
                             )}
                           </p>
                         </div>

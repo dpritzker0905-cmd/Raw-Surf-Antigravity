@@ -7,7 +7,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   Bell, Users, MessageCircle, UserPlus, Check, CheckCheck, Camera, Tag,
   Image as ImageIcon, CreditCard, Waves, Trophy, Calendar, X, Clock,
-  ChevronRight, ExternalLink
+  ChevronRight, ExternalLink,
 } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from './ui/sheet';
 import { Button } from './ui/button';
@@ -377,7 +377,7 @@ export const NotificationsDrawer = ({ isOpen, onClose, onCountUpdate }) => {
           })}
         </div>
 
-        {/* -- Notification List � no arbitrary cap, natural scroll -- */}
+        {/* -- Notification List ï¿½ no arbitrary cap, natural scroll -- */}
         {/* Best practice: show all items, let overflow-y-auto + max-h handle it */}
         {/* "View All" footer still available for full-page experience */}
         <div className="overflow-y-auto flex-1 space-y-1.5 px-3 pb-2 min-h-0">

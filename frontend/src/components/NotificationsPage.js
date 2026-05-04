@@ -6,7 +6,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   Bell, Users, MessageCircle, UserPlus, Check, CheckCheck, Camera, Tag,
   Image as ImageIcon, CreditCard, Waves, Trophy, Calendar, X, Clock,
-  ChevronRight, ChevronLeft, Settings, Shield
+  ChevronRight, ChevronLeft, Settings, Shield,
 } from 'lucide-react';
 import { Button } from './ui/button';
 import { toast } from 'sonner';

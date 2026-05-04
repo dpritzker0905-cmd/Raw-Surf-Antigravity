@@ -13,7 +13,7 @@ import {
   Camera, MapPin, Star, Users, Image as ImageIcon,
   Calendar, ExternalLink, Share2, ArrowLeft, Loader2,
   CheckCircle, Instagram, Globe, Briefcase, Play,
-  Heart, MessageCircle, ShieldCheck, RefreshCw, Sparkles
+  Heart, MessageCircle, ShieldCheck, RefreshCw, Sparkles,
 } from 'lucide-react';
 import logger from '../utils/logger';
 import { ProfileHeaderSkeleton, GallerySkeleton } from './ui/SkeletonVariants';
@@ -21,7 +21,7 @@ import { PhotographerSubscriptionPlans } from './PhotographerSubscriptionPlans';
 import { FindMeModal } from './gallery/FindMeModal';
 
 /**
- * GalleryStorefront � Premium public photographer portfolio page
+ * GalleryStorefront ï¿½ Premium public photographer portfolio page
  * Accessed via /gallery/:username (shareable URL)
  * Resolves username ? profile ? galleries + stats
  */
@@ -120,7 +120,7 @@ export const GalleryStorefront = () => {
     const url = `${window.location.origin}/gallery/${username}`;
     if (navigator.share) {
       try {
-        await navigator.share({ title: `${photographer?.full_name} � Raw Surf`, url });
+        await navigator.share({ title: `${photographer?.full_name} ï¿½ Raw Surf`, url });
       } catch { /* user cancelled */ }
     } else {
       await navigator.clipboard.writeText(url);
@@ -195,7 +195,7 @@ export const GalleryStorefront = () => {
       tag.setAttribute('content', content);
     };
 
-    const title = `${photographer.full_name} � Raw Surf Photography`;
+    const title = `${photographer.full_name} ï¿½ Raw Surf Photography`;
     const desc = photographer.bio || `Browse surf photography by ${photographer.full_name} on Raw Surf`;
     const image = photographer.avatar_url ? getFullUrl(photographer.avatar_url) : null;
     const url = `${window.location.origin}/gallery/${username}`;
@@ -220,7 +220,7 @@ export const GalleryStorefront = () => {
 
   return (
     <div className={`min-h-screen ${pageBg} pb-24 md:pb-8`}>
-      {/* JSON-LD Structured Data for SEO � LocalBusiness for business accounts, Person for individuals */}
+      {/* JSON-LD Structured Data for SEO ï¿½ LocalBusiness for business accounts, Person for individuals */}
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({
         '@context': 'https://schema.org',
         '@type': photographer.company_name ? 'LocalBusiness' : 'Person',
@@ -407,7 +407,7 @@ export const GalleryStorefront = () => {
               { label: 'Photos', value: stats.photo_count, icon: Camera, color: 'text-emerald-400' },
               { label: 'Followers', value: stats.follower_count, icon: Users, color: 'text-blue-400' },
               { label: 'Sessions', value: stats.session_count, icon: Calendar, color: 'text-yellow-400' },
-              { label: 'Rating', value: stats.avg_rating > 0 ? `${stats.avg_rating} ?` : '�', icon: Star, color: 'text-amber-400' },
+              { label: 'Rating', value: stats.avg_rating > 0 ? `${stats.avg_rating} ?` : 'ï¿½', icon: Star, color: 'text-amber-400' },
             ].map(({ label, value, icon: Icon, color }) => (
               <Card key={label} className={`${cardBg} ${borderColor}`}>
                 <CardContent className="p-3 text-center">

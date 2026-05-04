@@ -1,5 +1,5 @@
 /**
- * PostSessionSummary � Photographer post-session action dashboard
+ * PostSessionSummary ï¿½ Photographer post-session action dashboard
  * 
  * Shows for session galleries that ended recently (< 48 hours).
  * One-click distribute, AI match status, and distribution progress.
@@ -8,7 +8,7 @@ import React, { useState, useMemo } from 'react';
 import {
   Camera, MapPin, Calendar, Users, Sparkles, Send,
   CheckCircle, AlertTriangle, Loader2, ChevronDown, ChevronUp,
-  Image as ImageIcon
+  Image as ImageIcon,
 } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
