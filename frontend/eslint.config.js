@@ -74,13 +74,13 @@ module.exports = [
       "jsx-a11y/label-has-associated-control": "error",
       "jsx-a11y/role-has-required-aria-props": "error",
       "jsx-a11y/role-supports-aria-props": "error",
-      // WARN — surface issues without blocking:
-      "jsx-a11y/interactive-supports-focus": "warn",
-      "jsx-a11y/no-access-key": "warn",
+      // v29: ALL remaining warns promoted to error for full regression blocking
+      "jsx-a11y/interactive-supports-focus": "error",
+      "jsx-a11y/no-access-key": "error",
       "jsx-a11y/no-noninteractive-element-interactions": "off",
       "jsx-a11y/no-static-element-interactions": "off",
-      "jsx-a11y/scope": "warn",
-      "jsx-a11y/tabindex-no-positive": "warn",
+      "jsx-a11y/scope": "error",
+      "jsx-a11y/tabindex-no-positive": "error",
     },
   },
   {

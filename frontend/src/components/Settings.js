@@ -8,6 +8,7 @@ import { Card, CardHeader, CardTitle, CardContent } from './ui/card';
 import { Button } from './ui/button';
 
 import { toast } from 'sonner';
+import useSettingsActions from '../hooks/useSettingsActions';
 import apiClient from '../lib/apiClient';
 import { AccountBillingHub } from './settings/AccountBillingHub';
 import { AdCenterPanel } from './settings/AdCenterPanel';
@@ -106,12 +107,26 @@ export const Settings = () => {
     legal: false           // Legal / Terms of Service
   });
   
-  const toggleSection = (section) => {
-    setExpandedSections(prev => ({
-      ...prev,
-      [section]: !prev[section]
-    }));
-  };
+  // ============ HANDLERS EXTRACTED ============
+  const {
+    toggleSection,
+    fetchPrivacySettings,
+    fetchNotificationPrefs,
+    updateNotifPref,
+    updatePrivacySetting,
+    fetchFriends,
+    handleLogout,
+  } = useSettingsActions({
+    user, navigate,
+    setExpandedSections,
+    setFriends,
+    setFriendsLoading,
+    setNotifLoading,
+    setNotifPrefs,
+    setPendingRequests,
+    setPrivacy,
+    setPrivacyLoading,
+  });
 
   // ToS / Legal state
   const [tosStatus, setTosStatus] = useState({ loading: true, acknowledged: false, acknowledged_at: null });
@@ -163,65 +178,10 @@ export const Settings = () => {
     }
   }, [user?.id]);
   
-  const fetchPrivacySettings = async () => {
-    try {
-      const response = await apiClient.get(`/friends/privacy/${user.id}`);
-      setPrivacy(response.data);
-    } catch (error) {
-      logger.error('Failed to fetch privacy settings:', error);
-    }
-  };
   
-  const fetchNotificationPrefs = async () => {
-    try {
-      const response = await getPreferencesByPath(user.id);
-      setNotifPrefs(response.data);
-    } catch (error) {
-      logger.error('Failed to fetch notification preferences:', error);
-    }
-  };
   
-  const updateNotifPref = async (key, value) => {
-    setNotifLoading(true);
-    try {
-      await updatePreferenceByPath(user.id, key, value);
-      setNotifPrefs(prev => ({ ...prev, [key]: value }));
-      toast.success('Notification setting updated');
-    } catch (error) {
-      toast.error('Failed to update setting');
-    } finally {
-      setNotifLoading(false);
-    }
-  };
   
-  const updatePrivacySetting = async (key, value) => {
-    setPrivacyLoading(true);
-    try {
-      await apiClient.put(`/friends/privacy/${user.id}`, { [key]: value });
-      setPrivacy(prev => ({ ...prev, [key]: value }));
-      toast.success('Privacy setting updated');
-    } catch (error) {
-      toast.error('Failed to update setting');
-    } finally {
-      setPrivacyLoading(false);
-    }
-  };
   
-  const fetchFriends = async () => {
-    setFriendsLoading(true);
-    try {
-      const [friendsRes, pendingRes] = await Promise.all([
-        apiClient.get(`/friends/list/${user.id}`),
-        apiClient.get(`/friends/pending/${user.id}`)
-      ]);
-      setFriends(friendsRes.data.friends || []);
-      setPendingRequests(pendingRes.data.pending_requests || []);
-    } catch (error) {
-      logger.error('Failed to fetch friends:', error);
-    } finally {
-      setFriendsLoading(false);
-    }
-  };
   
   const _handleAcceptFriend = async (requestId) => {
     try {
@@ -274,11 +234,6 @@ export const Settings = () => {
   // Can access live shooting settings (NOT Grom Parent)
   const _canAccessLiveShooting = isPhotographer && !isGromParent;
 
-  const handleLogout = () => {
-    logout();
-    navigate('/auth');
-    toast.success('Logged out successfully');
-  };
 
   // Use semantic Tailwind classes that reference CSS variables
   const mainBgClass = 'bg-background';
