@@ -75,6 +75,7 @@ const useGalleryActions = ({
   folderToRename,
   folderToDelete,
   galleryPricing,
+  thumbnailPickerGallery, linkSessionGallery, setBrokenCoverImages,
 }) => {
 
   const fetchLinkedGroms = async () => {

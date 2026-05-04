@@ -302,6 +302,7 @@ export const PhotographerSessionsManager = () => {
     handleEndSession, handleSavePricing,
   } = useSessionActions({
     user, navigate, selectedSpot, savedRates,
+    setExpandedSections, setDistanceToSpot, distanceToSpot, showGoLiveModal, sessionSettings, surfSpots,
     nearbySpots, setSessions, setSessionData, setGoLiveStep,
     setGoLiveData, setSelectedSpot, setNearbySpots,
     setEndSessionModal, setSessionToEnd, setSavingSettings,
