@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
 import { usePersona } from '../contexts/PersonaContext';
-import { LogOut, User, Bell, Shield, Camera, DollarSign, CalendarCheck, ChevronRight, ChevronDown, Users, Eye, EyeOff, MapPin, Loader2, MessageSquare, Heart, UserPlus, Mail, Volume2, VolumeX, Sun, Moon, Waves, Check, Zap, CreditCard, Megaphone, Activity, WifiOff, Download, Trash2, HardDrive, Clock, FileText, Scale, AlertTriangle } from 'lucide-react';
+import { LogOut, User, Bell, Shield, Camera, DollarSign, CalendarCheck, ChevronRight, ChevronDown, Users, Eye, EyeOff, MapPin, Loader2, MessageSquare, Heart, UserPlus, Mail, Volume2, VolumeX, Sun, Moon, Waves, Check, Zap, CreditCard, Megaphone, Activity, WifiOff, Download, Trash2, HardDrive, Clock, FileText, Scale, AlertTriangle, Image, Wallet } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from './ui/card';
 import { Button } from './ui/button';
 
