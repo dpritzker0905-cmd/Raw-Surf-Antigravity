@@ -77,7 +77,7 @@ const DispatchLobby               = React.lazy(() => import('./components/Dispat
 const PostSessionSummary          = React.lazy(() => import('./components/gallery/PostSessionSummary').then(m => ({ default: m.PostSessionSummary })));
 const PhotographerSubscriptionSettings = React.lazy(() => import('./components/PhotographerSubscriptionSettings'));
 const PhotographerSubscribePage = React.lazy(() => import('./components/PhotographerSubscribePage'));
-import CareerPage from './components/CareerPage';
+const CareerPage = React.lazy(() => import('./components/CareerPage'));
 
 import './App.css';
 
