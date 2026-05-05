@@ -532,6 +532,16 @@ const SharePostModal = ({ post, open, onClose, isLight }) => {
   const [directShareLoading, setDirectShareLoading] = useState(null);
   const [checkingMeta, setCheckingMeta] = useState(true);
   
+  // Emoji constants — using String.fromCodePoint to avoid encoding corruption
+  const SHARE_ICONS = {
+    wave: String.fromCodePoint(0x1F30A),
+    camera: String.fromCodePoint(0x1F4F7),
+    link: String.fromCodePoint(0x1F517),
+    outbox: String.fromCodePoint(0x1F4E4),
+    speech: String.fromCodePoint(0x1F4AC),
+    twitter: String.fromCodePoint(0x1D54F),
+  };
+  
   // Use the API share URL which has proper Open Graph meta tags
   const shareUrl = `${BACKEND_URL}/share/${post?.id}`;
   const postUrl = `${window.location.origin}/post/${post?.id}`;
@@ -626,7 +636,7 @@ const SharePostModal = ({ post, open, onClose, isLight }) => {
   };
 
   const handleShare = async (platform) => {
-    const shareText = `Check out this surf session on Raw Surf! ??`;
+    const shareText = `Check out this surf session on Raw Surf! ${SHARE_ICONS.wave}`;
     
     // Instagram handling - use native share on mobile, copy link on desktop
     if (platform === 'instagram') {
@@ -708,7 +718,7 @@ const SharePostModal = ({ post, open, onClose, isLight }) => {
           {!checkingMeta && metaStatus && (metaStatus.facebook_connected || metaStatus.instagram_connected) && (
             <div className={`p-3 rounded-lg ${isLight ? 'bg-gradient-to-r from-blue-50 to-pink-50 border border-blue-100' : 'bg-gradient-to-r from-blue-900/30 to-pink-900/30 border border-blue-800'}`}>
               <p className={`text-xs font-medium mb-2 ${isLight ? 'text-gray-700' : 'text-gray-300'}`}>
-                ?? Direct Post to Your Feed
+                {SHARE_ICONS.outbox} Direct Post to Your Feed
               </p>
               <div className="flex gap-2">
                 {metaStatus.facebook_connected && (
@@ -741,7 +751,7 @@ const SharePostModal = ({ post, open, onClose, isLight }) => {
                       <Loader2 className="w-4 h-4 animate-spin" />
                     ) : (
                       <>
-                        <span className="text-lg mr-1">??</span>
+                        <span className="text-lg mr-1">{SHARE_ICONS.camera}</span>
                         Post to IG
                       </>
                     )}
@@ -764,7 +774,7 @@ const SharePostModal = ({ post, open, onClose, isLight }) => {
               data-testid="connect-meta-cta"
             >
               <p className={`text-sm font-medium ${isLight ? 'text-gray-800' : 'text-white'}`}>
-                ?? Connect Facebook & Instagram
+                {SHARE_ICONS.link} Connect Facebook & Instagram
               </p>
               <p className={`text-xs mt-0.5 ${isLight ? 'text-gray-500' : 'text-gray-400'}`}>
                 Post directly to your social feeds
@@ -810,7 +820,7 @@ const SharePostModal = ({ post, open, onClose, isLight }) => {
               className="flex-col h-auto py-3"
               data-testid="share-twitter-btn"
             >
-              <span className="text-2xl">??</span>
+              <span className="text-2xl">{SHARE_ICONS.twitter}</span>
               <span className="text-xs mt-1">Twitter</span>
             </Button>
             <Button
@@ -829,7 +839,7 @@ const SharePostModal = ({ post, open, onClose, isLight }) => {
               title={isMobile ? "Share via your device's share menu" : "Copy link to share on Instagram"}
               data-testid="share-instagram-link-btn"
             >
-              <span className="text-2xl">??</span>
+              <span className="text-2xl">{SHARE_ICONS.camera}</span>
               <span className="text-xs mt-1">Link</span>
             </Button>
             <Button
@@ -838,7 +848,7 @@ const SharePostModal = ({ post, open, onClose, isLight }) => {
               className="flex-col h-auto py-3"
               data-testid="share-whatsapp-btn"
             >
-              <span className="text-2xl text-green-500">??</span>
+              <span className="text-2xl text-green-500">{SHARE_ICONS.speech}</span>
               <span className="text-xs mt-1">WhatsApp</span>
             </Button>
           </div>
@@ -859,7 +869,7 @@ const SharePostModal = ({ post, open, onClose, isLight }) => {
           {/* Instagram note for desktop - only show if not connected */}
           {!isMobile && !metaStatus?.instagram_connected && (
             <p className={`text-xs ${isLight ? 'text-gray-500' : 'text-gray-400'} text-center`}>
-              ?? Instagram doesn't support web sharing. Connect your account above to post directly!
+              {SHARE_ICONS.camera} Instagram doesn't support web sharing. Connect your account above to post directly!
             </p>
           )}
         </div>

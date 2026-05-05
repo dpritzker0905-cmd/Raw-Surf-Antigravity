@@ -6,6 +6,7 @@
 import apiClient from '../lib/apiClient';
 import { toast } from 'sonner';
 import logger from '../utils/logger';
+import { getPreferencesByPath, updatePreferenceByPath } from '../services/notificationService';
 
 const useSettingsActions = ({
   user, navigate, logout,
