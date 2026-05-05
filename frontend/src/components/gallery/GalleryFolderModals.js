@@ -1,4 +1,4 @@
-﻿/**
+/**
  * GalleryPageModals.js
  * Extracted folder management modals from GalleryPage.js
  * Includes: GalleryPricingModal, CreateFolderModal, RenameFolderModal,
@@ -6,7 +6,7 @@
  */
 import React from 'react';
 import {
-  DollarSign, Plus, Loader2, Image, Check, Video,
+  DollarSign, Plus, Loader2, Image, Check, Video, Upload, Camera,
   Settings, Edit3, Sparkles, RotateCcw, Folder, MapPin,
   Calendar, Trash2, Copy, Radio, Droplet, ChevronDown, Users,
   Send, Link2, ImagePlus, AlertTriangle
@@ -29,6 +29,7 @@ export const GalleryFolderModals = ({
   handleSaveGalleryPricing,
   showWatermarkSettings, setShowWatermarkSettings,
   watermarkPreviewUrl,
+  watermarkSettings,
   canSellPhotos,
   navigate,
   // Add to Gallery
@@ -40,7 +41,7 @@ export const GalleryFolderModals = ({
   showRenameFolderModal, setShowRenameFolderModal,
   showDeleteFolderModal, setShowDeleteFolderModal,
   newFolderName, setNewFolderName,
-  folderToRename, folderToDelete,
+  folderToRename, folderToDelete, setFolderToDelete,
   folderActionLoading,
   handleCreateFolder, handleRenameFolder, confirmDeleteFolder,
   // Move/Copy

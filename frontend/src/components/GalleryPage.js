@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { usePricing } from '../contexts/PricingContext';
@@ -1361,6 +1361,7 @@ export const GalleryPage = () => {
         showWatermarkSettings={showWatermarkSettings}
         setShowWatermarkSettings={setShowWatermarkSettings}
         watermarkPreviewUrl={watermarkPreviewUrl}
+        watermarkSettings={watermarkSettings}
         canSellPhotos={canSellPhotos}
         navigate={navigate}
         showAddToGalleryModal={showAddToGalleryModal}
@@ -1380,6 +1381,7 @@ export const GalleryPage = () => {
         setNewFolderName={setNewFolderName}
         folderToRename={folderToRename}
         folderToDelete={folderToDelete}
+        setFolderToDelete={setFolderToDelete}
         folderActionLoading={folderActionLoading}
         handleCreateFolder={handleCreateFolder}
         handleRenameFolder={handleRenameFolder}
