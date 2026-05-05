@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from './ui/button';
@@ -17,7 +17,7 @@ const ROLE_CONFIG = {
     tagline: 'Get your sessions captured by local pros',
     benefits: ['Book photographers on the beach', 'Build your surf portfolio', 'Track streaks & compete'],
     roles: [
-      { id: 'Grom', label: 'Grom', icon: '\u{1F3C4}', description: 'Under 18 � Parent-linked account', requiresParent: true },
+      { id: 'Grom', label: 'Grom', icon: '\u{1F3C4}', description: 'Under 18 \u2013 Parent-linked account', requiresParent: true },
       { id: 'Surfer', label: 'Surfer', icon: '\u{1F30A}', description: 'Casual to committed wave rider' }
     ]
   },
@@ -27,9 +27,9 @@ const ROLE_CONFIG = {
     tagline: 'Turn your surf shots into income',
     benefits: ['Set your own prices', 'Get booked by surfers', 'AI-powered editing tools'],
     roles: [
-      { id: 'Hobbyist', label: 'Hobbyist', icon: '\u{1F4F7}', description: 'Free � Contribute � Earn Gear Credits' },
-      { id: 'Photographer', label: 'Photographer', icon: '\u{1F4F8}', description: 'Unlimited storage � Set your prices � Track surfers' },
-      { id: 'Approved Pro', label: 'Verified Pro Photographer', icon: '\u{2B50}', description: 'Verified badge � Lower commission � Priority placement' }
+      { id: 'Hobbyist', label: 'Hobbyist', icon: '\u{1F4F7}', description: 'Free \u00B7 Contribute \u00B7 Earn Gear Credits' },
+      { id: 'Photographer', label: 'Photographer', icon: '\u{1F4F8}', description: 'Unlimited storage \u00B7 Set your prices \u00B7 Track surfers' },
+      { id: 'Approved Pro', label: 'Verified Pro Photographer', icon: '\u{2B50}', description: 'Verified badge \u00B7 Lower commission \u00B7 Priority placement' }
     ]
   },
   business: {
@@ -199,7 +199,7 @@ export const Auth = () => {
             tos_version: CURRENT_TOS_VERSION
           });
         } catch (tosErr) {
-          // Non-blocking � account is created, we just couldn't record ToS
+          // Non-blocking - account is created, we just couldn't record ToS
           console.warn('Failed to record ToS acceptance:', tosErr);
         }
 
@@ -697,7 +697,7 @@ export const Auth = () => {
 
             {/* Scrollable Content */}
             <div className="flex-1 overflow-y-auto px-6 py-4 text-sm text-gray-300 space-y-4" style={{ maxHeight: '60vh' }}>
-              <p className="text-xs text-gray-500 uppercase tracking-wider">Version {authTosContent.version || CURRENT_TOS_VERSION} � Effective {authTosContent.effective_date || 'May 2026'}</p>
+              <p className="text-xs text-gray-500 uppercase tracking-wider">Version {authTosContent.version || CURRENT_TOS_VERSION} \u00B7 Effective {authTosContent.effective_date || 'May 2026'}</p>
               {(authTosContent.sections || []).map((section, idx) => (
                 <React.Fragment key={idx}>
                   <h3 className="text-white font-semibold text-base">{section.title}</h3>
