@@ -71,15 +71,33 @@ const PostModal = ({ post, isOpen, onClose, onPostUpdated, posts, onNavigatePost
   // Trap focus within the modal for keyboard accessibility
   useFocusTrap(modalRef, isOpen);
   
-  // Double-tap to like handler — toggles shaka on/off
+  // Double-tap to like handler — toggles shaka on/off (desktop click-based)
   const handleDoubleTap = useCallback(() => {
     const now = Date.now();
-    if (now - lastTapRef.current < 300) {
+    if (now - lastTapRef.current < 400) {
       // Double tap detected - toggle shaka reaction
       if (user?.id && post?.id) {
         handleReaction('\u{1F919}');
       }
       // Show shaka animation
+      setShowDoubleTapHeart(true);
+      setTimeout(() => setShowDoubleTapHeart(false), 800);
+      lastTapRef.current = 0;
+    } else {
+      lastTapRef.current = now;
+    }
+  }, [user?.id, post?.id]);
+  
+  // Touch-based double-tap for mobile PostModal (bypasses 300ms click delay)
+  const handleMobileTouchEnd = useCallback((e) => {
+    if (e.changedTouches?.length !== 1) return;
+    const now = Date.now();
+    if (now - lastTapRef.current < 400) {
+      e.preventDefault();
+      e.stopPropagation();
+      if (user?.id && post?.id) {
+        handleReaction('\u{1F919}');
+      }
       setShowDoubleTapHeart(true);
       setTimeout(() => setShowDoubleTapHeart(false), 800);
       lastTapRef.current = 0;
@@ -473,12 +491,25 @@ const PostModal = ({ post, isOpen, onClose, onPostUpdated, posts, onNavigatePost
           style={{ zIndex: 1 }}
         />
         
-        {/* Fullscreen Image/Video - no click handler here */}
+        {/* Fullscreen Image/Video - with touch double-tap handler for mobile */}
         <div 
-          className="absolute inset-0 flex items-center justify-center pointer-events-none"
+          className="absolute inset-0 flex items-center justify-center"
           style={{ zIndex: 2 }}
+          onTouchEnd={handleMobileTouchEnd}
         >
-          <div className="pointer-events-auto">
+          {/* Double-tap shaka animation (mobile) */}
+          {showDoubleTapHeart && (
+            <div className="absolute inset-0 flex items-center justify-center z-20 pointer-events-none">
+              <img loading="lazy" decoding="async" 
+                src="https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/svg/1f919.svg"
+                alt="shaka"
+                className="w-24 h-24 animate-ping"
+                style={{ animationDuration: '0.6s', filter: 'drop-shadow(0 4px 12px rgba(234, 179, 8, 0.5))' }}
+                draggable={false}
+              />
+            </div>
+          )}
+          <div>
             <ImageCarousel images={mediaItems} mediaType={post.media_type} />
           </div>
         </div>

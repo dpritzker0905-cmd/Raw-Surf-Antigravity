@@ -537,10 +537,20 @@ const PostCard = ({
   const [showDoubleTapHeart, setShowDoubleTapHeart] = useState(false);
   const lastTapRef = useRef(0);
   const singleTapTimerRef = useRef(null);
+  // Prevents synthesized click from double-firing after touch on mobile.
+  // Touch fires first, then browser synthesizes a click event ~50-100ms later.
+  // Without this guard, the click handler sees the touch's timestamp and
+  // falsely detects a "double tap" from a single finger tap.
+  const touchHandledRef = useRef(false);
 
   const handleMediaTap = useCallback((e) => {
+    // Skip if touch already handled this interaction (prevents touch→click double-fire)
+    if (touchHandledRef.current) {
+      touchHandledRef.current = false;
+      return;
+    }
     const now = Date.now();
-    if (now - lastTapRef.current < 500) {
+    if (now - lastTapRef.current < 400) {
       // Double tap detected → cancel pending single tap
       if (singleTapTimerRef.current) {
         clearTimeout(singleTapTimerRef.current);
@@ -564,7 +574,7 @@ const PostCard = ({
       singleTapTimerRef.current = setTimeout(() => {
         onImageClick && onImageClick(post);
         singleTapTimerRef.current = null;
-      }, 400);
+      }, 350);
     }
   }, [user?.id, post?.id, post?.liked, onDoubleTapLike, onImageClick, post]);
 
@@ -589,8 +599,10 @@ const PostCard = ({
   const handleTouchEnd = useCallback((e) => {
     // Only handle single-finger taps
     if (e.changedTouches?.length !== 1) return;
+    // Mark that touch handled this interaction so the synthesized click skips
+    touchHandledRef.current = true;
     const now = Date.now();
-    if (now - lastTapRef.current < 500) {
+    if (now - lastTapRef.current < 400) {
       // Double-tap via touch
       e.preventDefault(); // Prevent click from also firing
       if (singleTapTimerRef.current) {
@@ -608,7 +620,7 @@ const PostCard = ({
       singleTapTimerRef.current = setTimeout(() => {
         onImageClick && onImageClick(post);
         singleTapTimerRef.current = null;
-      }, 400);
+      }, 350);
     }
   }, [user?.id, post?.id, post?.liked, onDoubleTapLike, onImageClick, post]);
 
