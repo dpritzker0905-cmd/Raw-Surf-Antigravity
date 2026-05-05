@@ -564,47 +564,10 @@ const useFeedActions = ({
     // In-flight guard: skip if already processing this post
     if (likingInFlight.current.has(postId)) return;
     
-    const currentPost = posts.find(p => p.id === postId);
-    const userReaction = currentPost?.reactions?.find(r => r.user_id === user.id);
-    
-    // Case 1: User has a non-Shaka reaction (Fire, Wave, Heart) → clear it via reactions API
-    if (userReaction && userReaction.emoji !== '🤙') {
-      likingInFlight.current.add(postId);
-      
-      // Optimistic: remove reaction, set to unchecked shaka
-      setPosts(prevPosts => prevPosts.map(p => {
-        if (p.id === postId) {
-          return {
-            ...p,
-            liked: false,
-            likes_count: Math.max(0, (p.likes_count || 1) - 1),
-            reactions: (p.reactions || []).filter(r => r.user_id !== user.id)
-          };
-        }
-        return p;
-      }));
-      
-      try {
-        // Single API call: toggle off the current reaction (backend decrements likes_count)
-        const response = await apiClient.post(`/posts/${postId}/reactions`, { 
-          emoji: userReaction.emoji 
-        });
-        // Sync server count
-        if (response.data?.likes_count !== undefined) {
-          setPosts(prevPosts => prevPosts.map(p =>
-            p.id === postId ? { ...p, likes_count: response.data.likes_count } : p
-          ));
-        }
-      } catch (error) {
-        logger.error('Failed to clear reaction:', error);
-      } finally {
-        likingInFlight.current.delete(postId);
-      }
-      return;
-    }
-    
-    // Case 2 & 3: Toggle shaka like on/off via the like endpoint
-    handleLike(postId);
+    // ALL cases now go through the unified /reactions endpoint with shaka emoji.
+    // This prevents double-counting between the PostLike and PostReaction tables.
+    // The backend cross-table cleanup handles any stale PostLike rows.
+    handleReaction(postId, '\u{1F919}');
   };
 
   const handleShakaPointerDown = (postId, e) => {

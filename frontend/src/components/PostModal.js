@@ -77,7 +77,7 @@ const PostModal = ({ post, isOpen, onClose, onPostUpdated, posts, onNavigatePost
     if (now - lastTapRef.current < 300) {
       // Double tap detected - like the post
       if (!liked && user?.id && post?.id) {
-        handleLike();
+        handleReaction('\u{1F919}');
       }
       // Show heart animation
       setShowDoubleTapHeart(true);
@@ -948,13 +948,12 @@ const PostModal = ({ post, isOpen, onClose, onPostUpdated, posts, onNavigatePost
           <div className="border-t border-zinc-800 p-4 space-y-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-4">
-                <button onClick={handleLike} className="hover:opacity-70 transition-opacity">
-                  <img loading="lazy" decoding="async" 
-                    src="https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/svg/1f919.svg"
-                    alt="shaka"
-                    className="w-6 h-6"
-                    style={{ filter: liked ? 'none' : 'grayscale(100%) brightness(1.5)' }}
-                  />
+                <button onClick={() => handleReaction('\u{1F919}')} className="hover:opacity-70 transition-opacity">
+                  {userReaction ? (
+                    <span className="text-2xl select-none">{userReaction.emoji}</span>
+                  ) : (
+                    <ShakaIcon filled={liked} size={24} />
+                  )}
                 </button>
                 <button aria-label="Message"
                   className="text-white hover:opacity-70 transition-opacity"
