@@ -159,7 +159,7 @@ const SessionDetailDrawer = ({
         try {
           const res = await apiClient.get(`/reviews/check?reviewer_id=${userId}&live_session_id=${sessionId}`);
           if (res.data?.has_reviewed) {
-            // Mark all participants as reviewed (simplified Ã¯Â¿Â½ real check would be per-reviewee)
+            // Mark all participants as reviewed (simplified - real check would be per-reviewee)
             const allReviewed = {};
             for (const p of session.participants) {
               allReviewed[p.id] = true;
@@ -230,7 +230,7 @@ const SessionDetailDrawer = ({
         onClick={onClose}
       />
 
-      {/* Drawer Ã¯Â¿Â½ bottom-sheet mobile, centered modal desktop */}
+      {/* Drawer - bottom-sheet mobile, centered modal desktop */}
       <div
         className={`fixed z-50 transition-transform duration-300 ease-out
           inset-x-0 bottom-0
@@ -440,7 +440,7 @@ const SessionDetailDrawer = ({
               </div>
             )}
 
-            {/* Bottom safe area padding Ã¯Â¿Â½ clears mobile BottomNav */}
+            {/* Bottom safe area padding - clears mobile BottomNav */}
             <div className="h-24" />
           </div>
         </div>

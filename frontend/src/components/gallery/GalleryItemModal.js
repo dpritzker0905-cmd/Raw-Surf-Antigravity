@@ -430,7 +430,7 @@ export const GalleryItemModal = ({ item, onClose, onPurchased, galleryId, onSetA
           {/* -- Per-Image Tag to Surfer (Owner Only) -- */}
           {isOwner && galleryId && (
             <div className="mt-4 p-4 bg-zinc-800/80 rounded-lg border border-purple-500/20">
-              {/* Status header Ã¯Â¿Â½ immediately tells photographer what happened */}
+              {/* Status header - immediately tells photographer what happened */}
               <div className="flex items-center justify-between mb-3">
                 <h4 className="font-medium text-white flex items-center gap-2">
                   <Send className="w-4 h-4 text-purple-400" />
@@ -480,7 +480,7 @@ export const GalleryItemModal = ({ item, onClose, onPurchased, galleryId, onSetA
                               : 'border-zinc-600 bg-zinc-700/50 hover:bg-zinc-700 hover:border-purple-500/50'
                         }`}
                       >
-                        {/* Selfie / Avatar Ã¯Â¿Â½ shown larger as reference */}
+                        {/* Selfie / Avatar - shown larger as reference */}
                         {isLoading ? (
                           <Loader2 className="w-10 h-10 animate-spin text-purple-400 shrink-0" />
                         ) : selfieOrAvatar ? (

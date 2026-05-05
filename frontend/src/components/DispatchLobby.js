@@ -243,7 +243,7 @@ export const DispatchLobby = () => {
           } catch (_) { /* audio play failures are non-critical */ }
         }
 
-        // Photographer ARRIVED Ã¯Â¿Â½ notify the surfer
+        // Photographer ARRIVED - notify the surfer
         if (newStatus === 'arrived') {
           toast.success('📍 Your photographer has arrived! Look for them at the spot.', {
             id: 'photographer-arrived',
@@ -296,7 +296,7 @@ export const DispatchLobby = () => {
       pollAttemptRef.current += 1;
     } catch (err) {
       pollAttemptRef.current += 1;
-      // Don't show error on first few attempts Ã¯Â¿Â½ backend may still be propagating
+      // Don't show error on first few attempts - backend may still be propagating
       if (pollAttemptRef.current >= 3) {
         setError('Lost connection - retrying...');
       }
@@ -604,7 +604,7 @@ export const DispatchLobby = () => {
                 {photographerName} is on the way! Send a message or voice note to help them find you at the beach.
               </p>
 
-              {/* Inline message preview Ã¯Â¿Â½ shows latest photographer message */}
+              {/* Inline message preview - shows latest photographer message */}
               {bgLatestMessage && (
                 <button
                   onClick={() => setShowSessionChat(true)}
