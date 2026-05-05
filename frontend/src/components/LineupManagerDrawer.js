@@ -41,6 +41,7 @@ import { toast } from 'sonner';
 import { useLineupWebSocket } from '../hooks/useLineupWebSocket';
 
 import logger from '../utils/logger';
+import useLineupManagerActions from '../hooks/useLineupManagerActions';
 import { getFullUrl } from '../utils/media';
 
 
@@ -410,7 +411,7 @@ const QuickActionsPanel = ({
             <p className={`text-sm font-medium ${textPrimary}`}>Keeping a Spot in the Water</p>
           </div>
           <p className={`text-xs ${textSecondary}`}>
-            Your lineup is open. Use the invite panel above to fill the remaining spots — the session stays open until you're ready to lock it.
+            Your lineup is open. Use the invite panel above to fill the remaining spots ï¿½ the session stays open until you're ready to lock it.
           </p>
         </div>
       )}
@@ -428,7 +429,7 @@ const QuickActionsPanel = ({
             </p>
           </div>
 
-          {/* 1 — Lock (primary) */}
+          {/* 1 ï¿½ Lock (primary) */}
           <Button aria-label="Loader2"
             onClick={onLock}
             disabled={loading}
@@ -440,7 +441,7 @@ const QuickActionsPanel = ({
         </>
       )}
 
-      {/* 2 — Leave Open & Come Back Later (always shown when active) */}
+      {/* 2 ï¿½ Leave Open & Come Back Later (always shown when active) */}
       {isActive && (
         <Button aria-label="Waves"
           onClick={onClose}
@@ -469,7 +470,7 @@ const QuickActionsPanel = ({
         </Button>
       )}
 
-      {/* Cancel — tap to reveal, discourages accidental cancels */}
+      {/* Cancel ï¿½ tap to reveal, discourages accidental cancels */}
       {!showCancelRow ? (
         <button
           onClick={() => setShowCancelRow(true)}
@@ -750,146 +751,32 @@ export const LineupManagerDrawer = ({
     return () => clearTimeout(timeout);
   }, [searchQuery, lineup?.id, user?.id]);
 
-  // Action Handlers
-  const handleInvite = async (targetUser) => {
-    setInviting(targetUser.user_id);
-    try {
-      await apiClient.post(
-        `/bookings/${lineup.id}/invite-by-handle`,
-        { handle_query: targetUser.username || targetUser.full_name }
-      );
-      const displayName = targetUser.username ? `@${targetUser.username}` : targetUser.full_name;
-      toast.success(`Invite sent to ${displayName}!`);
-      setSearchQuery('');
-      setSearchResults([]);
-      onRefresh?.();
-    } catch (error) {
-      toast.error(error.response?.data?.detail || 'Failed to send invite');
-    } finally {
-      setInviting(null);
-    }
-  };
+  // ============ HANDLERS EXTRACTED TO hooks/useLineupManagerActions.js ============
+  const {
+    handleInvite,
+    handleInviteAll,
+    handleLockLineup,
+    handleCloseToInvites,
+    handleCancelAll,
+    handleRemoveCrewMember,
+    handleLeaveLineup,
+    copyInviteCode,
+  } = useLineupManagerActions({
+    lineup,
+    user,
+    onRefresh,
+    onClose,
+    showLockConfirm,
+    showCancelConfirm,
+    setLoading,
+    setInviting,
+    setSearchQuery,
+    setSearchResults,
+    setShowLockConfirm,
+    setShowCancelConfirm,
+  });
 
-  const handleInviteAll = async (users) => {
-    setInviting('all');
-    let successCount = 0;
-    
-    for (const targetUser of users) {
-      try {
-        await apiClient.post(
-          `/bookings/${lineup.id}/invite-by-handle`,
-          { handle_query: targetUser.username || targetUser.full_name }
-        );
-        successCount++;
-      } catch (error) {
-        logger.error(`Failed to invite ${targetUser.full_name}:`, error);
-      }
-    }
-    
-    if (successCount > 0) {
-      toast.success(`Sent ${successCount} invite${successCount > 1 ? 's' : ''}!`);
-      onRefresh?.();
-    } else {
-      toast.error('Failed to send invites');
-    }
-    
-    setInviting(null);
-  };
-
-  const handleLockLineup = async () => {
-    if (!showLockConfirm) { setShowLockConfirm(true); return; }
-    setShowLockConfirm(false);
-    setLoading(true);
-    try {
-      await apiClient.post(`/bookings/${lineup.id}/lineup/lock`);
-      toast.success('Lineup locked! Payment requests sent to crew.');
-      onRefresh?.();
-      onClose();
-    } catch (error) {
-      toast.error(error.response?.data?.detail || 'Failed to lock lineup');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleCloseToInvites = async () => {
-    if (!confirm('Close this lineup to new members? Current crew will keep their spots.')) return;
-    
-    setLoading(true);
-    try {
-      await apiClient.post(`/bookings/${lineup.id}/lineup/close`);
-      toast.success('Lineup closed to new members');
-      onRefresh?.();
-    } catch (error) {
-      toast.error(error.response?.data?.detail || 'Failed to close lineup');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleCancelAll = async () => {
-    if (!showCancelConfirm) { setShowCancelConfirm(true); return; }
-    setShowCancelConfirm(false);
-    setLoading(true);
-    try {
-      await apiClient.post(`/bookings/${lineup.id}/cancel`, {
-        reason: 'Cancelled by captain'
-      });
-      toast.success('Session cancelled. All participants have been notified.');
-      onRefresh?.();
-      onClose();
-    } catch (error) {
-      const errorMessage = error.response?.data?.detail || 'Failed to cancel session';
-      const displayMessage = typeof errorMessage === 'object'
-        ? (Array.isArray(errorMessage) ? errorMessage[0]?.msg : errorMessage.msg || 'Failed to cancel session')
-        : errorMessage;
-      toast.error(displayMessage);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleRemoveCrewMember = async (memberId, memberName) => {
-    if (!confirm(`Remove ${memberName} from this lineup? They will be notified.`)) return;
-    
-    setLoading(true);
-    try {
-      await apiClient.post(`/bookings/${lineup.id}/lineup/remove-member`, {
-        member_id: memberId
-      });
-      toast.success(`${memberName} removed from lineup. Spot is now open.`);
-      onRefresh?.();
-    } catch (error) {
-      toast.error(error.response?.data?.detail || 'Failed to remove crew member');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleLeaveLineup = async () => {
-    if (!confirm('Leave this lineup? Your spot will open for someone else.')) return;
-    
-    setLoading(true);
-    try {
-      await apiClient.post(`/bookings/${lineup.id}/lineup/leave`);
-      toast.success('You left the lineup. The captain has been notified.');
-      onRefresh?.();
-      onClose();
-    } catch (error) {
-      toast.error(error.response?.data?.detail || 'Failed to leave lineup');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const copyInviteCode = () => {
-    if (lineup?.invite_code) {
-      navigator.clipboard.writeText(lineup.invite_code);
-      toast.success('Invite code copied!');
-    }
-  };
-
-  if (!lineup) return null;
+    if (!lineup) return null;
 
   const cardBg = isLight ? 'bg-white' : 'bg-zinc-900';
   const textPrimary = isLight ? 'text-gray-900' : 'text-white';
@@ -927,7 +814,7 @@ export const LineupManagerDrawer = ({
           </div>
           <DialogDescription className={`${textSecondary} flex items-center gap-2 mt-1`}>
             <MapPin className="w-4 h-4" />
-            {lineup.location} · {new Date(lineup.session_date).toLocaleDateString()}
+            {lineup.location} ï¿½ {new Date(lineup.session_date).toLocaleDateString()}
           </DialogDescription>
           <LineupCountdown closesAt={lineup.lineup_closes_at} isLight={isLight} />
         </div>

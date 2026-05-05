@@ -43,6 +43,7 @@ import { JumpInSessionModal } from './JumpInSessionModal';
 
 import logger from '../utils/logger';
 import { getFullUrl } from '../utils/media';
+import useBookingsActions from '../hooks/useBookingsActions';
 
 
 
@@ -615,321 +616,55 @@ export const Bookings = () => {
     }
   }, [searchParams, user?.id, navigate]);
 
-  const fetchData = async () => {
-    setLoading(true);
-    try {
-      // Fire all independent API calls in parallel for ~2-3x faster load
-      const [creditsRes, bookingsRes, sessionsRes, liveRes, invitesRes, crewRes, activeRes, historyRes] = await Promise.allSettled([
-        apiClient.get(`/credits/${user.id}/balance`),
-        apiClient.get(`/bookings/user/${user.id}`),
-        apiClient.get(`/sessions/user/${user.id}`),
-        apiClient.get(`/photographers/live`),
-        apiClient.get(`/bookings/invites/${user.id}`),
-        apiClient.get(`/dispatch/user/${user.id}/crew-invites`),
-        apiClient.get(`/dispatch/user/${user.id}/active`),
-        apiClient.get(`/sessions/user/${user.id}/history`),
-      ]);
-
-      // Credits
-      if (creditsRes.status === 'fulfilled' && creditsRes.value.data?.balance !== undefined) {
-        setUserCreditBalance(creditsRes.value.data.balance);
-        updateUser({ credit_balance: creditsRes.value.data.balance });
-      }
-
-      // Bookings
-      setBookings(bookingsRes.status === 'fulfilled' ? (bookingsRes.value.data || []) : []);
-
-      // Live sessions
-      setLiveSessions(sessionsRes.status === 'fulfilled' ? (sessionsRes.value.data || []) : []);
-
-      // Live photographers
-      setLivePhotographers(liveRes.status === 'fulfilled' ? (liveRes.value.data || []) : []);
-
-      // Pending invites
-      setPendingInvites(invitesRes.status === 'fulfilled' ? (invitesRes.value.data || []) : []);
-
-      // Crew invites
-      setCrewInvites(crewRes.status === 'fulfilled' ? (crewRes.value.data?.crew_invites || []) : []);
-
-      // Active dispatch
-      if (activeRes.status === 'fulfilled') {
-        const dispatch = activeRes.value.data?.active_dispatch;
-        if (dispatch && ['requester', 'crew_member', 'photographer'].includes(dispatch.role)) {
-          setActiveDispatch(dispatch);
-        } else {
-          setActiveDispatch(null);
-        }
-      } else {
-        setActiveDispatch(null);
-      }
-
-      // Past live session history (completed/left live sessions)
-      setSessionHistory(historyRes.status === 'fulfilled' ? (historyRes.value.data || []) : []);
-      
-      // Fetch nearby splittable bookings (if user has location) � kept async since geolocation is callback-based
-      try {
-        if (navigator.geolocation) {
-          navigator.geolocation.getCurrentPosition(async (position) => {
-            const { latitude, longitude } = position.coords;
-            const params = new URLSearchParams({
-              latitude,
-              longitude,
-              radius: 10
-            });
-            if (selectedSkillFilter) {
-              params.append('skill_level', selectedSkillFilter);
-            }
-            const nearbyRes = await apiClient.get(`/bookings/nearby?${params}`);
-            setNearbyBookings(nearbyRes.data || []);
-          }, () => {
-            // Location denied - skip nearby bookings
-            setNearbyBookings([]);
-          });
-        }
-      } catch (e) {
-        setNearbyBookings([]);
-      }
-    } catch (error) {
-      logger.error('Error fetching data:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleJumpIn = async (photographer) => {
-    // Check if user is logged in
-    if (!user) {
-      toast.error('Please log in to join sessions');
-      return;
-    }
-    
-    // Check if user has a surfer-capable role
-    if (!canJoinSessions) {
-      toast.error(`Your current role (${effectiveRole}) cannot join sessions. Switch to a surfer role.`);
-      return;
-    }
-    
-    // Open the Unified Drawer with photographer info
-    setSelectedPhotographer({
-      ...photographer,
-      current_spot_name: photographer.location || photographer.spot_name || 'Live Session'
-    });
-    setShowJumpInDrawer(true);
-  };
-  
-  // Handle successful join from drawer
-  const _handleJumpInSuccess = (data) => {
-    setShowJumpInDrawer(false);
-    setSelectedPhotographer(null);
-    if (data?.remaining_credits !== undefined) {
-      updateUser({ credit_balance: data.remaining_credits });
-    }
-    toast.success('Successfully joined session!');
-    fetchData();
-  };
-
-  const handleJoinByCode = async () => {
-    if (!joinCode.trim()) {
-      toast.error('Please enter an invite code');
-      return;
-    }
-    try {
-      const _response = await apiClient.post(`/bookings/join-by-code?invite_code=${joinCode.toUpperCase()}`);
-      toast.success('Successfully joined the booking!');
-      setShowJoinCodeModal(false);
-      setJoinCode('');
-      fetchData();
-    } catch (error) {
-      toast.error(error.response?.data?.detail || 'Invalid invite code');
-    }
-  };
-
-  const handleRespondToInvite = async (inviteId, accept) => {
-    try {
-      await apiClient.post(`/bookings/invites/${inviteId}/respond?accept=${accept}`);
-      toast.success(accept ? 'Invite accepted!' : 'Invite declined');
-      fetchData();
-    } catch (error) {
-      toast.error(error.response?.data?.detail || 'Failed to respond to invite');
-    }
-  };
-
-  const handleJoinNearbyBooking = async (bookingId) => {
-    try {
-      const response = await apiClient.post(`/bookings/${bookingId}/join`);
-      toast.success(`Joined booking! Paid ${response.data.amount_paid} credits`);
-      fetchData();
-    } catch (error) {
-      toast.error(error.response?.data?.detail || 'Failed to join booking');
-    }
-  };
-  
-  // Auto-open crew payment modal when coming from notification (fixes race condition)
-  useEffect(() => {
-    if (!location.state?.openCrewInvite || !location.state?.dispatchId) return;
-    const dispatchId = location.state.dispatchId;
-
-    const tryOpen = (invites) => {
-      const invite = invites.find(inv => inv.dispatch_id === dispatchId);
-      if (invite) {
-        setActiveTab('on_demand'); // Ensure correct tab is visible
-        setSelectedCrewInvite(invite);
-        setShowCrewPaymentModal(true);
-        navigate(location.pathname + location.search, { replace: true, state: {} });
-      }
-    };
-
-    if (crewInvites.length > 0) {
-      // Already loaded � open immediately
-      tryOpen(crewInvites);
-    } else {
-      // Race condition: invites not loaded yet � fetch directly and open
-      apiClient.get(`/dispatch/user/${user?.id}/crew-invites`)
-        .then(res => {
-          const fresh = res.data?.crew_invites || [];
-          setCrewInvites(fresh);
-          tryOpen(fresh);
-        })
-        .catch(() => {/* silent */});
-    }
-  }, [location.state?.openCrewInvite, location.state?.dispatchId]); // eslint-disable-line
-
-  const fetchNearbyWithSkillFilter = async (skillLevel) => {
-    setSelectedSkillFilter(skillLevel);
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(async (position) => {
-        const { latitude, longitude } = position.coords;
-        const params = new URLSearchParams({
-          latitude: latitude.toString(),
-          longitude: longitude.toString(),
-          radius: '10',
-          user_id: user.id
-        });
-        if (skillLevel) {
-          params.append('skill_level', skillLevel);
-        }
-        try {
-          const nearbyRes = await apiClient.get(`/bookings/nearby?${params}`);
-          setNearbyBookings(nearbyRes.data || []);
-        } catch (e) {
-          logger.error('Error fetching nearby bookings:', e);
-        }
-      });
-    }
-  };
-
-  const copyInviteCode = (code) => {
-    navigator.clipboard.writeText(code);
-    toast.success('Invite code copied!');
-  };
-
-  // Handle crew share payment - opens the payment modal
-  const handlePayCrewShare = (invite) => {
-    setSelectedCrewInvite(invite);
-    setShowCrewPaymentModal(true);
-  };
-
-  // Helper: sort photographers by priority
-  const sortPhotographers = (photographers) => {
-    return (photographers || []).sort((a, b) => {
-      const priorityOrder = { 'Approved Pro': 0, 'Pro': 1, 'Photographer': 2, 'Hobbyist': 3 };
-      return (priorityOrder[a.role] ?? 99) - (priorityOrder[b.role] ?? 99);
-    });
-  };
-
-  // Fetch on-demand photographers based on user location (GPS)
-  const fetchOnDemandPhotographers = async () => {
-    setOnDemandLoading(true);
-    try {
-      if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(
-          async (position) => {
-            const { latitude, longitude } = position.coords;
-            setUserLocation({ latitude, longitude });
-            setGpsUnavailable(false);
-            
-            try {
-              const response = await apiClient.get(`/photographers/on-demand`, {
-                params: { latitude, longitude, radius: 25 }
-              });
-              setOnDemandPhotographers(sortPhotographers(response.data));
-            } catch (e) {
-              logger.error('Error fetching on-demand photographers:', e);
-              setOnDemandPhotographers([]);
-            }
-            setOnDemandLoading(false);
-          },
-          (_error) => {
-            // GPS denied/unavailable � show manual location selector
-            setGpsUnavailable(true);
-            setOnDemandLoading(false);
-          }
-        );
-      } else {
-        setGpsUnavailable(true);
-        setOnDemandLoading(false);
-      }
-    } catch (e) {
-      logger.error('Error in fetchOnDemandPhotographers:', e);
-      setOnDemandLoading(false);
-    }
-  };
-
-  // Fetch on-demand photographers by manual location (fallback when GPS unavailable)
-  const fetchOnDemandByManualLocation = async (latitude, longitude, locationLabel) => {
-    setOnDemandLoading(true);
-    setUserLocation({ latitude, longitude, label: locationLabel });
-    try {
-      const response = await apiClient.get(`/photographers/on-demand`, {
-        params: { latitude, longitude, radius: 50 }
-      });
-      setOnDemandPhotographers(sortPhotographers(response.data));
-    } catch (e) {
-      logger.error('Error fetching on-demand photographers by manual location:', e);
-      setOnDemandPhotographers([]);
-    } finally {
-      setOnDemandLoading(false);
-    }
-  };
-
-  // Handle On-Demand pro selection
-  const handleSelectOnDemandPro = (pro) => {
-    setSelectedOnDemandPro(pro);
-    setShowOnDemandDrawer(true);
-  };
-
-  // Handle On-Demand request success
-  const handleOnDemandSuccess = (data) => {
-    setShowOnDemandDrawer(false);
-    setSelectedOnDemandPro(null);
-    if (data?.remaining_credits !== undefined) {
-      updateUser({ credit_balance: data.remaining_credits });
-    }
-    toast.success('On-Demand request sent!');
-    fetchData();
-  };
-
-  const openInviteModal = async (booking) => {
-    // If needs to enable splitting first
-    if (booking.needsEnableSplitting) {
-      try {
-        const response = await apiClient.post(`/bookings/${booking.id}/enable-splitting`);
-        if (response.data.success) {
-          toast.success('Crew splitting enabled!');
-          // Refresh booking with new invite code
-          await fetchData();
-          setSelectedBooking({ ...booking, invite_code: response.data.invite_code });
-          setShowInviteModal(true);
-        }
-      } catch (error) {
-        toast.error(error.response?.data?.detail || 'Failed to enable splitting');
-      }
-      return;
-    }
-    
-    setSelectedBooking(booking);
-    setShowInviteModal(true);
-  };
+  // ============ HANDLERS EXTRACTED TO hooks/useBookingsActions.js ============
+  const {
+    fetchData,
+    handleJumpIn,
+    handleJoinByCode,
+    handleRespondToInvite,
+    handleJoinNearbyBooking,
+    fetchNearbyWithSkillFilter,
+    copyInviteCode,
+    handlePayCrewShare,
+    fetchOnDemandPhotographers,
+    fetchOnDemandByManualLocation,
+    handleSelectOnDemandPro,
+    handleOnDemandSuccess,
+    openInviteModal,
+  } = useBookingsActions({
+    user,
+    updateUser,
+    navigate,
+    canJoinSessions,
+    effectiveRole,
+    selectedSkillFilter,
+    setLoading,
+    setBookings,
+    setLiveSessions,
+    setSessionHistory,
+    setLivePhotographers,
+    setPendingInvites,
+    setCrewInvites,
+    setNearbyBookings,
+    setActiveDispatch,
+    setUserCreditBalance,
+    setSelectedSkillFilter,
+    setActiveTab,
+    setSelectedPhotographer,
+    setShowJumpInDrawer,
+    setShowJoinCodeModal,
+    setJoinCode,
+    setSelectedCrewInvite,
+    setShowCrewPaymentModal,
+    setOnDemandPhotographers,
+    setOnDemandLoading,
+    setUserLocation,
+    setGpsUnavailable,
+    setSelectedOnDemandPro,
+    setShowOnDemandDrawer,
+    setSelectedBooking,
+    setShowInviteModal,
+  });
 
   // --- Date-based booking lifecycle helper ------------------------------------
   // A booking is "past" if its session_date + duration has elapsed.
@@ -1380,7 +1115,7 @@ export const Bookings = () => {
               Cancel
             </Button>
             <Button
-              onClick={handleJoinByCode}
+              onClick={() => handleJoinByCode(joinCode)}
               className="bg-gradient-to-r from-yellow-400 to-orange-400 text-black"
             >
               Join Session
