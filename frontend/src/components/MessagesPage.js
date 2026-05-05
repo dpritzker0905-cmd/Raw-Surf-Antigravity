@@ -22,6 +22,7 @@ import VoiceRecorder from './VoiceRecorder';
 import WebcamCaptureModal from './WebcamCaptureModal';
 import { supabase } from '../lib/supabase';
 import logger from '../utils/logger';
+import useMessagesActions from '../hooks/useMessagesActions';
 import { getFullUrl, cacheBustUrl } from '../utils/media';
 import GifPicker from './messages/GifPicker';
 import EmojiPicker from './messages/EmojiPicker';
