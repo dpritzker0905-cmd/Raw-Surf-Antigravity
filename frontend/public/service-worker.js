@@ -1,9 +1,11 @@
 // Raw Surf OS Service Worker for Push Notifications and Offline Mode
-const CACHE_NAME = 'rawsurf-v3';
-const SPOT_CACHE_NAME = 'rawsurf-spots-v1';
-const OFFLINE_CACHE_NAME = 'rawsurf-offline-v1';
-const GALLERY_CACHE_NAME = 'rawsurf-gallery-offline-v1';
-const FEED_CACHE_NAME = 'rawsurf-feed-v1';
+// BUILD_VERSION is bumped on each deploy to auto-purge stale caches
+const BUILD_VERSION = '2026.05.05';
+const CACHE_NAME = `rawsurf-v3-${BUILD_VERSION}`;
+const SPOT_CACHE_NAME = `rawsurf-spots-v1-${BUILD_VERSION}`;
+const OFFLINE_CACHE_NAME = `rawsurf-offline-v1-${BUILD_VERSION}`;
+const GALLERY_CACHE_NAME = 'rawsurf-gallery-offline-v1'; // Gallery persists across deploys
+const FEED_CACHE_NAME = `rawsurf-feed-v1-${BUILD_VERSION}`;
 
 // Static assets to cache immediately
 const STATIC_ASSETS = [
