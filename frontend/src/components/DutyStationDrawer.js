@@ -105,10 +105,13 @@ const metersToMiles = (meters) => meters / 1609.34;
 /**
  * Mode Selector - Segmented control for switching between Live and On-Demand
  */
-const ModeSelector = ({ selectedMode, onModeChange, showOnDemand, isActive }) => {
+const ModeSelector = ({ selectedMode, onModeChange, showOnDemand, isActive, liveActive, onDemandActive }) => {
   const modes = showOnDemand ? ['live', 'onDemand'] : ['live'];
   
   if (!showOnDemand) return null;
+  
+  // Lock the selector if EITHER mode is active (not just the currently viewed one)
+  const anyModeActive = liveActive || onDemandActive;
   
   return (
     <div 
@@ -123,12 +126,12 @@ const ModeSelector = ({ selectedMode, onModeChange, showOnDemand, isActive }) =>
         return (
           <button
             key={modeId}
-            onClick={() => !isActive && onModeChange(modeId)}
-            disabled={isActive}
+            onClick={() => !anyModeActive && onModeChange(modeId)}
+            disabled={anyModeActive}
             className={`
               relative flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-full
               font-medium text-sm transition-all duration-200
-              ${isActive ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'}
+              ${anyModeActive ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'}
               ${isSelected ? 'text-white' : 'text-muted-foreground hover:text-foreground'}
             `}
             data-testid={`mode-${modeId}-button`}
@@ -375,7 +378,10 @@ export const DutyStationDrawer = ({ isOpen, onClose }) => {
   const photographerTier = isApprovedPro ? 'pro' : 'standard';
   const radiusConfig = ON_DEMAND_RADIUS[photographerTier];
   
+  // isActive tracks whether the CURRENTLY VIEWED mode is active
   const isActive = mode === 'live' ? liveActive : onDemandActive;
+  // anyModeActive is true if EITHER mode is active (used to lock tab switching)
+  const anyModeActive = liveActive || onDemandActive;
   
   // Determine if can activate
   const canActivateLive = selectedSpot && proximityConfirmed;
@@ -472,7 +478,8 @@ export const DutyStationDrawer = ({ isOpen, onClose }) => {
         const onDemandData = onDemandResponse.data;
         setOnDemandActive(onDemandData?.is_available || false);
         
-        if (onDemandData?.is_available && onDemandData?.active_spots) {
+        if (onDemandData?.is_available) {
+          // Always switch to On-Demand tab when it's active
           setSelectedSpots(onDemandData.active_spots || []);
           setMode('onDemand');
         }
@@ -938,6 +945,8 @@ export const DutyStationDrawer = ({ isOpen, onClose }) => {
             onModeChange={setMode}
             showOnDemand={showOnDemand}
             isActive={isActive}
+            liveActive={liveActive}
+            onDemandActive={onDemandActive}
           />
           
           {/* Status Card */}
