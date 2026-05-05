@@ -1,7 +1,9 @@
 /**
  * ErrorBoundary.js — Production-ready React error boundary.
  *
- * - Shows a branded crash screen (not raw dev output)  
+ * - Automatically recovers from ChunkLoadError (stale cache after deploy)
+ *   by reloading the page once
+ * - Shows a branded crash screen for other errors
  * - In development: shows full stack trace
  * - In production: shows friendly message + reload button
  * - Reports the error to console for Render logs
@@ -9,6 +11,9 @@
 import React from 'react';
 
 const IS_DEV = process.env.NODE_ENV === 'development';
+
+// Key to track if we've already attempted a reload for chunk errors
+const CHUNK_RELOAD_KEY = 'rawsurf_chunk_reload_attempted';
 
 class ErrorBoundary extends React.Component {
   constructor(props) {
@@ -27,13 +32,39 @@ class ErrorBoundary extends React.Component {
       console.error('Component stack:', errorInfo.componentStack);
     }
     this.setState({ errorInfo });
+
+    // Auto-recover from ChunkLoadError (stale cached JS after a new deploy)
+    // Best practice: https://web.dev/articles/reliable-loading-with-code-splitting
+    const isChunkError = (
+      error.name === 'ChunkLoadError' ||
+      error.message?.includes('Loading chunk') ||
+      error.message?.includes('Loading CSS chunk') ||
+      error.message?.includes('Failed to fetch dynamically imported module') ||
+      error.message?.includes('Importing a module script failed')
+    );
+
+    if (isChunkError) {
+      // Only auto-reload once to prevent infinite reload loops
+      const alreadyReloaded = sessionStorage.getItem(CHUNK_RELOAD_KEY);
+      if (!alreadyReloaded) {
+        sessionStorage.setItem(CHUNK_RELOAD_KEY, 'true');
+        console.log('[ErrorBoundary] ChunkLoadError detected — reloading page to fetch fresh bundles');
+        window.location.reload();
+        return;
+      }
+      // If we already reloaded once and still failing, show the error screen
+      console.warn('[ErrorBoundary] ChunkLoadError persists after reload — showing error UI');
+    }
   }
 
   handleRetry = () => {
+    // Clear chunk reload flag so next attempt can try a reload
+    sessionStorage.removeItem(CHUNK_RELOAD_KEY);
     this.setState({ hasError: false, error: null, errorInfo: null });
   };
 
   handleReload = () => {
+    sessionStorage.removeItem(CHUNK_RELOAD_KEY);
     window.location.reload();
   };
 
