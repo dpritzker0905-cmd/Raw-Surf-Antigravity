@@ -1159,7 +1159,7 @@ export const MessagesPage = () => {
         return (isNaN(bTime) ? 0 : bTime) - (isNaN(aTime) ? 0 : aTime);
       });
   } catch (err) {
-    console.error('Error filtering conversations:', err);
+    logger.error('Error filtering conversations:', err);
   }
 
   // Render conversation list (shared between mobile and desktop)
@@ -1361,7 +1361,7 @@ export const MessagesPage = () => {
     </div>
       );
     } catch (err) {
-      console.error('Error in renderConversationList:', err);
+      logger.error('Error in renderConversationList:', err);
       return <div className="p-4 text-red-500">List Error: {err.toString()}</div>;
     }
   };

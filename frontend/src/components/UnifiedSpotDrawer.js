@@ -1291,7 +1291,7 @@ const UnifiedSpotDrawer = ({
     try {
       const response = await apiClient.get(`/conditions/${spot.id}`);
       if (response.data?.current?.wave_height_ft) {
-        setLiveWaveHeight(Math.round(response.data.current.wave_height_ft));
+        setLiveWaveHeight(Math.round(response.data?.current?.wave_height_ft || 0));
       }
     } catch (error) {
       logger.debug('Wave height data not available');

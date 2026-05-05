@@ -1,5 +1,5 @@
 /**
- * SpotConditionCard — Displays a surf spot with real-time conditions overlay.
+ * SpotConditionCard â€” Displays a surf spot with real-time conditions overlay.
  * Extracted from Explore.js to reduce file size and improve reusability.
  * 
  * Features:
@@ -110,8 +110,8 @@ const SpotConditionCard = ({ spot, conditions, onNavigate }) => {
             )}
             <span className="text-[10px] text-muted-foreground truncate">
               {['PHOTOGRAPHER', 'APPROVED_PRO', 'HOBBYIST'].includes(thumbnail.contributor_role?.toUpperCase()) 
-                ? '📸' 
-                : '🏄'} {thumbnail.contributor_name}
+                ? 'ðŸ“¸' 
+                : 'ðŸ„'} {thumbnail.contributor_name}
             </span>
           </div>
         )}
@@ -120,4 +120,4 @@ const SpotConditionCard = ({ spot, conditions, onNavigate }) => {
   );
 };
 
-export default SpotConditionCard;
+export default React.memo(SpotConditionCard);

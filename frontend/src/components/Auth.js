@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from './ui/button';
@@ -9,6 +9,7 @@ import { ArrowLeft, User, Camera, Building2, Trophy, Star, Eye, EyeOff, FileText
 import { ROLES } from '../constants/roles';
 import { CURRENT_TOS_VERSION } from '../constants/tos';
 import apiClient from '../lib/apiClient';
+import logger from '../utils/logger';
 
 const ROLE_CONFIG = {
   surfer: {
@@ -200,7 +201,7 @@ export const Auth = () => {
           });
         } catch (tosErr) {
           // Non-blocking - account is created, we just couldn't record ToS
-          console.warn('Failed to record ToS acceptance:', tosErr);
+          logger.warn('Failed to record ToS acceptance:', tosErr);
         }
 
         toast.success('Account created! Welcome to Raw Surf');

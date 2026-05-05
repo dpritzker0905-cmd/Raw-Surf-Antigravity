@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+﻿import React, { useState, useEffect, useCallback, useRef } from 'react';
 
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
@@ -231,8 +231,8 @@ export const Explore = () => {
       }
       tag.setAttribute('content', content);
     };
-    document.title = 'Explore Ã¯Â¿Â½ Raw Surf';
-    setMeta('og:title', 'Explore Ã¯Â¿Â½ Raw Surf');
+    document.title = 'Explore ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¯ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¿ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â½ Raw Surf';
+    setMeta('og:title', 'Explore ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¯ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¿ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â½ Raw Surf');
     setMeta('og:description', 'Discover surf spots, live photographers, trending posts, and real-time conditions on Raw Surf.');
     setMeta('og:url', `${window.location.origin}/explore`);
     setMeta('og:type', 'website');
@@ -569,101 +569,101 @@ export const Explore = () => {
     setDiscoveryMode,
   });
   
-  // Country flag emoji helper
+  // Country flag emoji helper - uses Unicode escape sequences per project rules
   const getCountryFlag = (countryName) => {
     const flags = {
-      'USA': 'Ã°Å¸â€¡ÂºÃ°Å¸â€¡Â¸',
-      'United States': 'Ã°Å¸â€¡ÂºÃ°Å¸â€¡Â¸',
-      'Australia': 'Ã°Å¸â€¡Â¦Ã°Å¸â€¡Âº',
-      'Indonesia': 'Ã°Å¸â€¡Â®Ã°Å¸â€¡Â©',
-      'Brazil': 'Ã°Å¸â€¡Â§Ã°Å¸â€¡Â·',
-      'Portugal': 'Ã°Å¸â€¡ÂµÃ°Å¸â€¡Â¹',
-      'South Africa': 'Ã°Å¸â€¡Â¿Ã°Å¸â€¡Â¦',
-      'France': 'Ã°Å¸â€¡Â«Ã°Å¸â€¡Â·',
-      'Spain': 'Ã°Å¸â€¡ÂªÃ°Å¸â€¡Â¸',
-      'Mexico': 'Ã°Å¸â€¡Â²Ã°Å¸â€¡Â½',
-      'Costa Rica': 'Ã°Å¸â€¡Â¨Ã°Å¸â€¡Â·',
-      'Japan': 'Ã°Å¸â€¡Â¯Ã°Å¸â€¡Âµ',
-      'New Zealand': 'Ã°Å¸â€¡Â³Ã°Å¸â€¡Â¿',
-      'Peru': 'Ã°Å¸â€¡ÂµÃ°Å¸â€¡Âª',
-      'Morocco': 'Ã°Å¸â€¡Â²Ã°Å¸â€¡Â¦',
-      'United Kingdom': 'Ã°Å¸â€¡Â¬Ã°Å¸â€¡Â§',
-      'UK': 'Ã°Å¸â€¡Â¬Ã°Å¸â€¡Â§',
-      'Canada': 'Ã°Å¸â€¡Â¨Ã°Å¸â€¡Â¦',
-      'Chile': 'Ã°Å¸â€¡Â¨Ã°Å¸â€¡Â±',
-      'Hawaii': 'Ã°Å¸ÂÂÃ¯Â¸Â',
-      'Fiji': 'Ã°Å¸â€¡Â«Ã°Å¸â€¡Â¯',
-      'French Polynesia': 'Ã°Å¸â€¡ÂµÃ°Å¸â€¡Â«',
-      'Tahiti': 'Ã°Å¸â€¡ÂµÃ°Å¸â€¡Â«',
-      'Maldives': 'Ã°Å¸â€¡Â²Ã°Å¸â€¡Â»',
-      'Philippines': 'Ã°Å¸â€¡ÂµÃ°Å¸â€¡Â­',
-      'Sri Lanka': 'Ã°Å¸â€¡Â±Ã°Å¸â€¡Â°',
-      'Nicaragua': 'Ã°Å¸â€¡Â³Ã°Å¸â€¡Â®',
-      'Panama': 'Ã°Å¸â€¡ÂµÃ°Å¸â€¡Â¦',
-      'El Salvador': 'Ã°Å¸â€¡Â¸Ã°Å¸â€¡Â»',
-      'Ecuador': 'Ã°Å¸â€¡ÂªÃ°Å¸â€¡Â¨',
-      'Ireland': 'Ã°Å¸â€¡Â®Ã°Å¸â€¡Âª',
-      'Italy': 'Ã°Å¸â€¡Â®Ã°Å¸â€¡Â¹',
-      'Thailand': 'Ã°Å¸â€¡Â¹Ã°Å¸â€¡Â­',
-      'Colombia': 'Ã°Å¸â€¡Â¨Ã°Å¸â€¡Â´',
-      'Dominican Republic': 'Ã°Å¸â€¡Â©Ã°Å¸â€¡Â´',
-      'Puerto Rico': 'Ã°Å¸â€¡ÂµÃ°Å¸â€¡Â·',
-      'Cuba': 'Ã°Å¸â€¡Â¨Ã°Å¸â€¡Âº',
-      'Jamaica': 'Ã°Å¸â€¡Â¯Ã°Å¸â€¡Â²',
-      'Barbados': 'Ã°Å¸â€¡Â§Ã°Å¸â€¡Â§',
-      'Bahamas': 'Ã°Å¸â€¡Â§Ã°Å¸â€¡Â¸',
-      'Bermuda': 'Ã°Å¸â€¡Â§Ã°Å¸â€¡Â²',
-      'Taiwan': 'Ã°Å¸â€¡Â¹Ã°Å¸â€¡Â¼',
-      'China': 'Ã°Å¸â€¡Â¨Ã°Å¸â€¡Â³',
-      'India': 'Ã°Å¸â€¡Â®Ã°Å¸â€¡Â³',
-      'Vietnam': 'Ã°Å¸â€¡Â»Ã°Å¸â€¡Â³',
-      'Samoa': 'Ã°Å¸â€¡Â¼Ã°Å¸â€¡Â¸',
-      'Tonga': 'Ã°Å¸â€¡Â¹Ã°Å¸â€¡Â´',
-      'Angola': 'Ã°Å¸â€¡Â¦Ã°Å¸â€¡Â´',
-      'Senegal': 'Ã°Å¸â€¡Â¸Ã°Å¸â€¡Â³',
-      'Ghana': 'Ã°Å¸â€¡Â¬Ã°Å¸â€¡Â­',
-      'Madagascar': 'Ã°Å¸â€¡Â²Ã°Å¸â€¡Â¬',
-      'Mozambique': 'Ã°Å¸â€¡Â²Ã°Å¸â€¡Â¿',
-      'Namibia': 'Ã°Å¸â€¡Â³Ã°Å¸â€¡Â¦',
-      'Guatemala': 'Ã°Å¸â€¡Â¬Ã°Å¸â€¡Â¹',
-      'Honduras': 'Ã°Å¸â€¡Â­Ã°Å¸â€¡Â³',
-      'Argentina': 'Ã°Å¸â€¡Â¦Ã°Å¸â€¡Â·',
-      'Uruguay': 'Ã°Å¸â€¡ÂºÃ°Å¸â€¡Â¾',
-      'Israel': 'Ã°Å¸â€¡Â®Ã°Å¸â€¡Â±',
-      'Malaysia': 'Ã°Å¸â€¡Â²Ã°Å¸â€¡Â¾',
-      'Vanuatu': 'Ã°Å¸â€¡Â»Ã°Å¸â€¡Âº',
-      'Papua New Guinea': 'Ã°Å¸â€¡ÂµÃ°Å¸â€¡Â¬',
-      'Solomon Islands': 'Ã°Å¸â€¡Â¸Ã°Å¸â€¡Â§',
-      'Saudi Arabia': 'Ã°Å¸â€¡Â¸Ã°Å¸â€¡Â¦',
-      'United Arab Emirates': 'Ã°Å¸â€¡Â¦Ã°Å¸â€¡Âª',
-      'Oman': 'Ã°Å¸â€¡Â´Ã°Å¸â€¡Â²',
-      'Qatar': 'Ã°Å¸â€¡Â¶Ã°Å¸â€¡Â¦',
-      'Norway': 'Ã°Å¸â€¡Â³Ã°Å¸â€¡Â´',
-      'Iceland': 'Ã°Å¸â€¡Â®Ã°Å¸â€¡Â¸',
-      'Aruba': 'Ã°Å¸â€¡Â¦Ã°Å¸â€¡Â¼',
-      'Curacao': 'Ã°Å¸â€¡Â¨Ã°Å¸â€¡Â¼',
-      'Trinidad & Tobago': 'Ã°Å¸â€¡Â¹Ã°Å¸â€¡Â¹',
-      'Mauritius': 'Ã°Å¸â€¡Â²Ã°Å¸â€¡Âº',
-      'Cape Verde': 'Ã°Å¸â€¡Â¨Ã°Å¸â€¡Â»',
-      'Cook Islands': 'Ã°Å¸â€¡Â¨Ã°Å¸â€¡Â°'
+      'USA': '\u{1F1FA}\u{1F1F8}',
+      'United States': '\u{1F1FA}\u{1F1F8}',
+      'Australia': '\u{1F1E6}\u{1F1FA}',
+      'Indonesia': '\u{1F1EE}\u{1F1E9}',
+      'Brazil': '\u{1F1E7}\u{1F1F7}',
+      'Portugal': '\u{1F1F5}\u{1F1F9}',
+      'South Africa': '\u{1F1FF}\u{1F1E6}',
+      'France': '\u{1F1EB}\u{1F1F7}',
+      'Spain': '\u{1F1EA}\u{1F1F8}',
+      'Mexico': '\u{1F1F2}\u{1F1FD}',
+      'Costa Rica': '\u{1F1E8}\u{1F1F7}',
+      'Japan': '\u{1F1EF}\u{1F1F5}',
+      'New Zealand': '\u{1F1F3}\u{1F1FF}',
+      'Peru': '\u{1F1F5}\u{1F1EA}',
+      'Morocco': '\u{1F1F2}\u{1F1E6}',
+      'United Kingdom': '\u{1F1EC}\u{1F1E7}',
+      'UK': '\u{1F1EC}\u{1F1E7}',
+      'Canada': '\u{1F1E8}\u{1F1E6}',
+      'Chile': '\u{1F1E8}\u{1F1F1}',
+      'Hawaii': '\u{1F3CA}',
+      'Fiji': '\u{1F1EB}\u{1F1EF}',
+      'French Polynesia': '\u{1F1F5}\u{1F1EB}',
+      'Tahiti': '\u{1F1F5}\u{1F1EB}',
+      'Maldives': '\u{1F1F2}\u{1F1FB}',
+      'Philippines': '\u{1F1F5}\u{1F1ED}',
+      'Sri Lanka': '\u{1F1F1}\u{1F1F0}',
+      'Nicaragua': '\u{1F1F3}\u{1F1EE}',
+      'Panama': '\u{1F1F5}\u{1F1E6}',
+      'El Salvador': '\u{1F1F8}\u{1F1FB}',
+      'Ecuador': '\u{1F1EA}\u{1F1E8}',
+      'Ireland': '\u{1F1EE}\u{1F1EA}',
+      'Italy': '\u{1F1EE}\u{1F1F9}',
+      'Thailand': '\u{1F1F9}\u{1F1ED}',
+      'Colombia': '\u{1F1E8}\u{1F1F4}',
+      'Dominican Republic': '\u{1F1E9}\u{1F1F4}',
+      'Puerto Rico': '\u{1F1F5}\u{1F1F7}',
+      'Cuba': '\u{1F1E8}\u{1F1FA}',
+      'Jamaica': '\u{1F1EF}\u{1F1F2}',
+      'Barbados': '\u{1F1E7}\u{1F1E7}',
+      'Bahamas': '\u{1F1E7}\u{1F1F8}',
+      'Bermuda': '\u{1F1E7}\u{1F1F2}',
+      'Taiwan': '\u{1F1F9}\u{1F1FC}',
+      'China': '\u{1F1E8}\u{1F1F3}',
+      'India': '\u{1F1EE}\u{1F1F3}',
+      'Vietnam': '\u{1F1FB}\u{1F1F3}',
+      'Samoa': '\u{1F1FC}\u{1F1F8}',
+      'Tonga': '\u{1F1F9}\u{1F1F4}',
+      'Angola': '\u{1F1E6}\u{1F1F4}',
+      'Senegal': '\u{1F1F8}\u{1F1F3}',
+      'Ghana': '\u{1F1EC}\u{1F1ED}',
+      'Madagascar': '\u{1F1F2}\u{1F1EC}',
+      'Mozambique': '\u{1F1F2}\u{1F1FF}',
+      'Namibia': '\u{1F1F3}\u{1F1E6}',
+      'Guatemala': '\u{1F1EC}\u{1F1F9}',
+      'Honduras': '\u{1F1ED}\u{1F1F3}',
+      'Argentina': '\u{1F1E6}\u{1F1F7}',
+      'Uruguay': '\u{1F1FA}\u{1F1FE}',
+      'Israel': '\u{1F1EE}\u{1F1F1}',
+      'Malaysia': '\u{1F1F2}\u{1F1FE}',
+      'Vanuatu': '\u{1F1FB}\u{1F1FA}',
+      'Papua New Guinea': '\u{1F1F5}\u{1F1EC}',
+      'Solomon Islands': '\u{1F1F8}\u{1F1E7}',
+      'Saudi Arabia': '\u{1F1F8}\u{1F1E6}',
+      'United Arab Emirates': '\u{1F1E6}\u{1F1EA}',
+      'Oman': '\u{1F1F4}\u{1F1F2}',
+      'Qatar': '\u{1F1F6}\u{1F1E6}',
+      'Norway': '\u{1F1F3}\u{1F1F4}',
+      'Iceland': '\u{1F1EE}\u{1F1F8}',
+      'Aruba': '\u{1F1E6}\u{1F1FC}',
+      'Curacao': '\u{1F1E8}\u{1F1FC}',
+      'Trinidad & Tobago': '\u{1F1F9}\u{1F1F9}',
+      'Mauritius': '\u{1F1F2}\u{1F1FA}',
+      'Cape Verde': '\u{1F1E8}\u{1F1FB}',
+      'Cook Islands': '\u{1F1E8}\u{1F1F0}'
     };
-    return flags[countryName] || 'Ã°Å¸Å’Â';
+    return flags[countryName] || '\u{1F30A}';
   };
   
-  // Popular quick-access locations Ã¯Â¿Â½ uses 'USA' to match DB country name
+  // Popular quick-access locations - uses 'USA' to match DB country name
   const popularLocations = [
-    { label: 'Ã°Å¸â€¡ÂºÃ°Å¸â€¡Â¸ Florida', country: 'USA', state: 'Florida' },
-    { label: 'Ã°Å¸â€¡ÂºÃ°Å¸â€¡Â¸ California', country: 'USA', state: 'California' },
-    { label: 'Ã°Å¸â€¡ÂºÃ°Å¸â€¡Â¸ Hawaii', country: 'USA', state: 'Hawaii' },
-    { label: 'Ã°Å¸â€¡ÂºÃ°Å¸â€¡Â¸ North Carolina', country: 'USA', state: 'North Carolina' },
-    { label: 'Ã°Å¸â€¡Â¦Ã°Å¸â€¡Âº Australia', country: 'Australia' },
-    { label: 'Ã°Å¸â€¡Â®Ã°Å¸â€¡Â© Indonesia', country: 'Indonesia' },
-    { label: 'Ã°Å¸â€¡Â§Ã°Å¸â€¡Â· Brazil', country: 'Brazil' },
-    { label: 'Ã°Å¸â€¡ÂµÃ°Å¸â€¡Â¹ Portugal', country: 'Portugal' },
-    { label: 'Ã°Å¸â€¡Â¨Ã°Å¸â€¡Â· Costa Rica', country: 'Costa Rica' },
-    { label: 'Ã°Å¸â€¡Â²Ã°Å¸â€¡Â½ Mexico', country: 'Mexico' },
-    { label: 'Ã°Å¸â€¡Â¿Ã°Å¸â€¡Â¦ South Africa', country: 'South Africa' },
-    { label: 'Ã°Å¸â€¡Â¯Ã°Å¸â€¡Âµ Japan', country: 'Japan' },
+    { label: `${getCountryFlag('USA')} Florida`, country: 'USA', state: 'Florida' },
+    { label: `${getCountryFlag('USA')} California`, country: 'USA', state: 'California' },
+    { label: `${getCountryFlag('USA')} Hawaii`, country: 'USA', state: 'Hawaii' },
+    { label: `${getCountryFlag('USA')} North Carolina`, country: 'USA', state: 'North Carolina' },
+    { label: `${getCountryFlag('Australia')} Australia`, country: 'Australia' },
+    { label: `${getCountryFlag('Indonesia')} Indonesia`, country: 'Indonesia' },
+    { label: `${getCountryFlag('Brazil')} Brazil`, country: 'Brazil' },
+    { label: `${getCountryFlag('Portugal')} Portugal`, country: 'Portugal' },
+    { label: `${getCountryFlag('Costa Rica')} Costa Rica`, country: 'Costa Rica' },
+    { label: `${getCountryFlag('Mexico')} Mexico`, country: 'Mexico' },
+    { label: `${getCountryFlag('South Africa')} South Africa`, country: 'South Africa' },
+    { label: `${getCountryFlag('Japan')} Japan`, country: 'Japan' },
   ];
   
   // Quick jump to a popular location
@@ -793,7 +793,7 @@ export const Explore = () => {
           <ChevronLeft className="w-5 h-5" />
         </button>
         
-        {/* Tabs Container Ã¯Â¿Â½ Yellow pill buttons */}
+        {/* Tabs Container ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¯ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¿ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â½ Yellow pill buttons */}
         <div 
           ref={tabsContainerRef} role="tablist" aria-label="Explore sections"
           className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide scroll-smooth flex-1 scrollbar-none"
@@ -920,7 +920,7 @@ export const Explore = () => {
                         <div className="flex-1 min-w-0">
                           <h4 className="font-semibold text-foreground truncate">{spot.name}</h4>
                           <p className="text-xs text-muted-foreground truncate">
-                            {[spot.secondary_city, spot.region].filter(Boolean).filter((v, i, a) => a.indexOf(v) === i).join(' Ã¯Â¿Â½ ')}
+                            {[spot.secondary_city, spot.region].filter(Boolean).filter((v, i, a) => a.indexOf(v) === i).join(' ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¯ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¿ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â½ ')}
                           </p>
                           {spot.difficulty && (
                             <span className={`inline-block mt-1 text-[10px] font-medium px-1.5 py-0.5 rounded-full ${
@@ -963,7 +963,7 @@ export const Explore = () => {
         </div>
       )}
 
-      {/* Tab content Ã¯Â¿Â½ swipeable on mobile */}
+      {/* Tab content ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¯ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¿ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â½ swipeable on mobile */}
       <div
         className="relative overflow-hidden"
         onTouchStart={(e) => {
@@ -1148,7 +1148,7 @@ export const Explore = () => {
                             // If primary image fails, try map fallback
                             if (spot.latitude && spot.longitude) {
                               e.target.onerror = () => {
-                                // Map also failed Ã¯Â¿Â½ show gradient
+                                // Map also failed ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¯ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¿ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â½ show gradient
                                 e.target.style.display = 'none';
                                 e.target.parentElement.classList.add('bg-gradient-to-br', 'from-cyan-600', 'to-blue-800');
                               };
@@ -1223,8 +1223,8 @@ export const Explore = () => {
                             )}
                             <span className="text-[10px] text-muted-foreground truncate">
                               {['PHOTOGRAPHER', 'APPROVED_PRO', 'HOBBYIST'].includes(thumbnail.contributor_role?.toUpperCase()) 
-                                ? 'Ã°Å¸â€œÂ¸' 
-                                : 'Ã°Å¸Ââ€ž'} {thumbnail.contributor_name}
+                                ? 'ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã¢â‚¬Å“ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¸' 
+                                : 'ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¾'} {thumbnail.contributor_name}
                             </span>
                           </div>
                         )}
@@ -1274,7 +1274,7 @@ export const Explore = () => {
         </div>
       )}
 
-      {/* People Tab Ã¯Â¿Â½ pre-search discovery state */}
+      {/* People Tab ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¯ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¿ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â½ pre-search discovery state */}
       {activeTab === 'users' && (
         <div className="space-y-6" data-testid="people-tab">
           {/* Search Prompt */}
@@ -1303,10 +1303,10 @@ export const Explore = () => {
             <h4 className={`text-sm font-semibold uppercase tracking-wider mb-3 ${isLight ? 'text-gray-500' : 'text-muted-foreground'}`}>Browse by Role</h4>
             <div className="flex flex-wrap gap-2">
               {[
-                { label: 'Ã°Å¸â€œÂ¸ Photographers', query: 'photographer' },
-                { label: 'Ã°Å¸Ââ€ž Surfers', query: 'surfer' },
-                { label: 'Ã°Å¸Å½Â¬ Videographers', query: 'videographer' },
-                { label: 'Ã°Å¸â€œÂ Locals', query: 'local' },
+                { label: 'ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã¢â‚¬Å“ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¸ Photographers', query: 'photographer' },
+                { label: 'ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¾ Surfers', query: 'surfer' },
+                { label: 'ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â½ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ Videographers', query: 'videographer' },
+                { label: 'ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã¢â‚¬Å“ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â Locals', query: 'local' },
               ].map(cat => (
                 <button
                   key={cat.query}
@@ -1323,7 +1323,7 @@ export const Explore = () => {
             </div>
           </div>
 
-          {/* Featured Community Ã¯Â¿Â½ reuse live photographers from trending */}
+          {/* Featured Community ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¯ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¿ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â½ reuse live photographers from trending */}
           {trending.live_photographers?.length > 0 && (
             <div>
               <h4 className={`text-sm font-semibold uppercase tracking-wider mb-3 ${isLight ? 'text-gray-500' : 'text-muted-foreground'}`}>
@@ -1381,7 +1381,7 @@ export const Explore = () => {
         </div>
       )}
 
-      {/* Search (Spots) Tab Ã¯Â¿Â½ pre-search discovery state */}
+      {/* Search (Spots) Tab ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¯ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¿ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â½ pre-search discovery state */}
       {/* "Search" tab removed - redundant with Surf Spots tab */}
 
       {/* Surf Spots Tab - Comprehensive Location Discovery */}
@@ -1478,7 +1478,7 @@ export const Explore = () => {
             />
           )}
           
-          {/* Map View CTA Ã¯Â¿Â½ always visible */}
+          {/* Map View CTA ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¯ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¿ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â½ always visible */}
           <div className="mt-6">
             <button aria-label="Location"
               onClick={() => navigate('/map')}
@@ -1725,7 +1725,7 @@ export const Explore = () => {
                 </div>
               )}
               
-              {/* Popular Destinations Ã¯Â¿Â½ show when no country selected */}
+              {/* Popular Destinations ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¯ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¿ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â½ show when no country selected */}
               {!conditionsCountry && (
                 <div>
                   <p className={`text-xs uppercase tracking-wider font-medium mb-2 ${labelClass}`}>Popular Destinations</p>
@@ -1949,7 +1949,7 @@ export const Explore = () => {
                   className={`bg-muted/50 rounded-xl overflow-hidden transition-colors ${isLight ? 'hover:bg-gray-100' : 'hover:bg-zinc-700/50'}`}
                   data-testid={`condition-report-${report.id}`}
                 >
-                  {/* Main card body Ã¯Â¿Â½ clicks to SpotHub */}
+                  {/* Main card body ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¯ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¿ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â½ clicks to SpotHub */}
                   <div
                     onClick={() => {
                       if (report.spot_id) {
@@ -2017,7 +2017,7 @@ export const Explore = () => {
                           )}
                           <span className="truncate">{report.photographer_name || 'Photographer'}</span>
                         </div>
-                        <span className="text-gray-600">Ã¯Â¿Â½</span>
+                        <span className="text-gray-600">ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¯ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¿ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â½</span>
                         <span className="flex items-center gap-1">
                           <Clock className="w-3 h-3" />
                           {report.time_ago}
@@ -2034,7 +2034,7 @@ export const Explore = () => {
                     <ChevronRight className="w-5 h-5 text-gray-600 group-hover:text-cyan-400 transition-colors flex-shrink-0" />
                   </div>
 
-                  {/* Action buttons row Ã¯Â¿Â½ View Spot always, View Gallery when gallery linked */}
+                  {/* Action buttons row ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¯ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¿ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â½ View Spot always, View Gallery when gallery linked */}
                   <div className={`flex gap-2 px-4 pb-3 pt-0`}>
                     <button
                       onClick={(e) => {

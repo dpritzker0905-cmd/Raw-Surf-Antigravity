@@ -67,6 +67,7 @@ import { AdminCommunicationsDashboard } from './admin/AdminCommunicationsDashboa
 import { AdminContentMgmtDashboard } from './admin/AdminContentMgmtDashboard';
 
 import logger from '../utils/logger';
+import useAdminConsoleActions from '../hooks/useAdminConsoleActions';
 import { AdControlsPanel } from './admin/AdControlsPanel';
 import { AdminSpotsPanel } from './admin/AdminSpotsPanel';
 import { getFullUrl } from '../utils/media';

@@ -1,6 +1,6 @@
 /**
  * ExploreWavesTab.js
- * Extracted from Explore.js — Reels-style vertical scroll feed for wave videos.
+ * Extracted from Explore.js â€” Reels-style vertical scroll feed for wave videos.
  * v33 component extraction.
  */
 import React from 'react';
@@ -208,4 +208,4 @@ const ExploreWavesTab = ({
   );
 };
 
-export default ExploreWavesTab;
+export default React.memo(ExploreWavesTab);

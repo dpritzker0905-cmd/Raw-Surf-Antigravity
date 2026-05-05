@@ -495,4 +495,4 @@ const ExploreSpotCard = ({ spot, userSubscriptionTier = 'free' }) => {
   );
 };
 
-export default ExploreSpotCard;
+export default React.memo(ExploreSpotCard);

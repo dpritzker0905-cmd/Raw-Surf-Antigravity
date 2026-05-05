@@ -1,7 +1,7 @@
-/**
- * InCallView — Premium active call overlay.
+﻿/**
+ * InCallView Ã¢â‚¬â€ Premium active call overlay.
  * 
- * FILTER IMPLEMENTATION — Uses the SAME WebGL GPU shader pipeline as GoLive:
+ * FILTER IMPLEMENTATION Ã¢â‚¬â€ Uses the SAME WebGL GPU shader pipeline as GoLive:
  *   - WebGLVideoProcessor from WebGLFilterEngine.js
  *   - Real GLSL fragment shaders running on the GPU
  *   - Hidden <video> feeds into WebGL <canvas> for filtered display
@@ -27,7 +27,7 @@ import { WebGLVideoProcessor } from '../../utils/WebGLFilterEngine';
 import { HairFilterEngine } from '../../utils/HairFilterEngine';
 import { logger } from '../../utils/logger';
 
-// ── Duration formatter ──────────────────────────────────────────────
+// Duration formatter
 function formatDuration(seconds) {
   const h = Math.floor(seconds / 3600);
   const m = Math.floor((seconds % 3600) / 60);
@@ -36,7 +36,7 @@ function formatDuration(seconds) {
   return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
 }
 
-// ── Connection Quality Badge ────────────────────────────────────────
+// Ã¢â€â‚¬Ã¢â€â‚¬ Connection Quality Badge Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 function ConnectionQualityBadge({ quality }) {
   const config = {
     good: { icon: Signal, color: 'text-green-400', bg: 'bg-green-500/20', label: 'Strong' },
@@ -53,7 +53,7 @@ function ConnectionQualityBadge({ quality }) {
   );
 }
 
-// ── Filter Presets — maps to WebGL shader keys in WebGLFilterEngine ──
+// Ã¢â€â‚¬Ã¢â€â‚¬ Filter Presets Ã¢â‚¬â€ maps to WebGL shader keys in WebGLFilterEngine Ã¢â€â‚¬Ã¢â€â‚¬
 const FILTER_PRESETS = [
   { name: 'None',         key: 'none',             icon: CircleDot, description: 'Original camera' },
   { name: 'Golden Hour',  key: 'goldenhour',        icon: Sunset,    description: 'Warm sunset vibes' },
@@ -64,7 +64,7 @@ const FILTER_PRESETS = [
   { name: 'Cyber-Surf',   key: 'cyber',              icon: Zap,       description: 'Hyper-cold glitch lens' },
 ];
 
-// ── Theme colors for HairFilterPicker ───────────────────────────────
+// Ã¢â€â‚¬Ã¢â€â‚¬ Theme colors for HairFilterPicker Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 const CALL_COLORS = {
   overlayBg: 'bg-black/80 backdrop-blur-xl',
   border: 'border-white/10',
@@ -75,7 +75,7 @@ const CALL_COLORS = {
   accentBg: 'bg-cyan-500/20',
 };
 
-// ── Filter Picker panel ─────────────────────────────────────────────
+// Ã¢â€â‚¬Ã¢â€â‚¬ Filter Picker panel Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 const FilterPicker = ({ isOpen, onClose, activeFilter, onSelectFilter }) => {
   if (!isOpen) return null;
   return (
@@ -122,9 +122,9 @@ const FilterPicker = ({ isOpen, onClose, activeFilter, onSelectFilter }) => {
   );
 };
 
-// ═══════════════════════════════════════════════════════════════════════
+// Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â
 // MAIN COMPONENT
-// ═══════════════════════════════════════════════════════════════════════
+// Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â
 export default function InCallView({
   callType = 'audio',
   localStream,
@@ -160,7 +160,7 @@ export default function InCallView({
   const speakerOffRef = useRef(false); // ref for use in effects without re-triggering
   const controlsTimeoutRef = useRef(null);
 
-  // ── Attach local stream to hidden video element ───────────────────
+  // Ã¢â€â‚¬Ã¢â€â‚¬ Attach local stream to hidden video element Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
   useEffect(() => {
     if (localVideoRef.current && localStream) {
       localVideoRef.current.srcObject = localStream;
@@ -168,11 +168,11 @@ export default function InCallView({
     }
   }, [localStream]);
 
-  // ── Attach remote stream to video element ─────────────────────────
+  // Ã¢â€â‚¬Ã¢â€â‚¬ Attach remote stream to video element Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
   // iOS Safari CRITICAL FIX:
-  //   1. Start the video element `muted` — iOS always allows muted autoplay
-  //   2. Call play() — succeeds because muted
-  //   3. Unmute AFTER play() resolves — audio now flows through WebRTC
+  //   1. Start the video element `muted` Ã¢â‚¬â€ iOS always allows muted autoplay
+  //   2. Call play() Ã¢â‚¬â€ succeeds because muted
+  //   3. Unmute AFTER play() resolves Ã¢â‚¬â€ audio now flows through WebRTC
   //   Without this sequence, iOS Safari blocks play() with NotAllowedError
   //   because the user gesture context from answerCall() has expired by the
   //   time the remote stream arrives via ICE negotiation.
@@ -194,21 +194,21 @@ export default function InCallView({
     const maxRetries = 8;
     const tryPlay = () => {
       videoEl.play().then(() => {
-        logger.debug('[InCallView] ✅ Remote video playing (muted)');
-        // Now unmute to hear audio — this works even outside user gesture
+        logger.debug('[InCallView] Ã¢Å“â€¦ Remote video playing (muted)');
+        // Now unmute to hear audio Ã¢â‚¬â€ this works even outside user gesture
         // because the element is already playing
         setTimeout(() => {
           videoEl.muted = speakerOffRef.current;
-          logger.debug('[InCallView] ✅ Remote audio unmuted, speakerOff:', speakerOffRef.current);
+          logger.debug('[InCallView] Ã¢Å“â€¦ Remote audio unmuted, speakerOff:', speakerOffRef.current);
         }, 100); // Small delay ensures iOS processes the play state first
       }).catch((err) => {
-        console.warn(`[InCallView] play() attempt ${retries + 1} failed:`, err.name, err.message);
+        logger.warn(`[InCallView] play() attempt ${retries + 1} failed:`, err.name, err.message);
         if (retries < maxRetries) {
           retries++;
           // Exponential backoff: 300, 600, 1200, 2400...
           setTimeout(tryPlay, Math.min(300 * Math.pow(2, retries - 1), 5000));
         } else {
-          console.error('[InCallView] ❌ All play() retries exhausted — user may need to tap');
+          logger.error('[InCallView] Ã¢ÂÅ’ All play() retries exhausted Ã¢â‚¬â€ user may need to tap');
           // Last resort: unmute anyway, some browsers will start playing
           // when the user next interacts with the page
           videoEl.muted = speakerOffRef.current;
@@ -229,7 +229,7 @@ export default function InCallView({
     };
   }, [remoteStream]);
 
-  // ── Auto-hide controls after 4s ───────────────────────────────────
+  // Ã¢â€â‚¬Ã¢â€â‚¬ Auto-hide controls after 4s Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
   const resetControlsTimer = useCallback(() => {
     setShowControls(true);
     clearTimeout(controlsTimeoutRef.current);
@@ -243,7 +243,7 @@ export default function InCallView({
     return () => clearTimeout(controlsTimeoutRef.current);
   }, []);
 
-  // ── WebGL Filter Engine Lifecycle (same as GoLive) ────────────────
+  // Ã¢â€â‚¬Ã¢â€â‚¬ WebGL Filter Engine Lifecycle (same as GoLive) Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
   // Initialize WebGL processor when local stream is available
   useEffect(() => {
     if (!localVideoRef.current || !webglCanvasRef.current || !localStream) return;
@@ -273,7 +273,7 @@ export default function InCallView({
             comp.height = canvas.height;
             const ctx = comp.getContext('2d');
 
-            // Composite render loop: WebGL canvas + hair canvas → 2D composite
+            // Composite render loop: WebGL canvas + hair canvas Ã¢â€ â€™ 2D composite
             const compositeLoop = () => {
               ctx.clearRect(0, 0, comp.width, comp.height);
               ctx.drawImage(canvas, 0, 0, comp.width, comp.height);
@@ -291,11 +291,11 @@ export default function InCallView({
               onReplaceVideoTrack(filteredTrack);
             }
           } catch (capErr) {
-            console.warn('[InCallView] composite captureStream failed:', capErr);
+            logger.warn('[InCallView] composite captureStream failed:', capErr);
           }
         }
       } catch (err) {
-        console.error('[InCallView] WebGL init failed:', err);
+        logger.error('[InCallView] WebGL init failed:', err);
       }
     };
 
@@ -317,7 +317,7 @@ export default function InCallView({
     };
   }, [localStream, onReplaceVideoTrack]); // Re-init when stream changes
 
-  // ── Hair Filter Engine Lifecycle ──────────────────────────────────
+  // Ã¢â€â‚¬Ã¢â€â‚¬ Hair Filter Engine Lifecycle Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
   useEffect(() => {
     const engine = new HairFilterEngine();
     hairEngineRef.current = engine;
@@ -359,26 +359,26 @@ export default function InCallView({
     if (engine) engine.setHairStyle(activeHairStyle);
   }, [activeHairStyle]);
 
-  // ── Update WebGL filter when user selects a new one ───────────────
+  // Ã¢â€â‚¬Ã¢â€â‚¬ Update WebGL filter when user selects a new one Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
   useEffect(() => {
     if (webglProcessorRef.current) {
       webglProcessorRef.current.setFilter(activeFilter === 'none' ? 'none' : activeFilter);
     }
   }, [activeFilter]);
 
-  // ── Filter selection handler (auto-closes picker) ─────────────────
+  // Ã¢â€â‚¬Ã¢â€â‚¬ Filter selection handler (auto-closes picker) Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
   const handleSelectFilter = useCallback((key) => {
     setActiveFilter(key);
     setShowFilters(false);
   }, []);
 
-  // ── Hair selection handler (auto-closes picker) ───────────────────
+  // Ã¢â€â‚¬Ã¢â€â‚¬ Hair selection handler (auto-closes picker) Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
   const handleSelectHairStyle = useCallback((styleId) => {
     setActiveHairStyle(styleId);
     setShowHairPicker(false);
   }, []);
 
-  // ── Control Button Component ──────────────────────────────────────
+  // Ã¢â€â‚¬Ã¢â€â‚¬ Control Button Component Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
   const ControlButton = ({ onClick, active, danger, icon: Icon, label, size = 'normal' }) => {
     const sizeClass = size === 'large' ? 'w-14 h-14 md:w-16 md:h-16' : 'w-11 h-11 md:w-12 md:h-12';
     const iconSize = size === 'large' ? 'w-6 h-6 md:w-7 md:h-7' : 'w-5 h-5';
@@ -409,9 +409,9 @@ export default function InCallView({
 
       <div className="relative w-full h-full md:w-[calc(100%-48px)] md:h-[calc(100%-48px)] md:max-w-[1100px] md:max-h-[700px] md:rounded-2xl overflow-hidden flex flex-col shadow-2xl shadow-black/50">
 
-        {/* ── Video Area ── */}
+        {/* Ã¢â€â‚¬Ã¢â€â‚¬ Video Area Ã¢â€â‚¬Ã¢â€â‚¬ */}
         <div className="flex-1 relative overflow-hidden bg-black">
-          {/* Remote video — ALWAYS rendered and "playing" so audio works.
+          {/* Remote video Ã¢â‚¬â€ ALWAYS rendered and "playing" so audio works.
               For audio-only calls: element is tiny/invisible but still decodes audio.
               display:none would stop audio playback in most browsers. */}
           <video
@@ -450,7 +450,7 @@ export default function InCallView({
                 </div>
               </div>
               <h3 className="text-white text-lg md:text-xl font-semibold mt-5 mb-1">{remoteUserInfo.name || 'User'}</h3>
-              <p className="text-white/40 text-sm mb-4">{callType === 'video' ? 'Connecting video…' : 'Audio Call'}</p>
+              <p className="text-white/40 text-sm mb-4">{callType === 'video' ? 'Connecting videoÃ¢â‚¬Â¦' : 'Audio Call'}</p>
               <div className="flex items-end gap-[3px] h-8">
                 {[...Array(9)].map((_, i) => (
                   <div
@@ -466,7 +466,7 @@ export default function InCallView({
             </div>
           )}
 
-          {/* ── Top Overlay ── */}
+          {/* Ã¢â€â‚¬Ã¢â€â‚¬ Top Overlay Ã¢â€â‚¬Ã¢â€â‚¬ */}
           <div 
             className={`absolute top-0 left-0 right-0 transition-opacity duration-300 ${showControls ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
             style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.3) 60%, transparent 100%)' }}
@@ -482,7 +482,7 @@ export default function InCallView({
                 <ConnectionQualityBadge quality={connectionQuality} />
               </div>
               <span className="text-white/60 text-[11px] md:text-xs px-2 py-1 rounded-full bg-white/5 backdrop-blur-md">
-                {callType === 'video' ? '📹 Video' : '🎙️ Audio'}
+                {callType === 'video' ? 'Ã°Å¸â€œÂ¹ Video' : 'Ã°Å¸Å½â„¢Ã¯Â¸Â Audio'}
               </span>
             </div>
 
@@ -505,9 +505,9 @@ export default function InCallView({
             </div>
           </div>
 
-          {/* Side buttons removed — filter/hair toggles moved to bottom bar for always-visible access */}
+          {/* Side buttons removed Ã¢â‚¬â€ filter/hair toggles moved to bottom bar for always-visible access */}
 
-          {/* ── Local Video PIP — positioned top-right to avoid overlap with controls on iPhone 16 ── */}
+          {/* Ã¢â€â‚¬Ã¢â€â‚¬ Local Video PIP Ã¢â‚¬â€ positioned top-right to avoid overlap with controls on iPhone 16 Ã¢â€â‚¬Ã¢â€â‚¬ */}
           {callType === 'video' && localStream && (
             <div 
               className={`absolute transition-all duration-300 overflow-hidden shadow-2xl cursor-pointer z-10 ${
@@ -561,7 +561,7 @@ export default function InCallView({
             </div>
           )}
 
-          {/* ── Filter Picker Panel ── */}
+          {/* Ã¢â€â‚¬Ã¢â€â‚¬ Filter Picker Panel Ã¢â€â‚¬Ã¢â€â‚¬ */}
           <FilterPicker
             isOpen={showFilters}
             onClose={() => setShowFilters(false)}
@@ -569,7 +569,7 @@ export default function InCallView({
             onSelectFilter={handleSelectFilter}
           />
 
-          {/* ── Hair Filter Picker Panel ── */}
+          {/* Ã¢â€â‚¬Ã¢â€â‚¬ Hair Filter Picker Panel Ã¢â€â‚¬Ã¢â€â‚¬ */}
           {showHairPicker && (
             <div className="fixed left-3 top-20 bottom-auto z-[9999]" onClick={(e) => e.stopPropagation()}>
               <HairFilterPicker
@@ -583,7 +583,7 @@ export default function InCallView({
           )}
         </div>
 
-        {/* ── Bottom Controls Bar — always visible, includes filter toggles ── */}
+        {/* Ã¢â€â‚¬Ã¢â€â‚¬ Bottom Controls Bar Ã¢â‚¬â€ always visible, includes filter toggles Ã¢â€â‚¬Ã¢â€â‚¬ */}
         <div 
           className="flex-shrink-0 bg-zinc-950/95 backdrop-blur-md border-t border-zinc-800"
           style={{ paddingBottom: 'env(safe-area-inset-bottom, 8px)' }}
@@ -605,7 +605,7 @@ export default function InCallView({
               />
             )}
 
-            {/* Flip Camera — only shown during video calls when camera is on */}
+            {/* Flip Camera Ã¢â‚¬â€ only shown during video calls when camera is on */}
             {callType === 'video' && !isCameraOff && onFlipCamera && (
               <ControlButton
                 onClick={onFlipCamera}
@@ -615,7 +615,7 @@ export default function InCallView({
               />
             )}
 
-            {/* Filter toggle — always visible in bottom bar */}
+            {/* Filter toggle Ã¢â‚¬â€ always visible in bottom bar */}
             {callType === 'video' && (
               <ControlButton
                 onClick={() => { setShowFilters(f => !f); setShowHairPicker(false); }}
@@ -625,7 +625,7 @@ export default function InCallView({
               />
             )}
 
-            {/* Hair toggle — always visible in bottom bar */}
+            {/* Hair toggle Ã¢â‚¬â€ always visible in bottom bar */}
             {callType === 'video' && (
               <ControlButton
                 onClick={() => { setShowHairPicker(h => !h); setShowFilters(false); }}
@@ -669,7 +669,7 @@ export default function InCallView({
 
       </div>
 
-      {/* ── CSS Animations ── */}
+      {/* Ã¢â€â‚¬Ã¢â€â‚¬ CSS Animations Ã¢â€â‚¬Ã¢â€â‚¬ */}
       <style>{`
         @keyframes waveform {
           0% { height: 6px; }
