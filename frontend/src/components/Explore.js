@@ -61,6 +61,7 @@ import NearbyMode from './explore/NearbyMode';
 import ExploreWavesTab from './explore/ExploreWavesTab';
 import UserRoleBadge from './explore/UserRoleBadge';
 import useExploreConditions from '../hooks/useExploreConditions';
+import useExploreData from '../hooks/useExploreData';
 import HashtagsTab from './explore/HashtagsTab';
 import ExploreConditionsTab from './explore/ExploreConditionsTab';
 import ExploreTrending from './explore/ExploreTrending';
@@ -356,193 +357,24 @@ export const Explore = () => {
     return () => clearTimeout(debounce);
   }, [searchQuery, activeTab]);
 
-  const fetchTrending = async () => {
-    try {
-      const response = await apiClient.get(`/explore/trending`);
-      setTrending(response.data);
-      
-      // Fetch conditions for popular spots
-      if (response.data.popular_spots?.length > 0) {
-        const spotIds = response.data.popular_spots.slice(0, 4).map(s => s.id).join(',');
-        fetchSpotConditions(spotIds);
-      }
-      
-      // Also fetch trending hashtags for the main explore page
-      fetchTrendingHashtags();
-    } catch (error) {
-      logger.error('Error fetching trending:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-  
-  // Fetch trending hashtags
-  const fetchTrendingHashtags = async () => {
-    try {
-      const response = await apiClient.get(`/hashtags/trending?limit=15&days=7`);
-      setTrendingHashtags(response.data.hashtags || []);
-    } catch (error) {
-      logger.debug('Trending hashtags not available');
-      setTrendingHashtags([]);
-    }
-  };
-  
-  // Fetch posts for a specific hashtag
-  const fetchHashtagPosts = async (tag) => {
-    setHashtagLoading(true);
-    try {
-      const response = await apiClient.get(`/hashtags/${tag}/posts?limit=30`);
-      setHashtagPosts(response.data.posts || []);
-    } catch (error) {
-      logger.error('Error fetching hashtag posts:', error);
-      setHashtagPosts([]);
-    } finally {
-      setHashtagLoading(false);
-    }
-  };
-  
-  // Handle hashtag click
-  const handleHashtagClick = (tag) => {
-    setSelectedHashtag(tag);
-    fetchHashtagPosts(tag);
-  };
-  
-  // Fetch Trending + Recent Waves for Explore
-  const fetchTrendingWaves = async () => {
-    setWavesLoading(true);
-    try {
-      const response = await apiClient.get(`/waves/trending`, {
-        params: { limit: 12, days: 7 }
-      });
-      setTrendingWaves(response.data.trending_waves || []);
-      setRecentWaves(response.data.recent_waves || []);
-    } catch (error) {
-      logger.error('Error fetching trending waves:', error);
-      setTrendingWaves([]);
-      setRecentWaves([]);
-    } finally {
-      setWavesLoading(false);
-    }
-  };
-  
-  // Fetch Waves by hashtag
-  const _fetchWavesByHashtag = async (tag) => {
-    setWavesLoading(true);
-    setSelectedWaveHashtag(tag);
-    try {
-      const response = await apiClient.get(`/waves/hashtag/${tag}`, {
-        params: { limit: 20 }
-      });
-      setWaveHashtagResults(response.data.waves || []);
-    } catch (error) {
-      logger.error('Error fetching waves by hashtag:', error);
-      setWaveHashtagResults([]);
-    } finally {
-      setWavesLoading(false);
-    }
-  };
-  
-  // Handle Wave click - navigate to Feed with Waves tab
-  const handleWaveClick = (wave) => {
-    navigate(`/feed?tab=waves&wave=${wave.id}`);
-  };
-  
-  // Fetch Explore Posts (photos/videos for Posts tab)
-  const fetchExplorePosts = async () => {
-    setPostsLoading(true);
-    try {
-      const response = await apiClient.get(`/posts`, {
-        params: { 
-          limit: 24,
-          content_type: 'post' // Exclude waves, only regular posts
-        }
-      });
-      setExplorePosts(response.data.posts || response.data || []);
-    } catch (error) {
-      logger.error('Error fetching explore posts:', error);
-      setExplorePosts([]);
-    } finally {
-      setPostsLoading(false);
-    }
-  };
-  
-  // Handle post click - navigate to post detail
-  const handlePostClick = (post) => {
-    navigate(`/post/${post.id}`);
-  };
+  // Data fetching handlers extracted to hooks/useExploreData.js
+  const {
+    fetchTrending, fetchTrendingHashtags, fetchHashtagPosts, handleHashtagClick,
+    fetchTrendingWaves, handleWaveClick, fetchExplorePosts, handlePostClick,
+    fetchSpotConditions, performSearch, clearSearch,
+    fetchLeaderboard, fetchSponsorDetails, openSponsorCard, closeSponsorCard,
+  } = useExploreData({
+    searchQuery, activeTab, recentSearches,
+    setTrending, setLoading, setSpotConditions,
+    setTrendingHashtags, setHashtagPosts, setHashtagLoading, setSelectedHashtag,
+    setTrendingWaves, setRecentWaves, setWavesLoading,
+    setSelectedWaveHashtag, setWaveHashtagResults,
+    setExplorePosts, setPostsLoading,
+    setSearchResults, setIsSearching, setRecentSearches,
+    setLeaderboard, setLeaderboardLoading,
+    setSponsorDetails, setSelectedSponsor,
+  });
 
-
-  const fetchSpotConditions = async (spotIds) => {
-    try {
-      const response = await apiClient.get(`/conditions/batch?spot_ids=${spotIds}`);
-      const conditionsData = response.data.conditions || {};
-      const conditionsMap = {};
-      Object.entries(conditionsData).forEach(([spotId, data]) => {
-        conditionsMap[spotId] = { spot_id: spotId, wave_height_ft: data.wave_height_ft, conditions_label: data.label, ...data };
-      });
-      setSpotConditions(conditionsMap);
-    } catch (error) {
-      logger.error('Error fetching conditions:', error);
-    }
-  };
-
-
-  const performSearch = async () => {
-    setIsSearching(true);
-    try {
-      const response = await apiClient.get(`/explore/search`, {
-        params: { q: searchQuery, type: activeTab }
-      });
-      setSearchResults(response.data);
-      // Save to recent searches
-      const query = searchQuery.trim();
-      if (query.length >= 2) {
-        const updated = [query, ...recentSearches.filter(s => s !== query)].slice(0, 5);
-        setRecentSearches(updated);
-        localStorage.setItem('rs-recent-searches', JSON.stringify(updated));
-      }
-    } catch (error) {
-      logger.error('Error searching:', error);
-    } finally {
-      setIsSearching(false);
-    }
-  };
-
-  const clearSearch = () => {
-    setSearchQuery('');
-    setSearchResults({ users: [], spots: [], posts: [] });
-  };
-
-  const fetchLeaderboard = async () => {
-    setLeaderboardLoading(true);
-    try {
-      const response = await apiClient.get(`/leaderboard/top-sponsors?limit=50`);
-      setLeaderboard(response.data.leaderboard || []);
-    } catch (error) {
-      logger.error('Error fetching leaderboard:', error);
-    } finally {
-      setLeaderboardLoading(false);
-    }
-  };
-
-  const fetchSponsorDetails = async (photographerId) => {
-    try {
-      const response = await apiClient.get(`/leaderboard/photographer/${photographerId}/details`);
-      setSponsorDetails(response.data);
-    } catch (error) {
-      logger.error('Error fetching sponsor details:', error);
-    }
-  };
-
-  const openSponsorCard = (sponsor) => {
-    setSelectedSponsor(sponsor);
-    fetchSponsorDetails(sponsor.photographer_id);
-  };
-
-  const closeSponsorCard = () => {
-    setSelectedSponsor(null);
-    setSponsorDetails(null);
-  };
 
   // Fetch condition reports for Conditions tab (supports date_filter + location hierarchy)
   // ============ CONDITIONS/LOCATION HANDLERS ============
