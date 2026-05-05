@@ -567,7 +567,7 @@ export const DispatchLobby = () => {
               <p className={`text-xs text-center ${
                 isLight ? 'text-green-600/70' : 'text-green-400/60'
               }`}>
-                Stay nearby Ã¯Â¿Â½ your photographer is capturing the action!
+                Stay nearby · your photographer is capturing the action!
               </p>
             </div>
           </div>
