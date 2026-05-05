@@ -128,7 +128,7 @@ export const Settings = () => {
     fetchFriends,
     handleLogout,
   } = useSettingsActions({
-    user, navigate,
+    user, navigate, logout,
     setExpandedSections,
     setFriends,
     setFriendsLoading,

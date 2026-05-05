@@ -8,7 +8,7 @@ import { toast } from 'sonner';
 import logger from '../utils/logger';
 
 const useSettingsActions = ({
-  user, navigate,
+  user, navigate, logout,
   setExpandedSections,
   setFriends,
   setFriendsLoading,
