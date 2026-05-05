@@ -1,4 +1,4 @@
-﻿/**
+/**
  * AdminTabPanels.js
  * Extracted tab panel components from UnifiedAdminConsole.js
  * Includes: StatCard, UserDetailModal, DropdownBadge, UsersTabContent, AnalyticsTabContent
@@ -20,7 +20,7 @@ import { ROLES } from '../../constants/roles';
 import logger from '../../utils/logger';
 import { toast } from 'sonner';
 
-const StatCard = ({ icon: Icon, label, value, subtext, color }) => {
+const StatCard = React.memo(({ icon: Icon, label, value, subtext, color }) => {
   const colors = {
     cyan: 'text-cyan-400',
     blue: 'text-blue-400',
@@ -39,7 +39,7 @@ const StatCard = ({ icon: Icon, label, value, subtext, color }) => {
       {subtext && <p className="text-xs text-gray-500">{subtext}</p>}
     </div>
   );
-};
+});
 
 // User Detail Modal Component
 const UserDetailModal = ({ user: targetUser, onClose, onToggleAdmin }) => {

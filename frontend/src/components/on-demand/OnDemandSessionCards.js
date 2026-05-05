@@ -22,7 +22,7 @@ const getImageUrl = (url) => {
 };
 
 // ============ INCOMING REQUEST CARD ============
-const IncomingRequestCard = ({ 
+const IncomingRequestCard = React.memo(({ 
   request, 
   onAccept, 
   onDecline, 
@@ -595,10 +595,10 @@ const IncomingRequestCard = ({
     )}
     </>
   );
-};
+});
 
 // ============ ACTIVE SESSION CARD ============
-const ActiveSessionCard = ({ 
+const ActiveSessionCard = React.memo(({ 
   session, 
   onMarkArrived, 
   onComplete, 
@@ -891,10 +891,10 @@ const ActiveSessionCard = ({
       </CardContent>
     </Card>
   );
-};
+});
 
 // ============ EARNINGS STATS CARD ============
-const EarningsStatsCard = ({ stats, cardBg, textPrimary, textSecondary, _sectionBg, borderClass }) => {
+const EarningsStatsCard = React.memo(({ stats, cardBg, textPrimary, textSecondary, borderClass }) => {
   const hasStreak = (stats.streak || 0) >= 3;
   
   return (
@@ -945,7 +945,7 @@ const EarningsStatsCard = ({ stats, cardBg, textPrimary, textSecondary, _section
       </CardContent>
     </Card>
   );
-};
+});
 
 
 export { IncomingRequestCard, ActiveSessionCard, EarningsStatsCard, getImageUrl };
