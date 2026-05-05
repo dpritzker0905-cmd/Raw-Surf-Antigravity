@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { usePricing } from '../contexts/PricingContext';
@@ -328,7 +328,7 @@ export const GalleryPage = () => {
             Gallery Hub
           </h1>
           <p className="text-muted-foreground text-sm mt-1">
-            {gallery.length} items Ã¢â‚¬Â¢ Manage your sessions, folders & distribution
+            {gallery.length} items {"\u2022"} Manage your sessions, folders & distribution
           </p>
         </div>
         
@@ -343,7 +343,7 @@ export const GalleryPage = () => {
         )}
       </div>
 
-      {/* Post-Session Summary Ã¢â‚¬â€ shows for recent galleries when inside a gallery folder */}
+      {/* Post-Session Summary -- shows for recent galleries when inside a gallery folder */}
       {selectedGallery && (
         <PostSessionSummary
           gallery={selectedGallery}
@@ -357,7 +357,7 @@ export const GalleryPage = () => {
         />
       )}
 
-      {/* Gallery Pricing Card Ã¢â‚¬â€œ Tabbed Per-Service Pricing */}
+      {/* Gallery Pricing Card - Tabbed Per-Service Pricing */}
       {/* Gallery Pricing Card - Tabbed Per-Service Pricing */}
       {showPricing && (
         <GalleryPricingCard
@@ -472,26 +472,26 @@ export const GalleryPage = () => {
                         </div>
                       );
                     })()}
-                    {/* Session type badges Ã¢â‚¬â€ Phase 5 integration */}
+                    {/* Session type badges - Phase 5 integration */}
                     <div className="absolute top-2 left-2 flex gap-1.5">
                       {gal.live_session_id && (
                         <Badge className="bg-emerald-500/90 text-white text-[10px] shadow-sm px-1.5">
-                          Ã°Å¸Å¸Â¢ Live
+                          {"\u{1F7E2}"} Live
                         </Badge>
                       )}
                       {gal.session_type === 'booking' && !gal.live_session_id && (
                         <Badge className="bg-blue-500/90 text-white text-[10px] shadow-sm px-1.5">
-                          Ã°Å¸â€œâ€¦ Booking
+                          {"\u{1F4C5}"} Booking
                         </Badge>
                       )}
                       {gal.session_type === 'on_demand' && !gal.live_session_id && (
                         <Badge className="bg-orange-500/90 text-white text-[10px] shadow-sm px-1.5">
-                          Ã¢Å¡Â¡ On-Demand
+                          {"\u26A1"} On-Demand
                         </Badge>
                       )}
                       {gal.session_type === 'manual' && !gal.live_session_id && (
                         <Badge className="bg-zinc-600/90 text-white text-[10px] shadow-sm px-1.5">
-                          Ã°Å¸â€œâ€¹ Manual
+                          {"\u{1F4CB}"} Manual
                         </Badge>
                       )}
                     </div>
@@ -502,11 +502,11 @@ export const GalleryPage = () => {
                       </Badge>
                       {(gal.purchase_count || 0) > 0 && (
                         <Badge className="bg-green-500/80 backdrop-blur-sm text-white text-[10px]">
-                          Ã°Å¸â€™Â° {gal.purchase_count} sold
+                          {"\u{1F4B0}"} {gal.purchase_count} sold
                         </Badge>
                       )}
                     </div>
-                    {/* Folder actions Ã¢â‚¬â€ visible on hover (desktop) or always via overflow menu (mobile) */}
+                    {/* Folder actions -- visible on hover (desktop) or always via overflow menu (mobile) */}
                     <div className="absolute top-2 right-2 z-10">
                       <div className="hidden group-hover:flex gap-1">
                         <button aria-label="Image Plus"
@@ -616,16 +616,16 @@ export const GalleryPage = () => {
                   </h2>
                   {/* Session type badge */}
                   {selectedGallery.live_session_id && (
-                    <Badge className="bg-emerald-500/90 text-white text-[10px] px-1.5 flex-shrink-0">Ã°Å¸Å¸Â¢ Live</Badge>
+                    <Badge className="bg-emerald-500/90 text-white text-[10px] px-1.5 flex-shrink-0">{"\u{1F7E2}"} Live</Badge>
                   )}
                   {selectedGallery.session_type === 'booking' && !selectedGallery.live_session_id && (
-                    <Badge className="bg-blue-500/90 text-white text-[10px] px-1.5 flex-shrink-0">Ã°Å¸â€œâ€¦ Booking</Badge>
+                    <Badge className="bg-blue-500/90 text-white text-[10px] px-1.5 flex-shrink-0">{"\u{1F4C5}"} Booking</Badge>
                   )}
                   {selectedGallery.session_type === 'on_demand' && !selectedGallery.live_session_id && (
-                    <Badge className="bg-orange-500/90 text-white text-[10px] px-1.5 flex-shrink-0">Ã¢Å¡Â¡ On-Demand</Badge>
+                    <Badge className="bg-orange-500/90 text-white text-[10px] px-1.5 flex-shrink-0">{"\u26A1"} On-Demand</Badge>
                   )}
                   {selectedGallery.session_type === 'manual' && !selectedGallery.live_session_id && (
-                    <Badge className="bg-zinc-600/90 text-white text-[10px] px-1.5 flex-shrink-0">Ã°Å¸â€œâ€¹ Manual</Badge>
+                    <Badge className="bg-zinc-600/90 text-white text-[10px] px-1.5 flex-shrink-0">{"\u{1F4CB}"} Manual</Badge>
                   )}
                 </div>
                 <div className="flex items-center gap-3 text-xs text-muted-foreground mt-0.5">
@@ -645,7 +645,7 @@ export const GalleryPage = () => {
               </div>
             </div>
             
-            {/* Row 2: Action buttons Ã¢â‚¬â€ scrollable on mobile */}
+            {/* Row 2: Action buttons -- scrollable on mobile */}
             <div className="flex items-center gap-2 overflow-x-auto pb-1 -mx-1 px-1">
               {bulkSelectMode ? (
                 <>
