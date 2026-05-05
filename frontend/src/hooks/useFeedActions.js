@@ -246,6 +246,12 @@ const useFeedActions = ({
     setPosts(prevPosts => prevPosts.map(p => 
       p.id === updatedPost.id ? { ...p, ...updatedPost } : p
     ));
+    // Keep the modal's post prop in sync so it doesn't hold stale data.
+    // This prevents the "revert" bug where modal reactions overwrite feed state
+    // with a frozen snapshot from when the modal first opened.
+    if (postModalOpen?.id === updatedPost.id) {
+      setPostModalOpen(prev => prev ? { ...prev, ...updatedPost } : prev);
+    }
   };
 
   const handlePostDeleted = (postId) => {

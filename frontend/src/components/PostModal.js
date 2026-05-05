@@ -358,8 +358,15 @@ const PostModal = ({ post, isOpen, onClose, onPostUpdated, posts, onNavigatePost
         setUserReaction({ emoji });
         setLiked(true);
       }
-      // Propagate to parent (Feed) so card state stays in sync
-      onPostUpdated?.({ ...post, liked: newLiked, likes_count: newCount, user_reaction: action === 'removed' ? null : { emoji } });
+      // Propagate to parent (Feed) so card state stays in sync.
+      // IMPORTANT: Don't spread ...post here — the prop is a stale snapshot
+      // from when the modal opened. Only send the changed fields so the Feed
+      // merges them into its live state without overwriting other updates.
+      const otherReactions = (post.reactions || []).filter(r => r.user_id !== user.id);
+      const newReactions = action === 'removed'
+        ? otherReactions
+        : [...otherReactions, { emoji, user_id: user.id, user_name: user.full_name }];
+      onPostUpdated?.({ id: post.id, liked: newLiked, likes_count: newCount, reactions: newReactions });
     } catch (err) {
       // Revert optimistic update
       setLiked(prevLiked);
