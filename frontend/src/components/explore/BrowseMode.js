@@ -13,6 +13,7 @@ import React from 'react';
 import { Globe, MapPin, Navigation, ChevronDown, ChevronRight, Search, X, Waves } from 'lucide-react';
 import { Badge } from '../ui/badge';
 import ExploreSpotCard from '../ExploreSpotCard';
+import { getCountryFlag } from '../../utils/countryFlags';
 
 const BrowseMode = ({
   // Location state
@@ -37,7 +38,6 @@ const BrowseMode = ({
   user,
   // Theme
   isLight,
-  getCountryFlag,
   // CSS class props
   dropdownBg,
   dropdownBorder,

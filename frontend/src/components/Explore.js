@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
@@ -53,7 +53,7 @@ import ExploreSpotCard from './ExploreSpotCard';
 
 import logger from '../utils/logger';
 import { getFullUrl } from '../utils/media';
-import { getCountryFlag, getPopularLocations } from '../utils/countryFlags';
+import { getPopularLocations } from '../utils/countryFlags';
 import ResponsiveImage from './ui/ResponsiveImage';
 import PostMediaPreview from './explore/PostMediaPreview';
 import BrowseMode from './explore/BrowseMode';
@@ -887,7 +887,6 @@ export const Explore = () => {
               popularLocations={popularLocations}
               user={user}
               isLight={isLight}
-              getCountryFlag={getCountryFlag}
               dropdownBg={dropdownBg}
               dropdownBorder={dropdownBorder}
               dropdownText={dropdownText}
@@ -994,7 +993,6 @@ export const Explore = () => {
           archiveGalleriesLoading={archiveGalleriesLoading}
           handleArchiveDateSelect={handleArchiveDateSelect}
           popularLocations={popularLocations}
-          getCountryFlag={getCountryFlag}
           isLight={isLight}
           dropdownBg={dropdownBg}
           dropdownBorder={dropdownBorder}

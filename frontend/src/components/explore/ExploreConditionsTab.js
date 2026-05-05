@@ -13,6 +13,7 @@ import {
   ChevronDown, ChevronRight, X, Camera, FolderOpen, Navigation
 } from 'lucide-react';
 import { Badge } from '../ui/badge';
+import { getCountryFlag } from '../../utils/countryFlags';
 
 const ExploreConditionsTab = ({
   // Sub-tab state
@@ -47,7 +48,6 @@ const ExploreConditionsTab = ({
   handleArchiveDateSelect,
   // Popular destinations
   popularLocations,
-  getCountryFlag,
   // Theme classes
   isLight,
   dropdownBg,
