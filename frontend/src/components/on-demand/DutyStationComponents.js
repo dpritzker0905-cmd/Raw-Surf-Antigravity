@@ -26,7 +26,7 @@ const calculateDistance = (lat1, lon1, lat2, lon2) => {
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
 };
 
-const metersToMiles = (m) => (m / 1609.344).toFixed(1);
+const metersToMiles = (m) => m / 1609.344;
 
 const GpsProximityCheck = ({ 
   selectedSpot, 
@@ -40,7 +40,7 @@ const GpsProximityCheck = ({
     : null;
   
   const isWithinRange = distance !== null && distance <= LIVE_PROXIMITY_METERS;
-  const distanceMiles = distance ? metersToMiles(distance).toFixed(2) : null;
+  const distanceMiles = distance !== null ? metersToMiles(distance) : null;
   
   useEffect(() => {
     if (isWithinRange) {
@@ -50,9 +50,34 @@ const GpsProximityCheck = ({
   
   if (!selectedSpot) return null;
   
-  // GPS not available
+  // GPS not available - inline warning (GpsWarningBanner is defined in
+  // DutyStationDrawer.js and not exported, so we render inline)
   if (!gpsAvailable) {
-    return <GpsWarningBanner onConfirmAnyway={onManualConfirm} />;
+    return (
+      <motion.div
+        initial={{ opacity: 0, height: 0 }}
+        animate={{ opacity: 1, height: 'auto' }}
+        className="p-4 rounded-xl bg-red-500/10 border-2 border-red-500/50"
+      >
+        <div className="flex items-start gap-3">
+          <AlertTriangle className="w-6 h-6 text-red-400 flex-shrink-0 mt-0.5" />
+          <div className="flex-1">
+            <p className="text-red-300 font-semibold">GPS Location Required</p>
+            <p className="text-red-400/80 text-sm mt-1">
+              Your GPS is unavailable or inaccurate. You can still confirm manually.
+            </p>
+            <Button aria-label="Confirm location manually"
+              onClick={onManualConfirm}
+              size="sm"
+              className="mt-3 bg-red-500/20 hover:bg-red-500/30 text-red-300 border border-red-500/50"
+            >
+              <Check className="w-4 h-4 mr-2" />
+              Confirm I am at this spot
+            </Button>
+          </div>
+        </div>
+      </motion.div>
+    );
   }
   
   return (
@@ -84,14 +109,14 @@ const GpsProximityCheck = ({
               <>
                 <p className="text-emerald-300 font-medium">You're at the spot!</p>
                 <p className="text-emerald-400/70 text-sm">
-                  GPS confirmed: {distanceMiles} miles from {selectedSpot.name}
+                GPS confirmed: {distanceMiles?.toFixed(2)} miles from {selectedSpot.name}
                 </p>
               </>
             ) : distance !== null ? (
               <>
                 <p className="text-amber-300 font-medium">Not at the spot yet</p>
                 <p className="text-amber-400/70 text-sm">
-                  You're {distanceMiles} miles away (need to be within {LIVE_PROXIMITY_MILES} miles)
+                  You're {distanceMiles?.toFixed(2)} miles away (need to be within {LIVE_PROXIMITY_MILES} miles)
                 </p>
               </>
             ) : (
