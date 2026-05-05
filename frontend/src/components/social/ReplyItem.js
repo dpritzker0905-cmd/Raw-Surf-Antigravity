@@ -9,6 +9,7 @@ import apiClient from '../../lib/apiClient';
 import { getFullUrl } from '../../utils/media';
 import { toast } from 'sonner';
 import { getExpandedRoleInfo } from '../../contexts/PersonaContext';
+import { formatTimeAgo } from '../../utils/formatTime';
 
 const ReplyItem = ({ reply, userId, _postId, textPrimaryClass, textSecondaryClass, _isLight }) => {
   const navigate = useNavigate();
