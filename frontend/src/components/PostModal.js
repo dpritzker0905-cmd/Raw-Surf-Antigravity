@@ -71,22 +71,22 @@ const PostModal = ({ post, isOpen, onClose, onPostUpdated, posts, onNavigatePost
   // Trap focus within the modal for keyboard accessibility
   useFocusTrap(modalRef, isOpen);
   
-  // Double-tap to like handler
+  // Double-tap to like handler — toggles shaka on/off
   const handleDoubleTap = useCallback(() => {
     const now = Date.now();
     if (now - lastTapRef.current < 300) {
-      // Double tap detected - like the post
-      if (!liked && user?.id && post?.id) {
+      // Double tap detected - toggle shaka reaction
+      if (user?.id && post?.id) {
         handleReaction('\u{1F919}');
       }
-      // Show heart animation
+      // Show shaka animation
       setShowDoubleTapHeart(true);
       setTimeout(() => setShowDoubleTapHeart(false), 800);
       lastTapRef.current = 0;
     } else {
       lastTapRef.current = now;
     }
-  }, [liked, user?.id, post?.id]);
+  }, [user?.id, post?.id]);
   
   // Keyboard navigation for swipe between posts
   useEffect(() => {
@@ -944,11 +944,78 @@ const PostModal = ({ post, isOpen, onClose, onPostUpdated, posts, onNavigatePost
             </div>
           </div>
           
+          {/* Reaction Picker Overlay - Desktop */}
+          {showReactionPicker && (
+            <div className="fixed inset-0 z-[200]">
+              <div 
+                className="absolute inset-0 bg-black/30"
+                onClick={() => setShowReactionPicker(false)}
+              />
+              <div 
+                className="absolute bg-zinc-900/95 backdrop-blur-md border border-zinc-600 rounded-full px-2 py-2 shadow-2xl animate-in zoom-in-95 duration-200 flex items-center"
+                style={{ 
+                  left: '50%',
+                  top: '50%',
+                  transform: 'translate(-50%, -50%)'
+                }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                {REACTION_EMOJIS.map((emoji) => (
+                  <button
+                    key={emoji}
+                    onClick={() => handleReaction(emoji)}
+                    className={`w-10 h-10 flex items-center justify-center rounded-full hover:bg-zinc-700/60 active:scale-90 transition-transform duration-100 touch-manipulation ${
+                      userReaction?.emoji === emoji ? 'bg-zinc-700/50 ring-1 ring-cyan-400/50' : ''
+                    }`}
+                    style={{ fontSize: '22px' }}
+                    data-testid={`desktop-reaction-${emoji}`}
+                  >
+                    {emoji}
+                  </button>
+                ))}
+                <button 
+                  onClick={() => setShowReactionPicker(false)}
+                  className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-white border-l border-zinc-600 ml-1 hover:bg-zinc-700/50 rounded-full"
+                  aria-label="Close reaction picker"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          )}
+          
           {/* Actions */}
           <div className="border-t border-zinc-800 p-4 space-y-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-4">
-                <button onClick={() => handleReaction('\u{1F919}')} className="hover:opacity-70 transition-opacity">
+                <button
+                  onPointerDown={(e) => {
+                    e.preventDefault();
+                    handleReactionStart();
+                  }}
+                  onPointerUp={(e) => {
+                    e.preventDefault();
+                    handleReactionEnd();
+                  }}
+                  onPointerCancel={handleReactionCancel}
+                  onPointerLeave={handleReactionCancel}
+                  onContextMenu={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    return false;
+                  }}
+                  className={`transition-all duration-300 select-none transform ${
+                    isPressing ? 'scale-125' : 'hover:scale-110'
+                  }`}
+                  style={{
+                    transition: 'transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
+                    WebkitTouchCallout: 'none',
+                    WebkitUserSelect: 'none',
+                    userSelect: 'none'
+                  }}
+                  data-testid="desktop-reaction-button"
+                  title="Tap to react, hold for emoji picker"
+                >
                   {userReaction ? (
                     <span className="text-2xl select-none">{userReaction.emoji}</span>
                   ) : (

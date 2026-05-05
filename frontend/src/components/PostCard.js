@@ -549,8 +549,8 @@ const PostCard = ({
       e.stopPropagation();
       e.preventDefault();
       
-      // Instagram-style: double-tap always LIKES, never unlikes
-      if (user?.id && post?.id && !post.liked && onDoubleTapLike) {
+      // Double-tap toggles shaka reaction on/off
+      if (user?.id && post?.id && onDoubleTapLike) {
         onDoubleTapLike(post.id);
       }
       
@@ -577,7 +577,7 @@ const PostCard = ({
       clearTimeout(singleTapTimerRef.current);
       singleTapTimerRef.current = null;
     }
-    if (user?.id && post?.id && !post.liked && onDoubleTapLike) {
+    if (user?.id && post?.id && onDoubleTapLike) {
       onDoubleTapLike(post.id);
     }
     setShowDoubleTapHeart(true);
@@ -597,7 +597,7 @@ const PostCard = ({
         clearTimeout(singleTapTimerRef.current);
         singleTapTimerRef.current = null;
       }
-      if (user?.id && post?.id && !post.liked && onDoubleTapLike) {
+      if (user?.id && post?.id && onDoubleTapLike) {
         onDoubleTapLike(post.id);
       }
       setShowDoubleTapHeart(true);

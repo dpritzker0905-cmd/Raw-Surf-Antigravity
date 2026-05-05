@@ -265,12 +265,12 @@ const SinglePost = () => {
     }
   };
 
-  // Double-tap to like handler for PostCard
+  // Double-tap to like handler for PostCard — toggles shaka on/off
   const handleDoubleTapLike = async (postId) => {
     if (!user?.id || inFlightRef.current) return;
     inFlightRef.current = true;
     try {
-      const response = await apiClient.post(`/posts/${postId}/reactions`, { emoji: '🤙' });
+      const response = await apiClient.post(`/posts/${postId}/reactions`, { emoji: '\u{1F919}' });
       setPost(prev => {
         const newState = { ...prev };
         if (response.data?.likes_count !== undefined) newState.likes_count = response.data.likes_count;
@@ -278,7 +278,10 @@ const SinglePost = () => {
         if (action === 'added' || action === 'changed') {
           newState.liked = true;
           const filtered = (prev.reactions || []).filter(r => r.user_id !== user.id);
-          newState.reactions = [...filtered, { user_id: user.id, emoji: '🤙' }];
+          newState.reactions = [...filtered, { user_id: user.id, emoji: '\u{1F919}' }];
+        } else if (action === 'removed') {
+          newState.liked = false;
+          newState.reactions = (prev.reactions || []).filter(r => r.user_id !== user.id);
         }
         return newState;
       });
