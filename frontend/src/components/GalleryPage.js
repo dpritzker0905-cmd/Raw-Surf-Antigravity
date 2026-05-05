@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { usePricing } from '../contexts/PricingContext';
@@ -58,6 +58,7 @@ import { TagAssignModal, ThumbnailPickerModal, LinkSessionModal } from './galler
 
 // Extracted gallery folder modals
 import { GalleryFolderModals } from './gallery/GalleryFolderModals';
+import { GalleryPricingCard } from './gallery/GalleryPricingCard';
 
 
 
@@ -326,7 +327,7 @@ export const GalleryPage = () => {
             Gallery Hub
           </h1>
           <p className="text-muted-foreground text-sm mt-1">
-            {gallery.length} items â€¢ Manage your sessions, folders & distribution
+            {gallery.length} items Ã¢â‚¬Â¢ Manage your sessions, folders & distribution
           </p>
         </div>
         
@@ -341,7 +342,7 @@ export const GalleryPage = () => {
         )}
       </div>
 
-      {/* Post-Session Summary â€” shows for recent galleries when inside a gallery folder */}
+      {/* Post-Session Summary Ã¢â‚¬â€ shows for recent galleries when inside a gallery folder */}
       {selectedGallery && (
         <PostSessionSummary
           gallery={selectedGallery}
@@ -355,331 +356,17 @@ export const GalleryPage = () => {
         />
       )}
 
-      {/* Gallery Pricing Card â€“ Tabbed Per-Service Pricing */}
+      {/* Gallery Pricing Card Ã¢â‚¬â€œ Tabbed Per-Service Pricing */}
+      {/* Gallery Pricing Card - Tabbed Per-Service Pricing */}
       {showPricing && (
-        <Card className="mb-6 bg-card border-border">
-          <CardHeader className="cursor-pointer md:cursor-default" onClick={() => setPricingCollapsed(!pricingCollapsed)}>
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-lg text-foreground flex items-center gap-2">
-                <DollarSign className="w-5 h-5 text-green-400" />
-                Gallery Pricing
-                <button className="md:hidden ml-1 text-muted-foreground" aria-label="Collapse">
-                  {pricingCollapsed ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
-                </button>
-              </CardTitle>
-              <Button aria-label="Settings" 
-                variant="outline" 
-                size="sm"
-                onClick={(e) => { e.stopPropagation(); setShowGalleryPricingModal(true); }}
-                className="border-border"
-                data-testid="edit-gallery-pricing-btn"
-              >
-                <Settings className="w-4 h-4 mr-2" />
-                Edit Pricing
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent className={`${pricingCollapsed ? 'hidden md:block' : ''}`}>
-            {/* Service Type Tabs */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-4">
-              {[
-                { key: 'gallery', label: 'Gallery', icon: <Image className="w-3.5 h-3.5" />, color: 'cyan' },
-                { key: 'live', label: 'Live Session', icon: <Radio className="w-3.5 h-3.5" />, color: 'red' },
-                { key: 'booking', label: 'Booking', icon: <Calendar className="w-3.5 h-3.5" />, color: 'blue' },
-                { key: 'ondemand', label: 'On-Demand', icon: <MapPin className="w-3.5 h-3.5" />, color: 'emerald' },
-              ].map(tab => (
-                <button
-                  key={tab.key}
-                  onClick={() => setPricingTab?.(tab.key)}
-                  className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold transition-all ${
-                    (pricingTab || 'gallery') === tab.key
-                      ? `bg-${tab.color}-500/20 text-${tab.color}-400 ring-1 ring-${tab.color}-500/40`
-                      : 'bg-muted/50 text-muted-foreground hover:bg-muted'
-                  }`}
-                  style={(pricingTab || 'gallery') === tab.key ? {
-                    background: tab.color === 'cyan' ? 'rgba(6,182,212,0.15)' :
-                                tab.color === 'red' ? 'rgba(239,68,68,0.15)' :
-                                tab.color === 'blue' ? 'rgba(59,130,246,0.15)' :
-                                'rgba(16,185,129,0.15)',
-                    color: tab.color === 'cyan' ? '#06b6d4' :
-                           tab.color === 'red' ? '#ef4444' :
-                           tab.color === 'blue' ? '#3b82f6' :
-                           '#10b981',
-                    boxShadow: `inset 0 0 0 1px ${tab.color === 'cyan' ? 'rgba(6,182,212,0.4)' :
-                                tab.color === 'red' ? 'rgba(239,68,68,0.4)' :
-                                tab.color === 'blue' ? 'rgba(59,130,246,0.4)' :
-                                'rgba(16,185,129,0.4)'}`
-                  } : {}}
-                >
-                  {tab.icon} {tab.label}
-                </button>
-              ))}
-            </div>
-
-            {/* â”€â”€â”€ Gallery Tab â”€â”€â”€ */}
-            {(pricingTab || 'gallery') === 'gallery' && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">ðŸ“· Photo Pricing</p>
-                  <div className="space-y-1.5">
-                    {[
-                      { label: 'Web (800px)', val: galleryPricing.photo_price_web },
-                      { label: 'Standard (1920px)', val: galleryPricing.photo_price_standard },
-                      { label: 'High Res (Original)', val: galleryPricing.photo_price_high },
-                    ].map(r => (
-                      <div key={r.label} className="p-2 rounded bg-muted/50 flex justify-between items-center">
-                        <span className="text-xs text-muted-foreground">{r.label}</span>
-                        <span className="text-xs font-semibold text-cyan-400">${r.val}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-                <div>
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">ðŸŽ¬ Video Pricing</p>
-                  <div className="space-y-1.5">
-                    {[
-                      { label: '720p HD', val: galleryPricing.video_price_720p },
-                      { label: '1080p Full HD', val: galleryPricing.video_price_1080p },
-                      { label: '4K Ultra HD', val: galleryPricing.video_price_4k },
-                    ].map(r => (
-                      <div key={r.label} className="p-2 rounded bg-muted/50 flex justify-between items-center">
-                        <span className="text-xs text-muted-foreground">{r.label}</span>
-                        <span className="text-xs font-semibold text-purple-400">${r.val}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* â”€â”€â”€ Live Session Tab â”€â”€â”€ */}
-            {pricingTab === 'live' && (
-              <div>
-                <div className="p-2.5 rounded-lg mb-3 flex items-center justify-between" style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)' }}>
-                  <span className="text-xs text-muted-foreground">ðŸŽŸï¸ Session Buy-In</span>
-                  <span className="text-sm font-bold text-red-400">${galleryPricing.live_buyin_price}</span>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-3">
-                  <div>
-                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">ðŸ“· Photo Pricing</p>
-                    <div className="space-y-1.5">
-                      {[
-                        { label: 'Web (800px)', val: galleryPricing.live_price_web },
-                        { label: 'Standard (1920px)', val: galleryPricing.live_price_standard },
-                        { label: 'High Res (Original)', val: galleryPricing.live_price_high },
-                      ].map(r => (
-                        <div key={r.label} className="p-2 rounded flex justify-between items-center" style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.15)' }}>
-                          <span className="text-xs text-muted-foreground">{r.label}</span>
-                          <span className="text-xs font-semibold text-red-400">${r.val}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                  <div>
-                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">ðŸŽ¬ Video Pricing</p>
-                    <div className="space-y-1.5">
-                      {[
-                        { label: '720p HD', val: galleryPricing.live_video_720p },
-                        { label: '1080p Full HD', val: galleryPricing.live_video_1080p },
-                        { label: '4K Ultra HD', val: galleryPricing.live_video_4k },
-                      ].map(r => (
-                        <div key={r.label} className="p-2 rounded flex justify-between items-center" style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.15)' }}>
-                          <span className="text-xs text-muted-foreground">{r.label}</span>
-                          <span className="text-xs font-semibold text-red-400">${r.val}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-                <div className="flex gap-4 pt-2 border-t border-red-500/20">
-                  <div className="p-2 rounded flex-1 text-center" style={{ background: 'rgba(239,68,68,0.1)' }}>
-                    <p className="text-[10px] text-muted-foreground uppercase">Photos Included</p>
-                    <p className="text-lg font-bold text-red-400">{galleryPricing.live_session_photos_included}</p>
-                  </div>
-                  <div className="p-2 rounded flex-1 text-center" style={{ background: 'rgba(239,68,68,0.1)' }}>
-                    <p className="text-[10px] text-muted-foreground uppercase">Videos Included</p>
-                    <p className="text-lg font-bold text-red-400">{galleryPricing.live_session_videos_included}</p>
-                  </div>
-                </div>
-                {/* Advanced settings deep-link */}
-                <button aria-label="Radio"
-                  onClick={() => navigate('/photographer/sessions')}
-                  className="w-full mt-3 p-3 rounded-lg flex items-center justify-between group/link transition-all hover:scale-[1.01]"
-                  style={{ background: 'linear-gradient(135deg, rgba(239,68,68,0.08), rgba(245,158,11,0.08))', border: '1px dashed rgba(239,68,68,0.3)' }}
-                >
-                  <div className="flex items-center gap-2">
-                    <Radio className="w-4 h-4 text-red-400" />
-                    <div className="text-left">
-                      <p className="text-xs font-semibold text-foreground">Configure Advanced Session Rates</p>
-                      <p className="text-[10px] text-muted-foreground">Buy-in pricing, full gallery access, session settings</p>
-                    </div>
-                  </div>
-                  <ChevronDown className="w-4 h-4 text-red-400 -rotate-90 group-hover/link:translate-x-0.5 transition-transform" />
-                </button>
-              </div>
-            )}
-
-            {/* â”€â”€â”€ Booking Tab â”€â”€â”€ */}
-            {pricingTab === 'booking' && (
-              <div>
-                <div className="p-2.5 rounded-lg mb-3 flex items-center justify-between" style={{ background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.2)' }}>
-                  <span className="text-xs text-muted-foreground">â± Hourly Rate</span>
-                  <span className="text-sm font-bold text-blue-400">${galleryPricing.booking_hourly_rate}/hr</span>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-3">
-                  <div>
-                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">ðŸ“· Photo Pricing</p>
-                    <div className="space-y-1.5">
-                      {[
-                        { label: 'Web (800px)', val: galleryPricing.booking_price_web },
-                        { label: 'Standard (1920px)', val: galleryPricing.booking_price_standard },
-                        { label: 'High Res (Original)', val: galleryPricing.booking_price_high },
-                      ].map(r => (
-                        <div key={r.label} className="p-2 rounded flex justify-between items-center" style={{ background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.15)' }}>
-                          <span className="text-xs text-muted-foreground">{r.label}</span>
-                          <span className="text-xs font-semibold text-blue-400">${r.val}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                  <div>
-                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">ðŸŽ¬ Video Pricing</p>
-                    <div className="space-y-1.5">
-                      {[
-                        { label: '720p HD', val: galleryPricing.booking_video_720p },
-                        { label: '1080p Full HD', val: galleryPricing.booking_video_1080p },
-                        { label: '4K Ultra HD', val: galleryPricing.booking_video_4k },
-                      ].map(r => (
-                        <div key={r.label} className="p-2 rounded flex justify-between items-center" style={{ background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.15)' }}>
-                          <span className="text-xs text-muted-foreground">{r.label}</span>
-                          <span className="text-xs font-semibold text-blue-400">${r.val}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-                <div className="flex gap-4 pt-2 border-t border-blue-500/20">
-                  <div className="p-2 rounded flex-1 text-center" style={{ background: 'rgba(59,130,246,0.1)' }}>
-                    <p className="text-[10px] text-muted-foreground uppercase">Photos Included</p>
-                    <p className="text-lg font-bold text-blue-400">{galleryPricing.booking_photos_included}</p>
-                  </div>
-                  <div className="p-2 rounded flex-1 text-center" style={{ background: 'rgba(59,130,246,0.1)' }}>
-                    <p className="text-[10px] text-muted-foreground uppercase">Videos Included</p>
-                    <p className="text-lg font-bold text-blue-400">{galleryPricing.booking_videos_included}</p>
-                  </div>
-                </div>
-                {/* Advanced settings summary + deep-link */}
-                <div className="mt-3 space-y-2">
-                  {/* Quick-glance pills for advanced settings */}
-                  <div className="flex flex-wrap gap-1.5">
-                    <div className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px]" style={{ background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.15)' }}>
-                      <span className="text-muted-foreground">â± Min Hours:</span>
-                      <span className="font-semibold text-blue-400">{galleryPricing.booking_min_hours}h</span>
-                    </div>
-                    <div className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px]" style={{ background: galleryPricing.charges_travel_fees ? 'rgba(245,158,11,0.1)' : 'rgba(59,130,246,0.08)', border: `1px solid ${galleryPricing.charges_travel_fees ? 'rgba(245,158,11,0.2)' : 'rgba(59,130,246,0.15)'}` }}>
-                      <span className="text-muted-foreground">ðŸš— Travel Fees:</span>
-                      <span className={`font-semibold ${galleryPricing.charges_travel_fees ? 'text-amber-400' : 'text-muted-foreground'}`}>
-                        {galleryPricing.charges_travel_fees ? 'Enabled' : 'Off'}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px]" style={{ background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.15)' }}>
-                      <span className="text-muted-foreground">ðŸ“ Radius:</span>
-                      <span className="font-semibold text-blue-400">{galleryPricing.service_radius_miles} mi</span>
-                    </div>
-                    {(galleryPricing.group_discount_2_plus > 0 || galleryPricing.group_discount_3_plus > 0 || galleryPricing.group_discount_5_plus > 0) && (
-                      <div className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px]" style={{ background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.15)' }}>
-                        <span className="text-muted-foreground">ðŸ‘¥ Group Discounts:</span>
-                        <span className="font-semibold text-emerald-400">Active</span>
-                      </div>
-                    )}
-                  </div>
-                  {/* Deep-link to full booking settings */}
-                  <button aria-label="Settings"
-                    onClick={() => navigate('/photographer/bookings')}
-                    className="w-full p-3 rounded-lg flex items-center justify-between group/link transition-all hover:scale-[1.01]"
-                    style={{ background: 'linear-gradient(135deg, rgba(59,130,246,0.08), rgba(139,92,246,0.08))', border: '1px dashed rgba(59,130,246,0.3)' }}
-                  >
-                    <div className="flex items-center gap-2">
-                      <Settings className="w-4 h-4 text-blue-400" />
-                      <div className="text-left">
-                        <p className="text-xs font-semibold text-foreground">Configure Advanced Booking Rates</p>
-                        <p className="text-[10px] text-muted-foreground">Group discounts, travel surcharges, cancellation policy, deposit %</p>
-                      </div>
-                    </div>
-                    <ChevronDown className="w-4 h-4 text-blue-400 -rotate-90 group-hover/link:translate-x-0.5 transition-transform" />
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* â”€â”€â”€ On-Demand Tab â”€â”€â”€ */}
-            {pricingTab === 'ondemand' && (
-              <div>
-                <div className="p-2.5 rounded-lg mb-3 flex items-center justify-between" style={{ background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.2)' }}>
-                  <span className="text-xs text-muted-foreground">âš¡ Hourly Rate</span>
-                  <span className="text-sm font-bold text-emerald-400">${galleryPricing.on_demand_hourly_rate}/hr</span>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-3">
-                  <div>
-                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">ðŸ“· Photo Pricing</p>
-                    <div className="space-y-1.5">
-                      {[
-                        { label: 'Web (800px)', val: galleryPricing.on_demand_price_web },
-                        { label: 'Standard (1920px)', val: galleryPricing.on_demand_price_standard },
-                        { label: 'High Res (Original)', val: galleryPricing.on_demand_price_high },
-                      ].map(r => (
-                        <div key={r.label} className="p-2 rounded flex justify-between items-center" style={{ background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.15)' }}>
-                          <span className="text-xs text-muted-foreground">{r.label}</span>
-                          <span className="text-xs font-semibold text-emerald-400">${r.val}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                  <div>
-                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">ðŸŽ¬ Video Pricing</p>
-                    <div className="space-y-1.5">
-                      {[
-                        { label: '720p HD', val: galleryPricing.on_demand_video_720p },
-                        { label: '1080p Full HD', val: galleryPricing.on_demand_video_1080p },
-                        { label: '4K Ultra HD', val: galleryPricing.on_demand_video_4k },
-                      ].map(r => (
-                        <div key={r.label} className="p-2 rounded flex justify-between items-center" style={{ background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.15)' }}>
-                          <span className="text-xs text-muted-foreground">{r.label}</span>
-                          <span className="text-xs font-semibold text-emerald-400">${r.val}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-                <div className="flex gap-4 pt-2 border-t border-emerald-500/20">
-                  <div className="p-2 rounded flex-1 text-center" style={{ background: 'rgba(16,185,129,0.1)' }}>
-                    <p className="text-[10px] text-muted-foreground uppercase">Photos Included</p>
-                    <p className="text-lg font-bold text-emerald-400">{galleryPricing.on_demand_photos_included}</p>
-                  </div>
-                  <div className="p-2 rounded flex-1 text-center" style={{ background: 'rgba(16,185,129,0.1)' }}>
-                    <p className="text-[10px] text-muted-foreground uppercase">Videos Included</p>
-                    <p className="text-lg font-bold text-emerald-400">{galleryPricing.on_demand_videos_included}</p>
-                  </div>
-                </div>
-                {/* Advanced settings deep-link */}
-                <button aria-label="Location"
-                  onClick={() => navigate('/photographer/bookings')}
-                  className="w-full mt-3 p-3 rounded-lg flex items-center justify-between group/link transition-all hover:scale-[1.01]"
-                  style={{ background: 'linear-gradient(135deg, rgba(16,185,129,0.08), rgba(6,182,212,0.08))', border: '1px dashed rgba(16,185,129,0.3)' }}
-                >
-                  <div className="flex items-center gap-2">
-                    <MapPin className="w-4 h-4 text-emerald-400" />
-                    <div className="text-left">
-                      <p className="text-xs font-semibold text-foreground">Advanced On-Demand Settings</p>
-                      <p className="text-[10px] text-muted-foreground">Service radius, peak pricing, availability zone</p>
-                    </div>
-                  </div>
-                  <ChevronDown className="w-4 h-4 text-emerald-400 -rotate-90 group-hover/link:translate-x-0.5 transition-transform" />
-                </button>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+        <GalleryPricingCard
+          pricingCollapsed={pricingCollapsed}
+          setPricingCollapsed={setPricingCollapsed}
+          pricingTab={pricingTab}
+          setPricingTab={setPricingTab}
+          galleryPricing={galleryPricing}
+          setShowGalleryPricingModal={setShowGalleryPricingModal}
+        />
       )}
 
       {/* Grom Highlights Section - SPECIAL for Grom Parents */}
@@ -881,26 +568,26 @@ export const GalleryPage = () => {
                         </div>
                       );
                     })()}
-                    {/* Session type badges â€” Phase 5 integration */}
+                    {/* Session type badges Ã¢â‚¬â€ Phase 5 integration */}
                     <div className="absolute top-2 left-2 flex gap-1.5">
                       {gal.live_session_id && (
                         <Badge className="bg-emerald-500/90 text-white text-[10px] shadow-sm px-1.5">
-                          ðŸŸ¢ Live
+                          Ã°Å¸Å¸Â¢ Live
                         </Badge>
                       )}
                       {gal.session_type === 'booking' && !gal.live_session_id && (
                         <Badge className="bg-blue-500/90 text-white text-[10px] shadow-sm px-1.5">
-                          ðŸ“… Booking
+                          Ã°Å¸â€œâ€¦ Booking
                         </Badge>
                       )}
                       {gal.session_type === 'on_demand' && !gal.live_session_id && (
                         <Badge className="bg-orange-500/90 text-white text-[10px] shadow-sm px-1.5">
-                          âš¡ On-Demand
+                          Ã¢Å¡Â¡ On-Demand
                         </Badge>
                       )}
                       {gal.session_type === 'manual' && !gal.live_session_id && (
                         <Badge className="bg-zinc-600/90 text-white text-[10px] shadow-sm px-1.5">
-                          ðŸ“‹ Manual
+                          Ã°Å¸â€œâ€¹ Manual
                         </Badge>
                       )}
                     </div>
@@ -911,11 +598,11 @@ export const GalleryPage = () => {
                       </Badge>
                       {(gal.purchase_count || 0) > 0 && (
                         <Badge className="bg-green-500/80 backdrop-blur-sm text-white text-[10px]">
-                          ðŸ’° {gal.purchase_count} sold
+                          Ã°Å¸â€™Â° {gal.purchase_count} sold
                         </Badge>
                       )}
                     </div>
-                    {/* Folder actions â€” visible on hover (desktop) or always via overflow menu (mobile) */}
+                    {/* Folder actions Ã¢â‚¬â€ visible on hover (desktop) or always via overflow menu (mobile) */}
                     <div className="absolute top-2 right-2 z-10">
                       <div className="hidden group-hover:flex gap-1">
                         <button aria-label="Image Plus"
@@ -1025,16 +712,16 @@ export const GalleryPage = () => {
                   </h2>
                   {/* Session type badge */}
                   {selectedGallery.live_session_id && (
-                    <Badge className="bg-emerald-500/90 text-white text-[10px] px-1.5 flex-shrink-0">ðŸŸ¢ Live</Badge>
+                    <Badge className="bg-emerald-500/90 text-white text-[10px] px-1.5 flex-shrink-0">Ã°Å¸Å¸Â¢ Live</Badge>
                   )}
                   {selectedGallery.session_type === 'booking' && !selectedGallery.live_session_id && (
-                    <Badge className="bg-blue-500/90 text-white text-[10px] px-1.5 flex-shrink-0">ðŸ“… Booking</Badge>
+                    <Badge className="bg-blue-500/90 text-white text-[10px] px-1.5 flex-shrink-0">Ã°Å¸â€œâ€¦ Booking</Badge>
                   )}
                   {selectedGallery.session_type === 'on_demand' && !selectedGallery.live_session_id && (
-                    <Badge className="bg-orange-500/90 text-white text-[10px] px-1.5 flex-shrink-0">âš¡ On-Demand</Badge>
+                    <Badge className="bg-orange-500/90 text-white text-[10px] px-1.5 flex-shrink-0">Ã¢Å¡Â¡ On-Demand</Badge>
                   )}
                   {selectedGallery.session_type === 'manual' && !selectedGallery.live_session_id && (
-                    <Badge className="bg-zinc-600/90 text-white text-[10px] px-1.5 flex-shrink-0">ðŸ“‹ Manual</Badge>
+                    <Badge className="bg-zinc-600/90 text-white text-[10px] px-1.5 flex-shrink-0">Ã°Å¸â€œâ€¹ Manual</Badge>
                   )}
                 </div>
                 <div className="flex items-center gap-3 text-xs text-muted-foreground mt-0.5">
@@ -1054,7 +741,7 @@ export const GalleryPage = () => {
               </div>
             </div>
             
-            {/* Row 2: Action buttons â€” scrollable on mobile */}
+            {/* Row 2: Action buttons Ã¢â‚¬â€ scrollable on mobile */}
             <div className="flex items-center gap-2 overflow-x-auto pb-1 -mx-1 px-1">
               {bulkSelectMode ? (
                 <>
@@ -1173,7 +860,7 @@ export const GalleryPage = () => {
                     <UserPlus className="w-4 h-4 mr-1" />
                     Tag & Assign
                   </Button>
-                  {/* Link Session button â€” only for unlinked folders */}
+                  {/* Link Session button Ã¢â‚¬â€ only for unlinked folders */}
                   {!selectedGallery.live_session_id && (
                     <Button aria-label="Link2"
                       size="sm"
@@ -1185,7 +872,7 @@ export const GalleryPage = () => {
                       Link Session
                     </Button>
                   )}
-                  {/* Push to Spot Hub â€” requires linked surf spot AND live session */}
+                  {/* Push to Spot Hub Ã¢â‚¬â€ requires linked surf spot AND live session */}
                   {selectedGallery.surf_spot_id && (
                     <Button
                       size="sm"
@@ -1230,7 +917,7 @@ export const GalleryPage = () => {
             </div>
           </div>
 
-          {/* â”€â”€ Session Roster: Full surfer delivery tracker â”€â”€ */}
+          {/* Ã¢â€â‚¬Ã¢â€â‚¬ Session Roster: Full surfer delivery tracker Ã¢â€â‚¬Ã¢â€â‚¬ */}
           {selectedGallery.session_roster && selectedGallery.session_roster.length > 0 && (
             <div className="mb-4">
               <SessionRosterCard 
@@ -1279,7 +966,7 @@ export const GalleryPage = () => {
         </div>
       )}
 
-      {/* All Media section removed â€” photographers upload into session folders only */}
+      {/* All Media section removed Ã¢â‚¬â€ photographers upload into session folders only */}
 
       {/* Upload Modal */}
       <UploadPhotoModal
