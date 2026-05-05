@@ -4,9 +4,13 @@
  */
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Play, Pause, Volume2, VolumeX, Maximize, ChevronLeft, ChevronRight, Heart } from 'lucide-react';
+import { Play, Pause, Volume1, Volume2, VolumeX, Maximize, ChevronLeft, ChevronRight, Heart } from 'lucide-react';
 import { getFullUrl } from '../../utils/media';
 import { getExpandedRoleInfo } from '../../contexts/PersonaContext';
+import { formatTimeAgo, formatDuration } from '../../utils/formatTime';
+import apiClient from '../../lib/apiClient';
+import { toast } from 'sonner';
+import { CommentText } from '../RichText';
 
 const ModalVideoPlayer = ({ src, poster, className = '' }) => {
   const videoRef = useRef(null);
