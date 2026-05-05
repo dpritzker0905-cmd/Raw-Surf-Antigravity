@@ -764,7 +764,7 @@ export const GalleryPage = () => {
                     <UserPlus className="w-4 h-4 mr-1" />
                     Tag & Assign
                   </Button>
-                  {/* Link Session button Ã¢â‚¬â€ only for unlinked folders */}
+                  {/* Link Session button -- only for unlinked folders */}
                   {!selectedGallery.live_session_id && (
                     <Button aria-label="Link2"
                       size="sm"
@@ -776,7 +776,7 @@ export const GalleryPage = () => {
                       Link Session
                     </Button>
                   )}
-                  {/* Push to Spot Hub Ã¢â‚¬â€ requires linked surf spot AND live session */}
+                  {/* Push to Spot Hub -- requires linked surf spot AND live session */}
                   {selectedGallery.surf_spot_id && (
                     <Button
                       size="sm"
@@ -821,7 +821,7 @@ export const GalleryPage = () => {
             </div>
           </div>
 
-          {/* Ã¢â€â‚¬Ã¢â€â‚¬ Session Roster: Full surfer delivery tracker Ã¢â€â‚¬Ã¢â€â‚¬ */}
+          {/* -- Session Roster: Full surfer delivery tracker -- */}
           {selectedGallery.session_roster && selectedGallery.session_roster.length > 0 && (
             <div className="mb-4">
               <SessionRosterCard 
@@ -870,7 +870,7 @@ export const GalleryPage = () => {
         </div>
       )}
 
-      {/* All Media section removed Ã¢â‚¬â€ photographers upload into session folders only */}
+      {/* All Media section removed -- photographers upload into session folders only */}
 
       {/* Upload Modal */}
       <UploadPhotoModal

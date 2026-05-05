@@ -1,4 +1,4 @@
-﻿/**
+/**
  * GalleryPricingCard.js
  * Extracted pricing display card from GalleryPage.js
  * Shows per-service tabbed pricing (Gallery, Live, Booking, On-Demand)
@@ -80,11 +80,11 @@ export const GalleryPricingCard = ({
               ))}
             </div>
 
-            {/* Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ Gallery Tab Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */}
+            {/* --- Gallery Tab --- */}
             {(pricingTab || 'gallery') === 'gallery' && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Ã°Å¸â€œÂ· Photo Pricing</p>
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">{"\u{1F4F7}"} Photo Pricing</p>
                   <div className="space-y-1.5">
                     {[
                       { label: 'Web (800px)', val: galleryPricing.photo_price_web },
@@ -99,7 +99,7 @@ export const GalleryPricingCard = ({
                   </div>
                 </div>
                 <div>
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Ã°Å¸Å½Â¬ Video Pricing</p>
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">{"\u{1F3AC}"} Video Pricing</p>
                   <div className="space-y-1.5">
                     {[
                       { label: '720p HD', val: galleryPricing.video_price_720p },
@@ -116,16 +116,16 @@ export const GalleryPricingCard = ({
               </div>
             )}
 
-            {/* Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ Live Session Tab Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */}
+            {/* --- Live Session Tab --- */}
             {pricingTab === 'live' && (
               <div>
                 <div className="p-2.5 rounded-lg mb-3 flex items-center justify-between" style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)' }}>
-                  <span className="text-xs text-muted-foreground">Ã°Å¸Å½Å¸Ã¯Â¸Â Session Buy-In</span>
+                  <span className="text-xs text-muted-foreground">{"\u{1F3DF}\uFE0F"} Session Buy-In</span>
                   <span className="text-sm font-bold text-red-400">${galleryPricing.live_buyin_price}</span>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-3">
                   <div>
-                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Ã°Å¸â€œÂ· Photo Pricing</p>
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">{"\u{1F4F7}"} Photo Pricing</p>
                     <div className="space-y-1.5">
                       {[
                         { label: 'Web (800px)', val: galleryPricing.live_price_web },
@@ -140,7 +140,7 @@ export const GalleryPricingCard = ({
                     </div>
                   </div>
                   <div>
-                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Ã°Å¸Å½Â¬ Video Pricing</p>
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">{"\u{1F3AC}"} Video Pricing</p>
                     <div className="space-y-1.5">
                       {[
                         { label: '720p HD', val: galleryPricing.live_video_720p },
@@ -183,16 +183,16 @@ export const GalleryPricingCard = ({
               </div>
             )}
 
-            {/* Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ Booking Tab Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */}
+            {/* --- Booking Tab --- */}
             {pricingTab === 'booking' && (
               <div>
                 <div className="p-2.5 rounded-lg mb-3 flex items-center justify-between" style={{ background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.2)' }}>
-                  <span className="text-xs text-muted-foreground">Ã¢ÂÂ± Hourly Rate</span>
+                  <span className="text-xs text-muted-foreground">{"\u23F1"} Hourly Rate</span>
                   <span className="text-sm font-bold text-blue-400">${galleryPricing.booking_hourly_rate}/hr</span>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-3">
                   <div>
-                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Ã°Å¸â€œÂ· Photo Pricing</p>
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">{"\u{1F4F7}"} Photo Pricing</p>
                     <div className="space-y-1.5">
                       {[
                         { label: 'Web (800px)', val: galleryPricing.booking_price_web },
@@ -207,7 +207,7 @@ export const GalleryPricingCard = ({
                     </div>
                   </div>
                   <div>
-                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Ã°Å¸Å½Â¬ Video Pricing</p>
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">{"\u{1F3AC}"} Video Pricing</p>
                     <div className="space-y-1.5">
                       {[
                         { label: '720p HD', val: galleryPricing.booking_video_720p },
@@ -237,22 +237,22 @@ export const GalleryPricingCard = ({
                   {/* Quick-glance pills for advanced settings */}
                   <div className="flex flex-wrap gap-1.5">
                     <div className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px]" style={{ background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.15)' }}>
-                      <span className="text-muted-foreground">Ã¢ÂÂ± Min Hours:</span>
+                      <span className="text-muted-foreground">{"\u23F1"} Min Hours:</span>
                       <span className="font-semibold text-blue-400">{galleryPricing.booking_min_hours}h</span>
                     </div>
                     <div className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px]" style={{ background: galleryPricing.charges_travel_fees ? 'rgba(245,158,11,0.1)' : 'rgba(59,130,246,0.08)', border: `1px solid ${galleryPricing.charges_travel_fees ? 'rgba(245,158,11,0.2)' : 'rgba(59,130,246,0.15)'}` }}>
-                      <span className="text-muted-foreground">Ã°Å¸Å¡â€” Travel Fees:</span>
+                      <span className="text-muted-foreground">{"\u{1F697}"} Travel Fees:</span>
                       <span className={`font-semibold ${galleryPricing.charges_travel_fees ? 'text-amber-400' : 'text-muted-foreground'}`}>
                         {galleryPricing.charges_travel_fees ? 'Enabled' : 'Off'}
                       </span>
                     </div>
                     <div className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px]" style={{ background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.15)' }}>
-                      <span className="text-muted-foreground">Ã°Å¸â€œÂ Radius:</span>
+                      <span className="text-muted-foreground">{"\u{1F4CD}"} Radius:</span>
                       <span className="font-semibold text-blue-400">{galleryPricing.service_radius_miles} mi</span>
                     </div>
                     {(galleryPricing.group_discount_2_plus > 0 || galleryPricing.group_discount_3_plus > 0 || galleryPricing.group_discount_5_plus > 0) && (
                       <div className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px]" style={{ background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.15)' }}>
-                        <span className="text-muted-foreground">Ã°Å¸â€˜Â¥ Group Discounts:</span>
+                        <span className="text-muted-foreground">{"\u{1F465}"} Group Discounts:</span>
                         <span className="font-semibold text-emerald-400">Active</span>
                       </div>
                     )}
@@ -276,16 +276,16 @@ export const GalleryPricingCard = ({
               </div>
             )}
 
-            {/* Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ On-Demand Tab Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */}
+            {/* --- On-Demand Tab --- */}
             {pricingTab === 'ondemand' && (
               <div>
                 <div className="p-2.5 rounded-lg mb-3 flex items-center justify-between" style={{ background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.2)' }}>
-                  <span className="text-xs text-muted-foreground">Ã¢Å¡Â¡ Hourly Rate</span>
+                  <span className="text-xs text-muted-foreground">{"\u26A1"} Hourly Rate</span>
                   <span className="text-sm font-bold text-emerald-400">${galleryPricing.on_demand_hourly_rate}/hr</span>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-3">
                   <div>
-                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Ã°Å¸â€œÂ· Photo Pricing</p>
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">{"\u{1F4F7}"} Photo Pricing</p>
                     <div className="space-y-1.5">
                       {[
                         { label: 'Web (800px)', val: galleryPricing.on_demand_price_web },
@@ -300,7 +300,7 @@ export const GalleryPricingCard = ({
                     </div>
                   </div>
                   <div>
-                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Ã°Å¸Å½Â¬ Video Pricing</p>
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">{"\u{1F3AC}"} Video Pricing</p>
                     <div className="space-y-1.5">
                       {[
                         { label: '720p HD', val: galleryPricing.on_demand_video_720p },

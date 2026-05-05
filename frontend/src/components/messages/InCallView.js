@@ -1,4 +1,4 @@
-﻿/**
+/**
  * InCallView -‚¬â€ Premium active call overlay.
  * 
  * FILTER IMPLEMENTATION -‚¬â€ Uses the SAME WebGL GPU shader pipeline as GoLive:
@@ -194,30 +194,26 @@ export default function InCallView({
     const maxRetries = 8;
     const tryPlay = () => {
       videoEl.play().then(() => {
-        logger.debug('[InCallView] Ã¢Å“â€¦ Remote video playing (muted)');
+        logger.debug('[InCallView] \u2705 Remote video playing (muted)');
         // Now unmute to hear audio -‚¬â€ this works even outside user gesture
         // because the element is already playing
         setTimeout(() => {
           videoEl.muted = speakerOffRef.current;
-          logger.debug('[InCallView] Ã¢Å“â€¦ Remote audio unmuted, speakerOff:', speakerOffRef.current);
+          logger.debug('[InCallView] \u2705 Remote audio unmuted, speakerOff:', speakerOffRef.current);
         }, 100); // Small delay ensures iOS processes the play state first
       }).catch((err) => {
         logger.warn(`[InCallView] play() attempt ${retries + 1} failed:`, err.name, err.message);
         if (retries < maxRetries) {
           retries++;
-          // Exponential backoff: 300, 600, 1200, 2400...
           setTimeout(tryPlay, Math.min(300 * Math.pow(2, retries - 1), 5000));
         } else {
-          logger.error('[InCallView] Ã¢ÂÅ’ All play() retries exhausted Ã¢â‚¬â€ user may need to tap');
-          // Last resort: unmute anyway, some browsers will start playing
-          // when the user next interacts with the page
+          logger.error('[InCallView] \u274C All play() retries exhausted -- user may need to tap');
           videoEl.muted = speakerOffRef.current;
         }
       });
     };
     tryPlay();
 
-    // When remote replaces their video track (camera toggle), nudge playback
     const handleTrackAdded = () => {
       logger.debug('[InCallView] Remote track added, nudging play()');
       videoEl.play().catch(() => {});
@@ -229,7 +225,6 @@ export default function InCallView({
     };
   }, [remoteStream]);
 
-  // -€â‚¬-€â‚¬ Auto-hide controls after 4s -€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬
   const resetControlsTimer = useCallback(() => {
     setShowControls(true);
     clearTimeout(controlsTimeoutRef.current);
@@ -243,15 +238,12 @@ export default function InCallView({
     return () => clearTimeout(controlsTimeoutRef.current);
   }, []);
 
-  // -€â‚¬-€â‚¬ WebGL Filter Engine Lifecycle (same as GoLive) -€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬
-  // Initialize WebGL processor when local stream is available
   useEffect(() => {
     if (!localVideoRef.current || !webglCanvasRef.current || !localStream) return;
 
     const video = localVideoRef.current;
     const canvas = webglCanvasRef.current;
 
-    // Wait for video metadata to load so we know dimensions
     const initWebGL = () => {
       canvas.width = video.videoWidth || 640;
       canvas.height = video.videoHeight || 480;
@@ -262,7 +254,6 @@ export default function InCallView({
         processor.start(video);
         webglProcessorRef.current = processor;
 
-        // Start a composite canvas that merges WebGL + hair, then send over WebRTC
         if (onReplaceVideoTrack) {
           try {
             if (!compositeCanvasRef.current) {
@@ -273,7 +264,6 @@ export default function InCallView({
             comp.height = canvas.height;
             const ctx = comp.getContext('2d');
 
-            // Composite render loop: WebGL canvas + hair canvas -€ â€™ 2D composite
             const compositeLoop = () => {
               ctx.clearRect(0, 0, comp.width, comp.height);
               ctx.drawImage(canvas, 0, 0, comp.width, comp.height);
@@ -315,9 +305,8 @@ export default function InCallView({
         webglProcessorRef.current = null;
       }
     };
-  }, [localStream, onReplaceVideoTrack]); // Re-init when stream changes
+  }, [localStream, onReplaceVideoTrack]);
 
-  // -€â‚¬-€â‚¬ Hair Filter Engine Lifecycle -€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬
   useEffect(() => {
     const engine = new HairFilterEngine();
     hairEngineRef.current = engine;
@@ -328,7 +317,6 @@ export default function InCallView({
     };
   }, []);
 
-  // Start hair engine when local stream is available
   useEffect(() => {
     const engine = hairEngineRef.current;
     if (!engine || !localStream) return;
@@ -353,32 +341,27 @@ export default function InCallView({
     }
   }, [localStream]);
 
-  // Update hair style when selection changes
   useEffect(() => {
     const engine = hairEngineRef.current;
     if (engine) engine.setHairStyle(activeHairStyle);
   }, [activeHairStyle]);
 
-  // -€â‚¬-€â‚¬ Update WebGL filter when user selects a new one -€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬
   useEffect(() => {
     if (webglProcessorRef.current) {
       webglProcessorRef.current.setFilter(activeFilter === 'none' ? 'none' : activeFilter);
     }
   }, [activeFilter]);
 
-  // -€â‚¬-€â‚¬ Filter selection handler (auto-closes picker) -€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬
   const handleSelectFilter = useCallback((key) => {
     setActiveFilter(key);
     setShowFilters(false);
   }, []);
 
-  // -€â‚¬-€â‚¬ Hair selection handler (auto-closes picker) -€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬
   const handleSelectHairStyle = useCallback((styleId) => {
     setActiveHairStyle(styleId);
     setShowHairPicker(false);
   }, []);
 
-  // -€â‚¬-€â‚¬ Control Button Component -€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬
   const ControlButton = ({ onClick, active, danger, icon: Icon, label, size = 'normal' }) => {
     const sizeClass = size === 'large' ? 'w-14 h-14 md:w-16 md:h-16' : 'w-11 h-11 md:w-12 md:h-12';
     const iconSize = size === 'large' ? 'w-6 h-6 md:w-7 md:h-7' : 'w-5 h-5';
@@ -409,11 +392,8 @@ export default function InCallView({
 
       <div className="relative w-full h-full md:w-[calc(100%-48px)] md:h-[calc(100%-48px)] md:max-w-[1100px] md:max-h-[700px] md:rounded-2xl overflow-hidden flex flex-col shadow-2xl shadow-black/50">
 
-        {/* -€â‚¬-€â‚¬ Video Area -€â‚¬-€â‚¬ */}
+        {/* Video Area */}
         <div className="flex-1 relative overflow-hidden bg-black">
-          {/* Remote video -‚¬â€ ALWAYS rendered and "playing" so audio works.
-              For audio-only calls: element is tiny/invisible but still decodes audio.
-              display:none would stop audio playback in most browsers. */}
           <video
             ref={remoteVideoRef}
             autoPlay
@@ -426,9 +406,7 @@ export default function InCallView({
               position: 'absolute', top: 0, left: 0,
             }}
           />
-          {/* Audio-only fallback or waiting state */}
           {!(callType === 'video' && remoteStream) && (
-            /* Audio-only: avatar + waveform */
             <div className="w-full h-full flex flex-col items-center justify-center"
               style={{
                 background: 'radial-gradient(ellipse at 30% 20%, rgba(6,182,212,0.08) 0%, transparent 50%), radial-gradient(ellipse at 70% 80%, rgba(99,102,241,0.06) 0%, transparent 50%), linear-gradient(135deg, #0a0e1a 0%, #0d1f3c 40%, #0a1628 100%)',
@@ -450,7 +428,7 @@ export default function InCallView({
                 </div>
               </div>
               <h3 className="text-white text-lg md:text-xl font-semibold mt-5 mb-1">{remoteUserInfo.name || 'User'}</h3>
-              <p className="text-white/40 text-sm mb-4">{callType === 'video' ? 'Connecting videoÃ¢â‚¬Â¦' : 'Audio Call'}</p>
+              <p className="text-white/40 text-sm mb-4">{callType === 'video' ? 'Connecting video...' : 'Audio Call'}</p>
               <div className="flex items-end gap-[3px] h-8">
                 {[...Array(9)].map((_, i) => (
                   <div
@@ -466,7 +444,7 @@ export default function InCallView({
             </div>
           )}
 
-          {/* -€â‚¬-€â‚¬ Top Overlay -€â‚¬-€â‚¬ */}
+          {/* Top Overlay */}
           <div 
             className={`absolute top-0 left-0 right-0 transition-opacity duration-300 ${showControls ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
             style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.3) 60%, transparent 100%)' }}
@@ -482,7 +460,7 @@ export default function InCallView({
                 <ConnectionQualityBadge quality={connectionQuality} />
               </div>
               <span className="text-white/60 text-[11px] md:text-xs px-2 py-1 rounded-full bg-white/5 backdrop-blur-md">
-                {callType === 'video' ? 'Ã°Å¸â€œÂ¹ Video' : 'Ã°Å¸Å½â„¢Ã¯Â¸Â Audio'}
+                {callType === 'video' ? '\u{1F4F9} Video' : '\u{1F3D9}\uFE0F Audio'}
               </span>
             </div>
 
