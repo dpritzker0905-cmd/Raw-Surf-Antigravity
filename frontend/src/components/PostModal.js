@@ -33,7 +33,7 @@ import useFocusTrap from '../hooks/useFocusTrap';
 // Tap to play/pause, custom progress bar, volume slider, no native controls
 // ModalVideoPlayer, ImageCarousel, CommentItem extracted to ./social/PostModalComponents.js
 
-const PostModal = ({ post, isOpen, onClose, _onPostUpdated, posts, onNavigatePost }) => {
+const PostModal = ({ post, isOpen, onClose, onPostUpdated, posts, onNavigatePost }) => {
   const { user } = useAuth();
   const { theme } = useTheme();
   const navigate = useNavigate();
@@ -208,6 +208,8 @@ const PostModal = ({ post, isOpen, onClose, _onPostUpdated, posts, onNavigatePos
       // Sync with authoritative server state
       setLiked(response.data.is_liked);
       setLikeCount(response.data.likes_count);
+      // Propagate to parent (Feed) so card state stays in sync
+      onPostUpdated?.({ ...post, liked: response.data.is_liked, likes_count: response.data.likes_count });
     } catch (err) {
       // Revert optimistic update
       setLiked(wasLiked);
@@ -347,6 +349,8 @@ const PostModal = ({ post, isOpen, onClose, _onPostUpdated, posts, onNavigatePos
       }
       
       const action = response.data?.action;
+      const newLiked = action === 'removed' ? false : true;
+      const newCount = response.data?.likes_count ?? likeCount;
       if (action === 'removed') {
         setUserReaction(null);
         setLiked(false);
@@ -354,6 +358,8 @@ const PostModal = ({ post, isOpen, onClose, _onPostUpdated, posts, onNavigatePos
         setUserReaction({ emoji });
         setLiked(true);
       }
+      // Propagate to parent (Feed) so card state stays in sync
+      onPostUpdated?.({ ...post, liked: newLiked, likes_count: newCount, user_reaction: action === 'removed' ? null : { emoji } });
     } catch (err) {
       // Revert optimistic update
       setLiked(prevLiked);
