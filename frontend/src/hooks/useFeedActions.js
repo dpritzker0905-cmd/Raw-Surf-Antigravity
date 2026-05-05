@@ -703,40 +703,35 @@ const useFeedActions = ({
     // Find the post to get author info for notification
     const targetPost = posts.find(p => p.id === postId);
     
-    // Check if user already has this reaction (for toggle logic)
+    // Check if user already has THIS EXACT reaction (for toggle-off logic)
     const existingReaction = targetPost?.reactions?.find(r => r.user_id === user.id && r.emoji === emoji);
     const isRemoving = !!existingReaction;
     
-    // Special handling for shaka emoji - it maps to the "liked" state
-    const isShakaEmoji = emoji === '🤙';
-    
-    // Optimistic update with animation trigger
+    // Optimistic update
     setPosts(prevPosts => prevPosts.map(p => {
       if (p.id === postId) {
         const reactions = p.reactions || [];
-        const existingIndex = reactions.findIndex(r => r.user_id === user.id && r.emoji === emoji);
+        const existingSameEmoji = reactions.findIndex(r => r.user_id === user.id && r.emoji === emoji);
         const hadAnyReaction = reactions.some(r => r.user_id === user.id);
         
-        if (existingIndex >= 0) {
-          // Remove reaction - revert to UNCHECKED Shaka (liked = false)
+        if (existingSameEmoji >= 0) {
+          // Toggle OFF same emoji → remove reaction
           return {
             ...p,
             liked: false,
             likes_count: Math.max(0, (p.likes_count || 1) - 1),
-            reactions: reactions.filter((_, i) => i !== existingIndex)
+            reactions: reactions.filter((_, i) => i !== existingSameEmoji)
           };
         } else {
-          // Add reaction - replace any existing reaction from this user
+          // Add or swap → replace any existing reaction from this user
           const filteredReactions = reactions.filter(r => r.user_id !== user.id);
           
           return {
             ...p,
-            liked: isShakaEmoji,
-            // Only increment count if user didn't already have a reaction (swap = no count change)
+            liked: true, // Any active reaction = liked
+            // Swap = no count change; new reaction = +1
             likes_count: hadAnyReaction ? (p.likes_count || 0) : (p.likes_count || 0) + 1,
-            reactions: isShakaEmoji 
-              ? filteredReactions
-              : [...filteredReactions, { emoji, user_id: user.id, user_name: user.full_name }]
+            reactions: [...filteredReactions, { emoji, user_id: user.id, user_name: user.full_name }]
           };
         }
       }
@@ -744,12 +739,10 @@ const useFeedActions = ({
     }));
     
     try {
-      let response;
-      if (isShakaEmoji) {
-        response = await apiClient.post(`/posts/${postId}/like`);
-      } else {
-        response = await apiClient.post(`/posts/${postId}/reactions`, { emoji });
-      }
+      // ALWAYS use /reactions endpoint for ALL emojis (including shaka)
+      // This lets the backend handle add/change/remove atomically in one table
+      // The /like endpoint is ONLY for handleLike (double-tap toggle)
+      const response = await apiClient.post(`/posts/${postId}/reactions`, { emoji });
       
       // Sync authoritative server likes_count to prevent drift
       if (response.data?.likes_count !== undefined) {
@@ -757,10 +750,16 @@ const useFeedActions = ({
           p.id === postId ? { ...p, likes_count: response.data.likes_count } : p
         ));
       }
-      // For like endpoint, also sync liked state
-      if (isShakaEmoji && response.data?.is_liked !== undefined) {
+      
+      // Sync liked state based on server action
+      const action = response.data?.action;
+      if (action === 'removed') {
         setPosts(prevPosts => prevPosts.map(p =>
-          p.id === postId ? { ...p, liked: response.data.is_liked } : p
+          p.id === postId ? { ...p, liked: false } : p
+        ));
+      } else if (action === 'added' || action === 'changed') {
+        setPosts(prevPosts => prevPosts.map(p =>
+          p.id === postId ? { ...p, liked: true } : p
         ));
       }
       
@@ -773,7 +772,7 @@ const useFeedActions = ({
             post_id: postId,
             user_name: user.full_name,
             emoji: isRemoving ? null : emoji,
-            action: response?.data?.action || (isRemoving ? 'removed' : 'added')
+            action: action || (isRemoving ? 'removed' : 'added')
           }
         });
       } catch (broadcastError) {
@@ -782,8 +781,7 @@ const useFeedActions = ({
       }
       
       // Send notification to post author if adding a reaction (not removing)
-      const action = response?.data?.action || (isRemoving ? 'removed' : 'added');
-      if (action === 'added' && targetPost && targetPost.author_id !== user.id) {
+      if ((action === 'added' || action === 'changed') && targetPost && targetPost.author_id !== user.id) {
         try {
           await apiClient.post('/notifications', {
             user_id: targetPost.author_id,

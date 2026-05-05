@@ -316,7 +316,6 @@ const PostModal = ({ post, isOpen, onClose, _onPostUpdated, posts, onNavigatePos
     
     setShowReactionPicker(false);
     
-    const isShakaEmoji = emoji === '🤙';
     const isRemoving = userReaction?.emoji === emoji;
     
     // Snapshot for rollback
@@ -331,7 +330,7 @@ const PostModal = ({ post, isOpen, onClose, _onPostUpdated, posts, onNavigatePos
       setLikeCount(Math.max(0, prevCount - 1));
     } else {
       setUserReaction({ emoji });
-      setLiked(isShakaEmoji || true);
+      setLiked(true); // Any active reaction = liked
       // Only increment if user didn't already have a reaction (swap = no count change)
       if (!prevReaction) {
         setLikeCount(prevCount + 1);
@@ -339,25 +338,19 @@ const PostModal = ({ post, isOpen, onClose, _onPostUpdated, posts, onNavigatePos
     }
     
     try {
-      let response;
-      if (isShakaEmoji) {
-        response = await apiClient.post(`/posts/${post.id}/like`);
-      } else {
-        response = await apiClient.post(`/posts/${post.id}/reactions`, { emoji });
-      }
+      // ALWAYS use /reactions endpoint for ALL emojis (including shaka)
+      const response = await apiClient.post(`/posts/${post.id}/reactions`, { emoji });
       
       // Always sync with authoritative server count
       if (response.data?.likes_count !== undefined) {
         setLikeCount(response.data.likes_count);
       }
-      if (isShakaEmoji && response.data?.is_liked !== undefined) {
-        setLiked(response.data.is_liked);
-        // Shaka uses liked state, clear userReaction
-        setUserReaction(response.data.is_liked ? null : null);
-      } else if (response.data?.action === 'removed') {
+      
+      const action = response.data?.action;
+      if (action === 'removed') {
         setUserReaction(null);
         setLiked(false);
-      } else if (response.data?.action === 'added' || response.data?.action === 'changed') {
+      } else if (action === 'added' || action === 'changed') {
         setUserReaction({ emoji });
         setLiked(true);
       }

@@ -232,20 +232,13 @@ const SinglePost = () => {
     
     setShowReactionPicker(false);
     
-    const isShakaEmoji = emoji === '🤙';
-    
     try {
-      let response;
-      if (isShakaEmoji) {
-        // Shaka uses the like toggle endpoint
-        response = await apiClient.post(`/posts/${postId}/like`);
-      } else {
-        response = await apiClient.post(`/posts/${postId}/reactions`, { emoji });
-      }
+      // ALWAYS use /reactions endpoint for ALL emojis (including shaka)
+      const response = await apiClient.post(`/posts/${postId}/reactions`, { emoji });
       
       const action = response.data.action;
       
-      // Always sync server likes_count
+      // Sync server state
       setPost(prev => {
         const serverCount = response.data.likes_count;
         const newState = { ...prev };
@@ -254,15 +247,7 @@ const SinglePost = () => {
           newState.likes_count = serverCount;
         }
         
-        if (isShakaEmoji) {
-          newState.liked = response.data.is_liked;
-          // Clear reactions for this user when using shaka
-          newState.reactions = (prev.reactions || []).filter(r => r.user_id !== user.id);
-        } else if (action === 'added') {
-          newState.liked = true;
-          const filtered = (prev.reactions || []).filter(r => r.user_id !== user.id);
-          newState.reactions = [...filtered, { user_id: user.id, emoji }];
-        } else if (action === 'changed') {
+        if (action === 'added' || action === 'changed') {
           newState.liked = true;
           const filtered = (prev.reactions || []).filter(r => r.user_id !== user.id);
           newState.reactions = [...filtered, { user_id: user.id, emoji }];
@@ -278,6 +263,27 @@ const SinglePost = () => {
     } finally {
       inFlightRef.current = false;
     }
+  };
+
+  // Double-tap to like handler for PostCard
+  const handleDoubleTapLike = async (postId) => {
+    if (!user?.id || inFlightRef.current) return;
+    inFlightRef.current = true;
+    try {
+      const response = await apiClient.post(`/posts/${postId}/reactions`, { emoji: '🤙' });
+      setPost(prev => {
+        const newState = { ...prev };
+        if (response.data?.likes_count !== undefined) newState.likes_count = response.data.likes_count;
+        const action = response.data?.action;
+        if (action === 'added' || action === 'changed') {
+          newState.liked = true;
+          const filtered = (prev.reactions || []).filter(r => r.user_id !== user.id);
+          newState.reactions = [...filtered, { user_id: user.id, emoji: '🤙' }];
+        }
+        return newState;
+      });
+    } catch { /* silent */ }
+    finally { inFlightRef.current = false; }
   };
 
   // Save post
@@ -512,6 +518,7 @@ const SinglePost = () => {
           onIWasThere={handleIWasThere}
           onViewCollaborators={handleViewCollaborators}
           onFollowFromFeed={handleFollowFromFeed}
+          onDoubleTapLike={handleDoubleTapLike}
         />
       </div>
 
