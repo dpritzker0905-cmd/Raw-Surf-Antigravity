@@ -40,7 +40,7 @@ const useSessionTimer = (startTime) => {
   return elapsed;
 };
 
-// Format seconds to HH:MM:SS or MM:SS — using shared utility
+// Format seconds to HH:MM:SS or MM:SS - using shared utility
 const formatTime = formatDuration;
 
 // Blinking Live Indicator Component

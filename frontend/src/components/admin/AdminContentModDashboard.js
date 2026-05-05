@@ -296,7 +296,7 @@ export const AdminContentModDashboard = () => {
                       </div>
                       <p className={`text-sm ${textClass} line-clamp-2`}>{item.content_preview}</p>
                       <p className="text-xs text-gray-500 mt-1">
-                        By: {item.user_name || 'Unknown'} • {item.created_at ? new Date(item.created_at).toLocaleDateString() : ''}
+                        By: {item.user_name || 'Unknown'} - {item.created_at ? new Date(item.created_at).toLocaleDateString() : ''}
                       </p>
                     </div>
                     <div className="flex gap-1">

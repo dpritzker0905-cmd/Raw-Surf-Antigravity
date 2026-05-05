@@ -1,5 +1,5 @@
 /**
- * UserRoleBadge.js — Extracted from Explore.js.
+ * UserRoleBadge.js - Extracted from Explore.js.
  * Displays a role badge for users in search results.
  */
 import React from 'react';

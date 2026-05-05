@@ -666,7 +666,7 @@ export const PhotographerSessionsManager = () => {
                           <span className={`${textPrimaryClass} truncate`}>{session.location}</span>
                         </div>
                         <p className={`text-sm ${textSecondaryClass} mt-1`}>
-                          {new Date(session.started_at).toLocaleDateString()} � {session.duration_mins} mins
+                          {new Date(session.started_at).toLocaleDateString()} - {session.duration_mins} mins
                         </p>
                       </div>
                       <div className="flex items-center gap-3">

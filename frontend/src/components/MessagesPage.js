@@ -259,13 +259,13 @@ export const MessagesPage = () => {
   const fileInputRef = useRef(null);
   const typingTimeoutRef = useRef(null);
 
-  // Ref to track current activeFolder � prevents stale-closure bugs in polling
+  // Ref to track current activeFolder - prevents stale-closure bugs in polling
   // intervals that capture an old fetchConversations and overwrite channel/pro-lounge
   // conversations with primary ones.
   const activeFolderRef = useRef(activeFolder);
   useEffect(() => { activeFolderRef.current = activeFolder; }, [activeFolder]);
 
-  // Pull-to-refresh for mobile � triggers conversation list refresh on swipe-down
+  // Pull-to-refresh for mobile - triggers conversation list refresh on swipe-down
   const { pullRef: msgPullRef, isPulling: msgPulling, pullProgress: msgPullProgress, isRefreshing: msgPtrRefreshing } = usePullToRefresh(
     async () => { await fetchConversations(); },
     { threshold: 60, enabled: !loading && !selectedConversation }
@@ -317,7 +317,7 @@ export const MessagesPage = () => {
 
     const prev = prevPersonaRef.current;
 
-    // On first run after mount, just record the current values � don't reset folder
+    // On first run after mount, just record the current values - don't reset folder
     if (!prev.initialized) {
       prevPersonaRef.current = { effectiveRole, isGodMode, activePersona, initialized: true };
       return;
@@ -331,7 +331,7 @@ export const MessagesPage = () => {
 
     if (!personaChanged) return;
 
-    // Genuine persona switch � update ref
+    // Genuine persona switch - update ref
     prevPersonaRef.current = { effectiveRole, isGodMode, activePersona, initialized: true };
 
     // Reset to appropriate default folder based on effective role
@@ -396,7 +396,7 @@ export const MessagesPage = () => {
       }, (payload) => {
         const msg = payload.new;
         if (msg.sender_id !== user.id) {
-          // Append the incoming message directly to local state � no API refetch
+          // Append the incoming message directly to local state - no API refetch
           setConversationDetail(prev => {
             if (!prev?.messages) return prev;
             // Deduplicate: don't add if already present (e.g., from optimistic insert)
@@ -522,7 +522,7 @@ export const MessagesPage = () => {
     }
   };
 
-  // AbortController ref � cancels in-flight conversation fetches when the user
+  // AbortController ref - cancels in-flight conversation fetches when the user
   // switches folders. This prevents stale responses from overwriting fresh data.
   const fetchAbortRef = useRef(null);
 
@@ -560,7 +560,7 @@ export const MessagesPage = () => {
       // RACE CONDITION GUARD: Only apply results if the user hasn't switched
       // folders while this request was in-flight.
       if (activeFolderRef.current !== currentFolder) {
-        return; // Stale response � user switched tabs, discard
+        return; // Stale response - user switched tabs, discard
       }
 
       setConversations(response.data);
@@ -581,7 +581,7 @@ export const MessagesPage = () => {
         hidden: 0
       });
     } catch (error) {
-      // Aborted requests are expected � don't log them
+      // Aborted requests are expected - don't log them
       if (error?.name === 'AbortError' || error?.name === 'CanceledError' || error?.code === 'ERR_CANCELED') {
         return;
       }
@@ -1293,7 +1293,7 @@ export const MessagesPage = () => {
                     </div>
                     <div className="flex items-center gap-2 text-xs text-gray-500">
                       <span>{chat.chatInfo?.participants?.length || 0} participants</span>
-                      <span>�</span>
+                      <span>-</span>
                       <span>{chat.status}</span>
                     </div>
                     {(() => {
@@ -1434,7 +1434,7 @@ export const MessagesPage = () => {
           </div>
         </div>
         
-        {/* Call Buttons � Audio & Video */}
+        {/* Call Buttons - Audio & Video */}
         {!selectedConversation?.is_new_chat && !selectedConversation?.is_request && (
           <div className="flex items-center gap-1">
             <button

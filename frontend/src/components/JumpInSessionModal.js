@@ -185,11 +185,10 @@ export const JumpInSessionModal = ({ photographer, onClose, onSuccess }) => {
           {/* Header - Fixed at top */}
           <div className="flex items-center justify-between p-4 border-b border-zinc-800 shrink-0">
             <h2 className="text-lg font-bold text-white">Jump In Session</h2>
-            <button 
+            <button aria-label="Close" 
               onClick={handleClose} 
               className="w-8 h-8 flex items-center justify-center rounded-full bg-zinc-800 text-gray-400 hover:text-white"
-            >
-              <X className="w-4 h-4" />
+            ><X className="w-4 h-4" />
             </button>
           </div>
 

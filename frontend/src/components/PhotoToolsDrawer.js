@@ -238,7 +238,7 @@ export const PhotoToolsDrawer = ({ isOpen, onClose }) => {
         id: 'bookings',
         icon: Calendar,
         label: 'Bookings Manager',
-        description: 'Calendar • Crew splits • Tiered pricing',
+        description: 'Calendar - Crew splits - Tiered pricing',
         path: '/photographer/bookings',
         color: 'text-purple-400',
         bgColor: 'bg-purple-500/10',

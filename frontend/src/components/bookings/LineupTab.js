@@ -547,7 +547,7 @@ export const LineupTab = ({
         </div>
       )}
 
-      {/* Confirmed lineups banner — moved to Scheduled */}
+      {/* Confirmed lineups banner - moved to Scheduled */}
       {confirmedLineupCount > 0 && (
         <div className={`flex items-center gap-3 p-3 rounded-xl border ${
           isLight

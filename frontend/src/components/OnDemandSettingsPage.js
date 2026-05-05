@@ -316,7 +316,7 @@ export const OnDemandSettingsPage = () => {
             On-Demand Settings
           </h1>
           <p className={`${textSecondary} text-sm mt-1`}>
-            {selectedSpots.length} coverage spots • {geoRadius.min}-{geoRadius.max} mile range
+            {selectedSpots.length} coverage spots - {geoRadius.min}-{geoRadius.max} mile range
           </p>
         </div>
         
@@ -557,7 +557,7 @@ export const OnDemandSettingsPage = () => {
               <div className={`mt-4 p-4 rounded-xl border ${isLight ? 'bg-blue-50 border-blue-200' : 'bg-blue-500/10 border-blue-500/20'}`}>
                 <p className={`text-sm font-semibold mb-3 flex items-center gap-2 ${textPrimary}`}>
                   ?? Photo Download Prices
-                  <span className={`text-xs font-normal ${textSecondary}`}>(per resolution — independent from Gallery)</span>
+                  <span className={`text-xs font-normal ${textSecondary}`}>(per resolution - independent from Gallery)</span>
                 </p>
                 <div className="grid grid-cols-1 gap-3">
                   <NumericStepper
@@ -597,7 +597,7 @@ export const OnDemandSettingsPage = () => {
               <div className={`mt-4 p-4 rounded-xl border ${isLight ? 'bg-purple-50 border-purple-200' : 'bg-purple-500/10 border-purple-500/20'}`}>
                 <p className={`text-sm font-semibold mb-3 flex items-center gap-2 ${textPrimary}`}>
                   ?? Video Download Prices
-                  <span className={`text-xs font-normal ${textSecondary}`}>(per resolution — independent from Gallery)</span>
+                  <span className={`text-xs font-normal ${textSecondary}`}>(per resolution - independent from Gallery)</span>
                 </p>
                 <div className="grid grid-cols-1 gap-3">
                   <NumericStepper
@@ -724,7 +724,7 @@ export const OnDemandSettingsPage = () => {
                       <p className={`font-medium ${textPrimary}`}>{spot.name}</p>
                       <p className={`text-xs ${textSecondary}`}>
                         {spot.region || spot.city || 'Florida'}
-                        {spot.distance_miles && ` • ${spot.distance_miles.toFixed(1)} mi`}
+                        {spot.distance_miles && ` - ${spot.distance_miles.toFixed(1)} mi`}
                       </p>
                     </div>
                     

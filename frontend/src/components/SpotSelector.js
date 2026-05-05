@@ -24,7 +24,7 @@ import { ROLES } from '../constants/roles';
  * Used in Active Duty console for On-Demand and Live spot selection
  * 
  * Features:
- * - GPS-based nearby spots (primary — auto-attempts on mount)
+ * - GPS-based nearby spots (primary - auto-attempts on mount)
  * - Hierarchical browse fallback: Country ? State/Province ? Spot
  *   (same pattern as ScheduledBookingDrawer & Feed check-in)
  * - Radius filtering based on photographer tier:
@@ -383,7 +383,7 @@ export const SpotSelector = ({
                 </select>
               </div>
 
-              {/* State/Province Picker — appears when country has states */}
+              {/* State/Province Picker - appears when country has states */}
               {selectedCountry && availableStates.length > 0 && (
                 <div>
                   <label className="text-[10px] text-muted-foreground block mb-1">State / Province</label>
@@ -493,7 +493,7 @@ export const SpotSelector = ({
             {searchQuery ? 'No spots match your search' : 'No spots found in this area'}
           </div>
         ) : !browseMode && !locationLoading ? (
-          /* Initial state — GPS hasn't been tried yet or is loading */
+          /* Initial state - GPS hasn't been tried yet or is loading */
           <div className="text-center py-6 space-y-2">
             <Navigation className="w-6 h-6 text-muted-foreground mx-auto opacity-50" />
             <p className="text-muted-foreground text-xs">

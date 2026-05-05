@@ -316,7 +316,7 @@ export const PhotographerDirectory = ({ isOpen, onClose, onSelectPhotographer })
       const tid = setTimeout(() => fetchPhotographers(), searchQuery.length > 0 ? 350 : 0);
       return () => clearTimeout(tid);
     }
-    // intentionally omitting fetchPhotographers from deps � it reads filters/searchQuery from closure
+    // intentionally omitting fetchPhotographers from deps - it reads filters/searchQuery from closure
   }, [isOpen, filters, searchQuery]); // eslint-disable-line
   
   const fetchPhotographers = async () => {
@@ -333,7 +333,7 @@ export const PhotographerDirectory = ({ isOpen, onClose, onSelectPhotographer })
       setPhotographers(response.data || []);
     } catch (error) {
       logger.error('Failed to fetch photographers:', error);
-      setPhotographers([]);  // Show empty state � never show fake mock data to users
+      setPhotographers([]);  // Show empty state - never show fake mock data to users
     } finally {
       setLoading(false);
     }

@@ -1,5 +1,5 @@
 /**
- * GeofenceUpgradeCTA — Geofence upgrade call-to-action for subscription upsell.
+ * GeofenceUpgradeCTA - Geofence upgrade call-to-action for subscription upsell.
  * 
  * Extracted from UnifiedSpotDrawer.js for maintainability.
  */

@@ -210,7 +210,7 @@ export const ScheduledTab = ({
                         {invite.captain?.name || 'A friend'} invited you to surf!
                       </h4>
                       <p className={`text-sm ${textSecondaryClass}`}>
-                        On-Demand Session • {invite.estimated_duration_hours}h
+                        On-Demand Session - {invite.estimated_duration_hours}h
                       </p>
                     </div>
                   </div>

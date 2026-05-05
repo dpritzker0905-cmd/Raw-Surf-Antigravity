@@ -182,7 +182,7 @@ export const AdminPrecisionQueue = () => {
                   </div>
                   <div>
                     <h4 className="text-foreground font-medium">{spot.name}</h4>
-                    <p className="text-muted-foreground text-sm">{spot.region} • {spot.country}</p>
+                    <p className="text-muted-foreground text-sm">{spot.region} - {spot.country}</p>
                     <p className="text-gray-500 text-xs">
                       ({spot.latitude.toFixed(4)}, {spot.longitude.toFixed(4)})
                     </p>

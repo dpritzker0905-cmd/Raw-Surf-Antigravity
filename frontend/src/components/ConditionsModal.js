@@ -403,12 +403,11 @@ const ConditionsModal = ({
                     data-testid="media-preview-image" 
                   />
                 )}
-                <button
+                <button aria-label="Close"
                   onClick={clearMedia}
                   className="absolute top-2 right-2 w-8 h-8 bg-black/70 rounded-full flex items-center justify-center text-white hover:bg-red-500/70 transition-colors"
                   data-testid="clear-media-btn"
-                >
-                  <X className="w-4 h-4" />
+                ><X className="w-4 h-4" />
                 </button>
               </div>
             ) : cameraActive ? (

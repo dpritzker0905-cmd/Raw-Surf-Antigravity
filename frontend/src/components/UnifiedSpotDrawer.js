@@ -1573,7 +1573,7 @@ const UnifiedSpotDrawer = ({
           className={`${drawerBg} border-t ${drawerBorder} max-h-[92vh] focus:outline-none md:max-w-[520px] md:mx-auto md:rounded-t-2xl`}
           data-testid="unified-spot-drawer"
         >
-          {/* Close / Pull-down button — always visible at top */}
+          {/* Close / Pull-down button - always visible at top */}
           <button
             onClick={onClose}
             className={`w-full flex flex-col items-center pt-2 pb-1 cursor-grab active:cursor-grabbing`}
@@ -2012,9 +2012,9 @@ const UnifiedSpotDrawer = ({
                                   <span className="text-[10px] px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-400 font-medium shrink-0">{report.conditions_label}</span>
                                 )}
                               </div>
-                              {/* Captured timestamp — exact time the media was shot */}
+                              {/* Captured timestamp - exact time the media was shot */}
                               <p className={`text-xs mt-1.5 ${textSecondary}`}>
-                                Captured {new Date(report.created_at).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })} at {new Date(report.created_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true })} — {report.spot_name || spot?.name || 'Unknown Spot'}
+                                Captured {new Date(report.created_at).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })} at {new Date(report.created_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true })} - {report.spot_name || spot?.name || 'Unknown Spot'}
                               </p>
                               <div className="flex items-center gap-3 mt-1.5">
                                 {report.wave_height_ft && (<span className="text-xs flex items-center gap-1"><Waves className="w-3 h-3 text-cyan-400" /><span className={textPrimary}>{report.wave_height_ft}ft</span></span>)}

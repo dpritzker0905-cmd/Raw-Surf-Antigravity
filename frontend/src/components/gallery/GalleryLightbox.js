@@ -1,5 +1,5 @@
 /**
- * GalleryLightbox � Fullscreen immersive photo/video viewer
+ * GalleryLightbox - Fullscreen immersive photo/video viewer
  * 
  * Features:
  * - Swipe-to-navigate (touch + keyboard arrows)
@@ -183,11 +183,10 @@ export const GalleryLightbox = ({
       {/* Top bar */}
       <div className="absolute top-0 left-0 right-0 z-10 flex items-center justify-between p-4 bg-gradient-to-b from-black/80 to-transparent">
         <div className="flex items-center gap-3">
-          <button
+          <button aria-label="Close"
             onClick={onClose}
             className="w-10 h-10 rounded-full bg-white/10 backdrop-blur-sm flex items-center justify-center text-white hover:bg-white/20 transition-colors"
-          >
-            <X className="w-5 h-5" />
+          ><X className="w-5 h-5" />
           </button>
           {items.length > 1 && (
             <span className="text-white/70 text-sm font-medium">
@@ -319,7 +318,7 @@ export const GalleryLightbox = ({
                 {purchasing ? (
                   <Loader2 className="w-5 h-5 animate-spin" />
                 ) : isGromUser ? (
-                  <>🏄 Ask Parent to Approve</>
+                  <>ðŸ„ Ask Parent to Approve</>
                 ) : (
                   <>
                     <ShoppingCart className="w-4 h-4 mr-2" />
@@ -392,7 +391,7 @@ export const GalleryLightbox = ({
             </div>
 
             <div className="flex items-center gap-2">
-              {/* Download � only for accessible items */}
+              {/* Download - only for accessible items */}
               {(isAccessible || unlocked) && (
                 <Button aria-label="Download"
                   onClick={(e) => { e.stopPropagation(); handleNativeDownload(); }}
@@ -407,7 +406,7 @@ export const GalleryLightbox = ({
 
           {/* Keyboard hints (desktop only) */}
           <p className="text-center text-white/25 text-xs mt-3 hidden md:block">
-            ? ? Navigate � F Favorite � +/- Zoom � 0 Reset � Esc Close
+            ? ? Navigate - F Favorite - +/- Zoom - 0 Reset - Esc Close
           </p>
         </div>
       </div>

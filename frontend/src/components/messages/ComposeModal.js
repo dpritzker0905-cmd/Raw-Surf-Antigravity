@@ -10,16 +10,16 @@ const isProRole = isProLevelRole;
 
 // Role icon helper (inline since it uses MessagesPage internal logic)
 const getRoleIcon = (role, isAdmin = false) => {
-  if (isAdmin) return { icon: Shield, color: 'text-red-500', label: 'God Mode', emoji: '🔴' };
+  if (isAdmin) return { icon: Shield, color: 'text-red-500', label: 'God Mode', emoji: 'ðŸ”´' };
   switch (role) {
-    case 'Pro': case 'Comp Surfer': return { icon: Star, color: 'text-amber-400', label: 'Pro', emoji: '⭐' };
-    case 'Approved Pro': return { icon: Camera, color: 'text-blue-400', label: 'Pro Photographer', emoji: '📸' };
-    case 'Photographer': return { icon: Camera, color: 'text-purple-400', label: 'Photographer', emoji: '📷' };
-    case 'Shop': return { icon: Store, color: 'text-pink-400', label: 'Surf Shop', emoji: '🛍️' };
-    case 'Surf School': return { icon: Users, color: 'text-teal-400', label: 'Surf School', emoji: '🌬️' };
-    case 'Shaper': return { icon: Briefcase, color: 'text-orange-400', label: 'Shaper', emoji: '🛠️' };
-    case 'Resort': return { icon: Store, color: 'text-emerald-400', label: 'Resort', emoji: '🌴' };
-    default: return { icon: null, color: 'text-cyan-400', label: 'Surfer', emoji: '🏄' };
+    case 'Pro': case 'Comp Surfer': return { icon: Star, color: 'text-amber-400', label: 'Pro', emoji: 'â­' };
+    case 'Approved Pro': return { icon: Camera, color: 'text-blue-400', label: 'Pro Photographer', emoji: 'ðŸ“¸' };
+    case 'Photographer': return { icon: Camera, color: 'text-purple-400', label: 'Photographer', emoji: 'ðŸ“·' };
+    case 'Shop': return { icon: Store, color: 'text-pink-400', label: 'Surf Shop', emoji: 'ðŸ›ï¸' };
+    case 'Surf School': return { icon: Users, color: 'text-teal-400', label: 'Surf School', emoji: 'ðŸŒ¬ï¸' };
+    case 'Shaper': return { icon: Briefcase, color: 'text-orange-400', label: 'Shaper', emoji: 'ðŸ› ï¸' };
+    case 'Resort': return { icon: Store, color: 'text-emerald-400', label: 'Resort', emoji: 'ðŸŒ´' };
+    default: return { icon: null, color: 'text-cyan-400', label: 'Surfer', emoji: 'ðŸ„' };
   }
 };
 
@@ -157,11 +157,10 @@ const ComposeModal = ({ isOpen, onClose, onSelectUser, currentUserId }) => {
                 data-testid="compose-search-input"
               />
               {searchTerm && (
-                <button 
+                <button aria-label="Close" 
                   onClick={clearSearch}
                   className="absolute right-0 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                >
-                  <X className="w-4 h-4" />
+                ><X className="w-4 h-4" />
                 </button>
               )}
             </div>
@@ -228,20 +227,20 @@ const ComposeModal = ({ isOpen, onClose, onSelectUser, currentUserId }) => {
                     {RoleIcon ? (
                       <RoleIcon className={`w-4 h-4 ${roleInfo.color}`} />
                     ) : (
-                      <span className="text-sm">🏄</span>
+                      <span className="text-sm">ðŸ„</span>
                     )}
                   </div>
                   <div className="flex items-center gap-1">
                     {user.username && (
                       <span className="text-sm text-muted-foreground">@{user.username}</span>
                     )}
-                    <span className="text-xs text-muted-foreground/70">{user.username ? '·' : ''} {roleInfo.label}</span>
+                    <span className="text-xs text-muted-foreground/70">{user.username ? 'Â·' : ''} {roleInfo.label}</span>
                     {/* Follow status indicator */}
                     {user.isMutual && (
-                      <span className="text-xs text-emerald-400 ml-1">· Mutuals</span>
+                      <span className="text-xs text-emerald-400 ml-1">Â· Mutuals</span>
                     )}
                     {!user.isMutual && user.followsYou && (
-                      <span className="text-xs text-cyan-400 ml-1">· Follows you</span>
+                      <span className="text-xs text-cyan-400 ml-1">Â· Follows you</span>
                     )}
                   </div>
                 </div>

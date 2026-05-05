@@ -1,5 +1,5 @@
 /**
- * BookingConfirmation — Success confirmation modal after booking.
+ * BookingConfirmation - Success confirmation modal after booking.
  * Shows booking details, next steps, and cross-sell suggestions.
  * 
  * Extracted from ScheduledBookingDrawer.js for maintainability.

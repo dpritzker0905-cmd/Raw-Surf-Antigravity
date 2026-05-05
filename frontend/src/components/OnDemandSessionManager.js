@@ -152,7 +152,7 @@ const IncomingRequestCard = ({
           </div>
         </div>
         
-        {/* Location � Uber-style navigation block */}
+        {/* Location - Uber-style navigation block */}
         <div className={`mb-4 rounded-xl overflow-hidden border ${
           'border-cyan-500/30'
         }`}>
@@ -488,7 +488,7 @@ const IncomingRequestCard = ({
                     <div className="flex-1 min-w-0">
                       <p className="text-sm text-white font-medium truncate">{request.requester_name}</p>
                       <p className="text-xs text-cyan-400">
-                        {request.requester_username ? `@${request.requester_username} � ` : ''}Captain (Paid)
+                        {request.requester_username ? `@${request.requester_username} - ` : ''}Captain (Paid)
                       </p>
                     </div>
                     <Badge className="text-xs flex-shrink-0 bg-cyan-500/20 text-cyan-400">
@@ -1238,7 +1238,7 @@ export const OnDemandSessionManager = () => {
             On-Demand Hub
           </h1>
           <p className={`${textSecondary} text-sm mt-1`}>
-            {selectedSpots.length} coverage spots � {geoRadius.min}-{geoRadius.max} mile range
+            {selectedSpots.length} coverage spots - {geoRadius.min}-{geoRadius.max} mile range
           </p>
         </div>
         
@@ -1490,7 +1490,7 @@ export const OnDemandSessionManager = () => {
                                   approved: true,
                                   resolution_note: 'Approved by photographer'
                                 });
-                                toast.success('Waiver approved � surfer refunded');
+                                toast.success('Waiver approved - surfer refunded');
                                 setExceptionRequests(prev => prev.filter(e => e.id !== exc.id));
                               } catch (err) {
                                 toast.error('Failed to approve waiver');
@@ -1679,7 +1679,7 @@ export const OnDemandSessionManager = () => {
                     <div className={`mt-4 p-4 rounded-xl border ${isLight ? 'bg-blue-50 border-blue-200' : 'bg-blue-500/10 border-blue-500/20'}`}>
                       <p className={`text-sm font-semibold mb-3 flex items-center gap-2 ${textPrimary}`}>
                         ?? Photo Download Prices
-                        <span className={`text-xs font-normal ${textSecondary}`}>(per resolution � independent from Gallery)</span>
+                        <span className={`text-xs font-normal ${textSecondary}`}>(per resolution - independent from Gallery)</span>
                       </p>
                       <div className="grid grid-cols-1 gap-3">
                         <NumericStepper label="Web Quality (800px)" value={odPriceWeb} onChange={setOdPriceWeb} min={0} max={500} step={0.5} prefix="$" theme={theme} />
@@ -1692,7 +1692,7 @@ export const OnDemandSessionManager = () => {
                     <div className={`mt-4 p-4 rounded-xl border ${isLight ? 'bg-purple-50 border-purple-200' : 'bg-purple-500/10 border-purple-500/20'}`}>
                       <p className={`text-sm font-semibold mb-3 flex items-center gap-2 ${textPrimary}`}>
                         ?? Video Download Prices
-                        <span className={`text-xs font-normal ${textSecondary}`}>(per resolution � independent from Gallery)</span>
+                        <span className={`text-xs font-normal ${textSecondary}`}>(per resolution - independent from Gallery)</span>
                       </p>
                       <div className="grid grid-cols-1 gap-3">
                         <NumericStepper label="720p HD" value={odVideo720p} onChange={setOdVideo720p} min={0} max={500} step={0.5} prefix="$" theme={theme} />
@@ -1721,8 +1721,8 @@ export const OnDemandSessionManager = () => {
                       />
                       <div className={`mt-2 text-xs ${textSecondary} flex items-center gap-1`}>
                         <Info className="w-3 h-3" />
-                        {cancellationFeePct === 0 ? 'Fully refundable � surfers get full payment back' :
-                         cancellationFeePct === 100 ? 'Non-refundable � you keep the entire payment' :
+                        {cancellationFeePct === 0 ? 'Fully refundable - surfers get full payment back' :
+                         cancellationFeePct === 100 ? 'Non-refundable - you keep the entire payment' :
                          `Surfer receives ${100 - cancellationFeePct}% refund on cancellation`}
                       </div>
                     </div>
@@ -1818,7 +1818,7 @@ export const OnDemandSessionManager = () => {
                             <p className={`font-medium ${textPrimary}`}>{spot.name}</p>
                             <p className={`text-xs ${textSecondary}`}>
                               {spot.region || spot.city || 'Florida'}
-                              {spot.distance_miles && ` � ${spot.distance_miles.toFixed(1)} mi`}
+                              {spot.distance_miles && ` - ${spot.distance_miles.toFixed(1)} mi`}
                             </p>
                           </div>
                           
@@ -1892,7 +1892,7 @@ export const OnDemandSessionManager = () => {
                           <p className={`font-medium ${textPrimary}`}>{session.location_name}</p>
                           <p className={`text-sm ${textSecondary}`}>
                             {session.date ? new Date(session.date).toLocaleDateString() : 'Unknown'}
-                            {session.requester_name && ` � ${session.requester_name}`}
+                            {session.requester_name && ` - ${session.requester_name}`}
                           </p>
                           <p className={`text-xs ${textSecondary} mt-1`}>
                             {durationMins > 0 ? `${durationMins} min` : ''}

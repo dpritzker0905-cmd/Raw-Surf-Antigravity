@@ -19,7 +19,7 @@ import apiClient from '../lib/apiClient';
 import { getFullUrl } from '../utils/media';
 import logger from '../utils/logger';
 const SCHED_BOARD_COLORS = [
-  { fill: '#FCD34D', stroke: '#F59E0B' }, // Yellow — captain
+  { fill: '#FCD34D', stroke: '#F59E0B' }, // Yellow - captain
   { fill: '#22D3EE', stroke: '#0891B2' }, // Cyan
   { fill: '#F472B6', stroke: '#DB2777' }, // Pink
   { fill: '#A78BFA', stroke: '#7C3AED' }, // Purple
@@ -212,7 +212,7 @@ const CrewSplitSection = ({
           <div>
             <p className={`font-medium ${textPrimary}`}>Split with Crew?</p>
             <p className={`text-sm ${textSecondary}`}>
-              {enabled ? `${totalCrew} surfers • you pay $${captainActualPay.toFixed(2)}` : 'Share the cost with friends'}
+              {enabled ? `${totalCrew} surfers - you pay $${captainActualPay.toFixed(2)}` : 'Share the cost with friends'}
             </p>
           </div>
         </div>
@@ -337,7 +337,7 @@ const CrewSplitSection = ({
                       </div>
                     </div>
 
-                    {/* % Slider — how much captain covers of this member's share */}
+                    {/* % Slider - how much captain covers of this member's share */}
                     <div>
                       <div className="flex items-center justify-between mb-1">
                         <span className={`text-xs ${textSecondary}`}>

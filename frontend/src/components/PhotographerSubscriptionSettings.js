@@ -351,7 +351,7 @@ const PhotographerSubscriptionSettings = () => {
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold text-foreground truncate">{sub.surfer_name || 'Unknown'}</p>
-                    <p className="text-xs text-muted-foreground">{sub.plan_name} � expires {new Date(sub.expires_at).toLocaleDateString()}</p>
+                    <p className="text-xs text-muted-foreground">{sub.plan_name} - expires {new Date(sub.expires_at).toLocaleDateString()}</p>
                   </div>
                   <span className="text-sm font-bold text-emerald-400">${sub.plan_price}/{sub.plan_interval === 'weekly' ? 'wk' : 'mo'}</span>
                 </div>

@@ -248,12 +248,11 @@ const WatermarkSettings = ({ open, onOpenChange, theme = 'dark' }) => {
                       alt="Watermark logo"
                       className="max-h-24 mx-auto object-contain"
                     />
-                    <button
+                    <button aria-label="Close"
                       data-testid="remove-logo-btn"
                       onClick={removeLogo}
                       className="absolute top-2 right-2 p-1.5 rounded-full bg-red-500/20 text-red-400 hover:bg-red-500/30"
-                    >
-                      <X className="w-4 h-4" />
+                    ><X className="w-4 h-4" />
                     </button>
                   </div>
                 ) : (

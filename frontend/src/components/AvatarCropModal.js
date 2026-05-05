@@ -1,7 +1,7 @@
 /**
- * AvatarCropModal — Premium interactive image crop with circular viewport.
+ * AvatarCropModal - Premium interactive image crop with circular viewport.
  * 
- * Zero dependencies — uses pure HTML Canvas + CSS + touch/mouse events.
+ * Zero dependencies - uses pure HTML Canvas + CSS + touch/mouse events.
  * 
  * Features:
  *   - Circular crop viewport with dark overlay
@@ -10,7 +10,7 @@
  *   - Scroll-wheel zoom on desktop
  *   - Slider zoom control
  *   - Live circular preview
- *   - Outputs 800×800 square JPEG
+ *   - Outputs 800-800 square JPEG
  *   - Glassmorphism dark UI matching app aesthetic
  */
 
@@ -18,7 +18,7 @@ import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { X, ZoomIn, ZoomOut, Check, RotateCcw } from 'lucide-react';
 import useFocusTrap from '../hooks/useFocusTrap';
 
-const OUTPUT_SIZE = 800; // Final avatar dimensions (800×800)
+const OUTPUT_SIZE = 800; // Final avatar dimensions (800-800)
 const MIN_ZOOM = 1;
 const MAX_ZOOM = 4;
 
@@ -37,7 +37,7 @@ export default function AvatarCropModal({ imageFile, onConfirm, onCancel }) {
   const [imageLoaded, setImageLoaded] = useState(false);
   const [viewportSize, setViewportSize] = useState(280);
 
-  // Drag state (refs for performance — no re-renders during drag)
+  // Drag state (refs for performance - no re-renders during drag)
   const isDragging = useRef(false);
   const lastPointer = useRef({ x: 0, y: 0 });
   const lastPinchDist = useRef(0);
@@ -284,11 +284,10 @@ export default function AvatarCropModal({ imageFile, onConfirm, onCancel }) {
             >
               <RotateCcw className="w-4 h-4 text-zinc-400" />
             </button>
-            <button
+            <button aria-label="Close"
               onClick={onCancel}
               className="p-2 rounded-full bg-zinc-800 hover:bg-zinc-700 transition-colors"
-            >
-              <X className="w-4 h-4 text-zinc-400" />
+            ><X className="w-4 h-4 text-zinc-400" />
             </button>
           </div>
         </div>
@@ -332,7 +331,7 @@ export default function AvatarCropModal({ imageFile, onConfirm, onCancel }) {
           {imageLoaded && (
             <div className="absolute bottom-3 left-0 right-0 text-center pointer-events-none">
               <span className="text-[11px] text-white/40 font-medium">
-                Drag to reposition • Pinch or scroll to zoom
+                Drag to reposition - Pinch or scroll to zoom
               </span>
             </div>
           )}

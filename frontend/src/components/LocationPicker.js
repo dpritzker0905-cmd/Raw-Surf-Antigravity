@@ -335,7 +335,7 @@ export const LocationPicker = ({
               </div>
               {selectedLocation && (
                 <p className="text-xs text-gray-400 mt-1">
-                  {selectedLocation.lat.toFixed(4)}°N, {Math.abs(selectedLocation.lng).toFixed(4)}°W
+                  {selectedLocation.lat.toFixed(4)}-N, {Math.abs(selectedLocation.lng).toFixed(4)}-W
                 </p>
               )}
             </div>

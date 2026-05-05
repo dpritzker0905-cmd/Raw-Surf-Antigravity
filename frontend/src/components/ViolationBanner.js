@@ -1,5 +1,5 @@
 /**
- * ViolationBanner.js — User-facing violation awareness notification.
+ * ViolationBanner.js - User-facing violation awareness notification.
  *
  * Displays active ToS violations, strike count, suspension status,
  * and provides an inline appeal submission form.
@@ -78,7 +78,7 @@ const ViolationBanner = () => {
       await apiClient.post(`/compliance/violations/${violationId}/appeal`, {
         appeal_text: appealText.trim()
       });
-      toast.success('Appeal submitted — we\'ll review it shortly');
+      toast.success('Appeal submitted - we\'ll review it shortly');
       setAppealingId(null);
       setAppealText('');
       fetchViolations();
@@ -194,7 +194,7 @@ const ViolationBanner = () => {
         <div className={`p-2.5 rounded-lg text-xs flex items-start gap-2
           ${isLight ? 'bg-blue-50 text-blue-700' : 'bg-blue-950/30 text-blue-300'}`}>
           <Scale className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
-          <p>You may appeal any violation you believe was issued in error. Appeals are typically reviewed within 24–48 hours.</p>
+          <p>You may appeal any violation you believe was issued in error. Appeals are typically reviewed within 24-48 hours.</p>
         </div>
 
         {/* Violation list */}
@@ -221,7 +221,7 @@ const ViolationBanner = () => {
                     </span>
                   </div>
                   <p className={`text-xs mt-1 ${isLight ? 'text-gray-500' : 'text-gray-400'}`}>
-                    {v.violation_type?.replace(/_/g, ' ')} • {new Date(v.created_at).toLocaleDateString()}
+                    {v.violation_type?.replace(/_/g, ' ')} - {new Date(v.created_at).toLocaleDateString()}
                   </p>
                   {v.description && (
                     <p className={`text-xs mt-1.5 ${isLight ? 'text-gray-600' : 'text-gray-300'}`}>

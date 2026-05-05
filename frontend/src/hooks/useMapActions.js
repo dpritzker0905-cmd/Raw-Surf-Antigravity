@@ -1,5 +1,5 @@
 /**
- * useMapActions.js � Extracted from MapPage.js
+ * useMapActions.js - Extracted from MapPage.js
  * Map page handlers: data fetching, location, search.
  * ~340 lines, 11 handlers.
  */

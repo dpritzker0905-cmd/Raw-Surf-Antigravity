@@ -137,7 +137,7 @@ export const SubscriptionsTab = () => {
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="font-semibold text-foreground truncate">{sub.photographer_name}</p>
-                    <p className="text-xs text-muted-foreground">{sub.plan_name} • ${sub.plan_price}/{sub.plan_interval === 'weekly' ? 'wk' : 'mo'}</p>
+                    <p className="text-xs text-muted-foreground">{sub.plan_name} - ${sub.plan_price}/{sub.plan_interval === 'weekly' ? 'wk' : 'mo'}</p>
                   </div>
                   <div className={`px-2 py-1 rounded-full text-[10px] font-bold ${isExpiringSoon ? 'bg-amber-500/20 text-amber-400' : 'bg-emerald-500/20 text-emerald-400'}`}>
                     {daysLeft}d left
@@ -222,7 +222,7 @@ export const SubscriptionsTab = () => {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm text-foreground truncate">{sub.photographer_name}</p>
-                  <p className="text-[10px] text-muted-foreground">{sub.plan_name} • {sub.status}</p>
+                  <p className="text-[10px] text-muted-foreground">{sub.plan_name} - {sub.status}</p>
                 </div>
                 <Button onClick={() => handleRenew(sub)} size="sm" variant="outline" className="text-xs border-zinc-700 text-muted-foreground hover:text-violet-400">
                   Resubscribe

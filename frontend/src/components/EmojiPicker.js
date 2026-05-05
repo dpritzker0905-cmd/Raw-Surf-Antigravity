@@ -10,7 +10,7 @@ import {
  * Smart Emoji Picker for Comments & Captions
  *
  * Redesigned following industry best practices (WhatsApp/Telegram/Slack):
- *  - Always shows ALL categories — no confusing More/Less toggle
+ *  - Always shows ALL categories - no confusing More/Less toggle
  *  - Icon-only category tabs (compact, instantly scannable)
  *  - Desktop: scroll-arrow indicators for tab overflow
  *  - Mobile: full-width bottom sheet with swipe-to-close
@@ -191,7 +191,7 @@ const MobileEmojiSheet = ({ isOpen, onClose, onSelect }) => {
           </button>
         </div>
 
-        {/* Category tabs — icon based */}
+        {/* Category tabs - icon based */}
         <CategoryTabs active={activeCategory} onChange={setActiveCategory} size="lg" />
 
         {/* Emoji grid */}
@@ -250,7 +250,7 @@ const DesktopEmojiPopover = ({ isOpen, onClose, onSelect, position = 'above' }) 
         </button>
       </div>
 
-      {/* Category tabs — icon based */}
+      {/* Category tabs - icon based */}
       <CategoryTabs active={activeCategory} onChange={setActiveCategory} size="sm" />
 
       {/* Grid */}
@@ -277,7 +277,7 @@ const DesktopEmojiPopover = ({ isOpen, onClose, onSelect, position = 'above' }) 
 };
 
 // -------------------------------------------------
-//  Main Emoji Picker — auto-switches mobile/desktop
+//  Main Emoji Picker - auto-switches mobile/desktop
 // -------------------------------------------------
 const EmojiPicker = ({ isOpen, onClose, onSelect, position = 'above' }) => {
   const [isMobile, setIsMobile] = useState(false);
@@ -397,7 +397,7 @@ export const CommentInputWithEmoji = ({
 };
 
 // -------------------------------------------------
-//  Textarea with Emoji Picker — for captions, edit post
+//  Textarea with Emoji Picker - for captions, edit post
 // -------------------------------------------------
 export const TextareaWithEmoji = ({
   value,

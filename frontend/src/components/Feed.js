@@ -37,7 +37,7 @@ import useSwipeTabs from '../hooks/useSwipeTabs';
 import usePullToRefresh from '../hooks/usePullToRefresh';
 import PullToRefreshIndicator from './ui/PullToRefreshIndicator';
 
-// Tab order for the feed � used by swipe navigation and sliding indicator
+// Tab order for the feed - used by swipe navigation and sliding indicator
 const FEED_TABS = ['for_you', 'waves', 'following'];
 
 
@@ -51,7 +51,7 @@ const _RoleBadge = ({ role }) => {
   );
 };
 
-// Reaction emojis � imported from centralized constants/emojis.js
+// Reaction emojis - imported from centralized constants/emojis.js
 
 // Dynamic Reaction Icon - Shows user's reaction or default Shaka
 // Uses spring transition for smooth morphing animation (both ways)
@@ -165,7 +165,7 @@ const ReactionPicker = ({ show, onSelect, onClose, anchor }) => {
       >
         <X className="w-3.5 h-3.5" />
       </button>
-      {/* 5�2 grid of emojis */}
+      {/* 5-2 grid of emojis */}
       <div className="grid grid-cols-5 gap-1 justify-items-center">
         {REACTION_EMOJIS.map((emoji) => (
           <button
@@ -370,9 +370,9 @@ export const Feed = () => {
       }
       tag.setAttribute('content', content);
     };
-    document.title = 'Feed � Raw Surf';
-    setMeta('og:title', 'Feed � Raw Surf');
-    setMeta('og:description', 'Your surf feed � posts, waves, live sessions, and community updates on Raw Surf.');
+    document.title = 'Feed - Raw Surf';
+    setMeta('og:title', 'Feed - Raw Surf');
+    setMeta('og:description', 'Your surf feed - posts, waves, live sessions, and community updates on Raw Surf.');
     setMeta('og:url', `${window.location.origin}/feed`);
     setMeta('og:type', 'website');
     setMeta('og:site_name', 'Raw Surf');
@@ -508,7 +508,7 @@ export const Feed = () => {
 
   // Calculate distance between two points
 
-  // Get GPS location for check-in � two-attempt strategy for iPhone 16 / iOS Safari
+  // Get GPS location for check-in - two-attempt strategy for iPhone 16 / iOS Safari
 
 
   // Shaka button gesture handlers (500ms threshold)
@@ -537,11 +537,11 @@ export const Feed = () => {
 
 
 
-  // Swipeable tab navigation � hooks must be called before any early returns
+  // Swipeable tab navigation - hooks must be called before any early returns
   const swipeHandlers = useSwipeTabs(FEED_TABS, activeTab, setActiveTab);
   const activeTabIndex = FEED_TABS.indexOf(activeTab);
 
-  // Pull-to-refresh for mobile � triggers feed refresh on swipe-down
+  // Pull-to-refresh for mobile - triggers feed refresh on swipe-down
   const { pullRef, isPulling, pullProgress, isRefreshing: isPtrRefreshing } = usePullToRefresh(
     async () => { await fetchPosts(); },
     { threshold: 60, enabled: !loading }
@@ -625,7 +625,7 @@ export const Feed = () => {
       {/* Live Photographers Section (for surfers) */}
       {!isPhotographer && <LivePhotographers />}
 
-      {/* Feed Tabs � with sliding indicator */}
+      {/* Feed Tabs - with sliding indicator */}
       <div className={`relative flex border-b ${borderClass}`}>
         <button
           onClick={() => setActiveTab('for_you')}
@@ -660,7 +660,7 @@ export const Feed = () => {
         >
           Following
         </button>
-        {/* Sliding indicator � transitions smoothly between tabs */}
+        {/* Sliding indicator - transitions smoothly between tabs */}
         <div
           className="absolute bottom-0 h-0.5 rounded-full transition-all duration-300 ease-out"
           style={{
@@ -673,7 +673,7 @@ export const Feed = () => {
         />
       </div>
 
-      {/* Swipeable content area � touch handlers enable left/right tab swiping */}
+      {/* Swipeable content area - touch handlers enable left/right tab swiping */}
       <div {...swipeHandlers} style={{ touchAction: 'pan-y' }}>
 
       {/* Waves Tab - Full Screen Video Feed */}
@@ -901,7 +901,7 @@ export const Feed = () => {
             </DialogDescription>
           </DialogHeader>
 
-          {/* Gamification Reward Card � shown after GPS check-in */}
+          {/* Gamification Reward Card - shown after GPS check-in */}
           {checkInReward ? (
             <div className="flex-1 flex flex-col items-center justify-center px-6 py-8 text-center">
               <div className="w-20 h-20 rounded-full bg-gradient-to-br from-yellow-400 to-orange-500 flex items-center justify-center mb-4 shadow-lg shadow-yellow-400/30">
@@ -938,7 +938,7 @@ export const Feed = () => {
               {checkInReward.streak_days > 0 && (
                 <div className="text-orange-400 text-sm mb-6">
                   ?? {checkInReward.streak_days} day streak
-                  {checkInReward.streak_days >= 7 ? ' � on fire!' : ' � keep it going!'}
+                  {checkInReward.streak_days >= 7 ? ' - on fire!' : ' - keep it going!'}
                 </div>
               )}
 
@@ -981,7 +981,7 @@ export const Feed = () => {
                       <div className="h-1.5 rounded-full bg-zinc-700 overflow-hidden">
                         <div className="h-full bg-gradient-to-r from-cyan-400 to-emerald-400 rounded-full animate-pulse" style={{ width: '65%', transition: 'width 2s ease-out' }} />
                       </div>
-                      <p className="text-xs text-zinc-400 text-center">Acquiring GPS signal � keep screen on</p>
+                      <p className="text-xs text-zinc-400 text-center">Acquiring GPS signal - keep screen on</p>
                     </div>
                   )}
 
@@ -995,8 +995,8 @@ export const Feed = () => {
                       <span className="font-medium">{nearestSpot.name}</span>
                       {' '}&mdash; {nearestSpot.distance}km away
                       {parseFloat(nearestSpot.distance) < 10
-                        ? ' � 📍 Within range � you\'ll earn Passport XP!'
-                        : ' � Outside 10km check-in zone'}
+                        ? ' - 📍 Within range - you\'ll earn Passport XP!'
+                        : ' - Outside 10km check-in zone'}
                     </div>
                   )}
                 </div>
@@ -1031,7 +1031,7 @@ export const Feed = () => {
                   </Select>
                 </div>
 
-                {/* State/Province selector � only shown when country selected */}
+                {/* State/Province selector - only shown when country selected */}
                 {selectedCountry && (() => {
                   const countryData = locationHierarchy.countries.find(c => c.name === selectedCountry);
                   const states = countryData?.states || [];
@@ -1058,7 +1058,7 @@ export const Feed = () => {
                   );
                 })()}
 
-                {/* City / Area selector � shown when state is selected */}
+                {/* City / Area selector - shown when state is selected */}
                 {selectedState && (() => {
                   // First try cities from the hierarchy API response
                   const countryData = locationHierarchy.countries.find(c => c.name === selectedCountry);
@@ -1089,7 +1089,7 @@ export const Feed = () => {
                           <SelectValue placeholder="All areas (or pick one to narrow)" />
                         </SelectTrigger>
                         <SelectContent className="bg-zinc-800 border-zinc-700 max-h-60 overflow-y-auto">
-                          <SelectItem value="__all__" className="text-zinc-400 hover:bg-zinc-700 italic">� All areas �</SelectItem>
+                          <SelectItem value="__all__" className="text-zinc-400 hover:bg-zinc-700 italic">- All areas -</SelectItem>
                           {derivedCities.map(c => (
                             <SelectItem key={c.name} value={c.name} className="text-white hover:bg-zinc-700">
                               {c.name} <span className="text-gray-500 text-xs ml-1">({c.spot_count} {c.spot_count === 1 ? 'spot' : 'spots'})</span>
@@ -1101,7 +1101,7 @@ export const Feed = () => {
                   );
                 })()}
 
-                {/* Spot selector � GPS-sorted when GPS active, filtered by hierarchy when manual */}
+                {/* Spot selector - GPS-sorted when GPS active, filtered by hierarchy when manual */}
                 <div>
                   <label className="text-sm text-gray-400 mb-2 block">
                     Surf Spot
@@ -1162,7 +1162,7 @@ export const Feed = () => {
                           .map((spot) => (
                             <SelectItem key={spot.id} value={spot.id} className="text-white hover:bg-zinc-700">
                               {spot.name}
-                              {spot.region && <span className="text-gray-500 text-xs ml-1"> � {spot.region}</span>}
+                              {spot.region && <span className="text-gray-500 text-xs ml-1"> - {spot.region}</span>}
                             </SelectItem>
                           ));
                       })()}

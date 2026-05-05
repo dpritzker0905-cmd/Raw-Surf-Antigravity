@@ -1,5 +1,5 @@
 /**
- * PhotographerCard.js — Photographer info card for dispatch/booking flows.
+ * PhotographerCard.js - Photographer info card for dispatch/booking flows.
  * Extracted from DispatchLobby.js.
  */
 import React from 'react';

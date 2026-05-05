@@ -268,7 +268,7 @@ const MatchCard = ({
           {isPaidAccount && (
             <div className="flex-1 flex items-center justify-between text-sm">
               <span className="text-muted-foreground">
-                #{index + 1} � {match.ai_match_method?.replace('_', ' ')}
+                #{index + 1} - {match.ai_match_method?.replace('_', ' ')}
               </span>
               {isSelected && (
                 <Badge className="bg-cyan-500/20 text-cyan-400">Selected</Badge>

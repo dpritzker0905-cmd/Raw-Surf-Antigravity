@@ -433,8 +433,8 @@ export const AccountBillingHub = () => {
                         </div>
                         <p className="text-[11px] text-muted-foreground truncate">
                           {plan.storage_gb === -1 ? 'Unlimited' : plan.storage_gb ? `${plan.storage_gb}GB` : '5GB'}
-                          {plan.commission_rate && ` • ${Math.round(plan.commission_rate * 100)}%`}
-                          {plan.gold_pass && ' • Gold'}
+                          {plan.commission_rate && ` - ${Math.round(plan.commission_rate * 100)}%`}
+                          {plan.gold_pass && ' - Gold'}
                         </p>
                       </div>
                     </div>

@@ -1,5 +1,5 @@
 /**
- * ViewNoteModal — Modal for viewing and replying to Instagram-style notes.
+ * ViewNoteModal - Modal for viewing and replying to Instagram-style notes.
  * Shows note author, content, reply input, and engagement stats.
  * Extracted from MessagesPage.js for maintainability.
  */

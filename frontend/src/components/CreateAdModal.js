@@ -240,11 +240,10 @@ export const CreateAdModal = ({ isOpen, onClose, onSuccess }) => {
                         className="w-full h-40 object-cover" 
                       />
                     )}
-                    <button
+                    <button aria-label="Close"
                       onClick={clearMedia}
                       className="absolute top-2 right-2 p-1.5 bg-black/60 rounded-full hover:bg-black/80 transition-colors"
-                    >
-                      <X className="w-4 h-4 text-white" />
+                    ><X className="w-4 h-4 text-white" />
                     </button>
                     <div className="absolute bottom-2 left-2">
                       <Badge className={mediaType === 'video' ? 'bg-red-500' : 'bg-blue-500'}>

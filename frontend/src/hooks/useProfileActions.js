@@ -1,5 +1,5 @@
 /**
- * useProfileActions.js � Extracted from Profile.js
+ * useProfileActions.js - Extracted from Profile.js
  * Profile data, social stats, gamification, avatar upload.
  * 13 pure handlers.
  */
@@ -133,7 +133,7 @@ const useProfileActions = ({
     const wasFollowing = isFollowing;
     const prevFollowers = socialStats.followers;
     
-    // Optimistic update � instant UI
+    // Optimistic update - instant UI
     setIsFollowing(!wasFollowing);
     setSocialStats(prev => ({
       ...prev,

@@ -1,14 +1,14 @@
 /**
- * RequestProModal � Unified "Request a Pro Photographer" flow
+ * RequestProModal - Unified "Request a Pro Photographer" flow
  *
  * Features:
  *  ? Auto-match or specific photographer selection (Uber style)
  *  ? Location display (nearest surf spot or GPS coordinates)
  *  ? Scheduled arrival time: 30 / 60 / 90 minutes from now
  *  ? Session duration: 0.5 / 1 / 2 / 3 hours
- *  ? Crew / Split Fare � full surfboard lineup UI (pool-table style)
+ *  ? Crew / Split Fare - full surfboard lineup UI (pool-table style)
  *  ? Captain's Hub: per-member % slider + "I'll cover" toggle
- *  ? Live cost breakdown (rate � duration, split share, captain's share)
+ *  ? Live cost breakdown (rate - duration, split share, captain's share)
  *  ? Boost Your Request (credits-based priority)
  *  ? Proper sticky header / scrollable body / sticky footer layout
  */
@@ -38,7 +38,7 @@ import logger from '../../utils/logger';
 
 // --- Surfboard colour palette (matches OnDemandRequestDrawer) ----------------
 const SURFBOARD_COLORS = [
-  { fill: '#FCD34D', stroke: '#F59E0B' }, // Yellow � captain/you
+  { fill: '#FCD34D', stroke: '#F59E0B' }, // Yellow - captain/you
   { fill: '#22D3EE', stroke: '#0891B2' }, // Cyan
   { fill: '#F472B6', stroke: '#DB2777' }, // Pink
   { fill: '#A78BFA', stroke: '#7C3AED' }, // Purple
@@ -143,7 +143,7 @@ export const RequestProModal = ({
   // Location
   userLocation,
   nearestSpot,
-  // On-demand photographers nearby (optional � pre-fetched by MapPage)
+  // On-demand photographers nearby (optional - pre-fetched by MapPage)
   onDemandPhotographers = [],
   onDemandLoading = false,
   // Callbacks
@@ -245,7 +245,7 @@ export const RequestProModal = ({
   );
   const captainPayAmount = totalCost - crewCoversAmount;
   const isShared         = crewMembers.length > 0;
-  // Full payment upfront (escrow) � we hold funds until session completion.
+  // Full payment upfront (escrow) - we hold funds until session completion.
   // For shared bookings: captain pays their share. Solo: captain pays full total.
   const depositAmount    = isShared ? captainPayAmount.toFixed(0) : totalCost.toFixed(0);
   const amountToCharge   = isShared ? captainPayAmount : totalCost;
@@ -367,7 +367,7 @@ export const RequestProModal = ({
 
       // Step 2: Process payment based on selected method
       if (paymentMethod === 'credits') {
-        // Pay with credits � immediate confirmation
+        // Pay with credits - immediate confirmation
         const payResponse = await apiClient.post(`/dispatch/${dispatchId}/pay?payer_id=${uid}`);
 
         if (payResponse.data.remaining_credits !== undefined) {
@@ -387,7 +387,7 @@ export const RequestProModal = ({
 
         toast.success('Payment confirmed! ✅ Setting up your session...');
         onClose();
-        // Navigate to full lobby page � has chat, waiting UI, selfie prompt
+        // Navigate to full lobby page - has chat, waiting UI, selfie prompt
         navigate(`/dispatch/${dispatchId}/lobby`, {
           state: {
             crewMembers,
@@ -397,7 +397,7 @@ export const RequestProModal = ({
           }
         });
       } else {
-        // Pay with card � redirect to Stripe Checkout
+        // Pay with card - redirect to Stripe Checkout
         const checkoutResponse = await apiClient.post('/dispatch/checkout', {
           dispatch_id: dispatchId,
           payer_id:    uid,
@@ -456,7 +456,7 @@ export const RequestProModal = ({
           </DialogTitle>
           <p className={`${isDark ? 'text-gray-400' : 'text-gray-500'} text-xs mt-0.5`}>
             {step === 'configure'
-              ? 'On-demand surf photographer � at your break within the hour'
+              ? 'On-demand surf photographer - at your break within the hour'
               : 'Review your session and choose payment method'}
           </p>
         </DialogHeader>
@@ -471,7 +471,7 @@ export const RequestProModal = ({
             <div className="flex items-center justify-between">
               <span className="text-sm font-medium text-gray-300">
                 {onDemandLoading
-                  ? 'Finding pros near you�'
+                  ? 'Finding pros near you-'
                   : onDemandPhotographers.length > 0
                     ? `${onDemandPhotographers.length} Pro${onDemandPhotographers.length > 1 ? 's' : ''} Nearby`
                     : 'No pros available right now'}
@@ -536,7 +536,7 @@ export const RequestProModal = ({
                       </p>
                       <p className="text-xs text-gray-400 flex items-center gap-1.5">
                         {pro.distance != null && <span>{pro.distance} mi</span>}
-                        <span>�</span>
+                        <span>-</span>
                         <span>${pro.on_demand_hourly_rate}/hr</span>
                       </p>
                     </div>
@@ -631,7 +631,7 @@ export const RequestProModal = ({
             </div>
           </div>
 
-          {/* -- 5. Crew / Split � surfboard lineup --------------------------- */}
+          {/* -- 5. Crew / Split - surfboard lineup --------------------------- */}
           <div className="bg-zinc-800/50 rounded-xl">
             {/* Toggle header */}
             <div className="flex items-center justify-between px-3 py-3">
@@ -640,7 +640,7 @@ export const RequestProModal = ({
                   <Users className="w-4 h-4 text-cyan-400" />
                   Invite Crew to Split
                 </p>
-                <p className="text-xs text-gray-400">10 min to accept � cost split equally</p>
+                <p className="text-xs text-gray-400">10 min to accept - cost split equally</p>
               </div>
               <button
                 onClick={() => setCrewOpen(v => !v)}
@@ -674,7 +674,7 @@ export const RequestProModal = ({
 
                   {/* Surfboard arc */}
                   <div className="relative pt-6">
-                    {/* Captain (you) � top center */}
+                    {/* Captain (you) - top center */}
                     <div className="flex justify-center mb-2">
                       <SurfboardAvatar
                         member={{ name: user?.full_name || 'You', avatar_url: user?.avatar_url }}
@@ -719,7 +719,7 @@ export const RequestProModal = ({
                             <div className="absolute top-full left-0 right-0 mt-1 rounded-xl shadow-2xl border border-zinc-600 bg-zinc-800" style={{ zIndex: 9999 }}>
                               {searchingFriends && (
                                 <div className="p-3 flex items-center gap-2 text-sm text-gray-400">
-                                  <Loader2 className="w-4 h-4 animate-spin" /> Searching�
+                                  <Loader2 className="w-4 h-4 animate-spin" /> Searching-
                                 </div>
                               )}
                               {friendSearchResults.map(friend => (
@@ -890,7 +890,7 @@ export const RequestProModal = ({
             <div className="px-3 pt-3 pb-2 space-y-1.5">
               <div className="flex items-center justify-between text-sm">
                 <span className={isDark ? 'text-gray-400' : 'text-gray-500'}>Rate</span>
-                <span className={isDark ? 'text-white' : 'text-gray-900'}>${hourlyRate}/hr � {duration}h</span>
+                <span className={isDark ? 'text-white' : 'text-gray-900'}>${hourlyRate}/hr - {duration}h</span>
               </div>
               <div className="flex items-center justify-between text-sm">
                 <span className={isDark ? 'text-gray-400' : 'text-gray-500'}>Session Total</span>
@@ -1000,7 +1000,7 @@ export const RequestProModal = ({
             <div className="px-3 pt-3 pb-2 space-y-1.5">
               <div className="flex items-center justify-between text-sm">
                 <span className={isDark ? 'text-gray-400' : 'text-gray-500'}>Rate</span>
-                <span className={isDark ? 'text-white' : 'text-gray-900'}>${hourlyRate}/hr � {duration}h</span>
+                <span className={isDark ? 'text-white' : 'text-gray-900'}>${hourlyRate}/hr - {duration}h</span>
               </div>
               <div className="flex items-center justify-between text-sm">
                 <span className={isDark ? 'text-gray-400' : 'text-gray-500'}>Session Total</span>

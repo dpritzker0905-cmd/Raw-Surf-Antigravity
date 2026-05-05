@@ -170,7 +170,7 @@ export const SessionChatDrawer = ({
         setMessages(msgRes.data.messages || []);
         scrollToBottom();
       } else {
-        // No conversation yet � will be created on first message
+        // No conversation yet - will be created on first message
         setConversationId(null);
         setMessages([]);
       }
@@ -390,7 +390,7 @@ export const SessionChatDrawer = ({
         onClick={onClose}
       />
 
-      {/* Drawer Content � full screen on mobile, side panel on desktop */}
+      {/* Drawer Content - full screen on mobile, side panel on desktop */}
       <div
         className={`relative w-full sm:ml-auto sm:w-[420px] h-full sm:h-full flex flex-col ${bgDrawer} sm:rounded-none shadow-2xl animate-in slide-in-from-bottom sm:slide-in-from-right duration-300`}
       >
@@ -456,7 +456,7 @@ export const SessionChatDrawer = ({
               </div>
               <p className={`font-semibold ${textPrimary} mb-1`}>Session Chat</p>
               <p className={`text-sm ${textSecondary}`}>
-                Coordinate with {otherUserName || 'your partner'} � send a message or quick reply below!
+                Coordinate with {otherUserName || 'your partner'} - send a message or quick reply below!
               </p>
             </div>
           ) : (

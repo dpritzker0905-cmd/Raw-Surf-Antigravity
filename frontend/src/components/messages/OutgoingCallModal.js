@@ -1,5 +1,5 @@
 /**
- * OutgoingCallModal — Full-screen overlay shown to the CALLER while ringing.
+ * OutgoingCallModal - Full-screen overlay shown to the CALLER while ringing.
  * 
  * Uses HTML Audio with generated WAV for ringback tone.
  * User already clicked "Call", so the gesture requirement is satisfied.

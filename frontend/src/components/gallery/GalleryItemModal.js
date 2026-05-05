@@ -109,8 +109,8 @@ export const GalleryItemModal = ({ item, onClose, onPurchased, galleryId, onSetA
       } else {
         const accessType = response.data.access_type;
         const accessLabel = accessType === 'included' 
-          ? 'ï¿½ Full resolution (included in buy-in ??)' 
-          : 'ï¿½ Added to Locker';
+          ? 'Ã¯Â¿Â½ Full resolution (included in buy-in ??)' 
+          : 'Ã¯Â¿Â½ Added to Locker';
         toast.success(`? Tagged to ${surferName} ${accessLabel}`);
         
         // Mark as tagged in local state
@@ -229,11 +229,10 @@ export const GalleryItemModal = ({ item, onClose, onPurchased, galleryId, onSetA
         <DialogTitle className="sr-only">{item.title || 'Gallery Item'}</DialogTitle>
         
         {/* Close button */}
-        <button
+        <button aria-label="Close"
           onClick={onClose}
           className="absolute top-3 right-3 z-30 w-9 h-9 rounded-full bg-black/60 backdrop-blur-sm flex items-center justify-center text-white hover:bg-black/80 transition-colors"
-        >
-          <X className="w-5 h-5" />
+        ><X className="w-5 h-5" />
         </button>
 
         {/* -- Media Preview -- */}
@@ -431,7 +430,7 @@ export const GalleryItemModal = ({ item, onClose, onPurchased, galleryId, onSetA
           {/* -- Per-Image Tag to Surfer (Owner Only) -- */}
           {isOwner && galleryId && (
             <div className="mt-4 p-4 bg-zinc-800/80 rounded-lg border border-purple-500/20">
-              {/* Status header ï¿½ immediately tells photographer what happened */}
+              {/* Status header Ã¯Â¿Â½ immediately tells photographer what happened */}
               <div className="flex items-center justify-between mb-3">
                 <h4 className="font-medium text-white flex items-center gap-2">
                   <Send className="w-4 h-4 text-purple-400" />
@@ -481,7 +480,7 @@ export const GalleryItemModal = ({ item, onClose, onPurchased, galleryId, onSetA
                               : 'border-zinc-600 bg-zinc-700/50 hover:bg-zinc-700 hover:border-purple-500/50'
                         }`}
                       >
-                        {/* Selfie / Avatar ï¿½ shown larger as reference */}
+                        {/* Selfie / Avatar Ã¯Â¿Â½ shown larger as reference */}
                         {isLoading ? (
                           <Loader2 className="w-10 h-10 animate-spin text-purple-400 shrink-0" />
                         ) : selfieOrAvatar ? (
@@ -515,13 +514,13 @@ export const GalleryItemModal = ({ item, onClose, onPurchased, galleryId, onSetA
                           <p className="text-[11px] text-gray-400">
                             {isTagged ? (
                               <span className="text-emerald-400 font-medium">
-                                ? Tagged ï¿½ {isAiMatch ? 'AI matched' : 'manually tagged'}
+                                ? Tagged Ã¯Â¿Â½ {isAiMatch ? 'AI matched' : 'manually tagged'}
                                 {matchConfidence ? ` (${Math.round(matchConfidence * 100)}%)` : ''}
                               </span>
                             ) : hasCredits ? (
-                              <span className="text-emerald-400">??? {p.photos_credit_remaining} credits left ï¿½ tap to tag</span>
+                              <span className="text-emerald-400">??? {p.photos_credit_remaining} credits left Ã¯Â¿Â½ tap to tag</span>
                             ) : (
-                              <span>?? Extra item ï¿½ tap to add to locker</span>
+                              <span>?? Extra item Ã¯Â¿Â½ tap to add to locker</span>
                             )}
                           </p>
                         </div>
@@ -628,7 +627,7 @@ export const GalleryItemModal = ({ item, onClose, onPurchased, galleryId, onSetA
                   onClick={handlePurchase}
                   className="flex-1 font-bold bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white"
                 >
-                  🏄 Ask Parent to Approve
+                  ðŸ„ Ask Parent to Approve
                 </Button>
                 <Button
                   variant="outline"

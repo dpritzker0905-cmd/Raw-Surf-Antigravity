@@ -180,7 +180,7 @@ export const SessionActionDrawer = ({
             Manage Session
           </DialogTitle>
           <DialogDescription className={textSecondaryClass}>
-            {booking.location} · {new Date(booking.session_date).toLocaleDateString()}
+            {booking.location} - {new Date(booking.session_date).toLocaleDateString()}
           </DialogDescription>
         </DialogHeader>
         

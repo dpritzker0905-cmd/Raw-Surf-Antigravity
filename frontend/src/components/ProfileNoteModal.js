@@ -5,7 +5,7 @@ import { Button } from './ui/button';
 import { Input } from './ui/input';
 
 /**
- * Note modal � allows users to create, view, and delete Instagram-style
+ * Note modal - allows users to create, view, and delete Instagram-style
  * 24-hour ephemeral status notes.
  * Extracted from Profile.js to reduce god-component complexity.
  */

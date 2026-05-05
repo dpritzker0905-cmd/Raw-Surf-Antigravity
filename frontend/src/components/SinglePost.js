@@ -469,7 +469,7 @@ const SinglePost = () => {
           mainEntityOfPage: `${window.location.origin}/post/${post.id}`,
         }) }} />
       )}
-      {/* Header � sticky on mobile for easy back navigation, static on desktop (Instagram pattern) */}
+      {/* Header - sticky on mobile for easy back navigation, static on desktop (Instagram pattern) */}
       <div className={`sticky md:relative top-0 z-20 ${isLight ? 'bg-white/95 backdrop-blur-sm' : 'bg-zinc-900/95 backdrop-blur-sm'} border-b ${borderClass}`}>
         <div className="max-w-2xl mx-auto flex items-center gap-3 px-4 py-3">
           <Button 

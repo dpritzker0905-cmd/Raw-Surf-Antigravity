@@ -39,7 +39,7 @@ const CreatePostModal = ({ isOpen, onClose, onCreated }) => {
 
   // Session metadata state
   const [showSessionData, setShowSessionData] = useState(false);
-  // Helper: get today's date in local time (avoids UTC day-shift — e.g. 11 PM EDT = next day UTC)
+  // Helper: get today's date in local time (avoids UTC day-shift - e.g. 11 PM EDT = next day UTC)
   const todayLocal = () => {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -293,7 +293,7 @@ const CreatePostModal = ({ isOpen, onClose, onCreated }) => {
       // Add session metadata if enabled
       if (showSessionData) {
         if (sessionDate) {
-          // Send as noon UTC for the selected date — avoids timezone boundary issues on the backend
+          // Send as noon UTC for the selected date - avoids timezone boundary issues on the backend
           postData.session_date = sessionDate + 'T12:00:00.000Z';
         }
         if (sessionStartTime) postData.session_start_time = sessionStartTime;

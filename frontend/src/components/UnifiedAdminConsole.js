@@ -159,7 +159,7 @@ const UnifiedAdminConsole = () => {
     try {
       const handle401 = (label) => (err) => {
         if (err?.response?.status === 401) {
-          logger.warn(`[Admin] ${label}: 401 — token may be expired`);
+          logger.warn(`[Admin] ${label}: 401 - token may be expired`);
         }
         return { data: null };
       };
@@ -172,7 +172,7 @@ const UnifiedAdminConsole = () => {
       
       // If ALL admin calls returned null, the token is likely expired
       if (!statsRes.data && !usersRes.data && !logsRes.data && !settingsRes.data) {
-        toast.error('Admin session may have expired — try logging out and back in.', { duration: 5000 });
+        toast.error('Admin session may have expired - try logging out and back in.', { duration: 5000 });
       }
       
       setStats(statsRes.data);
@@ -742,7 +742,7 @@ const UnifiedAdminConsole = () => {
                           )}
                         </div>
                         <p className={`text-xs ${textSecondary}`}>
-                          {roleInfo?.category || 'User'} • {roleInfo?.description || 'Test this role'}
+                          {roleInfo?.category || 'User'} - {roleInfo?.description || 'Test this role'}
                         </p>
                       </div>
                       {isActive && <Check className="w-5 h-5 text-yellow-400" />}
@@ -848,11 +848,10 @@ const UnifiedAdminConsole = () => {
                           ) : (
                             <img loading="lazy" decoding="async" src={mediaPreview} alt="Conditions" className="w-full h-24 object-cover rounded-lg" />
                           )}
-                          <button
+                          <button aria-label="Close"
                             onClick={clearMedia}
                             className="absolute top-1 right-1 p-1 bg-black/60 rounded-full"
-                          >
-                            <X className="w-4 h-4 text-foreground" />
+                          ><X className="w-4 h-4 text-foreground" />
                           </button>
                         </div>
                       ) : (

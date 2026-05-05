@@ -454,7 +454,7 @@ export const AdminContentMgmtDashboard = () => {
                             <Badge variant="outline" className="text-[10px]">{key.permissions}</Badge>
                           </div>
                           <p className="text-xs text-gray-500 mt-1">
-                            Calls: {key.total_calls} • Limit: {key.rate_limit}/day
+                            Calls: {key.total_calls} - Limit: {key.rate_limit}/day
                           </p>
                         </div>
                         <Switch checked={key.is_active} />

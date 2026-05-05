@@ -411,7 +411,7 @@ const QuickActionsPanel = ({
             <p className={`text-sm font-medium ${textPrimary}`}>Keeping a Spot in the Water</p>
           </div>
           <p className={`text-xs ${textSecondary}`}>
-            Your lineup is open. Use the invite panel above to fill the remaining spots � the session stays open until you're ready to lock it.
+            Your lineup is open. Use the invite panel above to fill the remaining spots - the session stays open until you're ready to lock it.
           </p>
         </div>
       )}
@@ -429,7 +429,7 @@ const QuickActionsPanel = ({
             </p>
           </div>
 
-          {/* 1 � Lock (primary) */}
+          {/* 1 - Lock (primary) */}
           <Button aria-label="Loader2"
             onClick={onLock}
             disabled={loading}
@@ -441,7 +441,7 @@ const QuickActionsPanel = ({
         </>
       )}
 
-      {/* 2 � Leave Open & Come Back Later (always shown when active) */}
+      {/* 2 - Leave Open & Come Back Later (always shown when active) */}
       {isActive && (
         <Button aria-label="Waves"
           onClick={onClose}
@@ -470,7 +470,7 @@ const QuickActionsPanel = ({
         </Button>
       )}
 
-      {/* Cancel � tap to reveal, discourages accidental cancels */}
+      {/* Cancel - tap to reveal, discourages accidental cancels */}
       {!showCancelRow ? (
         <button
           onClick={() => setShowCancelRow(true)}
@@ -804,17 +804,16 @@ export const LineupManagerDrawer = ({
               <Waves className="w-6 h-6 text-cyan-400" />
               The Lineup
             </DialogTitle>
-            <button 
+            <button aria-label="Close" 
               onClick={onClose}
               className={`p-2 rounded-full ${isLight ? 'hover:bg-gray-100' : 'hover:bg-zinc-800'} transition-colors`}
               data-testid="close-lineup-drawer"
-            >
-              <X className="w-5 h-5 text-gray-400" />
+            ><X className="w-5 h-5 text-gray-400" />
             </button>
           </div>
           <DialogDescription className={`${textSecondary} flex items-center gap-2 mt-1`}>
             <MapPin className="w-4 h-4" />
-            {lineup.location} � {new Date(lineup.session_date).toLocaleDateString()}
+            {lineup.location} - {new Date(lineup.session_date).toLocaleDateString()}
           </DialogDescription>
           <LineupCountdown closesAt={lineup.lineup_closes_at} isLight={isLight} />
         </div>

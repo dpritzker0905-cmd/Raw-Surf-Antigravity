@@ -6,7 +6,7 @@ import { Input } from './ui/input';
 import { Textarea } from './ui/textarea';
 
 /**
- * Edit Profile modal — allows users to update their profile info.
+ * Edit Profile modal - allows users to update their profile info.
  * Extracted from Profile.js to reduce god-component complexity.
  */
 export const ProfileEditModal = ({

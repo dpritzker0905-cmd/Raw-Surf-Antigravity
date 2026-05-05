@@ -561,9 +561,9 @@ export const AdminSpotEditor = () => {
             Edit Mode Active
           </p>
           <ul className="text-muted-foreground text-xs mt-2 space-y-1">
-            <li>• <strong>Drag</strong> any pin to relocate it</li>
-            <li>• <strong>Double-click</strong> on the map to create a new spot</li>
-            <li>• <strong>Click</strong> a pin to select it, then use Edit/Delete buttons</li>
+            <li>- <strong>Drag</strong> any pin to relocate it</li>
+            <li>- <strong>Double-click</strong> on the map to create a new spot</li>
+            <li>- <strong>Click</strong> a pin to select it, then use Edit/Delete buttons</li>
           </ul>
         </div>
       )}
@@ -626,7 +626,7 @@ export const AdminSpotEditor = () => {
           <div>
             <h4 className="text-foreground font-bold">{selectedSpot.name || 'Unknown Spot'}</h4>
             <p className="text-muted-foreground text-sm">
-              {selectedSpot.region || 'No region'} • ({(selectedSpot.latitude || 0).toFixed(4)}, {(selectedSpot.longitude || 0).toFixed(4)})
+              {selectedSpot.region || 'No region'} - ({(selectedSpot.latitude || 0).toFixed(4)}, {(selectedSpot.longitude || 0).toFixed(4)})
             </p>
             <div className="flex items-center gap-2 mt-1">
               {selectedSpot.community_verified && (

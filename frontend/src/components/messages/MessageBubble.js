@@ -15,7 +15,7 @@ import { formatClockTime } from '../../utils/formatTime';
 
 const REACTIONS = ['💬', '💬', '💬', '💬', '💬', '💬'];
 
-// Format timestamp for message bubble � shared utility
+// Format timestamp for message bubble - shared utility
 const formatTime = formatClockTime;
 
 

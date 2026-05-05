@@ -209,7 +209,7 @@ export const Credits = () => {
         <h1 className="text-3xl font-bold text-white mb-2 font-oswald" >
           Buy Credits
         </h1>
-        <p className="text-gray-400">1 Credit = $1 USD • Use for sessions, tips, and more</p>
+        <p className="text-gray-400">1 Credit = $1 USD - Use for sessions, tips, and more</p>
       </div>
 
       {/* Current Balance */}

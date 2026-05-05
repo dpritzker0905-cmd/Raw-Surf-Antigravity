@@ -118,7 +118,7 @@ const IncomingRequestCard = ({
           </div>
         </div>
         
-        {/* Location � Uber-style navigation block */}
+        {/* Location - Uber-style navigation block */}
         <div className={`mb-4 rounded-xl overflow-hidden border ${
           'border-cyan-500/30'
         }`}>
@@ -454,7 +454,7 @@ const IncomingRequestCard = ({
                     <div className="flex-1 min-w-0">
                       <p className="text-sm text-white font-medium truncate">{request.requester_name}</p>
                       <p className="text-xs text-cyan-400">
-                        {request.requester_username ? `@${request.requester_username} � ` : ''}Captain (Paid)
+                        {request.requester_username ? `@${request.requester_username} - ` : ''}Captain (Paid)
                       </p>
                     </div>
                     <Badge className="text-xs flex-shrink-0 bg-cyan-500/20 text-cyan-400">

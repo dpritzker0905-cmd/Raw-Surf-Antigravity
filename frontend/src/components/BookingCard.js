@@ -189,7 +189,7 @@ export const BookingCard = ({
             <p className={`text-sm ${isLight ? 'text-green-700' : 'text-green-400'} flex items-center gap-2`}>
               <Users className="w-4 h-4" />
               You're in this session
-              {myParticipant?.payment_status === 'Paid' && ' · Paid'}
+              {myParticipant?.payment_status === 'Paid' && ' - Paid'}
             </p>
           </div>
         )}

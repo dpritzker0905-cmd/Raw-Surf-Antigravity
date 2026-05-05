@@ -1,5 +1,5 @@
 /**
- * surfAlertConstants.js � Shared surf alert configuration constants.
+ * surfAlertConstants.js - Shared surf alert configuration constants.
  * Extracted from SurfAlerts.js to reduce component size.
  */
 import { Sunrise, Sun, Sunset, Moon, ArrowUp, ArrowDown, Minus, Waves, Zap, ThumbsUp, AlertTriangle, Activity, Wind } from 'lucide-react';

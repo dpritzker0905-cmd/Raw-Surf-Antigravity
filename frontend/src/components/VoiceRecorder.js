@@ -205,11 +205,10 @@ export const VoiceRecorder = ({
   return (
     <div className="flex items-center gap-3 p-3 bg-zinc-800 rounded-lg">
       {/* Cancel Button */}
-      <button
+      <button aria-label="Close"
         onClick={handleCancel}
         className="p-2 text-gray-400 hover:text-white rounded-full hover:bg-zinc-700 transition-colors"
-      >
-        <X className="w-5 h-5" />
+      ><X className="w-5 h-5" />
       </button>
 
       {/* Waveform / Recording Indicator */}

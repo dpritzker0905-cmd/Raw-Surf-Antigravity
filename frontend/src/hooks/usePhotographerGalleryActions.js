@@ -1,5 +1,5 @@
 /**
- * usePhotographerGalleryActions.js � Extracted from PhotographerGalleryManager.js
+ * usePhotographerGalleryActions.js - Extracted from PhotographerGalleryManager.js
  * Gallery management: upload, pricing, tagging, distribution.
  * ~466 lines, 27 handlers extracted.
  */

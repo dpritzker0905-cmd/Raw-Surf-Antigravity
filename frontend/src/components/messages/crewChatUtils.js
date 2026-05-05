@@ -1,5 +1,5 @@
 /**
- * crewChatUtils.js — Utility functions extracted from CrewChat.js.
+ * crewChatUtils.js - Utility functions extracted from CrewChat.js.
  * Reduces CrewChat from 52.6KB to under 50KB.
  */
 import React from 'react';

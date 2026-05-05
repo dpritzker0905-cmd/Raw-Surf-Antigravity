@@ -1,5 +1,5 @@
 /**
- * useSessionActions.js � Extracted from PhotographerSessionsManager.js
+ * useSessionActions.js - Extracted from PhotographerSessionsManager.js
  * Session management handlers: go-live, end session, pricing, settings.
  * ~571 lines extracted.
  */
@@ -404,17 +404,17 @@ const useSessionActions = ({
 
       const selectedSpot = surfSpots.find(s => s.id === sessionSettings.surf_spot_id);
 
-      // --- STEP A: Upload conditions media (multipart � avoids large JSON body) ---
+      // --- STEP A: Upload conditions media (multipart - avoids large JSON body) ---
       let conditionMediaUrl = null;
       let conditionMediaType = null;
       if (conditionsData.media) {
         try {
-          toast.info('Uploading conditions photo�', { id: 'cond-upload', duration: 8000 });
+          toast.info('Uploading conditions photo-', { id: 'cond-upload', duration: 8000 });
           const fd = new FormData();
           const ext = conditionsData.mediaType === 'video' ? 'webm' : 'jpg';
           fd.append('file', conditionsData.media, `conditions.${ext}`);
           fd.append('user_id', user?.id);
-          // ?? Do NOT set Content-Type manually � browser must set it with boundary
+          // ?? Do NOT set Content-Type manually - browser must set it with boundary
           const uploadRes = await apiClient.post('/upload/conditions', fd, {
             headers: { 'Content-Type': undefined },
             timeout: 60000
@@ -430,7 +430,7 @@ const useSessionActions = ({
         }
       }
 
-      // --- STEP B: Go Live � small JSON payload (no media bytes inline) ---
+      // --- STEP B: Go Live - small JSON payload (no media bytes inline) ---
       // 120s timeout: Render free tier cold starts can take 30-60s
       const response = await apiClient.post(
         `/photographer/${user?.id}/go-live`,
@@ -484,9 +484,9 @@ const useSessionActions = ({
       const isNetwork = !error.response && !isTimeout;
       let detail;
       if (isTimeout) {
-        detail = 'Server is warming up � please wait a moment and try again.';
+        detail = 'Server is warming up - please wait a moment and try again.';
       } else if (isNetwork) {
-        detail = 'Network error � check your connection and try again.';
+        detail = 'Network error - check your connection and try again.';
       } else {
         detail = error.response?.data?.detail || error.message || 'Failed to start session';
       }

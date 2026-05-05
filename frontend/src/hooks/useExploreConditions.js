@@ -1,5 +1,5 @@
 /**
- * useExploreConditions.js � Extracted from Explore.js
+ * useExploreConditions.js - Extracted from Explore.js
  * Conditions, location hierarchy, surf spots, and archive data fetching.
  * 431 lines extracted.
  */

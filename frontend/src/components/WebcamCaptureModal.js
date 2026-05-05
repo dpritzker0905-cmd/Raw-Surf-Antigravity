@@ -38,7 +38,7 @@ export default function WebcamCaptureModal({ isOpen, onClose, onCapture, maxLeng
   const timerRef = useRef(null);
   const timerStartRef = useRef(null); // Track timer start time for accurate counting
   const processorRef = useRef(null);
-  const streamRef = useRef(null); // REF mirror of stream � avoids stale closures on iOS
+  const streamRef = useRef(null); // REF mirror of stream - avoids stale closures on iOS
   const compositeCanvasRef = useRef(null); // Hidden 2D canvas for compositing WebGL + hair for recording
   const compositeRafRef = useRef(null); // rAF ID for composite render loop
   const modalRef = useRef(null);
@@ -92,7 +92,7 @@ export default function WebcamCaptureModal({ isOpen, onClose, onCapture, maxLeng
           audio: true
         });
       } catch (exactErr) {
-        // Fallback: use 'ideal' (soft hint) � works better on some iPhones
+        // Fallback: use 'ideal' (soft hint) - works better on some iPhones
         logger.warn('Exact facingMode failed, falling back to ideal:', exactErr.message);
         try {
           newStream = await navigator.mediaDevices.getUserMedia({
@@ -133,7 +133,7 @@ export default function WebcamCaptureModal({ isOpen, onClose, onCapture, maxLeng
     }
     
     return () => {
-      // Unmount safety net � uses refs so never stale
+      // Unmount safety net - uses refs so never stale
       if (streamRef.current) {
         streamRef.current.getTracks().forEach(t => t.stop());
         streamRef.current = null;
@@ -186,7 +186,7 @@ export default function WebcamCaptureModal({ isOpen, onClose, onCapture, maxLeng
   }, [stream, videoFilters.presetName, initProcessor]);
 
   const toggleCamera = useCallback(() => {
-    // Kill processor before switching � iOS needs full hardware release
+    // Kill processor before switching - iOS needs full hardware release
     if (processorRef.current) {
       try { processorRef.current.stop(); } catch (_) { /* ignore */ }
       processorRef.current = null;
@@ -324,7 +324,7 @@ export default function WebcamCaptureModal({ isOpen, onClose, onCapture, maxLeng
     mediaRecorder.start(100);
     setIsRecording(true);
     
-    // Simple, reliable timer using Date.now() � immune to iOS Safari setInterval throttling
+    // Simple, reliable timer using Date.now() - immune to iOS Safari setInterval throttling
     timerStartRef.current = Date.now();
     timerRef.current = setInterval(() => {
       const elapsed = Math.floor((Date.now() - timerStartRef.current) / 1000);
@@ -591,13 +591,13 @@ export default function WebcamCaptureModal({ isOpen, onClose, onCapture, maxLeng
               opacity: 1,
             }}
           />
-          {/* WebGL filtered canvas sits on top � if it renders, it covers the raw video */}
+          {/* WebGL filtered canvas sits on top - if it renders, it covers the raw video */}
           <canvas 
             ref={canvasRef} 
             className="absolute inset-0 w-full h-full object-cover z-10" 
             style={{ transform: facingMode === 'user' ? 'scaleX(-1)' : 'none' }}
           />
-          {/* Hair filter canvas overlay � must mirror when front camera is active (matching GoLiveModal) */}
+          {/* Hair filter canvas overlay - must mirror when front camera is active (matching GoLiveModal) */}
           <canvas 
             ref={hairCanvasRef} 
             className="absolute inset-0 w-full h-full object-cover pointer-events-none z-[15]" 

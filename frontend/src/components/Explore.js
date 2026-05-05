@@ -57,6 +57,7 @@ import ResponsiveImage from './ui/ResponsiveImage';
 import PostMediaPreview from './explore/PostMediaPreview';
 import BrowseMode from './explore/BrowseMode';
 import NearbyMode from './explore/NearbyMode';
+import ExploreWavesTab from './explore/ExploreWavesTab';
 import UserRoleBadge from './explore/UserRoleBadge';
 import useExploreConditions from '../hooks/useExploreConditions';
 import HashtagsTab from './explore/HashtagsTab';
@@ -230,8 +231,8 @@ export const Explore = () => {
       }
       tag.setAttribute('content', content);
     };
-    document.title = 'Explore � Raw Surf';
-    setMeta('og:title', 'Explore � Raw Surf');
+    document.title = 'Explore Ã¯Â¿Â½ Raw Surf';
+    setMeta('og:title', 'Explore Ã¯Â¿Â½ Raw Surf');
     setMeta('og:description', 'Discover surf spots, live photographers, trending posts, and real-time conditions on Raw Surf.');
     setMeta('og:url', `${window.location.origin}/explore`);
     setMeta('og:type', 'website');
@@ -571,98 +572,98 @@ export const Explore = () => {
   // Country flag emoji helper
   const getCountryFlag = (countryName) => {
     const flags = {
-      'USA': '🇺🇸',
-      'United States': '🇺🇸',
-      'Australia': '🇦🇺',
-      'Indonesia': '🇮🇩',
-      'Brazil': '🇧🇷',
-      'Portugal': '🇵🇹',
-      'South Africa': '🇿🇦',
-      'France': '🇫🇷',
-      'Spain': '🇪🇸',
-      'Mexico': '🇲🇽',
-      'Costa Rica': '🇨🇷',
-      'Japan': '🇯🇵',
-      'New Zealand': '🇳🇿',
-      'Peru': '🇵🇪',
-      'Morocco': '🇲🇦',
-      'United Kingdom': '🇬🇧',
-      'UK': '🇬🇧',
-      'Canada': '🇨🇦',
-      'Chile': '🇨🇱',
-      'Hawaii': '🏝️',
-      'Fiji': '🇫🇯',
-      'French Polynesia': '🇵🇫',
-      'Tahiti': '🇵🇫',
-      'Maldives': '🇲🇻',
-      'Philippines': '🇵🇭',
-      'Sri Lanka': '🇱🇰',
-      'Nicaragua': '🇳🇮',
-      'Panama': '🇵🇦',
-      'El Salvador': '🇸🇻',
-      'Ecuador': '🇪🇨',
-      'Ireland': '🇮🇪',
-      'Italy': '🇮🇹',
-      'Thailand': '🇹🇭',
-      'Colombia': '🇨🇴',
-      'Dominican Republic': '🇩🇴',
-      'Puerto Rico': '🇵🇷',
-      'Cuba': '🇨🇺',
-      'Jamaica': '🇯🇲',
-      'Barbados': '🇧🇧',
-      'Bahamas': '🇧🇸',
-      'Bermuda': '🇧🇲',
-      'Taiwan': '🇹🇼',
-      'China': '🇨🇳',
-      'India': '🇮🇳',
-      'Vietnam': '🇻🇳',
-      'Samoa': '🇼🇸',
-      'Tonga': '🇹🇴',
-      'Angola': '🇦🇴',
-      'Senegal': '🇸🇳',
-      'Ghana': '🇬🇭',
-      'Madagascar': '🇲🇬',
-      'Mozambique': '🇲🇿',
-      'Namibia': '🇳🇦',
-      'Guatemala': '🇬🇹',
-      'Honduras': '🇭🇳',
-      'Argentina': '🇦🇷',
-      'Uruguay': '🇺🇾',
-      'Israel': '🇮🇱',
-      'Malaysia': '🇲🇾',
-      'Vanuatu': '🇻🇺',
-      'Papua New Guinea': '🇵🇬',
-      'Solomon Islands': '🇸🇧',
-      'Saudi Arabia': '🇸🇦',
-      'United Arab Emirates': '🇦🇪',
-      'Oman': '🇴🇲',
-      'Qatar': '🇶🇦',
-      'Norway': '🇳🇴',
-      'Iceland': '🇮🇸',
-      'Aruba': '🇦🇼',
-      'Curacao': '🇨🇼',
-      'Trinidad & Tobago': '🇹🇹',
-      'Mauritius': '🇲🇺',
-      'Cape Verde': '🇨🇻',
-      'Cook Islands': '🇨🇰'
+      'USA': 'Ã°Å¸â€¡ÂºÃ°Å¸â€¡Â¸',
+      'United States': 'Ã°Å¸â€¡ÂºÃ°Å¸â€¡Â¸',
+      'Australia': 'Ã°Å¸â€¡Â¦Ã°Å¸â€¡Âº',
+      'Indonesia': 'Ã°Å¸â€¡Â®Ã°Å¸â€¡Â©',
+      'Brazil': 'Ã°Å¸â€¡Â§Ã°Å¸â€¡Â·',
+      'Portugal': 'Ã°Å¸â€¡ÂµÃ°Å¸â€¡Â¹',
+      'South Africa': 'Ã°Å¸â€¡Â¿Ã°Å¸â€¡Â¦',
+      'France': 'Ã°Å¸â€¡Â«Ã°Å¸â€¡Â·',
+      'Spain': 'Ã°Å¸â€¡ÂªÃ°Å¸â€¡Â¸',
+      'Mexico': 'Ã°Å¸â€¡Â²Ã°Å¸â€¡Â½',
+      'Costa Rica': 'Ã°Å¸â€¡Â¨Ã°Å¸â€¡Â·',
+      'Japan': 'Ã°Å¸â€¡Â¯Ã°Å¸â€¡Âµ',
+      'New Zealand': 'Ã°Å¸â€¡Â³Ã°Å¸â€¡Â¿',
+      'Peru': 'Ã°Å¸â€¡ÂµÃ°Å¸â€¡Âª',
+      'Morocco': 'Ã°Å¸â€¡Â²Ã°Å¸â€¡Â¦',
+      'United Kingdom': 'Ã°Å¸â€¡Â¬Ã°Å¸â€¡Â§',
+      'UK': 'Ã°Å¸â€¡Â¬Ã°Å¸â€¡Â§',
+      'Canada': 'Ã°Å¸â€¡Â¨Ã°Å¸â€¡Â¦',
+      'Chile': 'Ã°Å¸â€¡Â¨Ã°Å¸â€¡Â±',
+      'Hawaii': 'Ã°Å¸ÂÂÃ¯Â¸Â',
+      'Fiji': 'Ã°Å¸â€¡Â«Ã°Å¸â€¡Â¯',
+      'French Polynesia': 'Ã°Å¸â€¡ÂµÃ°Å¸â€¡Â«',
+      'Tahiti': 'Ã°Å¸â€¡ÂµÃ°Å¸â€¡Â«',
+      'Maldives': 'Ã°Å¸â€¡Â²Ã°Å¸â€¡Â»',
+      'Philippines': 'Ã°Å¸â€¡ÂµÃ°Å¸â€¡Â­',
+      'Sri Lanka': 'Ã°Å¸â€¡Â±Ã°Å¸â€¡Â°',
+      'Nicaragua': 'Ã°Å¸â€¡Â³Ã°Å¸â€¡Â®',
+      'Panama': 'Ã°Å¸â€¡ÂµÃ°Å¸â€¡Â¦',
+      'El Salvador': 'Ã°Å¸â€¡Â¸Ã°Å¸â€¡Â»',
+      'Ecuador': 'Ã°Å¸â€¡ÂªÃ°Å¸â€¡Â¨',
+      'Ireland': 'Ã°Å¸â€¡Â®Ã°Å¸â€¡Âª',
+      'Italy': 'Ã°Å¸â€¡Â®Ã°Å¸â€¡Â¹',
+      'Thailand': 'Ã°Å¸â€¡Â¹Ã°Å¸â€¡Â­',
+      'Colombia': 'Ã°Å¸â€¡Â¨Ã°Å¸â€¡Â´',
+      'Dominican Republic': 'Ã°Å¸â€¡Â©Ã°Å¸â€¡Â´',
+      'Puerto Rico': 'Ã°Å¸â€¡ÂµÃ°Å¸â€¡Â·',
+      'Cuba': 'Ã°Å¸â€¡Â¨Ã°Å¸â€¡Âº',
+      'Jamaica': 'Ã°Å¸â€¡Â¯Ã°Å¸â€¡Â²',
+      'Barbados': 'Ã°Å¸â€¡Â§Ã°Å¸â€¡Â§',
+      'Bahamas': 'Ã°Å¸â€¡Â§Ã°Å¸â€¡Â¸',
+      'Bermuda': 'Ã°Å¸â€¡Â§Ã°Å¸â€¡Â²',
+      'Taiwan': 'Ã°Å¸â€¡Â¹Ã°Å¸â€¡Â¼',
+      'China': 'Ã°Å¸â€¡Â¨Ã°Å¸â€¡Â³',
+      'India': 'Ã°Å¸â€¡Â®Ã°Å¸â€¡Â³',
+      'Vietnam': 'Ã°Å¸â€¡Â»Ã°Å¸â€¡Â³',
+      'Samoa': 'Ã°Å¸â€¡Â¼Ã°Å¸â€¡Â¸',
+      'Tonga': 'Ã°Å¸â€¡Â¹Ã°Å¸â€¡Â´',
+      'Angola': 'Ã°Å¸â€¡Â¦Ã°Å¸â€¡Â´',
+      'Senegal': 'Ã°Å¸â€¡Â¸Ã°Å¸â€¡Â³',
+      'Ghana': 'Ã°Å¸â€¡Â¬Ã°Å¸â€¡Â­',
+      'Madagascar': 'Ã°Å¸â€¡Â²Ã°Å¸â€¡Â¬',
+      'Mozambique': 'Ã°Å¸â€¡Â²Ã°Å¸â€¡Â¿',
+      'Namibia': 'Ã°Å¸â€¡Â³Ã°Å¸â€¡Â¦',
+      'Guatemala': 'Ã°Å¸â€¡Â¬Ã°Å¸â€¡Â¹',
+      'Honduras': 'Ã°Å¸â€¡Â­Ã°Å¸â€¡Â³',
+      'Argentina': 'Ã°Å¸â€¡Â¦Ã°Å¸â€¡Â·',
+      'Uruguay': 'Ã°Å¸â€¡ÂºÃ°Å¸â€¡Â¾',
+      'Israel': 'Ã°Å¸â€¡Â®Ã°Å¸â€¡Â±',
+      'Malaysia': 'Ã°Å¸â€¡Â²Ã°Å¸â€¡Â¾',
+      'Vanuatu': 'Ã°Å¸â€¡Â»Ã°Å¸â€¡Âº',
+      'Papua New Guinea': 'Ã°Å¸â€¡ÂµÃ°Å¸â€¡Â¬',
+      'Solomon Islands': 'Ã°Å¸â€¡Â¸Ã°Å¸â€¡Â§',
+      'Saudi Arabia': 'Ã°Å¸â€¡Â¸Ã°Å¸â€¡Â¦',
+      'United Arab Emirates': 'Ã°Å¸â€¡Â¦Ã°Å¸â€¡Âª',
+      'Oman': 'Ã°Å¸â€¡Â´Ã°Å¸â€¡Â²',
+      'Qatar': 'Ã°Å¸â€¡Â¶Ã°Å¸â€¡Â¦',
+      'Norway': 'Ã°Å¸â€¡Â³Ã°Å¸â€¡Â´',
+      'Iceland': 'Ã°Å¸â€¡Â®Ã°Å¸â€¡Â¸',
+      'Aruba': 'Ã°Å¸â€¡Â¦Ã°Å¸â€¡Â¼',
+      'Curacao': 'Ã°Å¸â€¡Â¨Ã°Å¸â€¡Â¼',
+      'Trinidad & Tobago': 'Ã°Å¸â€¡Â¹Ã°Å¸â€¡Â¹',
+      'Mauritius': 'Ã°Å¸â€¡Â²Ã°Å¸â€¡Âº',
+      'Cape Verde': 'Ã°Å¸â€¡Â¨Ã°Å¸â€¡Â»',
+      'Cook Islands': 'Ã°Å¸â€¡Â¨Ã°Å¸â€¡Â°'
     };
-    return flags[countryName] || '🌍';
+    return flags[countryName] || 'Ã°Å¸Å’Â';
   };
   
-  // Popular quick-access locations � uses 'USA' to match DB country name
+  // Popular quick-access locations Ã¯Â¿Â½ uses 'USA' to match DB country name
   const popularLocations = [
-    { label: '🇺🇸 Florida', country: 'USA', state: 'Florida' },
-    { label: '🇺🇸 California', country: 'USA', state: 'California' },
-    { label: '🇺🇸 Hawaii', country: 'USA', state: 'Hawaii' },
-    { label: '🇺🇸 North Carolina', country: 'USA', state: 'North Carolina' },
-    { label: '🇦🇺 Australia', country: 'Australia' },
-    { label: '🇮🇩 Indonesia', country: 'Indonesia' },
-    { label: '🇧🇷 Brazil', country: 'Brazil' },
-    { label: '🇵🇹 Portugal', country: 'Portugal' },
-    { label: '🇨🇷 Costa Rica', country: 'Costa Rica' },
-    { label: '🇲🇽 Mexico', country: 'Mexico' },
-    { label: '🇿🇦 South Africa', country: 'South Africa' },
-    { label: '🇯🇵 Japan', country: 'Japan' },
+    { label: 'Ã°Å¸â€¡ÂºÃ°Å¸â€¡Â¸ Florida', country: 'USA', state: 'Florida' },
+    { label: 'Ã°Å¸â€¡ÂºÃ°Å¸â€¡Â¸ California', country: 'USA', state: 'California' },
+    { label: 'Ã°Å¸â€¡ÂºÃ°Å¸â€¡Â¸ Hawaii', country: 'USA', state: 'Hawaii' },
+    { label: 'Ã°Å¸â€¡ÂºÃ°Å¸â€¡Â¸ North Carolina', country: 'USA', state: 'North Carolina' },
+    { label: 'Ã°Å¸â€¡Â¦Ã°Å¸â€¡Âº Australia', country: 'Australia' },
+    { label: 'Ã°Å¸â€¡Â®Ã°Å¸â€¡Â© Indonesia', country: 'Indonesia' },
+    { label: 'Ã°Å¸â€¡Â§Ã°Å¸â€¡Â· Brazil', country: 'Brazil' },
+    { label: 'Ã°Å¸â€¡ÂµÃ°Å¸â€¡Â¹ Portugal', country: 'Portugal' },
+    { label: 'Ã°Å¸â€¡Â¨Ã°Å¸â€¡Â· Costa Rica', country: 'Costa Rica' },
+    { label: 'Ã°Å¸â€¡Â²Ã°Å¸â€¡Â½ Mexico', country: 'Mexico' },
+    { label: 'Ã°Å¸â€¡Â¿Ã°Å¸â€¡Â¦ South Africa', country: 'South Africa' },
+    { label: 'Ã°Å¸â€¡Â¯Ã°Å¸â€¡Âµ Japan', country: 'Japan' },
   ];
   
   // Quick jump to a popular location
@@ -739,11 +740,10 @@ export const Explore = () => {
           data-testid="explore-search-input"
         />
         {searchQuery && (
-          <button
+          <button aria-label="Close"
             onClick={clearSearch}
             className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-          >
-            <X className="w-5 h-5" />
+          ><X className="w-5 h-5" />
           </button>
         )}
       </div>
@@ -793,7 +793,7 @@ export const Explore = () => {
           <ChevronLeft className="w-5 h-5" />
         </button>
         
-        {/* Tabs Container � Yellow pill buttons */}
+        {/* Tabs Container Ã¯Â¿Â½ Yellow pill buttons */}
         <div 
           ref={tabsContainerRef} role="tablist" aria-label="Explore sections"
           className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide scroll-smooth flex-1 scrollbar-none"
@@ -920,7 +920,7 @@ export const Explore = () => {
                         <div className="flex-1 min-w-0">
                           <h4 className="font-semibold text-foreground truncate">{spot.name}</h4>
                           <p className="text-xs text-muted-foreground truncate">
-                            {[spot.secondary_city, spot.region].filter(Boolean).filter((v, i, a) => a.indexOf(v) === i).join(' � ')}
+                            {[spot.secondary_city, spot.region].filter(Boolean).filter((v, i, a) => a.indexOf(v) === i).join(' Ã¯Â¿Â½ ')}
                           </p>
                           {spot.difficulty && (
                             <span className={`inline-block mt-1 text-[10px] font-medium px-1.5 py-0.5 rounded-full ${
@@ -963,7 +963,7 @@ export const Explore = () => {
         </div>
       )}
 
-      {/* Tab content � swipeable on mobile */}
+      {/* Tab content Ã¯Â¿Â½ swipeable on mobile */}
       <div
         className="relative overflow-hidden"
         onTouchStart={(e) => {
@@ -1148,7 +1148,7 @@ export const Explore = () => {
                             // If primary image fails, try map fallback
                             if (spot.latitude && spot.longitude) {
                               e.target.onerror = () => {
-                                // Map also failed � show gradient
+                                // Map also failed Ã¯Â¿Â½ show gradient
                                 e.target.style.display = 'none';
                                 e.target.parentElement.classList.add('bg-gradient-to-br', 'from-cyan-600', 'to-blue-800');
                               };
@@ -1223,8 +1223,8 @@ export const Explore = () => {
                             )}
                             <span className="text-[10px] text-muted-foreground truncate">
                               {['PHOTOGRAPHER', 'APPROVED_PRO', 'HOBBYIST'].includes(thumbnail.contributor_role?.toUpperCase()) 
-                                ? '📸' 
-                                : '🏄'} {thumbnail.contributor_name}
+                                ? 'Ã°Å¸â€œÂ¸' 
+                                : 'Ã°Å¸Ââ€ž'} {thumbnail.contributor_name}
                             </span>
                           </div>
                         )}
@@ -1274,7 +1274,7 @@ export const Explore = () => {
         </div>
       )}
 
-      {/* People Tab � pre-search discovery state */}
+      {/* People Tab Ã¯Â¿Â½ pre-search discovery state */}
       {activeTab === 'users' && (
         <div className="space-y-6" data-testid="people-tab">
           {/* Search Prompt */}
@@ -1303,10 +1303,10 @@ export const Explore = () => {
             <h4 className={`text-sm font-semibold uppercase tracking-wider mb-3 ${isLight ? 'text-gray-500' : 'text-muted-foreground'}`}>Browse by Role</h4>
             <div className="flex flex-wrap gap-2">
               {[
-                { label: '📸 Photographers', query: 'photographer' },
-                { label: '🏄 Surfers', query: 'surfer' },
-                { label: '🎬 Videographers', query: 'videographer' },
-                { label: '📍 Locals', query: 'local' },
+                { label: 'Ã°Å¸â€œÂ¸ Photographers', query: 'photographer' },
+                { label: 'Ã°Å¸Ââ€ž Surfers', query: 'surfer' },
+                { label: 'Ã°Å¸Å½Â¬ Videographers', query: 'videographer' },
+                { label: 'Ã°Å¸â€œÂ Locals', query: 'local' },
               ].map(cat => (
                 <button
                   key={cat.query}
@@ -1323,7 +1323,7 @@ export const Explore = () => {
             </div>
           </div>
 
-          {/* Featured Community � reuse live photographers from trending */}
+          {/* Featured Community Ã¯Â¿Â½ reuse live photographers from trending */}
           {trending.live_photographers?.length > 0 && (
             <div>
               <h4 className={`text-sm font-semibold uppercase tracking-wider mb-3 ${isLight ? 'text-gray-500' : 'text-muted-foreground'}`}>
@@ -1381,7 +1381,7 @@ export const Explore = () => {
         </div>
       )}
 
-      {/* Search (Spots) Tab � pre-search discovery state */}
+      {/* Search (Spots) Tab Ã¯Â¿Â½ pre-search discovery state */}
       {/* "Search" tab removed - redundant with Surf Spots tab */}
 
       {/* Surf Spots Tab - Comprehensive Location Discovery */}
@@ -1478,7 +1478,7 @@ export const Explore = () => {
             />
           )}
           
-          {/* Map View CTA � always visible */}
+          {/* Map View CTA Ã¯Â¿Â½ always visible */}
           <div className="mt-6">
             <button aria-label="Location"
               onClick={() => navigate('/map')}
@@ -1492,216 +1492,15 @@ export const Explore = () => {
         </div>
       )}
 
-      {/* Waves Tab - Reels-Style Vertical Scroll Feed */}
+      {/* Waves Tab - Reels-Style Vertical Scroll Feed (extracted) */}
       {activeTab === 'waves' && (
-        <div className="space-y-0" data-testid="waves-tab">
-          {/* Header */}
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2">
-              <Play className="w-5 h-5 text-cyan-400" />
-              <h2 className="font-bold text-foreground">Waves</h2>
-            </div>
-            <button aria-label="Next"
-              onClick={() => navigate('/feed?tab=waves')}
-              className="text-sm text-cyan-400 hover:text-cyan-300 flex items-center gap-1"
-            >
-              View All
-              <ChevronRight className="w-4 h-4" />
-            </button>
-          </div>
-          
-          {/* Loading / Empty / Feed */}
-          {wavesLoading ? (
-            <div className="flex justify-center py-10">
-              <Loader2 className="w-8 h-8 animate-spin text-cyan-400" />
-            </div>
-          ) : trendingWaves.length === 0 && recentWaves.length === 0 ? (
-            <div className="text-center py-10 text-muted-foreground">
-              <Play className="w-16 h-16 mx-auto mb-4 opacity-50" />
-              <h3 className="text-lg font-semibold text-foreground mb-2">No Waves Yet</h3>
-              <p className="mb-4">Be the first to share a short-form video!</p>
-              <button
-                onClick={() => navigate('/feed?tab=waves')}
-                className="px-4 py-2 bg-gradient-to-r from-cyan-500 to-blue-500 text-white rounded-full text-sm font-medium hover:from-cyan-600 hover:to-blue-600 transition-all"
-              >
-                Create a Wave
-              </button>
-            </div>
-          ) : (
-            /* Reels-style vertical snap-scroll feed */
-            <div
-              className="explore-waves-feed"
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '12px',
-                maxWidth: '420px',
-                margin: '0 auto',
-              }}
-            >
-              {/* Merge trending + recent, deduplicated */}
-              {[...trendingWaves, ...recentWaves].map((wave) => (
-                <div
-                  key={wave.id}
-                  onClick={() => handleWaveClick(wave)}
-                  className="group cursor-pointer"
-                  data-testid={`wave-card-${wave.id}`}
-                  style={{
-                    position: 'relative',
-                    aspectRatio: '9 / 16',
-                    borderRadius: '16px',
-                    overflow: 'hidden',
-                    background: '#000',
-                    boxShadow: '0 4px 24px rgba(0,0,0,0.3)',
-                  }}
-                >
-                  {/* Video/Thumbnail */}
-                  <PostMediaPreview post={wave} isHoverScale={false} />
-                  
-                  {/* Play button overlay (center) */}
-                  <div
-                    className="absolute inset-0 flex items-center justify-center z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
-                    style={{ pointerEvents: 'none' }}
-                  >
-                    <div style={{
-                      width: '56px',
-                      height: '56px',
-                      borderRadius: '50%',
-                      background: 'rgba(0,0,0,0.5)',
-                      backdropFilter: 'blur(8px)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                    }}>
-                      <Play className="w-6 h-6 text-white" fill="white" />
-                    </div>
-                  </div>
-                  
-                  {/* Bottom gradient overlay */}
-                  <div
-                    className="absolute inset-0 z-10"
-                    style={{
-                      background: 'linear-gradient(to top, rgba(0,0,0,0.75) 0%, rgba(0,0,0,0.3) 25%, transparent 50%)',
-                      pointerEvents: 'none',
-                    }}
-                  />
-                  
-                  {/* Right-side action buttons (Reels-style) */}
-                  <div
-                    className="absolute right-3 z-20"
-                    style={{
-                      bottom: '80px',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'center',
-                      gap: '16px',
-                      pointerEvents: 'none',
-                    }}
-                  >
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
-                      <div style={{
-                        width: '40px', height: '40px', borderRadius: '50%',
-                        background: 'rgba(255,255,255,0.15)', backdropFilter: 'blur(8px)',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      }}>
-                        <Heart className="w-5 h-5 text-white" />
-                      </div>
-                      <span style={{ color: 'white', fontSize: '11px', fontWeight: '600' }}>
-                        {wave.likes_count || 0}
-                      </span>
-                    </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
-                      <div style={{
-                        width: '40px', height: '40px', borderRadius: '50%',
-                        background: 'rgba(255,255,255,0.15)', backdropFilter: 'blur(8px)',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      }}>
-                        <Play className="w-5 h-5 text-white" />
-                      </div>
-                      <span style={{ color: 'white', fontSize: '11px', fontWeight: '600' }}>
-                        {wave.view_count || 0}
-                      </span>
-                    </div>
-                  </div>
-                  
-                  {/* Bottom info bar (author + caption) */}
-                  <div
-                    className="absolute bottom-0 left-0 right-0 z-20 p-4"
-                    style={{ pointerEvents: 'none' }}
-                  >
-                    {/* Author row */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
-                      {wave.author_avatar ? (
-                        <img loading="lazy" decoding="async"
-                          src={wave.author_avatar}
-                          alt={wave.author_name}
-                          style={{
-                            width: '32px', height: '32px', borderRadius: '50%',
-                            border: '2px solid rgba(255,255,255,0.6)',
-                            objectFit: 'cover',
-                          }}
-                        />
-                      ) : (
-                        <div style={{
-                          width: '32px', height: '32px', borderRadius: '50%',
-                          background: 'rgba(255,255,255,0.2)',
-                          display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          fontSize: '14px', fontWeight: '600', color: 'white',
-                        }}>
-                          {(wave.author_name || '?')[0]}
-                        </div>
-                      )}
-                      <span style={{
-                        color: 'white', fontWeight: '600', fontSize: '14px',
-                        textShadow: '0 1px 3px rgba(0,0,0,0.5)',
-                      }}>
-                        @{wave.author_username || wave.author_name?.split(' ')[0]?.toLowerCase()}
-                      </span>
-                    </div>
-                    
-                    {/* Caption */}
-                    {wave.caption && (
-                      <p style={{
-                        color: 'rgba(255,255,255,0.9)', fontSize: '13px',
-                        lineHeight: '1.4', maxHeight: '40px', overflow: 'hidden',
-                        textShadow: '0 1px 3px rgba(0,0,0,0.5)',
-                      }}>
-                        {wave.caption.length > 80 ? wave.caption.slice(0, 80) + '...' : wave.caption}
-                      </p>
-                    )}
-                  </div>
-                </div>
-              ))}
-              
-              {/* Load more / View all CTA */}
-              <button
-                onClick={() => navigate('/feed?tab=waves')}
-                style={{
-                  width: '100%',
-                  padding: '14px',
-                  borderRadius: '12px',
-                  background: 'linear-gradient(135deg, rgba(6,182,212,0.15), rgba(59,130,246,0.15))',
-                  border: '1px solid rgba(6,182,212,0.25)',
-                  color: 'rgb(6,182,212)',
-                  fontWeight: '600',
-                  fontSize: '14px',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '8px',
-                  transition: 'all 0.2s',
-                  marginTop: '8px',
-                }}
-                className="hover:bg-cyan-500/20"
-              >
-                <Play className="w-4 h-4" />
-                View All Waves
-                <ChevronRight className="w-4 h-4" />
-              </button>
-            </div>
-          )}
-        </div>
+        <ExploreWavesTab
+          trendingWaves={trendingWaves}
+          recentWaves={recentWaves}
+          wavesLoading={wavesLoading}
+          navigate={navigate}
+          handleWaveClick={handleWaveClick}
+        />
       )}
 
       {/* Posts Tab - Browse Photos & Videos */}
@@ -1926,7 +1725,7 @@ export const Explore = () => {
                 </div>
               )}
               
-              {/* Popular Destinations � show when no country selected */}
+              {/* Popular Destinations Ã¯Â¿Â½ show when no country selected */}
               {!conditionsCountry && (
                 <div>
                   <p className={`text-xs uppercase tracking-wider font-medium mb-2 ${labelClass}`}>Popular Destinations</p>
@@ -1962,11 +1761,10 @@ export const Explore = () => {
                       <span className={isLight ? 'text-emerald-600' : 'text-emerald-400'}>{conditionsCity}</span>
                     </>
                   )}
-                  <button
+                  <button aria-label="Close"
                     onClick={clearConditionsLocation}
                     className={`ml-auto text-xs flex items-center gap-1 px-2 py-1 rounded-md transition-colors ${isLight ? 'text-gray-500 hover:text-gray-700 hover:bg-gray-100' : 'text-gray-500 hover:text-gray-300 hover:bg-zinc-800'}`}
-                  >
-                    <X className="w-3 h-3" /> Clear
+                  ><X className="w-3 h-3" /> Clear
                   </button>
                 </div>
               )}
@@ -1978,11 +1776,10 @@ export const Explore = () => {
             <div className="flex items-center gap-2 px-3 py-2 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
               <Compass className="w-4 h-4 text-emerald-400 animate-pulse" />
               <span className="text-xs text-emerald-300">Showing reports sorted by distance from you</span>
-              <button
+              <button aria-label="Close"
                 onClick={clearConditionsLocation}
                 className="ml-auto text-xs text-emerald-400 hover:text-emerald-300 flex items-center gap-1"
-              >
-                <X className="w-3 h-3" /> Clear
+              ><X className="w-3 h-3" /> Clear
               </button>
             </div>
           )}
@@ -2152,7 +1949,7 @@ export const Explore = () => {
                   className={`bg-muted/50 rounded-xl overflow-hidden transition-colors ${isLight ? 'hover:bg-gray-100' : 'hover:bg-zinc-700/50'}`}
                   data-testid={`condition-report-${report.id}`}
                 >
-                  {/* Main card body � clicks to SpotHub */}
+                  {/* Main card body Ã¯Â¿Â½ clicks to SpotHub */}
                   <div
                     onClick={() => {
                       if (report.spot_id) {
@@ -2220,7 +2017,7 @@ export const Explore = () => {
                           )}
                           <span className="truncate">{report.photographer_name || 'Photographer'}</span>
                         </div>
-                        <span className="text-gray-600">�</span>
+                        <span className="text-gray-600">Ã¯Â¿Â½</span>
                         <span className="flex items-center gap-1">
                           <Clock className="w-3 h-3" />
                           {report.time_ago}
@@ -2237,7 +2034,7 @@ export const Explore = () => {
                     <ChevronRight className="w-5 h-5 text-gray-600 group-hover:text-cyan-400 transition-colors flex-shrink-0" />
                   </div>
 
-                  {/* Action buttons row � View Spot always, View Gallery when gallery linked */}
+                  {/* Action buttons row Ã¯Â¿Â½ View Spot always, View Gallery when gallery linked */}
                   <div className={`flex gap-2 px-4 pb-3 pt-0`}>
                     <button
                       onClick={(e) => {

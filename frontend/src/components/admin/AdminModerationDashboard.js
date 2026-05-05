@@ -666,7 +666,7 @@ export const AdminModerationDashboard = () => {
                                   <span>By: {log.actor?.full_name || log.actor_email}</span>
                                 )}
                                 {log.target_email && (
-                                  <span>• Target: {log.target_email}</span>
+                                  <span>- Target: {log.target_email}</span>
                                 )}
                               </div>
                             </div>

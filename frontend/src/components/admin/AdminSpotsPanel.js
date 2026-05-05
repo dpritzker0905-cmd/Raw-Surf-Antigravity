@@ -19,7 +19,7 @@ import { AdminSpotEditor } from './AdminSpotEditor';
 import { supabase } from '../../lib/supabase';
 
 /**
- * AdminSpotsPanel — Extracted from UnifiedAdminConsole
+ * AdminSpotsPanel - Extracted from UnifiedAdminConsole
  * Global spot manager with full CRUD, precision pin map, and surf data import.
  */
 // Admin Spots Panel - Global Spot Manager
@@ -521,8 +521,8 @@ const AdminSpotsPanel = ({ userId }) => {
                   <p className="text-foreground font-medium">{spot.name}</p>
                   <div className="flex items-center gap-2 text-xs text-muted-foreground">
                     <span>{spot.country || 'Unknown'}</span>
-                    {spot.state_province && <span>• {spot.state_province}</span>}
-                    {spot.region && <span>• {spot.region}</span>}
+                    {spot.state_province && <span>- {spot.state_province}</span>}
+                    {spot.region && <span>- {spot.region}</span>}
                     {spot.wave_type && (
                       <Badge className="bg-blue-500/20 text-blue-400 text-[10px]">
                         {spot.wave_type}

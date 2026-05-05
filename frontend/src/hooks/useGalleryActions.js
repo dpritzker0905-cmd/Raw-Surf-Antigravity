@@ -1,5 +1,5 @@
 /**
- * useGalleryActions.js � Extracted from GalleryPage.js
+ * useGalleryActions.js - Extracted from GalleryPage.js
  * Custom hook containing all gallery data-fetching and action handlers.
  * ~730 lines extracted to reduce GalleryPage from 121KB.
  */

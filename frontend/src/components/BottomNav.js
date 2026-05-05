@@ -130,7 +130,7 @@ export const BottomNav = () => {
       try {
         const response = await apiClient.get(`/profiles/${user.id}`);
         const avatarFromApi = response.data.avatar_url;
-        // Store raw URL � never add ?v= to data: or blob: URLs
+        // Store raw URL - never add ?v= to data: or blob: URLs
         setFreshAvatarUrl(avatarFromApi || null);
       } catch (error) {
         logger.error('Failed to fetch fresh avatar:', error);

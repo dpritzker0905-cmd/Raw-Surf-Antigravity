@@ -113,7 +113,7 @@ const useFeedActions = ({
         latestPostIdRef.current = incoming[0]?.id ?? null;
         window.scrollTo({ top: 0, behavior: 'smooth' });
       }
-    } catch { /* silent � non-critical refresh */ }
+    } catch { /* silent - non-critical refresh */ }
     setNewPostsChip(0);
     setIsRefreshing(false);
   }, [user?.id]);
@@ -202,7 +202,7 @@ const useFeedActions = ({
       return;
     }
     
-    // Optimistic update � instant UI
+    // Optimistic update - instant UI
     setFollowingUsers(prev => new Set([...prev, photographerId]));
     setFollowLoading(photographerId);
     
@@ -225,7 +225,7 @@ const useFeedActions = ({
   const handleUnfollowFromMenu = async (userId) => {
     if (!user?.id) return;
     
-    // Optimistic update � instant UI
+    // Optimistic update - instant UI
     setFollowingUsers(prev => {
       const newSet = new Set(prev);
       newSet.delete(userId);
@@ -461,11 +461,11 @@ const useFeedActions = ({
 
       setNearestSpot(nearest);
       if (nearest && minDistance < 10) {
-        toast.success(`📍 At ${nearest.name} (${nearest.distance}km) � GPS verified, you'll earn XP!`);
+        toast.success(`📍 At ${nearest.name} (${nearest.distance}km) - GPS verified, you'll earn XP!`);
       } else if (nearest) {
         toast.success(`📍 Location found. Nearest spot: ${nearest.name} (${nearest.distance}km)`);
       } else {
-        toast.success('📍 Location detected � select your spot to earn XP');
+        toast.success('📍 Location detected - select your spot to earn XP');
       }
       setGpsLoading(false);
     };
@@ -487,7 +487,7 @@ const useFeedActions = ({
 
     const handleErrorWithRetry = (error) => {
       if (error.code === 2 || error.code === 3) {
-        // POSITION_UNAVAILABLE or TIMEOUT � retry with high accuracy & fresh fix
+        // POSITION_UNAVAILABLE or TIMEOUT - retry with high accuracy & fresh fix
         navigator.geolocation.getCurrentPosition(
           handlePosition,
           handleErrorFinal,
@@ -498,7 +498,7 @@ const useFeedActions = ({
       }
     };
 
-    // First attempt: low-accuracy / cached � fast on most devices
+    // First attempt: low-accuracy / cached - fast on most devices
     navigator.geolocation.getCurrentPosition(
       handlePosition,
       handleErrorWithRetry,

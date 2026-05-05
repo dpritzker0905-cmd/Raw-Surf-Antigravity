@@ -146,7 +146,7 @@ const DirectoryPhotographerCard = ({ photographer, onSelect, onBook, onViewGalle
               </span>
               {photographer.distance_miles != null && subscriptionTier !== 'Free' && (
                 <span className={`text-xs ${textSecondary} ml-1`}>
-                  � {photographer.distance_miles.toFixed(1)} mi
+                  - {photographer.distance_miles.toFixed(1)} mi
                 </span>
               )}
             </div>
@@ -207,7 +207,7 @@ const DirectoryPhotographerCard = ({ photographer, onSelect, onBook, onViewGalle
           </div>
         </div>
         
-        {/* Action buttons � 2-row layout for mobile friendliness */}
+        {/* Action buttons - 2-row layout for mobile friendliness */}
         <div className="mt-3 pt-3 border-t border-dashed border-zinc-700/50 space-y-2">
           {/* Primary row: Book + Subscribe (Subscribe only for Pro photographers) */}
           <div className="flex items-stretch gap-2">
@@ -235,7 +235,7 @@ const DirectoryPhotographerCard = ({ photographer, onSelect, onBook, onViewGalle
             )}
           </div>
 
-          {/* Subscribe benefit hint � only for pro photographers */}
+          {/* Subscribe benefit hint - only for pro photographers */}
           {canSubscribe && (
             <div className={`flex items-center gap-1.5 px-1 ${textSecondary}`}>
               <Bell className="w-3 h-3 shrink-0 text-violet-400" />
@@ -302,7 +302,7 @@ const DirectoryPhotographerCard = ({ photographer, onSelect, onBook, onViewGalle
             <div className="flex items-center gap-2 py-1">
               <Image className={`w-4 h-4 ${textSecondary}`} />
               <span className={`text-xs ${textSecondary}`}>
-                {photographer.gallery_count} gallery photos � No portfolio preview yet
+                {photographer.gallery_count} gallery photos - No portfolio preview yet
               </span>
             </div>
           </div>
@@ -495,7 +495,7 @@ export const DirectoryTab = ({
     }
   }, [filters, searchQuery, sortBy, userLocation]);
   
-  // Client-side sort � only as a defensive fallback.
+  // Client-side sort - only as a defensive fallback.
   // The server already returns results sorted by `sort_by`, so we skip
   // re-sorting for server-handled fields to avoid wasted CPU.
   // Distance is the exception: the server only sorts by distance if

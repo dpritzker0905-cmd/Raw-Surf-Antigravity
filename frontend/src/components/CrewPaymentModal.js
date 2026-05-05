@@ -442,7 +442,7 @@ export const CrewPaymentModal = ({
               )}
             </div>
             
-            {/* Pay with Card — direct Stripe checkout */}
+            {/* Pay with Card - direct Stripe checkout */}
             <div className={`p-4 rounded-xl border-2 ${isLight ? 'border-gray-200' : 'border-zinc-700'}`}>
               <div className="flex items-center gap-3 mb-3">
                 <div className="w-10 h-10 rounded-full bg-indigo-500/20 flex items-center justify-center">

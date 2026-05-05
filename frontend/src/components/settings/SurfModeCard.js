@@ -9,7 +9,7 @@ import apiClient from '../../lib/apiClient';
 import { ROLES } from '../../constants/roles';
 
 /**
- * SurfModeCard � Lets non-Grom surfers set their surf mode (Casual / Competitive / Pro).
+ * SurfModeCard - Lets non-Grom surfers set their surf mode (Casual / Competitive / Pro).
  * Competitive = behavioral label only. Pro = triggers WSL verification flow (existing backend route).
  * Legend = admin-assigned via elite_tier; shown read-only.
  */
@@ -85,7 +85,7 @@ export const SurfModeCard = ({ textPrimaryClass, textSecondaryClass, cardBgClass
     }
   };
 
-  // Only 2 selectable modes � Pro is not a surf mode you pick, it's verified status
+  // Only 2 selectable modes - Pro is not a surf mode you pick, it's verified status
   const modes = [
     { id: 'casual',      label: 'Casual',      icon: '🏄' },
     { id: 'competitive', label: 'Competitive', icon: '🏆' },
@@ -124,7 +124,7 @@ export const SurfModeCard = ({ textPrimaryClass, textSecondaryClass, cardBgClass
           <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-center">
             <p className="text-amber-400 font-semibold">??? Legend</p>
             <p className={`text-xs ${textSecondaryClass} mt-1`}>
-              This status was personally assigned by Raw Surf � reserved for icons of the sport.
+              This status was personally assigned by Raw Surf - reserved for icons of the sport.
             </p>
           </div>
         ) : (
@@ -152,7 +152,7 @@ export const SurfModeCard = ({ textPrimaryClass, textSecondaryClass, cardBgClass
         {/* Contextual sub-panel for Casual */}
         {!isLegend && (surfMode === 'casual') && (
           <p className={`text-xs ${textSecondaryClass}`}>
-            Standard surfer profile � book sessions, collect photos, track your journey.
+            Standard surfer profile - book sessions, collect photos, track your journey.
           </p>
         )}
 
@@ -168,7 +168,7 @@ export const SurfModeCard = ({ textPrimaryClass, textSecondaryClass, cardBgClass
           </div>
         )}
 
-        {/* -- Pro Verification � collapsible section, not a selectable pill -- */}
+        {/* -- Pro Verification - collapsible section, not a selectable pill -- */}
         {!isLegend && (
           <div className="rounded-xl border border-border overflow-hidden mt-3">
             <button
@@ -196,7 +196,7 @@ export const SurfModeCard = ({ textPrimaryClass, textSecondaryClass, cardBgClass
                 ) : verificationStatus === 'pending' || verificationStatus === 'under_review' ? (
                   <div className="text-center py-2">
                     <p className="text-yellow-400 font-semibold">? Verification Under Review</p>
-                    <p className={`text-xs ${textSecondaryClass} mt-1`}>Our team is reviewing your credentials. You'll hear back within 24�48 hours.</p>
+                    <p className={`text-xs ${textSecondaryClass} mt-1`}>Our team is reviewing your credentials. You'll hear back within 24-48 hours.</p>
                   </div>
                 ) : (
                   <>

@@ -1,5 +1,5 @@
 /**
- * useSettingsActions.js — Extracted from Settings.js
+ * useSettingsActions.js - Extracted from Settings.js
  * Settings: privacy, notifications, logout.
  * 7 pure handlers.
  */

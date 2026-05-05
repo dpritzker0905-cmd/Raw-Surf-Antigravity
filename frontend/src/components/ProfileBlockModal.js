@@ -23,10 +23,10 @@ export const ProfileBlockModal = ({
             <div className="text-sm text-zinc-300">
               <p className="font-medium text-red-400 mb-1">When you block someone:</p>
               <ul className="space-y-1 text-zinc-400">
-                <li>• They won't be able to message you</li>
-                <li>• They won't see your posts or profile</li>
-                <li>• They won't be able to follow you</li>
-                <li>• Any existing follow will be removed</li>
+                <li>- They won't be able to message you</li>
+                <li>- They won't see your posts or profile</li>
+                <li>- They won't be able to follow you</li>
+                <li>- Any existing follow will be removed</li>
               </ul>
             </div>
           </div>

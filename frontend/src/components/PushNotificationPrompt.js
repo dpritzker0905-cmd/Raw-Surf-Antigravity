@@ -1,5 +1,5 @@
 /**
- * PushNotificationPrompt.js � Contextual push notification opt-in banner.
+ * PushNotificationPrompt.js - Contextual push notification opt-in banner.
  *
  * Shows a beautiful, non-intrusive slide-up prompt asking users to enable
  * push notifications. Appears contextually (not on page load) after the
@@ -44,11 +44,11 @@ const PushNotificationPrompt = () => {
       if (elapsed < DISMISS_EXPIRY) return; // Still within cool-off period
     }
 
-    // Delay showing � don't show immediately on load.
+    // Delay showing - don't show immediately on load.
     // Wait until the user has been active for a few seconds.
     const timer = setTimeout(() => {
       setVisible(true);
-    }, 4000); // 4 second delay � user has settled into the page
+    }, 4000); // 4 second delay - user has settled into the page
 
     return () => clearTimeout(timer);
   }, [user?.id, isSupported, isSubscribed, permission]);

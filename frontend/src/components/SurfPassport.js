@@ -13,12 +13,12 @@ import logger from '../utils/logger';
 
 // Badge definitions with icons and descriptions
 const BADGE_INFO = {
-  first_checkin: { icon: '🌊', name: 'First Wave', description: 'Your first check-in!' },
-  explorer_10: { icon: '🧭', name: 'Explorer', description: 'Visited 10 unique spots' },
-  globetrotter_5: { icon: '🌍', name: 'Globetrotter', description: 'Surfed in 5 countries' },
-  streak_7: { icon: '🔥', name: 'On Fire', description: '7-day check-in streak' },
-  dawn_patrol: { icon: '🌅', name: 'Dawn Patrol', description: 'Check-in before 7am' },
-  storm_chaser: { icon: '⛈️', name: 'Storm Chaser', description: 'Surfed during large swell' },
+  first_checkin: { icon: 'ðŸŒŠ', name: 'First Wave', description: 'Your first check-in!' },
+  explorer_10: { icon: 'ðŸ§­', name: 'Explorer', description: 'Visited 10 unique spots' },
+  globetrotter_5: { icon: 'ðŸŒ', name: 'Globetrotter', description: 'Surfed in 5 countries' },
+  streak_7: { icon: 'ðŸ”¥', name: 'On Fire', description: '7-day check-in streak' },
+  dawn_patrol: { icon: 'ðŸŒ…', name: 'Dawn Patrol', description: 'Check-in before 7am' },
+  storm_chaser: { icon: 'â›ˆï¸', name: 'Storm Chaser', description: 'Surfed during large swell' },
 };
 
 // Level names
@@ -235,11 +235,10 @@ export const SurfPassport = ({ isOpen, onClose }) => {
                 <p className={`text-sm ${textSecondaryClass}`}>Collect stamps from spots around the world</p>
               </div>
             </div>
-            <button 
+            <button aria-label="Close" 
               onClick={onClose}
               className={`p-2 rounded-lg ${isLight ? 'hover:bg-gray-100' : 'hover:bg-zinc-800'} transition-colors`}
-            >
-              <X className="w-5 h-5" />
+            ><X className="w-5 h-5" />
             </button>
           </div>
           
@@ -289,7 +288,7 @@ export const SurfPassport = ({ isOpen, onClose }) => {
                 <div>
                   <p className={`text-sm font-medium ${textClass}`}>{nearbySpot.name}</p>
                   <p className={`text-xs ${textSecondaryClass}`}>
-                    {nearbySpot.distance}m away � {nearbySpot.country}
+                    {nearbySpot.distance}m away - {nearbySpot.country}
                   </p>
                 </div>
               </div>
@@ -388,7 +387,7 @@ export const SurfPassport = ({ isOpen, onClose }) => {
                         className={`${cardBgClass} px-3 py-2 rounded-lg flex items-center gap-2`}
                         title={BADGE_INFO[badge]?.description}
                       >
-                        <span className="text-xl">{BADGE_INFO[badge]?.icon || '🤙'}</span>
+                        <span className="text-xl">{BADGE_INFO[badge]?.icon || 'ðŸ¤™'}</span>
                         <span className={`text-sm ${textClass}`}>{BADGE_INFO[badge]?.name || badge}</span>
                       </div>
                     ))}
@@ -418,9 +417,9 @@ export const SurfPassport = ({ isOpen, onClose }) => {
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className={`text-sm font-medium ${textClass} truncate`}>{spot.spot_name}</p>
-                          <p className={`text-xs ${textSecondaryClass}`}>{spot.country} � {spot.region}</p>
+                          <p className={`text-xs ${textSecondaryClass}`}>{spot.country} - {spot.region}</p>
                           <p className={`text-xs text-emerald-500`}>
-                            {spot.visit_count}x visited � +{spot.total_xp_earned} XP
+                            {spot.visit_count}x visited - +{spot.total_xp_earned} XP
                           </p>
                         </div>
                         <ChevronRight className={`w-4 h-4 ${textSecondaryClass}`} />
@@ -504,7 +503,7 @@ export const SurfPassport = ({ isOpen, onClose }) => {
                       <div className="flex-1 min-w-0">
                         <p className={`text-sm font-medium ${textClass} truncate`}>{entry.full_name}</p>
                         <p className={`text-xs ${textSecondaryClass}`}>
-                          Level {entry.passport_level} � {entry.unique_spots_visited} spots � {entry.unique_countries_visited} countries
+                          Level {entry.passport_level} - {entry.unique_spots_visited} spots - {entry.unique_countries_visited} countries
                         </p>
                       </div>
                       <div className="text-right">

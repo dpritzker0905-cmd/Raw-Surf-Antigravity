@@ -200,7 +200,7 @@ export const ThePeakHub = () => {
                   </div>
                   <div>
                     <div className={`font-medium ${textPrimary}`}>{result.event_name}</div>
-                    <div className={`text-xs ${textSecondary}`}>{result.event_date} � {result.event_location}</div>
+                    <div className={`text-xs ${textSecondary}`}>{result.event_date} - {result.event_location}</div>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">

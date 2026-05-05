@@ -22,14 +22,14 @@ import EmojiPicker from './EmojiPicker';
 import useFocusTrap from '../hooks/useFocusTrap';
 
 
-// Reaction emojis � imported from centralized constants/emojis.js
+// Reaction emojis - imported from centralized constants/emojis.js
 
 // Shaka Icon Component
 // ShakaIcon extracted to ./social/ShakaIcon.js
 
 
 
-// Custom Video Player for PostModal � TikTok/Instagram style
+// Custom Video Player for PostModal - TikTok/Instagram style
 // Tap to play/pause, custom progress bar, volume slider, no native controls
 // ModalVideoPlayer, ImageCarousel, CommentItem extracted to ./social/PostModalComponents.js
 
@@ -75,7 +75,7 @@ const PostModal = ({ post, isOpen, onClose, onPostUpdated, posts, onNavigatePost
   const handleDoubleTap = useCallback(() => {
     const now = Date.now();
     if (now - lastTapRef.current < 300) {
-      // Double tap detected � like the post
+      // Double tap detected - like the post
       if (!liked && user?.id && post?.id) {
         handleLike();
       }
@@ -293,7 +293,7 @@ const PostModal = ({ post, isOpen, onClose, onPostUpdated, posts, onNavigatePost
     
     // Quick tap = toggle shaka
     if (wasPressing) {
-      await handleReaction('🤙');
+      await handleReaction('ðŸ¤™');
     }
   };
   
@@ -414,7 +414,7 @@ const PostModal = ({ post, isOpen, onClose, onPostUpdated, posts, onNavigatePost
     try {
       const _response = await apiClient.post(
         `/comments/${commentId}/reactions`,
-        { emoji: '🤙' }
+        { emoji: 'ðŸ¤™' }
       );
       
       // Update comments state with new like
@@ -426,7 +426,7 @@ const PostModal = ({ post, isOpen, onClose, onPostUpdated, posts, onNavigatePost
             likes_count: wasLiked ? (c.likes_count || 1) - 1 : (c.likes_count || 0) + 1,
             reactions: wasLiked 
               ? (c.reactions || []).filter(r => r.user_id !== user.id)
-              : [...(c.reactions || []), { user_id: user.id, emoji: '🤙' }]
+              : [...(c.reactions || []), { user_id: user.id, emoji: 'ðŸ¤™' }]
           };
         }
         return c;
@@ -482,12 +482,11 @@ const PostModal = ({ post, isOpen, onClose, onPostUpdated, posts, onNavigatePost
           style={{ zIndex: 10, pointerEvents: 'none' }}
         >
           <div className="flex items-center justify-between px-4 pt-2" style={{ pointerEvents: 'auto' }}>
-            <button
+            <button aria-label="Close"
               onClick={onClose}
               className="p-2 text-white touch-manipulation"
               data-testid="close-post-modal"
-            >
-              <X className="w-6 h-6" />
+            ><X className="w-6 h-6" />
             </button>
             
             {/* Author Info */}
@@ -819,12 +818,11 @@ const PostModal = ({ post, isOpen, onClose, onPostUpdated, posts, onNavigatePost
       <div className="absolute inset-0 bg-black/80" />
       
       {/* Close button */}
-      <button
+      <button aria-label="Close"
         onClick={onClose}
         className="absolute top-4 right-4 z-10 p-2 text-white hover:opacity-80 transition-opacity"
         data-testid="close-post-modal"
-      >
-        <X className="w-6 h-6" />
+      ><X className="w-6 h-6" />
       </button>
       
       {/* Modal content */}
@@ -1062,7 +1060,7 @@ const PostModal = ({ post, isOpen, onClose, onPostUpdated, posts, onNavigatePost
         onPostDeleted={() => { onClose(); }}
       />
       
-      {/* Swipe navigation arrows � positioned on the viewport edges */}
+      {/* Swipe navigation arrows - positioned on the viewport edges */}
       {!isMobile && posts && onNavigatePost && (() => {
         const idx = posts.findIndex(p => p.id === post?.id);
         if (idx === -1) return null;

@@ -1,5 +1,5 @@
 /**
- * useOnDemandActions.js � Extracted from OnDemandSessionManager.js
+ * useOnDemandActions.js - Extracted from OnDemandSessionManager.js
  * On-demand session management: status toggling, request handling, settings.
  * ~344 lines extracted (19 handlers).
  */

@@ -146,7 +146,7 @@ export const OnDemandTab = ({
   const textPrimaryClass = isLight ? 'text-gray-900' : 'text-white';
   const textSecondaryClass = isLight ? 'text-gray-600' : 'text-gray-400';
 
-  // Chat sync for active dispatch — shows unread badge + latest message on card
+  // Chat sync for active dispatch - shows unread badge + latest message on card
   const photographerId = activeDispatch?.photographer_id || activeDispatch?.photographer?.id;
   const photographerName = activeDispatch?.photographer_name || 'Photographer';
   const dispatchChatReady = !!activeDispatch && !!photographerId && ['accepted', 'en_route', 'arrived'].includes(activeDispatch?.status);
@@ -157,7 +157,7 @@ export const OnDemandTab = ({
     userId: user?.id,
     otherUserId: photographerId,
     otherUserName: photographerName,
-    drawerOpen: false, // always poll — there's no drawer on this page
+    drawerOpen: false, // always poll - there's no drawer on this page
     enabled: dispatchChatReady,
   });
   
@@ -227,7 +227,7 @@ export const OnDemandTab = ({
                     </p>
                     <p className={`text-xs ${textSecondaryClass} truncate`}>
                       {invite.location_name || 'On-demand session'}
-                      {invite.share_amount && ` · Your share: $${Number(invite.share_amount).toFixed(2)}`}
+                      {invite.share_amount && ` - Your share: $${Number(invite.share_amount).toFixed(2)}`}
                     </p>
                   </div>
 
@@ -253,7 +253,7 @@ export const OnDemandTab = ({
         </div>
       )}
 
-      {/* Active Dispatch Card — Redesigned with progress stepper + chat notification */}
+      {/* Active Dispatch Card - Redesigned with progress stepper + chat notification */}
       {activeDispatch && ['searching_for_pro', 'pending_payment', 'accepted', 'en_route', 'arrived'].includes(activeDispatch.status) && (() => {
         // -- Stepper logic --
         const STEPS = [

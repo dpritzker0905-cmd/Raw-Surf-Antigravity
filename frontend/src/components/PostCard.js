@@ -19,7 +19,7 @@ import { formatTimeAgo } from '../utils/formatTime';
 import { REACTION_EMOJIS } from '../constants/emojis';
 
 
-// Comment reaction emojis � imported from centralized constants/emojis.js
+// Comment reaction emojis - imported from centralized constants/emojis.js
 
 /**
  * ReplyItem - Simpler component for reply rendering (non-recursive)
@@ -692,7 +692,7 @@ const PostCard = ({
     }
   };
 
-  // Video URL resolution � extracted here to keep JSX clean (no IIFE needed)
+  // Video URL resolution - extracted here to keep JSX clean (no IIFE needed)
   const videoSrc = isVideoItem ? getFullUrl(post.media_url) : null;
   const videoPoster = isVideoItem ? getFullUrl(post.thumbnail_url) : null;
   const videoMimeType = (() => {
@@ -795,7 +795,7 @@ const PostCard = ({
               <span>{formatTimeAgo(post.created_at)}</span>
             )}
             {post.location && post.created_at && (
-              <span className="opacity-50">�</span>
+              <span className="opacity-50">-</span>
             )}
             {post.location && (
               <span>{post.location}</span>
@@ -856,7 +856,7 @@ const PostCard = ({
               <Play className="w-12 h-12 text-zinc-500 mb-2" />
               <span className="text-zinc-400 text-sm font-medium">Video Unavailable</span>
               <span className="text-zinc-500 text-xs mt-1">This video is no longer accessible</span>
-              {/* Retry button � clears error to re-attempt load */}
+              {/* Retry button - clears error to re-attempt load */}
               {videoError && !isDeadLocalVideo && (
                 <button
                   onClick={(e) => {
@@ -888,7 +888,7 @@ const PostCard = ({
             </div>
           ) : (
           /* TikTok/Instagram pattern: video plays as muted preview in feed.
-             NO native controls � tapping opens PostModal for social interaction.
+             NO native controls - tapping opens PostModal for social interaction.
              Mute toggle is a separate button that stops propagation. */
           <>
           <video
@@ -914,9 +914,9 @@ const PostCard = ({
             <source src={videoSrc} type={videoMimeType} onError={() => setVideoError(true)} />
             {videoMimeType !== 'video/mp4' && <source src={videoSrc} type="video/mp4" onError={() => setVideoError(true)} />}
           </video>
-          {/* Transparent click overlay � ensures tap opens PostModal, not native player */}
+          {/* Transparent click overlay - ensures tap opens PostModal, not native player */}
           <div className="absolute inset-0 z-[1]" />
-          {/* Centered play icon � shows when paused (tap to open modal, not to play) */}
+          {/* Centered play icon - shows when paused (tap to open modal, not to play) */}
           {!isPlaying && (
             <div className="absolute inset-0 z-[2] flex items-center justify-center pointer-events-none">
               <div className="w-16 h-16 rounded-full bg-black/50 backdrop-blur-sm flex items-center justify-center">
@@ -924,7 +924,7 @@ const PostCard = ({
               </div>
             </div>
           )}
-          {/* Volume control � bottom-right, progressive disclosure (stops propagation so it doesn't open modal) */}
+          {/* Volume control - bottom-right, progressive disclosure (stops propagation so it doesn't open modal) */}
           <div
             className="absolute bottom-3 right-3 z-[3] flex items-center gap-1"
             onClick={(e) => e.stopPropagation()}
@@ -936,7 +936,7 @@ const PostCard = ({
               volTimerRef.current = setTimeout(() => setShowVolSlider(false), 1200);
             }}
           >
-            {/* Horizontal slider � appears to the left of the icon */}
+            {/* Horizontal slider - appears to the left of the icon */}
             <div
               className="overflow-hidden transition-all duration-300 ease-out flex items-center"
               style={{

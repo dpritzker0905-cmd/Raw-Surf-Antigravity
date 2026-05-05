@@ -1,5 +1,5 @@
 /**
- * ShakaIcon.js — Shared shaka/hang-loose reaction icon.
+ * ShakaIcon.js - Shared shaka/hang-loose reaction icon.
  * Used by PostCard, PostModal, Feed, and MessagesPage.
  * Extracted from PostCard.js to reduce God component sizes.
  */

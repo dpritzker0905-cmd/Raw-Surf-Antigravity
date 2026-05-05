@@ -258,19 +258,19 @@ export const GPSSettingsGuide = ({
                 <div className="p-3 bg-zinc-800/50 rounded-lg border border-zinc-700">
                   <ul className="space-y-2 text-gray-300 text-sm">
                     <li className="flex items-start gap-2">
-                      <span className="text-cyan-400">�</span>
+                      <span className="text-cyan-400">-</span>
                       Go outside with clear sky view
                     </li>
                     <li className="flex items-start gap-2">
-                      <span className="text-cyan-400">�</span>
+                      <span className="text-cyan-400">-</span>
                       Wait 15-30 seconds for satellites to lock
                     </li>
                     <li className="flex items-start gap-2">
-                      <span className="text-cyan-400">�</span>
+                      <span className="text-cyan-400">-</span>
                       Turn OFF Battery Saver mode
                     </li>
                     <li className="flex items-start gap-2">
-                      <span className="text-cyan-400">�</span>
+                      <span className="text-cyan-400">-</span>
                       Clear browser cache and reload page
                     </li>
                   </ul>

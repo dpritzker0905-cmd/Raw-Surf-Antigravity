@@ -44,7 +44,7 @@ const ACCEPTED_IMAGE = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
  * IMPORTANT: This always uses the photographer's General Gallery Pricing
  * (photo_price_standard / video_price_1080p). Session-specific discounts
  * (live session jump-in rates, booking rates) are applied at PURCHASE TIME
- * by the backend based on participant status — NOT baked into the item here.
+ * by the backend based on participant status - NOT baked into the item here.
  * 
  * This ensures that anonymous gallery visitors who weren't part of a session
  * see the photographer's intended standard rates.
@@ -161,7 +161,7 @@ export const UploadPhotoModal = ({
   // Get selected folder name for dropdown label
   const selectedFolderLabel = selectedFolderId 
     ? galleries.find(g => g.id === selectedFolderId)?.title || 'Selected Folder'
-    : 'Select a folder…';
+    : 'Select a folder-';
 
   const addFiles = useCallback((newFiles) => {
     const entries = [];
@@ -288,11 +288,11 @@ export const UploadPhotoModal = ({
       let msg = 'Upload failed';
       if (typeof detail === 'string') msg = detail;
       else if (detail?.msg) msg = detail.msg;
-      else if (status === 503) msg = 'Server starting up — tap retry in 30s';
+      else if (status === 503) msg = 'Server starting up - tap retry in 30s';
       else if (status === 413) msg = 'File too large for server';
-      else if (error.code === 'ECONNABORTED') msg = 'Upload timed out — try a smaller file or retry';
-      else if (!error.response && error.message?.includes('Network')) msg = 'Server may be restarting — tap retry in 30s';
-      else if (!error.response) msg = `Connection failed (${error.code || 'network'}) — retry shortly`;
+      else if (error.code === 'ECONNABORTED') msg = 'Upload timed out - try a smaller file or retry';
+      else if (!error.response && error.message?.includes('Network')) msg = 'Server may be restarting - tap retry in 30s';
+      else if (!error.response) msg = `Connection failed (${error.code || 'network'}) - retry shortly`;
 
       setFiles(prev => prev.map(f => 
         f.id === fileEntry.id ? { ...f, status: STATUS.ERROR, error: msg } : f
@@ -448,7 +448,7 @@ export const UploadPhotoModal = ({
               <div className="text-center px-4">
                 <p className="text-foreground font-semibold text-sm">Select photos & videos</p>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Select multiple files • Images up to 50MB • Videos up to 100MB ({isPaidPhotographer ? '4K' : '1080p'})
+                  Select multiple files - Images up to 50MB - Videos up to 100MB ({isPaidPhotographer ? '4K' : '1080p'})
                 </p>
               </div>
             </button>
@@ -513,7 +513,7 @@ export const UploadPhotoModal = ({
                       </p>
                       <div className="flex items-center gap-2 mt-0.5">
                         <span className="text-[10px] text-muted-foreground">
-                          {formatFileSize(f.size)} • {f.type === 'video' ? 'Video' : 'Photo'}
+                          {formatFileSize(f.size)} - {f.type === 'video' ? 'Video' : 'Photo'}
                         </span>
                         {f.status === STATUS.UPLOADING && (
                           <span className="text-[10px] text-cyan-400 font-medium">{f.progress}%</span>
@@ -563,7 +563,7 @@ export const UploadPhotoModal = ({
                     />
                   </div>
                   <p className="text-xs text-muted-foreground text-center">
-                    Uploading… {globalProgress}%
+                    Uploading- {globalProgress}%
                   </p>
                 </div>
               )}
@@ -584,9 +584,9 @@ export const UploadPhotoModal = ({
                   )}
                   <p className="text-xs text-foreground">
                     {doneFiles.length > 0 && `${doneFiles.length} uploaded`}
-                    {doneFiles.length > 0 && errorFiles.length > 0 && ' • '}
+                    {doneFiles.length > 0 && errorFiles.length > 0 && ' - '}
                     {errorFiles.length > 0 && (
-                      <span className="text-red-400">{errorFiles.length} failed — tap <RotateCcw className="w-3 h-3 inline" /> to retry</span>
+                      <span className="text-red-400">{errorFiles.length} failed - tap <RotateCcw className="w-3 h-3 inline" /> to retry</span>
                     )}
                   </p>
                 </div>
@@ -606,7 +606,7 @@ export const UploadPhotoModal = ({
                 {uploading ? (
                   <span className="flex items-center gap-2">
                     <Loader2 className="w-5 h-5 animate-spin" />
-                    Uploading…
+                    Uploading-
                   </span>
                 ) : (
                   `Upload ${queuedFiles.length} file${queuedFiles.length !== 1 ? 's' : ''}`

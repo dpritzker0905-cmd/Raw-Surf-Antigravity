@@ -72,7 +72,7 @@ const PersonaMaskBanner = () => {
   
   const currentRoleInfo = activePersona 
     ? getExpandedRoleInfo(activePersona) 
-    : { icon: '👑', label: 'God Mode', color: 'text-red-500' };
+    : { icon: 'ðŸ‘‘', label: 'God Mode', color: 'text-red-500' };
 
   const handleSelectPersona = (personaId) => {
     if (personaId !== 'God') {
@@ -163,11 +163,10 @@ const PersonaMaskBanner = () => {
       <div className="h-px bg-zinc-700 my-2" />
       
       {/* Exit Button */}
-      <button
+      <button aria-label="Close"
         onClick={handleHardExit}
         className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-red-500/20 hover:bg-red-500/30 text-red-400 transition-colors"
-      >
-        <X className="w-4 h-4" />
+      ><X className="w-4 h-4" />
         <span className="font-medium">Exit God Mode</span>
       </button>
     </div>
@@ -299,12 +298,11 @@ const PersonaMaskBanner = () => {
               </button>
               
               {/* Exit button */}
-              <button
+              <button aria-label="Close"
                 onClick={handleHardExit}
                 className="p-1.5 bg-black/20 hover:bg-red-500/50 rounded-full transition-colors"
                 title="Exit God Mode"
-              >
-                <X className="w-4 h-4 text-black" />
+              ><X className="w-4 h-4 text-black" />
               </button>
             </div>
           </div>

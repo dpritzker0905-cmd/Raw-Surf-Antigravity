@@ -228,7 +228,7 @@ const OnDemandSpotSelector = ({
                   </p>
                   <p className="text-xs text-muted-foreground truncate">
                     {spot.region || spot.city || 'Unknown region'}
-                    {spot.distance && ` � ${spot.distance.toFixed(1)} mi`}
+                    {spot.distance && ` - ${spot.distance.toFixed(1)} mi`}
                   </p>
                 </div>
                 {isSelected && (

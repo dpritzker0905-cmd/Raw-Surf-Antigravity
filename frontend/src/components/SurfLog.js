@@ -34,7 +34,7 @@ const StatsBanner = ({ stats, isLight }) => {
   const items = [
     { label: 'Sessions', value: stats.total_sessions, icon: Waves, gradient: 'from-cyan-500/20 to-blue-500/20', border: 'border-cyan-500/30' },
     { label: 'Hours', value: stats.total_hours, icon: Clock, gradient: 'from-purple-500/20 to-pink-500/20', border: 'border-purple-500/30' },
-    { label: 'Avg Rating', value: stats.avg_personal_rating ?? '�', icon: Star, gradient: 'from-yellow-500/20 to-orange-500/20', border: 'border-yellow-500/30' },
+    { label: 'Avg Rating', value: stats.avg_personal_rating ?? '-', icon: Star, gradient: 'from-yellow-500/20 to-orange-500/20', border: 'border-yellow-500/30' },
   ];
   return (
     <div className="px-4 md:px-0 mb-4">
@@ -210,7 +210,7 @@ const EntryModal = ({ isOpen, onClose, entry, userId, onSaved }) => {
             <p className={`text-xs font-semibold ${isLight ? 'text-blue-700' : 'text-blue-300'} flex items-center gap-1`}><Waves className="w-3.5 h-3.5" /> Conditions</p>
             <div className="grid grid-cols-2 gap-3">
               <div><label className={`text-xs ${isLight ? 'text-gray-600' : 'text-gray-400'}`}>Wave Height</label><input type="text" value={form.wave_height} onChange={e => set('wave_height', e.target.value)} placeholder="3-5ft" className={inputCls} /></div>
-              <div><label className={`text-xs ${isLight ? 'text-gray-600' : 'text-gray-400'}`}>Water Temp</label><input type="text" value={form.water_temp} onChange={e => set('water_temp', e.target.value)} placeholder="72�F" className={inputCls} /></div>
+              <div><label className={`text-xs ${isLight ? 'text-gray-600' : 'text-gray-400'}`}>Water Temp</label><input type="text" value={form.water_temp} onChange={e => set('water_temp', e.target.value)} placeholder="72-F" className={inputCls} /></div>
             </div>
             <ChipSelect label="Wind" options={WIND_OPTIONS} value={form.wind_direction} onChange={v => set('wind_direction', v)} />
             <ChipSelect label="Tide" options={TIDE_OPTIONS} value={form.tide_status} onChange={v => set('tide_status', v)} />

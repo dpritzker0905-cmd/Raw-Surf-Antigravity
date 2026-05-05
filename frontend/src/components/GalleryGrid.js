@@ -35,7 +35,7 @@ export const GalleryGridItem = ({
   );
   const videoSrc = isVideo ? getFullUrl(item.preview_url || item.original_url) : null;
 
-  // Video poster is shown via the poster attribute — no autoplay to save bandwidth
+  // Video poster is shown via the poster attribute - no autoplay to save bandwidth
   // Video plays only when user clicks through to detail view
 
   const handleTap = () => {
@@ -115,7 +115,7 @@ export const GalleryGridItem = ({
         </>
       )}
 
-      {/* Media preview — video items autoplay muted, photo items show img */}
+      {/* Media preview - video items autoplay muted, photo items show img */}
       <div className="w-full h-full bg-gradient-to-br from-gray-700/80 to-gray-900/80 flex items-center justify-center">
         {/* Fallback icon shows through when image is transparent or fails */}
         {isVideo ? (

@@ -540,11 +540,10 @@ const SurfboardDetailModal = ({ isOpen, onClose, board, onEdit, onDelete, isOwnP
           )}
           
           {/* Close button */}
-          <button
+          <button aria-label="Close"
             onClick={onClose}
             className="absolute top-2 right-2 w-8 h-8 rounded-full bg-black/50 text-white flex items-center justify-center"
-          >
-            <X className="w-5 h-5" />
+          ><X className="w-5 h-5" />
           </button>
         </div>
         

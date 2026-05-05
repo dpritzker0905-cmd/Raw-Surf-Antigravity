@@ -256,10 +256,10 @@ const UsernameSetup = ({ onComplete, skipAllowed = false }) => {
           <div className={`p-3 rounded-lg ${isLight ? 'bg-blue-50' : 'bg-blue-500/10'}`}>
             <p className={`text-xs ${isLight ? 'text-blue-800' : 'text-blue-300'}`}>
               <strong>Username rules:</strong>
-              <br />• 3-30 characters
-              <br />• Must start with a letter
-              <br />• Only letters, numbers, and underscores
-              <br />• Can be changed once every 60 days
+              <br />- 3-30 characters
+              <br />- Must start with a letter
+              <br />- Only letters, numbers, and underscores
+              <br />- Can be changed once every 60 days
             </p>
           </div>
         </CardContent>

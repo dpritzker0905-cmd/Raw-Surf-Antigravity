@@ -329,7 +329,7 @@ export const ReviewModal = ({
           <div className={`flex items-start gap-2 p-3 rounded-lg ${isLight ? 'bg-blue-50 border border-blue-200' : isBeach ? 'bg-blue-950/30 border border-blue-800/30' : 'bg-blue-950/30 border border-blue-900/30'}`}>
             <AlertCircle className="w-4 h-4 text-blue-400 mt-0.5 shrink-0" />
             <p className={`text-xs ${isLight ? 'text-blue-700' : 'text-blue-300'}`}>
-              Reviews are private until both parties submit, or after 14 days — encouraging honest feedback.
+              Reviews are private until both parties submit, or after 14 days - encouraging honest feedback.
             </p>
           </div>
           

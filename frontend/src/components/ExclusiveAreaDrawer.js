@@ -190,11 +190,10 @@ export const ExclusiveAreaDrawer = ({ isOpen, onClose, onOpenChange, areaType })
               <AreaIcon className={`w-5 h-5 ${config.textColor}`} />
               {config.name}
             </SheetTitle>
-            <button 
+            <button aria-label="Close" 
               onClick={onClose}
               className="text-muted-foreground hover:text-foreground p-1"
-            >
-              <X className="w-5 h-5" />
+            ><X className="w-5 h-5" />
             </button>
           </div>
           <SheetDescription className="sr-only">

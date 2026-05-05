@@ -19,7 +19,7 @@ import logger from '../../utils/logger';
 import { AdminPrecisionQueue } from './AdminPrecisionQueue';
 
 /**
- * AdControlsPanel — Extracted from UnifiedAdminConsole
+ * AdControlsPanel - Extracted from UnifiedAdminConsole
  * Admin control for ad frequency, approval queue, and variant management.
  */
 // Ad Controls Panel Component with Approval Queue
@@ -457,7 +457,7 @@ const AdControlsPanel = ({ user }) => {
                   <div className="flex-1">
                     <p className="text-foreground font-medium text-sm">{variant.headline}</p>
                     <p className="text-muted-foreground text-xs">
-                      {variant.type} • {variant.cta}
+                      {variant.type} - {variant.cta}
                       {variant.submitted_by_name && (
                         <span className="text-cyan-400 ml-2">by {variant.submitted_by_name}</span>
                       )}

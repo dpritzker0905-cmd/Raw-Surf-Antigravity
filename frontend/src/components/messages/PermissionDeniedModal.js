@@ -1,5 +1,5 @@
 /**
- * PermissionDeniedModal — Full-screen overlay shown when camera/mic is blocked.
+ * PermissionDeniedModal - Full-screen overlay shown when camera/mic is blocked.
  *
  * iOS Safari permanently remembers denied permissions. This modal guides the
  * user through re-enabling them, with a deep-link to Settings on iOS.
@@ -21,7 +21,7 @@ export default function PermissionDeniedModal({ onRetry, onDismiss }) {
   }, []);
 
   const handleRetry = useCallback(async () => {
-    // Attempt to re-request permissions — this will show the native prompt
+    // Attempt to re-request permissions - this will show the native prompt
     // if the user hasn't permanently denied yet, or if they've re-enabled
     // in Settings and returned to the app.
     try {
@@ -30,7 +30,7 @@ export default function PermissionDeniedModal({ onRetry, onDismiss }) {
       stream.getTracks().forEach(t => t.stop());
       if (onRetry) onRetry();
     } catch (err) {
-      // Still denied — the modal stays open
+      // Still denied - the modal stays open
       logger.warn('[PermissionDenied] Retry failed:', err.name);
     }
   }, [onRetry]);

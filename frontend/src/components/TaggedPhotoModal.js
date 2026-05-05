@@ -209,7 +209,7 @@ export const TaggedPhotoModal = ({
   const getPriceDisplay = () => {
     if (canViewFull) return null;
 
-    // Subscription covers this item � show "Included" path
+    // Subscription covers this item - show "Included" path
     if (hasSubscriptionQuota) {
       return {
         type: 'subscription',
@@ -319,7 +319,7 @@ export const TaggedPhotoModal = ({
                   >
                     {purchasing ? 'Processing...' : (
                       <>
-                        <Check className="w-4 h-4 mr-2" /> Add to My Gallery � Free
+                        <Check className="w-4 h-4 mr-2" /> Add to My Gallery - Free
                       </>
                     )}
                   </Button>
@@ -368,7 +368,7 @@ export const TaggedPhotoModal = ({
                   {subscriptionInfo?.subscription_active && !hasSubscriptionQuota && (
                     <div className="text-center mb-3">
                       <Badge className="bg-purple-500/20 text-purple-400 text-xs">
-                        <Sparkles className="w-3 h-3 mr-1" /> Subscription quota used up � regular pricing applies
+                        <Sparkles className="w-3 h-3 mr-1" /> Subscription quota used up - regular pricing applies
                       </Badge>
                     </div>
                   )}

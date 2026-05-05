@@ -383,7 +383,7 @@ export const Bookings = () => {
         const btnLeft = activeBtn.offsetLeft;
         const btnWidth = activeBtn.offsetWidth;
         const targetScroll = btnLeft - (stripWidth / 2) + (btnWidth / 2);
-        // Always instant scroll � the sliding indicator CSS transition provides
+        // Always instant scroll - the sliding indicator CSS transition provides
         // the smooth visual feedback. Smooth scroll + indicator transition together
         // create competing animations that look like "spinning".
         tabStrip.scrollTo({ left: targetScroll, behavior: 'instant' });
@@ -422,8 +422,8 @@ export const Bookings = () => {
       }
       tag.setAttribute('content', content);
     };
-    document.title = 'Bookings � Raw Surf';
-    setMeta('og:title', 'Bookings � Raw Surf');
+    document.title = 'Bookings - Raw Surf';
+    setMeta('og:title', 'Bookings - Raw Surf');
     setMeta('og:description', 'Book surf photography sessions, find live photographers, and manage your upcoming shoots on Raw Surf.');
     setMeta('og:url', `${window.location.origin}/bookings`);
     setMeta('og:type', 'website');
@@ -772,7 +772,7 @@ export const Bookings = () => {
         )}
 
 
-        {/* Tabs � scrolls with content */}
+        {/* Tabs - scrolls with content */}
         <div
           ref={stickyTabRef}
           className="relative z-10"
@@ -950,7 +950,7 @@ export const Bookings = () => {
               const nextIdx = goingLeft ? currentIdx + 1 : currentIdx - 1;
 
               if (nextIdx >= 0 && nextIdx < tabIds.length) {
-                // Simple instant switch � no multi-stage animation
+                // Simple instant switch - no multi-stage animation
                 setActiveTab(tabIds[nextIdx]);
                 return;
               }

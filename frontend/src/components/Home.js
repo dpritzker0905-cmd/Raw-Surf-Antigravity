@@ -177,9 +177,9 @@ export const Home = () => {
                 Surfers
               </div>
               <ul className="text-gray-400 text-sm space-y-1">
-                <li>• Book photographers on the beach</li>
-                <li>• Build your session portfolio</li>
-                <li>• Get discounts on photo packages</li>
+                <li>- Book photographers on the beach</li>
+                <li>- Build your session portfolio</li>
+                <li>- Get discounts on photo packages</li>
               </ul>
             </div>
             <div className="bg-zinc-900/60 border border-zinc-800 rounded-lg p-4">
@@ -188,9 +188,9 @@ export const Home = () => {
                 Photographers
               </div>
               <ul className="text-gray-400 text-sm space-y-1">
-                <li>• Set your own session prices</li>
-                <li>• Get booked by local surfers</li>
-                <li>• 15-20% platform fee on sales</li>
+                <li>- Set your own session prices</li>
+                <li>- Get booked by local surfers</li>
+                <li>- 15-20% platform fee on sales</li>
               </ul>
             </div>
             <div className="bg-zinc-900/60 border border-zinc-800 rounded-lg p-4">
@@ -199,9 +199,9 @@ export const Home = () => {
                 Businesses
               </div>
               <ul className="text-gray-400 text-sm space-y-1">
-                <li>• List services & products</li>
-                <li>• Book event photographers</li>
-                <li>• Sponsor local talent</li>
+                <li>- List services & products</li>
+                <li>- Book event photographers</li>
+                <li>- Sponsor local talent</li>
               </ul>
             </div>
           </div>
@@ -270,7 +270,7 @@ export const Home = () => {
             />
             <span className="text-lg font-bold text-white font-oswald" >Raw Surf</span>
           </div>
-          <p className="text-gray-500 text-sm">© 2026 Raw Surf. All rights reserved.</p>
+          <p className="text-gray-500 text-sm">- 2026 Raw Surf. All rights reserved.</p>
         </div>
       </footer>
     </div>

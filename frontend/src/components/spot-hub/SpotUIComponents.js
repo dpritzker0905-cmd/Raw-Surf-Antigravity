@@ -1,5 +1,5 @@
 /**
- * Spot UI Components — Reusable sub-components for the UnifiedSpotDrawer.
+ * Spot UI Components - Reusable sub-components for the UnifiedSpotDrawer.
  * Includes: SpotOfTheDayBadge, LiveSavingsBadge, StarRating, ReviewsCarousel.
  * 
  * Extracted from UnifiedSpotDrawer.js for maintainability.

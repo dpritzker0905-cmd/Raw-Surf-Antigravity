@@ -110,7 +110,7 @@ const LiveChat = ({ streamId, userId, userName, userAvatar }) => {
 
   return (
     <div className="flex flex-col h-full" style={{ background: 'rgba(9,9,11,0.92)', backdropFilter: 'blur(12px)' }}>
-      {/* Header — live pulse dot matching broadcaster */}
+      {/* Header - live pulse dot matching broadcaster */}
       <div className="px-4 py-3 border-b flex items-center gap-2" style={{ borderColor: 'rgba(39,39,42,0.8)', flexShrink: 0 }}>
         <div style={{ position: 'relative', width: 10, height: 10, flexShrink: 0 }}>
           <div className="animate-ping" style={{ position: 'absolute', inset: 0, borderRadius: '50%', background: '#f59e0b', opacity: 0.6 }} />
@@ -241,18 +241,17 @@ const ViewerRoomContent = ({
                 </button>
 
                 {/* Exit */}
-                <button
+                <button aria-label="Close"
                   onClick={onLeave}
                   className="p-2 bg-black/60 hover:bg-red-600 rounded-full transition-colors"
                   title="Leave Stream"
-                >
-                  <X className="w-5 h-5 text-white" />
+                ><X className="w-5 h-5 text-white" />
                 </button>
               </div>
             </div>
           </div>
 
-          {/* Bottom controls — above mobile chat */}
+          {/* Bottom controls - above mobile chat */}
           <div className="absolute bottom-4 sm:bottom-4 left-0 right-0 px-6 flex items-center justify-between pointer-events-none z-10">
             <div className="flex items-center gap-4 pointer-events-auto">
               <button className="p-3 bg-black/40 hover:bg-red-500/20 text-white hover:text-red-400 rounded-full transition-all group backdrop-blur-md" aria-label="Like">
@@ -275,7 +274,7 @@ const ViewerRoomContent = ({
           </div>
         </div>
 
-        {/* Mobile chat — OUTSIDE the overflow-hidden video area so it isn't clipped.
+        {/* Mobile chat - OUTSIDE the overflow-hidden video area so it isn't clipped.
             Uses pb-[env(safe-area-inset-bottom)] + extra padding to clear BottomNav. */}
         <div className="sm:hidden h-[40%] min-h-[180px] flex-shrink-0" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
           <LiveChat streamId={streamId} userId={userId} userName={userName} userAvatar={userAvatar} />
@@ -438,7 +437,7 @@ const LiveStreamViewer = ({ isOpen, onClose, streamInfo }) => {
   };
 
   return (
-    /* Fullscreen on mobile ¦ Centred 1100×720 popup on desktop — matches GoLiveModal exactly */
+    /* Fullscreen on mobile - Centred 1100-720 popup on desktop - matches GoLiveModal exactly */
     <div ref={viewerModalRef} className="fixed inset-0 z-[110] flex items-center justify-center" data-testid="live-stream-viewer">
       {/* Desktop backdrop */}
       <div
@@ -446,7 +445,7 @@ const LiveStreamViewer = ({ isOpen, onClose, streamInfo }) => {
         onClick={handleLeave}
       />
 
-      {/* -- Container: fullscreen mobile / 1100×720 desktop -- */}
+      {/* -- Container: fullscreen mobile / 1100-720 desktop -- */}
       <div className="relative w-full h-full sm:w-[1100px] sm:h-[720px] sm:max-h-[90vh] sm:rounded-2xl sm:overflow-hidden bg-black shadow-2xl shadow-black/60">
 
         {/* Loading */}

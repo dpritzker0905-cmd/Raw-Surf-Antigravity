@@ -231,11 +231,11 @@ export const CreatePost = () => {
         setNearestSpot(nearest);
         if (nearest && minDistance < 10) {
           setLocation(nearest.name);
-          toast.success(`📍 Near ${nearest.name} (${nearest.distance}km)`);
+          toast.success(`ðŸ“ Near ${nearest.name} (${nearest.distance}km)`);
         } else if (nearest) {
-          toast.success(`📍 Location found. Nearest: ${nearest.name} (${nearest.distance}km)`);
+          toast.success(`ðŸ“ Location found. Nearest: ${nearest.name} (${nearest.distance}km)`);
         } else {
-          toast.success('📍 Location detected � select your spot below');
+          toast.success('ðŸ“ Location detected - select your spot below');
         }
         setGpsLoading(false);
       },
@@ -472,11 +472,10 @@ export const CreatePost = () => {
                   )}
                 </div>
               )}
-              <button
+              <button aria-label="Close"
                 onClick={clearSelection}
                 className="absolute top-3 right-3 p-2 bg-black/70 rounded-full hover:bg-black"
-              >
-                <X className="w-5 h-5 text-white" />
+              ><X className="w-5 h-5 text-white" />
               </button>
               {/* Photo count badge */}
               {previewUrls.length > 1 && (
@@ -830,7 +829,7 @@ export const CreatePost = () => {
                     </div>
                   )}
 
-                  {/* Quick Select Dropdown � populated from city spots or knownSpots */}
+                  {/* Quick Select Dropdown - populated from city spots or knownSpots */}
                   {(() => {
                     // If a city is selected, show spots from that city directly
                     if (selectedCity && selectedCountry && selectedState) {

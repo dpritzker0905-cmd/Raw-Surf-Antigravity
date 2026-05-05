@@ -17,7 +17,7 @@ import {
 import logger from '../../utils/logger';
 
 /**
- * PurchaseRequestsPanel — GromHQ sub-component
+ * PurchaseRequestsPanel - GromHQ sub-component
  * Shows pending purchase requests from linked Groms for parent approval/denial.
  */
 export const PurchaseRequestsPanel = () => {

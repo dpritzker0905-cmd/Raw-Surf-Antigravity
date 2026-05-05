@@ -1,5 +1,5 @@
 /**
- * NearbyMode — GPS-based spot discovery for Explore.
+ * NearbyMode - GPS-based spot discovery for Explore.
  * Extracted from Explore.js to reduce file size.
  * 
  * Features:
@@ -48,7 +48,7 @@ const NearbyMode = ({
         <div className="flex items-center gap-2 text-xs text-cyan-400">
           <Waves className="w-4 h-4" />
           <span>
-            <strong>Today</strong> = Current Conditions • <strong>Forecast:</strong> 3 days free, 7 paid, 10 premium
+            <strong>Today</strong> = Current Conditions - <strong>Forecast:</strong> 3 days free, 7 paid, 10 premium
           </span>
         </div>
       </div>

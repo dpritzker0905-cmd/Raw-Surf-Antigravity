@@ -297,7 +297,7 @@ export const GalleryPage = () => {
     newFolderName, folderToRename, folderToDelete, galleryPricing,
   });
 
-  // Pull-to-refresh for mobile � triggers gallery refresh on swipe-down
+  // Pull-to-refresh for mobile - triggers gallery refresh on swipe-down
   const { pullRef: galleryPullRef, isPulling: galleryPulling, pullProgress: galleryPullProgress, isRefreshing: galleryPtrRefreshing } = usePullToRefresh(
     async () => { await fetchGallery(); if (isPhotographer) await fetchGalleries(); },
     { threshold: 60, enabled: !loading }

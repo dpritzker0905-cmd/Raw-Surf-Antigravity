@@ -148,7 +148,7 @@ const ModalVideoPlayer = ({ src, poster, className = '' }) => {
         preload="metadata"
       />
 
-      {/* Play/Pause center overlay � fades in/out */}
+      {/* Play/Pause center overlay - fades in/out */}
       <div className={`absolute inset-0 flex items-center justify-center pointer-events-none transition-opacity duration-300 ${showControls || !playing ? 'opacity-100' : 'opacity-0'}`}>
         {!playing && (
           <div className="w-16 h-16 rounded-full bg-black/50 backdrop-blur-sm flex items-center justify-center">
@@ -195,7 +195,7 @@ const ModalVideoPlayer = ({ src, poster, className = '' }) => {
             onMouseLeave={handleVolumeAreaLeave}
             onTouchStart={handleVolumeAreaEnter}
           >
-            {/* Volume slider � progressive disclosure */}
+            {/* Volume slider - progressive disclosure */}
             <div
               className="overflow-hidden transition-all duration-300 ease-out flex items-center"
               style={{

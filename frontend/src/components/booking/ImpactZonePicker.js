@@ -1,5 +1,5 @@
 /**
- * ImpactZonePicker.js — Extracted from ScheduledBookingDrawer.js.
+ * ImpactZonePicker.js - Extracted from ScheduledBookingDrawer.js.
  * A map-based impact zone selector for booking location targeting.
  * 819 lines extracted.
  */
@@ -462,7 +462,7 @@ const ImpactZonePicker = ({
             {userCoords ? 'GPS Active' : gpsError ? 'GPS Unavailable' : 'Use My Location'}
           </span>
           {userCoords && nearbySpots.length > 0 && (
-            <span className="text-[10px] text-green-400 ml-2">• {nearbySpots.length} spots found</span>
+            <span className="text-[10px] text-green-400 ml-2">- {nearbySpots.length} spots found</span>
           )}
         </div>
         {userCoords && <Check className="w-4 h-4 text-green-400" />}
@@ -629,7 +629,7 @@ const ImpactZonePicker = ({
               <p className={textSecondary}>
                 {travelSurcharges.filter(t => t.surcharge > 0).slice(0, 3).map(t => 
                   `${t.min_miles}-${t.max_miles}mi: +$${t.surcharge}`
-                ).join(' • ')}
+                ).join(' - ')}
               </p>
             </div>
           </div>

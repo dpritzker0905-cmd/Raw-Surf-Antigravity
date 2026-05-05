@@ -1,5 +1,5 @@
 /**
- * useBookingManagerActions.js � Extracted from PhotographerBookingsManager.js
+ * useBookingManagerActions.js - Extracted from PhotographerBookingsManager.js
  * Booking management handlers: accept, reject, reschedule, pricing.
  * ~498 lines, 22 handlers.
  */

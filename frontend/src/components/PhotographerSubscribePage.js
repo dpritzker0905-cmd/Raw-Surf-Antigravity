@@ -18,7 +18,7 @@ import logger from '../utils/logger';
 import { ROLE_SETS } from '../constants/roles';
 
 /**
- * PhotographerSubscribePage � Dedicated, polished subscription page
+ * PhotographerSubscribePage - Dedicated, polished subscription page
  * Route: /photographer/:photographerId/subscribe
  * 
  * Shows the photographer's available plans with full details,
@@ -210,7 +210,7 @@ export const PhotographerSubscribePage = () => {
                   You're subscribed to {activeSub.plan_name}
                 </p>
                 <p className={`text-xs ${textSecondary}`}>
-                  Expires {new Date(activeSub.expires_at).toLocaleDateString()} �
+                  Expires {new Date(activeSub.expires_at).toLocaleDateString()} -
                   {activeSub.photos_remaining} photos, {activeSub.videos_remaining} videos left
                 </p>
               </div>

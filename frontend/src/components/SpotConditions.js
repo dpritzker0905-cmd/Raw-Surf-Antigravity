@@ -212,7 +212,7 @@ export const SpotConditions = ({ spotId, spotName, compact = false }) => {
               <div className="flex items-center gap-2">
                 <Compass className="w-4 h-4 text-yellow-400" />
                 <span className={`text-sm ${tSecondary}`}>
-                  {current.wave_direction ? `${current.wave_direction}�` : 'N/A'}
+                  {current.wave_direction ? `${current.wave_direction}-` : 'N/A'}
                 </span>
               </div>
               <div className="flex items-center gap-2">
@@ -229,7 +229,7 @@ export const SpotConditions = ({ spotId, spotName, compact = false }) => {
 
         {/* Source attribution */}
         <p className={`text-[10px] ${tMuted} mt-3`}>
-          Data from Open-Meteo Marine API � Updated: {current?.updated_at ? new Date(current.updated_at).toLocaleTimeString() : 'N/A'}
+          Data from Open-Meteo Marine API - Updated: {current?.updated_at ? new Date(current.updated_at).toLocaleTimeString() : 'N/A'}
         </p>
       </div>
 

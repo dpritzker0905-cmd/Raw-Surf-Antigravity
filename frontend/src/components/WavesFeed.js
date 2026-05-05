@@ -239,7 +239,7 @@ const WaveCard = ({
         
         {/* Sound control with volume slider */}
         <div className="relative flex flex-col items-center gap-1">
-          {/* Vertical volume slider — appears above the button */}
+          {/* Vertical volume slider - appears above the button */}
           <div
             className="flex flex-col items-center transition-all duration-300 ease-out overflow-hidden"
             style={{

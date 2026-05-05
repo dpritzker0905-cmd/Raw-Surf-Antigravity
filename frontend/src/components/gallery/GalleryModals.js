@@ -1,5 +1,5 @@
 /**
- * GalleryModals.js — Tag/Assign, Thumbnail Picker, and Link Session modals.
+ * GalleryModals.js - Tag/Assign, Thumbnail Picker, and Link Session modals.
  * Extracted from GalleryPage.js.
  */
 import React from 'react';

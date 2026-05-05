@@ -169,7 +169,7 @@ const ExploreSpotCard = ({ spot, userSubscriptionTier = 'free' }) => {
             }`}
           />
         ) : showMapFallback ? (
-          /* Map satellite fallback — same as Popular Spots on All tab */
+          /* Map satellite fallback - same as Popular Spots on All tab */
           <div className="w-full h-full bg-muted relative">
             <img loading="lazy" decoding="async" 
               src={`https://static-maps.yandex.ru/1.x/?lang=en_US&ll=${spot.longitude},${spot.latitude}&z=12&l=sat&size=400,300`}
@@ -253,7 +253,7 @@ const ExploreSpotCard = ({ spot, userSubscriptionTier = 'free' }) => {
             <span>{spot.region}</span>
             {spot.difficulty && (
               <>
-                <span className="text-gray-600">•</span>
+                <span className="text-gray-600">-</span>
                 <Badge variant="outline" className="text-[10px] px-1 py-0">
                   {spot.difficulty}
                 </Badge>
@@ -288,7 +288,7 @@ const ExploreSpotCard = ({ spot, userSubscriptionTier = 'free' }) => {
             {conditions.wave_direction && (
               <div className="flex items-center gap-1 text-gray-400">
                 <DirectionArrow direction={conditions.wave_direction} className="text-yellow-400" />
-                <span className="text-xs">{conditions.wave_direction}°</span>
+                <span className="text-xs">{conditions.wave_direction}-</span>
               </div>
             )}
           </div>

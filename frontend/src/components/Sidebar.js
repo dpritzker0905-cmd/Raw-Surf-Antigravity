@@ -458,7 +458,7 @@ export const Sidebar = () => {
           ].filter(Boolean));
         })}
 
-        {/* Active Session Indicator � standalone, visible to ALL roles */}
+        {/* Active Session Indicator - standalone, visible to ALL roles */}
         {activeSession && (
           <button
             onClick={() => {

@@ -10,15 +10,15 @@ import { getErrorMessage } from '../../utils/errors';
 import logger from '../../utils/logger';
 
 /**
- * FindMeModal — AI-powered surfer identification in a gallery.
+ * FindMeModal - AI-powered surfer identification in a gallery.
  * Lets surfers upload a selfie + optional board/wetsuit details,
  * then scans the gallery using the POST /gallery/{id}/find-me endpoint.
  *
  * Props:
- *   open      — boolean controlling visibility
- *   onClose   — callback to close the modal
- *   galleryId — the gallery to scan
- *   userId    — the requesting user's ID
+ *   open      - boolean controlling visibility
+ *   onClose   - callback to close the modal
+ *   galleryId - the gallery to scan
+ *   userId    - the requesting user's ID
  */
 export const FindMeModal = ({ open, onClose, galleryId, userId }) => {
   const [selfieUrl, setSelfieUrl] = useState('');
@@ -103,7 +103,7 @@ export const FindMeModal = ({ open, onClose, galleryId, userId }) => {
       if (data.matches_found > 0) {
         toast.success(`?? Found ${data.matches_found} match${data.matches_found > 1 ? 'es' : ''}!`);
       } else {
-        toast.info('No matches found — try adjusting your details.');
+        toast.info('No matches found - try adjusting your details.');
       }
     } catch (error) {
       if (error.response?.status === 429) {
@@ -244,7 +244,7 @@ export const FindMeModal = ({ open, onClose, galleryId, userId }) => {
               <ShieldCheck className="w-4 h-4 text-green-400 flex-shrink-0 mt-0.5" />
               <p className="text-[10px] text-gray-500 leading-relaxed">
                 Your selfie is only used for this scan and is not stored permanently.
-                AI matching uses visual pattern recognition — no facial data is retained.
+                AI matching uses visual pattern recognition - no facial data is retained.
               </p>
             </div>
           </div>
@@ -262,7 +262,7 @@ export const FindMeModal = ({ open, onClose, galleryId, userId }) => {
                     : '?? No matches found'}
                 </p>
                 <p className="text-[10px] text-gray-500">
-                  Scanned {scanMeta?.totalScanned || 0} photos • {scanMeta?.scansRemaining ?? '?'} scans left today
+                  Scanned {scanMeta?.totalScanned || 0} photos - {scanMeta?.scansRemaining ?? '?'} scans left today
                 </p>
               </div>
               <Button size="sm" variant="outline" onClick={handleReset} className="text-xs">

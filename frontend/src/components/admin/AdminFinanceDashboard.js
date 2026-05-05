@@ -326,7 +326,7 @@ export const AdminFinanceDashboard = () => {
                         <div key={batch.id} className="p-3 bg-muted/50 rounded-lg flex items-center justify-between">
                           <div>
                             <p className={`font-medium ${textClass}`}>{batch.batch_number}</p>
-                            <p className="text-xs text-gray-500">{batch.total_recipients} recipients • {formatDate(batch.created_at)}</p>
+                            <p className="text-xs text-gray-500">{batch.total_recipients} recipients - {formatDate(batch.created_at)}</p>
                           </div>
                           <div className="flex items-center gap-3">
                             <p className="text-lg font-bold text-foreground">{formatCurrency(batch.total_amount)}</p>

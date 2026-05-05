@@ -1,5 +1,5 @@
 /**
- * HairFilterPicker — UI for selecting AR hair overlays
+ * HairFilterPicker â€” UI for selecting AR hair overlays
  * 
  * Features:
  * - Male/Female category tabs
@@ -16,12 +16,12 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 // Category definitions
 const CATEGORIES = [
-  { id: 'male', label: 'Male', icon: '🏄‍♂️' },
-  { id: 'female', label: 'Female', icon: '🏄‍♀️' },
+  { id: 'male', label: 'Male', icon: 'ðŸ„â€â™‚ï¸' },
+  { id: 'female', label: 'Female', icon: 'ðŸ„â€â™€ï¸' },
 ];
 
 /**
- * HairStyleCard — Individual hair style option
+ * HairStyleCard â€” Individual hair style option
  */
 const HairStyleCard = ({ style, isSelected, onSelect, colors }) => (
   <motion.button
@@ -78,11 +78,10 @@ export const HairFilterPicker = ({
           <Scissors className={`w-4 h-4 ${colors.accentText}`} />
           <span className={`text-sm font-semibold ${colors.primaryText}`}>Surfer Hair</span>
         </div>
-        <button
+        <button aria-label="Close"
           onClick={onClose}
           className={`p-1.5 rounded-full ${colors.buttonBg} transition-colors`}
-        >
-          <X className={`w-4 h-4 ${colors.secondaryText}`} />
+        ><X className={`w-4 h-4 ${colors.secondaryText}`} />
         </button>
       </div>
 

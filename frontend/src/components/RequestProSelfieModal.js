@@ -140,7 +140,7 @@ export const RequestProSelfieModal = ({ dispatchId, isOpen, onClose, onSuccess }
               Take a quick selfie so your photographer knows who to look for at the beach!
             </p>
             
-            {/* Camera Preview — constrained height on mobile */}
+            {/* Camera Preview - constrained height on mobile */}
             <div className="relative bg-black rounded-xl overflow-hidden" style={{ aspectRatio: '4/3', maxHeight: '45vh' }}>
               {!selfieUrl ? (
                 <>
