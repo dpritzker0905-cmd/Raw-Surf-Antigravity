@@ -972,7 +972,7 @@ export const PostMenu = ({
       return;
     }
     try {
-      await apiClient.delete(`/posts/${activePost.id}`);
+      await apiClient.delete(`/posts/${activePost.id}?user_id=${user.id}`);
       toast.success('Post deleted');
       onPostDeleted?.(activePost.id);
       onClose();
@@ -1226,9 +1226,9 @@ export const PostMenu = ({
       <>
         <Drawer open={open} onOpenChange={onClose}>
           <DrawerContent className={isLight ? 'bg-white' : 'bg-zinc-900'} aria-describedby="post-menu-drawer-description">
-            <DrawerHeader className="sr-only">
+            <DrawerHeader className="sr-only" style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden' }}>
               <DrawerTitle>Post Options</DrawerTitle>
-              <p id="post-menu-drawer-description" className="sr-only">Actions for this post</p>
+              <p id="post-menu-drawer-description">Actions for this post</p>
             </DrawerHeader>
             <MenuContent />
             <DrawerFooter>
@@ -1277,8 +1277,9 @@ export const PostMenu = ({
         <DialogContent 
           className={`${isLight ? 'bg-white' : 'bg-zinc-900'} p-0 max-w-xs overflow-hidden`}
           aria-describedby="post-menu-description"
+          hideCloseButton
         >
-          <DialogHeader className="sr-only">
+          <DialogHeader className="sr-only" style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', padding: 0 }}>
             <DialogTitle>Post Options</DialogTitle>
             <DialogDescription id="post-menu-description">
               Actions for this post
