@@ -13,6 +13,9 @@ import { useTheme } from '../contexts/ThemeContext';
 import apiClient from '../lib/apiClient';
 import { toast } from 'sonner';
 
+// Extracted sub-components (shared with broadcaster)
+import { QuickReactions, EmojiBurst } from './live/GoLiveSubComponents';
+
 // LiveKit
 import {
   LiveKitRoom,
@@ -180,7 +183,26 @@ const ViewerRoomContent = ({
   broadcaster, onLeave, viewerCount, onViewProfile,
   streamId, userId, userName, userAvatar, colors
 }) => {
+  const { theme } = useTheme();
   const [isChatOpen, setIsChatOpen]   = useState(true);
+  const [emojiBursts, setEmojiBursts] = useState([]);
+
+  // Viewer reaction handler — fire-and-forget animation + API notify
+  const handleReaction = useCallback((emoji) => {
+    const id = Date.now() + Math.random();
+    // Random position in lower-right quadrant of video
+    const x = 60 + Math.random() * 80;
+    const y = window.innerHeight * 0.45 + Math.random() * 80;
+    setEmojiBursts(prev => [...prev, { id, emoji, x, y }]);
+    setTimeout(() => setEmojiBursts(prev => prev.filter(b => b.id !== id)), 1800);
+
+    // Fire-and-forget API notify
+    if (streamId) {
+      apiClient.post(`/social-live/${streamId}/reaction`, {
+        user_id: userId, emoji
+      }).catch(() => {});
+    }
+  }, [streamId, userId]);
 
   const tracks = useTracks([Track.Source.Camera], { onlySubscribed: true });
   const broadcasterTrack = tracks.find(t => !t.participant?.isLocal);
@@ -251,23 +273,30 @@ const ViewerRoomContent = ({
             </div>
           </div>
 
+          {/* Floating emoji burst animations */}
+          <AnimatePresence>
+            {emojiBursts.map(burst => (
+              <EmojiBurst key={burst.id} {...burst} theme={theme} />
+            ))}
+          </AnimatePresence>
+
           {/* Bottom controls - above mobile chat */}
-          <div className="absolute bottom-4 sm:bottom-4 left-0 right-0 px-6 flex items-center justify-between pointer-events-none z-10">
-            <div className="flex items-center gap-4 pointer-events-auto">
-              <button className="p-3 bg-black/40 hover:bg-red-500/20 text-white hover:text-red-400 rounded-full transition-all group backdrop-blur-md" aria-label="Like">
-                <Heart className="w-6 h-6 group-active:scale-125 transition-transform" />
-              </button>
-              <button aria-label="Share" className="p-3 bg-black/40 hover:bg-blue-500/20 text-white hover:text-blue-400 rounded-full transition-all group backdrop-blur-md">
-                <Share2 className="w-6 h-6 group-active:scale-125 transition-transform" />
-              </button>
-            </div>
+          <div className="absolute bottom-4 sm:bottom-4 left-0 right-0 px-4 sm:px-6 flex items-center justify-between pointer-events-none z-10">
+            {/* Quick Reactions — surf-themed emoji bar */}
             <div className="pointer-events-auto">
-              <Button aria-label="User Plus"
+              <QuickReactions onReact={handleReaction} colors={colors} />
+            </div>
+
+            <div className="flex items-center gap-2 pointer-events-auto">
+              <button aria-label="Share" className="p-3 bg-black/40 hover:bg-blue-500/20 text-white hover:text-blue-400 rounded-full transition-all group backdrop-blur-md">
+                <Share2 className="w-5 h-5 group-active:scale-125 transition-transform" />
+              </button>
+              <Button aria-label="Follow"
                 variant="outline" size="sm"
-                className="bg-black/40 border-white/20 text-white hover:bg-white/10 backdrop-blur-md px-6 rounded-full"
+                className="bg-black/40 border-white/20 text-white hover:bg-white/10 backdrop-blur-md px-4 rounded-full text-xs"
                 onClick={onViewProfile}
               >
-                <UserPlus className="w-4 h-4 mr-2" />
+                <UserPlus className="w-3.5 h-3.5 mr-1.5" />
                 Follow
               </Button>
             </div>

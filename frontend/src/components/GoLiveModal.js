@@ -185,7 +185,25 @@ const BroadcasterControls = ({
   useEffect(() => {
     const engine = new HairFilterEngine();
     hairEngineRef.current = engine;
-    engine.init().catch(() => {});
+    
+    const initWithRetry = async (retries = 2) => {
+      for (let attempt = 1; attempt <= retries; attempt++) {
+        try {
+          await engine.init();
+          logger.info(`[HairFilter] Engine initialized on attempt ${attempt}`);
+          return;
+        } catch (err) {
+          logger.warn(`[HairFilter] Init attempt ${attempt}/${retries} failed:`, err.message);
+          if (attempt < retries) {
+            await new Promise(r => setTimeout(r, 2000)); // wait 2s before retry
+          }
+        }
+      }
+      // All retries exhausted — non-fatal, hair filter simply won't work
+      logger.error('[HairFilter] All init attempts failed — MediaPipe CDN may be unreachable');
+    };
+    
+    initWithRetry();
     
     return () => {
       engine.dispose();
@@ -213,6 +231,7 @@ const BroadcasterControls = ({
       const canvasEl = hairCanvasRef.current;
       
       if (videoEl && canvasEl && videoEl.readyState >= 1) {
+        logger.info('[HairFilter] Found video element, starting engine');
         engine.start(videoEl, canvasEl); // start() now awaits init internally
         return true;
       }
@@ -225,8 +244,11 @@ const BroadcasterControls = ({
         if (tryStart()) clearInterval(timer);
       }, 500);
       
-      // Give up after 5 seconds
-      const timeout = setTimeout(() => clearInterval(timer), 5000);
+      // Give up after 12 seconds (MediaPipe CDN can be slow on mobile)
+      const timeout = setTimeout(() => {
+        clearInterval(timer);
+        logger.warn('[HairFilter] Timed out waiting for video element (12s)');
+      }, 12000);
       return () => { clearInterval(timer); clearTimeout(timeout); engine.stop(); };
     }
     
