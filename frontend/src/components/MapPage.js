@@ -39,6 +39,10 @@ import { RequestProModal } from './map/RequestProModal';
 
 import { MapLiveFloatingIsland } from './MapLiveIndicator';
 
+import DispatchTrackingPanel from './map/DispatchTrackingPanel';
+import FeaturedPhotographersPanel from './map/FeaturedPhotographersPanel';
+import PhotographerBottomSheet from './map/PhotographerBottomSheet';
+
 import EndSessionModal from './EndSessionModal';
 
 import ConditionsModal from './ConditionsModal';
@@ -1518,55 +1522,8 @@ const MapPageContent = () => {
         </div>
       </div>
       
-      {/* Active Dispatch Tracking Panel */}
-      {activeDispatch && activeDispatch.status === 'en_route' && (
-        <div 
-          className="fixed z-[9998] left-4 right-4 top-24 bg-gradient-to-r from-cyan-900/95 to-blue-900/95 backdrop-blur-md rounded-2xl border border-cyan-500/30 shadow-2xl p-4"
-          data-testid="dispatch-tracking-panel"
-        >
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 bg-cyan-400 rounded-full animate-pulse"></div>
-              <span className="text-cyan-300 text-sm font-bold uppercase tracking-wide">Pro En Route</span>
-            </div>
-            <span className="text-2xl font-bold text-white">
-              {activeDispatch.estimated_arrival_minutes || '?'}<span className="text-sm font-normal text-gray-400 ml-1">min</span>
-            </span>
-          </div>
-          
-          <div className="flex items-center gap-4 mb-3">
-            {activeDispatch.photographer_avatar ? (
-              <img loading="lazy" decoding="async" src={activeDispatch.photographer_avatar} alt="" className="w-12 h-12 rounded-full border-2 border-cyan-400" />
-            ) : (
-              <div className="w-12 h-12 rounded-full bg-cyan-500/30 flex items-center justify-center">
-                <Camera className="w-6 h-6 text-cyan-400" />
-              </div>
-            )}
-            <div>
-              <p className="text-white font-medium">{activeDispatch.photographer_name || 'Photographer'}</p>
-              <p className="text-gray-400 text-sm">is heading to your location</p>
-            </div>
-          </div>
-          
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 text-gray-300 text-sm">
-              <MapPin className="w-4 h-4" />
-              <span>{activeDispatch.location_name || 'Your location'}</span>
-            </div>
-            <Button
-              onClick={() => {
-                // Cancel or view details
-                setActiveDispatch(null);
-              }}
-              variant="outline"
-              size="sm"
-              className="border-cyan-500/50 text-cyan-300 hover:bg-cyan-500/20"
-            >
-              Details
-            </Button>
-          </div>
-        </div>
-      )}
+      {/* Active Dispatch Tracking Panel - Extracted to map/DispatchTrackingPanel.js */}
+      <DispatchTrackingPanel activeDispatch={activeDispatch} onDismiss={() => setActiveDispatch(null)} />
       
       {/* REMOVED: BLUE LIVE BAR - Now integrated into UnifiedSpotDrawer */}
 
@@ -1646,83 +1603,17 @@ const MapPageContent = () => {
         )}
       </div>
 
-      {/* Featured Photographers Panel */}
-      {showFeaturedPanel && featuredPhotographers.length > 0 && (
-        <div className="absolute top-44 right-4 z-[1000] w-72 max-h-[60vh] overflow-y-auto">
-          <div className="bg-zinc-900/95 backdrop-blur-sm rounded-lg border border-zinc-700 shadow-xl">
-            <div className="p-3 border-b border-zinc-700 flex items-center justify-between sticky top-0 bg-zinc-900/95">
-              <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                <Camera className="w-4 h-4 text-yellow-400" />
-                Featured Photographers
-              </h3>
-              <button
-                onClick={() => setShowFeaturedPanel(false)}
-                className="text-gray-400 hover:text-white"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-            <div className="p-2 space-y-2">
-              {featuredPhotographers.map((photographer) => (
-                <div
-                  key={photographer.id}
-                  className="p-3 rounded-lg bg-zinc-800/50 hover:bg-zinc-700/50 transition-colors cursor-pointer"
-                  onClick={() => {
-                    setSelectedPhotographer(photographer);
-                    setBottomSheetOpen(true);
-                    setShowFeaturedPanel(false);
-                  }}
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="relative">
-                      <div className="w-10 h-10 rounded-full bg-zinc-700 overflow-hidden flex items-center justify-center">
-                        {photographer.avatar_url ? (
-                          <img loading="lazy" decoding="async" src={getFullUrl(photographer.avatar_url)} alt={photographer.full_name} className="w-full h-full object-cover" />
-                        ) : (
-                          <Camera className="w-5 h-5 text-gray-400" />
-                        )}
-                      </div>
-                      {photographer.is_live && (
-                        <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-green-500 rounded-full border-2 border-zinc-900 flex items-center justify-center">
-                          <span className="w-1.5 h-1.5 bg-white rounded-full animate-pulse"></span>
-                        </div>
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-white truncate">
-                        {photographer.full_name}
-                        {photographer.is_verified && (
-                          <span className="ml-1 text-blue-400">?</span>
-                        )}
-                      </p>
-                      <p className="text-xs text-gray-400 truncate">
-                        {photographer.location || photographer.current_spot || 'No location'}
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      {photographer.is_live ? (
-                        <span className="text-xs text-green-400 font-medium">LIVE</span>
-                      ) : (
-                        <span className="text-xs text-yellow-400">${photographer.session_price}</span>
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3 mt-2 text-xs text-gray-500">
-                    <span>{photographer.total_sessions || 0} sessions</span>
-                    <span>-</span>
-                    <span>{photographer.gallery_count || 0} photos</span>
-                    {photographer.total_earnings > 0 && (
-                      <>
-                        <span>-</span>
-                        <span className="text-green-400">${photographer.total_earnings.toFixed(0)} earned</span>
-                      </>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
+      {/* Featured Photographers Panel - Extracted to map/FeaturedPhotographersPanel.js */}
+      {showFeaturedPanel && (
+        <FeaturedPhotographersPanel
+          featuredPhotographers={featuredPhotographers}
+          onClose={() => setShowFeaturedPanel(false)}
+          onPhotographerSelect={(photographer) => {
+            setSelectedPhotographer(photographer);
+            setBottomSheetOpen(true);
+            setShowFeaturedPanel(false);
+          }}
+        />
       )}
 
       {/* Nearest Spot Card - Positioned to avoid collision with banners */}
@@ -1746,89 +1637,17 @@ const MapPageContent = () => {
       )}
 
       {/* Bottom Sheet - Only for Photographer Details now (spot details in UnifiedSpotDrawer) */}
+      {/* Photographer Bottom Sheet - Extracted to map/PhotographerBottomSheet.js */}
       {bottomSheetOpen && selectedPhotographer && !showJumpInModal && (
-        <div 
-          className="fixed bottom-0 left-0 right-0 z-[9998] bg-zinc-900 rounded-t-2xl border-t border-zinc-700 shadow-2xl transition-all duration-300"
-          style={{ maxHeight: '40vh' }}
-        >
-          <div className="h-full flex flex-col">
-            {/* Drag Handle */}
-            <div 
-              className="flex justify-center py-3 cursor-grab"
-              onClick={() => { setBottomSheetOpen(false); setSelectedPhotographer(null); }}
-            >
-              <div className="w-12 h-1.5 bg-zinc-600 rounded-full hover:bg-zinc-500 transition-colors"></div>
-            </div>
-            
-            {/* Close Button */}
-            <button
-              onClick={() => { setBottomSheetOpen(false); setSelectedPhotographer(null); }}
-              className="absolute top-3 right-4 text-gray-400 hover:text-white z-10"
-            >
-              <X className="w-5 h-5" />
-            </button>
-
-            {/* Photographer Details */}
-            <div className="flex-1 overflow-y-auto px-4 pb-4">
-              <div className="flex items-start gap-4 mb-4">
-                <div className="w-14 h-14 rounded-full p-[2px] bg-gradient-to-r from-cyan-400 to-blue-500">
-                  <div className="w-full h-full rounded-full bg-zinc-800 flex items-center justify-center overflow-hidden">
-                    {selectedPhotographer.avatar_url ? (
-                      <img loading="lazy" decoding="async" src={getFullUrl(selectedPhotographer.avatar_url)} alt={selectedPhotographer.full_name || 'Photographer'} className="w-full h-full object-cover" />
-                    ) : (
-                      <span className="text-xl text-cyan-400">{selectedPhotographer.full_name?.charAt(0)}</span>
-                    )}
-                  </div>
-                </div>
-                <div className="flex-1">
-                  <div className="flex items-center gap-2">
-                    <h3 className="text-xl font-bold text-white font-oswald" >
-                      {selectedPhotographer.full_name}
-                    </h3>
-                    {selectedPhotographer.is_streaming ? (
-                      <span className="px-2 py-0.5 bg-red-500 rounded text-xs text-white font-bold">LIVE</span>
-                    ) : (
-                      <span className="px-2 py-0.5 bg-emerald-500 rounded text-xs text-white font-bold">SHOOTING</span>
-                    )}
-                  </div>
-                  <p className="text-gray-400 text-sm">at {selectedPhotographer.current_spot_name}</p>
-                </div>
-              </div>
-              
-              {selectedPhotographer.session_price && (
-                <div className="bg-zinc-800 rounded-lg p-3 mb-4">
-                  <div className="flex items-center justify-between">
-                    <span className="text-gray-400 text-sm">Session Price</span>
-                    <span className="text-xl font-bold text-white">${selectedPhotographer.session_price}</span>
-                  </div>
-                </div>
-              )}
-              
-              <div className="flex gap-3">
-                <Button
-                  onClick={() => {
-                    // CRITICAL: Hide ALL drawers/sheets when opening Jump In modal
-                    // Only ONE drawer/modal should exist at z-index 1000+ at any time
-                    setBottomSheetOpen(false);
-                    setUnifiedDrawerOpen(false);  // Close the spot drawer too
-                    setShowJumpInModal(true);
-                  }}
-                  className="flex-1 bg-gradient-to-r from-yellow-400 to-orange-400 text-black font-bold"
-                  data-testid="jump-in-session-btn"
-                >
-                  <Users className="w-4 h-4 mr-2" />
-                  Jump In Session
-                </Button>
-                <Button aria-label="Message"
-                  variant="outline"
-                  className="border-zinc-600 text-white hover:bg-zinc-800"
-                >
-                  <MessageCircle className="w-4 h-4" />
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
+        <PhotographerBottomSheet
+          selectedPhotographer={selectedPhotographer}
+          onClose={() => { setBottomSheetOpen(false); setSelectedPhotographer(null); }}
+          onJumpIn={() => {
+            setBottomSheetOpen(false);
+            setUnifiedDrawerOpen(false);
+            setShowJumpInModal(true);
+          }}
+        />
       )}
 
       {/* Leaflet CSS injection */}
