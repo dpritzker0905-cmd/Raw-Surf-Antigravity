@@ -67,6 +67,7 @@ import {
   truncateCoord, 
   isValidLatLng,
   TILE_LAYER_CONFIG,
+  MAPBOX_TILES,
   DEFAULT_MAP_OPTIONS,
   SPOT_CLUSTER_OPTIONS,
   PHOTOGRAPHER_CLUSTER_OPTIONS
@@ -101,7 +102,7 @@ const MapPageContent = () => {
   const { theme } = useTheme();
   
   const isLight = theme === 'light';
-  const mapTilesUrl = isLight ? 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png' : TILE_LAYER_CONFIG.url;
+  const mapTilesUrl = isLight ? MAPBOX_TILES.light : TILE_LAYER_CONFIG.url;
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
   const markersRef = useRef([]);

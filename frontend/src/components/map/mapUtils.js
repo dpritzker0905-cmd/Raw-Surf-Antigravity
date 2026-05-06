@@ -53,20 +53,36 @@ export const isValidLatLng = (lat, lng) => {
 };
 
 /**
- * Default tile layer configuration
+ * Mapbox access token (public / publishable key)
+ * Loaded from REACT_APP_MAPBOX_TOKEN env var
+ */
+const MAPBOX_TOKEN = process.env.REACT_APP_MAPBOX_TOKEN || '';
+
+/**
+ * Mapbox tile URLs for light and dark themes
+ * Uses raster tiles served from Mapbox Studio styles via Leaflet
+ */
+export const MAPBOX_TILES = {
+  dark:  `https://api.mapbox.com/styles/v1/mapbox/dark-v11/tiles/256/{z}/{x}/{y}@2x?access_token=${MAPBOX_TOKEN}`,
+  light: `https://api.mapbox.com/styles/v1/mapbox/light-v11/tiles/256/{z}/{x}/{y}@2x?access_token=${MAPBOX_TOKEN}`,
+};
+
+/**
+ * Default tile layer configuration — Mapbox raster tiles via Leaflet
  */
 export const TILE_LAYER_CONFIG = {
-  url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+  url: MAPBOX_TILES.dark,
   options: {
-    subdomains: 'abcd',
     maxZoom: 19,
+    tileSize: 256,
     updateWhenIdle: false,
     updateWhenZooming: false,   // wait for zoom to settle → smoother animation
     keepBuffer: 2,              // default; 4 was too RAM-heavy on mobile
     updateInterval: 150,        // throttle tile requests during fast panning (ms)
     edgeBufferTiles: 2,         // pre-fetch 2 extra rows beyond viewport (requires EdgeBuffer plugin)
     crossOrigin: 'anonymous',
-    detectRetina: true
+    detectRetina: false,        // already requesting @2x tiles from Mapbox
+    attribution: '© <a href="https://www.mapbox.com/about/maps/">Mapbox</a> © <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
   }
 };
 
