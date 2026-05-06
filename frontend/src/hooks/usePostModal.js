@@ -1,4 +1,4 @@
-import { useRef, useCallback } from 'react';
+import { useRef, useCallback, useEffect } from 'react';
 import apiClient from '../lib/apiClient';
 import logger from '../utils/logger';
 import { toast } from 'sonner';

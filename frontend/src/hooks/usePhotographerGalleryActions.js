@@ -6,7 +6,6 @@
 import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import { toast } from 'sonner';
 import logger from '../utils/logger';
-import { getErrorMessage } from '../utils/errors';
 import { useEffect, useMemo } from 'react';
 
 const usePhotographerGalleryActions = ({
@@ -19,6 +18,7 @@ const usePhotographerGalleryActions = ({
   setDistributing,
   setEditData,
   setGallery,
+  itemCustomPrice,
   setItemCustomPrice,
   lightboxItem,
   setLightboxItem,
@@ -26,12 +26,15 @@ const usePhotographerGalleryActions = ({
   setLoadingParticipants,
   setLoadingSales,
   setLoadingSessions,
+  pricing,
   setPricing,
   setPushingConditions,
   setRecentSessions,
   setSalesData,
+  selectedItem,
   setSelectedItem,
   setSelectedItems,
+  selectedTags,
   setSelectedTags,
   setSessionInfo,
   setSessionParticipants,
@@ -43,6 +46,9 @@ const usePhotographerGalleryActions = ({
   setShowTaggingModal,
   setTotalGalleryItems,
   setUploading,
+  filterType,
+  searchQuery,
+  sortBy,
 }) => {
 
   const fetchGallery = async () => {
@@ -444,7 +450,7 @@ const usePhotographerGalleryActions = ({
   };
 
   // Phase 2: Keyboard navigation for lightbox
-  React.useEffect(() => {
+  useEffect(() => {
     const handleKeyDown = (e) => {
       if (!lightboxItem) return;
       const currentIndex = filteredItems.findIndex(i => i.id === lightboxItem.id);
@@ -535,7 +541,7 @@ const usePhotographerGalleryActions = ({
     handleConfirmTags,
     handleToggleSelect,
     handleSelectAll,
-    handleKeyDown,
+
     handleDeleteItem,
     handleBulkDelete,
     handleSetCustomPrice,

@@ -9,7 +9,7 @@ import {
   Grid3X3, Bookmark, UserSquare2, Play, Waves, ExternalLink,
   Instagram, Globe, Check, Loader2, UserPlus, UserMinus, ArrowLeft, Heart,
   Users, Radio, Image, Shield, Trophy, MoreHorizontal, Ban, Flag,
-  Star, Zap
+  Star, Zap, Award
 } from 'lucide-react';
 
 // Custom Surfboard Icon Component

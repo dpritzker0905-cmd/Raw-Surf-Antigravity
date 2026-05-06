@@ -7,7 +7,6 @@ import { useCallback, useRef } from 'react';
 import apiClient from '../lib/apiClient';
 import { toast } from 'sonner';
 import logger from '../utils/logger';
-import { getErrorMessage } from '../utils/errors';
 
 const useFeedActions = ({
   user, navigate, activeTab, selectedCountry, selectedState, selectedCity, posts,
@@ -21,6 +20,8 @@ const useFeedActions = ({
   showAllComments,
   nearestSpot,
   checkInData,
+  loadingComments,
+  streak,
   // State setters
   setAllComments,
   setCheckInData,

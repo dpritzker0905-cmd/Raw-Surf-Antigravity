@@ -301,6 +301,7 @@ export const GalleryPage = () => {
     setLoading, updateGeneralSettings, setItemCustomPrice,
     clearItemCustomPrice, setShowGalleryPricingModal,
     newFolderName, folderToRename, folderToDelete, galleryPricing,
+    gallery,
   });
 
   // Pull-to-refresh for mobile - triggers gallery refresh on swipe-down

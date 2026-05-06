@@ -350,6 +350,8 @@ export const Feed = () => {
     showAllComments,
     nearestSpot,
     checkInData,
+    loadingComments,
+    streak,
     setAllComments,
     setCheckInData,
     setCheckInLoading,
