@@ -37,7 +37,35 @@ const PostModal = ({ post, isOpen, onClose, onPostUpdated, posts, onNavigatePost
   const { user } = useAuth();
   const { theme } = useTheme();
   const navigate = useNavigate();
-  const _isLight = theme === 'light';
+  const isLight = theme === 'light';
+  const isBeach = theme === 'beach';
+  
+  // Theme tokens for the desktop detail panel
+  // Mobile overlay stays dark regardless (media backdrop)
+  const t = {
+    panelBg: isLight ? 'bg-white' : isBeach ? 'bg-black' : 'bg-zinc-900',
+    panelBorder: isLight ? 'border-gray-200' : isBeach ? 'border-zinc-900' : 'border-zinc-800',
+    textPrimary: isLight ? 'text-gray-900' : 'text-white',
+    textSecondary: isLight ? 'text-gray-500' : isBeach ? 'text-gray-300' : 'text-gray-400',
+    textMuted: isLight ? 'text-gray-400' : 'text-gray-500',
+    avatarFallbackBg: isLight ? 'bg-gray-200' : isBeach ? 'bg-zinc-800' : 'bg-zinc-700',
+    avatarFallbackText: isLight ? 'text-gray-600' : 'text-gray-400',
+    captionText: isLight ? 'text-gray-700' : 'text-gray-300',
+    hoverText: isLight ? 'hover:text-gray-900' : 'hover:text-white',
+    inputBg: isLight ? 'bg-transparent' : 'bg-transparent',
+    inputText: isLight ? 'text-gray-900' : 'text-white',
+    inputPlaceholder: isLight ? 'placeholder-gray-400' : 'placeholder-gray-500',
+    reactionPickerBg: isLight ? 'bg-white/95' : isBeach ? 'bg-black/95' : 'bg-zinc-900/95',
+    reactionPickerBorder: isLight ? 'border-gray-200' : 'border-zinc-600',
+    reactionHover: isLight ? 'hover:bg-gray-100' : 'hover:bg-zinc-700/60',
+    iconDefault: isLight ? 'text-gray-700' : 'text-white',
+    iconHover: isLight ? 'hover:opacity-80' : 'hover:opacity-70',
+    likeCountText: isLight ? 'text-gray-900' : 'text-white',
+    commentBtnActive: isLight ? 'bg-yellow-500/15 text-yellow-600' : 'bg-yellow-500/20 text-yellow-400',
+    commentBtnInactive: isLight ? 'text-gray-400 hover:text-gray-700' : 'text-gray-400 hover:text-white',
+    savedColor: 'text-yellow-400',
+    unsavedColor: isLight ? 'text-gray-700' : 'text-white',
+  };
   
   const [comments, setComments] = useState([]);
   const [loadingComments, setLoadingComments] = useState(false);
@@ -584,7 +612,7 @@ const PostModal = ({ post, isOpen, onClose, onPostUpdated, posts, onNavigatePost
             />
             {/* Centered Picker - 2-row grid for mobile */}
             <div 
-              className="absolute bg-zinc-900/95 backdrop-blur-md border border-zinc-600 rounded-2xl px-3 py-3 shadow-2xl animate-in zoom-in-95 duration-200"
+              className={`absolute ${t.reactionPickerBg} backdrop-blur-md border ${t.reactionPickerBorder} rounded-2xl px-3 py-3 shadow-2xl animate-in zoom-in-95 duration-200`}
               style={{ 
                 left: '50%',
                 top: '50%',
@@ -605,7 +633,7 @@ const PostModal = ({ post, isOpen, onClose, onPostUpdated, posts, onNavigatePost
                   <button
                     key={emoji}
                     onClick={() => handleReaction(emoji)}
-                    className="w-11 h-11 flex items-center justify-center rounded-full hover:bg-zinc-700/60 active:scale-90 transition-transform duration-100 touch-manipulation"
+                    className={`w-11 h-11 flex items-center justify-center rounded-full ${t.reactionHover} active:scale-90 transition-transform duration-100 touch-manipulation`}
                     style={{ fontSize: '24px' }}
                     data-testid={`post-reaction-${emoji}`}
                   >
@@ -837,6 +865,7 @@ const PostModal = ({ post, isOpen, onClose, onPostUpdated, posts, onNavigatePost
           post={post}
           open={shareModalOpen}
           onClose={() => setShareModalOpen(false)}
+          isLight={isLight}
         />
         
         {/* Post Menu */}
@@ -844,7 +873,7 @@ const PostModal = ({ post, isOpen, onClose, onPostUpdated, posts, onNavigatePost
           post={post}
           open={postMenuOpen}
           onClose={() => setPostMenuOpen(false)}
-          isLight={false}
+          isLight={isLight}
           onPostUpdated={(_updatedPost) => {
             // Handle post update if needed
           }}
@@ -877,7 +906,7 @@ const PostModal = ({ post, isOpen, onClose, onPostUpdated, posts, onNavigatePost
       <div 
         ref={modalRef}
         onClick={(e) => e.stopPropagation()}
-        className="relative bg-zinc-900 rounded-lg overflow-hidden flex max-w-6xl w-[95vw] max-h-[90vh] shadow-2xl"
+        className={`relative ${t.panelBg} rounded-lg overflow-hidden flex max-w-6xl w-[95vw] max-h-[90vh] shadow-2xl`}
         style={{ minHeight: '500px' }}
       >
         {/* Left side - Image/Carousel */}
@@ -898,40 +927,40 @@ const PostModal = ({ post, isOpen, onClose, onPostUpdated, posts, onNavigatePost
         </div>
         
         {/* Right side - Details & Comments */}
-        <div className="w-[340px] flex flex-col border-l border-zinc-800 bg-zinc-900">
+        <div className={`w-[340px] flex flex-col border-l ${t.panelBorder} ${t.panelBg}`}>
           {/* Header */}
-          <div className="flex items-center gap-3 p-4 border-b border-zinc-800">
-            <div className="w-8 h-8 rounded-full bg-zinc-700 overflow-hidden">
+          <div className={`flex items-center gap-3 p-4 border-b ${t.panelBorder}`}>
+            <div className={`w-8 h-8 rounded-full ${t.avatarFallbackBg} overflow-hidden`}>
               {post.author_avatar ? (
                 <img loading="lazy" decoding="async" src={getFullUrl(post.author_avatar)} alt="" className="w-full h-full object-cover" />
               ) : (
-                <span className="w-full h-full flex items-center justify-center text-sm text-gray-400">
+                <span className={`w-full h-full flex items-center justify-center text-sm ${t.avatarFallbackText}`}>
                   {post.author_name?.charAt(0)}
                 </span>
               )}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="font-semibold text-white text-sm truncate cursor-pointer hover:underline" onClick={(e) => { e.stopPropagation(); navigate(`/profile/${post.author_id}`); }}>{post.author_name}</p>
+              <p className={`font-semibold ${t.textPrimary} text-sm truncate cursor-pointer hover:underline`} onClick={(e) => { e.stopPropagation(); navigate(`/profile/${post.author_id}`); }}>{post.author_name}</p>
               {post.location && (
-                <p className="text-xs text-gray-400 truncate">{post.location}</p>
+                <p className={`text-xs ${t.textSecondary} truncate`}>{post.location}</p>
               )}
             </div>
-            <button className="text-gray-400 hover:text-white p-1" onClick={(e) => { e.stopPropagation(); setPostMenuOpen(true); }} aria-label="More options">
+            <button className={`${t.textSecondary} ${t.hoverText} p-1`} onClick={(e) => { e.stopPropagation(); setPostMenuOpen(true); }} aria-label="More options">
               <MoreHorizontal className="w-5 h-5" />
             </button>
           </div>
           
           {/* Session metadata if available */}
           {(post.session_date || post.wave_height_ft) && (
-            <div className="px-4 py-2 border-b border-zinc-800 space-y-1">
+            <div className={`px-4 py-2 border-b ${t.panelBorder} space-y-1`}>
               {post.session_date && (
-                <div className="flex items-center gap-2 text-xs text-gray-400">
+                <div className={`flex items-center gap-2 text-xs ${t.textSecondary}`}>
                   <Calendar className="w-3.5 h-3.5 text-cyan-400" />
                   <span>{new Date(post.session_date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</span>
                 </div>
               )}
               {post.wave_height_ft && (
-                <div className="flex items-center gap-2 text-xs text-gray-400">
+                <div className={`flex items-center gap-2 text-xs ${t.textSecondary}`}>
                   <Waves className="w-3.5 h-3.5 text-cyan-400" />
                   <span>{post.wave_height_ft}ft @ {post.wave_period_sec || '?'}s</span>
                 </div>
@@ -944,26 +973,26 @@ const PostModal = ({ post, isOpen, onClose, onPostUpdated, posts, onNavigatePost
             {/* Caption */}
             {post.caption && (
               <div className="flex gap-3 p-4">
-                <div className="w-8 h-8 rounded-full bg-zinc-700 overflow-hidden flex-shrink-0">
+                <div className={`w-8 h-8 rounded-full ${t.avatarFallbackBg} overflow-hidden flex-shrink-0`}>
                   {post.author_avatar ? (
                     <img loading="lazy" decoding="async" src={getFullUrl(post.author_avatar)} alt="" className="w-full h-full object-cover" />
                   ) : (
-                    <span className="w-full h-full flex items-center justify-center text-sm text-gray-400">
+                    <span className={`w-full h-full flex items-center justify-center text-sm ${t.avatarFallbackText}`}>
                       {post.author_name?.charAt(0)}
                     </span>
                   )}
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm">
-                    <span className="font-semibold text-white mr-1 cursor-pointer hover:underline" onClick={(e) => { e.stopPropagation(); navigate(`/profile/${post.author_id}`); }}>{post.author_name}</span>
+                    <span className={`font-semibold ${t.textPrimary} mr-1 cursor-pointer hover:underline`} onClick={(e) => { e.stopPropagation(); navigate(`/profile/${post.author_id}`); }}>{post.author_name}</span>
                     <RichText 
                       text={post.caption}
-                      className="text-gray-300"
+                      className={t.captionText}
                       hashtagClassName="text-cyan-400 hover:text-cyan-300 cursor-pointer"
                       mentionClassName="text-blue-400 hover:text-blue-300 cursor-pointer"
                     />
                   </p>
-                  <p className="text-xs text-gray-500 mt-1">{formatTimeAgo(post.created_at)}</p>
+                  <p className={`text-xs ${t.textMuted} mt-1`}>{formatTimeAgo(post.created_at)}</p>
                 </div>
               </div>
             )}
@@ -985,7 +1014,7 @@ const PostModal = ({ post, isOpen, onClose, onPostUpdated, posts, onNavigatePost
                   ))}
                 </div>
               ) : (
-                <p className="text-center text-gray-500 text-sm py-4">
+                <p className={`text-center ${t.textMuted} text-sm py-4`}>
                   No comments yet. Be the first!
                 </p>
               )}
@@ -1000,7 +1029,7 @@ const PostModal = ({ post, isOpen, onClose, onPostUpdated, posts, onNavigatePost
                 onClick={() => setShowReactionPicker(false)}
               />
               <div 
-                className="absolute bg-zinc-900/95 backdrop-blur-md border border-zinc-600 rounded-full px-2 py-2 shadow-2xl animate-in zoom-in-95 duration-200 flex items-center"
+                className={`absolute ${t.reactionPickerBg} backdrop-blur-md border ${t.reactionPickerBorder} rounded-full px-2 py-2 shadow-2xl animate-in zoom-in-95 duration-200 flex items-center`}
                 style={{ 
                   left: '50%',
                   top: '50%',
@@ -1012,8 +1041,8 @@ const PostModal = ({ post, isOpen, onClose, onPostUpdated, posts, onNavigatePost
                   <button
                     key={emoji}
                     onClick={() => handleReaction(emoji)}
-                    className={`w-10 h-10 flex items-center justify-center rounded-full hover:bg-zinc-700/60 active:scale-90 transition-transform duration-100 touch-manipulation ${
-                      userReaction?.emoji === emoji ? 'bg-zinc-700/50 ring-1 ring-cyan-400/50' : ''
+                    className={`w-10 h-10 flex items-center justify-center rounded-full ${t.reactionHover} active:scale-90 transition-transform duration-100 touch-manipulation ${
+                      userReaction?.emoji === emoji ? (isLight ? 'bg-gray-200 ring-1 ring-cyan-400/50' : 'bg-zinc-700/50 ring-1 ring-cyan-400/50') : ''
                     }`}
                     style={{ fontSize: '22px' }}
                     data-testid={`desktop-reaction-${emoji}`}
@@ -1023,7 +1052,7 @@ const PostModal = ({ post, isOpen, onClose, onPostUpdated, posts, onNavigatePost
                 ))}
                 <button 
                   onClick={() => setShowReactionPicker(false)}
-                  className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-white border-l border-zinc-600 ml-1 hover:bg-zinc-700/50 rounded-full"
+                  className={`w-8 h-8 flex items-center justify-center ${t.textSecondary} ${t.hoverText} border-l ${t.reactionPickerBorder} ml-1 ${t.reactionHover} rounded-full`}
                   aria-label="Close reaction picker"
                 >
                   <X className="w-4 h-4" />
@@ -1033,7 +1062,7 @@ const PostModal = ({ post, isOpen, onClose, onPostUpdated, posts, onNavigatePost
           )}
           
           {/* Actions */}
-          <div className="border-t border-zinc-800 p-4 space-y-3">
+          <div className={`border-t ${t.panelBorder} p-4 space-y-3`}>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-4">
                 <button
@@ -1071,7 +1100,7 @@ const PostModal = ({ post, isOpen, onClose, onPostUpdated, posts, onNavigatePost
                   )}
                 </button>
                 <button aria-label="Message"
-                  className="text-white hover:opacity-70 transition-opacity"
+                  className={`${t.iconDefault} ${t.iconHover} transition-opacity`}
                   onClick={() => {
                     if (desktopCommentInputRef.current) desktopCommentInputRef.current.focus();
                   }}
@@ -1079,7 +1108,7 @@ const PostModal = ({ post, isOpen, onClose, onPostUpdated, posts, onNavigatePost
                   <MessageCircle className="w-6 h-6" />
                 </button>
                 <button aria-label="Send" 
-                  className="text-white hover:opacity-70 transition-opacity"
+                  className={`${t.iconDefault} ${t.iconHover} transition-opacity`}
                   onClick={() => setShareModalOpen(true)}
                 >
                   <Send className="w-6 h-6" />
@@ -1090,7 +1119,7 @@ const PostModal = ({ post, isOpen, onClose, onPostUpdated, posts, onNavigatePost
                   e.stopPropagation();
                   handleSave();
                 }}
-                className={`transition-opacity touch-manipulation active:scale-95 ${saved ? 'text-yellow-400' : 'text-white'} hover:opacity-70`}
+                className={`transition-opacity touch-manipulation active:scale-95 ${saved ? t.savedColor : t.unsavedColor} ${t.iconHover}`}
               >
                 <Bookmark className="w-6 h-6" fill={saved ? 'currentColor' : 'none'} />
               </button>
@@ -1098,24 +1127,24 @@ const PostModal = ({ post, isOpen, onClose, onPostUpdated, posts, onNavigatePost
             
             {/* Like count */}
             {likeCount > 0 && (
-              <p className="text-white text-sm font-semibold">
+              <p className={`${t.likeCountText} text-sm font-semibold`}>
                 {likeCount.toLocaleString()} like{likeCount !== 1 ? 's' : ''}
               </p>
             )}
             
             {/* Timestamp */}
-            <p className="text-gray-500 text-xs uppercase">
+            <p className={`${t.textMuted} text-xs uppercase`}>
               {formatTimeAgo(post.created_at)}
             </p>
           </div>
           
           {/* Comment input with Emoji Picker */}
-          <div className="border-t border-zinc-800 p-4">
+          <div className={`border-t ${t.panelBorder} p-4`}>
             <div className="relative flex items-center gap-2">
               <button aria-label="Emoji"
                 aria-expanded={showCommentEmoji} onClick={() => setShowCommentEmoji(!showCommentEmoji)}
                 className={`flex-shrink-0 p-1.5 rounded-full transition-colors ${
-                  showCommentEmoji ? 'bg-yellow-500/20 text-yellow-400' : 'text-gray-400 hover:text-white'
+                  showCommentEmoji ? t.commentBtnActive : t.commentBtnInactive
                 }`}
               >
                 <Smile className="w-5 h-5" />
@@ -1132,7 +1161,7 @@ const PostModal = ({ post, isOpen, onClose, onPostUpdated, posts, onNavigatePost
                   }
                 }}
                 placeholder="Add a comment..."
-                className="flex-1 bg-transparent text-white text-sm placeholder-gray-500 focus:outline-none"
+                className={`flex-1 bg-transparent ${t.inputText} text-sm ${t.inputPlaceholder} focus:outline-none`}
                 disabled={submittingComment}
               />
               {commentInput.trim() && (
@@ -1162,6 +1191,7 @@ const PostModal = ({ post, isOpen, onClose, onPostUpdated, posts, onNavigatePost
         post={post}
         open={shareModalOpen}
         onClose={() => setShareModalOpen(false)}
+        isLight={isLight}
       />
       
       {/* Post Menu - Desktop */}
@@ -1169,7 +1199,7 @@ const PostModal = ({ post, isOpen, onClose, onPostUpdated, posts, onNavigatePost
         post={post}
         open={postMenuOpen}
         onClose={() => setPostMenuOpen(false)}
-        isLight={false}
+        isLight={isLight}
         onPostUpdated={() => {}}
         onPostDeleted={() => { onClose(); }}
       />
