@@ -31,7 +31,9 @@ const EditBookingModal = (props) => {
     handleSavePricing, handleAddCrewMember, handleRemoveCrewMember,
     loading, user, theme, navigate, isLight, isBeach,
     textPrimaryClass, textSecondaryClass, borderClass, inputBgClass,
-    cardBgClass, mainBgClass
+    cardBgClass, mainBgClass,
+    // --- Props needed by this modal's JSX ---
+    editBooking, setEditBooking, handleSaveEdit
   } = props;
   return (
     <>

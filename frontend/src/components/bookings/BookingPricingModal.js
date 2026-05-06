@@ -10,10 +10,13 @@ import { Textarea } from '../ui/textarea';
 import {
   Calendar, Clock, MapPin, Users, DollarSign, Camera, Loader2, Check, X,
   ChevronDown, ChevronRight, Plus, Settings, Image as ImageIcon, Video,
-  Sparkles, Tag, Percent, AlertTriangle, Star, ArrowRight, RefreshCw
+  Sparkles, Tag, Percent, AlertTriangle, Star, ArrowRight, RefreshCw,
+  Navigation, Repeat
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '../ui/card';
 import { getFullUrl } from '../../utils/media';
+import { toast } from 'sonner';
+import { NumericStepper } from '../ui/numeric-stepper';
 
 const BookingPricingModal = (props) => {
   // Destructure all needed props from parent
@@ -31,7 +34,8 @@ const BookingPricingModal = (props) => {
     handleSavePricing, handleAddCrewMember, handleRemoveCrewMember,
     loading, user, theme, navigate, isLight, isBeach,
     textPrimaryClass, textSecondaryClass, borderClass, inputBgClass,
-    cardBgClass, mainBgClass
+    cardBgClass, mainBgClass,
+    handleSaveBookingPricing
   } = props;
   return (
     <>

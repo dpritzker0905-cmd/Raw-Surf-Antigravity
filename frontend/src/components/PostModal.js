@@ -122,6 +122,8 @@ const PostModal = ({ post, isOpen, onClose, onPostUpdated, posts, onNavigatePost
   const lastTapRef = useRef(0);
   
   const modalRef = useRef(null);
+  const mobileCommentInputRef = useRef(null);
+  const desktopCommentInputRef = useRef(null);
   
   // Trap focus within the modal for keyboard accessibility
   useFocusTrap(modalRef, isOpen);

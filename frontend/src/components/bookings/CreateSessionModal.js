@@ -8,12 +8,16 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Switch } from '../ui/switch';
 import { Textarea } from '../ui/textarea';
 import {
-  Calendar, Clock, MapPin, Users, DollarSign, Camera, Loader2, Check, X,
-  ChevronDown, ChevronRight, Plus, Settings, Image as ImageIcon, Video,
-  Sparkles, Tag, Percent, AlertTriangle, Star, ArrowRight, RefreshCw
+  Calendar as CalendarIcon, Clock, MapPin, Users, DollarSign, Camera, Loader2, Check, X,
+  ChevronDown, ChevronRight, ChevronLeft, Plus, Settings, Image as ImageIcon, Video,
+  Sparkles, Tag, Percent, AlertTriangle, Star, ArrowRight, RefreshCw,
+  UserPlus, Globe, Mail
 } from 'lucide-react';
+import { Calendar } from '../ui/calendar';
 import { Card, CardHeader, CardTitle, CardContent } from '../ui/card';
 import { getFullUrl } from '../../utils/media';
+import { toast } from 'sonner';
+import { NumericStepper } from '../ui/numeric-stepper';
 
 const CreateSessionModal = (props) => {
   // Destructure all needed props from parent
@@ -31,7 +35,12 @@ const CreateSessionModal = (props) => {
     handleSavePricing, handleAddCrewMember, handleRemoveCrewMember,
     loading, user, theme, navigate, isLight, isBeach,
     textPrimaryClass, textSecondaryClass, borderClass, inputBgClass,
-    cardBgClass, mainBgClass
+    cardBgClass, mainBgClass,
+    // --- Props needed by this modal's JSX ---
+    resetCreateForm, calendarStep, setCalendarStep,
+    selectedDate, setSelectedDate, selectedTime, setSelectedTime,
+    isDateDisabled, timeSlots, isSlotBooked, isTimeSlotWithinLeadTime,
+    newCrewInput, setNewCrewInput, calculateCrewTotal, calculatePerPersonSplit
   } = props;
   return (
     <>

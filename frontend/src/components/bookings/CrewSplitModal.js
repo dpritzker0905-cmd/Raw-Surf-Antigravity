@@ -10,7 +10,8 @@ import { Textarea } from '../ui/textarea';
 import {
   Calendar, Clock, MapPin, Users, DollarSign, Camera, Loader2, Check, X,
   ChevronDown, ChevronRight, Plus, Settings, Image as ImageIcon, Video,
-  Sparkles, Tag, Percent, AlertTriangle, Star, ArrowRight, RefreshCw
+  Sparkles, Tag, Percent, AlertTriangle, Star, ArrowRight, RefreshCw,
+  Link2, Copy, Send, Mail
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '../ui/card';
 import { getFullUrl } from '../../utils/media';
@@ -31,7 +32,9 @@ const CrewSplitModal = (props) => {
     handleSavePricing, handleAddCrewMember, handleRemoveCrewMember,
     loading, user, theme, navigate, isLight, isBeach,
     textPrimaryClass, textSecondaryClass, borderClass, inputBgClass,
-    cardBgClass, mainBgClass
+    cardBgClass, mainBgClass,
+    // --- Props needed by this modal's JSX ---
+    generatedSplitLink, copySplitLink, newCrewInput, setNewCrewInput
   } = props;
   return (
     <>

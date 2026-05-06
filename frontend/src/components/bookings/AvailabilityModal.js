@@ -8,10 +8,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Switch } from '../ui/switch';
 import { Textarea } from '../ui/textarea';
 import {
-  Calendar, Clock, MapPin, Users, DollarSign, Camera, Loader2, Check, X,
+  Calendar as CalendarIcon, Clock, MapPin, Users, DollarSign, Camera, Loader2, Check, X,
   ChevronDown, ChevronRight, Plus, Settings, Image as ImageIcon, Video,
-  Sparkles, Tag, Percent, AlertTriangle, Star, ArrowRight, RefreshCw
+  Sparkles, Tag, Percent, AlertTriangle, Star, ArrowRight, RefreshCw,
+  Repeat
 } from 'lucide-react';
+import { Calendar } from '../ui/calendar';
 import { Card, CardHeader, CardTitle, CardContent } from '../ui/card';
 import { getFullUrl } from '../../utils/media';
 
@@ -31,7 +33,14 @@ const AvailabilityModal = (props) => {
     handleSavePricing, handleAddCrewMember, handleRemoveCrewMember,
     loading, user, theme, navigate, isLight, isBeach,
     textPrimaryClass, textSecondaryClass, borderClass, inputBgClass,
-    cardBgClass, mainBgClass
+    cardBgClass, mainBgClass,
+    // --- Props needed by this modal's JSX ---
+    resetAvailabilityForm, availabilityView, setAvailabilityView,
+    handleGridDragEnd, weekDays, gridHours,
+    handleGridCellStart, handleGridCellEnter, weeklyGrid,
+    timePresets, newAvailability, setNewAvailability,
+    handleTimePresetSelect, toggleRecurringDay, isDateDisabled,
+    handleSaveGridAvailability
   } = props;
   return (
     <>
