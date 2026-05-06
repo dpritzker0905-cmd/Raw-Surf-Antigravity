@@ -793,10 +793,10 @@ const useFeedActions = ({
     
     try {
       if (isSaved) {
-        await apiClient.delete(`/posts/${postId}/save`);
+        await apiClient.delete(`/posts/${postId}/save?user_id=${user.id}`);
         toast.success('Post removed from saved');
       } else {
-        await apiClient.post(`/posts/${postId}/save`);
+        await apiClient.post(`/posts/${postId}/save?user_id=${user.id}`);
         toast.success('Post saved!');
       }
     } catch (error) {

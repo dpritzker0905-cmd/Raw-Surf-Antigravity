@@ -298,13 +298,11 @@ const SinglePost = () => {
     
     try {
       if (isSaved) {
-        await apiClient.delete(`/posts/${postId}/save`, {
-        });
+        await apiClient.delete(`/posts/${postId}/save?user_id=${user.id}`);
         setPost(prev => ({ ...prev, saved: false }));
         toast.success('Removed from saved');
       } else {
-        await apiClient.post(`/posts/${postId}/save`, null, {
-        });
+        await apiClient.post(`/posts/${postId}/save?user_id=${user.id}`);
         setPost(prev => ({ ...prev, saved: true }));
         toast.success('Saved!');
       }

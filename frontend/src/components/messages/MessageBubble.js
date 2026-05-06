@@ -13,13 +13,14 @@ import EphemeralCountdown from './EphemeralCountdown';
 import logger from '../../utils/logger';
 import { formatClockTime } from '../../utils/formatTime';
 
+// Must stay in sync with backend ALLOWED_REACTIONS in schemas.py
 const REACTIONS = [
   '\u{2764}\u{FE0F}',   // ❤️ Red Heart
-  '\u{1F602}',          // 😂 Face with Tears of Joy
-  '\u{1F62E}',          // 😮 Face with Open Mouth
-  '\u{1F622}',          // 😢 Crying Face
   '\u{1F525}',          // 🔥 Fire
   '\u{1F919}',          // 🤙 Call Me Hand (Shaka)
+  '\u{1F602}',          // 😂 Face with Tears of Joy
+  '\u{1F30A}',          // 🌊 Wave
+  '\u{1F4AF}',          // 💯 Hundred Points
 ];
 
 // Format timestamp for message bubble - shared utility

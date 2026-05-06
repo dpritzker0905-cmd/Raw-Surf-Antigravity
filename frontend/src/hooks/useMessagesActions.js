@@ -277,7 +277,7 @@ const useMessagesActions = ({
 
   const handleReaction = async (messageId, emoji) => {
     try {
-      await apiClient.post(`/messages/react/${messageId}`, { emoji });
+      await apiClient.post(`/messages/react/${messageId}?user_id=${user.id}`, { emoji });
       fetchConversationDetail(selectedConversation.id);
     } catch (error) {
       toast.error('Failed to add reaction');

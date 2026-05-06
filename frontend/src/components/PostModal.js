@@ -246,11 +246,11 @@ const PostModal = ({ post, isOpen, onClose, onPostUpdated, posts, onNavigatePost
     
     try {
       if (saved) {
-        await apiClient.delete(`/posts/${post.id}/save`);
+        await apiClient.delete(`/posts/${post.id}/save?user_id=${user.id}`);
         setSaved(false);
         toast.success('Removed from saved');
       } else {
-        await apiClient.post(`/posts/${post.id}/save`);
+        await apiClient.post(`/posts/${post.id}/save?user_id=${user.id}`);
         setSaved(true);
         toast.success('Saved!');
       }

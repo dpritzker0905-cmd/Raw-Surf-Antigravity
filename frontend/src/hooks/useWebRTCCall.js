@@ -830,85 +830,133 @@ export function useWebRTCCall(userId, userInfo = {}) {
   }, [isCameraOff]);
 
   // ── Flip Camera (Front ↔ Rear) ───────────────────────────────────
+  // Samsung S23 FE + many Android devices: must STOP the old camera
+  // track BEFORE requesting a new one, otherwise the browser throws
+  // OverconstrainedError or NotReadableError because the hardware
+  // handle is still held by the running track.
   const flipCamera = useCallback(async () => {
-    if (isCameraOff) return; // Can't flip if camera is off
+    if (isCameraOff) return;
     const stream = localStreamRef.current;
     if (!stream) return;
 
+    const newFacing = facingMode === 'user' ? 'environment' : 'user';
+
+    // 1. Stop the old video track FIRST to release the camera hardware
+    const oldVideoTrack = stream.getVideoTracks()[0];
+    if (oldVideoTrack) {
+      stream.removeTrack(oldVideoTrack);
+      oldVideoTrack.stop();
+    }
+
+    // 2. Small delay for hardware release (critical on Samsung/Android)
+    await new Promise(r => setTimeout(r, 300));
+
+    // 3. Try acquiring new camera — cascade: ideal → plain string → deviceId
+    let freshVideoTrack = null;
+
+    // Attempt 1: ideal facingMode (broadest compatibility)
     try {
-      const newFacing = facingMode === 'user' ? 'environment' : 'user';
-      const freshMedia = await navigator.mediaDevices.getUserMedia({
+      const media = await navigator.mediaDevices.getUserMedia({
         video: {
-          facingMode: { exact: newFacing },
+          facingMode: { ideal: newFacing },
           width: { ideal: 640 },
           height: { ideal: 480 },
         },
       });
-      const freshVideoTrack = freshMedia.getVideoTracks()[0];
+      freshVideoTrack = media.getVideoTracks()[0];
+    } catch (e1) {
+      logger.warn('[WebRTC] ideal facingMode failed:', e1.name);
+    }
 
-      if (!freshVideoTrack) {
-        toast.error('Could not access camera');
-        return;
-      }
-
-      // Stop and remove old video track
-      const oldVideoTrack = stream.getVideoTracks()[0];
-      if (oldVideoTrack) {
-        stream.removeTrack(oldVideoTrack);
-        oldVideoTrack.stop();
-      }
-      stream.addTrack(freshVideoTrack);
-
-      // Replace on peer connection sender
-      const pc = peerConnection.current;
-      if (pc) {
-        const videoSender = pc.getSenders().find(s =>
-          s.track?.kind === 'video' || (s._trackKind === 'video')
-        );
-        if (videoSender) {
-          await videoSender.replaceTrack(freshVideoTrack);
-        }
-      }
-
-      // Publish fresh stream reference for React re-render
-      const updatedStream = new MediaStream(stream.getTracks());
-      localStreamRef.current = updatedStream;
-      setLocalStream(updatedStream);
-      setFacingMode(newFacing);
-      logger.debug(`[WebRTC] ✅ Camera flipped to ${newFacing}`);
-    } catch (err) {
-      console.error('[WebRTC] Failed to flip camera:', err);
-      // Some devices don't support exact facingMode — try without 'exact'
+    // Attempt 2: plain string facingMode (no constraint wrapper)
+    if (!freshVideoTrack) {
       try {
-        const fallbackFacing = facingMode === 'user' ? 'environment' : 'user';
-        const fallbackMedia = await navigator.mediaDevices.getUserMedia({
+        const media = await navigator.mediaDevices.getUserMedia({
           video: {
-            facingMode: fallbackFacing,
+            facingMode: newFacing,
             width: { ideal: 640 },
             height: { ideal: 480 },
           },
         });
-        const fallbackTrack = fallbackMedia.getVideoTracks()[0];
-        if (fallbackTrack) {
-          const oldTrack = stream.getVideoTracks()[0];
-          if (oldTrack) { stream.removeTrack(oldTrack); oldTrack.stop(); }
-          stream.addTrack(fallbackTrack);
+        freshVideoTrack = media.getVideoTracks()[0];
+      } catch (e2) {
+        logger.warn('[WebRTC] plain facingMode failed:', e2.name);
+      }
+    }
+
+    // Attempt 3: enumerate devices and pick by deviceId
+    if (!freshVideoTrack) {
+      try {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const videoDevices = devices.filter(d => d.kind === 'videoinput');
+        // If we have multiple cameras, pick the one that's NOT the current
+        if (videoDevices.length > 1) {
+          const currentLabel = (oldVideoTrack?.label || '').toLowerCase();
+          const isFrontCurrent = currentLabel.includes('front') || currentLabel.includes('user');
+          const targetDevice = videoDevices.find(d => {
+            const label = d.label.toLowerCase();
+            return newFacing === 'environment'
+              ? (label.includes('back') || label.includes('rear') || label.includes('environment'))
+              : (label.includes('front') || label.includes('user'));
+          }) || videoDevices.find(d => d.deviceId !== (oldVideoTrack?.getSettings?.()?.deviceId || ''));
+
+          if (targetDevice) {
+            const media = await navigator.mediaDevices.getUserMedia({
+              video: {
+                deviceId: { exact: targetDevice.deviceId },
+                width: { ideal: 640 },
+                height: { ideal: 480 },
+              },
+            });
+            freshVideoTrack = media.getVideoTracks()[0];
+          }
+        }
+      } catch (e3) {
+        logger.warn('[WebRTC] enumerateDevices fallback failed:', e3.name);
+      }
+    }
+
+    if (!freshVideoTrack) {
+      // All attempts failed — re-acquire the original camera so the user isn't left with no video
+      try {
+        const recovery = await navigator.mediaDevices.getUserMedia({
+          video: { width: { ideal: 640 }, height: { ideal: 480 } },
+        });
+        const recoveryTrack = recovery.getVideoTracks()[0];
+        if (recoveryTrack) {
+          stream.addTrack(recoveryTrack);
           const pc = peerConnection.current;
           if (pc) {
-            const sender = pc.getSenders().find(s => s.track?.kind === 'video');
-            if (sender) await sender.replaceTrack(fallbackTrack);
+            const sender = pc.getSenders().find(s => s.track?.kind === 'video' || !s.track);
+            if (sender) await sender.replaceTrack(recoveryTrack);
           }
           const updated = new MediaStream(stream.getTracks());
           localStreamRef.current = updated;
           setLocalStream(updated);
-          setFacingMode(fallbackFacing);
-          logger.debug(`[WebRTC] ✅ Camera flipped (fallback) to ${fallbackFacing}`);
         }
-      } catch (fallbackErr) {
-        console.error('[WebRTC] Flip camera fallback also failed:', fallbackErr);
-        toast.error('Could not switch camera');
+      } catch { /* last resort failed */ }
+      toast.error('Could not switch camera on this device');
+      return;
+    }
+
+    // 4. Add the new track and replace on peer connection
+    stream.addTrack(freshVideoTrack);
+    const pc = peerConnection.current;
+    if (pc) {
+      const videoSender = pc.getSenders().find(s =>
+        s.track?.kind === 'video' || (s._trackKind === 'video') || !s.track
+      );
+      if (videoSender) {
+        await videoSender.replaceTrack(freshVideoTrack);
       }
     }
+
+    // 5. Publish fresh stream reference for React re-render
+    const updatedStream = new MediaStream(stream.getTracks());
+    localStreamRef.current = updatedStream;
+    setLocalStream(updatedStream);
+    setFacingMode(newFacing);
+    logger.debug(`[WebRTC] ✅ Camera flipped to ${newFacing}`);
   }, [isCameraOff, facingMode]);
 
   // ── Call Timer ────────────────────────────────────────────────────
