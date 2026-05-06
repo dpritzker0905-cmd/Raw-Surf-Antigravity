@@ -66,6 +66,36 @@ const PostModal = ({ post, isOpen, onClose, onPostUpdated, posts, onNavigatePost
     savedColor: 'text-yellow-400',
     unsavedColor: isLight ? 'text-gray-700' : 'text-white',
   };
+
+  // Mobile-specific tokens (fullscreen media viewer)
+  const m = {
+    containerBg: isLight ? 'bg-gray-50' : 'bg-black',
+    topGradient: isLight
+      ? 'bg-gradient-to-b from-white/80 to-transparent'
+      : 'bg-gradient-to-b from-black/70 to-transparent',
+    bottomGradient: isLight
+      ? 'bg-gradient-to-t from-white/95 via-white/70 to-transparent'
+      : 'bg-gradient-to-t from-black/90 via-black/60 to-transparent',
+    textPrimary: isLight ? 'text-gray-900' : 'text-white',
+    textSecondary: isLight ? 'text-gray-500' : 'text-white/70',
+    textMuted: isLight ? 'text-gray-400' : 'text-white/40',
+    textCaption: isLight ? 'text-gray-800' : 'text-white',
+    moreBtn: isLight ? 'text-gray-400' : 'text-white/60',
+    avatarRing: isLight ? 'ring-gray-300' : 'ring-white/20',
+    avatarFallbackBg: isLight ? 'bg-gray-200' : 'bg-zinc-700',
+    menuBtnHover: isLight ? 'active:bg-gray-200/50' : 'active:bg-white/10',
+    iconColor: isLight ? 'text-gray-700' : 'text-white',
+    commentText: isLight ? 'text-gray-800' : 'text-white/90',
+    commentAuthor: isLight ? 'text-gray-900' : 'text-white',
+    heartInactive: isLight ? 'text-gray-300' : 'text-white/40',
+    inputText: isLight ? 'text-gray-900' : 'text-white',
+    inputPlaceholder: isLight ? 'placeholder-gray-400' : 'placeholder-white/40',
+    emojiActive: isLight ? 'bg-yellow-500/15 text-yellow-600' : 'bg-yellow-500/20 text-yellow-400',
+    emojiInactive: isLight ? 'text-gray-400 hover:text-gray-700' : 'text-white/50 hover:text-white',
+    savedColor: 'text-yellow-400',
+    unsavedColor: isLight ? 'text-gray-700' : 'text-white',
+    pickerCloseHover: isLight ? 'hover:text-gray-900 hover:bg-gray-200/50' : 'hover:text-white hover:bg-zinc-700/50',
+  };
   
   const [comments, setComments] = useState([]);
   const [loadingComments, setLoadingComments] = useState(false);
@@ -513,7 +543,7 @@ const PostModal = ({ post, isOpen, onClose, onPostUpdated, posts, onNavigatePost
   if (isMobile) {
     return (
       <div 
-        className="fixed inset-0 z-[9999] bg-black"
+        className={`fixed inset-0 z-[9999] ${m.containerBg}`}
         data-testid="post-modal-mobile"
       >
         {/* Tap-to-close backdrop - ONLY in the image area, not top bar or bottom */}
@@ -552,40 +582,39 @@ const PostModal = ({ post, isOpen, onClose, onPostUpdated, posts, onNavigatePost
           </div>
         </div>
         
-        {/* Top Bar - Close & Author */}
         <div 
-          className="absolute top-0 left-0 right-0 bg-gradient-to-b from-black/70 to-transparent pb-12 pt-4"
+          className={`absolute top-0 left-0 right-0 ${m.topGradient} pb-12 pt-4`}
           style={{ zIndex: 10, pointerEvents: 'none' }}
         >
           <div className="flex items-center justify-between px-4 pt-2" style={{ pointerEvents: 'auto' }}>
             <button aria-label="Close"
               onClick={onClose}
-              className="p-2 text-white touch-manipulation"
+              className={`p-2 ${m.textPrimary} touch-manipulation`}
               data-testid="close-post-modal"
             ><X className="w-6 h-6" />
             </button>
             
             {/* Author Info */}
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-full bg-zinc-700 overflow-hidden ring-2 ring-white/20">
+              <div className={`w-8 h-8 rounded-full ${m.avatarFallbackBg} overflow-hidden ring-2 ${m.avatarRing}`}>
                 {post.author_avatar ? (
                   <img loading="lazy" decoding="async" src={getFullUrl(post.author_avatar)} alt="" className="w-full h-full object-cover" />
                 ) : (
-                  <span className="w-full h-full flex items-center justify-center text-sm text-white">
+                  <span className={`w-full h-full flex items-center justify-center text-sm ${m.textPrimary}`}>
                     {post.author_name?.charAt(0)}
                   </span>
                 )}
               </div>
               <div>
-                <p className="font-semibold text-white text-sm">{post.author_name}</p>
+                <p className={`font-semibold ${m.textPrimary} text-sm`}>{post.author_name}</p>
                 {post.location && (
-                  <p className="text-xs text-white/70">{post.location}</p>
+                  <p className={`text-xs ${m.textSecondary}`}>{post.location}</p>
                 )}
               </div>
             </div>
             
             <button 
-              className="p-3 text-white touch-manipulation active:bg-white/10 rounded-full"
+              className={`p-3 ${m.textPrimary} touch-manipulation ${m.menuBtnHover} rounded-full`}
               onPointerDown={(e) => {
                 e.stopPropagation();
               }}
@@ -623,7 +652,7 @@ const PostModal = ({ post, isOpen, onClose, onPostUpdated, posts, onNavigatePost
             >
               <button 
                 onClick={() => setShowReactionPicker(false)}
-                className="absolute top-1.5 right-1.5 w-6 h-6 flex items-center justify-center text-gray-500 hover:text-white rounded-full hover:bg-zinc-700/50 touch-manipulation"
+                className={`absolute top-1.5 right-1.5 w-6 h-6 flex items-center justify-center ${t.textMuted} ${m.pickerCloseHover} rounded-full touch-manipulation`}
                 style={{ zIndex: 1 }}
               >
                 <X className="w-3.5 h-3.5" />
@@ -647,7 +676,7 @@ const PostModal = ({ post, isOpen, onClose, onPostUpdated, posts, onNavigatePost
         
         {/* Bottom Overlay - Caption & Actions - highest z-index for touch */}
         <div 
-          className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 via-black/60 to-transparent pt-20 pb-6"
+          className={`absolute bottom-0 left-0 right-0 ${m.bottomGradient} pt-20 pb-6`}
           style={{ zIndex: 50 }}
         >
           {/* Actions Row */}
@@ -689,13 +718,13 @@ const PostModal = ({ post, isOpen, onClose, onPostUpdated, posts, onNavigatePost
               
               {/* Like Count */}
               {likeCount > 0 && (
-                <span className="text-white font-semibold text-sm ml-1">
+                <span className={`${m.textPrimary} font-semibold text-sm ml-1`}>
                   {likeCount.toLocaleString()}
                 </span>
               )}
               
               <button
-                className="p-3 text-white ml-2"
+                className={`p-3 ${m.iconColor} ml-2`}
                 onClick={(e) => {
                   e.stopPropagation();
                   setShowComments(true);
@@ -708,7 +737,7 @@ const PostModal = ({ post, isOpen, onClose, onPostUpdated, posts, onNavigatePost
                 <MessageCircle className="w-7 h-7" />
               </button>
               <button aria-label="Send" 
-                className="p-3 text-white touch-manipulation"
+                className={`p-3 ${m.iconColor} touch-manipulation`}
                 onClick={() => setShareModalOpen(true)}
               >
                 <Send className="w-7 h-7" />
@@ -719,7 +748,7 @@ const PostModal = ({ post, isOpen, onClose, onPostUpdated, posts, onNavigatePost
                 e.stopPropagation();
                 handleSave();
               }}
-              className={`p-3 active:scale-95 touch-manipulation select-none ${saved ? 'text-yellow-400' : 'text-white'}`}
+              className={`p-3 active:scale-95 touch-manipulation select-none ${saved ? m.savedColor : m.unsavedColor}`}
               style={{ 
                 WebkitTapHighlightColor: 'transparent'
               }}
@@ -739,8 +768,8 @@ const PostModal = ({ post, isOpen, onClose, onPostUpdated, posts, onNavigatePost
               onClick={() => setCaptionExpanded(!captionExpanded)}
               style={{ pointerEvents: 'auto' }}
             >
-              <p className="text-white text-sm">
-                <span className="font-semibold mr-1 cursor-pointer hover:underline" onClick={(e) => { e.stopPropagation(); navigate(`/profile/${post.author_id}`); }}>{post.author_name}</span>
+              <p className={`${m.textCaption} text-sm`}>
+                <span className={`font-semibold mr-1 cursor-pointer hover:underline ${m.textPrimary}`} onClick={(e) => { e.stopPropagation(); navigate(`/profile/${post.author_id}`); }}>{post.author_name}</span>
                 <RichText 
                   text={captionExpanded ? post.caption : truncatedCaption}
                   hashtagClassName="text-cyan-400 hover:text-cyan-300 cursor-pointer"
@@ -748,7 +777,7 @@ const PostModal = ({ post, isOpen, onClose, onPostUpdated, posts, onNavigatePost
                 />
               </p>
               {post.caption?.length > 100 && !captionExpanded && (
-                <button className="text-white/60 text-sm mt-1">more</button>
+                <button className={`${m.moreBtn} text-sm mt-1`}>more</button>
               )}
             </div>
           )}
@@ -756,7 +785,7 @@ const PostModal = ({ post, isOpen, onClose, onPostUpdated, posts, onNavigatePost
           {/* Comments preview */}
           {comments.length > 0 && !showComments && (
             <button 
-              className="text-white/60 text-sm px-4 mb-2" 
+              className={`${m.moreBtn} text-sm px-4 mb-2`} 
               style={{ pointerEvents: 'auto' }}
               onClick={() => setShowComments(true)}
             >
@@ -768,7 +797,7 @@ const PostModal = ({ post, isOpen, onClose, onPostUpdated, posts, onNavigatePost
           {showComments && (
             <div className="px-4 mb-2 max-h-40 overflow-y-auto" style={{ pointerEvents: 'auto' }}>
               <button 
-                className="text-white/60 text-sm mb-2"
+                className={`${m.moreBtn} text-sm mb-2`}
                 onClick={() => setShowComments(false)}
               >
                 Hide comments
@@ -778,19 +807,19 @@ const PostModal = ({ post, isOpen, onClose, onPostUpdated, posts, onNavigatePost
                 return (
                   <div key={comment.id} className="mb-3 flex items-start gap-2">
                     <div className="flex-1">
-                      <p className="text-white text-sm">
+                      <p className={`${m.commentAuthor} text-sm`}>
                         <span className="font-semibold mr-1 cursor-pointer hover:underline" onClick={(e) => { e.stopPropagation(); navigate(`/profile/${comment.author_id}`); }}>{comment.author_name}</span>
-                        <span className="text-white/90">{comment.content}</span>
+                        <span className={m.commentText}>{comment.content}</span>
                       </p>
                       <div className="flex items-center gap-3 mt-1">
-                        <span className="text-white/40 text-xs">{formatTimeAgo(comment.created_at)}</span>
+                        <span className={`${m.textMuted} text-xs`}>{formatTimeAgo(comment.created_at)}</span>
                         {(comment.likes_count > 0 || comment.reactions?.length > 0) && (
-                          <span className="text-white/40 text-xs">
+                          <span className={`${m.textMuted} text-xs`}>
                             {comment.likes_count || comment.reactions?.length || 0} likes
                           </span>
                         )}
                         <button 
-                          className="text-white/40 text-xs font-semibold"
+                          className={`${m.textMuted} text-xs font-semibold`}
                           onClick={() => {/* Reply functionality */}}
                         >
                           Reply
@@ -802,7 +831,7 @@ const PostModal = ({ post, isOpen, onClose, onPostUpdated, posts, onNavigatePost
                       onClick={() => handleLikeComment(comment.id)}
                     >
                       <Heart 
-                        className={`w-4 h-4 ${isLiked ? 'text-red-500 fill-red-500' : 'text-white/40'}`}
+                        className={`w-4 h-4 ${isLiked ? 'text-red-500 fill-red-500' : m.heartInactive}`}
                       />
                     </button>
                   </div>
@@ -816,7 +845,7 @@ const PostModal = ({ post, isOpen, onClose, onPostUpdated, posts, onNavigatePost
             <button aria-label="Emoji"
               aria-expanded={showCommentEmoji} onClick={() => setShowCommentEmoji(!showCommentEmoji)}
               className={`flex-shrink-0 p-1.5 rounded-full transition-colors ${
-                showCommentEmoji ? 'bg-yellow-500/20 text-yellow-400' : 'text-white/50 hover:text-white'
+                showCommentEmoji ? m.emojiActive : m.emojiInactive
               }`}
             >
               <Smile className="w-5 h-5" />
@@ -833,7 +862,7 @@ const PostModal = ({ post, isOpen, onClose, onPostUpdated, posts, onNavigatePost
                   setShowCommentEmoji(false);
                 }
               }}
-              className="flex-1 bg-transparent text-white text-sm placeholder-white/40 outline-none"
+              className={`flex-1 bg-transparent ${m.inputText} text-sm ${m.inputPlaceholder} outline-none`}
             />
             {commentInput.trim() && (
               <button
@@ -855,7 +884,7 @@ const PostModal = ({ post, isOpen, onClose, onPostUpdated, posts, onNavigatePost
           </div>
           
           {/* Timestamp */}
-          <p className="text-white/40 text-xs uppercase px-4 pb-4">
+          <p className={`${m.textMuted} text-xs uppercase px-4 pb-4`}>
             {formatTimeAgo(post.created_at)}
           </p>
         </div>
