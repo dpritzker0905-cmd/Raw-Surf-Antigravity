@@ -462,8 +462,19 @@ export const MessagesPage = () => {
     return () => clearInterval(interval);
   }, [selectedConversation?.id, user?.id]);
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  // Track whether initial scroll has happened for this conversation
+  const initialScrollDoneRef = useRef(false);
+  
+  // Reset initial scroll flag when conversation changes
+  useEffect(() => {
+    initialScrollDoneRef.current = false;
+  }, [selectedConvId]);
+
+  const scrollToBottom = (instant = false) => {
+    messagesEndRef.current?.scrollIntoView({ 
+      behavior: instant || !initialScrollDoneRef.current ? 'auto' : 'smooth' 
+    });
+    initialScrollDoneRef.current = true;
   };
 
   const loadConversationById = async (convId) => {

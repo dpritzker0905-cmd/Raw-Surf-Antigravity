@@ -415,12 +415,18 @@ async def get_conversation_messages(conversation_id: str, user_id: str, db: Asyn
     is_muted = conversation.is_muted_for_one if is_participant_one else conversation.is_muted_for_two
     is_manually_unread = conversation.is_unread_for_one if is_participant_one else conversation.is_unread_for_two
     
+    # Use last message time from this conversation as proxy for "last active"
+    # This is much more accurate than profile.updated_at which only tracks profile edits
+    other_user_msgs = [m for m in conversation.messages if m.sender_id != user_id]
+    other_user_last_msg = max((m.created_at for m in other_user_msgs), default=None) if other_user_msgs else None
+    other_user_last_active = other_user_last_msg or (conversation.last_message_at if conversation.last_message_at else None)
+    
     return ConversationDetailResponse(
         id=conversation.id,
         other_user_id=other_user.id if other_user else "",
         other_user_name=other_user.full_name if other_user else None,
         other_user_avatar=other_user.avatar_url if other_user else None,
-        other_user_last_active=other_user.updated_at if other_user else None,
+        other_user_last_active=other_user_last_active,
         messages=messages,
         is_request=(my_status == 'request'),
         is_pinned=is_pinned or False,

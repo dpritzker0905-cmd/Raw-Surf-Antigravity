@@ -623,11 +623,11 @@ const LiveCommentsFeed = ({ streamId, colors, onSendComment, onLikeComment, isEx
 const QuickReactions = ({ onReact, colors }) => {
   const reactions = [
     { emoji: String.fromCodePoint(0x1F919), label: 'shaka' },
-    { emoji: 'ðŸŒŠ', label: 'wave' },
-    { emoji: 'ðŸ”¥', label: 'fire' },
-    { emoji: 'â¤ï¸', label: 'love' },
+    { emoji: '\u{1F30A}', label: 'wave' },
+    { emoji: '\u{1F525}', label: 'fire' },
+    { emoji: '\u{2764}\u{FE0F}', label: 'love' },
     { emoji: String.fromCodePoint(0x1F3C4), label: 'surf' },
-    { emoji: 'ðŸ˜®', label: 'wow' },
+    { emoji: '\u{1F62E}', label: 'wow' },
   ];
 
   return (
@@ -891,7 +891,7 @@ const BroadcasterControls = ({
     setActiveHairStyle(styleId);
     setShowHairPicker(false); // Auto-close picker on selection
     if (styleId) {
-      toast.success('Hair filter applied! âœ¨');
+      toast.success('Hair filter applied! \u{2728}');
     }
   }, []);
 

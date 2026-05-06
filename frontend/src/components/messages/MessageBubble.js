@@ -13,7 +13,14 @@ import EphemeralCountdown from './EphemeralCountdown';
 import logger from '../../utils/logger';
 import { formatClockTime } from '../../utils/formatTime';
 
-const REACTIONS = ['💬', '💬', '💬', '💬', '💬', '💬'];
+const REACTIONS = [
+  '\u{2764}\u{FE0F}',   // ❤️ Red Heart
+  '\u{1F602}',          // 😂 Face with Tears of Joy
+  '\u{1F62E}',          // 😮 Face with Open Mouth
+  '\u{1F622}',          // 😢 Crying Face
+  '\u{1F525}',          // 🔥 Fire
+  '\u{1F919}',          // 🤙 Call Me Hand (Shaka)
+];
 
 // Format timestamp for message bubble - shared utility
 const formatTime = formatClockTime;
