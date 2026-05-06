@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import { X, ChevronLeft, ChevronRight, MapPin, Play, Pause, Camera, Waves, Plus, Loader2, Image, Video, Bell } from 'lucide-react';
@@ -10,6 +10,7 @@ import { supabase } from '../lib/supabase';
 import LiveStreamViewer from './LiveStreamViewer';
 import { getFullUrl } from '../utils/media';
 import logger from '../utils/logger';
+import useStoriesActions from '../hooks/useStoriesActions';
 
 
 // Story ring colors - Ring System
@@ -37,182 +38,32 @@ const getStoryRingColor = (authorGroup, isViewed = false) => {
 
 export const StoriesBar = ({ onCreateStory, onTierChange, selectedTier }) => {
   const { user } = useAuth();
-  const [stories, setStories] = useState({ photographer_stories: [], surfer_stories: [] });
-  const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState(selectedTier || 'all'); // 'all', 'photographers', 'surfers'
-  const [selectedAuthor, setSelectedAuthor] = useState(null);
-  const [viewerLocation, setViewerLocation] = useState(null);
-  const [newStoryNotification, setNewStoryNotification] = useState(null);
   const scrollRef = useRef(null);
-  
-  // Live Stream Viewer state - for joining RED ring broadcasts
-  const [liveStreamInfo, setLiveStreamInfo] = useState(null);
-  const [showLiveViewer, setShowLiveViewer] = useState(false);
-  const [connectingToStream, setConnectingToStream] = useState(null); // Track connecting state for pulse animation
 
-  // Sync with external tier selection
-  useEffect(() => {
-    if (selectedTier && selectedTier !== activeTab) {
-      setActiveTab(selectedTier);
-    }
-  }, [selectedTier]);
-
-  // Handle tab change and notify parent
-  const handleTabChange = (tab) => {
-    setActiveTab(tab);
-    if (onTierChange) {
-      onTierChange(tab);
-    }
-  };
-
-  // Initial fetch and location
-  useEffect(() => {
-    if (user?.id) {
-      fetchStories();
-      getViewerLocation();
-    }
-  }, [user?.id]);
-
-  // Supabase Realtime subscription for new stories
-  // NOTE: Kept as postgres_changes because stories table is low-volume (a few writes/hour)
-  // and instant notifications are important for the social experience.
-  // The real egress savings come from the N+1 query fix in explore.py (30+ queries ? 1).
-  useEffect(() => {
-    if (!user?.id) return;
-
-    const channel = supabase
-      .channel('stories-realtime')
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'stories'
-        },
-        (payload) => {
-          logger.debug('[Stories Realtime] New story:', payload.new);
-          
-          // Don't show notification for own stories
-          if (payload.new.author_id === user.id) {
-            fetchStories(); // Just refresh silently
-            return;
-          }
-
-          // Show notification toast for new stories
-          const isPhotographer = ['Photographer', 'Approved Pro', 'Hobbyist'].includes(payload.new.author_role);
-          const icon = isPhotographer ? String.fromCodePoint(0x1F4F8) : String.fromCodePoint(0x1F3C4);
-          
-          setNewStoryNotification(payload.new);
-          toast(`${icon} New story!`, {
-            description: `${payload.new.author_name || 'Someone'} just posted a new story`,
-            action: {
-              label: 'View',
-              onClick: async () => {
-                setNewStoryNotification(null);
-                // Check if the author is currently live - deep-link straight into the viewer
-                try {
-                  const streamsRes = await apiClient.get('/livekit/active-streams');
-                  const liveStream = streamsRes.data.streams?.find(
-                    s => s.broadcaster_id === payload.new.author_id
-                  );
-                  if (liveStream) {
-                    setLiveStreamInfo({
-                      id: liveStream.id,
-                      room_name: liveStream.room_name,
-                      broadcaster_id: liveStream.broadcaster_id,
-                      broadcaster_name: liveStream.broadcaster_name || payload.new.author_name,
-                      broadcaster_username: liveStream.broadcaster_username,
-                      broadcaster_avatar: liveStream.broadcaster_avatar,
-                      viewer_count: liveStream.viewer_count,
-                      title: liveStream.title
-                    });
-                    setShowLiveViewer(true);
-                    return; // Skip generic refresh - we're opening the viewer
-                  }
-                } catch {
-                  // Fall through to normal refresh if stream lookup fails
-                }
-                fetchStories();
-              }
-            }
-          });
-
-          // Auto-refresh after 2 seconds
-          setTimeout(() => {
-            fetchStories();
-            setNewStoryNotification(null);
-          }, 2000);
-        }
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: 'DELETE',
-          schema: 'public',
-          table: 'stories'
-        },
-        (payload) => {
-          logger.debug('[Stories Realtime] Story deleted:', payload.old);
-          fetchStories(); // Refresh to remove deleted story
-        }
-      )
-      .subscribe((status) => {
-        logger.debug('[Stories Realtime] Subscription status:', status);
-      });
-
-    // Cleanup subscription on unmount
-    return () => {
-      logger.debug('[Stories Realtime] Cleaning up subscription');
-      supabase.removeChannel(channel);
-    };
-  }, [user?.id]);
-
-  const getViewerLocation = () => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => setViewerLocation({ lat: pos.coords.latitude, lon: pos.coords.longitude }),
-        () => logger.debug('Location access denied')
-      );
-    }
-  };
-
-  const fetchStories = async () => {
-    try {
-      const params = new URLSearchParams({ viewer_id: user.id });
-      if (viewerLocation) {
-        params.append('viewer_lat', viewerLocation.lat);
-        params.append('viewer_lon', viewerLocation.lon);
-      }
-      
-      const response = await apiClient.get(`/stories/feed?${params}`);
-      setStories(response.data);
-    } catch (error) {
-      logger.error('Error fetching stories:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const getDisplayStories = () => {
-    let storyList = [];
-    if (activeTab === 'photographers') storyList = stories.photographer_stories || [];
-    else if (activeTab === 'surfers') storyList = stories.surfer_stories || [];
-    else storyList = stories.all || [];
-    
-    // Sort stories: RED (is_live) at front, then BLUE (has_unviewed), then CLEAR (viewed)
-    return [...storyList].sort((a, b) => {
-      // Live broadcasts (RED ring) always first
-      if (a.is_live && !b.is_live) return -1;
-      if (!a.is_live && b.is_live) return 1;
-      // Then unviewed (BLUE ring)
-      if (a.has_unviewed && !b.has_unviewed) return -1;
-      if (!a.has_unviewed && b.has_unviewed) return 1;
-      // Keep original order for same priority
-      return 0;
-    });
-  };
-
-  const displayStories = getDisplayStories();
+  // ============ HANDLERS EXTRACTED TO hooks/useStoriesActions.js ============
+  const {
+    stories,
+    loading,
+    activeTab,
+    selectedAuthor,
+    setSelectedAuthor,
+    viewerLocation,
+    newStoryNotification,
+    setNewStoryNotification,
+    liveStreamInfo,
+    setLiveStreamInfo,
+    showLiveViewer,
+    setShowLiveViewer,
+    connectingToStream,
+    displayStories,
+    handleTabChange,
+    handleStoryCircleClick,
+    fetchStories,
+  } = useStoriesActions({
+    user,
+    selectedTier,
+    onTierChange,
+  });
 
   const scroll = (direction) => {
     if (scrollRef.current) {
@@ -221,49 +72,6 @@ export const StoriesBar = ({ onCreateStory, onTierChange, selectedTier }) => {
         left: direction === 'left' ? -scrollAmount : scrollAmount,
         behavior: 'smooth'
       });
-    }
-  };
-
-  /**
-   * Handle story circle click - RED rings open live viewer, others open story viewer
-   */
-  const handleStoryCircleClick = async (authorGroup) => {
-    if (authorGroup.is_live) {
-      // RED ring - Join live broadcast with connecting pulse
-      setConnectingToStream(authorGroup.author_id);
-      
-      try {
-        // Fetch active stream info for this user
-        const response = await apiClient.get(`/livekit/active-streams`);
-        const liveStream = response.data.streams?.find(
-          s => s.broadcaster_id === authorGroup.author_id
-        );
-        
-        if (liveStream) {
-          setLiveStreamInfo({
-            id: liveStream.id,
-            room_name: liveStream.room_name,
-            broadcaster_id: liveStream.broadcaster_id,
-            broadcaster_name: liveStream.broadcaster_name || authorGroup.author_name,
-            broadcaster_username: liveStream.broadcaster_username || authorGroup.author_username,
-            broadcaster_avatar: liveStream.broadcaster_avatar || authorGroup.author_avatar,
-            viewer_count: liveStream.viewer_count,
-            title: liveStream.title
-          });
-          setShowLiveViewer(true);
-        } else {
-          toast.error('Stream is no longer live');
-          fetchStories(); // Refresh to update status
-        }
-      } catch (error) {
-        logger.error('Failed to get live stream info:', error);
-        toast.error('Failed to join stream');
-      } finally {
-        setConnectingToStream(null);
-      }
-    } else {
-      // Regular story - open story viewer
-      setSelectedAuthor(authorGroup);
     }
   };
 
