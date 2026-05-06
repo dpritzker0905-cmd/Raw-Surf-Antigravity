@@ -121,6 +121,7 @@ export const StoriesBar = ({ onCreateStory, onTierChange, selectedTier }) => {
                       room_name: liveStream.room_name,
                       broadcaster_id: liveStream.broadcaster_id,
                       broadcaster_name: liveStream.broadcaster_name || payload.new.author_name,
+                      broadcaster_username: liveStream.broadcaster_username,
                       broadcaster_avatar: liveStream.broadcaster_avatar,
                       viewer_count: liveStream.viewer_count,
                       title: liveStream.title
@@ -244,6 +245,7 @@ export const StoriesBar = ({ onCreateStory, onTierChange, selectedTier }) => {
             room_name: liveStream.room_name,
             broadcaster_id: liveStream.broadcaster_id,
             broadcaster_name: liveStream.broadcaster_name || authorGroup.author_name,
+            broadcaster_username: liveStream.broadcaster_username || authorGroup.author_username,
             broadcaster_avatar: liveStream.broadcaster_avatar || authorGroup.author_avatar,
             viewer_count: liveStream.viewer_count,
             title: liveStream.title

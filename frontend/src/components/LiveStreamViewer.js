@@ -22,9 +22,10 @@ import {
   VideoTrack,
   useTracks,
   RoomAudioRenderer,
+  useDataChannel,
 } from '@livekit/components-react';
 import '@livekit/components-styles';
-import { Track } from 'livekit-client';
+import { Track, DataPacket_Kind } from 'livekit-client';
 import logger from '../utils/logger';
 import { getFullUrl } from '../utils/media';
 import useFocusTrap from '../hooks/useFocusTrap';
@@ -187,22 +188,42 @@ const ViewerRoomContent = ({
   const [isChatOpen, setIsChatOpen]   = useState(true);
   const [emojiBursts, setEmojiBursts] = useState([]);
 
-  // Viewer reaction handler — fire-and-forget animation + API notify
+  // ── LiveKit DataChannel for real-time emoji reactions ──
+  // Reactions are broadcast via LiveKit data messages on the 'reactions' topic.
+  // This allows the broadcaster to see viewer reactions and vice versa.
+  const onReactionReceived = useCallback((msg) => {
+    try {
+      const strData = new TextDecoder().decode(msg.payload);
+      const { emoji } = JSON.parse(strData);
+      if (!emoji) return;
+      const id = Date.now() + Math.random();
+      const x = 20 + Math.random() * 120;
+      const y = window.innerHeight * 0.35 + Math.random() * 100;
+      setEmojiBursts(prev => [...prev, { id, emoji, x, y }]);
+      setTimeout(() => setEmojiBursts(prev => prev.filter(b => b.id !== id)), 1800);
+    } catch { /* ignore malformed */ }
+  }, []);
+
+  const { send: sendReaction } = useDataChannel('reactions', onReactionReceived);
+
+  // Viewer reaction handler — local animation + DataChannel broadcast
   const handleReaction = useCallback((emoji) => {
+    // Show locally immediately
     const id = Date.now() + Math.random();
-    // Random position in lower-right quadrant of video
     const x = 60 + Math.random() * 80;
     const y = window.innerHeight * 0.45 + Math.random() * 80;
     setEmojiBursts(prev => [...prev, { id, emoji, x, y }]);
     setTimeout(() => setEmojiBursts(prev => prev.filter(b => b.id !== id)), 1800);
 
-    // Fire-and-forget API notify
-    if (streamId) {
-      apiClient.post(`/social-live/${streamId}/reaction`, {
-        user_id: userId, emoji
-      }).catch(() => {});
+    // Broadcast to all room participants via LiveKit DataChannel
+    try {
+      const encoder = new TextEncoder();
+      const payload = encoder.encode(JSON.stringify({ emoji }));
+      sendReaction(payload, { kind: DataPacket_Kind.RELIABLE });
+    } catch (err) {
+      logger.warn('[LiveViewer] Failed to send reaction via DataChannel:', err.message);
     }
-  }, [streamId, userId]);
+  }, [sendReaction]);
 
   const tracks = useTracks([Track.Source.Camera], { onlySubscribed: true });
   const broadcasterTrack = tracks.find(t => !t.participant?.isLocal);
@@ -238,7 +259,7 @@ const ViewerRoomContent = ({
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
-                    <span className="text-white font-semibold text-sm">{broadcaster?.name || 'Live Stream'}</span>
+                    <span className="text-white font-semibold text-sm">{broadcaster?.username ? `@${broadcaster.username}` : broadcaster?.name || 'Live Stream'}</span>
                     <div className="flex items-center gap-1 bg-red-600 px-2 py-0.5 rounded-full animate-pulse">
                       <Radio className="w-3 h-3 text-white" />
                       <span className="text-white text-[10px] font-bold">LIVE</span>
@@ -462,6 +483,7 @@ const LiveStreamViewer = ({ isOpen, onClose, streamInfo }) => {
   const broadcaster = {
     id: streamInfo?.broadcaster_id,
     name: streamInfo?.broadcaster_name,
+    username: streamInfo?.broadcaster_username,
     avatar_url: streamInfo?.broadcaster_avatar
   };
 

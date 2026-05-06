@@ -146,13 +146,18 @@ const PostModal = ({ post, isOpen, onClose, onPostUpdated, posts, onNavigatePost
   }, [isOpen, post?.id]);
   
   // Handle browser back button - close modal instead of navigating away
+  // IMPORTANT: We must track whether close was triggered by popstate to avoid double-popping.
+  const closedByPopstateRef = useRef(false);
+  
   useEffect(() => {
     if (isOpen) {
+      closedByPopstateRef.current = false;
       // Push a state to history when modal opens
       window.history.pushState({ modal: 'post' }, '');
       
-      const handlePopState = (_e) => {
-        // When back is pressed, close the modal
+      const handlePopState = () => {
+        // Back button was pressed — close the modal WITHOUT calling history.back()
+        closedByPopstateRef.current = true;
         onClose();
       };
       
@@ -160,6 +165,11 @@ const PostModal = ({ post, isOpen, onClose, onPostUpdated, posts, onNavigatePost
       
       return () => {
         window.removeEventListener('popstate', handlePopState);
+        // If modal was closed by X button / overlay (not by popstate),
+        // we need to pop the orphaned history entry we pushed.
+        if (!closedByPopstateRef.current && window.history.state?.modal === 'post') {
+          window.history.back();
+        }
       };
     }
   }, [isOpen, onClose]);

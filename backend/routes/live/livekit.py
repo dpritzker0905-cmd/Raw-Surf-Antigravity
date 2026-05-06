@@ -289,6 +289,7 @@ async def start_livekit_stream(
                 "stream_id": stream.id,
                 "room_name": room_name,
                 "broadcaster_name": broadcaster.full_name,
+                "broadcaster_username": broadcaster.username,
                 "broadcaster_avatar": broadcaster.avatar_url,
                 "title": request.title
             }
@@ -436,6 +437,7 @@ async def start_social_live(
                 "stream_id": stream.id,
                 "room_name": room_name,
                 "broadcaster_name": request.broadcaster_name or broadcaster.full_name,
+                "broadcaster_username": broadcaster.username,
                 "broadcaster_avatar": broadcaster.avatar_url,
             }
         )
@@ -608,6 +610,7 @@ async def get_active_livekit_streams(db: AsyncSession = Depends(get_db)):
                 "title": s.title,
                 "broadcaster_id": s.broadcaster_id,
                 "broadcaster_name": s.broadcaster.full_name if s.broadcaster else None,
+                "broadcaster_username": s.broadcaster.username if s.broadcaster else None,
                 "broadcaster_avatar": s.broadcaster.avatar_url if s.broadcaster else None,
                 "viewer_count": s.viewer_count,
                 "started_at": s.started_at.isoformat() if s.started_at else None

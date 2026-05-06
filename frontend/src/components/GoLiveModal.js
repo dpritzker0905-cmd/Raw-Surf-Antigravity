@@ -28,12 +28,13 @@ import {
   useTracks,
   RoomAudioRenderer,
   useConnectionState,
+  useDataChannel,
 } from '@livekit/components-react';
 import { WebGLBroadcastController } from './WebGLBroadcastController';
 
 import '@livekit/components-styles';
 
-import { Track, ConnectionState } from 'livekit-client';
+import { Track, ConnectionState, DataPacket_Kind } from 'livekit-client';
 
 import logger from '../utils/logger';
 import { getFullUrl } from '../utils/media';
@@ -166,20 +167,47 @@ const BroadcasterControls = ({
     // Throws on error so CommentTile can revert the optimistic update
   }, [streamId, userId]);
 
+  // ── LiveKit DataChannel for real-time emoji reactions ──
+  // Reactions received from viewers appear as floating emoji bursts on the broadcaster's screen.
+  const onReactionReceived = useCallback((msg) => {
+    try {
+      const strData = new TextDecoder().decode(msg.payload);
+      const { emoji } = JSON.parse(strData);
+      if (!emoji) return;
+      const id = Date.now() + Math.random();
+      const x = Math.random() * 100 + 100;
+      const y = window.innerHeight - 200;
+      setEmojiBursts(prev => [...prev, { id, emoji, x, y }]);
+      setLikeCount(prev => prev + 1);
+      setTimeout(() => setEmojiBursts(prev => prev.filter(b => b.id !== id)), 1500);
+    } catch { /* ignore malformed */ }
+  }, []);
+
+  const { send: sendReaction } = useDataChannel('reactions', onReactionReceived);
+
   const handleReaction = useCallback((emoji) => {
-    // Add emoji burst animation
+    // Show locally immediately
     const id = Date.now();
-    const x = Math.random() * 100 + 100; // Random x position
+    const x = Math.random() * 100 + 100;
     const y = window.innerHeight - 200;
     
     setEmojiBursts(prev => [...prev, { id, emoji, x, y }]);
     setLikeCount(prev => prev + 1);
     
+    // Broadcast to all room participants
+    try {
+      const encoder = new TextEncoder();
+      const payload = encoder.encode(JSON.stringify({ emoji }));
+      sendReaction(payload, { kind: DataPacket_Kind.RELIABLE });
+    } catch (err) {
+      logger.warn('[GoLive] Failed to send reaction via DataChannel:', err.message);
+    }
+    
     // Remove after animation
     setTimeout(() => {
       setEmojiBursts(prev => prev.filter(b => b.id !== id));
     }, 1500);
-  }, []);
+  }, [sendReaction]);
 
   // -- Hair Filter Engine lifecycle --
   useEffect(() => {
