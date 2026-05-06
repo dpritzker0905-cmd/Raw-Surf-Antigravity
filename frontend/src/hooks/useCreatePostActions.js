@@ -421,25 +421,41 @@ const useCreatePostActions = ({
         );
 
         if (isVideo) {
-          // Videos still go through server upload for transcoding
+          // Videos go through server upload — use generous timeout for mobile
           const formData = new FormData();
           formData.append('file', file);
           formData.append('user_id', user.id);
-          const uploadResponse = await apiClient.post(`/upload/feed`, formData, {
-            headers: { 'Content-Type': 'multipart/form-data' },
-            onUploadProgress: (progressEvent) => {
-              const fileProgress = Math.round((progressEvent.loaded * 100) / progressEvent.total);
-              const overallProgress = Math.round(((i + fileProgress / 100) / selectedFiles.length) * 100);
-              setUploadProgress(overallProgress);
+          try {
+            const uploadResponse = await apiClient.post(`/upload/feed`, formData, {
+              headers: { 'Content-Type': 'multipart/form-data' },
+              timeout: 300000, // 5 minute timeout for mobile video uploads
+              onUploadProgress: (progressEvent) => {
+                const fileProgress = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+                const overallProgress = Math.round(((i + fileProgress / 100) / selectedFiles.length) * 100);
+                setUploadProgress(overallProgress);
+                // Update status message based on progress
+                if (fileProgress >= 100) {
+                  setProcessingStatus('Processing video on server...');
+                }
+              }
+            });
+            uploadedMedia.push({
+              url: uploadResponse.data.media_url,
+              type: uploadResponse.data.media_type,
+              thumbnail_url: uploadResponse.data.thumbnail_url,
+              width: uploadResponse.data.final_width,
+              height: uploadResponse.data.final_height
+            });
+          } catch (uploadErr) {
+            logger.error('Video upload failed:', uploadErr);
+            const detail = uploadErr.response?.data?.detail;
+            if (uploadErr.code === 'ECONNABORTED' || uploadErr.message?.includes('timeout')) {
+              toast.error('Video upload timed out. Try a shorter or smaller video.');
+            } else {
+              toast.error(detail || 'Video upload failed. Please try again.');
             }
-          });
-          uploadedMedia.push({
-            url: uploadResponse.data.media_url,
-            type: uploadResponse.data.media_type,
-            thumbnail_url: uploadResponse.data.thumbnail_url,
-            width: uploadResponse.data.final_width,
-            height: uploadResponse.data.final_height
-          });
+            return; // Exit early - don't try to create post without media
+          }
         } else {
           // Images: compress and store as base64 directly in DB (no ephemeral disk)
           const base64 = await compressImageToBase64(file);
@@ -464,16 +480,13 @@ const useCreatePostActions = ({
         location: location || null,
         video_width: uploadedMedia[0].width || null,
         video_height: uploadedMedia[0].height || null,
-        is_carousel: isCarousel,
-        carousel_media: isCarousel ? uploadedMedia : []
+        // Send mentions so backend can create notifications
+        mentions: mentions.length > 0 ? mentions.map(m => ({
+          user_id: m.user_id,
+          username: m.username,
+          full_name: m.full_name
+        })) : null
       };
-      
-      // Store mentions separately for notification purposes (not on Post model)
-      const _mentionsToNotify = mentions.length > 0 ? mentions.map(m => ({
-        user_id: m.user_id,
-        username: m.username,
-        full_name: m.full_name
-      })) : [];
 
       // Add session metadata if enabled
       if (showSessionData) {

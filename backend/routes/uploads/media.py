@@ -8,9 +8,24 @@ from typing import Optional
 import uuid
 import json
 import os
+import shutil
+import asyncio
+import logging
 from models import GalleryItem, Profile
+from .core import (
+    UPLOAD_DIR, ALLOWED_IMAGE_TYPES, ALLOWED_VIDEO_TYPES,
+    MAX_FILE_SIZE, MAX_IMAGE_SIZE, STREAM_CHUNK_SIZE,
+    SUPABASE_STORAGE_AVAILABLE,
+    upload_to_supabase_storage, get_file_extension,
+    _cached_file_response, _SHORT_CACHE,
+)
+from utils.video_processor import (
+    get_video_info, process_video_from_path, process_video_upload,
+    generate_video_thumbnail
+)
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 @router.post("/upload/feed")
 async def upload_feed_media(
@@ -84,7 +99,24 @@ async def upload_feed_media(
         )
 
         if not success:
-            raise HTTPException(status_code=400, detail=f"Video processing failed: {error}")
+            # ── Fallback: keep raw video when processing fails (no ffmpeg / OOM / timeout) ──
+            logger.warning(f"Feed video processing failed ({error}), keeping raw video")
+            raw_filename = f"{uuid.uuid4()}.mp4"
+            raw_path = feed_dir / raw_filename
+            if temp_path.exists():
+                shutil.move(str(temp_path), str(raw_path))
+            else:
+                raise HTTPException(status_code=500, detail="Video processing failed and source lost")
+            result = {
+                'filename': raw_filename,
+                'original_width': 0,
+                'original_height': 0,
+                'final_width': 0,
+                'final_height': 0,
+                'duration': 0,
+                'was_transcoded': False,
+                'size': file_size,
+            }
 
         gc.collect()
 
@@ -92,14 +124,18 @@ async def upload_feed_media(
         thumbnail_filename = f"{result['filename'].rsplit('.', 1)[0]}_thumb.jpg"
         thumbnail_path = feed_dir / thumbnail_filename
 
-        # Generate smart thumbnail
+        # Generate smart thumbnail (graceful if ffmpeg unavailable)
         thumbnail_url = None
-        thumb_success, _ = await asyncio.to_thread(
-            generate_video_thumbnail,
-            str(video_path),
-            str(thumbnail_path),
-            'smart'
-        )
+        try:
+            thumb_success, _ = await asyncio.to_thread(
+                generate_video_thumbnail,
+                str(video_path),
+                str(thumbnail_path),
+                'smart'
+            )
+        except Exception as thumb_err:
+            logger.warning(f"Feed thumbnail generation skipped: {thumb_err}")
+            thumb_success = False
 
         gc.collect()
 

@@ -146,6 +146,7 @@ export const CreateWaveModal = ({ isOpen, onClose, onSuccess }) => {
       
       const uploadResponse = await apiClient.post(`/upload/wave`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
+        timeout: 300000, // 5 minute timeout for mobile video uploads
         onUploadProgress: (progressEvent) => {
           const progress = Math.round((progressEvent.loaded * 100) / progressEvent.total);
           setUploadProgress(progress);
