@@ -12,7 +12,7 @@ import {
 } from 'lucide-react';
 import logger from '../utils/logger';
 import { ROLES } from '../constants/roles';
-import { isGrom } from '../lib/roles';
+import { isGrom } from '../constants/roles';
 import { submitPurchaseRequest } from '../utils/gromPurchase';
 import { getFullUrl } from '../utils/media';
 
@@ -153,7 +153,7 @@ export const GearHub = () => {
   const isHobbyist = user?.role === ROLES.HOBBYIST || user?.role === ROLES.GROM_PARENT || user?.is_grom_parent === true;
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-black via-zinc-950 to-black pb-20 md:pb-6">
+    <div data-testid="gear-hub-page" className="min-h-screen bg-gradient-to-b from-black via-zinc-950 to-black pb-20 md:pb-6">
       {/* Header */}
       <div className="relative bg-gradient-to-r from-amber-600/20 via-orange-500/10 to-amber-600/20 border-b border-amber-500/20">
         <div className="max-w-6xl mx-auto px-4 py-8">
@@ -202,7 +202,7 @@ export const GearHub = () => {
               <div className="flex items-center gap-4">
                 <div className="w-16 h-16 bg-zinc-800 rounded-lg overflow-hidden flex-shrink-0">
                   {targetGear.image_url ? (
-                    <img src={getFullUrl(targetGear.image_url)} alt={targetGear.name} className="w-full h-full object-cover" />
+                    <img loading="lazy" decoding="async" src={getFullUrl(targetGear.image_url)} alt={targetGear.name} className="w-full h-full object-cover" />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center">
                       <Target className="w-8 h-8 text-zinc-500" />
@@ -241,7 +241,7 @@ export const GearHub = () => {
         <div className="flex flex-col md:flex-row gap-4">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-500" />
-            <Input
+            <Input aria-label="Search cameras, lenses, surfboards..."
               type="text"
               placeholder="Search cameras, lenses, surfboards..."
               value={searchQuery}
@@ -266,7 +266,7 @@ export const GearHub = () => {
           {Object.entries(CATEGORY_LABELS).map(([key, label]) => {
             const Icon = CATEGORY_ICONS[key];
             return (
-              <button
+              <button aria-label="Icon"
                 key={key}
                 onClick={() => setSelectedCategory(key)}
                 className={`px-4 py-2 rounded-full text-sm font-medium transition-all flex items-center gap-2 ${
@@ -317,7 +317,7 @@ export const GearHub = () => {
                   {/* Product Image */}
                   <div className="aspect-video bg-zinc-800 relative">
                     {item.image_url ? (
-                      <img 
+                      <img loading="lazy" decoding="async" 
                         src={getFullUrl(item.image_url)} 
                         alt={item.name}
                         className="w-full h-full object-cover"
@@ -385,7 +385,7 @@ export const GearHub = () => {
                     {/* Actions */}
                     <div className="flex gap-2">
                       {canAfford ? (
-                        <Button
+                        <Button aria-label="Loader2"
                           onClick={() => handlePurchase(item)}
                           disabled={purchasing === item.id}
                           className="flex-1 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-black font-semibold"
@@ -399,7 +399,7 @@ export const GearHub = () => {
                           Redeem Credits
                         </Button>
                       ) : (
-                        <Button
+                        <Button aria-label="Target"
                           onClick={() => setAsTarget(item)}
                           variant="outline"
                           className="flex-1 border-amber-500/50 text-amber-400 hover:bg-amber-500/10"
@@ -408,7 +408,7 @@ export const GearHub = () => {
                           Set as Goal
                         </Button>
                       )}
-                      <Button
+                      <Button aria-label="External Link"
                         variant="ghost"
                         size="icon"
                         onClick={() => window.open(item.affiliate_url, '_blank')}

@@ -13,7 +13,7 @@ import { Badge } from './ui/badge';
 import { Avatar, AvatarImage, AvatarFallback } from './ui/avatar';
 import { toast } from 'sonner';
 import logger from '../utils/logger';
-import { isGrom } from '../lib/roles';
+import { isGrom } from '../constants/roles';
 import { submitPurchaseRequest } from '../utils/gromPurchase';
 
 
@@ -151,7 +151,7 @@ export const TaggedPhotoModal = ({
       if (response.data.success) {
         setHasPurchased(true);
         if (response.data.subscription_covered) {
-          toast.success('Included with your subscription! 🎉 Added to gallery.');
+          toast.success('Included with your subscription! 📸 Added to gallery.');
         } else {
           toast.success('Photo added to your gallery! You can now download it.');
         }
@@ -209,7 +209,7 @@ export const TaggedPhotoModal = ({
   const getPriceDisplay = () => {
     if (canViewFull) return null;
 
-    // Subscription covers this item — show "Included" path
+    // Subscription covers this item - show "Included" path
     if (hasSubscriptionQuota) {
       return {
         type: 'subscription',
@@ -260,7 +260,7 @@ export const TaggedPhotoModal = ({
                 <Gift className="w-3 h-3 mr-1" /> Gift
               </Badge>
             )}
-            <Button variant="ghost" size="icon" onClick={onClose}>
+            <Button variant="ghost" size="icon" onClick={onClose} aria-label="Close">
               <X className="w-5 h-5" />
             </Button>
           </div>
@@ -268,7 +268,7 @@ export const TaggedPhotoModal = ({
 
         {/* Photo */}
         <div className="relative aspect-video bg-black flex items-center justify-center">
-          <img 
+          <img loading="lazy" decoding="async" 
             src={photo.preview_url || photo.media_url} 
             alt="Tagged photo"
             className={`max-w-full max-h-full object-contain ${needsToPay ? 'blur-md' : ''}`}
@@ -306,20 +306,20 @@ export const TaggedPhotoModal = ({
           {needsToPay && (
             <div className={`p-4 rounded-lg ${isLight ? 'bg-gray-100' : 'bg-zinc-800'}`}>
               {priceInfo?.type === 'subscription' ? (
-                /* ── Subscription covers this item ── */
+                /* -- Subscription covers this item -- */
                 <div className="text-center">
                   <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-purple-500/20 text-purple-400 text-xs font-semibold mb-3">
                     <Sparkles className="w-3.5 h-3.5" /> SUBSCRIBER PERK
                   </div>
                   <p className={`${textPrimary} font-medium`}>{priceInfo.message}</p>
-                  <Button
+                  <Button aria-label="Confirm"
                     onClick={handlePurchase}
                     disabled={purchasing}
                     className="mt-3 bg-gradient-to-r from-purple-400 to-pink-500 text-white"
                   >
                     {purchasing ? 'Processing...' : (
                       <>
-                        <Check className="w-4 h-4 mr-2" /> Add to My Gallery — Free
+                        <Check className="w-4 h-4 mr-2" /> Add to My Gallery - Free
                       </>
                     )}
                   </Button>
@@ -328,7 +328,7 @@ export const TaggedPhotoModal = ({
                 <div className="text-center">
                   <Sparkles className="w-8 h-8 mx-auto mb-2 text-green-400" />
                   <p className={`${textPrimary} font-medium`}>{priceInfo.message}</p>
-                  <Button
+                  <Button aria-label="Confirm"
                     onClick={handleClaimFreePhoto}
                     className="mt-3 bg-gradient-to-r from-green-400 to-emerald-500 text-black"
                   >
@@ -349,7 +349,7 @@ export const TaggedPhotoModal = ({
                   <p className={`${textPrimary} text-xl font-bold mb-3`}>
                     {priceInfo.price} <span className="text-sm font-normal">credits</span>
                   </p>
-                  <Button
+                  <Button aria-label="Credit Card"
                     onClick={handlePurchase}
                     disabled={purchasing}
                     className="bg-gradient-to-r from-cyan-400 to-blue-500 text-black"
@@ -368,7 +368,7 @@ export const TaggedPhotoModal = ({
                   {subscriptionInfo?.subscription_active && !hasSubscriptionQuota && (
                     <div className="text-center mb-3">
                       <Badge className="bg-purple-500/20 text-purple-400 text-xs">
-                        <Sparkles className="w-3 h-3 mr-1" /> Subscription quota used up — regular pricing applies
+                        <Sparkles className="w-3 h-3 mr-1" /> Subscription quota used up - regular pricing applies
                       </Badge>
                     </div>
                   )}
@@ -394,7 +394,7 @@ export const TaggedPhotoModal = ({
                       </button>
                     ))}
                   </div>
-                  <Button
+                  <Button aria-label="Credit Card"
                     onClick={handlePurchase}
                     disabled={purchasing}
                     className="w-full bg-gradient-to-r from-cyan-400 to-blue-500 text-black"
@@ -413,7 +413,7 @@ export const TaggedPhotoModal = ({
 
           {/* CTA Buttons - Always show */}
           <div className="flex gap-3">
-            <Button
+            <Button aria-label="Confirm"
               variant="outline"
               onClick={handleThankPhotographer}
               disabled={thankSent}
@@ -429,7 +429,7 @@ export const TaggedPhotoModal = ({
                 </>
               )}
             </Button>
-            <Button
+            <Button aria-label="Calendar"
               onClick={handleSuggestBooking}
               className="flex-1 bg-gradient-to-r from-purple-400 to-pink-500 text-black"
             >
@@ -439,7 +439,7 @@ export const TaggedPhotoModal = ({
 
           {/* Download button - Only when in user's gallery */}
           {canViewFull && (
-            <Button
+            <Button aria-label="Download"
               variant="outline"
               className={`w-full ${borderClass}`}
               onClick={() => {

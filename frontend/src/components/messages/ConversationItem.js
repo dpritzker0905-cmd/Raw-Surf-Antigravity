@@ -12,6 +12,7 @@ import {
   Briefcase
 } from 'lucide-react';
 import { getFullUrl, cacheBustUrl } from '../../utils/media';
+import { formatTimeAgo } from '../../utils/formatTime';
 
 // Inline role icon helper (mirrors MessagesPage logic for ConversationItem)
 const getRoleIcon = (role, isAdmin = false) => {
@@ -69,7 +70,7 @@ const ConversationItem = ({ conversation, isSelected, isOnline, onClick }) => {
       <div className="relative flex-shrink-0">
         <div className={`w-14 h-14 rounded-full overflow-hidden bg-muted relative ${getRingClass()}`}>
           {avatarWithCacheBust ? (
-            <img 
+            <img loading="lazy" decoding="async" 
               src={avatarWithCacheBust} 
               alt="" 
               className="w-full h-full object-cover" 

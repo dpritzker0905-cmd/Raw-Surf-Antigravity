@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { Button } from './ui/button';
 import { Slider } from './ui/slider';
@@ -243,17 +243,16 @@ const WatermarkSettings = ({ open, onOpenChange, theme = 'dark' }) => {
                 
                 {settings.watermark_logo_url ? (
                   <div className={`relative p-4 rounded-xl ${bgCardClass} border ${borderClass}`}>
-                    <img
+                    <img loading="lazy" decoding="async"
                       src={settings.watermark_logo_url}
                       alt="Watermark logo"
                       className="max-h-24 mx-auto object-contain"
                     />
-                    <button
+                    <button aria-label="Close"
                       data-testid="remove-logo-btn"
                       onClick={removeLogo}
                       className="absolute top-2 right-2 p-1.5 rounded-full bg-red-500/20 text-red-400 hover:bg-red-500/30"
-                    >
-                      <X className="w-4 h-4" />
+                    ><X className="w-4 h-4" />
                     </button>
                   </div>
                 ) : (
@@ -262,7 +261,7 @@ const WatermarkSettings = ({ open, onOpenChange, theme = 'dark' }) => {
                     transition-all hover:border-cyan-500/50
                     ${bgCardClass} ${borderClass}
                   `}>
-                    <input
+                    <input aria-label="Upload file"
                       type="file"
                       accept="image/*"
                       onChange={handleLogoUpload}
@@ -342,7 +341,7 @@ const WatermarkSettings = ({ open, onOpenChange, theme = 'dark' }) => {
             <div className={`p-4 rounded-xl ${bgCardClass} border ${borderClass}`}>
               <div className="flex items-center justify-between mb-3">
                 <Label className={textPrimaryClass}>Preview</Label>
-                <Button
+                <Button aria-label="Loader2"
                   data-testid="generate-preview-btn"
                   variant="outline"
                   size="sm"
@@ -361,7 +360,7 @@ const WatermarkSettings = ({ open, onOpenChange, theme = 'dark' }) => {
               
               <div className="relative aspect-video rounded-lg overflow-hidden bg-black/50">
                 {previewUrl ? (
-                  <img
+                  <img loading="lazy" decoding="async"
                     src={previewUrl}
                     alt="Watermark preview"
                     className="w-full h-full object-cover"
@@ -420,7 +419,7 @@ const WatermarkSettings = ({ open, onOpenChange, theme = 'dark' }) => {
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button
+          <Button aria-label="Loader2"
             data-testid="save-watermark-settings-btn"
             onClick={handleSaveSettings}
             disabled={saving}

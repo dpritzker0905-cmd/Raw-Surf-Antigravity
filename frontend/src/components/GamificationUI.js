@@ -50,7 +50,7 @@ export const XPDisplay = ({ xp = 0, size = 'md', showLabel = true }) => {
   };
   
   return (
-    <div className="flex items-center gap-1.5">
+    <div data-testid="gamification-u-i" className="flex items-center gap-1.5">
       <Zap className={`${size === 'sm' ? 'w-3 h-3' : size === 'lg' ? 'w-6 h-6' : 'w-4 h-4'} text-yellow-400`} />
       <span className={`font-bold text-yellow-400 ${sizeClasses[size]}`}>{xp.toLocaleString()}</span>
       {showLabel && <span className={`text-gray-500 ${size === 'sm' ? 'text-xs' : 'text-sm'}`}>XP</span>}

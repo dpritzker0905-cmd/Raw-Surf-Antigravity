@@ -7,6 +7,13 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { useLocation } from 'react-router-dom';
 
 import apiClient from '../../lib/apiClient';
+import useAdminP1Actions from '../../hooks/useAdminP1Actions';
+import {
+  StatusBadge, SeverityBadge,
+  VerificationDetailModal,
+  FraudAlertDetailModal,
+  ViolationDetailModal,
+} from './p1/AdminP1Modals';
 
 import { UserCheck, Eye, AlertTriangle, Search,
 
@@ -36,36 +43,7 @@ import { getFullUrl } from '../../utils/media';
 
 
 
-// Status badge component
-const StatusBadge = ({ status }) => {
-  const styles = {
-    pending: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
-    under_review: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
-    approved: 'bg-green-500/20 text-green-400 border-green-500/30',
-    rejected: 'bg-red-500/20 text-red-400 border-red-500/30',
-    more_info_needed: 'bg-orange-500/20 text-orange-400 border-orange-500/30',
-    open: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
-    investigating: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
-    resolved: 'bg-green-500/20 text-green-400 border-green-500/30',
-    false_positive: 'bg-gray-500/20 text-muted-foreground border-gray-500/30',
-  };
-  return (
-    <Badge className={`text-xs ${styles[status] || 'bg-zinc-500/20 text-zinc-400'}`}>
-      {status?.replace(/_/g, ' ')}
-    </Badge>
-  );
-};
-
-// Severity badge
-const SeverityBadge = ({ severity }) => {
-  const styles = {
-    low: 'bg-gray-500/20 text-muted-foreground',
-    medium: 'bg-yellow-500/20 text-yellow-400',
-    high: 'bg-orange-500/20 text-orange-400',
-    critical: 'bg-red-500/20 text-red-400 animate-pulse',
-  };
-  return <Badge className={`text-xs ${styles[severity] || styles.medium}`}>{severity}</Badge>;
-};
+// StatusBadge, SeverityBadge imported from ./p1/AdminP1Modals.js
 
 export const AdminP1Dashboard = () => {
   const { user, startImpersonation: authStartImpersonation, impersonation: authImpersonation, endImpersonation: authEndImpersonation } = useAuth();
@@ -156,6 +134,74 @@ export const AdminP1Dashboard = () => {
   const textClass = isLight ? 'text-gray-900' : 'text-foreground';
   const textSecondary = isLight ? 'text-gray-600' : 'text-muted-foreground';
 
+  // ============ HANDLERS FROM useAdminP1Actions ============
+  const {
+    fetchVerificationQueue,
+    fetchImpersonationHistory,
+    fetchFraudAlerts,
+    fetchComplianceData,
+    handleReviewAppeal,
+    handleBulkReviewAppeals,
+    toggleAppealSelection,
+    selectAllAppeals,
+    fetchTestAccounts,
+    seedAllRoleAccounts,
+    cleanupOldTestAccounts,
+    copyCredentials,
+    searchUsers,
+    handleReviewVerification,
+    startImpersonation,
+    endImpersonation,
+    handleResolveFraudAlert,
+    fetchUserJourney,
+    formatDate,
+  } = useAdminP1Actions({
+    authStartImpersonation,
+    authEndImpersonation,
+    authImpersonation,
+    verificationFilter,
+    fraudFilter,
+    selectedAppeals,
+    pendingAppeals,
+    activeImpersonation,
+    impersonationReason,
+    reviewStatus,
+    adminNotes,
+    rejectionReason,
+    resolutionNotes,
+    actionTaken,
+    testAccountPassword,
+    setLoading,
+    setActionLoading,
+    setVerificationQueue,
+    setPendingVerifications,
+    setImpersonationHistory,
+    setFraudAlerts,
+    setSeverityCounts,
+    setComplianceStats,
+    setRecentViolations,
+    setLocationFraudMapData,
+    setPendingAppeals,
+    setSelectedAppeals,
+    setBulkProcessing,
+    setTestAccounts,
+    setSeedingAccounts,
+    setSearchResults,
+    setShowVerificationDetail,
+    setReviewStatus,
+    setAdminNotes,
+    setRejectionReason,
+    setShowAlertDetail,
+    setResolutionNotes,
+    setActionTaken,
+    setActiveImpersonation,
+    setSearchUserQuery,
+    setImpersonationReason,
+    setJourneySummary,
+    setJourneyUser,
+    setJourneyActivities,
+  });
+
   useEffect(() => {
     if (user?.id) {
       if (activeSubTab === 'verification') fetchVerificationQueue();
@@ -166,315 +212,6 @@ export const AdminP1Dashboard = () => {
     }
   }, [user?.id, activeSubTab, verificationFilter, fraudFilter, complianceFilter]);
 
-  const fetchVerificationQueue = async () => {
-    setLoading(true);
-    try {
-      const params = new URLSearchParams();
-      if (verificationFilter.type && verificationFilter.type !== 'all') {
-        params.append('verification_type', verificationFilter.type);
-      }
-      
-      const response = await apiClient.get(`/admin/verification/queue?${params}`);
-      setVerificationQueue(response.data.requests || []);
-      setPendingVerifications(response.data.pending_count || 0);
-    } catch (error) {
-      toast.error('Failed to load verification queue');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchImpersonationHistory = async () => {
-    setLoading(true);
-    try {
-      const response = await apiClient.get(`/admin/impersonate/history`);
-      setImpersonationHistory(response.data || []);
-    } catch (error) {
-      toast.error('Failed to load impersonation history');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchFraudAlerts = async () => {
-    setLoading(true);
-    try {
-      const params = new URLSearchParams();
-      if (fraudFilter.severity && fraudFilter.severity !== 'all') {
-        params.append('severity', fraudFilter.severity);
-      }
-      
-      const response = await apiClient.get(`/admin/fraud/alerts?${params}`);
-      setFraudAlerts(response.data.alerts || []);
-      setSeverityCounts(response.data.severity_counts || {});
-    } catch (error) {
-      toast.error('Failed to load fraud alerts');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchComplianceData = async () => {
-    setLoading(true);
-    try {
-      const response = await apiClient.get(`/compliance/dashboard`);
-      setComplianceStats(response.data.stats);
-      setRecentViolations(response.data.recent_violations || []);
-      setLocationFraudMapData(response.data.location_fraud_map_data || []);
-      
-      // Filter for pending appeals
-      const appeals = response.data.recent_violations?.filter(v => v.appeal_status === 'pending') || [];
-      setPendingAppeals(appeals);
-      setSelectedAppeals(new Set()); // Reset selection
-    } catch (error) {
-      logger.error('Failed to load compliance data:', error);
-      toast.error('Failed to load compliance data');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleReviewAppeal = async (violationId, approved) => {
-    setActionLoading(true);
-    try {
-      await apiClient.put(`/compliance/violations/${violationId}/appeal/review`, {
-        approved,
-        notes: appealNotes
-      });
-      toast.success(approved ? 'Appeal approved - strike removed' : 'Appeal denied');
-      setShowViolationDetail(false);
-      setAppealNotes('');
-      fetchComplianceData();
-    } catch (error) {
-      toast.error('Failed to review appeal');
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
-  const handleBulkReviewAppeals = async (approved) => {
-    if (selectedAppeals.size === 0) {
-      toast.error('No appeals selected');
-      return;
-    }
-    
-    setBulkProcessing(true);
-    try {
-      const response = await apiClient.post(
-        `/compliance/violations/bulk-review-appeals`,
-        {
-          violation_ids: Array.from(selectedAppeals),
-          approved,
-          notes: `Bulk ${approved ? 'approved' : 'denied'} by admin`
-        }
-      );
-      
-      toast.success(`${response.data.processed} appeals ${approved ? 'approved' : 'denied'}`);
-      setSelectedAppeals(new Set());
-      fetchComplianceData();
-    } catch (error) {
-      toast.error('Failed to process bulk appeals');
-    } finally {
-      setBulkProcessing(false);
-    }
-  };
-
-  const toggleAppealSelection = (violationId) => {
-    setSelectedAppeals(prev => {
-      const next = new Set(prev);
-      if (next.has(violationId)) {
-        next.delete(violationId);
-      } else {
-        next.add(violationId);
-      }
-      return next;
-    });
-  };
-
-  const selectAllAppeals = () => {
-    if (selectedAppeals.size === pendingAppeals.length) {
-      setSelectedAppeals(new Set());
-    } else {
-      setSelectedAppeals(new Set(pendingAppeals.map(a => a.id)));
-    }
-  };
-
-  // ============ TEST ACCOUNTS ============
-  
-  const fetchTestAccounts = async () => {
-    setLoading(true);
-    try {
-      const response = await apiClient.get(`/admin/test-accounts`);
-      setTestAccounts(response.data.accounts || []);
-    } catch (error) {
-      toast.error('Failed to load test accounts');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const seedAllRoleAccounts = async () => {
-    setSeedingAccounts(true);
-    try {
-      const response = await apiClient.post(`/admin/seed-test-accounts`, {
-        seed_all_roles: true,
-        password: testAccountPassword
-      });
-      toast.success(response.data.message);
-      fetchTestAccounts();
-    } catch (error) {
-      toast.error(error.response?.data?.detail || 'Failed to seed test accounts');
-    } finally {
-      setSeedingAccounts(false);
-    }
-  };
-
-  const cleanupOldTestAccounts = async () => {
-    setActionLoading(true);
-    try {
-      const response = await apiClient.delete(`/admin/test-accounts/cleanup?older_than_days=7`);
-      toast.success(response.data.message);
-      fetchTestAccounts();
-    } catch (error) {
-      toast.error('Failed to cleanup test accounts');
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
-  const copyCredentials = (account) => {
-    const text = `Email: ${account.email}\nPassword: ${testAccountPassword}\nRole: ${account.role}`;
-    navigator.clipboard.writeText(text);
-    toast.success('Credentials copied to clipboard');
-  };
-
-  const searchUsers = async (query) => {
-    if (!query || query.length < 2) {
-      setSearchResults([]);
-      return;
-    }
-    try {
-      const response = await apiClient.get(`/admin/users/search?q=${query}&limit=10`);
-      setSearchResults(response.data.users || []);
-    } catch (error) {
-      logger.error('Search failed:', error);
-    }
-  };
-
-  const handleReviewVerification = async (requestId) => {
-    if (!reviewStatus) {
-      toast.error('Please select a status');
-      return;
-    }
-    setActionLoading(true);
-    try {
-      await apiClient.put(`/admin/verification/${requestId}/review`, {
-        status: reviewStatus,
-        admin_notes: adminNotes,
-        rejection_reason: rejectionReason
-      });
-      toast.success(`Verification ${reviewStatus}`);
-      setShowVerificationDetail(false);
-      setReviewStatus('');
-      setAdminNotes('');
-      setRejectionReason('');
-      fetchVerificationQueue();
-    } catch (error) {
-      toast.error('Failed to review verification');
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
-  const startImpersonation = async (targetUserId) => {
-    setActionLoading(true);
-    try {
-      const response = await apiClient.post(`/admin/impersonate/start`, {
-        target_user_id: targetUserId,
-        reason: impersonationReason,
-        is_read_only: true
-      });
-      
-      // Use AuthContext to switch user view
-      authStartImpersonation(response.data);
-      setActiveImpersonation(response.data);
-      
-      toast.success(`Now viewing as ${response.data.target_user.full_name || response.data.target_user.email}`);
-      setSearchUserQuery('');
-      setSearchResults([]);
-      setImpersonationReason('');
-    } catch (error) {
-      toast.error(error.response?.data?.detail || 'Failed to start impersonation');
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
-  const endImpersonation = async () => {
-    if (!activeImpersonation && !authImpersonation) return;
-    setActionLoading(true);
-    try {
-      // Use AuthContext to restore admin view
-      await authEndImpersonation();
-      setActiveImpersonation(null);
-      toast.success('Impersonation ended - restored admin view');
-      fetchImpersonationHistory();
-    } catch (error) {
-      toast.error('Failed to end impersonation');
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
-  const handleResolveFraudAlert = async (alertId) => {
-    if (!actionTaken) {
-      toast.error('Please select an action');
-      return;
-    }
-    setActionLoading(true);
-    try {
-      await apiClient.put(`/admin/fraud/alerts/${alertId}/resolve`, {
-        resolution_notes: resolutionNotes,
-        action_taken: actionTaken
-      });
-      toast.success('Alert resolved');
-      setShowAlertDetail(false);
-      setResolutionNotes('');
-      setActionTaken('');
-      fetchFraudAlerts();
-    } catch (error) {
-      toast.error('Failed to resolve alert');
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
-  const fetchUserJourney = async (userId) => {
-    setLoading(true);
-    try {
-      const [summaryRes, activitiesRes] = await Promise.all([
-        apiClient.get(`/admin/user-journey/${userId}/summary`),
-        apiClient.get(`/admin/user-journey/${userId}?limit=50`)
-      ]);
-      setJourneySummary(summaryRes.data);
-      setJourneyUser(summaryRes.data.user);
-      setJourneyActivities(activitiesRes.data.activities || []);
-    } catch (error) {
-      toast.error('Failed to load user journey');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const formatDate = (dateStr) => {
-    if (!dateStr) return '-';
-    return new Date(dateStr).toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  };
 
   return (
     <div className="space-y-4" data-testid="admin-p1-dashboard">
@@ -516,11 +253,11 @@ export const AdminP1Dashboard = () => {
                   Viewing as: {activeImpersonation.target_user.full_name}
                 </p>
                 <p className="text-purple-300 text-xs">
-                  {activeImpersonation.target_user.email} • {activeImpersonation.is_read_only ? 'Read-only' : 'Full access'}
+                  {activeImpersonation.target_user.email} - {activeImpersonation.is_read_only ? 'Read-only' : 'Full access'}
                 </p>
               </div>
             </div>
-            <Button
+            <Button aria-label="Loader2"
               size="sm"
               variant="destructive"
               onClick={endImpersonation}
@@ -553,7 +290,7 @@ export const AdminP1Dashboard = () => {
                     <SelectItem value="approved_pro_photographer">Approved Pro Photographer</SelectItem>
                   </SelectContent>
                 </Select>
-                <Button variant="outline" size="sm" onClick={fetchVerificationQueue}>
+                <Button variant="outline" size="sm" onClick={fetchVerificationQueue} aria-label="Refresh">
                   <RefreshCw className="w-4 h-4" />
                 </Button>
               </div>
@@ -606,7 +343,7 @@ export const AdminP1Dashboard = () => {
                             {req.wsl_profile_url && (
                               <a 
                                 href={req.wsl_profile_url} 
-                                target="_blank" 
+                                target="_blank" rel="noopener noreferrer" 
                                 rel="noopener noreferrer"
                                 onClick={(e) => e.stopPropagation()}
                                 className="flex items-center gap-1 text-cyan-400 hover:underline"
@@ -617,7 +354,7 @@ export const AdminP1Dashboard = () => {
                             {req.instagram_url && (
                               <a 
                                 href={req.instagram_url} 
-                                target="_blank" 
+                                target="_blank" rel="noopener noreferrer" 
                                 rel="noopener noreferrer"
                                 onClick={(e) => e.stopPropagation()}
                                 className="flex items-center gap-1 text-pink-400 hover:underline"
@@ -628,7 +365,7 @@ export const AdminP1Dashboard = () => {
                             {req.portfolio_website && (
                               <a 
                                 href={req.portfolio_website} 
-                                target="_blank" 
+                                target="_blank" rel="noopener noreferrer" 
                                 rel="noopener noreferrer"
                                 onClick={(e) => e.stopPropagation()}
                                 className="flex items-center gap-1 text-blue-400 hover:underline"
@@ -665,7 +402,7 @@ export const AdminP1Dashboard = () => {
                 <CardContent className="space-y-3">
                   <div className="relative">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
-                    <Input
+                    <Input aria-label="Search user by name or email..."
                       placeholder="Search user by name or email..."
                       value={searchUserQuery}
                       onChange={(e) => {
@@ -676,7 +413,7 @@ export const AdminP1Dashboard = () => {
                     />
                   </div>
                   
-                  <Input
+                  <Input aria-label="Reason for impersonation (optional)"
                     placeholder="Reason for impersonation (optional)"
                     value={impersonationReason}
                     onChange={(e) => setImpersonationReason(e.target.value)}
@@ -702,7 +439,7 @@ export const AdminP1Dashboard = () => {
                               <p className="text-muted-foreground text-xs">{u.email}</p>
                             </div>
                           </div>
-                          <Button size="sm" className="bg-purple-500 hover:bg-purple-600">
+                          <Button size="sm" className="bg-purple-500 hover:bg-purple-600" aria-label="View">
                             <Eye className="w-3 h-3 mr-1" /> View As
                           </Button>
                         </div>
@@ -916,7 +653,7 @@ export const AdminP1Dashboard = () => {
                         <Calendar className="w-5 h-5 text-blue-400" />
                         <span className={textClass}>This Week: <strong>{complianceStats.violations_this_week}</strong> new violations</span>
                       </div>
-                      <Button
+                      <Button aria-label="Refresh"
                         size="sm"
                         variant="outline"
                         onClick={fetchComplianceData}
@@ -966,7 +703,7 @@ export const AdminP1Dashboard = () => {
                                 fraud.severity === 'severe' ? 'bg-orange-500/20 text-orange-400' :
                                 'bg-yellow-500/20 text-yellow-400'
                               }`}>
-                                {fraud.severity} • {fraud.distance_miles?.toFixed(1)} mi
+                                {fraud.severity} - {fraud.distance_miles?.toFixed(1)} mi
                               </Badge>
                               <span className={`text-[10px] ${textSecondary}`}>
                                 {formatDate(fraud.created_at)}
@@ -1028,7 +765,7 @@ export const AdminP1Dashboard = () => {
                         
                         {selectedAppeals.size > 0 && (
                           <>
-                            <Button
+                            <Button aria-label="Loader2"
                               size="sm"
                               variant="outline"
                               onClick={() => handleBulkReviewAppeals(true)}
@@ -1038,7 +775,7 @@ export const AdminP1Dashboard = () => {
                               {bulkProcessing ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <ThumbsUp className="w-3 h-3 mr-1" />}
                               Approve ({selectedAppeals.size})
                             </Button>
-                            <Button
+                            <Button aria-label="Loader2"
                               size="sm"
                               variant="outline"
                               onClick={() => handleBulkReviewAppeals(false)}
@@ -1066,7 +803,7 @@ export const AdminP1Dashboard = () => {
                       >
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-3">
-                            <input
+                            <input aria-label="Checkbox"
                               type="checkbox"
                               checked={selectedAppeals.has(violation.id)}
                               onChange={() => toggleAppealSelection(violation.id)}
@@ -1082,7 +819,7 @@ export const AdminP1Dashboard = () => {
                             >
                               <p className={`font-medium ${textClass}`}>{violation.title}</p>
                               <p className={`text-xs ${textSecondary}`}>
-                                {violation.violation_type.replace(/_/g, ' ')} • User: {violation.user_id.slice(0, 8)}...
+                                {violation.violation_type.replace(/_/g, ' ')} - User: {violation.user_id.slice(0, 8)}...
                               </p>
                             </div>
                           </div>
@@ -1203,7 +940,7 @@ export const AdminP1Dashboard = () => {
                 <CardContent>
                   <div className="relative">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
-                    <Input
+                    <Input aria-label="Search user by name or email..."
                       placeholder="Search user by name or email..."
                       value={searchUserQuery}
                       onChange={(e) => {
@@ -1361,7 +1098,7 @@ export const AdminP1Dashboard = () => {
                         placeholder="Test123!"
                       />
                     </div>
-                    <Button
+                    <Button aria-label="Loader2"
                       onClick={seedAllRoleAccounts}
                       disabled={seedingAccounts}
                       className="bg-green-500 hover:bg-green-600 text-white"
@@ -1434,7 +1171,7 @@ export const AdminP1Dashboard = () => {
                           {account.is_approved_pro && (
                             <Badge className="bg-purple-500/20 text-purple-400 shrink-0">Pro</Badge>
                           )}
-                          <Button
+                          <Button aria-label="Copy"
                             size="sm"
                             variant="outline"
                             onClick={() => copyCredentials(account)}
@@ -1442,7 +1179,7 @@ export const AdminP1Dashboard = () => {
                           >
                             <Copy className="w-4 h-4" />
                           </Button>
-                          <Button
+                          <Button aria-label="View"
                             size="sm"
                             onClick={() => {
                               setSearchUserQuery('');
@@ -1466,448 +1203,42 @@ export const AdminP1Dashboard = () => {
         </>
       )}
 
-      {/* Verification Detail Modal */}
-      <Dialog open={showVerificationDetail} onOpenChange={setShowVerificationDetail}>
-        <DialogContent className="bg-card border-border text-foreground max-w-2xl max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <UserCheck className="w-5 h-5 text-purple-400" />
-              Verification Request
-            </DialogTitle>
-          </DialogHeader>
-          
-          {selectedVerification && (
-            <div className="space-y-4">
-              {/* User Info */}
-              <div className="flex items-center gap-4 p-3 bg-muted rounded-lg">
-                <Avatar className="w-12 h-12">
-                  <AvatarImage src={getFullUrl(selectedVerification.user?.avatar_url)} />
-                  <AvatarFallback>{selectedVerification.user?.full_name?.[0]}</AvatarFallback>
-                </Avatar>
-                <div>
-                  <p className="font-medium">{selectedVerification.user?.full_name}</p>
-                  <p className="text-sm text-muted-foreground">{selectedVerification.user?.email}</p>
-                </div>
-                <Badge variant="outline" className="ml-auto">
-                  {selectedVerification.user?.role || 'User'}
-                </Badge>
-              </div>
-
-              {/* Verification Type */}
-              <div className="flex items-center gap-2">
-                <Badge className={`${
-                  selectedVerification.verification_type === 'pro_surfer'
-                    ? 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30'
-                    : 'bg-purple-500/20 text-purple-400 border-purple-500/30'
-                }`}>
-                  {selectedVerification.verification_type === 'pro_surfer' 
-                    ? 'Pro Surfer (WSL) Verification' 
-                    : 'Approved Pro Photographer Verification'}
-                </Badge>
-                <StatusBadge status={selectedVerification.status} />
-              </div>
-
-              {/* Pro Surfer Fields */}
-              {selectedVerification.verification_type === 'pro_surfer' && (
-                <div className="space-y-3">
-                  <h4 className="font-medium text-cyan-400">WSL Information</h4>
-                  
-                  {selectedVerification.wsl_athlete_id && (
-                    <div className="p-3 bg-muted rounded-lg">
-                      <p className="text-xs text-gray-500">WSL Athlete ID</p>
-                      <p className="text-foreground font-mono">{selectedVerification.wsl_athlete_id}</p>
-                    </div>
-                  )}
-                  
-                  {selectedVerification.wsl_profile_url && (
-                    <a 
-                      href={selectedVerification.wsl_profile_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-2 p-3 bg-cyan-500/10 border border-cyan-500/30 rounded-lg hover:bg-cyan-500/20 transition-colors"
-                    >
-                      <Globe className="w-5 h-5 text-cyan-400" />
-                      <span className="text-cyan-400">View WSL Profile</span>
-                      <ExternalLink className="w-4 h-4 text-cyan-400 ml-auto" />
-                    </a>
-                  )}
-                  
-                  {selectedVerification.competition_history_urls?.length > 0 && (
-                    <div>
-                      <p className="text-xs text-gray-500 mb-2">Competition History</p>
-                      <div className="space-y-1">
-                        {selectedVerification.competition_history_urls.map((url, idx) => (
-                          <a 
-                            key={idx}
-                            href={url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex items-center gap-2 text-sm text-blue-400 hover:underline"
-                          >
-                            <Link2 className="w-3 h-3" /> {url}
-                          </a>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Pro Photographer Fields */}
-              {selectedVerification.verification_type === 'approved_pro_photographer' && (
-                <div className="space-y-3">
-                  <h4 className="font-medium text-purple-400">Professional Information</h4>
-                  
-                  <div className="grid grid-cols-2 gap-2">
-                    {selectedVerification.instagram_url && (
-                      <a 
-                        href={selectedVerification.instagram_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-2 p-3 bg-pink-500/10 border border-pink-500/30 rounded-lg hover:bg-pink-500/20"
-                      >
-                        <Instagram className="w-5 h-5 text-pink-400" />
-                        <span className="text-pink-400 text-sm">Instagram</span>
-                        <ExternalLink className="w-3 h-3 text-pink-400 ml-auto" />
-                      </a>
-                    )}
-                    
-                    {selectedVerification.portfolio_website && (
-                      <a 
-                        href={selectedVerification.portfolio_website}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-2 p-3 bg-blue-500/10 border border-blue-500/30 rounded-lg hover:bg-blue-500/20"
-                      >
-                        <Globe className="w-5 h-5 text-blue-400" />
-                        <span className="text-blue-400 text-sm">Portfolio</span>
-                        <ExternalLink className="w-3 h-3 text-blue-400 ml-auto" />
-                      </a>
-                    )}
-                  </div>
-                  
-                  {selectedVerification.years_experience && (
-                    <div className="p-3 bg-muted rounded-lg">
-                      <p className="text-xs text-gray-500">Years of Experience</p>
-                      <p className="text-foreground">{selectedVerification.years_experience} years</p>
-                    </div>
-                  )}
-                  
-                  {selectedVerification.professional_equipment && (
-                    <div className="p-3 bg-muted rounded-lg">
-                      <p className="text-xs text-gray-500">Professional Equipment</p>
-                      <p className="text-foreground text-sm">{selectedVerification.professional_equipment}</p>
-                    </div>
-                  )}
-                  
-                  {selectedVerification.media_mentions?.length > 0 && (
-                    <div>
-                      <p className="text-xs text-gray-500 mb-2">Media Mentions / Features</p>
-                      <div className="space-y-1">
-                        {selectedVerification.media_mentions.map((url, idx) => (
-                          <a 
-                            key={idx}
-                            href={url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex items-center gap-2 text-sm text-green-400 hover:underline"
-                          >
-                            <FileText className="w-3 h-3" /> {url}
-                          </a>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                  
-                  {selectedVerification.sample_work_urls?.length > 0 && (
-                    <div>
-                      <p className="text-xs text-gray-500 mb-2">Sample Work</p>
-                      <div className="grid grid-cols-3 gap-2">
-                        {selectedVerification.sample_work_urls.slice(0, 6).map((url, idx) => (
-                          <a 
-                            key={idx}
-                            href={url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="aspect-square bg-muted rounded-lg overflow-hidden hover:ring-2 ring-purple-500"
-                          >
-                            <img src={url} alt={`Sample ${idx + 1}`} className="w-full h-full object-cover" />
-                          </a>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Photo ID */}
-              {selectedVerification.photo_id_url && (
-                <div>
-                  <p className="text-xs text-gray-500 mb-2">Photo ID</p>
-                  <a 
-                    href={selectedVerification.photo_id_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-2 p-3 bg-muted rounded-lg hover:bg-input"
-                  >
-                    <FileText className="w-5 h-5 text-muted-foreground" />
-                    <span className="text-foreground">View Photo ID</span>
-                    <ExternalLink className="w-4 h-4 text-muted-foreground ml-auto" />
-                  </a>
-                </div>
-              )}
-
-              {/* Additional Notes */}
-              {selectedVerification.additional_notes && (
-                <div className="p-3 bg-muted rounded-lg">
-                  <p className="text-xs text-gray-500">Additional Notes from User</p>
-                  <p className="text-foreground text-sm mt-1">{selectedVerification.additional_notes}</p>
-                </div>
-              )}
-
-              {/* Review Form */}
-              {selectedVerification.status === 'pending' && (
-                <div className="border-t border-border pt-4 space-y-3">
-                  <h4 className="font-medium">Review Decision</h4>
-                  
-                  <Select value={reviewStatus} onValueChange={setReviewStatus}>
-                    <SelectTrigger className="bg-muted border-border">
-                      <SelectValue placeholder="Select decision..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="approved">Approve</SelectItem>
-                      <SelectItem value="rejected">Reject</SelectItem>
-                      <SelectItem value="more_info_needed">Request More Info</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  
-                  {reviewStatus === 'rejected' && (
-                    <Textarea
-                      placeholder="Reason for rejection (shown to user)..."
-                      value={rejectionReason}
-                      onChange={(e) => setRejectionReason(e.target.value)}
-                      className="bg-muted border-border"
-                    />
-                  )}
-                  
-                  <Textarea
-                    placeholder="Internal admin notes..."
-                    value={adminNotes}
-                    onChange={(e) => setAdminNotes(e.target.value)}
-                    className="bg-muted border-border"
-                  />
-                  
-                  <Button
-                    onClick={() => handleReviewVerification(selectedVerification.id)}
-                    disabled={!reviewStatus || actionLoading}
-                    className={`w-full ${
-                      reviewStatus === 'approved' ? 'bg-green-500 hover:bg-green-600' :
-                      reviewStatus === 'rejected' ? 'bg-red-500 hover:bg-red-600' :
-                      'bg-blue-500 hover:bg-blue-600'
-                    }`}
-                  >
-                    {actionLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-                    {reviewStatus === 'approved' ? 'Approve Verification' :
-                     reviewStatus === 'rejected' ? 'Reject Verification' :
-                     reviewStatus === 'more_info_needed' ? 'Request More Info' :
-                     'Submit Review'}
-                  </Button>
-                </div>
-              )}
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
-
-      {/* Fraud Alert Detail Modal */}
-      <Dialog open={showAlertDetail} onOpenChange={setShowAlertDetail}>
-        <DialogContent className="bg-card border-border text-foreground max-w-lg">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <AlertTriangle className="w-5 h-5 text-red-400" />
-              Fraud Alert Details
-            </DialogTitle>
-          </DialogHeader>
-          
-          {selectedAlert && (
-            <div className="space-y-4">
-              <div className="flex items-center gap-2">
-                <SeverityBadge severity={selectedAlert.severity} />
-                <StatusBadge status={selectedAlert.status} />
-                <Badge variant="outline" className="capitalize">
-                  {selectedAlert.alert_type?.replace(/_/g, ' ')}
-                </Badge>
-              </div>
-              
-              <div>
-                <p className="font-medium text-lg">{selectedAlert.title}</p>
-                <p className="text-muted-foreground mt-1">{selectedAlert.description}</p>
-              </div>
-              
-              <div className="flex items-center gap-3 p-3 bg-muted rounded-lg">
-                <Avatar>
-                  <AvatarImage src={getFullUrl(selectedAlert.user?.avatar_url)} />
-                  <AvatarFallback>{selectedAlert.user?.full_name?.[0]}</AvatarFallback>
-                </Avatar>
-                <div>
-                  <p className="font-medium">{selectedAlert.user?.full_name}</p>
-                  <p className="text-sm text-muted-foreground">{selectedAlert.user?.email}</p>
-                </div>
-                <div className="ml-auto text-right">
-                  <p className="text-sm text-gray-500">Risk Score</p>
-                  <p className={`text-xl font-bold ${
-                    selectedAlert.risk_score >= 80 ? 'text-red-400' :
-                    selectedAlert.risk_score >= 50 ? 'text-orange-400' :
-                    'text-yellow-400'
-                  }`}>{selectedAlert.risk_score}</p>
-                </div>
-              </div>
-              
-              {selectedAlert.status === 'open' && (
-                <div className="space-y-3 border-t border-border pt-4">
-                  <Select value={actionTaken} onValueChange={setActionTaken}>
-                    <SelectTrigger className="bg-muted border-border">
-                      <SelectValue placeholder="Select action..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">No Action</SelectItem>
-                      <SelectItem value="warning">Send Warning</SelectItem>
-                      <SelectItem value="suspended">Suspend User</SelectItem>
-                      <SelectItem value="banned">Ban User</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  
-                  <Textarea
-                    placeholder="Resolution notes..."
-                    value={resolutionNotes}
-                    onChange={(e) => setResolutionNotes(e.target.value)}
-                    className="bg-muted border-border"
-                  />
-                  
-                  <Button
-                    onClick={() => handleResolveFraudAlert(selectedAlert.id)}
-                    disabled={!actionTaken || actionLoading}
-                    className="w-full bg-red-500 hover:bg-red-600"
-                  >
-                    {actionLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-                    Resolve Alert
-                  </Button>
-                </div>
-              )}
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
-
-      {/* Violation Detail Dialog */}
-      <Dialog open={showViolationDetail} onOpenChange={setShowViolationDetail}>
-        <DialogContent className="bg-card border-border max-w-lg" data-testid="violation-detail-dialog">
-          {selectedViolation && (
-            <div className="space-y-4">
-              <DialogHeader>
-                <DialogTitle className="flex items-center gap-2 text-foreground">
-                  <Gavel className="w-5 h-5 text-orange-400" />
-                  Violation Details
-                </DialogTitle>
-              </DialogHeader>
-              
-              {/* Violation Info */}
-              <div className="p-4 rounded-lg bg-muted space-y-3">
-                <div className="flex items-center justify-between">
-                  <Badge className={`${
-                    selectedViolation.severity === 'critical' ? 'bg-red-500/20 text-red-400' :
-                    selectedViolation.severity === 'severe' ? 'bg-orange-500/20 text-orange-400' :
-                    selectedViolation.severity === 'moderate' ? 'bg-yellow-500/20 text-yellow-400' :
-                    'bg-gray-500/20 text-muted-foreground'
-                  }`}>
-                    {selectedViolation.severity?.toUpperCase()}
-                  </Badge>
-                  <span className="text-xs text-muted-foreground">{formatDate(selectedViolation.created_at)}</span>
-                </div>
-                
-                <h3 className="text-lg font-semibold text-foreground">{selectedViolation.title}</h3>
-                
-                <div className="grid grid-cols-2 gap-3 text-sm">
-                  <div>
-                    <p className="text-muted-foreground">Type</p>
-                    <p className="text-foreground capitalize">{selectedViolation.violation_type?.replace(/_/g, ' ')}</p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground">Action Taken</p>
-                    <p className="text-foreground capitalize">{selectedViolation.action_taken?.replace(/_/g, ' ')}</p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground">User ID</p>
-                    <p className="text-foreground font-mono text-xs">{selectedViolation.user_id}</p>
-                  </div>
-                  {selectedViolation.distance_discrepancy_miles && (
-                    <div>
-                      <p className="text-muted-foreground">Distance Discrepancy</p>
-                      <p className="text-red-400 font-bold">{selectedViolation.distance_discrepancy_miles} miles</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Appeal Section */}
-              {selectedViolation.appeal_status === 'pending' && (
-                <div className="p-4 rounded-lg bg-orange-500/10 border border-orange-500/30 space-y-3">
-                  <div className="flex items-center gap-2">
-                    <Scale className="w-5 h-5 text-orange-400" />
-                    <span className="font-medium text-orange-400">Appeal Pending Review</span>
-                  </div>
-                  
-                  <Textarea
-                    placeholder="Add notes for this appeal review..."
-                    value={appealNotes}
-                    onChange={(e) => setAppealNotes(e.target.value)}
-                    className="bg-muted border-border text-foreground"
-                    rows={3}
-                  />
-                  
-                  <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      className="flex-1 border-green-500 text-green-400 hover:bg-green-500/20"
-                      onClick={() => handleReviewAppeal(selectedViolation.id, true)}
-                      disabled={actionLoading}
-                    >
-                      {actionLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <ThumbsUp className="w-4 h-4 mr-2" />}
-                      Approve Appeal
-                    </Button>
-                    <Button
-                      variant="outline"
-                      className="flex-1 border-red-500 text-red-400 hover:bg-red-500/20"
-                      onClick={() => handleReviewAppeal(selectedViolation.id, false)}
-                      disabled={actionLoading}
-                    >
-                      {actionLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <ThumbsDown className="w-4 h-4 mr-2" />}
-                      Deny Appeal
-                    </Button>
-                  </div>
-                </div>
-              )}
-
-              {/* Already Reviewed */}
-              {selectedViolation.appeal_status && selectedViolation.appeal_status !== 'pending' && (
-                <div className={`p-4 rounded-lg ${
-                  selectedViolation.appeal_status === 'approved' ? 'bg-green-500/10 border border-green-500/30' : 'bg-red-500/10 border border-red-500/30'
-                }`}>
-                  <p className={selectedViolation.appeal_status === 'approved' ? 'text-green-400' : 'text-red-400'}>
-                    Appeal {selectedViolation.appeal_status === 'approved' ? 'Approved' : 'Denied'}
-                  </p>
-                </div>
-              )}
-
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setShowViolationDetail(false)}>
-                  Close
-                </Button>
-              </DialogFooter>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
+      {/* Extracted Modals (v42) */}
+      <VerificationDetailModal
+        open={showVerificationDetail}
+        onOpenChange={setShowVerificationDetail}
+        selectedVerification={selectedVerification}
+        reviewStatus={reviewStatus}
+        setReviewStatus={setReviewStatus}
+        adminNotes={adminNotes}
+        setAdminNotes={setAdminNotes}
+        rejectionReason={rejectionReason}
+        setRejectionReason={setRejectionReason}
+        handleReviewVerification={handleReviewVerification}
+        actionLoading={actionLoading}
+        formatDate={formatDate}
+      />
+      <FraudAlertDetailModal
+        open={showAlertDetail}
+        onOpenChange={setShowAlertDetail}
+        selectedAlert={selectedAlert}
+        actionTaken={actionTaken}
+        setActionTaken={setActionTaken}
+        resolutionNotes={resolutionNotes}
+        setResolutionNotes={setResolutionNotes}
+        handleResolveFraudAlert={handleResolveFraudAlert}
+        actionLoading={actionLoading}
+      />
+      <ViolationDetailModal
+        open={showViolationDetail}
+        onOpenChange={setShowViolationDetail}
+        selectedViolation={selectedViolation}
+        appealNotes={appealNotes}
+        setAppealNotes={setAppealNotes}
+        handleReviewAppeal={handleReviewAppeal}
+        actionLoading={actionLoading}
+        formatDate={formatDate}
+      />
     </div>
   );
 };

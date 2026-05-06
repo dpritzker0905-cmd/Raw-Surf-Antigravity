@@ -24,6 +24,7 @@ import FeedSkeleton from './ui/FeedSkeleton';
 import LastUpdatedBanner from './ui/LastUpdatedBanner';
 import { useOfflineQueue } from '../hooks/useOfflineQueue';
 import { toast } from 'sonner';
+import useFeedActions from '../hooks/useFeedActions';
 import { Button } from './ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from './ui/dialog';
 import { Input } from './ui/input';
@@ -33,93 +34,12 @@ import { getFullUrl } from '../utils/media';
 import { ROLES } from '../constants/roles';
 import { REACTION_EMOJIS } from '../constants/emojis';
 import useSwipeTabs from '../hooks/useSwipeTabs';
+import usePullToRefresh from '../hooks/usePullToRefresh';
+import PullToRefreshIndicator from './ui/PullToRefreshIndicator';
 
-// Tab order for the feed — used by swipe navigation and sliding indicator
+// Tab order for the feed - used by swipe navigation and sliding indicator
 const FEED_TABS = ['for_you', 'waves', 'following'];
 
-
-// Role badge component for post authors
-const _RoleBadge = ({ role }) => {
-  const roleInfo = getExpandedRoleInfo(role);
-  return (
-    <span className={`text-sm ${roleInfo.color}`} title={roleInfo.label}>
-      {roleInfo.icon}
-    </span>
-  );
-};
-
-// Reaction emojis — imported from centralized constants/emojis.js
-
-// Dynamic Reaction Icon - Shows user's reaction or default Shaka
-// Uses spring transition for smooth morphing animation (both ways)
-// Logic:
-//   - hasNonShakaReaction: Show that emoji
-//   - isLiked (checked Shaka): Show colored Shaka
-//   - else: Show grayscale (unchecked) Shaka
-const _ReactionIcon = ({ post, userId, isLiked }) => {
-  // Find user's reaction on this post
-  const userReaction = post.reactions?.find(r => r.user_id === userId);
-  const hasNonShakaReaction = userReaction && userReaction.emoji !== '🤙';
-  
-  // Determine if Shaka should be colored (checked) or grayscale (unchecked)
-  // Only colored if liked AND no other reaction
-  const shakaIsChecked = isLiked && !hasNonShakaReaction;
-  
-  // Spring animation CSS for both icon swap and reversion
-  const springTransition = 'all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
-  
-  return (
-    <div 
-      className="relative w-7 h-7 flex items-center justify-center overflow-visible"
-      style={{ transition: springTransition }}
-    >
-      {hasNonShakaReaction ? (
-        // Show the selected emoji (Fire, Wave, Heart) with spring animation
-        <span 
-          key={userReaction.emoji} // Key forces re-render for animation
-          className="text-2xl animate-in zoom-in-75 duration-300"
-          style={{ 
-            filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.3))',
-            transform: 'scale(1.1)',
-            transition: springTransition
-          }}
-        >
-          {userReaction.emoji}
-        </span>
-      ) : (
-        // Show default Shaka - colored if checked, grayscale if unchecked
-        <img 
-          key={shakaIsChecked ? "shaka-checked" : "shaka-unchecked"} // Key forces re-render
-          src="https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/svg/1f919.svg"
-          alt="shaka"
-          className="animate-in zoom-in-75 duration-300"
-          style={{ 
-            width: '28px', 
-            height: '28px',
-            filter: shakaIsChecked ? 'none' : 'grayscale(100%) brightness(1.5)',
-            transition: springTransition
-          }}
-          draggable="false"
-        />
-      )}
-    </div>
-  );
-};
-
-// Shaka icon using Twemoji image for consistent rendering (kept for backwards compat)
-const _ShakaIcon = ({ filled }) => (
-  <img 
-    src="https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/svg/1f919.svg"
-    alt="shaka"
-    style={{ 
-      width: '28px', 
-      height: '28px',
-      filter: filled ? 'none' : 'grayscale(100%) brightness(1.5)',
-      transition: 'filter 0.2s ease'
-    }}
-    draggable="false"
-  />
-);
 
 // Reaction Picker Component - Anchored near the Shaka button, not screen center
 // Uses a 2-row grid on mobile so all 10 emojis fit without overflow
@@ -162,7 +82,7 @@ const ReactionPicker = ({ show, onSelect, onClose, anchor }) => {
       >
         <X className="w-3.5 h-3.5" />
       </button>
-      {/* 5×2 grid of emojis */}
+      {/* 5-2 grid of emojis */}
       <div className="grid grid-cols-5 gap-1 justify-items-center">
         {REACTION_EMOJIS.map((emoji) => (
           <button
@@ -202,8 +122,17 @@ export const Feed = () => {
   
   // Get effective role for UI rendering (respects God Mode persona masking)
   const effectiveRole = getEffectiveRole(user?.role);
-  const [posts, setPosts] = useState([]);
-  const [loading, setLoading] = useState(true);
+  // Stale-while-revalidate: load cached feed instantly, refresh in background
+  const [posts, setPosts] = useState(() => {
+    try {
+      const cached = localStorage.getItem('rawsurf_cached_feed');
+      if (cached) return JSON.parse(cached);
+    } catch { /* ignore parse errors */ }
+    return [];
+  });
+  const [loading, setLoading] = useState(() => {
+    try { return !localStorage.getItem('rawsurf_cached_feed'); } catch { return true; }
+  });
   const [feedLastUpdated, setFeedLastUpdated] = useState(null);
   const { isOnline, _queueAction } = useOfflineQueue();
   const [streak, setStreak] = useState({ current_streak: 0, checked_in_today: false });
@@ -213,7 +142,7 @@ export const Feed = () => {
   const [showCreateWaveModal, setShowCreateWaveModal] = useState(false);
   const [checkInLoading, setCheckInLoading] = useState(false);
   const [spots, setSpots] = useState([]);
-  // Read ?tab= from URL to allow deep-linking (e.g. from Explore → View All Waves)
+  // Read ?tab= from URL to allow deep-linking (e.g. from Explore ? View All Waves)
   const initialTab = (() => {
     const params = new URLSearchParams(location.search);
     const t = params.get('tab');
@@ -233,7 +162,7 @@ export const Feed = () => {
   const [gpsLoading, setGpsLoading] = useState(false);
   const [nearestSpot, setNearestSpot] = useState(null);
   const [storiesKey, setStoriesKey] = useState(0);
-  // Location hierarchy for manual drill-down: Country → State/Province → City/Area → Spot
+  // Location hierarchy for manual drill-down: Country ? State/Province ? City/Area ? Spot
   const [locationHierarchy, setLocationHierarchy] = useState({ countries: [] });
   const [selectedCountry, setSelectedCountry] = useState('');
   const [selectedState, setSelectedState] = useState('');
@@ -248,7 +177,7 @@ export const Feed = () => {
   const [liveUsers, setLiveUsers] = useState([]);
   const [connectingToStream, setConnectingToStream] = useState(null);
 
-  // ── Instagram-style "new posts" chip state ──────────────────────────────────────
+  // -- Instagram-style "new posts" chip state --------------------------------------
   const [newPostsChip, setNewPostsChip] = useState(0); // count of new posts waiting to load
   const [isRefreshing, setIsRefreshing] = useState(false);
   const latestPostIdRef = useRef(null); // track the most-recent post id we've rendered
@@ -300,17 +229,23 @@ export const Feed = () => {
   const canShowSessionDashboard = isPhotographer && !isGromParent;
 
   useEffect(() => {
+    // Critical path: posts load first (blocks UI skeleton)
     fetchPosts();
-    fetchStreak();
-    fetchSpots();
-    fetchLocationHierarchy();
-    fetchLiveUsers();
-    if (user?.id) {
-      fetchFollowing();
-      fetchFeedLineups();
-      fetchUpcomingSessions();
-    }
-    
+    if (user?.id) fetchStreak();
+
+    // Deferred: secondary data loads after posts render (~1.5s delay)
+    // Prevents 8 simultaneous API calls competing on Render cold-starts
+    const deferTimer = setTimeout(() => {
+      fetchLiveUsers();
+      if (user?.id) {
+        fetchFollowing();
+        fetchFeedLineups();
+        fetchUpcomingSessions();
+      }
+    }, 1500);
+
+    // Spots + location hierarchy lazy-loaded on check-in modal open
+
     // Poll for live users every 30 seconds
     const liveInterval = setInterval(fetchLiveUsers, 30000);
     
@@ -331,42 +266,129 @@ export const Feed = () => {
     window.addEventListener('focus', handleFocus);
     
     return () => {
+      clearTimeout(deferTimer);
       clearInterval(liveInterval);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('focus', handleFocus);
     };
   }, [user?.id]);
 
-  // ── feed:refresh event listener (logo click + 60s auto-refresh from Sidebar) ──
-  const handleFeedRefresh = useCallback(async (e) => {
-    const silent = e?.detail?.silent === true;
-    setIsRefreshing(true);
-    try {
-      const response = await apiClient.get('/posts', {
-        params: { limit: 10 }
-      });
-      const incoming = response.data || [];
-      if (incoming.length === 0) { setIsRefreshing(false); return; }
-
-      // Snap to new posts immediately on manual tap (non-silent)
-      if (!silent) {
-        setPosts(incoming.map(post => ({ ...post, localLiked: false })));
-        setNewPostsChip(0);
-        latestPostIdRef.current = incoming[0]?.id ?? null;
-      } else {
-        // Silent auto-refresh: show chip only if there are genuinely new posts
-        const currentLatest = latestPostIdRef.current;
-        const newCount = currentLatest
-          ? incoming.filter(p => String(p.id) > String(currentLatest)).length
-          : 0;
-        if (newCount > 0) setNewPostsChip(newCount);
+  // Static Open Graph meta tags for Feed page social sharing
+  useEffect(() => {
+    const ogTags = [];
+    const setMeta = (property, content) => {
+      if (!content) return;
+      let tag = document.querySelector(`meta[property="${property}"]`);
+      if (!tag) {
+        tag = document.createElement('meta');
+        tag.setAttribute('property', property);
+        document.head.appendChild(tag);
+        ogTags.push(tag);
       }
-    } catch (err) {
-      logger.error('feed:refresh failed', err);
-    } finally {
-      setIsRefreshing(false);
-    }
-  }, [user?.id]);
+      tag.setAttribute('content', content);
+    };
+    document.title = 'Feed - Raw Surf';
+    setMeta('og:title', 'Feed - Raw Surf');
+    setMeta('og:description', 'Your surf feed - posts, waves, live sessions, and community updates on Raw Surf.');
+    setMeta('og:url', `${window.location.origin}/feed`);
+    setMeta('og:type', 'website');
+    setMeta('og:site_name', 'Raw Surf');
+    return () => {
+      document.title = 'Raw Surf';
+      ogTags.forEach(tag => tag.remove());
+    };
+  }, []);
+
+  // -- feed:refresh event listener (logo click + 60s auto-refresh from Sidebar) --
+  // ============ HANDLERS EXTRACTED TO hooks/useFeedActions.js ============
+  const {
+    handleFeedRefresh,
+    handleLoadNewPosts,
+    fetchFeedLineups,
+    fetchUpcomingSessions,
+    fetchLiveUsers,
+    fetchFollowing,
+    handleFollowFromFeed,
+    handleUnfollowFromMenu,
+    handlePostUpdated,
+    handlePostDeleted,
+    handleJoinLive,
+    fetchPosts,
+    loadMorePosts,
+    feedHasMoreRef,
+    loadingMoreRef,
+    fetchStreak,
+    fetchSpots,
+    fetchLocationHierarchy,
+    calculateDistance,
+    getGpsLocation,
+    handleLike,
+    handleShakaTapToggle,
+    handleShakaPointerDown,
+    handleShakaPointerUp,
+    handleShakaPointerLeave,
+    handleReaction,
+    handleSavePost,
+    handleCommentSubmit,
+    loadAllComments,
+    hideAllComments,
+    handleIWasThere,
+    handleViewCollaborators,
+    handleCheckIn,
+    submitCheckIn,
+    closeCheckInModal,
+  } = useFeedActions({
+    user, navigate, activeTab, selectedCountry, selectedState, selectedCity,
+    posts,
+    latestPostIdRef,
+    isPhotographer,
+    spots,
+    showReactionPicker,
+    commentInputs,
+    postModalOpen,
+    postMenuOpen,
+    showAllComments,
+    nearestSpot,
+    checkInData,
+    setAllComments,
+    setCheckInData,
+    setCheckInLoading,
+    setCheckInReward,
+    setCollaborationLoading,
+    setCommentInputs,
+    setConnectingToStream,
+    setFeedLastUpdated,
+    setFeedLineups,
+    setFeedLineupsLoading,
+    setFollowLoading,
+    setFollowingUsers,
+    setGpsLoading,
+    setIsRefreshing,
+    setLiveStreamInfo,
+    setLiveUsers,
+    setLoading,
+    setLoadingComments,
+    setLocationHierarchy,
+    setNearestSpot,
+    setNewPostsChip,
+    setPickerAnchor,
+    setPostMenuOpen,
+    setPostModalOpen,
+    setPosts,
+    setPressingPostId,
+    setSelectedCity,
+    setSelectedCountry,
+    setSelectedState,
+    setShowAllComments,
+    setShowCheckInModal,
+    setShowCollaboratorsModal,
+    setShowLiveViewer,
+    setShowReactionPicker,
+    setSpots,
+    setStreak,
+    setUpcomingSessions,
+    setUpcomingSessionsLoading,
+  });
 
   useEffect(() => {
     window.addEventListener('feed:refresh', handleFeedRefresh);
@@ -380,448 +402,54 @@ export const Feed = () => {
     }
   }, [posts]);
 
+  // ============ INFINITE SCROLL OBSERVER ============
+  const loadMoreSentinelRef = useRef(null);
+  
+  useEffect(() => {
+    const sentinel = loadMoreSentinelRef.current;
+    if (!sentinel) return;
+    
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && feedHasMoreRef.current && !loadingMoreRef.current) {
+          loadMorePosts();
+        }
+      },
+      { rootMargin: '400px' } // Start loading 400px before the sentinel is visible
+    );
+    
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [loadMorePosts, feedHasMoreRef, loadingMoreRef, posts.length]); // Re-attach when posts change
+
   // Load new posts when user taps the chip
-  const handleLoadNewPosts = useCallback(async () => {
-    setIsRefreshing(true);
-    try {
-      const response = await apiClient.get('/posts', {
-        params: { limit: 10 }
-      });
-      const incoming = response.data || [];
-      if (incoming.length > 0) {
-        setPosts(incoming.map(post => ({ ...post, localLiked: false })));
-        latestPostIdRef.current = incoming[0]?.id ?? null;
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-      }
-    } catch { /* silent – non-critical refresh */ }
-    setNewPostsChip(0);
-    setIsRefreshing(false);
-  }, [user?.id]);
 
   // Fetch feed lineups for display in feed
-  const fetchFeedLineups = async () => {
-    if (!user?.id) return;
-    
-    try {
-      setFeedLineupsLoading(true);
-      const response = await apiClient.get(`/feed/lineups`, {
-        params: { limit: 3 }
-      });
-      setFeedLineups(response.data || []);
-    } catch (error) {
-      logger.error('Failed to fetch feed lineups:', error);
-    } finally {
-      setFeedLineupsLoading(false);
-    }
-  };
 
   // Fetch upcoming booked sessions for countdown widget
-  const fetchUpcomingSessions = async () => {
-    if (!user?.id) return;
-    
-    try {
-      setUpcomingSessionsLoading(true);
-      
-      let upcoming = [];
-      const now = new Date();
-      
-      // For photographers, get bookings where they are the photographer (client bookings)
-      if (isPhotographer) {
-        const response = await apiClient.get(`/photographer/${user.id}/bookings`);
-        upcoming = (response.data || []).filter(b => {
-          const sessionDate = new Date(b.session_date);
-          const isActive = ['Confirmed', 'Pending', 'PendingPayment'].includes(b.status);
-          const isFuture = sessionDate > now;
-          return isActive && isFuture;
-        }).slice(0, 2);
-      } else {
-        // For surfers, get bookings where they are a participant
-        const response = await apiClient.get(`/bookings/user/${user.id}`, {
-          params: { status: 'upcoming', limit: 5 }
-        });
-        upcoming = (response.data || []).filter(b => {
-          const sessionDate = new Date(b.session_date);
-          const isActive = ['Confirmed', 'Pending', 'PendingPayment'].includes(b.status);
-          const isFuture = sessionDate > now;
-          // Also check participant status isn't cancelled/refunded
-          const participantActive = !['cancelled', 'refunded'].includes(b.participant_status?.toLowerCase());
-          return isActive && isFuture && participantActive;
-        }).slice(0, 2);
-      }
-      
-      setUpcomingSessions(upcoming);
-    } catch (error) {
-      logger.error('Failed to fetch upcoming sessions:', error);
-    } finally {
-      setUpcomingSessionsLoading(false);
-    }
-  };
 
   // Fetch currently live users
-  const fetchLiveUsers = async () => {
-    try {
-      const response = await apiClient.get(`/livekit/active-streams`);
-      const liveUserIds = response.data.streams?.map(s => s.broadcaster_id) || [];
-      setLiveUsers(liveUserIds);
-    } catch (e) {
-      // Ignore errors
-    }
-  };
 
   // Fetch who the current user is following
-  const fetchFollowing = async () => {
-    if (!user?.id) return;
-    try {
-      const response = await apiClient.get(`/following/${user.id}`);
-      const followingIds = new Set(response.data.map(f => f.id));
-      setFollowingUsers(followingIds);
-    } catch (e) {
-      // Ignore errors
-    }
-  };
 
   // Handle following a photographer from the feed
-  const handleFollowFromFeed = async (photographerId) => {
-    if (!user?.id) {
-      toast.error('Please log in to follow');
-      return;
-    }
-    
-    setFollowLoading(photographerId);
-    try {
-      await apiClient.post(`/follow/${photographerId}?follower_id=${user.id}`);
-      setFollowingUsers(prev => new Set([...prev, photographerId]));
-      toast.success('Following! Check their profile for availability');
-    } catch (error) {
-      toast.error(error.response?.data?.detail || 'Failed to follow');
-    } finally {
-      setFollowLoading(null);
-    }
-  };
 
   // Handle unfollowing a user from the post menu
-  const handleUnfollowFromMenu = async (userId) => {
-    if (!user?.id) return;
-    try {
-      await apiClient.delete(`/follow/${userId}?follower_id=${user.id}`);
-      setFollowingUsers(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(userId);
-        return newSet;
-      });
-      toast.success('Unfollowed');
-    } catch (error) {
-      toast.error('Failed to unfollow');
-    }
-  };
 
   // Handle post updates from menu (edit, settings change)
-  const handlePostUpdated = (updatedPost) => {
-    setPosts(prevPosts => prevPosts.map(p => 
-      p.id === updatedPost.id ? { ...p, ...updatedPost } : p
-    ));
-  };
 
   // Handle post deletion
-  const handlePostDeleted = (postId) => {
-    if (!postId) return;
-    // Remove from posts array and also clear any modal state
-    setPosts(prevPosts => prevPosts.filter(p => p && p.id !== postId));
-    // Close any open modals that might be showing the deleted post
-    if (postModalOpen?.id === postId) {
-      setPostModalOpen(null);
-    }
-    if (postMenuOpen?.id === postId) {
-      setPostMenuOpen(null);
-    }
-  };
 
   // Handle joining a live stream from post author
-  const handleJoinLive = async (authorId, authorName, authorAvatar) => {
-    // Set connecting state to show pulse animation
-    setConnectingToStream(authorId);
-    
-    try {
-      const response = await apiClient.get(`/livekit/active-streams`);
-      const liveStream = response.data.streams?.find(s => s.broadcaster_id === authorId);
-      
-      if (liveStream) {
-        setLiveStreamInfo({
-          id: liveStream.id,
-          room_name: liveStream.room_name,
-          broadcaster_id: liveStream.broadcaster_id,
-          broadcaster_name: liveStream.broadcaster_name || authorName,
-          broadcaster_avatar: liveStream.broadcaster_avatar || authorAvatar,
-          viewer_count: liveStream.viewer_count,
-          title: liveStream.title
-        });
-        setShowLiveViewer(true);
-      } else {
-        toast.error('Stream is no longer live');
-        fetchLiveUsers();
-      }
-    } catch (error) {
-      logger.error('Failed to get live stream info:', error);
-      toast.error('Failed to join stream');
-    } finally {
-      // Clear connecting state
-      setConnectingToStream(null);
-    }
-  };
 
-  const fetchPosts = async () => {
-    try {
-      const response = await apiClient.get(`/posts`, {
-      });
-      if (response.data && response.data.length > 0) {
-        // Map is_liked_by_user to liked for frontend state
-        const mappedPosts = response.data.map(post => ({
-          ...post,
-          liked: post.is_liked_by_user
-        }));
-        setPosts(mappedPosts);
-        setFeedLastUpdated(new Date().toISOString());
-        // Cache last 20 posts for offline fallback
-        try {
-          localStorage.setItem('rawsurf_cached_feed', JSON.stringify(mappedPosts.slice(0, 20)));
-          localStorage.setItem('rawsurf_cached_feed_ts', new Date().toISOString());
-        } catch { /* localStorage full */ }
-      } else {
-        // Fallback demo posts if no real posts
-        setPosts([
-          {
-            id: 'demo-1',
-            author_name: 'Pro Surfer Mike',
-            author_avatar: null,
-            media_url: 'https://images.unsplash.com/photo-1502680390469-be75c86b636f?w=600',
-            media_type: 'image',
-            caption: 'Dawn patrol at its finest! 🤙',
-            location: 'Pipeline, Hawaii',
-            likes_count: 247,
-            liked: false,
-            created_at: new Date().toISOString()
-          },
-          {
-            id: 'demo-2',
-            author_name: 'SurfPhotog_Sarah',
-            author_avatar: null,
-            media_url: 'https://images.unsplash.com/photo-1455729552865-3658a5d39692?w=600',
-            media_type: 'image',
-            caption: 'Caught this beauty yesterday morning',
-            location: 'Sebastian Inlet',
-            likes_count: 189,
-            liked: false,
-            created_at: new Date().toISOString()
-          },
-          {
-            id: 'demo-3',
-            author_name: 'GromDad_FL',
-            author_avatar: null,
-            media_url: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=600',
-            media_type: 'image',
-            caption: 'Little one is getting better every day!',
-            location: 'Cocoa Beach',
-            likes_count: 312,
-            liked: false,
-            created_at: new Date().toISOString()
-          }
-        ]);
-      }
-    } catch (error) {
-      logger.error('Error fetching posts:', error);
-      // Try loading cached feed before falling back to demo posts
-      try {
-        const cached = localStorage.getItem('rawsurf_cached_feed');
-        const cachedTs = localStorage.getItem('rawsurf_cached_feed_ts');
-        if (cached) {
-          setPosts(JSON.parse(cached));
-          setFeedLastUpdated(cachedTs || null);
-          logger.info('Loaded cached feed data');
-        } else {
-          throw new Error('No cache');
-        }
-      } catch {
-        // Final fallback: demo posts
-        setPosts([
-          {
-            id: 'demo-1',
-            author_name: 'Pro Surfer Mike',
-            author_avatar: null,
-            media_url: 'https://images.unsplash.com/photo-1502680390469-be75c86b636f?w=600',
-            media_type: 'image',
-            caption: 'Dawn patrol at its finest! 🤙',
-            location: 'Pipeline, Hawaii',
-            likes_count: 247,
-            liked: false,
-            created_at: new Date().toISOString()
-          }
-        ]);
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
 
-  const fetchStreak = async () => {
-    if (!user?.id) return;
-    try {
-      const response = await apiClient.get(`/streak/${user.id}`);
-      setStreak(response.data);
-    } catch (error) {
-      logger.error('Error fetching streak:', error);
-    }
-  };
 
-  const fetchSpots = async () => {
-    try {
-      const response = await apiClient.get(`/surf-spots`);
-      setSpots(response.data);
-    } catch (error) {
-      logger.error('Error fetching spots:', error);
-    }
-  };
 
-  const fetchLocationHierarchy = async () => {
-    try {
-      const response = await apiClient.get(`/surf-spots/locations`);
-      setLocationHierarchy(response.data || { countries: [] });
-    } catch (error) {
-      logger.error('Error fetching location hierarchy:', error);
-    }
-  };
 
   // Calculate distance between two points
-  const calculateDistance = (lat1, lon1, lat2, lon2) => {
-    const R = 6371;
-    const dLat = (lat2 - lat1) * Math.PI / 180;
-    const dLon = (lon2 - lon1) * Math.PI / 180;
-    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
-              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-              Math.sin(dLon/2) * Math.sin(dLon/2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-    return R * c;
-  };
 
-  // Get GPS location for check-in — two-attempt strategy for iPhone 16 / iOS Safari
-  const getGpsLocation = () => {
-    if (!navigator.geolocation) {
-      toast.error('Geolocation is not supported by your browser');
-      return;
-    }
+  // Get GPS location for check-in - two-attempt strategy for iPhone 16 / iOS Safari
 
-    setGpsLoading(true);
-
-    const handlePosition = (position) => {
-      const { latitude, longitude } = position.coords;
-
-      // Find nearest spot
-      let nearest = null;
-      let minDistance = Infinity;
-      spots.forEach(spot => {
-        const distance = calculateDistance(latitude, longitude, spot.latitude, spot.longitude);
-        if (distance < minDistance) {
-          minDistance = distance;
-          nearest = { ...spot, distance: distance.toFixed(1) };
-        }
-      });
-
-      setCheckInData(prev => ({
-        ...prev,
-        latitude,
-        longitude,
-        use_gps: true,
-        spot_id: nearest && minDistance < 10 ? nearest.id : prev.spot_id
-      }));
-
-      setNearestSpot(nearest);
-      if (nearest && minDistance < 10) {
-        toast.success(`\uD83D\uDCCD At ${nearest.name} (${nearest.distance}km) — GPS verified, you'll earn XP!`);
-      } else if (nearest) {
-        toast.success(`\uD83D\uDCCD Location found. Nearest spot: ${nearest.name} (${nearest.distance}km)`);
-      } else {
-        toast.success('\uD83D\uDCCD Location detected — select your spot to earn XP');
-      }
-      setGpsLoading(false);
-    };
-
-    const handleErrorFinal = (error) => {
-      setGpsLoading(false);
-      if (error.code === 1) { // PERMISSION_DENIED
-        toast.error(
-          navigator.userAgent.includes('iPhone') || navigator.userAgent.includes('iPad')
-            ? 'Location denied. Go to Settings \u2192 Privacy \u2192 Location Services \u2192 Safari \u2192 While Using.'
-            : 'Location access denied. Please enable it in your browser settings.'
-        );
-      } else if (error.code === 3) { // TIMEOUT
-        toast.error('Location timed out. Tap again or select your spot manually below.');
-      } else {
-        toast.error('Unable to detect location. Select your spot manually below.');
-      }
-    };
-
-    const handleErrorWithRetry = (error) => {
-      if (error.code === 2 || error.code === 3) {
-        // POSITION_UNAVAILABLE or TIMEOUT — retry with high accuracy & fresh fix
-        navigator.geolocation.getCurrentPosition(
-          handlePosition,
-          handleErrorFinal,
-          { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
-        );
-      } else {
-        handleErrorFinal(error);
-      }
-    };
-
-    // First attempt: low-accuracy / cached — fast on most devices
-    navigator.geolocation.getCurrentPosition(
-      handlePosition,
-      handleErrorWithRetry,
-      { enableHighAccuracy: false, timeout: 6000, maximumAge: 30000 }
-    );
-  };
-
-  const handleLike = async (postId) => {
-    if (!user?.id) {
-      toast.error('Please log in to like posts');
-      return;
-    }
-    
-    // Find current post state
-    const currentPost = posts.find(p => p.id === postId);
-    const isCurrentlyLiked = currentPost?.liked;
-    const currentLikesCount = currentPost?.likes_count || 0;
-    
-    // Optimistic update with toggle using functional update
-    setPosts(prevPosts => prevPosts.map(p =>
-      p.id === postId ? { 
-        ...p, 
-        likes_count: isCurrentlyLiked ? Math.max(0, p.likes_count - 1) : p.likes_count + 1, 
-        liked: !isCurrentlyLiked 
-      } : p
-    ));
-    
-    try {
-      const response = await apiClient.post(`/posts/${postId}/like`);
-      // Update with actual server response using functional update
-      setPosts(prevPosts => prevPosts.map(p =>
-        p.id === postId ? { 
-          ...p, 
-          likes_count: response.data.likes_count, 
-          liked: response.data.is_liked 
-        } : p
-      ));
-    } catch (error) {
-      // Revert on error using functional update
-      setPosts(prevPosts => prevPosts.map(p =>
-        p.id === postId ? { 
-          ...p, 
-          likes_count: currentLikesCount, 
-          liked: isCurrentlyLiked 
-        } : p
-      ));
-      toast.error('Failed to update like');
-    }
-  };
 
   // Shaka button gesture handlers (500ms threshold)
   // Quick tap = instant Shaka like OR clear active reaction
@@ -830,523 +458,34 @@ export const Feed = () => {
   const touchStartTimeRef = useRef(0);
   
   // Handle tap on Shaka button - Toggle logic
-  // Tap on ANY active state → revert to UNCHECKED Shaka
-  // Tap on unchecked Shaka → check it (like)
-  const handleShakaTapToggle = async (postId) => {
-    if (!user?.id) {
-      toast.error('Please log in to react');
-      return;
-    }
-    
-    const currentPost = posts.find(p => p.id === postId);
-    const userReaction = currentPost?.reactions?.find(r => r.user_id === user.id);
-    const isLiked = currentPost?.liked;
-    
-    // Case 1: User has an active non-Shaka reaction (Fire, Wave, Heart) → CLEAR IT & UNLIKE
-    if (userReaction && userReaction.emoji !== '🤙') {
-      // Optimistic update - remove reaction AND set liked to false (unchecked Shaka)
-      setPosts(prevPosts => prevPosts.map(p => {
-        if (p.id === postId) {
-          return {
-            ...p,
-            liked: false, // Global reset to unchecked state
-            likes_count: Math.max(0, (p.likes_count || 1) - 1),
-            reactions: (p.reactions || []).filter(r => r.user_id !== user.id)
-          };
-        }
-        return p;
-      }));
-      
-      try {
-        // Call API to remove the reaction (toggle it off)
-        await apiClient.post(`/posts/${postId}/reactions`, { 
-          emoji: userReaction.emoji 
-        });
-        // Also unlike if was liked
-        if (isLiked) {
-          await apiClient.post(`/posts/${postId}/like`);
-        }
-      } catch (error) {
-        toast.error('Failed to clear reaction');
-        fetchPosts();
-      }
-      return;
-    }
-    
-    // Case 2: User has liked (checked Shaka) → Unlike (revert to unchecked)
-    // Case 3: User has unchecked Shaka → Like (check it)
-    handleLike(postId);
-  };
+  // Tap on ANY active state ? revert to UNCHECKED Shaka
+  // Tap on unchecked Shaka ? check it (like)
   
-  const handleShakaPointerDown = (postId, e) => {
-    // Prevent any default browser behavior
-    if (e.cancelable) {
-      e.preventDefault();
-    }
-    
-    // Capture the button's position for the picker to anchor to
-    if (e.currentTarget) {
-      const rect = e.currentTarget.getBoundingClientRect();
-      setPickerAnchor({ x: rect.left + rect.width / 2, y: rect.top });
-    }
-    
-    // Clear any existing timer first
-    if (longPressTimerRef.current) {
-      clearTimeout(longPressTimerRef.current);
-      longPressTimerRef.current = null;
-    }
-    
-    touchStartTimeRef.current = Date.now();
-    longPressTriggeredRef.current = false;
-    
-    // Set pressing state for visual feedback
-    setPressingPostId(postId);
-    
-    // Set timer for long-press (600ms for more reliable mobile detection)
-    longPressTimerRef.current = setTimeout(() => {
-      longPressTriggeredRef.current = true;
-      // Trigger haptic feedback when reaction picker appears
-      if ('vibrate' in navigator) {
-        navigator.vibrate(10);
-      }
-      setShowReactionPicker(postId);
-    }, 600); // 600ms threshold - slightly longer for mobile reliability
-  };
 
-  const handleShakaPointerUp = (postId, e) => {
-    // Prevent any default browser behavior
-    if (e.cancelable) {
-      e.preventDefault();
-    }
-    e.stopPropagation();
-    
-    // Clear pressing state
-    setPressingPostId(null);
-    
-    // Always clear the timer
-    if (longPressTimerRef.current) {
-      clearTimeout(longPressTimerRef.current);
-      longPressTimerRef.current = null;
-    }
-    
-    // If long-press triggered the menu, do nothing - menu stays open
-    if (longPressTriggeredRef.current) {
-      longPressTriggeredRef.current = false; // Reset for next interaction
-      return;
-    }
-    
-    // If menu is already showing, don't do anything (let overlay handle close)
-    if (showReactionPicker === postId) {
-      return;
-    }
-    
-    // Quick tap (< 600ms) = toggle reaction with proper reversion logic
-    const pressDuration = Date.now() - touchStartTimeRef.current;
-    if (pressDuration < 600) {
-      handleShakaTapToggle(postId); // Use new toggle function with reversion logic
-    }
-  };
 
-  const handleShakaPointerLeave = () => {
-    // Clear pressing state and timer if finger/mouse leaves the button
-    setPressingPostId(null);
-    if (longPressTimerRef.current) {
-      clearTimeout(longPressTimerRef.current);
-      longPressTimerRef.current = null;
-    }
-  };
 
-  const handleReaction = async (postId, emoji) => {
-    if (!user?.id) {
-      toast.error('Please log in to react');
-      return;
-    }
-    
-    setShowReactionPicker(null);
-    setPickerAnchor(null);  // Clear anchor position
-    setPressingPostId(null); // Clear pressing state when picker closes
 
-    
-    // Find the post to get author info for notification
-    const targetPost = posts.find(p => p.id === postId);
-    
-    // Check if user already has this reaction (for toggle logic)
-    const existingReaction = targetPost?.reactions?.find(r => r.user_id === user.id && r.emoji === emoji);
-    const isRemoving = !!existingReaction;
-    
-    // Special handling for shaka emoji - it maps to the "liked" state
-    const isShakaEmoji = emoji === '🤙';
-    
-    // Optimistic update with animation trigger
-    setPosts(prevPosts => prevPosts.map(p => {
-      if (p.id === postId) {
-        const reactions = p.reactions || [];
-        const existingIndex = reactions.findIndex(r => r.user_id === user.id && r.emoji === emoji);
-        const hadAnyReaction = reactions.some(r => r.user_id === user.id);
-        
-        if (existingIndex >= 0) {
-          // Remove reaction - revert to UNCHECKED Shaka (liked = false)
-          return {
-            ...p,
-            liked: false,
-            likes_count: Math.max(0, (p.likes_count || 1) - 1),
-            reactions: reactions.filter((_, i) => i !== existingIndex)
-          };
-        } else {
-          // Add reaction - replace any existing reaction from this user
-          const filteredReactions = reactions.filter(r => r.user_id !== user.id);
-          
-          // If selecting shaka, set liked=true; otherwise liked=false (emoji replaces shaka)
-          return {
-            ...p,
-            liked: isShakaEmoji,
-            // Only increment count if user didn't already have a reaction (swap = no count change)
-            likes_count: hadAnyReaction ? (p.likes_count || 0) : (p.likes_count || 0) + 1,
-            reactions: isShakaEmoji 
-              ? filteredReactions // Shaka uses liked state, not reactions array
-              : [...filteredReactions, { emoji, user_id: user.id, user_name: user.full_name }]
-          };
-        }
-      }
-      return p;
-    }));
-    
-    try {
-      let response;
-      if (isShakaEmoji) {
-        // Shaka emoji uses the like endpoint
-        response = await apiClient.post(`/posts/${postId}/like`);
-      } else {
-        response = await apiClient.post(`/posts/${postId}/reactions`, { emoji });
-      }
-      
-      // Broadcast reaction update via Supabase Realtime for social sync
-      try {
-        await apiClient.post(`/realtime/broadcast`, {
-          channel: `post:${postId}`,
-          event: 'reaction_update',
-          payload: {
-            post_id: postId,
-            user_name: user.full_name,
-            emoji: isRemoving ? null : emoji,
-            action: response?.data?.action || (isRemoving ? 'removed' : 'added')
-          }
-        });
-      } catch (broadcastError) {
-        // Silent fail for broadcast - not critical
-        logger.debug('Broadcast skipped:', broadcastError.message);
-      }
-      
-      // Send notification to post author if adding a reaction (not removing)
-      const action = response?.data?.action || (isRemoving ? 'removed' : 'added');
-      if (action === 'added' && targetPost && targetPost.author_id !== user.id) {
-        // Create notification via API
-        await createNotification({
-          user_id: targetPost.author_id,
-          type: 'post_reaction',
-          title: `${user.full_name} reacted ${emoji}`,
-          message: `${user.full_name} reacted with ${emoji} to your post`,
-          data: {
-            post_id: postId,
-            reactor_id: user.id,
-            reactor_name: user.full_name,
-            emoji: emoji
-          }
-        }).catch(() => {}); // Silent fail for notification
-      }
-    } catch (error) {
-      logger.error('Reaction error:', error);
-      toast.error('Failed to add reaction');
-      fetchPosts(); // Refresh to get correct state
-    }
-  };
-
-  const handleSavePost = async (postId, isSaved) => {
-    // Optimistic update
-    setPosts(posts.map(p =>
-      p.id === postId ? { ...p, saved: !isSaved } : p
-    ));
-    
-    try {
-      if (isSaved) {
-        await apiClient.delete(`/posts/${postId}/save`);
-        toast.success('Post removed from saved');
-      } else {
-        await apiClient.post(`/posts/${postId}/save`);
-        toast.success('Post saved!');
-      }
-    } catch (error) {
-      // Revert on error
-      setPosts(posts.map(p =>
-        p.id === postId ? { ...p, saved: isSaved } : p
-      ));
-      toast.error('Failed to save post');
-    }
-  };
 
   // Comment functions
-  const handleCommentSubmit = async (postId) => {
-    const content = commentInputs[postId]?.trim();
-    if (!content || !user?.id) {
-      if (!user?.id) toast.error('Please log in to comment');
-      return;
-    }
 
-    try {
-      const response = await apiClient.post(
-        `/posts/${postId}/comments`,
-        { content }
-      );
-      
-      // Add new comment to the post's recent_comments
-      setPosts(prevPosts => prevPosts.map(p => {
-        if (p.id === postId) {
-          const newComment = response.data;
-          const updatedComments = [...(p.recent_comments || []), newComment].slice(-2);
-          return {
-            ...p,
-            comments_count: (p.comments_count || 0) + 1,
-            recent_comments: updatedComments
-          };
-        }
-        return p;
-      }));
-      
-      // Also add to allComments if viewing all
-      if (showAllComments[postId]) {
-        setAllComments(prev => ({
-          ...prev,
-          [postId]: [...(prev[postId] || []), response.data]
-        }));
-      }
-      
-      // Clear input
-      setCommentInputs(prev => ({ ...prev, [postId]: '' }));
-      toast.success('Comment posted!');
-    } catch (error) {
-      logger.error('Failed to post comment:', error);
-      toast.error('Failed to post comment');
-    }
-  };
 
-  const loadAllComments = async (postId) => {
-    if (loadingComments[postId]) return;
-    
-    setLoadingComments(prev => ({ ...prev, [postId]: true }));
-    try {
-      const response = await apiClient.get(`/posts/${postId}/comments`, {
-        params: { viewer_id: user?.id }
-      });
-      setAllComments(prev => ({ ...prev, [postId]: response.data }));
-      setShowAllComments(prev => ({ ...prev, [postId]: true }));
-    } catch (error) {
-      logger.error('Failed to load comments:', error);
-      toast.error('Failed to load comments');
-    } finally {
-      setLoadingComments(prev => ({ ...prev, [postId]: false }));
-    }
-  };
-
-  const hideAllComments = (postId) => {
-    setShowAllComments(prev => ({ ...prev, [postId]: false }));
-  };
 
   // "I Was There" Collaboration handlers
-  const handleIWasThere = async (postId) => {
-    if (!user?.id) {
-      toast.error('Please log in to join sessions');
-      return;
-    }
-    
-    setCollaborationLoading(postId);
-    
-    try {
-      // Get GPS location if available
-      let latitude = null;
-      let longitude = null;
-      
-      if (navigator.geolocation) {
-        try {
-          const position = await new Promise((resolve, reject) => {
-            navigator.geolocation.getCurrentPosition(resolve, reject, {
-              enableHighAccuracy: true,
-              timeout: 5000,
-              maximumAge: 0
-            });
-          });
-          latitude = position.coords.latitude;
-          longitude = position.coords.longitude;
-        } catch (gpsError) {
-          // GPS not available, continue without it
-          logger.debug('GPS not available:', gpsError);
-        }
-      }
-      
-      await apiClient.post(
-        `/posts/${postId}/request-collaboration`,
-        {
-          latitude,
-          longitude
-        }
-      );
-      
-      toast.success('Request sent! The post owner will review your request.');
-      
-      // Update local state to show pending
-      setPosts(prevPosts => prevPosts.map(p => {
-        if (p.id === postId) {
-          return {
-            ...p,
-            collaborators: [
-              ...(p.collaborators || []),
-              {
-                id: 'pending-' + user.id,
-                full_name: user.full_name,
-                avatar_url: user.avatar_url,
-                status: 'pending',
-                verified_by_gps: !!latitude
-              }
-            ]
-          };
-        }
-        return p;
-      }));
-    } catch (error) {
-      const message = error.response?.data?.detail || 'Failed to send request';
-      toast.error(message);
-    } finally {
-      setCollaborationLoading(null);
-    }
-  };
-
-  const handleViewCollaborators = (postId) => {
-    setShowCollaboratorsModal(postId);
-  };
 
 
-  const handleCheckIn = async () => {
-    if (streak.checked_in_today) {
-      toast.info('You already checked in today! Keep the streak going tomorrow 🔥');
-      return;
-    }
-    setShowCheckInModal(true);
-  };
 
-  const submitCheckIn = async () => {
-    setCheckInLoading(true);
 
-    const spotId = checkInData.spot_id || nearestSpot?.id;
-    const spotName = spotId
-      ? (spots.find(s => s.id === spotId)?.name || nearestSpot?.name || 'Unknown Spot')
-      : 'Custom Location';
 
-    try {
-      if (checkInData.use_gps && checkInData.latitude && checkInData.longitude && spotId) {
-        // GPS path → Passport check-in (XP + stamps + badges)
-        const passportResponse = await apiClient.post(`/passport/checkin`, {
-          spot_id: spotId,
-          latitude: checkInData.latitude,
-          longitude: checkInData.longitude,
-          notes: checkInData.notes || null
-        });
 
-        if (!passportResponse.data.success) {
-          toast.error(passportResponse.data.message || `You're too far from ${spotName} to check in`);
-          setCheckInLoading(false);
-          return;
-        }
-
-        // Also update legacy streak (best-effort)
-        try {
-          const streakResponse = await apiClient.post(`/check-in`, {
-            spot_id: spotId,
-            spot_name: spotName,
-            conditions: checkInData.conditions || null,
-            wave_height: checkInData.wave_height || null,
-            notes: checkInData.notes || null,
-            latitude: checkInData.latitude,
-            longitude: checkInData.longitude,
-            use_gps: true
-          });
-          setStreak({
-            current_streak: streakResponse.data.current_streak,
-            longest_streak: streakResponse.data.longest_streak,
-            total_check_ins: streakResponse.data.total_check_ins,
-            checked_in_today: true
-          });
-        } catch (streakError) {
-          if (streakError.response?.data?.detail !== 'Already checked in today') {
-            logger.warn('Legacy streak update failed:', streakError);
-          }
-          setStreak(prev => ({ ...prev, checked_in_today: true }));
-        }
-
-        // Show gamification reward card in modal instead of plain toast
-        setCheckInReward({
-          spot_name: spotName,
-          xp_earned: passportResponse.data.xp_earned,
-          badge_earned: passportResponse.data.badge_earned,
-          is_first_visit: passportResponse.data.is_first_visit,
-          streak_days: passportResponse.data.streak_days,
-          new_level: passportResponse.data.new_level,
-        });
-
-      } else {
-        // Manual (non-GPS) path → legacy streak only, no passport XP
-        const response = await apiClient.post(`/check-in`, {
-          spot_id: spotId || null,
-          spot_name: spotName,
-          conditions: checkInData.conditions || null,
-          wave_height: checkInData.wave_height || null,
-          notes: checkInData.notes || null,
-          latitude: checkInData.latitude,
-          longitude: checkInData.longitude,
-          use_gps: checkInData.use_gps
-        });
-
-        setStreak({
-          current_streak: response.data.current_streak,
-          longest_streak: response.data.longest_streak,
-          total_check_ins: response.data.total_check_ins,
-          checked_in_today: true
-        });
-
-        toast.success(`Checked in! \uD83D\uDD25 ${response.data.current_streak} day streak!`);
-        // Close immediately for manual check-in
-        setShowCheckInModal(false);
-        setCheckInData({ spot_id: '', conditions: '', wave_height: '', notes: '', latitude: null, longitude: null, use_gps: false });
-        setNearestSpot(null);
-        setSelectedCountry('');
-        setSelectedState('');
-        setSelectedCity('');
-      }
-
-    } catch (error) {
-      if (error.response?.data?.detail === 'Already checked in today') {
-        toast.info('You already checked in today!');
-        setStreak(prev => ({ ...prev, checked_in_today: true }));
-      } else {
-        const errorMsg = error.response?.data?.message || error.response?.data?.detail || 'Failed to check in';
-        toast.error(errorMsg);
-      }
-    } finally {
-      setCheckInLoading(false);
-    }
-  };
-
-  const closeCheckInModal = () => {
-    setShowCheckInModal(false);
-    setCheckInReward(null);
-    setCheckInData({ spot_id: '', conditions: '', wave_height: '', notes: '', latitude: null, longitude: null, use_gps: false });
-    setNearestSpot(null);
-    setSelectedCountry('');
-    setSelectedState('');
-    setSelectedCity('');
-  };
-
-  // Swipeable tab navigation — hooks must be called before any early returns
+  // Swipeable tab navigation - hooks must be called before any early returns
   const swipeHandlers = useSwipeTabs(FEED_TABS, activeTab, setActiveTab);
   const activeTabIndex = FEED_TABS.indexOf(activeTab);
+
+  // Pull-to-refresh for mobile - triggers feed refresh on swipe-down
+  const { pullRef, isPulling, pullProgress, isRefreshing: isPtrRefreshing } = usePullToRefresh(
+    async () => { await fetchPosts(); },
+    { threshold: 60, enabled: !loading }
+  );
 
   if (loading) {
     return (
@@ -1371,7 +510,9 @@ export const Feed = () => {
   const borderClass = isLight ? 'border-gray-200' : isBeach ? 'border-zinc-900' : 'border-zinc-800';
 
   return (
-    <div className={`max-w-xl mx-auto ${mainBgClass} min-h-screen transition-colors duration-300`} data-testid="feed-container">
+    <div ref={pullRef} className={`max-w-xl mx-auto ${mainBgClass} min-h-screen transition-colors duration-300`} data-testid="feed-container">
+      {/* Pull to Refresh Indicator */}
+      <PullToRefreshIndicator isPulling={isPulling} progress={pullProgress} isRefreshing={isPtrRefreshing} />
       {/* Offline / stale data banner */}
       <LastUpdatedBanner
         lastUpdatedAt={feedLastUpdated}
@@ -1393,11 +534,12 @@ export const Feed = () => {
         onCreated={() => setStoriesKey(k => k + 1)}
       />
 
-      {/* ── Instagram-style "New Posts" chip ── */}
+      {/* -- Instagram-style "New Posts" chip -- */}
       {newPostsChip > 0 && (
-        <div className="flex justify-center py-2 sticky top-14 z-20">
+        <div className="flex justify-center py-2 sticky top-14 z-20" aria-live="polite" aria-atomic="true">
           <button
             onClick={handleLoadNewPosts}
+            aria-label={`Load ${newPostsChip} new post${newPostsChip !== 1 ? 's' : ''}`}
             className="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold shadow-lg transition-all active:scale-95
               bg-yellow-400 text-black hover:bg-yellow-300"
           >
@@ -1423,7 +565,7 @@ export const Feed = () => {
       {/* Live Photographers Section (for surfers) */}
       {!isPhotographer && <LivePhotographers />}
 
-      {/* Feed Tabs — with sliding indicator */}
+      {/* Feed Tabs - with sliding indicator */}
       <div className={`relative flex border-b ${borderClass}`}>
         <button
           onClick={() => setActiveTab('for_you')}
@@ -1431,15 +573,17 @@ export const Feed = () => {
             activeTab === 'for_you' ? textPrimaryClass : textSecondaryClass
           }`}
           data-testid="tab-for-you"
+          aria-label="For You feed tab"
         >
           For You
         </button>
-        <button
+        <button aria-label="Play"
           onClick={() => setActiveTab('waves')}
           className={`flex-1 py-3 text-sm font-medium transition-colors ${
             activeTab === 'waves' ? textPrimaryClass : textSecondaryClass
           }`}
           data-testid="tab-waves"
+          aria-label="Waves video tab"
         >
           <span className="flex items-center justify-center gap-1">
             <Play className="w-3.5 h-3.5" />
@@ -1452,10 +596,11 @@ export const Feed = () => {
             activeTab === 'following' ? textPrimaryClass : textSecondaryClass
           }`}
           data-testid="tab-following"
+          aria-label="Following feed tab"
         >
           Following
         </button>
-        {/* Sliding indicator — transitions smoothly between tabs */}
+        {/* Sliding indicator - transitions smoothly between tabs */}
         <div
           className="absolute bottom-0 h-0.5 rounded-full transition-all duration-300 ease-out"
           style={{
@@ -1468,7 +613,7 @@ export const Feed = () => {
         />
       </div>
 
-      {/* Swipeable content area — touch handlers enable left/right tab swiping */}
+      {/* Swipeable content area - touch handlers enable left/right tab swiping */}
       <div {...swipeHandlers} style={{ touchAction: 'pan-y' }}>
 
       {/* Waves Tab - Full Screen Video Feed */}
@@ -1476,7 +621,7 @@ export const Feed = () => {
         <div className="relative" style={{ height: 'calc(100vh - 200px)', minHeight: '500px' }}>
           <WavesFeed feedType="for_you" onCreateWave={() => setShowCreateWaveModal(true)} />
           {/* Floating Create Wave Button */}
-          <button
+          <button aria-label="Add"
             onClick={() => setShowCreateWaveModal(true)}
             className="absolute bottom-6 right-6 w-14 h-14 rounded-full bg-gradient-to-r from-cyan-500 to-blue-500 shadow-lg flex items-center justify-center text-white z-10 hover:scale-105 transition-transform"
             data-testid="create-wave-fab"
@@ -1516,7 +661,7 @@ export const Feed = () => {
               </span>
             </div>
 
-            <button
+            <button aria-label="Add"
               onClick={() => setShowCreatePostModal(true)}
               className="ml-auto flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-yellow-400 to-orange-400 hover:from-yellow-500 hover:to-orange-500 rounded-full text-sm text-black font-medium transition-colors"
               data-testid="create-post-btn"
@@ -1566,8 +711,33 @@ export const Feed = () => {
             )}
             
             {posts.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-20 text-center">
-                <p className={textSecondaryClass}>No posts yet. Be the first to share!</p>
+              <div className="flex flex-col items-center justify-center py-20 text-center px-6">
+                {activeTab === 'following' ? (
+                  <>
+                    <Users className={`w-12 h-12 mb-3 ${textSecondaryClass} opacity-40`} />
+                    <p className={`font-semibold text-lg mb-1 ${textPrimaryClass}`}>Your feed is empty</p>
+                    <p className={`text-sm mb-5 ${textSecondaryClass}`}>Follow photographers and surfers to see their latest posts here.</p>
+                    <button
+                      onClick={() => navigate('/explore')}
+                      className="px-6 py-2.5 rounded-full bg-gradient-to-r from-cyan-500 to-blue-500 text-white text-sm font-semibold shadow-lg shadow-cyan-500/25 hover:shadow-cyan-500/40 transition-all active:scale-95"
+                      aria-label="Discover photographers to follow"
+                    >
+                      Discover Photographers
+                    </button>
+                  </>
+                ) : activeTab === 'waves' ? (
+                  <>
+                    <Play className={`w-12 h-12 mb-3 ${textSecondaryClass} opacity-40`} />
+                    <p className={`font-semibold text-lg mb-1 ${textPrimaryClass}`}>No waves yet</p>
+                    <p className={`text-sm ${textSecondaryClass}`}>Short video clips from the surf community will appear here.</p>
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className={`w-12 h-12 mb-3 ${textSecondaryClass} opacity-40`} />
+                    <p className={`font-semibold text-lg mb-1 ${textPrimaryClass}`}>No posts yet</p>
+                    <p className={`text-sm ${textSecondaryClass}`}>Be the first to share a moment from the water!</p>
+                  </>
+                )}
               </div>
             ) : (
           injectAdsIntoPosts(posts, user?.is_ad_supported).map((post, index) => (
@@ -1611,6 +781,7 @@ export const Feed = () => {
                 onLikeStart={handleShakaPointerDown}
                 onLikeEnd={handleShakaPointerUp}
                 onLikeLeave={handleShakaPointerLeave}
+                onDoubleTapLike={(postId) => handleReaction(postId, '\u{1F919}')}
                 onCommentChange={(postId, val) => setCommentInputs(prev => ({ ...prev, [postId]: val }))}
                 onCommentSubmit={handleCommentSubmit}
                 onLoadAllComments={loadAllComments}
@@ -1626,6 +797,20 @@ export const Feed = () => {
           ))
         )}
           </div>
+
+          {/* ============ INFINITE SCROLL SENTINEL ============ */}
+          {posts.length > 0 && (
+            <div ref={loadMoreSentinelRef} className="flex justify-center py-6" id="feed-load-more-sentinel">
+              {loadingMoreRef.current ? (
+                <div className="flex items-center gap-2">
+                  <div className="w-5 h-5 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
+                  <span className={`text-xs ${textSecondaryClass}`}>Loading more...</span>
+                </div>
+              ) : !feedHasMoreRef.current ? (
+                <p className={`text-xs ${textSecondaryClass} opacity-60`}>{'\uD83C\uDFC4'} You've seen all the posts!</p>
+              ) : null}
+            </div>
+          )}
 
           {/* Global Reaction Picker Overlay - renders on top of everything */}
           <ReactionOverlay 
@@ -1670,13 +855,13 @@ export const Feed = () => {
             </DialogDescription>
           </DialogHeader>
 
-          {/* Gamification Reward Card — shown after GPS check-in */}
+          {/* Gamification Reward Card - shown after GPS check-in */}
           {checkInReward ? (
             <div className="flex-1 flex flex-col items-center justify-center px-6 py-8 text-center">
               <div className="w-20 h-20 rounded-full bg-gradient-to-br from-yellow-400 to-orange-500 flex items-center justify-center mb-4 shadow-lg shadow-yellow-400/30">
                 <Flame className="w-10 h-10 text-white" />
               </div>
-              <h3 className="text-2xl font-black text-white mb-1">Checked In! 🤙</h3>
+              <h3 className="text-2xl font-black text-white mb-1">Checked In! ??</h3>
               <p className="text-gray-400 text-sm mb-6">{checkInReward.spot_name}</p>
 
               {/* XP earned */}
@@ -1689,13 +874,13 @@ export const Feed = () => {
 
               {/* First visit bonus */}
               {checkInReward.is_first_visit && (
-                <div className="text-blue-400 text-sm font-medium mb-2">🆕 First visit to this spot!</div>
+                <div className="text-blue-400 text-sm font-medium mb-2">?? First visit to this spot!</div>
               )}
 
               {/* Badge earned */}
               {checkInReward.badge_earned && (
                 <div className="flex items-center gap-2 bg-purple-500/10 border border-purple-500/30 rounded-xl px-5 py-3 mb-3">
-                  <span className="text-lg">🏅</span>
+                  <span className="text-lg">??</span>
                   <div className="text-left">
                     <div className="text-xs text-purple-400 uppercase tracking-wide">Badge Earned</div>
                     <div className="text-white font-semibold capitalize">{checkInReward.badge_earned.replace(/_/g, ' ')}</div>
@@ -1706,8 +891,8 @@ export const Feed = () => {
               {/* Streak */}
               {checkInReward.streak_days > 0 && (
                 <div className="text-orange-400 text-sm mb-6">
-                  🔥 {checkInReward.streak_days} day streak
-                  {checkInReward.streak_days >= 7 ? ' — on fire!' : ' — keep it going!'}
+                  ?? {checkInReward.streak_days} day streak
+                  {checkInReward.streak_days >= 7 ? ' - on fire!' : ' - keep it going!'}
                 </div>
               )}
 
@@ -1715,7 +900,7 @@ export const Feed = () => {
                 onClick={closeCheckInModal}
                 className="w-full bg-gradient-to-r from-yellow-400 to-orange-400 hover:from-yellow-500 hover:to-orange-500 text-black font-bold h-12"
               >
-                Awesome! 🤙
+                Awesome! ??
               </Button>
             </div>
           ) : (
@@ -1744,6 +929,16 @@ export const Feed = () => {
                     {gpsLoading ? 'Finding your location\u2026' : checkInData.latitude ? '\u2713 GPS Location Detected' : 'Use My GPS Location'}
                   </Button>
 
+                  {/* GPS accuracy progress bar */}
+                  {gpsLoading && (
+                    <div className="mt-2 space-y-1.5">
+                      <div className="h-1.5 rounded-full bg-zinc-700 overflow-hidden">
+                        <div className="h-full bg-gradient-to-r from-cyan-400 to-emerald-400 rounded-full animate-pulse" style={{ width: '65%', transition: 'width 2s ease-out' }} />
+                      </div>
+                      <p className="text-xs text-zinc-400 text-center">Acquiring GPS signal - keep screen on</p>
+                    </div>
+                  )}
+
                   {/* GPS feedback */}
                   {nearestSpot && checkInData.latitude && (
                     <div className={`mt-2 p-2.5 rounded-lg text-xs ${
@@ -1754,8 +949,8 @@ export const Feed = () => {
                       <span className="font-medium">{nearestSpot.name}</span>
                       {' '}&mdash; {nearestSpot.distance}km away
                       {parseFloat(nearestSpot.distance) < 10
-                        ? ' · 🏆 Within range — you\'ll earn Passport XP!'
-                        : ' · Outside 10km check-in zone'}
+                        ? ' - 📍 Within range - you\'ll earn Passport XP!'
+                        : ' - Outside 10km check-in zone'}
                     </div>
                   )}
                 </div>
@@ -1790,7 +985,7 @@ export const Feed = () => {
                   </Select>
                 </div>
 
-                {/* State/Province selector — only shown when country selected */}
+                {/* State/Province selector - only shown when country selected */}
                 {selectedCountry && (() => {
                   const countryData = locationHierarchy.countries.find(c => c.name === selectedCountry);
                   const states = countryData?.states || [];
@@ -1817,7 +1012,7 @@ export const Feed = () => {
                   );
                 })()}
 
-                {/* City / Area selector — shown when state is selected */}
+                {/* City / Area selector - shown when state is selected */}
                 {selectedState && (() => {
                   // First try cities from the hierarchy API response
                   const countryData = locationHierarchy.countries.find(c => c.name === selectedCountry);
@@ -1848,7 +1043,7 @@ export const Feed = () => {
                           <SelectValue placeholder="All areas (or pick one to narrow)" />
                         </SelectTrigger>
                         <SelectContent className="bg-zinc-800 border-zinc-700 max-h-60 overflow-y-auto">
-                          <SelectItem value="__all__" className="text-zinc-400 hover:bg-zinc-700 italic">— All areas —</SelectItem>
+                          <SelectItem value="__all__" className="text-zinc-400 hover:bg-zinc-700 italic">- All areas -</SelectItem>
                           {derivedCities.map(c => (
                             <SelectItem key={c.name} value={c.name} className="text-white hover:bg-zinc-700">
                               {c.name} <span className="text-gray-500 text-xs ml-1">({c.spot_count} {c.spot_count === 1 ? 'spot' : 'spots'})</span>
@@ -1860,12 +1055,12 @@ export const Feed = () => {
                   );
                 })()}
 
-                {/* Spot selector — GPS-sorted when GPS active, filtered by hierarchy when manual */}
+                {/* Spot selector - GPS-sorted when GPS active, filtered by hierarchy when manual */}
                 <div>
                   <label className="text-sm text-gray-400 mb-2 block">
                     Surf Spot
                     {checkInData.use_gps && checkInData.latitude && (
-                      <span className="ml-2 text-xs text-cyan-400">📍 sorted by distance</span>
+                      <span className="ml-2 text-xs text-cyan-400">?? sorted by distance</span>
                     )}
                   </label>
                   <Select
@@ -1908,7 +1103,7 @@ export const Feed = () => {
                             ));
                         }
 
-                        // MANUAL MODE: filter by country → state → city hierarchy, sorted alphabetically
+                        // MANUAL MODE: filter by country ? state ? city hierarchy, sorted alphabetically
                         return spots
                           .filter(spot => {
                             if (!selectedCountry) return true;
@@ -1921,7 +1116,7 @@ export const Feed = () => {
                           .map((spot) => (
                             <SelectItem key={spot.id} value={spot.id} className="text-white hover:bg-zinc-700">
                               {spot.name}
-                              {spot.region && <span className="text-gray-500 text-xs ml-1"> — {spot.region}</span>}
+                              {spot.region && <span className="text-gray-500 text-xs ml-1"> - {spot.region}</span>}
                             </SelectItem>
                           ));
                       })()}
@@ -1937,11 +1132,11 @@ export const Feed = () => {
                       <SelectValue placeholder="How's it looking?" />
                     </SelectTrigger>
                     <SelectContent className="bg-zinc-800 border-zinc-700">
-                      <SelectItem value="Glassy" className="text-white hover:bg-zinc-700">🪞 Glassy</SelectItem>
-                      <SelectItem value="Clean" className="text-white hover:bg-zinc-700">✨ Clean</SelectItem>
-                      <SelectItem value="Choppy" className="text-white hover:bg-zinc-700">🌊 Choppy</SelectItem>
-                      <SelectItem value="Messy" className="text-white hover:bg-zinc-700">💨 Messy</SelectItem>
-                      <SelectItem value="Blown Out" className="text-white hover:bg-zinc-700">🌀 Blown Out</SelectItem>
+                      <SelectItem value="Glassy" className="text-white hover:bg-zinc-700">?? Glassy</SelectItem>
+                      <SelectItem value="Clean" className="text-white hover:bg-zinc-700">? Clean</SelectItem>
+                      <SelectItem value="Choppy" className="text-white hover:bg-zinc-700">?? Choppy</SelectItem>
+                      <SelectItem value="Messy" className="text-white hover:bg-zinc-700">?? Messy</SelectItem>
+                  <SelectItem value="Blown Out" className="text-white hover:bg-zinc-700">{String.fromCodePoint(0x1F4A5)} Blown Out</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -1989,7 +1184,7 @@ export const Feed = () => {
 
               {/* Fixed footer */}
               <div className="px-6 pb-6 pt-3 shrink-0 border-t border-zinc-800">
-                <Button
+                <Button aria-label="Loader2"
                   onClick={submitCheckIn}
                   disabled={checkInLoading}
                   className="w-full h-12 bg-gradient-to-r from-yellow-400 to-orange-400 hover:from-yellow-500 hover:to-orange-500 text-black font-bold"
@@ -2001,7 +1196,7 @@ export const Feed = () => {
                     <>
                       <Flame className="w-5 h-5 mr-2" />
                       {checkInData.use_gps && (checkInData.spot_id || nearestSpot)
-                        ? 'Check In + Earn XP 🏅'
+                        ? 'Check In + Earn XP 🏄'
                         : 'Check In & Keep Streak 🔥'}
                     </>
                   )}
@@ -2033,7 +1228,7 @@ export const Feed = () => {
               >
                 <div className="w-10 h-10 rounded-full bg-gradient-to-br from-cyan-400 to-blue-500 flex items-center justify-center overflow-hidden">
                   {collab.avatar_url ? (
-                    <img src={getFullUrl(collab.avatar_url)} alt="" className="w-full h-full object-cover" />
+                    <img loading="lazy" decoding="async" src={getFullUrl(collab.avatar_url)} alt="" className="w-full h-full object-cover" />
                   ) : (
                     <span className="text-white font-bold">{collab.full_name?.charAt(0) || '?'}</span>
                   )}

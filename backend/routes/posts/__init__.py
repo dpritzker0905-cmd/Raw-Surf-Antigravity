@@ -18,8 +18,10 @@ from .feed import router as feed_router
 from .interactions import router as interactions_router
 from .management import router as management_router
 from .social import router as social_router
+from .post_collaboration import router as post_collaboration_router
 
 router.include_router(feed_router)
 router.include_router(interactions_router)
 router.include_router(management_router)
 router.include_router(social_router)
+router.include_router(post_collaboration_router)

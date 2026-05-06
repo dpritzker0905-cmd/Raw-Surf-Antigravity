@@ -160,7 +160,7 @@ const ExploreSpotCard = ({ spot, userSubscriptionTier = 'free' }) => {
       {/* Image Header */}
       <div className="relative h-32 overflow-hidden">
         {showPrimaryImage ? (
-          <img 
+          <img loading="lazy" decoding="async" 
             src={displayImage.startsWith('http') ? displayImage : getFullUrl(displayImage)} 
             alt={spot.name}
             onError={() => setImageError(true)}
@@ -169,9 +169,9 @@ const ExploreSpotCard = ({ spot, userSubscriptionTier = 'free' }) => {
             }`}
           />
         ) : showMapFallback ? (
-          /* Map satellite fallback — same as Popular Spots on All tab */
+          /* Map satellite fallback - same as Popular Spots on All tab */
           <div className="w-full h-full bg-muted relative">
-            <img 
+            <img loading="lazy" decoding="async" 
               src={`https://static-maps.yandex.ru/1.x/?lang=en_US&ll=${spot.longitude},${spot.latitude}&z=12&l=sat&size=400,300`}
               alt={`Map of ${spot.name}`}
               onError={() => setMapError(true)}
@@ -253,7 +253,7 @@ const ExploreSpotCard = ({ spot, userSubscriptionTier = 'free' }) => {
             <span>{spot.region}</span>
             {spot.difficulty && (
               <>
-                <span className="text-gray-600">•</span>
+                <span className="text-gray-600">-</span>
                 <Badge variant="outline" className="text-[10px] px-1 py-0">
                   {spot.difficulty}
                 </Badge>
@@ -288,14 +288,14 @@ const ExploreSpotCard = ({ spot, userSubscriptionTier = 'free' }) => {
             {conditions.wave_direction && (
               <div className="flex items-center gap-1 text-gray-400">
                 <DirectionArrow direction={conditions.wave_direction} className="text-yellow-400" />
-                <span className="text-xs">{conditions.wave_direction}°</span>
+                <span className="text-xs">{conditions.wave_direction}-</span>
               </div>
             )}
           </div>
           
           {/* Expand Toggle */}
-          <button
-            onClick={() => setExpanded(!expanded)}
+          <button aria-label="Collapse"
+            aria-expanded={expanded} onClick={() => setExpanded(!expanded)}
             className="p-1 hover:bg-zinc-800 rounded-full transition-colors"
           >
             {expanded ? (
@@ -474,7 +474,7 @@ const ExploreSpotCard = ({ spot, userSubscriptionTier = 'free' }) => {
       
       {/* Action Buttons */}
       <div className="px-3 py-2 flex items-center gap-2">
-        <button
+        <button aria-label="Waves"
           onClick={handleViewSpot}
           className="flex-1 flex items-center justify-center gap-2 py-2 bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 rounded-lg text-white text-sm font-medium transition-all"
           data-testid={`view-spot-${spot.id}`}
@@ -482,7 +482,7 @@ const ExploreSpotCard = ({ spot, userSubscriptionTier = 'free' }) => {
           <Waves className="w-4 h-4" />
           View Spot
         </button>
-        <button
+        <button aria-label="Navigation"
           onClick={handleViewOnMap}
           className="flex items-center justify-center gap-1 px-3 py-2 bg-zinc-800 hover:bg-zinc-700 rounded-lg text-white text-sm transition-colors"
           data-testid={`view-map-${spot.id}`}
@@ -495,4 +495,4 @@ const ExploreSpotCard = ({ spot, userSubscriptionTier = 'free' }) => {
   );
 };
 
-export default ExploreSpotCard;
+export default React.memo(ExploreSpotCard);

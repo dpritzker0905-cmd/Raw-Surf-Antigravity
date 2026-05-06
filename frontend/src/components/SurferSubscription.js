@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Button } from './ui/button';
@@ -68,12 +68,12 @@ export const SurferSubscription = () => {
       <div className="max-w-5xl mx-auto">
         {/* Header */}
         <div className="text-center mb-8">
-          <img
+          <img loading="lazy" decoding="async"
             src="https://customer-assets.emergentagent.com/job_raw-surf-os/artifacts/9llcl5mg_Rawig6-500x500.png"
             alt="Raw Surf"
             className="w-16 h-16 mx-auto mb-4"
           />
-          <h1 className="text-4xl font-bold text-white mb-3" style={{ fontFamily: 'Oswald' }}>
+          <h1 className="text-4xl font-bold text-white mb-3 font-oswald" >
             Choose Your Wave
           </h1>
           <p className="text-gray-400 text-lg max-w-2xl mx-auto">
@@ -94,7 +94,7 @@ export const SurferSubscription = () => {
             >
               Monthly
             </button>
-            <button
+            <button aria-label="Calendar"
               onClick={() => setBillingPeriod('annual')}
               className={`px-6 py-2 rounded-full text-sm font-medium transition-all flex items-center gap-2 ${
                 billingPeriod === 'annual'
@@ -130,7 +130,7 @@ export const SurferSubscription = () => {
               )}
               <CardContent className="p-6">
                 <div className="text-center mb-6">
-                  <h3 className="text-2xl font-bold text-white mb-1" style={{ fontFamily: 'Oswald' }}>
+                  <h3 className="text-2xl font-bold text-white mb-1 font-oswald" >
                     {tier.name}
                   </h3>
                   <p className="text-gray-400 text-sm mb-4">{tier.description}</p>

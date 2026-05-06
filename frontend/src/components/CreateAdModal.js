@@ -1,4 +1,4 @@
-﻿/**
+/**
  * CreateAdModal - User-facing ad submission for Self-Serve Ad Engine
  * Similar flow to creating a social post - supports images and videos
  */
@@ -196,7 +196,7 @@ export const CreateAdModal = ({ isOpen, onClose, onSuccess }) => {
     : 'bg-zinc-800 border-zinc-700 text-white';
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog data-testid="create-ad-modal" open={isOpen} onOpenChange={onClose}>
       <DialogContent className={`${cardBg} border-zinc-800 sm:max-w-md`}>
         <DialogHeader className="shrink-0 border-b border-zinc-700 px-4 sm:px-6 pt-4 pb-3">
           <DialogTitle className={`${textClass} flex items-center gap-2`}>
@@ -234,17 +234,16 @@ export const CreateAdModal = ({ isOpen, onClose, onSuccess }) => {
                         controls 
                       />
                     ) : (
-                      <img 
+                      <img loading="lazy" decoding="async" 
                         src={mediaPreview} 
                         alt="Ad preview" 
                         className="w-full h-40 object-cover" 
                       />
                     )}
-                    <button
+                    <button aria-label="Close"
                       onClick={clearMedia}
                       className="absolute top-2 right-2 p-1.5 bg-black/60 rounded-full hover:bg-black/80 transition-colors"
-                    >
-                      <X className="w-4 h-4 text-white" />
+                    ><X className="w-4 h-4 text-white" />
                     </button>
                     <div className="absolute bottom-2 left-2">
                       <Badge className={mediaType === 'video' ? 'bg-red-500' : 'bg-blue-500'}>
@@ -254,7 +253,7 @@ export const CreateAdModal = ({ isOpen, onClose, onSuccess }) => {
                     </div>
                   </div>
                 ) : (
-                  <button
+                  <button aria-label="Loader2"
                     onClick={() => fileInputRef.current?.click()}
                     disabled={uploadingMedia}
                     className={`w-full h-32 border-2 border-dashed rounded-xl flex flex-col items-center justify-center gap-2 transition-colors ${
@@ -430,7 +429,7 @@ export const CreateAdModal = ({ isOpen, onClose, onSuccess }) => {
                       {mediaType === 'video' ? (
                         <video src={mediaPreview} className="w-full h-32 object-cover" />
                       ) : (
-                        <img src={mediaPreview} alt="Ad" className="w-full h-32 object-cover" />
+                        <img loading="lazy" decoding="async" src={mediaPreview} alt="Ad" className="w-full h-32 object-cover" />
                       )}
                     </div>
                   )}
@@ -441,7 +440,7 @@ export const CreateAdModal = ({ isOpen, onClose, onSuccess }) => {
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Button size="sm" className="bg-purple-600 hover:bg-purple-700">
+                    <Button size="sm" className="bg-purple-600 hover:bg-purple-700" aria-label="Open link">
                       {cta || 'Learn More'}
                       <ExternalLink className="w-3 h-3 ml-1" />
                     </Button>
@@ -467,7 +466,7 @@ export const CreateAdModal = ({ isOpen, onClose, onSuccess }) => {
                 </div>
                 
                 <div className="flex items-center gap-3">
-                  <Input
+                  <Input aria-label="Numeric input"
                     type="number"
                     value={budgetCredits}
                     onChange={(e) => setBudgetCredits(Math.max(10, parseInt(e.target.value) || 10))}
@@ -499,7 +498,7 @@ export const CreateAdModal = ({ isOpen, onClose, onSuccess }) => {
                 >
                   Back
                 </Button>
-                <Button
+                <Button aria-label="Loader2"
                   onClick={handleSubmit}
                   disabled={!canSubmit || submitting || (user?.credit_balance || 0) < budgetCredits}
                   className="flex-1 bg-green-600 hover:bg-green-700"

@@ -1,24 +1,24 @@
 /**
- * RequestProModal — Unified "Request a Pro Photographer" flow
+ * RequestProModal - Unified "Request a Pro Photographer" flow
  *
  * Features:
- *  ● Auto-match or specific photographer selection (Uber style)
- *  ● Location display (nearest surf spot or GPS coordinates)
- *  ● Scheduled arrival time: 30 / 60 / 90 minutes from now
- *  ● Session duration: 0.5 / 1 / 2 / 3 hours
- *  ● Crew / Split Fare — full surfboard lineup UI (pool-table style)
- *  ● Captain's Hub: per-member % slider + "I'll cover" toggle
- *  ● Live cost breakdown (rate × duration, split share, captain's share)
- *  ● Boost Your Request (credits-based priority)
- *  ● Proper sticky header / scrollable body / sticky footer layout
+ *  ? Auto-match or specific photographer selection (Uber style)
+ *  ? Location display (nearest surf spot or GPS coordinates)
+ *  ? Scheduled arrival time: 30 / 60 / 90 minutes from now
+ *  ? Session duration: 0.5 / 1 / 2 / 3 hours
+ *  ? Crew / Split Fare - full surfboard lineup UI (pool-table style)
+ *  ? Captain's Hub: per-member % slider + "I'll cover" toggle
+ *  ? Live cost breakdown (rate - duration, split share, captain's share)
+ *  ? Boost Your Request (credits-based priority)
+ *  ? Proper sticky header / scrollable body / sticky footer layout
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
-
   Camera, MapPin, Clock, Loader2, Target, Check,
   X, Zap, ChevronDown, ChevronUp, Plus, Award, Calculator,
-  Wallet, Users,
+  Wallet, Users, CreditCard, ChevronLeft,
 } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
@@ -31,12 +31,15 @@ import apiClient from '../../lib/apiClient';
 import { getFullUrl } from '../../utils/media';
 import { ROLES } from '../../constants/roles';
 import { useTheme } from '../../contexts/ThemeContext';
+import { useAuth } from '../../contexts/AuthContext';
+import logger from '../../utils/logger';
+import useRequestProActions from '../../hooks/useRequestProActions';
 
 
 
-// ─── Surfboard colour palette (matches OnDemandRequestDrawer) ────────────────
+// --- Surfboard colour palette (matches OnDemandRequestDrawer) ----------------
 const SURFBOARD_COLORS = [
-  { fill: '#FCD34D', stroke: '#F59E0B' }, // Yellow — captain/you
+  { fill: '#FCD34D', stroke: '#F59E0B' }, // Yellow - captain/you
   { fill: '#22D3EE', stroke: '#0891B2' }, // Cyan
   { fill: '#F472B6', stroke: '#DB2777' }, // Pink
   { fill: '#A78BFA', stroke: '#7C3AED' }, // Purple
@@ -45,7 +48,7 @@ const SURFBOARD_COLORS = [
   { fill: '#60A5FA', stroke: '#2563EB' }, // Blue
 ];
 
-// ─── Surfboard + avatar compound component ───────────────────────────────────
+// --- Surfboard + avatar compound component -----------------------------------
 const SurfboardAvatar = ({ member, index, isCaptain, onRemove }) => {
   const board = SURFBOARD_COLORS[index % SURFBOARD_COLORS.length];
   return (
@@ -66,7 +69,7 @@ const SurfboardAvatar = ({ member, index, isCaptain, onRemove }) => {
       <div className="relative z-10">
         <div className={`w-11 h-11 rounded-full overflow-hidden ${isCaptain ? 'ring-2 ring-yellow-400' : 'ring-2 ring-cyan-400/50'} transition-all group-hover:scale-105`}>
           {member.avatar_url ? (
-            <img src={getFullUrl(member.avatar_url)} alt={member.name || 'crew'} className="w-full h-full object-cover" />
+            <img loading="lazy" decoding="async" src={getFullUrl(member.avatar_url)} alt={member.name || 'crew'} className="w-full h-full object-cover" />
           ) : (
             <div className={`w-full h-full flex items-center justify-center font-bold text-sm ${isCaptain ? 'bg-gradient-to-br from-yellow-400 to-orange-500' : 'bg-gradient-to-br from-cyan-400 to-blue-500'} text-black`}>
               {(member.name || member.value)?.[0]?.toUpperCase() || '?'}
@@ -100,7 +103,7 @@ const SurfboardAvatar = ({ member, index, isCaptain, onRemove }) => {
   );
 };
 
-// ─── Empty seat (dashed surfboard) ──────────────────────────────────────────
+// --- Empty seat (dashed surfboard) ------------------------------------------
 const EmptySeat = ({ onClick }) => (
   <div className="relative group cursor-pointer flex flex-col items-center" onClick={onClick}>
     <svg viewBox="0 0 60 100" className="absolute left-1/2 -translate-x-1/2 top-2 w-12 h-20 pointer-events-none opacity-40 group-hover:opacity-60 transition-opacity">
@@ -116,7 +119,7 @@ const EmptySeat = ({ onClick }) => (
   </div>
 );
 
-// ─── Duration pills ──────────────────────────────────────────────────────────
+// --- Duration pills ----------------------------------------------------------
 const DURATIONS = [
   { value: 0.5, label: '30m' },
   { value: 1,   label: '1h'  },
@@ -124,14 +127,14 @@ const DURATIONS = [
   { value: 3,   label: '3h'  },
 ];
 
-// ─── Boost options ───────────────────────────────────────────────────────────
+// --- Boost options -----------------------------------------------------------
 const BOOST_OPTIONS = [
   { hours: 1, credits: 5,  label: '1h' },
   { hours: 2, credits: 10, label: '2h' },
   { hours: 4, credits: 20, label: '4h' },
 ];
 
-// ─── Main component ───────────────────────────────────────────────────────────
+// --- Main component -----------------------------------------------------------
 export const RequestProModal = ({
   isOpen,
   onClose,
@@ -141,7 +144,7 @@ export const RequestProModal = ({
   // Location
   userLocation,
   nearestSpot,
-  // On-demand photographers nearby (optional — pre-fetched by MapPage)
+  // On-demand photographers nearby (optional - pre-fetched by MapPage)
   onDemandPhotographers = [],
   onDemandLoading = false,
   // Callbacks
@@ -150,17 +153,23 @@ export const RequestProModal = ({
 }) => {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
-  // ── Photographer selection ──────────────────────────────────────────────
+  const navigate = useNavigate();
+  const { user: authUser, updateUser } = useAuth();
+
+  // -- Step flow: 'configure' ? 'confirm' ---------------------------------
+  const [step, setStep] = useState('configure');
+
+  // -- Photographer selection ----------------------------------------------
   const [selectedPro, setSelectedPro]         = useState(null);
   const [proListExpanded, setProListExpanded] = useState(false);
 
-  // ── Scheduled start time ────────────────────────────────────────────────
+  // -- Scheduled start time ------------------------------------------------
   const [startTimeOption, setStartTimeOption] = useState(30);
 
-  // ── Session duration ────────────────────────────────────────────────────
+  // -- Session duration ----------------------------------------------------
   const [duration, setDuration] = useState(1);
 
-  // ── Crew / split state (mirrors OnDemandRequestDrawer) ─────────────────
+  // -- Crew / split state (mirrors OnDemandRequestDrawer) -----------------
   const [crewOpen, setCrewOpen]                   = useState(false);
   const [crewMembers, setCrewMembers]             = useState([]);
   const [showAddCrewInput, setShowAddCrewInput]   = useState(false);
@@ -169,15 +178,43 @@ export const RequestProModal = ({
   const [searchingFriends, setSearchingFriends]   = useState(false);
   const [showCaptainsHub, setShowCaptainsHub]     = useState(false);
 
-  // ── Boost ───────────────────────────────────────────────────────────────
+  // -- Boost ---------------------------------------------------------------
   const [boostHours, setBoostHours] = useState(0);
 
-  // ── Submission ──────────────────────────────────────────────────────────
+  // -- Payment -------------------------------------------------------------
+  const [paymentMethod, setPaymentMethod] = useState('card');
+  const [localCredits, setLocalCredits]   = useState(0);
+  const [creditsFetched, setCreditsFetched] = useState(false);
+
+  // -- Submission ----------------------------------------------------------
   const [loading, setLoading] = useState(false);
+
+  // Fetch credit balance when modal opens
+  useEffect(() => {
+    const fetchCredits = async () => {
+      const uid = userId || user?.id || authUser?.id;
+      if (uid && isOpen && !creditsFetched) {
+        try {
+          const res = await apiClient.get(`/credits/balance/${uid}`);
+          if (res.data?.balance !== undefined) {
+            const balance = res.data.balance;
+            setLocalCredits(balance);
+            setCreditsFetched(true);
+            if (balance > 0) setPaymentMethod('credits');
+          }
+        } catch (e) {
+          logger.error('[RequestProModal] Failed to fetch credits:', e);
+          setCreditsFetched(true);
+        }
+      }
+    };
+    fetchCredits();
+  }, [isOpen, userId, user?.id, authUser?.id, creditsFetched]);
 
   // Reset on close
   useEffect(() => {
     if (!isOpen) {
+      setStep('configure');
       setSelectedPro(null);
       setProListExpanded(false);
       setStartTimeOption(30);
@@ -189,11 +226,14 @@ export const RequestProModal = ({
       setFriendSearchResults([]);
       setShowCaptainsHub(false);
       setBoostHours(0);
+      setPaymentMethod('card');
+      setLocalCredits(0);
+      setCreditsFetched(false);
       setLoading(false);
     }
   }, [isOpen]);
 
-  // ── Pricing ─────────────────────────────────────────────────────────────
+  // -- Pricing -------------------------------------------------------------
   const hourlyRate       = selectedPro?.on_demand_hourly_rate || 75;
   const totalCost        = hourlyRate * duration;
   const totalParticipants = crewMembers.length + 1;
@@ -206,10 +246,36 @@ export const RequestProModal = ({
   );
   const captainPayAmount = totalCost - crewCoversAmount;
   const isShared         = crewMembers.length > 0;
-  // For solo bookings: 25% deposit. For shared: captain pays their full share upfront.
-  const depositAmount    = isShared ? captainPayAmount.toFixed(0) : (totalCost * 0.25).toFixed(0);
+  // Full payment upfront (escrow) - we hold funds until session completion.
+  // For shared bookings: captain pays their share. Solo: captain pays full total.
+  const depositAmount    = isShared ? captainPayAmount.toFixed(0) : totalCost.toFixed(0);
+  const amountToCharge   = isShared ? captainPayAmount : totalCost;
+  const hasEnoughCredits = isShared
+    ? (captainPayAmount === 0 || localCredits >= captainPayAmount)
+    : localCredits >= totalCost;
 
-  // ── Debounced user search for crew autocomplete ─────────────────────────
+
+  // ============ HANDLERS FROM useRequestProActions ============
+  const {
+    addCrewMember,
+    removeCrewMember,
+    handlePercentageChange,
+    toggleCoverMember,
+    distributeEvenly,
+    coverAll,
+    handleSubmit,
+  } = useRequestProActions({
+    userId, user, authUser, updateUser, navigate,
+    crewMembers, newCrewInput, totalCost, totalParticipants,
+    perPersonSplit, captainPayAmount, amountToCharge,
+    selectedPro, userLocation, nearestSpot, duration,
+    startTimeOption, boostHours, paymentMethod,
+    onClose, onSuccess, onBoostApplied,
+    setCrewMembers, setNewCrewInput, setFriendSearchResults,
+    setShowAddCrewInput, setLoading,
+  });
+
+  // -- Debounced user search for crew autocomplete -------------------------
   useEffect(() => {
     if (newCrewInput.length < 2) { setFriendSearchResults([]); return; }
     const tid = setTimeout(async () => {
@@ -224,190 +290,48 @@ export const RequestProModal = ({
     return () => clearTimeout(tid);
   }, [newCrewInput, userId, user?.id, crewMembers]);
 
-  // ── Crew helpers ─────────────────────────────────────────────────────────
-  const addCrewMember = useCallback((friend) => {
-    const newTotal = crewMembers.length + 2;
-    const share = totalCost / newTotal;
-    const updated = crewMembers.map(m => ({ ...m, share_amount: m.covered_by_captain ? 0 : share, share_percentage: 100 / newTotal }));
-    setCrewMembers([...updated, {
-      id: friend?.id || Date.now(),
-      user_id: friend?.id || null,
-      value: friend ? (friend.username ? `@${friend.username}` : friend.full_name) : newCrewInput.trim(),
-      name: friend?.full_name || newCrewInput.trim(),
-      username: friend?.username || null,
-      avatar_url: friend?.avatar_url || null,
-      type: friend ? 'user' : (newCrewInput.includes('@') && !newCrewInput.startsWith('@') ? 'email' : 'username'),
-      status: 'pending',
-      share_amount: share,
-      share_percentage: 100 / newTotal,
-      covered_by_captain: false,
-    }]);
-    setNewCrewInput('');
-    setFriendSearchResults([]);
-    setShowAddCrewInput(false);
-    toast.success(`Added ${friend?.full_name || newCrewInput.trim()} to crew`);
-  }, [crewMembers, totalCost, newCrewInput]);
 
-  const removeCrewMember = (memberId) => {
-    const filtered = crewMembers.filter(m => m.id !== memberId);
-    if (filtered.length > 0) {
-      const newTotal = filtered.length + 1;
-      const share = totalCost / newTotal;
-      setCrewMembers(filtered.map(m => ({ ...m, share_amount: m.covered_by_captain ? 0 : share, share_percentage: 100 / newTotal })));
-    } else {
-      setCrewMembers([]);
-    }
-  };
-
-  const handlePercentageChange = (memberId, pct) => {
-    const amount = (pct / 100) * totalCost;
-    setCrewMembers(prev => prev.map(m => m.id === memberId ? { ...m, share_percentage: pct, share_amount: amount } : m));
-  };
-
-  const toggleCoverMember = (memberId) => {
-    setCrewMembers(prev => prev.map(m => m.id === memberId
-      ? { ...m, covered_by_captain: !m.covered_by_captain, share_amount: !m.covered_by_captain ? 0 : parseFloat(perPersonSplit) }
-      : m
-    ));
-  };
-
-  const distributeEvenly = () => {
-    const share = totalCost / totalParticipants;
-    const pct   = 100 / totalParticipants;
-    setCrewMembers(prev => prev.map(m => ({ ...m, share_amount: share, share_percentage: pct, covered_by_captain: false })));
-    toast.success('Split evenly among all surfers');
-  };
-
-  const coverAll = () => {
-    setCrewMembers(prev => prev.map(m => ({ ...m, share_amount: 0, covered_by_captain: true })));
-    toast.success("You're covering the whole crew! 🤙");
-  };
-
-  // ── Submit ───────────────────────────────────────────────────────────────
-  const handleSubmit = async () => {
-    if (!userLocation) { toast.error('Location required to request a Pro'); return; }
-    setLoading(true);
-    try {
-      const uid = userId || user?.id;
-      const requestedStartTime = new Date(Date.now() + startTimeOption * 60000).toISOString();
-
-      const crewSharesPayload = crewMembers.length > 0
-        ? crewMembers.map(m => ({
-            user_id: m.user_id || m.id || m.value,
-            share_amount: m.covered_by_captain ? 0 : (m.share_amount || parseFloat(perPersonSplit)),
-            covered_by_captain: m.covered_by_captain || false,
-          }))
-        : null;
-
-      const response = await apiClient.post(
-        `/dispatch/request?requester_id=${uid}`,
-        {
-          latitude:                 userLocation.lat,
-          longitude:                userLocation.lng,
-          location_name:            nearestSpot?.name || 'Current Location',
-          spot_id:                  nearestSpot?.id || null,
-          estimated_duration_hours: duration,
-          is_immediate:             true,
-          requested_start_time:     requestedStartTime,
-          arrival_window_minutes:   startTimeOption,
-          is_shared:                crewMembers.length > 0,
-          target_photographer_id:   selectedPro?.id || null,
-          friend_ids:               crewMembers.length > 0 ? crewMembers.map(m => m.user_id || m.id || m.value) : null,
-          captain_share_amount:     crewMembers.length > 0 ? captainPayAmount : null,
-          crew_shares:              crewSharesPayload,
-        }
-      );
-
-      const dispatchId = response.data.id;
-      const payAmount  = parseFloat(response.data.captain_share_amount ?? response.data.deposit_amount ?? depositAmount);
-
-      onClose();
-
-      if (crewMembers.length > 0) {
-        toast.success(`Request sent! Invites sent to ${crewMembers.length} crew member${crewMembers.length > 1 ? 's' : ''} (10 min to accept)`);
-      } else {
-        toast.success('Request created! Processing payment…');
-      }
-
-      // ── Payment: try credits first, fall back to Stripe Checkout ──
-      try {
-        await apiClient.post(`/dispatch/${dispatchId}/pay?payer_id=${uid}`);
-        toast.success('Payment confirmed! Searching for a Pro…');
-
-        // Apply boost if selected
-        if (boostHours > 0) {
-          try {
-            await apiClient.post(`/dispatch/request/${dispatchId}/boost`, { boost_hours: boostHours });
-            toast.success(`🚀 Boosted! You'll appear first for ${boostHours}h`);
-            onBoostApplied?.();
-          } catch (e) {
-            toast.error(e.response?.data?.detail || 'Failed to boost');
-          }
-        }
-        onSuccess?.(dispatchId);
-      } catch (payError) {
-        const errDetail = payError?.response?.data?.detail || '';
-        const isInsufficientCredits = typeof errDetail === 'string' && errDetail.toLowerCase().includes('insufficient');
-
-        if (isInsufficientCredits) {
-          // Fall back to Stripe card checkout
-          toast('Redirecting to card payment…', { icon: '💳' });
-          try {
-            const checkoutRes = await apiClient.post('/dispatch/checkout', {
-              dispatch_id: payAmount > 0 ? dispatchId : dispatchId,
-              payer_id:    uid,
-              amount:      payAmount,
-              origin_url:  window.location.origin,
-            });
-            if (checkoutRes.data?.checkout_url) {
-              window.location.href = checkoutRes.data.checkout_url;
-              return; // Redirect — don't show error
-            }
-          } catch (checkoutErr) {
-            toast.error(checkoutErr?.response?.data?.detail || 'Could not start card payment. Please try again.');
-          }
-        } else {
-          toast.error(typeof errDetail === 'string' ? errDetail : 'Payment failed. Please try again.');
-        }
-      }
-
-    } catch (error) {
-      const detail = error?.response?.data?.detail;
-      toast.error(typeof detail === 'string' ? detail : 'Failed to create request');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // ────────────────────────────────────────────────────────────────────────────
+  // ----------------------------------------------------------------------------
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent
+      <DialogContent data-testid="request-pro-modal" 
         className={`${isDark ? 'bg-zinc-900 border-zinc-800 text-white' : 'bg-white border-gray-200 text-gray-900'} sm:max-w-md`}
         hideCloseButton={false}
       >
-        {/* ── STICKY HEADER ───────────────────────────────────────────────── */}
+        {/* -- STICKY HEADER ------------------------------------------------- */}
         <DialogHeader className={`border-b ${isDark ? 'border-zinc-800 bg-zinc-900' : 'border-gray-200 bg-white'}`}>
           <DialogTitle className="text-lg font-bold flex items-center gap-2">
+            {step === 'confirm' && (
+              <button aria-label="Previous"
+                onClick={() => setStep('configure')}
+                className={`p-1.5 rounded-lg ${isDark ? 'hover:bg-zinc-800' : 'hover:bg-gray-100'} transition-colors`}
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+            )}
             <span className="w-8 h-8 rounded-xl bg-gradient-to-br from-cyan-500/30 to-blue-500/30 flex items-center justify-center">
               <Camera className="w-4 h-4 text-cyan-400" />
             </span>
-            Request a Pro
+            {step === 'configure' ? 'Request a Pro' : 'Confirm & Pay'}
           </DialogTitle>
           <p className={`${isDark ? 'text-gray-400' : 'text-gray-500'} text-xs mt-0.5`}>
-            On-demand surf photographer — at your break within the hour
+            {step === 'configure'
+              ? 'On-demand surf photographer - at your break within the hour'
+              : 'Review your session and choose payment method'}
           </p>
         </DialogHeader>
 
-        {/* ── SCROLLABLE BODY ─────────────────────────────────────────────── */}
+        {/* -- SCROLLABLE BODY ----------------------------------------------- */}
         <div className="modal-body px-4 sm:px-5 py-4 space-y-4">
 
-          {/* ── 1. Photographer selection ──────────────────────────────────── */}
+        {step === 'configure' && (<>
+
+          {/* -- 1. Photographer selection ------------------------------------ */}
           <section className="space-y-2">
             <div className="flex items-center justify-between">
               <span className="text-sm font-medium text-gray-300">
                 {onDemandLoading
-                  ? 'Finding pros near you…'
+                  ? 'Finding pros near you-'
                   : onDemandPhotographers.length > 0
                     ? `${onDemandPhotographers.length} Pro${onDemandPhotographers.length > 1 ? 's' : ''} Nearby`
                     : 'No pros available right now'}
@@ -427,7 +351,7 @@ export const RequestProModal = ({
             ) : onDemandPhotographers.length > 0 ? (
               <div className="space-y-1.5">
                 {/* Auto-match pill */}
-                <button
+                <button aria-label="div"
                   onClick={() => setSelectedPro(null)}
                   className={`w-full px-3 py-2.5 rounded-xl flex items-center gap-3 transition-all ${
                     selectedPro === null
@@ -457,7 +381,7 @@ export const RequestProModal = ({
                     }`}
                   >
                     {pro.avatar_url ? (
-                      <img src={getFullUrl(pro.avatar_url)} alt={pro.full_name} className="w-9 h-9 rounded-full object-cover shrink-0" />
+                      <img loading="lazy" decoding="async" src={getFullUrl(pro.avatar_url)} alt={pro.full_name} className="w-9 h-9 rounded-full object-cover shrink-0" />
                     ) : (
                       <div className="w-9 h-9 rounded-full bg-gradient-to-br from-purple-400 to-pink-500 flex items-center justify-center text-white font-bold text-sm shrink-0">
                         {pro.full_name?.charAt(0) || 'P'}
@@ -472,7 +396,7 @@ export const RequestProModal = ({
                       </p>
                       <p className="text-xs text-gray-400 flex items-center gap-1.5">
                         {pro.distance != null && <span>{pro.distance} mi</span>}
-                        <span>·</span>
+                        <span>-</span>
                         <span>${pro.on_demand_hourly_rate}/hr</span>
                       </p>
                     </div>
@@ -481,7 +405,7 @@ export const RequestProModal = ({
                 ))}
 
                 {onDemandPhotographers.length > 3 && (
-                  <button
+                  <button aria-label="Collapse"
                     onClick={() => setProListExpanded(v => !v)}
                     className="w-full py-1.5 text-xs text-cyan-400 hover:text-cyan-300 flex items-center justify-center gap-1 transition-colors"
                   >
@@ -497,7 +421,7 @@ export const RequestProModal = ({
             )}
           </section>
 
-          {/* ── 2. Location ────────────────────────────────────────────────── */}
+          {/* -- 2. Location -------------------------------------------------- */}
           <div className="flex items-center gap-2 px-3 py-2.5 bg-zinc-800/50 rounded-xl">
             <MapPin className="w-4 h-4 text-yellow-400 shrink-0" />
             <div className="min-w-0">
@@ -512,7 +436,7 @@ export const RequestProModal = ({
             </div>
           </div>
 
-          {/* ── 3. Scheduled arrival time ───────────────────────────────────── */}
+          {/* -- 3. Scheduled arrival time ------------------------------------- */}
           <div className="space-y-2">
             <label className="flex items-center gap-1.5 text-sm font-medium text-gray-300">
               <Clock className="w-4 h-4" />
@@ -544,7 +468,7 @@ export const RequestProModal = ({
             </div>
           </div>
 
-          {/* ── 4. Session duration ─────────────────────────────────────────── */}
+          {/* -- 4. Session duration ------------------------------------------- */}
           <div className="space-y-2">
             <label className="flex items-center gap-1.5 text-sm font-medium text-gray-300">
               <Clock className="w-4 h-4" />
@@ -567,7 +491,7 @@ export const RequestProModal = ({
             </div>
           </div>
 
-          {/* ── 5. Crew / Split — surfboard lineup ─────────────────────────── */}
+          {/* -- 5. Crew / Split - surfboard lineup --------------------------- */}
           <div className="bg-zinc-800/50 rounded-xl">
             {/* Toggle header */}
             <div className="flex items-center justify-between px-3 py-3">
@@ -576,10 +500,12 @@ export const RequestProModal = ({
                   <Users className="w-4 h-4 text-cyan-400" />
                   Invite Crew to Split
                 </p>
-                <p className="text-xs text-gray-400">10 min to accept · cost split equally</p>
+                <p className="text-xs text-gray-400">10 min to accept - cost split equally</p>
               </div>
               <button
                 onClick={() => setCrewOpen(v => !v)}
+                role="switch"
+                aria-checked={crewOpen}
                 className={`w-11 h-6 rounded-full relative transition-colors duration-200 ${crewOpen ? 'bg-cyan-400' : 'bg-zinc-600'}`}
                 aria-label="Toggle crew invite"
               >
@@ -590,7 +516,7 @@ export const RequestProModal = ({
             {crewOpen && (
               <div className="border-t border-zinc-700">
 
-                {/* ── OCEAN / LINEUP VISUALIZATION ── */}
+                {/* -- OCEAN / LINEUP VISUALIZATION -- */}
                 <div className="relative p-4 bg-gradient-to-b from-cyan-900/30 via-blue-900/20 to-zinc-900 overflow-visible">
                   {/* Wave SVG background */}
                   <div className="absolute inset-0 opacity-20 overflow-hidden rounded-b-none">
@@ -608,7 +534,7 @@ export const RequestProModal = ({
 
                   {/* Surfboard arc */}
                   <div className="relative pt-6">
-                    {/* Captain (you) — top center */}
+                    {/* Captain (you) - top center */}
                     <div className="flex justify-center mb-2">
                       <SurfboardAvatar
                         member={{ name: user?.full_name || 'You', avatar_url: user?.avatar_url }}
@@ -639,7 +565,7 @@ export const RequestProModal = ({
                     <div className="mt-4 relative z-20">
                       <div className="flex gap-2">
                         <div className="flex-1 relative">
-                          <input
+                          <input aria-label="Search by name or @username"
                             type="text"
                             value={newCrewInput}
                             onChange={e => setNewCrewInput(e.target.value)}
@@ -653,18 +579,18 @@ export const RequestProModal = ({
                             <div className="absolute top-full left-0 right-0 mt-1 rounded-xl shadow-2xl border border-zinc-600 bg-zinc-800" style={{ zIndex: 9999 }}>
                               {searchingFriends && (
                                 <div className="p-3 flex items-center gap-2 text-sm text-gray-400">
-                                  <Loader2 className="w-4 h-4 animate-spin" /> Searching…
+                                  <Loader2 className="w-4 h-4 animate-spin" /> Searching-
                                 </div>
                               )}
                               {friendSearchResults.map(friend => (
-                                <button
+                                <button aria-label="div"
                                   key={friend.id}
                                   onClick={() => addCrewMember(friend)}
                                   className="w-full p-3 flex items-center gap-3 text-left hover:bg-zinc-700 transition-colors"
                                 >
                                   <div className="w-9 h-9 rounded-full overflow-hidden bg-zinc-600 flex-shrink-0">
                                     {friend.avatar_url
-                                      ? <img src={getFullUrl(friend.avatar_url)} alt="" className="w-full h-full object-cover" />
+                                      ? <img loading="lazy" decoding="async" src={getFullUrl(friend.avatar_url)} alt="" className="w-full h-full object-cover" />
                                       : <div className="w-full h-full flex items-center justify-center text-xs font-bold text-gray-300">{friend.full_name?.[0]?.toUpperCase() || '?'}</div>
                                     }
                                   </div>
@@ -681,7 +607,7 @@ export const RequestProModal = ({
                             </div>
                           )}
                         </div>
-                        <button
+                        <button aria-label="Add"
                           onClick={() => newCrewInput.trim() && addCrewMember(null)}
                           disabled={!newCrewInput.trim()}
                           className="px-3 py-2 bg-cyan-500 hover:bg-cyan-600 disabled:opacity-40 text-black rounded-lg transition-colors"
@@ -699,11 +625,11 @@ export const RequestProModal = ({
                   )}
                 </div>
 
-                {/* ── CAPTAIN'S HUB (only when crew present) ── */}
+                {/* -- CAPTAIN'S HUB (only when crew present) -- */}
                 {crewMembers.length > 0 && (
                   <div className="p-3 space-y-3 bg-zinc-800/80">
                     {/* Captain's Hub toggle header */}
-                    <button
+                    <button aria-label="Award"
                       onClick={() => setShowCaptainsHub(v => !v)}
                       className="w-full flex items-center justify-between text-sm font-medium text-white"
                     >
@@ -730,13 +656,13 @@ export const RequestProModal = ({
                       <div className="space-y-3 pt-1 border-t border-zinc-700">
                         {/* Quick actions */}
                         <div className="flex gap-2">
-                          <button
+                          <button aria-label="Calculator"
                             onClick={distributeEvenly}
                             className="flex-1 flex items-center justify-center gap-1 px-3 py-2 rounded-lg bg-zinc-700 hover:bg-zinc-600 text-xs text-gray-200 transition-colors"
                           >
                             <Calculator className="w-3.5 h-3.5" /> Even Split
                           </button>
-                          <button
+                          <button aria-label="Wallet"
                             onClick={coverAll}
                             className="flex-1 flex items-center justify-center gap-1 px-3 py-2 rounded-lg bg-purple-500/20 hover:bg-purple-500/30 text-xs text-purple-300 border border-purple-500/30 transition-colors"
                           >
@@ -778,7 +704,7 @@ export const RequestProModal = ({
                                   <span className="text-[10px] text-gray-400">Share: {pct.toFixed(0)}%</span>
                                   <span className={`text-xs font-bold ${isCovered ? 'line-through text-gray-500' : 'text-white'}`}>${share.toFixed(2)}</span>
                                 </div>
-                                <input
+                                <input aria-label="Range slider"
                                   type="range" min={0} max={100} value={pct}
                                   onChange={e => handlePercentageChange(m.id, parseFloat(e.target.value))}
                                   disabled={isCovered}
@@ -792,6 +718,9 @@ export const RequestProModal = ({
                                 <span className={`text-xs ${isCovered ? 'text-purple-300' : 'text-gray-400'}`}>I'll cover this surfer</span>
                                 <button
                                   onClick={() => toggleCoverMember(m.id)}
+                                  role="switch"
+                                  aria-checked={isCovered}
+                                  aria-label="Cover this surfer"
                                   className={`w-10 h-5 rounded-full relative transition-colors ${isCovered ? 'bg-purple-500' : 'bg-zinc-600'}`}
                                 >
                                   <div className={`w-4 h-4 rounded-full bg-white absolute top-0.5 transition-transform ${isCovered ? 'translate-x-5' : 'translate-x-0.5'}`} />
@@ -816,12 +745,12 @@ export const RequestProModal = ({
             )}
           </div>
 
-          {/* ── 6. Price breakdown ─────────────────────────────────────────── */}
+          {/* -- 6. Price breakdown ------------------------------------------- */}
           <div className={`${isDark ? 'bg-gradient-to-r from-cyan-900/30 to-blue-900/30 border-cyan-500/25' : 'bg-gradient-to-r from-cyan-50 to-blue-50 border-cyan-200'} rounded-xl border overflow-hidden`}>
             <div className="px-3 pt-3 pb-2 space-y-1.5">
               <div className="flex items-center justify-between text-sm">
                 <span className={isDark ? 'text-gray-400' : 'text-gray-500'}>Rate</span>
-                <span className={isDark ? 'text-white' : 'text-gray-900'}>${hourlyRate}/hr × {duration}h</span>
+                <span className={isDark ? 'text-white' : 'text-gray-900'}>${hourlyRate}/hr - {duration}h</span>
               </div>
               <div className="flex items-center justify-between text-sm">
                 <span className={isDark ? 'text-gray-400' : 'text-gray-500'}>Session Total</span>
@@ -836,13 +765,13 @@ export const RequestProModal = ({
             </div>
             <div className={`px-3 py-2.5 border-t ${isDark ? 'border-cyan-500/20 bg-cyan-500/5' : 'border-cyan-200 bg-cyan-50'} flex items-center justify-between`}>
               <span className="text-cyan-600 dark:text-cyan-400 font-medium text-sm">
-                {isShared ? "Captain's Share" : 'Deposit (25%)'}
+                {isShared ? "Captain's Share" : 'Amount Due'}
               </span>
               <span className="text-cyan-600 dark:text-cyan-400 font-bold text-base">${depositAmount}</span>
             </div>
           </div>
 
-          {/* ── 7. Boost Your Request ───────────────────────────────────────── */}
+          {/* -- 7. Boost Your Request ----------------------------------------- */}
           <div className="bg-gradient-to-r from-orange-900/30 to-red-900/25 rounded-xl border border-orange-500/25 p-3 space-y-2.5">
             <div className="flex items-center gap-2">
               <Zap className="w-4 h-4 text-orange-400" />
@@ -867,42 +796,193 @@ export const RequestProModal = ({
             </div>
             {boostHours > 0 && (
               <p className="text-xs text-orange-300/80">
-                🚀 Your request will appear first to all pros for {boostHours} hour{boostHours > 1 ? 's' : ''}
+                ?? Your request will appear first to all pros for {boostHours} hour{boostHours > 1 ? 's' : ''}
               </p>
             )}
           </div>
 
-          {/* Disclaimer */}
+        </>)}
+
+        {/* -- CONFIRM & PAY STEP -------------------------------------------- */}
+        {step === 'confirm' && (<>
+
+          {/* Session Summary Card */}
+          <div className={`p-4 rounded-2xl ${isDark ? 'bg-zinc-800/60' : 'bg-gray-50'}`}>
+            <div className="flex items-center gap-4 mb-3">
+              <div className="w-12 h-12 rounded-full overflow-hidden ring-2 ring-cyan-400">
+                {selectedPro?.avatar_url ? (
+                  <img loading="lazy" decoding="async" src={getFullUrl(selectedPro.avatar_url)} alt="" className="w-full h-full object-cover" />
+                ) : (
+                  <div className={`w-full h-full flex items-center justify-center ${isDark ? 'bg-zinc-700' : 'bg-gray-200'}`}>
+                    <Camera className="w-5 h-5 text-cyan-400" />
+                  </div>
+                )}
+              </div>
+              <div className="flex-1">
+                <p className={`font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                  {selectedPro?.full_name || 'Auto-Match (Nearest Pro)'}
+                </p>
+                <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                  {duration * 60} min session
+                </p>
+              </div>
+              <div className="text-right">
+                <p className="text-cyan-400 font-bold">${totalCost.toFixed(0)}</p>
+                {isShared && (
+                  <p className="text-xs text-green-400">You: ${captainPayAmount.toFixed(0)}</p>
+                )}
+              </div>
+            </div>
+
+            <div className={`grid grid-cols-3 gap-3 pt-3 border-t ${isDark ? 'border-zinc-700' : 'border-gray-200'}`}>
+              <div className="text-center">
+                <MapPin className="w-4 h-4 mx-auto text-yellow-400 mb-1" />
+                <p className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>Location</p>
+                <p className={`text-sm font-medium ${isDark ? 'text-white' : 'text-gray-900'} truncate`}>
+                  {nearestSpot?.name || 'GPS'}
+                </p>
+              </div>
+              <div className="text-center">
+                <Clock className="w-4 h-4 mx-auto text-cyan-400 mb-1" />
+                <p className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>Duration</p>
+                <p className={`text-sm font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>{duration * 60} min</p>
+              </div>
+              <div className="text-center">
+                <Users className="w-4 h-4 mx-auto text-purple-400 mb-1" />
+                <p className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>Surfers</p>
+                <p className={`text-sm font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>{totalParticipants}</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Price Breakdown */}
+          <div className={`${isDark ? 'bg-gradient-to-r from-cyan-900/30 to-blue-900/30 border-cyan-500/25' : 'bg-gradient-to-r from-cyan-50 to-blue-50 border-cyan-200'} rounded-xl border overflow-hidden`}>
+            <div className="px-3 pt-3 pb-2 space-y-1.5">
+              <div className="flex items-center justify-between text-sm">
+                <span className={isDark ? 'text-gray-400' : 'text-gray-500'}>Rate</span>
+                <span className={isDark ? 'text-white' : 'text-gray-900'}>${hourlyRate}/hr - {duration}h</span>
+              </div>
+              <div className="flex items-center justify-between text-sm">
+                <span className={isDark ? 'text-gray-400' : 'text-gray-500'}>Session Total</span>
+                <span className={`${isDark ? 'text-white' : 'text-gray-900'} font-semibold`}>${totalCost.toFixed(0)}</span>
+              </div>
+              {isShared && (
+                <div className={`flex items-center justify-between text-sm pt-1 border-t ${isDark ? 'border-zinc-700/50' : 'border-gray-200'}`}>
+                  <span className="text-emerald-400">Your Share ({totalParticipants} split)</span>
+                  <span className="text-emerald-400 font-semibold">~${captainPayAmount.toFixed(0)}</span>
+                </div>
+              )}
+            </div>
+            <div className={`px-3 py-2.5 border-t ${isDark ? 'border-cyan-500/20 bg-cyan-500/5' : 'border-cyan-200 bg-cyan-50'} flex items-center justify-between`}>
+              <span className="text-cyan-600 dark:text-cyan-400 font-medium text-sm">
+                {isShared ? "Captain's Share" : 'Amount Due'}
+              </span>
+              <span className="text-cyan-600 dark:text-cyan-400 font-bold text-base">${depositAmount}</span>
+            </div>
+          </div>
+
+          {/* Payment Method Selection */}
+          <div className="space-y-3">
+            <p className={`text-sm font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>Payment Method</p>
+
+            {localCredits > 0 && (
+              <button aria-label="div"
+                onClick={() => setPaymentMethod('credits')}
+                className={`w-full p-4 rounded-xl border-2 flex items-center justify-between transition-all ${
+                  paymentMethod === 'credits'
+                    ? 'border-amber-400 bg-amber-500/10'
+                    : isDark ? 'border-zinc-700' : 'border-gray-200'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-amber-500/20 flex items-center justify-center">
+                    <Wallet className="w-5 h-5 text-amber-400" />
+                  </div>
+                  <div className="text-left">
+                    <p className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>Surf Credits</p>
+                    <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                      Balance: ${localCredits.toFixed(2)}
+                      {!hasEnoughCredits && ' (insufficient)'}
+                    </p>
+                  </div>
+                </div>
+                <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${paymentMethod === 'credits' ? 'border-amber-400 bg-amber-400' : isDark ? 'border-zinc-500' : 'border-gray-400'}`}>
+                  {paymentMethod === 'credits' && <Check className="w-3 h-3 text-black" />}
+                </div>
+              </button>
+            )}
+
+            <button aria-label="div"
+              onClick={() => setPaymentMethod('card')}
+              className={`w-full p-4 rounded-xl border-2 flex items-center justify-between transition-all ${
+                paymentMethod === 'card'
+                  ? 'border-cyan-400 bg-cyan-500/10'
+                  : isDark ? 'border-zinc-700' : 'border-gray-200'
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-cyan-500/20 flex items-center justify-center">
+                  <CreditCard className="w-5 h-5 text-cyan-400" />
+                </div>
+                <div className="text-left">
+                  <p className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>Card Payment</p>
+                  <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Visa, Mastercard, etc.</p>
+                </div>
+              </div>
+              <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${paymentMethod === 'card' ? 'border-cyan-400 bg-cyan-400' : isDark ? 'border-zinc-500' : 'border-gray-400'}`}>
+                {paymentMethod === 'card' && <Check className="w-3 h-3 text-black" />}
+              </div>
+            </button>
+          </div>
+
+          {/* Escrow Disclaimer */}
           <p className="text-[10px] text-gray-500 text-center">
             {isShared
               ? 'Crew members have 10 minutes to accept. Your share is charged now.'
-              : 'Deposit is non-refundable once a Pro accepts and starts traveling to you.'}
+              : 'Full payment held in escrow. Refundable to credits until a Pro accepts and starts traveling.'}
           </p>
+
+        </>)}
+
         </div>
 
-        {/* ── STICKY FOOTER ───────────────────────────────────────────────── */}
+        {/* -- STICKY FOOTER ------------------------------------------------- */}
         <DialogFooter className={`${isDark ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-gray-200'} gap-2`}>
           <Button
             variant="outline"
-            onClick={onClose}
+            onClick={step === 'confirm' ? () => setStep('configure') : onClose}
             className={`${isDark ? 'border-zinc-600 text-white hover:bg-zinc-800' : 'border-gray-300 text-gray-700 hover:bg-gray-100'} flex-1 sm:flex-none`}
           >
-            Cancel
+            {step === 'confirm' ? 'Back' : 'Cancel'}
           </Button>
-          <Button
-            onClick={handleSubmit}
-            disabled={loading || !userLocation}
-            className="bg-gradient-to-r from-cyan-400 to-blue-500 text-black font-bold flex-1 sm:flex-none disabled:opacity-50"
-            data-testid="request-pro-submit"
-          >
-            {loading ? (
-              <Loader2 className="w-5 h-5 animate-spin" />
-            ) : isShared ? (
-              `Send Invites & Pay $${depositAmount}`
-            ) : (
-              `Pay $${depositAmount} Deposit`
-            )}
-          </Button>
+
+          {step === 'configure' && (
+            <Button aria-label="Previous"
+              onClick={() => setStep('confirm')}
+              disabled={!userLocation}
+              className="bg-gradient-to-r from-cyan-400 to-blue-500 text-black font-bold flex-1 sm:flex-none disabled:opacity-50"
+              data-testid="request-pro-continue"
+            >
+              Review & Pay <ChevronLeft className="w-4 h-4 ml-1 rotate-180" />
+            </Button>
+          )}
+
+          {step === 'confirm' && (
+            <Button aria-label="Loader2"
+              onClick={handleSubmit}
+              disabled={loading || !userLocation || (paymentMethod === 'credits' && !hasEnoughCredits)}
+              className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-black font-bold flex-1 sm:flex-none disabled:opacity-50"
+              data-testid="request-pro-submit"
+            >
+              {loading ? (
+                <Loader2 className="w-5 h-5 animate-spin" />
+              ) : paymentMethod === 'credits' ? (
+                <><Wallet className="w-4 h-4 mr-2" />Pay ${depositAmount} with Credits</>
+              ) : (
+                <><CreditCard className="w-4 h-4 mr-2" />Pay ${depositAmount} with Card</>
+              )}
+            </Button>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>

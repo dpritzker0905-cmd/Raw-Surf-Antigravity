@@ -1,14 +1,18 @@
 // Raw Surf OS Service Worker for Push Notifications and Offline Mode
-const CACHE_NAME = 'rawsurf-v2';
-const SPOT_CACHE_NAME = 'rawsurf-spots-v1';
-const OFFLINE_CACHE_NAME = 'rawsurf-offline-v1';
-const GALLERY_CACHE_NAME = 'rawsurf-gallery-offline-v1';
+// BUILD_VERSION is bumped on each deploy to auto-purge stale caches
+const BUILD_VERSION = '2026.05.05';
+const CACHE_NAME = `rawsurf-v3-${BUILD_VERSION}`;
+const SPOT_CACHE_NAME = `rawsurf-spots-v1-${BUILD_VERSION}`;
+const OFFLINE_CACHE_NAME = `rawsurf-offline-v1-${BUILD_VERSION}`;
+const GALLERY_CACHE_NAME = 'rawsurf-gallery-offline-v1'; // Gallery persists across deploys
+const FEED_CACHE_NAME = `rawsurf-feed-v1-${BUILD_VERSION}`;
 
 // Static assets to cache immediately
 const STATIC_ASSETS = [
   '/',
   '/index.html',
-  '/manifest.json'
+  '/manifest.json',
+  '/offline.html'
 ];
 
 // API endpoints to cache for offline mode
@@ -37,7 +41,7 @@ self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((keyList) => {
       return Promise.all(keyList.map((key) => {
-        if (key !== CACHE_NAME && key !== SPOT_CACHE_NAME && key !== OFFLINE_CACHE_NAME && key !== GALLERY_CACHE_NAME) {
+        if (key !== CACHE_NAME && key !== SPOT_CACHE_NAME && key !== OFFLINE_CACHE_NAME && key !== GALLERY_CACHE_NAME && key !== FEED_CACHE_NAME) {
           console.log('[ServiceWorker] Removing old cache:', key);
           return caches.delete(key);
         }
@@ -107,6 +111,18 @@ self.addEventListener('fetch', (event) => {
         // Not cached — fetch normally
         return fetch(event.request);
       }).catch(() => fetch(event.request))
+    );
+    return;
+  }
+
+  // For navigation requests (page loads), serve offline page when network fails
+  if (event.request.mode === 'navigate') {
+    event.respondWith(
+      fetch(event.request).catch(async () => {
+        const cached = await caches.match('/offline.html');
+        if (cached) return cached;
+        return caches.match('/index.html');
+      })
     );
     return;
   }

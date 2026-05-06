@@ -92,7 +92,7 @@ const PhotographerSubscriptionSettings = () => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
+      <div data-testid="photographer-subscription-settings" className="flex items-center justify-center h-64">
         <Loader2 className="w-8 h-8 animate-spin text-violet-400" />
       </div>
     );
@@ -107,7 +107,7 @@ const PhotographerSubscriptionSettings = () => {
     <div className="p-4 max-w-3xl mx-auto pb-32">
       {/* Header */}
       <div className="flex items-center gap-3 mb-6">
-        <button onClick={() => navigate(-1)} className="w-9 h-9 rounded-full bg-zinc-800 flex items-center justify-center text-gray-400 hover:text-white">
+        <button onClick={() => navigate(-1)} className="w-9 h-9 rounded-full bg-zinc-800 flex items-center justify-center text-gray-400 hover:text-white" aria-label="Go back">
           <ArrowLeft className="w-4 h-4" />
         </button>
         <div className="flex-1">
@@ -160,10 +160,10 @@ const PhotographerSubscriptionSettings = () => {
                     </p>
                   </div>
                   <div className="flex items-center gap-1">
-                    <button onClick={() => togglePlanActive(plan)} className="p-2 rounded-lg hover:bg-zinc-700 text-gray-400 hover:text-white transition-colors" title={plan.is_active ? 'Deactivate' : 'Activate'}>
+                    <button onClick={() => togglePlanActive(plan)} className="p-2 rounded-lg hover:bg-zinc-700 text-gray-400 hover:text-white transition-colors" title={plan.is_active ? 'Deactivate' : 'Activate'} aria-label="View">
                       {plan.is_active ? <Eye className="w-4 h-4 text-emerald-400" /> : <EyeOff className="w-4 h-4" />}
                     </button>
-                    <button onClick={() => deletePlan(plan.id)} className="p-2 rounded-lg hover:bg-red-500/20 text-gray-400 hover:text-red-400 transition-colors" title="Deactivate">
+                    <button aria-label="Delete" onClick={() => deletePlan(plan.id)} className="p-2 rounded-lg hover:bg-red-500/20 text-gray-400 hover:text-red-400 transition-colors" title="Deactivate">
                       <Trash2 className="w-4 h-4" />
                     </button>
                   </div>
@@ -244,7 +244,7 @@ const PhotographerSubscriptionSettings = () => {
                 <div className="flex rounded-lg overflow-hidden border border-zinc-700">
                   {['weekly', 'monthly'].map(int => (
                     <button key={int} onClick={() => setNewPlan(p => ({ ...p, interval: int }))} className={`flex-1 py-2.5 text-sm font-semibold transition-all ${newPlan.interval === int ? 'bg-violet-500/20 text-violet-400' : 'bg-zinc-800 text-muted-foreground hover:bg-zinc-700'}`}>
-                      {int === 'weekly' ? '📅 Weekly' : '📆 Monthly'}
+                      {int === 'weekly' ? '📅 Weekly' : '📅 Monthly'}
                     </button>
                   ))}
                 </div>
@@ -258,7 +258,7 @@ const PhotographerSubscriptionSettings = () => {
               </label>
               <div className="relative">
                 <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <input type="number" min={newPlan.interval === 'weekly' ? 5 : 15} step="1" value={newPlan.price} onChange={e => setNewPlan(p => ({ ...p, price: parseFloat(e.target.value) || 0 }))} className="w-full pl-8 pr-3 py-2.5 bg-zinc-800 border border-zinc-700 rounded-lg text-foreground text-sm focus:ring-2 focus:ring-violet-500" />
+                <input aria-label="Numeric input" type="number" min={newPlan.interval === 'weekly' ? 5 : 15} step="1" value={newPlan.price} onChange={e => setNewPlan(p => ({ ...p, price: parseFloat(e.target.value) || 0 }))} className="w-full pl-8 pr-3 py-2.5 bg-zinc-800 border border-zinc-700 rounded-lg text-foreground text-sm focus:ring-2 focus:ring-violet-500" />
               </div>
             </div>
 
@@ -274,7 +274,7 @@ const PhotographerSubscriptionSettings = () => {
                 ].map(({ key, icon: Icon, label, color }) => (
                   <div key={key} className="flex items-center gap-2 p-2.5 rounded-lg" style={{ background: `rgba(${color === 'cyan' ? '6,182,212' : color === 'purple' ? '168,85,247' : color === 'red' ? '239,68,68' : '59,130,246'},0.08)`, border: `1px solid rgba(${color === 'cyan' ? '6,182,212' : color === 'purple' ? '168,85,247' : color === 'red' ? '239,68,68' : '59,130,246'},0.2)` }}>
                     <Icon className={`w-4 h-4 text-${color}-400`} style={{ color: color === 'cyan' ? '#06b6d4' : color === 'purple' ? '#a855f7' : color === 'red' ? '#ef4444' : '#3b82f6' }} />
-                    <input type="number" min={0} value={newPlan[key]} onChange={e => setNewPlan(p => ({ ...p, [key]: parseInt(e.target.value) || 0 }))} className="w-14 text-center bg-zinc-900 border border-zinc-700 rounded text-sm text-foreground py-1" />
+                    <input aria-label="Numeric input" type="number" min={0} value={newPlan[key]} onChange={e => setNewPlan(p => ({ ...p, [key]: parseInt(e.target.value) || 0 }))} className="w-14 text-center bg-zinc-900 border border-zinc-700 rounded text-sm text-foreground py-1" />
                     <span className="text-xs text-muted-foreground">{label}</span>
                   </div>
                 ))}
@@ -288,14 +288,14 @@ const PhotographerSubscriptionSettings = () => {
                 <div className="p-2.5 rounded-lg" style={{ background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.2)' }}>
                   <p className="text-[10px] text-muted-foreground mb-1">Booking Discount</p>
                   <div className="flex items-center gap-1">
-                    <input type="number" min={0} max={100} value={newPlan.booking_discount_pct} onChange={e => setNewPlan(p => ({ ...p, booking_discount_pct: parseFloat(e.target.value) || 0 }))} className="w-14 text-center bg-zinc-900 border border-zinc-700 rounded text-sm text-foreground py-1" />
+                    <input type="number" aria-label="Booking discount percentage" min={0} max={100} value={newPlan.booking_discount_pct} onChange={e => setNewPlan(p => ({ ...p, booking_discount_pct: parseFloat(e.target.value) || 0 }))} className="w-14 text-center bg-zinc-900 border border-zinc-700 rounded text-sm text-foreground py-1" />
                     <span className="text-xs text-blue-400">% off</span>
                   </div>
                 </div>
                 <div className="p-2.5 rounded-lg" style={{ background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.2)' }}>
                   <p className="text-[10px] text-muted-foreground mb-1">On-Demand Discount</p>
                   <div className="flex items-center gap-1">
-                    <input type="number" min={0} max={100} value={newPlan.on_demand_discount_pct} onChange={e => setNewPlan(p => ({ ...p, on_demand_discount_pct: parseFloat(e.target.value) || 0 }))} className="w-14 text-center bg-zinc-900 border border-zinc-700 rounded text-sm text-foreground py-1" />
+                    <input type="number" aria-label="On-demand discount percentage" min={0} max={100} value={newPlan.on_demand_discount_pct} onChange={e => setNewPlan(p => ({ ...p, on_demand_discount_pct: parseFloat(e.target.value) || 0 }))} className="w-14 text-center bg-zinc-900 border border-zinc-700 rounded text-sm text-foreground py-1" />
                     <span className="text-xs text-emerald-400">% off</span>
                   </div>
                 </div>
@@ -311,21 +311,21 @@ const PhotographerSubscriptionSettings = () => {
             {/* Actions */}
             <div className="flex gap-3">
               <Button onClick={() => setShowNewPlan(false)} variant="outline" className="flex-1 border-zinc-700">Cancel</Button>
-              <Button onClick={handleCreatePlan} disabled={saving} className="flex-1 bg-gradient-to-r from-violet-500 to-cyan-500 text-white font-bold">
+              <Button aria-label="Loader2" onClick={handleCreatePlan} disabled={saving} className="flex-1 bg-gradient-to-r from-violet-500 to-cyan-500 text-white font-bold">
                 {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Save className="w-4 h-4 mr-2" /> Create Plan</>}
               </Button>
             </div>
           </div>
         </div>
       ) : (
-        <Button onClick={() => setShowNewPlan(true)} className="w-full mb-6 bg-gradient-to-r from-violet-500/20 to-cyan-500/20 text-violet-400 border border-violet-500/30 hover:bg-violet-500/30 font-semibold py-3">
+        <Button aria-label="Add" onClick={() => setShowNewPlan(true)} className="w-full mb-6 bg-gradient-to-r from-violet-500/20 to-cyan-500/20 text-violet-400 border border-violet-500/30 hover:bg-violet-500/30 font-semibold py-3">
           <Plus className="w-5 h-5 mr-2" /> Create New Subscription Plan
         </Button>
       )}
 
       {/* Subscribers Section */}
       <div className="rounded-xl overflow-hidden" style={{ background: 'rgba(39,39,42,0.5)', border: '1px solid rgba(63,63,70,0.5)' }}>
-        <button onClick={() => setSubscribersExpanded(!subscribersExpanded)} className="w-full p-4 flex items-center justify-between">
+        <button aria-label="Users" onClick={() => setSubscribersExpanded(!subscribersExpanded)} className="w-full p-4 flex items-center justify-between">
           <h3 className="font-semibold text-foreground flex items-center gap-2">
             <Users className="w-4 h-4 text-cyan-400" />
             Active Subscribers ({totalSubscribers})
@@ -343,7 +343,7 @@ const PhotographerSubscriptionSettings = () => {
                   <div className="w-10 h-10 rounded-full bg-gradient-to-br from-cyan-400 to-violet-500 p-0.5">
                     <div className="w-full h-full rounded-full bg-zinc-900 flex items-center justify-center overflow-hidden">
                       {sub.surfer_avatar ? (
-                        <img src={getFullUrl(sub.surfer_avatar)} className="w-full h-full object-cover" alt="" />
+                        <img loading="lazy" decoding="async" src={getFullUrl(sub.surfer_avatar)} className="w-full h-full object-cover" alt="" />
                       ) : (
                         <span className="text-cyan-400 font-bold text-sm">{sub.surfer_name?.[0] || '?'}</span>
                       )}
@@ -351,7 +351,7 @@ const PhotographerSubscriptionSettings = () => {
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold text-foreground truncate">{sub.surfer_name || 'Unknown'}</p>
-                    <p className="text-xs text-muted-foreground">{sub.plan_name} • expires {new Date(sub.expires_at).toLocaleDateString()}</p>
+                    <p className="text-xs text-muted-foreground">{sub.plan_name} - expires {new Date(sub.expires_at).toLocaleDateString()}</p>
                   </div>
                   <span className="text-sm font-bold text-emerald-400">${sub.plan_price}/{sub.plan_interval === 'weekly' ? 'wk' : 'mo'}</span>
                 </div>

@@ -10,6 +10,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { MapPin, Loader2, Navigation, Image, Video, Upload, Camera, Megaphone, Waves, ChevronDown, Wind, ArrowUpDown, X, Check, ChevronLeft, ChevronRight, Smile, AtSign, Play, HelpCircle, Clock, Music, VolumeX, Radio } from 'lucide-react';
 import { toast } from 'sonner';
+import useCreatePostActions from '../hooks/useCreatePostActions';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Textarea } from './ui/textarea';
@@ -117,65 +118,90 @@ export const CreatePost = () => {
   const [hashtagPosition, setHashtagPosition] = useState({ top: 0, left: 0 });
   const hashtagRef = useRef(null);
 
+  // ============ HANDLERS EXTRACTED ============
+  const {
+    fetchSpots,
+    fetchRecentLocations,
+    fetchAllSpots,
+    fetchLocationHierarchy,
+    calculateDistance,
+    handleHierarchySpotSelect,
+    handleRecentLocationSelect,
+    handleSpotSelect,
+    fetchConditions,
+    fetchConditionsByLocation,
+    handleCaptionChange,
+    handleMentionSelect,
+    handleHashtagSelect,
+    handleCaptionKeyDown,
+    handleFileSelect,
+    removeImage,
+    compressImageToBase64,
+    handleUpload,
+  } = useCreatePostActions({
+    user, navigate, selectedSpot, caption, selectedFiles, previewUrls,
+    captionRef, hashtagRef,
+    allSpots, knownSpots, location,
+    sessionDate, sessionStartTime, sessionEndTime,
+    waveHeightFt, wavePeriodSec, waveDirection, waveDirectionDegrees,
+    windSpeedMph, windDirection, tideStatus, tideHeightFt, showSessionData,
+    conditionsSource, mentions, currentPreviewIndex,
+    showMentionAutocomplete, showHashtagAutocomplete, hashtagQuery, hashtagIndex, hashtagEndIndex,
+    mentionRef: mentionRef,
+    setAllSpots,
+    setCaption,
+    setConditionsLoading,
+    setConditionsSource,
+    setCurrentPreviewIndex,
+    setCursorPosition,
+    setHashtagEndIndex,
+    setHashtagIndex,
+    setHashtagPosition,
+    setHashtagQuery,
+    setKnownSpots,
+    setLoading,
+    setLocation,
+    setLocationHierarchy,
+    setMediaType,
+    setMentionPosition,
+    setMentions,
+    setPreviewUrls,
+    setProcessingStatus,
+    setRecentLocations,
+    setSelectedFiles,
+    setSelectedSpot,
+    setShowHashtagAutocomplete,
+    setShowMentionAutocomplete,
+    setShowRecentLocations,
+    setShowSessionData,
+    setTideHeightFt,
+    setTideStatus,
+    setUploadProgress,
+    setWaveDirection,
+    setWaveDirectionDegrees,
+    setWaveHeightFt,
+    setWavePeriodSec,
+    setWindDirection,
+    setWindSpeedMph,
+  });
+
   // Fetch known spots on mount
   useEffect(() => {
-    const fetchSpots = async () => {
-      try {
-        const response = await apiClient.get(`/surf-conditions/known-spots`);
-        setKnownSpots(response.data.spots || []);
-      } catch (e) {
-        // Silent fail
-      }
-    };
     fetchSpots();
   }, []);
 
   // Fetch user's recent locations
   useEffect(() => {
-    const fetchRecentLocations = async () => {
-      if (!user?.id) return;
-      try {
-        const response = await apiClient.get(`/posts/user/${user.id}/recent-locations`);
-        setRecentLocations(response.data || []);
-        if (response.data && response.data.length > 0) {
-          setShowRecentLocations(true);
-        }
-      } catch (e) {
-        // Silent fail
-      }
-    };
     if (user?.id) fetchRecentLocations();
   }, [user?.id]);
 
   // Fetch all spots + location hierarchy for GPS/manual location picker
   useEffect(() => {
-    const fetchAllSpots = async () => {
-      try {
-        const response = await apiClient.get(`/surf-spots`);
-        setAllSpots(response.data || []);
-      } catch (e) { /* silent */ }
-    };
-    const fetchLocationHierarchy = async () => {
-      try {
-        const response = await apiClient.get(`/surf-spots/locations`);
-        setLocationHierarchy(response.data || { countries: [] });
-      } catch (e) { /* silent */ }
-    };
     fetchAllSpots();
     fetchLocationHierarchy();
   }, []);
 
   // Calculate distance between two GPS points (km)
-  const calculateDistance = (lat1, lon1, lat2, lon2) => {
-    const R = 6371;
-    const dLat = (lat2 - lat1) * Math.PI / 180;
-    const dLon = (lon2 - lon1) * Math.PI / 180;
-    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
-              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-              Math.sin(dLon/2) * Math.sin(dLon/2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-    return R * c;
-  };
 
   // Get GPS location and find nearest spots
   const getGpsLocation = () => {
@@ -205,11 +231,11 @@ export const CreatePost = () => {
         setNearestSpot(nearest);
         if (nearest && minDistance < 10) {
           setLocation(nearest.name);
-          toast.success(`📍 Near ${nearest.name} (${nearest.distance}km)`);
+          toast.success(`${String.fromCodePoint(0x1F4CD)} Near ${nearest.name} (${nearest.distance}km)`);
         } else if (nearest) {
-          toast.success(`📍 Location found. Nearest: ${nearest.name} (${nearest.distance}km)`);
+          toast.success(`${String.fromCodePoint(0x1F4CD)} Location found. Nearest: ${nearest.name} (${nearest.distance}km)`);
         } else {
-          toast.success('📍 Location detected — select your spot below');
+          toast.success(`${String.fromCodePoint(0x1F4CD)} Location detected - select your spot below`);
         }
         setGpsLoading(false);
       },
@@ -222,418 +248,23 @@ export const CreatePost = () => {
   };
 
   // Handle spot selection from hierarchy picker
-  const handleHierarchySpotSelect = (spotId) => {
-    const spot = allSpots.find(s => s.id === spotId);
-    if (spot) {
-      setLocation(spot.name);
-      if (spot.latitude && spot.longitude) {
-        fetchConditions(spot.latitude, spot.longitude, spot.name);
-      }
-    }
-  };
 
-  const handleRecentLocationSelect = async (recentLoc) => {
-    setLocation(recentLoc.location);
-    setShowRecentLocations(false);
-    if (recentLoc.latitude && recentLoc.longitude) {
-      await fetchConditions(recentLoc.latitude, recentLoc.longitude, recentLoc.location);
-    }
-  };
 
-  const handleSpotSelect = async (spotKey) => {
-    setSelectedSpot(spotKey);
-    const spot = knownSpots.find(s => s.key === spotKey);
-    if (spot) {
-      setLocation(spot.name);
-      await fetchConditions(spot.lat, spot.lon, spot.name);
-    }
-  };
 
-  const fetchConditions = async (lat, lon, spotName) => {
-    setConditionsLoading(true);
-    try {
-      const response = await apiClient.get(`/surf-conditions`, {
-        params: { latitude: lat, longitude: lon, spot_name: spotName }
-      });
-      
-      if (response.data.wave_height_ft) setWaveHeightFt(response.data.wave_height_ft.toString());
-      if (response.data.wave_period_sec) setWavePeriodSec(response.data.wave_period_sec.toString());
-      if (response.data.wave_direction) setWaveDirection(response.data.wave_direction);
-      if (response.data.wave_direction_degrees) setWaveDirectionDegrees(response.data.wave_direction_degrees);
-      if (response.data.wind_speed_mph) setWindSpeedMph(response.data.wind_speed_mph.toString());
-      if (response.data.wind_direction) setWindDirection(response.data.wind_direction);
-      if (response.data.tide_status) setTideStatus(response.data.tide_status);
-      if (response.data.tide_height_ft) setTideHeightFt(response.data.tide_height_ft.toString());
-      setConditionsSource('auto');
-      setShowSessionData(true);
-      toast.success('Conditions auto-filled! Feel free to adjust.');
-    } catch (e) {
-      toast.error('Could not fetch conditions. Enter manually.');
-    } finally {
-      setConditionsLoading(false);
-    }
-  };
 
-  const fetchConditionsByLocation = async () => {
-    if (!navigator.geolocation) {
-      toast.error('Geolocation not supported');
-      return;
-    }
-
-    setConditionsLoading(true);
-    try {
-      const position = await new Promise((resolve, reject) => {
-        navigator.geolocation.getCurrentPosition(resolve, reject, {
-          enableHighAccuracy: true,
-          timeout: 10000
-        });
-      });
-
-      await fetchConditions(position.coords.latitude, position.coords.longitude, location || 'Current Location');
-    } catch (e) {
-      toast.error('Could not get location. Select a spot instead.');
-    } finally {
-      setConditionsLoading(false);
-    }
-  };
 
   // Handle caption change and detect @ mentions and # hashtags
-  const handleCaptionChange = (e) => {
-    const newCaption = e.target.value;
-    const newCursorPos = e.target.selectionStart;
-    
-    setCaption(newCaption);
-    setCursorPosition(newCursorPos);
-    
-    const textBeforeCursor = newCaption.substring(0, newCursorPos);
-    
-    // Check for @ mentions
-    const lastAtIndex = textBeforeCursor.lastIndexOf('@');
-    if (lastAtIndex !== -1) {
-      const charBefore = lastAtIndex > 0 ? newCaption[lastAtIndex - 1] : ' ';
-      const textAfterAt = textBeforeCursor.substring(lastAtIndex + 1);
-      
-      // Show autocomplete if @ is after space/newline/start and no space after @
-      if ((charBefore === ' ' || charBefore === '\n' || lastAtIndex === 0) && 
-          !textAfterAt.includes(' ') && !textAfterAt.includes('\n')) {
-        setShowMentionAutocomplete(true);
-        setShowHashtagAutocomplete(false); // Close hashtag autocomplete
-        
-        // Position the dropdown below the textarea
-        const textarea = captionRef.current;
-        if (textarea) {
-          setMentionPosition({
-            top: 85,
-            left: 0
-          });
-        }
-        return;
-      }
-    }
-    
-    // Check for # hashtags
-    const lastHashIndex = textBeforeCursor.lastIndexOf('#');
-    if (lastHashIndex !== -1) {
-      const charBefore = lastHashIndex > 0 ? newCaption[lastHashIndex - 1] : ' ';
-      const textAfterHash = textBeforeCursor.substring(lastHashIndex + 1);
-      
-      // Show autocomplete if # is after space/newline/start and no space after #
-      if ((charBefore === ' ' || charBefore === '\n' || lastHashIndex === 0) && 
-          !textAfterHash.includes(' ') && !textAfterHash.includes('\n')) {
-        setShowHashtagAutocomplete(true);
-        setShowMentionAutocomplete(false); // Close mention autocomplete
-        setHashtagQuery(textAfterHash);
-        setHashtagIndex(lastHashIndex);
-        setHashtagEndIndex(newCursorPos);
-        
-        // Position the dropdown below the textarea
-        setHashtagPosition({
-          top: 85,
-          left: 0
-        });
-        return;
-      }
-    }
-    
-    // Close both autocompletes if no trigger found
-    setShowMentionAutocomplete(false);
-    setShowHashtagAutocomplete(false);
-  };
 
   // Handle mention selection
-  const handleMentionSelect = (mention, atIndex, endIndex) => {
-    // Replace @query with @username
-    const newCaption = caption.substring(0, atIndex) + 
-                       `@${mention.username} ` + 
-                       caption.substring(endIndex);
-    
-    setCaption(newCaption);
-    
-    // Add to mentions list (avoid duplicates)
-    setMentions(prev => {
-      const exists = prev.find(m => m.user_id === mention.user_id);
-      if (exists) return prev;
-      return [...prev, mention];
-    });
-    
-    setShowMentionAutocomplete(false);
-    
-    // Focus back to textarea
-    setTimeout(() => {
-      if (captionRef.current) {
-        const newCursorPos = atIndex + mention.username.length + 2; // +2 for @ and space
-        captionRef.current.focus();
-        captionRef.current.setSelectionRange(newCursorPos, newCursorPos);
-        setCursorPosition(newCursorPos);
-      }
-    }, 0);
-  };
   
   // Handle hashtag selection
-  const handleHashtagSelect = (hashtag, hashIndex, endIndex) => {
-    // Replace #query with #hashtag
-    const tagToInsert = typeof hashtag === 'string' ? hashtag : hashtag.tag;
-    const newCaption = caption.substring(0, hashIndex) + 
-                       `#${tagToInsert} ` + 
-                       caption.substring(endIndex);
-    
-    setCaption(newCaption);
-    setShowHashtagAutocomplete(false);
-    
-    // Focus back to textarea
-    setTimeout(() => {
-      if (captionRef.current) {
-        const newCursorPos = hashIndex + tagToInsert.length + 2; // +2 for # and space
-        captionRef.current.focus();
-        captionRef.current.setSelectionRange(newCursorPos, newCursorPos);
-        setCursorPosition(newCursorPos);
-      }
-    }, 0);
-  };
 
   // Handle keyboard events for mention and hashtag navigation
-  const handleCaptionKeyDown = (e) => {
-    // Handle mention autocomplete
-    if (showMentionAutocomplete && mentionRef.current) {
-      const handled = mentionRef.current.handleKeyDown(e);
-      if (handled) return;
-    }
-    
-    // Handle hashtag autocomplete
-    if (showHashtagAutocomplete && hashtagRef.current) {
-      const handled = hashtagRef.current.handleKeyDown(e);
-      if (handled) return;
-    }
-    
-    // If Enter is pressed with hashtag autocomplete open but no suggestions, insert the typed hashtag
-    if (showHashtagAutocomplete && e.key === 'Enter' && hashtagQuery) {
-      e.preventDefault();
-      handleHashtagSelect(hashtagQuery, hashtagIndex, hashtagEndIndex);
-    }
-  };
 
-  const handleFileSelect = (e) => {
-    const files = Array.from(e.target.files || []);
-    if (files.length === 0) return;
-
-    const firstFile = files[0];
-    const isVideo = firstFile.type.startsWith('video/');
-    const isImage = firstFile.type.startsWith('image/');
-
-    if (!isVideo && !isImage) {
-      toast.error('Please select image or video files');
-      return;
-    }
-
-    // Video: only single file allowed
-    if (isVideo) {
-      const maxSize = 100 * 1024 * 1024;
-      if (firstFile.size > maxSize) {
-        toast.error('Video too large. Maximum size is 100MB');
-        return;
-      }
-      previewUrls.forEach(url => URL.revokeObjectURL(url));
-      setSelectedFiles([firstFile]);
-      setPreviewUrls([URL.createObjectURL(firstFile)]);
-      setMediaType('video');
-      setCurrentPreviewIndex(0);
-      return;
-    }
-
-    // Images: allow up to 10
-    const imageFiles = files.filter(f => f.type.startsWith('image/'));
-    const maxImages = 10;
-    const totalImages = selectedFiles.length + imageFiles.length;
-    
-    if (totalImages > maxImages) {
-      toast.error(`Maximum ${maxImages} photos allowed. You have ${selectedFiles.length}, can add ${maxImages - selectedFiles.length} more.`);
-      return;
-    }
-
-    const maxSize = 50 * 1024 * 1024;
-    const validFiles = [];
-    const newPreviews = [];
-    
-    for (const file of imageFiles) {
-      if (file.size > maxSize) {
-        toast.error(`${file.name} is too large. Maximum size is 50MB`);
-        continue;
-      }
-      validFiles.push(file);
-      newPreviews.push(URL.createObjectURL(file));
-    }
-
-    if (validFiles.length > 0) {
-      setSelectedFiles(prev => [...prev, ...validFiles]);
-      setPreviewUrls(prev => [...prev, ...newPreviews]);
-      setMediaType('image');
-      setCurrentPreviewIndex(selectedFiles.length);
-    }
-  };
   
-  const removeImage = (index) => {
-    URL.revokeObjectURL(previewUrls[index]);
-    setSelectedFiles(prev => prev.filter((_, i) => i !== index));
-    setPreviewUrls(prev => prev.filter((_, i) => i !== index));
-    if (currentPreviewIndex >= index && currentPreviewIndex > 0) {
-      setCurrentPreviewIndex(prev => prev - 1);
-    }
-  };
 
   // Compress an image File to a base64 string (max 1200px, 85% quality)
-  const compressImageToBase64 = (file) => new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const img = new window.Image();
-      img.src = e.target.result;
-      img.onload = () => {
-        const MAX = 1200;
-        let w = img.width, h = img.height;
-        if (w > MAX || h > MAX) {
-          if (w > h) { h = Math.round(h * MAX / w); w = MAX; }
-          else { w = Math.round(w * MAX / h); h = MAX; }
-        }
-        const canvas = document.createElement('canvas');
-        canvas.width = w; canvas.height = h;
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(img, 0, 0, w, h);
-        resolve(canvas.toDataURL('image/jpeg', 0.85));
-      };
-      img.onerror = reject;
-    };
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
 
-  const handleUpload = async () => {
-    if (selectedFiles.length === 0) return;
-
-    setLoading(true);
-    setUploadProgress(0);
-
-    try {
-      const uploadedMedia = [];
-      const isCarousel = selectedFiles.length > 1;
-      
-      for (let i = 0; i < selectedFiles.length; i++) {
-        const file = selectedFiles[i];
-        const isVideo = file.type.startsWith('video/');
-
-        setProcessingStatus(
-          isCarousel 
-            ? `Processing photo ${i + 1} of ${selectedFiles.length}...` 
-            : (isVideo ? 'Uploading & processing video...' : 'Processing...')
-        );
-
-        if (isVideo) {
-          // Videos still go through server upload for transcoding
-          const formData = new FormData();
-          formData.append('file', file);
-          formData.append('user_id', user.id);
-          const uploadResponse = await apiClient.post(`/upload/feed`, formData, {
-            headers: { 'Content-Type': 'multipart/form-data' },
-            onUploadProgress: (progressEvent) => {
-              const fileProgress = Math.round((progressEvent.loaded * 100) / progressEvent.total);
-              const overallProgress = Math.round(((i + fileProgress / 100) / selectedFiles.length) * 100);
-              setUploadProgress(overallProgress);
-            }
-          });
-          uploadedMedia.push({
-            url: uploadResponse.data.media_url,
-            type: uploadResponse.data.media_type,
-            thumbnail_url: uploadResponse.data.thumbnail_url,
-            width: uploadResponse.data.final_width,
-            height: uploadResponse.data.final_height
-          });
-        } else {
-          // Images: compress and store as base64 directly in DB (no ephemeral disk)
-          const base64 = await compressImageToBase64(file);
-          setUploadProgress(Math.round(((i + 1) / selectedFiles.length) * 100));
-          uploadedMedia.push({
-            url: base64,
-            type: 'image',
-            thumbnail_url: null,
-            width: null,
-            height: null
-          });
-        }
-      }
-
-      setProcessingStatus('Creating post...');
-
-      const postData = {
-        media_url: uploadedMedia[0].url,
-        media_type: uploadedMedia[0].type,
-        thumbnail_url: uploadedMedia[0].thumbnail_url || null,
-        caption: caption || null,
-        location: location || null,
-        video_width: uploadedMedia[0].width || null,
-        video_height: uploadedMedia[0].height || null,
-        is_carousel: isCarousel,
-        carousel_media: isCarousel ? uploadedMedia : []
-      };
-      
-      // Store mentions separately for notification purposes (not on Post model)
-      const _mentionsToNotify = mentions.length > 0 ? mentions.map(m => ({
-        user_id: m.user_id,
-        username: m.username,
-        full_name: m.full_name
-      })) : [];
-
-      // Add session metadata if enabled
-      if (showSessionData) {
-        if (sessionDate) postData.session_date = new Date(sessionDate).toISOString();
-        if (sessionStartTime) postData.session_start_time = sessionStartTime;
-        if (sessionEndTime) postData.session_end_time = sessionEndTime;
-        if (waveHeightFt) postData.wave_height_ft = parseFloat(waveHeightFt);
-        if (wavePeriodSec) postData.wave_period_sec = parseInt(wavePeriodSec);
-        if (waveDirection) postData.wave_direction = waveDirection;
-        if (waveDirectionDegrees) postData.wave_direction_degrees = waveDirectionDegrees;
-        if (windSpeedMph) postData.wind_speed_mph = parseFloat(windSpeedMph);
-        if (windDirection) postData.wind_direction = windDirection;
-        if (tideStatus) postData.tide_status = tideStatus;
-        if (tideHeightFt) postData.tide_height_ft = parseFloat(tideHeightFt);
-        postData.conditions_source = conditionsSource;
-      }
-
-      await apiClient.post(`/posts?author_id=${user.id}`, postData);
-
-      if (isCarousel) {
-        toast.success(`Posted ${selectedFiles.length} photos!`);
-      } else {
-        toast.success('Post created successfully!');
-      }
-      
-      navigate('/feed');
-    } catch (error) {
-      logger.error('Upload error:', error);
-      toast.error(error.response?.data?.detail || 'Failed to create post');
-    } finally {
-      setLoading(false);
-      setUploadProgress(0);
-      setProcessingStatus('');
-    }
-  };
 
   const clearSelection = () => {
     previewUrls.forEach(url => URL.revokeObjectURL(url));
@@ -648,11 +279,11 @@ export const CreatePost = () => {
       <div className="max-w-lg mx-auto p-4">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
-          <h1 className="text-2xl font-bold text-foreground" style={{ fontFamily: 'Oswald' }}>
+          <h1 className="text-2xl font-bold text-foreground font-oswald" >
             Create Post
           </h1>
           {selectedFiles.length > 0 && (
-            <Button
+            <Button aria-label="Loader2"
               onClick={handleUpload}
               disabled={loading}
               className="bg-gradient-to-r from-yellow-400 to-orange-400 hover:from-yellow-500 hover:to-orange-500 text-black font-bold"
@@ -664,7 +295,7 @@ export const CreatePost = () => {
         </div>
 
         {/* Hidden File Inputs */}
-        <input
+        <input aria-label="Upload file"
           ref={photoInputRef}
           type="file"
           accept="image/*,image/jpeg,image/png,image/heic,image/webp"
@@ -672,14 +303,14 @@ export const CreatePost = () => {
           onChange={handleFileSelect}
           className="hidden"
         />
-        <input
+        <input aria-label="Upload file"
           ref={videoInputRef}
           type="file"
           accept="video/*,video/mp4,video/quicktime,video/webm,video/mov"
           onChange={handleFileSelect}
           className="hidden"
         />
-        <input
+        <input aria-label="Upload file"
           ref={cameraInputRef}
           type="file"
           accept="image/*"
@@ -687,7 +318,7 @@ export const CreatePost = () => {
           onChange={handleFileSelect}
           className="hidden"
         />
-        <input
+        <input aria-label="Upload file"
           ref={cameraVideoInputRef}
           type="file"
           accept="video/*"
@@ -705,7 +336,7 @@ export const CreatePost = () => {
               
               <div className="flex justify-center gap-4 mb-4">
                 {/* Photo Button */}
-                <button
+                <button aria-label="div"
                   onClick={() => photoInputRef.current?.click()}
                   className="flex flex-col items-center gap-3 p-5 rounded-2xl bg-muted hover:bg-accent border-2 border-transparent hover:border-blue-500 transition-all active:scale-95"
                   data-testid="photo-select-btn"
@@ -718,7 +349,7 @@ export const CreatePost = () => {
                 </button>
 
                 {/* Video Button */}
-                <button
+                <button aria-label="div"
                   onClick={() => videoInputRef.current?.click()}
                   className="flex flex-col items-center gap-3 p-5 rounded-2xl bg-muted hover:bg-accent border-2 border-transparent hover:border-purple-500 transition-all active:scale-95"
                   data-testid="video-select-btn"
@@ -731,7 +362,7 @@ export const CreatePost = () => {
                 </button>
                 
                 {/* Wave (Short Video) Button */}
-                <button
+                <button aria-label="div"
                   onClick={() => setShowCreateWaveModal(true)}
                   className="flex flex-col items-center gap-3 p-5 rounded-2xl bg-muted hover:bg-accent border-2 border-transparent hover:border-cyan-500 transition-all active:scale-95"
                   data-testid="wave-select-btn"
@@ -749,7 +380,7 @@ export const CreatePost = () => {
               </p>
               
               {/* Help Link - Video vs Wave */}
-              <button
+              <button aria-label="Help"
                 onClick={() => setShowVideoInfoModal(true)}
                 className="flex items-center justify-center gap-2 text-sm text-cyan-400 hover:text-cyan-300 mx-auto mt-2"
               >
@@ -759,7 +390,7 @@ export const CreatePost = () => {
             </div>
 
             {/* Camera shortcut */}
-            <Button
+            <Button aria-label="Camera"
               onClick={() => setShowWebcamModal(true)}
               variant="outline"
               className="w-full h-12 border-border text-foreground hover:bg-muted font-medium"
@@ -769,7 +400,7 @@ export const CreatePost = () => {
             </Button>
 
             {/* Go Live Option */}
-            <Button
+            <Button aria-label="Radio"
               onClick={() => setShowGoLiveModal(true)}
               className="w-full h-12 bg-red-500 hover:bg-red-600 text-white border-0 font-bold"
             >
@@ -778,7 +409,7 @@ export const CreatePost = () => {
             </Button>
 
             {/* Create Ad Option */}
-            <Button
+            <Button aria-label="Megaphone"
               onClick={() => setShowCreateAdModal(true)}
               variant="outline"
               className="w-full h-12 border-purple-500/50 text-purple-500 dark:text-purple-400 hover:bg-purple-500/10 hover:border-purple-500"
@@ -801,7 +432,7 @@ export const CreatePost = () => {
                 />
               ) : (
                 <div className="relative">
-                  <img
+                  <img loading="lazy" decoding="async"
                     src={previewUrls[currentPreviewIndex]}
                     alt={`Preview ${currentPreviewIndex + 1}`}
                     className="w-full aspect-square object-cover"
@@ -810,7 +441,7 @@ export const CreatePost = () => {
                   {previewUrls.length > 1 && (
                     <>
                       {currentPreviewIndex > 0 && (
-                        <button
+                        <button aria-label="Previous"
                           onClick={() => setCurrentPreviewIndex(prev => prev - 1)}
                           className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-black/70 rounded-full flex items-center justify-center hover:bg-black"
                         >
@@ -818,7 +449,7 @@ export const CreatePost = () => {
                         </button>
                       )}
                       {currentPreviewIndex < previewUrls.length - 1 && (
-                        <button
+                        <button aria-label="Next"
                           onClick={() => setCurrentPreviewIndex(prev => prev + 1)}
                           className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-black/70 rounded-full flex items-center justify-center hover:bg-black"
                         >
@@ -841,11 +472,10 @@ export const CreatePost = () => {
                   )}
                 </div>
               )}
-              <button
+              <button aria-label="Close"
                 onClick={clearSelection}
                 className="absolute top-3 right-3 p-2 bg-black/70 rounded-full hover:bg-black"
-              >
-                <X className="w-5 h-5 text-white" />
+              ><X className="w-5 h-5 text-white" />
               </button>
               {/* Photo count badge */}
               {previewUrls.length > 1 && (
@@ -860,7 +490,7 @@ export const CreatePost = () => {
               <div className="flex gap-2 overflow-x-auto pb-2">
                 {previewUrls.map((url, i) => (
                   <div key={i} className="relative flex-shrink-0">
-                    <img
+                    <img loading="lazy" decoding="async"
                       src={url}
                       alt={`Thumb ${i + 1}`}
                       onClick={() => setCurrentPreviewIndex(i)}
@@ -890,7 +520,7 @@ export const CreatePost = () => {
 
             {/* Caption with Emoji and @Mentions */}
             <div className="relative">
-              <Textarea
+              <Textarea aria-label="Text input"
                 ref={captionRef}
                 value={caption}
                 onChange={handleCaptionChange}
@@ -922,9 +552,9 @@ export const CreatePost = () => {
                 >
                   <AtSign className="w-4 h-4" />
                 </button>
-                <button
+                <button aria-label="Emoji"
                   type="button"
-                  onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                  aria-expanded={showEmojiPicker} onClick={() => setShowEmojiPicker(!showEmojiPicker)}
                   className={`p-2 rounded-full transition-colors ${
                     showEmojiPicker ? 'bg-yellow-500/20 text-yellow-400' : `${hoverBg} ${labelClass} hover:text-white`
                   }`}
@@ -1005,7 +635,7 @@ export const CreatePost = () => {
               {/* Location header / selected value */}
               <button
                 type="button"
-                onClick={() => setShowLocationPicker(!showLocationPicker)}
+                aria-expanded={showLocationPicker} onClick={() => setShowLocationPicker(!showLocationPicker)}
                 className={`w-full flex items-center justify-between p-3 ${cardBg} transition-all`}
               >
                 <div className="flex items-center gap-2">
@@ -1015,7 +645,7 @@ export const CreatePost = () => {
                   </span>
                   {nearestSpot && userLat && (
                     <span className="text-xs text-cyan-500 bg-cyan-500/10 px-2 py-0.5 rounded-full">
-                      📍 {nearestSpot.distance}km
+                      ?? {nearestSpot.distance}km
                     </span>
                   )}
                 </div>
@@ -1026,7 +656,7 @@ export const CreatePost = () => {
               {showLocationPicker && (
                 <div className={`p-3 space-y-3 border-t ${cardBorder}`}>
                   {/* GPS Button */}
-                  <Button
+                  <Button aria-label="Loader2"
                     type="button"
                     onClick={getGpsLocation}
                     disabled={gpsLoading}
@@ -1072,7 +702,7 @@ export const CreatePost = () => {
                     <div className={`flex-1 h-px ${isLight ? 'bg-gray-200' : 'bg-zinc-700'}`} />
                   </div>
 
-                  {/* Hierarchical Pickers: Country → State → City → Spot */}
+                  {/* Hierarchical Pickers: Country ? State ? City ? Spot */}
                   <div className="space-y-2">
                     {/* Country */}
                     <Select value={selectedCountry} onValueChange={(val) => { setSelectedCountry(val); setSelectedState(''); setSelectedCity(''); }}>
@@ -1134,7 +764,7 @@ export const CreatePost = () => {
                       if (citySpots.length === 0) {
                         // No spots? Set city as location
                         return (
-                          <Button
+                          <Button aria-label="Location"
                             type="button"
                             variant="outline"
                             className="w-full border-cyan-500/50 text-cyan-500"
@@ -1152,7 +782,7 @@ export const CreatePost = () => {
                         <div className={`rounded-lg ${cardBg} p-2 space-y-1`}>
                           <p className={`text-xs ${labelClass} px-2 py-1`}>Surf spots in {selectedCity}</p>
                           {citySpots.map(spot => (
-                            <button
+                            <button aria-label="Location"
                               key={spot.id || spot.name}
                               type="button"
                               onClick={() => {
@@ -1182,7 +812,7 @@ export const CreatePost = () => {
                       <p className={`text-xs ${labelClass} mb-2`}>Recent locations</p>
                       <div className="flex flex-wrap gap-2">
                         {recentLocations.slice(0, 5).map((loc, i) => (
-                          <button
+                          <button aria-label="Location"
                             key={i}
                             type="button"
                             onClick={() => {
@@ -1199,7 +829,7 @@ export const CreatePost = () => {
                     </div>
                   )}
 
-                  {/* Quick Select Dropdown — populated from city spots or knownSpots */}
+                  {/* Quick Select Dropdown - populated from city spots or knownSpots */}
                   {(() => {
                     // If a city is selected, show spots from that city directly
                     if (selectedCity && selectedCountry && selectedState) {
@@ -1265,7 +895,7 @@ export const CreatePost = () => {
 
                   {/* Manual input fallback */}
                   <div className="relative">
-                    <Input
+                    <Input aria-label="Or type a location..."
                       value={location}
                       onChange={(e) => setLocation(e.target.value)}
                       placeholder="Or type a location..."
@@ -1278,8 +908,8 @@ export const CreatePost = () => {
             </div>
 
             {/* Session Conditions Toggle */}
-            <button
-              onClick={() => setShowSessionData(!showSessionData)}
+            <button aria-label="Waves"
+              aria-expanded={showSessionData} onClick={() => setShowSessionData(!showSessionData)}
               className={`w-full flex items-center justify-between p-3 rounded-lg border transition-all ${
                 showSessionData 
                   ? 'bg-cyan-500/10 border-cyan-500/50 text-cyan-400' 
@@ -1297,7 +927,7 @@ export const CreatePost = () => {
             {showSessionData && (
               <div className={`space-y-4 p-4 ${cardBg} rounded-lg border ${cardBorder}`}>
                 {/* Auto-fetch Button */}
-                <Button
+                <Button aria-label="Loader2"
                   onClick={fetchConditionsByLocation}
                   disabled={conditionsLoading}
                   variant="outline"
@@ -1476,7 +1106,7 @@ export const CreatePost = () => {
             )}
 
             {/* Submit Button */}
-            <Button
+            <Button aria-label="Loader2"
               onClick={handleUpload}
               disabled={loading}
               className="w-full h-14 bg-gradient-to-r from-yellow-400 to-orange-400 hover:from-yellow-500 hover:to-orange-500 text-black font-bold text-lg"

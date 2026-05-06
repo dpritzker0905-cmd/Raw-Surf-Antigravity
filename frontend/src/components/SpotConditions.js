@@ -12,6 +12,26 @@ import { useTheme } from '../contexts/ThemeContext';
 import logger from '../utils/logger';
 import { getThemeTokens } from '../utils/themeTokens';
 
+// Emoji constants — using String.fromCodePoint to prevent encoding corruption
+const E = {
+  glassy: String.fromCodePoint(0x1F924),    // mirror/glassy
+  clean: String.fromCodePoint(0x2728),       // sparkles
+  fair: String.fromCodePoint(0x1F44C),       // ok hand
+  choppy: String.fromCodePoint(0x1F32A),     // tornado/wind
+  messy: String.fromCodePoint(0x1F4A8),      // dash
+  blownOut: String.fromCodePoint(0x1F4A5),   // explosion
+  offshore: String.fromCodePoint(0x2B05),    // left arrow
+  lightOnshore: String.fromCodePoint(0x27A1, 0xFE0F),
+  onshore: String.fromCodePoint(0x27A1),     // right arrow
+  crossShore: String.fromCodePoint(0x2194),  // left-right arrow
+  noWind: String.fromCodePoint(0x1F32C),     // wind face
+  empty: String.fromCodePoint(0x1F3D6),      // beach
+  light: String.fromCodePoint(0x1F3C4),      // surfer
+  moderate: String.fromCodePoint(0x1F3C4, 0x1F3C4),
+  crowded: String.fromCodePoint(0x1F3C4, 0x1F3C4, 0x1F3C4, 0x1F3C4),
+  packed: String.fromCodePoint(0x1F3C4, 0x1F3C4, 0x1F3C4, 0x1F3C4, 0x1F3C4),
+};
+
 
 // Get subscription tier for forecast access
 const getForecastDays = (subscriptionTier) => {
@@ -138,7 +158,7 @@ export const SpotConditions = ({ spotId, spotName, compact = false }) => {
         spot_id: spotId,
         ...reportData
       });
-      toast.success('Report submitted! Thanks for sharing 🤙');
+      toast.success('Report submitted! Thanks for sharing 🌊');
       setShowReportModal(false);
       setReportData({ wave_height: '', conditions: '', wind_direction: '', crowd_level: '', rating: 0, notes: '' });
       fetchTodaysReports();
@@ -212,7 +232,7 @@ export const SpotConditions = ({ spotId, spotName, compact = false }) => {
               <div className="flex items-center gap-2">
                 <Compass className="w-4 h-4 text-yellow-400" />
                 <span className={`text-sm ${tSecondary}`}>
-                  {current.wave_direction ? `${current.wave_direction}°` : 'N/A'}
+                  {current.wave_direction ? `${current.wave_direction}-` : 'N/A'}
                 </span>
               </div>
               <div className="flex items-center gap-2">
@@ -229,7 +249,7 @@ export const SpotConditions = ({ spotId, spotName, compact = false }) => {
 
         {/* Source attribution */}
         <p className={`text-[10px] ${tMuted} mt-3`}>
-          Data from Open-Meteo Marine API • Updated: {current?.updated_at ? new Date(current.updated_at).toLocaleTimeString() : 'N/A'}
+          Data from Open-Meteo Marine API - Updated: {current?.updated_at ? new Date(current.updated_at).toLocaleTimeString() : 'N/A'}
         </p>
       </div>
 
@@ -295,7 +315,7 @@ export const SpotConditions = ({ spotId, spotName, compact = false }) => {
       {/* Forecast Section - Tiered Access */}
       {forecast.length > 0 && (
         <div className={`border-t ${containerBorder}`}>
-          <button
+          <button aria-label="Calendar"
             onClick={() => setForecastExpanded(!forecastExpanded)}
             className={`w-full flex items-center justify-between p-4 ${hoverBg} transition-colors`}
           >
@@ -363,7 +383,7 @@ export const SpotConditions = ({ spotId, spotName, compact = false }) => {
                     </div>
                     <span className="text-purple-400 text-xs">+{Math.min(forecast.length - forecastDaysAllowed, 7)} more days locked</span>
                   </div>
-                  <Button
+                  <Button aria-label="Crown"
                     size="sm"
                     className="w-full mt-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white text-xs"
                     onClick={() => window.location.href = '/settings?tab=billing'}
@@ -385,8 +405,8 @@ export const SpotConditions = ({ spotId, spotName, compact = false }) => {
 
       {/* Community Reports Section */}
       <div className={`border-t ${containerBorder}`}>
-        <button
-          onClick={() => setExpanded(!expanded)}
+        <button aria-label="Users"
+          aria-expanded={expanded} onClick={() => setExpanded(!expanded)}
           className={`w-full flex items-center justify-between p-4 ${hoverBg} transition-colors`}
         >
           <div className="flex items-center gap-2">
@@ -428,7 +448,7 @@ export const SpotConditions = ({ spotId, spotName, compact = false }) => {
                     <div className="flex items-center gap-2 mb-2">
                       <div className={`w-6 h-6 rounded-full ${isLight ? 'bg-gray-200' : 'bg-zinc-700'} flex items-center justify-center`}>
                         {report.user_avatar ? (
-                          <img src={report.user_avatar} alt="" className="w-full h-full rounded-full object-cover" />
+                          <img loading="lazy" decoding="async" src={report.user_avatar} alt="" className="w-full h-full rounded-full object-cover" />
                         ) : (
                           <span className={`text-[10px] ${tSecondary}`}>{report.user_name?.charAt(0)}</span>
                         )}
@@ -452,7 +472,7 @@ export const SpotConditions = ({ spotId, spotName, compact = false }) => {
             )}
 
             {/* Submit Report Button */}
-            <Button
+            <Button aria-label="Message Square"
               onClick={() => setShowReportModal(true)}
               className="w-full bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white"
               data-testid="submit-report-btn"
@@ -505,12 +525,12 @@ export const SpotConditions = ({ spotId, spotName, compact = false }) => {
                   <SelectValue placeholder="How's it looking?" />
                 </SelectTrigger>
                 <SelectContent className="bg-zinc-800 border-zinc-700">
-                  <SelectItem value="Glassy" className="text-white">🪞 Glassy</SelectItem>
-                  <SelectItem value="Clean" className="text-white">✨ Clean</SelectItem>
-                  <SelectItem value="Fair" className="text-white">👍 Fair</SelectItem>
-                  <SelectItem value="Choppy" className="text-white">🌊 Choppy</SelectItem>
-                  <SelectItem value="Messy" className="text-white">💨 Messy</SelectItem>
-                  <SelectItem value="Blown Out" className="text-white">🌀 Blown Out</SelectItem>
+                  <SelectItem value="Glassy" className="text-white">{E.glassy} Glassy</SelectItem>
+                  <SelectItem value="Clean" className="text-white">{E.clean} Clean</SelectItem>
+                  <SelectItem value="Fair" className="text-white">{E.fair} Fair</SelectItem>
+                  <SelectItem value="Choppy" className="text-white">{E.choppy} Choppy</SelectItem>
+                  <SelectItem value="Messy" className="text-white">{E.messy} Messy</SelectItem>
+                  <SelectItem value="Blown Out" className="text-white">{E.blownOut} Blown Out</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -523,11 +543,11 @@ export const SpotConditions = ({ spotId, spotName, compact = false }) => {
                   <SelectValue placeholder="Wind direction" />
                 </SelectTrigger>
                 <SelectContent className="bg-zinc-800 border-zinc-700">
-                  <SelectItem value="Offshore" className="text-white">🏄 Offshore (Good)</SelectItem>
-                  <SelectItem value="Light Onshore" className="text-white">🌬️ Light Onshore</SelectItem>
-                  <SelectItem value="Onshore" className="text-white">💨 Onshore</SelectItem>
-                  <SelectItem value="Cross-shore" className="text-white">↔️ Cross-shore</SelectItem>
-                  <SelectItem value="No Wind" className="text-white">🪶 No Wind</SelectItem>
+                  <SelectItem value="Offshore" className="text-white">{E.offshore} Offshore (Good)</SelectItem>
+                  <SelectItem value="Light Onshore" className="text-white">{E.lightOnshore} Light Onshore</SelectItem>
+                  <SelectItem value="Onshore" className="text-white">{E.onshore} Onshore</SelectItem>
+                  <SelectItem value="Cross-shore" className="text-white">{E.crossShore} Cross-shore</SelectItem>
+                  <SelectItem value="No Wind" className="text-white">{E.noWind} No Wind</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -540,11 +560,11 @@ export const SpotConditions = ({ spotId, spotName, compact = false }) => {
                   <SelectValue placeholder="How crowded?" />
                 </SelectTrigger>
                 <SelectContent className="bg-zinc-800 border-zinc-700">
-                  <SelectItem value="Empty" className="text-white">🏝️ Empty</SelectItem>
-                  <SelectItem value="Light" className="text-white">👤 Light</SelectItem>
-                  <SelectItem value="Moderate" className="text-white">👥 Moderate</SelectItem>
-                  <SelectItem value="Crowded" className="text-white">👨‍👩‍👧‍👦 Crowded</SelectItem>
-                  <SelectItem value="Packed" className="text-white">🚶‍♂️🚶‍♂️🚶 Packed</SelectItem>
+                  <SelectItem value="Empty" className="text-white">{E.empty} Empty</SelectItem>
+                  <SelectItem value="Light" className="text-white">{E.light} Light</SelectItem>
+                  <SelectItem value="Moderate" className="text-white">{E.moderate} Moderate</SelectItem>
+                  <SelectItem value="Crowded" className="text-white">{E.crowded} Crowded</SelectItem>
+                  <SelectItem value="Packed" className="text-white">{E.packed} Packed</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -578,7 +598,7 @@ export const SpotConditions = ({ spotId, spotName, compact = false }) => {
               />
             </div>
 
-            <Button
+            <Button aria-label="Loader2"
               onClick={submitReport}
               disabled={reportLoading || (!reportData.wave_height && !reportData.conditions)}
               className="w-full h-12 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-bold"

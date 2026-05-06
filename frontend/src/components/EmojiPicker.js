@@ -10,7 +10,7 @@ import {
  * Smart Emoji Picker for Comments & Captions
  *
  * Redesigned following industry best practices (WhatsApp/Telegram/Slack):
- *  - Always shows ALL categories — no confusing More/Less toggle
+ *  - Always shows ALL categories - no confusing More/Less toggle
  *  - Icon-only category tabs (compact, instantly scannable)
  *  - Desktop: scroll-arrow indicators for tab overflow
  *  - Mobile: full-width bottom sheet with swipe-to-close
@@ -24,11 +24,11 @@ const ALL_CATEGORIES = {
   ...ALL_EMOJI_CATEGORIES,
 };
 const CATEGORY_NAMES = Object.keys(ALL_CATEGORIES);
-const TAB_ICONS = { Quick: '⚡', ...CATEGORY_ICONS };
+const TAB_ICONS = { Quick: '?', ...CATEGORY_ICONS };
 
-// ─────────────────────────────────────────────────
+// -------------------------------------------------
 //  Shared: Icon-based category tab bar with scroll arrows
-// ─────────────────────────────────────────────────
+// -------------------------------------------------
 const CategoryTabs = ({ active, onChange, size = 'sm' }) => {
   const tabsRef = useRef(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
@@ -81,8 +81,7 @@ const CategoryTabs = ({ active, onChange, size = 'sm' }) => {
 
       <div
         ref={tabsRef}
-        className="flex overflow-x-auto px-1 py-1.5 gap-0.5"
-        style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+        className="flex overflow-x-auto px-1 py-1.5 gap-0.5 scrollbar-none"
       >
         {CATEGORY_NAMES.map((cat) => (
           <button
@@ -114,9 +113,9 @@ const CategoryTabs = ({ active, onChange, size = 'sm' }) => {
   );
 };
 
-// ─────────────────────────────────────────────────
+// -------------------------------------------------
 //  Mobile Bottom Sheet Emoji Picker
-// ─────────────────────────────────────────────────
+// -------------------------------------------------
 const MobileEmojiSheet = ({ isOpen, onClose, onSelect }) => {
   const [activeCategory, setActiveCategory] = useState('Quick');
   const [lastSelected, setLastSelected] = useState(null);
@@ -187,12 +186,12 @@ const MobileEmojiSheet = ({ isOpen, onClose, onSelect }) => {
         {/* Header */}
         <div className="flex items-center justify-between px-4 pb-3 border-b border-zinc-800">
           <span className="text-white text-lg font-semibold">Emojis</span>
-          <button onClick={onClose} className="p-2 hover:bg-zinc-700 rounded-full transition-colors">
+          <button onClick={onClose} className="p-2 hover:bg-zinc-700 rounded-full transition-colors" aria-label="Close emoji picker">
             <X className="w-5 h-5 text-gray-400" />
           </button>
         </div>
 
-        {/* Category tabs — icon based */}
+        {/* Category tabs - icon based */}
         <CategoryTabs active={activeCategory} onChange={setActiveCategory} size="lg" />
 
         {/* Emoji grid */}
@@ -221,9 +220,9 @@ const MobileEmojiSheet = ({ isOpen, onClose, onSelect }) => {
   );
 };
 
-// ─────────────────────────────────────────────────
+// -------------------------------------------------
 //  Desktop Popover Emoji Picker
-// ─────────────────────────────────────────────────
+// -------------------------------------------------
 const DesktopEmojiPopover = ({ isOpen, onClose, onSelect, position = 'above' }) => {
   const [activeCategory, setActiveCategory] = useState('Quick');
   const pickerRef = useRef(null);
@@ -246,12 +245,12 @@ const DesktopEmojiPopover = ({ isOpen, onClose, onSelect, position = 'above' }) 
       {/* Header */}
       <div className="flex items-center justify-between px-3 py-2 border-b border-zinc-700">
         <span className="text-white text-sm font-medium">Emojis</span>
-        <button onClick={onClose} className="p-1 hover:bg-zinc-700 rounded-full">
+        <button onClick={onClose} className="p-1 hover:bg-zinc-700 rounded-full" aria-label="Close emoji picker">
           <X className="w-4 h-4 text-gray-400" />
         </button>
       </div>
 
-      {/* Category tabs — icon based */}
+      {/* Category tabs - icon based */}
       <CategoryTabs active={activeCategory} onChange={setActiveCategory} size="sm" />
 
       {/* Grid */}
@@ -277,9 +276,9 @@ const DesktopEmojiPopover = ({ isOpen, onClose, onSelect, position = 'above' }) 
   );
 };
 
-// ─────────────────────────────────────────────────
-//  Main Emoji Picker — auto-switches mobile/desktop
-// ─────────────────────────────────────────────────
+// -------------------------------------------------
+//  Main Emoji Picker - auto-switches mobile/desktop
+// -------------------------------------------------
 const EmojiPicker = ({ isOpen, onClose, onSelect, position = 'above' }) => {
   const [isMobile, setIsMobile] = useState(false);
 
@@ -304,9 +303,9 @@ const EmojiPicker = ({ isOpen, onClose, onSelect, position = 'above' }) => {
   return <DesktopEmojiPopover isOpen={isOpen} onClose={onClose} onSelect={onSelect} position={position} />;
 };
 
-// ─────────────────────────────────────────────────
+// -------------------------------------------------
 //  Comment Input with Emoji Picker
-// ─────────────────────────────────────────────────
+// -------------------------------------------------
 export const CommentInputWithEmoji = ({
   value,
   onChange,
@@ -349,18 +348,19 @@ export const CommentInputWithEmoji = ({
   return (
     <div className={`relative flex items-center gap-2 pt-3 border-t ${borderClass}`}>
       {/* Emoji Button */}
-      <button
-        onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+      <button aria-label="Emoji"
+        aria-expanded={showEmojiPicker} onClick={() => setShowEmojiPicker(!showEmojiPicker)}
         className={`flex-shrink-0 p-1.5 rounded-full transition-colors ${
           showEmojiPicker ? 'bg-yellow-500/20 text-yellow-400' : 'hover:bg-zinc-700 text-gray-400 hover:text-white'
         }`}
         data-testid={`emoji-btn-${postId}`}
+        aria-label="Open emoji picker"
       >
         <Smile className="w-5 h-5" />
       </button>
 
       {/* Input */}
-      <input
+      <input aria-label="Text input"
         ref={inputRef}
         type="text"
         placeholder={placeholder}
@@ -396,9 +396,9 @@ export const CommentInputWithEmoji = ({
   );
 };
 
-// ─────────────────────────────────────────────────
-//  Textarea with Emoji Picker — for captions, edit post
-// ─────────────────────────────────────────────────
+// -------------------------------------------------
+//  Textarea with Emoji Picker - for captions, edit post
+// -------------------------------------------------
 export const TextareaWithEmoji = ({
   value,
   onChange,
@@ -432,7 +432,7 @@ export const TextareaWithEmoji = ({
 
   return (
     <div className="relative">
-      <textarea
+      <textarea aria-label="Text input"
         ref={textareaRef}
         value={value}
         onChange={(e) => onChange(e.target.value)}
@@ -445,7 +445,7 @@ export const TextareaWithEmoji = ({
       {/* Emoji Button - Positioned in top right */}
       <button
         type="button"
-        onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+        aria-expanded={showEmojiPicker} onClick={() => setShowEmojiPicker(!showEmojiPicker)}
         className={`absolute top-2 right-2 p-1.5 rounded-full transition-colors ${
           showEmojiPicker
             ? 'bg-yellow-500/20 text-yellow-400'
@@ -454,6 +454,7 @@ export const TextareaWithEmoji = ({
               : 'hover:bg-zinc-700 text-gray-400 hover:text-white'
         }`}
         data-testid="textarea-emoji-btn"
+        aria-label="Open emoji picker"
       >
         <Smile className="w-5 h-5" />
       </button>

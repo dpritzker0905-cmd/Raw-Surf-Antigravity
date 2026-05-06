@@ -1,4 +1,4 @@
-﻿/**
+/**
  * AdCenterPanel - User's Ad Management Hub in Settings
  * - Create new ads
  * - View ad activity (submissions with status)
@@ -95,7 +95,7 @@ export const AdCenterPanel = () => {
         ].map((tab) => {
           const Icon = tab.icon;
           return (
-            <button
+            <button aria-label="Icon"
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
               className={`flex items-center gap-2 px-4 py-2 rounded-lg whitespace-nowrap transition-colors ${
@@ -115,7 +115,7 @@ export const AdCenterPanel = () => {
       {activeTab === 'overview' && (
         <div className="space-y-4">
           {/* Create Ad Button */}
-          <Button
+          <Button aria-label="Add"
             onClick={() => setShowCreateAdModal(true)}
             className="w-full bg-purple-600 hover:bg-purple-700 h-12"
             data-testid="create-ad-btn"

@@ -1,0 +1,14 @@
+# Cache-busting for JS/CSS bundles — prevent stale code on redeploy
+/static/js/*
+  Cache-Control: public, max-age=31536000, immutable
+
+/static/css/*
+  Cache-Control: public, max-age=31536000, immutable
+
+# HTML files should never be cached (ensures new bundles are loaded)
+/index.html
+  Cache-Control: no-cache, no-store, must-revalidate
+
+/*
+  Cache-Control: no-cache
+  X-Content-Type-Options: nosniff

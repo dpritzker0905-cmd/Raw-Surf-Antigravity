@@ -6,7 +6,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   Bell, Users, MessageCircle, UserPlus, Check, CheckCheck, Camera, Tag,
   Image as ImageIcon, CreditCard, Waves, Trophy, Calendar, X, Clock,
-  ChevronRight, ChevronLeft, Settings, Shield
+  ChevronRight, ChevronLeft, Settings, Shield,
 } from 'lucide-react';
 import { Button } from './ui/button';
 import { toast } from 'sonner';
@@ -14,7 +14,7 @@ import logger from '../utils/logger';
 import { formatTimeAgo } from '../utils/formatTime';
 import { getNotificationDeepLink } from '../utils/notificationDeepLinks';
 
-// ── Theme colour tokens ───────────────────────────────────────────────────────
+// -- Theme colour tokens -------------------------------------------------------
 const getThemeColors = (theme) => {
   if (theme === 'light') return {
     pageBg:        'bg-gray-50',
@@ -94,7 +94,7 @@ const getThemeColors = (theme) => {
   };
 };
 
-// ── Notification type configs ─────────────────────────────────────────────────
+// -- Notification type configs -------------------------------------------------
 const NOTIFICATION_CONFIG = {
   session_join:                    { icon: Users,         color: 'text-emerald-400', bgColor: 'bg-emerald-500/20', category: 'sessions' },
   session_joined:                  { icon: Users,         color: 'text-emerald-400', bgColor: 'bg-emerald-500/20', category: 'sessions' },
@@ -301,7 +301,7 @@ export const NotificationsPage = () => {
 
 
 
-  // ── Sub-components ──────────────────────────────────────────────────────────
+  // -- Sub-components ----------------------------------------------------------
   const NotificationItem = ({ notification }) => {
     const config = NOTIFICATION_CONFIG[notification.type] || NOTIFICATION_CONFIG.default;
     const Icon = config.icon;
@@ -388,7 +388,7 @@ export const NotificationsPage = () => {
 
   return (
     <div className={`min-h-screen ${colors.pageBg} pb-24 md:pb-8`}>
-      {/* ── Sticky Header ── */}
+      {/* -- Sticky Header -- */}
       <div className={`sticky top-0 z-10 ${colors.headerBg} backdrop-blur-sm border-b ${colors.headerBorder}`}>
         <div className="px-4 py-4 max-w-2xl mx-auto">
           <div className="flex items-center justify-between mb-4">
@@ -405,12 +405,12 @@ export const NotificationsPage = () => {
             </div>
             <div className="flex items-center gap-2">
               {unreadCounts.all > 0 && (
-                <Button onClick={handleMarkAllRead} variant="ghost" size="sm" className={colors.markReadBtn}>
+                <Button aria-label="Check Check" onClick={handleMarkAllRead} variant="ghost" size="sm" className={colors.markReadBtn}>
                   <CheckCheck className="w-4 h-4 mr-1" />
                   <span className="hidden sm:inline">Mark all read</span>
                 </Button>
               )}
-              <Button
+              <Button aria-label="Settings"
                 onClick={() => navigate('/settings')}
                 variant="ghost"
                 size="icon"
@@ -422,9 +422,9 @@ export const NotificationsPage = () => {
             </div>
           </div>
 
-          {/* ── Tabs with Arrow Navigation ── */}
+          {/* -- Tabs with Arrow Navigation -- */}
           <div className="relative flex items-center">
-            <button
+            <button aria-label="Previous"
               onClick={() => scrollTabs('left')}
               className={`flex-shrink-0 w-8 h-8 rounded-full ${colors.arrowBtn} border shadow-lg flex items-center justify-center transition-all mr-2 ${
                 showLeftArrow ? 'opacity-100' : 'opacity-0 pointer-events-none'
@@ -437,15 +437,14 @@ export const NotificationsPage = () => {
 
             <div
               ref={tabsContainerRef}
-              className="flex gap-1 overflow-x-auto pb-1 scrollbar-hide scroll-smooth flex-1"
-              style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+              className="flex gap-1 overflow-x-auto pb-1 scrollbar-hide scroll-smooth flex-1 scrollbar-none"
             >
               {TABS.map(tab => {
                 const Icon = tab.icon;
                 const isActive = activeTab === tab.id;
                 const count = unreadCounts[tab.id];
                 return (
-                  <button
+                  <button aria-label="Icon"
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id)}
                     className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all flex-shrink-0 ${
@@ -467,7 +466,7 @@ export const NotificationsPage = () => {
               })}
             </div>
 
-            <button
+            <button aria-label="Next"
               onClick={() => scrollTabs('right')}
               className={`flex-shrink-0 w-8 h-8 rounded-full ${colors.arrowBtn} border shadow-lg flex items-center justify-center transition-all ml-2 ${
                 showRightArrow ? 'opacity-100' : 'opacity-0 pointer-events-none'
@@ -481,7 +480,7 @@ export const NotificationsPage = () => {
         </div>
       </div>
 
-      {/* ── Content ── */}
+      {/* -- Content -- */}
       <div className="px-4 py-4 max-w-2xl mx-auto">
         {filteredNotifications.length === 0 ? (
           <EmptyState />

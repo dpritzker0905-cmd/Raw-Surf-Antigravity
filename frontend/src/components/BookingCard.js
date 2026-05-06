@@ -97,7 +97,7 @@ export const BookingCard = ({
             </span>
             {/* Manage Button - Command Center for hosts */}
             {isHost && ['Confirmed', 'PendingPayment', 'Pending'].includes(booking.status) && (
-              <Button
+              <Button aria-label="More options"
                 onClick={() => setShowActionDrawer(true)}
                 size="sm"
                 variant="outline"
@@ -144,7 +144,7 @@ export const BookingCard = ({
                       ${booking.my_share?.toFixed(2) || (booking.total_price / (booking.current_participants || 1)).toFixed(2)}
                     </p>
                   </div>
-                  <Button
+                  <Button aria-label="Next"
                     onClick={() => navigate(`/bookings/pay/${booking.id}`)}
                     className="bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-400 hover:to-blue-400 text-white"
                   >
@@ -159,7 +159,7 @@ export const BookingCard = ({
         
         {/* Invite friends button for confirmed bookings */}
         {canInvite && (
-          <Button
+          <Button aria-label="Share"
             variant="outline"
             className={`w-full mt-3 ${isLight ? 'border-gray-300' : 'border-zinc-700'}`}
             size="sm"
@@ -172,7 +172,7 @@ export const BookingCard = ({
         
         {/* Show enable splitting option if host but no invite code */}
         {isHost && booking.status === 'Confirmed' && !booking.invite_code && booking.max_participants > 1 && (
-          <Button
+          <Button aria-label="Users"
             variant="outline"
             className={`w-full mt-3 ${isLight ? 'border-cyan-300 text-cyan-600' : 'border-cyan-500/50 text-cyan-400'}`}
             size="sm"
@@ -189,7 +189,7 @@ export const BookingCard = ({
             <p className={`text-sm ${isLight ? 'text-green-700' : 'text-green-400'} flex items-center gap-2`}>
               <Users className="w-4 h-4" />
               You're in this session
-              {myParticipant?.payment_status === 'Paid' && ' · Paid'}
+              {myParticipant?.payment_status === 'Paid' && ' - Paid'}
             </p>
           </div>
         )}

@@ -1,5 +1,5 @@
 /**
- * OutgoingCallModal — Full-screen overlay shown to the CALLER while ringing.
+ * OutgoingCallModal - Full-screen overlay shown to the CALLER while ringing.
  * 
  * Uses HTML Audio with generated WAV for ringback tone.
  * User already clicked "Call", so the gesture requirement is satisfied.
@@ -61,8 +61,7 @@ export default function OutgoingCallModal({
     >
       {/* Subtle outgoing pulse */}
       <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-        <div className="absolute w-48 h-48 rounded-full border-2 border-cyan-400/15 animate-ping" 
-          style={{ animationDuration: '3s' }} />
+        <div className="absolute w-48 h-48 rounded-full border-2 border-cyan-400/15 animate-ping animate-duration-3s" />
         <div className="absolute w-64 h-64 rounded-full border border-cyan-400/10 animate-ping" 
           style={{ animationDuration: '3.5s', animationDelay: '0.5s' }} />
       </div>
@@ -101,7 +100,7 @@ export default function OutgoingCallModal({
       </p>
 
       {/* Cancel button */}
-      <button
+      <button aria-label="div"
         onClick={handleCancel}
         className="group flex flex-col items-center gap-2"
         data-testid="cancel-call-btn"

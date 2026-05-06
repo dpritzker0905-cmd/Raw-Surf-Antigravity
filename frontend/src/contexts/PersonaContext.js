@@ -11,7 +11,7 @@ export const ALL_PERSONAS = [
   { id: ROLES.PHOTOGRAPHER, label: 'Regular Photographer', icon: '📷', description: 'Standard photographer' },
   { id: ROLES.HOBBYIST, label: 'Hobbyist Photographer', icon: '🔍', description: 'Amateur/hobbyist' },
   { id: ROLES.SHOP, label: 'Surf Shop', icon: '🛍️', description: 'Retail business' },
-  { id: ROLES.SURF_SCHOOL, label: 'Surf School / Coach', icon: '🌬️', description: 'Teaching/coaching' },
+  { id: ROLES.SCHOOL, label: 'Surf School / Coach', icon: '🌬️', description: 'Teaching/coaching' },
   { id: ROLES.SHAPER, label: 'Shaper', icon: '🛠️', description: 'Board shaper' },
   { id: ROLES.RESORT, label: 'Resort / Retreat', icon: '🌴', description: 'Hospitality' },
   { id: ROLES.SURFER, label: 'Regular Surfer', icon: '🏄', description: 'Standard surfer' },
@@ -46,7 +46,7 @@ const getRoleDetails = (role) => {
       return { icon: '🔍', color: 'text-indigo-400', bgColor: 'bg-indigo-400/20', label: 'Hobbyist', priority: 3 };
     case ROLES.SHOP:
       return { icon: '🛍️', color: 'text-pink-400', bgColor: 'bg-pink-400/20', label: 'Surf Shop', priority: 2 };
-    case ROLES.SURF_SCHOOL:
+    case ROLES.SCHOOL:
       return { icon: '🌬️', color: 'text-teal-400', bgColor: 'bg-teal-400/20', label: 'Surf School', priority: 2 };
     case ROLES.SHAPER:
       return { icon: '🛠️', color: 'text-orange-400', bgColor: 'bg-orange-400/20', label: 'Shaper', priority: 2 };

@@ -29,6 +29,7 @@ import { toast } from 'sonner';
 import logger from '../utils/logger';
 import { getFullUrl } from '../utils/media';
 import { PurchaseRequestsPanel } from './grom/PurchaseRequestsPanel';
+import { GenericPageSkeleton } from './ui/SkeletonVariants';
 
 
 
@@ -260,11 +261,7 @@ export const GromHQ = () => {
   };
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <Loader2 className="w-8 h-8 text-cyan-400 animate-spin" />
-      </div>
-    );
+    return <GenericPageSkeleton />;
   }
 
   return (
@@ -349,10 +346,10 @@ export const GromHQ = () => {
                     <p className={`text-xs ${textSecondary}`}>Requesting to link as your Grom</p>
                   </div>
                   <div className="flex gap-2">
-                    <Button size="sm" className="bg-emerald-500 hover:bg-emerald-600 text-white">
+                    <Button aria-label="Check Circle" size="sm" className="bg-emerald-500 hover:bg-emerald-600 text-white">
                       <CheckCircle className="w-4 h-4" />
                     </Button>
-                    <Button size="sm" variant="outline" className="border-red-500/50 text-red-400">
+                    <Button aria-label="Cancel" size="sm" variant="outline" className="border-red-500/50 text-red-400">
                       <XCircle className="w-4 h-4" />
                     </Button>
                   </div>
@@ -391,7 +388,7 @@ export const GromHQ = () => {
                       {new Date(alert.created_at).toLocaleDateString()} at {new Date(alert.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
                     </p>
                   </div>
-                  <Button 
+                  <Button aria-label="Cancel" 
                     size="sm" 
                     variant="ghost"
                     className="text-orange-400 hover:text-orange-500 shrink-0"
@@ -424,7 +421,7 @@ export const GromHQ = () => {
               <Button 
                 variant="ghost" 
                 size="sm"
-                onClick={() => setShowActivityFeed(!showActivityFeed)}
+                aria-expanded={showActivityFeed} onClick={() => setShowActivityFeed(!showActivityFeed)}
                 className="text-emerald-400"
               >
                 {showActivityFeed ? 'Hide' : 'Show'}
@@ -489,7 +486,7 @@ export const GromHQ = () => {
                           {activity.media_type === 'video' ? (
                             <video src={getFullUrl(activity.media_url)} poster={getFullUrl(activity.thumbnail_url)} className="w-full h-auto" muted />
                           ) : (
-                            <img src={getFullUrl(activity.thumbnail_url || activity.media_url)} alt="Activity" className="w-full h-auto" />
+                            <img loading="lazy" decoding="async" src={getFullUrl(activity.thumbnail_url || activity.media_url)} alt="Activity" className="w-full h-auto" />
                           )}
                         </div>
                       )}
@@ -529,7 +526,7 @@ export const GromHQ = () => {
                 <p className={`text-sm mb-4 ${textSecondary}`}>
                   Invite your child to link their Grom account
                 </p>
-                <Button className="bg-gradient-to-r from-cyan-500 to-blue-500 text-white">
+                <Button aria-label="Add" className="bg-gradient-to-r from-cyan-500 to-blue-500 text-white">
                   <Plus className="w-4 h-4 mr-2" />
                   Send Invite
                 </Button>
@@ -571,7 +568,7 @@ export const GromHQ = () => {
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Button 
+                      <Button aria-label="Unlink" 
                         size="sm" 
                         variant="ghost"
                         className="text-gray-400 hover:text-red-400"
@@ -644,7 +641,7 @@ export const GromHQ = () => {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            <Button 
+            <Button aria-label="div" 
               variant="outline" 
               className={`w-full justify-start h-auto py-4 ${borderColor}`}
               onClick={() => toast.info('Have your Grom sign up with a Grom account, then use the link request from the "Linked Groms" section above.')}
@@ -659,7 +656,7 @@ export const GromHQ = () => {
               <ArrowRight className="w-5 h-5 text-cyan-400" />
             </Button>
             
-            <Button 
+            <Button aria-label="div" 
               variant="outline" 
               className={`w-full justify-start h-auto py-4 ${borderColor}`}
               onClick={() => { if (linkedGroms.length > 0) { navigate(`/grom-hq/manage/${linkedGroms[0].id}`); } else { toast.info('Link a Grom first to manage spending controls.'); } }}
@@ -674,7 +671,7 @@ export const GromHQ = () => {
               <ArrowRight className="w-5 h-5 text-emerald-400" />
             </Button>
             
-            <Button 
+            <Button aria-label="div" 
               variant="outline" 
               className={`w-full justify-start h-auto py-4 ${borderColor}`}
               onClick={() => { setShowActivityFeed(true); toast.success('Scroll up to see the Family Activity feed'); }}
@@ -689,7 +686,7 @@ export const GromHQ = () => {
               <ArrowRight className="w-5 h-5 text-yellow-400" />
             </Button>
             
-            <Button 
+            <Button aria-label="div" 
               variant="outline" 
               className={`w-full justify-start h-auto py-4 ${borderColor}`}
               onClick={() => navigate('/settings')}
@@ -704,7 +701,7 @@ export const GromHQ = () => {
               <ArrowRight className="w-5 h-5 text-red-400" />
             </Button>
             
-            <Button 
+            <Button aria-label="div" 
               variant="outline" 
               className={`w-full justify-start h-auto py-4 ${borderColor}`}
               onClick={() => navigate('/gear-hub')}
@@ -799,7 +796,7 @@ export const GromHQ = () => {
                 <KeyRound className="w-4 h-4 inline mr-1" />
                 Enter your password to confirm
               </label>
-              <Input
+              <Input aria-label="Your password"
                 type="password"
                 placeholder="Your password"
                 value={unlinkPassword}
@@ -817,7 +814,7 @@ export const GromHQ = () => {
             >
               Cancel
             </Button>
-            <Button 
+            <Button aria-label="Loader2" 
               onClick={handleUnlinkGrom}
               disabled={!unlinkPassword || unlinkLoading}
               className="bg-red-500 hover:bg-red-600 text-white"

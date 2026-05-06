@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
@@ -15,11 +15,13 @@ import { Input } from './ui/input';
 import { toast } from 'sonner';
 import apiClient from '../lib/apiClient';
 import { GoldPassSlotCard } from './GoldPassSlotCard';
+import ChallengesTab from './career/ChallengesTab';
 import logger from '../utils/logger';
 import { getFullUrl } from '../utils/media';
+import { GenericPageSkeleton } from './ui/SkeletonVariants';
 
 /**
- * The Peak - Career Hub for Pro-Elite (⭐+) and Competitive (🏄) surfers
+ * The Peak - Career Hub for Pro-Elite (?+) and Competitive (??) surfers
  * Features: Competition Stats, Sponsorship Manager, Gold-Pass Booking, Elite Talent Feed
  */
 export const ThePeakHub = () => {
@@ -102,11 +104,7 @@ export const ThePeakHub = () => {
   };
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="w-8 h-8 text-yellow-400 animate-spin" />
-      </div>
-    );
+    return <GenericPageSkeleton />;
   }
 
   return (
@@ -117,7 +115,7 @@ export const ThePeakHub = () => {
     >
       {/* Header */}
       <div className="text-center">
-        <h1 className={`text-3xl font-bold ${textPrimary} flex items-center justify-center gap-2`} style={{ fontFamily: 'Oswald' }}>
+        <h1 className={`text-3xl font-bold ${textPrimary} flex items-center justify-center gap-2 font-oswald`} >
           <Crown className="w-8 h-8 text-yellow-400" />
           The Peak
         </h1>
@@ -162,7 +160,7 @@ export const ThePeakHub = () => {
             </div>
           )}
 
-          <Button 
+          <Button aria-label="Add" 
             onClick={() => setShowAddResultModal(true)}
             className="w-full mt-4 bg-zinc-800 hover:bg-zinc-700 text-white"
           >
@@ -202,7 +200,7 @@ export const ThePeakHub = () => {
                   </div>
                   <div>
                     <div className={`font-medium ${textPrimary}`}>{result.event_name}</div>
-                    <div className={`text-xs ${textSecondary}`}>{result.event_date} • {result.event_location}</div>
+                    <div className={`text-xs ${textSecondary}`}>{result.event_date} - {result.event_location}</div>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -233,7 +231,7 @@ export const ThePeakHub = () => {
               {sponsorships.map((sponsor) => (
                 <div key={sponsor.id} className="flex items-center gap-3 p-3 bg-zinc-800/50 rounded-lg">
                   {sponsor.sponsor_logo_url ? (
-                    <img src={sponsor.sponsor_logo_url} alt={sponsor.sponsor_name} className="w-12 h-12 rounded-lg object-contain bg-white p-1" />
+                    <img loading="lazy" decoding="async" src={sponsor.sponsor_logo_url} alt={sponsor.sponsor_name} className="w-12 h-12 rounded-lg object-contain bg-white p-1" />
                   ) : (
                     <div className="w-12 h-12 rounded-lg bg-emerald-500/20 flex items-center justify-center">
                       <Award className="w-6 h-6 text-emerald-400" />
@@ -252,7 +250,7 @@ export const ThePeakHub = () => {
           ) : (
             <p className={`text-center ${textSecondary} py-4`}>No sponsorships yet</p>
           )}
-          <Button 
+          <Button aria-label="Add" 
             onClick={() => setShowAddSponsorModal(true)}
             variant="outline" 
             className="w-full mt-4 border-zinc-700"
@@ -356,7 +354,7 @@ export const ThePeakHub = () => {
               ))}
             </div>
             {goldPassSlots.length > 3 && (
-              <Button 
+              <Button aria-label="Next" 
                 variant="ghost" 
                 className="w-full mt-3 text-yellow-400 hover:bg-yellow-500/10"
                 onClick={() => navigate('/bookings')}
@@ -368,6 +366,19 @@ export const ThePeakHub = () => {
           </CardContent>
         </Card>
       )}
+
+      {/* Weekly Challenges */}
+      <Card className={`${cardBg}`}>
+        <CardHeader>
+          <CardTitle className={`${textPrimary} flex items-center gap-2`}>
+            <Trophy className="w-5 h-5 text-cyan-400" />
+            Weekly Challenges
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ChallengesTab userId={user?.id} />
+        </CardContent>
+      </Card>
 
       {/* Elite Photographers Directory */}
       <Card className={`${cardBg} border-2 border-yellow-500/30`}>
@@ -480,20 +491,20 @@ const AddCompetitionResultModal = ({ isOpen, onClose, userId, onSuccess }) => {
           <DialogTitle>Add Competition Result</DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
-          <Input
+          <Input aria-label="Event Name *"
             placeholder="Event Name *"
             value={formData.event_name}
             onChange={(e) => setFormData({ ...formData, event_name: e.target.value })}
             className="bg-zinc-800 border-zinc-700"
           />
-          <Input
+          <Input aria-label="Event Date *"
             type="date"
             placeholder="Event Date *"
             value={formData.event_date}
             onChange={(e) => setFormData({ ...formData, event_date: e.target.value })}
             className="bg-zinc-800 border-zinc-700"
           />
-          <Input
+          <Input aria-label="Location"
             placeholder="Location"
             value={formData.event_location}
             onChange={(e) => setFormData({ ...formData, event_location: e.target.value })}
@@ -511,14 +522,14 @@ const AddCompetitionResultModal = ({ isOpen, onClose, userId, onSuccess }) => {
             <option value="Grom_Series">Grom Series</option>
           </select>
           <div className="grid grid-cols-2 gap-3">
-            <Input
+            <Input aria-label="Your Placing *"
               type="number"
               placeholder="Your Placing *"
               value={formData.placing}
               onChange={(e) => setFormData({ ...formData, placing: e.target.value })}
               className="bg-zinc-800 border-zinc-700"
             />
-            <Input
+            <Input aria-label="Total Competitors"
               type="number"
               placeholder="Total Competitors"
               value={formData.total_competitors}
@@ -527,14 +538,14 @@ const AddCompetitionResultModal = ({ isOpen, onClose, userId, onSuccess }) => {
             />
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <Input
+            <Input aria-label="Heat Wins"
               type="number"
               placeholder="Heat Wins"
               value={formData.heat_wins}
               onChange={(e) => setFormData({ ...formData, heat_wins: e.target.value })}
               className="bg-zinc-800 border-zinc-700"
             />
-            <Input
+            <Input aria-label="Avg Wave Score"
               type="number"
               step="0.1"
               placeholder="Avg Wave Score"
@@ -543,7 +554,7 @@ const AddCompetitionResultModal = ({ isOpen, onClose, userId, onSuccess }) => {
               className="bg-zinc-800 border-zinc-700"
             />
           </div>
-          <Input
+          <Input aria-label="Proof Image URL (trophy/bracket photo)"
             placeholder="Proof Image URL (trophy/bracket photo)"
             value={formData.proof_image_url}
             onChange={(e) => setFormData({ ...formData, proof_image_url: e.target.value })}
@@ -553,7 +564,7 @@ const AddCompetitionResultModal = ({ isOpen, onClose, userId, onSuccess }) => {
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose} className="border-zinc-700">Cancel</Button>
-          <Button onClick={handleSubmit} disabled={loading} className="bg-yellow-500 text-black hover:bg-yellow-400">
+          <Button aria-label="Loader2" onClick={handleSubmit} disabled={loading} className="bg-yellow-500 text-black hover:bg-yellow-400">
             {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Add Result'}
           </Button>
         </DialogFooter>
@@ -597,7 +608,7 @@ const AddSponsorModal = ({ isOpen, onClose, userId, onSuccess }) => {
           <DialogTitle>Add Sponsor</DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
-          <Input
+          <Input aria-label="Sponsor Name *"
             placeholder="Sponsor Name *"
             value={formData.sponsor_name}
             onChange={(e) => setFormData({ ...formData, sponsor_name: e.target.value })}
@@ -622,13 +633,13 @@ const AddSponsorModal = ({ isOpen, onClose, userId, onSuccess }) => {
             <option value="supporting">Supporting Sponsor</option>
             <option value="stoke">Stoke Sponsor</option>
           </select>
-          <Input
+          <Input aria-label="Logo URL"
             placeholder="Logo URL"
             value={formData.sponsor_logo_url}
             onChange={(e) => setFormData({ ...formData, sponsor_logo_url: e.target.value })}
             className="bg-zinc-800 border-zinc-700"
           />
-          <Input
+          <Input aria-label="Website URL"
             placeholder="Website URL"
             value={formData.sponsor_website}
             onChange={(e) => setFormData({ ...formData, sponsor_website: e.target.value })}
@@ -637,7 +648,7 @@ const AddSponsorModal = ({ isOpen, onClose, userId, onSuccess }) => {
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose} className="border-zinc-700">Cancel</Button>
-          <Button onClick={handleSubmit} disabled={loading} className="bg-emerald-500 text-black hover:bg-emerald-400">
+          <Button aria-label="Loader2" onClick={handleSubmit} disabled={loading} className="bg-emerald-500 text-black hover:bg-emerald-400">
             {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Add Sponsor'}
           </Button>
         </DialogFooter>

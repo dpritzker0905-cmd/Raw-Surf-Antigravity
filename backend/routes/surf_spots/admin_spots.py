@@ -16,6 +16,40 @@ from models import Profile, SurfSpot
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
+# ── SQL safety: allowlisted table+column pairs for dynamic FK queries ──
+ALLOWED_FK_REFS = {
+    ("profiles", "current_spot_id"),
+    ("spot_refinements", "spot_id"),
+    ("spot_verifications", "spot_id"),
+    ("spot_edit_logs", "spot_id"),
+    ("spot_of_the_day", "spot_id"),
+    ("bookings", "surf_spot_id"),
+    ("dispatch_requests", "spot_id"),
+    ("posts", "spot_id"),
+    ("live_session_participants", "spot_id"),
+    ("check_ins", "spot_id"),
+    ("surf_reports", "spot_id"),
+    ("surf_alerts", "spot_id"),
+    ("photographer_requests", "spot_id"),
+    ("stories", "spot_id"),
+    ("gallery_items", "spot_id"),
+    ("surfer_gallery_items", "spot_id"),
+    ("live_sessions", "surf_spot_id"),
+    ("galleries", "surf_spot_id"),
+    ("condition_reports", "spot_id"),
+    ("social_live_streams", "spot_id"),
+    ("surf_passport_checkins", "spot_id"),
+    ("spot_seo_metadata", "spot_id"),
+}
+
+
+def _safe_fk_query(query_template: str, table: str, column: str) -> str:
+    """Build a dynamic SQL string only if (table, column) is in the allowlist.
+    Raises ValueError if an unknown pair is passed — prevents SQL injection."""
+    if (table, column) not in ALLOWED_FK_REFS:
+        raise ValueError(f"Disallowed FK reference: {table}.{column}")
+    return sa_text(query_template.format(table=table, column=column))
+
 
 @router.post("/surf-spots/admin/normalize-hierarchy")
 async def normalize_surf_spot_hierarchy(db: AsyncSession = Depends(get_db)):
@@ -239,12 +273,12 @@ async def dedup_surf_spots(
                             # Handle unique constraint on spot_seo_metadata
                             if table == "spot_seo_metadata":
                                 existing = await db.execute(
-                                    sa_text(f"SELECT COUNT(*) FROM {table} WHERE {column} = :new_id"),
+                                    _safe_fk_query("SELECT COUNT(*) FROM {table} WHERE {column} = :new_id", table, column),
                                     {"new_id": str(survivor.id)}
                                 )
                                 if (existing.scalar() or 0) > 0:
                                     result = await db.execute(
-                                        sa_text(f"DELETE FROM {table} WHERE {column} = :old_id"),
+                                        _safe_fk_query("DELETE FROM {table} WHERE {column} = :old_id", table, column),
                                         {"old_id": str(dup.id)}
                                     )
                                     if result.rowcount:
@@ -252,14 +286,14 @@ async def dedup_surf_spots(
                                     continue
                             
                             result = await db.execute(
-                                sa_text(f"UPDATE {table} SET {column} = :new_id WHERE {column} = :old_id"),
+                                _safe_fk_query("UPDATE {table} SET {column} = :new_id WHERE {column} = :old_id", table, column),
                                 {"new_id": str(survivor.id), "old_id": str(dup.id)}
                             )
                             if result.rowcount:
                                 moved[f"{table}.{column}"] = result.rowcount
                         else:
                             result = await db.execute(
-                                sa_text(f"SELECT COUNT(*) FROM {table} WHERE {column} = :old_id"),
+                                _safe_fk_query("SELECT COUNT(*) FROM {table} WHERE {column} = :old_id", table, column),
                                 {"old_id": str(dup.id)}
                             )
                             cnt = result.scalar() or 0
@@ -420,12 +454,12 @@ async def merge_near_duplicate_spots(
                         if execute:
                             if table == "spot_seo_metadata":
                                 existing = await db.execute(
-                                    sa_text(f"SELECT COUNT(*) FROM {table} WHERE {column} = :new_id"),
+                                    _safe_fk_query("SELECT COUNT(*) FROM {table} WHERE {column} = :new_id", table, column),
                                     {"new_id": str(survivor.id)}
                                 )
                                 if (existing.scalar() or 0) > 0:
                                     r = await db.execute(
-                                        sa_text(f"DELETE FROM {table} WHERE {column} = :old_id"),
+                                        _safe_fk_query("DELETE FROM {table} WHERE {column} = :old_id", table, column),
                                         {"old_id": str(dup.id)}
                                     )
                                     if r.rowcount:
@@ -433,14 +467,14 @@ async def merge_near_duplicate_spots(
                                     continue
                             
                             r = await db.execute(
-                                sa_text(f"UPDATE {table} SET {column} = :new_id WHERE {column} = :old_id"),
+                                _safe_fk_query("UPDATE {table} SET {column} = :new_id WHERE {column} = :old_id", table, column),
                                 {"new_id": str(survivor.id), "old_id": str(dup.id)}
                             )
                             if r.rowcount:
                                 moved[f"{table}.{column}"] = r.rowcount
                         else:
                             r = await db.execute(
-                                sa_text(f"SELECT COUNT(*) FROM {table} WHERE {column} = :old_id"),
+                                _safe_fk_query("SELECT COUNT(*) FROM {table} WHERE {column} = :old_id", table, column),
                                 {"old_id": str(dup.id)}
                             )
                             cnt = r.scalar() or 0

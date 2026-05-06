@@ -29,6 +29,19 @@ async def toggle_like_post(post_id: str, user_id: str = Depends(get_user_id_from
     if not post:
         raise HTTPException(status_code=404, detail="Post not found")
     
+    # Cross-table cleanup: if user has a PostReaction, remove it first
+    # to prevent double-counting across the two reaction systems
+    reaction_result = await db.execute(
+        select(PostReaction).where(
+            PostReaction.post_id == post_id,
+            PostReaction.user_id == user_id
+        )
+    )
+    existing_reaction = reaction_result.scalar_one_or_none()
+    if existing_reaction:
+        await db.delete(existing_reaction)
+        post.likes_count = max(0, (post.likes_count or 1) - 1)
+    
     # Check if user already liked this post
     like_result = await db.execute(
         select(PostLike).where(
@@ -530,6 +543,20 @@ async def toggle_reaction(post_id: str, data: ReactionCreate, user_id: str = Dep
     user = user_result.scalar_one_or_none()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
+    
+    # Cross-table cleanup: if user has a PostLike, remove it first
+    # to prevent double-counting across the two reaction systems
+    like_result = await db.execute(
+        select(PostLike).where(
+            PostLike.post_id == post_id,
+            PostLike.user_id == user_id
+        )
+    )
+    existing_like = like_result.scalar_one_or_none()
+    had_like = existing_like is not None
+    if existing_like:
+        await db.delete(existing_like)
+        post.likes_count = max(0, (post.likes_count or 1) - 1)
     
     # Check if user already has ANY reaction on this post
     existing_result = await db.execute(

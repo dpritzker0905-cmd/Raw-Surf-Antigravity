@@ -10,16 +10,16 @@ const isProRole = isProLevelRole;
 
 // Role icon helper (inline since it uses MessagesPage internal logic)
 const getRoleIcon = (role, isAdmin = false) => {
-  if (isAdmin) return { icon: Shield, color: 'text-red-500', label: 'God Mode', emoji: '🔴' };
+  if (isAdmin) return { icon: Shield, color: 'text-red-500', label: 'God Mode', emoji: String.fromCodePoint(0x1F534) };
   switch (role) {
-    case 'Pro': case 'Comp Surfer': return { icon: Star, color: 'text-amber-400', label: 'Pro', emoji: '⭐' };
-    case 'Approved Pro': return { icon: Camera, color: 'text-blue-400', label: 'Pro Photographer', emoji: '📸' };
-    case 'Photographer': return { icon: Camera, color: 'text-purple-400', label: 'Photographer', emoji: '📷' };
-    case 'Shop': return { icon: Store, color: 'text-pink-400', label: 'Surf Shop', emoji: '🛍️' };
-    case 'Surf School': return { icon: Users, color: 'text-teal-400', label: 'Surf School', emoji: '🌬️' };
-    case 'Shaper': return { icon: Briefcase, color: 'text-orange-400', label: 'Shaper', emoji: '🛠️' };
-    case 'Resort': return { icon: Store, color: 'text-emerald-400', label: 'Resort', emoji: '🌴' };
-    default: return { icon: null, color: 'text-cyan-400', label: 'Surfer', emoji: '🏄' };
+    case 'Pro': case 'Comp Surfer': return { icon: Star, color: 'text-amber-400', label: 'Pro', emoji: String.fromCodePoint(0x2B50) };
+    case 'Approved Pro': return { icon: Camera, color: 'text-blue-400', label: 'Pro Photographer', emoji: String.fromCodePoint(0x1F4F8) };
+    case 'Photographer': return { icon: Camera, color: 'text-purple-400', label: 'Photographer', emoji: String.fromCodePoint(0x1F4F7) };
+    case 'Shop': return { icon: Store, color: 'text-pink-400', label: 'Surf Shop', emoji: String.fromCodePoint(0x1F3EA) };
+    case 'Surf School': return { icon: Users, color: 'text-teal-400', label: 'Surf School', emoji: String.fromCodePoint(0x1F32C) };
+    case 'Shaper': return { icon: Briefcase, color: 'text-orange-400', label: 'Shaper', emoji: String.fromCodePoint(0x1F528) };
+    case 'Resort': return { icon: Store, color: 'text-emerald-400', label: 'Resort', emoji: String.fromCodePoint(0x1F334) };
+    default: return { icon: null, color: 'text-cyan-400', label: 'Surfer', emoji: String.fromCodePoint(0x1F3C4) };
   }
 };
 
@@ -137,7 +137,7 @@ const ComposeModal = ({ isOpen, onClose, onSelectUser, currentUserId }) => {
         <div className="flex items-center justify-between px-4 py-4 border-b border-border">
           <div className="w-6" />
           <h2 className="text-lg font-semibold text-foreground">New message</h2>
-          <button onClick={onClose} className="text-muted-foreground hover:text-foreground">
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground" aria-label="Close">
             <X className="w-6 h-6" />
           </button>
         </div>
@@ -147,7 +147,7 @@ const ComposeModal = ({ isOpen, onClose, onSelectUser, currentUserId }) => {
           <div className="flex items-center gap-2">
             <span className="text-muted-foreground text-sm">To:</span>
             <div className="flex-1 relative">
-              <input
+              <input aria-label="Search..."
                 ref={inputRef}
                 type="text"
                 value={searchTerm}
@@ -157,11 +157,10 @@ const ComposeModal = ({ isOpen, onClose, onSelectUser, currentUserId }) => {
                 data-testid="compose-search-input"
               />
               {searchTerm && (
-                <button 
+                <button aria-label="Close" 
                   onClick={clearSearch}
                   className="absolute right-0 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                >
-                  <X className="w-4 h-4" />
+                ><X className="w-4 h-4" />
                 </button>
               )}
             </div>
@@ -206,7 +205,7 @@ const ComposeModal = ({ isOpen, onClose, onSelectUser, currentUserId }) => {
                     user.isBusiness ? 'ring-2 ring-purple-400/50' : ''
                   }`}>
                     {user.avatar ? (
-                      <img src={user.avatar} alt="" className="w-full h-full object-cover" />
+                      <img loading="lazy" decoding="async" src={user.avatar} alt="" className="w-full h-full object-cover" />
                     ) : (
                       <div className="w-full h-full bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center text-white text-lg font-semibold">
                         {user.name?.charAt(0)}
@@ -228,20 +227,20 @@ const ComposeModal = ({ isOpen, onClose, onSelectUser, currentUserId }) => {
                     {RoleIcon ? (
                       <RoleIcon className={`w-4 h-4 ${roleInfo.color}`} />
                     ) : (
-                      <span className="text-sm">🏄</span>
+                      <span className="text-sm">{String.fromCodePoint(0x1F3C4)}</span>
                     )}
                   </div>
                   <div className="flex items-center gap-1">
                     {user.username && (
                       <span className="text-sm text-muted-foreground">@{user.username}</span>
                     )}
-                    <span className="text-xs text-muted-foreground/70">{user.username ? '·' : ''} {roleInfo.label}</span>
+                    <span className="text-xs text-muted-foreground/70">{user.username ? 'Â·' : ''} {roleInfo.label}</span>
                     {/* Follow status indicator */}
                     {user.isMutual && (
-                      <span className="text-xs text-emerald-400 ml-1">· Mutuals</span>
+                      <span className="text-xs text-emerald-400 ml-1">Â· Mutuals</span>
                     )}
                     {!user.isMutual && user.followsYou && (
-                      <span className="text-xs text-cyan-400 ml-1">· Follows you</span>
+                      <span className="text-xs text-cyan-400 ml-1">Â· Follows you</span>
                     )}
                   </div>
                 </div>

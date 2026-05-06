@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
@@ -31,6 +31,7 @@ import { NumericStepper } from './ui/numeric-stepper';
 import { Calendar } from './ui/calendar';
 
 import { toast } from 'sonner';
+import useBookingManagerActions from '../hooks/useBookingManagerActions';
 
 import { PhotographerAvailabilityCalendar } from './PhotographerAvailabilityCalendar';
 
@@ -198,504 +199,7 @@ export const PhotographerBookingsManager = () => {
   const [availabilityView, setAvailabilityView] = useState('presets'); // 'presets' or 'grid'
 
   // Handle grid cell click/drag
-  const handleGridCellStart = (dayId, hour) => {
-    const newValue = !weeklyGrid[dayId][hour];
-    setGridDragMode(newValue ? 'select' : 'deselect');
-    setIsGridDragging(true);
-    setWeeklyGrid(prev => ({
-      ...prev,
-      [dayId]: { ...prev[dayId], [hour]: newValue }
-    }));
-  };
-
-  const handleGridCellEnter = (dayId, hour) => {
-    if (!isGridDragging) return;
-    setWeeklyGrid(prev => ({
-      ...prev,
-      [dayId]: { ...prev[dayId], [hour]: gridDragMode === 'select' }
-    }));
-  };
-
-  const handleGridDragEnd = () => {
-    setIsGridDragging(false);
-    setGridDragMode(null);
-  };
-
-  // Convert grid to availability data
-  const convertGridToAvailability = () => {
-    const slots = [];
-    weekDays.forEach(day => {
-      const selectedHours = gridHours
-        .filter(h => weeklyGrid[day.id][h.hour])
-        .map(h => h.hour);
-      
-      if (selectedHours.length === 0) return;
-      
-      // Find continuous ranges
-      let rangeStart = selectedHours[0];
-      let rangeEnd = selectedHours[0];
-      
-      for (let i = 1; i <= selectedHours.length; i++) {
-        if (selectedHours[i] === rangeEnd + 1) {
-          rangeEnd = selectedHours[i];
-        } else {
-          slots.push({
-            day: day.id,
-            start_time: `${rangeStart.toString().padStart(2, '0')}:00`,
-            end_time: `${(rangeEnd + 1).toString().padStart(2, '0')}:00`
-          });
-          if (i < selectedHours.length) {
-            rangeStart = selectedHours[i];
-            rangeEnd = selectedHours[i];
-          }
-        }
-      }
-    });
-    return slots;
-  };
-
-  // Save grid-based availability
-  const handleSaveGridAvailability = async () => {
-    const slots = convertGridToAvailability();
-    if (slots.length === 0) {
-      toast.error('Please select at least one time slot');
-      return;
-    }
-
-    try {
-      // Group slots by day and save as recurring
-      const groupedByDay = {};
-      slots.forEach(slot => {
-        if (!groupedByDay[slot.day]) groupedByDay[slot.day] = [];
-        groupedByDay[slot.day].push(slot);
-      });
-
-      // Create recurring availability for each day
-      for (const [dayId, daySlots] of Object.entries(groupedByDay)) {
-        for (const slot of daySlots) {
-          await apiClient.post(`/photographer/${user?.id}/availability`, {
-            is_recurring: true,
-            recurring_days: [parseInt(dayId)],
-            start_time: slot.start_time,
-            end_time: slot.end_time,
-            time_preset: 'grid'
-          });
-        }
-      }
-      
-      toast.success(`Saved ${slots.length} availability block(s)!`);
-      fetchAvailability();
-      setShowAvailabilityModal(false);
-    } catch (error) {
-      toast.error(error.response?.data?.detail || 'Failed to save availability');
-    }
-  };
-
-  // Check if a date is in the past or violates 24-hour lead time
-  // Scheduled bookings require 24-hour minimum lead time
-  const isDateDisabled = (date) => {
-    const now = new Date();
-    const minBookingDate = new Date(now.getTime() + (24 * 60 * 60 * 1000)); // +24 hours
-    minBookingDate.setHours(0, 0, 0, 0);
-    date.setHours(0, 0, 0, 0);
-    return date < minBookingDate;
-  };
-
-  // Check if a time slot is within the 24-hour lead time window
-  const isTimeSlotWithinLeadTime = (date, timeStr) => {
-    if (!date || !timeStr) return false;
-    const [hours, minutes] = timeStr.split(':').map(Number);
-    const slotDateTime = new Date(date);
-    slotDateTime.setHours(hours, minutes, 0, 0);
-    const now = new Date();
-    const minBookingTime = new Date(now.getTime() + (24 * 60 * 60 * 1000)); // +24 hours
-    return slotDateTime < minBookingTime;
-  };
-
-  // Check if a time slot is already booked
-  const isSlotBooked = (date, time) => {
-    if (!date || !time) return false;
-    const dateStr = date.toISOString().split('T')[0];
-    return existingBookedSlots.some(slot => 
-      slot.date === dateStr && slot.time === time
-    );
-  };
-
-  // Get booked slots for selected date
-  const fetchBookedSlots = async (date) => {
-    if (!date || !user?.id) return;
-    try {
-      const dateStr = date.toISOString().split('T')[0];
-      const response = await apiClient.get(`/photographer/${user.id}/booked-slots`, {
-        params: { date: dateStr }
-      });
-      setExistingBookedSlots(response.data || []);
-    } catch (error) {
-      logger.error('Failed to fetch booked slots:', error);
-      setExistingBookedSlots([]);
-    }
-  };
-
-  // Calculate total crew price
-  const calculateCrewTotal = () => {
-    const basePrice = newBooking.base_session_price || bookingPricing.booking_hourly_rate;
-    const additionalSurfers = crewMembers.length;
-    const perSurferPrice = bookingPricing.price_per_additional_surfer || 15;
-    return basePrice + (perSurferPrice * additionalSurfers);
-  };
-
-  // Calculate per-person split amount
-  const calculatePerPersonSplit = () => {
-    const total = calculateCrewTotal();
-    const participants = crewMembers.length + 1; // +1 for primary surfer
-    return (total / participants).toFixed(2);
-  };
-
-  useEffect(() => {
-    if (user?.id) {
-      fetchBookings();
-      fetchBookingPricing();
-      fetchAvailability();
-    }
-  }, [user?.id]);
-
-  // Fetch booked slots when date is selected
-  useEffect(() => {
-    if (selectedDate) {
-      fetchBookedSlots(selectedDate);
-    }
-  }, [selectedDate]);
-
-  // Auto-open session manager from URL parameter
-  // Combined effect: Find booking, switch tab, and open session manager immediately
-  useEffect(() => {
-    if (!highlightedSessionId || bookings.length === 0) return;
-    
-    // Find the booking that matches the highlighted session ID
-    const targetBooking = bookings.find(b => b.id === highlightedSessionId);
-    
-    if (!targetBooking) {
-      logger.debug('[SessionNav] Booking not found for ID:', highlightedSessionId);
-      return;
-    }
-    
-    logger.debug('[SessionNav] Found booking:', targetBooking.id, targetBooking.status);
-    
-    // Switch to the correct tab based on booking status
-    const statusToTab = {
-      'Pending': 'pending',
-      'Confirmed': 'confirmed',
-      'Completed': 'completed',
-      'Cancelled': 'cancelled'
-    };
-    const targetTab = statusToTab[targetBooking.status] || 'pending';
-    setActiveTab(targetTab);
-    
-    // Immediately open the session manager (no delay needed for the modal)
-    setSelectedBooking(targetBooking);
-    setShowSessionManager(true);
-    
-    // Scroll to the booking card after a short delay (for visual reference when modal closes)
-    setTimeout(() => {
-      if (sessionRefs.current[highlightedSessionId]) {
-        sessionRefs.current[highlightedSessionId].scrollIntoView({ 
-          behavior: 'smooth', 
-          block: 'center' 
-        });
-      }
-    }, 300);
-  }, [highlightedSessionId, bookings]);
-
-  // Sync selectedBooking with latest bookings data when bookings update
-  useEffect(() => {
-    if (bookings.length > 0) {
-      setSelectedBooking(prev => {
-        if (!prev) return null;
-        const updatedBooking = bookings.find(b => b.id === prev.id);
-        return updatedBooking || prev;
-      });
-    }
-  }, [bookings]);
-
-  // ============ AVAILABILITY FUNCTIONS ============
-  const fetchAvailability = async () => {
-    try {
-      const response = await apiClient.get(`/photographer/${user?.id}/availability`);
-      setAvailability(response.data || []);
-    } catch (error) {
-      logger.error('Error fetching availability:', error);
-      setAvailability([]);
-    }
-  };
-
-  const handleSaveAvailability = async () => {
-    if (newAvailability.dates.length === 0 && !newAvailability.is_recurring) {
-      toast.error('Please select at least one date or enable recurring');
-      return;
-    }
-    
-    if (newAvailability.is_recurring && newAvailability.recurring_days.length === 0) {
-      toast.error('Please select at least one recurring day');
-      return;
-    }
-
-    try {
-      await apiClient.post(`/photographer/${user?.id}/availability`, newAvailability);
-      toast.success('Availability saved!');
-      fetchAvailability();
-      setShowAvailabilityModal(false);
-      resetAvailabilityForm();
-    } catch (error) {
-      toast.error(error.response?.data?.detail || 'Failed to save availability');
-    }
-  };
-
-  const handleDeleteAvailability = async (availabilityId) => {
-    try {
-      await apiClient.delete(`/photographer/${user?.id}/availability/${availabilityId}`);
-      toast.success('Availability removed');
-      fetchAvailability();
-    } catch (error) {
-      toast.error('Failed to delete availability');
-    }
-  };
-
-  const resetAvailabilityForm = () => {
-    setNewAvailability({
-      dates: [],
-      time_preset: 'custom',
-      start_time: '07:00',
-      end_time: '17:00',
-      is_recurring: false,
-      recurring_days: []
-    });
-  };
-
-  const handleTimePresetSelect = (preset) => {
-    setNewAvailability(prev => ({
-      ...prev,
-      time_preset: preset.id,
-      start_time: preset.start,
-      end_time: preset.end
-    }));
-  };
-
-  const toggleRecurringDay = (dayId) => {
-    setNewAvailability(prev => ({
-      ...prev,
-      recurring_days: prev.recurring_days.includes(dayId)
-        ? prev.recurring_days.filter(d => d !== dayId)
-        : [...prev.recurring_days, dayId]
-    }));
-  };
-
-  const fetchBookingPricing = async () => {
-    try {
-      const res = await apiClient.get(`/photographer/${user?.id}/pricing`);
-      setBookingPricing({
-        booking_hourly_rate: res.data.booking_hourly_rate || 75,
-        booking_min_hours: res.data.booking_min_hours || 1,
-        // Resolution-tiered pricing
-        booking_price_web: res.data.booking_price_web || 3,
-        booking_price_standard: res.data.booking_price_standard || 5,
-        booking_price_high: res.data.booking_price_high || 10,
-        booking_photos_included: res.data.booking_photos_included || 3,
-        booking_full_gallery: res.data.booking_full_gallery || false,
-        price_per_additional_surfer: res.data.price_per_additional_surfer || 15,
-        // Group discounts
-        group_discount_2_plus: res.data.group_discount_2_plus || 0,
-        group_discount_3_plus: res.data.group_discount_3_plus || 0,
-        group_discount_5_plus: res.data.group_discount_5_plus || 0,
-        // Service Area & Travel Fees
-        service_radius_miles: res.data.service_radius_miles || 25,
-        charges_travel_fees: res.data.charges_travel_fees || false,
-        travel_surcharges: res.data.travel_surcharges || [
-          { min_miles: 0, max_miles: 10, surcharge: 0 },
-          { min_miles: 10, max_miles: 25, surcharge: 25 },
-          { min_miles: 25, max_miles: 50, surcharge: 50 }
-        ],
-        home_latitude: res.data.home_latitude || null,
-        home_longitude: res.data.home_longitude || null,
-        home_location_name: res.data.home_location_name || null,
-        location_search: ''
-      });
-      // Also update the newBooking default price based on fetched hourly rate
-      setNewBooking(prev => ({
-        ...prev,
-        price_per_person: res.data.booking_hourly_rate || 75,
-        base_session_price: res.data.booking_hourly_rate || 75
-      }));
-    } catch (e) {
-      logger.error('Error fetching booking pricing:', e);
-    }
-  };
-
-  const handleSaveBookingPricing = async () => {
-    try {
-      await apiClient.put(`/photographer/${user?.id}/pricing`, bookingPricing);
-      toast.success('Booking rates updated!');
-      setShowPricingModal(false);
-      // Update new booking default price
-      setNewBooking(prev => ({
-        ...prev,
-        price_per_person: bookingPricing.booking_hourly_rate,
-        base_session_price: bookingPricing.booking_hourly_rate
-      }));
-    } catch (error) {
-      toast.error(error.response?.data?.detail || 'Failed to update pricing');
-    }
-  };
-
-  const fetchBookings = async () => {
-    setLoading(true);
-    try {
-      const response = await apiClient.get(`/photographer/${user?.id}/bookings`);
-      setBookings(response.data || []);
-    } catch (error) {
-      logger.error('Error fetching bookings:', error);
-      setBookings([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleCreateBooking = async () => {
-    if (!newBooking.location || !selectedDate || !selectedTime) {
-      toast.error('Please fill in location, date and time');
-      return;
-    }
-
-    // Combine date and time into ISO string
-    const dateStr = selectedDate.toISOString().split('T')[0];
-    const sessionDateTime = `${dateStr}T${selectedTime}:00`;
-
-    try {
-      await apiClient.post(`/photographer/${user?.id}/bookings`, {
-        ...newBooking,
-        session_date: sessionDateTime,
-        duration: newBooking.duration_hours * 60, // Convert hours to minutes for API
-        crew_emails: crewMembers.map(c => c.email || c),
-        total_split_amount: calculateCrewTotal(),
-        split_participants_count: crewMembers.length + 1,
-        per_person_split_amount: parseFloat(calculatePerPersonSplit())
-      });
-      toast.success('Session created successfully!');
-      setShowCreateModal(false);
-      resetCreateForm();
-      fetchBookings();
-    } catch (error) {
-      toast.error(error.response?.data?.detail || 'Failed to create session');
-    }
-  };
-
-  const resetCreateForm = () => {
-    setNewBooking({
-      location: '',
-      session_date: '',
-      duration_hours: 1,
-      max_participants: 5,
-      price_per_person: bookingPricing.booking_hourly_rate,
-      description: '',
-      allow_splitting: true,
-      split_mode: 'friends_only',
-      crew_emails: [],
-      base_session_price: bookingPricing.booking_hourly_rate
-    });
-    setSelectedDate(null);
-    setSelectedTime(null);
-    setCalendarStep(1);
-    setCrewMembers([]);
-  };
-
-  // Add crew member by email/username
-  const handleAddCrewMember = () => {
-    if (!newCrewInput.trim()) return;
-    
-    // Basic email validation
-    const isEmail = newCrewInput.includes('@');
-    const member = {
-      id: Date.now(),
-      value: newCrewInput.trim(),
-      type: isEmail ? 'email' : 'username',
-      status: 'pending'
-    };
-    
-    setCrewMembers(prev => [...prev, member]);
-    setNewCrewInput('');
-    toast.success(`Added ${member.value} to crew`);
-  };
-
-  const handleRemoveCrewMember = (memberId) => {
-    setCrewMembers(prev => prev.filter(m => m.id !== memberId));
-  };
-
-  // Generate split payment link
-  const generateSplitLink = () => {
-    const bookingId = selectedBooking?.id || 'preview';
-    const amount = calculatePerPersonSplit();
-    const link = `${window.location.origin}/join-session/${bookingId}?split=true&amount=${amount}`;
-    setGeneratedSplitLink(link);
-    return link;
-  };
-
-  const copySplitLink = () => {
-    const link = generatedSplitLink || generateSplitLink();
-    navigator.clipboard.writeText(link);
-    toast.success('Split payment link copied!');
-  };
-
-  // Open crew modal for existing booking
-  const _openCrewModal = (booking) => {
-    setSelectedBooking(booking);
-    setShowCrewModal(true);
-    generateSplitLink();
-  };
-
-  const handleUpdateStatus = async (bookingId, status) => {
-    try {
-      await apiClient.patch(`/bookings/${bookingId}/status`, { status });
-      toast.success(`Booking ${status.toLowerCase()}`);
-      fetchBookings();
-    } catch (error) {
-      toast.error('Failed to update booking');
-    }
-  };
-
-  // Open edit modal for a booking
-  const openEditModal = (booking) => {
-    setEditBooking({
-      id: booking.id,
-      location: booking.location || '',
-      session_date: booking.session_date ? new Date(booking.session_date) : null,
-      duration: booking.duration || 60,
-      max_participants: booking.max_participants || 1,
-      description: booking.description || '',
-      price_per_person: booking.price_per_person || bookingPricing.booking_hourly_rate
-    });
-    setShowEditModal(true);
-  };
-
-  // Save edited booking
-  const handleSaveEdit = async () => {
-    if (!editBooking) return;
-    
-    try {
-      await apiClient.patch(`/bookings/${editBooking.id}`, {
-        location: editBooking.location,
-        session_date: editBooking.session_date?.toISOString(),
-        duration: editBooking.duration,
-        max_participants: editBooking.max_participants,
-        description: editBooking.description
-      });
-      
-      toast.success('Booking updated!');
-      setShowEditModal(false);
-      setEditBooking(null);
-      fetchBookings();
-    } catch (error) {
-      toast.error(error.response?.data?.detail || 'Failed to update booking');
-    }
-  };
+  // ============ HANDLERS EXTRACTED ============
 
   const copyInviteCode = (code) => {
     navigator.clipboard.writeText(code);
@@ -715,6 +219,69 @@ export const PhotographerBookingsManager = () => {
     { id: 'cancelled', label: 'Cancelled', icon: CalendarX, count: bookings.filter(b => b.status === 'Cancelled').length },
   ];
 
+  const {
+    handleGridCellStart,
+    handleGridCellEnter,
+    handleGridDragEnd,
+    handleSaveGridAvailability,
+    fetchBookedSlots,
+    calculateCrewTotal,
+    calculatePerPersonSplit,
+
+    fetchAvailability,
+    handleSaveAvailability,
+    handleDeleteAvailability,
+    handleTimePresetSelect,
+    toggleRecurringDay,
+    fetchBookingPricing,
+    handleSaveBookingPricing,
+    fetchBookings,
+    handleCreateBooking,
+    handleAddCrewMember,
+    handleRemoveCrewMember,
+    handleUpdateStatus,
+    openEditModal,
+    handleSaveEdit,
+    isDateDisabled,
+    isSlotBooked,
+    isTimeSlotWithinLeadTime,
+    copySplitLink,
+    resetAvailabilityForm,
+    resetCreateForm,
+    generateSplitLink,
+  } = useBookingManagerActions({
+    user, selectedBooking, bookings, crewMembers, editBooking,
+    selectedDate, selectedTime, newBooking, newAvailability,
+    weeklyGrid, availability, bookingPricing, newCrewInput, existingBookedSlots,
+    gridDragMode, isGridDragging, generatedSplitLink, highlightedSessionId, sessionRefs,
+    weekDays, gridHours,
+    setActiveTab,
+    setAvailability,
+    setBookingPricing,
+    setBookings,
+    setCalendarStep,
+    setCrewMembers,
+    setEditBooking,
+    setExistingBookedSlots,
+    setGeneratedSplitLink,
+    setGridDragMode,
+    setIsGridDragging,
+    setLoading,
+    setNewAvailability,
+    setNewBooking,
+    setNewCrewInput,
+    setSelectedBooking,
+    setSelectedDate,
+    setSelectedTime,
+    setShowAvailabilityModal,
+    setShowCreateModal,
+    setShowCrewModal,
+    setShowEditModal,
+    setShowPricingModal,
+    setShowSessionManager,
+    setWeeklyGrid,
+  });
+
   const filteredBookings = bookings.filter(b => {
     if (activeTab === 'pending') return b.status === 'Pending';
     if (activeTab === 'confirmed') return b.status === 'Confirmed';
@@ -723,6 +290,14 @@ export const PhotographerBookingsManager = () => {
     return true;
   });
 
+
+  // Safety timeout: prevent infinite spinner if API is unreachable
+  useEffect(() => {
+    if (loading) {
+      const timeout = setTimeout(() => setLoading(false), 10000);
+      return () => clearTimeout(timeout);
+    }
+  }, [loading]);
   if (loading) {
     return (
       <div className={`flex items-center justify-center min-h-screen ${mainBgClass}`}>
@@ -736,11 +311,11 @@ export const PhotographerBookingsManager = () => {
       <div className="max-w-2xl mx-auto p-4">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
-          <h1 className={`text-2xl font-bold ${textPrimaryClass}`} style={{ fontFamily: 'Oswald' }}>
+          <h1 className={`text-2xl font-bold ${textPrimaryClass} font-oswald`} >
             Bookings Manager
           </h1>
           <div className="flex items-center gap-2">
-            <Button
+            <Button aria-label="Calendar Icon"
               variant="outline"
               onClick={() => setShowAvailabilityModal(true)}
               className={`${isLight ? 'border-gray-300' : 'border-zinc-700'}`}
@@ -749,7 +324,7 @@ export const PhotographerBookingsManager = () => {
               <CalendarIcon className="w-4 h-4 mr-2" />
               Set Availability
             </Button>
-            <Button
+            <Button aria-label="Add"
               onClick={() => setShowCreateModal(true)}
               className="bg-gradient-to-r from-cyan-400 to-blue-500 hover:from-cyan-500 hover:to-blue-600 text-black font-medium"
               data-testid="create-session-btn"
@@ -803,7 +378,7 @@ export const PhotographerBookingsManager = () => {
           <CardHeader>
             <div className="flex items-center justify-between">
               <CardTitle className={`text-lg ${textPrimaryClass}`}>Booking Rates</CardTitle>
-              <Button 
+              <Button aria-label="Settings" 
                 variant="outline" 
                 size="sm"
                 onClick={() => setShowPricingModal(true)}
@@ -825,7 +400,7 @@ export const PhotographerBookingsManager = () => {
               <div className={`p-3 rounded-lg ${isLight ? 'bg-gray-100' : 'bg-zinc-800/50'}`}>
                 <p className={`text-xs ${textSecondaryClass} mb-1`}>Photos Included</p>
                 <p className={`text-xl font-bold ${bookingPricing.booking_full_gallery ? 'text-green-400' : textPrimaryClass}`}>
-                  {bookingPricing.booking_full_gallery ? '∞ Full' : bookingPricing.booking_photos_included}
+                  {bookingPricing.booking_full_gallery ? '8 Full' : bookingPricing.booking_photos_included}
                 </p>
                 <p className={`text-xs ${textSecondaryClass}`}>{bookingPricing.booking_full_gallery ? 'gallery' : 'photos'}</p>
               </div>
@@ -858,7 +433,7 @@ export const PhotographerBookingsManager = () => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
             return (
-              <button
+              <button aria-label="Icon"
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
                 className={`flex items-center gap-2 px-4 py-3 text-sm font-medium whitespace-nowrap transition-colors relative ${
@@ -985,7 +560,7 @@ export const PhotographerBookingsManager = () => {
                         <span className={`text-sm ${textSecondaryClass}`}>Invite Code:</span>
                         <span className={`font-mono font-bold ${textPrimaryClass}`}>{booking.invite_code}</span>
                       </div>
-                      <Button
+                      <Button aria-label="Copy"
                         variant="ghost"
                         size="sm"
                         onClick={() => copyInviteCode(booking.invite_code)}
@@ -999,7 +574,7 @@ export const PhotographerBookingsManager = () => {
                   {/* Action Buttons for Pending */}
                   {booking.status === 'Pending' && (
                     <div className="flex gap-2">
-                      <Button
+                      <Button aria-label="Confirm"
                         onClick={() => handleUpdateStatus(booking.id, 'Confirmed')}
                         className="flex-1 bg-green-500 hover:bg-green-600 text-white"
                         size="sm"
@@ -1007,7 +582,7 @@ export const PhotographerBookingsManager = () => {
                         <Check className="w-4 h-4 mr-1" />
                         Confirm
                       </Button>
-                      <Button
+                      <Button aria-label="Settings"
                         onClick={() => openEditModal(booking)}
                         variant="outline"
                         className={`border-zinc-600 ${textSecondaryClass}`}
@@ -1030,7 +605,7 @@ export const PhotographerBookingsManager = () => {
                   {booking.status === 'Confirmed' && (
                     <div className="flex gap-2">
                       {/* Manage Session - Opens new PhotographerSessionManager */}
-                      <Button
+                      <Button aria-label="Unlock"
                         className="flex-1 bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white"
                         size="sm"
                         onClick={() => {
@@ -1042,7 +617,7 @@ export const PhotographerBookingsManager = () => {
                         {booking.lineup_status === 'open' ? <Unlock className="w-4 h-4 mr-1" /> : <Lock className="w-4 h-4 mr-1" />}
                         Manage Session
                       </Button>
-                      <Button
+                      <Button aria-label="Users"
                         variant="outline"
                         className={`${isLight ? 'border-gray-300' : 'border-zinc-700'}`}
                         size="sm"
@@ -1051,7 +626,7 @@ export const PhotographerBookingsManager = () => {
                         <Users className="w-4 h-4 mr-1" />
                         ({booking.current_participants})
                       </Button>
-                      <Button
+                      <Button aria-label="Settings"
                         variant="outline"
                         className={`border-zinc-600 ${textSecondaryClass}`}
                         size="sm"
@@ -1080,7 +655,7 @@ export const PhotographerBookingsManager = () => {
           <DialogHeader className="shrink-0 border-b border-inherit px-4 sm:px-6 pt-4 pb-3">
             <div className="flex items-center gap-2">
               {calendarStep === 2 && (
-                <button 
+                <button aria-label="Previous" 
                   onClick={() => setCalendarStep(1)}
                   className={`p-1 rounded-lg ${isLight ? 'hover:bg-gray-100' : 'hover:bg-zinc-800'}`}
                 >
@@ -1282,14 +857,14 @@ export const PhotographerBookingsManager = () => {
                     </div>
                     
                     <div className="flex gap-2 mb-3">
-                      <Input
+                      <Input aria-label="Email or username"
                         value={newCrewInput}
                         onChange={(e) => setNewCrewInput(e.target.value)}
                         placeholder="Email or username"
                         className={`flex-1 ${inputBgClass} ${textPrimaryClass}`}
                         onKeyDown={(e) => e.key === 'Enter' && handleAddCrewMember()}
                       />
-                      <Button
+                      <Button aria-label="Add"
                         type="button"
                         onClick={handleAddCrewMember}
                         size="sm"
@@ -1406,7 +981,7 @@ export const PhotographerBookingsManager = () => {
                   <div className="flex items-center gap-3">
                     <div className={`w-10 h-10 rounded-full ${isLight ? 'bg-gray-200' : 'bg-zinc-700'} flex items-center justify-center overflow-hidden`}>
                       {p.avatar_url ? (
-                        <img src={getFullUrl(p.avatar_url)} alt={p.name} className="w-full h-full object-cover" />
+                        <img loading="lazy" decoding="async" src={getFullUrl(p.avatar_url)} alt={p.name} className="w-full h-full object-cover" />
                       ) : (
                         <span className={textSecondaryClass}>{p.name?.[0] || '?'}</span>
                       )}
@@ -1554,7 +1129,7 @@ export const PhotographerBookingsManager = () => {
                 Crew Split Pricing
               </h4>
               <p className={`text-xs ${textSecondaryClass} mb-4`}>
-                Formula: Base Session Price + (Per Surfer × Additional Crew)
+                Formula: Base Session Price + (Per Surfer ? Additional Crew)
               </p>
               <NumericStepper
                 label="Price Per Additional Surfer"
@@ -1718,7 +1293,7 @@ export const PhotographerBookingsManager = () => {
                   <div className="space-y-2">
                     <p className={`text-xs ${textSecondaryClass}`}>Or search by city/place:</p>
                     <div className="flex gap-2">
-                      <Input
+                      <Input aria-label="e.g., San Diego, CA or Uluwatu, Bali"
                         placeholder="e.g., San Diego, CA or Uluwatu, Bali"
                         value={bookingPricing.location_search || ''}
                         onChange={(e) => setBookingPricing({ ...bookingPricing, location_search: e.target.value })}
@@ -1766,7 +1341,6 @@ export const PhotographerBookingsManager = () => {
                   {!bookingPricing.home_latitude && (
                     <div className={`mt-2 p-2 rounded-lg ${isLight ? 'bg-amber-50' : 'bg-amber-500/10'} border border-amber-500/30`}>
                       <p className={`text-xs ${isLight ? 'text-amber-700' : 'text-amber-400'}`}>
-                        ⚠️ Set your location so surfers can see if you're in their area and calculate travel fees.
                       </p>
                     </div>
                   )}
@@ -1796,7 +1370,7 @@ export const PhotographerBookingsManager = () => {
                           </span>
                           <div className="flex items-center gap-1">
                             <span className="text-yellow-400 text-sm">+$</span>
-                            <Input
+                            <Input aria-label="Numeric input"
                               type="number"
                               value={tier.surcharge}
                               onChange={(e) => {
@@ -1893,12 +1467,12 @@ export const PhotographerBookingsManager = () => {
                 Share Split Payment Link
               </Label>
               <div className="flex gap-2">
-                <Input
+                <Input aria-label="Text input"
                   value={generatedSplitLink}
                   readOnly
                   className={`flex-1 text-sm ${inputBgClass} ${textPrimaryClass}`}
                 />
-                <Button
+                <Button aria-label="Copy"
                   onClick={copySplitLink}
                   className="bg-cyan-400 hover:bg-cyan-500 text-black"
                   size="sm"
@@ -1922,7 +1496,7 @@ export const PhotographerBookingsManager = () => {
                   className={`flex-1 ${inputBgClass} ${textPrimaryClass}`}
                   onKeyDown={(e) => e.key === 'Enter' && handleAddCrewMember()}
                 />
-                <Button
+                <Button aria-label="Send"
                   onClick={handleAddCrewMember}
                   className="bg-purple-500 hover:bg-purple-600 text-white"
                   size="sm"

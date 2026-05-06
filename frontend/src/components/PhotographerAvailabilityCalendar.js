@@ -1,4 +1,4 @@
-﻿/**
+/**
  * PhotographerAvailabilityCalendar - Visual calendar showing booking slots
  * Features:
  * - Monthly/Weekly view toggle
@@ -224,7 +224,7 @@ const AvailabilityWindowEditor = ({
               : (isLight ? 'bg-gray-100' : 'bg-zinc-800')
           }`}
         >
-          <button
+          <button aria-label="Confirm"
             onClick={() => toggleDay(idx)}
             className={`w-8 h-8 rounded-full flex items-center justify-center ${
               windows[idx]?.enabled 
@@ -338,7 +338,7 @@ export const PhotographerAvailabilityCalendar = ({ photographerId }) => {
     }
     
     // Next month padding
-    const remaining = 42 - days.length; // 6 rows × 7 days
+    const remaining = 42 - days.length; // 6 rows ? 7 days
     for (let i = 1; i <= remaining; i++) {
       const nextMonth = month === 11 ? 0 : month + 1;
       const nextYear = month === 11 ? year + 1 : year;
@@ -552,7 +552,7 @@ export const PhotographerAvailabilityCalendar = ({ photographerId }) => {
         
         <div className="flex items-center gap-2">
           {/* Drag Mode Toggle */}
-          <Button
+          <Button aria-label="Move"
             variant={isDragEnabled ? 'default' : 'outline'}
             size="sm"
             onClick={() => setIsDragEnabled(!isDragEnabled)}
@@ -564,7 +564,7 @@ export const PhotographerAvailabilityCalendar = ({ photographerId }) => {
             <Move className="w-4 h-4 mr-1" />
             {isDragEnabled ? 'Dragging On' : 'Drag to Move'}
           </Button>
-          <Button
+          <Button aria-label="Clock"
             variant="outline"
             size="sm"
             onClick={() => setShowAvailabilityModal(true)}
@@ -578,7 +578,7 @@ export const PhotographerAvailabilityCalendar = ({ photographerId }) => {
       
       {/* Month Navigation */}
       <div className="flex items-center justify-between mb-4">
-        <Button variant="ghost" size="sm" onClick={goToPrevMonth}>
+        <Button variant="ghost" size="sm" onClick={goToPrevMonth} aria-label="Previous">
           <ChevronLeft className="w-4 h-4" />
         </Button>
         
@@ -591,7 +591,7 @@ export const PhotographerAvailabilityCalendar = ({ photographerId }) => {
           </Button>
         </div>
         
-        <Button variant="ghost" size="sm" onClick={goToNextMonth}>
+        <Button variant="ghost" size="sm" onClick={goToNextMonth} aria-label="Next">
           <ChevronRight className="w-4 h-4" />
         </Button>
       </div>
@@ -680,7 +680,7 @@ export const PhotographerAvailabilityCalendar = ({ photographerId }) => {
             {/* Block/Unblock Toggle */}
             <div className="flex items-center justify-between">
               <span className={textPrimary}>Block this date</span>
-              <Button
+              <Button aria-label="Hide"
                 variant={isSelectedDateBlocked ? 'destructive' : 'outline'}
                 size="sm"
                 onClick={() => toggleBlockDate(selectedDateStr)}
@@ -889,7 +889,7 @@ export const PhotographerAvailabilityCalendar = ({ photographerId }) => {
             >
               Cancel
             </Button>
-            <Button 
+            <Button aria-label="Loader2" 
               onClick={handleRescheduleConfirm}
               disabled={rescheduling}
               className="bg-cyan-500 hover:bg-cyan-600 text-black"

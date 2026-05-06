@@ -296,7 +296,7 @@ export const AdminUnifiedAnalytics = () => {
               <SelectItem value="90d">90 days</SelectItem>
             </SelectContent>
           </Select>
-          <Button size="sm" variant="outline" onClick={fetchDataForTab} className="h-8">
+          <Button size="sm" variant="outline" onClick={fetchDataForTab} className="h-8" aria-label="Refresh">
             <RefreshCw className="w-3.5 h-3.5" />
           </Button>
         </div>
@@ -752,7 +752,7 @@ export const AdminUnifiedAnalytics = () => {
               <div>
                 <div className="flex justify-between items-center mb-3">
                   <h3 className={`font-medium ${textClass}`}>Promo Codes</h3>
-                  <Button size="sm" onClick={() => setShowCreatePromo(true)} className="bg-green-500 hover:bg-green-600">
+                  <Button size="sm" onClick={() => setShowCreatePromo(true)} className="bg-green-500 hover:bg-green-600" aria-label="Add">
                     <Plus className="w-4 h-4 mr-1" /> Create Code
                   </Button>
                 </div>
@@ -774,7 +774,7 @@ export const AdminUnifiedAnalytics = () => {
                               <code className="font-bold text-foreground bg-muted px-2 py-0.5 rounded text-sm">{p.code}</code>
                               <p className="text-xs text-gray-500 mt-0.5">
                                 {p.code_type === 'percentage' ? `${p.discount_value}% off` : `$${p.discount_value} off`}
-                                {p.campaign_name && ` • ${p.campaign_name}`}
+                                {p.campaign_name && ` ? ${p.campaign_name}`}
                               </p>
                             </div>
                           </div>
@@ -793,7 +793,7 @@ export const AdminUnifiedAnalytics = () => {
               <div>
                 <div className="flex justify-between items-center mb-3">
                   <h3 className={`font-medium ${textClass}`}>Feature Flags</h3>
-                  <Button size="sm" onClick={() => setShowCreateFlag(true)} className="bg-blue-500 hover:bg-blue-600">
+                  <Button size="sm" onClick={() => setShowCreateFlag(true)} className="bg-blue-500 hover:bg-blue-600" aria-label="Add">
                     <Plus className="w-4 h-4 mr-1" /> Create Flag
                   </Button>
                 </div>
@@ -826,7 +826,7 @@ export const AdminUnifiedAnalytics = () => {
               <div>
                 <div className="flex justify-between items-center mb-3">
                   <h3 className={`font-medium ${textClass}`}>Push Campaigns</h3>
-                  <Button size="sm" onClick={() => setShowCreateCampaign(true)} className="bg-purple-500 hover:bg-purple-600">
+                  <Button size="sm" onClick={() => setShowCreateCampaign(true)} className="bg-purple-500 hover:bg-purple-600" aria-label="Add">
                     <Plus className="w-4 h-4 mr-1" /> Create Campaign
                   </Button>
                 </div>
@@ -852,7 +852,7 @@ export const AdminUnifiedAnalytics = () => {
                             <p className="text-xs text-gray-500">{c.title}</p>
                           </div>
                           {c.status === 'draft' && (
-                            <Button size="sm" onClick={() => handleSendCampaign(c.id)} className="bg-green-500 hover:bg-green-600">
+                            <Button aria-label="Send" size="sm" onClick={() => handleSendCampaign(c.id)} className="bg-green-500 hover:bg-green-600">
                               <Send className="w-3 h-3 mr-1" /> Send
                             </Button>
                           )}
@@ -895,7 +895,7 @@ export const AdminUnifiedAnalytics = () => {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowCreatePromo(false)}>Cancel</Button>
-            <Button onClick={handleCreatePromo} disabled={actionLoading} className="bg-green-500">{actionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Create'}</Button>
+            <Button aria-label="Loader2" onClick={handleCreatePromo} disabled={actionLoading} className="bg-green-500">{actionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Create'}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -920,7 +920,7 @@ export const AdminUnifiedAnalytics = () => {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowCreateFlag(false)}>Cancel</Button>
-            <Button onClick={handleCreateFlag} disabled={actionLoading} className="bg-blue-500">{actionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Create'}</Button>
+            <Button aria-label="Loader2" onClick={handleCreateFlag} disabled={actionLoading} className="bg-blue-500">{actionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Create'}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -945,7 +945,7 @@ export const AdminUnifiedAnalytics = () => {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowCreateCampaign(false)}>Cancel</Button>
-            <Button onClick={handleCreateCampaign} disabled={actionLoading} className="bg-purple-500">{actionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Create'}</Button>
+            <Button aria-label="Loader2" onClick={handleCreateCampaign} disabled={actionLoading} className="bg-purple-500">{actionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Create'}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

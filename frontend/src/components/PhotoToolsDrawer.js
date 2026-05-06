@@ -12,6 +12,7 @@ import { Badge } from './ui/badge';
 import { toast } from 'sonner';
 import logger from '../utils/logger';
 import { ROLES } from '../constants/roles';
+import useEscapeKey from '../hooks/useEscapeKey';
 
 
 /**
@@ -23,6 +24,7 @@ export const PhotoToolsDrawer = ({ isOpen, onClose }) => {
   const { user } = useAuth();
   const { theme } = useTheme();
   const { getEffectiveRole } = usePersona();
+  useEscapeKey(isOpen, onClose);
   const [onDemandActive, setOnDemandActive] = useState(false);
   const [_onDemandLoading, setOnDemandLoading] = useState(false);
   const [stats, setStats] = useState({
@@ -167,7 +169,7 @@ export const PhotoToolsDrawer = ({ isOpen, onClose }) => {
   };
   
   // ============ MOBILE PHOTO HUB - FINAL HIERARCHY (Clean Vertical Menu) ============
-  // Order: Gallery Hub → Bookings Manager → Live Sessions → Earnings Dashboard → On-Demand Settings
+  // Order: Gallery Hub ? Bookings Manager ? Live Sessions ? Earnings Dashboard ? On-Demand Settings
   // GROM PARENT: ONLY sees "Grom Archive" - NO Bookings, Live Sessions, Earnings, On-Demand
   
   const getMenuItems = () => {
@@ -236,7 +238,7 @@ export const PhotoToolsDrawer = ({ isOpen, onClose }) => {
         id: 'bookings',
         icon: Calendar,
         label: 'Bookings Manager',
-        description: 'Calendar • Crew splits • Tiered pricing',
+        description: 'Calendar - Crew splits - Tiered pricing',
         path: '/photographer/bookings',
         color: 'text-purple-400',
         bgColor: 'bg-purple-500/10',
@@ -345,7 +347,7 @@ export const PhotoToolsDrawer = ({ isOpen, onClose }) => {
               </p>
             </div>
           </div>
-          <button onClick={onClose} className={`p-2 ${textSecondary} hover:${textPrimary}`}>
+          <button onClick={onClose} className={`p-2 ${textSecondary} hover:${textPrimary}`} aria-label="Close">
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -362,7 +364,7 @@ export const PhotoToolsDrawer = ({ isOpen, onClose }) => {
           {isGromParent ? (
             <div className="py-4">
               {/* Single large button to go to Grom Archive */}
-              <button
+              <button aria-label="div"
                 onClick={() => handleNavigation('/gallery')}
                 className="w-full p-6 rounded-2xl bg-gradient-to-br from-cyan-500/20 to-blue-500/20 border border-cyan-500/40 hover:border-cyan-400 transition-all group"
               >
@@ -405,7 +407,7 @@ export const PhotoToolsDrawer = ({ isOpen, onClose }) => {
                     onClick={() => handleNavigation('/leaderboard')}
                     className="text-xs text-amber-400 hover:text-amber-300"
                   >
-                    View Leaderboard →
+                    View Leaderboard ?
                   </button>
                 </div>
             
@@ -435,7 +437,7 @@ export const PhotoToolsDrawer = ({ isOpen, onClose }) => {
                   <div className="mt-3 pt-3 border-t border-amber-500/30">
                     <div className="flex items-center gap-2 text-orange-400 animate-pulse">
                       <Flame className="w-4 h-4" />
-                      <span className="text-sm font-medium">🔥 Hot Streak! 2x XP Active (3+ this month)</span>
+                <span className="text-sm font-medium">{String.fromCodePoint(0x1F525)} Hot Streak! 2x XP Active (3+ this week)</span>
                     </div>
                   </div>
                 )}

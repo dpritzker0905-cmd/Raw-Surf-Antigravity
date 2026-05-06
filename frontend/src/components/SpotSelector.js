@@ -9,7 +9,7 @@ import {
   Navigation,
   X,
   Globe,
-  Map,
+  Map as MapIcon,
   AlertTriangle
 } from 'lucide-react';
 import { Input } from './ui/input';
@@ -24,8 +24,8 @@ import { ROLES } from '../constants/roles';
  * Used in Active Duty console for On-Demand and Live spot selection
  * 
  * Features:
- * - GPS-based nearby spots (primary — auto-attempts on mount)
- * - Hierarchical browse fallback: Country → State/Province → Spot
+ * - GPS-based nearby spots (primary - auto-attempts on mount)
+ * - Hierarchical browse fallback: Country ? State/Province ? Spot
  *   (same pattern as ScheduledBookingDrawer & Feed check-in)
  * - Radius filtering based on photographer tier:
  *   - Standard: 10-20 miles
@@ -314,7 +314,7 @@ export const SpotSelector = ({
       {gpsAvailable !== null && (
         <div className="flex gap-2">
           {/* GPS Mode Button */}
-          <button
+          <button aria-label="Loader2"
             onClick={handleRetryGps}
             disabled={locationLoading}
             className={`flex-1 flex items-center justify-center gap-1.5 p-2 rounded-lg text-xs font-medium transition-all ${
@@ -332,7 +332,7 @@ export const SpotSelector = ({
           </button>
 
           {/* Browse Mode Button */}
-          <button
+          <button aria-label="Loader2"
             onClick={handleOpenBrowseMode}
             disabled={locationDataLoading}
             className={`flex-1 flex items-center justify-center gap-1.5 p-2 rounded-lg text-xs font-medium transition-all ${
@@ -351,7 +351,7 @@ export const SpotSelector = ({
         </div>
       )}
 
-      {/* ============ BROWSE MODE: Country → State Drill-Down ============ */}
+      {/* ============ BROWSE MODE: Country ? State Drill-Down ============ */}
       {browseMode && (
         <div className="p-3 rounded-xl border border-border bg-card/50 space-y-2.5">
           <div className="flex items-center gap-2">
@@ -383,7 +383,7 @@ export const SpotSelector = ({
                 </select>
               </div>
 
-              {/* State/Province Picker — appears when country has states */}
+              {/* State/Province Picker - appears when country has states */}
               {selectedCountry && availableStates.length > 0 && (
                 <div>
                   <label className="text-[10px] text-muted-foreground block mb-1">State / Province</label>
@@ -425,7 +425,7 @@ export const SpotSelector = ({
       {(userLocation || (browseMode && selectedCountry)) && (
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input
+          <Input aria-label="Search spots..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search spots..."
@@ -493,7 +493,7 @@ export const SpotSelector = ({
             {searchQuery ? 'No spots match your search' : 'No spots found in this area'}
           </div>
         ) : !browseMode && !locationLoading ? (
-          /* Initial state — GPS hasn't been tried yet or is loading */
+          /* Initial state - GPS hasn't been tried yet or is loading */
           <div className="text-center py-6 space-y-2">
             <Navigation className="w-6 h-6 text-muted-foreground mx-auto opacity-50" />
             <p className="text-muted-foreground text-xs">

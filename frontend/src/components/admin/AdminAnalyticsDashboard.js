@@ -134,7 +134,7 @@ export const AdminAnalyticsDashboard = () => {
               <SelectItem value="90d">Last 90 days</SelectItem>
             </SelectContent>
           </Select>
-          <Button variant="outline" onClick={fetchAnalytics} className="border-input">
+          <Button variant="outline" onClick={fetchAnalytics} className="border-input" aria-label="Refresh">
             <RefreshCw className="w-4 h-4" />
           </Button>
         </div>

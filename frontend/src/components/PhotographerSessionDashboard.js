@@ -139,7 +139,7 @@ export const PhotographerSessionDashboard = ({ onClose }) => {
             
             {/* Profile image or selfie */}
             {firstRequest.requester_selfie ? (
-              <img 
+              <img loading="lazy" decoding="async" 
                 src={firstRequest.requester_selfie.startsWith('/') 
                   ? `${process.env.REACT_APP_BACKEND_URL}${firstRequest.requester_selfie}`
                   : firstRequest.requester_selfie
@@ -148,7 +148,7 @@ export const PhotographerSessionDashboard = ({ onClose }) => {
                 className="relative w-full h-full rounded-full object-cover border-4 border-green-400"
               />
             ) : firstRequest.requester_avatar ? (
-              <img 
+              <img loading="lazy" decoding="async" 
                 src={firstRequest.requester_avatar}
                 alt="Surfer"
                 className="relative w-full h-full rounded-full object-cover border-4 border-green-400"
@@ -168,7 +168,7 @@ export const PhotographerSessionDashboard = ({ onClose }) => {
           </div>
           
           {/* Requester Info */}
-          <h3 className="text-lg font-bold text-white mb-1 text-center" style={{ fontFamily: 'Oswald' }}>
+          <h3 className="text-lg font-bold text-white mb-1 text-center font-oswald" >
             {firstRequest.requester_name || 'Surfer'}
             {firstRequest.requester_username && (
               <span className="text-cyan-400 text-sm font-normal ml-2">@{firstRequest.requester_username}</span>
@@ -203,7 +203,7 @@ export const PhotographerSessionDashboard = ({ onClose }) => {
           {/* CTA */}
           <div className="bg-gradient-to-r from-green-500 to-cyan-500 rounded-lg py-2 px-4 text-center">
             <p className="text-black font-bold text-sm">
-              Tap to View & Accept →
+              Tap to View & Accept ?
             </p>
           </div>
           
@@ -257,7 +257,7 @@ export const PhotographerSessionDashboard = ({ onClose }) => {
           </div>
           
           {/* Session Info */}
-          <h3 className="text-lg font-bold text-white mb-1 text-center" style={{ fontFamily: 'Oswald' }}>
+          <h3 className="text-lg font-bold text-white mb-1 text-center font-oswald" >
             {activeDispatch.status === 'arrived' ? 'Now Shooting' : 'On-Demand Session'}
           </h3>
           
@@ -288,7 +288,7 @@ export const PhotographerSessionDashboard = ({ onClose }) => {
           
           {/* View Details Link */}
           <p className="text-xs text-center text-cyan-400 mt-3 hover:text-cyan-300">
-            Tap to view session details →
+            Tap to view session details ?
           </p>
         </div>
         
@@ -341,7 +341,7 @@ export const PhotographerSessionDashboard = ({ onClose }) => {
             />
           </div>
           
-          <h3 className="text-lg font-bold text-white mb-2" style={{ fontFamily: 'Oswald' }}>
+          <h3 className="text-lg font-bold text-white mb-2 font-oswald" >
             No Active Session
           </h3>
           <p className="text-gray-400 text-sm">
@@ -367,7 +367,7 @@ export const PhotographerSessionDashboard = ({ onClose }) => {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-3 h-3 bg-emerald-400 rounded-full animate-pulse"></div>
-            <span className="text-white font-bold" style={{ fontFamily: 'Oswald' }}>Live Session</span>
+            <span className="text-white font-bold font-oswald" >Live Session</span>
           </div>
           <Button
             onClick={handleStopSession}
@@ -414,7 +414,7 @@ export const PhotographerSessionDashboard = ({ onClose }) => {
       <div className="p-4">
         <div className="flex items-center justify-between mb-3">
           <h4 className="text-sm font-medium text-gray-400">Participants</h4>
-          <button
+          <button aria-label="Refresh"
             onClick={fetchSession}
             className="text-gray-500 hover:text-gray-300 transition-colors"
           >
@@ -437,13 +437,13 @@ export const PhotographerSessionDashboard = ({ onClose }) => {
                 {/* Selfie / Avatar */}
                 <div className="w-12 h-12 rounded-full overflow-hidden bg-zinc-700 flex-shrink-0">
                   {participant.selfie_url ? (
-                    <img
+                    <img loading="lazy" decoding="async"
                       src={participant.selfie_url}
                       alt={participant.surfer_name}
                       className="w-full h-full object-cover"
                     />
                   ) : participant.surfer_avatar ? (
-                    <img
+                    <img loading="lazy" decoding="async"
                       src={participant.surfer_avatar}
                       alt={participant.surfer_name}
                       className="w-full h-full object-cover"
@@ -479,7 +479,6 @@ export const PhotographerSessionDashboard = ({ onClose }) => {
       {/* Tip */}
       <div className="p-4 bg-zinc-800/50 border-t border-zinc-800">
         <p className="text-xs text-gray-500 text-center">
-          💡 Surfers take selfies when joining so you can identify them in the water
         </p>
       </div>
     </div>

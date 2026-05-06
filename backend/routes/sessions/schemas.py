@@ -17,7 +17,7 @@ from utils.credits import deduct_credits, add_credits
 from datetime import timedelta
 
 # Import badge check function
-from routes.gamification import check_badge_milestones
+from routes.career_hub.gamification import check_badge_milestones
 from utils.grom_parent import is_grom_parent_eligible
 
 router = APIRouter()

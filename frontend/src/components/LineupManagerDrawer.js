@@ -41,6 +41,7 @@ import { toast } from 'sonner';
 import { useLineupWebSocket } from '../hooks/useLineupWebSocket';
 
 import logger from '../utils/logger';
+import useLineupManagerActions from '../hooks/useLineupManagerActions';
 import { getFullUrl } from '../utils/media';
 
 
@@ -184,7 +185,7 @@ const SurferPosition = ({
             isCaptain ? 'ring-4 ring-yellow-400' : ''
           } transition-all group-hover:scale-105`}>
             {member.avatar_url ? (
-              <img src={getFullUrl(member.avatar_url)} alt={member.name} className="w-full h-full object-cover" />
+              <img loading="lazy" decoding="async" src={getFullUrl(member.avatar_url)} alt={member.name} className="w-full h-full object-cover" />
             ) : (
               <div className={`w-full h-full flex items-center justify-center ${
                 isCaptain ? 'bg-gradient-to-br from-yellow-400 to-orange-500' : 'bg-gradient-to-br from-cyan-400 to-blue-500'
@@ -345,7 +346,7 @@ const QuickActionsPanel = ({
   if (!isCaptain) {
     return (
       <div className={`p-3 rounded-xl ${isLight ? 'bg-orange-50 border border-orange-200' : 'bg-orange-500/10 border border-orange-500/30'}`}>
-        <Button
+        <Button aria-label="Loader2"
           onClick={onLeave}
           disabled={loading}
           variant="outline"
@@ -366,7 +367,7 @@ const QuickActionsPanel = ({
   const ACTIVE_STATUSES = ['open', 'filling', 'ready'];
   const isActive = ACTIVE_STATUSES.includes(lineup.lineup_status);
 
-  // ── LOCKED STATE ────────────────────────────────────────────────
+  // -- LOCKED STATE ------------------------------------------------
   if (lineup.lineup_status === 'locked') {
     return (
       <div className="space-y-2">
@@ -383,7 +384,7 @@ const QuickActionsPanel = ({
             Need to cancel this session?
           </button>
         ) : (
-          <Button
+          <Button aria-label="Ban"
             onClick={onCancelAll}
             disabled={loading}
             variant="outline"
@@ -398,11 +399,11 @@ const QuickActionsPanel = ({
     );
   }
 
-  // ── ACTIVE STATE (open / filling / ready) ───────────────────────
+  // -- ACTIVE STATE (open / filling / ready) -----------------------
   return (
     <div className="space-y-2">
 
-      {/* ── State A: Not enough crew yet ── */}
+      {/* -- State A: Not enough crew yet -- */}
       {!isReady && isActive && (
         <div className={`p-3 rounded-xl ${isLight ? 'bg-cyan-50 border border-cyan-200' : 'bg-cyan-500/10 border border-cyan-500/30'}`}>
           <div className="flex items-center gap-2 mb-1">
@@ -410,12 +411,12 @@ const QuickActionsPanel = ({
             <p className={`text-sm font-medium ${textPrimary}`}>Keeping a Spot in the Water</p>
           </div>
           <p className={`text-xs ${textSecondary}`}>
-            Your lineup is open. Use the invite panel above to fill the remaining spots — the session stays open until you're ready to lock it.
+            Your lineup is open. Use the invite panel above to fill the remaining spots - the session stays open until you're ready to lock it.
           </p>
         </div>
       )}
 
-      {/* ── State B: Ready to lock ── */}
+      {/* -- State B: Ready to lock -- */}
       {isReady && isActive && (
         <>
           <div className={`p-3 rounded-xl ${isLight ? 'bg-green-50 border border-green-200' : 'bg-green-500/10 border border-green-500/30'}`}>
@@ -428,8 +429,8 @@ const QuickActionsPanel = ({
             </p>
           </div>
 
-          {/* 1 — Lock (primary) */}
-          <Button
+          {/* 1 - Lock (primary) */}
+          <Button aria-label="Loader2"
             onClick={onLock}
             disabled={loading}
             className="w-full bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white py-5 text-sm font-bold"
@@ -440,9 +441,9 @@ const QuickActionsPanel = ({
         </>
       )}
 
-      {/* 2 — Leave Open & Come Back Later (always shown when active) */}
+      {/* 2 - Leave Open & Come Back Later (always shown when active) */}
       {isActive && (
-        <Button
+        <Button aria-label="Waves"
           onClick={onClose}
           variant="outline"
           size="sm"
@@ -456,7 +457,7 @@ const QuickActionsPanel = ({
 
       {/* Close to new surfers (open status only) */}
       {lineup.lineup_status === 'open' && (
-        <Button
+        <Button aria-label="Unlock"
           onClick={onCloseToInvites}
           disabled={loading}
           variant="outline"
@@ -469,7 +470,7 @@ const QuickActionsPanel = ({
         </Button>
       )}
 
-      {/* Cancel — tap to reveal, discourages accidental cancels */}
+      {/* Cancel - tap to reveal, discourages accidental cancels */}
       {!showCancelRow ? (
         <button
           onClick={() => setShowCancelRow(true)}
@@ -479,7 +480,7 @@ const QuickActionsPanel = ({
           Need to cancel this lineup?
         </button>
       ) : (
-        <Button
+        <Button aria-label="Ban"
           onClick={onCancelAll}
           disabled={loading}
           variant="outline"
@@ -579,8 +580,8 @@ const AutoFillPanel = ({
         : 'bg-gradient-to-br from-purple-500/10 to-cyan-500/10 border border-purple-500/30'
     }`}>
       {/* Header - Collapsible */}
-      <button
-        onClick={() => setExpanded(!expanded)}
+      <button aria-label="Sparkles"
+        aria-expanded={expanded} onClick={() => setExpanded(!expanded)}
         className="w-full flex items-center justify-between p-3 hover:bg-white/5 transition-colors"
       >
         <div className="flex items-center gap-2">
@@ -598,7 +599,7 @@ const AutoFillPanel = ({
         <div className="p-3 pt-0 space-y-3">
           {/* Invite All Button */}
           {allSuggestions.length >= 2 && spotsLeft >= 2 && (
-            <Button
+            <Button aria-label="Users"
               onClick={() => onInviteAll(allSuggestions.slice(0, spotsLeft))}
               disabled={inviting}
               size="sm"
@@ -612,7 +613,7 @@ const AutoFillPanel = ({
           {/* Individual suggestions */}
           <div className="grid grid-cols-2 gap-2">
             {allSuggestions.slice(0, 4).map((person) => (
-              <button
+              <button aria-label="div"
                 key={person.user_id}
                 onClick={() => onInvite(person)}
                 disabled={inviting === person.user_id}
@@ -622,7 +623,7 @@ const AutoFillPanel = ({
               >
                 <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0">
                   {person.avatar_url ? (
-                    <img src={getFullUrl(person.avatar_url)} alt="" className="w-full h-full object-cover" />
+                    <img loading="lazy" decoding="async" src={getFullUrl(person.avatar_url)} alt="" className="w-full h-full object-cover" />
                   ) : (
                     <div className={`w-full h-full flex items-center justify-center bg-gradient-to-br from-cyan-400 to-blue-500 text-white text-sm font-bold`}>
                       {person.full_name?.[0] || '?'}
@@ -750,146 +751,32 @@ export const LineupManagerDrawer = ({
     return () => clearTimeout(timeout);
   }, [searchQuery, lineup?.id, user?.id]);
 
-  // Action Handlers
-  const handleInvite = async (targetUser) => {
-    setInviting(targetUser.user_id);
-    try {
-      await apiClient.post(
-        `/bookings/${lineup.id}/invite-by-handle`,
-        { handle_query: targetUser.username || targetUser.full_name }
-      );
-      const displayName = targetUser.username ? `@${targetUser.username}` : targetUser.full_name;
-      toast.success(`Invite sent to ${displayName}!`);
-      setSearchQuery('');
-      setSearchResults([]);
-      onRefresh?.();
-    } catch (error) {
-      toast.error(error.response?.data?.detail || 'Failed to send invite');
-    } finally {
-      setInviting(null);
-    }
-  };
+  // ============ HANDLERS EXTRACTED TO hooks/useLineupManagerActions.js ============
+  const {
+    handleInvite,
+    handleInviteAll,
+    handleLockLineup,
+    handleCloseToInvites,
+    handleCancelAll,
+    handleRemoveCrewMember,
+    handleLeaveLineup,
+    copyInviteCode,
+  } = useLineupManagerActions({
+    lineup,
+    user,
+    onRefresh,
+    onClose,
+    showLockConfirm,
+    showCancelConfirm,
+    setLoading,
+    setInviting,
+    setSearchQuery,
+    setSearchResults,
+    setShowLockConfirm,
+    setShowCancelConfirm,
+  });
 
-  const handleInviteAll = async (users) => {
-    setInviting('all');
-    let successCount = 0;
-    
-    for (const targetUser of users) {
-      try {
-        await apiClient.post(
-          `/bookings/${lineup.id}/invite-by-handle`,
-          { handle_query: targetUser.username || targetUser.full_name }
-        );
-        successCount++;
-      } catch (error) {
-        logger.error(`Failed to invite ${targetUser.full_name}:`, error);
-      }
-    }
-    
-    if (successCount > 0) {
-      toast.success(`Sent ${successCount} invite${successCount > 1 ? 's' : ''}!`);
-      onRefresh?.();
-    } else {
-      toast.error('Failed to send invites');
-    }
-    
-    setInviting(null);
-  };
-
-  const handleLockLineup = async () => {
-    if (!showLockConfirm) { setShowLockConfirm(true); return; }
-    setShowLockConfirm(false);
-    setLoading(true);
-    try {
-      await apiClient.post(`/bookings/${lineup.id}/lineup/lock`);
-      toast.success('Lineup locked! Payment requests sent to crew.');
-      onRefresh?.();
-      onClose();
-    } catch (error) {
-      toast.error(error.response?.data?.detail || 'Failed to lock lineup');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleCloseToInvites = async () => {
-    if (!confirm('Close this lineup to new members? Current crew will keep their spots.')) return;
-    
-    setLoading(true);
-    try {
-      await apiClient.post(`/bookings/${lineup.id}/lineup/close`);
-      toast.success('Lineup closed to new members');
-      onRefresh?.();
-    } catch (error) {
-      toast.error(error.response?.data?.detail || 'Failed to close lineup');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleCancelAll = async () => {
-    if (!showCancelConfirm) { setShowCancelConfirm(true); return; }
-    setShowCancelConfirm(false);
-    setLoading(true);
-    try {
-      await apiClient.post(`/bookings/${lineup.id}/cancel`, {
-        reason: 'Cancelled by captain'
-      });
-      toast.success('Session cancelled. All participants have been notified.');
-      onRefresh?.();
-      onClose();
-    } catch (error) {
-      const errorMessage = error.response?.data?.detail || 'Failed to cancel session';
-      const displayMessage = typeof errorMessage === 'object'
-        ? (Array.isArray(errorMessage) ? errorMessage[0]?.msg : errorMessage.msg || 'Failed to cancel session')
-        : errorMessage;
-      toast.error(displayMessage);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleRemoveCrewMember = async (memberId, memberName) => {
-    if (!confirm(`Remove ${memberName} from this lineup? They will be notified.`)) return;
-    
-    setLoading(true);
-    try {
-      await apiClient.post(`/bookings/${lineup.id}/lineup/remove-member`, {
-        member_id: memberId
-      });
-      toast.success(`${memberName} removed from lineup. Spot is now open.`);
-      onRefresh?.();
-    } catch (error) {
-      toast.error(error.response?.data?.detail || 'Failed to remove crew member');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleLeaveLineup = async () => {
-    if (!confirm('Leave this lineup? Your spot will open for someone else.')) return;
-    
-    setLoading(true);
-    try {
-      await apiClient.post(`/bookings/${lineup.id}/lineup/leave`);
-      toast.success('You left the lineup. The captain has been notified.');
-      onRefresh?.();
-      onClose();
-    } catch (error) {
-      toast.error(error.response?.data?.detail || 'Failed to leave lineup');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const copyInviteCode = () => {
-    if (lineup?.invite_code) {
-      navigator.clipboard.writeText(lineup.invite_code);
-      toast.success('Invite code copied!');
-    }
-  };
-
-  if (!lineup) return null;
+    if (!lineup) return null;
 
   const cardBg = isLight ? 'bg-white' : 'bg-zinc-900';
   const textPrimary = isLight ? 'text-gray-900' : 'text-white';
@@ -917,17 +804,16 @@ export const LineupManagerDrawer = ({
               <Waves className="w-6 h-6 text-cyan-400" />
               The Lineup
             </DialogTitle>
-            <button 
+            <button aria-label="Close" 
               onClick={onClose}
               className={`p-2 rounded-full ${isLight ? 'hover:bg-gray-100' : 'hover:bg-zinc-800'} transition-colors`}
               data-testid="close-lineup-drawer"
-            >
-              <X className="w-5 h-5 text-gray-400" />
+            ><X className="w-5 h-5 text-gray-400" />
             </button>
           </div>
           <DialogDescription className={`${textSecondary} flex items-center gap-2 mt-1`}>
             <MapPin className="w-4 h-4" />
-            {lineup.location} · {new Date(lineup.session_date).toLocaleDateString()}
+            {lineup.location} - {new Date(lineup.session_date).toLocaleDateString()}
           </DialogDescription>
           <LineupCountdown closesAt={lineup.lineup_closes_at} isLight={isLight} />
         </div>
@@ -968,7 +854,7 @@ export const LineupManagerDrawer = ({
 
         {/* Tab Switcher */}
         <div className="flex border-b border-zinc-700">
-          <button
+          <button aria-label="Anchor"
             onClick={() => setActiveTab('lineup')}
             className={`flex-1 py-2 text-sm font-medium flex items-center justify-center gap-2 transition-colors ${
               activeTab === 'lineup' 
@@ -979,7 +865,7 @@ export const LineupManagerDrawer = ({
             <Anchor className="w-4 h-4" />
             Lineup ({currentCrew})
           </button>
-          <button
+          <button aria-label="User Plus"
             onClick={() => setActiveTab('invite')}
             className={`flex-1 py-2 text-sm font-medium flex items-center justify-center gap-2 transition-colors ${
               activeTab === 'invite' 
@@ -1064,7 +950,7 @@ export const LineupManagerDrawer = ({
                 
                 {/* "Shore" Label */}
                 <div className="absolute bottom-2 left-1/2 -translate-x-1/2 text-xs text-yellow-600 font-medium flex items-center gap-1">
-                  <span>🏖️</span>
+                <span>{String.fromCodePoint(0x1F3C4)}</span>
                   SHORE
                 </div>
               </div>
@@ -1094,7 +980,7 @@ export const LineupManagerDrawer = ({
                     <span className={`font-mono text-2xl font-bold tracking-widest ${textPrimary}`}>
                       {lineup.invite_code}
                     </span>
-                    <Button variant="ghost" size="sm" onClick={copyInviteCode} className="text-cyan-400">
+                    <Button variant="ghost" size="sm" onClick={copyInviteCode} className="text-cyan-400" aria-label="Copy">
                       <Copy className="w-5 h-5" />
                     </Button>
                   </div>
@@ -1129,7 +1015,7 @@ export const LineupManagerDrawer = ({
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-full overflow-hidden bg-zinc-700">
                           {result.avatar_url ? (
-                            <img src={getFullUrl(result.avatar_url)} alt="" className="w-full h-full object-cover" />
+                            <img loading="lazy" decoding="async" src={getFullUrl(result.avatar_url)} alt="" className="w-full h-full object-cover" />
                           ) : (
                             <div className="w-full h-full flex items-center justify-center text-gray-400">
                               {result.full_name?.[0] || '?'}
@@ -1143,7 +1029,7 @@ export const LineupManagerDrawer = ({
                           </p>
                         </div>
                       </div>
-                      <Button
+                      <Button aria-label="Loader2"
                         size="sm"
                         onClick={() => handleInvite(result)}
                         disabled={inviting === result.user_id}
@@ -1181,7 +1067,7 @@ export const LineupManagerDrawer = ({
                             <div className="flex items-center gap-3">
                               <div className="w-10 h-10 rounded-full overflow-hidden">
                                 {friend.avatar_url ? (
-                                  <img src={getFullUrl(friend.avatar_url)} alt="" className="w-full h-full object-cover" />
+                                  <img loading="lazy" decoding="async" src={getFullUrl(friend.avatar_url)} alt="" className="w-full h-full object-cover" />
                                 ) : (
                                   <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-green-400 to-emerald-500 text-white font-bold">
                                     {friend.full_name?.[0] || '?'}
@@ -1193,7 +1079,7 @@ export const LineupManagerDrawer = ({
                                 <p className="text-xs text-green-400">Mutual friend</p>
                               </div>
                             </div>
-                            <Button
+                            <Button aria-label="Loader2"
                               size="sm"
                               onClick={() => handleInvite(friend)}
                               disabled={inviting === friend.user_id}
@@ -1226,7 +1112,7 @@ export const LineupManagerDrawer = ({
                             <div className="flex items-center gap-3">
                               <div className="w-10 h-10 rounded-full overflow-hidden">
                                 {surfer.avatar_url ? (
-                                  <img src={getFullUrl(surfer.avatar_url)} alt="" className="w-full h-full object-cover" />
+                                  <img loading="lazy" decoding="async" src={getFullUrl(surfer.avatar_url)} alt="" className="w-full h-full object-cover" />
                                 ) : (
                                   <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-blue-400 to-indigo-500 text-white font-bold">
                                     {surfer.full_name?.[0] || '?'}
@@ -1238,7 +1124,7 @@ export const LineupManagerDrawer = ({
                                 <p className="text-xs text-blue-400">Nearby</p>
                               </div>
                             </div>
-                            <Button
+                            <Button aria-label="Loader2"
                               size="sm"
                               onClick={() => handleInvite(surfer)}
                               disabled={inviting === surfer.user_id}
@@ -1386,7 +1272,7 @@ export const LineupManagerDrawer = ({
               </div>
             </div>
             <div className="flex gap-2">
-              <Button
+              <Button aria-label="Loader2"
                 onClick={handleCancelAll}
                 disabled={loading}
                 size="sm"
@@ -1424,7 +1310,7 @@ export const LineupManagerDrawer = ({
               </div>
             </div>
             <div className="flex gap-2">
-              <Button
+              <Button aria-label="Loader2"
                 onClick={handleLockLineup}
                 disabled={loading}
                 size="sm"

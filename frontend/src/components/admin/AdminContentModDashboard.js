@@ -221,10 +221,10 @@ export const AdminContentModDashboard = () => {
               <SelectItem value="condition_report">Condition Reports</SelectItem>
             </SelectContent>
           </Select>
-          <Button size="sm" variant="outline" onClick={() => { fetchQueue(); fetchStats(); }}>
+          <Button size="sm" variant="outline" onClick={() => { fetchQueue(); fetchStats(); }} aria-label="Refresh">
             <RefreshCw className="w-4 h-4" />
           </Button>
-          <Button 
+          <Button aria-label="Delete" 
             size="sm" 
             variant="outline" 
             onClick={handlePurgeOrphans} 
@@ -240,10 +240,10 @@ export const AdminContentModDashboard = () => {
         {selectedItems.size > 0 && (
           <div className="flex gap-2 items-center">
             <Badge className="bg-cyan-500/20 text-cyan-400">{selectedItems.size} selected</Badge>
-            <Button size="sm" onClick={() => handleBulkModerate('approve')} disabled={actionLoading} className="bg-green-500 hover:bg-green-600">
+            <Button size="sm" onClick={() => handleBulkModerate('approve')} disabled={actionLoading} className="bg-green-500 hover:bg-green-600" aria-label="Confirm">
               <Check className="w-4 h-4 mr-1" /> Approve All
             </Button>
-            <Button size="sm" onClick={() => handleBulkModerate('reject')} disabled={actionLoading} className="bg-red-500 hover:bg-red-600">
+            <Button aria-label="Delete" size="sm" onClick={() => handleBulkModerate('reject')} disabled={actionLoading} className="bg-red-500 hover:bg-red-600">
               <Trash2 className="w-4 h-4 mr-1" /> Remove All
             </Button>
           </div>
@@ -279,7 +279,7 @@ export const AdminContentModDashboard = () => {
                   }`}
                 >
                   <div className="flex items-start gap-3">
-                    <input
+                    <input aria-label="Checkbox"
                       type="checkbox"
                       checked={selectedItems.has(item.id)}
                       onChange={() => toggleSelect(item.id)}
@@ -296,19 +296,19 @@ export const AdminContentModDashboard = () => {
                       </div>
                       <p className={`text-sm ${textClass} line-clamp-2`}>{item.content_preview}</p>
                       <p className="text-xs text-gray-500 mt-1">
-                        By: {item.user_name || 'Unknown'} • {item.created_at ? new Date(item.created_at).toLocaleDateString() : ''}
+                        By: {item.user_name || 'Unknown'} - {item.created_at ? new Date(item.created_at).toLocaleDateString() : ''}
                       </p>
                     </div>
                     <div className="flex gap-1">
-                      <Button size="sm" variant="ghost" onClick={() => setSelectedItem(item)}>
+                      <Button size="sm" variant="ghost" onClick={() => setSelectedItem(item)} aria-label="View">
                         <Eye className="w-4 h-4" />
                       </Button>
                       {status === 'pending' && (
                         <>
-                          <Button size="sm" variant="ghost" onClick={() => handleModerate(item.id, 'approve')} className="text-green-400 hover:bg-green-500/20">
+                          <Button size="sm" variant="ghost" onClick={() => handleModerate(item.id, 'approve')} className="text-green-400 hover:bg-green-500/20" aria-label="Confirm">
                             <Check className="w-4 h-4" />
                           </Button>
-                          <Button size="sm" variant="ghost" onClick={() => handleModerate(item.id, 'reject')} className="text-red-400 hover:bg-red-500/20">
+                          <Button size="sm" variant="ghost" onClick={() => handleModerate(item.id, 'reject')} className="text-red-400 hover:bg-red-500/20" aria-label="Close">
                             <X className="w-4 h-4" />
                           </Button>
                         </>
@@ -336,7 +336,7 @@ export const AdminContentModDashboard = () => {
               {/* Content Preview */}
               <div className="p-3 bg-muted rounded-lg">
                 {selectedItem.content_url && (
-                  <img src={getFullUrl(selectedItem.content_url)} alt="Content" className="w-full rounded mb-2 max-h-48 object-cover" />
+                  <img loading="lazy" decoding="async" src={getFullUrl(selectedItem.content_url)} alt="Content" className="w-full rounded mb-2 max-h-48 object-cover" />
                 )}
                 <p className="text-sm text-gray-300">{selectedItem.content_preview}</p>
               </div>
@@ -380,10 +380,10 @@ export const AdminContentModDashboard = () => {
           {status === 'pending' && selectedItem && (
             <DialogFooter className="gap-2">
               <Button variant="outline" onClick={() => setSelectedItem(null)}>Cancel</Button>
-              <Button onClick={() => handleModerate(selectedItem.id, 'approve')} disabled={actionLoading} className="bg-green-500 hover:bg-green-600">
+              <Button aria-label="Confirm" onClick={() => handleModerate(selectedItem.id, 'approve')} disabled={actionLoading} className="bg-green-500 hover:bg-green-600">
                 <Check className="w-4 h-4 mr-1" /> Approve
               </Button>
-              <Button onClick={() => handleModerate(selectedItem.id, 'reject')} disabled={actionLoading} className="bg-red-500 hover:bg-red-600">
+              <Button aria-label="Delete" onClick={() => handleModerate(selectedItem.id, 'reject')} disabled={actionLoading} className="bg-red-500 hover:bg-red-600">
                 <Trash2 className="w-4 h-4 mr-1" /> Reject
               </Button>
             </DialogFooter>

@@ -18,7 +18,7 @@ import logger from '../utils/logger';
 import { ROLE_SETS } from '../constants/roles';
 
 /**
- * PhotographerSubscribePage — Dedicated, polished subscription page
+ * PhotographerSubscribePage - Dedicated, polished subscription page
  * Route: /photographer/:photographerId/subscribe
  * 
  * Shows the photographer's available plans with full details,
@@ -109,7 +109,7 @@ export const PhotographerSubscribePage = () => {
 
   if (loading) {
     return (
-      <div className={`min-h-screen ${pageBg} flex items-center justify-center`}>
+      <div data-testid="photographer-subscribe-page" className={`min-h-screen ${pageBg} flex items-center justify-center`}>
         <Loader2 className="w-10 h-10 text-violet-400 animate-spin" />
       </div>
     );
@@ -149,7 +149,7 @@ export const PhotographerSubscribePage = () => {
 
   return (
     <div className={`min-h-screen ${pageBg} pb-24 md:pb-8`}>
-      {/* ── Hero gradient ── */}
+      {/* -- Hero gradient -- */}
       <div className="relative">
         <div className="h-36 bg-gradient-to-br from-violet-900/80 via-fuchsia-900/50 to-purple-900/60 overflow-hidden">
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-violet-500/15 via-transparent to-fuchsia-500/10" />
@@ -158,7 +158,7 @@ export const PhotographerSubscribePage = () => {
         </div>
 
         {/* Back button */}
-        <Button
+        <Button aria-label="Go back"
           variant="ghost"
           onClick={() => navigate(-1)}
           className="absolute top-4 left-4 text-white/70 hover:text-white hover:bg-white/10 backdrop-blur-sm"
@@ -167,7 +167,7 @@ export const PhotographerSubscribePage = () => {
         </Button>
       </div>
 
-      {/* ── Photographer card ── */}
+      {/* -- Photographer card -- */}
       <div className="max-w-2xl mx-auto px-4 -mt-14 relative z-10">
         <div className={`${cardBg} rounded-2xl border ${borderColor} p-5 shadow-xl`}>
           <div className="flex items-center gap-4">
@@ -197,7 +197,7 @@ export const PhotographerSubscribePage = () => {
         </div>
       </div>
 
-      {/* ── Active subscription banner ── */}
+      {/* -- Active subscription banner -- */}
       {activeSub && (
         <div className="max-w-2xl mx-auto px-4 mt-4">
           <Card className="border-emerald-500/40 bg-emerald-500/5 border-2">
@@ -210,7 +210,7 @@ export const PhotographerSubscribePage = () => {
                   You're subscribed to {activeSub.plan_name}
                 </p>
                 <p className={`text-xs ${textSecondary}`}>
-                  Expires {new Date(activeSub.expires_at).toLocaleDateString()} •
+                  Expires {new Date(activeSub.expires_at).toLocaleDateString()} -
                   {activeSub.photos_remaining} photos, {activeSub.videos_remaining} videos left
                 </p>
               </div>
@@ -227,7 +227,7 @@ export const PhotographerSubscribePage = () => {
         </div>
       )}
 
-      {/* ── Plans header ── */}
+      {/* -- Plans header -- */}
       <div className="max-w-2xl mx-auto px-4 mt-8">
         <div className="text-center mb-6">
           <div className="inline-flex items-center gap-2 bg-violet-500/10 border border-violet-500/20 rounded-full px-4 py-1.5 mb-3">
@@ -242,7 +242,7 @@ export const PhotographerSubscribePage = () => {
           </p>
         </div>
 
-        {/* ── Subscriber benefits ── */}
+        {/* -- Subscriber benefits -- */}
         <div className={`mb-6 p-4 rounded-2xl border ${isLight ? 'bg-violet-50/50 border-violet-200' : 'bg-violet-500/5 border-violet-500/15'}`}>
           <p className={`text-xs font-semibold ${textPrimary} mb-3`}>What you get as a subscriber:</p>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
@@ -264,7 +264,7 @@ export const PhotographerSubscribePage = () => {
           </div>
         </div>
 
-        {/* ── Plans list ── */}
+        {/* -- Plans list -- */}
         {plans.length === 0 ? (
           <Card className={`${cardBg} ${borderColor}`}>
             <CardContent className="p-12 text-center">
@@ -298,7 +298,7 @@ export const PhotographerSubscribePage = () => {
                   {/* Popular badge */}
                   {isPopular && (
                     <div className="bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white text-center text-xs font-bold py-1.5 tracking-wide">
-                      ⭐ MOST POPULAR
+                      ? MOST POPULAR
                     </div>
                   )}
 
@@ -395,11 +395,11 @@ export const PhotographerSubscribePage = () => {
                       </p>
                     ) : activeSub ? (
                       <p className={`text-xs text-center text-emerald-400 py-2 font-medium`}>
-                        ✓ You already have an active subscription
+                        ? You already have an active subscription
                       </p>
                     ) : (
                       <div className="flex gap-2">
-                        <Button
+                        <Button aria-label="Loader2"
                           onClick={() => handleSubscribe(plan, 'credits')}
                           disabled={!!subscribing}
                           className="flex-1 bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white font-bold hover:from-violet-600 hover:to-fuchsia-600 h-11"
@@ -413,7 +413,7 @@ export const PhotographerSubscribePage = () => {
                             </>
                           )}
                         </Button>
-                        <Button
+                        <Button aria-label="Loader2"
                           onClick={() => handleSubscribe(plan, 'card')}
                           disabled={!!subscribing}
                           variant="outline"

@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
@@ -16,11 +16,13 @@ import { Input } from './ui/input';
 import { toast } from 'sonner';
 import { CrewLeaderboard } from './CrewLeaderboard';
 import apiClient, { BACKEND_URL } from '../lib/apiClient';
+import ChallengesTab from './career/ChallengesTab';
 import logger from '../utils/logger';
+import { GenericPageSkeleton } from './ui/SkeletonVariants';
 
 
 /**
- * The Inside - Career Hub for Grom (🍼) surfers
+ * The Inside - Career Hub for Grom (??) surfers
  * Features: Road to the Peak progress, Grom Series results, Stoke Sponsors, Grom-Friendly coaches
  */
 export const TheInsideHub = () => {
@@ -101,11 +103,7 @@ export const TheInsideHub = () => {
   ];
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="w-8 h-8 text-cyan-400 animate-spin" />
-      </div>
-    );
+    return <GenericPageSkeleton />;
   }
 
   return (
@@ -116,13 +114,12 @@ export const TheInsideHub = () => {
     >
       {/* Header */}
       <div className="text-center">
-        <h1 className={`text-3xl font-bold ${textPrimary} flex items-center justify-center gap-2`} style={{ fontFamily: 'Oswald' }}>
+        <h1 className={`text-3xl font-bold ${textPrimary} flex items-center justify-center gap-2 font-oswald`} >
           <Baby className="w-8 h-8 text-cyan-400" />
           The Inside
         </h1>
         <p className={`${textSecondary} mt-1`}>Your Grom Career Journey</p>
         <Badge className="mt-2 bg-cyan-500/20 text-cyan-400 border-cyan-500/30">
-          🍼 Grom Rising
         </Badge>
       </div>
 
@@ -151,7 +148,7 @@ export const TheInsideHub = () => {
                   }`}
                   style={{ marginLeft: idx === 0 ? '0' : 'auto', marginRight: idx === milestones.length - 1 ? '0' : 'auto' }}
                 >
-                  {getMilestoneStatus(milestone.threshold) === 'completed' ? '✓' : milestone.threshold}
+                  {getMilestoneStatus(milestone.threshold) === 'completed' ? '?' : milestone.threshold}
                 </div>
               ))}
             </div>
@@ -197,7 +194,7 @@ export const TheInsideHub = () => {
               <p className={`text-sm ${textSecondary}`}>
                 You've completed The Road to The Peak! Contact your manager to transition to Competitive status.
               </p>
-              <Button className="mt-3 bg-cyan-500 text-black hover:bg-cyan-400">
+              <Button aria-label="Zap" className="mt-3 bg-cyan-500 text-black hover:bg-cyan-400">
                 <Zap className="w-4 h-4 mr-2" />
                 Request Promotion
               </Button>
@@ -208,7 +205,7 @@ export const TheInsideHub = () => {
           <div className="mt-4 text-center">
             <div className="text-3xl font-bold text-cyan-400">{roadToThePeakProgress}%</div>
             <div className={`text-sm ${textSecondary}`}>
-              {careerStats?.total_xp || 0} XP earned • {careerStats?.verified_results_count || 0} verified results
+              {careerStats?.total_xp || 0} XP earned - {careerStats?.verified_results_count || 0} verified results
             </div>
           </div>
         </CardContent>
@@ -228,7 +225,7 @@ export const TheInsideHub = () => {
           <div className="mb-4">
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
-                <span className="text-xl">🏄</span>
+              <span className="text-xl">{String.fromCodePoint(0x1F3C4)}</span>
                 <div>
                   <div className={`font-medium ${textPrimary}`}>New Shortboard</div>
                   <div className={`text-xs ${textSecondary}`}>Target: $450</div>
@@ -326,7 +323,7 @@ export const TheInsideHub = () => {
           ) : (
             <p className={`text-center ${textSecondary} py-4`}>No competition results yet. Start competing!</p>
           )}
-          <Button 
+          <Button aria-label="Add" 
             onClick={() => setShowAddResultModal(true)}
             className="w-full mt-4 bg-zinc-800 hover:bg-zinc-700 text-white"
           >
@@ -363,7 +360,7 @@ export const TheInsideHub = () => {
           ) : (
             <p className={`text-center ${textSecondary} py-4`}>Add your supporters!</p>
           )}
-          <Button 
+          <Button aria-label="Add" 
             onClick={() => setShowAddSponsorModal(true)}
             variant="outline" 
             className="w-full mt-4 border-zinc-700"
@@ -468,6 +465,19 @@ export const TheInsideHub = () => {
         </CardContent>
       </Card>
 
+      {/* Weekly Challenges */}
+      <Card className={cardBg}>
+        <CardHeader>
+          <CardTitle className={`${textPrimary} flex items-center gap-2`}>
+            <Sparkles className="w-5 h-5 text-cyan-400" />
+            Weekly Challenges
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ChallengesTab userId={user?.id} />
+        </CardContent>
+      </Card>
+
       {/* Crew Stats for The Inside */}
       <Card className={cardBg} data-testid="inside-crew-stats">
         <CardHeader>
@@ -558,27 +568,27 @@ const AddResultForm = ({ userId, defaultTier, onSuccess }) => {
 
   return (
     <div className="space-y-4">
-      <Input
+      <Input aria-label="Event Name *"
         placeholder="Event Name *"
         value={formData.event_name}
         onChange={(e) => setFormData({ ...formData, event_name: e.target.value })}
         className="bg-zinc-800 border-zinc-700"
       />
-      <Input
+      <Input aria-label="Date"
         type="date"
         value={formData.event_date}
         onChange={(e) => setFormData({ ...formData, event_date: e.target.value })}
         className="bg-zinc-800 border-zinc-700"
       />
       <div className="grid grid-cols-2 gap-3">
-        <Input
+        <Input aria-label="Your Placing *"
           type="number"
           placeholder="Your Placing *"
           value={formData.placing}
           onChange={(e) => setFormData({ ...formData, placing: e.target.value })}
           className="bg-zinc-800 border-zinc-700"
         />
-        <Input
+        <Input aria-label="Heat Wins"
           type="number"
           placeholder="Heat Wins"
           value={formData.heat_wins}
@@ -586,14 +596,14 @@ const AddResultForm = ({ userId, defaultTier, onSuccess }) => {
           className="bg-zinc-800 border-zinc-700"
         />
       </div>
-      <Input
+      <Input aria-label="Proof Image URL (optional)"
         placeholder="Proof Image URL (optional)"
         value={formData.proof_image_url}
         onChange={(e) => setFormData({ ...formData, proof_image_url: e.target.value })}
         className="bg-zinc-800 border-zinc-700"
       />
       <DialogFooter>
-        <Button onClick={handleSubmit} disabled={loading} className="w-full bg-cyan-500 text-black hover:bg-cyan-400">
+        <Button aria-label="Loader2" onClick={handleSubmit} disabled={loading} className="w-full bg-cyan-500 text-black hover:bg-cyan-400">
           {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Add Result'}
         </Button>
       </DialogFooter>
@@ -631,7 +641,7 @@ const AddStokeSponsorForm = ({ userId, onSuccess }) => {
 
   return (
     <div className="space-y-4">
-      <Input
+      <Input aria-label="Sponsor Name *"
         placeholder="Sponsor Name *"
         value={formData.sponsor_name}
         onChange={(e) => setFormData({ ...formData, sponsor_name: e.target.value })}
@@ -647,7 +657,7 @@ const AddStokeSponsorForm = ({ userId, onSuccess }) => {
         <option value="stoke_sponsor">Stoke Sponsor</option>
       </select>
       <DialogFooter>
-        <Button onClick={handleSubmit} disabled={loading} className="w-full bg-pink-500 text-black hover:bg-pink-400">
+        <Button aria-label="Loader2" onClick={handleSubmit} disabled={loading} className="w-full bg-pink-500 text-black hover:bg-pink-400">
           {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Add Sponsor'}
         </Button>
       </DialogFooter>

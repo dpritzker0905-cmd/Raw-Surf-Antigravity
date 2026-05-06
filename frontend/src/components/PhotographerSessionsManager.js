@@ -27,7 +27,8 @@ import {
   AlertTriangle,
   Check,
   Search,
-  X
+  X,
+  ImageIcon
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from './ui/card';
 import { Button } from './ui/button';
@@ -37,6 +38,7 @@ import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Switch } from './ui/switch';
 import { toast } from 'sonner';
+import useSessionActions from '../hooks/useSessionActions';
 import PhotoUploadModal from './PhotoUploadModal';
 import ConditionsModal from './ConditionsModal';
 import EndSessionModal from './EndSessionModal';
@@ -80,8 +82,8 @@ const getCommissionRate = (subscriptionTier) => {
   return COMMISSION_RATES[tier] || COMMISSION_RATES.free;
 };
 
-// LiveSavingsBadge → imported from ./sessions/LiveSavingsBadge
-// PotentialEarningsCalculator → imported from ./sessions/PotentialEarningsCalculator
+// LiveSavingsBadge ? imported from ./sessions/LiveSavingsBadge
+// PotentialEarningsCalculator ? imported from ./sessions/PotentialEarningsCalculator
 
 // Promotional Preview Component - Shows how deal appears to surfers
 const _PromotionalPreview = ({ 
@@ -276,577 +278,7 @@ export const PhotographerSessionsManager = () => {
   const hasSavings = liveSavings > 0 && sessionSettings.pricing_mode === 'promotional';
 
   // Toggle collapsible section
-  const toggleSection = (section) => {
-    setExpandedSections(prev => ({
-      ...prev,
-      [section]: !prev[section]
-    }));
-  };
-
-  // Calculate distance between two coordinates (Haversine formula)
-  const _calculateDistance = (lat1, lon1, lat2, lon2) => {
-    const R = 3959; // Earth's radius in miles
-    const dLat = (lat2 - lat1) * Math.PI / 180;
-    const dLon = (lon2 - lon1) * Math.PI / 180;
-    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
-              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-              Math.sin(dLon/2) * Math.sin(dLon/2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-    return R * c;
-  };
-
-  // Update distance when spot is selected from nearby list (for edge cases)
-  useEffect(() => {
-    if (sessionSettings.surf_spot_id && showGoLiveModal && nearbySpots.length > 0) {
-      const selectedSpot = nearbySpots.find(s => s.id === sessionSettings.surf_spot_id);
-      if (selectedSpot && selectedSpot.distance !== undefined) {
-        setDistanceToSpot(selectedSpot.distance);
-      }
-    }
-  }, [sessionSettings.surf_spot_id, showGoLiveModal, nearbySpots]);
-
-  // Check if user is within range
-  const isWithinRange = distanceToSpot !== null && distanceToSpot <= REQUIRED_DISTANCE_MILES;
-  const canProceed = isWithinRange || manualConfirm;
-  
-  // Get dynamic commission rate based on user's subscription tier
-  const commissionRate = getCommissionRate(user?.subscription_tier);
-
-  useEffect(() => {
-    if (user?.id) {
-      fetchSessionData();
-      fetchSurfSpots();
-      fetchGalleries();
-      if (isHobbyist) {
-        fetchCausesAndGroms();
-      }
-    }
-  }, [user?.id]);
-
-  const fetchCausesAndGroms = async () => {
-    try {
-      const [causesRes, gromsRes] = await Promise.all([
-        apiClient.get(`/impact/causes`),
-        apiClient.get(`/impact/search-groms?limit=20`)
-      ]);
-      setCauses(causesRes.data || []);
-      setGroms(gromsRes.data || []);
-    } catch (e) {
-      logger.error('Error fetching causes/groms:', e);
-    }
-  };
-
-  const fetchSurfSpots = async () => {
-    try {
-      const res = await apiClient.get(`/surf-spots`);
-      setSurfSpots(res.data || []);
-    } catch (e) {
-      logger.error('Error fetching surf spots:', e);
-    }
-  };
-
-  const fetchGalleries = async () => {
-    try {
-      const res = await apiClient.get(`/galleries/photographer/${user?.id}`);
-      setGalleries(res.data || []);
-    } catch (e) {
-      logger.error('Error fetching galleries:', e);
-    }
-  };
-
-  const fetchSessionData = async () => {
-    setLoading(true);
-    try {
-      // Fetch pricing settings
-      try {
-        const pricingRes = await apiClient.get(`/photographer/${user?.id}/pricing`);
-        setPricing(prev => ({
-          ...prev,
-          ...pricingRes.data
-        }));
-        // Sync session settings with pricing
-        setSessionSettings(prev => ({
-          ...prev,
-          price_per_join: pricingRes.data.live_buyin_price || 25,
-          live_photo_price: pricingRes.data.live_photo_price || 5,
-          photos_included: pricingRes.data.photo_package_size || 3
-        }));
-      } catch (e) {
-        logger.error('Error fetching pricing:', e);
-      }
-      
-      // Fetch gallery pricing (for general_photo_price comparison and resolution pricing)
-      try {
-        const galleryPricingRes = await apiClient.get(`/photographer/${user?.id}/gallery-pricing`);
-        const standardPrice = galleryPricingRes.data.photo_pricing?.standard || 10;
-        const webPrice = galleryPricingRes.data.photo_pricing?.web || 3;
-        const highPrice = galleryPricingRes.data.photo_pricing?.high || 10;
-        const liveSessionPrice = galleryPricingRes.data.session_pricing?.live_session_photo_price || 5;
-        const photosIncluded = galleryPricingRes.data.session_pricing?.live_session_photos_included || 3;
-        const videosIncluded = galleryPricingRes.data.session_pricing?.live_session_videos_included ?? 1;
-        
-        setPricing(prev => ({ ...prev, gallery_photo_price: standardPrice }));
-        setSessionSettings(prev => ({ 
-          ...prev, 
-          general_photo_price: standardPrice,
-          // Resolution-based pricing defaults from gallery settings
-          photo_price_web: webPrice,
-          photo_price_standard: standardPrice,
-          photo_price_high: highPrice,
-          live_photo_price: liveSessionPrice,
-          photos_included: photosIncluded,
-          videos_included: videosIncluded
-        }));
-      } catch (e) {
-        logger.error('Error fetching gallery pricing:', e);
-      }
-      
-      // Check if photographer has an active session
-      try {
-        const activeRes = await apiClient.get(`/photographer/${user?.id}/active-session`);
-        if (activeRes.data) {
-          setIsLive(true);
-          setCurrentSession(activeRes.data);
-          // Populate settings from active session
-          setSessionSettings(prev => ({
-            ...prev,
-            location: activeRes.data.location || '',
-            price_per_join: activeRes.data.price_per_join || prev.price_per_join
-          }));
-        } else {
-          setIsLive(false);
-          setCurrentSession(null);
-        }
-      } catch (e) {
-        logger.error('Error fetching active session:', e);
-        setIsLive(false);
-        setCurrentSession(null);
-      }
-      
-      // Check on-demand status for mutual exclusivity warning
-      try {
-        const statusRes = await apiClient.get(`/photographer/${user?.id}/status`);
-        setIsOnDemandActive(statusRes.data.on_demand_available || false);
-      } catch (e) {
-        logger.error('Error fetching photographer status:', e);
-        setIsOnDemandActive(false);
-      }
-      
-      // Fetch session history
-      try {
-        const historyRes = await apiClient.get(`/photographer/${user?.id}/session-history`);
-        setSessionHistory(historyRes.data || []);
-      } catch (e) {
-        setSessionHistory([]);
-      }
-    } catch (error) {
-      logger.error('Error fetching session data:', error);
-      setIsLive(false);
-      setCurrentSession(null);
-      setSessionHistory([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // ============ SEQUENTIAL PERMISSION REQUEST ============
-  
-  const requestLocationPermission = async () => {
-    setDebugInfo(prev => ({ ...prev, permissionStep: 'location', gpsStatus: 'requesting' }));
-    
-    return new Promise((resolve, reject) => {
-      if (!navigator.geolocation) {
-        setDebugInfo(prev => ({ ...prev, gpsStatus: 'unsupported' }));
-        reject(new Error('Geolocation not supported'));
-        return;
-      }
-      
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          setDebugInfo(prev => ({
-            ...prev,
-            gpsStatus: 'granted',
-            gpsAccuracy: position.coords.accuracy,
-            latitude: position.coords.latitude,
-            longitude: position.coords.longitude
-          }));
-          resolve(position);
-        },
-        (error) => {
-          setDebugInfo(prev => ({ ...prev, gpsStatus: 'denied', gpsAccuracy: null }));
-          reject(error);
-        },
-        {
-          enableHighAccuracy: true,
-          timeout: 10000,
-          maximumAge: 0
-        }
-      );
-    });
-  };
-  
-  const requestCameraPermission = async () => {
-    setDebugInfo(prev => ({ ...prev, permissionStep: 'camera', cameraStatus: 'requesting' }));
-    
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        video: { facingMode: 'user' },
-        audio: false 
-      });
-      
-      streamRef.current = stream;
-      setDebugInfo(prev => ({ 
-        ...prev, 
-        cameraStatus: 'granted',
-        cameraStream: stream 
-      }));
-      
-      return stream;
-    } catch (error) {
-      setDebugInfo(prev => ({ ...prev, cameraStatus: 'denied' }));
-      throw error;
-    }
-  };
-  
-  const stopCameraStream = () => {
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach(track => track.stop());
-      streamRef.current = null;
-      setDebugInfo(prev => ({ ...prev, cameraStream: null, cameraStatus: 'stopped' }));
-    }
-  };
-  
-  // SETTINGS: Save session rates/pricing (separate from Go Live)
-  const handleSaveSettings = async () => {
-    try {
-      // Save settings to backend
-      const response = await apiClient.post(`/photographer/session-settings`, {
-        user_id: user.id,
-        ...sessionSettings
-      });
-      
-      if (response.data.success) {
-        toast.success('Session rates saved!');
-        setShowSettingsModal(false);
-      }
-    } catch (error) {
-      // Settings saved locally even if API fails
-      toast.success('Session rates saved locally');
-      setShowSettingsModal(false);
-    }
-  };
-
-  // Fetch nearby spots based on user's GPS location
-  const fetchNearbySpots = async (lat, lng) => {
-    setNearbySpotsLoading(true);
-    try {
-      const response = await apiClient.get(`/surf-spots/nearby`, {
-        params: {
-          latitude: lat,
-          longitude: lng,
-          radius_miles: NEARBY_RADIUS_MILES
-        }
-      });
-      
-      // Map response and calculate distance for each spot
-      const spotsWithDistance = (response.data || []).map(spot => {
-        const distance = spot.distance_miles || spot.distance || calculateDistanceInMiles(
-          lat, lng, spot.latitude, spot.longitude
-        );
-        return { ...spot, distance };
-      }).sort((a, b) => a.distance - b.distance); // Sort by distance (closest first)
-      
-      setNearbySpots(spotsWithDistance);
-    } catch (error) {
-      logger.error('Failed to fetch nearby spots:', error);
-      // Fallback to all spots if nearby endpoint fails
-      setNearbySpots(surfSpots.map(spot => ({
-        ...spot,
-        distance: spot.latitude && spot.longitude 
-          ? calculateDistanceInMiles(lat, lng, spot.latitude, spot.longitude)
-          : null
-      })).filter(s => s.distance !== null).sort((a, b) => a.distance - b.distance));
-    } finally {
-      setNearbySpotsLoading(false);
-    }
-  };
-
-  // Helper: Calculate distance in miles between two coordinates
-  const calculateDistanceInMiles = (lat1, lon1, lat2, lon2) => {
-    const R = 3959; // Earth's radius in miles
-    const dLat = (lat2 - lat1) * Math.PI / 180;
-    const dLon = (lon2 - lon1) * Math.PI / 180;
-    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
-              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-              Math.sin(dLon/2) * Math.sin(dLon/2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-    return R * c;
-  };
-
-  // GO LIVE STEP 1: Start the Go Live flow - Request location and fetch nearby spots
-  const startSequentialGoLive = async () => {
-    // Check mutual exclusivity: cannot go live while On-Demand is active
-    if (isOnDemandActive) {
-      toast.error('Cannot start a live session while On-Demand mode is active. Please disable On-Demand first from On-Demand Settings.');
-      return;
-    }
-    
-    try {
-      // Request Location first
-      setDebugInfo(prev => ({ ...prev, permissionStep: 'location' }));
-      toast.info('Requesting location access...');
-      
-      const position = await requestLocationPermission();
-      toast.success('Location access granted!');
-      
-      // Set user location
-      const lat = position.coords.latitude;
-      const lng = position.coords.longitude;
-      setUserLocation({ lat, lng });
-      setLocationError(null);
-      
-      // Fetch nearby spots based on GPS location
-      await fetchNearbySpots(lat, lng);
-      
-      // Show Go Live Spot Picker Modal
-      setDebugInfo(prev => ({ ...prev, permissionStep: 'spot_picker' }));
-      setShowGoLiveModal(true);
-      
-    } catch (error) {
-      // GPS failed - fallback to manual spot selection with all spots
-      logger.warn('GPS unavailable, falling back to manual spot selection:', error);
-      setLocationError('GPS unavailable - select your spot manually');
-      setUserLocation(null);
-      
-      // Use all surf spots as fallback (no distance info)
-      setNearbySpots(surfSpots.map(spot => ({
-        ...spot,
-        distance: null // No distance available without GPS
-      })));
-      
-      toast.warning('GPS unavailable - you can still select a spot manually');
-      setDebugInfo(prev => ({ ...prev, permissionStep: 'spot_picker' }));
-      setShowGoLiveModal(true);
-    }
-  };
-
-  // GO LIVE STEP 2: After spot selected and location verified, show Conditions Modal
-  const handleGoLiveConfirmed = () => {
-    if (!sessionSettings.surf_spot_id) {
-      toast.error('Please select a surf spot before going live');
-      return;
-    }
-    
-    // Check location verification
-    if (distanceToSpot !== null && !isWithinRange && !manualConfirm) {
-      toast.error('Please verify your location or manually confirm you are at the spot');
-      return;
-    }
-    
-    // Close Go Live modal and open conditions modal
-    setShowGoLiveModal(false);
-    setShowConditionsModal(true);
-  };
-
-  // STEP 3: Handle final Go Live with conditions data
-  const handleGoLiveWithConditions = async (conditionsData) => {
-    setGoLiveLoading(true);
-
-    try {
-      setDebugInfo(prev => ({ ...prev, permissionStep: 'ready' }));
-
-      const selectedSpot = surfSpots.find(s => s.id === sessionSettings.surf_spot_id);
-
-      // ─── STEP A: Upload conditions media (multipart — avoids large JSON body) ───
-      let conditionMediaUrl = null;
-      let conditionMediaType = null;
-      if (conditionsData.media) {
-        try {
-          toast.info('Uploading conditions photo…', { id: 'cond-upload', duration: 8000 });
-          const fd = new FormData();
-          const ext = conditionsData.mediaType === 'video' ? 'webm' : 'jpg';
-          fd.append('file', conditionsData.media, `conditions.${ext}`);
-          fd.append('user_id', user?.id);
-          // ⚠️ Do NOT set Content-Type manually — browser must set it with boundary
-          const uploadRes = await apiClient.post('/upload/conditions', fd, {
-            headers: { 'Content-Type': undefined },
-            timeout: 60000
-          });
-          conditionMediaUrl = uploadRes.data.media_url;
-          conditionMediaType = uploadRes.data.media_type;
-          toast.dismiss('cond-upload');
-          logger.debug('[GoLive] conditions media uploaded:', conditionMediaUrl);
-        } catch (uploadErr) {
-          // Non-fatal: still allow go-live without media
-          toast.dismiss('cond-upload');
-          logger.warn('[GoLive] Conditions media upload failed (non-fatal):', uploadErr);
-        }
-      }
-
-      // ─── STEP B: Go Live — small JSON payload (no media bytes inline) ───
-      // 120s timeout: Render free tier cold starts can take 30-60s
-      const response = await apiClient.post(
-        `/photographer/${user?.id}/go-live`,
-        {
-          ...sessionSettings,
-          location: selectedSpot?.name || sessionSettings.location,
-          spot_id: sessionSettings.surf_spot_id,
-          latitude: debugInfo.latitude,
-          longitude: debugInfo.longitude,
-          live_photo_price: sessionSettings.live_photo_price,
-          photos_included: sessionSettings.photos_included,
-          videos_included: sessionSettings.videos_included,
-          general_photo_price: sessionSettings.general_photo_price,
-          estimated_duration: sessionSettings.estimated_duration,
-          spot_notes: conditionsData.spotNotes || '',
-          condition_media_url: conditionMediaUrl,
-          condition_media_type: conditionMediaType,
-          photo_price_web: sessionSettings.photo_price_web,
-          photo_price_standard: sessionSettings.photo_price_standard,
-          photo_price_high: sessionSettings.photo_price_high,
-          earnings_destination_type: sessionSettings.earnings_destination_type,
-          earnings_destination_id: sessionSettings.earnings_destination_id,
-          earnings_cause_name: sessionSettings.earnings_cause_name
-        },
-        { timeout: 120000 }
-      );
-
-      setIsLive(true);
-      setCurrentSession({
-        photographer_id: user?.id,
-        location: selectedSpot?.name || sessionSettings.location,
-        surf_spot_id: sessionSettings.surf_spot_id,
-        price_per_join: sessionSettings.price_per_join,
-        active_surfers: 0,
-        views: 0,
-        earnings: 0,
-        started_at: new Date().toISOString(),
-        participants: [],
-        live_session_id: response.data.live_session_id,
-        earnings_destination: response.data.earnings_destination,
-        live_session_rates: response.data.live_session_rates,
-        spot_notes: conditionsData.spotNotes || ''
-      });
-
-      setShowConditionsModal(false);
-      toast.success('You are now live! Surfers can find you on the map.');
-    } catch (error) {
-      logger.error('[GoLive] Failed to start session:', error);
-      // Distinguish timeout / network-level errors from server errors
-      const isTimeout = error.code === 'ECONNABORTED' || error.message?.includes('timeout');
-      const isNetwork = !error.response && !isTimeout;
-      let detail;
-      if (isTimeout) {
-        detail = 'Server is warming up — please wait a moment and try again.';
-      } else if (isNetwork) {
-        detail = 'Network error — check your connection and try again.';
-      } else {
-        detail = error.response?.data?.detail || error.message || 'Failed to start session';
-      }
-      toast.error(detail);
-      setDebugInfo(prev => ({ ...prev, permissionStep: 'idle' }));
-    } finally {
-      setGoLiveLoading(false);
-    }
-  };
-
-  // Legacy handleGoLive - now redirects to new flow
-  const _handleGoLive = async () => {
-    if (!sessionSettings.surf_spot_id) {
-      toast.error('Please select a surf spot before going live');
-      setShowSettingsModal(true);
-      return;
-    }
-    // Redirect to new conditions gatekeeper flow
-    startSequentialGoLive();
-  };
-
-  // Show End Session confirmation modal (Kill Switch)
-  const handleEndSessionClick = () => {
-    setShowEndSessionModal(true);
-  };
-
-  // Actual end session logic after confirmation
-  const handleEndSessionConfirmed = async () => {
-    if (endSessionLoading) return; // Prevent double-clicks
-    
-    setEndSessionLoading(true);
-    
-    // Retry logic for robustness
-    let attempts = 0;
-    const maxAttempts = 2;
-    
-    while (attempts < maxAttempts) {
-      try {
-        attempts++;
-        const response = await apiClient.post(`/photographer/${user?.id}/end-session`);
-        setIsLive(false);
-        setCurrentSession(null);
-        setShowEndSessionModal(false);
-        
-        if (response.data.gallery_id) {
-          setLastCreatedGallery({
-            id: response.data.gallery_id,
-            title: response.data.gallery_title,
-            total_surfers: response.data.total_surfers,
-            total_earnings: response.data.total_earnings,
-            duration_mins: response.data.duration_mins
-          });
-          setShowGalleryCreatedModal(true);
-          fetchGalleries();
-          
-          // Navigate to "Impacted" tab (session summary)
-          // Using setTimeout to allow modal to close gracefully
-          setTimeout(() => {
-            navigate('/impacted');
-          }, 500);
-        } else {
-          toast.success(`Session ended! Total: $${response.data.total_earnings || 0} from ${response.data.total_surfers || 0} surfers`);
-          // Navigate to Impacted dashboard for session summary
-          navigate('/impacted');
-        }
-        fetchSessionData();
-        break; // Success - exit retry loop
-      } catch (error) {
-        if (attempts >= maxAttempts) {
-          toast.error(error.response?.data?.detail || 'Failed to end session. Please try again.');
-        } else {
-          // Wait a moment before retry
-          await new Promise(resolve => setTimeout(resolve, 500));
-        }
-      }
-    }
-    
-    setEndSessionLoading(false);
-  };
-
-  // Legacy handleEndSession for backward compatibility
-  const handleEndSession = async () => {
-    handleEndSessionClick();
-  };
-
-  const handleSavePricing = async () => {
-    try {
-      await apiClient.put(`/photographer/${user?.id}/pricing`, {
-        live_buyin_price: pricing.live_buyin_price,
-        live_photo_price: pricing.live_photo_price,
-        photo_package_size: pricing.photo_package_size,
-        booking_hourly_rate: pricing.booking_hourly_rate,
-        booking_min_hours: pricing.booking_min_hours
-      });
-      toast.success('Pricing updated successfully');
-      setShowPricingModal(false);
-      // Sync session settings with new pricing
-      setSessionSettings(prev => ({
-        ...prev,
-        price_per_join: pricing.live_buyin_price,
-        live_photo_price: pricing.live_photo_price,
-        photos_included: pricing.photo_package_size
-      }));
-    } catch (error) {
-      toast.error(error.response?.data?.detail || 'Failed to update pricing');
-    }
-  };
+  // ============ HANDLERS EXTRACTED TO hooks/useSessionActions.js ============
 
   const refreshSession = async () => {
     if (!isLive) return;
@@ -861,6 +293,29 @@ export const PhotographerSessionsManager = () => {
   };
 
   // Auto-refresh active session every 30 seconds
+
+  const {
+    toggleSection, fetchCausesAndGroms, fetchSurfSpots, fetchGalleries,
+    fetchSessionData, handleSaveSettings, fetchNearbySpots,
+    calculateDistanceInMiles, startSequentialGoLive,
+    handleGoLiveConfirmed, handleGoLiveWithConditions,
+    handleEndSessionClick, handleEndSessionConfirmed,
+    handleEndSession, handleSavePricing,
+    commissionRate, isWithinRange, canProceed,
+  } = useSessionActions({
+    user, navigate, pricing, isHobbyist, isOnDemandActive, manualConfirm,
+    endSessionLoading, debugInfo, streamRef,
+    REQUIRED_DISTANCE_MILES, NEARBY_RADIUS_MILES, getCommissionRate,
+    setExpandedSections, setDistanceToSpot, distanceToSpot, showGoLiveModal, sessionSettings, surfSpots,
+    nearbySpots, setNearbySpots, setSurfSpots, setGalleries, setLoading,
+    setCauses, setGroms, setPricing, setSessionSettings,
+    setIsLive, setCurrentSession, setIsOnDemandActive, setSessionHistory,
+    setDebugInfo, setShowSettingsModal, setNearbySpotsLoading,
+    setUserLocation, setLocationError, setShowGoLiveModal, setShowConditionsModal,
+    setGoLiveLoading, setShowEndSessionModal, setEndSessionLoading,
+    setLastCreatedGallery, setShowGalleryCreatedModal, setShowPricingModal,
+  });
+
   useEffect(() => {
     let interval;
     if (isLive) {
@@ -886,7 +341,7 @@ export const PhotographerSessionsManager = () => {
       <div className="max-w-2xl mx-auto p-4">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
-          <h1 className={`text-3xl font-bold ${textPrimaryClass}`} style={{ fontFamily: 'Oswald' }}>
+          <h1 className={`text-3xl font-bold ${textPrimaryClass} font-oswald`} >
             Live Sessions
           </h1>
         </div>
@@ -928,7 +383,7 @@ export const PhotographerSessionsManager = () => {
               
               {isLive ? (
                 <div className="flex flex-wrap gap-2 justify-end">
-                  <Button
+                  <Button aria-label="Upload"
                     onClick={() => setShowPhotoUpload(true)}
                     variant="outline"
                     className="border-cyan-500/50 text-cyan-400 hover:bg-cyan-500/10"
@@ -937,7 +392,7 @@ export const PhotographerSessionsManager = () => {
                     <Upload className="w-4 h-4 mr-2" />
                     Upload Media
                   </Button>
-                  <Button
+                  <Button aria-label="Refresh"
                     onClick={refreshSession}
                     variant="outline"
                     size="icon"
@@ -945,7 +400,7 @@ export const PhotographerSessionsManager = () => {
                   >
                     <RefreshCw className="w-4 h-4" />
                   </Button>
-                  <Button
+                  <Button aria-label="Square"
                     onClick={handleEndSession}
                     className="bg-red-500 hover:bg-red-600 text-white shrink-0"
                     data-testid="end-session-btn"
@@ -955,7 +410,7 @@ export const PhotographerSessionsManager = () => {
                   </Button>
                 </div>
               ) : (
-                <Button
+                <Button aria-label="Play"
                   onClick={startSequentialGoLive}
                   className="bg-gradient-to-r from-green-400 to-emerald-500 hover:from-green-500 hover:to-emerald-600 text-black font-medium"
                   data-testid="go-live-btn"
@@ -1176,7 +631,7 @@ export const PhotographerSessionsManager = () => {
 
         {/* Session History */}
         <div>
-          <h2 className={`text-xl font-bold ${textPrimaryClass} mb-4`} style={{ fontFamily: 'Oswald' }}>
+          <h2 className={`text-xl font-bold ${textPrimaryClass} mb-4 font-oswald`} >
             Session History
           </h2>
           
@@ -1211,7 +666,7 @@ export const PhotographerSessionsManager = () => {
                           <span className={`${textPrimaryClass} truncate`}>{session.location}</span>
                         </div>
                         <p className={`text-sm ${textSecondaryClass} mt-1`}>
-                          {new Date(session.started_at).toLocaleDateString()} · {session.duration_mins} mins
+                          {new Date(session.started_at).toLocaleDateString()} - {session.duration_mins} mins
                         </p>
                       </div>
                       <div className="flex items-center gap-3">
@@ -1263,7 +718,7 @@ export const PhotographerSessionsManager = () => {
               Session Rates & Settings
             </DialogTitle>
           </DialogHeader>
-          <div className="flex-1 overflow-y-auto px-4 sm:px-6" style={{ WebkitOverflowScrolling: 'touch' }}>
+          <div className="flex-1 overflow-y-auto px-4 sm:px-6 scroll-touch">
             <div className="space-y-3 py-4">
             {/* Live Savings Preview - Shows only in Promotional mode with savings */}
             {hasSavings && sessionSettings.pricing_mode === 'promotional' && (
@@ -1323,7 +778,7 @@ export const PhotographerSessionsManager = () => {
 
             {/* Collapsible Section: Session Buy-in */}
             <div className={`rounded-xl border ${borderClass} overflow-hidden`}>
-              <button
+              <button aria-label="Dollar Sign"
                 onClick={() => toggleSection('buyin')}
                 className={`w-full flex items-center justify-between p-3 ${isLight ? 'bg-gray-50 hover:bg-gray-100' : 'bg-zinc-800/50 hover:bg-zinc-800'} transition-colors`}
               >
@@ -1358,7 +813,7 @@ export const PhotographerSessionsManager = () => {
                       Photos Included in Buy-in
                     </Label>
                     <div className={`flex items-center gap-3 p-3 rounded-xl ${isLight ? 'bg-gray-100' : 'bg-zinc-800'}`}>
-                      <Input
+                      <Input aria-label="Numeric input"
                         type="number"
                         value={sessionSettings.photos_included}
                         onChange={(e) => setSessionSettings(prev => ({ ...prev, photos_included: parseInt(e.target.value) || 0 }))}
@@ -1376,7 +831,7 @@ export const PhotographerSessionsManager = () => {
                       Videos Included in Buy-in
                     </Label>
                     <div className={`flex items-center gap-3 p-3 rounded-xl ${isLight ? 'bg-gray-100' : 'bg-zinc-800'}`}>
-                      <Input
+                      <Input aria-label="Numeric input"
                         type="number"
                         value={sessionSettings.videos_included}
                         onChange={(e) => setSessionSettings(prev => ({ ...prev, videos_included: parseInt(e.target.value) || 0 }))}
@@ -1393,7 +848,7 @@ export const PhotographerSessionsManager = () => {
 
             {/* Collapsible Section: Resolution-Based Pricing */}
             <div className={`rounded-xl border ${borderClass} overflow-hidden`}>
-              <button
+              <button aria-label="Tag"
                 onClick={() => toggleSection('pricing')}
                 className={`w-full flex items-center justify-between p-3 ${isLight ? 'bg-gray-50 hover:bg-gray-100' : 'bg-zinc-800/50 hover:bg-zinc-800'} transition-colors`}
               >
@@ -1452,7 +907,7 @@ export const PhotographerSessionsManager = () => {
                         <span className="w-3 h-3 rounded-full bg-blue-400"></span>
                         <span className={`text-sm ${textSecondaryClass} flex-1`}>Web-Res</span>
                         <span className={`font-bold ${textPrimaryClass}`}>$</span>
-                        <Input
+                        <Input aria-label="Numeric input"
                           type="number"
                           value={sessionSettings.photo_price_web}
                           onChange={(e) => setSessionSettings(prev => ({ ...prev, photo_price_web: parseFloat(e.target.value) || 0 }))}
@@ -1467,7 +922,7 @@ export const PhotographerSessionsManager = () => {
                         <span className="w-3 h-3 rounded-full bg-cyan-400"></span>
                         <span className={`text-sm ${textSecondaryClass} flex-1`}>Standard</span>
                         <span className={`font-bold ${textPrimaryClass}`}>$</span>
-                        <Input
+                        <Input aria-label="Numeric input"
                           type="number"
                           value={sessionSettings.photo_price_standard}
                           onChange={(e) => setSessionSettings(prev => ({ ...prev, photo_price_standard: parseFloat(e.target.value) || 0 }))}
@@ -1482,7 +937,7 @@ export const PhotographerSessionsManager = () => {
                         <span className="w-3 h-3 rounded-full bg-purple-400"></span>
                         <span className={`text-sm ${textSecondaryClass} flex-1`}>High-Res</span>
                         <span className={`font-bold ${textPrimaryClass}`}>$</span>
-                        <Input
+                        <Input aria-label="Numeric input"
                           type="number"
                           value={sessionSettings.photo_price_high}
                           onChange={(e) => setSessionSettings(prev => ({ ...prev, photo_price_high: parseFloat(e.target.value) || 0 }))}
@@ -1515,7 +970,7 @@ export const PhotographerSessionsManager = () => {
                         </p>
                         <div className={`flex items-center gap-3`}>
                           <span className={`text-2xl font-bold ${textPrimaryClass}`}>$</span>
-                          <Input
+                          <Input aria-label="Numeric input"
                             type="number"
                             value={sessionSettings.live_photo_price}
                             onChange={(e) => setSessionSettings(prev => ({ ...prev, live_photo_price: parseFloat(e.target.value) || 0 }))}
@@ -1544,7 +999,7 @@ export const PhotographerSessionsManager = () => {
 
             {/* Collapsible Section: Video Pricing */}
             <div className={`rounded-xl border ${borderClass} overflow-hidden`}>
-              <button
+              <button aria-label="Video"
                 onClick={() => toggleSection('videoPricing')}
                 className={`w-full flex items-center justify-between p-3 ${isLight ? 'bg-gray-50 hover:bg-gray-100' : 'bg-zinc-800/50 hover:bg-zinc-800'} transition-colors`}
               >
@@ -1603,7 +1058,7 @@ export const PhotographerSessionsManager = () => {
                         <span className="w-3 h-3 rounded-full bg-orange-400"></span>
                         <span className={`text-sm ${textSecondaryClass} flex-1`}>720p HD</span>
                         <span className={`font-bold ${textPrimaryClass}`}>$</span>
-                        <Input
+                        <Input aria-label="Numeric input"
                           type="number"
                           value={sessionSettings.video_price_720p}
                           onChange={(e) => setSessionSettings(prev => ({ ...prev, video_price_720p: parseFloat(e.target.value) || 0 }))}
@@ -1618,7 +1073,7 @@ export const PhotographerSessionsManager = () => {
                         <span className="w-3 h-3 rounded-full bg-red-400"></span>
                         <span className={`text-sm ${textSecondaryClass} flex-1`}>1080p Full HD</span>
                         <span className={`font-bold ${textPrimaryClass}`}>$</span>
-                        <Input
+                        <Input aria-label="Numeric input"
                           type="number"
                           value={sessionSettings.video_price_1080p}
                           onChange={(e) => setSessionSettings(prev => ({ ...prev, video_price_1080p: parseFloat(e.target.value) || 0 }))}
@@ -1633,7 +1088,7 @@ export const PhotographerSessionsManager = () => {
                         <span className="w-3 h-3 rounded-full bg-pink-400"></span>
                         <span className={`text-sm ${textSecondaryClass} flex-1`}>4K Ultra HD</span>
                         <span className={`font-bold ${textPrimaryClass}`}>$</span>
-                        <Input
+                        <Input aria-label="Numeric input"
                           type="number"
                           value={sessionSettings.video_price_4k}
                           onChange={(e) => setSessionSettings(prev => ({ ...prev, video_price_4k: parseFloat(e.target.value) || 0 }))}
@@ -1666,7 +1121,7 @@ export const PhotographerSessionsManager = () => {
                         </p>
                         <div className={`flex items-center gap-3`}>
                           <span className={`text-2xl font-bold ${textPrimaryClass}`}>$</span>
-                          <Input
+                          <Input aria-label="Numeric input"
                             type="number"
                             value={sessionSettings.live_video_price}
                             onChange={(e) => setSessionSettings(prev => ({ ...prev, live_video_price: parseFloat(e.target.value) || 0 }))}
@@ -1695,7 +1150,7 @@ export const PhotographerSessionsManager = () => {
 
             {/* Collapsible Section: Session Settings */}
             <div className={`rounded-xl border ${borderClass} overflow-hidden`}>
-              <button
+              <button aria-label="Clock"
                 onClick={() => toggleSection('settings')}
                 className={`w-full flex items-center justify-between p-3 ${isLight ? 'bg-gray-50 hover:bg-gray-100' : 'bg-zinc-800/50 hover:bg-zinc-800'} transition-colors`}
               >
@@ -1716,7 +1171,7 @@ export const PhotographerSessionsManager = () => {
                         <p className={`text-xs ${textSecondaryClass}`}>Limit session capacity</p>
                       </div>
                     </div>
-                    <Input
+                    <Input aria-label="Numeric input"
                       type="number"
                       value={sessionSettings.max_surfers}
                       onChange={(e) => setSessionSettings(prev => ({ ...prev, max_surfers: parseInt(e.target.value) || 1 }))}
@@ -1735,7 +1190,7 @@ export const PhotographerSessionsManager = () => {
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Input
+                      <Input aria-label="Numeric input"
                         type="number"
                         value={sessionSettings.estimated_duration}
                         onChange={(e) => setSessionSettings(prev => ({ ...prev, estimated_duration: parseInt(e.target.value) || 1 }))}
@@ -1767,7 +1222,7 @@ export const PhotographerSessionsManager = () => {
             {/* Collapsible Section: Earnings Destination (Hobbyists only) */}
             {isHobbyist && (
               <div className={`rounded-xl border ${isLight ? 'border-amber-200' : 'border-amber-500/30'} overflow-hidden`}>
-                <button
+                <button aria-label="Like"
                   onClick={() => toggleSection('earnings')}
                   className={`w-full flex items-center justify-between p-3 ${isLight ? 'bg-amber-50 hover:bg-amber-100' : 'bg-amber-900/20 hover:bg-amber-900/30'} transition-colors`}
                 >
@@ -1854,7 +1309,7 @@ export const PhotographerSessionsManager = () => {
             <Button variant="outline" onClick={() => setShowSettingsModal(false)}>
               Cancel
             </Button>
-            <Button
+            <Button aria-label="Confirm"
               onClick={handleSaveSettings}
               className="bg-gradient-to-r from-cyan-400 to-blue-500 text-black font-medium"
               data-testid="save-settings-btn"
@@ -1875,7 +1330,7 @@ export const PhotographerSessionsManager = () => {
               Go Live - Select Location
             </DialogTitle>
           </DialogHeader>
-          <div className="flex-1 overflow-y-auto px-4 sm:px-6" style={{ WebkitOverflowScrolling: 'touch' }}>
+          <div className="flex-1 overflow-y-auto px-4 sm:px-6 scroll-touch">
             <div className="space-y-4 py-4">
             {/* Current Settings Summary */}
             <div className={`p-3 rounded-xl ${isLight ? 'bg-gray-100' : 'bg-zinc-800/50'}`}>
@@ -1935,7 +1390,7 @@ export const PhotographerSessionsManager = () => {
                   {/* Search Input */}
                   <div className="relative mb-3">
                     <Search className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${textSecondaryClass}`} />
-                    <Input
+                    <Input aria-label="Type to search spots..."
                       type="text"
                       placeholder="Type to search spots..."
                       value={spotSearchQuery}
@@ -2267,7 +1722,7 @@ export const PhotographerSessionsManager = () => {
             <Button variant="outline" onClick={() => setShowGoLiveModal(false)}>
               Cancel
             </Button>
-            <Button
+            <Button aria-label="Play"
               onClick={handleGoLiveConfirmed}
               disabled={!sessionSettings.surf_spot_id || !canProceed}
               className="bg-gradient-to-r from-green-400 to-emerald-500 text-black font-medium disabled:opacity-50"
@@ -2392,7 +1847,7 @@ export const PhotographerSessionsManager = () => {
             <Button variant="outline" onClick={() => setShowGalleryCreatedModal(false)}>
               Close
             </Button>
-            <Button
+            <Button aria-label="Image Icon"
               onClick={() => {
                 setShowGalleryCreatedModal(false);
                 navigate(`/photographer/galleries/${lastCreatedGallery?.id}`);

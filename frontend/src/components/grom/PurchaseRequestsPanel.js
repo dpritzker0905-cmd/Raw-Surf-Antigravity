@@ -17,7 +17,7 @@ import {
 import logger from '../../utils/logger';
 
 /**
- * PurchaseRequestsPanel — GromHQ sub-component
+ * PurchaseRequestsPanel - GromHQ sub-component
  * Shows pending purchase requests from linked Groms for parent approval/denial.
  */
 export const PurchaseRequestsPanel = () => {
@@ -229,14 +229,14 @@ export const PurchaseRequestsPanel = () => {
                   <>
                     {showDenyInput === req.id ? (
                       <div className="space-y-2">
-                        <Input
+                        <Input aria-label="Reason (optional)..."
                           placeholder="Reason (optional)..."
                           value={denyReason}
                           onChange={(e) => setDenyReason(e.target.value)}
                           className={`${isLight ? 'bg-white' : 'bg-zinc-800'} ${borderColor} text-sm`}
                         />
                         <div className="flex gap-2">
-                          <Button
+                          <Button aria-label="Loader2"
                             size="sm"
                             className="flex-1 bg-red-500 hover:bg-red-600 text-white"
                             onClick={() => handleDeny(req.id)}
@@ -256,7 +256,7 @@ export const PurchaseRequestsPanel = () => {
                       </div>
                     ) : (
                       <div className="flex gap-2">
-                        <Button
+                        <Button aria-label="Loader2"
                           size="sm"
                           className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white"
                           onClick={() => handleApprove(req.id)}
@@ -270,7 +270,7 @@ export const PurchaseRequestsPanel = () => {
                           )}
                           Approve
                         </Button>
-                        <Button
+                        <Button aria-label="Cancel"
                           size="sm"
                           variant="outline"
                           className="flex-1 border-red-500/50 text-red-400 hover:bg-red-500/10"

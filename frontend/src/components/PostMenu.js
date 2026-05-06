@@ -65,7 +65,7 @@ const MenuItem = ({
   };
 
   return (
-    <button
+    <button aria-label="Loader2"
       onClick={onClick}
       disabled={disabled || loading}
       className={`w-full flex items-center gap-3 px-4 py-3 text-left ${variants[variant]} transition-colors disabled:opacity-50`}
@@ -240,9 +240,9 @@ const EditPostModal = ({ post, open, onClose, onSave, isLight }) => {
           </div>
 
           {/* Conditions Toggle */}
-          <button
+          <button aria-label="Waves"
             type="button"
-            onClick={() => setShowConditions(!showConditions)}
+            aria-expanded={showConditions} onClick={() => setShowConditions(!showConditions)}
             className={`w-full flex items-center justify-between p-3 rounded-lg border ${isLight ? 'border-gray-200 bg-gray-50' : 'border-zinc-700 bg-zinc-800/50'}`}
           >
             <div className="flex items-center gap-2">
@@ -355,7 +355,7 @@ const EditPostModal = ({ post, open, onClose, onSave, isLight }) => {
           <Button variant="outline" onClick={onClose} disabled={loading}>
             Cancel
           </Button>
-          <Button 
+          <Button aria-label="Loader2" 
             onClick={handleSave} 
             disabled={loading}
             className="bg-gradient-to-r from-cyan-500 to-blue-600"
@@ -403,7 +403,7 @@ const DeleteConfirmModal = ({ open, onClose, onConfirm, isLight }) => {
           <Button variant="outline" onClick={onClose} disabled={loading}>
             Cancel
           </Button>
-          <Button 
+          <Button aria-label="Loader2" 
             variant="destructive"
             onClick={handleConfirm} 
             disabled={loading}
@@ -508,7 +508,7 @@ const ReportPostModal = ({ post, open, onClose, isLight }) => {
           <Button variant="outline" onClick={onClose} disabled={loading}>
             Cancel
           </Button>
-          <Button 
+          <Button aria-label="Loader2" 
             variant="destructive"
             onClick={handleReport} 
             disabled={loading || !reason}
@@ -531,6 +531,24 @@ const SharePostModal = ({ post, open, onClose, isLight }) => {
   const [metaStatus, setMetaStatus] = useState(null);
   const [directShareLoading, setDirectShareLoading] = useState(null);
   const [checkingMeta, setCheckingMeta] = useState(true);
+  
+  // DM Sharing state
+  const [showDmPicker, setShowDmPicker] = useState(false);
+  const [dmSearch, setDmSearch] = useState('');
+  const [dmConversations, setDmConversations] = useState([]);
+  const [dmLoading, setDmLoading] = useState(false);
+  const [dmSending, setDmSending] = useState(null); // user_id currently sending to
+  const [dmSent, setDmSent] = useState(new Set()); // user_ids already sent to
+  
+  // Emoji constants — using String.fromCodePoint to avoid encoding corruption
+  const SHARE_ICONS = {
+    wave: String.fromCodePoint(0x1F30A),
+    camera: String.fromCodePoint(0x1F4F7),
+    link: String.fromCodePoint(0x1F517),
+    outbox: String.fromCodePoint(0x1F4E4),
+    speech: String.fromCodePoint(0x1F4AC),
+    twitter: String.fromCodePoint(0x1D54F),
+  };
   
   // Use the API share URL which has proper Open Graph meta tags
   const shareUrl = `${BACKEND_URL}/share/${post?.id}`;
@@ -561,6 +579,67 @@ const SharePostModal = ({ post, open, onClose, isLight }) => {
       checkMetaStatus();
     }
   }, [open, user?.id]);
+
+  // Fetch recent conversations for DM sharing
+  const fetchDmConversations = async () => {
+    if (!user?.id) return;
+    setDmLoading(true);
+    try {
+      const response = await apiClient.get(`/messages/conversations/${user.id}`, {
+        params: { inbox_type: 'all' }
+      });
+      setDmConversations(response.data || []);
+    } catch (err) {
+      logger.error('Failed to load conversations for DM share:', err);
+    } finally {
+      setDmLoading(false);
+    }
+  };
+
+  // Load conversations when DM picker opens
+  useEffect(() => {
+    if (showDmPicker && user?.id) {
+      fetchDmConversations();
+    }
+  }, [showDmPicker, user?.id]); // fetchDmConversations is stable
+
+  // Reset DM state when modal closes
+  useEffect(() => {
+    if (!open) {
+      setShowDmPicker(false);
+      setDmSearch('');
+      setDmSent(new Set());
+      setDmSending(null);
+    }
+  }, [open]);
+
+  // Send post as DM
+  const handleSendDm = async (recipientId, recipientName) => {
+    if (!user?.id || !post?.id || dmSending) return;
+    
+    setDmSending(recipientId);
+    try {
+      const postUrl = `${window.location.origin}/post/${post.id}`;
+      const shareText = `Check out this post on Raw Surf! ${SHARE_ICONS.wave}\n${postUrl}`;
+      
+      await apiClient.post('/messages/send', {
+        recipient_id: recipientId,
+        content: shareText,
+        message_type: 'post_share',
+        media_url: post.media_url || null
+      }, {
+        params: { sender_id: user.id }
+      });
+      
+      setDmSent(prev => new Set([...prev, recipientId]));
+      toast.success(`Sent to ${recipientName}`);
+    } catch (err) {
+      const errorMsg = err.response?.data?.detail || 'Failed to send';
+      toast.error(errorMsg);
+    } finally {
+      setDmSending(null);
+    }
+  };
 
   const handleCopyLink = async () => {
     try {
@@ -626,7 +705,7 @@ const SharePostModal = ({ post, open, onClose, isLight }) => {
   };
 
   const handleShare = async (platform) => {
-    const shareText = `Check out this surf session on Raw Surf! 🏄`;
+    const shareText = `Check out this surf session on Raw Surf! ${SHARE_ICONS.wave}`;
     
     // Instagram handling - use native share on mobile, copy link on desktop
     if (platform === 'instagram') {
@@ -708,11 +787,11 @@ const SharePostModal = ({ post, open, onClose, isLight }) => {
           {!checkingMeta && metaStatus && (metaStatus.facebook_connected || metaStatus.instagram_connected) && (
             <div className={`p-3 rounded-lg ${isLight ? 'bg-gradient-to-r from-blue-50 to-pink-50 border border-blue-100' : 'bg-gradient-to-r from-blue-900/30 to-pink-900/30 border border-blue-800'}`}>
               <p className={`text-xs font-medium mb-2 ${isLight ? 'text-gray-700' : 'text-gray-300'}`}>
-                🚀 Direct Post to Your Feed
+                {SHARE_ICONS.outbox} Direct Post to Your Feed
               </p>
               <div className="flex gap-2">
                 {metaStatus.facebook_connected && (
-                  <Button
+                  <Button aria-label="Loader2"
                     size="sm"
                     onClick={handleDirectShareFacebook}
                     disabled={directShareLoading === 'facebook'}
@@ -730,7 +809,7 @@ const SharePostModal = ({ post, open, onClose, isLight }) => {
                   </Button>
                 )}
                 {metaStatus.instagram_connected && (
-                  <Button
+                  <Button aria-label="Loader2"
                     size="sm"
                     onClick={handleDirectShareInstagram}
                     disabled={directShareLoading === 'instagram'}
@@ -741,7 +820,7 @@ const SharePostModal = ({ post, open, onClose, isLight }) => {
                       <Loader2 className="w-4 h-4 animate-spin" />
                     ) : (
                       <>
-                        <span className="text-lg mr-1">📸</span>
+                        <span className="text-lg mr-1">{SHARE_ICONS.camera}</span>
                         Post to IG
                       </>
                     )}
@@ -764,7 +843,7 @@ const SharePostModal = ({ post, open, onClose, isLight }) => {
               data-testid="connect-meta-cta"
             >
               <p className={`text-sm font-medium ${isLight ? 'text-gray-800' : 'text-white'}`}>
-                🔗 Connect Facebook & Instagram
+                {SHARE_ICONS.link} Connect Facebook & Instagram
               </p>
               <p className={`text-xs mt-0.5 ${isLight ? 'text-gray-500' : 'text-gray-400'}`}>
                 Post directly to your social feeds
@@ -788,12 +867,12 @@ const SharePostModal = ({ post, open, onClose, isLight }) => {
 
           {/* Copy Link */}
           <div className={`flex items-center gap-2 p-3 rounded-lg ${isLight ? 'bg-gray-100' : 'bg-zinc-800'}`}>
-            <Input
+            <Input aria-label="Text input"
               value={postUrl}
               readOnly
               className={`flex-1 text-sm ${isLight ? 'bg-white' : 'bg-zinc-900'}`}
             />
-            <Button 
+            <Button aria-label="Confirm" 
               size="sm" 
               onClick={handleCopyLink}
               className={copied ? 'bg-green-500' : ''}
@@ -810,7 +889,7 @@ const SharePostModal = ({ post, open, onClose, isLight }) => {
               className="flex-col h-auto py-3"
               data-testid="share-twitter-btn"
             >
-              <span className="text-2xl">𝕏</span>
+              <span className="text-2xl">{SHARE_ICONS.twitter}</span>
               <span className="text-xs mt-1">Twitter</span>
             </Button>
             <Button
@@ -829,7 +908,7 @@ const SharePostModal = ({ post, open, onClose, isLight }) => {
               title={isMobile ? "Share via your device's share menu" : "Copy link to share on Instagram"}
               data-testid="share-instagram-link-btn"
             >
-              <span className="text-2xl">📸</span>
+              <span className="text-2xl">{SHARE_ICONS.camera}</span>
               <span className="text-xs mt-1">Link</span>
             </Button>
             <Button
@@ -838,14 +917,115 @@ const SharePostModal = ({ post, open, onClose, isLight }) => {
               className="flex-col h-auto py-3"
               data-testid="share-whatsapp-btn"
             >
-              <span className="text-2xl text-green-500">💬</span>
+              <span className="text-2xl text-green-500">{SHARE_ICONS.speech}</span>
               <span className="text-xs mt-1">WhatsApp</span>
             </Button>
           </div>
+
+          {/* ============ SEND VIA DM ============ */}
+          {user && (
+            <div className={`rounded-lg border ${isLight ? 'border-gray-200 bg-gray-50' : 'border-zinc-700 bg-zinc-800/50'}`}>
+              <button
+                onClick={() => setShowDmPicker(!showDmPicker)}
+                className={`w-full flex items-center justify-between p-3 text-sm font-medium transition-colors
+                  ${isLight ? 'text-gray-800 hover:bg-gray-100' : 'text-white hover:bg-zinc-700/50'}`}
+                data-testid="dm-share-toggle"
+              >
+                <span className="flex items-center gap-2">
+                  <MessageSquareOff className="w-4 h-4" style={{ transform: 'scaleX(-1)' }} />
+                  Send via DM
+                </span>
+                <ChevronDown className={`w-4 h-4 transition-transform ${showDmPicker ? 'rotate-180' : ''}`} />
+              </button>
+              
+              {showDmPicker && (
+                <div className="px-3 pb-3 space-y-2">
+                  {/* Search conversations */}
+                  <Input
+                    aria-label="Search conversations"
+                    placeholder="Search by name..."
+                    value={dmSearch}
+                    onChange={(e) => setDmSearch(e.target.value)}
+                    className={`text-sm ${isLight ? 'bg-white' : 'bg-zinc-900'}`}
+                    data-testid="dm-share-search"
+                  />
+                  
+                  {/* Conversation list */}
+                  <div className="max-h-48 overflow-y-auto space-y-1">
+                    {dmLoading ? (
+                      <div className="flex justify-center py-4">
+                        <Loader2 className="w-5 h-5 animate-spin text-blue-400" />
+                      </div>
+                    ) : dmConversations
+                        .filter(c => !dmSearch || c.other_user_name?.toLowerCase().includes(dmSearch.toLowerCase()))
+                        .length === 0 ? (
+                      <p className={`text-xs text-center py-3 ${isLight ? 'text-gray-400' : 'text-gray-500'}`}>
+                        {dmSearch ? 'No conversations found' : 'No recent conversations'}
+                      </p>
+                    ) : (
+                      dmConversations
+                        .filter(c => !dmSearch || c.other_user_name?.toLowerCase().includes(dmSearch.toLowerCase()))
+                        .slice(0, 15)
+                        .map(conv => {
+                          const isSent = dmSent.has(conv.other_user_id);
+                          const isSending = dmSending === conv.other_user_id;
+                          
+                          return (
+                            <div
+                              key={conv.id}
+                              className={`flex items-center justify-between p-2 rounded-lg transition-colors
+                                ${isLight ? 'hover:bg-gray-100' : 'hover:bg-zinc-700/50'}`}
+                            >
+                              <div className="flex items-center gap-2 min-w-0 flex-1">
+                                {conv.other_user_avatar ? (
+                                  <img
+                                    src={conv.other_user_avatar}
+                                    alt=""
+                                    className="w-8 h-8 rounded-full object-cover flex-shrink-0"
+                                  />
+                                ) : (
+                                  <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0
+                                    ${isLight ? 'bg-gray-200' : 'bg-zinc-700'}`}>
+                                    <UserCircle className="w-5 h-5 text-gray-400" />
+                                  </div>
+                                )}
+                                <span className={`text-sm truncate ${isLight ? 'text-gray-800' : 'text-white'}`}>
+                                  {conv.other_user_name || 'Unknown'}
+                                </span>
+                              </div>
+                              
+                              <Button
+                                size="sm"
+                                variant={isSent ? 'ghost' : 'default'}
+                                disabled={isSending || isSent}
+                                onClick={() => handleSendDm(conv.other_user_id, conv.other_user_name)}
+                                className={`flex-shrink-0 text-xs px-3 ${isSent
+                                  ? 'text-green-500'
+                                  : 'bg-blue-500 hover:bg-blue-600 text-white'
+                                }`}
+                                data-testid={`dm-send-${conv.other_user_id}`}
+                              >
+                                {isSending ? (
+                                  <Loader2 className="w-3 h-3 animate-spin" />
+                                ) : isSent ? (
+                                  <><Check className="w-3 h-3 mr-1" /> Sent</>
+                                ) : (
+                                  'Send'
+                                )}
+                              </Button>
+                            </div>
+                          );
+                        })
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
           
           {/* Native Share (Mobile) */}
           {typeof navigator !== 'undefined' && navigator.share && (
-            <Button
+            <Button aria-label="Share"
               variant="outline"
               onClick={() => handleShare('native')}
               className="w-full"
@@ -859,7 +1039,7 @@ const SharePostModal = ({ post, open, onClose, isLight }) => {
           {/* Instagram note for desktop - only show if not connected */}
           {!isMobile && !metaStatus?.instagram_connected && (
             <p className={`text-xs ${isLight ? 'text-gray-500' : 'text-gray-400'} text-center`}>
-              💡 Instagram doesn't support web sharing. Connect your account above to post directly!
+              {SHARE_ICONS.camera} Instagram doesn't support web sharing. Connect your account above to post directly!
             </p>
           )}
         </div>
@@ -945,7 +1125,7 @@ export const PostMenu = ({
     }
     try {
       logger.debug('Updating post:', activePost.id, 'with user:', user.id, 'updates:', updates);
-      await apiClient.patch(`/posts/${activePost.id}`, updates);
+      await apiClient.patch(`/posts/${activePost.id}?user_id=${user.id}`, updates);
       toast.success('Post updated');
       onPostUpdated?.({ ...activePost, ...updates });
     } catch (error) {
@@ -962,7 +1142,7 @@ export const PostMenu = ({
       return;
     }
     try {
-      await apiClient.delete(`/posts/${activePost.id}`);
+      await apiClient.delete(`/posts/${activePost.id}?user_id=${user.id}`);
       toast.success('Post deleted');
       onPostDeleted?.(activePost.id);
       onClose();
@@ -977,7 +1157,7 @@ export const PostMenu = ({
     if (!activePost?.id || !user?.id) return;
     setActionLoading('like-count');
     try {
-      await apiClient.patch(`/posts/${activePost.id}/settings`, {
+      await apiClient.patch(`/posts/${activePost.id}/settings?user_id=${user.id}`, {
         hide_like_count: !activePost.hide_like_count
       });
       toast.success(activePost.hide_like_count ? 'Like count shown' : 'Like count hidden');
@@ -995,7 +1175,7 @@ export const PostMenu = ({
     if (!activePost?.id || !user?.id) return;
     setActionLoading('commenting');
     try {
-      await apiClient.patch(`/posts/${activePost.id}/settings`, {
+      await apiClient.patch(`/posts/${activePost.id}/settings?user_id=${user.id}`, {
         comments_disabled: !activePost.comments_disabled
       });
       toast.success(activePost.comments_disabled ? 'Comments enabled' : 'Comments disabled');
@@ -1216,9 +1396,9 @@ export const PostMenu = ({
       <>
         <Drawer open={open} onOpenChange={onClose}>
           <DrawerContent className={isLight ? 'bg-white' : 'bg-zinc-900'} aria-describedby="post-menu-drawer-description">
-            <DrawerHeader className="sr-only">
+            <DrawerHeader className="sr-only" style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden' }}>
               <DrawerTitle>Post Options</DrawerTitle>
-              <p id="post-menu-drawer-description" className="sr-only">Actions for this post</p>
+              <p id="post-menu-drawer-description">Actions for this post</p>
             </DrawerHeader>
             <MenuContent />
             <DrawerFooter>
@@ -1267,8 +1447,9 @@ export const PostMenu = ({
         <DialogContent 
           className={`${isLight ? 'bg-white' : 'bg-zinc-900'} p-0 max-w-xs overflow-hidden`}
           aria-describedby="post-menu-description"
+          hideCloseButton
         >
-          <DialogHeader className="sr-only">
+          <DialogHeader className="sr-only" style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', padding: 0 }}>
             <DialogTitle>Post Options</DialogTitle>
             <DialogDescription id="post-menu-description">
               Actions for this post

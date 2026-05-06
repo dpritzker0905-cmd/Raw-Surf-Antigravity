@@ -117,7 +117,7 @@ export const AdminCompetitionVerification = () => {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className={`text-xl font-bold ${textPrimary} flex items-center gap-2`} style={{ fontFamily: 'Oswald' }}>
+          <h2 className={`text-xl font-bold ${textPrimary} flex items-center gap-2 font-oswald`} >
             <Trophy className="w-6 h-6 text-yellow-400" />
             Competition Verification
           </h2>
@@ -185,7 +185,7 @@ export const AdminCompetitionVerification = () => {
                   {/* Actions */}
                   <div className="flex flex-col gap-2">
                     {result.proof_image_url && (
-                      <Button
+                      <Button aria-label="View"
                         variant="outline"
                         size="sm"
                         className="border-cyan-500/50 text-cyan-400 hover:bg-cyan-500/10"
@@ -199,7 +199,7 @@ export const AdminCompetitionVerification = () => {
                       </Button>
                     )}
                     <div className="flex gap-2">
-                      <Button
+                      <Button aria-label="Check Circle"
                         size="sm"
                         className="bg-emerald-500 hover:bg-emerald-400 text-white"
                         onClick={() => handleVerify(result.id, true)}
@@ -207,7 +207,7 @@ export const AdminCompetitionVerification = () => {
                       >
                         <CheckCircle className="w-4 h-4" />
                       </Button>
-                      <Button
+                      <Button aria-label="Cancel"
                         size="sm"
                         variant="outline"
                         className="border-red-500/50 text-red-400 hover:bg-red-500/10"
@@ -272,7 +272,7 @@ export const AdminCompetitionVerification = () => {
                 <div className="space-y-2">
                   <div className="text-sm text-gray-400">Proof Image:</div>
                   <div className="relative aspect-video bg-black rounded-lg overflow-hidden">
-                    <img 
+                    <img loading="lazy" decoding="async" 
                       src={selectedResult.proof_image_url} 
                       alt="Competition proof" 
                       className="w-full h-full object-contain"
@@ -280,7 +280,7 @@ export const AdminCompetitionVerification = () => {
                   </div>
                   <a 
                     href={selectedResult.proof_image_url} 
-                    target="_blank" 
+                    target="_blank" rel="noopener noreferrer" 
                     rel="noopener noreferrer"
                     className="text-sm text-cyan-400 hover:underline flex items-center gap-1"
                   >
@@ -311,7 +311,7 @@ export const AdminCompetitionVerification = () => {
             >
               Cancel
             </Button>
-            <Button 
+            <Button aria-label="Loader2" 
               variant="outline"
               className="border-red-500/50 text-red-400 hover:bg-red-500/10"
               onClick={() => handleVerify(selectedResult?.id, false)}
@@ -320,7 +320,7 @@ export const AdminCompetitionVerification = () => {
               {processing ? <Loader2 className="w-4 h-4 animate-spin" /> : <XCircle className="w-4 h-4 mr-1" />}
               Reject
             </Button>
-            <Button 
+            <Button aria-label="Loader2" 
               className="bg-emerald-500 hover:bg-emerald-400 text-white"
               onClick={() => handleVerify(selectedResult?.id, true)}
               disabled={processing}

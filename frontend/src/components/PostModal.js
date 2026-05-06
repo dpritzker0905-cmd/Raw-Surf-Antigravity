@@ -3,6 +3,8 @@
  * Opens when clicking on a post in the feed
  */
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import ShakaIcon from './social/ShakaIcon';
+import { ModalVideoPlayer, ImageCarousel, CommentItem } from './social/PostModalComponents';
 import { useNavigate } from 'react-router-dom';
 import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import { useAuth } from '../contexts/AuthContext';
@@ -17,395 +19,83 @@ import { getFullUrl } from '../utils/media';
 import { formatTimeAgo, formatDuration } from '../utils/formatTime';
 import { REACTION_EMOJIS } from '../constants/emojis';
 import EmojiPicker from './EmojiPicker';
+import useFocusTrap from '../hooks/useFocusTrap';
 
 
-// Reaction emojis — imported from centralized constants/emojis.js
+// Reaction emojis - imported from centralized constants/emojis.js
 
 // Shaka Icon Component
-const ShakaIcon = ({ filled, size = 28 }) => (
-  <img 
-    src="https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/svg/1f919.svg"
-    alt="shaka"
-    style={{ 
-      width: `${size}px`, 
-      height: `${size}px`,
-      filter: filled ? 'none' : 'grayscale(100%) brightness(1.5)',
-      transition: 'filter 0.2s ease, transform 0.2s ease'
-    }}
-    draggable="false"
-  />
-);
+// ShakaIcon extracted to ./social/ShakaIcon.js
 
 
 
-// Custom Video Player for PostModal — TikTok/Instagram style
+// Custom Video Player for PostModal - TikTok/Instagram style
 // Tap to play/pause, custom progress bar, volume slider, no native controls
-const ModalVideoPlayer = ({ src, poster, className = '' }) => {
-  const videoRef = useRef(null);
-  const progressRef = useRef(null);
-  const [playing, setPlaying] = useState(false);
-  const [muted, setMuted] = useState(true);
-  const [volume, setVolume] = useState(0.7); // 0-1 range
-  const [showVolumeSlider, setShowVolumeSlider] = useState(false);
-  const [progress, setProgress] = useState(0);
-  const [duration, setDuration] = useState(0);
-  const [currentTime, setCurrentTimeState] = useState(0);
-  const [showControls, setShowControls] = useState(true);
-  const hideTimerRef = useRef(null);
-  const volumeTimerRef = useRef(null);
+// ModalVideoPlayer, ImageCarousel, CommentItem extracted to ./social/PostModalComponents.js
 
-  // Auto-play when mounted
-  useEffect(() => {
-    if (videoRef.current) {
-      videoRef.current.muted = true; // Required for autoplay
-      videoRef.current.play().then(() => {
-        setPlaying(true);
-        setMuted(true);
-      }).catch(() => {});
-    }
-    return () => {
-      if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
-      if (volumeTimerRef.current) clearTimeout(volumeTimerRef.current);
-    };
-  }, [src]);
-
-  // Update progress bar
-  useEffect(() => {
-    const video = videoRef.current;
-    if (!video) return;
-    const onTimeUpdate = () => {
-      setProgress(video.duration ? (video.currentTime / video.duration) * 100 : 0);
-      setCurrentTimeState(video.currentTime);
-    };
-    const onLoaded = () => setDuration(video.duration || 0);
-    video.addEventListener('timeupdate', onTimeUpdate);
-    video.addEventListener('loadedmetadata', onLoaded);
-    return () => {
-      video.removeEventListener('timeupdate', onTimeUpdate);
-      video.removeEventListener('loadedmetadata', onLoaded);
-    };
-  }, []);
-
-  const togglePlay = (e) => {
-    e.stopPropagation();
-    if (!videoRef.current) return;
-    if (playing) {
-      videoRef.current.pause();
-      setPlaying(false);
-    } else {
-      videoRef.current.play().catch(() => {});
-      setPlaying(true);
-    }
-    // Show controls briefly then auto-hide
-    setShowControls(true);
-    if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
-    hideTimerRef.current = setTimeout(() => setShowControls(false), 2500);
-  };
-
-  const toggleMute = (e) => {
-    e.stopPropagation();
-    if (!videoRef.current) return;
-    const newMuted = !muted;
-    videoRef.current.muted = newMuted;
-    if (!newMuted) {
-      videoRef.current.volume = volume;
-    }
-    setMuted(newMuted);
-  };
-
-  const handleVolumeChange = (e) => {
-    e.stopPropagation();
-    const newVolume = parseFloat(e.target.value);
-    setVolume(newVolume);
-    if (videoRef.current) {
-      videoRef.current.volume = newVolume;
-      if (newVolume === 0) {
-        setMuted(true);
-        videoRef.current.muted = true;
-      } else if (muted) {
-        setMuted(false);
-        videoRef.current.muted = false;
-      }
-    }
-    // Keep slider visible while interacting
-    if (volumeTimerRef.current) clearTimeout(volumeTimerRef.current);
-    volumeTimerRef.current = setTimeout(() => setShowVolumeSlider(false), 2000);
-  };
-
-  const handleVolumeAreaEnter = () => {
-    setShowVolumeSlider(true);
-    if (volumeTimerRef.current) clearTimeout(volumeTimerRef.current);
-  };
-
-  const handleVolumeAreaLeave = () => {
-    volumeTimerRef.current = setTimeout(() => setShowVolumeSlider(false), 1200);
-  };
-
-  // Get appropriate volume icon
-  const VolumeIcon = muted || volume === 0 ? VolumeX : volume < 0.5 ? Volume1 : Volume2;
-
-  const handleSeek = (e) => {
-    e.stopPropagation();
-    if (!videoRef.current || !progressRef.current) return;
-    const rect = progressRef.current.getBoundingClientRect();
-    const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-    videoRef.current.currentTime = ratio * videoRef.current.duration;
-  };
-
-  const formatTime = formatDuration;
-
-  return (
-    <div
-      className={`relative w-full h-full bg-black flex items-center justify-center group ${className}`}
-      onClick={togglePlay}
-      onMouseMove={() => {
-        setShowControls(true);
-        if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
-        hideTimerRef.current = setTimeout(() => setShowControls(false), 2500);
-      }}
-    >
-      <video
-        ref={videoRef}
-        src={src}
-        poster={poster}
-        className="max-w-full max-h-full object-contain"
-        playsInline
-        webkit-playsinline="true"
-        loop
-        muted={muted}
-        preload="metadata"
-      />
-
-      {/* Play/Pause center overlay — fades in/out */}
-      <div className={`absolute inset-0 flex items-center justify-center pointer-events-none transition-opacity duration-300 ${showControls || !playing ? 'opacity-100' : 'opacity-0'}`}>
-        {!playing && (
-          <div className="w-16 h-16 rounded-full bg-black/50 backdrop-blur-sm flex items-center justify-center">
-            <Play className="w-8 h-8 text-white ml-1" fill="white" />
-          </div>
-        )}
-      </div>
-
-      {/* Bottom control bar */}
-      <div className={`absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-3 flex flex-col gap-2 transition-opacity duration-300 ${showControls || !playing ? 'opacity-100' : 'opacity-0'}`}
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Progress bar */}
-        <div
-          ref={progressRef}
-          className="w-full h-1 bg-white/30 rounded-full cursor-pointer relative group/progress"
-          onClick={handleSeek}
-        >
-          <div
-            className="h-full bg-white rounded-full transition-all relative"
-            style={{ width: `${progress}%` }}
-          >
-            <div className="absolute right-0 top-1/2 -translate-y-1/2 w-3 h-3 bg-white rounded-full opacity-0 group-hover/progress:opacity-100 transition-opacity" />
-          </div>
-        </div>
-        {/* Time + controls row */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <button
-              onClick={togglePlay}
-              className="text-white hover:opacity-80 transition-opacity"
-              aria-label={playing ? 'Pause' : 'Play'}
-            >
-              {playing ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5" fill="white" />}
-            </button>
-            <span className="text-white/80 text-xs font-mono">
-              {formatTime(currentTime)} / {formatTime(duration)}
-            </span>
-          </div>
-          {/* Volume control group */}
-          <div
-            className="flex items-center gap-1.5"
-            onMouseEnter={handleVolumeAreaEnter}
-            onMouseLeave={handleVolumeAreaLeave}
-            onTouchStart={handleVolumeAreaEnter}
-          >
-            {/* Volume slider — progressive disclosure */}
-            <div
-              className="overflow-hidden transition-all duration-300 ease-out flex items-center"
-              style={{
-                width: showVolumeSlider ? '80px' : '0px',
-                opacity: showVolumeSlider ? 1 : 0,
-              }}
-            >
-              <input
-                type="range"
-                min="0"
-                max="1"
-                step="0.05"
-                value={muted ? 0 : volume}
-                onChange={handleVolumeChange}
-                onClick={(e) => e.stopPropagation()}
-                className="w-full h-1 appearance-none bg-white/30 rounded-full cursor-pointer"
-                aria-label="Volume"
-                style={{
-                  background: `linear-gradient(to right, rgba(255,255,255,0.9) ${(muted ? 0 : volume) * 100}%, rgba(255,255,255,0.2) ${(muted ? 0 : volume) * 100}%)`,
-                }}
-              />
-            </div>
-            <button
-              onClick={(e) => {
-                toggleMute(e);
-                setShowVolumeSlider(true);
-                if (volumeTimerRef.current) clearTimeout(volumeTimerRef.current);
-                volumeTimerRef.current = setTimeout(() => setShowVolumeSlider(false), 2000);
-              }}
-              className="text-white hover:opacity-80 transition-opacity p-1 min-w-[28px] min-h-[28px] flex items-center justify-center"
-              aria-label={muted ? 'Unmute' : 'Mute'}
-            >
-              <VolumeIcon className="w-5 h-5" />
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// Image Carousel Component — handles both images and video
-const ImageCarousel = ({ images, mediaType }) => {
-  const [currentIndex, setCurrentIndex] = useState(0);
-  
-  // Handle single image/video
-  const mediaItems = Array.isArray(images) ? images : [images];
-  
-  const goNext = () => {
-    setCurrentIndex((prev) => (prev + 1) % mediaItems.length);
-  };
-  
-  const goPrev = () => {
-    setCurrentIndex((prev) => (prev - 1 + mediaItems.length) % mediaItems.length);
-  };
-  
-  if (mediaItems.length === 0) return null;
-  
-  const currentItem = mediaItems[currentIndex];
-  const isVideo = mediaType === 'video' || (typeof currentItem === 'object' && currentItem?.type === 'video');
-  const mediaUrl = typeof currentItem === 'string' ? currentItem : currentItem?.url;
-  const posterUrl = typeof currentItem === 'object' ? currentItem?.poster : undefined;
-  
-  return (
-    <div className="relative w-full h-full bg-black flex items-center justify-center">
-      {isVideo ? (
-        <ModalVideoPlayer
-          src={mediaUrl}
-          poster={posterUrl}
-          className="w-full h-full"
-        />
-      ) : (
-        <img
-          src={mediaUrl}
-          alt="Post media"
-          className="max-w-full max-h-full object-contain"
-          draggable="false"
-        />
-      )}
-      
-      {/* Navigation arrows */}
-      {mediaItems.length > 1 && (
-        <>
-          <button
-            onClick={goPrev}
-            className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-white/90 rounded-full flex items-center justify-center shadow-lg hover:bg-white transition-colors z-10"
-          >
-            <ChevronLeft className="w-5 h-5 text-gray-800" />
-          </button>
-          <button
-            onClick={goNext}
-            className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-white/90 rounded-full flex items-center justify-center shadow-lg hover:bg-white transition-colors z-10"
-          >
-            <ChevronRight className="w-5 h-5 text-gray-800" />
-          </button>
-          
-          {/* Dots indicator */}
-          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-1.5 z-10">
-            {mediaItems.map((_, idx) => (
-              <button
-                key={idx}
-                onClick={() => setCurrentIndex(idx)}
-                className={`w-1.5 h-1.5 rounded-full transition-colors ${
-                  idx === currentIndex ? 'bg-blue-500' : 'bg-white/50'
-                }`}
-              />
-            ))}
-          </div>
-        </>
-      )}
-    </div>
-  );
-};
-
-// Comment Item
-const CommentItem = ({ comment, userId, _onReact }) => {
-  const navigate = useNavigate();
-  const [liked, setLiked] = useState(comment.viewer_reaction !== null);
-  const [likeCount, setLikeCount] = useState(comment.reaction_count || 0);
-  
-  const handleLike = async () => {
-    if (!userId) {
-      toast.error('Please log in to like');
-      return;
-    }
-    
-    try {
-      const response = await apiClient.post(
-        `/comments/${comment.id}/reactions`,
-        { emoji: '❤️' }
-      );
-      
-      if (response.data.action === 'added') {
-        setLiked(true);
-        setLikeCount(prev => prev + 1);
-      } else if (response.data.action === 'removed') {
-        setLiked(false);
-        setLikeCount(prev => Math.max(0, prev - 1));
-      }
-    } catch (err) {
-      toast.error('Failed to like');
-    }
-  };
-  
-  return (
-    <div className="flex gap-3 py-2">
-      <div className="w-8 h-8 rounded-full bg-zinc-700 flex items-center justify-center overflow-hidden flex-shrink-0">
-        {comment.author_avatar ? (
-          <img src={getFullUrl(comment.author_avatar)} alt="" className="w-full h-full object-cover" />
-        ) : (
-          <span className="text-xs text-gray-400">{comment.author_name?.charAt(0)}</span>
-        )}
-      </div>
-      <div className="flex-1 min-w-0">
-        <p className="text-sm">
-          <span className="font-semibold text-white mr-1 cursor-pointer hover:underline" onClick={(e) => { e.stopPropagation(); navigate(`/profile/${comment.author_id}`); }}>{comment.author_name}</span>
-          <CommentText 
-            text={comment.content}
-            className="text-gray-300"
-          />
-        </p>
-        <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
-          <span>{formatTimeAgo(comment.created_at)}</span>
-          {likeCount > 0 && <span>{likeCount} like{likeCount !== 1 ? 's' : ''}</span>}
-          <button className="hover:text-gray-300">Reply</button>
-        </div>
-      </div>
-      <button
-        onClick={handleLike}
-        className={`flex-shrink-0 p-1 ${liked ? 'text-red-500' : 'text-gray-500 hover:text-gray-300'}`}
-      >
-        <Heart className="w-3.5 h-3.5" fill={liked ? 'currentColor' : 'none'} />
-      </button>
-    </div>
-  );
-};
-
-const PostModal = ({ post, isOpen, onClose, _onPostUpdated, posts, onNavigatePost }) => {
+const PostModal = ({ post, isOpen, onClose, onPostUpdated, posts, onNavigatePost }) => {
   const { user } = useAuth();
   const { theme } = useTheme();
   const navigate = useNavigate();
-  const _isLight = theme === 'light';
+  const isLight = theme === 'light';
+  const isBeach = theme === 'beach';
+  
+  // Theme tokens for the desktop detail panel
+  // Mobile overlay stays dark regardless (media backdrop)
+  const t = {
+    panelBg: isLight ? 'bg-white' : isBeach ? 'bg-black' : 'bg-zinc-900',
+    panelBorder: isLight ? 'border-gray-200' : isBeach ? 'border-zinc-900' : 'border-zinc-800',
+    textPrimary: isLight ? 'text-gray-900' : 'text-white',
+    textSecondary: isLight ? 'text-gray-500' : isBeach ? 'text-gray-300' : 'text-gray-400',
+    textMuted: isLight ? 'text-gray-400' : 'text-gray-500',
+    avatarFallbackBg: isLight ? 'bg-gray-200' : isBeach ? 'bg-zinc-800' : 'bg-zinc-700',
+    avatarFallbackText: isLight ? 'text-gray-600' : 'text-gray-400',
+    captionText: isLight ? 'text-gray-700' : 'text-gray-300',
+    hoverText: isLight ? 'hover:text-gray-900' : 'hover:text-white',
+    inputBg: isLight ? 'bg-transparent' : 'bg-transparent',
+    inputText: isLight ? 'text-gray-900' : 'text-white',
+    inputPlaceholder: isLight ? 'placeholder-gray-400' : 'placeholder-gray-500',
+    reactionPickerBg: isLight ? 'bg-white/95' : isBeach ? 'bg-black/95' : 'bg-zinc-900/95',
+    reactionPickerBorder: isLight ? 'border-gray-200' : 'border-zinc-600',
+    reactionHover: isLight ? 'hover:bg-gray-100' : 'hover:bg-zinc-700/60',
+    iconDefault: isLight ? 'text-gray-700' : 'text-white',
+    iconHover: isLight ? 'hover:opacity-80' : 'hover:opacity-70',
+    likeCountText: isLight ? 'text-gray-900' : 'text-white',
+    commentBtnActive: isLight ? 'bg-yellow-500/15 text-yellow-600' : 'bg-yellow-500/20 text-yellow-400',
+    commentBtnInactive: isLight ? 'text-gray-400 hover:text-gray-700' : 'text-gray-400 hover:text-white',
+    savedColor: 'text-yellow-400',
+    unsavedColor: isLight ? 'text-gray-700' : 'text-white',
+  };
+
+  // Mobile-specific tokens (fullscreen media viewer)
+  const m = {
+    containerBg: isLight ? 'bg-gray-50' : 'bg-black',
+    topGradient: isLight
+      ? 'bg-gradient-to-b from-white/80 to-transparent'
+      : 'bg-gradient-to-b from-black/70 to-transparent',
+    bottomGradient: isLight
+      ? 'bg-gradient-to-t from-white/95 via-white/70 to-transparent'
+      : 'bg-gradient-to-t from-black/90 via-black/60 to-transparent',
+    textPrimary: isLight ? 'text-gray-900' : 'text-white',
+    textSecondary: isLight ? 'text-gray-500' : 'text-white/70',
+    textMuted: isLight ? 'text-gray-400' : 'text-white/40',
+    textCaption: isLight ? 'text-gray-800' : 'text-white',
+    moreBtn: isLight ? 'text-gray-400' : 'text-white/60',
+    avatarRing: isLight ? 'ring-gray-300' : 'ring-white/20',
+    avatarFallbackBg: isLight ? 'bg-gray-200' : 'bg-zinc-700',
+    menuBtnHover: isLight ? 'active:bg-gray-200/50' : 'active:bg-white/10',
+    iconColor: isLight ? 'text-gray-700' : 'text-white',
+    commentText: isLight ? 'text-gray-800' : 'text-white/90',
+    commentAuthor: isLight ? 'text-gray-900' : 'text-white',
+    heartInactive: isLight ? 'text-gray-300' : 'text-white/40',
+    inputText: isLight ? 'text-gray-900' : 'text-white',
+    inputPlaceholder: isLight ? 'placeholder-gray-400' : 'placeholder-white/40',
+    emojiActive: isLight ? 'bg-yellow-500/15 text-yellow-600' : 'bg-yellow-500/20 text-yellow-400',
+    emojiInactive: isLight ? 'text-gray-400 hover:text-gray-700' : 'text-white/50 hover:text-white',
+    savedColor: 'text-yellow-400',
+    unsavedColor: isLight ? 'text-gray-700' : 'text-white',
+    pickerCloseHover: isLight ? 'hover:text-gray-900 hover:bg-gray-200/50' : 'hover:text-white hover:bg-zinc-700/50',
+  };
   
   const [comments, setComments] = useState([]);
   const [loadingComments, setLoadingComments] = useState(false);
@@ -428,6 +118,7 @@ const PostModal = ({ post, isOpen, onClose, _onPostUpdated, posts, onNavigatePos
   const pressTimerRef = useRef(null);
   const isPressingRef = useRef(false); // Ref for synchronous checking
   const pickerShownRef = useRef(false); // Track if picker was shown during this press
+  const inFlightRef = useRef(false); // Concurrency guard for like/reaction API calls
   
   // Double-tap to like state
   const [showDoubleTapHeart, setShowDoubleTapHeart] = useState(false);
@@ -435,22 +126,43 @@ const PostModal = ({ post, isOpen, onClose, _onPostUpdated, posts, onNavigatePos
   
   const modalRef = useRef(null);
   
-  // Double-tap to like handler
+  // Trap focus within the modal for keyboard accessibility
+  useFocusTrap(modalRef, isOpen);
+  
+  // Double-tap to like handler — toggles shaka on/off (desktop click-based)
   const handleDoubleTap = useCallback(() => {
     const now = Date.now();
-    if (now - lastTapRef.current < 300) {
-      // Double tap detected — like the post
-      if (!liked && user?.id && post?.id) {
-        handleLike();
+    if (now - lastTapRef.current < 400) {
+      // Double tap detected - toggle shaka reaction
+      if (user?.id && post?.id) {
+        handleReaction('\u{1F919}');
       }
-      // Show heart animation
+      // Show shaka animation
       setShowDoubleTapHeart(true);
       setTimeout(() => setShowDoubleTapHeart(false), 800);
       lastTapRef.current = 0;
     } else {
       lastTapRef.current = now;
     }
-  }, [liked, user?.id, post?.id]);
+  }, [user?.id, post?.id]);
+  
+  // Touch-based double-tap for mobile PostModal (bypasses 300ms click delay)
+  const handleMobileTouchEnd = useCallback((e) => {
+    if (e.changedTouches?.length !== 1) return;
+    const now = Date.now();
+    if (now - lastTapRef.current < 400) {
+      e.preventDefault();
+      e.stopPropagation();
+      if (user?.id && post?.id) {
+        handleReaction('\u{1F919}');
+      }
+      setShowDoubleTapHeart(true);
+      setTimeout(() => setShowDoubleTapHeart(false), 800);
+      lastTapRef.current = 0;
+    } else {
+      lastTapRef.current = now;
+    }
+  }, [user?.id, post?.id]);
   
   // Keyboard navigation for swipe between posts
   useEffect(() => {
@@ -492,13 +204,18 @@ const PostModal = ({ post, isOpen, onClose, _onPostUpdated, posts, onNavigatePos
   }, [isOpen, post?.id]);
   
   // Handle browser back button - close modal instead of navigating away
+  // IMPORTANT: We must track whether close was triggered by popstate to avoid double-popping.
+  const closedByPopstateRef = useRef(false);
+  
   useEffect(() => {
     if (isOpen) {
+      closedByPopstateRef.current = false;
       // Push a state to history when modal opens
       window.history.pushState({ modal: 'post' }, '');
       
-      const handlePopState = (_e) => {
-        // When back is pressed, close the modal
+      const handlePopState = () => {
+        // Back button was pressed — close the modal WITHOUT calling history.back()
+        closedByPopstateRef.current = true;
         onClose();
       };
       
@@ -506,6 +223,11 @@ const PostModal = ({ post, isOpen, onClose, _onPostUpdated, posts, onNavigatePos
       
       return () => {
         window.removeEventListener('popstate', handlePopState);
+        // If modal was closed by X button / overlay (not by popstate),
+        // we need to pop the orphaned history entry we pushed.
+        if (!closedByPopstateRef.current && window.history.state?.modal === 'post') {
+          window.history.back();
+        }
       };
     }
   }, [isOpen, onClose]);
@@ -556,18 +278,31 @@ const PostModal = ({ post, isOpen, onClose, _onPostUpdated, posts, onNavigatePos
       return;
     }
     
+    // Concurrency guard
+    if (inFlightRef.current) return;
+    inFlightRef.current = true;
+    
+    // Optimistic update
+    const wasLiked = liked;
+    const prevCount = likeCount;
+    setLiked(!wasLiked);
+    setLikeCount(wasLiked ? Math.max(0, prevCount - 1) : prevCount + 1);
+    
     try {
-      if (liked) {
-        await apiClient.delete(`/posts/${post.id}/like`, { });
-        setLiked(false);
-        setLikeCount(prev => Math.max(0, prev - 1));
-      } else {
-        await apiClient.post(`/posts/${post.id}/like`, null, { });
-        setLiked(true);
-        setLikeCount(prev => prev + 1);
-      }
+      // Always use toggle endpoint for consistency
+      const response = await apiClient.post(`/posts/${post.id}/like`);
+      // Sync with authoritative server state
+      setLiked(response.data.is_liked);
+      setLikeCount(response.data.likes_count);
+      // Propagate to parent (Feed) so card state stays in sync
+      onPostUpdated?.({ ...post, liked: response.data.is_liked, likes_count: response.data.likes_count });
     } catch (err) {
+      // Revert optimistic update
+      setLiked(wasLiked);
+      setLikeCount(prevCount);
       toast.error('Failed to update like');
+    } finally {
+      inFlightRef.current = false;
     }
   };
   
@@ -579,11 +314,11 @@ const PostModal = ({ post, isOpen, onClose, _onPostUpdated, posts, onNavigatePos
     
     try {
       if (saved) {
-        await apiClient.delete(`/posts/${post.id}/save`);
+        await apiClient.delete(`/posts/${post.id}/save?user_id=${user.id}`);
         setSaved(false);
         toast.success('Removed from saved');
       } else {
-        await apiClient.post(`/posts/${post.id}/save`);
+        await apiClient.post(`/posts/${post.id}/save?user_id=${user.id}`);
         setSaved(true);
         toast.success('Saved!');
       }
@@ -644,7 +379,7 @@ const PostModal = ({ post, isOpen, onClose, _onPostUpdated, posts, onNavigatePos
     
     // Quick tap = toggle shaka
     if (wasPressing) {
-      await handleReaction('🤙');
+      await handleReaction('\u{1F919}');
     }
   };
   
@@ -663,29 +398,69 @@ const PostModal = ({ post, isOpen, onClose, _onPostUpdated, posts, onNavigatePos
       return;
     }
     
+    // Concurrency guard
+    if (inFlightRef.current) return;
+    inFlightRef.current = true;
+    
     setShowReactionPicker(false);
     
+    const isRemoving = userReaction?.emoji === emoji;
+    
+    // Snapshot for rollback
+    const prevLiked = liked;
+    const prevCount = likeCount;
+    const prevReaction = userReaction;
+    
+    // Optimistic update
+    if (isRemoving) {
+      setUserReaction(null);
+      setLiked(false);
+      setLikeCount(Math.max(0, prevCount - 1));
+    } else {
+      setUserReaction({ emoji });
+      setLiked(true); // Any active reaction = liked
+      // Only increment if user didn't already have a reaction (swap = no count change)
+      if (!prevReaction) {
+        setLikeCount(prevCount + 1);
+      }
+    }
+    
     try {
-      const isRemovingReaction = userReaction?.emoji === emoji;
+      // ALWAYS use /reactions endpoint for ALL emojis (including shaka)
+      const response = await apiClient.post(`/posts/${post.id}/reactions`, { emoji });
       
-      const response = await apiClient.post(
-        `/posts/${post.id}/reactions`,
-        { emoji }
-      );
+      // Always sync with authoritative server count
+      if (response.data?.likes_count !== undefined) {
+        setLikeCount(response.data.likes_count);
+      }
       
-      if (response.data.action === 'removed' || isRemovingReaction) {
+      const action = response.data?.action;
+      const newLiked = action === 'removed' ? false : true;
+      const newCount = response.data?.likes_count ?? likeCount;
+      if (action === 'removed') {
         setUserReaction(null);
         setLiked(false);
-        setLikeCount(prev => Math.max(0, prev - 1));
-      } else {
+      } else if (action === 'added' || action === 'changed') {
         setUserReaction({ emoji });
-        if (!liked && !userReaction) {
-          setLikeCount(prev => prev + 1);
-        }
         setLiked(true);
       }
+      // Propagate to parent (Feed) so card state stays in sync.
+      // IMPORTANT: Don't spread ...post here — the prop is a stale snapshot
+      // from when the modal opened. Only send the changed fields so the Feed
+      // merges them into its live state without overwriting other updates.
+      const otherReactions = (post.reactions || []).filter(r => r.user_id !== user.id);
+      const newReactions = action === 'removed'
+        ? otherReactions
+        : [...otherReactions, { emoji, user_id: user.id, user_name: user.full_name }];
+      onPostUpdated?.({ id: post.id, liked: newLiked, likes_count: newCount, reactions: newReactions });
     } catch (err) {
+      // Revert optimistic update
+      setLiked(prevLiked);
+      setLikeCount(prevCount);
+      setUserReaction(prevReaction);
       toast.error('Failed to add reaction');
+    } finally {
+      inFlightRef.current = false;
     }
   };
   
@@ -732,7 +507,7 @@ const PostModal = ({ post, isOpen, onClose, _onPostUpdated, posts, onNavigatePos
     try {
       const _response = await apiClient.post(
         `/comments/${commentId}/reactions`,
-        { emoji: '❤️' }
+        { emoji: '\u{1F919}' }
       );
       
       // Update comments state with new like
@@ -744,7 +519,7 @@ const PostModal = ({ post, isOpen, onClose, _onPostUpdated, posts, onNavigatePos
             likes_count: wasLiked ? (c.likes_count || 1) - 1 : (c.likes_count || 0) + 1,
             reactions: wasLiked 
               ? (c.reactions || []).filter(r => r.user_id !== user.id)
-              : [...(c.reactions || []), { user_id: user.id, emoji: '❤️' }]
+              : [...(c.reactions || []), { user_id: user.id, emoji: '\u{1F919}' }]
           };
         }
         return c;
@@ -768,7 +543,7 @@ const PostModal = ({ post, isOpen, onClose, _onPostUpdated, posts, onNavigatePos
   if (isMobile) {
     return (
       <div 
-        className="fixed inset-0 z-[9999] bg-black"
+        className={`fixed inset-0 z-[9999] ${m.containerBg}`}
         data-testid="post-modal-mobile"
       >
         {/* Tap-to-close backdrop - ONLY in the image area, not top bar or bottom */}
@@ -784,51 +559,62 @@ const PostModal = ({ post, isOpen, onClose, _onPostUpdated, posts, onNavigatePos
           style={{ zIndex: 1 }}
         />
         
-        {/* Fullscreen Image/Video - no click handler here */}
+        {/* Fullscreen Image/Video - with touch double-tap handler for mobile */}
         <div 
-          className="absolute inset-0 flex items-center justify-center pointer-events-none"
+          className="absolute inset-0 flex items-center justify-center"
           style={{ zIndex: 2 }}
+          onTouchEnd={handleMobileTouchEnd}
         >
-          <div className="pointer-events-auto">
+          {/* Double-tap shaka animation (mobile) */}
+          {showDoubleTapHeart && (
+            <div className="absolute inset-0 flex items-center justify-center z-20 pointer-events-none">
+              <img loading="lazy" decoding="async" 
+                src="https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/svg/1f919.svg"
+                alt="shaka"
+                className="w-24 h-24 animate-ping"
+                style={{ animationDuration: '0.6s', filter: 'drop-shadow(0 4px 12px rgba(234, 179, 8, 0.5))' }}
+                draggable={false}
+              />
+            </div>
+          )}
+          <div>
             <ImageCarousel images={mediaItems} mediaType={post.media_type} />
           </div>
         </div>
         
-        {/* Top Bar - Close & Author */}
         <div 
-          className="absolute top-0 left-0 right-0 bg-gradient-to-b from-black/70 to-transparent pb-12 pt-4"
+          className={`absolute top-0 left-0 right-0 ${m.topGradient} pb-12 pt-4`}
           style={{ zIndex: 10, pointerEvents: 'none' }}
         >
           <div className="flex items-center justify-between px-4 pt-2" style={{ pointerEvents: 'auto' }}>
-            <button
+            <button aria-label="Close"
               onClick={onClose}
-              className="p-2 text-white touch-manipulation"
+              className={`p-2 ${m.textPrimary} touch-manipulation`}
               data-testid="close-post-modal"
-            >
-              <X className="w-6 h-6" />
+            ><X className="w-6 h-6" />
             </button>
             
             {/* Author Info */}
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-full bg-zinc-700 overflow-hidden ring-2 ring-white/20">
+              <div className={`w-8 h-8 rounded-full ${m.avatarFallbackBg} overflow-hidden ring-2 ${m.avatarRing}`}>
                 {post.author_avatar ? (
-                  <img src={getFullUrl(post.author_avatar)} alt="" className="w-full h-full object-cover" />
+                  <img loading="lazy" decoding="async" src={getFullUrl(post.author_avatar)} alt="" className="w-full h-full object-cover" />
                 ) : (
-                  <span className="w-full h-full flex items-center justify-center text-sm text-white">
+                  <span className={`w-full h-full flex items-center justify-center text-sm ${m.textPrimary}`}>
                     {post.author_name?.charAt(0)}
                   </span>
                 )}
               </div>
               <div>
-                <p className="font-semibold text-white text-sm">{post.author_name}</p>
+                <p className={`font-semibold ${m.textPrimary} text-sm`}>{post.author_name}</p>
                 {post.location && (
-                  <p className="text-xs text-white/70">{post.location}</p>
+                  <p className={`text-xs ${m.textSecondary}`}>{post.location}</p>
                 )}
               </div>
             </div>
             
             <button 
-              className="p-3 text-white touch-manipulation active:bg-white/10 rounded-full"
+              className={`p-3 ${m.textPrimary} touch-manipulation ${m.menuBtnHover} rounded-full`}
               onPointerDown={(e) => {
                 e.stopPropagation();
               }}
@@ -855,7 +641,7 @@ const PostModal = ({ post, isOpen, onClose, _onPostUpdated, posts, onNavigatePos
             />
             {/* Centered Picker - 2-row grid for mobile */}
             <div 
-              className="absolute bg-zinc-900/95 backdrop-blur-md border border-zinc-600 rounded-2xl px-3 py-3 shadow-2xl animate-in zoom-in-95 duration-200"
+              className={`absolute ${t.reactionPickerBg} backdrop-blur-md border ${t.reactionPickerBorder} rounded-2xl px-3 py-3 shadow-2xl animate-in zoom-in-95 duration-200`}
               style={{ 
                 left: '50%',
                 top: '50%',
@@ -866,7 +652,7 @@ const PostModal = ({ post, isOpen, onClose, _onPostUpdated, posts, onNavigatePos
             >
               <button 
                 onClick={() => setShowReactionPicker(false)}
-                className="absolute top-1.5 right-1.5 w-6 h-6 flex items-center justify-center text-gray-500 hover:text-white rounded-full hover:bg-zinc-700/50 touch-manipulation"
+                className={`absolute top-1.5 right-1.5 w-6 h-6 flex items-center justify-center ${t.textMuted} ${m.pickerCloseHover} rounded-full touch-manipulation`}
                 style={{ zIndex: 1 }}
               >
                 <X className="w-3.5 h-3.5" />
@@ -876,7 +662,7 @@ const PostModal = ({ post, isOpen, onClose, _onPostUpdated, posts, onNavigatePos
                   <button
                     key={emoji}
                     onClick={() => handleReaction(emoji)}
-                    className="w-11 h-11 flex items-center justify-center rounded-full hover:bg-zinc-700/60 active:scale-90 transition-transform duration-100 touch-manipulation"
+                    className={`w-11 h-11 flex items-center justify-center rounded-full ${t.reactionHover} active:scale-90 transition-transform duration-100 touch-manipulation`}
                     style={{ fontSize: '24px' }}
                     data-testid={`post-reaction-${emoji}`}
                   >
@@ -890,7 +676,7 @@ const PostModal = ({ post, isOpen, onClose, _onPostUpdated, posts, onNavigatePos
         
         {/* Bottom Overlay - Caption & Actions - highest z-index for touch */}
         <div 
-          className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 via-black/60 to-transparent pt-20 pb-6"
+          className={`absolute bottom-0 left-0 right-0 ${m.bottomGradient} pt-20 pb-6`}
           style={{ zIndex: 50 }}
         >
           {/* Actions Row */}
@@ -932,13 +718,13 @@ const PostModal = ({ post, isOpen, onClose, _onPostUpdated, posts, onNavigatePos
               
               {/* Like Count */}
               {likeCount > 0 && (
-                <span className="text-white font-semibold text-sm ml-1">
+                <span className={`${m.textPrimary} font-semibold text-sm ml-1`}>
                   {likeCount.toLocaleString()}
                 </span>
               )}
               
               <button
-                className="p-3 text-white ml-2"
+                className={`p-3 ${m.iconColor} ml-2`}
                 onClick={(e) => {
                   e.stopPropagation();
                   setShowComments(true);
@@ -950,8 +736,8 @@ const PostModal = ({ post, isOpen, onClose, _onPostUpdated, posts, onNavigatePos
               >
                 <MessageCircle className="w-7 h-7" />
               </button>
-              <button 
-                className="p-3 text-white touch-manipulation"
+              <button aria-label="Send" 
+                className={`p-3 ${m.iconColor} touch-manipulation`}
                 onClick={() => setShareModalOpen(true)}
               >
                 <Send className="w-7 h-7" />
@@ -962,7 +748,7 @@ const PostModal = ({ post, isOpen, onClose, _onPostUpdated, posts, onNavigatePos
                 e.stopPropagation();
                 handleSave();
               }}
-              className={`p-3 active:scale-95 touch-manipulation select-none ${saved ? 'text-yellow-400' : 'text-white'}`}
+              className={`p-3 active:scale-95 touch-manipulation select-none ${saved ? m.savedColor : m.unsavedColor}`}
               style={{ 
                 WebkitTapHighlightColor: 'transparent'
               }}
@@ -982,8 +768,8 @@ const PostModal = ({ post, isOpen, onClose, _onPostUpdated, posts, onNavigatePos
               onClick={() => setCaptionExpanded(!captionExpanded)}
               style={{ pointerEvents: 'auto' }}
             >
-              <p className="text-white text-sm">
-                <span className="font-semibold mr-1 cursor-pointer hover:underline" onClick={(e) => { e.stopPropagation(); navigate(`/profile/${post.author_id}`); }}>{post.author_name}</span>
+              <p className={`${m.textCaption} text-sm`}>
+                <span className={`font-semibold mr-1 cursor-pointer hover:underline ${m.textPrimary}`} onClick={(e) => { e.stopPropagation(); navigate(`/profile/${post.author_id}`); }}>{post.author_name}</span>
                 <RichText 
                   text={captionExpanded ? post.caption : truncatedCaption}
                   hashtagClassName="text-cyan-400 hover:text-cyan-300 cursor-pointer"
@@ -991,7 +777,7 @@ const PostModal = ({ post, isOpen, onClose, _onPostUpdated, posts, onNavigatePos
                 />
               </p>
               {post.caption?.length > 100 && !captionExpanded && (
-                <button className="text-white/60 text-sm mt-1">more</button>
+                <button className={`${m.moreBtn} text-sm mt-1`}>more</button>
               )}
             </div>
           )}
@@ -999,7 +785,7 @@ const PostModal = ({ post, isOpen, onClose, _onPostUpdated, posts, onNavigatePos
           {/* Comments preview */}
           {comments.length > 0 && !showComments && (
             <button 
-              className="text-white/60 text-sm px-4 mb-2" 
+              className={`${m.moreBtn} text-sm px-4 mb-2`} 
               style={{ pointerEvents: 'auto' }}
               onClick={() => setShowComments(true)}
             >
@@ -1011,7 +797,7 @@ const PostModal = ({ post, isOpen, onClose, _onPostUpdated, posts, onNavigatePos
           {showComments && (
             <div className="px-4 mb-2 max-h-40 overflow-y-auto" style={{ pointerEvents: 'auto' }}>
               <button 
-                className="text-white/60 text-sm mb-2"
+                className={`${m.moreBtn} text-sm mb-2`}
                 onClick={() => setShowComments(false)}
               >
                 Hide comments
@@ -1021,19 +807,19 @@ const PostModal = ({ post, isOpen, onClose, _onPostUpdated, posts, onNavigatePos
                 return (
                   <div key={comment.id} className="mb-3 flex items-start gap-2">
                     <div className="flex-1">
-                      <p className="text-white text-sm">
+                      <p className={`${m.commentAuthor} text-sm`}>
                         <span className="font-semibold mr-1 cursor-pointer hover:underline" onClick={(e) => { e.stopPropagation(); navigate(`/profile/${comment.author_id}`); }}>{comment.author_name}</span>
-                        <span className="text-white/90">{comment.content}</span>
+                        <span className={m.commentText}>{comment.content}</span>
                       </p>
                       <div className="flex items-center gap-3 mt-1">
-                        <span className="text-white/40 text-xs">{formatTimeAgo(comment.created_at)}</span>
+                        <span className={`${m.textMuted} text-xs`}>{formatTimeAgo(comment.created_at)}</span>
                         {(comment.likes_count > 0 || comment.reactions?.length > 0) && (
-                          <span className="text-white/40 text-xs">
+                          <span className={`${m.textMuted} text-xs`}>
                             {comment.likes_count || comment.reactions?.length || 0} likes
                           </span>
                         )}
                         <button 
-                          className="text-white/40 text-xs font-semibold"
+                          className={`${m.textMuted} text-xs font-semibold`}
                           onClick={() => {/* Reply functionality */}}
                         >
                           Reply
@@ -1045,7 +831,7 @@ const PostModal = ({ post, isOpen, onClose, _onPostUpdated, posts, onNavigatePos
                       onClick={() => handleLikeComment(comment.id)}
                     >
                       <Heart 
-                        className={`w-4 h-4 ${isLiked ? 'text-red-500 fill-red-500' : 'text-white/40'}`}
+                        className={`w-4 h-4 ${isLiked ? 'text-red-500 fill-red-500' : m.heartInactive}`}
                       />
                     </button>
                   </div>
@@ -1056,15 +842,15 @@ const PostModal = ({ post, isOpen, onClose, _onPostUpdated, posts, onNavigatePos
           
           {/* Comment Input with Emoji Picker */}
           <div className="relative px-4 pb-2 flex items-center gap-2" style={{ pointerEvents: 'auto' }}>
-            <button
-              onClick={() => setShowCommentEmoji(!showCommentEmoji)}
+            <button aria-label="Emoji"
+              aria-expanded={showCommentEmoji} onClick={() => setShowCommentEmoji(!showCommentEmoji)}
               className={`flex-shrink-0 p-1.5 rounded-full transition-colors ${
-                showCommentEmoji ? 'bg-yellow-500/20 text-yellow-400' : 'text-white/50 hover:text-white'
+                showCommentEmoji ? m.emojiActive : m.emojiInactive
               }`}
             >
               <Smile className="w-5 h-5" />
             </button>
-            <input
+            <input aria-label="Add a comment..."
               ref={mobileCommentInputRef}
               type="text"
               placeholder="Add a comment..."
@@ -1076,7 +862,7 @@ const PostModal = ({ post, isOpen, onClose, _onPostUpdated, posts, onNavigatePos
                   setShowCommentEmoji(false);
                 }
               }}
-              className="flex-1 bg-transparent text-white text-sm placeholder-white/40 outline-none"
+              className={`flex-1 bg-transparent ${m.inputText} text-sm ${m.inputPlaceholder} outline-none`}
             />
             {commentInput.trim() && (
               <button
@@ -1098,7 +884,7 @@ const PostModal = ({ post, isOpen, onClose, _onPostUpdated, posts, onNavigatePos
           </div>
           
           {/* Timestamp */}
-          <p className="text-white/40 text-xs uppercase px-4 pb-4">
+          <p className={`${m.textMuted} text-xs uppercase px-4 pb-4`}>
             {formatTimeAgo(post.created_at)}
           </p>
         </div>
@@ -1108,6 +894,7 @@ const PostModal = ({ post, isOpen, onClose, _onPostUpdated, posts, onNavigatePos
           post={post}
           open={shareModalOpen}
           onClose={() => setShareModalOpen(false)}
+          isLight={isLight}
         />
         
         {/* Post Menu */}
@@ -1115,7 +902,7 @@ const PostModal = ({ post, isOpen, onClose, _onPostUpdated, posts, onNavigatePos
           post={post}
           open={postMenuOpen}
           onClose={() => setPostMenuOpen(false)}
-          isLight={false}
+          isLight={isLight}
           onPostUpdated={(_updatedPost) => {
             // Handle post update if needed
           }}
@@ -1137,19 +924,18 @@ const PostModal = ({ post, isOpen, onClose, _onPostUpdated, posts, onNavigatePos
       <div className="absolute inset-0 bg-black/80" />
       
       {/* Close button */}
-      <button
+      <button aria-label="Close"
         onClick={onClose}
         className="absolute top-4 right-4 z-10 p-2 text-white hover:opacity-80 transition-opacity"
         data-testid="close-post-modal"
-      >
-        <X className="w-6 h-6" />
+      ><X className="w-6 h-6" />
       </button>
       
       {/* Modal content */}
       <div 
         ref={modalRef}
         onClick={(e) => e.stopPropagation()}
-        className="relative bg-zinc-900 rounded-lg overflow-hidden flex max-w-6xl w-[95vw] max-h-[90vh] shadow-2xl"
+        className={`relative ${t.panelBg} rounded-lg overflow-hidden flex max-w-6xl w-[95vw] max-h-[90vh] shadow-2xl`}
         style={{ minHeight: '500px' }}
       >
         {/* Left side - Image/Carousel */}
@@ -1157,7 +943,7 @@ const PostModal = ({ post, isOpen, onClose, _onPostUpdated, posts, onNavigatePos
           {/* Double-tap shaka animation */}
           {showDoubleTapHeart && (
             <div className="absolute inset-0 flex items-center justify-center z-20 pointer-events-none">
-              <img 
+              <img loading="lazy" decoding="async" 
                 src="https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/svg/1f919.svg"
                 alt="shaka"
                 className="w-24 h-24 animate-ping"
@@ -1170,40 +956,40 @@ const PostModal = ({ post, isOpen, onClose, _onPostUpdated, posts, onNavigatePos
         </div>
         
         {/* Right side - Details & Comments */}
-        <div className="w-[340px] flex flex-col border-l border-zinc-800 bg-zinc-900">
+        <div className={`w-[340px] flex flex-col border-l ${t.panelBorder} ${t.panelBg}`}>
           {/* Header */}
-          <div className="flex items-center gap-3 p-4 border-b border-zinc-800">
-            <div className="w-8 h-8 rounded-full bg-zinc-700 overflow-hidden">
+          <div className={`flex items-center gap-3 p-4 border-b ${t.panelBorder}`}>
+            <div className={`w-8 h-8 rounded-full ${t.avatarFallbackBg} overflow-hidden`}>
               {post.author_avatar ? (
-                <img src={getFullUrl(post.author_avatar)} alt="" className="w-full h-full object-cover" />
+                <img loading="lazy" decoding="async" src={getFullUrl(post.author_avatar)} alt="" className="w-full h-full object-cover" />
               ) : (
-                <span className="w-full h-full flex items-center justify-center text-sm text-gray-400">
+                <span className={`w-full h-full flex items-center justify-center text-sm ${t.avatarFallbackText}`}>
                   {post.author_name?.charAt(0)}
                 </span>
               )}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="font-semibold text-white text-sm truncate cursor-pointer hover:underline" onClick={(e) => { e.stopPropagation(); navigate(`/profile/${post.author_id}`); }}>{post.author_name}</p>
+              <p className={`font-semibold ${t.textPrimary} text-sm truncate cursor-pointer hover:underline`} onClick={(e) => { e.stopPropagation(); navigate(`/profile/${post.author_id}`); }}>{post.author_name}</p>
               {post.location && (
-                <p className="text-xs text-gray-400 truncate">{post.location}</p>
+                <p className={`text-xs ${t.textSecondary} truncate`}>{post.location}</p>
               )}
             </div>
-            <button className="text-gray-400 hover:text-white p-1" onClick={(e) => { e.stopPropagation(); setPostMenuOpen(true); }}>
+            <button className={`${t.textSecondary} ${t.hoverText} p-1`} onClick={(e) => { e.stopPropagation(); setPostMenuOpen(true); }} aria-label="More options">
               <MoreHorizontal className="w-5 h-5" />
             </button>
           </div>
           
           {/* Session metadata if available */}
           {(post.session_date || post.wave_height_ft) && (
-            <div className="px-4 py-2 border-b border-zinc-800 space-y-1">
+            <div className={`px-4 py-2 border-b ${t.panelBorder} space-y-1`}>
               {post.session_date && (
-                <div className="flex items-center gap-2 text-xs text-gray-400">
+                <div className={`flex items-center gap-2 text-xs ${t.textSecondary}`}>
                   <Calendar className="w-3.5 h-3.5 text-cyan-400" />
                   <span>{new Date(post.session_date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</span>
                 </div>
               )}
               {post.wave_height_ft && (
-                <div className="flex items-center gap-2 text-xs text-gray-400">
+                <div className={`flex items-center gap-2 text-xs ${t.textSecondary}`}>
                   <Waves className="w-3.5 h-3.5 text-cyan-400" />
                   <span>{post.wave_height_ft}ft @ {post.wave_period_sec || '?'}s</span>
                 </div>
@@ -1216,26 +1002,26 @@ const PostModal = ({ post, isOpen, onClose, _onPostUpdated, posts, onNavigatePos
             {/* Caption */}
             {post.caption && (
               <div className="flex gap-3 p-4">
-                <div className="w-8 h-8 rounded-full bg-zinc-700 overflow-hidden flex-shrink-0">
+                <div className={`w-8 h-8 rounded-full ${t.avatarFallbackBg} overflow-hidden flex-shrink-0`}>
                   {post.author_avatar ? (
-                    <img src={getFullUrl(post.author_avatar)} alt="" className="w-full h-full object-cover" />
+                    <img loading="lazy" decoding="async" src={getFullUrl(post.author_avatar)} alt="" className="w-full h-full object-cover" />
                   ) : (
-                    <span className="w-full h-full flex items-center justify-center text-sm text-gray-400">
+                    <span className={`w-full h-full flex items-center justify-center text-sm ${t.avatarFallbackText}`}>
                       {post.author_name?.charAt(0)}
                     </span>
                   )}
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm">
-                    <span className="font-semibold text-white mr-1 cursor-pointer hover:underline" onClick={(e) => { e.stopPropagation(); navigate(`/profile/${post.author_id}`); }}>{post.author_name}</span>
+                    <span className={`font-semibold ${t.textPrimary} mr-1 cursor-pointer hover:underline`} onClick={(e) => { e.stopPropagation(); navigate(`/profile/${post.author_id}`); }}>{post.author_name}</span>
                     <RichText 
                       text={post.caption}
-                      className="text-gray-300"
+                      className={t.captionText}
                       hashtagClassName="text-cyan-400 hover:text-cyan-300 cursor-pointer"
                       mentionClassName="text-blue-400 hover:text-blue-300 cursor-pointer"
                     />
                   </p>
-                  <p className="text-xs text-gray-500 mt-1">{formatTimeAgo(post.created_at)}</p>
+                  <p className={`text-xs ${t.textMuted} mt-1`}>{formatTimeAgo(post.created_at)}</p>
                 </div>
               </div>
             )}
@@ -1257,46 +1043,112 @@ const PostModal = ({ post, isOpen, onClose, _onPostUpdated, posts, onNavigatePos
                   ))}
                 </div>
               ) : (
-                <p className="text-center text-gray-500 text-sm py-4">
+                <p className={`text-center ${t.textMuted} text-sm py-4`}>
                   No comments yet. Be the first!
                 </p>
               )}
             </div>
           </div>
           
+          {/* Reaction Picker Overlay - Desktop */}
+          {showReactionPicker && (
+            <div className="fixed inset-0 z-[200]">
+              <div 
+                className="absolute inset-0 bg-black/30"
+                onClick={() => setShowReactionPicker(false)}
+              />
+              <div 
+                className={`absolute ${t.reactionPickerBg} backdrop-blur-md border ${t.reactionPickerBorder} rounded-full px-2 py-2 shadow-2xl animate-in zoom-in-95 duration-200 flex items-center`}
+                style={{ 
+                  left: '50%',
+                  top: '50%',
+                  transform: 'translate(-50%, -50%)'
+                }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                {REACTION_EMOJIS.map((emoji) => (
+                  <button
+                    key={emoji}
+                    onClick={() => handleReaction(emoji)}
+                    className={`w-10 h-10 flex items-center justify-center rounded-full ${t.reactionHover} active:scale-90 transition-transform duration-100 touch-manipulation ${
+                      userReaction?.emoji === emoji ? (isLight ? 'bg-gray-200 ring-1 ring-cyan-400/50' : 'bg-zinc-700/50 ring-1 ring-cyan-400/50') : ''
+                    }`}
+                    style={{ fontSize: '22px' }}
+                    data-testid={`desktop-reaction-${emoji}`}
+                  >
+                    {emoji}
+                  </button>
+                ))}
+                <button 
+                  onClick={() => setShowReactionPicker(false)}
+                  className={`w-8 h-8 flex items-center justify-center ${t.textSecondary} ${t.hoverText} border-l ${t.reactionPickerBorder} ml-1 ${t.reactionHover} rounded-full`}
+                  aria-label="Close reaction picker"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          )}
+          
           {/* Actions */}
-          <div className="border-t border-zinc-800 p-4 space-y-3">
+          <div className={`border-t ${t.panelBorder} p-4 space-y-3`}>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-4">
-                <button onClick={handleLike} className="hover:opacity-70 transition-opacity">
-                  <img 
-                    src="https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/svg/1f919.svg"
-                    alt="shaka"
-                    className="w-6 h-6"
-                    style={{ filter: liked ? 'none' : 'grayscale(100%) brightness(1.5)' }}
-                  />
-                </button>
                 <button
-                  className="text-white hover:opacity-70 transition-opacity"
+                  onPointerDown={(e) => {
+                    e.preventDefault();
+                    handleReactionStart();
+                  }}
+                  onPointerUp={(e) => {
+                    e.preventDefault();
+                    handleReactionEnd();
+                  }}
+                  onPointerCancel={handleReactionCancel}
+                  onPointerLeave={handleReactionCancel}
+                  onContextMenu={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    return false;
+                  }}
+                  className={`transition-all duration-300 select-none transform ${
+                    isPressing ? 'scale-125' : 'hover:scale-110'
+                  }`}
+                  style={{
+                    transition: 'transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
+                    WebkitTouchCallout: 'none',
+                    WebkitUserSelect: 'none',
+                    userSelect: 'none'
+                  }}
+                  data-testid="desktop-reaction-button"
+                  title="Tap to react, hold for emoji picker"
+                >
+                  {userReaction ? (
+                    <span className="text-2xl select-none">{userReaction.emoji}</span>
+                  ) : (
+                    <ShakaIcon filled={liked} size={24} />
+                  )}
+                </button>
+                <button aria-label="Message"
+                  className={`${t.iconDefault} ${t.iconHover} transition-opacity`}
                   onClick={() => {
                     if (desktopCommentInputRef.current) desktopCommentInputRef.current.focus();
                   }}
                 >
                   <MessageCircle className="w-6 h-6" />
                 </button>
-                <button 
-                  className="text-white hover:opacity-70 transition-opacity"
+                <button aria-label="Send" 
+                  className={`${t.iconDefault} ${t.iconHover} transition-opacity`}
                   onClick={() => setShareModalOpen(true)}
                 >
                   <Send className="w-6 h-6" />
                 </button>
               </div>
-              <button 
+              <button aria-label="Bookmark" 
                 onClick={(e) => {
                   e.stopPropagation();
                   handleSave();
                 }}
-                className={`transition-opacity touch-manipulation active:scale-95 ${saved ? 'text-yellow-400' : 'text-white'} hover:opacity-70`}
+                className={`transition-opacity touch-manipulation active:scale-95 ${saved ? t.savedColor : t.unsavedColor} ${t.iconHover}`}
               >
                 <Bookmark className="w-6 h-6" fill={saved ? 'currentColor' : 'none'} />
               </button>
@@ -1304,29 +1156,29 @@ const PostModal = ({ post, isOpen, onClose, _onPostUpdated, posts, onNavigatePos
             
             {/* Like count */}
             {likeCount > 0 && (
-              <p className="text-white text-sm font-semibold">
+              <p className={`${t.likeCountText} text-sm font-semibold`}>
                 {likeCount.toLocaleString()} like{likeCount !== 1 ? 's' : ''}
               </p>
             )}
             
             {/* Timestamp */}
-            <p className="text-gray-500 text-xs uppercase">
+            <p className={`${t.textMuted} text-xs uppercase`}>
               {formatTimeAgo(post.created_at)}
             </p>
           </div>
           
           {/* Comment input with Emoji Picker */}
-          <div className="border-t border-zinc-800 p-4">
+          <div className={`border-t ${t.panelBorder} p-4`}>
             <div className="relative flex items-center gap-2">
-              <button
-                onClick={() => setShowCommentEmoji(!showCommentEmoji)}
+              <button aria-label="Emoji"
+                aria-expanded={showCommentEmoji} onClick={() => setShowCommentEmoji(!showCommentEmoji)}
                 className={`flex-shrink-0 p-1.5 rounded-full transition-colors ${
-                  showCommentEmoji ? 'bg-yellow-500/20 text-yellow-400' : 'text-gray-400 hover:text-white'
+                  showCommentEmoji ? t.commentBtnActive : t.commentBtnInactive
                 }`}
               >
                 <Smile className="w-5 h-5" />
               </button>
-              <input
+              <input aria-label="Text input"
                 ref={desktopCommentInputRef}
                 type="text"
                 value={commentInput}
@@ -1338,11 +1190,11 @@ const PostModal = ({ post, isOpen, onClose, _onPostUpdated, posts, onNavigatePos
                   }
                 }}
                 placeholder="Add a comment..."
-                className="flex-1 bg-transparent text-white text-sm placeholder-gray-500 focus:outline-none"
+                className={`flex-1 bg-transparent ${t.inputText} text-sm ${t.inputPlaceholder} focus:outline-none`}
                 disabled={submittingComment}
               />
               {commentInput.trim() && (
-                <button
+                <button aria-label="Loader2"
                   onClick={() => { handleSubmitComment(); setShowCommentEmoji(false); }}
                   disabled={submittingComment}
                   className="text-blue-500 hover:text-blue-400 text-sm font-semibold"
@@ -1368,6 +1220,7 @@ const PostModal = ({ post, isOpen, onClose, _onPostUpdated, posts, onNavigatePos
         post={post}
         open={shareModalOpen}
         onClose={() => setShareModalOpen(false)}
+        isLight={isLight}
       />
       
       {/* Post Menu - Desktop */}
@@ -1375,19 +1228,19 @@ const PostModal = ({ post, isOpen, onClose, _onPostUpdated, posts, onNavigatePos
         post={post}
         open={postMenuOpen}
         onClose={() => setPostMenuOpen(false)}
-        isLight={false}
+        isLight={isLight}
         onPostUpdated={() => {}}
         onPostDeleted={() => { onClose(); }}
       />
       
-      {/* Swipe navigation arrows — positioned on the viewport edges */}
+      {/* Swipe navigation arrows - positioned on the viewport edges */}
       {!isMobile && posts && onNavigatePost && (() => {
         const idx = posts.findIndex(p => p.id === post?.id);
         if (idx === -1) return null;
         return (
           <>
             {idx > 0 && (
-              <button
+              <button aria-label="Previous"
                 onClick={(e) => { e.stopPropagation(); onNavigatePost(posts[idx - 1]); }}
                 className="fixed left-3 top-1/2 -translate-y-1/2 z-[60] w-10 h-10 rounded-full bg-white/20 hover:bg-white/40 backdrop-blur-sm flex items-center justify-center text-white transition-all shadow-lg"
                 data-testid="post-modal-prev"
@@ -1396,7 +1249,7 @@ const PostModal = ({ post, isOpen, onClose, _onPostUpdated, posts, onNavigatePos
               </button>
             )}
             {idx < posts.length - 1 && (
-              <button
+              <button aria-label="Next"
                 onClick={(e) => { e.stopPropagation(); onNavigatePost(posts[idx + 1]); }}
                 className="fixed right-3 top-1/2 -translate-y-1/2 z-[60] w-10 h-10 rounded-full bg-white/20 hover:bg-white/40 backdrop-blur-sm flex items-center justify-center text-white transition-all shadow-lg"
                 data-testid="post-modal-next"

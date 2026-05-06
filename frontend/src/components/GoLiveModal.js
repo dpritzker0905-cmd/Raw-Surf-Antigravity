@@ -1,10 +1,8 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import {
   Radio, Clock, Mic, MicOff, Camera, CameraOff, Loader2, AlertTriangle,
-  RefreshCw, MessageCircle, Heart, Send, X, Sparkles, Sun, Contrast,
-  Share2, Eye, Wifi, WifiOff, ChevronUp, ChevronDown, Droplets, Thermometer,
-  CircleDot, Sunset, Waves, Film, RotateCcw, Power, Zap, Moon, Grid,
-  Signal, SignalHigh, SignalLow, SignalMedium, Play, ArrowLeft, ChevronRight,
+  RefreshCw, MessageCircle, Heart, X, Sparkles,
+  Share2, Eye, Film, Power, Play, ArrowLeft, ChevronRight,
   Info, TrendingUp, Award, Star, Scissors
 } from 'lucide-react';
 import { Button } from './ui/button';
@@ -30,673 +28,32 @@ import {
   useTracks,
   RoomAudioRenderer,
   useConnectionState,
+  useDataChannel,
 } from '@livekit/components-react';
 import { WebGLBroadcastController } from './WebGLBroadcastController';
 
 import '@livekit/components-styles';
 
-import { Track, ConnectionState } from 'livekit-client';
+import { Track, ConnectionState, DataPacket_Kind } from 'livekit-client';
 
 import logger from '../utils/logger';
 import { getFullUrl } from '../utils/media';
 import { HairFilterEngine } from '../utils/HairFilterEngine';
 import { HairFilterPicker } from './HairFilterPicker';
 
+// Extracted sub-components (v46 decomposition)
+import {
+  ConnectionQualityBadge,
+  getThemeColors,
+  VideoFilterPanel,
+  EmojiBurst,
+  CommentTile,
+  LiveCommentsFeed,
+  QuickReactions,
+  EndStreamDialog,
+} from './live/GoLiveSubComponents';
 
 
-/**
- * Connection Quality Indicator Component
- */
-const ConnectionQualityBadge = ({ state, quality }) => {
-  // quality: 'excellent' | 'good' | 'poor' | 'unknown'
-  const getConnectionInfo = () => {
-    if (quality === 'poor') {
-      return { icon: SignalLow, color: 'text-red-400', bg: 'bg-red-500/20', label: 'Poor Signal' };
-    }
-    if (quality === 'good') {
-      return { icon: SignalMedium, color: 'text-yellow-400', bg: 'bg-yellow-500/20', label: 'Good' };
-    }
-    if (quality === 'excellent') {
-      return { icon: SignalHigh, color: 'text-green-400', bg: 'bg-green-500/20', label: 'Excellent' };
-    }
-    switch (state) {
-      case ConnectionState.Connected:
-        return { icon: Wifi, color: 'text-green-400', bg: 'bg-green-500/20', label: 'Connected' };
-      case ConnectionState.Connecting:
-        return { icon: Wifi, color: 'text-yellow-400', bg: 'bg-yellow-500/20', label: 'Connecting...' };
-      case ConnectionState.Reconnecting:
-        return { icon: Wifi, color: 'text-orange-400', bg: 'bg-orange-500/20', label: 'Reconnecting...' };
-      case ConnectionState.Disconnected:
-        return { icon: WifiOff, color: 'text-red-400', bg: 'bg-red-500/20', label: 'Disconnected' };
-      default:
-        return { icon: Signal, color: 'text-gray-400', bg: 'bg-gray-500/20', label: 'Checking...' };
-    }
-  };
-  
-  const info = getConnectionInfo();
-  const Icon = info.icon;
-  
-  return (
-    <motion.div 
-      initial={{ opacity: 0, scale: 0.8 }}
-      animate={{ opacity: 1, scale: 1 }}
-      className={`flex items-center gap-1.5 px-2 py-1 rounded-full ${info.bg}`}
-    >
-      <Icon className={`w-3 h-3 ${info.color}`} />
-      <span className={`text-xs font-medium ${info.color}`}>{info.label}</span>
-    </motion.div>
-  );
-};
-
-/**
- * Theme-aware color system using CSS variables
- * Maps to existing Raw Surf theme engine - NO hardcoded hex values
- */
-const getThemeColors = (theme) => {
-  return {
-    // Overlay backgrounds - semi-transparent
-    overlayBg: theme === 'light' 
-      ? 'bg-white/70 backdrop-blur-md' 
-      : theme === 'beach'
-        ? 'bg-amber-900/60 backdrop-blur-md'
-        : 'bg-zinc-900/70 backdrop-blur-md',
-    
-    // Text colors
-    primaryText: theme === 'light' ? 'text-slate-900' : 'text-white',
-    secondaryText: theme === 'light' ? 'text-slate-600' : theme === 'beach' ? 'text-amber-100' : 'text-zinc-400',
-    
-    // Action/Accent colors (theme-specific highlights)
-    accentBg: theme === 'light' 
-      ? 'bg-blue-500' 
-      : theme === 'beach' 
-        ? 'bg-orange-500' 
-        : 'bg-cyan-500',
-    accentText: theme === 'light' ? 'text-blue-500' : theme === 'beach' ? 'text-orange-400' : 'text-cyan-400',
-    
-    // Button styles
-    buttonBg: theme === 'light' 
-      ? 'bg-slate-200 hover:bg-slate-300' 
-      : theme === 'beach'
-        ? 'bg-amber-800/50 hover:bg-amber-700/50'
-        : 'bg-white/20 hover:bg-white/30',
-    
-    // Comment tile backgrounds
-    commentBg: theme === 'light' 
-      ? 'bg-white/90' 
-      : theme === 'beach'
-        ? 'bg-amber-900/80'
-        : 'bg-zinc-800/90',
-    
-    // Border colors
-    border: theme === 'light' ? 'border-slate-200' : theme === 'beach' ? 'border-amber-700/50' : 'border-zinc-700',
-    
-    // Gradient for top/bottom overlays
-    gradientTop: theme === 'light'
-      ? 'from-white/90 via-white/50 to-transparent'
-      : theme === 'beach'
-        ? 'from-amber-950/90 via-amber-950/50 to-transparent'
-        : 'from-black/90 via-black/50 to-transparent',
-    gradientBottom: theme === 'light'
-      ? 'from-transparent via-white/50 to-white/90'
-      : theme === 'beach'
-        ? 'from-transparent via-amber-950/50 to-amber-950/90'
-        : 'from-transparent via-black/50 to-black/90',
-    
-    // Slider/filter panel colors
-    sliderBg: theme === 'light' ? 'bg-slate-300' : theme === 'beach' ? 'bg-amber-700' : 'bg-zinc-600',
-    sliderThumb: theme === 'light' ? 'bg-blue-500' : theme === 'beach' ? 'bg-orange-400' : 'bg-cyan-400',
-  };
-};
-
-/**
- * Video Filter Panel - Surfer-optimized filters
- * Positioned on LEFT side to avoid collision with controls
- */
-const VideoFilterPanel = ({ isOpen, onClose, filters, onFilterChange, onPresetSelect, colors }) => {
-  if (!isOpen) return null;
-  
-  // Surfer-specific AI Filter presets
-  const presets = [
-    { 
-      name: 'None', 
-      icon: CircleDot,
-      values: { brightness: 100, contrast: 100, saturation: 100, warmth: 100, vignette: 0 },
-      description: 'Original camera'
-    },
-    { 
-      name: 'AI Night Vision', 
-      icon: Eye,
-      values: { brightness: 100, contrast: 100, saturation: 100, warmth: 100, vignette: 0 },
-      description: 'Tactical green overlay'
-    },
-    { 
-      name: 'AI Pixelate', 
-      icon: Grid,
-      values: { brightness: 100, contrast: 100, saturation: 100, warmth: 100, vignette: 0 },
-      description: 'Retro 8-bit aesthetic'
-    },
-    { 
-      name: 'Golden Hour', 
-      icon: Sunset,
-      values: { brightness: 105, contrast: 110, saturation: 120, warmth: 120, vignette: 20 },
-      description: 'Warm sunset vibes'
-    },
-    { 
-      name: 'AI Pipeline', 
-      icon: Waves,
-      values: { brightness: 90, contrast: 130, saturation: 90, warmth: 110, vignette: 40 },
-      description: 'Deep barrel shadows'
-    },
-    { 
-      name: 'AI Bio-Lum', 
-      icon: Moon,
-      values: { brightness: 85, contrast: 140, saturation: 150, warmth: 160, vignette: 30 },
-      description: 'Neon glowing night surf'
-    },
-    { 
-      name: 'AI Cyber-Surf', 
-      icon: Zap,
-      values: { brightness: 110, contrast: 125, saturation: 140, warmth: 40, vignette: 0 },
-      description: 'Hyper-performance cold lens'
-    },
-  ];
-  
-  return (
-    <motion.div
-      initial={{ opacity: 0, x: -20 }}
-      animate={{ opacity: 1, x: 0 }}
-      exit={{ opacity: 0, x: -20 }}
-      className={`absolute left-3 top-24 w-64 max-h-[55vh] overflow-y-auto p-3 rounded-2xl ${colors.overlayBg} ${colors.border} border z-50`}
-    >
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-2">
-          <Sparkles className={`w-4 h-4 ${colors.accentText}`} />
-          <span className={`text-sm font-medium ${colors.primaryText}`}>Surf Filters</span>
-        </div>
-        <button onClick={onClose} className={`p-1.5 rounded-full ${colors.buttonBg}`}>
-          <X className={`w-4 h-4 ${colors.secondaryText}`} />
-        </button>
-      </div>
-      
-      {/* Preset Buttons */}
-      <div className="mb-3 space-y-1.5">
-        <span className={`text-xs font-medium ${colors.secondaryText}`}>Quick Presets</span>
-        <div className="grid grid-cols-3 gap-1.5">
-          {presets.map((preset) => {
-            const Icon = preset.icon;
-            return (
-              <button
-                key={preset.name}
-                onClick={() => onPresetSelect(preset)}
-                className={`flex flex-col items-center gap-1 p-2 rounded-lg ${colors.buttonBg} hover:scale-105 transition-transform`}
-                title={preset.description}
-              >
-                <Icon className={`w-4 h-4 ${colors.accentText}`} />
-                <span className={`text-[9px] ${colors.primaryText} text-center leading-tight`}>{preset.name}</span>
-              </button>
-            );
-          })}
-        </div>
-      </div>
-      
-      {/* Brightness */}
-      <div className="mb-2.5">
-        <div className="flex items-center justify-between mb-1">
-          <div className="flex items-center gap-1.5">
-            <Sun className={`w-3 h-3 ${colors.secondaryText}`} />
-            <span className={`text-xs ${colors.secondaryText}`}>Brightness</span>
-          </div>
-          <span className={`text-xs ${colors.primaryText}`}>{filters.brightness}%</span>
-        </div>
-        <input
-          type="range"
-          min="50"
-          max="150"
-          value={filters.brightness}
-          onChange={(e) => onFilterChange('brightness', parseInt(e.target.value))}
-          className="w-full h-1.5 rounded-full appearance-none cursor-pointer accent-cyan-500"
-        />
-      </div>
-      
-      {/* Contrast */}
-      <div className="mb-2.5">
-        <div className="flex items-center justify-between mb-1">
-          <div className="flex items-center gap-1.5">
-            <Contrast className={`w-3 h-3 ${colors.secondaryText}`} />
-            <span className={`text-xs ${colors.secondaryText}`}>Contrast</span>
-          </div>
-          <span className={`text-xs ${colors.primaryText}`}>{filters.contrast}%</span>
-        </div>
-        <input
-          type="range"
-          min="50"
-          max="150"
-          value={filters.contrast}
-          onChange={(e) => onFilterChange('contrast', parseInt(e.target.value))}
-          className="w-full h-1.5 rounded-full appearance-none cursor-pointer accent-cyan-500"
-        />
-      </div>
-      
-      {/* Saturation */}
-      <div className="mb-2.5">
-        <div className="flex items-center justify-between mb-1">
-          <div className="flex items-center gap-1.5">
-            <Droplets className={`w-3 h-3 ${colors.secondaryText}`} />
-            <span className={`text-xs ${colors.secondaryText}`}>Saturation</span>
-          </div>
-          <span className={`text-xs ${colors.primaryText}`}>{filters.saturation}%</span>
-        </div>
-        <input
-          type="range"
-          min="50"
-          max="150"
-          value={filters.saturation}
-          onChange={(e) => onFilterChange('saturation', parseInt(e.target.value))}
-          className="w-full h-1.5 rounded-full appearance-none cursor-pointer accent-cyan-500"
-        />
-      </div>
-      
-      {/* Warmth */}
-      <div className="mb-2.5">
-        <div className="flex items-center justify-between mb-1">
-          <div className="flex items-center gap-1.5">
-            <Thermometer className={`w-3 h-3 ${colors.secondaryText}`} />
-            <span className={`text-xs ${colors.secondaryText}`}>Warmth</span>
-          </div>
-          <span className={`text-xs ${colors.primaryText}`}>{filters.warmth}%</span>
-        </div>
-        <input
-          type="range"
-          min="50"
-          max="150"
-          value={filters.warmth}
-          onChange={(e) => onFilterChange('warmth', parseInt(e.target.value))}
-          className="w-full h-1.5 rounded-full appearance-none cursor-pointer accent-cyan-500"
-        />
-      </div>
-      
-      {/* Vignette */}
-      <div className="mb-3">
-        <div className="flex items-center justify-between mb-1">
-          <div className="flex items-center gap-1.5">
-            <CircleDot className={`w-3 h-3 ${colors.secondaryText}`} />
-            <span className={`text-xs ${colors.secondaryText}`}>Vignette</span>
-          </div>
-          <span className={`text-xs ${colors.primaryText}`}>{filters.vignette}%</span>
-        </div>
-        <input
-          type="range"
-          min="0"
-          max="50"
-          value={filters.vignette}
-          onChange={(e) => onFilterChange('vignette', parseInt(e.target.value))}
-          className="w-full h-1.5 rounded-full appearance-none cursor-pointer accent-cyan-500"
-        />
-      </div>
-      
-      {/* Reset Button */}
-      <Button
-        onClick={() => {
-          onFilterChange('brightness', 100);
-          onFilterChange('contrast', 100);
-          onFilterChange('saturation', 100);
-          onFilterChange('warmth', 100);
-          onFilterChange('vignette', 0);
-        }}
-        size="sm"
-        variant="outline"
-        className={`w-full ${colors.buttonBg} ${colors.primaryText}`}
-      >
-        <RotateCcw className="w-3 h-3 mr-2" />
-        Reset All
-      </Button>
-    </motion.div>
-  );
-};
-
-/**
- * Emoji Burst Animation - Instagram/TikTok style floating emoji burst
- * Emojis float upward in a slight random arc, fade at top
- */
-const EmojiBurst = ({ emoji, x, y, theme, id }) => {
-  // Slight random horizontal drift so emojis don't stack
-  const drift = useMemo(() => (Math.random() - 0.5) * 60, []);
-  const glowClass = theme === 'dark' ? 'drop-shadow-[0_0_8px_rgba(255,255,255,0.6)]'
-    : theme === 'beach' ? 'drop-shadow-[0_0_8px_rgba(251,146,60,0.7)]'
-    : 'drop-shadow-md';
-
-  return (
-    <motion.div
-      key={id}
-      initial={{ opacity: 1, scale: 0.6, y: 0, x: 0 }}
-      animate={{ opacity: 0, scale: 1.8, y: -140, x: drift }}
-      exit={{ opacity: 0 }}
-      transition={{ duration: 1.8, ease: [0.16, 1, 0.3, 1] }}
-      className={`absolute text-4xl ${glowClass} pointer-events-none select-none z-50`}
-      style={{ left: x, top: y }}
-    >
-      {emoji}
-    </motion.div>
-  );
-};
-
-/**
- * Live Comment Tile - Theme-aware styling with likes
- */
-const CommentTile = React.memo(({ comment, colors, onReply, onLike, currentUserId }) => {
-  const [liked, setLiked] = useState(comment.liked_by?.includes(currentUserId) || false);
-  const [likeCount, setLikeCount] = useState(comment.likes || 0);
-  
-  const handleLike = async () => {
-    const wasLiked = liked;
-    setLiked(!liked);
-    setLikeCount(prev => wasLiked ? prev - 1 : prev + 1);
-    
-    try {
-      await onLike(comment.id, !wasLiked);
-    } catch {
-      // Revert on error
-      setLiked(wasLiked);
-      setLikeCount(prev => wasLiked ? prev + 1 : prev - 1);
-    }
-  };
-  
-  return (
-    <motion.div
-      initial={{ opacity: 0, x: -20 }}
-      animate={{ opacity: 1, x: 0 }}
-      exit={{ opacity: 0, x: 20 }}
-      className={`flex items-start gap-2 p-2 rounded-xl ${colors.commentBg} ${colors.border} border`}
-    >
-      <Avatar className="w-8 h-8 flex-shrink-0">
-        <AvatarImage src={getFullUrl(comment.avatar_url)} />
-        <AvatarFallback className="bg-zinc-600 text-xs text-white">
-          {comment.user_name?.[0] || '?'}
-        </AvatarFallback>
-      </Avatar>
-      <div className="flex-1 min-w-0">
-        <span className={`text-xs font-semibold ${colors.accentText}`}>
-          {comment.user_name}
-        </span>
-        <p className={`text-sm ${colors.primaryText} break-words`}>
-          {comment.text}
-        </p>
-        {/* Like count display */}
-        {likeCount > 0 && (
-          <span className={`text-[10px] ${colors.secondaryText}`}>
-            {likeCount} {likeCount === 1 ? 'like' : 'likes'}
-          </span>
-        )}
-      </div>
-      <div className="flex flex-col gap-1">
-        {/* Like button */}
-        <button 
-          onClick={handleLike}
-          className={`p-1 rounded-full ${colors.buttonBg} transition-all ${liked ? 'scale-110' : 'opacity-60 hover:opacity-100'}`}
-        >
-          <Heart className={`w-3 h-3 ${liked ? 'text-red-500 fill-red-500' : colors.secondaryText}`} />
-        </button>
-        {/* Reply button */}
-        <button 
-          onClick={() => onReply(comment)}
-          className={`p-1 rounded-full ${colors.buttonBg} opacity-60 hover:opacity-100`}
-        >
-          <MessageCircle className={`w-3 h-3 ${colors.secondaryText}`} />
-        </button>
-      </div>
-    </motion.div>
-  );
-});
-
-/**
- * Live Comments Feed - Real-time with delta sync
- * Broadcaster can comment and reply, viewers can like comments
- */
-const LiveCommentsFeed = ({ streamId, colors, onSendComment, onLikeComment, isExpanded, onToggleExpand, currentUserId }) => {
-  const [comments, setComments] = useState([]);
-  const [newComment, setNewComment] = useState('');
-  const [sending, setSending] = useState(false);
-  const [replyingTo, setReplyingTo] = useState(null);
-  const commentsRef = useRef(null);
-  const lastFetchRef = useRef(Date.now());
-  
-  // Delta sync - only fetch new comments since last fetch
-  useEffect(() => {
-    if (!streamId) return;
-    
-    const fetchComments = async () => {
-      try {
-        const response = await apiClient.get(`/social-live/${streamId}/comments`);
-        if (response.data?.comments) {
-          // Lightweight update check — compare length + latest ID instead of full JSON serialize
-          setComments(prev => {
-            const newComments = response.data.comments;
-            const lastPrevId = prev.length > 0 ? prev[prev.length - 1]?.id : null;
-            const lastNewId = newComments.length > 0 ? newComments[newComments.length - 1]?.id : null;
-            if (prev.length !== newComments.length || lastPrevId !== lastNewId) {
-              return newComments;
-            }
-            return prev;
-          });
-          lastFetchRef.current = Date.now();
-        }
-      } catch (err) {
-        // Silent fail
-      }
-    };
-
-    fetchComments();
-    const interval = setInterval(fetchComments, 2000);
-    return () => clearInterval(interval);
-  }, [streamId]);
-
-  // Auto-scroll to bottom
-  useEffect(() => {
-    if (commentsRef.current) {
-      commentsRef.current.scrollTop = commentsRef.current.scrollHeight;
-    }
-  }, [comments]);
-
-  const handleSend = async (e) => {
-    e?.preventDefault();
-    if (!newComment.trim() || sending) return;
-    
-    setSending(true);
-    const text = replyingTo 
-      ? `@${replyingTo.user_name} ${newComment.trim()}`
-      : newComment.trim();
-    
-    try {
-      await onSendComment(text);
-      setNewComment('');
-      setReplyingTo(null);
-    } catch (err) {
-      // Error already handled in onSendComment
-      logger.error('Comment send error:', err);
-    } finally {
-      setSending(false);
-    }
-  };
-
-  const handleReply = (comment) => {
-    setReplyingTo(comment);
-  };
-
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: isExpanded ? '100%' : 'auto', overflow: 'hidden', background: 'rgba(9,9,11,0.92)', backdropFilter: 'blur(12px)' }}>
-      {/* Header — Live pulse + count */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', borderBottom: '1px solid rgba(39,39,42,0.8)', flexShrink: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          {/* Animated live pulse dot */}
-          <div style={{ position: 'relative', width: 10, height: 10, flexShrink: 0 }}>
-            <div className="animate-ping" style={{ position: 'absolute', inset: 0, borderRadius: '50%', background: '#f59e0b', opacity: 0.6 }} />
-            <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', background: '#f59e0b' }} />
-          </div>
-          <span style={{ fontSize: 13, fontWeight: 700, color: '#fff', letterSpacing: '0.02em' }}>LIVE CHAT</span>
-          <span style={{ fontSize: 11, color: '#71717a', background: 'rgba(39,39,42,0.7)', padding: '1px 6px', borderRadius: 8 }}>{comments.length}</span>
-        </div>
-        <button onClick={onToggleExpand} className={`sm:hidden p-1.5 rounded-lg ${colors.buttonBg} transition-colors`}>
-          {isExpanded ? <ChevronDown className={`w-4 h-4 ${colors.secondaryText}`} /> : <ChevronUp className={`w-4 h-4 ${colors.secondaryText}`} />}
-        </button>
-      </div>
-
-      {isExpanded && (
-        <>
-          {/* Comments list - flex-1 fills all remaining height */}
-          <div
-            ref={commentsRef}
-            style={{ flex: 1, overflowY: 'auto', padding: '8px', display: 'flex', flexDirection: 'column', gap: 6, minHeight: 0 }}
-          >
-            <AnimatePresence mode="popLayout">
-              {comments.slice(-50).map((comment) => (
-                <CommentTile
-                  key={comment.id}
-                  comment={comment}
-                  colors={colors}
-                  onReply={handleReply}
-                  onLike={onLikeComment}
-                  currentUserId={currentUserId}
-                />
-              ))}
-            </AnimatePresence>
-
-            {comments.length === 0 && (
-              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#52525b' }}>
-                <MessageCircle style={{ width: 28, height: 28, opacity: 0.3, marginBottom: 8 }} />
-                <p style={{ fontSize: 13, margin: 0 }}>No comments yet</p>
-                <p style={{ fontSize: 11, opacity: 0.5, marginTop: 4 }}>Be the first to say something!</p>
-              </div>
-            )}
-          </div>
-
-          {/* Reply indicator */}
-          <AnimatePresence>
-            {replyingTo && (
-              <motion.div
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: 'auto', opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
-                style={{ padding: '6px 12px', borderTop: '1px solid #27272a', background: '#18181b', display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}
-              >
-                <span className={`text-xs ${colors.secondaryText}`}>Replying to</span>
-                <span className={`text-xs font-semibold ${colors.accentText}`}>@{replyingTo.user_name}</span>
-                <button onClick={() => setReplyingTo(null)} className="ml-auto">
-                  <X className={`w-3 h-3 ${colors.secondaryText}`} />
-                </button>
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          {/* Input - pinned to bottom */}
-          <form onSubmit={handleSend} style={{ padding: '10px 12px', borderTop: '1px solid #27272a', background: '#09090b', flexShrink: 0 }}>
-            <div style={{ display: 'flex', gap: 8 }}>
-              <Input
-                value={newComment}
-                onChange={(e) => setNewComment(e.target.value)}
-                placeholder={replyingTo ? `Reply to @${replyingTo.user_name}...` : 'Say something...'}
-                className={`flex-1 h-9 text-sm bg-zinc-800 border-zinc-700 text-white placeholder:text-zinc-500`}
-                maxLength={200}
-                disabled={sending}
-              />
-              <Button
-                type="submit"
-                size="sm"
-                disabled={!newComment.trim() || sending}
-                className={`${colors.accentBg} text-white h-9 px-3`}
-              >
-                {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-              </Button>
-            </div>
-          </form>
-        </>
-      )}
-    </div>
-  );
-};
-
-/**
- * Quick Reaction Buttons - Surf-themed emoji reactions with haptic burst animation
- * Best practice: keep to 6 reactions max, most-used first (Instagram Live pattern)
- */
-const QuickReactions = ({ onReact, colors }) => {
-  const reactions = [
-    { emoji: '🤙', label: 'shaka' },
-    { emoji: '🌊', label: 'wave' },
-    { emoji: '🔥', label: 'fire' },
-    { emoji: '❤️', label: 'love' },
-    { emoji: '🏄', label: 'surf' },
-    { emoji: '😮', label: 'wow' },
-  ];
-
-  return (
-    <div className={`flex items-center gap-1.5 px-2 py-1.5 rounded-full ${colors.overlayBg} backdrop-blur-md border ${colors.border}`}>
-      {reactions.map(({ emoji, label }) => (
-        <button
-          key={emoji}
-          onClick={() => onReact(emoji)}
-          aria-label={label}
-          className="text-lg sm:text-xl hover:scale-130 transition-all duration-150 active:scale-90 p-1 rounded-full hover:bg-white/10"
-        >
-          {emoji}
-        </button>
-      ))}
-    </div>
-  );
-};
-
-/**
- * End Stream Confirmation Dialog - Theme-aware
- */
-const EndStreamDialog = ({ isOpen, onConfirm, onCancel, duration, colors }) => {
-  if (!isOpen) return null;
-
-  const formatDuration = (seconds) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}m ${secs}s`;
-  };
-
-  return (
-    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/80 backdrop-blur-sm">
-      <motion.div 
-        initial={{ scale: 0.9, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        className={`${colors.overlayBg} ${colors.border} border rounded-2xl p-6 max-w-sm mx-4`}
-      >
-        <div className="flex items-center justify-center mb-4">
-          <div className="w-16 h-16 rounded-full bg-red-500/20 flex items-center justify-center">
-            <AlertTriangle className="w-8 h-8 text-red-500" />
-          </div>
-        </div>
-        
-        <h3 className={`${colors.primaryText} text-xl font-bold text-center mb-2`}>
-          End Live Stream?
-        </h3>
-        
-        <p className={`${colors.secondaryText} text-center mb-4`}>
-          You've been live for <span className={`${colors.primaryText} font-semibold`}>{formatDuration(duration)}</span>. 
-          Are you sure you want to end your broadcast?
-        </p>
-        
-        <div className="flex gap-3">
-          <Button
-            onClick={onCancel}
-            variant="outline"
-            className={`flex-1 ${colors.border} ${colors.primaryText} ${colors.buttonBg}`}
-          >
-            Keep Streaming
-          </Button>
-          <Button
-            onClick={onConfirm}
-            className="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold"
-          >
-            End Live
-          </Button>
-        </div>
-      </motion.div>
-    </div>
-  );
-};
 
 /**
  * Broadcaster Controls Component - Main broadcasting interface
@@ -810,26 +167,71 @@ const BroadcasterControls = ({
     // Throws on error so CommentTile can revert the optimistic update
   }, [streamId, userId]);
 
+  // ── LiveKit DataChannel for real-time emoji reactions ──
+  // Reactions received from viewers appear as floating emoji bursts on the broadcaster's screen.
+  const onReactionReceived = useCallback((msg) => {
+    try {
+      const strData = new TextDecoder().decode(msg.payload);
+      const { emoji } = JSON.parse(strData);
+      if (!emoji) return;
+      const id = Date.now() + Math.random();
+      const x = Math.random() * 100 + 100;
+      const y = window.innerHeight - 200;
+      setEmojiBursts(prev => [...prev, { id, emoji, x, y }]);
+      setLikeCount(prev => prev + 1);
+      setTimeout(() => setEmojiBursts(prev => prev.filter(b => b.id !== id)), 1500);
+    } catch { /* ignore malformed */ }
+  }, []);
+
+  const { send: sendReaction } = useDataChannel('reactions', onReactionReceived);
+
   const handleReaction = useCallback((emoji) => {
-    // Add emoji burst animation
+    // Show locally immediately
     const id = Date.now();
-    const x = Math.random() * 100 + 100; // Random x position
+    const x = Math.random() * 100 + 100;
     const y = window.innerHeight - 200;
     
     setEmojiBursts(prev => [...prev, { id, emoji, x, y }]);
     setLikeCount(prev => prev + 1);
     
+    // Broadcast to all room participants
+    try {
+      const encoder = new TextEncoder();
+      const payload = encoder.encode(JSON.stringify({ emoji }));
+      sendReaction(payload, { kind: DataPacket_Kind.RELIABLE });
+    } catch (err) {
+      logger.warn('[GoLive] Failed to send reaction via DataChannel:', err.message);
+    }
+    
     // Remove after animation
     setTimeout(() => {
       setEmojiBursts(prev => prev.filter(b => b.id !== id));
     }, 1500);
-  }, []);
+  }, [sendReaction]);
 
-  // ── Hair Filter Engine lifecycle ──
+  // -- Hair Filter Engine lifecycle --
   useEffect(() => {
     const engine = new HairFilterEngine();
     hairEngineRef.current = engine;
-    engine.init().catch(() => {});
+    
+    const initWithRetry = async (retries = 2) => {
+      for (let attempt = 1; attempt <= retries; attempt++) {
+        try {
+          await engine.init();
+          logger.info(`[HairFilter] Engine initialized on attempt ${attempt}`);
+          return;
+        } catch (err) {
+          logger.warn(`[HairFilter] Init attempt ${attempt}/${retries} failed:`, err.message);
+          if (attempt < retries) {
+            await new Promise(r => setTimeout(r, 2000)); // wait 2s before retry
+          }
+        }
+      }
+      // All retries exhausted — non-fatal, hair filter simply won't work
+      logger.error('[HairFilter] All init attempts failed — MediaPipe CDN may be unreachable');
+    };
+    
+    initWithRetry();
     
     return () => {
       engine.dispose();
@@ -857,6 +259,7 @@ const BroadcasterControls = ({
       const canvasEl = hairCanvasRef.current;
       
       if (videoEl && canvasEl && videoEl.readyState >= 1) {
+        logger.info('[HairFilter] Found video element, starting engine');
         engine.start(videoEl, canvasEl); // start() now awaits init internally
         return true;
       }
@@ -869,8 +272,11 @@ const BroadcasterControls = ({
         if (tryStart()) clearInterval(timer);
       }, 500);
       
-      // Give up after 5 seconds
-      const timeout = setTimeout(() => clearInterval(timer), 5000);
+      // Give up after 12 seconds (MediaPipe CDN can be slow on mobile)
+      const timeout = setTimeout(() => {
+        clearInterval(timer);
+        logger.warn('[HairFilter] Timed out waiting for video element (12s)');
+      }, 12000);
       return () => { clearInterval(timer); clearTimeout(timeout); engine.stop(); };
     }
     
@@ -889,7 +295,7 @@ const BroadcasterControls = ({
     setActiveHairStyle(styleId);
     setShowHairPicker(false); // Auto-close picker on selection
     if (styleId) {
-      toast.success('Hair filter applied! 💇');
+      toast.success('Hair filter applied! \u{2728}');
     }
   }, []);
 
@@ -979,7 +385,7 @@ const BroadcasterControls = ({
 
   return (
     <div className="w-full h-full flex flex-col sm:flex-row overflow-hidden" data-theme={theme}>
-      {/* ── Main Video Section ── */}
+      {/* -- Main Video Section -- */}
       <div className="flex-1 relative bg-black flex flex-col min-w-0">
         {/* Actual Video */}
         <div className="flex-1 relative overflow-hidden">
@@ -990,7 +396,7 @@ const BroadcasterControls = ({
                 isCameraOff={isCameraOff}
                 isFrontCamera={isFrontCamera}
               />
-              {/* Hair filter canvas overlay — matches WebGL canvas: video-resolution buffer + object-cover + mirror */}
+              {/* Hair filter canvas overlay - matches WebGL canvas: video-resolution buffer + object-cover + mirror */}
               <canvas
                 ref={hairCanvasRef}
                 className={`absolute inset-0 w-full h-full object-cover pointer-events-none ${isFrontCamera ? 'scale-x-[-1]' : ''}`}
@@ -1071,7 +477,7 @@ const BroadcasterControls = ({
             </button>
 
             <button
-              onClick={() => setShowFilters(!showFilters)}
+              aria-expanded={showFilters} onClick={() => setShowFilters(!showFilters)}
               className={`p-3 rounded-full ${colors.overlayBg} ${colors.border} border transition-all active:scale-95 shadow-md ${showFilters ? colors.accentBg : ''}`}
               title="Surf Filters"
             >
@@ -1079,7 +485,7 @@ const BroadcasterControls = ({
             </button>
 
             <button
-              onClick={() => setShowHairPicker(!showHairPicker)}
+              aria-expanded={showHairPicker} onClick={() => setShowHairPicker(!showHairPicker)}
               className={`p-3 rounded-full ${colors.overlayBg} ${colors.border} border transition-all active:scale-95 shadow-md ${showHairPicker ? 'bg-yellow-500' : activeHairStyle ? 'bg-yellow-500/30 border-yellow-500/50' : ''}`}
               title="Hair Filters"
             >
@@ -1119,7 +525,7 @@ const BroadcasterControls = ({
             <QuickReactions onReact={handleReaction} colors={colors} />
           </div>
 
-          {/* ── BROADCASTER CONTROLS: float over video bottom ── */}
+          {/* -- BROADCASTER CONTROLS: float over video bottom -- */}
           <div style={{
             position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: 20,
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
@@ -1162,7 +568,7 @@ const BroadcasterControls = ({
         </div>{/* end video+overlay area */}
       </div>{/* end video column */}
 
-      {/* ── Desktop Sidebar: Live Chat ── */}
+      {/* -- Desktop Sidebar: Live Chat -- */}
       <AnimatePresence>
         {isChatOpen && (
           <motion.div
@@ -1210,7 +616,7 @@ const BroadcasterControls = ({
 
 /**
  * GoLiveModal - Full-screen live streaming with LiveKit
- * Phase machine: pre_live → countdown → live
+ * Phase machine: pre_live ? countdown ? live
  * No auto-start. User must explicitly press Go Live.
  */
 const GoLiveModal = ({ isOpen, onClose, onStreamEnded }) => {
@@ -1249,7 +655,7 @@ const GoLiveModal = ({ isOpen, onClose, onStreamEnded }) => {
     userIdRef.current = user?.id;
   }, [user?.id]);
 
-  // ── Reset phase when modal opens/closes ──
+  // -- Reset phase when modal opens/closes --
   useEffect(() => {
     if (isOpen) {
       setPhase('pre_live');
@@ -1275,7 +681,7 @@ const GoLiveModal = ({ isOpen, onClose, onStreamEnded }) => {
     };
   }, [isOpen]);
 
-  // ── Camera preview for pre-live screen ──
+  // -- Camera preview for pre-live screen --
   const startCameraPreview = useCallback(async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false });
@@ -1285,7 +691,7 @@ const GoLiveModal = ({ isOpen, onClose, onStreamEnded }) => {
       }
     } catch (err) {
       logger.warn('[GoLiveModal] Camera preview unavailable:', err);
-      // Not fatal — user may grant camera on actual go-live
+      // Not fatal - user may grant camera on actual go-live
     }
   }, []);
 
@@ -1303,7 +709,7 @@ const GoLiveModal = ({ isOpen, onClose, onStreamEnded }) => {
     }
   }, [cameraPreviewStream]);
 
-  // ── Signal quality estimation via navigator.connection or RTT probe ──
+  // -- Signal quality estimation via navigator.connection or RTT probe --
   const checkSignalQuality = useCallback(async () => {
     setSignalQuality('unknown');
     try {
@@ -1333,7 +739,7 @@ const GoLiveModal = ({ isOpen, onClose, onStreamEnded }) => {
     }
   }, []);
 
-  // ── Start stream (called after countdown) ──
+  // -- Start stream (called after countdown) --
   const startStream = useCallback(async () => {
     if (!user?.id) {
       setError('Please log in to go live');
@@ -1354,7 +760,7 @@ const GoLiveModal = ({ isOpen, onClose, onStreamEnded }) => {
 
       logger.info('[GoLiveModal] Stream started:', response.data);
 
-      // Stop camera preview — LiveKit will take over camera
+      // Stop camera preview - LiveKit will take over camera
       stopCameraPreview();
 
       setBroadcasterToken({
@@ -1396,17 +802,17 @@ const GoLiveModal = ({ isOpen, onClose, onStreamEnded }) => {
     }
   }, [user, streamTitle, stopCameraPreview]);
 
-  // ── Initiate countdown then start stream ──
+  // -- Initiate countdown then start stream --
   const handleGoLive = useCallback(() => {
     if (signalQuality === 'poor') {
-      toast.warning('⚠️ Poor signal detected. Your stream may be unstable.');
-      // Don't block — let user decide
+      toast.warning('Ã¢Å¡Â Ã¯Â¸Â Poor signal detected. Your stream may be unstable.');
+      // Don't block - let user decide
     }
     setPhase('countdown');
     setCountdownValue(3);
   }, [signalQuality]);
 
-  // ── Countdown tick → triggers startStream when done ──
+  // -- Countdown tick ? triggers startStream when done --
   useEffect(() => {
     if (phase !== 'countdown') return;
     if (countdownValue <= 0) {
@@ -1417,7 +823,7 @@ const GoLiveModal = ({ isOpen, onClose, onStreamEnded }) => {
     return () => clearTimeout(timer);
   }, [phase, countdownValue, startStream]);
 
-  // ── End stream ──
+  // -- End stream --
   const endStream = useCallback(async () => {
     logger.info('[GoLiveModal] Ending stream...');
     
@@ -1450,12 +856,12 @@ const GoLiveModal = ({ isOpen, onClose, onStreamEnded }) => {
     onClose();
   }, [streamData, user, onStreamEnded, onClose]);
 
-  // ── Phase-aware close handler ──
+  // -- Phase-aware close handler --
   const handleClose = useCallback(() => {
     if (phase === 'live' || phase === 'countdown') {
       // During live or countdown: require confirmation
       if (phase === 'countdown') {
-        // Abort countdown — just go back to pre-live
+        // Abort countdown - just go back to pre-live
         setPhase('pre_live');
         return;
       }
@@ -1476,17 +882,17 @@ const GoLiveModal = ({ isOpen, onClose, onStreamEnded }) => {
   if (!isOpen) return null;
 
   return (
-    /* ── Mobile: fullscreen  |  Desktop: centred popup ── */
+    /* -- Mobile: fullscreen  |  Desktop: centred popup -- */
     <div className="fixed inset-0 z-[99999] flex items-center justify-center p-0 sm:p-6" data-testid="go-live-modal" data-theme={theme}>
-      {/* Dark backdrop — click away closes only if pre-live or shows confirmation if live */}
+      {/* Dark backdrop - click away closes only if pre-live or shows confirmation if live */}
       <div
         className="fixed inset-0 bg-black/80 backdrop-blur-sm hidden sm:block"
         onClick={handleClose}
       />
-      {/* Inner container — fullscreen on mobile, popup on desktop */}
+      {/* Inner container - fullscreen on mobile, popup on desktop */}
       <div className="relative w-full h-full sm:w-[1100px] sm:h-[720px] sm:max-h-[90vh] sm:rounded-2xl sm:overflow-hidden bg-black shadow-2xl shadow-black/60">
 
-        {/* ── PRE-LIVE SCREEN ── */}
+        {/* -- PRE-LIVE SCREEN -- */}
         <AnimatePresence>
           {phase === 'pre_live' && (
             <motion.div
@@ -1498,11 +904,10 @@ const GoLiveModal = ({ isOpen, onClose, onStreamEnded }) => {
             >
               {/* Header */}
               <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-800 flex-shrink-0">
-                <button
+                <button aria-label="Close"
                   onClick={handleClose}
                   className="p-2 rounded-full hover:bg-zinc-800 transition-colors"
-                >
-                  <X className="w-5 h-5 text-zinc-400" />
+                ><X className="w-5 h-5 text-zinc-400" />
                 </button>
                 <span className="text-white font-semibold text-base">Live Video</span>
                 <div className="w-9" />{/* spacer */}
@@ -1528,7 +933,7 @@ const GoLiveModal = ({ isOpen, onClose, onStreamEnded }) => {
                   </div>
                 )}
 
-                {/* Signal quality overlay — top right */}
+                {/* Signal quality overlay - top right */}
                 <div className="absolute top-3 right-3">
                   <ConnectionQualityBadge quality={signalQuality} />
                   {signalQuality === 'poor' && (
@@ -1546,7 +951,7 @@ const GoLiveModal = ({ isOpen, onClose, onStreamEnded }) => {
                 </div>
 
                 {/* Recheck signal button */}
-                <button
+                <button aria-label="Refresh"
                   onClick={checkSignalQuality}
                   className="absolute bottom-3 right-3 flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-zinc-800/80 text-zinc-400 text-xs hover:bg-zinc-700/80 transition-colors"
                 >
@@ -1559,7 +964,7 @@ const GoLiveModal = ({ isOpen, onClose, onStreamEnded }) => {
               <div className="flex-shrink-0 bg-zinc-950 border-t border-zinc-800 p-4">
                 {/* Stream title input */}
                 <div className="mb-4">
-                  <input
+                  <input aria-label="Add a title for your live (optional)"
                     type="text"
                     value={streamTitle}
                     onChange={e => setStreamTitle(e.target.value)}
@@ -1576,7 +981,7 @@ const GoLiveModal = ({ isOpen, onClose, onStreamEnded }) => {
                 </div>
 
                 {/* Go Live button */}
-                <button
+                <button aria-label="Radio"
                   onClick={handleGoLive}
                   className="w-full flex items-center justify-center gap-3 py-4 rounded-2xl bg-red-600 hover:bg-red-500 active:scale-[0.98] transition-all font-bold text-white text-lg shadow-lg shadow-red-900/40"
                 >
@@ -1589,7 +994,7 @@ const GoLiveModal = ({ isOpen, onClose, onStreamEnded }) => {
           )}
         </AnimatePresence>
 
-        {/* ── COUNTDOWN OVERLAY ── */}
+        {/* -- COUNTDOWN OVERLAY -- */}
         <AnimatePresence>
           {phase === 'countdown' && (
             <motion.div
@@ -1600,7 +1005,7 @@ const GoLiveModal = ({ isOpen, onClose, onStreamEnded }) => {
               className="absolute inset-0 flex flex-col items-center justify-center bg-black z-50"
             >
               {/* Abort countdown button */}
-              <button
+              <button aria-label="Go back"
                 onClick={() => setPhase('pre_live')}
                 className="absolute top-4 left-4 flex items-center gap-2 px-3 py-2 rounded-full bg-zinc-800/80 text-zinc-400 text-sm hover:bg-zinc-700 transition-colors"
               >
@@ -1653,14 +1058,14 @@ const GoLiveModal = ({ isOpen, onClose, onStreamEnded }) => {
                   className="absolute bottom-8 flex items-center gap-2 bg-red-950/80 border border-red-700/40 rounded-xl px-4 py-2.5"
                 >
                   <AlertTriangle className="w-4 h-4 text-red-400" />
-                  <span className="text-red-300 text-sm">Poor signal — stream may be unstable</span>
+                  <span className="text-red-300 text-sm">Poor signal - stream may be unstable</span>
                 </motion.div>
               )}
             </motion.div>
           )}
         </AnimatePresence>
 
-        {/* ── LOADING (connecting after countdown) ── */}
+        {/* -- LOADING (connecting after countdown) -- */}
         {isLoading && (
           <div className="absolute inset-0 flex items-center justify-center bg-black z-40">
             <div className="text-center">
@@ -1674,7 +1079,7 @@ const GoLiveModal = ({ isOpen, onClose, onStreamEnded }) => {
           </div>
         )}
 
-        {/* ── ERROR STATE ── */}
+        {/* -- ERROR STATE -- */}
         {error && !isLoading && (
           <div className="absolute inset-0 flex items-center justify-center bg-black p-6 z-40">
             <div className={`${colors.overlayBg} rounded-2xl p-6 max-w-sm text-center`}>
@@ -1693,7 +1098,7 @@ const GoLiveModal = ({ isOpen, onClose, onStreamEnded }) => {
           </div>
         )}
 
-        {/* ── LIVE BROADCAST ── */}
+        {/* -- LIVE BROADCAST -- */}
         {phase === 'live' && broadcasterToken && !error && (
           <div className="relative w-full h-full">
             <LiveKitRoom
@@ -1722,7 +1127,7 @@ const GoLiveModal = ({ isOpen, onClose, onStreamEnded }) => {
           </div>
         )}
 
-        {/* ── End stream confirmation dialog ── */}
+        {/* -- End stream confirmation dialog -- */}
         <EndStreamDialog
           isOpen={showEndDialog}
           onConfirm={endStream}

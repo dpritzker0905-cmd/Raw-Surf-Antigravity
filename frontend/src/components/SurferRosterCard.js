@@ -79,7 +79,7 @@ const SurferDetailModal = ({
             {/* Large Selfie/Avatar */}
             <div className="relative w-full aspect-square rounded-xl overflow-hidden bg-zinc-800">
               {displayImage ? (
-                <img 
+                <img loading="lazy" decoding="async" 
                   src={displayImage} 
                   alt={surfer.name} 
                   className="w-full h-full object-cover"
@@ -180,13 +180,13 @@ const SurferDetailModal = ({
                 <StickyNote className="w-4 h-4 text-amber-400" />
                 <span className={`text-sm font-medium ${textPrimaryClass}`}>Your Notes</span>
               </div>
-              <Textarea
+              <Textarea aria-label="Add notes to help identify this surfer... (e.g., 'Red fins, staying near the pier, goofy footer')"
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 placeholder="Add notes to help identify this surfer... (e.g., 'Red fins, staying near the pier, goofy footer')"
                 className={`${isLight ? 'bg-gray-100' : 'bg-zinc-800'} ${textPrimaryClass} min-h-[80px]`}
               />
-              <Button
+              <Button aria-label="Save"
                 onClick={handleSaveNotes}
                 disabled={saving}
                 className="w-full bg-gradient-to-r from-cyan-500 to-blue-500 text-white mb-4"
@@ -217,7 +217,7 @@ const SurferCard = ({ surfer, onClick, isLight, textPrimaryClass, textSecondaryC
       {/* Selfie/Avatar */}
       <div className="aspect-square relative">
         {displayImage ? (
-          <img 
+          <img loading="lazy" decoding="async" 
             src={displayImage} 
             alt={surfer.name} 
             className="w-full h-full object-cover"
@@ -391,7 +391,7 @@ export const SurferRosterCard = ({
             
             <div className="flex items-center gap-2">
               {/* Sound toggle */}
-              <Button
+              <Button aria-label="Volume2"
                 variant="ghost"
                 size="sm"
                 onClick={() => setSoundEnabled(!soundEnabled)}

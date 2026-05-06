@@ -169,7 +169,7 @@ async def complete_session_payment(data: CompletePaymentRequest, db: AsyncSessio
         
         # Send real-time push notification
         try:
-            from routes.push import notify_session_join
+            from routes.notifications.push import notify_session_join
 
 
             await notify_session_join(

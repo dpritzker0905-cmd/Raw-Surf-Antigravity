@@ -11,87 +11,20 @@ import { CommentInputWithEmoji } from './EmojiPicker';
 import WhoReactedModal from './WhoReactedModal';
 import SessionJoinCard from './SessionJoinCard';
 import { RichText, CommentText } from './RichText';
-import { MapPin, MessageCircle, Send, Bookmark, MoreHorizontal, Loader2, Play, Radio, Heart, ShoppingBag, ChevronRight, RefreshCw, Volume2, Volume1, VolumeX, Pause } from 'lucide-react';
+import { MapPin, MessageCircle, Send, Bookmark, MoreHorizontal, Loader2, Play, Radio, Heart, ShoppingBag, ChevronLeft, ChevronRight, RefreshCw, Volume2, Volume1, VolumeX, Pause } from 'lucide-react';
 import { toast } from 'sonner';
 import { getFullUrl } from '../utils/media';
+import ReplyItem from './social/ReplyItem';
 import { formatTimeAgo } from '../utils/formatTime';
 import { REACTION_EMOJIS } from '../constants/emojis';
 
 
-// Comment reaction emojis — imported from centralized constants/emojis.js
+// Comment reaction emojis - imported from centralized constants/emojis.js
 
 /**
  * ReplyItem - Simpler component for reply rendering (non-recursive)
  */
-const ReplyItem = ({ reply, userId, _postId, textPrimaryClass, textSecondaryClass, _isLight }) => {
-  const navigate = useNavigate();
-  const [reactionCount, setReactionCount] = useState(reply.reaction_count || 0);
-  const [viewerReaction, setViewerReaction] = useState(reply.viewer_reaction || null);
-  const [loading, setLoading] = useState(false);
-
-  const handleReaction = async (emoji = '❤️') => {
-    if (!userId) {
-      toast.error('Please log in to react');
-      return;
-    }
-    
-    setLoading(true);
-    try {
-      const response = await apiClient.post(
-        `/comments/${reply.id}/reactions`,
-        { emoji }
-      );
-      
-      if (response.data.action === 'added') {
-        setReactionCount(prev => prev + 1);
-        setViewerReaction(emoji);
-      } else if (response.data.action === 'removed') {
-        setReactionCount(prev => Math.max(0, prev - 1));
-        setViewerReaction(null);
-      } else if (response.data.action === 'updated') {
-        setViewerReaction(emoji);
-      }
-    } catch (err) {
-      toast.error('Failed to react');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-
-
-  return (
-    <div className="ml-6 pl-3 border-l-2 border-zinc-700/50">
-      <div className="flex items-start gap-2">
-        <div className="flex-1 min-w-0">
-          <span className={`font-medium ${textPrimaryClass} text-sm cursor-pointer hover:underline`}
-            onClick={(e) => { e.stopPropagation(); navigate(`/profile/${reply.author_id}`); }}>
-            {reply.author_name}
-          </span>
-          <CommentText 
-            text={reply.content}
-            className={`${textSecondaryClass} text-sm ml-1`}
-          />
-        </div>
-      </div>
-      <div className={`flex items-center gap-3 mt-1 ${textSecondaryClass} text-xs`}>
-        <span className="opacity-70">{formatTimeAgo(reply.created_at)}</span>
-        {reactionCount > 0 && (
-          <span className="font-medium">{reactionCount} like{reactionCount !== 1 ? 's' : ''}</span>
-        )}
-        <button
-          onClick={() => handleReaction('❤️')}
-          disabled={loading}
-          className={`ml-auto p-1 rounded transition-all ${
-            viewerReaction ? 'text-red-500' : `${textSecondaryClass} hover:text-red-400`
-          }`}
-        >
-          <Heart className="w-3.5 h-3.5" fill={viewerReaction ? 'currentColor' : 'none'} />
-        </button>
-      </div>
-    </div>
-  );
-};
+// ReplyItem extracted to ./social/ReplyItem.js
 
 /**
  * CommentWithReaction - Individual comment with like/reaction button and reply support
@@ -125,7 +58,7 @@ const CommentWithReaction = ({
   const [localIsEdited, setLocalIsEdited] = useState(comment.is_edited || false);
   const [showMenu, setShowMenu] = useState(false);
 
-  const handleReaction = async (emoji = '❤️') => {
+  const handleReaction = async (emoji = '🤙') => {
     if (!userId) {
       toast.error('Please log in to react');
       return;
@@ -236,7 +169,7 @@ const CommentWithReaction = ({
         <div className="flex-1 min-w-0">
           {isEditing ? (
             <div className="flex flex-col gap-2">
-              <textarea
+              <textarea aria-label="Text input"
                 value={editContent}
                 onChange={(e) => setEditContent(e.target.value)}
                 className={`w-full p-2 rounded-lg text-sm resize-none ${
@@ -288,8 +221,8 @@ const CommentWithReaction = ({
         {/* Edit/Delete menu for owner */}
         {isOwner && !isEditing && (
           <div className="relative">
-            <button
-              onClick={() => setShowMenu(!showMenu)}
+            <button aria-label="More options"
+              aria-expanded={showMenu} onClick={() => setShowMenu(!showMenu)}
               className={`p-1 rounded ${textSecondaryClass} hover:opacity-80`}
               data-testid={`comment-menu-${comment.id}`}
             >
@@ -327,7 +260,7 @@ const CommentWithReaction = ({
         )}
         
         <button 
-          onClick={() => setShowReplyInput(!showReplyInput)}
+          aria-expanded={showReplyInput} onClick={() => setShowReplyInput(!showReplyInput)}
           className="hover:opacity-80 font-medium"
           data-testid={`reply-btn-${comment.id}`}
         >
@@ -336,7 +269,7 @@ const CommentWithReaction = ({
         
         <div className="relative ml-auto">
           <button
-            onClick={() => viewerReaction ? handleReaction(viewerReaction) : handleReaction('❤️')}
+            onClick={() => viewerReaction ? handleReaction(viewerReaction) : handleReaction('🤙')}
             onContextMenu={(e) => { e.preventDefault(); setShowReactionPicker(true); }}
             disabled={loading}
             className={`p-1 rounded transition-all ${
@@ -344,7 +277,7 @@ const CommentWithReaction = ({
             } ${loading ? 'opacity-50' : ''}`}
             data-testid={`comment-like-${comment.id}`}
           >
-            {viewerReaction && viewerReaction !== '❤️' ? (
+            {viewerReaction && viewerReaction !== '🤙' ? (
               <span className="text-sm">{viewerReaction}</span>
             ) : (
               <Heart className="w-3.5 h-3.5" fill={viewerReaction ? 'currentColor' : 'none'} />
@@ -380,7 +313,7 @@ const CommentWithReaction = ({
       {/* Reply Input */}
       {showReplyInput && (
         <div className="mt-2 ml-6 flex gap-2" data-testid={`reply-input-container-${comment.id}`}>
-          <input
+          <input aria-label="Reply to ${comment.author_name}..."
             type="text"
             value={replyContent}
             onChange={(e) => setReplyContent(e.target.value)}
@@ -396,7 +329,7 @@ const CommentWithReaction = ({
             }}
             data-testid={`reply-input-${comment.id}`}
           />
-          <button
+          <button aria-label="Loader2"
             onClick={handleSubmitReply}
             disabled={!replyContent.trim() || submittingReply}
             className={`px-3 py-1.5 text-sm font-medium rounded-full transition-colors ${
@@ -411,7 +344,7 @@ const CommentWithReaction = ({
       
       {/* View/Hide Replies Toggle */}
       {replyCount > 0 && !showReplies && (
-        <button
+        <button aria-label="span"
           onClick={() => setShowReplies(true)}
           className={`mt-2 ml-6 text-xs ${textSecondaryClass} hover:opacity-80 flex items-center gap-1`}
         >
@@ -424,7 +357,7 @@ const CommentWithReaction = ({
       {showReplies && localReplies.length > 0 && (
         <div className="mt-2 space-y-2">
           {localReplies.length > 0 && (
-            <button
+            <button aria-label="span"
               onClick={() => setShowReplies(false)}
               className={`ml-6 text-xs ${textSecondaryClass} hover:opacity-80 flex items-center gap-1`}
             >
@@ -501,7 +434,7 @@ const ReactionIcon = ({ post, userId, isLiked, isPressing }) => {
           {userReaction.emoji}
         </span>
       ) : (
-        <img 
+        <img loading="lazy" decoding="async" 
           key={shakaIsChecked ? "shaka-checked" : "shaka-unchecked"}
           src="https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/svg/1f919.svg"
           alt="shaka"
@@ -529,7 +462,7 @@ const ReactionIcon = ({ post, userId, isLiked, isPressing }) => {
 
 // Shaka icon using Twemoji image for consistent rendering
 const _ShakaIcon = ({ filled }) => (
-  <img 
+  <img loading="lazy" decoding="async" 
     src="https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/svg/1f919.svg"
     alt="shaka"
     style={{ 
@@ -576,7 +509,8 @@ const PostCard = ({
   onIWasThere,
   onViewCollaborators,
   onFollowFromFeed,
-  onImageClick  // Opens Instagram-style modal
+  onImageClick,  // Opens Instagram-style modal
+  onDoubleTapLike  // Direct like function for double-tap (bypasses pointer events)
 }) => {
   const navigate = useNavigate();
   
@@ -603,21 +537,44 @@ const PostCard = ({
   const [showDoubleTapHeart, setShowDoubleTapHeart] = useState(false);
   const lastTapRef = useRef(0);
   const singleTapTimerRef = useRef(null);
+  // Prevents synthesized click from double-firing after touch on mobile.
+  // Touch fires first, then browser synthesizes a click event ~50-100ms later.
+  // Without this guard, the click handler sees the touch's timestamp and
+  // falsely detects a "double tap" from a single finger tap.
+  const touchHandledRef = useRef(false);
+  // Track touch start position to distinguish scrolls from taps.
+  // If finger moves >10px between touchstart and touchend, it's a scroll, not a tap.
+  const touchStartRef = useRef({ x: 0, y: 0 });
+  const SCROLL_THRESHOLD = 10; // pixels
+
+  // Carousel state
+  const [activeSlide, setActiveSlide] = useState(0);
+  const carouselTouchStartRef = useRef({ x: 0, y: 0 });
+  const isCarousel = post?.is_carousel && post?.carousel_media?.length > 0;
+  const carouselItems = isCarousel ? post.carousel_media : [];
 
   const handleMediaTap = useCallback((e) => {
+    // Skip if touch already handled this interaction (prevents touch→click double-fire)
+    if (touchHandledRef.current) {
+      touchHandledRef.current = false;
+      return;
+    }
     const now = Date.now();
-    if (now - lastTapRef.current < 300) {
-      // Double tap detected — cancel pending single tap, trigger like
+    if (now - lastTapRef.current < 400) {
+      // Double tap detected → cancel pending single tap
       if (singleTapTimerRef.current) {
         clearTimeout(singleTapTimerRef.current);
         singleTapTimerRef.current = null;
       }
       e.stopPropagation();
       e.preventDefault();
-      if (user?.id && post?.id && onLikeStart) {
-        onLikeStart(post, e);
-        setTimeout(() => onLikeEnd && onLikeEnd(post, e), 50);
+      
+      // Double-tap toggles shaka reaction on/off
+      if (user?.id && post?.id && onDoubleTapLike) {
+        onDoubleTapLike(post.id);
       }
+      
+      // Always show the shaka animation (even if already liked)
       setShowDoubleTapHeart(true);
       setTimeout(() => setShowDoubleTapHeart(false), 800);
       lastTapRef.current = 0;
@@ -627,9 +584,69 @@ const PostCard = ({
       singleTapTimerRef.current = setTimeout(() => {
         onImageClick && onImageClick(post);
         singleTapTimerRef.current = null;
-      }, 300);
+      }, 350);
     }
-  }, [user?.id, post?.id, onLikeStart, onLikeEnd, onImageClick, post]);
+  }, [user?.id, post?.id, post?.liked, onDoubleTapLike, onImageClick, post]);
+
+  // Native onDoubleClick handler — failsafe for browsers where onClick double-tap detection fails
+  const handleNativeDoubleClick = useCallback((e) => {
+    e.stopPropagation();
+    e.preventDefault();
+    // Cancel any pending single-tap timer
+    if (singleTapTimerRef.current) {
+      clearTimeout(singleTapTimerRef.current);
+      singleTapTimerRef.current = null;
+    }
+    if (user?.id && post?.id && onDoubleTapLike) {
+      onDoubleTapLike(post.id);
+    }
+    setShowDoubleTapHeart(true);
+    setTimeout(() => setShowDoubleTapHeart(false), 800);
+    lastTapRef.current = 0;
+  }, [user?.id, post?.id, post?.liked, onDoubleTapLike]);
+
+  // Record touch start position to detect scrolls vs taps
+  const handleTouchStart = useCallback((e) => {
+    if (e.touches?.length === 1) {
+      touchStartRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    }
+  }, []);
+
+  // Touch-based double-tap for mobile (bypasses 300ms click delay)
+  const handleTouchEnd = useCallback((e) => {
+    // Only handle single-finger taps
+    if (e.changedTouches?.length !== 1) return;
+
+    // ── Scroll detection: if finger moved >10px, this is a scroll, not a tap ──
+    const touch = e.changedTouches[0];
+    const dx = Math.abs(touch.clientX - touchStartRef.current.x);
+    const dy = Math.abs(touch.clientY - touchStartRef.current.y);
+    if (dx > SCROLL_THRESHOLD || dy > SCROLL_THRESHOLD) return;
+
+    // Mark that touch handled this interaction so the synthesized click skips
+    touchHandledRef.current = true;
+    const now = Date.now();
+    if (now - lastTapRef.current < 400) {
+      // Double-tap via touch
+      e.preventDefault(); // Prevent click from also firing
+      if (singleTapTimerRef.current) {
+        clearTimeout(singleTapTimerRef.current);
+        singleTapTimerRef.current = null;
+      }
+      if (user?.id && post?.id && onDoubleTapLike) {
+        onDoubleTapLike(post.id);
+      }
+      setShowDoubleTapHeart(true);
+      setTimeout(() => setShowDoubleTapHeart(false), 800);
+      lastTapRef.current = 0;
+    } else {
+      lastTapRef.current = now;
+      singleTapTimerRef.current = setTimeout(() => {
+        onImageClick && onImageClick(post);
+        singleTapTimerRef.current = null;
+      }, 350);
+    }
+  }, [user?.id, post?.id, post?.liked, onDoubleTapLike, onImageClick, post]);
 
   // Helper to ensure media paths map to backend directly natively preventing Netlify 404 traps
   const _checkMediaUrl = getFullUrl(post?.media_url || post?.image_url);
@@ -699,7 +716,7 @@ const PostCard = ({
           user_name: l.full_name,
           avatar_url: l.avatar_url,
           user_role: l.role,
-          emoji: '❤️'
+          emoji: '🤙'
         }))
       ];
       setDetailedReactions(allReactors);
@@ -711,7 +728,7 @@ const PostCard = ({
     }
   };
 
-  // Video URL resolution — extracted here to keep JSX clean (no IIFE needed)
+  // Video URL resolution - extracted here to keep JSX clean (no IIFE needed)
   const videoSrc = isVideoItem ? getFullUrl(post.media_url) : null;
   const videoPoster = isVideoItem ? getFullUrl(post.thumbnail_url) : null;
   const videoMimeType = (() => {
@@ -759,7 +776,7 @@ const PostCard = ({
             <div className={`${liveUsers.includes(post.author_id) ? 'p-[2px] rounded-full bg-gradient-to-r from-red-500 via-red-600 to-red-500 animate-pulse' : ''}`}>
               <div className={`w-10 h-10 rounded-full ${isLight ? 'bg-gray-200' : 'bg-zinc-700'} ${liveUsers.includes(post.author_id) ? 'border-2 border-black' : ''} flex items-center justify-center overflow-hidden`}>
                 {post.author_avatar ? (
-                  <img 
+                  <img loading="lazy" decoding="async" 
                     src={getFullUrl(post.author_avatar)} 
                     alt={post.author_name} 
                     className="w-full h-full object-cover"
@@ -814,7 +831,7 @@ const PostCard = ({
               <span>{formatTimeAgo(post.created_at)}</span>
             )}
             {post.location && post.created_at && (
-              <span className="opacity-50">·</span>
+              <span className="opacity-50">-</span>
             )}
             {post.location && (
               <span>{post.location}</span>
@@ -822,7 +839,7 @@ const PostCard = ({
           </p>
         </div>
         </div>
-        <button 
+        <button aria-label="More options" 
           onClick={() => onPostMenuOpen(post)}
           className={`${textSecondaryClass} hover:${textPrimaryClass} p-2`}
           data-testid={`post-menu-btn-${post.id}`}
@@ -834,7 +851,7 @@ const PostCard = ({
       {/* Shop This Photographer's Work CTA - for verified photographers */}
       {['Photographer', 'Approved Pro'].includes(post.author_role) && post.author_id !== user?.id && (
         <div className="px-4 py-2 border-b border-border/50">
-          <button
+          <button aria-label="Shopping Bag"
             onClick={() => navigate(`/photographer/${post.author_id}/gallery`)}
             className="w-full flex items-center justify-center gap-2 py-2 px-4 rounded-lg bg-gradient-to-r from-amber-500/10 to-yellow-500/10 hover:from-amber-500/20 hover:to-yellow-500/20 border border-amber-500/30 transition-all group"
             data-testid={`shop-photographer-${post.id}`}
@@ -848,16 +865,19 @@ const PostCard = ({
         </div>
       )}
 
-      {/* Post Image/Video - click to open modal, double-tap to like */}
+      {/* Post Image/Video/Carousel - click to open modal, double-tap to like */}
       <div 
-        className={`aspect-[4/5] ${isLight ? 'bg-gray-100' : 'bg-zinc-800'} relative select-none cursor-pointer`}
-        onClick={handleMediaTap}
+        className={`aspect-[4/5] ${isLight ? 'bg-gray-100' : 'bg-zinc-800'} relative select-none cursor-pointer overflow-hidden`}
+        onClick={!isCarousel ? handleMediaTap : undefined}
+        onDoubleClick={!isCarousel ? handleNativeDoubleClick : undefined}
+        onTouchStart={!isCarousel ? handleTouchStart : undefined}
+        onTouchEnd={!isCarousel ? handleTouchEnd : undefined}
         data-testid={`post-image-container-${post.id}`}
       >
         {/* Double-tap shaka animation */}
         {showDoubleTapHeart && (
           <div className="absolute inset-0 flex items-center justify-center z-20 pointer-events-none">
-            <img 
+            <img loading="lazy" decoding="async" 
               src="https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/svg/1f919.svg"
               alt="shaka"
               className="w-24 h-24 animate-ping"
@@ -866,14 +886,112 @@ const PostCard = ({
             />
           </div>
         )}
-        {isVideoItem ? (
+
+        {/* ============ CAROUSEL RENDERING ============ */}
+        {isCarousel ? (
+          <div className="relative w-full h-full"
+            onTouchStart={(e) => {
+              if (e.touches?.length === 1) {
+                carouselTouchStartRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+              }
+            }}
+            onTouchEnd={(e) => {
+              if (e.changedTouches?.length !== 1) return;
+              const dx = e.changedTouches[0].clientX - carouselTouchStartRef.current.x;
+              const dy = Math.abs(e.changedTouches[0].clientY - carouselTouchStartRef.current.y);
+              // Only horizontal swipes (not vertical scrolls)
+              if (Math.abs(dx) > 50 && dy < 80) {
+                if (dx < 0 && activeSlide < carouselItems.length - 1) {
+                  setActiveSlide(prev => prev + 1);
+                } else if (dx > 0 && activeSlide > 0) {
+                  setActiveSlide(prev => prev - 1);
+                }
+              }
+            }}
+            onClick={handleMediaTap}
+            onDoubleClick={handleNativeDoubleClick}
+          >
+            {/* Carousel slides container */}
+            <div 
+              className="flex h-full transition-transform duration-300 ease-out"
+              style={{ transform: `translateX(-${activeSlide * 100}%)` }}
+            >
+              {carouselItems.map((item, idx) => (
+                <div key={idx} className="w-full h-full flex-shrink-0">
+                  {item.type === 'video' ? (
+                    <video
+                      className="w-full h-full object-cover"
+                      playsInline
+                      muted
+                      loop
+                      autoPlay={idx === activeSlide}
+                      poster={item.thumbnail_url ? getFullUrl(item.thumbnail_url) : undefined}
+                    >
+                      <source src={getFullUrl(item.url)} type="video/mp4" />
+                    </video>
+                  ) : (
+                    <img
+                      loading="lazy"
+                      decoding="async"
+                      src={getFullUrl(item.url)}
+                      alt={`Slide ${idx + 1}`}
+                      className="w-full h-full object-cover"
+                      draggable={false}
+                      onError={(e) => { e.target.style.display = 'none'; }}
+                    />
+                  )}
+                </div>
+              ))}
+            </div>
+
+            {/* Carousel navigation arrows (desktop) */}
+            {activeSlide > 0 && (
+              <button
+                onClick={(e) => { e.stopPropagation(); setActiveSlide(prev => prev - 1); }}
+                className="absolute left-2 top-1/2 -translate-y-1/2 z-10 w-8 h-8 rounded-full bg-black/50 backdrop-blur-sm flex items-center justify-center text-white hover:bg-black/70 transition-colors"
+                aria-label="Previous slide"
+              >
+                <ChevronLeft className="w-5 h-5" />
+              </button>
+            )}
+            {activeSlide < carouselItems.length - 1 && (
+              <button
+                onClick={(e) => { e.stopPropagation(); setActiveSlide(prev => prev + 1); }}
+                className="absolute right-2 top-1/2 -translate-y-1/2 z-10 w-8 h-8 rounded-full bg-black/50 backdrop-blur-sm flex items-center justify-center text-white hover:bg-black/70 transition-colors"
+                aria-label="Next slide"
+              >
+                <ChevronRight className="w-5 h-5" />
+              </button>
+            )}
+
+            {/* Carousel dot indicators */}
+            <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-10 flex items-center gap-1.5">
+              {carouselItems.map((_, idx) => (
+                <button
+                  key={idx}
+                  onClick={(e) => { e.stopPropagation(); setActiveSlide(idx); }}
+                  className={`rounded-full transition-all duration-200 ${idx === activeSlide 
+                    ? 'w-2 h-2 bg-white shadow-lg' 
+                    : 'w-1.5 h-1.5 bg-white/50 hover:bg-white/70'
+                  }`}
+                  aria-label={`Go to slide ${idx + 1}`}
+                />
+              ))}
+            </div>
+
+            {/* Slide counter badge */}
+            <div className="absolute top-3 right-3 z-10 bg-black/60 backdrop-blur-sm px-2.5 py-1 rounded-full text-xs text-white font-medium">
+              {activeSlide + 1} / {carouselItems.length}
+            </div>
+          </div>
+        ) : isVideoItem ? (
           // If video source errored (404 / network failure), show fallback
           (isDeadLocalVideo || videoError) ? (
             <div className="relative w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-zinc-800 to-zinc-900">
               <Play className="w-12 h-12 text-zinc-500 mb-2" />
               <span className="text-zinc-400 text-sm font-medium">Video Unavailable</span>
               <span className="text-zinc-500 text-xs mt-1">This video is no longer accessible</span>
-              {/* Retry button — clears error to re-attempt load */}
+              {/* Retry button - clears error to re-attempt load */}
               {videoError && !isDeadLocalVideo && (
                 <button
                   onClick={(e) => {
@@ -904,9 +1022,7 @@ const PostCard = ({
               </div>
             </div>
           ) : (
-          /* TikTok/Instagram pattern: video plays as muted preview in feed.
-             NO native controls — tapping opens PostModal for social interaction.
-             Mute toggle is a separate button that stops propagation. */
+          /* TikTok/Instagram pattern: video plays as muted preview in feed. */
           <>
           <video
             ref={videoRef}
@@ -931,9 +1047,9 @@ const PostCard = ({
             <source src={videoSrc} type={videoMimeType} onError={() => setVideoError(true)} />
             {videoMimeType !== 'video/mp4' && <source src={videoSrc} type="video/mp4" onError={() => setVideoError(true)} />}
           </video>
-          {/* Transparent click overlay — ensures tap opens PostModal, not native player */}
+          {/* Transparent click overlay */}
           <div className="absolute inset-0 z-[1]" />
-          {/* Centered play icon — shows when paused (tap to open modal, not to play) */}
+          {/* Centered play icon - shows when paused */}
           {!isPlaying && (
             <div className="absolute inset-0 z-[2] flex items-center justify-center pointer-events-none">
               <div className="w-16 h-16 rounded-full bg-black/50 backdrop-blur-sm flex items-center justify-center">
@@ -941,7 +1057,7 @@ const PostCard = ({
               </div>
             </div>
           )}
-          {/* Volume control — bottom-right, progressive disclosure (stops propagation so it doesn't open modal) */}
+          {/* Volume control */}
           <div
             className="absolute bottom-3 right-3 z-[3] flex items-center gap-1"
             onClick={(e) => e.stopPropagation()}
@@ -953,7 +1069,7 @@ const PostCard = ({
               volTimerRef.current = setTimeout(() => setShowVolSlider(false), 1200);
             }}
           >
-            {/* Horizontal slider — appears to the left of the icon */}
+            {/* Horizontal slider */}
             <div
               className="overflow-hidden transition-all duration-300 ease-out flex items-center"
               style={{
@@ -961,7 +1077,7 @@ const PostCard = ({
                 opacity: showVolSlider ? 1 : 0,
               }}
             >
-              <input
+              <input aria-label="Range slider"
                 type="range"
                 min="0"
                 max="1"
@@ -1016,6 +1132,7 @@ const PostCard = ({
           )
         ) : (
           <img
+loading="lazy" decoding="async" 
             src={getFullUrl(post.media_url || post.image_url)}
             alt={post.caption || 'Surf photo'}
             className="w-full h-full object-cover"
@@ -1024,7 +1141,7 @@ const PostCard = ({
             onError={(e) => { e.target.style.display = 'none'; }}
           />
         )}
-        {isVideoItem && !(isDeadLocalVideo || videoError) && (
+        {isVideoItem && !(isDeadLocalVideo || videoError) && !isCarousel && (
           <div className="absolute top-2 right-2 z-[2] bg-black/60 px-2 py-1 rounded text-xs text-white flex items-center gap-1 pointer-events-none">
             <Play className="w-3 h-3" />
             {post.video_duration ? `${Math.round(post.video_duration)}s` : 'Video'}
@@ -1060,26 +1177,16 @@ const PostCard = ({
             {/* Shaka Button with count next to it - Instagram style */}
             <div className="flex items-center gap-1.5">
               <button
-                onTouchStart={(e) => {
+                onPointerDown={(e) => {
                   e.preventDefault();
                   onLikeStart(post.id, e);
                 }}
-                onTouchEnd={(e) => {
+                onPointerUp={(e) => {
                   e.preventDefault();
                   onLikeEnd(post.id, e);
                 }}
-                onTouchCancel={(e) => {
-                  e.preventDefault();
-                  onLikeLeave();
-                }}
-                onMouseDown={(e) => onLikeStart(post.id, e)}
-                onMouseUp={(e) => onLikeEnd(post.id, e)}
-                onMouseLeave={onLikeLeave}
-                onClick={(e) => {
-                  // Prevent default click - we handle everything via touch/mouse events
-                  e.preventDefault();
-                  e.stopPropagation();
-                }}
+                onPointerCancel={() => onLikeLeave()}
+                onPointerLeave={() => onLikeLeave()}
                 onContextMenu={(e) => {
                   // Prevent browser context menu on long-press
                   e.preventDefault();
@@ -1096,7 +1203,8 @@ const PostCard = ({
                   WebkitTouchCallout: 'none',
                   WebkitUserSelect: 'none',
                   userSelect: 'none',
-                  WebkitTapHighlightColor: 'transparent'
+                  WebkitTapHighlightColor: 'transparent',
+                  touchAction: 'none' // Prevent browser from handling touch gestures
                 }}
                 data-testid={`like-btn-${post.id}`}
                 title="Tap to like, hold for reactions"
@@ -1117,7 +1225,7 @@ const PostCard = ({
             </div>
             {/* Comment button - hidden if comments are disabled */}
             {!post.comments_disabled && (
-              <button 
+              <button aria-label="Message" 
                 className={`${textPrimaryClass} hover:${textSecondaryClass} transition-colors`}
                 onClick={() => {
                   const input = document.querySelector(`[data-testid="comment-input-${post.id}"]`);
@@ -1128,7 +1236,7 @@ const PostCard = ({
                 <MessageCircle className="w-6 h-6" />
               </button>
             )}
-            <button 
+            <button aria-label="Send" 
               className={`${textPrimaryClass} hover:${textSecondaryClass} transition-colors`}
               onClick={() => onSharePost(post)}
               data-testid={`share-btn-${post.id}`}
@@ -1136,7 +1244,7 @@ const PostCard = ({
               <Send className="w-6 h-6" />
             </button>
           </div>
-          <button 
+          <button aria-label="Bookmark" 
             onClick={(e) => {
               e.preventDefault();
               onSavePost(post.id, post.saved);
@@ -1181,7 +1289,7 @@ const PostCard = ({
         <div className="mt-3 space-y-2">
           {/* View all comments link */}
           {(post.comments_count > 0) && !showAllComments[post.id] && (
-            <button 
+            <button aria-label="Loader2" 
               onClick={() => onLoadAllComments(post.id)}
               className={`${textSecondaryClass} text-sm hover:opacity-80`}
               data-testid={`view-comments-${post.id}`}
@@ -1282,4 +1390,4 @@ const PostCard = ({
   );
 };
 
-export default PostCard;
+export default React.memo(PostCard);

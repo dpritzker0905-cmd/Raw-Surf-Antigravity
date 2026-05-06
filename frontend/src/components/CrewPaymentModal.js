@@ -151,7 +151,7 @@ export const CrewPaymentModal = ({
   if (!invite) return null;
   
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog data-testid="crew-payment-modal" open={isOpen} onOpenChange={onClose}>
       <DialogContent 
         className={`${bgCard} border-border sm:max-w-md`}
       >
@@ -174,7 +174,7 @@ export const CrewPaymentModal = ({
             {/* Captain Card */}
             <div className={`flex items-center gap-3 p-3 rounded-xl ${sectionBg}`}>
               {invite.captain?.avatar_url ? (
-                <img 
+                <img loading="lazy" decoding="async" 
                   src={getFullUrl(invite.captain.avatar_url)} 
                   alt="" 
                   className="w-10 h-10 rounded-full object-cover ring-2 ring-cyan-400"
@@ -246,7 +246,7 @@ export const CrewPaymentModal = ({
             </div>
             
             {/* Action Button */}
-            <Button
+            <Button aria-label="Next"
               onClick={() => setStep('selfie')}
               className="w-full py-4 bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white font-bold rounded-xl"
             >
@@ -304,7 +304,7 @@ export const CrewPaymentModal = ({
               } p-4 text-center cursor-pointer transition-all hover:border-cyan-400/50`}
               onClick={() => fileInputRef.current?.click()}
             >
-              <input
+              <input aria-label="Upload file"
                 ref={fileInputRef}
                 type="file"
                 accept="image/*"
@@ -320,7 +320,7 @@ export const CrewPaymentModal = ({
                 </div>
               ) : selfieUrl ? (
                 <div className="relative">
-                  <img 
+                  <img loading="lazy" decoding="async" 
                     src={selfieUrl} 
                     alt="Your selfie" 
                     className="w-32 h-32 rounded-full mx-auto object-cover ring-4 ring-green-400/50"
@@ -346,7 +346,7 @@ export const CrewPaymentModal = ({
             </div>
             
             {/* Continue Button */}
-            <Button
+            <Button aria-label="Next"
               onClick={() => setStep('payment')}
               disabled={!selfieUrl}
               className={`w-full py-4 font-bold rounded-xl ${
@@ -415,7 +415,7 @@ export const CrewPaymentModal = ({
               </div>
               
               {hasEnoughCredits ? (
-                <Button
+                <Button aria-label="Loader2"
                   onClick={handlePayWithCredits}
                   disabled={loading}
                   className="w-full py-5 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white font-bold rounded-xl"
@@ -442,7 +442,7 @@ export const CrewPaymentModal = ({
               )}
             </div>
             
-            {/* Pay with Card — direct Stripe checkout */}
+            {/* Pay with Card - direct Stripe checkout */}
             <div className={`p-4 rounded-xl border-2 ${isLight ? 'border-gray-200' : 'border-zinc-700'}`}>
               <div className="flex items-center gap-3 mb-3">
                 <div className="w-10 h-10 rounded-full bg-indigo-500/20 flex items-center justify-center">
@@ -453,7 +453,7 @@ export const CrewPaymentModal = ({
                   <p className={`text-sm ${textSecondary}`}>Debit or credit card via Stripe</p>
                 </div>
               </div>
-              <Button
+              <Button aria-label="Loader2"
                 onClick={handlePayWithCard}
                 disabled={loading}
                 className="w-full py-5 bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-600 hover:to-purple-600 text-white font-bold rounded-xl"
@@ -481,7 +481,7 @@ export const CrewPaymentModal = ({
                 </div>
               </div>
               
-              <Button
+              <Button aria-label="Credit Card"
                 onClick={handleAddCredits}
                 variant="outline"
                 className={`w-full py-5 border-cyan-400/50 text-cyan-400 hover:bg-cyan-500/10 font-bold rounded-xl`}
@@ -517,7 +517,7 @@ export const CrewPaymentModal = ({
               <p className={`font-bold ${textPrimary} mt-1`}>{invite.location_name || 'TBD'}</p>
             </div>
             
-            <Button
+            <Button aria-label="Zap"
               onClick={() => {
                 onSuccess?.();
                 onClose();

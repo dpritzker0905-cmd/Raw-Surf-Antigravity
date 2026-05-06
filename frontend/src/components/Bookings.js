@@ -43,6 +43,7 @@ import { JumpInSessionModal } from './JumpInSessionModal';
 
 import logger from '../utils/logger';
 import { getFullUrl } from '../utils/media';
+import useBookingsActions from '../hooks/useBookingsActions';
 
 
 
@@ -129,7 +130,7 @@ const InviteModalContent = ({ booking, user, isLight, textPrimaryClass, textSeco
     <div className="py-4 space-y-4">
       {/* Tab Switcher */}
       <div className="flex border-b border-zinc-700">
-        <button
+        <button aria-label="At Sign"
           onClick={() => setActiveTab('handle')}
           className={`flex-1 py-2 text-sm font-medium flex items-center justify-center gap-2 transition-colors ${
             activeTab === 'handle' 
@@ -140,7 +141,7 @@ const InviteModalContent = ({ booking, user, isLight, textPrimaryClass, textSeco
           <AtSign className="w-4 h-4" />
           Invite by Name
         </button>
-        <button
+        <button aria-label="Copy"
           onClick={() => setActiveTab('code')}
           className={`flex-1 py-2 text-sm font-medium flex items-center justify-center gap-2 transition-colors ${
             activeTab === 'code' 
@@ -163,7 +164,7 @@ const InviteModalContent = ({ booking, user, isLight, textPrimaryClass, textSeco
           {/* Search Input */}
           <div className="relative">
             <Search className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${textSecondaryClass}`} />
-            <Input
+            <Input aria-label="Type a name to search..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Type a name to search..."
@@ -200,7 +201,7 @@ const InviteModalContent = ({ booking, user, isLight, textPrimaryClass, textSeco
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-full overflow-hidden bg-zinc-700">
                         {result.avatar_url ? (
-                          <img src={getFullUrl(result.avatar_url)} alt="" className="w-full h-full object-cover" />
+                          <img loading="lazy" decoding="async" src={getFullUrl(result.avatar_url)} alt="" className="w-full h-full object-cover" />
                         ) : (
                           <div className="w-full h-full flex items-center justify-center text-muted-foreground">
                             {result.full_name?.[0] || '?'}
@@ -218,7 +219,7 @@ const InviteModalContent = ({ booking, user, isLight, textPrimaryClass, textSeco
                       </div>
                     </div>
                     
-                    <Button
+                    <Button aria-label="Loader2"
                       size="sm"
                       onClick={() => handleInviteByHandle(result)}
                       disabled={inviting === result.user_id || alreadySent}
@@ -259,7 +260,7 @@ const InviteModalContent = ({ booking, user, isLight, textPrimaryClass, textSeco
           {sentInvites.length > 0 && (
             <div className={`p-3 rounded-lg ${isLight ? 'bg-green-50' : 'bg-green-500/10'} border ${isLight ? 'border-green-200' : 'border-green-500/30'}`}>
               <p className={`text-sm ${isLight ? 'text-green-700' : 'text-green-400'}`}>
-                ✓ {sentInvites.length} invite{sentInvites.length > 1 ? 's' : ''} sent! They'll receive a notification.
+                ? {sentInvites.length} invite{sentInvites.length > 1 ? 's' : ''} sent! They'll receive a notification.
               </p>
             </div>
           )}
@@ -280,7 +281,7 @@ const InviteModalContent = ({ booking, user, isLight, textPrimaryClass, textSeco
                   <span className={`font-mono text-2xl font-bold tracking-widest ${textPrimaryClass}`}>
                     {booking.invite_code}
                   </span>
-                  <Button
+                  <Button aria-label="Copy"
                     variant="ghost"
                     size="sm"
                     onClick={() => onCopyCode(booking.invite_code)}
@@ -382,7 +383,7 @@ export const Bookings = () => {
         const btnLeft = activeBtn.offsetLeft;
         const btnWidth = activeBtn.offsetWidth;
         const targetScroll = btnLeft - (stripWidth / 2) + (btnWidth / 2);
-        // Always instant scroll — the sliding indicator CSS transition provides
+        // Always instant scroll - the sliding indicator CSS transition provides
         // the smooth visual feedback. Smooth scroll + indicator transition together
         // create competing animations that look like "spinning".
         tabStrip.scrollTo({ left: targetScroll, behavior: 'instant' });
@@ -406,6 +407,33 @@ export const Bookings = () => {
     const main = document.querySelector('main');
     if (main) main.scrollTop = 0;
   }, []);
+
+  // Static Open Graph meta tags for Bookings page SEO
+  useEffect(() => {
+    const ogTags = [];
+    const setMeta = (property, content) => {
+      if (!content) return;
+      let tag = document.querySelector(`meta[property="${property}"]`);
+      if (!tag) {
+        tag = document.createElement('meta');
+        tag.setAttribute('property', property);
+        document.head.appendChild(tag);
+        ogTags.push(tag);
+      }
+      tag.setAttribute('content', content);
+    };
+    document.title = 'Bookings - Raw Surf';
+    setMeta('og:title', 'Bookings - Raw Surf');
+    setMeta('og:description', 'Book surf photography sessions, find live photographers, and manage your upcoming shoots on Raw Surf.');
+    setMeta('og:url', `${window.location.origin}/bookings`);
+    setMeta('og:type', 'website');
+    setMeta('og:site_name', 'Raw Surf');
+    return () => {
+      document.title = 'Raw Surf';
+      ogTags.forEach(tag => tag.remove());
+    };
+  }, []);
+
 
   const [bookings, setBookings] = useState([]);
   const [liveSessions, setLiveSessions] = useState([]);
@@ -477,14 +505,14 @@ export const Bookings = () => {
     }
   }, [tabFromUrl]);
 
-  // Fetch all data on mount (when user is available).
-  // fetchData() loads everything in parallel regardless of active tab,
-  // so there's no reason to re-fetch when switching tabs.
+  // Fetch all data on mount and when navigating back to this page.
+  // location.key changes on every navigation entry, ensuring we re-fetch
+  // stale data (e.g., after cancelling from the DispatchLobby).
   useEffect(() => {
     if (user?.id) {
       fetchData();
     }
-  }, [user?.id]);
+  }, [user?.id, location.key]); // eslint-disable-line
 
   // Fetch on-demand photographers when On-Demand tab is selected
   useEffect(() => {
@@ -565,7 +593,7 @@ export const Bookings = () => {
           
           
           if (response.data.success) {
-            toast.success(`You're in the session with ${response.data.photographer_name || 'the photographer'}! 🏄`, { duration: 5000 });
+            toast.success(`You're in the session with ${response.data.photographer_name || 'the photographer'}! 🤙`, { duration: 5000 });
             // Switch to live_sessions tab to show the active session
             setActiveTab('live_sessions');
             // Refresh live sessions
@@ -588,323 +616,57 @@ export const Bookings = () => {
     }
   }, [searchParams, user?.id, navigate]);
 
-  const fetchData = async () => {
-    setLoading(true);
-    try {
-      // Fire all independent API calls in parallel for ~2-3x faster load
-      const [creditsRes, bookingsRes, sessionsRes, liveRes, invitesRes, crewRes, activeRes, historyRes] = await Promise.allSettled([
-        apiClient.get(`/credits/${user.id}/balance`),
-        apiClient.get(`/bookings/user/${user.id}`),
-        apiClient.get(`/sessions/user/${user.id}`),
-        apiClient.get(`/photographers/live`),
-        apiClient.get(`/bookings/invites/${user.id}`),
-        apiClient.get(`/dispatch/user/${user.id}/crew-invites`),
-        apiClient.get(`/dispatch/user/${user.id}/active`),
-        apiClient.get(`/sessions/user/${user.id}/history`),
-      ]);
+  // ============ HANDLERS EXTRACTED TO hooks/useBookingsActions.js ============
+  const {
+    fetchData,
+    handleJumpIn,
+    handleJoinByCode,
+    handleRespondToInvite,
+    handleJoinNearbyBooking,
+    fetchNearbyWithSkillFilter,
+    copyInviteCode,
+    handlePayCrewShare,
+    fetchOnDemandPhotographers,
+    fetchOnDemandByManualLocation,
+    handleSelectOnDemandPro,
+    handleOnDemandSuccess,
+    openInviteModal,
+  } = useBookingsActions({
+    user,
+    updateUser,
+    navigate,
+    canJoinSessions,
+    effectiveRole,
+    selectedSkillFilter,
+    setLoading,
+    setBookings,
+    setLiveSessions,
+    setSessionHistory,
+    setLivePhotographers,
+    setPendingInvites,
+    setCrewInvites,
+    setNearbyBookings,
+    setActiveDispatch,
+    setUserCreditBalance,
+    setSelectedSkillFilter,
+    setActiveTab,
+    setSelectedPhotographer,
+    setShowJumpInDrawer,
+    setShowJoinCodeModal,
+    setJoinCode,
+    setSelectedCrewInvite,
+    setShowCrewPaymentModal,
+    setOnDemandPhotographers,
+    setOnDemandLoading,
+    setUserLocation,
+    setGpsUnavailable,
+    setSelectedOnDemandPro,
+    setShowOnDemandDrawer,
+    setSelectedBooking,
+    setShowInviteModal,
+  });
 
-      // Credits
-      if (creditsRes.status === 'fulfilled' && creditsRes.value.data?.balance !== undefined) {
-        setUserCreditBalance(creditsRes.value.data.balance);
-        updateUser({ credit_balance: creditsRes.value.data.balance });
-      }
-
-      // Bookings
-      setBookings(bookingsRes.status === 'fulfilled' ? (bookingsRes.value.data || []) : []);
-
-      // Live sessions
-      setLiveSessions(sessionsRes.status === 'fulfilled' ? (sessionsRes.value.data || []) : []);
-
-      // Live photographers
-      setLivePhotographers(liveRes.status === 'fulfilled' ? (liveRes.value.data || []) : []);
-
-      // Pending invites
-      setPendingInvites(invitesRes.status === 'fulfilled' ? (invitesRes.value.data || []) : []);
-
-      // Crew invites
-      setCrewInvites(crewRes.status === 'fulfilled' ? (crewRes.value.data?.crew_invites || []) : []);
-
-      // Active dispatch
-      if (activeRes.status === 'fulfilled') {
-        const dispatch = activeRes.value.data?.active_dispatch;
-        if (dispatch && ['requester', 'crew_member', 'photographer'].includes(dispatch.role)) {
-          setActiveDispatch(dispatch);
-        } else {
-          setActiveDispatch(null);
-        }
-      } else {
-        setActiveDispatch(null);
-      }
-
-      // Past live session history (completed/left live sessions)
-      setSessionHistory(historyRes.status === 'fulfilled' ? (historyRes.value.data || []) : []);
-      
-      // Fetch nearby splittable bookings (if user has location) — kept async since geolocation is callback-based
-      try {
-        if (navigator.geolocation) {
-          navigator.geolocation.getCurrentPosition(async (position) => {
-            const { latitude, longitude } = position.coords;
-            const params = new URLSearchParams({
-              latitude,
-              longitude,
-              radius: 10
-            });
-            if (selectedSkillFilter) {
-              params.append('skill_level', selectedSkillFilter);
-            }
-            const nearbyRes = await apiClient.get(`/bookings/nearby?${params}`);
-            setNearbyBookings(nearbyRes.data || []);
-          }, () => {
-            // Location denied - skip nearby bookings
-            setNearbyBookings([]);
-          });
-        }
-      } catch (e) {
-        setNearbyBookings([]);
-      }
-    } catch (error) {
-      logger.error('Error fetching data:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleJumpIn = async (photographer) => {
-    // Check if user is logged in
-    if (!user) {
-      toast.error('Please log in to join sessions');
-      return;
-    }
-    
-    // Check if user has a surfer-capable role
-    if (!canJoinSessions) {
-      toast.error(`Your current role (${effectiveRole}) cannot join sessions. Switch to a surfer role.`);
-      return;
-    }
-    
-    // Open the Unified Drawer with photographer info
-    setSelectedPhotographer({
-      ...photographer,
-      current_spot_name: photographer.location || photographer.spot_name || 'Live Session'
-    });
-    setShowJumpInDrawer(true);
-  };
-  
-  // Handle successful join from drawer
-  const _handleJumpInSuccess = (data) => {
-    setShowJumpInDrawer(false);
-    setSelectedPhotographer(null);
-    if (data?.remaining_credits !== undefined) {
-      updateUser({ credit_balance: data.remaining_credits });
-    }
-    toast.success('Successfully joined session!');
-    fetchData();
-  };
-
-  const handleJoinByCode = async () => {
-    if (!joinCode.trim()) {
-      toast.error('Please enter an invite code');
-      return;
-    }
-    try {
-      const _response = await apiClient.post(`/bookings/join-by-code?invite_code=${joinCode.toUpperCase()}`);
-      toast.success('Successfully joined the booking!');
-      setShowJoinCodeModal(false);
-      setJoinCode('');
-      fetchData();
-    } catch (error) {
-      toast.error(error.response?.data?.detail || 'Invalid invite code');
-    }
-  };
-
-  const handleRespondToInvite = async (inviteId, accept) => {
-    try {
-      await apiClient.post(`/bookings/invites/${inviteId}/respond?accept=${accept}`);
-      toast.success(accept ? 'Invite accepted!' : 'Invite declined');
-      fetchData();
-    } catch (error) {
-      toast.error(error.response?.data?.detail || 'Failed to respond to invite');
-    }
-  };
-
-  const handleJoinNearbyBooking = async (bookingId) => {
-    try {
-      const response = await apiClient.post(`/bookings/${bookingId}/join`);
-      toast.success(`Joined booking! Paid ${response.data.amount_paid} credits`);
-      fetchData();
-    } catch (error) {
-      toast.error(error.response?.data?.detail || 'Failed to join booking');
-    }
-  };
-  
-  // Auto-open crew payment modal when coming from notification (fixes race condition)
-  useEffect(() => {
-    if (!location.state?.openCrewInvite || !location.state?.dispatchId) return;
-    const dispatchId = location.state.dispatchId;
-
-    const tryOpen = (invites) => {
-      const invite = invites.find(inv => inv.dispatch_id === dispatchId);
-      if (invite) {
-        setActiveTab('on_demand'); // Ensure correct tab is visible
-        setSelectedCrewInvite(invite);
-        setShowCrewPaymentModal(true);
-        navigate(location.pathname + location.search, { replace: true, state: {} });
-      }
-    };
-
-    if (crewInvites.length > 0) {
-      // Already loaded — open immediately
-      tryOpen(crewInvites);
-    } else {
-      // Race condition: invites not loaded yet — fetch directly and open
-      apiClient.get(`/dispatch/user/${user?.id}/crew-invites`)
-        .then(res => {
-          const fresh = res.data?.crew_invites || [];
-          setCrewInvites(fresh);
-          tryOpen(fresh);
-        })
-        .catch(() => {/* silent */});
-    }
-  }, [location.state?.openCrewInvite, location.state?.dispatchId]); // eslint-disable-line
-
-  const fetchNearbyWithSkillFilter = async (skillLevel) => {
-    setSelectedSkillFilter(skillLevel);
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(async (position) => {
-        const { latitude, longitude } = position.coords;
-        const params = new URLSearchParams({
-          latitude: latitude.toString(),
-          longitude: longitude.toString(),
-          radius: '10',
-          user_id: user.id
-        });
-        if (skillLevel) {
-          params.append('skill_level', skillLevel);
-        }
-        try {
-          const nearbyRes = await apiClient.get(`/bookings/nearby?${params}`);
-          setNearbyBookings(nearbyRes.data || []);
-        } catch (e) {
-          logger.error('Error fetching nearby bookings:', e);
-        }
-      });
-    }
-  };
-
-  const copyInviteCode = (code) => {
-    navigator.clipboard.writeText(code);
-    toast.success('Invite code copied!');
-  };
-
-  // Handle crew share payment - opens the payment modal
-  const handlePayCrewShare = (invite) => {
-    setSelectedCrewInvite(invite);
-    setShowCrewPaymentModal(true);
-  };
-
-  // Helper: sort photographers by priority
-  const sortPhotographers = (photographers) => {
-    return (photographers || []).sort((a, b) => {
-      const priorityOrder = { 'Approved Pro': 0, 'Pro': 1, 'Photographer': 2, 'Hobbyist': 3 };
-      return (priorityOrder[a.role] ?? 99) - (priorityOrder[b.role] ?? 99);
-    });
-  };
-
-  // Fetch on-demand photographers based on user location (GPS)
-  const fetchOnDemandPhotographers = async () => {
-    setOnDemandLoading(true);
-    try {
-      if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(
-          async (position) => {
-            const { latitude, longitude } = position.coords;
-            setUserLocation({ latitude, longitude });
-            setGpsUnavailable(false);
-            
-            try {
-              const response = await apiClient.get(`/photographers/on-demand`, {
-                params: { latitude, longitude, radius: 25 }
-              });
-              setOnDemandPhotographers(sortPhotographers(response.data));
-            } catch (e) {
-              logger.error('Error fetching on-demand photographers:', e);
-              setOnDemandPhotographers([]);
-            }
-            setOnDemandLoading(false);
-          },
-          (_error) => {
-            // GPS denied/unavailable — show manual location selector
-            setGpsUnavailable(true);
-            setOnDemandLoading(false);
-          }
-        );
-      } else {
-        setGpsUnavailable(true);
-        setOnDemandLoading(false);
-      }
-    } catch (e) {
-      logger.error('Error in fetchOnDemandPhotographers:', e);
-      setOnDemandLoading(false);
-    }
-  };
-
-  // Fetch on-demand photographers by manual location (fallback when GPS unavailable)
-  const fetchOnDemandByManualLocation = async (latitude, longitude, locationLabel) => {
-    setOnDemandLoading(true);
-    setUserLocation({ latitude, longitude, label: locationLabel });
-    try {
-      const response = await apiClient.get(`/photographers/on-demand`, {
-        params: { latitude, longitude, radius: 50 }
-      });
-      setOnDemandPhotographers(sortPhotographers(response.data));
-    } catch (e) {
-      logger.error('Error fetching on-demand photographers by manual location:', e);
-      setOnDemandPhotographers([]);
-    } finally {
-      setOnDemandLoading(false);
-    }
-  };
-
-  // Handle On-Demand pro selection
-  const handleSelectOnDemandPro = (pro) => {
-    setSelectedOnDemandPro(pro);
-    setShowOnDemandDrawer(true);
-  };
-
-  // Handle On-Demand request success
-  const handleOnDemandSuccess = (data) => {
-    setShowOnDemandDrawer(false);
-    setSelectedOnDemandPro(null);
-    if (data?.remaining_credits !== undefined) {
-      updateUser({ credit_balance: data.remaining_credits });
-    }
-    toast.success('On-Demand request sent!');
-    fetchData();
-  };
-
-  const openInviteModal = async (booking) => {
-    // If needs to enable splitting first
-    if (booking.needsEnableSplitting) {
-      try {
-        const response = await apiClient.post(`/bookings/${booking.id}/enable-splitting`);
-        if (response.data.success) {
-          toast.success('Crew splitting enabled!');
-          // Refresh booking with new invite code
-          await fetchData();
-          setSelectedBooking({ ...booking, invite_code: response.data.invite_code });
-          setShowInviteModal(true);
-        }
-      } catch (error) {
-        toast.error(error.response?.data?.detail || 'Failed to enable splitting');
-      }
-      return;
-    }
-    
-    setSelectedBooking(booking);
-    setShowInviteModal(true);
-  };
-
-  // ─── Date-based booking lifecycle helper ────────────────────────────────────
+  // --- Date-based booking lifecycle helper ------------------------------------
   // A booking is "past" if its session_date + duration has elapsed.
   // This catches sessions the photographer never explicitly ended.
   const isBookingPast = (b) => {
@@ -916,10 +678,10 @@ export const Bookings = () => {
 
   const LOBBY_PHASE = ['open', 'filling', 'ready'];
 
-  // ─── Derived lists ─────────────────────────────────────────────────────────
+  // --- Derived lists ---------------------------------------------------------
   // Scheduled = future confirmed/pending bookings only
   const scheduledBookings = bookings.filter(b => {
-    if (isBookingPast(b)) return false; // past-dated → Past tab
+    if (isBookingPast(b)) return false; // past-dated ? Past tab
     if (b.status === 'Confirmed') return true;
     if (b.status === 'Pending' && LOBBY_PHASE.includes(b.lineup_status)) return false;
     return b.status === 'Pending';
@@ -961,11 +723,11 @@ export const Bookings = () => {
     <div className={`pb-20 min-h-screen ${mainBgClass} transition-colors duration-300`} data-testid="bookings-page">
       <div className="max-w-lg mx-auto p-4">
         <div className="flex items-center justify-between mb-6">
-          <h1 className={`text-3xl font-bold ${textPrimaryClass}`} style={{ fontFamily: 'Oswald' }} data-testid="bookings-title">
+          <h1 className={`text-3xl font-bold ${textPrimaryClass} font-oswald`}  data-testid="bookings-title">
             Sessions & Bookings
           </h1>
           <div className="flex items-center gap-2">
-            <Button
+            <Button aria-label="Search"
               onClick={() => setActiveTab('directory')}
               size="sm"
               className="bg-gradient-to-r from-yellow-500 to-amber-500 hover:from-yellow-600 hover:to-amber-600 text-black font-semibold"
@@ -973,7 +735,7 @@ export const Bookings = () => {
               <Search className="w-4 h-4 mr-1.5" />
               Find Photogs
             </Button>
-            <Button
+            <Button aria-label="User Plus"
               onClick={() => setShowJoinCodeModal(true)}
               variant="outline"
               size="sm"
@@ -1010,7 +772,7 @@ export const Bookings = () => {
         )}
 
 
-        {/* Tabs — scrolls with content */}
+        {/* Tabs - scrolls with content */}
         <div
           ref={stickyTabRef}
           className="relative z-10"
@@ -1022,7 +784,7 @@ export const Bookings = () => {
           <div className="relative">
             {/* Scrollable tab strip with orange underline indicator */}
             <div
-              ref={tabScrollRef}
+              ref={tabScrollRef} role="tablist" aria-label="Booking sections"
               onScroll={updateArrows}
               onMouseDown={(e) => {
                 isDraggingRef.current = true;
@@ -1071,6 +833,8 @@ export const Bookings = () => {
                       marginBottom: '-1px',
                     }}
                     data-testid={`tab-${tab.id}`}
+                    role="tab"
+                    aria-selected={isActive}
                   >
                     <Icon className="w-4 h-4" />
                     {tab.label}
@@ -1186,7 +950,7 @@ export const Bookings = () => {
               const nextIdx = goingLeft ? currentIdx + 1 : currentIdx - 1;
 
               if (nextIdx >= 0 && nextIdx < tabIds.length) {
-                // Simple instant switch — no multi-stage animation
+                // Simple instant switch - no multi-stage animation
                 setActiveTab(tabIds[nextIdx]);
                 return;
               }
@@ -1233,18 +997,9 @@ export const Bookings = () => {
               onManualLocationSelect={fetchOnDemandByManualLocation}
               onSelectPhotographer={handleSelectOnDemandPro}
               onResumeDispatch={(dispatch) => {
-                // If photographer already accepted/en_route/arrived, go directly to interactive lobby
-                if (['accepted', 'en_route', 'arrived'].includes(dispatch.status)) {
-                  navigate(`/dispatch/${dispatch.id}/lobby`);
-                  return;
-                }
-                // Otherwise resume the "Finding Your Photographer" workflow drawer
-                setSelectedOnDemandPro({ 
-                  id: dispatch.photographer_id || 'unknown', 
-                  full_name: dispatch.photographer_name || 'Photographer'
-                });
-                setResumeDispatchId(dispatch.id);
-                setShowOnDemandDrawer(true);
+                // Always navigate to the full-featured lobby page
+                // It handles all states: searching, accepted, en_route, arrived
+                navigate(`/dispatch/${dispatch.id}/lobby`);
               }}
               crewInvites={crewInvites}
               onPayCrewShare={handlePayCrewShare}
@@ -1360,7 +1115,7 @@ export const Bookings = () => {
               Cancel
             </Button>
             <Button
-              onClick={handleJoinByCode}
+              onClick={() => handleJoinByCode(joinCode)}
               className="bg-gradient-to-r from-yellow-400 to-orange-400 text-black"
             >
               Join Session

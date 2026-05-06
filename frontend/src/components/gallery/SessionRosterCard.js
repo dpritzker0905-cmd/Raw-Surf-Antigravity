@@ -14,7 +14,7 @@ import {
   Camera,
   Film,
   Bot,
-  Hand
+  Hand,
 } from 'lucide-react';
 import apiClient from '../../lib/apiClient';
 import { getFullUrl } from '../../utils/media';
@@ -22,7 +22,7 @@ import { toast } from 'sonner';
 import logger from '../../utils/logger';
 
 /**
- * SessionRosterCard — Enhanced Surfer Delivery Tracker
+ * SessionRosterCard ï¿½ Enhanced Surfer Delivery Tracker
  * 
  * Features:
  *   - Expandable surfer panels with selfie reference photo (zoomable)
@@ -39,24 +39,24 @@ export const SessionRosterCard = ({
   if (!roster || roster.length === 0) return null;
 
   const sessionLabel = {
-    live: { text: 'Live Session', color: '#10b981', emoji: '🟢' },
-    booking: { text: 'Booking', color: '#3b82f6', emoji: '📅' },
-    on_demand: { text: 'On-Demand', color: '#f59e0b', emoji: '⚡' },
-    manual: { text: 'Manual', color: '#6b7280', emoji: '📁' }
+    live: { text: 'Live Session', color: '#10b981', emoji: '📸' },
+    booking: { text: 'Booking', color: '#3b82f6', emoji: '📸' },
+    on_demand: { text: 'On-Demand', color: '#f59e0b', emoji: '?' },
+    manual: { text: 'Manual', color: '#6b7280', emoji: '📸' }
   }[sessionType] || { text: 'Session', color: '#6b7280', emoji: '📸' };
 
-  // ── COMPACT MODE ──
+  // -- COMPACT MODE --
   if (compact) {
     const totalDelivered = roster.reduce((s, r) => s + (r.items_delivered || 0), 0);
     const totalSlots = roster.reduce((s, r) => s + (r.photos_included || 0) + (r.videos_included || 0), 0);
     const allDone = totalDelivered >= totalSlots && totalSlots > 0;
     return (
-      <div className="flex items-center gap-1.5 px-3 pb-2" onClick={e => e.stopPropagation()}>
+      <div data-testid="session-roster-card" className="flex items-center gap-1.5 px-3 pb-2" onClick={e => e.stopPropagation()}>
         <div className="flex -space-x-2">
           {roster.slice(0, 4).map((surfer, i) => (
             <div key={surfer.surfer_id} className="relative" style={{ zIndex: 4 - i }}>
               {surfer.avatar_url ? (
-                <img src={surfer.avatar_url} alt="" className="w-6 h-6 rounded-full border-2 object-cover"
+                <img loading="lazy" decoding="async" src={surfer.avatar_url} alt="" className="w-6 h-6 rounded-full border-2 object-cover"
                   style={{ borderColor: (surfer.credits_remaining || 0) > 0 ? '#f59e0b' : '#10b981' }} />
               ) : (
                 <div className="w-6 h-6 rounded-full border-2 flex items-center justify-center text-[8px] font-bold text-white"
@@ -71,13 +71,13 @@ export const SessionRosterCard = ({
           )}
         </div>
         <span className="text-[10px] text-muted-foreground font-medium ml-1">
-          {allDone ? <span className="text-emerald-500">✓ All delivered</span> : <span>{totalDelivered}/{totalSlots} sent</span>}
+          {allDone ? <span className="text-emerald-500">? All delivered</span> : <span>{totalDelivered}/{totalSlots} sent</span>}
         </span>
       </div>
     );
   }
 
-  // ── EXPANDED MODE ──
+  // -- EXPANDED MODE --
   const totalDelivered = roster.reduce((s, r) => s + (r.items_delivered || 0), 0);
   const totalSlots = roster.reduce((s, r) => s + (r.photos_included || 0) + (r.videos_included || 0), 0);
   const allComplete = totalDelivered >= totalSlots && totalSlots > 0;
@@ -87,7 +87,7 @@ export const SessionRosterCard = ({
       background: 'linear-gradient(135deg, rgba(6,182,212,0.06), rgba(59,130,246,0.04))',
       border: '1px solid rgba(6,182,212,0.15)'
     }}>
-      <button onClick={() => setExpanded(!expanded)}
+      <button aria-label="div" aria-expanded={expanded} onClick={() => setExpanded(!expanded)}
         className="w-full flex items-center justify-between px-4 py-3 hover:bg-white/5 transition-colors">
         <div className="flex items-center gap-2.5">
           <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: `${sessionLabel.color}20` }}>
@@ -96,7 +96,7 @@ export const SessionRosterCard = ({
           <div className="text-left">
             <h4 className="text-sm font-semibold text-foreground">Session Roster</h4>
             <p className="text-[11px] text-muted-foreground">
-              {roster.length} surfer{roster.length !== 1 ? 's' : ''} • {sessionLabel.emoji} {sessionLabel.text}
+              {roster.length} surfer{roster.length !== 1 ? 's' : ''} ï¿½ {sessionLabel.emoji} {sessionLabel.text}
             </p>
           </div>
         </div>
@@ -120,7 +120,7 @@ export const SessionRosterCard = ({
   );
 };
 
-// ── SURFER PANEL ──
+// -- SURFER PANEL --
 const SurferPanel = ({ surfer, galleryId, photographerId, onRosterUpdate }) => {
   const [panelOpen, setPanelOpen] = useState(false);
   const [selfieZoom, setSelfieZoom] = useState(false);
@@ -174,7 +174,7 @@ const SurferPanel = ({ surfer, galleryId, photographerId, onRosterUpdate }) => {
       );
       setTaggedItems(prev => prev.filter(i => i.gallery_item_id !== item.gallery_item_id));
       const type = item.media_type === 'video' ? 'video' : 'photo';
-      toast.success(`Untagged ${type} from ${full_name}${item.access_type === 'included' ? ' — credit restored' : ''}`);
+      toast.success(`Untagged ${type} from ${full_name}${item.access_type === 'included' ? ' ï¿½ credit restored' : ''}`);
       if (onRosterUpdate) onRosterUpdate();
     } catch (err) {
       toast.error('Failed to untag item');
@@ -194,10 +194,10 @@ const SurferPanel = ({ surfer, galleryId, photographerId, onRosterUpdate }) => {
         border: `1px solid ${isComplete ? 'rgba(16,185,129,0.2)' : 'rgba(255,255,255,0.08)'}`
       }}>
         {/* Header */}
-        <button onClick={togglePanel} className="w-full flex items-center gap-3 p-3 hover:bg-white/5 transition-colors">
+        <button aria-label="div" onClick={togglePanel} className="w-full flex items-center gap-3 p-3 hover:bg-white/5 transition-colors">
           <div className="relative flex-shrink-0">
             {displayPhoto ? (
-              <img src={displayPhoto} alt={full_name}
+              <img loading="lazy" decoding="async" src={displayPhoto} alt={full_name}
                 className="w-11 h-11 rounded-xl object-cover"
                 style={{ border: `2px solid ${isComplete ? '#10b981' : hasCredits ? '#f59e0b' : '#6b7280'}` }} />
             ) : (
@@ -229,9 +229,9 @@ const SurferPanel = ({ surfer, galleryId, photographerId, onRosterUpdate }) => {
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
             {isComplete ? (
-              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ background: 'rgba(16,185,129,0.15)', color: '#10b981' }}>✓ Done</span>
+              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ background: 'rgba(16,185,129,0.15)', color: '#10b981' }}>? Done</span>
             ) : hasCredits ? (
-              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ background: 'rgba(245,158,11,0.15)', color: '#f59e0b' }}>🎟️ {credits_remaining} left</span>
+              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ background: 'rgba(245,158,11,0.15)', color: '#f59e0b' }}>??? {credits_remaining} left</span>
             ) : items_delivered === 0 ? (
               <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ background: 'rgba(107,114,128,0.15)', color: '#9ca3af' }}>Waiting</span>
             ) : null}
@@ -239,21 +239,21 @@ const SurferPanel = ({ surfer, galleryId, photographerId, onRosterUpdate }) => {
           </div>
         </button>
 
-        {/* ── Expanded Panel ── */}
+        {/* -- Expanded Panel -- */}
         {panelOpen && (
           <div className="px-3 pb-3 space-y-3" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
             {/* Row 1: Selfie + Credits */}
             <div className="flex gap-3 pt-3">
               {(selfie_url || avatar_url) && (
                 <div className="flex-shrink-0 relative group cursor-pointer" onClick={() => setSelfieZoom(true)}>
-                  <img src={selfie_url || avatar_url} alt={`${full_name} reference`}
+                  <img loading="lazy" decoding="async" src={selfie_url || avatar_url} alt={`${full_name} reference`}
                     className="w-20 h-20 rounded-xl object-cover shadow-lg"
                     style={{ border: '2px solid rgba(6,182,212,0.3)' }} />
                   <div className="absolute inset-0 rounded-xl bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                     <ZoomIn className="w-5 h-5 text-white" />
                   </div>
                   <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 text-[8px] font-semibold px-1.5 py-0.5 rounded-full bg-cyan-500/20 text-cyan-400 whitespace-nowrap">
-                    {selfie_url ? '📷 Selfie' : '👤 Avatar'}
+                    {selfie_url ? '?? Selfie' : '?? Avatar'}
                   </div>
                 </div>
               )}
@@ -270,7 +270,7 @@ const SurferPanel = ({ surfer, galleryId, photographerId, onRosterUpdate }) => {
                     delivered={items_delivered} included={photos_included} remaining={credits_remaining} color="#06b6d4" />
                 )}
                 <div className="flex items-center gap-2 mt-1 flex-wrap">
-                  <MiniPill icon={payment_method === 'credits' ? '✨' : '💳'}
+                  <MiniPill icon={payment_method === 'credits' ? '?' : '📸'}
                     text={amount_paid > 0 ? `$${amount_paid} paid` : 'Free'} />
                   <MiniPill icon={<Shield className="w-3 h-3" style={{ color: isComplete ? '#10b981' : '#f59e0b' }} />}
                     text={isComplete ? 'Fully delivered' : hasCredits ? `${credits_remaining} left` : 'Awaiting'} />
@@ -297,7 +297,7 @@ const SurferPanel = ({ surfer, galleryId, photographerId, onRosterUpdate }) => {
                 </span>
                 {taggedItems.length > 0 && (
                   <span className="text-[10px] text-muted-foreground">
-                    {taggedItems.filter(i => i.media_type !== 'video').length} 📷 • {taggedItems.filter(i => i.media_type === 'video').length} 🎬
+                    {taggedItems.filter(i => i.media_type !== 'video').length} ?? ï¿½ {taggedItems.filter(i => i.media_type === 'video').length} ??
                   </span>
                 )}
               </div>
@@ -324,25 +324,26 @@ const SurferPanel = ({ surfer, galleryId, photographerId, onRosterUpdate }) => {
         )}
       </div>
 
-      {/* ── Selfie Zoom Modal ── */}
+      {/* -- Selfie Zoom Modal -- */}
       {selfieZoom && (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 backdrop-blur-sm" onClick={() => setSelfieZoom(false)}>
           <div className="relative max-w-sm w-full mx-4" onClick={e => e.stopPropagation()}>
             <button onClick={() => setSelfieZoom(false)}
-              className="absolute -top-3 -right-3 w-8 h-8 rounded-full bg-black/60 border border-white/20 flex items-center justify-center z-10 hover:bg-white/20 transition-colors">
+              className="absolute -top-3 -right-3 w-8 h-8 rounded-full bg-black/60 border border-white/20 flex items-center justify-center z-10 hover:bg-white/20 transition-colors"
+              aria-label="Close">
               <X className="w-4 h-4 text-white" />
             </button>
-            <img src={selfie_url || avatar_url} alt={`${full_name}`}
+            <img loading="lazy" decoding="async" src={selfie_url || avatar_url} alt={`${full_name}`}
               className="w-full rounded-2xl shadow-2xl object-cover" style={{ maxHeight: '70vh' }} />
             <div className="absolute bottom-0 left-0 right-0 p-4 rounded-b-2xl" style={{ background: 'linear-gradient(transparent, rgba(0,0,0,0.8))' }}>
               <p className="text-white font-semibold text-base">{full_name}</p>
               {username && <p className="text-white/60 text-xs">@{username}</p>}
               <div className="flex items-center gap-2 mt-1.5">
                 <span className="text-[10px] px-2 py-0.5 rounded-full font-medium" style={{ background: 'rgba(6,182,212,0.3)', color: '#67e8f9' }}>
-                  {selfie_url ? '📷 Session Selfie' : '👤 Profile Photo'}
+                  {selfie_url ? '?? Session Selfie' : '?? Profile Photo'}
                 </span>
                 <span className="text-[10px] text-white/50">
-                  📷 {photos_delivered}/{photos_included}{videos_included > 0 ? ` • 🎬 ${videos_delivered}/${videos_included}` : ''}
+                  ?? {photos_delivered}/{photos_included}{videos_included > 0 ? ` ï¿½ ?? ${videos_delivered}/${videos_included}` : ''}
                 </span>
               </div>
             </div>
@@ -353,7 +354,7 @@ const SurferPanel = ({ surfer, galleryId, photographerId, onRosterUpdate }) => {
   );
 };
 
-// ── CREDIT ROW ──
+// -- CREDIT ROW --
 const CreditRow = ({ icon, label, delivered, included, remaining, color }) => {
   const pct = included > 0 ? Math.min(100, (delivered / included) * 100) : 0;
   const isDone = remaining === 0 && delivered > 0;
@@ -366,7 +367,7 @@ const CreditRow = ({ icon, label, delivered, included, remaining, color }) => {
           <span className="text-[10px] font-mono" style={{ color: isDone ? '#10b981' : color }}>
             {delivered}/{included}
             {remaining > 0 && <span className="text-muted-foreground ml-1">({remaining} left)</span>}
-            {isDone && ' ✓'}
+            {isDone && ' ?'}
           </span>
         </div>
         <div className="mt-0.5 h-1 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.08)' }}>
@@ -377,7 +378,7 @@ const CreditRow = ({ icon, label, delivered, included, remaining, color }) => {
   );
 };
 
-// ── MINI PILL ──
+// -- MINI PILL --
 const MiniPill = ({ icon, text, highlight }) => (
   <div className="flex items-center gap-1 px-2 py-1 rounded-lg" style={{
     background: highlight ? `rgba(${highlight === 'purple' ? '139,92,246' : '6,182,212'},0.1)` : 'rgba(255,255,255,0.04)',
@@ -388,7 +389,7 @@ const MiniPill = ({ icon, text, highlight }) => (
   </div>
 );
 
-// ── TAGGED ITEM THUMBNAIL (with video autoplay) ──
+// -- TAGGED ITEM THUMBNAIL (with video autoplay) --
 const TaggedItemThumb = ({ item, onUntag, isUntagging }) => {
   const videoRef = useRef(null);
   const isVideo = item.media_type === 'video';
@@ -396,13 +397,13 @@ const TaggedItemThumb = ({ item, onUntag, isUntagging }) => {
   const videoUrl = isVideo ? getFullUrl(item.preview_url || item.original_url) : null;
   const accessColor = item.access_type === 'included' ? '#10b981' : item.access_type === 'pending_selection' ? '#f59e0b' : '#6b7280';
 
-  // Thumbnail-only in grid — no video autoplay to save bandwidth
+  // Thumbnail-only in grid ï¿½ no video autoplay to save bandwidth
 
   return (
     <div className="relative flex-shrink-0 group">
       <div className="w-16 h-16 rounded-lg overflow-hidden relative" style={{ border: `2px solid ${accessColor}30` }}>
         {thumbUrl ? (
-          <img src={thumbUrl} alt="Tagged" className="w-full h-full object-cover" />
+          <img loading="lazy" decoding="async" src={thumbUrl} alt="Tagged" className="w-full h-full object-cover" />
         ) : (
           <div className="w-full h-full flex items-center justify-center" style={{ background: 'rgba(255,255,255,0.06)' }}>
             {isVideo ? <Video className="w-4 h-4 text-muted-foreground" /> : <ImageIcon className="w-4 h-4 text-muted-foreground" />}
@@ -411,7 +412,7 @@ const TaggedItemThumb = ({ item, onUntag, isUntagging }) => {
         {/* Media type badge */}
         <div className="absolute bottom-0.5 left-0.5 text-[7px] px-1 py-0.5 rounded font-semibold"
           style={{ background: isVideo ? 'rgba(139,92,246,0.85)' : 'rgba(6,182,212,0.85)', color: 'white' }}>
-          {isVideo ? '🎬 Vid' : '📷'}
+          {isVideo ? '?? Vid' : '📸'}
         </div>
         {/* Access indicator dot */}
         <div className="absolute top-0.5 right-0.5 w-2.5 h-2.5 rounded-full" style={{ background: accessColor, boxShadow: `0 0 4px ${accessColor}` }} />
@@ -422,12 +423,12 @@ const TaggedItemThumb = ({ item, onUntag, isUntagging }) => {
           </div>
         ) : (
           <div className="absolute top-0.5 left-0.5 flex items-center gap-0.5 px-1 py-0.5 rounded text-[7px] font-semibold" style={{ background: 'rgba(6,182,212,0.8)', color: 'white' }}>
-            <Hand className="w-2 h-2" /> 👤
+            <Hand className="w-2 h-2" /> ??
           </div>
         )}
       </div>
       {/* Untag overlay */}
-      <button onClick={e => { e.stopPropagation(); onUntag(); }} disabled={isUntagging}
+      <button aria-label="div" onClick={e => { e.stopPropagation(); onUntag(); }} disabled={isUntagging}
         className="absolute inset-0 rounded-lg bg-red-500/70 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center cursor-pointer gap-0.5"
         title={`Untag ${isVideo ? 'video' : 'photo'}`}>
         {isUntagging ? (

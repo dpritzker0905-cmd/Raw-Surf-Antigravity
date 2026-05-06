@@ -1,4 +1,4 @@
-﻿/**
+/**
  * SessionActionDrawer - Command Center for managing scheduled bookings
  * 
  * Features:
@@ -180,7 +180,7 @@ export const SessionActionDrawer = ({
             Manage Session
           </DialogTitle>
           <DialogDescription className={textSecondaryClass}>
-            {booking.location} · {new Date(booking.session_date).toLocaleDateString()}
+            {booking.location} - {new Date(booking.session_date).toLocaleDateString()}
           </DialogDescription>
         </DialogHeader>
         
@@ -215,7 +215,7 @@ export const SessionActionDrawer = ({
         {/* Action Buttons */}
         <div className="space-y-2 flex-1 overflow-y-auto">
           {/* Invite Crew */}
-          <button
+          <button aria-label="div"
             onClick={() => {
               onClose();
               onOpenCrewHub?.(booking);
@@ -236,7 +236,7 @@ export const SessionActionDrawer = ({
           </button>
 
           {/* The Crew - View/Manage Crew Lineup with surfboard visualization */}
-          <button
+          <button aria-label="div"
             onClick={() => {
               onClose();
               onOpenCrewView?.(booking);
@@ -263,7 +263,7 @@ export const SessionActionDrawer = ({
 
           {/* Split Payment - Only show if there are crew members */}
           {booking.current_participants > 1 && (
-            <button
+            <button aria-label="div"
               onClick={() => setActiveAction('split')}
               className={`w-full p-4 rounded-lg border ${actionCardClass} flex items-center justify-between transition-colors`}
               data-testid="action-split-payment"
@@ -321,7 +321,7 @@ export const SessionActionDrawer = ({
           </button>
 
           {/* Modify Session */}
-          <button
+          <button aria-label="div"
             onClick={() => {
               onClose();
               onOpenModify?.(booking);
@@ -342,7 +342,7 @@ export const SessionActionDrawer = ({
           </button>
 
           {/* Cancel Session */}
-          <button
+          <button aria-label="div"
             onClick={() => setActiveAction('cancel')}
             className={`w-full p-4 rounded-lg border border-red-500/30 bg-red-500/5 hover:bg-red-500/10 flex items-center justify-between transition-colors`}
             data-testid="action-cancel"
@@ -390,7 +390,7 @@ export const SessionActionDrawer = ({
               </div>
             </div>
             
-            <Textarea
+            <Textarea aria-label="Reason for cancellation (optional)"
               value={cancellationReason}
               onChange={(e) => setCancellationReason(e.target.value)}
               placeholder="Reason for cancellation (optional)"
@@ -406,7 +406,7 @@ export const SessionActionDrawer = ({
               >
                 Keep Session
               </Button>
-              <Button
+              <Button aria-label="Loader2"
                 onClick={handleCancel}
                 disabled={cancelLoading}
                 className="flex-1 bg-red-500 hover:bg-red-600 text-white"
@@ -451,7 +451,7 @@ export const SessionActionDrawer = ({
               >
                 Cancel
               </Button>
-              <Button
+              <Button aria-label="Loader2"
                 onClick={handleSplitPayment}
                 disabled={splitLoading}
                 className="flex-1 bg-green-500 hover:bg-green-600 text-white"

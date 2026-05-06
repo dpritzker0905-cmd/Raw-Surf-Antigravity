@@ -10,15 +10,15 @@ import { getErrorMessage } from '../../utils/errors';
 import logger from '../../utils/logger';
 
 /**
- * FindMeModal — AI-powered surfer identification in a gallery.
+ * FindMeModal - AI-powered surfer identification in a gallery.
  * Lets surfers upload a selfie + optional board/wetsuit details,
  * then scans the gallery using the POST /gallery/{id}/find-me endpoint.
  *
  * Props:
- *   open      — boolean controlling visibility
- *   onClose   — callback to close the modal
- *   galleryId — the gallery to scan
- *   userId    — the requesting user's ID
+ *   open      - boolean controlling visibility
+ *   onClose   - callback to close the modal
+ *   galleryId - the gallery to scan
+ *   userId    - the requesting user's ID
  */
 export const FindMeModal = ({ open, onClose, galleryId, userId }) => {
   const [selfieUrl, setSelfieUrl] = useState('');
@@ -101,9 +101,9 @@ export const FindMeModal = ({ open, onClose, galleryId, userId }) => {
       });
 
       if (data.matches_found > 0) {
-        toast.success(`🤖 Found ${data.matches_found} match${data.matches_found > 1 ? 'es' : ''}!`);
+        toast.success(`?? Found ${data.matches_found} match${data.matches_found > 1 ? 'es' : ''}!`);
       } else {
-        toast.info('No matches found — try adjusting your details.');
+        toast.info('No matches found - try adjusting your details.');
       }
     } catch (error) {
       if (error.response?.status === 429) {
@@ -152,7 +152,7 @@ export const FindMeModal = ({ open, onClose, galleryId, userId }) => {
               <label className="text-sm font-medium text-foreground">Your Selfie *</label>
               {selfiePreview ? (
                 <div className="relative w-24 h-24 rounded-xl overflow-hidden border-2 border-cyan-500/40">
-                  <img src={selfiePreview} alt="Selfie" className="w-full h-full object-cover" />
+                  <img loading="lazy" decoding="async" src={selfiePreview} alt="Selfie" className="w-full h-full object-cover" />
                   <button
                     onClick={() => {
                       setSelfieFile(null);
@@ -179,7 +179,7 @@ export const FindMeModal = ({ open, onClose, galleryId, userId }) => {
               {!selfieFile && (
                 <div className="flex items-center gap-2">
                   <span className="text-[10px] text-zinc-500 uppercase">or paste URL</span>
-                  <Input
+                  <Input aria-label="https://..."
                     placeholder="https://..."
                     value={selfieUrl}
                     onChange={(e) => setSelfieUrl(e.target.value)}
@@ -191,7 +191,7 @@ export const FindMeModal = ({ open, onClose, galleryId, userId }) => {
 
             {/* Advanced options toggle */}
             <button
-              onClick={() => setShowAdvanced(!showAdvanced)}
+              aria-expanded={showAdvanced} onClick={() => setShowAdvanced(!showAdvanced)}
               className="flex items-center gap-1 text-xs text-cyan-400 hover:text-cyan-300 transition-colors"
             >
               <ChevronDown className={`w-3 h-3 transition-transform ${showAdvanced ? 'rotate-180' : ''}`} />
@@ -244,7 +244,7 @@ export const FindMeModal = ({ open, onClose, galleryId, userId }) => {
               <ShieldCheck className="w-4 h-4 text-green-400 flex-shrink-0 mt-0.5" />
               <p className="text-[10px] text-gray-500 leading-relaxed">
                 Your selfie is only used for this scan and is not stored permanently.
-                AI matching uses visual pattern recognition — no facial data is retained.
+                AI matching uses visual pattern recognition - no facial data is retained.
               </p>
             </div>
           </div>
@@ -258,11 +258,11 @@ export const FindMeModal = ({ open, onClose, galleryId, userId }) => {
               <div>
                 <p className="text-sm font-medium text-foreground">
                   {matches.length > 0
-                    ? `🎯 ${matches.length} match${matches.length > 1 ? 'es' : ''} found`
-                    : '😔 No matches found'}
+                    ? `?? ${matches.length} match${matches.length > 1 ? 'es' : ''} found`
+                    : '?? No matches found'}
                 </p>
                 <p className="text-[10px] text-gray-500">
-                  Scanned {scanMeta?.totalScanned || 0} photos • {scanMeta?.scansRemaining ?? '?'} scans left today
+                  Scanned {scanMeta?.totalScanned || 0} photos - {scanMeta?.scansRemaining ?? '?'} scans left today
                 </p>
               </div>
               <Button size="sm" variant="outline" onClick={handleReset} className="text-xs">
@@ -278,7 +278,7 @@ export const FindMeModal = ({ open, onClose, galleryId, userId }) => {
                     key={match.gallery_item_id}
                     className="relative rounded-xl overflow-hidden bg-zinc-800 group cursor-pointer"
                   >
-                    <img
+                    <img loading="lazy" decoding="async"
                       src={match.preview_url || match.thumbnail_url}
                       alt={`Match ${i + 1}`}
                       className="w-full aspect-square object-cover group-hover:scale-105 transition-transform"
@@ -320,7 +320,7 @@ export const FindMeModal = ({ open, onClose, galleryId, userId }) => {
               <Button variant="outline" onClick={onClose} className="flex-1">
                 Cancel
               </Button>
-              <Button
+              <Button aria-label="Loader2"
                 onClick={handleScan}
                 disabled={scanning || (!selfieFile && !selfieUrl)}
                 className="flex-1 bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600"

@@ -264,7 +264,7 @@ export const Sidebar = () => {
           title={location.pathname === '/feed' ? 'Refresh feed' : 'Go to Feed'}
           aria-label={location.pathname === '/feed' ? 'Refresh feed' : 'Go to Feed'}
         >
-          <img
+          <img loading="lazy" decoding="async"
             src="https://customer-assets.emergentagent.com/job_raw-surf-os/artifacts/9llcl5mg_Rawig6-500x500.png"
             alt="Raw Surf"
             className={`w-7 h-7 transition-transform duration-300 ${
@@ -272,7 +272,7 @@ export const Sidebar = () => {
             } group-hover:scale-110`}
             style={{ transition: logoSpinning ? 'transform 0.6s cubic-bezier(0.34,1.56,0.64,1)' : 'transform 0.2s ease' }}
           />
-          <span className={`text-base font-bold ${textPrimaryClass} group-hover:opacity-80 transition-opacity`} style={{ fontFamily: 'Oswald' }}>Raw Surf</span>
+          <span className={`text-base font-bold ${textPrimaryClass} group-hover:opacity-80 transition-opacity font-oswald`} >Raw Surf</span>
         </button>
         
         {/* Role badge - shows actual role or persona when masking */}
@@ -298,7 +298,7 @@ export const Sidebar = () => {
               <>
                 <span className={`text-[10px] ${textSecondaryClass}`}>Your Role</span>
                 <div className="mt-0.5 flex items-center gap-1">
-                  <span className="text-sm">{getExpandedRoleInfo(user.role)?.icon || '🏄'}</span>
+                  <span className="text-sm">{getExpandedRoleInfo(user.role)?.icon || '🤙'}</span>
                   <span className={`text-[11px] font-medium ${getExpandedRoleInfo(user.role)?.color || 'text-cyan-400'}`}>
                     {getExpandedRoleInfo(user.role)?.label || user.role}
                   </span>
@@ -310,7 +310,7 @@ export const Sidebar = () => {
       </div>
 
       {/* Navigation - Scrollable section with minimum height */}
-      <nav className="flex-1 p-2 overflow-y-auto min-h-0 scrollbar-thin scrollbar-thumb-zinc-700 scrollbar-track-transparent">
+      <nav className="flex-1 p-2 overflow-y-auto min-h-0 scrollbar-thin scrollbar-thumb-zinc-700 scrollbar-track-transparent" role="navigation" aria-label="Main navigation">
         {navItems.map((item, _index) => {
           const Icon = item.icon;
           
@@ -387,7 +387,7 @@ export const Sidebar = () => {
                       const SubIcon = subItem.icon;
                       if (subItem.isPassportButton) {
                         return (
-                          <button
+                          <button aria-label="Sub Icon"
                             key="passport"
                             onClick={() => setPassportOpen(true)}
                             className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg transition-all text-sm ${subItem.color} hover:bg-emerald-500/10`}
@@ -442,7 +442,7 @@ export const Sidebar = () => {
               <div className="relative">
                 <Icon className="w-5 h-5" />
                 {item.badge > 0 && (
-                  <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 flex items-center justify-center bg-red-500 text-white text-[10px] font-bold rounded-full">
+                  <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 flex items-center justify-center bg-red-500 text-white text-[10px] font-bold rounded-full" aria-live="polite" aria-atomic="true">
                     {item.badge > 99 ? '99+' : item.badge}
                   </span>
                 )}
@@ -458,7 +458,7 @@ export const Sidebar = () => {
           ].filter(Boolean));
         })}
 
-        {/* Active Session Indicator — standalone, visible to ALL roles */}
+        {/* Active Session Indicator - standalone, visible to ALL roles */}
         {activeSession && (
           <button
             onClick={() => {
@@ -481,10 +481,10 @@ export const Sidebar = () => {
                 : activeSession.status === 'searching_for_pro'
                 ? '🔍 On-Demand Session Searching...'
                 : activeSession.status === 'en_route'
-                ? '🚗 Photographer On The Way'
+                ? '🏃 Photographer On The Way'
                 : activeSession.status === 'arrived'
                 ? '📍 Photographer Arrived'
-                : '⚡ On-Demand Session Active'
+                : '? On-Demand Session Active'
               }
             </span>
           </button>
@@ -493,7 +493,7 @@ export const Sidebar = () => {
         {/* Photo Tools Section - Only for Photographers */}
         {isPhotographer && (
           <div className="mt-2">
-            <button
+            <button aria-label="Camera"
               onClick={() => setPhotoToolsOpen(!photoToolsOpen)}
               className={`w-full flex items-center justify-between px-4 py-3 rounded-lg mb-1 transition-all ${
                 isPhotoToolsPath
@@ -613,7 +613,7 @@ export const Sidebar = () => {
             <span className="hidden lg:inline">Theme</span>
           </NavLink>
           
-          <button
+          <button aria-label="Log Out"
             onClick={handleLogout}
             className={`flex-1 flex items-center justify-center gap-2 px-2 py-2 rounded-lg ${textSecondaryClass} ${hoverBgClass} hover:${textPrimaryClass} transition-all text-sm`}
             data-testid="nav-logout"

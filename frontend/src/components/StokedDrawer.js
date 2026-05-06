@@ -93,11 +93,10 @@ export const StokedDrawer = ({ isOpen, onClose }) => {
               <Zap className="w-5 h-5 text-yellow-400" />
               {getTitle()}
             </SheetTitle>
-            <button 
+            <button aria-label="Close" 
               onClick={onClose}
               className="text-muted-foreground hover:text-foreground p-1"
-            >
-              <X className="w-5 h-5" />
+            ><X className="w-5 h-5" />
             </button>
           </div>
         </SheetHeader>
@@ -150,7 +149,7 @@ export const StokedDrawer = ({ isOpen, onClose }) => {
           
           {/* View Full Dashboard Link */}
           <div className={!['Pro', 'Comp Surfer', 'Grom'].includes(effectiveRole) ? 'hidden md:block' : 'block'}>
-            <Button
+            <Button aria-label="Next"
               variant="ghost"
               className="w-full text-yellow-400 hover:text-yellow-300 hover:bg-yellow-500/10"
               onClick={handleViewFull}

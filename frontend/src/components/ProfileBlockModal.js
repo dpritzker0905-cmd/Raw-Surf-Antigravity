@@ -23,10 +23,10 @@ export const ProfileBlockModal = ({
             <div className="text-sm text-zinc-300">
               <p className="font-medium text-red-400 mb-1">When you block someone:</p>
               <ul className="space-y-1 text-zinc-400">
-                <li>• They won't be able to message you</li>
-                <li>• They won't see your posts or profile</li>
-                <li>• They won't be able to follow you</li>
-                <li>• Any existing follow will be removed</li>
+                <li>- They won't be able to message you</li>
+                <li>- They won't see your posts or profile</li>
+                <li>- They won't be able to follow you</li>
+                <li>- Any existing follow will be removed</li>
               </ul>
             </div>
           </div>
@@ -61,7 +61,7 @@ export const ProfileBlockModal = ({
         <div className="flex gap-3 pt-2">
           <Button onClick={() => { onClose(false); setBlockReason(''); setBlockNotes(''); }}
             variant="outline" className="flex-1 border-zinc-700">Cancel</Button>
-          <Button onClick={onBlock} disabled={blockLoading}
+          <Button aria-label="Loader2" onClick={onBlock} disabled={blockLoading}
             className="flex-1 bg-red-500 hover:bg-red-600 text-white" data-testid="confirm-block-btn">
             {blockLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Ban className="w-4 h-4 mr-2" />}
             Block User

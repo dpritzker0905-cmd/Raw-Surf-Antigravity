@@ -186,7 +186,7 @@ const WaveCard = ({
           data-testid="wave-author-avatar"
         >
           {wave.author_avatar ? (
-            <img 
+            <img loading="lazy" decoding="async" 
               src={wave.author_avatar} 
               alt={wave.author_name}
               className="w-12 h-12 rounded-full border-2 border-white object-cover"
@@ -202,7 +202,7 @@ const WaveCard = ({
         </button>
         
         {/* Like */}
-        <button
+        <button aria-label="Like"
           onClick={(e) => { e.stopPropagation(); handleLikeButton(); }}
           className="flex flex-col items-center gap-1"
           data-testid="wave-like-btn"
@@ -214,7 +214,7 @@ const WaveCard = ({
         </button>
         
         {/* Comments */}
-        <button
+        <button aria-label="div"
           onClick={(e) => { e.stopPropagation(); onComment(wave); }}
           className="flex flex-col items-center gap-1"
           data-testid="wave-comment-btn"
@@ -226,7 +226,7 @@ const WaveCard = ({
         </button>
         
         {/* Share */}
-        <button
+        <button aria-label="div"
           onClick={(e) => { e.stopPropagation(); onShare(wave); }}
           className="flex flex-col items-center gap-1"
           data-testid="wave-share-btn"
@@ -239,7 +239,7 @@ const WaveCard = ({
         
         {/* Sound control with volume slider */}
         <div className="relative flex flex-col items-center gap-1">
-          {/* Vertical volume slider — appears above the button */}
+          {/* Vertical volume slider - appears above the button */}
           <div
             className="flex flex-col items-center transition-all duration-300 ease-out overflow-hidden"
             style={{
@@ -249,7 +249,7 @@ const WaveCard = ({
             }}
           >
             <div className="relative h-[72px] w-8 flex items-center justify-center">
-              <input
+              <input aria-label="Range slider"
                 type="range"
                 min="0"
                 max="1"
@@ -312,7 +312,7 @@ const WaveCard = ({
             @{wave.author_username || wave.author_name?.toLowerCase().replace(/\s+/g, '')}
           </span>
           {wave.author_verified && (
-            <span className="text-blue-400 text-sm">✓</span>
+            <span className="text-blue-400 text-sm">?</span>
           )}
         </button>
         

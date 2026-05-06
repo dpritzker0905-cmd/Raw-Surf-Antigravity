@@ -85,12 +85,12 @@ export const Home = () => {
       <nav className="fixed top-0 left-0 right-0 z-50 bg-black/80 backdrop-blur-sm border-b border-zinc-800/50">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
           <div className="flex items-center gap-3">
-            <img
+            <img loading="lazy" decoding="async"
               src="https://customer-assets.emergentagent.com/job_raw-surf-os/artifacts/9llcl5mg_Rawig6-500x500.png"
               alt="Raw Surf"
               className="w-8 h-8"
             />
-            <span className="text-lg font-bold" style={{ fontFamily: 'Oswald' }}>Raw Surf</span>
+            <span className="text-lg font-bold font-oswald" >Raw Surf</span>
           </div>
           <Button
             onClick={() => navigate('/auth?tab=login')}
@@ -107,7 +107,7 @@ export const Home = () => {
         <div className="container mx-auto max-w-4xl text-center space-y-8">
           {/* Logo */}
           <div className="flex justify-center">
-            <img
+            <img loading="lazy" decoding="async"
               src="https://customer-assets.emergentagent.com/job_raw-surf-os/artifacts/9llcl5mg_Rawig6-500x500.png"
               alt="Raw Surf"
               className="w-24 h-24"
@@ -127,7 +127,7 @@ export const Home = () => {
 
           {/* Headline */}
           <div className="space-y-4">
-            <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold leading-tight" style={{ fontFamily: 'Oswald' }}>
+            <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold leading-tight font-oswald" >
               <span className="text-white">Your surf.</span>
               <br />
               <span className="bg-gradient-to-r from-emerald-400 via-yellow-400 to-orange-400 bg-clip-text text-transparent">
@@ -141,7 +141,7 @@ export const Home = () => {
 
           {/* CTA Buttons */}
           <div className="flex flex-col sm:flex-row gap-3 justify-center items-center pt-4">
-            <Button
+            <Button aria-label="User"
               onClick={() => navigate('/auth?tab=signup&category=surfer')}
               className="min-w-[180px] h-12 text-base font-bold bg-gradient-to-r from-emerald-400 via-yellow-400 to-orange-400 hover:from-emerald-500 hover:via-yellow-500 hover:to-orange-500 text-black border-0"
               data-testid="cta-surfer"
@@ -150,7 +150,7 @@ export const Home = () => {
               I'm a Surfer
             </Button>
 
-            <Button
+            <Button aria-label="Camera"
               onClick={() => navigate('/auth?tab=signup&category=photographer')}
               className="min-w-[180px] h-12 text-base font-medium bg-zinc-900 hover:bg-zinc-800 text-white border border-zinc-700 hover:border-zinc-600"
               data-testid="cta-photographer"
@@ -159,7 +159,7 @@ export const Home = () => {
               I Shoot Surf
             </Button>
 
-            <Button
+            <Button aria-label="Building2"
               onClick={() => navigate('/auth?tab=signup&category=business')}
               className="min-w-[180px] h-12 text-base font-medium bg-zinc-900 hover:bg-zinc-800 text-white border border-zinc-700 hover:border-zinc-600"
               data-testid="cta-business"
@@ -177,9 +177,9 @@ export const Home = () => {
                 Surfers
               </div>
               <ul className="text-gray-400 text-sm space-y-1">
-                <li>• Book photographers on the beach</li>
-                <li>• Build your session portfolio</li>
-                <li>• Get discounts on photo packages</li>
+                <li>- Book photographers on the beach</li>
+                <li>- Build your session portfolio</li>
+                <li>- Get discounts on photo packages</li>
               </ul>
             </div>
             <div className="bg-zinc-900/60 border border-zinc-800 rounded-lg p-4">
@@ -188,9 +188,9 @@ export const Home = () => {
                 Photographers
               </div>
               <ul className="text-gray-400 text-sm space-y-1">
-                <li>• Set your own session prices</li>
-                <li>• Get booked by local surfers</li>
-                <li>• 15-20% platform fee on sales</li>
+                <li>- Set your own session prices</li>
+                <li>- Get booked by local surfers</li>
+                <li>- 15-20% platform fee on sales</li>
               </ul>
             </div>
             <div className="bg-zinc-900/60 border border-zinc-800 rounded-lg p-4">
@@ -199,9 +199,9 @@ export const Home = () => {
                 Businesses
               </div>
               <ul className="text-gray-400 text-sm space-y-1">
-                <li>• List services & products</li>
-                <li>• Book event photographers</li>
-                <li>• Sponsor local talent</li>
+                <li>- List services & products</li>
+                <li>- Book event photographers</li>
+                <li>- Sponsor local talent</li>
               </ul>
             </div>
           </div>
@@ -211,7 +211,7 @@ export const Home = () => {
       {/* Features Section */}
       <section className="relative py-20 px-4 bg-zinc-900/30">
         <div className="container mx-auto max-w-6xl">
-          <h2 className="text-3xl sm:text-4xl font-bold text-center mb-12" style={{ fontFamily: 'Oswald' }}>
+          <h2 className="text-3xl sm:text-4xl font-bold text-center mb-12 font-oswald" >
             Built for the lineup
           </h2>
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -225,7 +225,7 @@ export const Home = () => {
                   <div className="w-10 h-10 rounded-lg bg-gradient-to-r from-emerald-400 via-yellow-400 to-orange-400 flex items-center justify-center mb-4">
                     <Icon className="w-5 h-5 text-black" />
                   </div>
-                  <h3 className="text-lg font-bold mb-2 text-white" style={{ fontFamily: 'Oswald' }}>
+                  <h3 className="text-lg font-bold mb-2 text-white font-oswald" >
                     {feature.title}
                   </h3>
                   <p className="text-gray-400 text-sm">{feature.description}</p>
@@ -244,7 +244,7 @@ export const Home = () => {
             background: 'linear-gradient(135deg, rgba(52,211,153,0.9) 0%, rgba(250,204,21,0.9) 50%, rgba(249,115,22,0.9) 100%)'
           }}
         >
-          <h2 className="text-3xl sm:text-4xl font-bold text-black mb-4" style={{ fontFamily: 'Oswald' }}>
+          <h2 className="text-3xl sm:text-4xl font-bold text-black mb-4 font-oswald" >
             Ready to paddle out?
           </h2>
           <p className="text-black/80 mb-8">
@@ -254,7 +254,7 @@ export const Home = () => {
             onClick={() => navigate('/auth?tab=signup')}
             className="min-w-[200px] h-14 text-lg font-bold bg-black hover:bg-zinc-900 text-white"
           >
-            Create Account →
+            Create Account ?
           </Button>
         </div>
       </section>
@@ -263,14 +263,14 @@ export const Home = () => {
       <footer className="relative py-12 px-4 bg-black border-t border-zinc-800">
         <div className="container mx-auto text-center space-y-4">
           <div className="flex justify-center items-center gap-2">
-            <img
+            <img loading="lazy" decoding="async"
               src="https://customer-assets.emergentagent.com/job_raw-surf-os/artifacts/9llcl5mg_Rawig6-500x500.png"
               alt="Raw Surf"
               className="w-8 h-8"
             />
-            <span className="text-lg font-bold text-white" style={{ fontFamily: 'Oswald' }}>Raw Surf</span>
+            <span className="text-lg font-bold text-white font-oswald" >Raw Surf</span>
           </div>
-          <p className="text-gray-500 text-sm">© 2026 Raw Surf. All rights reserved.</p>
+          <p className="text-gray-500 text-sm">- 2026 Raw Surf. All rights reserved.</p>
         </div>
       </footer>
     </div>

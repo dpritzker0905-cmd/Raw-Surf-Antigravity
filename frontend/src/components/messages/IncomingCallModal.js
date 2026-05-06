@@ -1,8 +1,8 @@
 /**
- * IncomingCallModal — Full-screen overlay for INCOMING calls.
+ * IncomingCallModal - Full-screen overlay for INCOMING calls.
  * 
  * Ringer: Uses HTML Audio with generated WAV data URI.
- * No AudioContext needed — works reliably after any prior user gesture.
+ * No AudioContext needed - works reliably after any prior user gesture.
  */
 
 import React, { useEffect, useState, useRef, useCallback } from 'react';
@@ -85,7 +85,7 @@ export default function IncomingCallModal({
       <div className="relative mb-6">
         <div className="w-32 h-32 rounded-full overflow-hidden ring-4 ring-green-400/30 shadow-[0_0_60px_rgba(34,197,94,0.15)]">
           {callerAvatar ? (
-            <img src={callerAvatar} className="w-full h-full object-cover" alt={callerName} />
+            <img loading="lazy" decoding="async" src={callerAvatar} className="w-full h-full object-cover" alt={callerName} />
           ) : (
             <div className="w-full h-full bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center">
               <span className="text-4xl text-white font-bold">
@@ -98,12 +98,12 @@ export default function IncomingCallModal({
 
       {/* Caller name */}
       <h2 className="text-2xl font-semibold text-white mb-2">{callerName || 'Unknown'}</h2>
-      <p className="text-gray-400 text-sm mb-20">is calling you…</p>
+      <p className="text-gray-400 text-sm mb-20">is calling you-</p>
 
       {/* Accept / Reject buttons */}
       <div className="flex items-center gap-16">
         {/* Reject */}
-        <button 
+        <button aria-label="div" 
           onClick={handleReject} 
           className="group flex flex-col items-center gap-2"
           data-testid="reject-call-btn"
@@ -115,12 +115,12 @@ export default function IncomingCallModal({
         </button>
 
         {/* Accept */}
-        <button 
+        <button aria-label="div" 
           onClick={handleAccept} 
           className="group flex flex-col items-center gap-2"
           data-testid="accept-call-btn"
         >
-          <div className="w-16 h-16 rounded-full bg-green-500 hover:bg-green-400 flex items-center justify-center shadow-lg shadow-green-500/30 transition-all hover:scale-110 active:scale-95 animate-pulse" style={{ animationDuration: '2s' }}>
+          <div className="w-16 h-16 rounded-full bg-green-500 hover:bg-green-400 flex items-center justify-center shadow-lg shadow-green-500/30 transition-all hover:scale-110 active:scale-95 animate-pulse animate-duration-2s">
             {callType === 'video' ? (
               <Video className="w-7 h-7 text-white" />
             ) : (

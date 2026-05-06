@@ -1,8 +1,11 @@
 /**
  * CreateWaveModal - Upload short-form vertical video (max 60 seconds)
+ * 
+ * Streamlined 3-step flow: Select → Compose → Uploading
+ * Mobile-first: scrollable content, safe-area padding, no button cutoff
  */
 import React, { useState, useRef, useCallback } from 'react';
-import apiClient, { BACKEND_URL } from '../lib/apiClient';
+import apiClient from '../lib/apiClient';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
@@ -11,7 +14,7 @@ import { TextareaWithEmoji } from './EmojiPicker';
 import { Input } from './ui/input';
 import { 
   Upload, Video, Loader2, MapPin, Clock, AlertCircle, 
-  CheckCircle, Play, Pause, Volume2, Volume1, VolumeX, RotateCcw
+  CheckCircle, Play, Pause, Volume2, Volume1, VolumeX
 } from 'lucide-react';
 import { toast } from 'sonner';
 import logger from '../utils/logger';
@@ -27,7 +30,7 @@ export const CreateWaveModal = ({ isOpen, onClose, onSuccess }) => {
   const fileInputRef = useRef(null);
   const videoRef = useRef(null);
   
-  const [step, setStep] = useState('select'); // 'select', 'preview', 'details', 'uploading'
+  const [step, setStep] = useState('select'); // 'select', 'compose', 'uploading'
   const [selectedFile, setSelectedFile] = useState(null);
   const [videoPreview, setVideoPreview] = useState(null);
   const [videoInfo, setVideoInfo] = useState(null);
@@ -40,6 +43,7 @@ export const CreateWaveModal = ({ isOpen, onClose, onSuccess }) => {
   const [caption, setCaption] = useState('');
   const [location, setLocation] = useState('');
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadStatus, setUploadStatus] = useState('');
   const [error, setError] = useState(null);
   
   const bgClass = isLight ? 'bg-white' : 'bg-zinc-900';
@@ -55,6 +59,7 @@ export const CreateWaveModal = ({ isOpen, onClose, onSuccess }) => {
     setCaption('');
     setLocation('');
     setUploadProgress(0);
+    setUploadStatus('');
     setError(null);
     setIsPlaying(false);
   };
@@ -121,7 +126,8 @@ export const CreateWaveModal = ({ isOpen, onClose, onSuccess }) => {
         isVertical: height > width
       });
       
-      setStep('preview');
+      // Go directly to compose step (merged preview + details)
+      setStep('compose');
     };
     
     video.onerror = () => {
@@ -137,6 +143,7 @@ export const CreateWaveModal = ({ isOpen, onClose, onSuccess }) => {
     
     setStep('uploading');
     setError(null);
+    setUploadStatus('Uploading your Wave...');
     
     try {
       // Step 1: Upload video
@@ -146,11 +153,17 @@ export const CreateWaveModal = ({ isOpen, onClose, onSuccess }) => {
       
       const uploadResponse = await apiClient.post(`/upload/wave`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
+        timeout: 300000, // 5 minute timeout for mobile video uploads
         onUploadProgress: (progressEvent) => {
           const progress = Math.round((progressEvent.loaded * 100) / progressEvent.total);
           setUploadProgress(progress);
+          if (progress >= 100) {
+            setUploadStatus('Processing video on server...');
+          }
         }
       });
+      
+      setUploadStatus('Creating Wave post...');
       
       // Step 2: Create Wave post
       const waveData = {
@@ -172,9 +185,14 @@ export const CreateWaveModal = ({ isOpen, onClose, onSuccess }) => {
       onSuccess?.();
       
     } catch (err) {
-      logger.error('Upload error:', err);
-      setError(err.response?.data?.detail || 'Failed to upload wave');
-      setStep('details');
+      logger.error('Wave upload error:', err);
+      const detail = err.response?.data?.detail;
+      if (err.code === 'ECONNABORTED' || err.message?.includes('timeout')) {
+        setError('Upload timed out. Try a shorter or smaller video.');
+      } else {
+        setError(detail || 'Failed to upload wave. Please try again.');
+      }
+      setStep('compose');
     }
   };
   
@@ -198,15 +216,23 @@ export const CreateWaveModal = ({ isOpen, onClose, onSuccess }) => {
   
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className={`${bgClass} ${textClass} max-w-md mx-auto p-0 overflow-hidden`}>
-        <DialogHeader className={`p-4 border-b ${borderClass}`}>
+      <DialogContent 
+        data-testid="create-wave-modal"  
+        className={`${bgClass} ${textClass} max-w-md mx-auto p-0 overflow-hidden`}
+        style={{ maxHeight: '85vh', display: 'flex', flexDirection: 'column' }}
+      >
+        <DialogHeader className={`p-4 border-b ${borderClass} flex-shrink-0`}>
           <DialogTitle className="flex items-center gap-2">
             <Video className="w-5 h-5 text-cyan-500" />
             Create Wave
           </DialogTitle>
         </DialogHeader>
         
-        <div className="p-4">
+        {/* Scrollable content area — prevents bottom-nav cutoff on mobile */}
+        <div 
+          className="p-4 flex-1 overflow-y-auto"
+          style={{ paddingBottom: '24px' }}
+        >
           {/* Step 1: Select Video */}
           {step === 'select' && (
             <div className="space-y-4">
@@ -218,11 +244,11 @@ export const CreateWaveModal = ({ isOpen, onClose, onSuccess }) => {
                 <Upload className={`w-12 h-12 mx-auto mb-4 ${mutedClass}`} />
                 <p className={`font-medium mb-1 ${textClass}`}>Select a video</p>
                 <p className={`text-sm ${mutedClass}`}>
-                  MP4, MOV, or WebM • Max {MAX_DURATION} seconds
+                  MP4, MOV, or WebM - Max {MAX_DURATION} seconds
                 </p>
               </div>
               
-              <input
+              <input aria-label="Upload file"
                 ref={fileInputRef}
                 type="file"
                 accept="video/*"
@@ -233,7 +259,7 @@ export const CreateWaveModal = ({ isOpen, onClose, onSuccess }) => {
               
               {error && (
                 <div className="flex items-center gap-2 text-red-500 text-sm">
-                  <AlertCircle className="w-4 h-4" />
+                  <AlertCircle className="w-4 h-4 flex-shrink-0" />
                   {error}
                 </div>
               )}
@@ -248,10 +274,11 @@ export const CreateWaveModal = ({ isOpen, onClose, onSuccess }) => {
             </div>
           )}
           
-          {/* Step 2: Preview */}
-          {step === 'preview' && videoPreview && (
-            <div className="space-y-4">
-              <div className="relative aspect-[9/16] max-h-[400px] bg-black rounded-xl overflow-hidden mx-auto">
+          {/* Step 2: Compose — Video preview + caption + location (merged from old preview + details) */}
+          {step === 'compose' && videoPreview && (
+            <div className="space-y-3">
+              {/* Compact video preview */}
+              <div className="relative aspect-video max-h-[280px] bg-black rounded-xl overflow-hidden mx-auto">
                 <video
                   ref={videoRef}
                   src={videoPreview}
@@ -261,35 +288,26 @@ export const CreateWaveModal = ({ isOpen, onClose, onSuccess }) => {
                   muted={isMuted}
                 />
                 
-                {/* Video controls */}
-                <div className="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-black/80 to-transparent">
+                {/* Video controls overlay */}
+                <div className="absolute bottom-0 left-0 right-0 p-2 bg-gradient-to-t from-black/80 to-transparent">
                   <div className="flex items-center justify-between text-white">
-                    <button onClick={togglePlayPause} className="p-2">
-                      {isPlaying ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5" />}
+                    <button aria-label={isPlaying ? 'Pause' : 'Play'} onClick={togglePlayPause} className="p-1.5">
+                      {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
                     </button>
                     
-                    <div
-                      className="flex items-center gap-1.5"
-                      onMouseEnter={() => {
-                        setShowVolumeSlider(true);
-                        if (volumeTimerRef.current) clearTimeout(volumeTimerRef.current);
-                      }}
-                      onMouseLeave={() => {
-                        volumeTimerRef.current = setTimeout(() => setShowVolumeSlider(false), 1200);
-                      }}
-                    >
-                      <span className="text-sm">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-xs">
                         {formatDuration(videoInfo?.duration || 0)}
                       </span>
-                      {/* Volume slider — progressive disclosure */}
+                      {/* Volume slider - progressive disclosure */}
                       <div
                         className="overflow-hidden transition-all duration-300 ease-out flex items-center"
                         style={{
-                          width: showVolumeSlider ? '60px' : '0px',
+                          width: showVolumeSlider ? '50px' : '0px',
                           opacity: showVolumeSlider ? 1 : 0,
                         }}
                       >
-                        <input
+                        <input aria-label="Volume"
                           type="range"
                           min="0"
                           max="1"
@@ -312,7 +330,6 @@ export const CreateWaveModal = ({ isOpen, onClose, onSuccess }) => {
                             volumeTimerRef.current = setTimeout(() => setShowVolumeSlider(false), 2000);
                           }}
                           className="w-full h-1 appearance-none bg-white/30 rounded-full cursor-pointer"
-                          aria-label="Volume"
                           style={{
                             background: `linear-gradient(to right, rgba(255,255,255,0.9) ${(isMuted ? 0 : volume) * 100}%, rgba(255,255,255,0.2) ${(isMuted ? 0 : volume) * 100}%)`,
                           }}
@@ -330,69 +347,41 @@ export const CreateWaveModal = ({ isOpen, onClose, onSuccess }) => {
                           if (volumeTimerRef.current) clearTimeout(volumeTimerRef.current);
                           volumeTimerRef.current = setTimeout(() => setShowVolumeSlider(false), 2000);
                         }}
-                        className="p-2"
+                        className="p-1.5"
                         aria-label={isMuted ? 'Unmute' : 'Mute'}
                       >
-                        {isMuted || volume === 0 ? <VolumeX className="w-5 h-5" /> : volume < 0.5 ? <Volume1 className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
+                        {isMuted || volume === 0 ? <VolumeX className="w-4 h-4" /> : volume < 0.5 ? <Volume1 className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
                       </button>
                     </div>
                   </div>
                 </div>
                 
                 {/* Aspect ratio badge */}
-                <div className="absolute top-3 left-3 bg-black/50 px-2 py-1 rounded text-white text-xs">
+                <div className="absolute top-2 left-2 bg-black/50 px-1.5 py-0.5 rounded text-white text-xs">
                   {videoInfo?.aspectRatio}
                 </div>
               </div>
               
-              {/* Video info */}
-              <div className={`flex items-center justify-center gap-4 text-sm ${mutedClass}`}>
+              {/* Video info strip */}
+              <div className={`flex items-center justify-center gap-3 text-xs ${mutedClass}`}>
                 <span>{videoInfo?.width}x{videoInfo?.height}</span>
-                <span>•</span>
+                <span>{'\u00B7'}</span>
                 <span>{formatDuration(videoInfo?.duration || 0)}</span>
                 {videoInfo?.isVertical && (
                   <>
-                    <span>•</span>
+                    <span>{'\u00B7'}</span>
                     <span className="text-green-500 flex items-center gap-1">
                       <CheckCircle className="w-3 h-3" /> Vertical
                     </span>
                   </>
                 )}
-              </div>
-              
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  onClick={resetState}
-                  className={`flex-1 ${isLight ? '' : 'border-zinc-700 hover:bg-zinc-800'}`}
+                <button 
+                  onClick={resetState} 
+                  className={`text-xs ${mutedClass} underline ml-1`}
+                  aria-label="Choose different video"
                 >
-                  <RotateCcw className="w-4 h-4 mr-2" />
-                  Choose Different
-                </Button>
-                <Button
-                  onClick={() => setStep('details')}
-                  className="flex-1 bg-cyan-500 hover:bg-cyan-600 text-white"
-                  data-testid="wave-continue-btn"
-                >
-                  Continue
-                </Button>
-              </div>
-            </div>
-          )}
-          
-          {/* Step 3: Add Details */}
-          {step === 'details' && (
-            <div className="space-y-4">
-              {/* Thumbnail preview */}
-              <div className="relative aspect-video bg-black rounded-xl overflow-hidden">
-                <video
-                  src={videoPreview}
-                  className="w-full h-full object-contain"
-                  muted
-                />
-                <div className="absolute bottom-2 right-2 bg-black/50 px-2 py-1 rounded text-white text-xs">
-                  {formatDuration(videoInfo?.duration || 0)}
-                </div>
+                  Change
+                </button>
               </div>
               
               {/* Caption with Emoji Picker */}
@@ -403,8 +392,8 @@ export const CreateWaveModal = ({ isOpen, onClose, onSuccess }) => {
                 <TextareaWithEmoji
                   value={caption}
                   onChange={(val) => setCaption(val.length <= 500 ? val : val.slice(0, 500))}
-                  placeholder="Add a caption... 🤙"
-                  rows={3}
+                  placeholder={`Add a caption... ${String.fromCodePoint(0x1F30A)}`}
+                  rows={2}
                   isLight={isLight}
                 />
                 <p className={`text-xs ${mutedClass} mt-1 text-right`}>
@@ -419,7 +408,7 @@ export const CreateWaveModal = ({ isOpen, onClose, onSuccess }) => {
                 </label>
                 <div className="relative">
                   <MapPin className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${mutedClass}`} />
-                  <Input
+                  <Input aria-label="Add location..."
                     value={location}
                     onChange={(e) => setLocation(e.target.value)}
                     placeholder="Add location..."
@@ -431,36 +420,28 @@ export const CreateWaveModal = ({ isOpen, onClose, onSuccess }) => {
               
               {error && (
                 <div className="flex items-center gap-2 text-red-500 text-sm">
-                  <AlertCircle className="w-4 h-4" />
+                  <AlertCircle className="w-4 h-4 flex-shrink-0" />
                   {error}
                 </div>
               )}
               
-              <div className="flex gap-2 pt-2">
-                <Button
-                  variant="outline"
-                  onClick={() => setStep('preview')}
-                  className={`flex-1 ${isLight ? '' : 'border-zinc-700 hover:bg-zinc-800'}`}
-                >
-                  Back
-                </Button>
-                <Button
-                  onClick={handleUpload}
-                  className="flex-1 bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white"
-                  data-testid="wave-post-btn"
-                >
-                  Post Wave
-                </Button>
-              </div>
+              {/* Action button — single prominent CTA */}
+              <Button
+                onClick={handleUpload}
+                className="w-full bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white py-3 text-base font-semibold"
+                data-testid="wave-post-btn"
+              >
+                Post Wave
+              </Button>
             </div>
           )}
           
-          {/* Step 4: Uploading */}
+          {/* Step 3: Uploading */}
           {step === 'uploading' && (
             <div className="py-8 text-center space-y-4">
               <Loader2 className="w-12 h-12 mx-auto text-cyan-500 animate-spin" />
               <div>
-                <p className={`font-medium ${textClass}`}>Uploading your Wave...</p>
+                <p className={`font-medium ${textClass}`}>{uploadStatus}</p>
                 <p className={`text-sm ${mutedClass}`}>{uploadProgress}%</p>
               </div>
               

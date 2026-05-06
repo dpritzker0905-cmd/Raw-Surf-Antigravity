@@ -339,7 +339,7 @@ export const AdminModerationDashboard = () => {
                     <SelectItem value="fraud">Fraud</SelectItem>
                   </SelectContent>
                 </Select>
-                <Button variant="outline" size="sm" onClick={fetchDisputes}>
+                <Button variant="outline" size="sm" onClick={fetchDisputes} aria-label="Refresh">
                   <RefreshCw className="w-4 h-4" />
                 </Button>
               </div>
@@ -580,7 +580,7 @@ export const AdminModerationDashboard = () => {
                           <p className="text-xl font-bold text-orange-400">${hold.amount}</p>
                           <p className={`text-xs ${textSecondary}`}>{formatDate(hold.created_at)}</p>
                           {hold.is_active && (
-                            <Button
+                            <Button aria-label="Loader2"
                               size="sm"
                               variant="outline"
                               onClick={() => handleReleaseHold(hold.id)}
@@ -622,7 +622,7 @@ export const AdminModerationDashboard = () => {
                     <SelectItem value="admin">Admin</SelectItem>
                   </SelectContent>
                 </Select>
-                <Button variant="outline" size="sm" onClick={fetchAuditLogs}>
+                <Button variant="outline" size="sm" onClick={fetchAuditLogs} aria-label="Refresh">
                   <RefreshCw className="w-4 h-4" />
                 </Button>
               </div>
@@ -666,7 +666,7 @@ export const AdminModerationDashboard = () => {
                                   <span>By: {log.actor?.full_name || log.actor_email}</span>
                                 )}
                                 {log.target_email && (
-                                  <span>• Target: {log.target_email}</span>
+                                  <span>- Target: {log.target_email}</span>
                                 )}
                               </div>
                             </div>
@@ -777,7 +777,7 @@ export const AdminModerationDashboard = () => {
               {/* Refund Input */}
               {['open', 'under_review', 'escalated'].includes(selectedDispute.status) && selectedDispute.amount_disputed && (
                 <div className="flex items-center gap-2">
-                  <Input
+                  <Input aria-label="Refund amount"
                     type="number"
                     placeholder="Refund amount"
                     value={refundAmount}
@@ -825,14 +825,14 @@ export const AdminModerationDashboard = () => {
                 
                 {/* New Message */}
                 <div className="flex gap-2 mt-3">
-                  <Input
+                  <Input aria-label="Type a message..."
                     placeholder="Type a message..."
                     value={newMessage}
                     onChange={(e) => setNewMessage(e.target.value)}
                     className="bg-muted border-border"
                     onKeyPress={(e) => e.key === 'Enter' && handleAddDisputeMessage(selectedDispute.id)}
                   />
-                  <Button
+                  <Button aria-label="Loader2"
                     onClick={() => handleAddDisputeMessage(selectedDispute.id)}
                     disabled={!newMessage.trim() || actionLoading}
                     className="bg-blue-500 hover:bg-blue-600"
@@ -896,7 +896,7 @@ export const AdminModerationDashboard = () => {
               
               <div>
                 <p className="text-sm text-muted-foreground mb-2">Admin Notes</p>
-                <Textarea
+                <Textarea aria-label="Add notes about this decision..."
                   value={adminNotes}
                   onChange={(e) => setAdminNotes(e.target.value)}
                   placeholder="Add notes about this decision..."
@@ -910,7 +910,7 @@ export const AdminModerationDashboard = () => {
             <Button variant="outline" onClick={() => setShowReportReview(false)}>
               Cancel
             </Button>
-            <Button
+            <Button aria-label="Loader2"
               onClick={() => handleReviewReport(selectedReport?.id)}
               disabled={!reviewAction || actionLoading}
               className="bg-blue-500 hover:bg-blue-600"

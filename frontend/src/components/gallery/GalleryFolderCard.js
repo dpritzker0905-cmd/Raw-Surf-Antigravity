@@ -42,6 +42,8 @@ export const GalleryFolderCard = ({
             src={getFullUrl(folder.thumbnail_url)} 
             alt={folder.name}
             className="w-full h-full object-cover"
+            loading="lazy"
+            decoding="async"
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center">
@@ -52,7 +54,7 @@ export const GalleryFolderCard = ({
         {/* Overlay on hover */}
         <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
           {onRename && (
-            <button
+            <button aria-label="Edit3"
               onClick={(e) => {
                 e.stopPropagation();
                 onRename(folder);
@@ -63,7 +65,7 @@ export const GalleryFolderCard = ({
             </button>
           )}
           {onDelete && (
-            <button
+            <button aria-label="Delete"
               onClick={(e) => {
                 e.stopPropagation();
                 onDelete(folder);

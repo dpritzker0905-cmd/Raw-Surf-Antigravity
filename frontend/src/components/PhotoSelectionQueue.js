@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { Button } from './ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from './ui/dialog';
@@ -304,7 +304,7 @@ const PhotoSelectionQueue = ({ open, onOpenChange, theme = 'dark', onSelectionCo
                           {quota.photographer_name || 'Session'}
                         </p>
                         <p className={`text-sm ${textSecondaryClass}`}>
-                          {quota.spot_name} • {quota.session_date ? new Date(quota.session_date).toLocaleDateString() : 'Recent'}
+                          {quota.spot_name} ? {quota.session_date ? new Date(quota.session_date).toLocaleDateString() : 'Recent'}
                         </p>
                       </div>
                       <div className="text-right">
@@ -541,7 +541,7 @@ const PhotoSelectionQueue = ({ open, onOpenChange, theme = 'dark', onSelectionCo
                               }
                             `}
                           >
-                            <img
+                            <img loading="lazy" decoding="async"
                               src={item.thumbnail_url || item.preview_url}
                               alt="Gallery item"
                               className="w-full h-full object-cover"
@@ -581,7 +581,7 @@ const PhotoSelectionQueue = ({ open, onOpenChange, theme = 'dark', onSelectionCo
             </Button>
             
             {selectedQuota && selectedItems.size > 0 && (
-              <Button
+              <Button aria-label="Loader2"
                 data-testid="confirm-selection-btn"
                 onClick={handleSubmitSelections}
                 disabled={submitting}

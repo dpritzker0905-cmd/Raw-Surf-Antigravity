@@ -3,20 +3,20 @@
  * 
  * Logic Override: Account Tier (Paid vs Free) controls the Review UX:
  * 
- * 💎 PAID SURFER (is_ad_supported = false):
+ * ?? PAID SURFER (is_ad_supported = false):
  *    - "Full Session Insight" - Can scroll, enlarge, and play ALL clips before claiming
  *    - Compare similar shots to pick "Hero Shot"
  *    - Batch selection enabled
  * 
- * 🌊 FREE SURFER (is_ad_supported = true):
+ * ?? FREE SURFER (is_ad_supported = true):
  *    - "Sequential Claiming" - Blurred/restricted list
  *    - Must claim/dismiss one by one
  *    - Cannot see full gallery in high detail until transaction
  * 
  * Credit System:
- *    - Logic A: All-Inclusive (is_all_inclusive = true) → All clips unlocked
- *    - Logic B: Partial Inclusion (included_media_count > 0) → Credit-based
- *    - Logic C: Zero Inclusion → Pay-per-clip with watermarks
+ *    - Logic A: All-Inclusive (is_all_inclusive = true) ? All clips unlocked
+ *    - Logic B: Partial Inclusion (included_media_count > 0) ? Credit-based
+ *    - Logic C: Zero Inclusion ? Pay-per-clip with watermarks
  */
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
@@ -107,9 +107,9 @@ const ConfidenceBadge = ({ confidence, matchMethod }) => {
     switch (method) {
       case 'face_match': return '👤';
       case 'board_color': return '🏄';
-      case 'wetsuit': return '🦈';
+      case 'wetsuit': return '👔';
       case 'profile_photo': return '📷';
-      default: return '🤖';
+      default: return '🔍';
     }
   };
   
@@ -170,7 +170,7 @@ const MatchCard = ({
               onMouseLeave={(e) => e.target.pause()}
             />
           ) : (
-            <img
+            <img loading="lazy" decoding="async"
               src={isPaidAccount ? match.preview_url : match.thumbnail_url}
               alt=""
               className="w-full h-full object-cover"
@@ -185,7 +185,7 @@ const MatchCard = ({
             <p className="text-xs text-zinc-400 text-center px-4">
               Upgrade to paid to preview all clips
             </p>
-            <Button
+            <Button aria-label="View"
               size="sm"
               variant="outline"
               onClick={() => onReveal?.(match.id)}
@@ -219,7 +219,7 @@ const MatchCard = ({
         
         {/* Selection Checkbox (Paid accounts only) */}
         {isPaidAccount && (
-          <button
+          <button aria-label="Confirm"
             onClick={() => onSelect?.(match.id)}
             className={`absolute bottom-2 left-2 w-6 h-6 rounded-full flex items-center justify-center transition-all ${
               isSelected 
@@ -245,7 +245,7 @@ const MatchCard = ({
           {/* Claim/Dismiss buttons for sequential mode (Free) */}
           {!isPaidAccount && isRevealed && (
             <>
-              <Button
+              <Button aria-label="Confirm"
                 size="sm"
                 className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white"
                 onClick={() => onClaim?.(match.id)}
@@ -268,7 +268,7 @@ const MatchCard = ({
           {isPaidAccount && (
             <div className="flex-1 flex items-center justify-between text-sm">
               <span className="text-muted-foreground">
-                #{index + 1} • {match.ai_match_method?.replace('_', ' ')}
+                #{index + 1} - {match.ai_match_method?.replace('_', ' ')}
               </span>
               {isSelected && (
                 <Badge className="bg-cyan-500/20 text-cyan-400">Selected</Badge>
@@ -590,7 +590,7 @@ const AIProposedMatches = ({
                 >
                   Clear Selection
                 </Button>
-                <Button
+                <Button aria-label="Loader2"
                   className="bg-cyan-500 hover:bg-cyan-600 text-white"
                   onClick={claimSelected}
                   disabled={processing}
@@ -618,7 +618,7 @@ const AIProposedMatches = ({
               Is this you in the photo? AI matched based on your Passport data.
             </p>
             <div className="flex gap-2">
-              <Button
+              <Button aria-label="Confirm"
                 size="sm"
                 className="bg-emerald-500 hover:bg-emerald-600"
                 onClick={() => confirmIdentity(matches[0].id, true)}
@@ -653,7 +653,7 @@ const AIProposedMatches = ({
                 preload="metadata"
               />
             ) : (
-              <img
+              <img loading="lazy" decoding="async"
                 src={previewMatch.original_url || previewMatch.preview_url}
                 alt=""
                 className="w-full h-auto max-h-[80vh] object-contain"

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * CrewLeaderboard - Displays crew statistics, badges, and rankings
  * Shows on Profile page, "Stoked" section, and "The Inside" for competitive surfers
  */
@@ -43,15 +43,15 @@ const BADGE_ICONS = {
   frequent_flyers: '✈️',
   dawn_patrol: '🌅',
   sunset_crew: '🌇',
-  weekend_warriors: '🏄',
-  squad_goals: '👥',
-  dynamic_duo: '🤝',
+  weekend_warriors: '⚔️',
+  squad_goals: '🎯',
+  dynamic_duo: '👫',
   wolf_pack: '🐺',
-  ride_or_die: '💯',
-  variety_pack: '🎭',
-  local_legends: '📍',
-  smart_splitters: '💰',
-  budget_bosses: '👑'
+  ride_or_die: '🤙',
+  variety_pack: '🎲',
+  local_legends: '🏆',
+  smart_splitters: '🧠',
+  budget_bosses: '💵'
 };
 
 const TIER_COLORS = {
@@ -77,7 +77,7 @@ const BadgeCard = ({ badge, size = 'md' }) => {
   return (
     <div className="flex flex-col items-center">
       <div className={`${sizeClasses[size]} rounded-full bg-gradient-to-br ${tierColor} flex items-center justify-center shadow-lg`}>
-        <span>{BADGE_ICONS[badge.badge_type] || '🏆'}</span>
+        <span>{BADGE_ICONS[badge.badge_type] || '🤙'}</span>
       </div>
       <p className="text-xs font-medium mt-1 text-center">{badge.badge_name}</p>
       <Badge variant="outline" className="text-xs mt-0.5">
@@ -113,7 +113,7 @@ const CrewCard = ({ crew, onClick, isLight }) => {
                   style={{ zIndex: 4 - idx }}
                 >
                   {member.avatar_url ? (
-                    <img src={getFullUrl(member.avatar_url)} alt={member.full_name} className="w-full h-full object-cover" />
+                    <img loading="lazy" decoding="async" src={getFullUrl(member.avatar_url)} alt={member.full_name} className="w-full h-full object-cover" />
                   ) : (
                     <span className="text-white text-xs font-bold">
                       {member.full_name?.charAt(0) || '?'}
@@ -200,7 +200,7 @@ const LeaderboardEntry = ({ entry, isLight }) => {
                 className="w-6 h-6 rounded-full border border-black bg-gradient-to-br from-cyan-400 to-blue-500 flex items-center justify-center overflow-hidden"
               >
                 {m.avatar_url ? (
-                  <img src={getFullUrl(m.avatar_url)} alt="" className="w-full h-full object-cover" />
+                  <img loading="lazy" decoding="async" src={getFullUrl(m.avatar_url)} alt="" className="w-full h-full object-cover" />
                 ) : (
                   <span className="text-white text-xs">{m.full_name?.charAt(0)}</span>
                 )}
@@ -376,7 +376,7 @@ export const CrewLeaderboard = ({
               <div className="flex items-center gap-2 flex-1">
                 <div className="w-8 h-8 rounded-full bg-gradient-to-br from-cyan-400 to-blue-500 flex items-center justify-center overflow-hidden">
                   {userSummary.favorite_buddy.avatar_url ? (
-                    <img src={getFullUrl(userSummary.favorite_buddy.avatar_url)} alt="" className="w-full h-full object-cover" />
+                    <img loading="lazy" decoding="async" src={getFullUrl(userSummary.favorite_buddy.avatar_url)} alt="" className="w-full h-full object-cover" />
                   ) : (
                     <span className="text-white text-sm">{userSummary.favorite_buddy.full_name?.charAt(0)}</span>
                   )}
@@ -567,7 +567,7 @@ export const CrewLeaderboard = ({
                     <div key={idx} className="flex items-center gap-2 bg-zinc-800 rounded-full px-3 py-1">
                       <div className="w-6 h-6 rounded-full bg-gradient-to-br from-cyan-400 to-blue-500 flex items-center justify-center overflow-hidden">
                         {member.avatar_url ? (
-                          <img src={getFullUrl(member.avatar_url)} alt="" className="w-full h-full object-cover" />
+                          <img loading="lazy" decoding="async" src={getFullUrl(member.avatar_url)} alt="" className="w-full h-full object-cover" />
                         ) : (
                           <span className="text-white text-xs">{member.full_name?.charAt(0)}</span>
                         )}

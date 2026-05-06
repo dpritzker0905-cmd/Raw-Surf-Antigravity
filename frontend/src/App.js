@@ -6,6 +6,7 @@ import { PricingProvider } from './contexts/PricingContext';
 import { PersonaProvider } from './contexts/PersonaContext';
 import { Toaster } from './components/ui/sonner';
 import AccessCodeScreen from './components/AccessCodeScreen';
+import CookieConsentBanner from './components/ui/CookieConsentBanner';
 
 // ─── Routing utilities ─────────────────────────────────────────────────────────
 import ErrorBoundary from './components/routing/ErrorBoundary';
@@ -76,6 +77,7 @@ const DispatchLobby               = React.lazy(() => import('./components/Dispat
 const PostSessionSummary          = React.lazy(() => import('./components/gallery/PostSessionSummary').then(m => ({ default: m.PostSessionSummary })));
 const PhotographerSubscriptionSettings = React.lazy(() => import('./components/PhotographerSubscriptionSettings'));
 const PhotographerSubscribePage = React.lazy(() => import('./components/PhotographerSubscribePage'));
+const CareerPage = React.lazy(() => import('./components/CareerPage'));
 
 import './App.css';
 
@@ -104,9 +106,11 @@ const PageLoader = () => (
   </div>
 );
 
-// ─── Wrapper to apply Suspense on every lazy route ────────────────────────────
+// ─── Wrapper to apply Suspense + ErrorBoundary on every lazy route ─────────────
 const Lazy = ({ children }) => (
-  <Suspense fallback={<PageLoader />}>{children}</Suspense>
+  <ErrorBoundary>
+    <Suspense fallback={<PageLoader />}>{children}</Suspense>
+  </ErrorBoundary>
 );
 
 // ─── Subscription-only gate ────────────────────────────────────────────────────
@@ -180,14 +184,14 @@ function App() {
             <Route path="/god-mode" element={<Navigate to="/admin" replace />} />
 
             {/* Career / Leaderboard */}
-            <Route path="/leaderboard" element={<ProtectedRoute><AppLayout><Lazy><div className="max-w-2xl mx-auto p-4"><XPLeaderboard /></div></Lazy></AppLayout></ProtectedRoute>} />
-            <Route path="/career/the-peak" element={<ProtectedRoute><AppLayout><Lazy><div className="max-w-2xl mx-auto p-4"><ThePeakHub /></div></Lazy></AppLayout></ProtectedRoute>} />
-            <Route path="/career/impact-zone" element={<ProtectedRoute><AppLayout><Lazy><div className="max-w-2xl mx-auto p-4"><ImpactZoneHub /></div></Lazy></AppLayout></ProtectedRoute>} />
-            <Route path="/career/the-inside" element={<ProtectedRoute><AppLayout><Lazy><div className="max-w-2xl mx-auto p-4"><TheInsideHub /></div></Lazy></AppLayout></ProtectedRoute>} />
-            <Route path="/career/stoke-sponsor" element={<ProtectedRoute><AppLayout><Lazy><div className="max-w-2xl mx-auto p-4"><StokeSponsorDashboard /></div></Lazy></AppLayout></ProtectedRoute>} />
-            <Route path="/career/stoke-leaderboard" element={<ProtectedRoute><AppLayout><Lazy><div className="max-w-2xl mx-auto p-4"><StokeSponsorLeaderboard /></div></Lazy></AppLayout></ProtectedRoute>} />
-            <Route path="/stoked" element={<ProtectedRoute><AppLayout><Lazy><div className="max-w-2xl mx-auto p-4"><StokedDashboard /></div></Lazy></AppLayout></ProtectedRoute>} />
-            <Route path="/stoked-locked" element={<ProtectedRoute><AppLayout><Lazy><div className="max-w-2xl mx-auto p-4"><StokedLockedPage /></div></Lazy></AppLayout></ProtectedRoute>} />
+            <Route path="/leaderboard" element={<ProtectedRoute><AppLayout><Lazy><CareerPage><XPLeaderboard /></CareerPage></Lazy></AppLayout></ProtectedRoute>} />
+            <Route path="/career/the-peak" element={<ProtectedRoute><AppLayout><Lazy><CareerPage><ThePeakHub /></CareerPage></Lazy></AppLayout></ProtectedRoute>} />
+            <Route path="/career/impact-zone" element={<ProtectedRoute><AppLayout><Lazy><CareerPage><ImpactZoneHub /></CareerPage></Lazy></AppLayout></ProtectedRoute>} />
+            <Route path="/career/the-inside" element={<ProtectedRoute><AppLayout><Lazy><CareerPage><TheInsideHub /></CareerPage></Lazy></AppLayout></ProtectedRoute>} />
+            <Route path="/career/stoke-sponsor" element={<ProtectedRoute><AppLayout><Lazy><CareerPage><StokeSponsorDashboard /></CareerPage></Lazy></AppLayout></ProtectedRoute>} />
+            <Route path="/career/stoke-leaderboard" element={<ProtectedRoute><AppLayout><Lazy><CareerPage><StokeSponsorLeaderboard /></CareerPage></Lazy></AppLayout></ProtectedRoute>} />
+            <Route path="/stoked" element={<ProtectedRoute><AppLayout><Lazy><CareerPage><StokedDashboard /></CareerPage></Lazy></AppLayout></ProtectedRoute>} />
+            <Route path="/stoked-locked" element={<ProtectedRoute><AppLayout><Lazy><CareerPage><StokedLockedPage /></CareerPage></Lazy></AppLayout></ProtectedRoute>} />
 
             {/* Grom HQ */}
             <Route path="/grom-hq" element={<ProtectedRoute><AppLayout><Lazy><GromHQ /></Lazy></AppLayout></ProtectedRoute>} />
@@ -213,6 +217,7 @@ function App() {
             <Route path="*" element={<Home />} />
           </Routes>
           <Toaster position="top-center" richColors />
+          <CookieConsentBanner />
         </BrowserRouter>
         </AccessCodeScreen>
       </PricingProvider>

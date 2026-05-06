@@ -1,5 +1,5 @@
 /**
- * HairFilterPicker — UI for selecting AR hair overlays
+ * HairFilterPicker â€” UI for selecting AR hair overlays
  * 
  * Features:
  * - Male/Female category tabs
@@ -16,12 +16,12 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 // Category definitions
 const CATEGORIES = [
-  { id: 'male', label: 'Male', icon: '🏄‍♂️' },
-  { id: 'female', label: 'Female', icon: '🏄‍♀️' },
+  { id: 'male', label: 'Male', icon: String.fromCodePoint(0x1F3C4, 0x200D, 0x2642, 0xFE0F) },
+  { id: 'female', label: 'Female', icon: String.fromCodePoint(0x1F3C4, 0x200D, 0x2640, 0xFE0F) },
 ];
 
 /**
- * HairStyleCard — Individual hair style option
+ * HairStyleCard â€” Individual hair style option
  */
 const HairStyleCard = ({ style, isSelected, onSelect, colors }) => (
   <motion.button
@@ -70,8 +70,7 @@ export const HairFilterPicker = ({
       animate={{ opacity: 1, x: 0, scale: 1 }}
       exit={{ opacity: 0, x: -20, scale: 0.95 }}
       transition={{ type: 'spring', duration: 0.3 }}
-      className={`w-72 max-h-[50vh] overflow-y-auto p-3 rounded-2xl ${colors.overlayBg} ${colors.border} border z-50 overscroll-contain`}
-      style={{ WebkitOverflowScrolling: 'touch' }}
+      className={`w-72 max-h-[50vh] overflow-y-auto p-3 rounded-2xl ${colors.overlayBg} ${colors.border} border z-50 overscroll-contain scroll-touch`}
     >
       {/* Header */}
       <div className="flex items-center justify-between mb-3">
@@ -79,11 +78,10 @@ export const HairFilterPicker = ({
           <Scissors className={`w-4 h-4 ${colors.accentText}`} />
           <span className={`text-sm font-semibold ${colors.primaryText}`}>Surfer Hair</span>
         </div>
-        <button
+        <button aria-label="Close"
           onClick={onClose}
           className={`p-1.5 rounded-full ${colors.buttonBg} transition-colors`}
-        >
-          <X className={`w-4 h-4 ${colors.secondaryText}`} />
+        ><X className={`w-4 h-4 ${colors.secondaryText}`} />
         </button>
       </div>
 

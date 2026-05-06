@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
@@ -149,8 +149,8 @@ export const CrewPaymentDashboard = ({ booking, onUpdate }) => {
   return (
     <Card className={`${isLight ? 'bg-white border-gray-200' : 'bg-zinc-900/50 border-zinc-800'}`}>
       <CardHeader className="pb-2">
-        <button 
-          onClick={() => setExpanded(!expanded)}
+        <button aria-label="Users" 
+          aria-expanded={expanded} onClick={() => setExpanded(!expanded)}
           className="flex items-center justify-between w-full"
         >
           <CardTitle className={`text-base flex items-center gap-2 ${isLight ? 'text-gray-900' : 'text-white'}`}>
@@ -246,7 +246,7 @@ export const CrewPaymentDashboard = ({ booking, onUpdate }) => {
                           Pending
                         </Badge>
                         {member.participant_id !== user?.id && (
-                          <Button
+                          <Button aria-label="Loader2"
                             size="sm"
                             variant="ghost"
                             onClick={() => handleNudge(member.participant_id)}
@@ -291,7 +291,7 @@ export const CrewPaymentDashboard = ({ booking, onUpdate }) => {
               </Button>
             )}
             
-            <Button
+            <Button aria-label="Calculator"
               size="sm"
               variant="outline"
               onClick={() => setShowCustomSplit(true)}
@@ -332,7 +332,7 @@ export const CrewPaymentDashboard = ({ booking, onUpdate }) => {
                 </div>
                 <div className="flex items-center gap-2">
                   <DollarSign className="w-4 h-4 text-gray-400" />
-                  <Input
+                  <Input aria-label="Numeric input"
                     type="number"
                     step="0.01"
                     min="0"

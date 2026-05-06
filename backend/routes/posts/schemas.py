@@ -20,6 +20,9 @@ class PostCreate(BaseModel):
     video_height: Optional[int] = None
     video_duration: Optional[float] = None
     was_transcoded: Optional[bool] = False
+    # Carousel support
+    is_carousel: Optional[bool] = False
+    carousel_media: Optional[List[dict]] = None  # [{"url": "...", "type": "image/video", "thumbnail": "..."}]
     # Session metadata
     session_date: Optional[datetime] = None
     session_start_time: Optional[str] = None
@@ -143,6 +146,10 @@ class PostResponse(BaseModel):
     # Post settings
     hide_like_count: bool = False
     comments_disabled: bool = False
+    
+    # Carousel support
+    is_carousel: bool = False
+    carousel_media: Optional[List[dict]] = []  # [{"url": "...", "type": "image/video", "thumbnail": "..."}]
     
     # Single post view fields
     liked: bool = False

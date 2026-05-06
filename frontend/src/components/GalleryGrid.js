@@ -6,9 +6,9 @@ import { getFullUrl } from '../utils/media';
  * GalleryGrid - Mobile-first gallery grid with tap-to-view UX.
  * 
  * UX pattern (industry standard - Google Photos / Instagram):
- * - Tap an item → opens detail view (onClick handler)
- * - In bulk select mode → tap toggles selection
- * - Long-press or 3-dot menu → shows edit/delete actions
+ * - Tap an item ? opens detail view (onClick handler)
+ * - In bulk select mode ? tap toggles selection
+ * - Long-press or 3-dot menu ? shows edit/delete actions
  * - No hover-dependent interactions (mobile-friendly)
  */
 
@@ -35,7 +35,7 @@ export const GalleryGridItem = ({
   );
   const videoSrc = isVideo ? getFullUrl(item.preview_url || item.original_url) : null;
 
-  // Video poster is shown via the poster attribute — no autoplay to save bandwidth
+  // Video poster is shown via the poster attribute - no autoplay to save bandwidth
   // Video plays only when user clicks through to detail view
 
   const handleTap = () => {
@@ -59,7 +59,7 @@ export const GalleryGridItem = ({
     >
       {/* Selection checkbox in bulk mode */}
       {bulkSelectMode && (
-        <button
+        <button aria-label="Confirm"
           onClick={(e) => { e.stopPropagation(); onSelect?.(item.id); }}
           className={`absolute top-2 left-2 z-20 w-7 h-7 rounded-full border-2 flex items-center justify-center transition-all ${
             isSelected
@@ -89,7 +89,7 @@ export const GalleryGridItem = ({
           <div className="fixed inset-0 z-20" onClick={(e) => { e.stopPropagation(); setShowMenu(false); }} />
           <div className="absolute top-12 right-2 z-30 bg-card border border-border rounded-lg shadow-xl overflow-hidden min-w-[140px] animate-in fade-in slide-in-from-top-2 duration-150">
             {onEdit && (
-              <button
+              <button aria-label="Edit3"
                 onClick={(e) => { e.stopPropagation(); setShowMenu(false); onEdit(item); }}
                 className="w-full flex items-center gap-2.5 px-4 py-3 text-sm text-foreground hover:bg-muted/80 transition-colors"
               >
@@ -98,7 +98,7 @@ export const GalleryGridItem = ({
               </button>
             )}
             {onDelete && (
-              <button
+              <button aria-label="Loader2"
                 onClick={(e) => { e.stopPropagation(); setShowMenu(false); onDelete(item.id); }}
                 disabled={isDeleting}
                 className="w-full flex items-center gap-2.5 px-4 py-3 text-sm text-red-400 hover:bg-red-500/10 transition-colors disabled:opacity-50"
@@ -115,7 +115,7 @@ export const GalleryGridItem = ({
         </>
       )}
 
-      {/* Media preview — video items autoplay muted, photo items show img */}
+      {/* Media preview - video items autoplay muted, photo items show img */}
       <div className="w-full h-full bg-gradient-to-br from-gray-700/80 to-gray-900/80 flex items-center justify-center">
         {/* Fallback icon shows through when image is transparent or fails */}
         {isVideo ? (
@@ -125,7 +125,7 @@ export const GalleryGridItem = ({
         )}
         
         {isVideo && videoSrc ? (
-          <img
+          <img loading="lazy" decoding="async"
             src={imgSrc || undefined}
             alt={item.title || 'Video thumbnail'}
             className={`w-full h-full object-cover transition-transform duration-300 group-hover:scale-105 relative z-[1]`}
@@ -133,7 +133,7 @@ export const GalleryGridItem = ({
             onError={() => setImgError(true)}
           />
         ) : imgSrc ? (
-          <img
+          <img loading="lazy" decoding="async"
             src={imgSrc}
             alt={item.title || (isVideo ? 'Video' : 'Photo')}
             className={`w-full h-full object-cover transition-transform duration-300 group-hover:scale-105 relative z-[1] ${imgError ? 'opacity-0' : ''}`}
@@ -172,7 +172,7 @@ export const GalleryGridItem = ({
               style={{ zIndex: 10 - idx }}
             >
               {s.avatar_url ? (
-                <img
+                <img loading="lazy" decoding="async"
                   src={getFullUrl(s.avatar_url)}
                   alt={s.full_name}
                   className="w-full h-full object-cover"

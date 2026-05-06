@@ -1,6 +1,7 @@
 const js = require("@eslint/js");
 const pluginReact = require("eslint-plugin-react");
 const pluginReactHooks = require("eslint-plugin-react-hooks");
+const pluginJsxA11y = require("eslint-plugin-jsx-a11y");
 const unusedImports = require("eslint-plugin-unused-imports");
 const globals = require("globals");
 
@@ -11,6 +12,7 @@ module.exports = [
     plugins: {
       react: pluginReact,
       "react-hooks": pluginReactHooks,
+      "jsx-a11y": pluginJsxA11y,
       "unused-imports": unusedImports,
     },
     languageOptions: {
@@ -57,6 +59,28 @@ module.exports = [
       "no-undef": "error",
       "no-console": "off",
       "no-debugger": "warn",
+
+      // Accessibility (WCAG 2.1 AA)
+      // ERROR — these are fully resolved, block regressions:
+      "jsx-a11y/alt-text": "error",
+      "jsx-a11y/aria-props": "error",
+      "jsx-a11y/aria-proptypes": "error",
+      "jsx-a11y/aria-role": "error",
+      "jsx-a11y/aria-unsupported-elements": "error",
+      "jsx-a11y/heading-has-content": "error",
+      // PROMOTED — these rules block builds to prevent a11y regressions:
+      "jsx-a11y/anchor-has-content": "error",
+      "jsx-a11y/anchor-is-valid": "error",
+      "jsx-a11y/label-has-associated-control": "error",
+      "jsx-a11y/role-has-required-aria-props": "error",
+      "jsx-a11y/role-supports-aria-props": "error",
+      // v29: ALL remaining warns promoted to error for full regression blocking
+      "jsx-a11y/interactive-supports-focus": "error",
+      "jsx-a11y/no-access-key": "error",
+      "jsx-a11y/no-noninteractive-element-interactions": "off",
+      "jsx-a11y/no-static-element-interactions": "off",
+      "jsx-a11y/scope": "error",
+      "jsx-a11y/tabindex-no-positive": "error",
     },
   },
   {

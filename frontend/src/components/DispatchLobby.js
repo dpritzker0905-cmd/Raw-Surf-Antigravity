@@ -1,11 +1,11 @@
 /**
  * DispatchLobby.js
- * 
+ *
  * Full-page "poker room" lobby for on-demand sessions.
- * 
+ *
  * Flow:
  *   booking_created -> selfie_pending -> crew_paying -> photographer_pending -> accepted -> in_session
- * 
+ *
  * Uses the surfboard lineup visualization from the booking flow all the way through.
  * Polls /dispatch/{id} every 3s for live state updates.
  */
@@ -25,188 +25,17 @@ import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { toast } from 'sonner';
 import { RequestProSelfieModal } from './RequestProSelfieModal';
+import SurfboardAvatar from './on-demand/SurfboardAvatar';
+import PhotographerCard from './on-demand/PhotographerCard';
 import { SessionChatDrawer, SessionChatFAB } from './SessionChatDrawer';
 import { useSessionChatSync } from '../hooks/useSessionChatSync';
+import useHapticFeedback from '../hooks/useHapticFeedback';
 
 // --- Constants ---
-const SURFBOARD_COLORS = [
-  { fill: '#FCD34D', stroke: '#F59E0B' }, // Yellow (captain)
-  { fill: '#22D3EE', stroke: '#0891B2' }, // Cyan
-  { fill: '#F472B6', stroke: '#DB2777' }, // Pink
-  { fill: '#A78BFA', stroke: '#7C3AED' }, // Purple
-  { fill: '#34D399', stroke: '#059669' }, // Green
-  { fill: '#FB923C', stroke: '#EA580C' }, // Orange
-  { fill: '#60A5FA', stroke: '#2563EB' }, // Blue
-];
-
-// --- Surfboard Avatar (reused from booking flow) ---
-const SurfboardAvatar = ({ member, index, isCaptain, isPaid, isPending, isLight }) => {
-  const boardColor = SURFBOARD_COLORS[index % SURFBOARD_COLORS.length];
-  const textPrimary = isLight ? 'text-gray-900' : 'text-white';
-
-  return (
-    <div className="relative group flex flex-col items-center">
-      {/* Surfboard */}
-      <svg
-        viewBox="0 0 60 100"
-        className="absolute left-1/2 -translate-x-1/2 top-2 w-12 h-20 pointer-events-none"
-        style={{ filter: 'drop-shadow(0 2px 6px rgba(0,0,0,0.4))' }}
-      >
-        <ellipse cx="30" cy="50" rx="12" ry="38"
-          fill={boardColor.fill} stroke={boardColor.stroke} strokeWidth="2"
-          opacity={isPending ? 0.4 : 1}
-        />
-        <line x1="30" y1="14" x2="30" y2="86"
-          stroke={boardColor.stroke} strokeWidth="1.5" opacity="0.6" />
-        <ellipse cx="30" cy="16" rx="3" ry="2.5"
-          fill={boardColor.stroke} opacity="0.4" />
-        <path d="M30 78 L27 86 L30 83 L33 86 Z"
-          fill={boardColor.stroke} opacity="0.7" />
-      </svg>
-
-      {/* Avatar */}
-      <div className="relative z-10">
-        <div
-          className={`w-11 h-11 rounded-full overflow-hidden transition-all duration-500 ${
-            isCaptain
-              ? 'ring-2 ring-yellow-400'
-              : isPaid
-              ? 'ring-2 ring-green-400'
-              : 'ring-2 ring-amber-400/50'
-          } ${isPending ? 'opacity-50' : ''}`}
-        >
-          {member.avatar_url || member.selfie_url ? (
-            <img
-              src={getFullUrl(member.selfie_url || member.avatar_url)}
-              alt={member.name || 'Surfer'}
-              className="w-full h-full object-cover"
-            />
-          ) : (
-            <div
-              className={`w-full h-full flex items-center justify-center font-bold text-sm ${
-                isCaptain
-                  ? 'bg-gradient-to-br from-yellow-400 to-orange-500 text-black'
-                  : isPaid
-                  ? 'bg-gradient-to-br from-green-400 to-emerald-500 text-white'
-                  : 'bg-gradient-to-br from-zinc-600 to-zinc-700 text-gray-300'
-              }`}
-            >
-              {(member.name || member.value || '?')[0]?.toUpperCase()}
-            </div>
-          )}
-        </div>
-
-        {/* Status badge */}
-        {isCaptain && (
-          <div className="absolute -top-2 left-1/2 -translate-x-1/2">
-            <Award className="w-4 h-4 text-yellow-400 drop-shadow-lg" />
-          </div>
-        )}
-        {!isCaptain && isPaid && (
-          <div className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-green-500 flex items-center justify-center border border-zinc-900">
-            <Check className="w-2.5 h-2.5 text-white" />
-          </div>
-        )}
-        {!isCaptain && !isPaid && (
-          <div className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-amber-500/80 flex items-center justify-center border border-zinc-900 animate-pulse">
-            <Clock className="w-2.5 h-2.5 text-white" />
-          </div>
-        )}
-      </div>
-
-      {/* Name */}
-      <div className="text-center mt-9 max-w-[72px]">
-        <p className={`text-[10px] font-medium ${textPrimary} truncate`}>
-          {isCaptain ? 'You' : (member.name || member.value?.split('@')[0] || 'Crew')}
-        </p>
-        <p className={`text-[9px] ${isPaid ? 'text-green-400' : 'text-amber-400'} truncate`}>
-          {isCaptain ? 'Captain' : isPaid ? 'Paid' : 'Pending...'}
-        </p>
-      </div>
-    </div>
-  );
-};
+// SURFBOARD_COLORS and SurfboardAvatar extracted to ./routing/SurfboardAvatar.js
 
 // --- Photographer Card ---
-const PhotographerCard = ({ photographer, eta, status, isLight, wasDeclined }) => {
-  const textPrimary = isLight ? 'text-gray-900' : 'text-white';
-  const textSecondary = isLight ? 'text-gray-500' : 'text-gray-400';
-  const accepted = ['accepted', 'en_route', 'arrived'].includes(status);
-  // Only show declined/searching state if the photographer actually declined (status transitioned)
-  const reSearching = wasDeclined && (status === 'declined' || status === 'searching_for_pro');
-
-  const proName = photographer?.full_name || photographer?.name || 'Photographer';
-
-  const borderClass = accepted
-    ? 'border-green-400/50 bg-green-500/10'
-    : reSearching
-    ? 'border-red-400/40 bg-red-500/10'
-    : 'border-amber-400/30 bg-amber-500/5';
-
-  const ringClass = accepted
-    ? 'ring-2 ring-green-400'
-    : reSearching
-    ? 'ring-2 ring-red-400/50'
-    : 'ring-2 ring-amber-400/40';
-
-  const statusText = accepted
-    ? 'En route to you'
-    : reSearching
-    ? 'Searching for another photographer...'
-    : `Waiting for ${proName} to confirm...`;
-
-  return (
-    <div
-      className={`flex items-center gap-3 p-3 rounded-2xl border transition-all duration-500 ${borderClass}`}
-    >
-      <div
-        className={`w-12 h-12 rounded-full overflow-hidden flex-shrink-0 ${ringClass}`}
-      >
-        {photographer?.avatar_url || photographer?.avatar ? (
-          <img
-            src={getFullUrl(photographer.avatar_url || photographer.avatar)}
-            alt={photographer.full_name || photographer.name}
-            className="w-full h-full object-cover"
-          />
-        ) : (
-          <div className={`w-full h-full flex items-center justify-center ${
-            reSearching
-              ? 'bg-gradient-to-br from-red-400 to-red-600'
-              : 'bg-gradient-to-br from-amber-400 to-orange-500'
-          }`}>
-            <Camera className="w-6 h-6 text-black" />
-          </div>
-        )}
-      </div>
-
-      <div className="flex-1 min-w-0">
-        <p className={`font-semibold text-sm ${textPrimary} truncate`}>
-          {proName}
-        </p>
-        <p className={`text-xs ${reSearching ? 'text-red-400' : textSecondary}`}>
-          {statusText}
-        </p>
-      </div>
-
-      {accepted && eta && (
-        <div className="text-right flex-shrink-0">
-          <p className="text-green-400 font-bold text-lg">~{eta}</p>
-          <p className="text-xs text-green-400/70">min ETA</p>
-        </div>
-      )}
-      {reSearching && (
-        <div className="w-8 h-8 rounded-full bg-red-500/20 flex items-center justify-center flex-shrink-0">
-          <RefreshCw className="w-4 h-4 text-red-400 animate-spin" style={{ animationDuration: '3s' }} />
-        </div>
-      )}
-      {!accepted && !reSearching && (
-        <div className="w-8 h-8 rounded-full bg-amber-500/20 flex items-center justify-center animate-pulse flex-shrink-0">
-          <Radio className="w-4 h-4 text-amber-400" />
-        </div>
-      )}
-    </div>
-  );
-};
+// PhotographerCard extracted to ./on-demand/PhotographerCard.js
 
 // --- Timeline Step ---
 const TimelineStep = ({ icon: Icon, label, sub, done, active, isLight }) => {
@@ -242,12 +71,12 @@ export const DispatchLobby = () => {
   const { user } = useAuth();
   const { theme } = useTheme();
   const navigate = useNavigate();
+  const haptic = useHapticFeedback();
 
   const isLight = theme === 'light';
   const textPrimary = isLight ? 'text-gray-900' : 'text-white';
   const textSecondary = isLight ? 'text-gray-500' : 'text-gray-400';
   const bgPage = isLight ? 'bg-gray-50' : 'bg-zinc-950';
-
 
   // -- State --
   const [dispatch, setDispatch] = useState(null);
@@ -403,7 +232,7 @@ export const DispatchLobby = () => {
         // Photographer ACCEPTED
         if (['accepted', 'en_route'].includes(newStatus) && !acceptSoundPlayedRef.current) {
           acceptSoundPlayedRef.current = true;
-          toast.success('🎉 Photographer accepted! They\'re on their way.', {
+          toast.success('📸 Photographer accepted! They\'re on their way.', {
             id: 'photographer-accepted',
             duration: 6000,
           });
@@ -414,9 +243,9 @@ export const DispatchLobby = () => {
           } catch (_) { /* audio play failures are non-critical */ }
         }
 
-        // Photographer ARRIVED — notify the surfer
+        // Photographer ARRIVED - notify the surfer
         if (newStatus === 'arrived') {
-          toast.success('📸 Your photographer has arrived! Look for them at the spot.', {
+          toast.success('📍 Your photographer has arrived! Look for them at the spot.', {
             id: 'photographer-arrived',
             duration: 8000,
           });
@@ -467,7 +296,7 @@ export const DispatchLobby = () => {
       pollAttemptRef.current += 1;
     } catch (err) {
       pollAttemptRef.current += 1;
-      // Don't show error on first few attempts — backend may still be propagating
+      // Don't show error on first few attempts - backend may still be propagating
       if (pollAttemptRef.current >= 3) {
         setError('Lost connection - retrying...');
       }
@@ -506,7 +335,7 @@ export const DispatchLobby = () => {
     setCancelLoading(true);
     try {
       const res = await apiClient.post(
-        `/dispatch/${dispatchId}/cancel`,
+        `/dispatch/${dispatchId}/cancel?user_id=${user?.id}`,
         { reason: 'User cancelled from lobby' }
       );
       const feeAmt = res.data?.fee_amount || 0;
@@ -518,9 +347,10 @@ export const DispatchLobby = () => {
           { duration: 6000 }
         );
       } else {
-        toast.info('Session cancelled. Your deposit has been refunded.');
+        toast.info('Session cancelled. Your payment has been refunded to credits.');
       }
       navigate(`/bookings?tab=on_demand&highlight=${dispatchId}`);
+      haptic('error');
     } catch {
       toast.error('Failed to cancel. Please try again or contact support.');
     } finally {
@@ -592,7 +422,7 @@ export const DispatchLobby = () => {
             >
               <ArrowLeft className={`w-5 h-5 ${textPrimary}`} />
             </button>
-            <div>
+            <div aria-live="polite" aria-atomic="true" data-testid="dispatch-status">
               <h1 className={`font-bold text-sm ${textPrimary}`}>
                 {photographerAccepted ? 'Photographer Confirmed!' : 'Session Pending'}
               </h1>
@@ -624,7 +454,7 @@ export const DispatchLobby = () => {
               isLight ? 'bg-amber-50 border-amber-300' : 'bg-amber-500/10 border-amber-500/30'
             }`}
           >
-            <RefreshCw className="w-5 h-5 text-amber-400 animate-spin flex-shrink-0" style={{ animationDuration: '3s' }} />
+            <RefreshCw className="w-5 h-5 text-amber-400 animate-spin flex-shrink-0 animate-duration-3s" />
             <div className="flex-1">
               <p className={`text-sm font-medium ${textPrimary}`}>Finding a new photographer</p>
               <p className={`text-xs ${textSecondary}`}>
@@ -675,7 +505,7 @@ export const DispatchLobby = () => {
               <div className="flex items-center gap-3">
                 <div className="w-14 h-14 rounded-xl overflow-hidden ring-2 ring-green-400 flex-shrink-0">
                   {photographerAvatarUrl ? (
-                    <img
+                    <img loading="lazy" decoding="async"
                       src={getFullUrl(photographerAvatarUrl)}
                       alt={photographerName}
                       className="w-full h-full object-cover"
@@ -702,7 +532,7 @@ export const DispatchLobby = () => {
 
               {/* Communication Buttons */}
               <div className="grid grid-cols-2 gap-3">
-                <button
+                <button aria-label="Message"
                   onClick={() => setShowSessionChat(true)}
                   className={`flex items-center justify-center gap-2 py-3.5 rounded-xl font-semibold text-sm transition-all active:scale-[0.97] ${
                     isLight
@@ -719,7 +549,7 @@ export const DispatchLobby = () => {
                     </span>
                   )}
                 </button>
-                <button
+                <button aria-label="Microphone"
                   onClick={() => setShowSessionChat(true)}
                   className={`flex items-center justify-center gap-2 py-3.5 rounded-xl font-semibold text-sm transition-all active:scale-[0.97] ${
                     isLight
@@ -737,7 +567,7 @@ export const DispatchLobby = () => {
               <p className={`text-xs text-center ${
                 isLight ? 'text-green-600/70' : 'text-green-400/60'
               }`}>
-                Stay nearby — your photographer is capturing the action!
+                Stay nearby · your photographer is capturing the action!
               </p>
             </div>
           </div>
@@ -774,7 +604,7 @@ export const DispatchLobby = () => {
                 {photographerName} is on the way! Send a message or voice note to help them find you at the beach.
               </p>
 
-              {/* Inline message preview — shows latest photographer message */}
+              {/* Inline message preview - shows latest photographer message */}
               {bgLatestMessage && (
                 <button
                   onClick={() => setShowSessionChat(true)}
@@ -812,14 +642,14 @@ export const DispatchLobby = () => {
                       chatUnreadCount > 0 ? (isLight ? 'text-gray-900 font-medium' : 'text-white font-medium') : (isLight ? 'text-gray-500' : 'text-zinc-400')
                     }`}>
                       {bgLatestMessage.message_type === 'voice_note'
-                        ? '🎤 Voice note'
-                        : (bgLatestMessage.content || '📎 Media')}
+                        ? '🎙️ Voice note'
+                        : (bgLatestMessage.content || '📷 Media')}
                     </p>
                   </div>
                 </button>
               )}
               <div className="grid grid-cols-2 gap-3">
-                <button
+                <button aria-label="Message"
                   onClick={() => setShowSessionChat(true)}
                   className={`flex items-center justify-center gap-2 py-3 rounded-xl font-semibold text-sm transition-all active:scale-[0.97] ${
                     isLight
@@ -836,7 +666,7 @@ export const DispatchLobby = () => {
                     </span>
                   )}
                 </button>
-                <button
+                <button aria-label="Microphone"
                   onClick={() => setShowSessionChat(true)}
                   className={`flex items-center justify-center gap-2 py-3 rounded-xl font-semibold text-sm transition-all active:scale-[0.97] ${
                     isLight
@@ -946,7 +776,7 @@ export const DispatchLobby = () => {
 
         {/* --- Selfie prompt (if missing) --- */}
         {!captainSelfieUploaded && (
-          <button
+          <button aria-label="div"
             onClick={() => setShowSelfieModal(true)}
             className={`w-full flex items-center gap-3 p-4 rounded-2xl border-2 border-dashed transition-all ${
               isLight
@@ -975,7 +805,7 @@ export const DispatchLobby = () => {
               isLight ? 'bg-green-50' : 'bg-green-500/10'
             } border border-green-400/30`}
           >
-            <img
+            <img loading="lazy" decoding="async"
               src={getFullUrl(dispatch.selfie_url)}
               alt="Your selfie"
               className="w-10 h-10 rounded-full object-cover ring-2 ring-green-400 flex-shrink-0"
@@ -1075,7 +905,7 @@ export const DispatchLobby = () => {
               </div>
             </div>
             {!locationLocked && !editingLocation && (
-              <button
+              <button aria-label="Edit"
                 onClick={() => { setEditingLocation(true); setNewLocationName(dispatch?.location_name || ''); }}
                 className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${
                   isLight
@@ -1090,7 +920,7 @@ export const DispatchLobby = () => {
 
           {editingLocation ? (
             <div className="space-y-2">
-              <input
+              <input aria-label="e.g. Pier at 2nd Street"
                 type="text"
                 value={newLocationName}
                 onChange={e => setNewLocationName(e.target.value)}
@@ -1112,7 +942,7 @@ export const DispatchLobby = () => {
                   className={`flex-1 text-xs py-1.5 ${isLight ? 'bg-gray-100 text-gray-600' : 'bg-zinc-800 text-zinc-400'}`}
                   disabled={savingLocation}
                 >Cancel</Button>
-                <Button
+                <Button aria-label="Loader2"
                   onClick={handleUpdateLocation}
                   disabled={savingLocation || !newLocationName.trim()}
                   className="flex-1 text-xs py-1.5 bg-cyan-500 hover:bg-cyan-600 text-white font-bold"
@@ -1182,7 +1012,7 @@ export const DispatchLobby = () => {
         {/* --- Go to Bookings + Cancel --- */}
         <div className="space-y-3 pt-2">
           {/* Primary: Go back to Bookings */}
-          <Button
+          <Button aria-label="Go back"
             onClick={() => navigate(`/bookings?tab=on_demand&highlight=${dispatchId}`)}
             className={`w-full py-4 rounded-xl font-bold ${
               isLight
@@ -1228,7 +1058,7 @@ export const DispatchLobby = () => {
               <p className={`text-xs ${textSecondary}`}>
                 {photographerAccepted
                   ? 'A cancellation fee may apply based on the photographer\'s policy.'
-                  : 'Your deposit will be refunded to your account credits.'}
+                  : 'Your payment will be refunded to your account credits.'}
               </p>
               <div className="flex gap-3">
                 <Button
@@ -1238,7 +1068,7 @@ export const DispatchLobby = () => {
                 >
                   Keep Session
                 </Button>
-                <Button
+                <Button aria-label="Loader2"
                   onClick={handleCancelSession}
                   disabled={cancelLoading}
                   className="flex-1 bg-red-500 hover:bg-red-600 text-white font-bold"

@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
@@ -14,7 +14,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Input } from './ui/input';
 import { toast } from 'sonner';
 import apiClient, { BACKEND_URL } from '../lib/apiClient';
+import ChallengesTab from './career/ChallengesTab';
 import logger from '../utils/logger';
+import { GenericPageSkeleton } from './ui/SkeletonVariants';
 
 
 /**
@@ -83,15 +85,11 @@ export const ImpactZoneHub = () => {
   };
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="w-8 h-8 animate-spin text-orange-500" />
-      </div>
-    );
+    return <GenericPageSkeleton />;
   }
 
   return (
-    <div className="space-y-6 pb-20">
+    <div data-testid="impact-zone-hub" className="space-y-6 pb-20">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -202,7 +200,7 @@ export const ImpactZoneHub = () => {
               <Calendar className="w-5 h-5 text-yellow-500" />
               Upcoming Contests
             </CardTitle>
-            <Button variant="ghost" size="sm" className="text-orange-400" onClick={() => navigate('/contest-calendar')}>
+            <Button variant="ghost" size="sm" className="text-orange-400" onClick={() => navigate('/contest-calendar')} aria-label="Next">
               View All <ChevronRight className="w-4 h-4 ml-1" />
             </Button>
           </div>
@@ -256,7 +254,7 @@ export const ImpactZoneHub = () => {
               <Award className="w-5 h-5 text-purple-500" />
               Competition Results
             </CardTitle>
-            <Button 
+            <Button aria-label="Add" 
               variant="outline" 
               size="sm" 
               className="border-orange-500/50 text-orange-400 hover:bg-orange-500/10"
@@ -305,7 +303,7 @@ export const ImpactZoneHub = () => {
               <Trophy className="w-12 h-12 mx-auto mb-3 text-zinc-600" />
               <p className={textSecondary}>No competition results yet</p>
               <p className={`text-xs ${textSecondary} mt-1`}>Add your first result to track your progress</p>
-              <Button 
+              <Button aria-label="Add" 
                 className="mt-4 bg-orange-500 hover:bg-orange-600"
                 onClick={() => setShowAddResultModal(true)}
               >
@@ -338,9 +336,22 @@ export const ImpactZoneHub = () => {
         </CardContent>
       </Card>
 
+      {/* Weekly Challenges */}
+      <Card className={`${cardBg}`}>
+        <CardHeader className="pb-2">
+          <CardTitle className={`${textPrimary} text-lg flex items-center gap-2`}>
+            <Flame className="w-5 h-5 text-orange-500" />
+            Weekly Challenges
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ChallengesTab userId={user?.id} />
+        </CardContent>
+      </Card>
+
       {/* Quick Actions */}
       <div className="grid grid-cols-2 gap-3">
-        <Button 
+        <Button aria-label="Users" 
           variant="outline" 
           className="h-auto py-4 border-orange-500/30 hover:bg-orange-500/10 flex flex-col items-center gap-2"
           onClick={() => navigate('/explore?filter=comp')}
@@ -348,7 +359,7 @@ export const ImpactZoneHub = () => {
           <Users className="w-6 h-6 text-orange-400" />
           <span className={textPrimary}>Comp Crew</span>
         </Button>
-        <Button 
+        <Button aria-label="Favorite" 
           variant="outline" 
           className="h-auto py-4 border-yellow-500/30 hover:bg-yellow-500/10 flex flex-col items-center gap-2"
           onClick={() => navigate('/stoked')}

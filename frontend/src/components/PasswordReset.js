@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import { Button } from './ui/button';
@@ -42,12 +42,12 @@ export const ForgotPassword = () => {
         {/* Header */}
         <div className="text-center pt-8 pb-4">
           <div className="flex items-center justify-center gap-2 mb-6">
-            <img
+            <img loading="lazy" decoding="async"
               src="https://customer-assets.emergentagent.com/job_raw-surf-os/artifacts/9llcl5mg_Rawig6-500x500.png"
               alt="Raw Surf"
               className="w-10 h-10"
             />
-            <span className="text-2xl font-bold text-white" style={{ fontFamily: 'Oswald' }}>Raw Surf</span>
+            <span className="text-2xl font-bold text-white font-oswald" >Raw Surf</span>
           </div>
           <h2 className="text-xl font-bold text-white">Forgot Password</h2>
           <p className="text-gray-400 mt-2 text-sm">
@@ -60,7 +60,7 @@ export const ForgotPassword = () => {
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                <Input
+                <Input aria-label="Enter your email"
                   type="email"
                   placeholder="Enter your email"
                   value={email}
@@ -71,7 +71,7 @@ export const ForgotPassword = () => {
                 />
               </div>
 
-              <Button
+              <Button aria-label="Loader2"
                 type="submit"
                 disabled={loading}
                 className="w-full h-12 bg-gradient-to-r from-emerald-400 via-yellow-400 to-orange-400 hover:from-emerald-500 hover:via-yellow-500 hover:to-orange-500 text-black font-bold"
@@ -115,7 +115,7 @@ export const ForgotPassword = () => {
 
           {/* Back to login link */}
           {!sent && (
-            <button
+            <button aria-label="Go back"
               onClick={() => navigate('/auth?tab=login')}
               className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors mt-4 mx-auto"
             >
@@ -293,12 +293,12 @@ export const ResetPassword = () => {
         {/* Header */}
         <div className="text-center pt-8 pb-4">
           <div className="flex items-center justify-center gap-2 mb-6">
-            <img
+            <img loading="lazy" decoding="async"
               src="https://customer-assets.emergentagent.com/job_raw-surf-os/artifacts/9llcl5mg_Rawig6-500x500.png"
               alt="Raw Surf"
               className="w-10 h-10"
             />
-            <span className="text-2xl font-bold text-white" style={{ fontFamily: 'Oswald' }}>Raw Surf</span>
+            <span className="text-2xl font-bold text-white font-oswald" >Raw Surf</span>
           </div>
           <h2 className="text-xl font-bold text-white">
             {success ? 'Password Reset!' : 'Create New Password'}
@@ -313,7 +313,7 @@ export const ResetPassword = () => {
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                <Input
+                <Input aria-label="New password"
                   type={showPassword ? 'text' : 'password'}
                   placeholder="New password"
                   value={password}
@@ -323,9 +323,9 @@ export const ResetPassword = () => {
                   minLength={6}
                   data-testid="new-password-input"
                 />
-                <button
+                <button aria-label="Hide"
                   type="button"
-                  onClick={() => setShowPassword(!showPassword)}
+                  aria-expanded={showPassword} onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white"
                 >
                   {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
@@ -334,7 +334,7 @@ export const ResetPassword = () => {
 
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                <Input
+                <Input aria-label="Confirm new password"
                   type={showPassword ? 'text' : 'password'}
                   placeholder="Confirm new password"
                   value={confirmPassword}
@@ -348,7 +348,7 @@ export const ResetPassword = () => {
 
               <p className="text-xs text-gray-500">Password must be at least 6 characters</p>
 
-              <Button
+              <Button aria-label="Loader2"
                 type="submit"
                 disabled={loading}
                 className="w-full h-12 bg-gradient-to-r from-emerald-400 via-yellow-400 to-orange-400 hover:from-emerald-500 hover:via-yellow-500 hover:to-orange-500 text-black font-bold"

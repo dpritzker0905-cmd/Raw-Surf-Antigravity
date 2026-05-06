@@ -11,7 +11,7 @@ import {
   MapPin, Calendar, Sparkles, UserCheck, Loader2,
   Search, Filter, Check, MoreVertical,
   TrendingUp, ShoppingBag, BarChart3,
-  Link2, Send, CheckCircle, AlertCircle, ArrowRight, UserPlus, RefreshCw, Globe, Radio
+  Link2, Send, CheckCircle, AlertCircle, ArrowRight, UserPlus, RefreshCw, Globe, Radio,
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from './ui/card';
 import { Button } from './ui/button';
@@ -30,6 +30,7 @@ import {
   DropdownMenuSeparator,
 } from './ui/dropdown-menu';
 import { toast } from 'sonner';
+import usePhotographerGalleryActions from '../hooks/usePhotographerGalleryActions';
 import { getFullUrl } from '../utils/media';
 import { ROLES } from '../constants/roles';
 
@@ -66,7 +67,7 @@ export const PhotographerGalleryManager = () => {
   const [filterType, setFilterType] = useState('all');
   const [sortBy, setSortBy] = useState('newest');
   const [selectedItems, setSelectedItems] = useState(new Set());
-  const [bulkMode, setBulkMode] = useState(false);
+  const [setBulkMode] = useState(false);
   const [itemCustomPrice, setItemCustomPrice] = useState('');
   const [lightboxItem, setLightboxItem] = useState(null); // Phase 2: Lightbox
   
@@ -131,472 +132,73 @@ export const PhotographerGalleryManager = () => {
     }
   }, [gallery?.id]);
 
-  const fetchGallery = async () => {
-    try {
-      const res = await apiClient.get(`/galleries/${galleryId}?viewer_id=${user?.id}`);
-      setGallery(res.data);
-      setPricing({
-        price_web: res.data.pricing?.photo?.web || 3,
-        price_standard: res.data.pricing?.photo?.standard || 5,
-        price_high: res.data.pricing?.photo?.high || 10,
-        price_720p: res.data.pricing?.video?.['720p'] || 8,
-        price_1080p: res.data.pricing?.video?.['1080p'] || 15,
-        price_4k: res.data.pricing?.video?.['4k'] || 30
-      });
-      setEditData({
-        title: res.data.title || '',
-        description: res.data.description || ''
-      });
-    } catch (error) {
-      toast.error('Failed to load gallery');
-      navigate('/photographer/sessions');
-    } finally {
-      setLoading(false);
-    }
-  };
+  // ============ HANDLERS EXTRACTED ============
 
-  // ============ PUSH TO SPOT HUB HANDLERS ============
 
-  // Fetch conditions status when gallery loads
-  useEffect(() => {
-    if (gallery?.surf_spot_id && user?.id) {
-      fetchConditionsStatus();
-    }
-  }, [gallery?.id, gallery?.surf_spot_id]);
-
-  const fetchConditionsStatus = async () => {
-    try {
-      const response = await apiClient.get(
-        `/galleries/${galleryId}/conditions-status?photographer_id=${user.id}`
-      );
-      setConditionsStatus(response.data);
-    } catch (error) {
-      logger.error('Error fetching conditions status:', error);
-      setConditionsStatus(null);
-    }
-  };
-
-  const handlePushToSpotHub = async () => {
-    if (!gallery?.surf_spot_id) {
-      toast.error('This gallery has no linked surf spot');
-      return;
-    }
-    setPushingConditions(true);
-    try {
-      const response = await apiClient.post(
-        `/galleries/${galleryId}/push-conditions?photographer_id=${user.id}`,
-        {}
-      );
-      const data = response.data;
-      toast.success(`📡 ${data.message}`);
-      await fetchConditionsStatus();
-    } catch (error) {
-      toast.error(error.response?.data?.detail || 'Failed to push conditions report');
-    } finally {
-      setPushingConditions(false);
-    }
-  };
-
-  // ============ DISTRIBUTION HANDLERS ============
-  const fetchSessionParticipants = async () => {
-    if (!galleryId || !user?.id) return;
-    setLoadingParticipants(true);
-    try {
-      const res = await apiClient.get(`/gallery/${galleryId}/session-participants?photographer_id=${user.id}`);
-      setSessionParticipants(res.data.participants || []);
-      setSessionInfo(res.data.session || {});
-      setTotalGalleryItems(res.data.total_gallery_items || 0);
-    } catch (error) {
-      logger.warn('Failed to load session participants:', error);
-    } finally {
-      setLoadingParticipants(false);
-    }
-  };
-
-  const fetchRecentSessions = async () => {
-    if (!user?.id) return;
-    setLoadingSessions(true);
-    try {
-      const res = await apiClient.get(`/photographer/${user.id}/recent-sessions`);
-      setRecentSessions(res.data || []);
-    } catch (error) {
-      toast.error('Failed to load recent sessions');
-    } finally {
-      setLoadingSessions(false);
-    }
-  };
-
-  const handleLinkSession = async (session) => {
-    try {
-      // session can be a full object with link_key, or a plain sessionId string for backward compat
-      const linkPayload = typeof session === 'object' && session.link_key
-        ? { [session.link_key]: session.id }
-        : { live_session_id: session };
-      
-      await apiClient.post(`/gallery/${galleryId}/link-session?photographer_id=${user.id}`, linkPayload);
-      const typeLabel = session?.session_type === 'booking' ? 'Booking' :
-        session?.session_type === 'on_demand' ? 'On-Demand' : 'Live Session';
-      toast.success(`Gallery linked to ${typeLabel}!`);
-      setShowLinkSessionModal(false);
-      fetchGallery();
-      fetchSessionParticipants();
-    } catch (error) {
-      toast.error(error.response?.data?.detail || 'Failed to link session');
-    }
-  };
-
-  const handleDistributeAll = async () => {
-    try {
-      setDistributing('all');
-      const res = await apiClient.post(`/gallery/${galleryId}/distribute?photographer_id=${user.id}`);
-      toast.success(res.data.message || 'Distribution complete!');
-      fetchSessionParticipants();
-    } catch (error) {
-      toast.error(error.response?.data?.detail || 'Distribution failed');
-    } finally {
-      setDistributing(null);
-    }
-  };
-
-  const handleDistributeToSurfer = async (surferId, surferName) => {
-    try {
-      setDistributing(surferId);
-      const res = await apiClient.post(`/gallery/${galleryId}/distribute-to-surfer?photographer_id=${user.id}`, {
-        surfer_id: surferId,
-        access_type: 'pending_selection'
-      });
-      toast.success(res.data.message || `Distributed to ${surferName}!`);
-      fetchSessionParticipants();
-    } catch (error) {
-      toast.error(error.response?.data?.detail || 'Distribution failed');
-    } finally {
-      setDistributing(null);
-    }
-  };
-
-  const handleAssignItemToSurfer = async (itemId, surferId, silent = false) => {
-    try {
-      await apiClient.post(`/gallery/item/${itemId}/assign-surfer`, {
-        photographer_id: user.id,
-        surfer_id: surferId,
-        access_type: 'pending_selection'
-      });
-      if (!silent) {
-        toast.success('Item assigned to surfer!');
-        setShowAssignDrawer(false);
-        setAssigningItem(null);
-      }
-    } catch (error) {
-      if (!silent) toast.error(error.response?.data?.detail || 'Assignment failed');
-    }
-  };
-
-  // Phase 3: Fetch sales data
-  const fetchSalesData = async () => {
-    setLoadingSales(true);
-    try {
-      const res = await apiClient.get(`/galleries/${galleryId}/sales-dashboard?photographer_id=${user?.id}`);
-      setSalesData(res.data);
-    } catch (error) {
-      logger.error('Failed to load sales data:', error);
-    } finally {
-      setLoadingSales(false);
-    }
-  };
-
-  // Phase 3: Fetch client activity
-  const fetchClientActivity = async () => {
-    setLoadingSales(true);
-    try {
-      const res = await apiClient.get(`/galleries/${galleryId}/client-activity?photographer_id=${user?.id}`);
-      setClientsData(res.data);
-    } catch (error) {
-      logger.error('Failed to load client activity:', error);
-    } finally {
-      setLoadingSales(false);
-    }
-  };
-
-  const handleFileUpload = async (e) => {
-    const files = e.target.files;
-    if (!files?.length) return;
-
-    setUploading(true);
-    let successCount = 0;
-
-    for (const file of files) {
-      try {
-        // Create FormData for file upload
-        const formData = new FormData();
-        formData.append('file', file);
-        formData.append('user_id', user?.id);  // Backend expects user_id
-        formData.append('add_watermark_preview', 'true');
-
-        // Upload to server using the correct photographer-gallery endpoint
-        const uploadRes = await apiClient.post(`/upload/photographer-gallery`, formData, {
-          headers: { 'Content-Type': 'multipart/form-data' }
-        });
-
-        if (uploadRes.data) {
-          // Add item to gallery
-          await apiClient.post(`/galleries/${galleryId}/items?photographer_id=${user?.id}`, {
-            original_url: uploadRes.data.original_url,
-            preview_url: uploadRes.data.preview_url,
-            thumbnail_url: uploadRes.data.thumbnail_url,
-            media_type: file.type.startsWith('video') ? 'video' : 'image'
-          });
-          successCount++;
-        }
-      } catch (error) {
-        logger.error(`Failed to upload ${file.name}:`, error);
-        toast.error(`Failed to upload ${file.name}: ${error.response?.data?.detail || error.message}`);
-      }
-    }
-
-    setUploading(false);
-    if (successCount > 0) {
-      toast.success(`Uploaded ${successCount} file(s) successfully`);
-      fetchGallery();
-    }
-  };
-
-  const handleSavePricing = async () => {
-    try {
-      await apiClient.put(`/galleries/${galleryId}?photographer_id=${user?.id}`, {
-        ...pricing
-      });
-      toast.success('Pricing updated');
-      setShowPricingModal(false);
-      fetchGallery();
-    } catch (error) {
-      toast.error('Failed to update pricing');
-    }
-  };
-
-  const handleSaveEdit = async () => {
-    try {
-      await apiClient.put(`/galleries/${galleryId}?photographer_id=${user?.id}`, editData);
-      toast.success('Gallery updated');
-      setShowEditModal(false);
-      fetchGallery();
-    } catch (error) {
-      toast.error('Failed to update gallery');
-    }
-  };
-
-  const handleDeleteGallery = async () => {
-    if (!window.confirm('Are you sure you want to delete this gallery? This cannot be undone.')) {
-      return;
-    }
-    try {
-      await apiClient.delete(`/galleries/${galleryId}?photographer_id=${user?.id}`);
-      toast.success('Gallery deleted');
-      navigate('/photographer/sessions');
-    } catch (error) {
-      toast.error('Failed to delete gallery');
-    }
-  };
-
-  // Set a specific item as gallery cover/thumbnail
-  const handleSetAsCover = async (item) => {
-    const coverUrl = item.preview_url || item.thumbnail_url;
-    if (!coverUrl) {
-      toast.error('This item has no preview image');
-      return;
-    }
-    try {
-      await apiClient.put(`/galleries/${galleryId}?photographer_id=${user?.id}`, {
-        cover_image_url: coverUrl
-      });
-      setGallery(prev => ({ ...prev, cover_image_url: coverUrl }));
-      toast.success('Gallery cover updated!');
-    } catch (error) {
-      toast.error('Failed to update cover image');
-    }
-  };
-
-  // AI Tagging Functions
-  const handleOpenTagging = async (item) => {
-    setSelectedItem(item);
-    setSelectedTags([]);
-    setAiTagSuggestions([]);
-    setShowTaggingModal(true);
-  };
-
-  const handleAnalyzePhoto = async () => {
-    if (!selectedItem) return;
-    
-    setAnalyzingPhoto(true);
-    try {
-      const response = await apiClient.post(`/ai/suggest-tags`, {
-        image_url: selectedItem.preview_url,
-        gallery_item_id: selectedItem.id
-      });
-      
-      if (response.data.success) {
-        setAiTagSuggestions(response.data.suggested_tags || []);
-        if (response.data.suggested_tags?.length === 0) {
-          toast.info(`Detected ${response.data.people_detected || 0} people but no registered surfers matched`);
-        } else {
-          toast.success(`Found ${response.data.suggested_tags.length} potential tag suggestions`);
-        }
-      }
-    } catch (error) {
-      toast.error('Failed to analyze photo');
-    } finally {
-      setAnalyzingPhoto(false);
-    }
-  };
-
-  const toggleTagSelection = (profileId) => {
-    setSelectedTags(prev => 
-      prev.includes(profileId) 
-        ? prev.filter(id => id !== profileId)
-        : [...prev, profileId]
-    );
-  };
-
-  const handleConfirmTags = async () => {
-    if (selectedTags.length === 0) {
-      toast.warning('No tags selected');
-      return;
-    }
-    
-    try {
-      await apiClient.post(`/ai/confirm-tags?photographer_id=${user?.id}`, {
-        gallery_item_id: selectedItem.id,
-        surfer_ids: selectedTags
-      });
-      
-      toast.success(`Tagged ${selectedTags.length} surfer(s)! They'll be notified.`);
-      setShowTaggingModal(false);
-      setSelectedItem(null);
-      setSelectedTags([]);
-      setAiTagSuggestions([]);
-    } catch (error) {
-      toast.error('Failed to save tags');
-    }
-  };
-
-  // Phase 1: Filter and sort items
-  const filteredItems = React.useMemo(() => {
-    if (!gallery?.items) return [];
-    
-    let items = [...gallery.items];
-    
-    // Filter by type
-    if (filterType === 'photos') items = items.filter(i => i.media_type === 'image');
-    else if (filterType === 'videos') items = items.filter(i => i.media_type === 'video');
-    else if (filterType === 'tagged') items = items.filter(i => i.tagged_surfer_ids);
-    else if (filterType === 'untagged') items = items.filter(i => !i.tagged_surfer_ids);
-    // Phase 4: Distribution-based filters
-    else if (filterType === 'distributed') items = items.filter(i => (i.distributed_count || 0) > 0);
-    else if (filterType === 'undistributed') items = items.filter(i => (i.distributed_count || 0) === 0);
-    else if (filterType === 'ai_pending') items = items.filter(i => (i.ai_suggested_count || 0) > 0 && (i.confirmed_count || 0) === 0);
-    
-    // Search by title
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      items = items.filter(i => 
-        (i.title || '').toLowerCase().includes(q) ||
-        (i.description || '').toLowerCase().includes(q)
-      );
-    }
-    
-    // Sort
-    if (sortBy === 'newest') items.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-    else if (sortBy === 'oldest') items.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
-    else if (sortBy === 'purchases') items.sort((a, b) => (b.purchase_count || 0) - (a.purchase_count || 0));
-    
-    return items;
-  }, [gallery?.items, filterType, searchQuery, sortBy]);
-
-  // Phase 1: Bulk selection handlers
-  const handleToggleSelect = (itemId) => {
-    setSelectedItems(prev => {
-      const next = new Set(prev);
-      if (next.has(itemId)) next.delete(itemId);
-      else next.add(itemId);
-      return next;
-    });
-  };
-
-  const handleSelectAll = () => {
-    if (selectedItems.size === filteredItems.length) {
-      setSelectedItems(new Set());
-    } else {
-      setSelectedItems(new Set(filteredItems.map(i => i.id)));
-    }
-  };
-
-  // Phase 2: Keyboard navigation for lightbox
-  React.useEffect(() => {
-    const handleKeyDown = (e) => {
-      if (!lightboxItem) return;
-      const currentIndex = filteredItems.findIndex(i => i.id === lightboxItem.id);
-      
-      if (e.key === 'Escape') {
-        setLightboxItem(null);
-      } else if (e.key === 'ArrowRight' && currentIndex < filteredItems.length - 1) {
-        setLightboxItem(filteredItems[currentIndex + 1]);
-      } else if (e.key === 'ArrowLeft' && currentIndex > 0) {
-        setLightboxItem(filteredItems[currentIndex - 1]);
-      }
-    };
-    
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [lightboxItem, filteredItems]);
-
-  const handleDeleteItem = async (itemId) => {
-    if (!window.confirm('Delete this item? This cannot be undone.')) return;
-    try {
-      await apiClient.delete(`/galleries/${galleryId}/items/${itemId}?photographer_id=${user?.id}`);
-      toast.success('Item deleted');
-      fetchGallery();
-    } catch (error) {
-      toast.error('Failed to delete item');
-    }
-  };
-
-  const handleBulkDelete = async () => {
-    if (selectedItems.size === 0) return;
-    if (!window.confirm(`Delete ${selectedItems.size} items? This cannot be undone.`)) return;
-    
-    try {
-      for (const itemId of selectedItems) {
-        await apiClient.delete(`/galleries/${galleryId}/items/${itemId}?photographer_id=${user?.id}`);
-      }
-      toast.success(`Deleted ${selectedItems.size} items`);
-      setSelectedItems(new Set());
-      setBulkMode(false);
-      fetchGallery();
-    } catch (error) {
-      toast.error('Failed to delete some items');
-    }
-  };
-
-  const handleSetCustomPrice = async () => {
-    if (!selectedItem || !itemCustomPrice) return;
-    try {
-      await apiClient.patch(`/gallery/item/${selectedItem.id}/custom-price?photographer_id=${user?.id}`, {
-        custom_price: parseFloat(itemCustomPrice)
-      });
-      toast.success('Custom price set');
-      setShowItemPricingModal(false);
-      setSelectedItem(null);
-      setItemCustomPrice('');
-      fetchGallery();
-    } catch (error) {
-      toast.error('Failed to set price');
-    }
-  };
-
-  const openItemPricing = (item) => {
-    setSelectedItem(item);
-    setItemCustomPrice(item.custom_price || '');
-    setShowItemPricingModal(true);
-  };
+  const {
+    fetchGallery,
+    fetchConditionsStatus,
+    handlePushToSpotHub,
+    fetchSessionParticipants,
+    fetchRecentSessions,
+    handleLinkSession,
+    handleDistributeAll,
+    handleDistributeToSurfer,
+    handleAssignItemToSurfer,
+    fetchSalesData,
+    fetchClientActivity,
+    handleFileUpload,
+    handleSavePricing,
+    handleSaveEdit,
+    handleDeleteGallery,
+    handleSetAsCover,
+    handleOpenTagging,
+    handleAnalyzePhoto,
+    toggleTagSelection,
+    handleConfirmTags,
+    handleToggleSelect,
+    handleSelectAll,
+    handleKeyDown,
+    handleDeleteItem,
+    handleBulkDelete,
+    handleSetCustomPrice,
+    openItemPricing,
+  } = usePhotographerGalleryActions({
+    user, gallery, selectedItems, editData, navigate, galleryId, setAiTagSuggestions,
+    setAnalyzingPhoto,
+    setAssigningItem,
+    setBulkMode,
+    setClientsData,
+    setConditionsStatus,
+    setDistributing,
+    setEditData,
+    setGallery,
+    setItemCustomPrice,
+    lightboxItem,
+    setLightboxItem,
+    setLoading,
+    setLoadingParticipants,
+    setLoadingSales,
+    setLoadingSessions,
+    setPricing,
+    setPushingConditions,
+    setRecentSessions,
+    setSalesData,
+    setSelectedItem,
+    setSelectedItems,
+    setSelectedTags,
+    setSessionInfo,
+    setSessionParticipants,
+    setShowAssignDrawer,
+    setShowEditModal,
+    setShowItemPricingModal,
+    setShowLinkSessionModal,
+    setShowPricingModal,
+    setShowTaggingModal,
+    setTotalGalleryItems,
+    setUploading,
+    setItemCustomPrice,
+  });
 
   if (loading) {
     return (
@@ -619,7 +221,7 @@ export const PhotographerGalleryManager = () => {
       <div className="max-w-4xl mx-auto p-4">
         {/* Header */}
         <div className="flex items-center gap-4 mb-6">
-          <Button
+          <Button aria-label="Go back"
             variant="ghost"
             onClick={() => navigate('/photographer/sessions')}
             className={textSecondaryClass}
@@ -627,7 +229,7 @@ export const PhotographerGalleryManager = () => {
             <ArrowLeft className="w-5 h-5" />
           </Button>
           <div className="flex-1">
-            <h1 className={`text-2xl font-bold ${textPrimaryClass}`} style={{ fontFamily: 'Oswald' }}>
+            <h1 className={`text-2xl font-bold ${textPrimaryClass} font-oswald`} >
               {gallery.title}
             </h1>
             <div className="flex items-center gap-3 mt-1 flex-wrap">
@@ -639,13 +241,13 @@ export const PhotographerGalleryManager = () => {
                   gallery.session_type === 'on_demand' ? 'border-orange-500/50 text-orange-400 text-[10px]' :
                   'border-zinc-500/50 text-zinc-400 text-[10px]'
                 }>
-                  {gallery.session_type === 'live' ? '🟢 Live Session' : 
+                  {gallery.session_type === 'live' ? '📸 Live Session' : 
                    gallery.session_type === 'booking' ? '📅 Booking' : 
                    gallery.session_type === 'on_demand' ? '⚡ On-Demand' : gallery.session_type}
                 </Badge>
               )}
               {gallery.session_type === 'manual' && (
-                <Badge variant="outline" className="border-zinc-600 text-zinc-500 text-[10px]">📋 Manual</Badge>
+              <Badge variant="outline" className="border-zinc-600 text-zinc-500 text-[10px]">{String.fromCodePoint(0x270B)} Manual</Badge>
               )}
               {gallery.surf_spot_name && (
                 <span className={`text-sm ${textSecondaryClass} flex items-center gap-1`}>
@@ -660,7 +262,7 @@ export const PhotographerGalleryManager = () => {
             </div>
           </div>
           <div className="flex gap-2">
-            <Button
+            <Button aria-label="Settings"
               variant="outline"
               onClick={() => setShowEditModal(true)}
               className={borderClass}
@@ -676,7 +278,7 @@ export const PhotographerGalleryManager = () => {
                   const willPublish = !gallery?.is_public;
                   await apiClient.post(`/gallery/${galleryId}/publish?photographer_id=${user?.profile_id}`, { is_published: willPublish });
                   setGallery(prev => ({ ...prev, is_public: willPublish, is_featured: willPublish }));
-                  toast.success(willPublish ? '🌐 Gallery published to your Sessions tab!' : 'Gallery unpublished');
+                  toast.success(willPublish ? '📸 Gallery published to your Sessions tab!' : 'Gallery unpublished');
                 } catch (err) {
                   toast.error('Failed to publish gallery');
                 } finally {
@@ -694,10 +296,10 @@ export const PhotographerGalleryManager = () => {
               ) : (
                 <Globe className="w-4 h-4 mr-2" />
               )}
-              {gallery?.is_public ? '✓ Published' : 'Publish Gallery'}
+              {gallery?.is_public ? '? Published' : 'Publish Gallery'}
             </Button>
             {showPricing && (
-              <Button
+              <Button aria-label="Dollar Sign"
                 onClick={() => setShowPricingModal(true)}
                 className="bg-gradient-to-r from-green-400 to-emerald-500 text-black"
               >
@@ -705,7 +307,7 @@ export const PhotographerGalleryManager = () => {
                 Set Pricing
               </Button>
             )}
-            {/* Push to Spot Hub — requires linked surf spot AND live session */}
+            {/* Push to Spot Hub ï¿½ requires linked surf spot AND live session */}
             {gallery?.surf_spot_id && (
               <Button
                 variant="outline"
@@ -807,7 +409,7 @@ export const PhotographerGalleryManager = () => {
                       <RefreshCw className={`w-3.5 h-3.5 ${loadingParticipants ? 'animate-spin' : ''}`} />
                     </Button>
                     {sessionParticipants.length > 0 && totalGalleryItems > 0 && (
-                      <Button
+                      <Button aria-label="Loader2"
                         size="sm"
                         onClick={handleDistributeAll}
                         disabled={distributing === 'all'}
@@ -832,7 +434,7 @@ export const PhotographerGalleryManager = () => {
                     <span className={`font-medium ${textPrimaryClass}`}>No Session Linked</span>
                     <span className={`text-xs ${textSecondaryClass}`}>Distribution unavailable</span>
                   </div>
-                  <Button
+                  <Button aria-label="Link2"
                     size="sm"
                     onClick={() => { setShowLinkSessionModal(true); fetchRecentSessions(); }}
                     className="bg-gradient-to-r from-amber-400 to-orange-500 text-black h-7 px-3 text-xs font-medium"
@@ -876,7 +478,7 @@ export const PhotographerGalleryManager = () => {
                         {/* Avatar */}
                         <div className="w-9 h-9 rounded-full overflow-hidden bg-zinc-700 flex-shrink-0 ring-2 ring-offset-1 ring-offset-transparent ring-cyan-500/30">
                           {participant.avatar_url ? (
-                            <img
+                            <img loading="lazy" decoding="async"
                               src={getFullUrl(participant.avatar_url)}
                               alt={participant.full_name}
                               className="w-full h-full object-cover"
@@ -912,7 +514,7 @@ export const PhotographerGalleryManager = () => {
 
                         {/* Action Button */}
                         {!isFullyDistributed ? (
-                          <Button
+                          <Button aria-label="Loader2"
                             size="sm"
                             variant="ghost"
                             onClick={() => handleDistributeToSurfer(participant.surfer_id, participant.full_name)}
@@ -930,7 +532,7 @@ export const PhotographerGalleryManager = () => {
                           </Button>
                         ) : (
                           <Badge variant="outline" className="border-emerald-500/50 text-emerald-400 text-[10px] h-7">
-                            ✓ Delivered
+                            ? Delivered
                           </Badge>
                         )}
                       </div>
@@ -961,15 +563,15 @@ export const PhotographerGalleryManager = () => {
                     gallery.session_settings.session_type === 'on_demand' ? 'border-amber-500/50 text-amber-400' :
                     'border-zinc-500/50 text-zinc-400'
                   }>
-                    {gallery.session_settings.session_type === 'live' ? '🟢 Live Session' :
+                    {gallery.session_settings.session_type === 'live' ? '📸 Live Session' :
                      gallery.session_settings.session_type === 'booking' ? '📅 Booking' :
-                     gallery.session_settings.session_type === 'on_demand' ? '⚡ On-Demand' : '📁 Manual'}
+                     gallery.session_settings.session_type === 'on_demand' ? '⚡ On-Demand' : '✏️ Manual'}
                   </Badge>
                 )}
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
-              {/* This Session's Included Content — editable */}
+              {/* This Session's Included Content ï¿½ editable */}
               {gallery?.session_settings && (
                 <div className="rounded-xl p-4" style={{
                   background: 'linear-gradient(135deg, rgba(6,182,212,0.08), rgba(59,130,246,0.06))',
@@ -977,7 +579,7 @@ export const PhotographerGalleryManager = () => {
                 }}>
                   <div className="flex items-center justify-between mb-3">
                     <h4 className={`text-xs font-bold uppercase tracking-wider ${textSecondaryClass}`}>
-                      This Session — Included Content
+                      This Session ï¿½ Included Content
                     </h4>
                     <span className="text-[10px] text-cyan-400/70">
                       {gallery.session_settings.buyin_price > 0 ? `$${gallery.session_settings.buyin_price} buy-in` : 'Free'}
@@ -1003,7 +605,7 @@ export const PhotographerGalleryManager = () => {
                           }}
                           className="w-7 h-7 rounded-md flex items-center justify-center text-sm font-bold text-white hover:bg-white/10 transition-colors"
                           style={{ border: '1px solid rgba(255,255,255,0.15)' }}
-                        >−</button>
+                        >-</button>
                         <span className="text-xl font-bold text-cyan-400 w-8 text-center">{gallery.session_settings?.photos_included ?? 3}</span>
                         <button
                           onClick={async () => {
@@ -1039,7 +641,7 @@ export const PhotographerGalleryManager = () => {
                           }}
                           className="w-7 h-7 rounded-md flex items-center justify-center text-sm font-bold text-white hover:bg-white/10 transition-colors"
                           style={{ border: '1px solid rgba(255,255,255,0.15)' }}
-                        >−</button>
+                        >-</button>
                         <span className="text-xl font-bold text-purple-400 w-8 text-center">{gallery.session_settings?.videos_included ?? 0}</span>
                         <button
                           onClick={async () => {
@@ -1069,7 +671,7 @@ export const PhotographerGalleryManager = () => {
                   {/* Live Session Pricing */}
                   <PricingTierRow
                     label="Live Session"
-                    emoji="🟢"
+                    emoji={String.fromCodePoint(0x1F4F8)}
                     color="emerald"
                     photosIncluded={gallery.photographer_pricing.live_session?.photos_included}
                     videosIncluded={gallery.photographer_pricing.live_session?.videos_included}
@@ -1083,7 +685,7 @@ export const PhotographerGalleryManager = () => {
                   {/* Booking Pricing */}
                   <PricingTierRow
                     label="Booking"
-                    emoji="📅"
+                    emoji={String.fromCodePoint(0x1F4C5)}
                     color="blue"
                     photosIncluded={gallery.photographer_pricing.booking?.photos_included}
                     videosIncluded={gallery.photographer_pricing.booking?.videos_included}
@@ -1098,7 +700,7 @@ export const PhotographerGalleryManager = () => {
                   {/* On-Demand Pricing */}
                   <PricingTierRow
                     label="On-Demand"
-                    emoji="⚡"
+                    emoji={String.fromCodePoint(0x26A1)}
                     color="amber"
                     photosIncluded={gallery.photographer_pricing.on_demand?.photos_included}
                     videosIncluded={gallery.photographer_pricing.on_demand?.videos_included}
@@ -1171,7 +773,7 @@ export const PhotographerGalleryManager = () => {
           {/* Search */}
           <div className="relative flex-1 min-w-[200px]">
             <Search className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${textSecondaryClass}`} />
-            <Input
+            <Input aria-label="Search by title..."
               placeholder="Search by title..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
@@ -1191,9 +793,9 @@ export const PhotographerGalleryManager = () => {
               <SelectItem value="videos">Videos Only</SelectItem>
               <SelectItem value="tagged">Tagged</SelectItem>
               <SelectItem value="untagged">Untagged</SelectItem>
-              <SelectItem value="distributed">✅ Distributed</SelectItem>
-              <SelectItem value="undistributed">⬜ Undistributed</SelectItem>
-              <SelectItem value="ai_pending">🤖 AI Pending</SelectItem>
+              <SelectItem value="distributed">? Distributed</SelectItem>
+              <SelectItem value="undistributed">? Undistributed</SelectItem>
+                <SelectItem value="ai_pending">{String.fromCodePoint(0x1F916)} AI Pending</SelectItem>
             </SelectContent>
           </Select>
           
@@ -1210,7 +812,7 @@ export const PhotographerGalleryManager = () => {
           </Select>
           
           {/* Bulk Mode Toggle */}
-          <Button
+          <Button aria-label="Confirm"
             variant={bulkMode ? "default" : "outline"}
             size="sm"
             onClick={() => { setBulkMode(!bulkMode); setSelectedItems(new Set()); }}
@@ -1229,7 +831,7 @@ export const PhotographerGalleryManager = () => {
               {selectedItems.size === filteredItems.length ? 'Deselect All' : 'Select All'}
             </Button>
             <div className="flex-1" />
-            <Button size="sm" variant="destructive" onClick={handleBulkDelete}>
+            <Button aria-label="Delete" size="sm" variant="destructive" onClick={handleBulkDelete}>
               <Trash2 className="w-4 h-4 mr-1" /> Delete Selected
             </Button>
           </div>
@@ -1242,7 +844,7 @@ export const PhotographerGalleryManager = () => {
               <div className="aspect-square relative">
                 {/* Bulk selection checkbox */}
                 {bulkMode && (
-                  <button
+                  <button aria-label="Confirm"
                     onClick={() => handleToggleSelect(item.id)}
                     className={`absolute top-2 left-2 z-10 w-6 h-6 rounded border-2 flex items-center justify-center transition-all ${
                       selectedItems.has(item.id) 
@@ -1255,7 +857,7 @@ export const PhotographerGalleryManager = () => {
                 )}
                 
                 {item.media_type === 'video' ? (
-                  <img
+                  <img loading="lazy" decoding="async"
                     src={item.thumbnail_url || item.preview_url}
                     alt={item.title || 'Video thumbnail'}
                     className="w-full h-full object-cover"
@@ -1263,7 +865,7 @@ export const PhotographerGalleryManager = () => {
                     onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling && (e.target.nextSibling.style.display = 'flex'); }}
                   />
                 ) : (
-                  <img 
+                  <img loading="lazy" decoding="async" 
                     src={item.preview_url || item.thumbnail_url} 
                     alt={item.title || 'Gallery item'}
                     className="w-full h-full object-cover"
@@ -1322,7 +924,7 @@ export const PhotographerGalleryManager = () => {
                 {/* Hover overlay with actions */}
                 {!bulkMode && (
                   <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                    <Button
+                    <Button aria-label="View"
                       size="sm"
                       onClick={() => setLightboxItem(item)}
                       variant="outline"
@@ -1330,7 +932,7 @@ export const PhotographerGalleryManager = () => {
                     >
                       <Eye className="w-4 h-4 mr-1" /> View
                     </Button>
-                    <Button
+                    <Button aria-label="Sparkles"
                       size="sm"
                       onClick={() => handleOpenTagging(item)}
                       className="bg-gradient-to-r from-purple-400 to-pink-500 text-black"
@@ -1349,7 +951,7 @@ export const PhotographerGalleryManager = () => {
                   {/* Item actions dropdown */}
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button size="sm" variant="ghost" className="h-6 px-2">
+                      <Button size="sm" variant="ghost" className="h-6 px-2" aria-label="More options">
                         <MoreVertical className="w-3 h-3" />
                       </Button>
                     </DropdownMenuTrigger>
@@ -1401,7 +1003,7 @@ export const PhotographerGalleryManager = () => {
             </p>
             <div className="flex items-center gap-2">
               <DollarSign className={`w-5 h-5 ${textSecondaryClass}`} />
-              <Input
+              <Input aria-label="Custom price (credits)"
                 type="number"
                 placeholder="Custom price (credits)"
                 value={itemCustomPrice}
@@ -1543,7 +1145,7 @@ export const PhotographerGalleryManager = () => {
             </div>
             
             <div className="pt-4 border-t border-zinc-700">
-              <Button
+              <Button aria-label="Delete"
                 variant="destructive"
                 onClick={handleDeleteGallery}
                 className="w-full"
@@ -1575,7 +1177,7 @@ export const PhotographerGalleryManager = () => {
             {/* Preview Image */}
             {selectedItem && (
               <div className="flex justify-center">
-                <img 
+                <img loading="lazy" decoding="async" 
                   src={getFullUrl(selectedItem.preview_url)} 
                   alt="Photo to tag" 
                   className="max-h-48 rounded-lg object-contain"
@@ -1583,13 +1185,13 @@ export const PhotographerGalleryManager = () => {
               </div>
             )}
 
-            {/* ─── AI Analysis Section ─── */}
+            {/* --- AI Analysis Section --- */}
             <div className={`rounded-xl p-4 ${isLight ? 'bg-purple-50 border border-purple-200' : 'bg-purple-500/10 border border-purple-500/20'}`}>
               <div className="flex items-center gap-2 mb-3">
                 <Sparkles className="w-4 h-4 text-purple-400" />
                 <h4 className={`font-semibold text-sm ${textPrimaryClass}`}>AI Recognition</h4>
                 {!analyzingPhoto && aiTagSuggestions.length === 0 && (
-                  <Button
+                  <Button aria-label="Sparkles"
                     size="sm"
                     onClick={handleAnalyzePhoto}
                     disabled={selectedItem?.media_type === 'video'}
@@ -1621,7 +1223,7 @@ export const PhotographerGalleryManager = () => {
                     >
                       <div className="w-9 h-9 rounded-full overflow-hidden bg-zinc-700 flex-shrink-0">
                         {suggestion.avatar_url ? (
-                          <img src={getFullUrl(suggestion.avatar_url)} alt={suggestion.name} className="w-full h-full object-cover" />
+                          <img loading="lazy" decoding="async" src={getFullUrl(suggestion.avatar_url)} alt={suggestion.name} className="w-full h-full object-cover" />
                         ) : (
                           <Users className="w-4 h-4 m-auto mt-2.5 text-zinc-500" />
                         )}
@@ -1662,7 +1264,7 @@ export const PhotographerGalleryManager = () => {
               )}
             </div>
 
-            {/* ─── Manual Assignment Section (Session Participants) ─── */}
+            {/* --- Manual Assignment Section (Session Participants) --- */}
             <div className={`rounded-xl p-4 ${isLight ? 'bg-cyan-50 border border-cyan-200' : 'bg-cyan-500/10 border border-cyan-500/20'}`}>
               <div className="flex items-center gap-2 mb-3">
                 <Users className="w-4 h-4 text-cyan-400" />
@@ -1686,7 +1288,7 @@ export const PhotographerGalleryManager = () => {
                       >
                         <div className="w-9 h-9 rounded-full overflow-hidden bg-zinc-700 flex-shrink-0">
                           {participant.avatar_url ? (
-                            <img src={getFullUrl(participant.avatar_url)} alt={participant.full_name} className="w-full h-full object-cover" />
+                            <img loading="lazy" decoding="async" src={getFullUrl(participant.avatar_url)} alt={participant.full_name} className="w-full h-full object-cover" />
                           ) : (
                             <Users className="w-4 h-4 m-auto mt-2.5 text-zinc-500" />
                           )}
@@ -1695,12 +1297,12 @@ export const PhotographerGalleryManager = () => {
                           <div className="flex items-center gap-1.5">
                             <p className={`text-sm font-medium ${textPrimaryClass}`}>{participant.full_name}</p>
                             {isAiMatch && (
-                              <Badge className="bg-purple-500/20 text-purple-400 text-[8px] px-1 py-0">AI ✓</Badge>
+                              <Badge className="bg-purple-500/20 text-purple-400 text-[8px] px-1 py-0">AI ?</Badge>
                             )}
                           </div>
                           <p className={`text-[10px] ${textSecondaryClass}`}>
                             {participant.items_distributed || 0} items in locker
-                            {participant.status && ` • ${participant.status}`}
+                            {participant.status && ` ï¿½ ${participant.status}`}
                           </p>
                         </div>
                         <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors flex-shrink-0 ${
@@ -1786,7 +1388,7 @@ export const PhotographerGalleryManager = () => {
           
           {/* Navigation arrows */}
           {filteredItems.findIndex(i => i.id === lightboxItem.id) > 0 && (
-            <button
+            <button aria-label="Go back"
               className="absolute left-4 text-white/70 hover:text-white p-2"
               onClick={(e) => {
                 e.stopPropagation();
@@ -1798,7 +1400,7 @@ export const PhotographerGalleryManager = () => {
             </button>
           )}
           {filteredItems.findIndex(i => i.id === lightboxItem.id) < filteredItems.length - 1 && (
-            <button
+            <button aria-label="Go back"
               className="absolute right-4 text-white/70 hover:text-white p-2"
               onClick={(e) => {
                 e.stopPropagation();
@@ -1811,7 +1413,7 @@ export const PhotographerGalleryManager = () => {
           )}
           
           {/* Image */}
-          <img
+          <img loading="lazy" decoding="async"
             src={lightboxItem.preview_url || lightboxItem.original_url}
             alt={lightboxItem.title || 'Gallery item'}
             className="max-w-[90vw] max-h-[85vh] object-contain"
@@ -1826,7 +1428,7 @@ export const PhotographerGalleryManager = () => {
                 <p className="text-white/60 text-sm">{new Date(lightboxItem.created_at).toLocaleDateString()}</p>
               </div>
               <div className="flex gap-2">
-                <Button
+                <Button aria-label="Sparkles"
                   size="sm"
                   variant="ghost"
                   className="text-white"
@@ -1836,7 +1438,7 @@ export const PhotographerGalleryManager = () => {
                 </Button>
               </div>
             </div>
-            <p className="text-center text-white/40 text-xs mt-2">← → Navigate • Esc Close</p>
+            <p className="text-center text-white/40 text-xs mt-2">? ? Navigate ï¿½ Esc Close</p>
           </div>
         </div>
       )}
@@ -1886,11 +1488,11 @@ export const PhotographerGalleryManager = () => {
                   <div className="space-y-2">
                     {salesData.sales.map(sale => (
                       <div key={sale.id} className={`flex items-center gap-3 p-3 rounded-lg ${isLight ? 'bg-gray-50' : 'bg-zinc-800/50'}`}>
-                        <img src={sale.item_thumbnail} alt="" className="w-12 h-12 rounded object-cover" />
+                        <img loading="lazy" decoding="async" src={sale.item_thumbnail} alt="" className="w-12 h-12 rounded object-cover" />
                         <div className="flex-1 min-w-0">
                           <p className={`text-sm font-medium truncate ${textPrimaryClass}`}>{sale.item_title || 'Untitled'}</p>
                           <div className="flex items-center gap-2 text-xs">
-                            <img src={sale.buyer_avatar || '/default-avatar.png'} alt="" className="w-4 h-4 rounded-full" />
+                            <img loading="lazy" decoding="async" src={sale.buyer_avatar || '/default-avatar.png'} alt="" className="w-4 h-4 rounded-full" />
                             <span className={textSecondaryClass}>{sale.buyer_name}</span>
                             <Badge variant="outline" className="text-[10px]">{sale.quality_tier}</Badge>
                           </div>
@@ -1961,7 +1563,7 @@ export const PhotographerGalleryManager = () => {
                   <div className="space-y-2">
                     {clientsData.clients.map(client => (
                       <div key={client.id} className={`flex items-center gap-3 p-3 rounded-lg ${isLight ? 'bg-gray-50' : 'bg-zinc-800/50'}`}>
-                        <img src={client.avatar || '/default-avatar.png'} alt="" className="w-10 h-10 rounded-full object-cover" />
+                        <img loading="lazy" decoding="async" src={client.avatar || '/default-avatar.png'} alt="" className="w-10 h-10 rounded-full object-cover" />
                         <div className="flex-1 min-w-0">
                           <p className={`text-sm font-medium ${textPrimaryClass}`}>{client.name}</p>
                           <p className={`text-xs ${textSecondaryClass}`}>
@@ -2056,7 +1658,7 @@ export const PhotographerGalleryManager = () => {
                             session.session_type === 'booking' ? 'border-blue-500/50 text-blue-400' :
                             'border-orange-500/50 text-orange-400'
                           }`}>
-                            {session.session_type === 'live' ? '🟢 Live' :
+                            {session.session_type === 'live' ? '📸 Live' :
                              session.session_type === 'booking' ? '📅 Booking' :
                              '⚡ On-Demand'}
                           </Badge>
@@ -2095,7 +1697,7 @@ export const PhotographerGalleryManager = () => {
         </DialogContent>
       </Dialog>
 
-      {/* ============ ASSIGN DRAWER (Individual Item → Surfer) ============ */}
+      {/* ============ ASSIGN DRAWER (Individual Item ? Surfer) ============ */}
       <Dialog open={showAssignDrawer} onOpenChange={setShowAssignDrawer}>
         <DialogContent className={`${isLight ? 'bg-white' : 'bg-zinc-900'} border ${borderClass} max-w-md`}>
           <DialogHeader>
@@ -2107,7 +1709,7 @@ export const PhotographerGalleryManager = () => {
           <div className="py-4 space-y-4">
             {assigningItem && (
               <div className="flex justify-center mb-4">
-                <img 
+                <img loading="lazy" decoding="async" 
                   src={getFullUrl(assigningItem.preview_url)} 
                   alt="Item to assign" 
                   className="max-h-32 rounded-lg object-contain"
@@ -2131,7 +1733,7 @@ export const PhotographerGalleryManager = () => {
                   >
                     <div className="w-9 h-9 rounded-full overflow-hidden bg-zinc-700 flex-shrink-0">
                       {participant.avatar_url ? (
-                        <img src={getFullUrl(participant.avatar_url)} alt={participant.full_name} className="w-full h-full object-cover" />
+                        <img loading="lazy" decoding="async" src={getFullUrl(participant.avatar_url)} alt={participant.full_name} className="w-full h-full object-cover" />
                       ) : (
                         <Users className="w-4 h-4 m-auto mt-2.5 text-zinc-500" />
                       )}
@@ -2161,7 +1763,7 @@ export const PhotographerGalleryManager = () => {
   );
 };
 
-// ── Pricing Tier Row (for per-service pricing display) ──
+// -- Pricing Tier Row (for per-service pricing display) --
 const PricingTierRow = ({
   label, emoji, color, photosIncluded, videosIncluded,
   buyinPrice, buyinLabel, photo, video,
@@ -2194,18 +1796,18 @@ const PricingTierRow = ({
           {buyinPrice > 0 && (
             <span className={textSecondaryClass}>${buyinPrice}{buyinLabel || ' buy-in'}</span>
           )}
-          <span style={{ color: '#06b6d4' }}>📷 {photosIncluded || 0} incl</span>
-          <span style={{ color: '#8b5cf6' }}>🎬 {videosIncluded || 0} incl</span>
+          <span style={{ color: '#06b6d4' }}>{String.fromCodePoint(0x1F4F7)} {photosIncluded || 0} incl</span>
+          <span style={{ color: '#8b5cf6' }}>{String.fromCodePoint(0x1F3AC)} {videosIncluded || 0} incl</span>
         </div>
       </div>
       <div className="flex flex-wrap gap-x-4 gap-y-1 text-[10px]">
         <span className={textSecondaryClass}>
           <span className="text-cyan-400/60">Photo:</span>{' '}
-          Web ${photo?.web || '—'} · HD ${photo?.standard || '—'} · 4K ${photo?.high || '—'}
+          Web ${photo?.web || 'ï¿½'} ï¿½ HD ${photo?.standard || 'ï¿½'} ï¿½ 4K ${photo?.high || 'ï¿½'}
         </span>
         <span className={textSecondaryClass}>
           <span className="text-purple-400/60">Video:</span>{' '}
-          720p ${video?.['720p'] || '—'} · 1080p ${video?.['1080p'] || '—'} · 4K ${video?.['4k'] || '—'}
+          720p ${video?.['720p'] || 'ï¿½'} ï¿½ 1080p ${video?.['1080p'] || 'ï¿½'} ï¿½ 4K ${video?.['4k'] || 'ï¿½'}
         </span>
       </div>
     </div>

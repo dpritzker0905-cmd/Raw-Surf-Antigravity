@@ -1,4 +1,4 @@
-﻿/**
+/**
  * AccessCodeScreen - Gate screen requiring access code before viewing the app
  * Controlled via admin settings - can be disabled when going live
  */
@@ -94,7 +94,7 @@ export const AccessCodeScreen = ({ children }) => {
   // Loading state
   if (checking) {
     return (
-      <div className="min-h-screen bg-black flex items-center justify-center">
+      <div data-testid="access-code-screen" className="min-h-screen bg-black flex items-center justify-center">
         <Loader2 className="w-8 h-8 text-cyan-400 animate-spin" />
       </div>
     );
@@ -132,7 +132,7 @@ export const AccessCodeScreen = ({ children }) => {
 
           <form onSubmit={verifyCode} className="space-y-4">
             <div>
-              <Input
+              <Input aria-label="Access code"
                 type="text"
                 placeholder="Access code"
                 value={code}
@@ -149,7 +149,7 @@ export const AccessCodeScreen = ({ children }) => {
               )}
             </div>
 
-            <Button
+            <Button aria-label="Loader2"
               type="submit"
               disabled={verifying || !code.trim()}
               className="w-full bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white font-semibold py-3"

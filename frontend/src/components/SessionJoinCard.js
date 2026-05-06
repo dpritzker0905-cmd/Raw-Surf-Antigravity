@@ -1,4 +1,4 @@
-﻿/**
+/**
  * SessionJoinCard - Inline component for joining sessions from Feed posts
  * 
  * Displays when a post is a session_log with open invites
@@ -94,7 +94,7 @@ export const SessionJoinCard = ({
         </div>
       </div>
       
-      <Button
+      <Button aria-label="Loader2"
         onClick={handleJoinSession}
         disabled={loading}
         className="w-full bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white font-medium"

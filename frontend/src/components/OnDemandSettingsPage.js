@@ -316,11 +316,11 @@ export const OnDemandSettingsPage = () => {
             On-Demand Settings
           </h1>
           <p className={`${textSecondary} text-sm mt-1`}>
-            {selectedSpots.length} coverage spots • {geoRadius.min}-{geoRadius.max} mile range
+            {selectedSpots.length} coverage spots - {geoRadius.min}-{geoRadius.max} mile range
           </p>
         </div>
         
-        <Button
+        <Button aria-label="Loader2"
           onClick={saveSettings}
           disabled={saving}
           className="bg-gradient-to-r from-green-400 to-cyan-400 text-black font-bold"
@@ -421,10 +421,10 @@ export const OnDemandSettingsPage = () => {
               <DollarSign className="w-5 h-5 text-green-400" />
               On-Demand Pricing
             </CardTitle>
-            <Button 
+            <Button aria-label="Settings" 
               variant="outline" 
               size="sm"
-              onClick={() => setShowPricingSection(!showPricingSection)}
+              aria-expanded={showPricingSection} onClick={() => setShowPricingSection(!showPricingSection)}
               className={borderClass}
             >
               <Settings className="w-4 h-4 mr-2" />
@@ -449,7 +449,7 @@ export const OnDemandSettingsPage = () => {
               <div className={`p-3 rounded-xl ${sectionBg}`}>
                 <p className={`text-xs ${textSecondary} mb-1`}>Photos Included</p>
                 <p className={`text-xl font-bold ${onDemandFullGallery ? 'text-green-400' : textPrimary}`}>
-                  {onDemandFullGallery ? '∞ Full' : onDemandPhotosIncluded}
+                  {onDemandFullGallery ? '8 Full' : onDemandPhotosIncluded}
                 </p>
               </div>
               <div className={`p-3 rounded-xl ${sectionBg}`}>
@@ -553,11 +553,10 @@ export const OnDemandSettingsPage = () => {
                 />
               )}
 
-              {/* Photo Download Prices */}
               <div className={`mt-4 p-4 rounded-xl border ${isLight ? 'bg-blue-50 border-blue-200' : 'bg-blue-500/10 border-blue-500/20'}`}>
                 <p className={`text-sm font-semibold mb-3 flex items-center gap-2 ${textPrimary}`}>
-                  📸 Photo Download Prices
-                  <span className={`text-xs font-normal ${textSecondary}`}>(per resolution — independent from Gallery)</span>
+                  {String.fromCodePoint(0x1F4F7)} Photo Download Prices
+                  <span className={`text-xs font-normal ${textSecondary}`}>(per resolution - independent from Gallery)</span>
                 </p>
                 <div className="grid grid-cols-1 gap-3">
                   <NumericStepper
@@ -593,11 +592,10 @@ export const OnDemandSettingsPage = () => {
                 </div>
               </div>
 
-              {/* Video Download Prices */}
               <div className={`mt-4 p-4 rounded-xl border ${isLight ? 'bg-purple-50 border-purple-200' : 'bg-purple-500/10 border-purple-500/20'}`}>
                 <p className={`text-sm font-semibold mb-3 flex items-center gap-2 ${textPrimary}`}>
-                  🎬 Video Download Prices
-                  <span className={`text-xs font-normal ${textSecondary}`}>(per resolution — independent from Gallery)</span>
+                  {String.fromCodePoint(0x1F3AC)} Video Download Prices
+                  <span className={`text-xs font-normal ${textSecondary}`}>(per resolution - independent from Gallery)</span>
                 </p>
                 <div className="grid grid-cols-1 gap-3">
                   <NumericStepper
@@ -648,10 +646,10 @@ export const OnDemandSettingsPage = () => {
                 {geoRadius.min}-{geoRadius.max} mi
               </Badge>
             </CardTitle>
-            <Button 
+            <Button aria-label="Collapse" 
               variant="outline" 
               size="sm"
-              onClick={() => setShowSpotsList(!showSpotsList)}
+              aria-expanded={showSpotsList} onClick={() => setShowSpotsList(!showSpotsList)}
               className={borderClass}
             >
               {showSpotsList ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
@@ -692,7 +690,7 @@ export const OnDemandSettingsPage = () => {
             </div>
             
             {/* Spots List - High-Contrast Checkbox Style */}
-            <div className="space-y-2 max-h-80 overflow-y-auto pr-1" style={{ WebkitOverflowScrolling: 'touch' }}>
+            <div className="space-y-2 max-h-80 overflow-y-auto pr-1 scroll-touch">
               {nearbySpots.length === 0 ? (
                 <p className={`text-center py-4 ${textSecondary}`}>
                   {locationLoading ? 'Finding nearby spots...' : 'No spots found nearby'}
@@ -724,7 +722,7 @@ export const OnDemandSettingsPage = () => {
                       <p className={`font-medium ${textPrimary}`}>{spot.name}</p>
                       <p className={`text-xs ${textSecondary}`}>
                         {spot.region || spot.city || 'Florida'}
-                        {spot.distance_miles && ` • ${spot.distance_miles.toFixed(1)} mi`}
+                        {spot.distance_miles && ` - ${spot.distance_miles.toFixed(1)} mi`}
                       </p>
                     </div>
                     

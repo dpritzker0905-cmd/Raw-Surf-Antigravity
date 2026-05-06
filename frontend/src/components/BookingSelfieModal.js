@@ -66,7 +66,7 @@ export const BookingSelfieModal = ({
   };
   
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog data-testid="booking-selfie-modal" open={isOpen} onOpenChange={onClose}>
       <DialogContent className={`${cardBgClass} border ${isLight ? 'border-gray-200' : 'border-zinc-700'} sm:max-w-[420px]`}>
         <DialogTitle className="sr-only">Dialog</DialogTitle>
         <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4">
@@ -102,7 +102,7 @@ export const BookingSelfieModal = ({
                 >
                   Skip for Now
                 </Button>
-                <Button
+                <Button aria-label="Camera"
                   onClick={() => setStep('capture')}
                   className="flex-1 bg-gradient-to-r from-cyan-500 to-blue-500 text-white"
                 >

@@ -19,7 +19,7 @@ import logger from '../../utils/logger';
 import { AdminPrecisionQueue } from './AdminPrecisionQueue';
 
 /**
- * AdControlsPanel — Extracted from UnifiedAdminConsole
+ * AdControlsPanel - Extracted from UnifiedAdminConsole
  * Admin control for ad frequency, approval queue, and variant management.
  */
 // Ad Controls Panel Component with Approval Queue
@@ -307,13 +307,13 @@ const AdControlsPanel = ({ user }) => {
                   {editingAd === ad.id ? (
                     // Edit Mode
                     <div className="space-y-3">
-                      <Input
+                      <Input aria-label="Headline"
                         value={editForm.headline}
                         onChange={(e) => setEditForm(prev => ({ ...prev, headline: e.target.value }))}
                         placeholder="Headline"
                         className="bg-muted border-border text-foreground"
                       />
-                      <Textarea
+                      <Textarea aria-label="Description"
                         value={editForm.description}
                         onChange={(e) => setEditForm(prev => ({ ...prev, description: e.target.value }))}
                         placeholder="Description"
@@ -321,13 +321,13 @@ const AdControlsPanel = ({ user }) => {
                         rows={2}
                       />
                       <div className="grid grid-cols-2 gap-2">
-                        <Input
+                        <Input aria-label="CTA Text"
                           value={editForm.cta}
                           onChange={(e) => setEditForm(prev => ({ ...prev, cta: e.target.value }))}
                           placeholder="CTA Text"
                           className="bg-muted border-border text-foreground"
                         />
-                        <Input
+                        <Input aria-label="CTA Link"
                           value={editForm.cta_link}
                           onChange={(e) => setEditForm(prev => ({ ...prev, cta_link: e.target.value }))}
                           placeholder="CTA Link"
@@ -335,7 +335,7 @@ const AdControlsPanel = ({ user }) => {
                         />
                       </div>
                       <div className="flex gap-2">
-                        <Button
+                        <Button aria-label="Loader2"
                           onClick={() => handleEditAd(ad.id)}
                           disabled={processingAd === ad.id}
                           className="flex-1 bg-cyan-500 hover:bg-cyan-600"
@@ -390,7 +390,7 @@ const AdControlsPanel = ({ user }) => {
                             </>
                           ) : (
                             <>
-                              <img 
+                              <img loading="lazy" decoding="async" 
                                 src={getFullUrl(ad.image_url)} 
                                 alt="Ad preview" 
                                 className="w-full h-32 object-cover" 
@@ -407,7 +407,7 @@ const AdControlsPanel = ({ user }) => {
                       )}
                       
                       <div className="flex gap-2">
-                        <Button
+                        <Button aria-label="Loader2"
                           onClick={() => handleApproveAd(ad.id)}
                           disabled={processingAd === ad.id}
                           className="flex-1 bg-green-500 hover:bg-green-600"
@@ -427,7 +427,7 @@ const AdControlsPanel = ({ user }) => {
                           <X className="w-4 h-4 mr-1" />
                           Reject
                         </Button>
-                        <Button
+                        <Button aria-label="File Text"
                           variant="outline"
                           onClick={() => startEditing(ad)}
                           className="border-border"
@@ -457,7 +457,7 @@ const AdControlsPanel = ({ user }) => {
                   <div className="flex-1">
                     <p className="text-foreground font-medium text-sm">{variant.headline}</p>
                     <p className="text-muted-foreground text-xs">
-                      {variant.type} • {variant.cta}
+                      {variant.type} - {variant.cta}
                       {variant.submitted_by_name && (
                         <span className="text-cyan-400 ml-2">by {variant.submitted_by_name}</span>
                       )}

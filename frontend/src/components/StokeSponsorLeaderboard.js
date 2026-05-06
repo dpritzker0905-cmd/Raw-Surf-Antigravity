@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../contexts/ThemeContext';
 import { 
@@ -106,7 +106,7 @@ export const StokeSponsorLeaderboard = ({ compact = false }) => {
                   <div className="text-pink-400 font-bold text-sm">${sponsor.total_contributed.toFixed(0)}</div>
                 </div>
               ))}
-              <Button 
+              <Button aria-label="Next" 
                 variant="ghost" 
                 size="sm" 
                 className="w-full text-pink-400 hover:bg-pink-500/10"
@@ -134,7 +134,7 @@ export const StokeSponsorLeaderboard = ({ compact = false }) => {
     >
       {/* Header */}
       <div className="text-center">
-        <h1 className={`text-3xl font-bold ${textPrimary} flex items-center justify-center gap-2`} style={{ fontFamily: 'Oswald' }}>
+        <h1 className={`text-3xl font-bold ${textPrimary} flex items-center justify-center gap-2 font-oswald`} >
           <Heart className="w-8 h-8 text-pink-400" />
           Stoke Sponsor Leaderboard
         </h1>
@@ -245,7 +245,7 @@ export const StokeSponsorLeaderboard = ({ compact = false }) => {
               <Heart className="w-12 h-12 text-pink-400/30 mx-auto mb-3" />
               <p className={`${textSecondary}`}>No stoke sponsors yet</p>
               <p className={`text-sm ${textSecondary}`}>Be the first to support the surf community!</p>
-              <Button 
+              <Button aria-label="Like" 
                 className="mt-4 bg-pink-500 text-white hover:bg-pink-400"
                 onClick={() => navigate('/career/stoke-sponsor')}
               >

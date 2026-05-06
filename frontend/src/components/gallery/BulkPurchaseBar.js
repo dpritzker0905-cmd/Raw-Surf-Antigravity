@@ -1,4 +1,4 @@
-﻿/**
+/**
  * BulkPurchaseBar - TICKET-005
  * Floating action bar for bulk photo/video purchases with volume discounts
  * Shows running total and applies automatic tier-based discounts
@@ -71,7 +71,7 @@ const getNextTierHint = (itemCount, tiers = DEFAULT_DISCOUNT_TIERS) => {
 const SelectedItemChip = ({ item, onRemove }) => (
   <div className="relative group">
     <div className="w-12 h-12 rounded-lg overflow-hidden border border-zinc-700">
-      <img 
+      <img loading="lazy" decoding="async" 
         src={item.thumbnail_url || item.url} 
         alt="" 
         className="w-full h-full object-cover"
@@ -198,8 +198,8 @@ export const BulkPurchaseBar = ({
           {/* Expandable header */}
           <div className="flex items-center justify-between">
             {/* Left: Item count and expand toggle */}
-            <button 
-              onClick={() => setExpanded(!expanded)}
+            <button aria-label="Shopping Cart" 
+              aria-expanded={expanded} onClick={() => setExpanded(!expanded)}
               className="flex items-center gap-3 hover:opacity-80 transition-opacity"
             >
               <div className="relative">
@@ -263,7 +263,7 @@ export const BulkPurchaseBar = ({
                   </Tooltip>
                 </TooltipProvider>
                 
-                <Button
+                <Button aria-label="Loader2"
                   onClick={handlePurchase}
                   disabled={purchasing || disabled}
                   className="bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white font-medium px-6"

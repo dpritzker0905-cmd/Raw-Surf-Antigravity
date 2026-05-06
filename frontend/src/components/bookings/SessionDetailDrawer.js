@@ -10,7 +10,7 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import {
   X, MapPin, Calendar, Clock, DollarSign, Users, Star,
-  ChevronRight, ImageIcon, Award, Zap, Send
+  ChevronRight, ImageIcon, Award, Zap, Send,
 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { Button } from '../ui/button';
@@ -18,7 +18,7 @@ import { getFullUrl } from '../../utils/media';
 import apiClient from '../../lib/apiClient';
 import ReviewModal from '../ReviewModal';
 
-// ─── Session Type Icon (small indicator, NOT a status badge) ────────────────
+// --- Session Type Icon (small indicator, NOT a status badge) ----------------
 const SessionTypeIcon = ({ type }) => {
   const config = {
     live_join: { label: 'Live', color: 'from-cyan-500 to-blue-500', icon: Zap },
@@ -36,14 +36,14 @@ const SessionTypeIcon = ({ type }) => {
   );
 };
 
-// ─── Outcome Badge (Completed / Expired / Missed) ───────────────────────────
+// --- Outcome Badge (Completed / Expired / Missed) ---------------------------
 const OutcomeBadge = ({ session, isLight }) => {
   // Determine display status from session data
   const displayStatus = session._displayStatus || session.status || 'Completed';
   
   const config = {
     Completed: {
-      label: '✓ Completed',
+      label: '? Completed',
       className: isLight
         ? 'bg-green-100 text-green-700 border-green-200'
         : 'bg-green-500/15 text-green-400 border border-green-500/20',
@@ -69,7 +69,7 @@ const OutcomeBadge = ({ session, isLight }) => {
   );
 };
 
-// ─── Stat Pill ──────────────────────────────────────────────────────────────
+// --- Stat Pill --------------------------------------------------------------
 const StatPill = ({ icon: Icon, label, value, color = 'text-cyan-400', isLight }) => (
   <div className={`flex flex-col items-center p-3 rounded-xl ${isLight ? 'bg-gray-50 border border-gray-200' : 'bg-white/5 border border-white/10'} backdrop-blur-sm`}>
     <Icon className={`w-5 h-5 ${color} mb-1`} />
@@ -78,7 +78,7 @@ const StatPill = ({ icon: Icon, label, value, color = 'text-cyan-400', isLight }
   </div>
 );
 
-// ─── Price Row ──────────────────────────────────────────────────────────────
+// --- Price Row --------------------------------------------------------------
 const PriceRow = ({ label, price, isLight }) => {
   if (price == null) return null;
   return (
@@ -89,7 +89,7 @@ const PriceRow = ({ label, price, isLight }) => {
   );
 };
 
-// ─── Participant Row ────────────────────────────────────────────────────────
+// --- Participant Row --------------------------------------------------------
 const ParticipantRow = ({ participant, isLight, isPhotographer, onReview, hasReviewed }) => (
   <div className={`flex items-center gap-3 p-3 rounded-xl transition-colors ${isLight ? 'hover:bg-gray-50' : 'hover:bg-white/5'}`}>
     <Avatar className={`w-10 h-10 border-2 ${isLight ? 'border-gray-200' : 'border-white/20'}`}>
@@ -112,7 +112,7 @@ const ParticipantRow = ({ participant, isLight, isPhotographer, onReview, hasRev
           <Star className="w-3 h-3 mr-1 fill-green-400" /> Reviewed
         </Badge>
       ) : (
-        <Button
+        <Button aria-label="Favorite"
           size="sm"
           variant="ghost"
           onClick={() => onReview?.(participant)}
@@ -125,9 +125,9 @@ const ParticipantRow = ({ participant, isLight, isPhotographer, onReview, hasRev
   </div>
 );
 
-// ═══════════════════════════════════════════════════════════════════════════
+// ---------------------------------------------------------------------------
 // Main Component
-// ═══════════════════════════════════════════════════════════════════════════
+// ---------------------------------------------------------------------------
 
 const SessionDetailDrawer = ({
   isOpen,
@@ -159,7 +159,7 @@ const SessionDetailDrawer = ({
         try {
           const res = await apiClient.get(`/reviews/check?reviewer_id=${userId}&live_session_id=${sessionId}`);
           if (res.data?.has_reviewed) {
-            // Mark all participants as reviewed (simplified — real check would be per-reviewee)
+            // Mark all participants as reviewed (simplified - real check would be per-reviewee)
             const allReviewed = {};
             for (const p of session.participants) {
               allReviewed[p.id] = true;
@@ -230,7 +230,7 @@ const SessionDetailDrawer = ({
         onClick={onClose}
       />
 
-      {/* Drawer — bottom-sheet mobile, centered modal desktop */}
+      {/* Drawer - bottom-sheet mobile, centered modal desktop */}
       <div
         className={`fixed z-50 transition-transform duration-300 ease-out
           inset-x-0 bottom-0
@@ -255,7 +255,7 @@ const SessionDetailDrawer = ({
           {/* Scrollable Content */}
           <div className="overflow-y-auto" style={{ maxHeight: 'calc(85vh - 20px)', WebkitOverflowScrolling: 'touch' }}>
             
-            {/* ─── Header ─────────────────────────────────────────────── */}
+            {/* --- Header ----------------------------------------------- */}
             <div className={`px-5 pb-4 border-b ${isLight ? 'border-gray-100' : 'border-white/5'}`}>
               <div className="flex items-start justify-between mb-3">
                 <div className="flex-1 min-w-0">
@@ -263,15 +263,14 @@ const SessionDetailDrawer = ({
                     <OutcomeBadge session={session} isLight={isLight} />
                     <SessionTypeIcon type={sessionType} />
                   </div>
-                  <h2 className={`text-xl font-bold ${isLight ? 'text-gray-900' : 'text-white'}`} style={{ fontFamily: 'Oswald' }}>
+                  <h2 className={`text-xl font-bold ${isLight ? 'text-gray-900' : 'text-white'} font-oswald`} >
                     {location}
                   </h2>
                 </div>
-                <button
+                <button aria-label="Close"
                   onClick={onClose}
                   className={`p-2 rounded-full transition-colors ${isLight ? 'hover:bg-gray-100 text-gray-500' : 'hover:bg-white/10 text-gray-400'}`}
-                >
-                  <X className="w-5 h-5" />
+                ><X className="w-5 h-5" />
                 </button>
               </div>
               
@@ -294,7 +293,7 @@ const SessionDetailDrawer = ({
               </div>
             </div>
 
-            {/* ─── Stats Grid ─────────────────────────────────────────── */}
+            {/* --- Stats Grid ------------------------------------------- */}
             <div className="px-5 py-4">
               <div className={`grid ${isPhotographer ? 'grid-cols-4' : 'grid-cols-3'} gap-2`}>
                 <StatPill icon={Clock} label="Duration" value={durationDisplay} color="text-cyan-400" isLight={isLight} />
@@ -306,7 +305,7 @@ const SessionDetailDrawer = ({
               </div>
             </div>
 
-            {/* ─── Pricing Breakdown ──────────────────────────────────── */}
+            {/* --- Pricing Breakdown ------------------------------------ */}
             {hasPricing && (
               <div className={`mx-5 mb-4 p-4 rounded-2xl ${isLight ? 'bg-gray-50 border border-gray-200' : 'bg-white/5 border border-white/10'} backdrop-blur-sm`}>
                 <h3 className={`text-sm font-semibold uppercase tracking-wider mb-3 flex items-center gap-2 ${isLight ? 'text-gray-700' : 'text-gray-300'}`}>
@@ -322,10 +321,10 @@ const SessionDetailDrawer = ({
               </div>
             )}
 
-            {/* ─── Gallery Link ───────────────────────────────────────── */}
+            {/* --- Gallery Link ----------------------------------------- */}
             {session.gallery_id && (
               <div className="px-5 mb-4">
-                <button
+                <button aria-label="div"
                   onClick={() => onNavigateToGallery?.(session.gallery_id)}
                   className={`w-full flex items-center justify-between p-4 rounded-2xl transition-all group ${
                     isLight
@@ -349,7 +348,7 @@ const SessionDetailDrawer = ({
               </div>
             )}
 
-            {/* ─── Participants ────────────────────────────────────────── */}
+            {/* --- Participants ------------------------------------------ */}
             {session.participants?.length > 0 && (
               <div className="px-5 mb-4">
                 <h3 className={`text-sm font-semibold uppercase tracking-wider mb-3 flex items-center gap-2 ${isLight ? 'text-gray-700' : 'text-gray-300'}`}>
@@ -372,7 +371,7 @@ const SessionDetailDrawer = ({
               </div>
             )}
             
-            {/* ─── Photographer Review CTA (Surfer View) ──────────────── */}
+            {/* --- Photographer Review CTA (Surfer View) ---------------- */}
             {!isPhotographer && session.photographer_id && (
               <div className="px-5 mb-4">
                 <h3 className={`text-sm font-semibold uppercase tracking-wider mb-3 flex items-center gap-2 ${isLight ? 'text-gray-700' : 'text-gray-300'}`}>
@@ -410,7 +409,7 @@ const SessionDetailDrawer = ({
               </div>
             )}
 
-            {/* ─── Photographer Review Summary ────────────────────────── */}
+            {/* --- Photographer Review Summary -------------------------- */}
             {isPhotographer && session.participants?.length > 0 && (
               <div className="px-5 mb-4">
                 <div className={`flex items-center justify-between p-4 rounded-2xl ${isLight ? 'bg-gray-50 border border-gray-200' : 'bg-white/5 border border-white/10'}`}>
@@ -441,7 +440,7 @@ const SessionDetailDrawer = ({
               </div>
             )}
 
-            {/* Bottom safe area padding — clears mobile BottomNav */}
+            {/* Bottom safe area padding - clears mobile BottomNav */}
             <div className="h-24" />
           </div>
         </div>

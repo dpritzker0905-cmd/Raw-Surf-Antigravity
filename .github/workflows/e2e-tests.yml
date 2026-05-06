@@ -1,0 +1,44 @@
+name: E2E Tests
+
+on:
+  deployment_status:
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: 'Base URL to test against'
+        default: 'https://dev--rawsurf.netlify.app'
+        required: false
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' || (github.event.deployment_status.state == 'success' && contains(github.event.deployment.environment, 'deploy-preview'))
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Install Playwright browsers
+        working-directory: frontend
+        run: npx playwright install --with-deps chromium webkit
+
+      - name: Run E2E tests
+        working-directory: frontend
+        env:
+          E2E_BASE_URL: ${{ github.event.inputs.base_url || github.event.deployment_status.target_url || 'https://dev--rawsurf.netlify.app' }}
+        run: npx playwright test --reporter=html
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: frontend/playwright-report/
+          retention-days: 14

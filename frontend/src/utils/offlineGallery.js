@@ -6,6 +6,7 @@
  * 
  * Cap: 500MB total to prevent device storage issues.
  */
+import { logger } from './logger';
 
 const GALLERY_CACHE_NAME = 'rawsurf-gallery-offline-v1';
 const MAX_CACHE_BYTES = 500 * 1024 * 1024; // 500MB
@@ -35,7 +36,7 @@ export async function cacheForOffline(mediaUrl) {
     }
 
     await cache.put(mediaUrl, response);
-    console.log('[OfflineGallery] Cached:', mediaUrl.substring(0, 80));
+    logger.debug('[OfflineGallery] Cached:', mediaUrl.substring(0, 80));
     return true;
   } catch (err) {
     console.error('[OfflineGallery] Cache failed:', err);

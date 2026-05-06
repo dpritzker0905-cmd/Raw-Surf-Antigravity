@@ -8,8 +8,8 @@ export const MapHeader = ({ livePhotographerCount = 0 }) => {
   return (
     <div className="flex items-center justify-between mb-3 pointer-events-auto">
       <h1 
-        className="text-xl font-bold text-white drop-shadow-lg" 
-        style={{ fontFamily: 'Oswald' }}
+        className="text-xl font-bold text-white drop-shadow-lg font-oswald" 
+        
         data-testid="map-title"
       >
         Live Map

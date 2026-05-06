@@ -17,7 +17,6 @@ import { toast } from 'sonner';
 
 /**
  * GPSSettingsGuide - Modal to help users enable precise GPS location
- * Shows device-specific instructions for iOS and Android
  * Also offers manual location selection as fallback
  */
 export const GPSSettingsGuide = ({ 
@@ -32,7 +31,7 @@ export const GPSSettingsGuide = ({
   const [deviceType, setDeviceType] = useState(() => {
     // Auto-detect device type
     const ua = navigator.userAgent || navigator.vendor || window.opera;
-    if (/iPad|iPhone|iPod/.test(ua)) return 'ios';
+    if (/ipad|iphone|ipod/i.test(ua)) return 'ios';
     if (/android/i.test(ua)) return 'android';
     return 'android'; // Default to Android for unknown
   });
@@ -81,7 +80,7 @@ export const GPSSettingsGuide = ({
     };
     
     return (
-      <div className={`p-4 rounded-lg mb-4 border ${colorClasses[status.color]}`}>
+      <div data-testid="g-p-s-settings-guide" className={`p-4 rounded-lg mb-4 border ${colorClasses[status.color]}`}>
         <div className="flex items-start gap-3">
           {status.level === 'excellent' || status.level === 'good' ? (
             <CheckCircle2 className="w-6 h-6 flex-shrink-0" />
@@ -107,7 +106,7 @@ export const GPSSettingsGuide = ({
   };
 
   const SectionHeader = ({ section, title, icon: Icon }) => (
-    <button
+    <button aria-label="Icon"
       onClick={() => toggleSection(section)}
       className="w-full flex items-center justify-between p-3 bg-zinc-800 hover:bg-zinc-700 rounded-lg transition-colors"
     >
@@ -168,7 +167,7 @@ export const GPSSettingsGuide = ({
                   <p className="text-cyan-300 text-sm mt-1">
                     Tap the map to set your exact location. This is the fastest way to fix inaccurate GPS.
                   </p>
-                  <Button
+                  <Button aria-label="Map"
                     onClick={handleManualSelect}
                     className="mt-3 w-full bg-cyan-600 hover:bg-cyan-700"
                   >
@@ -189,14 +188,14 @@ export const GPSSettingsGuide = ({
                 onClick={() => setDeviceType('ios')}
                 className={`flex-1 ${deviceType === 'ios' ? 'bg-cyan-600 hover:bg-cyan-700' : 'border-zinc-600'}`}
               >
-                🍎 iPhone
+                {String.fromCodePoint(0x1F4F1)} iPhone
               </Button>
               <Button
                 variant={deviceType === 'android' ? 'default' : 'outline'}
                 onClick={() => setDeviceType('android')}
                 className={`flex-1 ${deviceType === 'android' ? 'bg-cyan-600 hover:bg-cyan-700' : 'border-zinc-600'}`}
               >
-                🤖 Android
+                {String.fromCodePoint(0x1F4F1)} Android
               </Button>
             </div>
           </div>
@@ -211,13 +210,13 @@ export const GPSSettingsGuide = ({
               />
               {expandedSection === 'ios-precise' && (
                 <div className="p-3 bg-zinc-800/50 rounded-lg border border-zinc-700">
-                  <Step number="1" title="Open Settings → Privacy & Security → Location Services" />
+                  <Step number="1" title="Open Settings ? Privacy & Security ? Location Services" />
                   <Step number="2" title="Find Safari (or Chrome)" />
                   <Step number="3" title="Set to 'While Using'" />
                   <Step number="4" title="Turn ON 'Precise Location'" description="This is the key setting!" />
                   <div className="mt-3 p-2 bg-cyan-500/10 rounded border border-cyan-500/30">
                     <p className="text-cyan-400 text-sm font-medium">
-                      ⚡ "Precise Location" must be ON for GPS
+                      ? "Precise Location" must be ON for GPS
                     </p>
                   </div>
                 </div>
@@ -235,7 +234,7 @@ export const GPSSettingsGuide = ({
               />
               {expandedSection === 'android-high' && (
                 <div className="p-3 bg-zinc-800/50 rounded-lg border border-zinc-700">
-                  <Step number="1" title="Open Settings → Location" />
+                  <Step number="1" title="Open Settings ? Location" />
                   <Step number="2" title="Turn ON Location" />
                   <Step number="3" title="Tap 'Location Mode' or 'Improve Accuracy'" />
                   <Step number="4" title="Select 'High Accuracy'" description="Uses GPS + WiFi + Cell" />
@@ -243,7 +242,7 @@ export const GPSSettingsGuide = ({
                   <div className="mt-3 p-2 bg-yellow-500/10 rounded border border-yellow-500/30">
                     <p className="text-yellow-400 text-sm font-medium">Samsung Users:</p>
                     <p className="text-yellow-300 text-xs mt-1">
-                      Settings → Apps → Chrome → Permissions → Location → "Allow all the time" + "Use Precise Location"
+                      Settings ? Apps ? Chrome ? Permissions ? Location ? "Allow all the time" + "Use Precise Location"
                     </p>
                   </div>
                 </div>
@@ -258,19 +257,19 @@ export const GPSSettingsGuide = ({
                 <div className="p-3 bg-zinc-800/50 rounded-lg border border-zinc-700">
                   <ul className="space-y-2 text-gray-300 text-sm">
                     <li className="flex items-start gap-2">
-                      <span className="text-cyan-400">•</span>
+                      <span className="text-cyan-400">-</span>
                       Go outside with clear sky view
                     </li>
                     <li className="flex items-start gap-2">
-                      <span className="text-cyan-400">•</span>
+                      <span className="text-cyan-400">-</span>
                       Wait 15-30 seconds for satellites to lock
                     </li>
                     <li className="flex items-start gap-2">
-                      <span className="text-cyan-400">•</span>
+                      <span className="text-cyan-400">-</span>
                       Turn OFF Battery Saver mode
                     </li>
                     <li className="flex items-start gap-2">
-                      <span className="text-cyan-400">•</span>
+                      <span className="text-cyan-400">-</span>
                       Clear browser cache and reload page
                     </li>
                   </ul>
@@ -281,7 +280,7 @@ export const GPSSettingsGuide = ({
 
           {/* Retry Button */}
           <div className="pt-2">
-            <Button
+            <Button aria-label="Refresh"
               onClick={handleRetry}
               disabled={isLoading}
               variant="outline"

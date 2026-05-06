@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { CheckCircle, AlertCircle, MapPin, Loader2, X } from 'lucide-react';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
@@ -74,7 +74,7 @@ export const SpotVerificationNudge = ({ spot, userLocation, _onClose }) => {
       );
       
       if (response.data.is_now_community_verified) {
-        toast.success(`${spot.name} is now Community Verified! 🏅`);
+        toast.success(`${spot.name} is now Community Verified! ✅`);
       } else {
         toast.success('Thanks for verifying this spot!');
       }
@@ -126,7 +126,7 @@ export const SpotVerificationNudge = ({ spot, userLocation, _onClose }) => {
           {/* Verification Prompt */}
           <div className="flex items-start gap-2">
             <div className="w-8 h-8 rounded-full bg-yellow-500/20 flex items-center justify-center flex-shrink-0">
-              💡
+              <MapPin className="w-4 h-4 text-yellow-400" />
             </div>
             <div>
               <p className="text-yellow-400 font-medium text-sm">Verify this pin's location</p>
@@ -138,7 +138,7 @@ export const SpotVerificationNudge = ({ spot, userLocation, _onClose }) => {
           
           {/* Vote Buttons */}
           <div className="flex items-center gap-2">
-            <Button
+            <Button aria-label="Loader2"
               onClick={() => handleVote(true)}
               disabled={loading}
               className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white h-9"
@@ -153,7 +153,7 @@ export const SpotVerificationNudge = ({ spot, userLocation, _onClose }) => {
                 </>
               )}
             </Button>
-            <Button
+            <Button aria-label="Alert Circle"
               onClick={handleSuggestMove}
               disabled={loading}
               variant="outline"
@@ -182,7 +182,7 @@ export const SpotVerificationNudge = ({ spot, userLocation, _onClose }) => {
           {/* Suggest Move Form */}
           <div className="flex items-center justify-between">
             <p className="text-orange-400 font-medium text-sm">Suggest New Location</p>
-            <button onClick={() => setShowSuggestMove(false)} className="text-gray-400 hover:text-white">
+            <button onClick={() => setShowSuggestMove(false)} className="text-gray-400 hover:text-white" aria-label="Close">
               <X className="w-4 h-4" />
             </button>
           </div>
@@ -216,7 +216,7 @@ export const SpotVerificationNudge = ({ spot, userLocation, _onClose }) => {
             </div>
             
             {userLocation && (
-              <Button
+              <Button aria-label="Location"
                 variant="outline"
                 size="sm"
                 onClick={() => setSuggestedCoords({ lat: userLocation.lat, lng: userLocation.lng })}
@@ -229,7 +229,7 @@ export const SpotVerificationNudge = ({ spot, userLocation, _onClose }) => {
           </div>
           
           {/* Note */}
-          <textarea
+          <textarea aria-label="Why should the pin move? (optional)"
             placeholder="Why should the pin move? (optional)"
             value={suggestionNote}
             onChange={(e) => setSuggestionNote(e.target.value)}
@@ -237,7 +237,7 @@ export const SpotVerificationNudge = ({ spot, userLocation, _onClose }) => {
           />
           
           {/* Submit */}
-          <Button
+          <Button aria-label="Loader2"
             onClick={handleSubmitSuggestion}
             disabled={loading || !suggestedCoords?.lat || !suggestedCoords?.lng}
             className="w-full bg-orange-500 hover:bg-orange-600 text-white"

@@ -129,7 +129,7 @@ export const SubscriptionsTab = () => {
                   <div className="w-11 h-11 rounded-full bg-gradient-to-br from-violet-400 to-cyan-500 p-0.5">
                     <div className="w-full h-full rounded-full bg-zinc-900 flex items-center justify-center overflow-hidden">
                       {sub.photographer_avatar ? (
-                        <img src={getFullUrl(sub.photographer_avatar)} className="w-full h-full object-cover" alt="" />
+                        <img loading="lazy" decoding="async" src={getFullUrl(sub.photographer_avatar)} className="w-full h-full object-cover" alt="" />
                       ) : (
                         <span className="text-violet-400 font-bold">{sub.photographer_name?.[0]}</span>
                       )}
@@ -137,7 +137,7 @@ export const SubscriptionsTab = () => {
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="font-semibold text-foreground truncate">{sub.photographer_name}</p>
-                    <p className="text-xs text-muted-foreground">{sub.plan_name} • ${sub.plan_price}/{sub.plan_interval === 'weekly' ? 'wk' : 'mo'}</p>
+                    <p className="text-xs text-muted-foreground">{sub.plan_name} - ${sub.plan_price}/{sub.plan_interval === 'weekly' ? 'wk' : 'mo'}</p>
                   </div>
                   <div className={`px-2 py-1 rounded-full text-[10px] font-bold ${isExpiringSoon ? 'bg-amber-500/20 text-amber-400' : 'bg-emerald-500/20 text-emerald-400'}`}>
                     {daysLeft}d left
@@ -146,13 +146,13 @@ export const SubscriptionsTab = () => {
 
                 {/* Quota Bars */}
                 <div className="p-4 space-y-2.5">
-                  {sub.photos_remaining > 0 || true ? (
+                  {sub.photos_remaining > 0 ? (
                     <QuotaBar icon={Camera} label="Photos" remaining={sub.photos_remaining} total={sub.plan_price ? Math.max(sub.photos_remaining, 1) : 0} color="#06b6d4" />
                   ) : null}
-                  {(sub.videos_remaining > 0 || true) && (
+                  {sub.videos_remaining > 0 && (
                     <QuotaBar icon={Video} label="Videos" remaining={sub.videos_remaining} total={Math.max(sub.videos_remaining, 1)} color="#a855f7" />
                   )}
-                  {(sub.live_session_buyins_remaining > 0 || true) && (
+                  {sub.live_session_buyins_remaining > 0 && (
                     <QuotaBar icon={Zap} label="Live Jump-Ins" remaining={sub.live_session_buyins_remaining} total={Math.max(sub.live_session_buyins_remaining, 1)} color="#ef4444" />
                   )}
                   {sub.sessions_remaining > 0 && (
@@ -179,11 +179,11 @@ export const SubscriptionsTab = () => {
                 {/* Actions */}
                 <div className="px-4 pb-4 flex gap-2">
                   {isExpiringSoon && (
-                    <Button onClick={() => handleRenew(sub)} size="sm" className="flex-1 bg-gradient-to-r from-violet-500 to-cyan-500 text-white text-xs font-bold">
+                    <Button aria-label="Refresh" onClick={() => handleRenew(sub)} size="sm" className="flex-1 bg-gradient-to-r from-violet-500 to-cyan-500 text-white text-xs font-bold">
                       <RefreshCw className="w-3.5 h-3.5 mr-1" /> Renew
                     </Button>
                   )}
-                  <button onClick={() => handleCancel(sub.id)} disabled={cancelling === sub.id} className="px-3 py-1.5 rounded-lg text-xs text-muted-foreground hover:text-red-400 hover:bg-red-500/10 transition-colors">
+                  <button aria-label="Loader2" onClick={() => handleCancel(sub.id)} disabled={cancelling === sub.id} className="px-3 py-1.5 rounded-lg text-xs text-muted-foreground hover:text-red-400 hover:bg-red-500/10 transition-colors">
                     {cancelling === sub.id ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Cancel'}
                   </button>
                 </div>
@@ -215,14 +215,14 @@ export const SubscriptionsTab = () => {
               <div key={sub.id} className="flex items-center gap-3 p-3 rounded-lg bg-zinc-800/30 border border-zinc-800 opacity-60">
                 <div className="w-9 h-9 rounded-full bg-zinc-700 flex items-center justify-center">
                   {sub.photographer_avatar ? (
-                    <img src={getFullUrl(sub.photographer_avatar)} className="w-full h-full rounded-full object-cover" alt="" />
+                    <img loading="lazy" decoding="async" src={getFullUrl(sub.photographer_avatar)} className="w-full h-full rounded-full object-cover" alt="" />
                   ) : (
                     <span className="text-xs text-muted-foreground font-bold">{sub.photographer_name?.[0]}</span>
                   )}
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm text-foreground truncate">{sub.photographer_name}</p>
-                  <p className="text-[10px] text-muted-foreground">{sub.plan_name} • {sub.status}</p>
+                  <p className="text-[10px] text-muted-foreground">{sub.plan_name} - {sub.status}</p>
                 </div>
                 <Button onClick={() => handleRenew(sub)} size="sm" variant="outline" className="text-xs border-zinc-700 text-muted-foreground hover:text-violet-400">
                   Resubscribe

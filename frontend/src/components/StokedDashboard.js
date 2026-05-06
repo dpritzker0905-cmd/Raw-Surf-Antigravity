@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
@@ -116,7 +116,7 @@ export const StokedDashboard = () => {
     >
       {/* Header */}
       <div className="text-center">
-        <h1 className={`text-3xl font-bold ${textPrimary} flex items-center justify-center gap-2`} style={{ fontFamily: 'Oswald' }}>
+        <h1 className={`text-3xl font-bold ${textPrimary} flex items-center justify-center gap-2 font-oswald`} >
           <Zap className="w-8 h-8 text-yellow-400" />
           Stoked
         </h1>
@@ -165,7 +165,7 @@ export const StokedDashboard = () => {
           {/* PRO SURFER OPTIONS */}
           {isPro && (
             <>
-              <Button 
+              <Button aria-label="div" 
                 variant="outline" 
                 className="w-full justify-start h-auto py-4 border-emerald-500/30 hover:bg-emerald-500/10"
                 onClick={() => navigate('/wallet')}
@@ -180,7 +180,7 @@ export const StokedDashboard = () => {
                 <ArrowRight className="w-5 h-5 text-emerald-400" />
               </Button>
               
-              <Button 
+              <Button aria-label="div" 
                 variant="outline" 
                 className="w-full justify-start h-auto py-4 border-pink-500/30 hover:bg-pink-500/10"
                 onClick={() => navigate('/impact')}
@@ -195,7 +195,7 @@ export const StokedDashboard = () => {
                 <ArrowRight className="w-5 h-5 text-pink-400" />
               </Button>
               
-              <Button 
+              <Button aria-label="div" 
                 variant="outline" 
                 className="w-full justify-start h-auto py-4 border-cyan-500/30 hover:bg-cyan-500/10"
                 onClick={() => navigate('/gear-hub')}
@@ -215,7 +215,7 @@ export const StokedDashboard = () => {
           {/* COMP SURFER OPTIONS */}
           {isCompSurfer && (
             <>
-              <Button 
+              <Button aria-label="div" 
                 variant="outline" 
                 className="w-full justify-start h-auto py-4 border-purple-500/30 hover:bg-purple-500/10"
                 onClick={() => navigate('/explore')}
@@ -230,7 +230,7 @@ export const StokedDashboard = () => {
                 <ArrowRight className="w-5 h-5 text-purple-400" />
               </Button>
               
-              <Button 
+              <Button aria-label="div" 
                 variant="outline" 
                 className="w-full justify-start h-auto py-4 border-cyan-500/30 hover:bg-cyan-500/10"
                 onClick={() => navigate('/gear-hub')}
@@ -250,7 +250,7 @@ export const StokedDashboard = () => {
           {/* GROM OPTIONS */}
           {isGrom && (
             <>
-              <Button 
+              <Button aria-label="div" 
                 variant="outline" 
                 className="w-full justify-start h-auto py-4 border-cyan-500/30 hover:bg-cyan-500/10"
                 onClick={() => navigate('/gear-hub')}
@@ -265,7 +265,7 @@ export const StokedDashboard = () => {
                 <ArrowRight className="w-5 h-5 text-cyan-400" />
               </Button>
               
-              <Button 
+              <Button aria-label="div" 
                 variant="outline" 
                 className="w-full justify-start h-auto py-4 border-green-500/30 hover:bg-green-500/10"
                 onClick={() => navigate('/map')}
@@ -280,7 +280,7 @@ export const StokedDashboard = () => {
                 <ArrowRight className="w-5 h-5 text-green-400" />
               </Button>
               
-              <Button 
+              <Button aria-label="div" 
                 variant="outline" 
                 className="w-full justify-start h-auto py-4 border-yellow-500/30 hover:bg-yellow-500/10"
                 onClick={() => navigate('/explore')}
@@ -300,7 +300,7 @@ export const StokedDashboard = () => {
           {/* DEFAULT OPTIONS (fallback for regular Surfer if they somehow see this) */}
           {!isPro && !isCompSurfer && !isGrom && (
             <>
-              <Button 
+              <Button aria-label="div" 
                 variant="outline" 
                 className="w-full justify-start h-auto py-4 border-cyan-500/30 hover:bg-cyan-500/10"
                 onClick={() => navigate('/gear-hub')}
@@ -315,7 +315,7 @@ export const StokedDashboard = () => {
                 <ArrowRight className="w-5 h-5 text-cyan-400" />
               </Button>
               
-              <Button 
+              <Button aria-label="div" 
                 variant="outline" 
                 className="w-full justify-start h-auto py-4 border-yellow-500/30 hover:bg-yellow-500/10"
                 onClick={() => navigate('/map')}
@@ -424,7 +424,7 @@ export const StokedDashboard = () => {
                   ${stats.stokeIncome.total_received.toFixed(2)}
                 </div>
               </div>
-              <Button 
+              <Button aria-label="Next" 
                 variant="outline" 
                 size="sm"
                 className="border-pink-500/50 text-pink-400 hover:bg-pink-500/10"
@@ -461,7 +461,7 @@ export const StokedDashboard = () => {
                 <div className={`text-xs ${textSecondary}`}>Points</div>
               </div>
             </div>
-            <Button 
+            <Button aria-label="Trophy" 
               variant="outline" 
               className="w-full mt-4 border-zinc-700"
               onClick={() => navigate('/career/the-peak')}
@@ -516,14 +516,14 @@ export const StokedDashboard = () => {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-2">
-          <Button 
+          <Button aria-label="Waves" 
             className="w-full bg-gradient-to-r from-yellow-400 to-orange-400 text-black font-bold justify-start"
             onClick={() => navigate('/map')}
           >
             <Waves className="w-4 h-4 mr-2" />
             Find Live Sessions
           </Button>
-          <Button 
+          <Button aria-label="Trending Up" 
             variant="outline" 
             className="w-full border-zinc-700 justify-start"
             onClick={() => navigate('/leaderboard')}
@@ -531,7 +531,7 @@ export const StokedDashboard = () => {
             <TrendingUp className="w-4 h-4 mr-2" />
             XP Leaderboard
           </Button>
-          <Button 
+          <Button aria-label="Calendar" 
             variant="outline" 
             className="w-full border-zinc-700 justify-start"
             onClick={() => navigate('/bookings')}
@@ -539,7 +539,7 @@ export const StokedDashboard = () => {
             <Calendar className="w-4 h-4 mr-2" />
             My Bookings
           </Button>
-          <Button 
+          <Button aria-label="Shopping Bag" 
             variant="outline" 
             className="w-full border-zinc-700 justify-start"
             onClick={() => navigate('/gear-hub')}

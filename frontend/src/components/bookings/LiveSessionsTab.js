@@ -1,4 +1,4 @@
-﻿/**
+/**
  * LiveSessionsTab - User's active live sessions they've joined
  * Extracted from Bookings.js for better maintainability
  */
@@ -97,7 +97,7 @@ export const LiveSessionsTab = ({
               </div>
               
               {/* Leave Session Button */}
-              <Button
+              <Button aria-label="Loader2"
                 onClick={() => handleLeaveSession(session.id)}
                 disabled={leavingSession === session.id}
                 variant="outline"

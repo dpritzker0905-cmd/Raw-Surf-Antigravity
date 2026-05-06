@@ -13,16 +13,17 @@ import {
   Camera, MapPin, Star, Users, Image as ImageIcon,
   Calendar, ExternalLink, Share2, ArrowLeft, Loader2,
   CheckCircle, Instagram, Globe, Briefcase, Play,
-  Heart, MessageCircle, ShieldCheck, RefreshCw, Sparkles
+  Heart, MessageCircle, ShieldCheck, RefreshCw, Sparkles,
 } from 'lucide-react';
 import logger from '../utils/logger';
+import { ProfileHeaderSkeleton, GallerySkeleton } from './ui/SkeletonVariants';
 import { PhotographerSubscriptionPlans } from './PhotographerSubscriptionPlans';
 import { FindMeModal } from './gallery/FindMeModal';
 
 /**
- * GalleryStorefront — Premium public photographer portfolio page
+ * GalleryStorefront ï¿½ Premium public photographer portfolio page
  * Accessed via /gallery/:username (shareable URL)
- * Resolves username → profile → galleries + stats
+ * Resolves username ? profile ? galleries + stats
  */
 export const GalleryStorefront = () => {
   const { username } = useParams();
@@ -53,7 +54,7 @@ export const GalleryStorefront = () => {
     setLoading(true);
     setError(null);
     try {
-      // 1. Resolve username → profile
+      // 1. Resolve username ? profile
       const profileRes = await apiClient.get(`/profiles/by-username/${encodeURIComponent(username)}`);
       const profile = profileRes.data;
       setPhotographer(profile);
@@ -119,7 +120,7 @@ export const GalleryStorefront = () => {
     const url = `${window.location.origin}/gallery/${username}`;
     if (navigator.share) {
       try {
-        await navigator.share({ title: `${photographer?.full_name} — Raw Surf`, url });
+        await navigator.share({ title: `${photographer?.full_name} ï¿½ Raw Surf`, url });
       } catch { /* user cancelled */ }
     } else {
       await navigator.clipboard.writeText(url);
@@ -127,19 +128,17 @@ export const GalleryStorefront = () => {
     }
   };
 
-  // ── Loading state ──
+  // -- Loading state --
   if (loading) {
     return (
-      <div className={`min-h-screen ${pageBg} flex items-center justify-center`}>
-        <div className="text-center">
-          <Loader2 className="w-10 h-10 text-cyan-400 animate-spin mx-auto mb-3" />
-          <p className={textSecondary}>Loading portfolio...</p>
-        </div>
+      <div data-testid="gallery-storefront" className={`min-h-screen ${pageBg} p-4 max-w-4xl mx-auto`}>
+        <ProfileHeaderSkeleton />
+        <div className="mt-6"><GallerySkeleton /></div>
       </div>
     );
   }
 
-  // ── Not found ──
+  // -- Not found --
   if (error === 'notfound') {
     return (
       <div className={`min-h-screen ${pageBg} flex items-center justify-center`}>
@@ -170,9 +169,104 @@ export const GalleryStorefront = () => {
 
   const isSelf = user?.id === photographer.id;
 
+  // Dynamic Open Graph meta tags for social sharing / link previews
+  useEffect(() => {
+    const ogTags = [];
+    const setMeta = (property, content) => {
+      if (!content) return;
+      let tag = document.querySelector(`meta[property="${property}"]`);
+      if (!tag) {
+        tag = document.createElement('meta');
+        tag.setAttribute('property', property);
+        document.head.appendChild(tag);
+        ogTags.push(tag);
+      }
+      tag.setAttribute('content', content);
+    };
+    const setName = (name, content) => {
+      if (!content) return;
+      let tag = document.querySelector(`meta[name="${name}"]`);
+      if (!tag) {
+        tag = document.createElement('meta');
+        tag.setAttribute('name', name);
+        document.head.appendChild(tag);
+        ogTags.push(tag);
+      }
+      tag.setAttribute('content', content);
+    };
+
+    const title = `${photographer.full_name} ï¿½ Raw Surf Photography`;
+    const desc = photographer.bio || `Browse surf photography by ${photographer.full_name} on Raw Surf`;
+    const image = photographer.avatar_url ? getFullUrl(photographer.avatar_url) : null;
+    const url = `${window.location.origin}/gallery/${username}`;
+
+    document.title = title;
+    setMeta('og:title', title);
+    setMeta('og:description', desc);
+    setMeta('og:image', image);
+    setMeta('og:url', url);
+    setMeta('og:type', 'profile');
+    setMeta('og:site_name', 'Raw Surf');
+    setName('twitter:card', 'summary_large_image');
+    setName('twitter:title', title);
+    setName('twitter:description', desc);
+    setName('twitter:image', image);
+
+    return () => {
+      document.title = 'Raw Surf';
+      ogTags.forEach(tag => tag.remove());
+    };
+  }, [photographer, username]);
+
   return (
     <div className={`min-h-screen ${pageBg} pb-24 md:pb-8`}>
-      {/* ── Hero Banner ── */}
+      {/* JSON-LD Structured Data for SEO ï¿½ LocalBusiness for business accounts, Person for individuals */}
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({
+        '@context': 'https://schema.org',
+        '@type': photographer.company_name ? 'LocalBusiness' : 'Person',
+        name: photographer.company_name || photographer.full_name,
+        url: `${window.location.origin}/gallery/${username}`,
+        image: photographer.avatar_url ? getFullUrl(photographer.avatar_url) : undefined,
+        description: photographer.bio || `Surf photographer on Raw Surf`,
+        ...(photographer.company_name ? {
+          // LocalBusiness-specific fields
+          '@id': `${window.location.origin}/gallery/${username}`,
+          priceRange: '$$',
+          makesOffer: {
+            '@type': 'Offer',
+            itemOffered: {
+              '@type': 'Service',
+              name: 'Surf Photography Session',
+              description: `Book a surf photography session with ${photographer.full_name || photographer.company_name}`,
+            },
+          },
+        } : {
+          // Person-specific fields
+          jobTitle: 'Surf Photographer',
+        }),
+        ...(photographer.location && { address: { '@type': 'PostalAddress', addressLocality: photographer.location } }),
+        ...(photographer.instagram_url && { sameAs: [photographer.instagram_url] }),
+        ...(photographer.website_url && { url: photographer.website_url }),
+        ...(stats && { 
+          aggregateRating: stats.avg_rating > 0 ? {
+            '@type': 'AggregateRating',
+            ratingValue: stats.avg_rating,
+            bestRating: 5,
+            ratingCount: stats.session_count || 1,
+          } : undefined
+        }),
+      }) }} />
+            {/* JSON-LD BreadcrumbList for gallery navigation hierarchy */}
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({
+        '@context': 'https://schema.org',
+        '@type': 'BreadcrumbList',
+        'itemListElement': [
+          { '@type': 'ListItem', position: 1, name: 'Explore', item: `+"${window.location.origin}/explore"+` },
+          { '@type': 'ListItem', position: 2, name: photographer.full_name || photographer.company_name || username }
+        ]
+      })}} />
+
+      {/* -- Hero Banner -- */}
       <div className="relative">
         <div className="h-40 md:h-52 bg-gradient-to-br from-cyan-900/60 via-zinc-900 to-emerald-900/40 overflow-hidden">
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-cyan-500/10 via-transparent to-emerald-500/10" />
@@ -184,7 +278,7 @@ export const GalleryStorefront = () => {
         </div>
 
         {/* Back button */}
-        <Button 
+        <Button aria-label="Go back" 
           variant="ghost" 
           onClick={() => navigate(-1)}
           className="absolute top-4 left-4 text-white/70 hover:text-white hover:bg-white/10 backdrop-blur-sm"
@@ -193,7 +287,7 @@ export const GalleryStorefront = () => {
         </Button>
 
         {/* Share button */}
-        <Button
+        <Button aria-label="Share"
           variant="ghost"
           onClick={handleShare}
           className="absolute top-4 right-4 text-white/70 hover:text-white hover:bg-white/10 backdrop-blur-sm"
@@ -202,7 +296,7 @@ export const GalleryStorefront = () => {
         </Button>
       </div>
 
-      {/* ── Profile Card ── */}
+      {/* -- Profile Card -- */}
       <div className="max-w-4xl mx-auto px-4 -mt-16 relative z-10">
         <div className={`${cardBg} rounded-2xl border ${borderColor} p-6 shadow-xl`}>
           <div className="flex flex-col md:flex-row items-start md:items-center gap-5">
@@ -268,7 +362,7 @@ export const GalleryStorefront = () => {
             <div className="flex gap-2 mt-3 md:mt-0">
               {!isSelf && (
                 <>
-                  <Button
+                  <Button aria-label="Loader2"
                     onClick={handleFollow}
                     disabled={followLoading}
                     className={isFollowing
@@ -278,14 +372,14 @@ export const GalleryStorefront = () => {
                     {followLoading ? <Loader2 className="w-4 h-4 animate-spin" /> :
                       isFollowing ? 'Following' : 'Follow'}
                   </Button>
-                  <Button
+                  <Button aria-label="Message"
                   onClick={() => navigate(`/messages/new/${photographer.id}`)}
                   variant="outline"
                   className={`${borderColor} ${textPrimary}`}
                 >
                   <MessageCircle className="w-4 h-4" />
                 </Button>
-                <Button
+                <Button aria-label="Refresh"
                   onClick={() => navigate(`/photographer/${photographer.id}/subscribe`)}
                   variant="outline"
                   className="border-violet-500/40 text-violet-400 hover:bg-violet-500/10"
@@ -304,7 +398,7 @@ export const GalleryStorefront = () => {
         </div>
       </div>
 
-      {/* ── Stats Bar ── */}
+      {/* -- Stats Bar -- */}
       {stats && (
         <div className="max-w-4xl mx-auto px-4 mt-6">
           <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
@@ -313,7 +407,7 @@ export const GalleryStorefront = () => {
               { label: 'Photos', value: stats.photo_count, icon: Camera, color: 'text-emerald-400' },
               { label: 'Followers', value: stats.follower_count, icon: Users, color: 'text-blue-400' },
               { label: 'Sessions', value: stats.session_count, icon: Calendar, color: 'text-yellow-400' },
-              { label: 'Rating', value: stats.avg_rating > 0 ? `${stats.avg_rating} ★` : '—', icon: Star, color: 'text-amber-400' },
+              { label: 'Rating', value: stats.avg_rating > 0 ? `${stats.avg_rating} ?` : 'ï¿½', icon: Star, color: 'text-amber-400' },
             ].map(({ label, value, icon: Icon, color }) => (
               <Card key={label} className={`${cardBg} ${borderColor}`}>
                 <CardContent className="p-3 text-center">
@@ -327,7 +421,7 @@ export const GalleryStorefront = () => {
         </div>
       )}
 
-      {/* ── Availability Banner ── */}
+      {/* -- Availability Banner -- */}
       {(stats?.is_shooting || stats?.on_demand_active) && (
         <div className="max-w-4xl mx-auto px-4 mt-6">
           <Card className={`${stats.is_shooting ? 'border-red-500/40 bg-red-500/5' : 'border-emerald-500/40 bg-emerald-500/5'} border-2`}>
@@ -336,7 +430,7 @@ export const GalleryStorefront = () => {
                 <div className={`w-3 h-3 rounded-full ${stats.is_shooting ? 'bg-red-500' : 'bg-emerald-500'} animate-pulse`} />
                 <div>
                   <p className={`font-semibold ${textPrimary}`}>
-                    {stats.is_shooting ? '🔴 Currently Shooting Live' : '🟢 Available for On-Demand'}
+                    {stats.is_shooting ? '📸 Currently Shooting Live' : '🟢 Available for On-Demand'}
                   </p>
                   <p className={`text-xs ${textSecondary}`}>
                     {stats.is_shooting ? 'Join the session now!' : 'Request a session at your spot'}
@@ -357,7 +451,7 @@ export const GalleryStorefront = () => {
         </div>
       )}
 
-      {/* ── Subscription Plans ── */}
+      {/* -- Subscription Plans -- */}
       {!isSelf && (
         <div className="max-w-4xl mx-auto px-4 mt-6">
           <PhotographerSubscriptionPlans
@@ -367,7 +461,7 @@ export const GalleryStorefront = () => {
         </div>
       )}
 
-      {/* ── Galleries Grid ── */}
+      {/* -- Galleries Grid -- */}
       <div className="max-w-4xl mx-auto px-4 mt-8">
         <h2 className={`text-lg font-bold ${textPrimary} mb-4 flex items-center gap-2`}>
           <ImageIcon className="w-5 h-5 text-cyan-400" />
@@ -400,7 +494,7 @@ export const GalleryStorefront = () => {
                 {/* Cover image */}
                 <div className="aspect-[4/3] bg-zinc-800 relative overflow-hidden">
                   {gallery.cover_image_url ? (
-                    <img
+                    <img loading="lazy" decoding="async"
                       src={getFullUrl(gallery.cover_image_url)}
                       alt={gallery.title}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
@@ -437,10 +531,10 @@ export const GalleryStorefront = () => {
         )}
       </div>
 
-      {/* ── AI Find Me Button (floating) ── */}
+      {/* -- AI Find Me Button (floating) -- */}
       {!isSelf && user?.id && galleries.length > 0 && (
         <div className="max-w-4xl mx-auto px-4 mt-4">
-          <button
+          <button aria-label="Sparkles"
             onClick={() => {
               const firstGallery = galleries[0];
               setFindMeGalleryId(firstGallery?.id);
@@ -466,7 +560,7 @@ export const GalleryStorefront = () => {
         />
       )}
 
-      {/* ── CTA Footer ── */}
+      {/* -- CTA Footer -- */}
       {!isSelf && (
         <div className="max-w-4xl mx-auto px-4 mt-12">
           <Card className={`bg-gradient-to-r from-cyan-500/10 to-emerald-500/10 border-cyan-500/20`}>
@@ -478,14 +572,14 @@ export const GalleryStorefront = () => {
                 Book a live session, request on-demand, or schedule a private shoot.
               </p>
               <div className="flex justify-center gap-3">
-                <Button
+                <Button aria-label="Calendar"
                   onClick={() => navigate(`/profile/${photographer.id}`)}
                   className="bg-gradient-to-r from-cyan-500 to-emerald-500 text-white font-semibold hover:from-cyan-600 hover:to-emerald-600"
                 >
                   <Calendar className="w-4 h-4 mr-2" />
                   Book Session
                 </Button>
-                <Button
+                <Button aria-label="Share"
                   onClick={handleShare}
                   variant="outline"
                   className={`${borderColor} ${textPrimary}`}

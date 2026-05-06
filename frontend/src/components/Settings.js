@@ -1,1022 +1,32 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
 import { usePersona } from '../contexts/PersonaContext';
-import { LogOut, User, Bell, Shield, Camera, DollarSign, Image, CalendarCheck, Wallet, ChevronRight, ChevronDown, Users, Eye, EyeOff, MapPin, Loader2, MessageSquare, Heart, UserPlus, Mail, Volume2, VolumeX, Sun, Moon, Waves, Check, Zap, CreditCard, Megaphone, Activity, WifiOff, Download, Trash2, HardDrive, Link2, ExternalLink, AtSign, Clock, AlertCircle, Trophy, Star, Send, Lock, KeyRound } from 'lucide-react';
+import { LogOut, User, Bell, Shield, Camera, DollarSign, CalendarCheck, ChevronRight, ChevronDown, Users, Eye, EyeOff, MapPin, Loader2, MessageSquare, Heart, UserPlus, Mail, Volume2, VolumeX, Sun, Moon, Waves, Check, Zap, CreditCard, Megaphone, Activity, WifiOff, Download, Trash2, HardDrive, Clock, FileText, Scale, AlertTriangle, Image, Wallet } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from './ui/card';
 import { Button } from './ui/button';
-import { Input } from './ui/input';
-import { Badge } from './ui/badge';
+
 import { toast } from 'sonner';
-import apiClient, { BACKEND_URL } from '../lib/apiClient';
+import useSettingsActions from '../hooks/useSettingsActions';
+import apiClient from '../lib/apiClient';
 import { AccountBillingHub } from './settings/AccountBillingHub';
 import { AdCenterPanel } from './settings/AdCenterPanel';
 import useOfflineMode from '../hooks/useOfflineMode';
 import logger from '../utils/logger';
 import { ROLES } from '../constants/roles';
+import { CURRENT_TOS_VERSION } from '../constants/tos';
+import { getPreferencesByPath, updatePreferenceByPath } from '../services/notificationService';
+
+import { SurfModeCard } from './settings/SurfModeCard';
+import { GromParentCard } from './settings/GromParentCard';
+import { UsernameCard } from './settings/UsernameCard';
+import { MetaConnectionsCard } from './settings/MetaConnectionsCard';
+import { PasswordSecurityCard } from './settings/PasswordSecurityCard';
+import DeleteAccountSection from './settings/DeleteAccountSection';
 
 
-/**
- * SurfModeCard — Lets non-Grom surfers set their surf mode (Casual / Competitive / Pro).
- * Competitive = behavioral label only. Pro = triggers WSL verification flow (existing backend route).
- * Legend = admin-assigned via elite_tier; shown read-only.
- */
-const SurfModeCard = ({ textPrimaryClass, textSecondaryClass, cardBgClass }) => {
-  const { user, updateUser } = useAuth();
-  const [surfMode, setSurfMode] = useState(user?.surf_mode || 'casual');
-  const [saving, setSaving] = useState(false);
-  const [verificationStatus, setVerificationStatus] = useState(null); // null, 'pending', 'approved', 'rejected'
-  const [loadingVerif, setLoadingVerif] = useState(true);
-  const [wslForm, setWslForm] = useState({ wsl_athlete_id: '', wsl_profile_url: '', competition_history_urls: '', additional_notes: '' });
-  const [submittingWsl, setSubmittingWsl] = useState(false);
-  const [proSectionOpen, setProSectionOpen] = useState(false);
 
-  const isLegend = user?.elite_tier === 'legend';
-  const isVerifiedPro = user?.role === ROLES.PRO && user?.elite_tier === 'pro_elite';
-
-  useEffect(() => {
-    if (user?.id) fetchVerificationStatus();
-  }, [user?.id]);
-
-  const fetchVerificationStatus = async () => {
-    try {
-      const res = await apiClient.get(`/verification/my-requests`);
-      const proReq = (res.data || []).find(r => r.verification_type === 'pro_surfer');
-      if (proReq) setVerificationStatus(proReq.status);
-    } catch (e) {
-      // Non-blocking
-    } finally {
-      setLoadingVerif(false);
-    }
-  };
-
-  const handleModeSelect = async (mode) => {
-    if (mode === surfMode) return;
-    setSurfMode(mode);
-    setSaving(true);
-    try {
-      await apiClient.patch(`/profiles/${user.id}`, { surf_mode: mode });
-      if (updateUser) updateUser({ ...user, surf_mode: mode });
-      toast.success(`Surf Mode set to ${mode.charAt(0).toUpperCase() + mode.slice(1)}`);
-    } catch (e) {
-      toast.error('Failed to update surf mode');
-      setSurfMode(user?.surf_mode || 'casual');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleWslSubmit = async () => {
-    if (!wslForm.wsl_athlete_id.trim() || !wslForm.wsl_profile_url.trim()) {
-      toast.error('WSL Athlete ID and Profile URL are required');
-      return;
-    }
-    setSubmittingWsl(true);
-    try {
-      const urls = wslForm.competition_history_urls
-        ? wslForm.competition_history_urls.split(',').map(u => u.trim()).filter(Boolean)
-        : [];
-      await apiClient.post(`/verification/pro-surfer/submit`, {
-        user_id: user.id,
-        wsl_athlete_id: wslForm.wsl_athlete_id.trim(),
-        wsl_profile_url: wslForm.wsl_profile_url.trim(),
-        competition_history_urls: urls,
-        additional_notes: wslForm.additional_notes.trim() || undefined,
-      });
-      setVerificationStatus('pending');
-      setProSectionOpen(false);
-      toast.success('Verification submitted! Our team will review within 24-48 hours.');
-    } catch (e) {
-      toast.error(e.response?.data?.detail || 'Submission failed');
-    } finally {
-      setSubmittingWsl(false);
-    }
-  };
-
-  // Only 2 selectable modes — Pro is not a surf mode you pick, it's verified status
-  const modes = [
-    { id: 'casual',      label: 'Casual',      icon: '🌊' },
-    { id: 'competitive', label: 'Competitive', icon: '🏆' },
-  ];
-
-  // Pro section header label based on current state
-  const proSectionLabel = loadingVerif ? 'Apply for Pro Verification'
-    : isVerifiedPro ? '⭐ Verified Pro'
-    : isLegend ? '🎖️ Legend'
-    : verificationStatus === 'pending' || verificationStatus === 'under_review' ? '⏳ Verification Pending'
-    : verificationStatus === 'rejected' ? '❌ Reapply for Pro Verification'
-    : 'Apply for Pro Verification';
-
-  return (
-    <Card className={`${cardBgClass} mb-4 transition-colors duration-300`}>
-      <CardHeader>
-        <CardTitle className={`${textPrimaryClass} flex items-center gap-2`}>
-          <Trophy className="w-5 h-5 text-yellow-400" />
-          Surf Mode
-          {isLegend && (
-            <span className="ml-auto px-2 py-0.5 bg-amber-500/20 text-amber-400 text-xs rounded-full border border-amber-500/30">
-              🎖️ Legend
-            </span>
-          )}
-          {isVerifiedPro && !isLegend && (
-            <span className="ml-auto px-2 py-0.5 bg-emerald-500/20 text-emerald-400 text-xs rounded-full border border-emerald-500/30">
-              ✅ Verified Pro
-            </span>
-          )}
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-
-        {/* Legend read-only display */}
-        {isLegend ? (
-          <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-center">
-            <p className="text-amber-400 font-semibold">🎖️ Legend</p>
-            <p className={`text-xs ${textSecondaryClass} mt-1`}>
-              This status was personally assigned by Raw Surf — reserved for icons of the sport.
-            </p>
-          </div>
-        ) : (
-          /* 2-pill toggle: Casual / Competitive */
-          <div className="flex gap-2">
-            {modes.map(m => (
-              <button
-                key={m.id}
-                id={`surf-mode-${m.id}`}
-                onClick={() => handleModeSelect(m.id)}
-                disabled={saving}
-                className={`flex-1 flex flex-col items-center gap-1 py-3 px-2 rounded-xl border-2 transition-all text-sm font-medium ${
-                  surfMode === m.id || (surfMode === 'pro' && m.id === 'competitive')
-                    ? 'border-yellow-400 bg-yellow-400/10 text-yellow-400'
-                    : 'border-border bg-muted/40 text-muted-foreground hover:border-zinc-500'
-                }`}
-              >
-                <span className="text-lg">{m.icon}</span>
-                <span>{m.label}</span>
-              </button>
-            ))}
-          </div>
-        )}
-
-        {/* Contextual sub-panel for Casual */}
-        {!isLegend && (surfMode === 'casual') && (
-          <p className={`text-xs ${textSecondaryClass}`}>
-            Standard surfer profile — book sessions, collect photos, track your journey.
-          </p>
-        )}
-
-        {/* Contextual sub-panel for Competitive */}
-        {!isLegend && (surfMode === 'competitive' || surfMode === 'pro') && (
-          <div className="p-3 rounded-xl bg-purple-500/10 border border-purple-500/20">
-            <p className="text-purple-400 text-sm font-semibold flex items-center gap-1"><Trophy className="w-4 h-4" /> Competitive Mode Active</p>
-            <ul className={`text-xs ${textSecondaryClass} mt-2 space-y-1 list-none`}>
-              <li>✓ Appears on contest boards &amp; community rankings</li>
-              <li>✓ Stoked dashboard activated</li>
-              <li>✓ Visible to photographers as a competitive athlete</li>
-            </ul>
-          </div>
-        )}
-
-        {/* ── Pro Verification — collapsible section, not a selectable pill ── */}
-        {!isLegend && (
-          <div className="rounded-xl border border-border overflow-hidden mt-3">
-            <button
-              id="pro-verification-toggle"
-              onClick={() => setProSectionOpen(o => !o)}
-              className="w-full flex items-center justify-between px-4 py-3 bg-muted/40 hover:bg-muted transition-colors text-sm font-medium text-left"
-            >
-              <span className={isVerifiedPro ? 'text-emerald-600 dark:text-emerald-400' : verificationStatus === 'pending' || verificationStatus === 'under_review' ? 'text-yellow-600 dark:text-yellow-400' : textPrimaryClass}>
-                {proSectionLabel}
-              </span>
-              <ChevronDown className={`w-4 h-4 ${textSecondaryClass} transition-transform duration-200 ${proSectionOpen ? 'rotate-180' : ''}`} />
-            </button>
-
-            {proSectionOpen && (
-              <div className="p-4 space-y-3 border-t border-border bg-background/50">
-                {loadingVerif ? (
-                  <div className="flex justify-center py-4">
-                    <Loader2 className="w-5 h-5 animate-spin text-yellow-400" />
-                  </div>
-                ) : isVerifiedPro ? (
-                  <div className="text-center py-2">
-                    <p className="text-emerald-400 font-semibold">✅ WSL Verified Pro</p>
-                    <p className={`text-xs ${textSecondaryClass} mt-1`}>Your pro status is confirmed. Welcome to The Peak.</p>
-                  </div>
-                ) : verificationStatus === 'pending' || verificationStatus === 'under_review' ? (
-                  <div className="text-center py-2">
-                    <p className="text-yellow-400 font-semibold">⏳ Verification Under Review</p>
-                    <p className={`text-xs ${textSecondaryClass} mt-1`}>Our team is reviewing your credentials. You'll hear back within 24–48 hours.</p>
-                  </div>
-                ) : (
-                  <>
-                    {verificationStatus === 'rejected' && (
-                      <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20">
-                        <p className="text-red-400 text-sm font-semibold">❌ Previous request was not approved</p>
-                        <p className={`text-xs ${textSecondaryClass} mt-1`}>You may reapply with updated credentials below.</p>
-                      </div>
-                    )}
-                    <WslVerificationForm
-                      wslForm={wslForm}
-                      setWslForm={setWslForm}
-                      onSubmit={handleWslSubmit}
-                      submitting={submittingWsl}
-                      textSecondaryClass={textSecondaryClass}
-                    />
-                  </>
-                )}
-              </div>
-            )}
-          </div>
-        )}
-
-      </CardContent>
-    </Card>
-  );
-};
-
-
-/** Inline WSL verification form sub-component */
-const WslVerificationForm = ({ wslForm, setWslForm, onSubmit, submitting, textSecondaryClass }) => (
-  <div className="space-y-3 p-3 rounded-xl bg-muted/30 border border-border">
-    <p className="text-yellow-600 dark:text-yellow-400 text-sm font-semibold flex items-center gap-1"><Star className="w-4 h-4" /> Apply for Pro Verification</p>
-    <p className={`text-xs ${textSecondaryClass}`}>Submit your WSL credentials for review. Approval grants Verified Pro status.</p>
-    <Input
-      id="wsl-athlete-id"
-      placeholder="WSL Athlete ID (e.g. 12345)"
-      value={wslForm.wsl_athlete_id}
-      onChange={e => setWslForm(f => ({ ...f, wsl_athlete_id: e.target.value }))}
-      className="bg-zinc-800 border-zinc-600 text-white text-sm h-9"
-    />
-    <Input
-      id="wsl-profile-url"
-      placeholder="WSL Profile URL (https://...)"
-      value={wslForm.wsl_profile_url}
-      onChange={e => setWslForm(f => ({ ...f, wsl_profile_url: e.target.value }))}
-      className="bg-zinc-800 border-zinc-600 text-white text-sm h-9"
-    />
-    <Input
-      id="wsl-competition-urls"
-      placeholder="Competition result URLs (comma-separated, optional)"
-      value={wslForm.competition_history_urls}
-      onChange={e => setWslForm(f => ({ ...f, competition_history_urls: e.target.value }))}
-      className="bg-zinc-800 border-zinc-600 text-white text-sm h-9"
-    />
-    <Input
-      id="wsl-notes"
-      placeholder="Additional notes (optional)"
-      value={wslForm.additional_notes}
-      onChange={e => setWslForm(f => ({ ...f, additional_notes: e.target.value }))}
-      className="bg-zinc-800 border-zinc-600 text-white text-sm h-9"
-    />
-    <Button
-      id="submit-pro-verification"
-      onClick={onSubmit}
-      disabled={submitting}
-      className="w-full bg-gradient-to-r from-yellow-500 to-amber-500 text-black font-bold hover:from-yellow-400 hover:to-amber-400"
-    >
-      {submitting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Send className="w-4 h-4 mr-2" />}
-      Submit for Review
-    </Button>
-  </div>
-);
-
-/**
- * GromParentCard — Lets any non-Grom surfer opt in to Grom Parent mode.
- * Being a Grom Parent is an AND: a Competitive Surfer can ALSO be a Grom Parent.
- * Enabling it gives access to GromHQ, parental controls, and Grom gallery management.
- */
-const GromParentCard = ({ textPrimaryClass, textSecondaryClass, cardBgClass }) => {
-  const { user, updateUser } = useAuth();
-  const navigate = useNavigate();
-  const [toggling, setToggling] = useState(false);
-  // Dedicated Grom Parent accounts have is_grom_parent true by default in login response
-  const isDedicatedGromParent = user?.role === ROLES.GROM_PARENT;
-  const isEnabled = isDedicatedGromParent || user?.is_grom_parent === true;
-
-  const handleToggle = async () => {
-    if (isDedicatedGromParent) return; // Can't toggle off a dedicated account
-    setToggling(true);
-    const newVal = !user?.is_grom_parent;
-    try {
-      await apiClient.patch(`/profiles/${user.id}`, { is_grom_parent: newVal });
-      updateUser({ ...user, is_grom_parent: newVal });
-      if (newVal) {
-        toast.success('Grom Parent mode enabled — access GromHQ to link your child\'s account');
-      } else {
-        toast.success('Grom Parent mode disabled');
-      }
-    } catch (e) {
-      toast.error('Failed to update Grom Parent setting');
-    } finally {
-      setToggling(false);
-    }
-  };
-
-  return (
-    <Card className={`${cardBgClass} mb-4 transition-colors duration-300`}>
-      <CardHeader>
-        <CardTitle className={`${textPrimaryClass} flex items-center gap-2`}>
-          <Users className="w-5 h-5 text-pink-400" />
-          Grom Parent
-          {isEnabled && (
-            <span className="ml-auto px-2 py-0.5 bg-pink-500/20 text-pink-400 text-xs rounded-full border border-pink-500/30">
-              Active
-            </span>
-          )}
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {isDedicatedGromParent ? (
-          <p className={`text-xs ${textSecondaryClass}`}>
-            Your account is a dedicated Grom Parent account. Head to GromHQ to manage your child's profile, parental controls, and linked sessions.
-          </p>
-        ) : (
-          <div className="flex items-center justify-between">
-            <div>
-              <p className={`text-sm font-medium ${textPrimaryClass}`}>Enable Grom Parent Mode</p>
-              <p className={`text-xs ${textSecondaryClass} mt-0.5`}>
-                Adds GromHQ access to link and manage your child's Grom account alongside your surfer identity.
-              </p>
-            </div>
-            <button
-              id="grom-parent-toggle"
-              onClick={handleToggle}
-              disabled={toggling}
-              className={`relative w-12 h-7 rounded-full transition-colors ${
-                isEnabled ? 'bg-pink-500' : 'bg-zinc-600'
-              }`}
-            >
-              <span className={`absolute top-0.5 w-6 h-6 bg-white rounded-full shadow transition-transform ${
-                isEnabled ? 'left-5' : 'left-0.5'
-              }`} />
-            </button>
-          </div>
-        )}
-        {isEnabled && (
-          <button
-            id="goto-gromhq"
-            onClick={() => navigate('/grom-hq')}
-            className="w-full flex items-center justify-between p-3 rounded-xl bg-pink-500/10 border border-pink-500/20 text-pink-400 text-sm font-medium hover:bg-pink-500/20 transition-colors"
-          >
-            <span>Open GromHQ</span>
-            <ChevronRight className="w-4 h-4" />
-          </button>
-        )}
-      </CardContent>
-    </Card>
-  );
-};
-
-const UsernameCard = ({ userId, _textPrimaryClass, textSecondaryClass, borderClass, cardBgClass }) => {
-  const navigate = useNavigate();
-  const [status, setStatus] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [editing, setEditing] = useState(false);
-  const [newUsername, setNewUsername] = useState('');
-  const [checking, setChecking] = useState(false);
-  const [availability, setAvailability] = useState(null);
-  const [saving, setSaving] = useState(false);
-
-  useEffect(() => {
-    if (userId) fetchStatus();
-  }, [userId]);
-
-  const fetchStatus = async () => {
-    try {
-      const response = await apiClient.get(`/username/status`);
-      setStatus(response.data);
-      setNewUsername(response.data.username || '');
-    } catch (error) {
-      logger.error('Failed to fetch username status:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const checkAvailability = async (username) => {
-    if (!username || username.length < 3) {
-      setAvailability(null);
-      return;
-    }
-    setChecking(true);
-    try {
-      const response = await apiClient.get(`/username/check/${username}`);
-      setAvailability(response.data);
-    } catch (error) {
-      setAvailability({ available: false, reason: 'Unable to check' });
-    } finally {
-      setChecking(false);
-    }
-  };
-
-  useEffect(() => {
-    const debounce = setTimeout(() => {
-      if (editing && newUsername && newUsername !== status?.username) {
-        checkAvailability(newUsername);
-      }
-    }, 400);
-    return () => clearTimeout(debounce);
-  }, [newUsername, editing, status?.username]);
-
-  const handleSave = async () => {
-    if (!availability?.available && newUsername !== status?.username) {
-      toast.error('Username not available');
-      return;
-    }
-    
-    setSaving(true);
-    try {
-      if (status?.has_username) {
-        await apiClient.put(`/username/change`, { new_username: newUsername });
-      } else {
-        await apiClient.post(`/username/set`, { username: newUsername });
-      }
-      toast.success(`Username updated to @${newUsername}`);
-      setEditing(false);
-      fetchStatus();
-    } catch (error) {
-      toast.error(error.response?.data?.detail || 'Failed to update username');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-4">
-        <Loader2 className="w-5 h-5 animate-spin text-cyan-500" />
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-4">
-      {/* Current username display */}
-      <div className={`flex items-center justify-between py-2 border-b ${borderClass}`}>
-        <div className="flex items-center gap-2">
-          <AtSign className="w-4 h-4 text-cyan-400" />
-          <span className={textSecondaryClass}>Username</span>
-        </div>
-        {status?.username ? (
-          <span className="text-cyan-400 font-medium">@{status.username}</span>
-        ) : (
-          <Badge className="bg-yellow-500/20 text-yellow-400">Not Set</Badge>
-        )}
-      </div>
-
-      {/* Edit mode */}
-      {editing ? (
-        <div className="space-y-3">
-          <div className="relative">
-            <span className={`absolute left-3 top-1/2 -translate-y-1/2 ${textSecondaryClass}`}>@</span>
-            <Input
-              value={newUsername}
-              onChange={(e) => setNewUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))}
-              className={`pl-8 ${cardBgClass} ${borderClass}`}
-              placeholder="username"
-              maxLength={30}
-            />
-            <div className="absolute right-3 top-1/2 -translate-y-1/2">
-              {checking ? (
-                <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
-              ) : availability?.available ? (
-                <Check className="w-4 h-4 text-green-500" />
-              ) : availability && !availability.available && newUsername !== status?.username ? (
-                <AlertCircle className="w-4 h-4 text-red-500" />
-              ) : null}
-            </div>
-          </div>
-          
-          {availability && !availability.available && newUsername !== status?.username && (
-            <p className="text-sm text-red-400 flex items-center gap-1">
-              <AlertCircle className="w-3 h-3" />
-              {availability.reason}
-            </p>
-          )}
-          
-          <div className="flex gap-2">
-            <Button
-              onClick={handleSave}
-              disabled={saving || (!availability?.available && newUsername !== status?.username)}
-              className="flex-1 bg-cyan-500 hover:bg-cyan-600"
-            >
-              {saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-              Save
-            </Button>
-            <Button variant="outline" onClick={() => { setEditing(false); setNewUsername(status?.username || ''); }}>
-              Cancel
-            </Button>
-          </div>
-        </div>
-      ) : (
-        <>
-          {/* Setup or Change button */}
-          {!status?.username ? (
-            <Button
-              onClick={() => navigate('/setup-username')}
-              className="w-full bg-cyan-500 hover:bg-cyan-600"
-            >
-              <AtSign className="w-4 h-4 mr-2" />
-              Set Up Username
-            </Button>
-          ) : status?.can_change ? (
-            <Button
-              variant="outline"
-              onClick={() => setEditing(true)}
-              className="w-full"
-            >
-              Change Username
-            </Button>
-          ) : (
-            <div className={`p-3 rounded-lg ${cardBgClass} ${borderClass}`}>
-              <div className="flex items-center gap-2 text-sm text-yellow-400">
-                <Clock className="w-4 h-4" />
-                <span>Can change in {status.days_until_change} days</span>
-              </div>
-              <p className={`text-xs mt-1 ${textSecondaryClass}`}>
-                Usernames can be changed once every 90 days
-              </p>
-            </div>
-          )}
-        </>
-      )}
-    </div>
-  );
-};
-
-/**
- * Meta Connections Card - Connect Facebook/Instagram for direct posting
- */
-const MetaConnectionsCard = ({ userId, textPrimaryClass, textSecondaryClass, borderClass, cardBgClass }) => {
-  const [searchParams] = useSearchParams();
-  const [metaStatus, setMetaStatus] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [connecting, setConnecting] = useState(false);
-  const [disconnecting, setDisconnecting] = useState(false);
-
-  useEffect(() => {
-    if (userId) {
-      fetchMetaStatus();
-    }
-  }, [userId]);
-
-  // Handle OAuth callback
-  useEffect(() => {
-    const code = searchParams.get('code');
-    const state = searchParams.get('state');
-    
-    if (code && state) {
-      handleOAuthCallback(code, state);
-    }
-  }, [searchParams]);
-
-  const fetchMetaStatus = async () => {
-    try {
-      const response = await apiClient.get(`/meta/status`);
-      setMetaStatus(response.data);
-    } catch (err) {
-      setMetaStatus(null);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleOAuthCallback = async (code, state) => {
-    setConnecting(true);
-    try {
-      const response = await apiClient.get(`/meta/callback`, {
-        params: { code, state, redirect_uri: `${window.location.origin}/settings` }
-      });
-      
-      if (response.data.success) {
-        toast.success('Meta accounts connected successfully!');
-        fetchMetaStatus();
-        // Clear URL params
-        window.history.replaceState({}, '', '/settings');
-      }
-    } catch (err) {
-      toast.error(err.response?.data?.detail || 'Failed to connect Meta accounts');
-    } finally {
-      setConnecting(false);
-    }
-  };
-
-  const handleConnect = async () => {
-    setConnecting(true);
-    try {
-      const response = await apiClient.get(`/meta/oauth-url`, {
-        params: { 
-          user_id: userId,
-          redirect_uri: `${window.location.origin}/settings`
-        }
-      });
-      
-      // Redirect to Meta OAuth
-      window.location.href = response.data.oauth_url;
-    } catch (err) {
-      toast.error('Failed to start Meta connection');
-      setConnecting(false);
-    }
-  };
-
-  const handleDisconnect = async () => {
-    setDisconnecting(true);
-    try {
-      await apiClient.delete(`/meta/disconnect`);
-      setMetaStatus(null);
-      toast.success('Meta accounts disconnected');
-    } catch (err) {
-      toast.error('Failed to disconnect');
-    } finally {
-      setDisconnecting(false);
-    }
-  };
-
-  const isConnected = metaStatus?.facebook_connected || metaStatus?.instagram_connected;
-
-  return (
-    <Card className={`${cardBgClass} mb-4 transition-colors duration-300`} data-testid="meta-connections-card">
-      <CardHeader>
-        <CardTitle className={`${textPrimaryClass} flex items-center gap-2`}>
-          <Link2 className="w-5 h-5 text-blue-400" />
-          Social Connections
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {loading ? (
-          <div className="flex items-center justify-center py-4">
-            <Loader2 className="w-5 h-5 animate-spin text-blue-400" />
-          </div>
-        ) : isConnected ? (
-          <>
-            {/* Connected Status */}
-            <div className={`p-3 rounded-lg bg-gradient-to-r from-blue-500/10 to-pink-500/10 border border-blue-500/30`}>
-              <div className="flex items-center justify-between mb-2">
-                <span className={`text-sm font-medium ${textPrimaryClass}`}>Meta Accounts</span>
-                <span className="px-2 py-0.5 bg-green-500/20 text-green-400 text-xs rounded-full">
-                  Connected
-                </span>
-              </div>
-              
-              {/* Facebook Page */}
-              {metaStatus.facebook_connected && (
-                <div className={`flex items-center gap-2 py-1.5 ${textSecondaryClass} text-sm`}>
-                  <span className="text-blue-500 text-lg">f</span>
-                  <span>Facebook Page: {metaStatus.facebook_name || 'Connected'}</span>
-                </div>
-              )}
-              
-              {/* Instagram */}
-              {metaStatus.instagram_connected && (
-                <div className={`flex items-center gap-2 py-1.5 ${textSecondaryClass} text-sm`}>
-                  <span className="text-pink-500 text-lg">📸</span>
-                  <span>Instagram: @{metaStatus.instagram_username || 'Connected'}</span>
-                </div>
-              )}
-            </div>
-
-            <p className={`text-xs ${textSecondaryClass}`}>
-              You can now share surf sessions directly to your Facebook Page and Instagram feed from any post's share menu.
-            </p>
-
-            <Button
-              onClick={handleDisconnect}
-              disabled={disconnecting}
-              variant="outline"
-              className={`w-full ${borderClass} text-red-400 hover:bg-red-500/10`}
-              data-testid="disconnect-meta-btn"
-            >
-              {disconnecting ? (
-                <Loader2 className="w-4 h-4 animate-spin mr-2" />
-              ) : null}
-              Disconnect Meta Accounts
-            </Button>
-          </>
-        ) : (
-          <>
-            {/* Not Connected */}
-            <div className={`text-center py-4`}>
-              <div className="flex items-center justify-center gap-4 mb-3">
-                <span className="text-3xl text-blue-500">f</span>
-                <span className={`text-lg ${textSecondaryClass}`}>+</span>
-                <span className="text-3xl">📸</span>
-              </div>
-              <p className={`text-sm ${textPrimaryClass} font-medium mb-1`}>
-                Connect Facebook & Instagram
-              </p>
-              <p className={`text-xs ${textSecondaryClass} mb-4`}>
-                Share your surf sessions directly to your social feeds
-              </p>
-            </div>
-
-            <Button
-              onClick={handleConnect}
-              disabled={connecting}
-              className="w-full bg-gradient-to-r from-blue-500 to-pink-500 hover:from-blue-600 hover:to-pink-600 text-foreground"
-              data-testid="connect-meta-btn"
-            >
-              {connecting ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                  Connecting...
-                </>
-              ) : (
-                <>
-                  <ExternalLink className="w-4 h-4 mr-2" />
-                  Connect with Meta
-                </>
-              )}
-            </Button>
-
-            <p className={`text-xs ${textSecondaryClass} text-center`}>
-              Requires a Facebook Page and/or Instagram Business account
-            </p>
-          </>
-        )}
-      </CardContent>
-    </Card>
-  );
-};
-
-/**
- * PasswordSecurityCard — Allows authenticated users to change their password.
- * Uses current password as 2FA verification before accepting a new password.
- * Includes password strength meter, visibility toggles, and real-time validation.
- */
-const PasswordSecurityCard = ({ textPrimaryClass, textSecondaryClass, borderClass, cardBgClass, expandedSections, toggleSection }) => {
-  const [currentPassword, setCurrentPassword] = useState('');
-  const [newPassword, setNewPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [showCurrent, setShowCurrent] = useState(false);
-  const [showNew, setShowNew] = useState(false);
-  const [showConfirm, setShowConfirm] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState(false);
-
-  // Password strength calculation
-  const getPasswordStrength = (password) => {
-    if (!password) return { score: 0, label: '', color: '' };
-    let score = 0;
-    if (password.length >= 6) score++;
-    if (password.length >= 10) score++;
-    if (/[A-Z]/.test(password)) score++;
-    if (/[0-9]/.test(password)) score++;
-    if (/[^A-Za-z0-9]/.test(password)) score++;
-
-    if (score <= 1) return { score: 1, label: 'Weak', color: 'bg-red-500' };
-    if (score === 2) return { score: 2, label: 'Fair', color: 'bg-orange-500' };
-    if (score === 3) return { score: 3, label: 'Good', color: 'bg-yellow-500' };
-    if (score >= 4) return { score: 4, label: 'Strong', color: 'bg-green-500' };
-    return { score: 0, label: '', color: '' };
-  };
-
-  const strength = getPasswordStrength(newPassword);
-  const passwordsMatch = newPassword && confirmPassword && newPassword === confirmPassword;
-  const canSubmit = currentPassword && newPassword.length >= 6 && passwordsMatch && !saving;
-
-  const handleChangePassword = async () => {
-    setError('');
-    setSuccess(false);
-
-    if (newPassword !== confirmPassword) {
-      setError('New passwords do not match');
-      return;
-    }
-    if (newPassword.length < 6) {
-      setError('Password must be at least 6 characters');
-      return;
-    }
-    if (newPassword === currentPassword) {
-      setError('New password must be different from current password');
-      return;
-    }
-
-    setSaving(true);
-    try {
-      await apiClient.post('/auth/change-password', {
-        current_password: currentPassword,
-        new_password: newPassword,
-      });
-      setSuccess(true);
-      setCurrentPassword('');
-      setNewPassword('');
-      setConfirmPassword('');
-      toast.success('Password changed successfully!');
-    } catch (err) {
-      const detail = err.response?.data?.detail || 'Failed to change password';
-      setError(detail);
-      toast.error(detail);
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const resetForm = () => {
-    setCurrentPassword('');
-    setNewPassword('');
-    setConfirmPassword('');
-    setError('');
-    setSuccess(false);
-  };
-
-  return (
-    <Card className={`${cardBgClass} mb-4 transition-colors duration-300`} data-testid="password-security-card">
-      <CardHeader className="cursor-pointer" onClick={() => toggleSection('security')}>
-        <div className="flex items-center justify-between">
-          <CardTitle className={`${textPrimaryClass} flex items-center gap-2`}>
-            <Lock className="w-5 h-5 text-amber-400" />
-            Password & Security
-          </CardTitle>
-          <ChevronDown className={`w-5 h-5 ${textSecondaryClass} transition-transform ${expandedSections.security ? 'rotate-180' : ''}`} />
-        </div>
-      </CardHeader>
-      {expandedSections.security && (
-        <CardContent className="space-y-4">
-          {/* Success State */}
-          {success && (
-            <div className="p-3 rounded-xl bg-green-500/10 border border-green-500/30 flex items-center gap-2">
-              <Check className="w-5 h-5 text-green-400 flex-shrink-0" />
-              <div>
-                <p className="text-green-400 font-medium text-sm">Password Updated</p>
-                <p className={`text-xs ${textSecondaryClass}`}>Your password has been changed successfully.</p>
-              </div>
-            </div>
-          )}
-
-          {/* Error State */}
-          {error && (
-            <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/30 flex items-center gap-2">
-              <AlertCircle className="w-4 h-4 text-red-400 flex-shrink-0" />
-              <p className="text-red-400 text-sm">{error}</p>
-            </div>
-          )}
-
-          {/* Section Header */}
-          <div className="flex items-center gap-2 pb-2">
-            <KeyRound className="w-4 h-4 text-amber-400" />
-            <p className={`text-sm font-medium ${textPrimaryClass}`}>Change Password</p>
-          </div>
-          <p className={`text-xs ${textSecondaryClass} -mt-2`}>
-            Enter your current password as verification, then choose a new password.
-          </p>
-
-          {/* Current Password (2FA) */}
-          <div className="space-y-1.5">
-            <label className={`text-xs font-medium ${textSecondaryClass} flex items-center gap-1`}>
-              <Shield className="w-3 h-3 text-amber-400" />
-              Current Password (required for verification)
-            </label>
-            <div className="relative">
-              <Input
-                id="current-password"
-                type={showCurrent ? 'text' : 'password'}
-                value={currentPassword}
-                onChange={(e) => { setCurrentPassword(e.target.value); setError(''); setSuccess(false); }}
-                placeholder="Enter current password"
-                className={`${cardBgClass} ${borderClass} pr-10`}
-                autoComplete="current-password"
-              />
-              <button
-                type="button"
-                onClick={() => setShowCurrent(!showCurrent)}
-                className={`absolute right-3 top-1/2 -translate-y-1/2 ${textSecondaryClass} hover:text-foreground transition-colors`}
-                tabIndex={-1}
-              >
-                {showCurrent ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-              </button>
-            </div>
-          </div>
-
-          {/* Divider */}
-          <div className={`border-t ${borderClass}`} />
-
-          {/* New Password */}
-          <div className="space-y-1.5">
-            <label className={`text-xs font-medium ${textSecondaryClass}`}>New Password</label>
-            <div className="relative">
-              <Input
-                id="new-password"
-                type={showNew ? 'text' : 'password'}
-                value={newPassword}
-                onChange={(e) => { setNewPassword(e.target.value); setError(''); setSuccess(false); }}
-                placeholder="Enter new password (min 6 chars)"
-                className={`${cardBgClass} ${borderClass} pr-10`}
-                autoComplete="new-password"
-              />
-              <button
-                type="button"
-                onClick={() => setShowNew(!showNew)}
-                className={`absolute right-3 top-1/2 -translate-y-1/2 ${textSecondaryClass} hover:text-foreground transition-colors`}
-                tabIndex={-1}
-              >
-                {showNew ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-              </button>
-            </div>
-
-            {/* Password Strength Meter */}
-            {newPassword && (
-              <div className="space-y-1">
-                <div className="flex gap-1">
-                  {[1, 2, 3, 4].map((level) => (
-                    <div
-                      key={level}
-                      className={`h-1.5 flex-1 rounded-full transition-all duration-300 ${
-                        level <= strength.score ? strength.color : 'bg-muted'
-                      }`}
-                    />
-                  ))}
-                </div>
-                <p className={`text-xs ${
-                  strength.score <= 1 ? 'text-red-400' :
-                  strength.score === 2 ? 'text-orange-400' :
-                  strength.score === 3 ? 'text-yellow-400' :
-                  'text-green-400'
-                }`}>
-                  {strength.label}
-                  {strength.score <= 2 && ' — try adding uppercase, numbers, or symbols'}
-                </p>
-              </div>
-            )}
-          </div>
-
-          {/* Confirm Password */}
-          <div className="space-y-1.5">
-            <label className={`text-xs font-medium ${textSecondaryClass}`}>Confirm New Password</label>
-            <div className="relative">
-              <Input
-                id="confirm-password"
-                type={showConfirm ? 'text' : 'password'}
-                value={confirmPassword}
-                onChange={(e) => { setConfirmPassword(e.target.value); setError(''); }}
-                placeholder="Re-enter new password"
-                className={`${cardBgClass} ${borderClass} pr-10`}
-                autoComplete="new-password"
-              />
-              <button
-                type="button"
-                onClick={() => setShowConfirm(!showConfirm)}
-                className={`absolute right-3 top-1/2 -translate-y-1/2 ${textSecondaryClass} hover:text-foreground transition-colors`}
-                tabIndex={-1}
-              >
-                {showConfirm ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-              </button>
-            </div>
-            {/* Match indicator */}
-            {confirmPassword && (
-              <p className={`text-xs flex items-center gap-1 ${passwordsMatch ? 'text-green-400' : 'text-red-400'}`}>
-                {passwordsMatch ? (
-                  <><Check className="w-3 h-3" /> Passwords match</>
-                ) : (
-                  <><AlertCircle className="w-3 h-3" /> Passwords do not match</>
-                )}
-              </p>
-            )}
-          </div>
-
-          {/* Actions */}
-          <div className="flex gap-2 pt-1">
-            <Button
-              id="change-password-btn"
-              onClick={handleChangePassword}
-              disabled={!canSubmit}
-              className="flex-1 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-black font-bold disabled:opacity-40"
-              data-testid="change-password-btn"
-            >
-              {saving ? (
-                <><Loader2 className="w-4 h-4 animate-spin mr-2" /> Updating...</>
-              ) : (
-                <><Lock className="w-4 h-4 mr-2" /> Update Password</>
-              )}
-            </Button>
-            {(currentPassword || newPassword || confirmPassword) && (
-              <Button
-                variant="outline"
-                onClick={resetForm}
-                className={`${borderClass} ${textSecondaryClass}`}
-              >
-                Clear
-              </Button>
-            )}
-          </div>
-
-          {/* Security Tips */}
-          <div className={`p-3 rounded-xl bg-muted/40 border ${borderClass} mt-2`}>
-            <p className={`text-xs font-medium ${textPrimaryClass} mb-1.5 flex items-center gap-1`}>
-              <Shield className="w-3 h-3 text-amber-400" /> Security Tips
-            </p>
-            <ul className={`text-xs ${textSecondaryClass} space-y-1 list-none`}>
-              <li>• Use a unique password you don't use elsewhere</li>
-              <li>• Mix uppercase, lowercase, numbers & symbols</li>
-              <li>• Aim for 10+ characters for maximum security</li>
-              <li>• Never share your password with anyone</li>
-            </ul>
-          </div>
-        </CardContent>
-      )}
-    </Card>
-  );
-};
 
 export const Settings = () => {
   const { theme, toggleTheme } = useTheme();
@@ -1093,16 +103,73 @@ export const Settings = () => {
     security: false,       // Password & Security
     privacy: false,        // Privacy & Safety
     notifications: false,  // Notifications
-    friends: false         // Friends
+    friends: false,        // Friends
+    legal: false           // Legal / Terms of Service
   });
   
-  // Toggle section expand/collapse
-  const toggleSection = (section) => {
-    setExpandedSections(prev => ({
-      ...prev,
-      [section]: !prev[section]
-    }));
-  };
+  // ============ HANDLERS EXTRACTED ============
+
+  // ToS / Legal state
+  const [tosStatus, setTosStatus] = useState({ loading: true, acknowledged: false, acknowledged_at: null });
+  const [showTosFullText, setShowTosFullText] = useState(false);
+  const [showPrivacyPolicy, setShowPrivacyPolicy] = useState(false);
+  const [acceptanceHistory, setAcceptanceHistory] = useState({ loading: true, data: [] });
+  const [tosContent, setTosContent] = useState({ sections: [], version: '', effective_date: '' });
+  const [privacyContent, setPrivacyContent] = useState({ sections: [], effective_date: '' });
+
+  // Fetch ToS acceptance status + full acceptance history + content from DB
+
+  const {
+    toggleSection,
+    fetchPrivacySettings,
+    fetchNotificationPrefs,
+    updateNotifPref,
+    updatePrivacySetting,
+    fetchFriends,
+    handleLogout,
+  } = useSettingsActions({
+    user, navigate, logout,
+    setExpandedSections,
+    setFriends,
+    setFriendsLoading,
+    setNotifLoading,
+    setNotifPrefs,
+    setPendingRequests,
+    setPrivacy,
+    setPrivacyLoading,
+  });
+
+  useEffect(() => {
+    if (user?.id) {
+      apiClient.get(`/compliance/tos-status/${user.id}?current_version=${CURRENT_TOS_VERSION}`)
+        .then(res => setTosStatus({ loading: false, acknowledged: res.data.acknowledged, acknowledged_at: res.data.acknowledged_at }))
+        .catch(() => setTosStatus({ loading: false, acknowledged: false, acknowledged_at: null }));
+      
+      apiClient.get(`/compliance/acceptance-history/${user.id}`)
+        .then(res => setAcceptanceHistory({ loading: false, data: res.data.history || [] }))
+        .catch(() => setAcceptanceHistory({ loading: false, data: [] }));
+    }
+
+    // Fetch content (no auth required)
+    apiClient.get('/compliance/tos-content/current?doc_type=tos')
+      .then(res => setTosContent(res.data))
+      .catch(() => {});
+    apiClient.get('/compliance/tos-content/current?doc_type=privacy')
+      .then(res => setPrivacyContent(res.data))
+      .catch(() => {});
+  }, [user?.id]);
+
+  // Violation history state
+  const [violationHistory, setViolationHistory] = useState({ loading: true, data: null });
+  const [showViolations, setShowViolations] = useState(false);
+
+  useEffect(() => {
+    if (user?.id) {
+      apiClient.get(`/compliance/violations/user/${user.id}`)
+        .then(res => setViolationHistory({ loading: false, data: res.data }))
+        .catch(() => setViolationHistory({ loading: false, data: null }));
+    }
+  }, [user?.id]);
   
   // Fetch privacy settings
   useEffect(() => {
@@ -1113,65 +180,10 @@ export const Settings = () => {
     }
   }, [user?.id]);
   
-  const fetchPrivacySettings = async () => {
-    try {
-      const response = await apiClient.get(`/friends/privacy/${user.id}`);
-      setPrivacy(response.data);
-    } catch (error) {
-      logger.error('Failed to fetch privacy settings:', error);
-    }
-  };
   
-  const fetchNotificationPrefs = async () => {
-    try {
-      const response = await getPreferencesByPath(user.id);
-      setNotifPrefs(response.data);
-    } catch (error) {
-      logger.error('Failed to fetch notification preferences:', error);
-    }
-  };
   
-  const updateNotifPref = async (key, value) => {
-    setNotifLoading(true);
-    try {
-      await updatePreferenceByPath(userId, key, value);
-      setNotifPrefs(prev => ({ ...prev, [key]: value }));
-      toast.success('Notification setting updated');
-    } catch (error) {
-      toast.error('Failed to update setting');
-    } finally {
-      setNotifLoading(false);
-    }
-  };
   
-  const updatePrivacySetting = async (key, value) => {
-    setPrivacyLoading(true);
-    try {
-      await apiClient.put(`/friends/privacy/${user.id}`, { [key]: value });
-      setPrivacy(prev => ({ ...prev, [key]: value }));
-      toast.success('Privacy setting updated');
-    } catch (error) {
-      toast.error('Failed to update setting');
-    } finally {
-      setPrivacyLoading(false);
-    }
-  };
   
-  const fetchFriends = async () => {
-    setFriendsLoading(true);
-    try {
-      const [friendsRes, pendingRes] = await Promise.all([
-        apiClient.get(`/friends/list/${user.id}`),
-        apiClient.get(`/friends/pending/${user.id}`)
-      ]);
-      setFriends(friendsRes.data.friends || []);
-      setPendingRequests(pendingRes.data.pending_requests || []);
-    } catch (error) {
-      logger.error('Failed to fetch friends:', error);
-    } finally {
-      setFriendsLoading(false);
-    }
-  };
   
   const _handleAcceptFriend = async (requestId) => {
     try {
@@ -1224,11 +236,6 @@ export const Settings = () => {
   // Can access live shooting settings (NOT Grom Parent)
   const _canAccessLiveShooting = isPhotographer && !isGromParent;
 
-  const handleLogout = () => {
-    logout();
-    navigate('/auth');
-    toast.success('Logged out successfully');
-  };
 
   // Use semantic Tailwind classes that reference CSS variables
   const mainBgClass = 'bg-background';
@@ -1239,7 +246,7 @@ export const Settings = () => {
 
   // Settings menu item component
   const SettingsMenuItem = ({ icon: Icon, label, description, onClick, color = 'text-muted-foreground' }) => (
-    <button
+    <button aria-label="div"
       onClick={onClick}
       className="w-full flex items-center gap-3 p-3 rounded-lg transition-colors hover:bg-muted"
     >
@@ -1257,7 +264,7 @@ export const Settings = () => {
   return (
     <div className={`pb-20 ${mainBgClass} min-h-screen transition-colors duration-300`} data-testid="settings-page">
       <div className="max-w-md mx-auto p-4">
-        <h1 className={`text-3xl font-bold mb-6 ${textPrimaryClass}`} style={{ fontFamily: 'Oswald' }} data-testid="settings-title">
+        <h1 className={`text-3xl font-bold mb-6 ${textPrimaryClass} font-oswald`}  data-testid="settings-title">
           Settings
         </h1>
 
@@ -1554,7 +561,7 @@ export const Settings = () => {
 
             {/* Clear Cache */}
             {(spotsCached || nearbyCached) && (
-              <Button
+              <Button aria-label="Delete"
                 onClick={() => {
                   clearOfflineCache();
                   toast.success('Offline cache cleared');
@@ -1604,6 +611,7 @@ export const Settings = () => {
               </div>
               <select
                 value={privacy.map_visibility}
+                aria-label="Map visibility"
                 onChange={(e) => updatePrivacySetting('map_visibility', e.target.value)}
                 disabled={privacyLoading}
                 className="px-3 py-1 rounded-lg text-sm bg-muted text-foreground"
@@ -1961,14 +969,14 @@ export const Settings = () => {
               </div>
               {notifPrefs.quiet_hours_enabled && (
                 <div className={`flex items-center gap-2 mt-2 pl-6 ${textSecondaryClass}`}>
-                  <input
+                  <input aria-label="Time"
                     type="time"
                     value={notifPrefs.quiet_hours_start}
                     onChange={(e) => updateNotifPref('quiet_hours_start', e.target.value)}
                     className="px-2 py-1 rounded text-sm bg-muted text-foreground"
                   />
                   <span>to</span>
-                  <input
+                  <input aria-label="Time"
                     type="time"
                     value={notifPrefs.quiet_hours_end}
                     onChange={(e) => updateNotifPref('quiet_hours_end', e.target.value)}
@@ -2086,6 +1094,219 @@ export const Settings = () => {
         </Card>
 
 
+        {/* Legal / Terms of Service */}
+        <Card className={`${cardBgClass} mb-4 transition-colors duration-300`} data-testid="legal-settings-card">
+          <CardHeader className="cursor-pointer" onClick={() => toggleSection('legal')}>
+            <div className="flex items-center justify-between">
+              <CardTitle className={`${textPrimaryClass} flex items-center gap-2`}>
+                <Scale className="w-5 h-5 text-cyan-400" />
+                Legal
+              </CardTitle>
+              <ChevronDown className={`w-5 h-5 ${textSecondaryClass} transition-transform ${expandedSections.legal ? 'rotate-180' : ''}`} />
+            </div>
+          </CardHeader>
+          {expandedSections.legal && (
+            <CardContent className="space-y-4">
+              {/* ToS Acceptance Status */}
+              <div className={`flex items-center justify-between py-2 border-b ${borderClass}`}>
+                <div className="flex items-center gap-2">
+                  <FileText className="w-4 h-4 text-muted-foreground" />
+                  <div>
+                    <span className={textPrimaryClass}>Terms of Service</span>
+                    <p className={`text-xs ${textSecondaryClass}`}>Version {CURRENT_TOS_VERSION}</p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  {tosStatus.loading ? (
+                    <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+                  ) : tosStatus.acknowledged ? (
+                    <div className="flex items-center gap-1.5">
+                      <Check className="w-4 h-4 text-emerald-400" />
+                      <span className="text-xs text-emerald-400">Accepted</span>
+                    </div>
+                  ) : (
+                    <span className="text-xs text-orange-400">Not accepted</span>
+                  )}
+                </div>
+              </div>
+
+              {/* Accepted Date */}
+              {tosStatus.acknowledged && tosStatus.acknowledged_at && (
+                <div className={`flex items-center justify-between py-2 border-b ${borderClass}`}>
+                  <div className="flex items-center gap-2">
+                    <Clock className="w-4 h-4 text-muted-foreground" />
+                    <span className={textPrimaryClass}>Accepted On</span>
+                  </div>
+                  <span className={`text-sm ${textSecondaryClass}`}>
+                    {new Date(tosStatus.acknowledged_at).toLocaleDateString('en-US', {
+                      year: 'numeric', month: 'short', day: 'numeric'
+                    })}
+                  </span>
+                </div>
+              )}
+
+              {/* View Full Terms Button */}
+              <Button aria-label="File Text"
+                aria-expanded={showTosFullText} onClick={() => setShowTosFullText(!showTosFullText)}
+                variant="outline"
+                className={`w-full ${borderClass} text-cyan-400 hover:bg-cyan-500/10`}
+                data-testid="view-tos-button"
+              >
+                <FileText className="w-4 h-4 mr-2" />
+                {showTosFullText ? 'Hide Terms' : 'View Full Terms of Service'}
+              </Button>
+
+              {/* Full ToS Text (Expandable) */}
+              {showTosFullText && (
+                <div className="rounded-xl border border-border bg-muted/30 p-4 text-sm text-muted-foreground space-y-3 max-h-[50vh] overflow-y-auto" data-testid="tos-full-text">
+                  <p className={`text-xs ${textSecondaryClass} uppercase tracking-wider`}>Version {tosContent.version || CURRENT_TOS_VERSION} - Effective {tosContent.effective_date || 'May 2026'}</p>
+                  {(tosContent.sections || []).map((section, idx) => (
+                    <React.Fragment key={idx}>
+                      <h4 className={`${textPrimaryClass} font-semibold`}>{section.title}</h4>
+                      <p>{section.body}</p>
+                    </React.Fragment>
+                  ))}
+                  {(!tosContent.sections || tosContent.sections.length === 0) && (
+                    <p className={`${textSecondaryClass}`}>Loading terms...</p>
+                  )}
+                </div>
+              )}
+
+              {/* Privacy Policy */}
+              <Button aria-label="Shield"
+                aria-expanded={showPrivacyPolicy} onClick={() => setShowPrivacyPolicy(!showPrivacyPolicy)}
+                variant="outline"
+                className={`w-full ${borderClass} text-cyan-400 hover:bg-cyan-500/10`}
+                data-testid="view-privacy-button"
+              >
+                <Shield className="w-4 h-4 mr-2" />
+                {showPrivacyPolicy ? 'Hide Privacy Policy' : 'View Privacy Policy'}
+              </Button>
+
+              {showPrivacyPolicy && (
+                <div className="rounded-xl border border-border bg-muted/30 p-4 text-sm text-muted-foreground space-y-3 max-h-[50vh] overflow-y-auto" data-testid="privacy-full-text">
+                  <p className={`text-xs ${textSecondaryClass} uppercase tracking-wider`}>Privacy Policy - Effective {privacyContent.effective_date || 'May 2026'}</p>
+                  {(privacyContent.sections || []).map((section, idx) => (
+                    <React.Fragment key={idx}>
+                      <h4 className={`${textPrimaryClass} font-semibold`}>{section.title}</h4>
+                      <p>{section.body}</p>
+                    </React.Fragment>
+                  ))}
+                  {(!privacyContent.sections || privacyContent.sections.length === 0) && (
+                    <p className={`${textSecondaryClass}`}>Loading privacy policy...</p>
+                  )}
+                </div>
+              )}
+
+              {/* Acceptance History */}
+              <div className={`py-2 border-b ${borderClass}`}>
+                <div className="flex items-center gap-2 mb-2">
+                  <Clock className="w-4 h-4 text-muted-foreground" />
+                  <span className={`${textPrimaryClass} text-sm font-medium`}>Acceptance History</span>
+                </div>
+                {acceptanceHistory.loading ? (
+                  <div className="flex justify-center py-3">
+                    <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+                  </div>
+                ) : acceptanceHistory.data.length === 0 ? (
+                  <p className={`text-xs ${textSecondaryClass} py-2`}>No acceptance records found.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {acceptanceHistory.data.map((record, idx) => (
+                      <div key={idx} className="p-3 rounded-lg border border-border bg-muted/20">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <Check className="w-4 h-4 text-emerald-400" />
+                            <span className={`text-sm font-medium ${textPrimaryClass}`}>
+                              Version {record.version}
+                            </span>
+                            {idx === 0 && (
+                              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400">Latest</span>
+                            )}
+                          </div>
+                        </div>
+                        <div className={`mt-1.5 text-xs ${textSecondaryClass} space-y-0.5`}>
+                          {record.accepted_at && (
+                            <p>Accepted: {new Date(record.accepted_at).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>
+                          )}
+                          {record.ip_address && <p>IP: {record.ip_address}</p>}
+                          {record.user_agent && (
+                            <p>Device: {record.user_agent.length > 60 ? record.user_agent.substring(0, 60) + '-' : record.user_agent}</p>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Violation History */}
+              <div className={`py-2 border-b ${borderClass}`}>
+                <button aria-label="Alert Triangle"
+                  aria-expanded={showViolations} onClick={() => setShowViolations(!showViolations)}
+                  className="w-full flex items-center justify-between"
+                  data-testid="violation-history-toggle"
+                >
+                  <div className="flex items-center gap-2">
+                    <AlertTriangle className="w-4 h-4 text-muted-foreground" />
+                    <div className="text-left">
+                      <span className={textPrimaryClass}>Violation History</span>
+                      <p className={`text-xs ${textSecondaryClass}`}>
+                        {violationHistory.loading
+                          ? 'Loading...'
+                          : violationHistory.data?.violations?.length
+                          ? `${violationHistory.data.violations.length} record${violationHistory.data.violations.length !== 1 ? 's' : ''} - ${violationHistory.data.total_strikes || 0} strike${(violationHistory.data.total_strikes || 0) !== 1 ? 's' : ''}`
+                          : 'No violations - clean record ?'}
+                      </p>
+                    </div>
+                  </div>
+                  <ChevronDown className={`w-4 h-4 ${textSecondaryClass} transition-transform ${showViolations ? 'rotate-180' : ''}`} />
+                </button>
+
+                {showViolations && violationHistory.data && (
+                  <div className="mt-3 space-y-2">
+                    {violationHistory.data.violations?.length === 0 ? (
+                      <div className="py-4 text-center">
+                        <Check className="w-6 h-6 text-emerald-400 mx-auto mb-1" />
+                        <p className={`text-sm ${textSecondaryClass}`}>No violations on your account</p>
+                      </div>
+                    ) : (
+                      violationHistory.data.violations.map(v => (
+                        <div key={v.id} className={`p-3 rounded-lg border border-border bg-muted/20`}>
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex-1 min-w-0">
+                              <p className={`text-sm font-medium ${textPrimaryClass}`}>{v.title}</p>
+                              <p className={`text-xs ${textSecondaryClass} mt-0.5`}>
+                                {v.violation_type?.replace(/_/g, ' ')} - {v.severity} - {new Date(v.created_at).toLocaleDateString()}
+                              </p>
+                            </div>
+                            <div className="flex-shrink-0">
+                              {v.appeal_status === 'pending' && (
+                                <span className="text-xs px-2 py-0.5 rounded-full bg-yellow-500/20 text-yellow-400">Under Review</span>
+                              )}
+                              {v.appeal_status === 'approved' && (
+                                <span className="text-xs px-2 py-0.5 rounded-full bg-green-500/20 text-green-400">Overturned</span>
+                              )}
+                              {v.appeal_status === 'denied' && (
+                                <span className="text-xs px-2 py-0.5 rounded-full bg-red-500/20 text-red-400">Denied</span>
+                              )}
+                              {v.status === 'active' && !v.is_appealed && (
+                                <span className="text-xs px-2 py-0.5 rounded-full bg-orange-500/20 text-orange-400">Active</span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Data Deletion Request */}
+              <DeleteAccountSection />
+            </CardContent>
+          )}
+        </Card>
 
         {/* About Section */}
         <Card className={`${cardBgClass} mb-4 transition-colors duration-300`} data-testid="app-info-card">
@@ -2102,10 +1323,10 @@ export const Settings = () => {
           </CardContent>
         </Card>
 
-        {/* Theme Section - Mobile Only (md:hidden) */}
-        <Card className={`${cardBgClass} mb-4 transition-colors duration-300 md:hidden`} data-testid="theme-settings-mobile">
+        {/* Theme Section - Appearance */}
+        <Card className={`${cardBgClass} mb-4 transition-colors duration-300`} data-testid="theme-settings-card">
           <CardHeader>
-            <button 
+            <button aria-label="Sun" 
               onClick={() => setThemeDrawerOpen(!themeDrawerOpen)}
               className="w-full flex items-center justify-between"
             >
@@ -2198,7 +1419,7 @@ export const Settings = () => {
               <p className={`text-sm ${textSecondaryClass}`}>
                 Full platform control: user management, personas, pricing, live sessions, and more
               </p>
-              <Button 
+              <Button aria-label="Shield" 
                 onClick={() => navigate('/admin')}
                 className="w-full bg-gradient-to-r from-red-500 via-orange-500 to-yellow-400 hover:from-red-600 hover:via-orange-600 hover:to-yellow-500 text-black font-bold"
                 data-testid="admin-console-button"
@@ -2212,7 +1433,7 @@ export const Settings = () => {
         )}
 
         {/* Logout Button */}
-        <Button
+        <Button aria-label="Log Out"
           onClick={handleLogout}
           variant="outline"
           className="w-full h-12 border-red-500/50 text-red-400 hover:bg-red-500/10 hover:text-red-300"

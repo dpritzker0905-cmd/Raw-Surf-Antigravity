@@ -185,11 +185,10 @@ export const JumpInSessionModal = ({ photographer, onClose, onSuccess }) => {
           {/* Header - Fixed at top */}
           <div className="flex items-center justify-between p-4 border-b border-zinc-800 shrink-0">
             <h2 className="text-lg font-bold text-white">Jump In Session</h2>
-            <button 
+            <button aria-label="Close" 
               onClick={handleClose} 
               className="w-8 h-8 flex items-center justify-center rounded-full bg-zinc-800 text-gray-400 hover:text-white"
-            >
-              <X className="w-4 h-4" />
+            ><X className="w-4 h-4" />
             </button>
           </div>
 
@@ -198,7 +197,7 @@ export const JumpInSessionModal = ({ photographer, onClose, onSuccess }) => {
             <div className="w-12 h-12 rounded-full bg-gradient-to-br from-cyan-400 to-blue-600 p-0.5">
               <div className="w-full h-full rounded-full bg-zinc-900 flex items-center justify-center overflow-hidden">
                 {photographer?.avatar_url ? (
-                  <img src={getFullUrl(photographer.avatar_url)} className="w-full h-full object-cover" alt="" />
+                  <img loading="lazy" decoding="async" src={getFullUrl(photographer.avatar_url)} className="w-full h-full object-cover" alt="" />
                 ) : (
                   <span className="text-cyan-400 font-bold">{photographer?.full_name?.[0]}</span>
                 )}
@@ -217,7 +216,7 @@ export const JumpInSessionModal = ({ photographer, onClose, onSuccess }) => {
           </div>
 
           {/* Scrollable Content */}
-          <div className="flex-1 overflow-y-auto overscroll-contain" style={{ WebkitOverflowScrolling: 'touch' }}>
+          <div className="flex-1 overflow-y-auto overscroll-contain scroll-touch">
             <div className="p-4 pb-8">
             
             {/* Step: Options */}
@@ -227,7 +226,7 @@ export const JumpInSessionModal = ({ photographer, onClose, onSuccess }) => {
                 <div className="p-4 bg-gradient-to-r from-cyan-500/20 to-blue-500/20 border-2 border-cyan-500/40 rounded-xl">
                   <div className="flex items-center gap-4">
                     <div className="w-14 h-14 rounded-full bg-cyan-500/30 flex items-center justify-center shrink-0">
-                      <span className="text-3xl">??</span>
+              <span className="text-3xl">{String.fromCodePoint(0x1F3C4)}</span>
                     </div>
                     <div>
                       <p className="text-cyan-300 font-bold text-lg">Hold your surfboard up!</p>
@@ -238,7 +237,7 @@ export const JumpInSessionModal = ({ photographer, onClose, onSuccess }) => {
                   </div>
                 </div>
                 
-                <Button
+                <Button aria-label="Camera"
                   onClick={() => setStep('selfie')}
                   className="w-full bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-bold py-4"
                 >
@@ -276,7 +275,7 @@ export const JumpInSessionModal = ({ photographer, onClose, onSuccess }) => {
                   />
                   
                   {selfieUrl && (
-                    <img src={selfieUrl} alt="Selfie" className="w-full h-full object-cover" />
+                    <img loading="lazy" decoding="async" src={selfieUrl} alt="Selfie" className="w-full h-full object-cover" />
                   )}
                   
                   {!cameraReady && !selfieUrl && (
@@ -290,7 +289,7 @@ export const JumpInSessionModal = ({ photographer, onClose, onSuccess }) => {
 
                 {/* Surfboard instruction - smaller version */}
                 <div className="p-3 bg-gradient-to-r from-cyan-500/20 to-blue-500/20 border border-cyan-500/30 rounded-xl flex items-center gap-3">
-                  <span className="text-2xl">??</span>
+              <span className="text-2xl">{String.fromCodePoint(0x1F3C4)}</span>
                   <div>
                     <p className="text-cyan-300 font-bold text-sm">Hold your board up!</p>
                     <p className="text-cyan-400/70 text-xs">So they can spot you in the water</p>
@@ -307,7 +306,7 @@ export const JumpInSessionModal = ({ photographer, onClose, onSuccess }) => {
                       >
                         Cancel
                       </Button>
-                      <Button
+                      <Button aria-label="Camera"
                         onClick={captureSelfie}
                         disabled={!cameraReady}
                         className="flex-1 bg-gradient-to-r from-yellow-400 to-orange-500 text-black font-bold"
@@ -318,7 +317,7 @@ export const JumpInSessionModal = ({ photographer, onClose, onSuccess }) => {
                     </>
                   ) : (
                     <>
-                      <Button
+                      <Button aria-label="Refresh"
                         onClick={retakeSelfie}
                         variant="outline"
                         className="flex-1 border-zinc-700"
@@ -326,7 +325,7 @@ export const JumpInSessionModal = ({ photographer, onClose, onSuccess }) => {
                         <RefreshCw className="w-4 h-4 mr-2" />
                         Retake
                       </Button>
-                      <Button
+                      <Button aria-label="Confirm"
                         onClick={() => { stopCamera(); setStep('payment'); }}
                         className="flex-1 bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-bold"
                       >
@@ -345,7 +344,7 @@ export const JumpInSessionModal = ({ photographer, onClose, onSuccess }) => {
                 <h3 className="text-white font-semibold">Choose Payment Method</h3>
                 
                 <div className="space-y-3">
-                  <button
+                  <button aria-label="Coins"
                     onClick={() => setPaymentMethod('credits')}
                     className={`w-full p-4 rounded-xl border-2 flex items-center gap-3 transition-all ${
                       paymentMethod === 'credits' 
@@ -361,7 +360,7 @@ export const JumpInSessionModal = ({ photographer, onClose, onSuccess }) => {
                     {paymentMethod === 'credits' && <Check className="w-5 h-5 text-cyan-400" />}
                   </button>
 
-                  <button
+                  <button aria-label="Credit Card"
                     onClick={() => setPaymentMethod('card')}
                     className={`w-full p-4 rounded-xl border-2 flex items-center gap-3 transition-all ${
                       paymentMethod === 'card' 
@@ -383,7 +382,7 @@ export const JumpInSessionModal = ({ photographer, onClose, onSuccess }) => {
                   </p>
                 )}
 
-                <Button
+                <Button aria-label="Loader2"
                   onClick={handleJoinSession}
                   disabled={loading || (paymentMethod === 'credits' && !hasEnoughCredits)}
                   className="w-full bg-gradient-to-r from-yellow-400 to-orange-500 text-black font-bold py-4"

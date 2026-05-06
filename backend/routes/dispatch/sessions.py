@@ -696,7 +696,7 @@ async def dispatch_payment_success(
 async def process_dispatch_notifications(dispatch_id: str):
     """Background task to notify photographers in stages"""
     from database import async_session_maker
-    from routes.push import notify_dispatch_alert
+    from routes.notifications.push import notify_dispatch_alert
     
     async with async_session_maker() as db:
         result = await db.execute(
@@ -790,7 +790,7 @@ async def process_dispatch_notifications(dispatch_id: str):
 async def notify_crew_members(dispatch_id: str, captain_id: str):
     """Background task to notify crew members about shared session via in-app + push"""
     from database import async_session_maker
-    from routes.push import send_push_notification
+    from routes.notifications.push import send_push_notification
     
     async with async_session_maker() as db:
         # Get dispatch request with requester info

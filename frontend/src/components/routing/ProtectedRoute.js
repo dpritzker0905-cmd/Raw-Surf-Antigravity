@@ -1,10 +1,11 @@
 /**
  * ProtectedRoute.js — Auth gate for authenticated-only routes.
  *
- * Handles three cases:
+ * Handles four cases:
  *   1. Auth still loading → shows spinner
  *   2. No user → redirects to /auth with `redirect` param for post-login return
- *   3. Grom user → wraps in GromSafetyGate unless route is always-allowed
+ *   3. User hasn't accepted current ToS → TosReacceptanceGate blocks with modal
+ *   4. Grom user → wraps in GromSafetyGate unless route is always-allowed
  *
  * Hydrates from localStorage synchronously to avoid a flash to /auth
  * while AuthContext is resolving the async Supabase session.
@@ -13,6 +14,7 @@ import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import GromSafetyGate from '../GromSafetyGate';
+import TosReacceptanceGate from './TosReacceptanceGate';
 import { ROLES } from '../../constants/roles';
 
 /**
@@ -71,13 +73,19 @@ const ProtectedRoute = ({ children, bypassGromGate = false }) => {
 
   if (effectiveUser.role === ROLES.GROM && !effectiveUser.is_admin && !bypassGromGate && !isAlwaysAllowed) {
     return (
-      <GromSafetyGate allowLimitedFeed={isLimitedAccess}>
-        {children}
-      </GromSafetyGate>
+      <TosReacceptanceGate>
+        <GromSafetyGate allowLimitedFeed={isLimitedAccess}>
+          {children}
+        </GromSafetyGate>
+      </TosReacceptanceGate>
     );
   }
 
-  return children;
+  return (
+    <TosReacceptanceGate>
+      {children}
+    </TosReacceptanceGate>
+  );
 };
 
 export default ProtectedRoute;

@@ -1,0 +1,68 @@
+# Raw Surf — CI Pipeline
+# Runs lint check and build verification on every push to dev
+name: CI
+
+on:
+  push:
+    branches: [dev]
+  pull_request:
+    branches: [dev, main]
+
+jobs:
+  lint-and-build:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        node-version: [18.x]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Run tests
+        working-directory: frontend
+        run: CI=true npx react-scripts test --watchAll=false --passWithNoTests
+        continue-on-error: true  # Don't block deploys on test failures yet
+
+      - name: Build frontend
+        working-directory: frontend
+        env:
+          CI: false  # Allow warnings to not fail build
+          REACT_APP_BACKEND_URL: https://raw-surf-antigravity.onrender.com
+        run: npm run build
+
+      - name: Build success
+        run: echo "✅ Frontend build verified successfully"
+
+  backend-lint:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: |
+          pip install -q flake8
+          pip install -q -r requirements.txt
+
+      - name: Lint backend
+        working-directory: backend
+        run: flake8 --max-line-length=150 --count --select=E9,F63,F7,F82 --show-source --statistics .
+        continue-on-error: true  # Warn only, don't block

@@ -146,7 +146,7 @@ export const OnDemandTab = ({
   const textPrimaryClass = isLight ? 'text-gray-900' : 'text-white';
   const textSecondaryClass = isLight ? 'text-gray-600' : 'text-gray-400';
 
-  // Chat sync for active dispatch — shows unread badge + latest message on card
+  // Chat sync for active dispatch - shows unread badge + latest message on card
   const photographerId = activeDispatch?.photographer_id || activeDispatch?.photographer?.id;
   const photographerName = activeDispatch?.photographer_name || 'Photographer';
   const dispatchChatReady = !!activeDispatch && !!photographerId && ['accepted', 'en_route', 'arrived'].includes(activeDispatch?.status);
@@ -157,7 +157,7 @@ export const OnDemandTab = ({
     userId: user?.id,
     otherUserId: photographerId,
     otherUserName: photographerName,
-    drawerOpen: false, // always poll — there's no drawer on this page
+    drawerOpen: false, // always poll - there's no drawer on this page
     enabled: dispatchChatReady,
   });
   
@@ -195,7 +195,7 @@ export const OnDemandTab = ({
 
   return (
     <>
-      {/* ─── Crew Session Invites ──────────────────────────────────────────── */}
+      {/* --- Crew Session Invites -------------------------------------------- */}
       {crewInvites.length > 0 && (
         <div className="mb-4 space-y-3">
           <p className={`text-xs font-semibold uppercase tracking-wider ${textSecondaryClass} flex items-center gap-2`}>
@@ -213,7 +213,7 @@ export const OnDemandTab = ({
                   {/* Captain avatar */}
                   <div className="w-12 h-12 rounded-full overflow-hidden flex-shrink-0 ring-2 ring-cyan-400">
                     {invite.captain?.avatar_url ? (
-                      <img src={getFullUrl(invite.captain.avatar_url)} alt="" className="w-full h-full object-cover" />
+                      <img loading="lazy" decoding="async" src={getFullUrl(invite.captain.avatar_url)} alt="" className="w-full h-full object-cover" />
                     ) : (
                       <div className="w-full h-full bg-gradient-to-br from-cyan-400 to-blue-500 flex items-center justify-center">
                         <Users className="w-6 h-6 text-white" />
@@ -227,7 +227,7 @@ export const OnDemandTab = ({
                     </p>
                     <p className={`text-xs ${textSecondaryClass} truncate`}>
                       {invite.location_name || 'On-demand session'}
-                      {invite.share_amount && ` · Your share: $${Number(invite.share_amount).toFixed(2)}`}
+                      {invite.share_amount && ` - Your share: $${Number(invite.share_amount).toFixed(2)}`}
                     </p>
                   </div>
 
@@ -240,7 +240,7 @@ export const OnDemandTab = ({
                   </div>
                 </div>
 
-                <Button
+                <Button aria-label="Zap"
                   className="w-full mt-3 bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-bold py-2 text-sm"
                   onClick={(e) => { e.stopPropagation(); onPayCrewShare?.(invite); }}
                 >
@@ -253,9 +253,9 @@ export const OnDemandTab = ({
         </div>
       )}
 
-      {/* Active Dispatch Card — Redesigned with progress stepper + chat notification */}
+      {/* Active Dispatch Card - Redesigned with progress stepper + chat notification */}
       {activeDispatch && ['searching_for_pro', 'pending_payment', 'accepted', 'en_route', 'arrived'].includes(activeDispatch.status) && (() => {
-        // ── Stepper logic ──
+        // -- Stepper logic --
         const STEPS = [
           { key: 'searching_for_pro', label: 'Confirming', shortLabel: 'Confirm' },
           { key: 'accepted',          label: 'Accepted',   shortLabel: 'Accept' },
@@ -266,7 +266,7 @@ export const OnDemandTab = ({
         const currentKey = activeDispatch.status === 'pending_payment' ? 'searching_for_pro' : activeDispatch.status;
         const currentIdx = STEPS.findIndex(s => s.key === currentKey);
 
-        // ── Status display config ──
+        // -- Status display config --
         const accentColor = isCrewMember ? 'cyan' : 'amber';
         const gradientFrom = isCrewMember ? 'from-cyan-500/20' : 'from-amber-500/20';
         const gradientTo   = isCrewMember ? 'to-blue-500/20'   : 'to-orange-500/20';
@@ -274,7 +274,7 @@ export const OnDemandTab = ({
         const accentText   = isCrewMember ? 'text-cyan-400' : 'text-amber-400';
         const accentBg     = isCrewMember ? 'bg-cyan-400' : 'bg-amber-400';
 
-        // ── Title / subtitle ──
+        // -- Title / subtitle --
         let title = '';
         let subtitle = '';
         if (isCrewMember) {
@@ -306,7 +306,7 @@ export const OnDemandTab = ({
             data-testid="active-dispatch-card"
           >
             <CardContent className="py-0 px-0">
-              {/* ── Progress Stepper Bar ── */}
+              {/* -- Progress Stepper Bar -- */}
               <div className={`flex items-center justify-between px-4 py-2.5 border-b ${isLight ? 'border-gray-200/60 bg-white/40' : 'border-zinc-700/40 bg-zinc-900/30'}`}>
                 {STEPS.map((step, idx) => {
                   const isComplete = idx < currentIdx;
@@ -321,7 +321,7 @@ export const OnDemandTab = ({
                           isCurrent  ? `${accentBg} text-black ring-2 ring-offset-1 ${isLight ? 'ring-offset-white' : 'ring-offset-zinc-900'} ring-${accentColor}-400/60 animate-pulse` :
                                        `${isLight ? 'bg-gray-200 text-gray-400' : 'bg-zinc-700 text-zinc-500'}`
                         }`}>
-                          {isComplete ? '✓' : idx + 1}
+                          {isComplete ? '?' : idx + 1}
                         </div>
                         <span className={`text-[10px] font-medium leading-tight text-center ${
                           isCurrent ? accentText : isFuture ? (isLight ? 'text-gray-400' : 'text-zinc-500') : (isLight ? 'text-gray-600' : 'text-zinc-300')
@@ -340,7 +340,7 @@ export const OnDemandTab = ({
                 })}
               </div>
 
-              {/* ── Main Card Body ── */}
+              {/* -- Main Card Body -- */}
               <div className="px-4 py-3">
                 <div className="flex items-center gap-3">
                   {/* Animated icon */}
@@ -365,14 +365,14 @@ export const OnDemandTab = ({
                   </div>
                 </div>
 
-                {/* ── Crew avatars (for crew members) ── */}
+                {/* -- Crew avatars (for crew members) -- */}
                 {isCrewMember && activeDispatch.crew && activeDispatch.crew.length > 0 && (
                   <div className="flex items-center gap-1 mt-2 ml-15">
                     <span className={`text-xs ${textSecondaryClass}`}>With:</span>
                     {activeDispatch.crew.slice(0, 3).map((member, idx) => (
                       <div key={idx} className="w-6 h-6 rounded-full bg-zinc-700 overflow-hidden border border-cyan-400/30">
                         {member.avatar_url ? (
-                          <img src={getFullUrl(member.avatar_url)} alt="" className="w-full h-full object-cover" />
+                          <img loading="lazy" decoding="async" src={getFullUrl(member.avatar_url)} alt="" className="w-full h-full object-cover" />
                         ) : (
                           <div className="w-full h-full flex items-center justify-center text-[10px] text-cyan-400">
                             {member.name?.charAt(0) || '?'}
@@ -387,7 +387,7 @@ export const OnDemandTab = ({
                 )}
               </div>
 
-              {/* ── Crew Payment Progress ── */}
+              {/* -- Crew Payment Progress -- */}
               {activeDispatch?.is_shared && activeDispatch?.crew && activeDispatch.crew.length > 0 && (
                 <div className="px-4 pb-3" onClick={(e) => e.stopPropagation()}>
                   <div className={`pt-3 border-t ${isLight ? 'border-gray-200/60' : 'border-zinc-700/50'}`}>
@@ -404,7 +404,7 @@ export const OnDemandTab = ({
                 </div>
               )}
 
-              {/* ── Inline Chat Notification ── */}
+              {/* -- Inline Chat Notification -- */}
               {dispatchChatReady && (dispatchUnread > 0 || dispatchLatestMsg) && (
                 <div className={`flex items-center gap-3 mx-4 mb-2 px-3 py-2 rounded-xl border transition-all ${
                   dispatchUnread > 0
@@ -430,11 +430,11 @@ export const OnDemandTab = ({
                         : (dispatchLatestMsg?.content || 'Chat available')}
                     </p>
                   </div>
-                  <span className={`text-[10px] flex-shrink-0 ${dispatchUnread > 0 ? 'text-cyan-500' : textSecondaryClass}`}>Open →</span>
+                  <span className={`text-[10px] flex-shrink-0 ${dispatchUnread > 0 ? 'text-cyan-500' : textSecondaryClass}`}>Open ?</span>
                 </div>
               )}
 
-              {/* ── Tap-to-View CTA Strip ── */}
+              {/* -- Tap-to-View CTA Strip -- */}
               <div className={`flex items-center justify-between px-4 py-2.5 border-t ${
                 isLight ? 'border-gray-200/60 bg-white/50' : 'border-zinc-700/40 bg-zinc-800/50'
               }`}>
@@ -544,7 +544,7 @@ export const OnDemandTab = ({
 
             {/* Search Button */}
             {selectedCity && (
-              <Button
+              <Button aria-label="Loader2"
                 onClick={handleManualSearch}
                 className="w-full mt-1 bg-gradient-to-r from-amber-500 to-orange-500 text-black font-semibold"
                 disabled={onDemandLoading}
@@ -602,7 +602,7 @@ export const OnDemandTab = ({
                         isPro ? 'ring-2 ring-yellow-400' : 'ring-2 ring-cyan-400/50'
                       }`}>
                         {pro.avatar_url ? (
-                          <img src={getFullUrl(pro.avatar_url)} alt={pro.full_name} className="w-full h-full object-cover" />
+                          <img loading="lazy" decoding="async" src={getFullUrl(pro.avatar_url)} alt={pro.full_name} className="w-full h-full object-cover" />
                         ) : (
                           <div className={`w-full h-full flex items-center justify-center ${isLight ? 'bg-gray-100' : 'bg-zinc-700'}`}>
                             <Camera className="w-6 h-6 text-gray-400" />

@@ -26,6 +26,8 @@ import IncomingCallModal from '../messages/IncomingCallModal';
 import OutgoingCallModal from '../messages/OutgoingCallModal';
 import InCallView from '../messages/InCallView';
 import PermissionDeniedModal from '../messages/PermissionDeniedModal';
+import ViolationBanner from '../ViolationBanner';
+import PushNotificationPrompt from '../PushNotificationPrompt';
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
@@ -216,6 +218,9 @@ const AppLayout = ({ children, hideNav = false, hideTopNav = false }) => {
       {showSidebar && <Sidebar />}
       {showTopNav && <TopNav />}
 
+      {/* Violation awareness banner — appears below nav when user has strikes */}
+      <ViolationBanner />
+
       {/* Page content */}
       <main
         className={`${mainBgClass} ${showSidebar ? 'md:ml-[200px]' : ''} ${showTopNav ? 'pt-14 md:pt-0' : ''} ${showBottomNav ? 'pb-20 md:pb-0' : ''} transition-colors duration-300 ${impersonationPadding} hide-scrollbar`}
@@ -225,6 +230,7 @@ const AppLayout = ({ children, hideNav = false, hideTopNav = false }) => {
       </main>
 
       {showBottomNav && <ActiveSessionBanner />}
+      <PushNotificationPrompt />
       {showBottomNav && <BottomNav />}
     </div>
   );

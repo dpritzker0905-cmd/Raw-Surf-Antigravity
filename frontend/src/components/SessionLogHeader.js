@@ -1,4 +1,4 @@
-﻿/**
+/**
  * SessionLogHeader - Displays session metadata on feed posts
  * Shows: Location, Time, Conditions, Collaborators
  * "Strava for Surfing" - Rich metadata on every session post
@@ -34,8 +34,8 @@ const SESSION_LABEL_ICONS = {
 
 // Wind direction display
 const _WIND_ARROWS = {
-  'N': '↓', 'NE': '↙', 'E': '←', 'SE': '↖',
-  'S': '↑', 'SW': '↗', 'W': '→', 'NW': '↘'
+  'N': '?', 'NE': '?', 'E': '?', 'SE': '?',
+  'S': '?', 'SW': '?', 'W': '?', 'NW': '?'
 };
 
 /**
@@ -120,7 +120,7 @@ const CollaboratorsRow = ({ collaborators, onViewAll, isLight }) => {
   if (accepted.length === 0) return null;
   
   return (
-    <button 
+    <button aria-label="Users" 
       onClick={onViewAll}
       className={`flex items-center gap-2 ${isLight ? 'hover:bg-gray-100' : 'hover:bg-zinc-800'} rounded-lg px-2 py-1 -mx-2 transition-colors`}
     >
@@ -133,7 +133,7 @@ const CollaboratorsRow = ({ collaborators, onViewAll, isLight }) => {
             style={{ zIndex: 4 - idx }}
           >
             {collab.avatar_url ? (
-              <img src={getFullUrl(collab.avatar_url)} alt="" className="w-full h-full object-cover" />
+              <img loading="lazy" decoding="async" src={getFullUrl(collab.avatar_url)} alt="" className="w-full h-full object-cover" />
             ) : (
               <span className="text-white text-xs font-bold">
                 {collab.full_name?.charAt(0) || '?'}
@@ -332,10 +332,10 @@ export const SessionLogHeader = ({
         
         {/* Expand/Collapse for conditions */}
         {hasConditions && (
-          <Button
+          <Button aria-label="Collapse"
             variant="ghost"
             size="sm"
-            onClick={() => setExpanded(!expanded)}
+            aria-expanded={expanded} onClick={() => setExpanded(!expanded)}
             className="p-1 h-auto"
           >
             {expanded ? (
@@ -413,7 +413,7 @@ export const SessionLogHeader = ({
       <div className={`flex items-center gap-2 mt-2 pt-2 border-t ${isLight ? 'border-gray-200' : 'border-zinc-700'}`}>
         {/* I Was There Button */}
         {canRequestCollaboration && (
-          <Button
+          <Button aria-label="User Plus"
             size="sm"
             variant="outline"
             onClick={onIWasThere}
@@ -443,7 +443,7 @@ export const SessionLogHeader = ({
         {showBookCTA && photographerId && (
           <>
             {!isFollowingPhotographer && onFollowPhotographer && (
-              <Button
+              <Button aria-label="User Plus"
                 size="sm"
                 onClick={() => onFollowPhotographer(photographerId)}
                 className="text-xs bg-gradient-to-r from-cyan-400 to-blue-500 text-black ml-auto"

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Payment Success Page
  * Polls Stripe for payment status and shows confirmation
  */
@@ -61,7 +61,7 @@ const PaymentSuccess = () => {
     switch (status) {
       case 'checking':
         return (
-          <div className="text-center">
+          <div data-testid="payment-success" className="text-center">
             <Loader2 className="w-16 h-16 text-cyan-400 animate-spin mx-auto mb-4" />
             <h2 className="text-2xl font-bold text-white mb-2">Processing Payment...</h2>
             <p className="text-gray-400">Please wait while we confirm your payment</p>
@@ -76,14 +76,14 @@ const PaymentSuccess = () => {
             </div>
             <h2 className="text-2xl font-bold text-white mb-2">Payment Successful!</h2>
             <p className="text-gray-400 mb-4">
-              Your deposit of ${(paymentData?.amount_total / 100).toFixed(2)} has been received.
+              Your payment of ${(paymentData?.amount_total / 100).toFixed(2)} has been received and is held securely.
             </p>
             <div className="bg-zinc-800/50 rounded-lg p-4 mb-6 text-left">
-              <p className="text-sm text-gray-400 mb-1">Amount</p>
+              <p className="text-sm text-gray-400 mb-1">Amount Held in Escrow</p>
               <p className="text-lg text-white font-bold">${(paymentData?.amount_total / 100).toFixed(2)} {paymentData?.currency?.toUpperCase()}</p>
             </div>
             <p className="text-sm text-gray-500 mb-6">
-              Credits have been added to your wallet. You can now request a photographer!
+              Your payment is held securely until your session is complete. Searching for a photographer now!
             </p>
             <Button 
               onClick={() => navigate('/map')}
@@ -157,7 +157,7 @@ const PaymentSuccess = () => {
   return (
     <div className="min-h-screen bg-zinc-900 flex items-center justify-center p-4">
       <div className="max-w-md w-full">
-        <button
+        <button aria-label="Go back"
           onClick={() => navigate('/map')}
           className="flex items-center gap-2 text-gray-400 hover:text-white mb-8 transition-colors"
         >

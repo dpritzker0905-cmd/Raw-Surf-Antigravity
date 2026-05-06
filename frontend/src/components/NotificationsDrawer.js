@@ -7,7 +7,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   Bell, Users, MessageCircle, UserPlus, Check, CheckCheck, Camera, Tag,
   Image as ImageIcon, CreditCard, Waves, Trophy, Calendar, X, Clock,
-  ChevronRight, ExternalLink
+  ChevronRight, ExternalLink,
 } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from './ui/sheet';
 import { Button } from './ui/button';
@@ -16,7 +16,7 @@ import logger from '../utils/logger';
 import { formatTimeAgo } from '../utils/formatTime';
 import { getNotificationDeepLink } from '../utils/notificationDeepLinks';
 
-// ── Theme colour tokens (mirrors GoLiveModal pattern) ────────────────────────
+// -- Theme colour tokens (mirrors GoLiveModal pattern) ------------------------
 const getThemeColors = (theme) => {
   if (theme === 'light') return {
     bg:           'bg-white',
@@ -256,14 +256,14 @@ export const NotificationsDrawer = ({ isOpen, onClose, onCountUpdate }) => {
     }
   }, [navigate, onClose, onCountUpdate]);
 
-  // ── Notification Item ─────────────────────────────────────────────────────
+  // -- Notification Item -----------------------------------------------------
   const NotificationItem = ({ notification }) => {
     const config = NOTIFICATION_CONFIG[notification.type] || NOTIFICATION_CONFIG.default;
     const Icon = config.icon;
     const isClickable = !!getNotificationDeepLink(notification);
 
     return (
-      <div
+      <div data-testid="notifications-drawer"
         onClick={() => handleNotificationClick(notification)}
         className={`flex items-start gap-3 p-3 rounded-xl transition-all ${
           isClickable ? 'cursor-pointer' : 'cursor-default'
@@ -303,7 +303,7 @@ export const NotificationsDrawer = ({ isOpen, onClose, onCountUpdate }) => {
         className={`
           ${colors.bg} ${colors.border} border-t
           rounded-t-3xl overflow-hidden flex flex-col
-          /* ── FIX 1: clamp height so it never bleeds above viewport on mobile ── */
+          /* -- FIX 1: clamp height so it never bleeds above viewport on mobile -- */
           max-h-[92dvh]
           /* fallback for browsers without dvh */
           max-h-[92vh]
@@ -312,12 +312,12 @@ export const NotificationsDrawer = ({ isOpen, onClose, onCountUpdate }) => {
         `}
         style={{ maxHeight: 'min(92dvh, 92vh)' }}
       >
-        {/* ── Handle bar (mobile drag indicator) ── */}
+        {/* -- Handle bar (mobile drag indicator) -- */}
         <div className="flex justify-center pt-3 pb-1 shrink-0">
           <div className={`w-10 h-1 rounded-full ${theme === 'light' ? 'bg-gray-300' : 'bg-zinc-600'}`} />
         </div>
 
-        {/* ── Header ── */}
+        {/* -- Header -- */}
         <SheetHeader className={`pb-2 shrink-0 px-4 border-b ${colors.headerBorder}`}>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -333,7 +333,7 @@ export const NotificationsDrawer = ({ isOpen, onClose, onCountUpdate }) => {
             </div>
             <div className="flex items-center gap-1">
               {unreadCounts.all > 0 && (
-                <Button
+                <Button aria-label="Check Check"
                   onClick={handleMarkAllRead}
                   variant="ghost"
                   size="sm"
@@ -342,21 +342,21 @@ export const NotificationsDrawer = ({ isOpen, onClose, onCountUpdate }) => {
                   <CheckCheck className="w-4 h-4" />
                 </Button>
               )}
-              <button onClick={onClose} className={`${colors.closeBtn} p-2 rounded-full transition-colors`}>
+              <button onClick={onClose} className={`${colors.closeBtn} p-2 rounded-full transition-colors`} aria-label="Close">
                 <X className="w-5 h-5" />
               </button>
             </div>
           </div>
         </SheetHeader>
 
-        {/* ── Filter Tabs ── */}
+        {/* -- Filter Tabs -- */}
         <div className="flex gap-1.5 overflow-x-auto py-3 px-4 shrink-0 scrollbar-hide">
           {TABS.map(tab => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
             const count = unreadCounts[tab.id];
             return (
-              <button
+              <button aria-label="Icon"
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all ${
@@ -377,7 +377,7 @@ export const NotificationsDrawer = ({ isOpen, onClose, onCountUpdate }) => {
           })}
         </div>
 
-        {/* ── Notification List — no arbitrary cap, natural scroll ── */}
+        {/* -- Notification List ï¿½ no arbitrary cap, natural scroll -- */}
         {/* Best practice: show all items, let overflow-y-auto + max-h handle it */}
         {/* "View All" footer still available for full-page experience */}
         <div className="overflow-y-auto flex-1 space-y-1.5 px-3 pb-2 min-h-0">
@@ -399,7 +399,7 @@ export const NotificationsDrawer = ({ isOpen, onClose, onCountUpdate }) => {
                 <NotificationItem key={notification.id} notification={notification} />
               ))}
               {filteredNotifications.length > 10 && (
-                <button
+                <button aria-label="Notifications"
                   onClick={handleViewAll}
                   className={`w-full py-3 text-sm font-semibold flex items-center justify-center gap-2 rounded-xl transition-all mt-1 ${
                     theme === 'light'
@@ -418,9 +418,9 @@ export const NotificationsDrawer = ({ isOpen, onClose, onCountUpdate }) => {
           )}
         </div>
 
-        {/* ── Footer ── */}
+        {/* -- Footer -- */}
         <div className={`border-t ${colors.footerBorder} p-3 shrink-0 ${colors.footer}`}>
-          <Button
+          <Button aria-label="External Link"
             onClick={handleViewAll}
             variant="outline"
             className={`w-full ${colors.footerBtn}`}

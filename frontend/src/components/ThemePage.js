@@ -57,7 +57,7 @@ export const ThemePage = () => {
             <CurrentIcon className="w-6 h-6 text-cyan-400" />
           </div>
           <div>
-            <h1 className={`text-2xl font-bold ${textPrimaryClass}`} style={{ fontFamily: 'Oswald' }}>
+            <h1 className={`text-2xl font-bold ${textPrimaryClass} font-oswald`} >
               Theme
             </h1>
             <p className={`text-sm ${textSecondaryClass}`}>Customize your visual experience</p>

@@ -1,6 +1,6 @@
 [build]
   base = "frontend"
-  command = "yarn install --ignore-engines && CI=false yarn build"
+  command = "sed -i \"s/BUILD_VERSION = .*/BUILD_VERSION = '$(git rev-parse --short HEAD)';/\" public/service-worker.js && yarn install --ignore-engines && CI=false yarn build"
   publish = "build"
 
 [build.environment]
@@ -11,16 +11,16 @@
 
 # Production (main branch) - only rebuild when frontend files actually changed
 [context.production]
-  command = "yarn install --ignore-engines && CI=false yarn build"
+  command = "sed -i \"s/BUILD_VERSION = .*/BUILD_VERSION = '$(git rev-parse --short HEAD)';/\" public/service-worker.js && yarn install --ignore-engines && CI=false yarn build"
   ignore = "git diff --quiet $CACHED_COMMIT_REF $COMMIT_REF -- frontend/src frontend/public netlify.toml"
 
 # Deploy previews (PRs) - always build
 [context.deploy-preview]
-  command = "yarn install --ignore-engines && CI=false yarn build"
+  command = "sed -i \"s/BUILD_VERSION = .*/BUILD_VERSION = '$(git rev-parse --short HEAD)';/\" public/service-worker.js && yarn install --ignore-engines && CI=false yarn build"
 
 # Dev branch - always build, gets stable URL at dev--rawsurf.netlify.app
 [context.dev]
-  command = "yarn install --ignore-engines && CI=false yarn build"
+  command = "sed -i \"s/BUILD_VERSION = .*/BUILD_VERSION = '$(git rev-parse --short HEAD)';/\" public/service-worker.js && yarn install --ignore-engines && CI=false yarn build"
 
 [[redirects]]
   from = "/*"

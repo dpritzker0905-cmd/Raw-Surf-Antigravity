@@ -9,8 +9,20 @@
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <meta name="description" content="Raw Surf — surf photography, live streams, and community for surfers worldwide." />
+        <meta property="og:title" content="Raw Surf — Surf Photography & Community" />
+        <meta property="og:description" content="Live surf photography, session booking, and community for surfers worldwide." />
+        <meta property="og:image" content="https://customer-assets.emergentagent.com/job_raw-surf-os/artifacts/9llcl5mg_Rawig6-500x500.png" />
+        <meta property="og:url" content="https://rawsurf.netlify.app" />
+        <meta property="og:type" content="website" />
+        <meta property="og:site_name" content="Raw Surf" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="Raw Surf — Surf Photography & Community" />
+        <meta name="twitter:description" content="Live surf photography, session booking, and community for surfers worldwide." />
+        <meta name="twitter:image" content="https://customer-assets.emergentagent.com/job_raw-surf-os/artifacts/9llcl5mg_Rawig6-500x500.png" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <!-- Preconnect to Mapbox tile API for faster map loading -->
+        <link rel="preconnect" href="https://api.mapbox.com" crossorigin />
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@600&display=swap" rel="stylesheet" />
         <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&display=swap" rel="stylesheet" />
         <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
@@ -22,6 +34,8 @@
         <script>window.L_DISABLE_3D = true; window.L_NO_TOUCH = false;</script>
         <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
         <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js" crossorigin=""></script>
+        <!-- EdgeBuffer: pre-fetches tiles beyond viewport for smoother panning -->
+        <script src="https://unpkg.com/leaflet-edgebuffer@1.0.6/src/leaflet.edgebuffer.js" crossorigin=""></script>
         <!--
         manifest.json provides metadata used when your web app is installed on a
         user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
@@ -35,11 +49,30 @@
         work correctly both with client-side routing and a non-root public URL.
         Learn how to configure a non-root public URL by running `npm run build`.
         -->
+        <link rel="manifest" href="%PUBLIC_URL%/manifest.json" />
+        <link rel="apple-touch-icon" href="https://customer-assets.emergentagent.com/job_raw-surf-os/artifacts/9llcl5mg_Rawig6-500x500.png" />
         <title>Raw Surf</title>
         <script>window.addEventListener("error",function(e){if(e.error instanceof DOMException&&e.error.name==="DataCloneError"&&e.message&&e.message.includes("PerformanceServerTiming")){e.stopImmediatePropagation();e.preventDefault()}},true);</script>
         <script src="https://assets.emergent.sh/scripts/emergent-main.js"></script>
+        <!-- JSON-LD WebSite structured data for Google Search sitelinks -->
+        <script type="application/ld+json">
+        {
+            "@context": "https://schema.org",
+            "@type": "WebSite",
+            "name": "Raw Surf",
+            "url": "https://rawsurf.netlify.app",
+            "description": "Surf photography, live streams, on-demand booking, and community for surfers worldwide.",
+            "potentialAction": {
+                "@type": "SearchAction",
+                "target": "https://rawsurf.netlify.app/explore?q={search_term_string}",
+                "query-input": "required name=search_term_string"
+            }
+        }
+        </script>
     </head>
     <body>
+        <!-- Skip to main content link for screen readers / keyboard navigation (WCAG 2.1) -->
+        <a href="#main-content" style="position:absolute;left:-9999px;top:auto;width:1px;height:1px;overflow:hidden;z-index:10000;background:#06b6d4;color:#fff;padding:8px 16px;font-size:14px;font-weight:600;border-radius:0 0 8px 0;text-decoration:none;" onfocus="this.style.left='0';this.style.width='auto';this.style.height='auto'" onblur="this.style.left='-9999px';this.style.width='1px';this.style.height='1px'">Skip to main content</a>
         <noscript>You need to enable JavaScript to run this app.</noscript>
         <!-- CRITICAL: Clear God Mode localStorage if no user - runs BEFORE React -->
         <script>
@@ -71,7 +104,7 @@
                 opacity: 0 !important;
             }
         </style>
-        <div id="root"></div>
+        <div id="root" role="main" aria-label="Main content"></div>
         <!--
       This HTML file is a template.
       If you open it directly in the browser, you will see an empty page.

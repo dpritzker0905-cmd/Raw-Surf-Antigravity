@@ -376,7 +376,7 @@ async def process_sponsorship(
     db.add(ledger_entry)
     
     # Update weekly challenge score
-    from routes.challenges import update_challenge_score
+    from routes.career_hub.challenges import update_challenge_score
     await update_challenge_score(donor_id, net_amount, recipient_type, db)
     
     # Determine notification type based on sponsorship type

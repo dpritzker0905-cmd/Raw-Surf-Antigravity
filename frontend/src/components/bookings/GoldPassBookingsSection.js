@@ -113,7 +113,7 @@ export const GoldPassBookingsSection = ({ user, theme, onBookingComplete }) => {
               )}
             </CardTitle>
             {!hasGoldPass && slots.length > 0 && (
-              <Button 
+              <Button aria-label="Arrow Up Right" 
                 size="sm" 
                 variant="outline"
                 className="border-yellow-500/50 text-yellow-400 hover:bg-yellow-500/10"
@@ -185,7 +185,7 @@ export const GoldPassBookingsSection = ({ user, theme, onBookingComplete }) => {
                 <Button
                   variant="ghost"
                   className="w-full mt-3 text-yellow-400 hover:bg-yellow-500/10"
-                  onClick={() => setExpanded(!expanded)}
+                  aria-expanded={expanded} onClick={() => setExpanded(!expanded)}
                 >
                   {expanded ? 'Show Less' : `Show All ${slots.length} Slots`}
                   <ChevronRight className={`w-4 h-4 ml-1 transition-transform ${expanded ? 'rotate-90' : ''}`} />
@@ -282,7 +282,7 @@ export const GoldPassBookingsSection = ({ user, theme, onBookingComplete }) => {
             <Button variant="outline" onClick={() => setSelectedSlot(null)}>
               Cancel
             </Button>
-            <Button 
+            <Button aria-label="Loader2" 
               onClick={confirmBooking}
               disabled={booking}
               className={hasGoldPass 

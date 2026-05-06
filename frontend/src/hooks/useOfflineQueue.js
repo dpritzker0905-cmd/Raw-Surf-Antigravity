@@ -58,7 +58,7 @@ const replayAction = async (action) => {
 
       case 'save_post':
         await apiClient.post(
-          `/posts/${payload.postId}/save`
+          `/posts/${payload.postId}/save?user_id=${payload.userId}`
         );
         break;
 

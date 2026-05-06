@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import apiClient, { BACKEND_URL } from '../../lib/apiClient';
@@ -266,7 +266,7 @@ export const AdminFinanceDashboard = () => {
                         </div>
                         {refund.status === 'pending' && (
                           <div className="flex gap-2 mt-3 pt-3 border-t border-border">
-                            <Button 
+                            <Button aria-label="Confirm" 
                               size="sm" 
                               onClick={() => handleProcessRefund(refund.id, 'approve')}
                               disabled={actionLoading}
@@ -326,7 +326,7 @@ export const AdminFinanceDashboard = () => {
                         <div key={batch.id} className="p-3 bg-muted/50 rounded-lg flex items-center justify-between">
                           <div>
                             <p className={`font-medium ${textClass}`}>{batch.batch_number}</p>
-                            <p className="text-xs text-gray-500">{batch.total_recipients} recipients • {formatDate(batch.created_at)}</p>
+                            <p className="text-xs text-gray-500">{batch.total_recipients} recipients - {formatDate(batch.created_at)}</p>
                           </div>
                           <div className="flex items-center gap-3">
                             <p className="text-lg font-bold text-foreground">{formatCurrency(batch.total_amount)}</p>
@@ -377,7 +377,7 @@ export const AdminFinanceDashboard = () => {
                         </div>
                         {!payment.recovered && (
                           <div className="mt-3 pt-3 border-t border-border">
-                            <Button 
+                            <Button aria-label="Refresh" 
                               size="sm" 
                               onClick={() => handleRetryPayment(payment.id)}
                               disabled={actionLoading}
@@ -414,7 +414,7 @@ export const AdminFinanceDashboard = () => {
                 {taxReport && (
                   <>
                     <div className="p-3 bg-muted/50 rounded-lg mb-4">
-                      <p className="text-xs text-gray-500">Earnings ≥ ${taxReport.threshold} threshold</p>
+                      <p className="text-xs text-gray-500">Earnings = ${taxReport.threshold} threshold</p>
                       <p className={`text-lg font-bold ${textClass}`}>{taxReport.total_recipients} recipients</p>
                       <p className="text-sm text-muted-foreground">{formatCurrency(taxReport.total_reportable_amount)} total</p>
                     </div>
@@ -449,7 +449,7 @@ export const AdminFinanceDashboard = () => {
           </DialogHeader>
           <div>
             <p className="text-sm text-muted-foreground mb-2">Reason for rejection:</p>
-            <Textarea
+            <Textarea aria-label="Explain why this refund is being rejected..."
               value={rejectionReason}
               onChange={(e) => setRejectionReason(e.target.value)}
               placeholder="Explain why this refund is being rejected..."
@@ -458,7 +458,7 @@ export const AdminFinanceDashboard = () => {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowRejectDialog(false)}>Cancel</Button>
-            <Button 
+            <Button aria-label="Loader2" 
               onClick={() => handleProcessRefund(selectedRefund?.id, 'reject')}
               disabled={actionLoading || !rejectionReason.trim()}
               className="bg-red-500 hover:bg-red-600"

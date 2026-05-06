@@ -1,4 +1,4 @@
-﻿/**
+/**
  * SurfboardsTab - Display and manage user's surfboard quiver
  * Features:
  * - Grid display of surfboards with photos
@@ -66,14 +66,14 @@ const SurfboardCard = ({ board, onClick, isLight }) => {
   const conditionInfo = CONDITIONS.find(c => c.value === board.condition);
   
   return (
-    <div 
+    <div data-testid="surfboards-tab" 
       onClick={onClick}
       className={`relative aspect-[3/4] rounded-xl overflow-hidden cursor-pointer group transition-all hover:scale-[1.02] ${
         isLight ? 'bg-gray-100' : 'bg-zinc-800'
       }`}
     >
       {primaryPhoto ? (
-        <img 
+        <img loading="lazy" decoding="async" 
           src={primaryPhoto} 
           alt={board.name || 'Surfboard'} 
           className="w-full h-full object-cover"
@@ -258,7 +258,7 @@ const SurfboardModal = ({ isOpen, onClose, board, onSave, userId }) => {
             <div className="grid grid-cols-5 gap-2 mt-2">
               {formData.photo_urls.map((url, idx) => (
                 <div key={idx} className="relative aspect-square rounded-lg overflow-hidden group">
-                  <img src={url} alt="" className="w-full h-full object-cover" />
+                  <img loading="lazy" decoding="async" src={url} alt="" className="w-full h-full object-cover" />
                   <button
                     onClick={() => handleRemovePhoto(idx)}
                     className="absolute top-1 right-1 w-5 h-5 rounded-full bg-red-500 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
@@ -274,7 +274,7 @@ const SurfboardModal = ({ isOpen, onClose, board, onSave, userId }) => {
                   ) : (
                     <Plus className={`w-6 h-6 ${isLight ? 'text-gray-400' : 'text-zinc-500'}`} />
                   )}
-                  <input
+                  <input aria-label="Upload file"
                     type="file"
                     accept="image/*"
                     multiple
@@ -324,7 +324,7 @@ const SurfboardModal = ({ isOpen, onClose, board, onSave, userId }) => {
                 <p className={`text-xs ${isLight ? 'text-gray-500' : 'text-gray-400'} text-center mt-1`}>ft</p>
               </div>
               <div className="col-span-1">
-                <Input
+                <Input aria-label="10"
                   type="number"
                   value={formData.length_inches}
                   onChange={(e) => setFormData(p => ({ ...p, length_inches: e.target.value }))}
@@ -334,7 +334,7 @@ const SurfboardModal = ({ isOpen, onClose, board, onSave, userId }) => {
                 <p className={`text-xs ${isLight ? 'text-gray-500' : 'text-gray-400'} text-center mt-1`}>in</p>
               </div>
               <div className="col-span-1">
-                <Input
+                <Input aria-label="19.5"
                   type="number"
                   step="0.25"
                   value={formData.width_inches}
@@ -345,7 +345,7 @@ const SurfboardModal = ({ isOpen, onClose, board, onSave, userId }) => {
                 <p className={`text-xs ${isLight ? 'text-gray-500' : 'text-gray-400'} text-center mt-1`}>width</p>
               </div>
               <div className="col-span-1">
-                <Input
+                <Input aria-label="2.5"
                   type="number"
                   step="0.125"
                   value={formData.thickness_inches}
@@ -356,7 +356,7 @@ const SurfboardModal = ({ isOpen, onClose, board, onSave, userId }) => {
                 <p className={`text-xs ${isLight ? 'text-gray-500' : 'text-gray-400'} text-center mt-1`}>thick</p>
               </div>
               <div className="col-span-1">
-                <Input
+                <Input aria-label="28.5"
                   type="number"
                   step="0.1"
                   value={formData.volume_liters}
@@ -444,7 +444,7 @@ const SurfboardModal = ({ isOpen, onClose, board, onSave, userId }) => {
         {/* Fixed Footer */}
         <DialogFooter className="p-4 pt-2 border-t border-zinc-800 flex-shrink-0 gap-2">
           <Button variant="outline" onClick={onClose} className="flex-1 sm:flex-none">Cancel</Button>
-          <Button 
+          <Button aria-label="Loader2" 
             onClick={handleSubmit}
             disabled={loading}
             className="flex-1 sm:flex-none bg-gradient-to-r from-cyan-500 to-blue-600"
@@ -501,7 +501,7 @@ const SurfboardDetailModal = ({ isOpen, onClose, board, onEdit, onDelete, isOwnP
         {/* Photo Gallery */}
         <div className="relative aspect-[4/3] bg-black">
           {photos.length > 0 ? (
-            <img 
+            <img loading="lazy" decoding="async" 
               src={photos[currentPhotoIndex]} 
               alt="" 
               className="w-full h-full object-contain"
@@ -515,13 +515,13 @@ const SurfboardDetailModal = ({ isOpen, onClose, board, onEdit, onDelete, isOwnP
           {/* Photo Navigation */}
           {photos.length > 1 && (
             <>
-              <button
+              <button aria-label="Previous"
                 onClick={() => setCurrentPhotoIndex(i => (i - 1 + photos.length) % photos.length)}
                 className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/50 text-white flex items-center justify-center"
               >
                 <ChevronLeft className="w-5 h-5" />
               </button>
-              <button
+              <button aria-label="Next"
                 onClick={() => setCurrentPhotoIndex(i => (i + 1) % photos.length)}
                 className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/50 text-white flex items-center justify-center"
               >
@@ -540,11 +540,10 @@ const SurfboardDetailModal = ({ isOpen, onClose, board, onEdit, onDelete, isOwnP
           )}
           
           {/* Close button */}
-          <button
+          <button aria-label="Close"
             onClick={onClose}
             className="absolute top-2 right-2 w-8 h-8 rounded-full bg-black/50 text-white flex items-center justify-center"
-          >
-            <X className="w-5 h-5" />
+          ><X className="w-5 h-5" />
           </button>
         </div>
         
@@ -590,7 +589,7 @@ const SurfboardDetailModal = ({ isOpen, onClose, board, onEdit, onDelete, isOwnP
           {/* Actions */}
           {isOwnProfile && (
             <div className="flex gap-2 pt-2 border-t border-zinc-800">
-              <Button
+              <Button aria-label="Edit"
                 variant="outline"
                 onClick={() => {
                   onClose();
@@ -610,7 +609,7 @@ const SurfboardDetailModal = ({ isOpen, onClose, board, onEdit, onDelete, isOwnP
                   >
                     Cancel
                   </Button>
-                  <Button
+                  <Button aria-label="Loader2"
                     onClick={handleDelete}
                     disabled={deleting}
                     className="bg-red-500 hover:bg-red-600"
@@ -620,7 +619,7 @@ const SurfboardDetailModal = ({ isOpen, onClose, board, onEdit, onDelete, isOwnP
                   </Button>
                 </div>
               ) : (
-                <Button
+                <Button aria-label="Delete"
                   variant="outline"
                   onClick={() => setDeleteConfirm(true)}
                   className="text-red-400 hover:text-red-300"
@@ -699,7 +698,7 @@ export const SurfboardsTab = ({ userId, isOwnProfile }) => {
           </p>
         </div>
         {isOwnProfile && (
-          <Button
+          <Button aria-label="Add"
             onClick={() => {
               setEditingBoard(null);
               setShowAddModal(true);
@@ -726,7 +725,7 @@ export const SurfboardsTab = ({ userId, isOwnProfile }) => {
               : 'No surfboards in this quiver yet'}
           </p>
           {isOwnProfile && (
-            <Button
+            <Button aria-label="Add"
               onClick={() => {
                 setEditingBoard(null);
                 setShowAddModal(true);

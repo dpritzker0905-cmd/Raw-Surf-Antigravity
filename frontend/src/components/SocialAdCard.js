@@ -122,7 +122,7 @@ export const SocialAdCard = ({ position = 0, onDismiss }) => {
         </div>
         
         {/* CTA Button */}
-        <Button
+        <Button aria-label="External Link"
           onClick={handleCtaClick}
           className={`w-full bg-gradient-to-r ${ad.gradient} text-white font-bold py-3 rounded-xl hover:opacity-90 transition-opacity`}
           data-testid="ad-cta-button"

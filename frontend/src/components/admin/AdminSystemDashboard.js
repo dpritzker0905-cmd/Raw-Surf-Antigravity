@@ -44,19 +44,27 @@ export const AdminSystemDashboard = () => {
 
   const fetchAllData = async () => {
     try {
-      const [healthRes, jobsRes, alertsRes] = await Promise.all([
-        apiClient.get(`/admin/system/health`),
-        apiClient.get(`/admin/system/jobs`),
-        apiClient.get(`/admin/system/alerts`)
-      ]);
+      const healthRes = await apiClient.get(`/admin/system/health`);
       setHealthData(healthRes.data);
+    } catch (error) {
+      logger.error('Failed to load health data:', error);
+    }
+
+    try {
+      const jobsRes = await apiClient.get(`/admin/system/jobs`);
       setJobs(jobsRes.data.jobs || []);
+    } catch (error) {
+      logger.error('Failed to load jobs data:', error);
+    }
+
+    try {
+      const alertsRes = await apiClient.get(`/admin/system/alerts`);
       setAlerts(alertsRes.data.alerts || []);
     } catch (error) {
-      logger.error('Failed to load system data:', error);
-    } finally {
-      setLoading(false);
+      logger.error('Failed to load alerts data:', error);
     }
+
+    setLoading(false);
   };
 
   const handleToggleJob = async (jobName, currentState) => {
@@ -152,7 +160,7 @@ export const AdminSystemDashboard = () => {
                       {healthData.unacknowledged_alerts} Alerts
                     </Badge>
                   )}
-                  <Button size="sm" variant="outline" onClick={fetchAllData}>
+                  <Button size="sm" variant="outline" onClick={fetchAllData} aria-label="Refresh">
                     <RefreshCw className="w-4 h-4" />
                   </Button>
                 </div>
@@ -339,12 +347,12 @@ export const AdminSystemDashboard = () => {
                     </div>
                     <div className="flex gap-1">
                       {!alert.is_acknowledged && (
-                        <Button size="sm" variant="outline" onClick={() => handleAcknowledgeAlert(alert.id)}>
+                        <Button size="sm" variant="outline" onClick={() => handleAcknowledgeAlert(alert.id)} aria-label="Confirm">
                           <Check className="w-3 h-3" />
                         </Button>
                       )}
                       {!alert.is_resolved && (
-                        <Button size="sm" variant="outline" onClick={() => handleResolveAlert(alert.id)}>
+                        <Button size="sm" variant="outline" onClick={() => handleResolveAlert(alert.id)} aria-label="Close">
                           <X className="w-3 h-3" />
                         </Button>
                       )}

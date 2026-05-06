@@ -116,7 +116,7 @@ const ZoomLens = ({ imageRef, zoomPosition, zoomLevel = 2 }) => {
         zIndex: 100
       }}
     >
-      <img src={croppedImage} alt="Zoomed" className="w-full h-full" />
+      <img loading="lazy" decoding="async" src={croppedImage} alt="Zoomed" className="w-full h-full" />
       <div className="absolute bottom-1 right-1 px-1.5 py-0.5 bg-black/70 rounded text-[10px] text-cyan-400">
         {zoomLevel}x
       </div>
@@ -338,7 +338,7 @@ export const QualityComparisonModal = ({
                 onMouseMove={handleMouseMove}
                 onMouseLeave={handleMouseLeave}
               >
-                <img
+                <img loading="lazy" decoding="async"
                   ref={imageRef}
                   src={previewUrls[selectedTier] || previewUrls.standard || ''}
                   alt={`${selectedTier} quality preview`}
@@ -359,7 +359,7 @@ export const QualityComparisonModal = ({
                 </div>
                 
                 {/* Zoom toggle */}
-                <Button
+                <Button aria-label="Zoom out"
                   size="sm"
                   variant="outline"
                   className={`absolute top-3 right-3 ${zoomEnabled ? 'bg-cyan-500 text-black border-cyan-500' : 'bg-black/50 border-zinc-600'}`}
@@ -450,7 +450,7 @@ export const QualityComparisonModal = ({
                 <Button variant="outline" onClick={() => onOpenChange(false)}>
                   Cancel
                 </Button>
-                <Button 
+                <Button aria-label="Download" 
                   className="bg-gradient-to-r from-cyan-500 to-blue-500 text-white"
                   onClick={() => {
                     onSelectTier?.(selectedTier);

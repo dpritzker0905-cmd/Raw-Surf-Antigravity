@@ -188,7 +188,7 @@ const SessionCard = ({ booking, isLight, onViewDetails }) => {
         </div>
         
         {/* Action Button */}
-        <Button
+        <Button aria-label="Waves"
           onClick={() => onViewDetails?.(booking)}
           size="sm"
           className="w-full mt-3 bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white"
@@ -248,7 +248,7 @@ export const SessionCountdownWidget = ({
           </div>
         </div>
         
-        <Button
+        <Button aria-label="Next"
           variant="ghost"
           size="sm"
           onClick={() => navigate('/bookings')}

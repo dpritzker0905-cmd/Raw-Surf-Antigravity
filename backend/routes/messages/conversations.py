@@ -150,6 +150,14 @@ async def send_message(data: SendMessageRequest, sender_id: str, db: AsyncSessio
     conversation.last_message_preview = preview
     conversation.last_message_at = datetime.now(timezone.utc)
     
+    # Auto-unhide: if the sender had hidden this conversation, replying
+    # should bring it back to their primary inbox (mirrors IG/WhatsApp behavior)
+    is_sender_participant_one = conversation.participant_one_id == sender_id
+    if is_sender_participant_one and conversation.status_for_one == 'hidden':
+        conversation.status_for_one = 'primary'
+    elif not is_sender_participant_one and conversation.status_for_two == 'hidden':
+        conversation.status_for_two = 'primary'
+    
     notification = Notification(
         user_id=data.recipient_id,
         type='new_message',
@@ -251,11 +259,10 @@ async def get_conversations(user_id: str, inbox_type: str = "primary", grom_zone
         # Business roles route to Channel (includes Photographers)
         is_other_business = other_role in ['Photographer', 'Approved Pro', 'Hobbyist', 'Shop', 'Shaper', 'Surf School', 'Resort']
         
-        # Determine folder based on roles AND follow status
+        # Determine folder based on status AND roles
         folder = 'primary'  # Default
         
-        # PRIORITY 1: REQUESTS - Messages from non-followers go to requests first
-        # This takes precedence over channel/business routing
+        # PRIORITY 1: REQUESTS - Messages from non-followers go to requests
         if my_status == 'request':
             folder = 'requests'
         
@@ -263,13 +270,11 @@ async def get_conversations(user_id: str, inbox_type: str = "primary", grom_zone
         elif my_status == 'hidden':
             folder = 'hidden'
         
-        # PRIORITY 3: THE PRO LOUNGE - Pro-to-Pro communication (hidden from non-pros)
+        # PRIORITY 3: THE PRO LOUNGE - Pro-to-Pro communication
         elif is_current_user_pro and is_other_pro:
             folder = 'pro_lounge'
         
         # PRIORITY 4: THE CHANNEL - Business/Photographer ↔ Surfer communication
-        # Only routes to Channel when ONE side is a business role and the OTHER is not.
-        # Photographer-to-photographer (same-role) stays in Primary — that's colleagues chatting.
         elif (is_current_user_business and not is_other_business) or (is_other_business and not is_current_user_business):
             folder = 'channel'
         
@@ -410,12 +415,18 @@ async def get_conversation_messages(conversation_id: str, user_id: str, db: Asyn
     is_muted = conversation.is_muted_for_one if is_participant_one else conversation.is_muted_for_two
     is_manually_unread = conversation.is_unread_for_one if is_participant_one else conversation.is_unread_for_two
     
+    # Use last message time from this conversation as proxy for "last active"
+    # This is much more accurate than profile.updated_at which only tracks profile edits
+    other_user_msgs = [m for m in conversation.messages if m.sender_id != user_id]
+    other_user_last_msg = max((m.created_at for m in other_user_msgs), default=None) if other_user_msgs else None
+    other_user_last_active = other_user_last_msg or (conversation.last_message_at if conversation.last_message_at else None)
+    
     return ConversationDetailResponse(
         id=conversation.id,
         other_user_id=other_user.id if other_user else "",
         other_user_name=other_user.full_name if other_user else None,
         other_user_avatar=other_user.avatar_url if other_user else None,
-        other_user_last_active=other_user.updated_at if other_user else None,
+        other_user_last_active=other_user_last_active,
         messages=messages,
         is_request=(my_status == 'request'),
         is_pinned=is_pinned or False,

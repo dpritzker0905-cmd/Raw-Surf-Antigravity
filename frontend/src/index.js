@@ -5,6 +5,7 @@ import App from "./App";
 
 // Initialize i18n before rendering
 import './i18n';
+import reportWebVitals, { logWebVitals } from './reportWebVitals';
 
 // Aggressively suppress ResizeObserver errors - these are benign browser warnings
 // that React's dev overlay incorrectly shows as errors
@@ -97,3 +98,23 @@ root.render(
   </React.StrictMode>,
 );
 
+// ── Service Worker Registration ─────────────────────────────────────────────
+// Enables offline caching, push notifications, and PWA installability.
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/service-worker.js')
+      .then((registration) => {
+        // Check for updates every 60 minutes
+        setInterval(() => {
+          registration.update();
+        }, 60 * 60 * 1000);
+      })
+      .catch((error) => {
+        console.warn('[SW] Registration failed:', error);
+      });
+  });
+}
+
+// ── Core Web Vitals Monitoring ──────────────────────────────────────────────
+// Reports LCP, FID, CLS, TTFB, INP metrics. Logs in dev, ready for analytics.
+reportWebVitals(logWebVitals);

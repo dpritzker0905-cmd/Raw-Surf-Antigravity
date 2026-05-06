@@ -8,13 +8,10 @@ import {
   Upload,
   X,
   DollarSign,
-  Eye,
-  ShoppingCart,
   Plus,
   Loader2,
   Image,
   Check,
-  Lock,
   Video,
   Play,
   Settings,
@@ -53,12 +50,24 @@ import { UploadPhotoModal } from './gallery/UploadPhotoModal';
 import { GalleryItemModal } from './gallery/GalleryItemModal';
 import { SessionRosterCard } from './gallery/SessionRosterCard';
 import { PostSessionSummary } from './gallery/PostSessionSummary';
+import { GalleryCard } from './gallery/GalleryCard';
 import logger from '../utils/logger';
 import { ROLES } from '../constants/roles';
 import { getFullUrl } from '../utils/media';
+import { TagAssignModal, ThumbnailPickerModal, LinkSessionModal } from './gallery/GalleryModals';
+
+// Extracted gallery folder modals
+import { GalleryFolderModals } from './gallery/GalleryFolderModals';
+import { GalleryPricingCard } from './gallery/GalleryPricingCard';
+import GromHighlightsCard from './gallery/GromHighlightsCard';
+
 
 
 import { getErrorMessage } from '../utils/errors';
+import usePullToRefresh from '../hooks/usePullToRefresh';
+import useGalleryActions from '../hooks/useGalleryActions';
+import PullToRefreshIndicator from './ui/PullToRefreshIndicator';
+import { GallerySkeleton } from './ui/SkeletonVariants';
 
 export const GalleryPage = () => {
   const { user } = useAuth();
@@ -254,751 +263,63 @@ export const GalleryPage = () => {
   }, [user?.id, canSellPhotos, showWatermarkSettings]); // Re-fetch when modal closes
 
   // Fetch linked Groms for tagging (Grom Parents only)
-  const fetchLinkedGroms = async () => {
-    try {
-      const response = await apiClient.get(`/gallery/linked-groms/${user.id}`);
-      setLinkedGroms(response.data.groms || []);
-    } catch (error) {
-      logger.error('Error fetching linked groms:', error);
-      setLinkedGroms([]);
-    }
-  };
+  // ============ HANDLERS EXTRACTED TO hooks/useGalleryActions.js ============
+  const {
+    fetchLinkedGroms, fetchGromHighlights, handleTagGrom, handleUntagGrom,
+    fetchGalleries, fetchGalleryItems, handleDeleteFromGallery, executeDeleteFromGallery,
+    handleAddToGallery, openGalleryDetail, closeGalleryDetail,
+    fetchConditionsStatus, handlePushToSpotHub, handleSaveGalleryPricing,
+    fetchGallery, handleQuickPriceUpdate, handleClearCustomPrice,
+    handleCreateFolder, handleRenameFolder, handleDeleteFolder, confirmDeleteFolder,
+    toggleItemSelection, selectAllItems, clearSelection,
+    handleMoveToFolder, handleCopyToFolder,
+    handleOpenTagAssign, fetchParticipants,
+    handleDistributeToSurfer, handleDistributeAll,
+    handleAiAutoTag, handleBatchTagToSurfer, handleSearchSurfers,
+    handleBulkDelete, handleOpenThumbnailPicker,
+    handleSetThumbnail, handleClearThumbnail, handleSetAsCover,
+    handleOpenLinkSession, handleLinkSession,
+  } = useGalleryActions({
+    user, selectedGallery, selectedItems, bulkSelectMode, galleryItems, participants,
+    setGallery, setGalleries, setGalleryItems, setGalleryItemsLoading,
+    setLinkedGroms, setGromHighlights, setShowTagGromModal, setItemToTag,
+    setDeleteConfirm, setDeletingItemId, setShowAddToGalleryModal,
+    setSelectedGallery, setConditionsStatus, setPushingConditions,
+    setFolderActionLoading, setNewFolderName, setShowCreateFolderModal,
+    setFolderToRename, setShowRenameFolderModal,
+    setFolderToDelete, setShowDeleteFolderModal,
+    setSelectedItems, setBulkSelectMode,
+    setShowMoveToFolderModal, setShowCopyToFolderModal,
+    setShowTagAssignModal, setParticipantsLoading, setParticipants, setSessionInfo,
+    setDistributeLoading, setDistributeAllLoading, setDistributeProgress,
+    setManualSurferSearch, setSearchResults, setSearchLoading,
+    setAiAutoTagLoading, setBatchTagLoading, setShowBatchTagPicker,
+    setShowThumbnailPicker, setThumbnailPickerGallery, setThumbnailPickerItems,
+    setThumbnailPickerLoading, setSettingThumbnail,
+    setShowLinkSessionModal, setLinkSessionGallery,
+    setRecentSessions, setRecentSessionsLoading, setLinkingSession,
+    setLoading, updateGeneralSettings, setItemCustomPrice,
+    clearItemCustomPrice, setShowGalleryPricingModal,
+    newFolderName, folderToRename, folderToDelete, galleryPricing,
+  });
 
-  // Fetch Grom Highlights (Grom Parents only)
-  const fetchGromHighlights = async () => {
-    try {
-      const response = await apiClient.get(`/gallery/grom-highlights/${user.id}`);
-      setGromHighlights(response.data.items || []);
-    } catch (error) {
-      logger.error('Error fetching grom highlights:', error);
-      setGromHighlights([]);
-    }
-  };
-
-  // Tag a Grom in a photo
-  const handleTagGrom = async (galleryItemId, gromId) => {
-    try {
-      await apiClient.post(`/gallery/tag-grom?parent_id=${user.id}`, {
-        gallery_item_id: galleryItemId,
-        grom_id: gromId
-      });
-      toast.success('Photo added to Grom Highlights!');
-      fetchGromHighlights();
-      setShowTagGromModal(false);
-      setItemToTag(null);
-    } catch (error) {
-      toast.error(getErrorMessage(error, 'Failed to tag Grom'));
-    }
-  };
-
-  // Remove Grom tag from photo
-  const handleUntagGrom = async (galleryItemId, gromId) => {
-    try {
-      await apiClient.delete(`/gallery/untag-grom/${galleryItemId}/${gromId}?parent_id=${user.id}`);
-      toast.success('Photo removed from Grom Highlights');
-      fetchGromHighlights();
-    } catch (error) {
-      toast.error(getErrorMessage(error, 'Failed to remove tag'));
-    }
-  };
-
-  const fetchGalleries = async () => {
-    try {
-      const response = await apiClient.get(`/galleries/photographer/${user.id}`);
-      setGalleries(response.data || []);
-    } catch (error) {
-      logger.error('Error fetching galleries:', error);
-      setGalleries([]);
-    }
-  };
-
-  // Fetch items for a specific gallery
-  const fetchGalleryItems = async (galleryId) => {
-    setGalleryItemsLoading(true);
-    try {
-      const response = await apiClient.get(`/galleries/${galleryId}/items?viewer_id=${user.id}`);
-      setGalleryItems(response.data || []);
-    } catch (error) {
-      logger.error('Error fetching gallery items:', error);
-      setGalleryItems([]);
-    } finally {
-      setGalleryItemsLoading(false);
-    }
-  };
-
-  // Delete item from gallery
-  const handleDeleteFromGallery = async (itemId) => {
-    if (!selectedGallery) return;
-    setDeleteConfirm({ type: 'single', itemId });
-  };
-
-  const executeDeleteFromGallery = async (itemId) => {
-    setDeletingItemId(itemId);
-    try {
-      // Try gallery-scoped delete first, fall back to direct item delete
-      try {
-        await apiClient.delete(`/galleries/${selectedGallery.id}/items/${itemId}?photographer_id=${user.id}`);
-      } catch (galleryErr) {
-        if (galleryErr.response?.status === 404) {
-          await apiClient.delete(`/gallery/item/${itemId}?photographer_id=${user.id}`);
-        } else {
-          throw galleryErr;
-        }
-      }
-      toast.success('Item deleted');
-      fetchGalleryItems(selectedGallery.id);
-      fetchGalleries();
-    } catch (error) {
-      toast.error(getErrorMessage(error, 'Failed to delete item'));
-    } finally {
-      setDeletingItemId(null);
-    }
-  };
-
-  // Add existing photo to gallery
-  const handleAddToGallery = async (itemId) => {
-    if (!selectedGallery) return;
-    
-    try {
-      await apiClient.post(`/galleries/${selectedGallery.id}/items?photographer_id=${user.id}`, {
-        item_id: itemId
-      });
-      toast.success('Photo added to gallery');
-      fetchGalleryItems(selectedGallery.id);
-      fetchGalleries();
-      setShowAddToGalleryModal(false);
-    } catch (error) {
-      toast.error(getErrorMessage(error, 'Failed to add photo'));
-    }
-  };
-
-  // Open gallery detail view
-  const openGalleryDetail = (gal) => {
-    setSelectedGallery(gal);
-    fetchGalleryItems(gal.id);
-    // Check conditions report status for this gallery
-    if (gal.surf_spot_id) {
-      fetchConditionsStatus(gal.id);
-    } else {
-      setConditionsStatus(null);
-    }
-  };
-
-  // Close gallery detail view
-  const closeGalleryDetail = () => {
-    setSelectedGallery(null);
-    setGalleryItems([]);
-    setConditionsStatus(null);
-  };
-
-  // ============ PUSH TO SPOT HUB HANDLERS ============
-  
-  // Fetch current conditions report status for a gallery
-  const fetchConditionsStatus = async (galleryId) => {
-    try {
-      const response = await apiClient.get(
-        `/galleries/${galleryId}/conditions-status?photographer_id=${user.id}`
-      );
-      setConditionsStatus(response.data);
-    } catch (error) {
-      logger.error('Error fetching conditions status:', error);
-      setConditionsStatus(null);
-    }
-  };
-
-  // Push conditions report to spot hub
-  const handlePushToSpotHub = async () => {
-    if (!selectedGallery?.surf_spot_id) {
-      toast.error('This gallery has no linked surf spot');
-      return;
-    }
-    setPushingConditions(true);
-    try {
-      const response = await apiClient.post(
-        `/galleries/${selectedGallery.id}/push-conditions?photographer_id=${user.id}`,
-        {}
-      );
-      const data = response.data;
-      toast.success(`📡 ${data.message}`);
-      // Refresh status
-      await fetchConditionsStatus(selectedGallery.id);
-    } catch (error) {
-      toast.error(getErrorMessage(error, 'Failed to push conditions report'));
-    } finally {
-      setPushingConditions(false);
-    }
-  };
-
-  const handleSaveGalleryPricing = async () => {
-    const result = await updateGeneralSettings(galleryPricing);
-    if (result.success) {
-      toast.success('Gallery pricing updated! All items without custom prices will update instantly.');
-      setShowGalleryPricingModal(false);
-      // Refresh gallery to show updated prices
-      fetchGallery();
-    } else {
-      toast.error(result.error || 'Failed to update pricing');
-    }
-  };
-
-  const fetchGallery = async () => {
-    try {
-      const response = await apiClient.get(
-        `/gallery/photographer/${user.id}?viewer_id=${user.id}`
-      );
-      setGallery(response.data);
-    } catch (error) {
-      logger.error('Error fetching gallery:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Handle quick price update from thumbnail
-  const handleQuickPriceUpdate = async (itemId, newPrice) => {
-    const result = await setItemCustomPrice(itemId, newPrice);
-    if (result.success) {
-      toast.success(result.data.has_override ? 'Fixed price set!' : 'Price reset to gallery default');
-      fetchGallery();
-    } else {
-      toast.error(result.error);
-    }
-  };
-
-  // Handle clearing custom price
-  const handleClearCustomPrice = async (itemId) => {
-    const result = await clearItemCustomPrice(itemId);
-    if (result.success) {
-      toast.success('Price reset to gallery default');
-      fetchGallery();
-    } else {
-      toast.error(result.error);
-    }
-  };
-
-  // NEW: Create folder/gallery
-  const handleCreateFolder = async () => {
-    if (!newFolderName.trim()) {
-      toast.error('Please enter a folder name');
-      return;
-    }
-    setFolderActionLoading(true);
-    try {
-      await apiClient.post(`/galleries?photographer_id=${user.id}`, {
-        title: newFolderName.trim(),
-        description: ''
-      });
-      toast.success('Folder created successfully');
-      setNewFolderName('');
-      setShowCreateFolderModal(false);
-      fetchGalleries();
-    } catch (error) {
-      toast.error(getErrorMessage(error, 'Failed to create folder'));
-    } finally {
-      setFolderActionLoading(false);
-    }
-  };
-
-  // NEW: Rename folder/gallery
-  const handleRenameFolder = async () => {
-    if (!folderToRename || !newFolderName.trim()) {
-      toast.error('Please enter a folder name');
-      return;
-    }
-    setFolderActionLoading(true);
-    try {
-      await apiClient.put(`/galleries/${folderToRename.id}?photographer_id=${user.id}`, {
-        title: newFolderName.trim()
-      });
-      toast.success('Folder renamed successfully');
-      setNewFolderName('');
-      setFolderToRename(null);
-      setShowRenameFolderModal(false);
-      fetchGalleries();
-    } catch (error) {
-      toast.error(getErrorMessage(error, 'Failed to rename folder'));
-    } finally {
-      setFolderActionLoading(false);
-    }
-  };
-
-  // NEW: Delete folder/gallery - opens confirmation modal
-  const handleDeleteFolder = (folderId, folderName) => {
-    setFolderToDelete({ id: folderId, name: folderName });
-    setShowDeleteFolderModal(true);
-  };
-
-  // Confirm delete folder action
-  const confirmDeleteFolder = async () => {
-    if (!folderToDelete) return;
-    setFolderActionLoading(true);
-    try {
-      await apiClient.delete(`/galleries/${folderToDelete.id}?photographer_id=${user.id}`);
-      toast.success('Folder deleted successfully');
-      if (selectedGallery?.id === folderToDelete.id) {
-        closeGalleryDetail();
-      }
-      fetchGalleries();
-    } catch (error) {
-      toast.error(getErrorMessage(error, 'Failed to delete folder'));
-    } finally {
-      setFolderActionLoading(false);
-      setShowDeleteFolderModal(false);
-      setFolderToDelete(null);
-    }
-  };
-
-  // NEW: Toggle item selection for bulk actions
-  const toggleItemSelection = (itemId) => {
-    setSelectedItems(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(itemId)) {
-        newSet.delete(itemId);
-      } else {
-        newSet.add(itemId);
-      }
-      return newSet;
-    });
-  };
-
-  // NEW: Select all items
-  const selectAllItems = () => {
-    const items = selectedGallery ? galleryItems : gallery;
-    setSelectedItems(new Set(items.map(item => item.id)));
-  };
-
-  // NEW: Clear selection
-  const clearSelection = () => {
-    setSelectedItems(new Set());
-    setBulkSelectMode(false);
-  };
-
-  // NEW: Move selected items to folder
-  const handleMoveToFolder = async (targetFolderId) => {
-    if (selectedItems.size === 0) {
-      toast.error('No items selected');
-      return;
-    }
-    setFolderActionLoading(true);
-    try {
-      const itemIds = Array.from(selectedItems);
-      await Promise.all(itemIds.map(itemId => 
-        apiClient.patch(`/gallery/item/${itemId}/move?photographer_id=${user.id}`, {
-          target_gallery_id: targetFolderId
-        })
-      ));
-      toast.success(`Moved ${itemIds.length} item${itemIds.length > 1 ? 's' : ''} to folder`);
-      setShowMoveToFolderModal(false);
-      clearSelection();
-      fetchGallery();
-      fetchGalleries();
-      if (selectedGallery) {
-        fetchGalleryItems(selectedGallery.id);
-      }
-    } catch (error) {
-      toast.error(getErrorMessage(error, 'Failed to move items'));
-    } finally {
-      setFolderActionLoading(false);
-    }
-  };
-
-  // NEW: Copy selected items to folder (keeps original in main gallery)
-  const handleCopyToFolder = async (targetFolderId) => {
-    if (selectedItems.size === 0) {
-      toast.error('No items selected');
-      return;
-    }
-    setFolderActionLoading(true);
-    try {
-      const itemIds = Array.from(selectedItems);
-      await Promise.all(itemIds.map(itemId => 
-        apiClient.post(`/gallery/item/${itemId}/copy?photographer_id=${user.id}`, {
-          target_gallery_id: targetFolderId
-        })
-      ));
-      toast.success(`Copied ${itemIds.length} item${itemIds.length > 1 ? 's' : ''} to folder`);
-      setShowCopyToFolderModal(false);
-      clearSelection();
-      fetchGalleries();
-      if (selectedGallery) {
-        fetchGalleryItems(selectedGallery.id);
-      }
-    } catch (error) {
-      toast.error(getErrorMessage(error, 'Failed to copy items'));
-    } finally {
-      setFolderActionLoading(false);
-    }
-  };
-
-  // ============ TAG & ASSIGN HANDLERS ============
-  
-  // Open Tag & Assign modal and fetch participants
-  const handleOpenTagAssign = async () => {
-    if (!selectedGallery) {
-      toast.error('Please select a gallery folder first');
-      return;
-    }
-    setShowTagAssignModal(true);
-    setManualSurferSearch('');
-    setSearchResults([]);
-    await fetchParticipants(selectedGallery.id);
-  };
-
-  // Fetch session participants for the gallery
-  const fetchParticipants = async (galleryId) => {
-    setParticipantsLoading(true);
-    try {
-      const response = await apiClient.get(
-        `/gallery/${galleryId}/session-participants?photographer_id=${user.id}`
-      );
-      setParticipants(response.data.participants || []);
-      setSessionInfo(response.data.session || null);
-    } catch (error) {
-      logger.error('Failed to fetch participants:', error);
-      setParticipants([]);
-      setSessionInfo({ is_linked: false });
-    } finally {
-      setParticipantsLoading(false);
-    }
-  };
-
-  // Distribute ALL gallery items to a specific surfer (respects payment tiers)
-  const handleDistributeToSurfer = async (surferId, surferName) => {
-    if (!selectedGallery) return;
-    setDistributeLoading(prev => ({ ...prev, [surferId]: true }));
-    try {
-      // Find participant to check credits
-      const participant = participants.find(p => p.surfer_id === surferId);
-      const hasCredits = participant && participant.photos_credit_remaining > 0;
-      const accessType = hasCredits ? 'included' : 'pending_selection';
-      
-      const response = await apiClient.post(
-        `/gallery/${selectedGallery.id}/distribute-to-surfer?photographer_id=${user.id}`,
-        { surfer_id: surferId, access_type: accessType }
-      );
-      const count = response.data.items_distributed || 0;
-      const skipped = response.data.skipped_count || 0;
-      
-      if (count > 0) {
-        const tierMsg = hasCredits 
-          ? `${Math.min(count, participant.photos_credit_remaining)} included (full-res)` 
-          : 'as previews';
-        toast.success(`✅ Pushed ${count} items to ${surferName}'s Locker ${tierMsg}!`);
-      } else if (skipped > 0) {
-        toast.info(`All items already in ${surferName}'s Locker`);
-      } else {
-        toast.info('No items to distribute');
-      }
-      
-      // Refresh participant list to update counts
-      await fetchParticipants(selectedGallery.id);
-    } catch (error) {
-      toast.error(getErrorMessage(error, `Failed to distribute to ${surferName}`));
-    } finally {
-      setDistributeLoading(prev => ({ ...prev, [surferId]: false }));
-    }
-  };
-
-  // Distribute ALL items to ALL session participants at once
-  const handleDistributeAll = async () => {
-    if (!selectedGallery || participants.length === 0) return;
-    setDistributeAllLoading(true);
-    
-    try {
-      // Track progress by distributing items individually
-      const galleryItemsResponse = await apiClient.get(`/galleries/${selectedGallery.id}/items?viewer_id=${user.id}`);
-      const allItems = galleryItemsResponse.data || [];
-      const totalItems = allItems.length * participants.length;
-      setDistributeProgress({ current: 0, total: totalItems || 1 });
-      
-      const response = await apiClient.post(
-        `/gallery/${selectedGallery.id}/distribute?photographer_id=${user.id}`
-      );
-      const total = response.data.total_distributed || 0;
-      setDistributeProgress({ current: totalItems, total: totalItems });
-      toast.success(`✅ Distributed ${total} locker items to all participants!`);
-      
-      // Refresh to update counts
-      await fetchParticipants(selectedGallery.id);
-    } catch (error) {
-      toast.error(getErrorMessage(error, 'Failed to distribute to all participants'));
-    } finally {
-      setDistributeAllLoading(false);
-      setTimeout(() => setDistributeProgress(null), 2000);
-    }
-  };
-
-  // Trigger AI auto-tagging for gallery items
-  const handleAiAutoTag = async () => {
-    if (!selectedGallery) return;
-    setAiAutoTagLoading(true);
-    try {
-      const response = await apiClient.post(
-        `/gallery/trigger-ai-match?photographer_id=${user.id}`,
-        { 
-          gallery_id: selectedGallery.id,
-          item_ids: bulkSelectMode && selectedItems.size > 0 ? Array.from(selectedItems) : undefined
-        }
-      );
-      const matched = response.data.matches_found || 0;
-      const processed = response.data.items_processed || 0;
-      if (matched > 0) {
-        toast.success(`🤖 AI matched ${matched} items to surfers! (${processed} processed)`);
-      } else {
-        toast.info(`🤖 AI processed ${processed} items — no confident matches found. Try manual tagging.`);
-      }
-      // Refresh gallery to show updated AI status
-      if (selectedGallery) {
-        await fetchGalleryItems(selectedGallery.id);
-        await fetchParticipants(selectedGallery.id);
-      }
-    } catch (error) {
-      toast.error(getErrorMessage(error, 'AI auto-tag failed'));
-    } finally {
-      setAiAutoTagLoading(false);
-    }
-  };
-
-  // Batch tag selected items to a specific surfer
-  const handleBatchTagToSurfer = async (surferId, surferName) => {
-    const itemsToTag = selectedItems.size > 0 ? selectedItems : new Set(galleryItems.map(i => i.id));
-    if (!selectedGallery || itemsToTag.size === 0) return;
-    setBatchTagLoading(prev => ({ ...prev, [surferId]: true }));
-    try {
-      let tagged = 0;
-      let alreadyTagged = 0;
-      let alreadyDelivered = 0;
-      for (const itemId of itemsToTag) {
-        try {
-          const response = await apiClient.post(
-            `/gallery/${selectedGallery.id}/tag-item?photographer_id=${user.id}`,
-            { surfer_id: surferId, item_id: itemId }
-          );
-          if (response.data.already_tagged) {
-            if (response.data.is_delivered) {
-              alreadyDelivered++;
-            } else {
-              alreadyTagged++;
-            }
-          } else {
-            tagged++;
-          }
-        } catch (_err) {
-          // Continue with remaining items
-        }
-      }
-      // Build descriptive result message
-      const parts = [];
-      if (tagged > 0) parts.push(`${tagged} tagged`);
-      if (alreadyDelivered > 0) parts.push(`${alreadyDelivered} already delivered`);
-      if (alreadyTagged > 0) parts.push(`${alreadyTagged} already pending`);
-      
-      if (tagged > 0) {
-        toast.success(`✅ ${parts.join(' • ')} → ${surferName}`);
-      } else {
-        toast.info(`${parts.join(' • ')} for ${surferName}`);
-      }
-      // Refresh
-      await fetchGalleryItems(selectedGallery.id);
-      await fetchParticipants(selectedGallery.id);
-      fetchGalleries();
-      setShowBatchTagPicker(false);
-      setShowTagAssignModal(false);
-      clearSelection();
-    } catch (error) {
-      toast.error(getErrorMessage(error, `Failed to batch tag to ${surferName}`));
-    } finally {
-      setBatchTagLoading(prev => ({ ...prev, [surferId]: false }));
-    }
-  };
-
-  let searchTimeout = null;
-  const handleSearchSurfers = (query) => {
-    if (searchTimeout) clearTimeout(searchTimeout);
-    if (!query || query.length < 2) {
-      setSearchResults([]);
-      return;
-    }
-    setSearchLoading(true);
-    searchTimeout = setTimeout(async () => {
-      try {
-        const response = await apiClient.get(`/profiles/search?q=${encodeURIComponent(query)}&limit=10`);
-        // Filter out current user
-        const results = (response.data || []).filter(p => p.id !== user.id);
-        setSearchResults(results);
-      } catch (error) {
-        logger.error('Search failed:', error);
-        setSearchResults([]);
-      } finally {
-        setSearchLoading(false);
-      }
-    }, 400);
-  };
-
-  // NEW: Bulk delete selected items
-  const handleBulkDelete = async () => {
-    if (selectedItems.size === 0) {
-      toast.error('No items selected');
-      return;
-    }
-    setDeleteConfirm({ type: 'bulk', count: selectedItems.size });
-  };
-
-  const executeBulkDelete = async () => {
-    setFolderActionLoading(true);
-    try {
-      const itemIds = Array.from(selectedItems);
-      await Promise.all(itemIds.map(itemId => 
-        apiClient.delete(`/gallery/item/${itemId}?photographer_id=${user.id}`)
-      ));
-      toast.success(`Deleted ${itemIds.length} items`);
-      clearSelection();
-      fetchGallery();
-      if (selectedGallery) {
-        fetchGalleryItems(selectedGallery.id);
-        fetchGalleries();
-      }
-    } catch (error) {
-      toast.error(getErrorMessage(error, 'Failed to delete items'));
-    } finally {
-      setFolderActionLoading(false);
-    }
-  };
-
-  // ============ THUMBNAIL PICKER HANDLERS ============
-  
-  // Open thumbnail picker for a gallery
-  const handleOpenThumbnailPicker = async (gal) => {
-    setThumbnailPickerGallery(gal);
-    setShowThumbnailPicker(true);
-    setThumbnailPickerLoading(true);
-    try {
-      const response = await apiClient.get(`/galleries/${gal.id}/items?viewer_id=${user.id}`);
-      setThumbnailPickerItems(response.data || []);
-    } catch (error) {
-      logger.error('Error loading gallery items for thumbnail picker:', error);
-      setThumbnailPickerItems([]);
-    } finally {
-      setThumbnailPickerLoading(false);
-    }
-  };
-
-  // Set a specific item as the gallery cover
-  const handleSetThumbnail = async (itemId) => {
-    if (!thumbnailPickerGallery) return;
-    setSettingThumbnail(true);
-    try {
-      await apiClient.patch(
-        `/galleries/${thumbnailPickerGallery.id}/set-thumbnail?photographer_id=${user.id}`,
-        { item_id: itemId }
-      );
-      toast.success('📸 Folder thumbnail updated!');
-      setShowThumbnailPicker(false);
-      setThumbnailPickerGallery(null);
-      // Clear broken cover cache for this gallery
-      setBrokenCoverImages(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(thumbnailPickerGallery.id);
-        newSet.delete(`${thumbnailPickerGallery.id}_fallback`);
-        return newSet;
-      });
-      fetchGalleries();
-    } catch (error) {
-      toast.error(getErrorMessage(error, 'Failed to set thumbnail'));
-    } finally {
-      setSettingThumbnail(false);
-    }
-  };
-
-  // Clear gallery thumbnail (revert to auto-select)
-  const handleClearThumbnail = async (galleryId) => {
-    try {
-      await apiClient.patch(
-        `/galleries/${galleryId}/clear-thumbnail?photographer_id=${user.id}`
-      );
-      toast.success('Thumbnail reset — will auto-select on next load');
-      setShowThumbnailPicker(false);
-      setThumbnailPickerGallery(null);
-      fetchGalleries();
-    } catch (error) {
-      toast.error(getErrorMessage(error, 'Failed to clear thumbnail'));
-    }
-  };
-
-  // Set cover directly from gallery detail view (Set as Cover action)
-  const handleSetAsCover = async (itemId) => {
-    if (!selectedGallery) return;
-    try {
-      await apiClient.patch(
-        `/galleries/${selectedGallery.id}/set-thumbnail?photographer_id=${user.id}`,
-        { item_id: itemId }
-      );
-      toast.success('📸 Set as folder cover!');
-      setBrokenCoverImages(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(selectedGallery.id);
-        newSet.delete(`${selectedGallery.id}_fallback`);
-        return newSet;
-      });
-      fetchGalleries();
-    } catch (error) {
-      toast.error(getErrorMessage(error, 'Failed to set cover'));
-    }
-  };
-
-  // ============ LINK SESSION HANDLERS ============
-  
-  // Open link session modal and fetch recent sessions
-  const handleOpenLinkSession = async (gal) => {
-    setLinkSessionGallery(gal);
-    setShowLinkSessionModal(true);
-    setRecentSessionsLoading(true);
-    try {
-      const response = await apiClient.get(`/photographer/${user.id}/recent-sessions?limit=20`);
-      setRecentSessions(response.data || []);
-    } catch (error) {
-      logger.error('Error fetching recent sessions:', error);
-      setRecentSessions([]);
-    } finally {
-      setRecentSessionsLoading(false);
-    }
-  };
-
-  // Link gallery to a session (live, booking, or dispatch)
-  const handleLinkSession = async (session) => {
-    if (!linkSessionGallery) return;
-    setLinkingSession(true);
-    try {
-      // Build the correct payload based on session type
-      const linkPayload = { [session.link_key]: session.id };
-      
-      await apiClient.post(
-        `/gallery/${linkSessionGallery.id}/link-session?photographer_id=${user.id}`,
-        linkPayload
-      );
-      const typeLabel = session.session_type === 'live' ? 'Live Session' :
-        session.session_type === 'booking' ? 'Booking' : 'On-Demand';
-      toast.success(`✅ Folder linked to ${typeLabel}! Participants and distribution are now available.`);
-      setShowLinkSessionModal(false);
-      setLinkSessionGallery(null);
-      fetchGalleries();
-    } catch (error) {
-      toast.error(getErrorMessage(error, 'Failed to link session'));
-    } finally {
-      setLinkingSession(false);
-    }
-  };
+  // Pull-to-refresh for mobile - triggers gallery refresh on swipe-down
+  const { pullRef: galleryPullRef, isPulling: galleryPulling, pullProgress: galleryPullProgress, isRefreshing: galleryPtrRefreshing } = usePullToRefresh(
+    async () => { await fetchGallery(); if (isPhotographer) await fetchGalleries(); },
+    { threshold: 60, enabled: !loading }
+  );
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="w-8 h-8 animate-spin text-yellow-400" />
+      <div className="p-4 max-w-6xl mx-auto">
+        <GallerySkeleton />
       </div>
     );
   }
 
   return (
-    <div className="p-4 max-w-6xl mx-auto" data-testid="gallery-page">
+    <div ref={galleryPullRef} className="p-4 max-w-6xl mx-auto" data-testid="gallery-page">
+      <PullToRefreshIndicator isPulling={galleryPulling} progress={galleryPullProgress} isRefreshing={galleryPtrRefreshing} />
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
@@ -1007,12 +328,12 @@ export const GalleryPage = () => {
             Gallery Hub
           </h1>
           <p className="text-muted-foreground text-sm mt-1">
-            {gallery.length} items • Manage your sessions, folders & distribution
+            {gallery.length} items {"\u2022"} Manage your sessions, folders & distribution
           </p>
         </div>
         
         {isPhotographer && (
-          <Button
+          <Button aria-label="Add"
             onClick={() => setShowUploadModal(true)}
             className="bg-gradient-to-r from-yellow-400 to-orange-400 text-black font-bold"
           >
@@ -1022,7 +343,7 @@ export const GalleryPage = () => {
         )}
       </div>
 
-      {/* Post-Session Summary — shows for recent galleries when inside a gallery folder */}
+      {/* Post-Session Summary -- shows for recent galleries when inside a gallery folder */}
       {selectedGallery && (
         <PostSessionSummary
           gallery={selectedGallery}
@@ -1036,437 +357,26 @@ export const GalleryPage = () => {
         />
       )}
 
-      {/* Gallery Pricing Card – Tabbed Per-Service Pricing */}
+      {/* Gallery Pricing Card - Tabbed Per-Service Pricing */}
+      {/* Gallery Pricing Card - Tabbed Per-Service Pricing */}
       {showPricing && (
-        <Card className="mb-6 bg-card border-border">
-          <CardHeader className="cursor-pointer md:cursor-default" onClick={() => setPricingCollapsed(!pricingCollapsed)}>
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-lg text-foreground flex items-center gap-2">
-                <DollarSign className="w-5 h-5 text-green-400" />
-                Gallery Pricing
-                <button className="md:hidden ml-1 text-muted-foreground">
-                  {pricingCollapsed ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
-                </button>
-              </CardTitle>
-              <Button 
-                variant="outline" 
-                size="sm"
-                onClick={(e) => { e.stopPropagation(); setShowGalleryPricingModal(true); }}
-                className="border-border"
-                data-testid="edit-gallery-pricing-btn"
-              >
-                <Settings className="w-4 h-4 mr-2" />
-                Edit Pricing
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent className={`${pricingCollapsed ? 'hidden md:block' : ''}`}>
-            {/* Service Type Tabs */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-4">
-              {[
-                { key: 'gallery', label: 'Gallery', icon: <Image className="w-3.5 h-3.5" />, color: 'cyan' },
-                { key: 'live', label: 'Live Session', icon: <Radio className="w-3.5 h-3.5" />, color: 'red' },
-                { key: 'booking', label: 'Booking', icon: <Calendar className="w-3.5 h-3.5" />, color: 'blue' },
-                { key: 'ondemand', label: 'On-Demand', icon: <MapPin className="w-3.5 h-3.5" />, color: 'emerald' },
-              ].map(tab => (
-                <button
-                  key={tab.key}
-                  onClick={() => setPricingTab?.(tab.key)}
-                  className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold transition-all ${
-                    (pricingTab || 'gallery') === tab.key
-                      ? `bg-${tab.color}-500/20 text-${tab.color}-400 ring-1 ring-${tab.color}-500/40`
-                      : 'bg-muted/50 text-muted-foreground hover:bg-muted'
-                  }`}
-                  style={(pricingTab || 'gallery') === tab.key ? {
-                    background: tab.color === 'cyan' ? 'rgba(6,182,212,0.15)' :
-                                tab.color === 'red' ? 'rgba(239,68,68,0.15)' :
-                                tab.color === 'blue' ? 'rgba(59,130,246,0.15)' :
-                                'rgba(16,185,129,0.15)',
-                    color: tab.color === 'cyan' ? '#06b6d4' :
-                           tab.color === 'red' ? '#ef4444' :
-                           tab.color === 'blue' ? '#3b82f6' :
-                           '#10b981',
-                    boxShadow: `inset 0 0 0 1px ${tab.color === 'cyan' ? 'rgba(6,182,212,0.4)' :
-                                tab.color === 'red' ? 'rgba(239,68,68,0.4)' :
-                                tab.color === 'blue' ? 'rgba(59,130,246,0.4)' :
-                                'rgba(16,185,129,0.4)'}`
-                  } : {}}
-                >
-                  {tab.icon} {tab.label}
-                </button>
-              ))}
-            </div>
-
-            {/* ─── Gallery Tab ─── */}
-            {(pricingTab || 'gallery') === 'gallery' && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">📷 Photo Pricing</p>
-                  <div className="space-y-1.5">
-                    {[
-                      { label: 'Web (800px)', val: galleryPricing.photo_price_web },
-                      { label: 'Standard (1920px)', val: galleryPricing.photo_price_standard },
-                      { label: 'High Res (Original)', val: galleryPricing.photo_price_high },
-                    ].map(r => (
-                      <div key={r.label} className="p-2 rounded bg-muted/50 flex justify-between items-center">
-                        <span className="text-xs text-muted-foreground">{r.label}</span>
-                        <span className="text-xs font-semibold text-cyan-400">${r.val}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-                <div>
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">🎬 Video Pricing</p>
-                  <div className="space-y-1.5">
-                    {[
-                      { label: '720p HD', val: galleryPricing.video_price_720p },
-                      { label: '1080p Full HD', val: galleryPricing.video_price_1080p },
-                      { label: '4K Ultra HD', val: galleryPricing.video_price_4k },
-                    ].map(r => (
-                      <div key={r.label} className="p-2 rounded bg-muted/50 flex justify-between items-center">
-                        <span className="text-xs text-muted-foreground">{r.label}</span>
-                        <span className="text-xs font-semibold text-purple-400">${r.val}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* ─── Live Session Tab ─── */}
-            {pricingTab === 'live' && (
-              <div>
-                <div className="p-2.5 rounded-lg mb-3 flex items-center justify-between" style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)' }}>
-                  <span className="text-xs text-muted-foreground">🎟️ Session Buy-In</span>
-                  <span className="text-sm font-bold text-red-400">${galleryPricing.live_buyin_price}</span>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-3">
-                  <div>
-                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">📷 Photo Pricing</p>
-                    <div className="space-y-1.5">
-                      {[
-                        { label: 'Web (800px)', val: galleryPricing.live_price_web },
-                        { label: 'Standard (1920px)', val: galleryPricing.live_price_standard },
-                        { label: 'High Res (Original)', val: galleryPricing.live_price_high },
-                      ].map(r => (
-                        <div key={r.label} className="p-2 rounded flex justify-between items-center" style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.15)' }}>
-                          <span className="text-xs text-muted-foreground">{r.label}</span>
-                          <span className="text-xs font-semibold text-red-400">${r.val}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                  <div>
-                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">🎬 Video Pricing</p>
-                    <div className="space-y-1.5">
-                      {[
-                        { label: '720p HD', val: galleryPricing.live_video_720p },
-                        { label: '1080p Full HD', val: galleryPricing.live_video_1080p },
-                        { label: '4K Ultra HD', val: galleryPricing.live_video_4k },
-                      ].map(r => (
-                        <div key={r.label} className="p-2 rounded flex justify-between items-center" style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.15)' }}>
-                          <span className="text-xs text-muted-foreground">{r.label}</span>
-                          <span className="text-xs font-semibold text-red-400">${r.val}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-                <div className="flex gap-4 pt-2 border-t border-red-500/20">
-                  <div className="p-2 rounded flex-1 text-center" style={{ background: 'rgba(239,68,68,0.1)' }}>
-                    <p className="text-[10px] text-muted-foreground uppercase">Photos Included</p>
-                    <p className="text-lg font-bold text-red-400">{galleryPricing.live_session_photos_included}</p>
-                  </div>
-                  <div className="p-2 rounded flex-1 text-center" style={{ background: 'rgba(239,68,68,0.1)' }}>
-                    <p className="text-[10px] text-muted-foreground uppercase">Videos Included</p>
-                    <p className="text-lg font-bold text-red-400">{galleryPricing.live_session_videos_included}</p>
-                  </div>
-                </div>
-                {/* Advanced settings deep-link */}
-                <button
-                  onClick={() => navigate('/photographer/sessions')}
-                  className="w-full mt-3 p-3 rounded-lg flex items-center justify-between group/link transition-all hover:scale-[1.01]"
-                  style={{ background: 'linear-gradient(135deg, rgba(239,68,68,0.08), rgba(245,158,11,0.08))', border: '1px dashed rgba(239,68,68,0.3)' }}
-                >
-                  <div className="flex items-center gap-2">
-                    <Radio className="w-4 h-4 text-red-400" />
-                    <div className="text-left">
-                      <p className="text-xs font-semibold text-foreground">Configure Advanced Session Rates</p>
-                      <p className="text-[10px] text-muted-foreground">Buy-in pricing, full gallery access, session settings</p>
-                    </div>
-                  </div>
-                  <ChevronDown className="w-4 h-4 text-red-400 -rotate-90 group-hover/link:translate-x-0.5 transition-transform" />
-                </button>
-              </div>
-            )}
-
-            {/* ─── Booking Tab ─── */}
-            {pricingTab === 'booking' && (
-              <div>
-                <div className="p-2.5 rounded-lg mb-3 flex items-center justify-between" style={{ background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.2)' }}>
-                  <span className="text-xs text-muted-foreground">⏱ Hourly Rate</span>
-                  <span className="text-sm font-bold text-blue-400">${galleryPricing.booking_hourly_rate}/hr</span>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-3">
-                  <div>
-                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">📷 Photo Pricing</p>
-                    <div className="space-y-1.5">
-                      {[
-                        { label: 'Web (800px)', val: galleryPricing.booking_price_web },
-                        { label: 'Standard (1920px)', val: galleryPricing.booking_price_standard },
-                        { label: 'High Res (Original)', val: galleryPricing.booking_price_high },
-                      ].map(r => (
-                        <div key={r.label} className="p-2 rounded flex justify-between items-center" style={{ background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.15)' }}>
-                          <span className="text-xs text-muted-foreground">{r.label}</span>
-                          <span className="text-xs font-semibold text-blue-400">${r.val}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                  <div>
-                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">🎬 Video Pricing</p>
-                    <div className="space-y-1.5">
-                      {[
-                        { label: '720p HD', val: galleryPricing.booking_video_720p },
-                        { label: '1080p Full HD', val: galleryPricing.booking_video_1080p },
-                        { label: '4K Ultra HD', val: galleryPricing.booking_video_4k },
-                      ].map(r => (
-                        <div key={r.label} className="p-2 rounded flex justify-between items-center" style={{ background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.15)' }}>
-                          <span className="text-xs text-muted-foreground">{r.label}</span>
-                          <span className="text-xs font-semibold text-blue-400">${r.val}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-                <div className="flex gap-4 pt-2 border-t border-blue-500/20">
-                  <div className="p-2 rounded flex-1 text-center" style={{ background: 'rgba(59,130,246,0.1)' }}>
-                    <p className="text-[10px] text-muted-foreground uppercase">Photos Included</p>
-                    <p className="text-lg font-bold text-blue-400">{galleryPricing.booking_photos_included}</p>
-                  </div>
-                  <div className="p-2 rounded flex-1 text-center" style={{ background: 'rgba(59,130,246,0.1)' }}>
-                    <p className="text-[10px] text-muted-foreground uppercase">Videos Included</p>
-                    <p className="text-lg font-bold text-blue-400">{galleryPricing.booking_videos_included}</p>
-                  </div>
-                </div>
-                {/* Advanced settings summary + deep-link */}
-                <div className="mt-3 space-y-2">
-                  {/* Quick-glance pills for advanced settings */}
-                  <div className="flex flex-wrap gap-1.5">
-                    <div className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px]" style={{ background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.15)' }}>
-                      <span className="text-muted-foreground">⏱ Min Hours:</span>
-                      <span className="font-semibold text-blue-400">{galleryPricing.booking_min_hours}h</span>
-                    </div>
-                    <div className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px]" style={{ background: galleryPricing.charges_travel_fees ? 'rgba(245,158,11,0.1)' : 'rgba(59,130,246,0.08)', border: `1px solid ${galleryPricing.charges_travel_fees ? 'rgba(245,158,11,0.2)' : 'rgba(59,130,246,0.15)'}` }}>
-                      <span className="text-muted-foreground">🚗 Travel Fees:</span>
-                      <span className={`font-semibold ${galleryPricing.charges_travel_fees ? 'text-amber-400' : 'text-muted-foreground'}`}>
-                        {galleryPricing.charges_travel_fees ? 'Enabled' : 'Off'}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px]" style={{ background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.15)' }}>
-                      <span className="text-muted-foreground">📍 Radius:</span>
-                      <span className="font-semibold text-blue-400">{galleryPricing.service_radius_miles} mi</span>
-                    </div>
-                    {(galleryPricing.group_discount_2_plus > 0 || galleryPricing.group_discount_3_plus > 0 || galleryPricing.group_discount_5_plus > 0) && (
-                      <div className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px]" style={{ background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.15)' }}>
-                        <span className="text-muted-foreground">👥 Group Discounts:</span>
-                        <span className="font-semibold text-emerald-400">Active</span>
-                      </div>
-                    )}
-                  </div>
-                  {/* Deep-link to full booking settings */}
-                  <button
-                    onClick={() => navigate('/photographer/bookings')}
-                    className="w-full p-3 rounded-lg flex items-center justify-between group/link transition-all hover:scale-[1.01]"
-                    style={{ background: 'linear-gradient(135deg, rgba(59,130,246,0.08), rgba(139,92,246,0.08))', border: '1px dashed rgba(59,130,246,0.3)' }}
-                  >
-                    <div className="flex items-center gap-2">
-                      <Settings className="w-4 h-4 text-blue-400" />
-                      <div className="text-left">
-                        <p className="text-xs font-semibold text-foreground">Configure Advanced Booking Rates</p>
-                        <p className="text-[10px] text-muted-foreground">Group discounts, travel surcharges, cancellation policy, deposit %</p>
-                      </div>
-                    </div>
-                    <ChevronDown className="w-4 h-4 text-blue-400 -rotate-90 group-hover/link:translate-x-0.5 transition-transform" />
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* ─── On-Demand Tab ─── */}
-            {pricingTab === 'ondemand' && (
-              <div>
-                <div className="p-2.5 rounded-lg mb-3 flex items-center justify-between" style={{ background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.2)' }}>
-                  <span className="text-xs text-muted-foreground">⚡ Hourly Rate</span>
-                  <span className="text-sm font-bold text-emerald-400">${galleryPricing.on_demand_hourly_rate}/hr</span>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-3">
-                  <div>
-                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">📷 Photo Pricing</p>
-                    <div className="space-y-1.5">
-                      {[
-                        { label: 'Web (800px)', val: galleryPricing.on_demand_price_web },
-                        { label: 'Standard (1920px)', val: galleryPricing.on_demand_price_standard },
-                        { label: 'High Res (Original)', val: galleryPricing.on_demand_price_high },
-                      ].map(r => (
-                        <div key={r.label} className="p-2 rounded flex justify-between items-center" style={{ background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.15)' }}>
-                          <span className="text-xs text-muted-foreground">{r.label}</span>
-                          <span className="text-xs font-semibold text-emerald-400">${r.val}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                  <div>
-                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">🎬 Video Pricing</p>
-                    <div className="space-y-1.5">
-                      {[
-                        { label: '720p HD', val: galleryPricing.on_demand_video_720p },
-                        { label: '1080p Full HD', val: galleryPricing.on_demand_video_1080p },
-                        { label: '4K Ultra HD', val: galleryPricing.on_demand_video_4k },
-                      ].map(r => (
-                        <div key={r.label} className="p-2 rounded flex justify-between items-center" style={{ background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.15)' }}>
-                          <span className="text-xs text-muted-foreground">{r.label}</span>
-                          <span className="text-xs font-semibold text-emerald-400">${r.val}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-                <div className="flex gap-4 pt-2 border-t border-emerald-500/20">
-                  <div className="p-2 rounded flex-1 text-center" style={{ background: 'rgba(16,185,129,0.1)' }}>
-                    <p className="text-[10px] text-muted-foreground uppercase">Photos Included</p>
-                    <p className="text-lg font-bold text-emerald-400">{galleryPricing.on_demand_photos_included}</p>
-                  </div>
-                  <div className="p-2 rounded flex-1 text-center" style={{ background: 'rgba(16,185,129,0.1)' }}>
-                    <p className="text-[10px] text-muted-foreground uppercase">Videos Included</p>
-                    <p className="text-lg font-bold text-emerald-400">{galleryPricing.on_demand_videos_included}</p>
-                  </div>
-                </div>
-                {/* Advanced settings deep-link */}
-                <button
-                  onClick={() => navigate('/photographer/bookings')}
-                  className="w-full mt-3 p-3 rounded-lg flex items-center justify-between group/link transition-all hover:scale-[1.01]"
-                  style={{ background: 'linear-gradient(135deg, rgba(16,185,129,0.08), rgba(6,182,212,0.08))', border: '1px dashed rgba(16,185,129,0.3)' }}
-                >
-                  <div className="flex items-center gap-2">
-                    <MapPin className="w-4 h-4 text-emerald-400" />
-                    <div className="text-left">
-                      <p className="text-xs font-semibold text-foreground">Advanced On-Demand Settings</p>
-                      <p className="text-[10px] text-muted-foreground">Service radius, peak pricing, availability zone</p>
-                    </div>
-                  </div>
-                  <ChevronDown className="w-4 h-4 text-emerald-400 -rotate-90 group-hover/link:translate-x-0.5 transition-transform" />
-                </button>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+        <GalleryPricingCard
+          pricingCollapsed={pricingCollapsed}
+          setPricingCollapsed={setPricingCollapsed}
+          pricingTab={pricingTab}
+          setPricingTab={setPricingTab}
+          galleryPricing={galleryPricing}
+          setShowGalleryPricingModal={setShowGalleryPricingModal}
+        />
       )}
 
       {/* Grom Highlights Section - SPECIAL for Grom Parents */}
       {isGromParent && !selectedGallery && (
-        <Card className="mb-6 bg-gradient-to-br from-cyan-500/10 to-blue-500/10 border-cyan-500/30">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg text-cyan-500 dark:text-cyan-400 flex items-center gap-2">
-              <Sparkles className="w-5 h-5" />
-              Grom Highlights
-              {gromHighlights.length > 0 && (
-                <Badge variant="secondary" className="ml-2 bg-cyan-500/20 text-cyan-500 dark:text-cyan-400">
-                  {gromHighlights.length}
-                </Badge>
-              )}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-muted-foreground text-sm mb-4">
-              Tag photos to share them to your Grom's profile. They'll appear here and on their profile.
-            </p>
-            
-            {/* Linked Groms Pills */}
-            {linkedGroms.length > 0 && (
-              <div className="flex flex-wrap gap-2 mb-4">
-                {linkedGroms.map((grom) => (
-                  <div key={grom.id} className="flex items-center gap-2 px-3 py-1.5 bg-muted rounded-full text-sm">
-                    {grom.avatar ? (
-                      <img src={grom.avatar} alt={grom.name} className="w-5 h-5 rounded-full" />
-                    ) : (
-                      <div className="w-5 h-5 rounded-full bg-cyan-500 flex items-center justify-center text-xs text-black font-bold">
-                        {grom.name?.charAt(0) || 'G'}
-                      </div>
-                    )}
-                    <span className="text-foreground">{grom.name}</span>
-                    {grom.is_approved && (
-                      <Check className="w-3 h-3 text-green-400" />
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-            
-            {/* Highlights Grid */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              {gromHighlights.map((item) => (
-                <div 
-                  key={item.id} 
-                  className="relative aspect-square rounded-lg overflow-hidden group"
-                >
-                  {item.media_type === 'video' ? (
-                    <img 
-                      src={getFullUrl(item.thumbnail_url || item.preview_url)} 
-                      alt={item.title || 'Grom video'} 
-                      className="w-full h-full object-cover"
-                      loading="lazy"
-                    />
-                  ) : (
-                    <img 
-                      src={getFullUrl(item.thumbnail_url || item.preview_url)} 
-                      alt={item.title || 'Grom photo'} 
-                      className="w-full h-full object-cover"
-                      loading="lazy"
-                    />
-                  )}
-                  
-                  {/* Overlay with remove button */}
-                  <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                    <Button
-                      size="sm"
-                      variant="destructive"
-                      className="h-8"
-                      onClick={() => handleUntagGrom(item.id, item.grom_id)}
-                    >
-                      <X className="w-3 h-3 mr-1" />
-                      Remove
-                    </Button>
-                  </div>
-                  
-                  {/* Media type badge */}
-                  {item.media_type === 'video' && (
-                    <div className="absolute bottom-1 right-1 bg-black/70 rounded px-1.5 py-0.5">
-                      <Play className="w-3 h-3 text-white" />
-                    </div>
-                  )}
-                </div>
-              ))}
-              
-              {/* Add photo placeholder */}
-              <div 
-                className="aspect-square bg-muted/50 rounded-lg flex items-center justify-center border-2 border-dashed border-cyan-500/30 cursor-pointer hover:border-cyan-500/60 transition-colors"
-                onClick={() => {
-                  if (linkedGroms.length === 0) {
-                    toast.error('No linked Groms found. Link a Grom first.');
-                    return;
-                  }
-                  toast.info('Select a photo below and use the "Tag Grom" button to add it here.');
-                }}
-              >
-                <div className="text-center p-3">
-                  <Plus className="w-6 h-6 text-cyan-500 mx-auto mb-1" />
-                  <span className="text-xs text-muted-foreground">Tag a photo</span>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        <GromHighlightsCard
+          gromHighlights={gromHighlights}
+          linkedGroms={linkedGroms}
+          handleUntagGrom={handleUntagGrom}
+        />
       )}
 
       {/* Session Galleries - Albums/Folders with management */}
@@ -1479,7 +389,7 @@ export const GalleryPage = () => {
             </h2>
             <div className="flex items-center gap-2">
               <span className="text-muted-foreground text-sm">{galleries.length} folders</span>
-              <Button
+              <Button aria-label="Add"
                 onClick={() => {
                   setNewFolderName('');
                   setShowCreateFolderModal(true);
@@ -1518,7 +428,7 @@ export const GalleryPage = () => {
                       
                       if (coverUrl) {
                         return (
-                          <img 
+                          <img loading="lazy" decoding="async" 
                             src={coverUrl} 
                             alt={gal.title}
                             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
@@ -1531,7 +441,7 @@ export const GalleryPage = () => {
                       // Fallback 2: use first_item_preview from API as real thumbnail
                       if (gal.first_item_preview && !brokenCoverImages.has(`${gal.id}_fallback`)) {
                         return (
-                          <img 
+                          <img loading="lazy" decoding="async" 
                             src={getFullUrl(gal.first_item_preview)} 
                             alt={gal.title}
                             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
@@ -1562,26 +472,26 @@ export const GalleryPage = () => {
                         </div>
                       );
                     })()}
-                    {/* Session type badges — Phase 5 integration */}
+                    {/* Session type badges - Phase 5 integration */}
                     <div className="absolute top-2 left-2 flex gap-1.5">
                       {gal.live_session_id && (
                         <Badge className="bg-emerald-500/90 text-white text-[10px] shadow-sm px-1.5">
-                          🟢 Live
+                          {"\u{1F7E2}"} Live
                         </Badge>
                       )}
                       {gal.session_type === 'booking' && !gal.live_session_id && (
                         <Badge className="bg-blue-500/90 text-white text-[10px] shadow-sm px-1.5">
-                          📅 Booking
+                          {"\u{1F4C5}"} Booking
                         </Badge>
                       )}
                       {gal.session_type === 'on_demand' && !gal.live_session_id && (
                         <Badge className="bg-orange-500/90 text-white text-[10px] shadow-sm px-1.5">
-                          ⚡ On-Demand
+                          {"\u26A1"} On-Demand
                         </Badge>
                       )}
                       {gal.session_type === 'manual' && !gal.live_session_id && (
                         <Badge className="bg-zinc-600/90 text-white text-[10px] shadow-sm px-1.5">
-                          📋 Manual
+                          {"\u{1F4CB}"} Manual
                         </Badge>
                       )}
                     </div>
@@ -1592,14 +502,14 @@ export const GalleryPage = () => {
                       </Badge>
                       {(gal.purchase_count || 0) > 0 && (
                         <Badge className="bg-green-500/80 backdrop-blur-sm text-white text-[10px]">
-                          💰 {gal.purchase_count} sold
+                          {"\u{1F4B0}"} {gal.purchase_count} sold
                         </Badge>
                       )}
                     </div>
-                    {/* Folder actions — visible on hover (desktop) or always via overflow menu (mobile) */}
+                    {/* Folder actions -- visible on hover (desktop) or always via overflow menu (mobile) */}
                     <div className="absolute top-2 right-2 z-10">
                       <div className="hidden group-hover:flex gap-1">
-                        <button
+                        <button aria-label="Image Plus"
                           className="h-8 w-8 rounded-full bg-black/50 backdrop-blur-sm hover:bg-cyan-500/70 text-white flex items-center justify-center transition-colors"
                           onClick={(e) => {
                             e.stopPropagation();
@@ -1611,7 +521,7 @@ export const GalleryPage = () => {
                           <ImagePlus className="w-3.5 h-3.5" />
                         </button>
                         {!gal.live_session_id && (
-                          <button
+                          <button aria-label="Link2"
                             className="h-8 w-8 rounded-full bg-black/50 backdrop-blur-sm hover:bg-purple-500/70 text-white flex items-center justify-center transition-colors"
                             onClick={(e) => {
                               e.stopPropagation();
@@ -1623,7 +533,7 @@ export const GalleryPage = () => {
                             <Link2 className="w-3.5 h-3.5" />
                           </button>
                         )}
-                        <button
+                        <button aria-label="Edit3"
                           className="h-8 w-8 rounded-full bg-black/50 backdrop-blur-sm hover:bg-black/70 text-white flex items-center justify-center transition-colors"
                           onClick={(e) => {
                             e.stopPropagation();
@@ -1635,7 +545,7 @@ export const GalleryPage = () => {
                         >
                           <Edit3 className="w-3.5 h-3.5" />
                         </button>
-                        <button
+                        <button aria-label="Delete"
                           className="h-8 w-8 rounded-full bg-red-500/60 backdrop-blur-sm hover:bg-red-500/80 text-white flex items-center justify-center transition-colors"
                           onClick={(e) => {
                             e.stopPropagation();
@@ -1706,16 +616,16 @@ export const GalleryPage = () => {
                   </h2>
                   {/* Session type badge */}
                   {selectedGallery.live_session_id && (
-                    <Badge className="bg-emerald-500/90 text-white text-[10px] px-1.5 flex-shrink-0">🟢 Live</Badge>
+                    <Badge className="bg-emerald-500/90 text-white text-[10px] px-1.5 flex-shrink-0">{"\u{1F7E2}"} Live</Badge>
                   )}
                   {selectedGallery.session_type === 'booking' && !selectedGallery.live_session_id && (
-                    <Badge className="bg-blue-500/90 text-white text-[10px] px-1.5 flex-shrink-0">📅 Booking</Badge>
+                    <Badge className="bg-blue-500/90 text-white text-[10px] px-1.5 flex-shrink-0">{"\u{1F4C5}"} Booking</Badge>
                   )}
                   {selectedGallery.session_type === 'on_demand' && !selectedGallery.live_session_id && (
-                    <Badge className="bg-orange-500/90 text-white text-[10px] px-1.5 flex-shrink-0">⚡ On-Demand</Badge>
+                    <Badge className="bg-orange-500/90 text-white text-[10px] px-1.5 flex-shrink-0">{"\u26A1"} On-Demand</Badge>
                   )}
                   {selectedGallery.session_type === 'manual' && !selectedGallery.live_session_id && (
-                    <Badge className="bg-zinc-600/90 text-white text-[10px] px-1.5 flex-shrink-0">📋 Manual</Badge>
+                    <Badge className="bg-zinc-600/90 text-white text-[10px] px-1.5 flex-shrink-0">{"\u{1F4CB}"} Manual</Badge>
                   )}
                 </div>
                 <div className="flex items-center gap-3 text-xs text-muted-foreground mt-0.5">
@@ -1735,11 +645,11 @@ export const GalleryPage = () => {
               </div>
             </div>
             
-            {/* Row 2: Action buttons — scrollable on mobile */}
+            {/* Row 2: Action buttons -- scrollable on mobile */}
             <div className="flex items-center gap-2 overflow-x-auto pb-1 -mx-1 px-1">
               {bulkSelectMode ? (
                 <>
-                  <Button
+                  <Button aria-label="Confirm"
                     size="sm"
                     variant="outline"
                     className="border-border text-muted-foreground flex-shrink-0"
@@ -1750,7 +660,7 @@ export const GalleryPage = () => {
                     <Check className="w-4 h-4 mr-1" />
                     All
                   </Button>
-                  <Button
+                  <Button aria-label="Folder"
                     size="sm"
                     variant="outline"
                     className="border-border text-muted-foreground flex-shrink-0"
@@ -1760,7 +670,7 @@ export const GalleryPage = () => {
                     <Folder className="w-4 h-4 mr-1" />
                     Move
                   </Button>
-                  <Button
+                  <Button aria-label="Copy"
                     size="sm"
                     variant="outline"
                     className="border-cyan-700 text-cyan-400 hover:bg-cyan-500/10 flex-shrink-0"
@@ -1770,7 +680,7 @@ export const GalleryPage = () => {
                     <Copy className="w-4 h-4 mr-1" />
                     Copy
                   </Button>
-                  <Button
+                  <Button aria-label="Loader2"
                     size="sm"
                     variant="outline"
                     className="border-cyan-600 text-cyan-400 hover:bg-cyan-500/10 flex-shrink-0"
@@ -1801,7 +711,7 @@ export const GalleryPage = () => {
                     <UserPlus className="w-4 h-4 mr-1" />
                     Tag {selectedItems.size > 0 ? `(${selectedItems.size})` : ''}
                   </Button>
-                  <Button
+                  <Button aria-label="Delete"
                     size="sm"
                     variant="destructive"
                     className="bg-red-500/20 text-red-400 hover:bg-red-500/30 flex-shrink-0"
@@ -1823,7 +733,7 @@ export const GalleryPage = () => {
                 </>
               ) : (
                 <>
-                  <Button
+                  <Button aria-label="Add"
                     onClick={() => setShowAddToGalleryModal(true)}
                     className="bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-400 hover:to-blue-400 text-white font-semibold flex-shrink-0 shadow-sm"
                     size="sm"
@@ -1831,7 +741,7 @@ export const GalleryPage = () => {
                     <Plus className="w-4 h-4 mr-1" />
                     Upload
                   </Button>
-                  <Button
+                  <Button aria-label="Loader2"
                     size="sm"
                     variant="outline"
                     className="border-cyan-600 text-cyan-400 hover:bg-cyan-500/10 flex-shrink-0"
@@ -1845,7 +755,7 @@ export const GalleryPage = () => {
                     )}
                     AI Tag
                   </Button>
-                  <Button
+                  <Button aria-label="User Plus"
                     size="sm"
                     variant="outline"
                     className="border-purple-600 text-purple-400 hover:bg-purple-500/10 flex-shrink-0"
@@ -1854,9 +764,9 @@ export const GalleryPage = () => {
                     <UserPlus className="w-4 h-4 mr-1" />
                     Tag & Assign
                   </Button>
-                  {/* Link Session button — only for unlinked folders */}
+                  {/* Link Session button -- only for unlinked folders */}
                   {!selectedGallery.live_session_id && (
-                    <Button
+                    <Button aria-label="Link2"
                       size="sm"
                       variant="outline"
                       className="border-purple-600/50 text-purple-400 hover:bg-purple-500/10 flex-shrink-0"
@@ -1866,7 +776,7 @@ export const GalleryPage = () => {
                       Link Session
                     </Button>
                   )}
-                  {/* Push to Spot Hub — requires linked surf spot AND live session */}
+                  {/* Push to Spot Hub -- requires linked surf spot AND live session */}
                   {selectedGallery.surf_spot_id && (
                     <Button
                       size="sm"
@@ -1897,7 +807,7 @@ export const GalleryPage = () => {
                       {conditionsStatus?.has_active_report ? 'Refresh Spot Hub' : 'Push to Spot Hub'}
                     </Button>
                   )}
-                  <Button
+                  <Button aria-label="Confirm"
                     size="sm"
                     variant="outline"
                     className="border-border text-muted-foreground flex-shrink-0"
@@ -1911,7 +821,7 @@ export const GalleryPage = () => {
             </div>
           </div>
 
-          {/* ── Session Roster: Full surfer delivery tracker ── */}
+          {/* -- Session Roster: Full surfer delivery tracker -- */}
           {selectedGallery.session_roster && selectedGallery.session_roster.length > 0 && (
             <div className="mb-4">
               <SessionRosterCard 
@@ -1935,7 +845,7 @@ export const GalleryPage = () => {
             <div className="text-center py-12 bg-muted/50 rounded-lg">
               <Camera className="w-12 h-12 text-muted-foreground/40 mx-auto mb-3" />
               <p className="text-muted-foreground">No items in this gallery yet</p>
-              <Button
+              <Button aria-label="Add"
                 onClick={() => setShowAddToGalleryModal(true)}
                 className="mt-4 bg-cyan-500 hover:bg-cyan-600 text-black"
               >
@@ -1960,7 +870,7 @@ export const GalleryPage = () => {
         </div>
       )}
 
-      {/* All Media section removed — photographers upload into session folders only */}
+      {/* All Media section removed -- photographers upload into session folders only */}
 
       {/* Upload Modal */}
       <UploadPhotoModal
@@ -2032,989 +942,58 @@ export const GalleryPage = () => {
       )}
 
       {/* Gallery Pricing Modal */}
-      <Dialog open={showGalleryPricingModal} onOpenChange={setShowGalleryPricingModal}>
-        <DialogContent className="bg-background border-border text-foreground max-h-[90vh] overflow-y-auto max-w-2xl">
-          <DialogHeader>
-            <DialogTitle className="text-foreground">Gallery Pricing — All Service Types</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-2">
-            <p className="text-xs text-muted-foreground">
-              Each service type has <strong>independent</strong> resolution pricing. Changes here update your photographer profile defaults.
-            </p>
+      {/* Extracted Folder & Pricing Modals */}
+      <GalleryFolderModals
+        showGalleryPricingModal={showGalleryPricingModal}
+        setShowGalleryPricingModal={setShowGalleryPricingModal}
+        galleryPricing={galleryPricing}
+        setGalleryPricing={setGalleryPricing}
+        handleSaveGalleryPricing={handleSaveGalleryPricing}
+        showWatermarkSettings={showWatermarkSettings}
+        setShowWatermarkSettings={setShowWatermarkSettings}
+        watermarkPreviewUrl={watermarkPreviewUrl}
+        watermarkSettings={watermarkSettings}
+        canSellPhotos={canSellPhotos}
+        navigate={navigate}
+        showAddToGalleryModal={showAddToGalleryModal}
+        setShowAddToGalleryModal={setShowAddToGalleryModal}
+        selectedGallery={selectedGallery}
+        gallery={gallery}
+        galleryItems={galleryItems}
+        handleAddToGallery={handleAddToGallery}
+        setShowUploadModal={setShowUploadModal}
+        showCreateFolderModal={showCreateFolderModal}
+        setShowCreateFolderModal={setShowCreateFolderModal}
+        showRenameFolderModal={showRenameFolderModal}
+        setShowRenameFolderModal={setShowRenameFolderModal}
+        showDeleteFolderModal={showDeleteFolderModal}
+        setShowDeleteFolderModal={setShowDeleteFolderModal}
+        newFolderName={newFolderName}
+        setNewFolderName={setNewFolderName}
+        folderToRename={folderToRename}
+        folderToDelete={folderToDelete}
+        setFolderToDelete={setFolderToDelete}
+        folderActionLoading={folderActionLoading}
+        handleCreateFolder={handleCreateFolder}
+        handleRenameFolder={handleRenameFolder}
+        confirmDeleteFolder={confirmDeleteFolder}
+        showMoveToFolderModal={showMoveToFolderModal}
+        setShowMoveToFolderModal={setShowMoveToFolderModal}
+        showCopyToFolderModal={showCopyToFolderModal}
+        setShowCopyToFolderModal={setShowCopyToFolderModal}
+        galleries={galleries}
+        selectedItems={selectedItems}
+        handleMoveToFolder={handleMoveToFolder}
+        handleCopyToFolder={handleCopyToFolder}
+      />
 
-            {/* ─── GALLERY (General) ─── */}
-            <div className="p-4 rounded-lg bg-card border border-border">
-              <h4 className="font-medium text-foreground mb-3 flex items-center gap-2 text-sm">
-                <Image className="w-4 h-4 text-cyan-400" /> Gallery — General Pricing
-              </h4>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <p className="text-[10px] font-semibold text-muted-foreground uppercase">📷 Photos</p>
-                  {[
-                    { label: 'Web (800px)', field: 'photo_price_web' },
-                    { label: 'Standard (1920px)', field: 'photo_price_standard' },
-                    { label: 'High Res', field: 'photo_price_high' },
-                  ].map(r => (
-                    <div key={r.field}>
-                      <Label className="text-muted-foreground text-xs">{r.label}</Label>
-                      <Input type="number" value={galleryPricing[r.field]} onChange={(e) => setGalleryPricing({ ...galleryPricing, [r.field]: parseFloat(e.target.value) || 0 })} className="bg-background text-foreground border-border h-8" />
-                    </div>
-                  ))}
-                </div>
-                <div className="space-y-2">
-                  <p className="text-[10px] font-semibold text-muted-foreground uppercase">🎬 Videos</p>
-                  {[
-                    { label: '720p HD', field: 'video_price_720p' },
-                    { label: '1080p Full HD', field: 'video_price_1080p' },
-                    { label: '4K Ultra HD', field: 'video_price_4k' },
-                  ].map(r => (
-                    <div key={r.field}>
-                      <Label className="text-muted-foreground text-xs">{r.label}</Label>
-                      <Input type="number" value={galleryPricing[r.field]} onChange={(e) => setGalleryPricing({ ...galleryPricing, [r.field]: parseFloat(e.target.value) || 0 })} className="bg-background text-foreground border-border h-8" />
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            {/* ─── LIVE SESSION ─── */}
-            <div className="p-4 rounded-lg border" style={{ background: 'rgba(239,68,68,0.05)', borderColor: 'rgba(239,68,68,0.2)' }}>
-              <h4 className="font-medium text-foreground mb-3 flex items-center gap-2 text-sm">
-                <Radio className="w-4 h-4 text-red-400" /> Live Session Pricing
-              </h4>
-              <div className="grid grid-cols-2 gap-4 mb-3">
-                <div className="space-y-2">
-                  <p className="text-[10px] font-semibold text-muted-foreground uppercase">📷 Photos</p>
-                  {[
-                    { label: 'Web (800px)', field: 'live_price_web' },
-                    { label: 'Standard (1920px)', field: 'live_price_standard' },
-                    { label: 'High Res', field: 'live_price_high' },
-                  ].map(r => (
-                    <div key={r.field}>
-                      <Label className="text-muted-foreground text-xs">{r.label}</Label>
-                      <Input type="number" value={galleryPricing[r.field]} onChange={(e) => setGalleryPricing({ ...galleryPricing, [r.field]: parseFloat(e.target.value) || 0 })} className="bg-background text-foreground border-border h-8" />
-                    </div>
-                  ))}
-                </div>
-                <div className="space-y-2">
-                  <p className="text-[10px] font-semibold text-muted-foreground uppercase">🎬 Videos</p>
-                  {[
-                    { label: '720p HD', field: 'live_video_720p' },
-                    { label: '1080p Full HD', field: 'live_video_1080p' },
-                    { label: '4K Ultra HD', field: 'live_video_4k' },
-                  ].map(r => (
-                    <div key={r.field}>
-                      <Label className="text-muted-foreground text-xs">{r.label}</Label>
-                      <Input type="number" value={galleryPricing[r.field]} onChange={(e) => setGalleryPricing({ ...galleryPricing, [r.field]: parseFloat(e.target.value) || 0 })} className="bg-background text-foreground border-border h-8" />
-                    </div>
-                  ))}
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4 pt-3 border-t" style={{ borderColor: 'rgba(239,68,68,0.2)' }}>
-                <div>
-                  <Label className="text-muted-foreground text-xs">Photos Included in Buy-In</Label>
-                  <Input type="number" min="0" value={galleryPricing.live_session_photos_included} onChange={(e) => setGalleryPricing({ ...galleryPricing, live_session_photos_included: parseInt(e.target.value) || 0 })} className="bg-background text-foreground border-border h-8 w-20" />
-                </div>
-                <div>
-                  <Label className="text-muted-foreground text-xs">Videos Included in Buy-In</Label>
-                  <Input type="number" min="0" value={galleryPricing.live_session_videos_included} onChange={(e) => setGalleryPricing({ ...galleryPricing, live_session_videos_included: parseInt(e.target.value) || 0 })} className="bg-background text-foreground border-border h-8 w-20" />
-                </div>
-              </div>
-            </div>
-
-            {/* ─── ON-DEMAND ─── */}
-            <div className="p-4 rounded-lg border" style={{ background: 'rgba(16,185,129,0.05)', borderColor: 'rgba(16,185,129,0.2)' }}>
-              <h4 className="font-medium text-foreground mb-3 flex items-center gap-2 text-sm">
-                <MapPin className="w-4 h-4 text-emerald-400" /> On-Demand Pricing
-              </h4>
-              <div className="mb-3">
-                <Label className="text-muted-foreground text-xs">Hourly Rate ($)</Label>
-                <Input type="number" value={galleryPricing.on_demand_hourly_rate} onChange={(e) => setGalleryPricing({ ...galleryPricing, on_demand_hourly_rate: parseFloat(e.target.value) || 0 })} className="bg-background text-foreground border-border h-8 w-28" />
-              </div>
-              <div className="grid grid-cols-2 gap-4 mb-3">
-                <div className="space-y-2">
-                  <p className="text-[10px] font-semibold text-muted-foreground uppercase">📷 Photos</p>
-                  {[
-                    { label: 'Web (800px)', field: 'on_demand_price_web' },
-                    { label: 'Standard (1920px)', field: 'on_demand_price_standard' },
-                    { label: 'High Res', field: 'on_demand_price_high' },
-                  ].map(r => (
-                    <div key={r.field}>
-                      <Label className="text-muted-foreground text-xs">{r.label}</Label>
-                      <Input type="number" value={galleryPricing[r.field]} onChange={(e) => setGalleryPricing({ ...galleryPricing, [r.field]: parseFloat(e.target.value) || 0 })} className="bg-background text-foreground border-border h-8" />
-                    </div>
-                  ))}
-                </div>
-                <div className="space-y-2">
-                  <p className="text-[10px] font-semibold text-muted-foreground uppercase">🎬 Videos</p>
-                  {[
-                    { label: '720p HD', field: 'on_demand_video_720p' },
-                    { label: '1080p Full HD', field: 'on_demand_video_1080p' },
-                    { label: '4K Ultra HD', field: 'on_demand_video_4k' },
-                  ].map(r => (
-                    <div key={r.field}>
-                      <Label className="text-muted-foreground text-xs">{r.label}</Label>
-                      <Input type="number" value={galleryPricing[r.field]} onChange={(e) => setGalleryPricing({ ...galleryPricing, [r.field]: parseFloat(e.target.value) || 0 })} className="bg-background text-foreground border-border h-8" />
-                    </div>
-                  ))}
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4 pt-3 border-t" style={{ borderColor: 'rgba(16,185,129,0.2)' }}>
-                <div>
-                  <Label className="text-muted-foreground text-xs">Photos Included</Label>
-                  <Input type="number" min="0" value={galleryPricing.on_demand_photos_included} onChange={(e) => setGalleryPricing({ ...galleryPricing, on_demand_photos_included: parseInt(e.target.value) || 0 })} className="bg-background text-foreground border-border h-8 w-20" />
-                </div>
-                <div>
-                  <Label className="text-muted-foreground text-xs">Videos Included</Label>
-                  <Input type="number" min="0" value={galleryPricing.on_demand_videos_included} onChange={(e) => setGalleryPricing({ ...galleryPricing, on_demand_videos_included: parseInt(e.target.value) || 0 })} className="bg-background text-foreground border-border h-8 w-20" />
-                </div>
-              </div>
-            </div>
-
-            {/* ─── BOOKING ─── */}
-            <div className="p-4 rounded-lg border" style={{ background: 'rgba(59,130,246,0.05)', borderColor: 'rgba(59,130,246,0.2)' }}>
-              <h4 className="font-medium text-foreground mb-3 flex items-center gap-2 text-sm">
-                <Calendar className="w-4 h-4 text-blue-400" /> Booking Pricing
-              </h4>
-              <div className="mb-3">
-                <Label className="text-muted-foreground text-xs">Hourly Rate ($)</Label>
-                <Input type="number" value={galleryPricing.booking_hourly_rate} onChange={(e) => setGalleryPricing({ ...galleryPricing, booking_hourly_rate: parseFloat(e.target.value) || 0 })} className="bg-background text-foreground border-border h-8 w-28" />
-              </div>
-              <div className="grid grid-cols-2 gap-4 mb-3">
-                <div className="space-y-2">
-                  <p className="text-[10px] font-semibold text-muted-foreground uppercase">📷 Photos</p>
-                  {[
-                    { label: 'Web (800px)', field: 'booking_price_web' },
-                    { label: 'Standard (1920px)', field: 'booking_price_standard' },
-                    { label: 'High Res', field: 'booking_price_high' },
-                  ].map(r => (
-                    <div key={r.field}>
-                      <Label className="text-muted-foreground text-xs">{r.label}</Label>
-                      <Input type="number" value={galleryPricing[r.field]} onChange={(e) => setGalleryPricing({ ...galleryPricing, [r.field]: parseFloat(e.target.value) || 0 })} className="bg-background text-foreground border-border h-8" />
-                    </div>
-                  ))}
-                </div>
-                <div className="space-y-2">
-                  <p className="text-[10px] font-semibold text-muted-foreground uppercase">🎬 Videos</p>
-                  {[
-                    { label: '720p HD', field: 'booking_video_720p' },
-                    { label: '1080p Full HD', field: 'booking_video_1080p' },
-                    { label: '4K Ultra HD', field: 'booking_video_4k' },
-                  ].map(r => (
-                    <div key={r.field}>
-                      <Label className="text-muted-foreground text-xs">{r.label}</Label>
-                      <Input type="number" value={galleryPricing[r.field]} onChange={(e) => setGalleryPricing({ ...galleryPricing, [r.field]: parseFloat(e.target.value) || 0 })} className="bg-background text-foreground border-border h-8" />
-                    </div>
-                  ))}
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4 pt-3 border-t" style={{ borderColor: 'rgba(59,130,246,0.2)' }}>
-                <div>
-                  <Label className="text-muted-foreground text-xs">Photos Included</Label>
-                  <Input type="number" min="0" value={galleryPricing.booking_photos_included} onChange={(e) => setGalleryPricing({ ...galleryPricing, booking_photos_included: parseInt(e.target.value) || 0 })} className="bg-background text-foreground border-border h-8 w-20" />
-                </div>
-                <div>
-                  <Label className="text-muted-foreground text-xs">Videos Included</Label>
-                  <Input type="number" min="0" value={galleryPricing.booking_videos_included} onChange={(e) => setGalleryPricing({ ...galleryPricing, booking_videos_included: parseInt(e.target.value) || 0 })} className="bg-background text-foreground border-border h-8 w-20" />
-                </div>
-              </div>
-            </div>
-
-            {/* Watermark Settings */}
-            <div className="p-4 rounded-lg bg-cyan-500/10 border border-cyan-500/20">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  <Droplet className="w-4 h-4 text-cyan-400" />
-                  <h4 className="font-medium text-foreground text-sm">Watermark Settings</h4>
-                </div>
-                <Button variant="outline" size="sm" onClick={() => setShowWatermarkSettings(true)} className="border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/10" data-testid="pricing-modal-watermark-btn">
-                  <Settings className="w-3 h-3 mr-1" /> Configure
-                </Button>
-              </div>
-              <div className="flex items-center gap-3">
-                <div className="relative w-24 h-16 rounded-lg overflow-hidden flex-shrink-0 cursor-pointer hover:ring-2 hover:ring-cyan-500/50 transition-all bg-background" onClick={() => setShowWatermarkSettings(true)} data-testid="pricing-watermark-preview">
-                  {watermarkPreviewUrl ? (
-                    <img src={watermarkPreviewUrl} alt="Watermark preview" className="w-full h-full object-cover" />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center">
-                      <Droplet className="w-6 h-6 text-cyan-400/30" />
-                    </div>
-                  )}
-                </div>
-                <div className="text-sm">
-                  <p className="text-muted-foreground">Style: <span className="text-foreground">{watermarkSettings.style === 'text' ? 'Text' : watermarkSettings.style === 'logo' ? 'Logo' : 'Logo + Text'}</span></p>
-                  <p className="text-muted-foreground">Position: <span className="text-foreground capitalize">{watermarkSettings.position.replace('-', ' ')}</span></p>
-                </div>
-              </div>
-            </div>
-
-            <div className="p-3 rounded-lg bg-green-500/10">
-              <p className="text-sm text-muted-foreground">
-                <strong className="text-green-400">Platform fee:</strong> 20% is deducted from each sale. You receive 80% of all gallery purchases.
-              </p>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowGalleryPricingModal(false)} className="border-border">
-              Cancel
-            </Button>
-            <Button
-              onClick={handleSaveGalleryPricing}
-              className="bg-gradient-to-r from-purple-400 to-pink-500 text-black"
-            >
-              Save All Pricing
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-
-      {/* Add Photo to Gallery Modal — Upload New + Pick from Library */}
-      <Dialog open={showAddToGalleryModal} onOpenChange={setShowAddToGalleryModal}>
-        <DialogContent className="bg-background border-border text-foreground max-w-lg max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="text-foreground flex items-center gap-2">
-              <Plus className="w-5 h-5 text-cyan-400" />
-              Add Media to {selectedGallery?.title}
-            </DialogTitle>
-          </DialogHeader>
-          <div className="py-4 space-y-4">
-            {/* Upload New — Primary CTA */}
-            <button
-              onClick={() => {
-                setShowAddToGalleryModal(false);
-                setShowUploadModal(true);
-              }}
-              className="w-full flex items-center gap-4 p-4 rounded-xl border-2 border-dashed border-yellow-400/40 hover:border-yellow-400 bg-yellow-400/5 hover:bg-yellow-400/10 transition-all group"
-            >
-              <div className="flex-shrink-0 w-12 h-12 rounded-full bg-gradient-to-br from-yellow-400 to-orange-400 flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
-                <Upload className="w-5 h-5 text-black" />
-              </div>
-              <div className="text-left">
-                <p className="font-semibold text-foreground">Upload from Device</p>
-                <p className="text-xs text-muted-foreground">Camera roll, files, or take a new photo/video</p>
-              </div>
-            </button>
-
-            {/* Divider */}
-            {gallery.length > 0 && (
-              <div className="flex items-center gap-3">
-                <div className="flex-1 h-px bg-border" />
-                <span className="text-xs text-muted-foreground font-medium uppercase tracking-wider">or pick from library</span>
-                <div className="flex-1 h-px bg-border" />
-              </div>
-            )}
-            
-            {gallery.length === 0 ? (
-              <div className="text-center py-6 bg-muted/50 rounded-lg">
-                <Camera className="w-10 h-10 text-muted-foreground/40 mx-auto mb-3" />
-                <p className="text-muted-foreground text-sm">Your library is empty — upload your first photo above!</p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-3 gap-2 max-h-[40vh] overflow-y-auto rounded-lg">
-                {gallery.filter(item => !galleryItems.find(gi => gi.id === item.id)).map((item) => (
-                  <button
-                    key={item.id}
-                    onClick={() => handleAddToGallery(item.id)}
-                    className="relative aspect-square rounded-lg overflow-hidden bg-muted hover:ring-2 hover:ring-cyan-400 transition-all"
-                  >
-                    <img
-                      src={getFullUrl(item.thumbnail_url || item.preview_url)}
-                      alt={item.title || 'Photo'}
-                      className="w-full h-full object-cover"
-                    />
-                    <div className="absolute inset-0 bg-black/0 hover:bg-black/30 transition-colors flex items-center justify-center">
-                      <Plus className="w-6 h-6 text-white opacity-0 hover:opacity-100 transition-opacity" />
-                    </div>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowAddToGalleryModal(false)} className="border-border">
-              Cancel
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Create Folder Modal */}
-      <Dialog open={showCreateFolderModal} onOpenChange={setShowCreateFolderModal}>
-        <DialogContent className="bg-background border-border text-foreground max-w-md">
-          <DialogHeader>
-            <DialogTitle className="text-foreground flex items-center gap-2">
-              <Folder className="w-5 h-5 text-cyan-400" />
-              Create New Folder
-            </DialogTitle>
-          </DialogHeader>
-          <div className="py-4">
-            <Label className="text-muted-foreground">Folder Name</Label>
-            <Input
-              value={newFolderName}
-              onChange={(e) => setNewFolderName(e.target.value)}
-              placeholder="e.g., Pipeline Session 2024"
-              className="bg-card text-foreground border-border mt-2"
-              onKeyDown={(e) => e.key === 'Enter' && handleCreateFolder()}
-            />
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowCreateFolderModal(false)} className="border-border">
-              Cancel
-            </Button>
-            <Button
-              onClick={handleCreateFolder}
-              disabled={folderActionLoading || !newFolderName.trim()}
-              className="bg-cyan-500 hover:bg-cyan-600 text-black"
-            >
-              {folderActionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Create Folder'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Rename Folder Modal */}
-      <Dialog open={showRenameFolderModal} onOpenChange={setShowRenameFolderModal}>
-        <DialogContent className="bg-background border-border text-foreground max-w-md">
-          <DialogHeader>
-            <DialogTitle className="text-foreground flex items-center gap-2">
-              <Edit3 className="w-5 h-5 text-yellow-400" />
-              Rename Folder
-            </DialogTitle>
-          </DialogHeader>
-          <div className="py-4">
-            <Label className="text-muted-foreground">New Folder Name</Label>
-            <Input
-              value={newFolderName}
-              onChange={(e) => setNewFolderName(e.target.value)}
-              placeholder="Enter new name"
-              className="bg-card text-foreground border-border mt-2"
-              onKeyDown={(e) => e.key === 'Enter' && handleRenameFolder()}
-            />
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowRenameFolderModal(false)} className="border-border">
-              Cancel
-            </Button>
-            <Button
-              onClick={handleRenameFolder}
-              disabled={folderActionLoading || !newFolderName.trim()}
-              className="bg-yellow-500 hover:bg-yellow-600 text-black"
-            >
-              {folderActionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Rename'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Delete Folder Confirmation Modal */}
-      <Dialog open={showDeleteFolderModal} onOpenChange={setShowDeleteFolderModal}>
-        <DialogContent className="bg-background border-border text-foreground max-w-md">
-          <DialogHeader>
-            <DialogTitle className="text-foreground flex items-center gap-2">
-              <Trash2 className="w-5 h-5 text-red-400" />
-              Delete Folder
-            </DialogTitle>
-          </DialogHeader>
-          <div className="py-4">
-            <p className="text-foreground">
-              Are you sure you want to delete <span className="font-semibold">"{folderToDelete?.name}"</span>?
-            </p>
-            <p className="text-muted-foreground text-sm mt-2">
-              Photos will be moved back to your main gallery.
-            </p>
-          </div>
-          <DialogFooter className="gap-2">
-            <Button 
-              variant="outline" 
-              onClick={() => {
-                setShowDeleteFolderModal(false);
-                setFolderToDelete(null);
-              }} 
-              className="border-border text-foreground hover:bg-muted"
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={confirmDeleteFolder}
-              disabled={folderActionLoading}
-              className="bg-red-500 hover:bg-red-600 text-white"
-              data-testid="confirm-delete-folder"
-            >
-              {folderActionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Delete Folder'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Move to Folder Modal */}
-      <Dialog open={showMoveToFolderModal} onOpenChange={setShowMoveToFolderModal}>
-        <DialogContent className="bg-background border-border text-foreground max-w-md max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="text-foreground flex items-center gap-2">
-              <Folder className="w-5 h-5 text-cyan-400" />
-              Move {selectedItems.size} item(s) to folder
-            </DialogTitle>
-          </DialogHeader>
-          <div className="py-4 space-y-2">
-            {galleries.length === 0 ? (
-              <div className="text-center py-8 bg-muted/50 rounded-lg">
-                <Folder className="w-10 h-10 text-muted-foreground/40 mx-auto mb-2" />
-                <p className="text-muted-foreground text-sm">No folders yet</p>
-                <Button
-                  onClick={() => {
-                    setShowMoveToFolderModal(false);
-                    setShowCreateFolderModal(true);
-                  }}
-                  className="mt-3 bg-cyan-500 hover:bg-cyan-600 text-black"
-                  size="sm"
-                >
-                  <Plus className="w-4 h-4 mr-1" />
-                  Create Folder First
-                </Button>
-              </div>
-            ) : (
-              galleries.map((folder) => (
-                <button
-                  key={folder.id}
-                  onClick={() => handleMoveToFolder(folder.id)}
-                  disabled={folderActionLoading}
-                  className="w-full flex items-center gap-3 p-3 rounded-lg bg-card hover:bg-muted transition-colors text-left border border-border"
-                >
-                  <Folder className="w-5 h-5 text-cyan-400" />
-                  <div className="flex-1">
-                    <p className="text-foreground font-medium">{folder.title}</p>
-                    <p className="text-muted-foreground text-xs">{folder.item_count || 0} photos</p>
-                  </div>
-                </button>
-              ))
-            )}
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowMoveToFolderModal(false)} className="border-border">
-              Cancel
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Copy to Folder Modal */}
-      <Dialog open={showCopyToFolderModal} onOpenChange={setShowCopyToFolderModal}>
-        <DialogContent className="bg-background border-border text-foreground max-w-md max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="text-foreground flex items-center gap-2">
-              <Copy className="w-5 h-5 text-cyan-400" />
-              Copy {selectedItems.size} item(s) to folder
-            </DialogTitle>
-          </DialogHeader>
-          <p className="text-muted-foreground text-sm">Original photos will remain in your main gallery.</p>
-          <div className="py-4 space-y-2">
-            {galleries.length === 0 ? (
-              <div className="text-center py-8 bg-muted/50 rounded-lg">
-                <Folder className="w-10 h-10 text-muted-foreground/40 mx-auto mb-2" />
-                <p className="text-muted-foreground text-sm">No folders yet</p>
-                <Button
-                  onClick={() => {
-                    setShowCopyToFolderModal(false);
-                    setShowCreateFolderModal(true);
-                  }}
-                  className="mt-3 bg-cyan-500 hover:bg-cyan-600 text-black"
-                  size="sm"
-                >
-                  <Plus className="w-4 h-4 mr-1" />
-                  Create Folder First
-                </Button>
-              </div>
-            ) : (
-              galleries.map((folder) => (
-                <button
-                  key={folder.id}
-                  onClick={() => handleCopyToFolder(folder.id)}
-                  disabled={folderActionLoading}
-                  className="w-full flex items-center gap-3 p-3 rounded-lg bg-card hover:bg-muted transition-colors text-left border border-border"
-                >
-                  <Folder className="w-5 h-5 text-cyan-400" />
-                  <div className="flex-1">
-                    <p className="text-foreground font-medium">{folder.title}</p>
-                    <p className="text-muted-foreground text-xs">{folder.item_count || 0} photos</p>
-                  </div>
-                </button>
-              ))
-            )}
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowCopyToFolderModal(false)} className="border-border">
-              Cancel
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* ============ TAG & ASSIGN MODAL ============ */}
-      <Dialog open={showTagAssignModal} onOpenChange={setShowTagAssignModal}>
-        <DialogContent className="max-w-xl bg-background border-border max-h-[90vh] overflow-hidden flex flex-col">
-          <DialogHeader>
-            <DialogTitle className="text-foreground flex items-center gap-2">
-              <Sparkles className="w-5 h-5 text-purple-400" />
-              Tag & Assign — {selectedGallery?.title || 'Gallery'}
-            </DialogTitle>
-            <p className="text-xs text-muted-foreground">
-              {selectedItems.size > 0 
-                ? `Tagging ${selectedItems.size} selected items` 
-                : `Tagging all ${galleryItems.length} items in this folder`}
-            </p>
-          </DialogHeader>
-          
-          <div className="flex-1 overflow-y-auto space-y-4 pr-1">
-            {/* ── Item Preview Strip ── */}
-            <div className="rounded-lg p-2.5" style={{ background: 'rgba(139,92,246,0.06)', border: '1px solid rgba(139,92,246,0.15)' }}>
-              <div className="flex items-center gap-2 mb-2">
-                <span className="text-[11px] font-semibold text-purple-400">
-                  📦 {selectedItems.size > 0 ? `${selectedItems.size} Selected` : `All ${galleryItems.length} Items`}
-                </span>
-                <span className="text-[10px] text-muted-foreground">
-                  {galleryItems.filter(i => i.media_type !== 'video').length} 📷 • {galleryItems.filter(i => i.media_type === 'video').length} 🎬
-                </span>
-              </div>
-              <div className="flex gap-1.5 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
-                {(selectedItems.size > 0 
-                  ? galleryItems.filter(i => selectedItems.has(i.id))
-                  : galleryItems
-                ).slice(0, 12).map(item => (
-                  <div key={item.id} className="w-11 h-11 rounded-lg overflow-hidden flex-shrink-0 relative" style={{ border: '1px solid rgba(255,255,255,0.1)' }}>
-                    {item.media_type === 'video' ? (
-                      <video src={getFullUrl(item.preview_url)} className="w-full h-full object-cover" muted />
-                    ) : (
-                      <img src={getFullUrl(item.preview_url || item.thumbnail_url)} alt="" className="w-full h-full object-cover" />
-                    )}
-                    {item.media_type === 'video' && (
-                      <div className="absolute bottom-0 left-0 right-0 bg-purple-600/80 text-[6px] text-white text-center font-bold">VID</div>
-                    )}
-                  </div>
-                ))}
-                {(selectedItems.size > 0 ? selectedItems.size : galleryItems.length) > 12 && (
-                  <div className="w-11 h-11 rounded-lg flex-shrink-0 flex items-center justify-center text-[10px] font-bold text-muted-foreground" style={{ background: 'rgba(255,255,255,0.05)', border: '1px dashed rgba(255,255,255,0.15)' }}>
-                    +{(selectedItems.size > 0 ? selectedItems.size : galleryItems.length) - 12}
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* ── Session Participants Section ── */}
-            {participantsLoading ? (
-              <div className="flex items-center justify-center py-8">
-                <Loader2 className="w-6 h-6 animate-spin text-purple-400" />
-                <span className="ml-2 text-muted-foreground text-sm">Loading participants...</span>
-              </div>
-            ) : participants.length > 0 ? (
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                    <Users className="w-4 h-4 text-purple-400" />
-                    Session Participants ({participants.length})
-                  </h3>
-                  {/* AI Auto-tag shortcut */}
-                  <Button size="sm" variant="ghost" className="text-xs text-cyan-400 hover:text-cyan-300 h-7 px-2"
-                    onClick={() => { setShowTagAssignModal(false); handleAiAutoTag(); }}
-                    disabled={aiAutoTagLoading}>
-                    <Sparkles className="w-3 h-3 mr-1" /> AI Match All
-                  </Button>
-                </div>
-                
-                {participants.map((p) => {
-                  const isLoading = batchTagLoading[p.surfer_id] || distributeLoading[p.surfer_id];
-                  const totalItems = selectedItems.size > 0 ? selectedItems.size : galleryItems.length;
-                  const isFullyDistributed = p.items_distributed >= totalItems && totalItems > 0;
-                  const hasCredits = p.photos_credit_remaining > 0;
-                  const creditsToUse = Math.min(p.photos_credit_remaining || 0, totalItems - (p.items_distributed || 0));
-                  const previewCount = Math.max(0, totalItems - (p.items_distributed || 0) - creditsToUse);
-                  
-                  return (
-                    <div key={p.surfer_id}
-                      className={`rounded-xl overflow-hidden transition-all ${
-                        isFullyDistributed 
-                          ? 'opacity-60' 
-                          : 'hover:border-purple-500/40'
-                      }`}
-                      style={{
-                        background: isFullyDistributed ? 'rgba(16,185,129,0.06)' : 'rgba(255,255,255,0.02)',
-                        border: `1px solid ${isFullyDistributed ? 'rgba(16,185,129,0.2)' : 'rgba(255,255,255,0.08)'}`
-                      }}>
-                      <div className="flex items-center gap-3 p-3">
-                        {/* Avatar */}
-                        <div className="relative flex-shrink-0">
-                          {p.avatar_url || p.selfie_url ? (
-                            <img src={getFullUrl(p.selfie_url || p.avatar_url)} alt={p.full_name}
-                              className="w-11 h-11 rounded-xl object-cover"
-                              style={{ border: `2px solid ${isFullyDistributed ? '#10b981' : hasCredits ? '#f59e0b' : '#6b7280'}` }} />
-                          ) : (
-                            <div className="w-11 h-11 rounded-xl flex items-center justify-center text-sm font-bold text-white"
-                              style={{ background: 'linear-gradient(135deg, #06b6d4, #3b82f6)', border: `2px solid ${isFullyDistributed ? '#10b981' : hasCredits ? '#f59e0b' : '#6b7280'}` }}>
-                              {(p.full_name || '?')[0]}
-                            </div>
-                          )}
-                          {isFullyDistributed && (
-                            <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-emerald-500 flex items-center justify-center shadow-sm">
-                              <CheckCircle className="w-3 h-3 text-white" />
-                            </div>
-                          )}
-                        </div>
-                        
-                        {/* Name + delivery preview */}
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-sm font-semibold text-foreground truncate">{p.full_name || 'Unknown'}</span>
-                            {p.username && <span className="text-[10px] text-muted-foreground">@{p.username}</span>}
-                          </div>
-                          {isFullyDistributed ? (
-                            <p className="text-[11px] text-emerald-400 font-medium mt-0.5">
-                              ✅ All {p.items_distributed} items already delivered
-                            </p>
-                          ) : (
-                            <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                              {p.items_distributed > 0 && (
-                                <span className="text-[10px] px-1.5 py-0.5 rounded-full font-medium" style={{ background: 'rgba(59,130,246,0.15)', color: '#60a5fa' }}>
-                                  📤 {p.items_distributed} sent
-                                </span>
-                              )}
-                              {creditsToUse > 0 && (
-                                <span className="text-[10px] px-1.5 py-0.5 rounded-full font-medium" style={{ background: 'rgba(16,185,129,0.15)', color: '#34d399' }}>
-                                  🎟️ {creditsToUse} included
-                                </span>
-                              )}
-                              {previewCount > 0 && (
-                                <span className="text-[10px] px-1.5 py-0.5 rounded-full font-medium" style={{ background: 'rgba(245,158,11,0.15)', color: '#fbbf24' }}>
-                                  🔒 {previewCount} preview
-                                </span>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                        
-                        {/* Action */}
-                        {isFullyDistributed ? (
-                          <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30 text-[10px] flex-shrink-0">
-                            ✓ Done
-                          </Badge>
-                        ) : (
-                          <Button size="sm"
-                            className="bg-purple-500 hover:bg-purple-600 text-white text-xs h-9 px-3 flex-shrink-0 shadow-sm"
-                            onClick={() => handleBatchTagToSurfer(p.surfer_id, p.full_name || p.username)}
-                            disabled={isLoading || galleryItems.length === 0}>
-                            {isLoading ? (
-                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            ) : (
-                              <>
-                                <Send className="w-3.5 h-3.5 mr-1.5" />
-                                Tag & Send
-                              </>
-                            )}
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-                
-                {/* Distribute All shortcut */}
-                {participants.length > 1 && participants.some(p => p.items_distributed < galleryItems.length) && (
-                  <Button size="sm" variant="outline"
-                    className="w-full border-emerald-600 text-emerald-400 hover:bg-emerald-500/10 text-xs h-9 mt-1"
-                    onClick={handleDistributeAll}
-                    disabled={distributeAllLoading || galleryItems.length === 0}>
-                    {distributeAllLoading ? (
-                      <Loader2 className="w-3 h-3 animate-spin mr-1" />
-                    ) : (
-                      <Send className="w-3 h-3 mr-1" />
-                    )}
-                    Tag All Items → All {participants.length} Participants
-                  </Button>
-                )}
-              </div>
-            ) : sessionInfo && !sessionInfo.is_linked ? null : (
-              <div className="text-center py-6">
-                <Users className="w-8 h-8 text-muted-foreground/40 mx-auto mb-2" />
-                <p className="text-sm text-muted-foreground">No session participants found</p>
-                <p className="text-xs text-muted-foreground mt-1">Use manual assignment below to send items to any surfer</p>
-              </div>
-            )}
-
-            {/* Divider */}
-            <div className="flex items-center gap-3">
-              <div className="flex-1 h-px bg-border" />
-              <span className="text-xs text-muted-foreground">or assign manually</span>
-              <div className="flex-1 h-px bg-border" />
-            </div>
-
-            {/* Manual Surfer Search */}
-            <div className="space-y-2">
-              <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                <UserPlus className="w-4 h-4 text-amber-400" />
-                Manual Assignment
-              </h3>
-              <div className="relative">
-                <Input
-                  placeholder="Search surfer by name or username..."
-                  value={manualSurferSearch}
-                  onChange={(e) => {
-                    setManualSurferSearch(e.target.value);
-                    handleSearchSurfers(e.target.value);
-                  }}
-                  className="bg-muted border-border text-foreground"
-                />
-                {searchLoading && (
-                  <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-muted-foreground" />
-                )}
-              </div>
-              
-              {/* Search Results */}
-              {searchResults.length > 0 && (
-                <div className="space-y-1 max-h-48 overflow-y-auto">
-                  {searchResults.map((surfer) => {
-                    const isLoading = batchTagLoading[surfer.id] || distributeLoading[surfer.id];
-                    return (
-                      <div key={surfer.id}
-                        className="flex items-center gap-3 p-2.5 rounded-lg bg-muted/30 border border-border/50 hover:border-amber-500/50 transition-all">
-                        {surfer.avatar_url ? (
-                          <img src={getFullUrl(surfer.avatar_url)} alt={surfer.full_name} className="w-9 h-9 rounded-full object-cover border border-border" />
-                        ) : (
-                          <div className="w-9 h-9 rounded-full bg-amber-500/20 flex items-center justify-center text-amber-400 font-bold text-xs">
-                            {(surfer.full_name || surfer.username || '?').charAt(0).toUpperCase()}
-                          </div>
-                        )}
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-foreground truncate">{surfer.full_name || surfer.username}</p>
-                          {surfer.username && <p className="text-[10px] text-muted-foreground">@{surfer.username}</p>}
-                        </div>
-                        <Button size="sm"
-                          className="bg-amber-500 hover:bg-amber-600 text-black text-xs h-8 flex-shrink-0"
-                          onClick={() => handleBatchTagToSurfer(surfer.id, surfer.full_name || surfer.username)}
-                          disabled={isLoading}>
-                          {isLoading ? (
-                            <Loader2 className="w-3 h-3 animate-spin" />
-                          ) : (
-                            <><Send className="w-3 h-3 mr-1" /> Tag & Send</>
-                          )}
-                        </Button>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-              {manualSurferSearch.length >= 2 && !searchLoading && searchResults.length === 0 && (
-                <p className="text-xs text-muted-foreground text-center py-2">No surfers found for "{manualSurferSearch}"</p>
-              )}
-            </div>
-            
-            {/* Smart Delivery Info */}
-            <div className="p-3 rounded-lg" style={{ background: 'rgba(6,182,212,0.06)', border: '1px solid rgba(6,182,212,0.15)' }}>
-              <p className="text-[11px] text-muted-foreground leading-relaxed">
-                <strong className="text-cyan-400">How it works:</strong> Items tagged to surfers with remaining credits are delivered as <strong className="text-emerald-400">full-resolution included</strong> content. 
-                Once credits are used, additional items are delivered as <strong className="text-amber-400">watermarked previews</strong> that surfers can purchase.
-                Already-delivered items are automatically skipped.
-              </p>
-            </div>
-          </div>
-          
-          <DialogFooter className="pt-3 border-t border-border">
-            <Button variant="outline" onClick={() => setShowTagAssignModal(false)} className="border-border">
-              Close
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* TAG_ASSIGN modal - extracted */}
 
       {/* Batch Tag Picker now unified into Tag & Assign modal above */}
 
-      {/* ============ THUMBNAIL PICKER MODAL ============ */}
-      <Dialog open={showThumbnailPicker} onOpenChange={setShowThumbnailPicker}>
-        <DialogContent className="bg-background border-border text-foreground max-w-lg max-h-[85vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="text-foreground flex items-center gap-2">
-              <ImagePlus className="w-5 h-5 text-cyan-400" />
-              Choose Folder Thumbnail
-            </DialogTitle>
-            <p className="text-xs text-muted-foreground">
-              Select any photo from <strong>{thumbnailPickerGallery?.title}</strong> to use as the folder cover.
-            </p>
-          </DialogHeader>
-          <div className="py-3">
-            {thumbnailPickerLoading ? (
-              <div className="flex items-center justify-center py-12">
-                <Loader2 className="w-8 h-8 animate-spin text-cyan-400" />
-              </div>
-            ) : thumbnailPickerItems.length === 0 ? (
-              <div className="text-center py-8 bg-muted/50 rounded-lg">
-                <Camera className="w-10 h-10 text-muted-foreground/40 mx-auto mb-2" />
-                <p className="text-muted-foreground text-sm">No items in this folder yet.</p>
-                <p className="text-muted-foreground text-xs mt-1">Upload photos first, then set one as the cover.</p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-3 gap-2">
-                {thumbnailPickerItems.filter(item => item.media_type !== 'video').map((item) => (
-                  <button
-                    key={item.id}
-                    onClick={() => handleSetThumbnail(item.id)}
-                    disabled={settingThumbnail}
-                    className="relative aspect-square rounded-lg overflow-hidden bg-muted hover:ring-2 hover:ring-cyan-400 transition-all group/thumb disabled:opacity-50"
-                    data-testid={`thumbnail-pick-${item.id}`}
-                  >
-                    <img
-                      src={getFullUrl(item.thumbnail_url || item.preview_url)}
-                      alt={item.title || 'Photo'}
-                      className="w-full h-full object-cover group-hover/thumb:scale-105 transition-transform duration-200"
-                    />
-                    <div className="absolute inset-0 bg-black/0 group-hover/thumb:bg-black/40 transition-colors flex items-center justify-center">
-                      <div className="opacity-0 group-hover/thumb:opacity-100 transition-opacity flex flex-col items-center gap-1">
-                        <ImagePlus className="w-5 h-5 text-white" />
-                        <span className="text-white text-[10px] font-medium">Set as Cover</span>
-                      </div>
-                    </div>
-                    {/* Current cover indicator */}
-                    {thumbnailPickerGallery?.cover_image_url && 
-                     (item.preview_url === thumbnailPickerGallery.cover_image_url || 
-                      item.thumbnail_url === thumbnailPickerGallery.cover_image_url) && (
-                      <div className="absolute top-1 right-1">
-                        <Badge className="bg-cyan-500 text-white text-[8px] px-1 py-0">Current</Badge>
-                      </div>
-                    )}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-          <DialogFooter className="gap-2">
-            {thumbnailPickerGallery?.cover_image_url && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => handleClearThumbnail(thumbnailPickerGallery.id)}
-                className="border-amber-500/30 text-amber-400 hover:bg-amber-500/10 mr-auto"
-              >
-                <RotateCcw className="w-3 h-3 mr-1" />
-                Reset to Auto
-              </Button>
-            )}
-            <Button variant="outline" onClick={() => setShowThumbnailPicker(false)} className="border-border">
-              Cancel
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* THUMBNAIL modal - extracted */}
 
-      {/* ============ LINK SESSION MODAL ============ */}
-      <Dialog open={showLinkSessionModal} onOpenChange={setShowLinkSessionModal}>
-        <DialogContent className="bg-background border-border text-foreground max-w-md max-h-[85vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="text-foreground flex items-center gap-2">
-              <Link2 className="w-5 h-5 text-purple-400" />
-              Link to Session
-            </DialogTitle>
-            <p className="text-xs text-muted-foreground">
-              Connect <strong>{linkSessionGallery?.title}</strong> to a past session to enable participant tracking and auto-distribution.
-            </p>
-          </DialogHeader>
-          <div className="py-3 space-y-2">
-            {recentSessionsLoading ? (
-              <div className="flex items-center justify-center py-12">
-                <Loader2 className="w-6 h-6 animate-spin text-purple-400" />
-                <span className="ml-2 text-muted-foreground text-sm">Loading recent sessions...</span>
-              </div>
-            ) : recentSessions.length === 0 ? (
-              <div className="text-center py-8 bg-muted/50 rounded-lg">
-                <Radio className="w-10 h-10 text-muted-foreground/40 mx-auto mb-2" />
-                <p className="text-muted-foreground text-sm">No recent sessions found</p>
-                <p className="text-muted-foreground text-xs mt-1">Start a live session first, then come back to link it.</p>
-              </div>
-            ) : (
-              recentSessions.filter(s => s.is_available).length === 0 ? (
-                <div className="text-center py-8 bg-muted/50 rounded-lg">
-                  <CheckCircle className="w-10 h-10 text-emerald-400/40 mx-auto mb-2" />
-                  <p className="text-muted-foreground text-sm">All sessions are already linked</p>
-                  <p className="text-muted-foreground text-xs mt-1">Start a new live session, then come back to link it.</p>
-                </div>
-              ) : (
-              recentSessions.filter(s => s.is_available).map((session) => (
-                <button
-                  key={`${session.session_type}-${session.id}`}
-                  onClick={() => handleLinkSession(session)}
-                  disabled={linkingSession}
-                  className="w-full flex items-center gap-3 p-3 rounded-lg bg-card hover:bg-muted transition-colors text-left border border-border hover:border-purple-500/40 disabled:opacity-50"
-                  data-testid={`link-session-option-${session.id}`}
-                >
-                  <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{
-                    background: session.session_type === 'live'
-                      ? (session.status === 'active' || session.status === 'shooting' ? 'rgba(16,185,129,0.15)' : 'rgba(139,92,246,0.1)')
-                      : session.session_type === 'booking'
-                      ? 'rgba(59,130,246,0.1)'
-                      : 'rgba(249,115,22,0.1)',
-                    border: `1px solid ${session.session_type === 'live'
-                      ? (session.status === 'active' || session.status === 'shooting' ? 'rgba(16,185,129,0.3)' : 'rgba(139,92,246,0.2)')
-                      : session.session_type === 'booking'
-                      ? 'rgba(59,130,246,0.2)'
-                      : 'rgba(249,115,22,0.2)'}`
-                  }}>
-                    <Radio className={`w-4 h-4 ${
-                      session.session_type === 'live'
-                        ? (session.status === 'active' || session.status === 'shooting' ? 'text-emerald-400' : 'text-purple-400')
-                        : session.session_type === 'booking'
-                        ? 'text-blue-400'
-                        : 'text-orange-400'
-                    }`} />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-foreground font-medium text-sm truncate">
-                      {session.location_name || 'Session'}
-                    </p>
-                    <div className="flex items-center gap-2 text-[10px] text-muted-foreground mt-0.5">
-                      {session.started_at && (
-                        <span>{new Date(session.started_at).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}</span>
-                      )}
-                      {session.participant_count > 0 && (
-                        <span className="flex items-center gap-0.5">
-                          <Users className="w-3 h-3" />
-                          {session.participant_count}
-                        </span>
-                      )}
-                      <Badge className={`text-[8px] px-1 py-0 ${
-                        session.session_type === 'live'
-                          ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
-                          : session.session_type === 'booking'
-                          ? 'bg-blue-500/20 text-blue-400 border-blue-500/30'
-                          : 'bg-orange-500/20 text-orange-400 border-orange-500/30'
-                      }`}>
-                        {session.session_type === 'live' ? '🟢 Live' :
-                         session.session_type === 'booking' ? '📅 Booking' :
-                         '⚡ On-Demand'}
-                      </Badge>
-                      <Badge className={`text-[8px] px-1 py-0 ${
-                        session.status === 'active' || session.status === 'shooting'
-                          ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
-                          : session.status === 'completed' || session.status === 'Completed'
-                          ? 'bg-blue-500/20 text-blue-400 border-blue-500/30'
-                          : 'bg-zinc-500/20 text-zinc-400 border-zinc-500/30'
-                      }`}>
-                        {session.status}
-                      </Badge>
-                    </div>
-                  </div>
-                  {linkingSession ? (
-                    <Loader2 className="w-4 h-4 animate-spin text-purple-400 flex-shrink-0" />
-                  ) : (
-                    <Link2 className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-                  )}
-                </button>
-              ))
-              )
-            )}
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowLinkSessionModal(false)} className="border-border">
-              Cancel
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* LINK_SESSION modal - extracted */}
 
       {/* Watermark Settings Modal */}
       <WatermarkSettings
@@ -3026,241 +1005,5 @@ export const GalleryPage = () => {
   );
 };
 
-const GalleryCard = ({ item, onClick, isOwner, isGromParent, linkedGroms, onTagGrom, onSetCustomPrice, onClearCustomPrice, getDisplayPrice }) => {
-  const isVideo = item.media_type === 'video';
-  const [showPriceEdit, setShowPriceEdit] = useState(false);
-  const [editPrice, setEditPrice] = useState(item.custom_price || '');
-  const [saving, setSaving] = useState(false);
-  const [showTagMenu, setShowTagMenu] = useState(false);
-  
-  // Calculate display price using dynamic pricing rules
-  const priceInfo = getDisplayPrice ? getDisplayPrice(item) : { price: item.price, source: 'default' };
-  const hasCustomPrice = item.custom_price !== null && item.custom_price !== undefined && item.custom_price > 0;
-  
-  const handlePriceSubmit = async (e) => {
-    e.stopPropagation();
-    if (!onSetCustomPrice) return;
-    
-    setSaving(true);
-    const price = parseFloat(editPrice);
-    await onSetCustomPrice(item.id, price > 0 ? price : 0);
-    setSaving(false);
-    setShowPriceEdit(false);
-  };
-  
-  const handleClearPrice = async (e) => {
-    e.stopPropagation();
-    if (!onClearCustomPrice) return;
-    
-    setSaving(true);
-    await onClearCustomPrice(item.id);
-    setSaving(false);
-    setShowPriceEdit(false);
-    setEditPrice('');
-  };
-  
-  return (
-    <div
-      className="relative aspect-square rounded-lg overflow-hidden bg-card cursor-pointer group"
-      data-testid={`gallery-item-${item.id}`}
-    >
-      <div onClick={onClick}>
-        {isVideo ? (
-          <video
-            src={getFullUrl(item.preview_url)}
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-            muted
-            playsInline
-          />
-        ) : (
-          <img
-            src={getFullUrl(item.preview_url)}
-            alt={item.title || 'Gallery photo'}
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-          />
-        )}
-      </div>
-      
-      {/* Video indicator */}
-      {isVideo && (
-        <div className="absolute top-2 left-2">
-          <Badge className="bg-black/70 text-white text-xs">
-            <Play className="w-3 h-3 mr-1" />
-            {item.video_duration ? `${Math.round(item.video_duration)}s` : 'Video'}
-          </Badge>
-        </div>
-      )}
-      
-      {/* Price badge - with dynamic pricing indicator */}
-      {!item.is_purchased && item.is_for_sale && (
-        <div className="absolute top-2 right-2">
-          <Badge className={`text-white text-xs ${
-            hasCustomPrice 
-              ? 'bg-gradient-to-r from-amber-500 to-orange-500' 
-              : 'bg-black/70'
-          }`}>
-            {hasCustomPrice && <Sparkles className="w-3 h-3 mr-1" />}
-            {!hasCustomPrice && <Lock className="w-3 h-3 mr-1" />}
-            ${priceInfo.price}
-          </Badge>
-        </div>
-      )}
-      
-      {item.is_purchased && (
-        <div className="absolute top-2 right-2">
-          <Badge className="bg-emerald-500 text-white text-xs">
-            <Check className="w-3 h-3 mr-1" />
-            Owned
-          </Badge>
-        </div>
-      )}
-      
-      {/* Hover overlay - different for owners vs buyers */}
-      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-        <div className="absolute bottom-0 left-0 right-0 p-3 pointer-events-auto">
-          {item.title && (
-            <p className="text-white font-medium truncate" onClick={onClick}>{item.title}</p>
-          )}
-          <div className="flex items-center gap-3 text-xs text-gray-300 mt-1" onClick={onClick}>
-            <span className="flex items-center gap-1">
-              <Eye className="w-3 h-3" />
-              {item.view_count}
-            </span>
-            <span className="flex items-center gap-1">
-              <ShoppingCart className="w-3 h-3" />
-              {item.purchase_count}
-            </span>
-          </div>
-          
-          {/* Quick Edit Price Button - Owner Only */}
-          {isOwner && !showPriceEdit && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                setShowPriceEdit(true);
-                setEditPrice(item.custom_price || '');
-              }}
-              className="mt-2 w-full flex items-center justify-center gap-1 px-2 py-1.5 bg-zinc-800/90 hover:bg-zinc-700 rounded text-xs text-white transition-colors"
-              data-testid={`quick-price-btn-${item.id}`}
-            >
-              <Edit3 className="w-3 h-3" />
-              {hasCustomPrice ? 'Edit Fixed Price' : 'Set Fixed Price'}
-            </button>
-          )}
-          
-          {/* Quick Edit Price Form */}
-          {isOwner && showPriceEdit && (
-            <div 
-              className="mt-2 p-2 bg-zinc-900/95 rounded border border-zinc-700"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="flex items-center gap-2">
-                <div className="relative flex-1">
-                  <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400 text-xs">$</span>
-                  <input
-                    type="number"
-                    value={editPrice}
-                    onChange={(e) => setEditPrice(e.target.value)}
-                    placeholder="Price"
-                    className="w-full pl-5 pr-2 py-1.5 bg-zinc-800 border border-zinc-600 rounded text-white text-xs"
-                    min="0"
-                    step="0.5"
-                    autoFocus
-                  />
-                </div>
-                <button
-                  onClick={handlePriceSubmit}
-                  disabled={saving}
-                  className="px-2 py-1.5 bg-green-500 hover:bg-green-600 rounded text-black text-xs font-medium disabled:opacity-50"
-                >
-                  {saving ? '...' : 'Set'}
-                </button>
-              </div>
-              <div className="flex items-center justify-between mt-2">
-                {hasCustomPrice && (
-                  <button
-                    onClick={handleClearPrice}
-                    disabled={saving}
-                    className="flex items-center gap-1 text-xs text-amber-400 hover:text-amber-300"
-                  >
-                    <RotateCcw className="w-3 h-3" />
-                    Use gallery price
-                  </button>
-                )}
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setShowPriceEdit(false);
-                  }}
-                  className="text-xs text-gray-400 hover:text-white ml-auto"
-                >
-                  Cancel
-                </button>
-              </div>
-            </div>
-          )}
-          
-          {/* Tag Grom Button - Grom Parents Only */}
-          {isGromParent && linkedGroms && linkedGroms.length > 0 && !showPriceEdit && (
-            <div className="relative mt-2">
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setShowTagMenu(!showTagMenu);
-                }}
-                className="w-full flex items-center justify-center gap-1 px-2 py-1.5 bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-400 hover:to-blue-400 rounded text-xs text-white font-medium transition-colors"
-                data-testid={`tag-grom-btn-${item.id}`}
-              >
-                <UserPlus className="w-3 h-3" />
-                Tag Grom
-              </button>
-              
-              {/* Grom Selection Dropdown */}
-              {showTagMenu && (
-                <div 
-                  className="absolute bottom-full left-0 right-0 mb-1 p-2 bg-zinc-900 rounded border border-zinc-700 z-50"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <p className="text-xs text-gray-400 mb-2">Select Grom to tag:</p>
-                  {linkedGroms.map((grom) => (
-                    <button
-                      key={grom.id}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (onTagGrom) {
-                          onTagGrom(item.id, grom.id);
-                        }
-                        setShowTagMenu(false);
-                      }}
-                      className="w-full flex items-center gap-2 p-2 hover:bg-zinc-800 rounded text-left"
-                    >
-                      {grom.avatar ? (
-                        <img src={grom.avatar} alt={grom.name} className="w-5 h-5 rounded-full" />
-                      ) : (
-                        <div className="w-5 h-5 rounded-full bg-cyan-500 flex items-center justify-center text-xs text-black font-bold">
-                          {grom.name?.charAt(0) || 'G'}
-                        </div>
-                      )}
-                      <span className="text-white text-xs">{grom.name}</span>
-                    </button>
-                  ))}
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setShowTagMenu(false);
-                    }}
-                    className="mt-2 text-xs text-gray-400 hover:text-white"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-};
 
 export default GalleryPage;

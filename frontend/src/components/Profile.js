@@ -9,7 +9,7 @@ import {
   Grid3X3, Bookmark, UserSquare2, Play, Waves, ExternalLink,
   Instagram, Globe, Check, Loader2, UserPlus, UserMinus, ArrowLeft, Heart,
   Users, Radio, Image, Shield, Trophy, MoreHorizontal, Ban, Flag,
-  Star
+  Star, Zap
 } from 'lucide-react';
 
 // Custom Surfboard Icon Component
@@ -36,6 +36,7 @@ import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { toast } from 'sonner';
+import useProfileActions from '../hooks/useProfileActions';
 import { TaggedPhotoModal } from './TaggedPhotoModal';
 import { XPDisplay, BadgeRow } from './GamificationUI';
 import GoLiveModal from './GoLiveModal';
@@ -103,7 +104,7 @@ export const Profile = () => {
   const [isFollowing, setIsFollowing] = useState(false);
   const [followLoading, setFollowLoading] = useState(false);
   
-  // Tab state — read ?tab= param from URL to deep-link to a specific tab (e.g. reviews)
+  // Tab state - read ?tab= param from URL to deep-link to a specific tab (e.g. reviews)
   const [searchParams] = useSearchParams();
   const initialTab = searchParams.get('tab') || 'posts';
   const [activeTab, setActiveTab] = useState(initialTab);
@@ -187,91 +188,62 @@ export const Profile = () => {
     }
   }, [activeTab, profileUserId, authLoading]);
 
-  const fetchProfile = async () => {
-    if (!profileUserId) {
-      setLoading(false);
-      return;
-    }
-    
-    try {
-      const response = await apiClient.get(`/profiles/${profileUserId}`);
-      setProfile(response.data);
-      if (isOwnProfile && user) {
-        setEditData({
-          full_name: response.data.full_name || '',
-          bio: response.data.bio || '',
-          location: response.data.location || '',
-          instagram_url: response.data.instagram_url || '',
-          website_url: response.data.website_url || '',
-          stance: response.data.stance || '',
-          wetsuit_color: response.data.wetsuit_color || '',
-          rash_guard_color: response.data.rash_guard_color || ''
-        });
+  // Dynamic Open Graph meta tags for social sharing / link previews
+  useEffect(() => {
+    if (!profile) return;
+    const ogTags = [];
+    const setMeta = (property, content) => {
+      if (!content) return;
+      let tag = document.querySelector(`meta[property="${property}"]`);
+      if (!tag) {
+        tag = document.createElement('meta');
+        tag.setAttribute('property', property);
+        document.head.appendChild(tag);
+        ogTags.push(tag);
       }
-    } catch (error) {
-      logger.error('Failed to load profile:', error);
-      // Only show error toast, don't redirect - let user stay on page
-      if (error.response?.status === 404) {
-        toast.error('User not found');
-        navigate('/explore');
-      } else {
-        toast.error('Failed to load profile');
+      tag.setAttribute('content', content);
+    };
+    const setName = (name, content) => {
+      if (!content) return;
+      let tag = document.querySelector(`meta[name="${name}"]`);
+      if (!tag) {
+        tag = document.createElement('meta');
+        tag.setAttribute('name', name);
+        document.head.appendChild(tag);
+        ogTags.push(tag);
       }
-    } finally {
-      setLoading(false);
-    }
-  };
+      tag.setAttribute('content', content);
+    };
 
-  const fetchStreak = async () => {
-    try {
-      const response = await apiClient.get(`/streak/${profileUserId}`);
-      setStreak(response.data);
-    } catch (error) {
-      logger.error('Error fetching streak:', error);
-    }
-  };
+    const title = `${profile.full_name || 'User'} - Raw Surf`;
+    const description = profile.bio || `Check out ${profile.full_name || 'this user'}'s profile on Raw Surf`;
+    const image = profile.avatar_url ? getFullUrl(profile.avatar_url) : null;
+    const url = `${window.location.origin}/profile/${profileUserId}`;
 
-  const fetchSocialStats = async () => {
-    try {
-      const [followersRes, followingRes] = await Promise.all([
-        apiClient.get(`/followers/${profileUserId}`).catch(() => ({ data: [] })),
-        apiClient.get(`/following/${profileUserId}`).catch(() => ({ data: [] }))
-      ]);
-      setSocialStats({
-        followers: followersRes.data?.length || 0,
-        following: followingRes.data?.length || 0
-      });
-    } catch (error) {
-      logger.error('Error fetching social stats:', error);
-    }
-  };
+    document.title = title;
+    setMeta('og:title', title);
+    setMeta('og:description', description);
+    setMeta('og:image', image);
+    setMeta('og:url', url);
+    setMeta('og:type', 'profile');
+    setMeta('og:site_name', 'Raw Surf');
+    setName('twitter:card', image ? 'summary_large_image' : 'summary');
+    setName('twitter:title', title);
+    setName('twitter:description', description);
+    setName('twitter:image', image);
 
-  const fetchContentStats = async () => {
-    try {
-      const response = await apiClient.get(`/profile/${profileUserId}/stats`);
-      setContentStats(response.data);
-    } catch (error) {
-      logger.error('Error fetching content stats:', error);
-    }
-  };
+    return () => {
+      document.title = 'Raw Surf';
+      ogTags.forEach(tag => tag.remove());
+    };
+  }, [profile, profileUserId]);
 
-  const fetchImpactScore = async () => {
-    try {
-      const response = await apiClient.get(`/impact/public/${profileUserId}`);
-      setImpactScore(response.data);
-    } catch (error) {
-      logger.error('Error fetching impact score:', error);
-    }
-  };
+  // ============ HANDLERS EXTRACTED ============
 
-  const fetchGamificationStats = async () => {
-    try {
-      const response = await apiClient.get(`/gamification/user/${profileUserId}`);
-      setGamificationStats(response.data);
-    } catch (error) {
-      logger.error('Error fetching gamification stats:', error);
-    }
-  };
+
+
+
+
 
   // Note handlers moved to notesHook (useProfileNotes)
 
@@ -285,7 +257,7 @@ export const Profile = () => {
         setIsFollowing(response.data?.is_following === true);
         return;
       } catch (checkErr) {
-        // Endpoint doesn't exist yet — fall back to list search
+        // Endpoint doesn't exist yet - fall back to list search
       }
       const response = await apiClient.get(`/following/${user.id}`);
       const following = response.data || [];
@@ -296,82 +268,9 @@ export const Profile = () => {
     }
   };
 
-  const handleFollow = async () => {
-    if (!user?.id) {
-      toast.error('Please log in to follow users');
-      return;
-    }
-    
-    setFollowLoading(true);
-    try {
-      if (isFollowing) {
-        await apiClient.delete(`/follow/${profileUserId}?follower_id=${user.id}`);
-        setIsFollowing(false);
-        setSocialStats(prev => ({ ...prev, followers: Math.max(0, prev.followers - 1) }));
-        toast.success(`Unfollowed ${profile.full_name}`);
-      } else {
-        await apiClient.post(`/follow/${profileUserId}?follower_id=${user.id}`);
-        setIsFollowing(true);
-        setSocialStats(prev => ({ ...prev, followers: prev.followers + 1 }));
-        toast.success(`Following ${profile.full_name}`);
-      }
-    } catch (error) {
-      toast.error(error.response?.data?.detail || 'Failed to update follow status');
-    } finally {
-      setFollowLoading(false);
-    }
-  };
 
   // Block/Notes/QuickBook handlers are now in extracted hooks (blockHook, notesHook, quickBookHook)
 
-  const fetchTabContent = async (tab) => {
-    setTabLoading(true);
-    try {
-      let endpoint = '';
-      const qs = user?.id ? `?viewer_id=${user.id}` : '';
-      switch (tab) {
-        case 'posts':
-          endpoint = `/profile/${profileUserId}/posts${qs}`;
-          break;
-        case 'photos':
-          endpoint = `/profile/${profileUserId}/photos${qs}`;
-          break;
-        case 'session_shots':
-          endpoint = `/profile/${profileUserId}/session-shots${qs}`;
-          break;
-        case 'videos':
-          endpoint = `/profile/${profileUserId}/videos${qs}`;
-          break;
-        case 'saved':
-          // Only show saved tab for own profile
-          if (!isOwnProfile) {
-            setTabContent([]);
-            setTabLoading(false);
-            return;
-          }
-          endpoint = `/profile/${profileUserId}/saved${qs}`;
-          break;
-        case 'tagged':
-          endpoint = `/profile/${profileUserId}/tagged${qs}`;
-          break;
-        default:
-          endpoint = `/profile/${profileUserId}/posts${qs}`;
-      }
-      const response = await apiClient.get(endpoint);
-      // Handle both array and object responses (tagged returns {items, new_count})
-      // Use the `tab` parameter (not activeTab state) to avoid stale closure issues
-      if (tab === 'tagged' && response.data?.items) {
-        setTabContent(response.data.items);
-      } else {
-        setTabContent(response.data);
-      }
-    } catch (error) {
-      logger.error('Error fetching tab content:', error);
-      setTabContent([]);
-    } finally {
-      setTabLoading(false);
-    }
-  };
 
   const _handleLogout = () => {
     logout();
@@ -379,93 +278,57 @@ export const Profile = () => {
     toast.success('Logged out successfully');
   };
 
-  const toggleLive = async () => {
-    if (!profile) return; // Guard against null profile
-    if (!profile.is_live) {
-      // Open the Go Live modal with camera
-      setShowGoLiveModal(true);
-    } else {
-      // End live broadcast
-      try {
-        const activeStreams = await apiClient.get(`/social-live/active`);
-        const myStream = activeStreams.data.streams?.find(s => s.broadcaster_id === user.id);
-        if (myStream) {
-          await apiClient.post(`/social-live/${myStream.id}/end?broadcaster_id=${user.id}`);
-        }
-        setProfile({ ...profile, is_live: false });
-        toast.success('Live broadcast ended');
-      } catch (error) {
-        logger.error('End live error:', error);
-        // Fallback: update profile directly
-        try {
-          await apiClient.patch(`/profiles/${user.id}`, { is_live: false });
-          setProfile({ ...profile, is_live: false });
-          toast.success('Live broadcast ended');
-        } catch (e) {
-          toast.error('Failed to end live broadcast');
-        }
-      }
-    }
-  };
   
-  const handleGoLiveEnded = () => {
-    if (!profile) return; // Guard against null profile
-    setProfile({ ...profile, is_live: false });
-  };
 
-  const handleSaveProfile = async () => {
-    setEditLoading(true);
-    try {
-      const response = await apiClient.patch(`/profiles/${user.id}`, editData);
-      setProfile(response.data);
-      updateUser({ ...user, full_name: response.data.full_name });
-      setShowEditModal(false);
-      toast.success('Profile updated!');
-    } catch (error) {
-      toast.error('Failed to update profile');
-    } finally {
-      setEditLoading(false);
-    }
-  };
 
-  // Step 1: User selects file → open crop modal
-  const handleAvatarUpload = (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  // Step 1: User selects file ? open crop modal
 
-    if (!file.type.startsWith('image/')) {
-      toast.error('Please select an image file');
-      return;
-    }
+  // Step 2: Crop confirmed ? upload the cropped base64
 
-    // Open the crop modal instead of uploading directly
-    setCropFile(file);
-    // Reset file input so the same file can be re-selected
-    if (fileInputRef.current) fileInputRef.current.value = '';
-  };
 
-  // Step 2: Crop confirmed → upload the cropped base64
-  const handleCropConfirm = async (croppedBase64) => {
-    setCropFile(null);
-    setAvatarUploading(true);
-
-    try {
-      const response = await apiClient.patch(`/profiles/${user.id}`, {
-        avatar_url: croppedBase64
-      });
-      setProfile(response.data);
-      updateUser({
-        avatar_url: response.data.avatar_url,
-        updated_at: new Date().toISOString()
-      });
-      toast.success('Avatar updated!');
-    } catch (patchError) {
-      toast.error('Failed to upload avatar');
-      logger.error(patchError);
-    } finally {
-      setAvatarUploading(false);
-    }
-  };
+  const {
+    fetchProfile,
+    fetchStreak,
+    fetchSocialStats,
+    fetchContentStats,
+    fetchImpactScore,
+    fetchGamificationStats,
+    handleFollow,
+    fetchTabContent,
+    toggleLive,
+    handleGoLiveEnded,
+    handleSaveProfile,
+    handleAvatarUpload,
+    handleCropConfirm,
+  } = useProfileActions({
+    user, navigate,
+    profileUserId,
+    profile,
+    editData,
+    updateUser,
+    fileInputRef,
+    isFollowing,
+    isOwnProfile,
+    socialStats,
+    streak,
+    setAvatarUploading,
+    setContentStats,
+    setCropFile,
+    setEditData,
+    setEditLoading,
+    setFollowLoading,
+    setGamificationStats,
+    setImpactScore,
+    setIsFollowing,
+    setLoading,
+    setProfile,
+    setShowEditModal,
+    setShowGoLiveModal,
+    setSocialStats,
+    setStreak,
+    setTabContent,
+    setTabLoading,
+  });
 
   if (loading || authLoading) {
     return (
@@ -512,10 +375,22 @@ export const Profile = () => {
 
   return (
     <div className="pb-20 bg-background min-h-screen" data-testid="profile-page">
+      {/* JSON-LD Person structured data for SEO */}
+      {profile && (
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({
+          '@context': 'https://schema.org',
+          '@type': 'Person',
+          name: profile.full_name || 'Raw Surf User',
+          image: profile.avatar_url ? getFullUrl(profile.avatar_url) : undefined,
+          url: `${window.location.origin}/profile/${profileUserId}`,
+          description: profile.bio || undefined,
+          jobTitle: profile.role || undefined,
+        }) }} />
+      )}
       {/* Back Button for viewing other profiles */}
       {!isOwnProfile && (
         <div className="sticky top-0 z-10 bg-background/90 backdrop-blur-sm border-b border-border px-4 py-3">
-          <button
+          <button aria-label="Go back"
             onClick={() => navigate(-1)}
             className="flex items-center gap-2 text-white hover:text-gray-300"
             data-testid="back-button"
@@ -552,7 +427,7 @@ export const Profile = () => {
               </p>
             </div>
             {blockHook.isBlocked && !blockHook.isBlockedByThem && (
-              <Button
+              <Button aria-label="Loader2"
                 onClick={() => blockHook.handleUnblockUser(profile?.full_name)}
                 disabled={blockHook.blockLoading}
                 size="sm"
@@ -620,7 +495,7 @@ export const Profile = () => {
             
             {/* Avatar upload overlay */}
             {isOwnProfile && (
-              <button
+              <button aria-label="Loader2"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={avatarUploading}
                 className="absolute inset-0 flex items-center justify-center bg-black/60 rounded-full opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
@@ -633,7 +508,7 @@ export const Profile = () => {
                 )}
               </button>
             )}
-            <input
+            <input aria-label="Upload file"
               ref={fileInputRef}
               type="file"
               accept="image/*"
@@ -659,7 +534,7 @@ export const Profile = () => {
                 title={profile.is_logo_avatar ? 'Switch to Photo mode' : 'Switch to Logo mode'}
               >
                 <span className="text-[10px] font-bold text-zinc-300 group-hover/logo:text-cyan-400">
-                  {profile.is_logo_avatar ? '📷' : '🏷️'}
+                  {profile.is_logo_avatar ? '🤙' : '???'}
                 </span>
               </button>
             )}
@@ -809,19 +684,19 @@ export const Profile = () => {
           <div className="flex items-center justify-center gap-4 text-sm mb-4">
             {profile.instagram_url && (
               <a 
-                href={`https://instagram.com/${profile.instagram_url.replace('@', '')}`}
-                target="_blank"
+                href={profile.instagram_url.startsWith('http') ? profile.instagram_url : `https://instagram.com/${profile.instagram_url.replace(/^@/, '')}`}
+                target="_blank" rel="noopener noreferrer"
                 rel="noopener noreferrer"
                 className="flex items-center gap-1.5 text-blue-400 hover:text-blue-300 transition-colors"
               >
                 <Instagram className="w-4 h-4" />
-                {profile.instagram_url}
+                @{profile.instagram_url.replace(/^@/, '').replace(/^https?:\/\/(www\.)?instagram\.com\//, '').replace(/\/.*$/, '')}
               </a>
             )}
             {profile.website_url && (
               <a 
                 href={profile.website_url}
-                target="_blank"
+                target="_blank" rel="noopener noreferrer"
                 rel="noopener noreferrer"
                 className="flex items-center gap-1.5 text-blue-400 hover:text-blue-300 transition-colors"
               >
@@ -845,7 +720,7 @@ export const Profile = () => {
                 Edit profile
               </Button>
               {/* Social Go Live Button */}
-              <Button
+              <Button aria-label="Radio"
                 onClick={toggleLive}
                 className={`text-sm h-10 px-4 ${
                   profile.is_live
@@ -864,7 +739,7 @@ export const Profile = () => {
                 </div>
               )}
               {isPhotographer && (
-                <Button
+                <Button aria-label="Like"
                   onClick={() => navigate('/career/stoke-sponsor')}
                   variant="outline"
                   className="h-10 px-3 border-pink-500/50 text-pink-400 hover:bg-pink-500/10"
@@ -874,7 +749,7 @@ export const Profile = () => {
                   Stoke
                 </Button>
               )}
-              <Button
+              <Button aria-label="Settings"
                 onClick={() => navigate('/settings')}
                 variant="outline"
                 className="h-10 w-10 p-0 border-border text-foreground hover:bg-accent"
@@ -941,7 +816,7 @@ export const Profile = () => {
               </Button>
               {/* View Gallery CTA for Photographers */}
               {['Photographer', 'Approved Pro', 'photographer', 'approved_pro'].includes(profile.role) && (
-                <Button
+                <Button aria-label="Image"
                   onClick={() => navigate(`/photographer/${profileUserId}/gallery`)}
                   className="h-10 px-4 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-600 hover:to-yellow-600 text-black font-semibold"
                   data-testid="view-gallery-button"
@@ -953,8 +828,8 @@ export const Profile = () => {
               
               {/* More Options (Block, Report) */}
               <div className="relative">
-                <Button
-                  onClick={() => blockHook.setShowMoreMenu(!blockHook.showMoreMenu)}
+                <Button aria-label="More options"
+                  aria-expanded={blockHook.showMoreMenu} onClick={() => blockHook.setShowMoreMenu(!blockHook.showMoreMenu)}
                   variant="outline"
                   className="h-10 w-10 p-0 border-zinc-700"
                   data-testid="more-options-button"
@@ -973,7 +848,7 @@ export const Profile = () => {
                     {/* Menu dropdown */}
                     <div className="absolute right-0 top-12 z-50 w-48 bg-zinc-800 border border-zinc-700 rounded-xl shadow-xl py-1">
                       {blockHook.isBlocked ? (
-                        <button
+                        <button aria-label="Loader2"
                           onClick={() => {
                             blockHook.setShowMoreMenu(false);
                             blockHook.handleUnblockUser(profile?.full_name);
@@ -990,7 +865,7 @@ export const Profile = () => {
                           Unblock User
                         </button>
                       ) : (
-                        <button
+                        <button aria-label="Ban"
                           onClick={() => {
                             blockHook.setShowMoreMenu(false);
                             blockHook.setShowBlockModal(true);
@@ -1003,7 +878,7 @@ export const Profile = () => {
                         </button>
                       )}
                       
-                      <button
+                      <button aria-label="Report"
                         onClick={() => {
                           blockHook.setShowMoreMenu(false);
                           // Could navigate to report page or open report modal
@@ -1036,7 +911,7 @@ export const Profile = () => {
               onRequestOnDemand={() => quickBookHook.handleQuickBookOpen('on-demand')}
               onBook={() => quickBookHook.handleQuickBookOpen('scheduled')}
               trigger={
-                <Button
+                <Button aria-label="Camera"
                   className="w-full h-12 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white font-bold"
                   data-testid="photographer-availability-btn"
                 >
@@ -1096,7 +971,7 @@ export const Profile = () => {
 
         {/* Tabs */}
         <div className="border-t border-border">
-          <div className="flex justify-around">
+          <div className="flex justify-around" role="tablist" aria-label="Profile sections">
             {tabs.map((tab) => (
               <button
                 key={tab.id}
@@ -1107,8 +982,10 @@ export const Profile = () => {
                     : 'text-muted-foreground hover:text-foreground/70'
                 }`}
                 data-testid={`tab-${tab.id}`}
+                role="tab"
+                aria-selected={activeTab === tab.id}
               >
-                {/* Active indicator bar — rides the border-t of the container */}
+                {/* Active indicator bar - rides the border-t of the container */}
                 {activeTab === tab.id && (
                   <span className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-0.5 rounded-b-full bg-foreground" />
                 )}
@@ -1130,7 +1007,7 @@ export const Profile = () => {
               {/* Impact Level */}
               <div className="bg-gradient-to-br from-cyan-500/20 to-blue-500/20 rounded-xl p-6 text-center border border-cyan-500/30">
                 <div className="text-4xl mb-2">
-                  {impactScore.impact_score?.level?.emoji || '🌱'}
+                  {impactScore.impact_score?.level?.emoji || '🤙'}
                 </div>
                 <p className="text-white font-bold text-xl mb-1">
                   {impactScore.impact_score?.level?.name || 'Starter'}
@@ -1207,7 +1084,7 @@ export const Profile = () => {
                         title={badge.description}
                       >
                         <div className="w-10 h-10 rounded-full bg-gradient-to-br from-yellow-400 to-orange-500 flex items-center justify-center mb-1">
-                          {badge.icon_emoji || '🏆'}
+                          {badge.icon_emoji || '🤙'}
                         </div>
                         <span className="text-[10px] text-gray-400 text-center truncate w-full">{badge.name}</span>
                       </div>
@@ -1314,7 +1191,7 @@ export const Profile = () => {
                         title={badge.description}
                       >
                         <div className="w-10 h-10 rounded-full bg-gradient-to-br from-yellow-400 to-orange-500 flex items-center justify-center mb-1">
-                          {badge.icon_emoji || '🏆'}
+                          {badge.icon_emoji || '🤙'}
                         </div>
                         <span className="text-[10px] text-gray-400 text-center truncate w-full">{badge.name}</span>
                       </div>
@@ -1381,7 +1258,7 @@ export const Profile = () => {
           <div className="grid grid-cols-3 gap-0.5">
             {tabContent
               .filter(item => {
-                // Basic existence check — show all posts regardless of media URL type.
+                // Basic existence check - show all posts regardless of media URL type.
                 // Previously this filter hid videos with local /api/uploads/ paths, but
                 // that caused legitimately stored videos to disappear from profile grids.
                 const mediaItem = activeTab === 'saved' ? item?.post : item;
@@ -1560,4 +1437,3 @@ export const Profile = () => {
     </div>
   );
 };
-

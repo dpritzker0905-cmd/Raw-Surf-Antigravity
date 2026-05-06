@@ -72,7 +72,7 @@ const PersonaMaskBanner = () => {
   
   const currentRoleInfo = activePersona 
     ? getExpandedRoleInfo(activePersona) 
-    : { icon: '🔴', label: 'God Mode', color: 'text-red-500' };
+    : { icon: 'ðŸ‘‘', label: 'God Mode', color: 'text-red-500' };
 
   const handleSelectPersona = (personaId) => {
     if (personaId !== 'God') {
@@ -109,7 +109,7 @@ const PersonaMaskBanner = () => {
           isSelected ? 'bg-zinc-800 border-l-2 border-cyan-400' : ''
         }`}
       >
-        <span className="text-xl">{roleInfo.icon}</span>
+          <span className="text-xl">{String.fromCodePoint(0x1F3AD)}</span>
         <div className="flex-1 text-left">
           <span className="text-white font-medium">{persona.label}</span>
           <p className="text-gray-500 text-xs">{persona.description}</p>
@@ -128,7 +128,7 @@ const PersonaMaskBanner = () => {
           !activePersona ? 'bg-zinc-800 border-l-2 border-red-400' : ''
         }`}
       >
-        <span className="text-xl">🔴</span>
+        <span className="text-xl">??</span>
         <div className="flex-1 text-left">
           <span className="text-white font-medium">God Mode (Default)</span>
           <p className="text-gray-500 text-xs">Full admin access</p>
@@ -163,11 +163,10 @@ const PersonaMaskBanner = () => {
       <div className="h-px bg-zinc-700 my-2" />
       
       {/* Exit Button */}
-      <button
+      <button aria-label="Close"
         onClick={handleHardExit}
         className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-red-500/20 hover:bg-red-500/30 text-red-400 transition-colors"
-      >
-        <X className="w-4 h-4" />
+      ><X className="w-4 h-4" />
         <span className="font-medium">Exit God Mode</span>
       </button>
     </div>
@@ -205,7 +204,7 @@ const PersonaMaskBanner = () => {
               data-testid="persona-mask-banner-mobile"
             >
               {/* Eye Icon - Click to MINIMIZE */}
-              <button
+              <button aria-label="View"
                 onClick={() => setIsMobileMinimized(true)}
                 className="w-9 h-9 rounded-full flex items-center justify-center hover:bg-black/10"
                 data-testid="persona-mask-minimize-btn"
@@ -215,7 +214,7 @@ const PersonaMaskBanner = () => {
               
               {/* Persona Info - Click to open sheet */}
               <SheetTrigger asChild>
-                <button className="flex items-center gap-1.5 pr-3">
+                <button aria-label="Expand" className="flex items-center gap-1.5 pr-3">
                   <span className="text-lg">{currentRoleInfo.icon}</span>
                   <span className="text-black font-bold text-xs whitespace-nowrap">{currentRoleInfo.label.toUpperCase()}</span>
                   <ChevronDown className="w-3.5 h-3.5 text-black" />
@@ -245,7 +244,7 @@ const PersonaMaskBanner = () => {
       <div className="hidden md:block">
         {isDesktopMinimized ? (
           /* MINIMIZED: Small icon tab in top-left corner */
-          <button
+          <button aria-label="View"
             onClick={() => setIsDesktopMinimized(false)}
             className="fixed top-2 left-2 z-[9999] w-9 h-9 rounded-full shadow-lg flex items-center justify-center border-2 border-white/30"
             style={{ 
@@ -289,7 +288,7 @@ const PersonaMaskBanner = () => {
               </div>
               
               {/* Minimize button */}
-              <button
+              <button aria-label="Minimize2"
                 onClick={() => setIsDesktopMinimized(true)}
                 className="ml-2 p-1.5 bg-black/20 hover:bg-black/30 rounded-full transition-colors"
                 title="Minimize God Mode bar"
@@ -299,12 +298,11 @@ const PersonaMaskBanner = () => {
               </button>
               
               {/* Exit button */}
-              <button
+              <button aria-label="Close"
                 onClick={handleHardExit}
                 className="p-1.5 bg-black/20 hover:bg-red-500/50 rounded-full transition-colors"
                 title="Exit God Mode"
-              >
-                <X className="w-4 h-4 text-black" />
+              ><X className="w-4 h-4 text-black" />
               </button>
             </div>
           </div>

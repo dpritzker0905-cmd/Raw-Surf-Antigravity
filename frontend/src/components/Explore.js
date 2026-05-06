@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
@@ -53,81 +53,26 @@ import ExploreSpotCard from './ExploreSpotCard';
 
 import logger from '../utils/logger';
 import { getFullUrl } from '../utils/media';
+import { getPopularLocations } from '../utils/countryFlags';
+import ResponsiveImage from './ui/ResponsiveImage';
+import PostMediaPreview from './explore/PostMediaPreview';
+import BrowseMode from './explore/BrowseMode';
+import NearbyMode from './explore/NearbyMode';
+import ExploreWavesTab from './explore/ExploreWavesTab';
+import UserRoleBadge from './explore/UserRoleBadge';
+import useExploreConditions from '../hooks/useExploreConditions';
+import useExploreData from '../hooks/useExploreData';
+import HashtagsTab from './explore/HashtagsTab';
+import ExploreConditionsTab from './explore/ExploreConditionsTab';
+import ExploreTrending from './explore/ExploreTrending';
+import ExploreSearchResults from './explore/ExploreSearchResults';
+import ExploreSponsorsTab from './explore/ExploreSponsorsTab';
+import ExplorePostsTab from './explore/ExplorePostsTab';
 
-
-
-// Media Preview component for Posts, Waves, and Videos
-const PostMediaPreview = ({ post, isHoverScale = true }) => {
-  const mediaUrl = post?.media_url || post?.image_url || post?.thumbnail_url;
-  const isVideo = post?.media_type === 'video' || (mediaUrl && typeof mediaUrl === 'string' && mediaUrl.match(/\.(mp4|webm|ogg|mov)(\?.*)?$/i)) || post?.is_wave === true || typeof post?.view_count !== 'undefined';
-  const thumbnailUrl = post?.thumbnail_url || (isVideo ? null : mediaUrl);
-
-  // Use the project's getFullUrl utility for proper URL resolution (Supabase, backend, etc.)
-  const finalMediaUrl = getFullUrl(mediaUrl);
-  const finalThumbnailUrl = getFullUrl(thumbnailUrl);
-  const hoverClass = isHoverScale ? "group-hover:scale-105 transition-transform duration-300" : "group-hover:opacity-80 transition-opacity duration-300";
-
-  if (isVideo && finalMediaUrl) {
-    // If we have a proper thumbnail image, show it; otherwise show a styled placeholder
-    const hasImageThumb = finalThumbnailUrl && !finalThumbnailUrl.match(/\.(mp4|webm|ogg|mov)(\?.*)?$/i);
-    return (
-      <>
-        {hasImageThumb ? (
-          <img
-            src={finalThumbnailUrl}
-            alt=""
-            className={`w-full h-full object-cover absolute inset-0 ${hoverClass}`}
-            loading="lazy"
-            onError={(e) => {
-              // Fallback: try the video element poster approach
-              e.target.style.display = 'none';
-            }}
-          />
-        ) : (
-          /* For videos without a thumbnail image, render a video element to extract a frame */
-          <video
-            src={finalMediaUrl}
-            className={`w-full h-full object-cover absolute inset-0 ${hoverClass}`}
-            muted
-            preload="metadata"
-            playsInline
-            onLoadedData={(e) => { e.target.currentTime = 0.5; }}
-          />
-        )}
-        <div className="absolute top-2 right-2 bg-black/60 rounded-full w-6 h-6 flex items-center justify-center opacity-80 shadow-md z-10">
-          <Play className="w-3 h-3 text-white fill-white ml-0.5" />
-        </div>
-      </>
-    );
-  }
-
-  if (finalThumbnailUrl || finalMediaUrl) {
-    return (
-      <img
-        src={finalThumbnailUrl || finalMediaUrl}
-        alt=""
-        className={`w-full h-full object-cover absolute inset-0 ${hoverClass}`}
-        loading="lazy"
-      />
-    );
-  }
-
-  return (
-    <div className="w-full h-full bg-zinc-800 flex items-center justify-center absolute inset-0">
-      <Image className="w-8 h-8 text-zinc-600" />
-    </div>
-  );
-};
+// PostMediaPreview extracted ? ./explore/PostMediaPreview.js
 
 // Role badge component for user results
-const UserRoleBadge = ({ role }) => {
-  const roleInfo = getExpandedRoleInfo(role);
-  return (
-    <span className={`text-sm ${roleInfo.color}`} title={roleInfo.label}>
-      {roleInfo.icon}
-    </span>
-  );
-};
+// UserRoleBadge extracted to ./explore/UserRoleBadge.js
 
 export const Explore = () => {
   const navigate = useNavigate();
@@ -136,14 +81,17 @@ export const Explore = () => {
   const { theme } = useTheme();
   const isLight = theme === 'light';
   const isBeach = theme === 'beach';
-  // Theme-conditional classes for dropdowns and inputs
-  const dropdownBg = isLight ? 'bg-white' : isBeach ? 'bg-zinc-900' : 'bg-zinc-900';
-  const dropdownBorder = isLight ? 'border-gray-300' : isBeach ? 'border-zinc-600' : 'border-zinc-700';
-  const dropdownText = isLight ? 'text-gray-900' : 'text-gray-100';
-  const dropdownFocus = isLight ? 'focus:border-cyan-500 focus:ring-cyan-200/30' : 'focus:border-cyan-500/50 focus:ring-cyan-500/20';
-  const labelClass = isLight ? 'text-gray-600' : isBeach ? 'text-gray-400' : 'text-gray-500';
-  const chipBg = isLight ? 'bg-gray-100 hover:bg-gray-200 border-gray-200 hover:border-cyan-400/50 text-gray-700 hover:text-gray-900' : 'bg-zinc-800/80 hover:bg-zinc-700 border-zinc-700 hover:border-cyan-500/30 text-gray-300 hover:text-white';
-  const breadcrumbText = isLight ? 'text-gray-900' : 'text-white';
+  // Theme-conditional classes for dropdowns and inputs (memoized)
+  const themeClasses = useMemo(() => ({
+    dropdownBg: isLight ? 'bg-white' : isBeach ? 'bg-zinc-900' : 'bg-zinc-900',
+    dropdownBorder: isLight ? 'border-gray-300' : isBeach ? 'border-zinc-600' : 'border-zinc-700',
+    dropdownText: isLight ? 'text-gray-900' : 'text-gray-100',
+    dropdownFocus: isLight ? 'focus:border-cyan-500 focus:ring-cyan-200/30' : 'focus:border-cyan-500/50 focus:ring-cyan-500/20',
+    labelClass: isLight ? 'text-gray-600' : isBeach ? 'text-gray-400' : 'text-gray-500',
+    chipBg: isLight ? 'bg-gray-100 hover:bg-gray-200 border-gray-200 hover:border-cyan-400/50 text-gray-700 hover:text-gray-900' : 'bg-zinc-800/80 hover:bg-zinc-700 border-zinc-700 hover:border-cyan-500/30 text-gray-300 hover:text-white',
+    breadcrumbText: isLight ? 'text-gray-900' : 'text-white',
+  }), [isLight, isBeach]);
+  const { dropdownBg, dropdownBorder, dropdownText, dropdownFocus, labelClass, chipBg, breadcrumbText } = themeClasses;
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState({ users: [], spots: [], posts: [] });
   const [trending, setTrending] = useState({ live_photographers: [], popular_spots: [], trending_posts: [] });
@@ -151,6 +99,10 @@ export const Explore = () => {
   const [activeTab, setActiveTab] = useState('all');
   const [isSearching, setIsSearching] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
+  const [recentSearches, setRecentSearches] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('rs-recent-searches') || '[]'); } catch { return []; }
+  });
   
   // Tabs carousel refs and state
   const tabsContainerRef = useRef(null);
@@ -275,6 +227,32 @@ export const Explore = () => {
     fetchTrending();
   }, []);
 
+  // Static Open Graph meta tags for Explore page social sharing
+  useEffect(() => {
+    const ogTags = [];
+    const setMeta = (property, content) => {
+      if (!content) return;
+      let tag = document.querySelector(`meta[property="${property}"]`);
+      if (!tag) {
+        tag = document.createElement('meta');
+        tag.setAttribute('property', property);
+        document.head.appendChild(tag);
+        ogTags.push(tag);
+      }
+      tag.setAttribute('content', content);
+    };
+    document.title = 'Explore \u00B7 Raw Surf';
+    setMeta('og:title', 'Explore \u00B7 Raw Surf');
+    setMeta('og:description', 'Discover surf spots, live photographers, trending posts, and real-time conditions on Raw Surf.');
+    setMeta('og:url', `${window.location.origin}/explore`);
+    setMeta('og:type', 'website');
+    setMeta('og:site_name', 'Raw Surf');
+    return () => {
+      document.title = 'Raw Surf';
+      ogTags.forEach(tag => tag.remove());
+    };
+  }, []);
+
   useEffect(() => {
     if (activeTab === 'sponsors') {
       fetchLeaderboard();
@@ -379,667 +357,62 @@ export const Explore = () => {
     return () => clearTimeout(debounce);
   }, [searchQuery, activeTab]);
 
-  const fetchTrending = async () => {
-    try {
-      const response = await apiClient.get(`/explore/trending`);
-      setTrending(response.data);
-      
-      // Fetch conditions for popular spots
-      if (response.data.popular_spots?.length > 0) {
-        const spotIds = response.data.popular_spots.slice(0, 4).map(s => s.id).join(',');
-        fetchSpotConditions(spotIds);
-      }
-      
-      // Also fetch trending hashtags for the main explore page
-      fetchTrendingHashtags();
-    } catch (error) {
-      logger.error('Error fetching trending:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-  
-  // Fetch trending hashtags
-  const fetchTrendingHashtags = async () => {
-    try {
-      const response = await apiClient.get(`/hashtags/trending?limit=15&days=7`);
-      setTrendingHashtags(response.data.hashtags || []);
-    } catch (error) {
-      logger.debug('Trending hashtags not available');
-      setTrendingHashtags([]);
-    }
-  };
-  
-  // Fetch posts for a specific hashtag
-  const fetchHashtagPosts = async (tag) => {
-    setHashtagLoading(true);
-    try {
-      const response = await apiClient.get(`/hashtags/${tag}/posts?limit=30`);
-      setHashtagPosts(response.data.posts || []);
-    } catch (error) {
-      logger.error('Error fetching hashtag posts:', error);
-      setHashtagPosts([]);
-    } finally {
-      setHashtagLoading(false);
-    }
-  };
-  
-  // Handle hashtag click
-  const handleHashtagClick = (tag) => {
-    setSelectedHashtag(tag);
-    fetchHashtagPosts(tag);
-  };
-  
-  // Fetch Trending + Recent Waves for Explore
-  const fetchTrendingWaves = async () => {
-    setWavesLoading(true);
-    try {
-      const response = await apiClient.get(`/waves/trending`, {
-        params: { limit: 12, days: 7 }
-      });
-      setTrendingWaves(response.data.trending_waves || []);
-      setRecentWaves(response.data.recent_waves || []);
-    } catch (error) {
-      logger.error('Error fetching trending waves:', error);
-      setTrendingWaves([]);
-      setRecentWaves([]);
-    } finally {
-      setWavesLoading(false);
-    }
-  };
-  
-  // Fetch Waves by hashtag
-  const _fetchWavesByHashtag = async (tag) => {
-    setWavesLoading(true);
-    setSelectedWaveHashtag(tag);
-    try {
-      const response = await apiClient.get(`/waves/hashtag/${tag}`, {
-        params: { limit: 20 }
-      });
-      setWaveHashtagResults(response.data.waves || []);
-    } catch (error) {
-      logger.error('Error fetching waves by hashtag:', error);
-      setWaveHashtagResults([]);
-    } finally {
-      setWavesLoading(false);
-    }
-  };
-  
-  // Handle Wave click - navigate to Feed with Waves tab
-  const handleWaveClick = (wave) => {
-    navigate(`/feed?tab=waves&wave=${wave.id}`);
-  };
-  
-  // Fetch Explore Posts (photos/videos for Posts tab)
-  const fetchExplorePosts = async () => {
-    setPostsLoading(true);
-    try {
-      const response = await apiClient.get(`/posts`, {
-        params: { 
-          limit: 24,
-          content_type: 'post' // Exclude waves, only regular posts
-        }
-      });
-      setExplorePosts(response.data.posts || response.data || []);
-    } catch (error) {
-      logger.error('Error fetching explore posts:', error);
-      setExplorePosts([]);
-    } finally {
-      setPostsLoading(false);
-    }
-  };
-  
-  // Handle post click - navigate to post detail
-  const handlePostClick = (post) => {
-    navigate(`/post/${post.id}`);
-  };
+  // Data fetching handlers extracted to hooks/useExploreData.js
+  const {
+    fetchTrending, fetchTrendingHashtags, fetchHashtagPosts, handleHashtagClick,
+    fetchTrendingWaves, handleWaveClick, fetchExplorePosts, handlePostClick,
+    fetchSpotConditions, performSearch, clearSearch,
+    fetchLeaderboard, fetchSponsorDetails, openSponsorCard, closeSponsorCard,
+  } = useExploreData({
+    searchQuery, activeTab, recentSearches,
+    setTrending, setLoading, setSpotConditions,
+    setTrendingHashtags, setHashtagPosts, setHashtagLoading, setSelectedHashtag,
+    setTrendingWaves, setRecentWaves, setWavesLoading,
+    setSelectedWaveHashtag, setWaveHashtagResults,
+    setExplorePosts, setPostsLoading,
+    setSearchResults, setIsSearching, setRecentSearches,
+    setLeaderboard, setLeaderboardLoading,
+    setSponsorDetails, setSelectedSponsor,
+  });
 
-  const fetchSpotConditions = async (spotIds) => {
-    try {
-      const response = await apiClient.get(`/conditions/batch?spot_ids=${spotIds}`);
-      // API returns conditions as an object keyed by spot_id
-      const conditionsData = response.data.conditions || {};
-      const conditionsMap = {};
-      // Convert object to map with proper structure for the UI
-      Object.entries(conditionsData).forEach(([spotId, data]) => {
-        conditionsMap[spotId] = {
-          spot_id: spotId,
-          wave_height_ft: data.wave_height_ft,
-          conditions_label: data.label,
-          ...data
-        };
-      });
-      setSpotConditions(conditionsMap);
-    } catch (error) {
-      logger.error('Error fetching conditions:', error);
-    }
-  };
-
-  const performSearch = async () => {
-    setIsSearching(true);
-    try {
-      const response = await apiClient.get(`/explore/search`, {
-        params: { q: searchQuery, type: activeTab }
-      });
-      setSearchResults(response.data);
-    } catch (error) {
-      logger.error('Error searching:', error);
-    } finally {
-      setIsSearching(false);
-    }
-  };
-
-  const clearSearch = () => {
-    setSearchQuery('');
-    setSearchResults({ users: [], spots: [], posts: [] });
-  };
-
-  const fetchLeaderboard = async () => {
-    setLeaderboardLoading(true);
-    try {
-      const response = await apiClient.get(`/leaderboard/top-sponsors?limit=50`);
-      setLeaderboard(response.data.leaderboard || []);
-    } catch (error) {
-      logger.error('Error fetching leaderboard:', error);
-    } finally {
-      setLeaderboardLoading(false);
-    }
-  };
-
-  const fetchSponsorDetails = async (photographerId) => {
-    try {
-      const response = await apiClient.get(`/leaderboard/photographer/${photographerId}/details`);
-      setSponsorDetails(response.data);
-    } catch (error) {
-      logger.error('Error fetching sponsor details:', error);
-    }
-  };
-
-  const openSponsorCard = (sponsor) => {
-    setSelectedSponsor(sponsor);
-    fetchSponsorDetails(sponsor.photographer_id);
-  };
-
-  const closeSponsorCard = () => {
-    setSelectedSponsor(null);
-    setSponsorDetails(null);
-  };
 
   // Fetch condition reports for Conditions tab (supports date_filter + location hierarchy)
-  const fetchConditionReports = async (region = selectedRegion, locationOverride = null, dateFilter = conditionsSubTab, dateOverride = null, locOverride = null) => {
-    setConditionsLoading(true);
-    try {
-      const params = new URLSearchParams();
-      if (region && region !== 'All') {
-        params.append('region', region);
-      }
-      params.append('limit', '30');
-      params.append('date_filter', dateFilter === 'archives' ? 'archive' : dateFilter);
-      
-      // For archive mode, pass the specific date
-      const targetDate = dateOverride || archiveDate;
-      if (dateFilter === 'archives' && targetDate) {
-        params.append('archive_date', targetDate);
-      }
-      
-      // Add user location for nearby sorting if available
-      const location = locationOverride || userLocation;
-      if (location) {
-        params.append('user_lat', location.lat);
-        params.append('user_lng', location.lng);
-      }
-      
-      // Hierarchical location params
-      const loc = locOverride || { country: conditionsCountry, state: conditionsState, city: conditionsCity };
-      if (loc.country) params.append('country', loc.country);
-      if (loc.state) params.append('state_province', loc.state);
-      if (loc.city) params.append('city', loc.city);
-      
-      const response = await apiClient.get(`/condition-reports/feed?${params}`);
-      setConditionReports(response.data.reports || []);
-    } catch (error) {
-      logger.error('Error fetching condition reports:', error);
-      setConditionReports([]);
-    } finally {
-      setConditionsLoading(false);
-    }
-  };
+  // ============ CONDITIONS/LOCATION HANDLERS ============
+  // Extracted to hooks/useExploreConditions.js (431 lines)
+  const {
+    fetchConditionReports, fetchArchiveDates, fetchArchiveGalleries,
+    handleConditionsSubTabChange, handleArchiveDateSelect,
+    fetchConditionsRegions, handleRegionChange,
+    handleConditionsCountryChange, handleConditionsStateChange, handleConditionsCityChange,
+    fetchSurfSpots, handleSpotsRegionChange,
+    fetchLocationHierarchy, fetchNearbySpots,
+    handleCountryChange, handleStateChange, handleCityChange,
+    activateNearbyMode, clearConditionsLocation, jumpToConditionsLocation,
+    getReportsNearby, conditionsCityOptions, conditionsStateOptions,
+    conditionsCountryOptions, cityOptions, stateOptions, countryOptions,
+  } = useExploreConditions({
+    user, locationHierarchy, userLocation, nearbyRadius,
+    conditionsSubTab, selectedRegion,
+    conditionsCountry, conditionsState, conditionsCity,
+    selectedSpotsRegion, selectedCountry, selectedState, selectedCity,
+    discoveryMode, archiveDate,
+    setConditionReports, setConditionsLoading,
+    setArchiveDates, setArchiveDate,
+    setArchiveGalleries, setArchiveGalleriesLoading,
+    setConditionsSubTab, setConditionsLocMode,
+    setConditionsRegions, setShowRegionDropdown,
+    setConditionsCountry, setConditionsState, setConditionsCity,
+    setSurfSpots, setSurfSpotsLoading, setSurfSpotsRegions,
+    setSelectedSpotsRegion, setShowSpotsRegionDropdown,
+    setLocationHierarchy, setLocationHierarchyLoading,
+    setNearbySpots, setNearbyLoading, setUserLocation,
+    setSelectedRegion, setSelectedCountry, setSelectedState, setSelectedCity,
+    setDiscoveryMode,
+  });
+  
+  // Country flags and popular locations extracted to utils/countryFlags.js
+  const popularLocations = useMemo(() => getPopularLocations(), []);
 
-  // Fetch archive dates for the date picker (with location filtering)
-  const fetchArchiveDates = async (locOverride = null) => {
-    try {
-      const params = new URLSearchParams();
-      params.append('limit', '30');
-      const loc = locOverride || { country: conditionsCountry, state: conditionsState, city: conditionsCity };
-      if (loc.country) params.append('country', loc.country);
-      if (loc.state) params.append('state_province', loc.state);
-      if (loc.city) params.append('city', loc.city);
-      const response = await apiClient.get(`/condition-reports/archive-dates?${params}`);
-      setArchiveDates(response.data.dates || []);
-    } catch (error) {
-      logger.error('Error fetching archive dates:', error);
-      setArchiveDates([]);
-    }
-  };
-
-  // Fetch public galleries for archive browsing (with location filtering)
-  const fetchArchiveGalleries = async (date = null, locOverride = null) => {
-    setArchiveGalleriesLoading(true);
-    try {
-      const params = new URLSearchParams();
-      if (date) params.append('date', date);
-      params.append('limit', '20');
-      const loc = locOverride || { country: conditionsCountry, state: conditionsState, city: conditionsCity };
-      if (loc.country) params.append('country', loc.country);
-      if (loc.state) params.append('state_province', loc.state);
-      if (loc.city) params.append('city', loc.city);
-      const response = await apiClient.get(`/condition-reports/public-galleries?${params}`);
-      setArchiveGalleries(response.data.galleries || []);
-    } catch (error) {
-      logger.error('Error fetching archive galleries:', error);
-      setArchiveGalleries([]);
-    } finally {
-      setArchiveGalleriesLoading(false);
-    }
-  };
-
-  // Handle conditions sub-tab change (preserves location state across tabs)
-  const handleConditionsSubTabChange = (subTab) => {
-    setConditionsSubTab(subTab);
-    const loc = { country: conditionsCountry, state: conditionsState, city: conditionsCity };
-    if (subTab === 'today' || subTab === 'yesterday') {
-      fetchConditionReports(selectedRegion, null, subTab, null, loc);
-    } else if (subTab === 'archives') {
-      fetchArchiveDates(loc);
-      if (archiveDate) {
-        fetchConditionReports(selectedRegion, null, 'archives', archiveDate, loc);
-        fetchArchiveGalleries(archiveDate, loc);
-      }
-    }
-  };
-
-  // Handle archive date selection
-  const handleArchiveDateSelect = (date) => {
-    setArchiveDate(date);
-    const loc = { country: conditionsCountry, state: conditionsState, city: conditionsCity };
-    fetchConditionReports(selectedRegion, null, 'archives', date, loc);
-    fetchArchiveGalleries(date, loc);
-  };
-
-  // Fetch available regions for filter
-  const fetchConditionsRegions = async () => {
-    try {
-      const response = await apiClient.get(`/condition-reports/regions`);
-      setConditionsRegions(['All', ...(response.data.regions || [])]);
-    } catch (error) {
-      logger.error('Error fetching regions:', error);
-      setConditionsRegions(['All', 'North Shore', 'East Coast', 'West Coast', 'Gold Coast', 'SoCal']);
-    }
-  };
-
-  // Handle region filter change
-  const handleRegionChange = (region) => {
-    setSelectedRegion(region);
-    setShowRegionDropdown(false);
-    fetchConditionReports(region);
-  };
-  
-  // Get user location for nearby reports
-  const getReportsNearby = () => {
-    if (navigator.geolocation) {
-      setConditionsLoading(true);
-      setConditionsLocMode('nearby');
-      // Clear hierarchical filters when switching to nearby
-      setConditionsCountry('');
-      setConditionsState('');
-      setConditionsCity('');
-      
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const newLocation = {
-            lat: position.coords.latitude,
-            lng: position.coords.longitude
-          };
-          setUserLocation(newLocation);
-          fetchConditionReports('All', newLocation, conditionsSubTab, null, { country: '', state: '', city: '' });
-          toast.success('📍 Showing nearby reports first');
-        },
-        (error) => {
-          logger.error('Geolocation error:', error);
-          setConditionsLoading(false);
-          setConditionsLocMode('browse');
-          toast.error('Could not get your location');
-        },
-        { enableHighAccuracy: true, timeout: 10000 }
-      );
-    } else {
-      toast.error('Geolocation is not supported by your browser');
-    }
-  };
-  
-  // ============ CONDITIONS LOCATION HIERARCHY ============
-  
-  // Computed dropdown options from the shared location hierarchy
-  const conditionsCountryOptions = locationHierarchy?.countries?.map(c => c.name).sort() || [];
-  
-  const conditionsStateOptions = (() => {
-    if (!conditionsCountry || !locationHierarchy) return [];
-    const country = locationHierarchy.countries.find(c => c.name === conditionsCountry);
-    if (!country?.states) return [];
-    return country.states.filter(s => !s.is_virtual).map(s => s.name).sort();
-  })();
-  
-  const conditionsCityOptions = (() => {
-    if (!conditionsCountry || !conditionsState || !locationHierarchy) return [];
-    const country = locationHierarchy.countries.find(c => c.name === conditionsCountry);
-    const state = country?.states?.find(s => s.name === conditionsState);
-    if (!state?.cities) return [];
-    return state.cities.map(c => c.name).sort();
-  })();
-  
-  // Cascading location change handlers for conditions
-  const handleConditionsCountryChange = (countryName) => {
-    setConditionsCountry(countryName);
-    setConditionsState('');
-    setConditionsCity('');
-    setConditionsLocMode('browse');
-    setUserLocation(null); // Clear GPS when switching to browse
-    const loc = { country: countryName, state: '', city: '' };
-    fetchConditionReports('All', null, conditionsSubTab, conditionsSubTab === 'archives' ? archiveDate : null, loc);
-    if (conditionsSubTab === 'archives') {
-      fetchArchiveDates(loc);
-      if (archiveDate) fetchArchiveGalleries(archiveDate, loc);
-    }
-  };
-  
-  const handleConditionsStateChange = (stateName) => {
-    setConditionsState(stateName);
-    setConditionsCity('');
-    const loc = { country: conditionsCountry, state: stateName, city: '' };
-    fetchConditionReports('All', null, conditionsSubTab, conditionsSubTab === 'archives' ? archiveDate : null, loc);
-    if (conditionsSubTab === 'archives') {
-      fetchArchiveDates(loc);
-      if (archiveDate) fetchArchiveGalleries(archiveDate, loc);
-    }
-  };
-  
-  const handleConditionsCityChange = (cityName) => {
-    setConditionsCity(cityName);
-    const loc = { country: conditionsCountry, state: conditionsState, city: cityName };
-    fetchConditionReports('All', null, conditionsSubTab, conditionsSubTab === 'archives' ? archiveDate : null, loc);
-    if (conditionsSubTab === 'archives') {
-      fetchArchiveDates(loc);
-      if (archiveDate) fetchArchiveGalleries(archiveDate, loc);
-    }
-  };
-  
-  const clearConditionsLocation = () => {
-    setConditionsCountry('');
-    setConditionsState('');
-    setConditionsCity('');
-    setConditionsLocMode('browse');
-    setUserLocation(null);
-    const loc = { country: '', state: '', city: '' };
-    fetchConditionReports('All', null, conditionsSubTab, conditionsSubTab === 'archives' ? archiveDate : null, loc);
-    if (conditionsSubTab === 'archives') {
-      fetchArchiveDates(loc);
-      if (archiveDate) fetchArchiveGalleries(archiveDate, loc);
-    }
-  };
-  
-  // Quick jump to a popular location for conditions
-  const jumpToConditionsLocation = (loc) => {
-    setConditionsLocMode('browse');
-    setConditionsCountry(loc.country);
-    setConditionsState(loc.state || '');
-    setConditionsCity('');
-    setUserLocation(null);
-    const locParams = { country: loc.country, state: loc.state || '', city: '' };
-    fetchConditionReports('All', null, conditionsSubTab, conditionsSubTab === 'archives' ? archiveDate : null, locParams);
-    if (conditionsSubTab === 'archives') {
-      fetchArchiveDates(locParams);
-      if (archiveDate) fetchArchiveGalleries(archiveDate, locParams);
-    }
-  };
-  
-  // Fetch surf spots with forecasts and conditions
-  // Supports filtering by region, country, and/or state_province for hierarchy browsing
-  const fetchSurfSpots = async (region = selectedSpotsRegion, locationOverride = null, { country, state_province } = {}) => {
-    setSurfSpotsLoading(true);
-    try {
-      const params = new URLSearchParams();
-      if (country && country !== 'All') {
-        params.append('country', country);
-      }
-      if (state_province && state_province !== 'All') {
-        params.append('state_province', state_province);
-      }
-      if (region && region !== 'All') {
-        params.append('region', region);
-      }
-      params.append('limit', '30');
-      params.append('subscription_tier', user?.subscription_tier || 'free');
-      
-      // Add user location if available (use override if provided, otherwise use state)
-      const location = locationOverride || userLocation;
-      if (location) {
-        params.append('user_lat', location.lat);
-        params.append('user_lng', location.lng);
-      }
-      
-      const response = await apiClient.get(`/explore/surf-spots?${params}`);
-      setSurfSpots(response.data.spots || []);
-      setSurfSpotsRegions(['All', ...(response.data.regions || [])]);
-    } catch (error) {
-      logger.error('Error fetching surf spots:', error);
-      setSurfSpots([]);
-    } finally {
-      setSurfSpotsLoading(false);
-    }
-  };
-  
-  // Handle spots region filter change
-  const handleSpotsRegionChange = (region) => {
-    setSelectedSpotsRegion(region);
-    setShowSpotsRegionDropdown(false);
-    fetchSurfSpots(region);
-  };
-  
-  // Get user location for nearby spots
-  const getUserLocation = () => {
-    if (navigator.geolocation) {
-      // Show loading state immediately
-      setSurfSpotsLoading(true);
-      
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const newLocation = {
-            lat: position.coords.latitude,
-            lng: position.coords.longitude
-          };
-          setUserLocation(newLocation);
-          // Pass location directly to avoid race condition with state update
-          fetchSurfSpots(selectedSpotsRegion, newLocation);
-          toast.success('Location updated! Showing nearby spots first.');
-        },
-        (error) => {
-          logger.error('Geolocation error:', error);
-          setSurfSpotsLoading(false);
-          toast.error('Could not get your location');
-        },
-        { enableHighAccuracy: true, timeout: 10000 }
-      );
-    } else {
-      toast.error('Geolocation is not supported by your browser');
-    }
-  };
-  
-  // ============ LOCATION DISCOVERY ============
-  
-  // Fetch the hierarchical location tree
-  const fetchLocationHierarchy = async () => {
-    if (locationHierarchy) return; // Already loaded
-    setLocationHierarchyLoading(true);
-    try {
-      const response = await apiClient.get('/surf-spots/locations');
-      setLocationHierarchy(response.data);
-    } catch (error) {
-      logger.error('Error fetching location hierarchy:', error);
-    } finally {
-      setLocationHierarchyLoading(false);
-    }
-  };
-  
-  // Fetch nearby spots using GPS
-  const fetchNearbySpots = (lat, lng, radius = nearbyRadius) => {
-    setNearbyLoading(true);
-    apiClient.get('/explore/surf-spots', {
-      params: {
-        user_lat: lat,
-        user_lng: lng,
-        limit: 30,
-        subscription_tier: user?.subscription_tier || 'free'
-      }
-    }).then(response => {
-      setNearbySpots(response.data.spots || []);
-    }).catch(error => {
-      logger.error('Error fetching nearby spots:', error);
-      setNearbySpots([]);
-    }).finally(() => {
-      setNearbyLoading(false);
-    });
-  };
-  
-  // Activate GPS nearby mode
-  const activateNearbyMode = () => {
-    setDiscoveryMode('nearby');
-    if (userLocation) {
-      fetchNearbySpots(userLocation.lat, userLocation.lng);
-      return;
-    }
-    if (navigator.geolocation) {
-      setNearbyLoading(true);
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const loc = { lat: position.coords.latitude, lng: position.coords.longitude };
-          setUserLocation(loc);
-          fetchNearbySpots(loc.lat, loc.lng);
-          toast.success('Found your location!');
-        },
-        (error) => {
-          logger.error('Geolocation error:', error);
-          setNearbyLoading(false);
-          toast.error('Could not get your location. Please enable location services.');
-          setDiscoveryMode('browse');
-        },
-        { enableHighAccuracy: true, timeout: 10000 }
-      );
-    } else {
-      toast.error('Geolocation is not supported by your browser');
-      setDiscoveryMode('browse');
-    }
-  };
-  
-  // ============ DROPDOWN LOCATION DISCOVERY ============
-  
-  // Computed dropdown options from hierarchy
-  const countryOptions = locationHierarchy?.countries?.map(c => c.name).sort() || [];
-  
-  const stateOptions = (() => {
-    if (!selectedCountry || !locationHierarchy) return [];
-    const country = locationHierarchy.countries.find(c => c.name === selectedCountry);
-    if (!country?.states) return [];
-    return country.states.filter(s => !s.is_virtual).map(s => s.name).sort();
-  })();
-  
-  const cityOptions = (() => {
-    if (!selectedCountry || !selectedState || !locationHierarchy) return [];
-    const country = locationHierarchy.countries.find(c => c.name === selectedCountry);
-    const state = country?.states?.find(s => s.name === selectedState);
-    if (!state?.cities) return [];
-    return state.cities.map(c => c.name).sort();
-  })();
-  
-  // Handle dropdown changes with cascading reset
-  const handleCountryChange = (countryName) => {
-    setSelectedCountry(countryName);
-    setSelectedState('');
-    setSelectedCity('');
-    setSurfSpots([]);
-    if (countryName) {
-      const country = locationHierarchy?.countries?.find(c => c.name === countryName);
-      const realStates = country?.states?.filter(s => !s.is_virtual) || [];
-      if (realStates.length === 0) {
-        fetchSurfSpots(null, null, { country: countryName });
-      }
-    }
-  };
-  
-  const handleStateChange = (stateName) => {
-    setSelectedState(stateName);
-    setSelectedCity('');
-    setSurfSpots([]);
-    if (stateName) {
-      const country = locationHierarchy?.countries?.find(c => c.name === selectedCountry);
-      const state = country?.states?.find(s => s.name === stateName);
-      const cities = state?.cities || [];
-      if (cities.length === 0) {
-        fetchSurfSpots(null, null, { country: selectedCountry, state_province: stateName });
-      }
-    }
-  };
-  
-  const handleCityChange = (cityName) => {
-    setSelectedCity(cityName);
-    if (cityName) {
-      fetchSurfSpots(cityName, null, { country: selectedCountry, state_province: selectedState });
-    } else {
-      setSurfSpots([]);
-    }
-  };
-  
-  // Country flag emoji helper
-  const getCountryFlag = (countryName) => {
-    const flags = {
-      'USA': '🇺🇸', 'United States': '🇺🇸', 'Australia': '🇦🇺', 'Indonesia': '🇮🇩',
-      'Brazil': '🇧🇷', 'Portugal': '🇵🇹', 'South Africa': '🇿🇦', 'France': '🇫🇷',
-      'Spain': '🇪🇸', 'Mexico': '🇲🇽', 'Costa Rica': '🇨🇷', 'Japan': '🇯🇵',
-      'New Zealand': '🇳🇿', 'Peru': '🇵🇪', 'Morocco': '🇲🇦', 'United Kingdom': '🇬🇧',
-      'UK': '🇬🇧', 'Canada': '🇨🇦', 'Chile': '🇨🇱', 'Hawaii': '🏝️',
-      'Fiji': '🇫🇯', 'French Polynesia': '🇵🇫', 'Tahiti': '🇵🇫', 'Maldives': '🇲🇻',
-      'Philippines': '🇵🇭', 'Sri Lanka': '🇱🇰', 'Nicaragua': '🇳🇮', 'Panama': '🇵🇦',
-      'El Salvador': '🇸🇻', 'Ecuador': '🇪🇨', 'Ireland': '🇮🇪', 'Italy': '🇮🇹',
-      'Thailand': '🇹🇭', 'Colombia': '🇨🇴', 'Dominican Republic': '🇩🇴',
-      'Puerto Rico': '🇵🇷', 'Cuba': '🇨🇺', 'Jamaica': '🇯🇲', 'Barbados': '🇧🇧',
-      'Bahamas': '🇧🇸', 'Bermuda': '🇧🇲', 'Taiwan': '🇹🇼', 'China': '🇨🇳',
-      'India': '🇮🇳', 'Vietnam': '🇻🇳', 'Samoa': '🇼🇸', 'Tonga': '🇹🇴',
-      'Angola': '🇦🇴', 'Senegal': '🇸🇳', 'Ghana': '🇬🇭', 'Madagascar': '🇲🇬',
-      'Mozambique': '🇲🇿', 'Namibia': '🇳🇦', 'Guatemala': '🇬🇹', 'Honduras': '🇭🇳',
-      'Argentina': '🇦🇷', 'Uruguay': '🇺🇾', 'Israel': '🇮🇱', 'Malaysia': '🇲🇾',
-      'Vanuatu': '🇻🇺', 'Papua New Guinea': '🇵🇬', 'Solomon Islands': '🇸🇧',
-      'Saudi Arabia': '🇸🇦', 'United Arab Emirates': '🇦🇪', 'Oman': '🇴🇲',
-      'Qatar': '🇶🇦', 'Norway': '🇳🇴', 'Iceland': '🇮🇸', 'Aruba': '🇦🇼',
-      'Curacao': '🇨🇼', 'Trinidad & Tobago': '🇹🇹', 'Mauritius': '🇲🇺',
-      'Cape Verde': '🇨🇻', 'Cook Islands': '🇨🇰'
-    };
-    return flags[countryName] || '🌊';
-  };
-  
-  // Popular quick-access locations — uses 'USA' to match DB country name
-  const popularLocations = [
-    { label: '🇺🇸 Florida', country: 'USA', state: 'Florida' },
-    { label: '🇺🇸 California', country: 'USA', state: 'California' },
-    { label: '🇺🇸 Hawaii', country: 'USA', state: 'Hawaii' },
-    { label: '🇺🇸 North Carolina', country: 'USA', state: 'North Carolina' },
-    { label: '🇦🇺 Australia', country: 'Australia' },
-    { label: '🇮🇩 Indonesia', country: 'Indonesia' },
-    { label: '🇧🇷 Brazil', country: 'Brazil' },
-    { label: '🇵🇹 Portugal', country: 'Portugal' },
-    { label: '🇨🇷 Costa Rica', country: 'Costa Rica' },
-    { label: '🇲🇽 Mexico', country: 'Mexico' },
-    { label: '🇿🇦 South Africa', country: 'South Africa' },
-    { label: '🇯🇵 Japan', country: 'Japan' },
-  ];
   
   // Quick jump to a popular location
   const jumpToLocation = (loc) => {
@@ -1064,7 +437,7 @@ export const Explore = () => {
     }
   };
 
-  const tabs = [
+  const tabs = useMemo(() => [
     { id: 'all', label: 'All', icon: Search },
     { id: 'waves', label: 'Waves', icon: Play },
     { id: 'posts', label: 'Posts', icon: Image },
@@ -1073,38 +446,94 @@ export const Explore = () => {
     { id: 'conditions', label: 'Reports', icon: Waves },
     { id: 'sponsors', label: 'Sponsors', icon: Heart },
     { id: 'surfspots', label: 'Surf Spots', icon: Navigation },
-  ];
+  ], []);
 
-  const hasResults = searchResults.users.length > 0 || searchResults.spots.length > 0 || searchResults.posts.length > 0;
+  const hasResults = useMemo(() =>
+    searchResults.users.length > 0 || searchResults.spots.length > 0 || searchResults.posts.length > 0,
+    [searchResults]
+  );
   const showResults = searchQuery.trim().length >= 2;
 
   return (
     <div className="max-w-2xl mx-auto p-4" data-testid="explore-page">
+      {/* JSON-LD ItemList for live photographers and popular spots */}
+      {trending.live_photographers?.length > 0 && (
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({
+          '@context': 'https://schema.org',
+          '@type': 'ItemList',
+          name: 'Live Surf Photographers on Raw Surf',
+          itemListOrder: 'https://schema.org/ItemListOrderDescending',
+          numberOfItems: trending.live_photographers.length,
+          itemListElement: trending.live_photographers.slice(0, 10).map((p, i) => ({
+            '@type': 'ListItem',
+            position: i + 1,
+            item: {
+              '@type': 'Person',
+              name: p.full_name || p.username,
+              url: `${window.location.origin}/gallery/${p.username}`,
+              ...(p.avatar_url && { image: p.avatar_url }),
+              jobTitle: 'Surf Photographer',
+            },
+          })),
+        }) }} />
+      )}
       {/* Search Bar */}
       <div className="relative mb-6">
         <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-        <Input
+        <Input aria-label="Search surfers, photographers, spots..."
           type="text"
           placeholder="Search surfers, photographers, spots..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
+          onFocus={() => setIsSearchFocused(true)}
+          onBlur={() => setTimeout(() => setIsSearchFocused(false), 200)}
           className="pl-12 pr-10 h-12 bg-card border-zinc-700 text-foreground placeholder-gray-500 focus:border-yellow-400"
           data-testid="explore-search-input"
         />
         {searchQuery && (
-          <button
+          <button aria-label="Close"
             onClick={clearSearch}
             className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-          >
-            <X className="w-5 h-5" />
+          ><X className="w-5 h-5" />
           </button>
         )}
       </div>
 
+      {/* Recent Searches Dropdown */}
+      {isSearchFocused && !searchQuery && recentSearches.length > 0 && (
+        <div className={`mb-4 p-3 rounded-xl border ${isLight ? 'bg-white border-gray-200' : 'bg-zinc-900 border-zinc-700'}`}>
+          <div className="flex items-center justify-between mb-2">
+            <span className={`text-xs font-medium ${isLight ? 'text-gray-500' : 'text-zinc-400'}`}>Recent searches</span>
+            <button
+              onClick={() => { setRecentSearches([]); localStorage.removeItem('rs-recent-searches'); }}
+              className="text-xs text-zinc-500 hover:text-red-400 transition-colors"
+              aria-label="Clear recent searches"
+            >
+              Clear all
+            </button>
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {recentSearches.map((term, i) => (
+              <button
+                key={i}
+                onClick={() => setSearchQuery(term)}
+                className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
+                  isLight
+                    ? 'bg-gray-100 text-gray-700 hover:bg-cyan-50 hover:text-cyan-700'
+                    : 'bg-zinc-800 text-zinc-300 hover:bg-cyan-500/20 hover:text-cyan-400'
+                }`}
+              >
+                {term}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Search Tabs - Horizontally scrollable with arrow navigation */}
       <div className="flex items-center gap-2 mb-6">
         {/* Left Arrow - inline, fades when not needed */}
-        <button
+        <button aria-label="Previous"
           onClick={() => scrollTabs('left')}
           className={`flex-shrink-0 w-8 h-8 rounded-full bg-zinc-800 border border-zinc-600 shadow-lg flex items-center justify-center text-white hover:bg-zinc-700 transition-all ${
             showLeftArrow ? 'opacity-100' : 'opacity-0 pointer-events-none'
@@ -1115,16 +544,15 @@ export const Explore = () => {
           <ChevronLeft className="w-5 h-5" />
         </button>
         
-        {/* Tabs Container — Yellow pill buttons */}
+        {/* Tabs Container - Yellow pill buttons */}
         <div 
-          ref={tabsContainerRef}
-          className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide scroll-smooth flex-1"
-          style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+          ref={tabsContainerRef} role="tablist" aria-label="Explore sections"
+          className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide scroll-smooth flex-1 scrollbar-none"
         >
           {tabs.map((tab) => {
             const Icon = tab.icon;
             return (
-              <button
+              <button aria-label="Icon"
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
                 className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors flex-shrink-0 ${
@@ -1142,7 +570,7 @@ export const Explore = () => {
         </div>
         
         {/* Right Arrow - inline, fades when not needed */}
-        <button
+        <button aria-label="Next"
           onClick={() => scrollTabs('right')}
           className={`flex-shrink-0 w-8 h-8 rounded-full bg-zinc-800 border border-zinc-600 shadow-lg flex items-center justify-center text-white hover:bg-zinc-700 transition-all ${
             showRightArrow ? 'opacity-100' : 'opacity-0 pointer-events-none'
@@ -1154,139 +582,18 @@ export const Explore = () => {
         </button>
       </div>
 
-      {/* Search Results */}
+      {/* Search Results (extracted to explore/ExploreSearchResults.js) */}
       {showResults && (
-        <div className="space-y-6">
-          {isSearching ? (
-            <div className="flex justify-center py-10">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-yellow-400"></div>
-            </div>
-          ) : !hasResults ? (
-            <div className="text-center py-10 text-muted-foreground">
-              <Search className="w-12 h-12 mx-auto mb-3 opacity-50" />
-              <p>No results found for "{searchQuery}"</p>
-            </div>
-          ) : (
-            <>
-              {/* Users Results */}
-              {(activeTab === 'all' || activeTab === 'users') && searchResults.users.length > 0 && (
-                <section>
-                  <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">People</h3>
-                  <div className="space-y-2">
-                    {searchResults.users.map((user) => (
-                      <div
-                        key={user.id}
-                        onClick={() => navigate(`/profile/${user.id}`)}
-                        className="flex items-center gap-3 p-3 bg-card rounded-xl hover:bg-muted cursor-pointer transition-colors"
-                        data-testid={`user-result-${user.id}`}
-                      >
-                        <div className="w-12 h-12 rounded-full bg-zinc-700 flex items-center justify-center overflow-hidden">
-                          {user.avatar_url ? (
-                            <img src={getFullUrl(user.avatar_url)} alt={user.full_name} className="w-full h-full object-cover" />
-                          ) : (
-                            <span className="text-lg font-medium text-muted-foreground">
-                              {user.full_name?.charAt(0) || '?'}
-                            </span>
-                          )}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <span className="font-medium text-foreground truncate">{user.full_name}</span>
-                            {user.role && <UserRoleBadge role={user.role} />}
-                            {user.is_verified && (
-                              <Badge className="bg-blue-500 text-[10px] px-1.5">✓</Badge>
-                            )}
-                            {user.is_live && (
-                              <Badge className="bg-red-500 text-[10px] px-1.5 animate-pulse">LIVE</Badge>
-                            )}
-                          </div>
-                          <p className="text-sm text-muted-foreground truncate">{user.role}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </section>
-              )}
-
-              {/* Spots Results */}
-              {(activeTab === 'all' || activeTab === 'spots') && searchResults.spots.length > 0 && (
-                <section>
-                  <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">Surf Spots</h3>
-                  <div className="space-y-2">
-                    {searchResults.spots.map((spot) => (
-                      <div
-                        key={spot.id}
-                        onClick={() => navigate(`/spot-hub/${spot.id}`)}
-                        className="flex items-center gap-3 p-3 bg-card rounded-xl hover:bg-muted cursor-pointer transition-colors group"
-                        data-testid={`spot-result-${spot.id}`}
-                      >
-                        {/* Thumbnail */}
-                        <div className="w-14 h-14 rounded-lg overflow-hidden flex-shrink-0 bg-muted">
-                          {spot.image_url ? (
-                            <img 
-                              src={getFullUrl(spot.image_url)} 
-                              alt={spot.name} 
-                              className="w-full h-full object-cover group-hover:scale-110 transition-transform"
-                              onError={(e) => {
-                                e.target.style.display = 'none';
-                                e.target.parentElement.classList.add('bg-gradient-to-br', 'from-cyan-600', 'to-blue-800');
-                                e.target.parentElement.innerHTML = '<div class="w-full h-full flex items-center justify-center"><svg class="w-5 h-5 text-white/50" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg></div>';
-                              }}
-                            />
-                          ) : (
-                            <div className="w-full h-full bg-gradient-to-br from-cyan-600 to-blue-800 flex items-center justify-center">
-                              <MapPin className="w-5 h-5 text-white/50" />
-                            </div>
-                          )}
-                        </div>
-                        {/* Info */}
-                        <div className="flex-1 min-w-0">
-                          <h4 className="font-semibold text-foreground truncate">{spot.name}</h4>
-                          <p className="text-xs text-muted-foreground truncate">
-                            {[spot.secondary_city, spot.region].filter(Boolean).filter((v, i, a) => a.indexOf(v) === i).join(' • ')}
-                          </p>
-                          {spot.difficulty && (
-                            <span className={`inline-block mt-1 text-[10px] font-medium px-1.5 py-0.5 rounded-full ${
-                              spot.difficulty === 'Beginner' ? 'bg-green-500/20 text-green-400' :
-                              spot.difficulty === 'Intermediate' ? 'bg-yellow-500/20 text-yellow-400' :
-                              'bg-red-500/20 text-red-400'
-                            }`}>
-                              {spot.difficulty}
-                            </span>
-                          )}
-                        </div>
-                        {/* Arrow */}
-                        <ChevronRight className="w-4 h-4 text-muted-foreground flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
-                      </div>
-                    ))}
-                  </div>
-                </section>
-              )}
-
-              {/* Posts Results */}
-              {(activeTab === 'all' || activeTab === 'posts') && searchResults.posts.length > 0 && (
-                <section>
-                  <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">Posts</h3>
-                  <div className="grid grid-cols-3 gap-1">
-                    {searchResults.posts.map((post) => (
-                      <div
-                        key={post.id}
-                        className="aspect-square bg-muted overflow-hidden cursor-pointer group relative"
-                        onClick={() => navigate(`/post/${post.id}`)}
-                        data-testid={`post-result-${post.id}`}
-                      >
-                        <PostMediaPreview post={post} isHoverScale={false} />
-                      </div>
-                    ))}
-                  </div>
-                </section>
-              )}
-            </>
-          )}
-        </div>
+        <ExploreSearchResults
+          isSearching={isSearching}
+          hasResults={hasResults}
+          searchQuery={searchQuery}
+          activeTab={activeTab}
+          searchResults={searchResults}
+        />
       )}
 
-      {/* Tab content — swipeable on mobile */}
+      {/* Tab content */}
       <div
         className="relative overflow-hidden"
         onTouchStart={(e) => {
@@ -1396,208 +703,16 @@ export const Explore = () => {
       >
       <div ref={exploreContentRef} className="will-change-transform">
 
-      {/* Trending Section (when not searching) - Only show on 'all' tab or when no specific tab section exists */}
+      {/* Trending Section (extracted to explore/ExploreTrending.js) */}
       {!showResults && !loading && activeTab === 'all' && (
-        <div className="space-y-8">
-          {/* Social Live Now - Users broadcasting to followers (Instagram Live style) */}
-          {trending.live_photographers?.length > 0 && (
-            <section>
-              <div className="flex items-center gap-2 mb-4">
-                <Radio className="w-5 h-5 text-red-500 animate-pulse" />
-                <h3 className="font-semibold text-foreground">Broadcasting Now</h3>
-              </div>
-              <div className="flex gap-4 overflow-x-auto pb-2">
-                {trending.live_photographers.map((user) => (
-                  <div
-                    key={user.id}
-                    onClick={() => navigate(`/profile/${user.id}`)}
-                    className="flex flex-col items-center cursor-pointer flex-shrink-0"
-                    data-testid={`live-user-${user.id}`}
-                  >
-                    <div className="w-16 h-16 rounded-full bg-gradient-to-r from-red-500 via-yellow-500 to-orange-500 p-0.5">
-                      <div className="w-full h-full rounded-full bg-card p-0.5">
-                        <div className="w-full h-full rounded-full bg-zinc-700 flex items-center justify-center overflow-hidden">
-                          {user.avatar_url ? (
-                            <img src={getFullUrl(user.avatar_url)} alt={user.full_name} className="w-full h-full object-cover" />
-                          ) : (
-                            <span className="text-lg font-medium text-muted-foreground">
-                              {user.full_name?.charAt(0) || '?'}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                    <span className="text-xs text-gray-300 mt-2 truncate max-w-[70px]">{user.full_name?.split(' ')[0]}</span>
-                  </div>
-                ))}
-              </div>
-            </section>
-          )}
-
-          {/* Trending Spots */}
-          {trending.popular_spots?.length > 0 && (
-            <section>
-              <div className="flex items-center gap-2 mb-4">
-                <TrendingUp className="w-5 h-5 text-yellow-400" />
-                <h3 className="font-semibold text-foreground">Popular Spots</h3>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                {trending.popular_spots.slice(0, 4).map((spot) => {
-                  const conditions = spotConditions[spot.id];
-                  const thumbnail = spot.thumbnail;
-                  const hasTaggedContent = thumbnail && thumbnail.media_url;
-                  
-                  // Determine the display image/content
-                  const displayImage = hasTaggedContent 
-                    ? (thumbnail.media_type === 'video' ? thumbnail.thumbnail_url || thumbnail.media_url : thumbnail.media_url)
-                    : spot.image_url;
-                  
-                  return (
-                    <div
-                      key={spot.id}
-                      onClick={() => navigate(`/spot-hub/${spot.id}`)}
-                      className="relative aspect-[4/3] rounded-xl overflow-hidden cursor-pointer group"
-                      data-testid={`trending-spot-${spot.id}`}
-                    >
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent z-10" />
-                      
-                      {/* Content: Tagged media, spot image, or map fallback */}
-                      {displayImage ? (
-                        <img 
-                          src={displayImage} 
-                          alt={spot.name} 
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform" 
-                          onError={(e) => {
-                            // If primary image fails, try map fallback
-                            if (spot.latitude && spot.longitude) {
-                              e.target.onerror = () => {
-                                // Map also failed — show gradient
-                                e.target.style.display = 'none';
-                                e.target.parentElement.classList.add('bg-gradient-to-br', 'from-cyan-600', 'to-blue-800');
-                              };
-                              e.target.src = `https://static-maps.yandex.ru/1.x/?lang=en_US&ll=${spot.longitude},${spot.latitude}&z=12&l=sat&size=400,300`;
-                              e.target.className = 'w-full h-full object-cover opacity-60 group-hover:opacity-80 transition-opacity';
-                            } else {
-                              e.target.style.display = 'none';
-                              e.target.parentElement.classList.add('bg-gradient-to-br', 'from-cyan-600', 'to-blue-800');
-                            }
-                          }}
-                        />
-                      ) : spot.latitude && spot.longitude ? (
-                        // Map fallback with location pin
-                        <div className="w-full h-full bg-muted relative">
-                          <img 
-                            src={`https://static-maps.yandex.ru/1.x/?lang=en_US&ll=${spot.longitude},${spot.latitude}&z=12&l=sat&size=400,300`}
-                            alt={`Map of ${spot.name}`}
-                            className="w-full h-full object-cover opacity-60 group-hover:opacity-80 transition-opacity"
-                            onError={(e) => {
-                              e.target.style.display = 'none';
-                              e.target.parentElement.classList.add('bg-gradient-to-br', 'from-cyan-600', 'to-blue-800');
-                            }}
-                          />
-                          <div className="absolute inset-0 flex items-center justify-center">
-                            <MapPin className="w-8 h-8 text-cyan-400 drop-shadow-lg" />
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="w-full h-full bg-gradient-to-br from-cyan-600 to-blue-800 flex items-center justify-center">
-                          <MapPin className="w-8 h-8 text-white/30" />
-                        </div>
-                      )}
-                      
-                      {/* Wave Height Badge */}
-                      {conditions?.wave_height_ft !== undefined && (
-                        <div className="absolute top-2 right-2 z-20 flex items-center gap-1 bg-blue-500/80 backdrop-blur-sm rounded-full px-2 py-1">
-                          <Waves className="w-3 h-3 text-foreground" />
-                          <span className="text-xs font-bold text-foreground">{conditions.wave_height_ft}ft</span>
-                        </div>
-                      )}
-                      
-                      {/* Video indicator */}
-                      {hasTaggedContent && thumbnail.media_type === 'video' && (
-                        <div className="absolute top-2 left-2 z-20 bg-black/60 backdrop-blur-sm rounded-full p-1.5">
-                          <Play className="w-3 h-3 text-foreground fill-white" />
-                        </div>
-                      )}
-                      
-                      {/* Spot info */}
-                      <div className="absolute bottom-0 left-0 right-0 p-3 z-20">
-                        <h4 className="font-medium text-foreground truncate">{spot.name}</h4>
-                        <div className="flex items-center justify-between">
-                          <p className="text-xs text-gray-300">{spot.region}</p>
-                          {conditions?.conditions_label && (
-                            <span className="text-[10px] text-blue-300">{conditions.conditions_label}</span>
-                          )}
-                        </div>
-                        
-                        {/* Contributor credit */}
-                        {hasTaggedContent && thumbnail.contributor_name && (
-                          <div className="flex items-center gap-1.5 mt-1.5">
-                            {thumbnail.contributor_avatar ? (
-                              <img 
-                                src={thumbnail.contributor_avatar} 
-                                alt={thumbnail.contributor_name} 
-                                className="w-4 h-4 rounded-full border border-white/30"
-                              />
-                            ) : (
-                              <div className="w-4 h-4 rounded-full bg-zinc-600 flex items-center justify-center">
-                                <span className="text-[8px] text-foreground">{thumbnail.contributor_name.charAt(0)}</span>
-                              </div>
-                            )}
-                            <span className="text-[10px] text-muted-foreground truncate">
-                              {['PHOTOGRAPHER', 'APPROVED_PRO', 'HOBBYIST'].includes(thumbnail.contributor_role?.toUpperCase()) 
-                                ? '📸' 
-                                : '🏄'} {thumbnail.contributor_name}
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </section>
-          )}
-
-          {/* Trending Posts */}
-          {trending.trending_posts.length > 0 && (
-            <section>
-              <div className="flex items-center gap-2 mb-4">
-                <Image className="w-5 h-5 text-emerald-400" />
-                <h3 className="font-semibold text-foreground">Trending Posts</h3>
-              </div>
-              <div className="grid grid-cols-3 gap-1">
-                {trending.trending_posts.map((post) => (
-                  <div
-                    key={post.id}
-                    className="aspect-square bg-muted overflow-hidden cursor-pointer group relative"
-                    onClick={() => navigate(`/post/${post.id}`)}
-                    data-testid={`trending-post-${post.id}`}
-                  >
-                    <PostMediaPreview post={post} isHoverScale={false} />
-                  </div>
-                ))}
-              </div>
-            </section>
-          )}
-
-          {/* Ad Card for ad-supported users */}
-          {user?.is_ad_supported && (
-            <SocialAdCard position={0} />
-          )}
-
-          {/* Empty State */}
-          {trending.live_photographers?.length === 0 && trending.popular_spots?.length === 0 && trending.trending_posts?.length === 0 && (
-            <div className="text-center py-20 text-muted-foreground">
-              <Search className="w-16 h-16 mx-auto mb-4 opacity-50" />
-              <p className="text-lg font-medium mb-2">Discover the surf community</p>
-              <p className="text-sm">Search for surfers, photographers, and surf spots</p>
-            </div>
-          )}
-        </div>
+        <ExploreTrending
+          trending={trending}
+          spotConditions={spotConditions}
+          user={user}
+        />
       )}
 
-      {/* People Tab — pre-search discovery state */}
+      {/* People Tab */}
       {activeTab === 'users' && (
         <div className="space-y-6" data-testid="people-tab">
           {/* Search Prompt */}
@@ -1609,7 +724,7 @@ export const Explore = () => {
             <p className={`text-sm mb-5 ${isLight ? 'text-gray-500' : 'text-muted-foreground'}`}>
               Search for surfers, photographers, and creators
             </p>
-            <button
+            <button aria-label="Search"
               onClick={() => {
                 const input = document.querySelector('[data-testid="explore-search-input"]');
                 if (input) input.focus();
@@ -1626,10 +741,10 @@ export const Explore = () => {
             <h4 className={`text-sm font-semibold uppercase tracking-wider mb-3 ${isLight ? 'text-gray-500' : 'text-muted-foreground'}`}>Browse by Role</h4>
             <div className="flex flex-wrap gap-2">
               {[
-                { label: '📸 Photographers', query: 'photographer' },
-                { label: '🏄 Surfers', query: 'surfer' },
-                { label: '🎬 Videographers', query: 'videographer' },
-                { label: '🤙 Locals', query: 'local' },
+                { label: '\u{1F4F8} Photographers', query: 'photographer' },
+                { label: '\u{1F3C4} Surfers', query: 'surfer' },
+                { label: '\u{1F451} Creators', query: 'creator' },
+                { label: '\u{1F3AF} All', query: '' },
               ].map(cat => (
                 <button
                   key={cat.query}
@@ -1646,7 +761,7 @@ export const Explore = () => {
             </div>
           </div>
 
-          {/* Featured Community — reuse live photographers from trending */}
+          {/* Featured Community */}
           {trending.live_photographers?.length > 0 && (
             <div>
               <h4 className={`text-sm font-semibold uppercase tracking-wider mb-3 ${isLight ? 'text-gray-500' : 'text-muted-foreground'}`}>
@@ -1663,7 +778,7 @@ export const Explore = () => {
                       <div className={`w-full h-full rounded-full p-0.5 ${isLight ? 'bg-white' : 'bg-card'}`}>
                         <div className="w-full h-full rounded-full bg-zinc-700 flex items-center justify-center overflow-hidden">
                           {person.avatar_url ? (
-                            <img src={getFullUrl(person.avatar_url)} alt={person.full_name} className="w-full h-full object-cover" />
+                            <img loading="lazy" decoding="async" src={getFullUrl(person.avatar_url)} alt={person.full_name} className="w-full h-full object-cover" />
                           ) : (
                             <span className="text-lg font-medium text-muted-foreground">{person.full_name?.[0] || '?'}</span>
                           )}
@@ -1689,7 +804,7 @@ export const Explore = () => {
               </h4>
               <div className="flex flex-wrap gap-2">
                 {trending.popular_spots.slice(0, 6).map(spot => (
-                  <button
+                  <button aria-label="Location"
                     key={spot.id}
                     onClick={() => navigate(`/spot-hub/${spot.id}`)}
                     className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${isLight ? 'bg-cyan-50 border border-cyan-200 text-cyan-700 hover:bg-cyan-100' : 'bg-cyan-900/20 border border-cyan-800/40 text-cyan-400 hover:bg-cyan-900/40'}`}
@@ -1704,7 +819,7 @@ export const Explore = () => {
         </div>
       )}
 
-      {/* Search (Spots) Tab — pre-search discovery state */}
+      {/* Search (Spots) Tab */}
       {/* "Search" tab removed - redundant with Surf Spots tab */}
 
       {/* Surf Spots Tab - Comprehensive Location Discovery */}
@@ -1725,7 +840,7 @@ export const Explore = () => {
           
           {/* Discovery Mode Toggle */}
           <div className="flex gap-2 p-1 bg-zinc-900 rounded-xl border border-zinc-800">
-            <button
+            <button aria-label="Globe"
               onClick={() => { setDiscoveryMode('browse'); setSpotSearchQuery(''); }}
               className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition-all ${
                 discoveryMode === 'browse'
@@ -1737,7 +852,7 @@ export const Explore = () => {
               <Globe className="w-4 h-4" />
               Browse
             </button>
-            <button
+            <button aria-label="Explore"
               onClick={activateNearbyMode}
               className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition-all ${
                 discoveryMode === 'nearby'
@@ -1752,289 +867,57 @@ export const Explore = () => {
             </button>
           </div>
           
-          {/* ============ BROWSE MODE ============ */}
+          {/* ============ BROWSE MODE (extracted ? explore/BrowseMode.js) ============ */}
           {discoveryMode === 'browse' && (
-            <>
-              {/* Cascading Location Dropdowns */}
-              <div className="space-y-3">
-                {/* Country Dropdown */}
-                <div>
-                  <label className={`block text-xs uppercase tracking-wider font-medium mb-1.5 ${labelClass}`}>Country</label>
-                  <div className="relative">
-                    <Globe className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-cyan-400 pointer-events-none z-10" />
-                    <select
-                      value={selectedCountry}
-                      onChange={(e) => handleCountryChange(e.target.value)}
-                      className={`w-full pl-10 pr-10 py-3 ${dropdownBg} border ${dropdownBorder} rounded-xl ${dropdownText} text-sm focus:outline-none ${dropdownFocus} focus:ring-1 transition-all appearance-none cursor-pointer`}
-                      data-testid="country-dropdown"
-                    >
-                      <option value="">Select a country...</option>
-                      {countryOptions.map(name => (
-                        <option key={name} value={name}>{getCountryFlag(name)} {name}</option>
-                      ))}
-                    </select>
-                    <ChevronDown className={`absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 ${isLight ? 'text-gray-400' : 'text-gray-500'} pointer-events-none`} />
-                  </div>
-                </div>
-                
-                {/* State/Province Dropdown — appears when country selected and has states */}
-                {selectedCountry && stateOptions.length > 0 && (
-                  <div>
-                    <label className={`block text-xs uppercase tracking-wider font-medium mb-1.5 ${labelClass}`}>State / Province</label>
-                    <div className="relative">
-                      <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-blue-400 pointer-events-none z-10" />
-                      <select
-                        value={selectedState}
-                        onChange={(e) => handleStateChange(e.target.value)}
-                        className={`w-full pl-10 pr-10 py-3 ${dropdownBg} border ${dropdownBorder} rounded-xl ${dropdownText} text-sm focus:outline-none ${isLight ? 'focus:border-blue-500 focus:ring-blue-200/30' : 'focus:border-blue-500/50 focus:ring-blue-500/20'} focus:ring-1 transition-all appearance-none cursor-pointer`}
-                        data-testid="state-dropdown"
-                      >
-                        <option value="">Select state / province...</option>
-                        {stateOptions.map(name => (
-                          <option key={name} value={name}>{name}</option>
-                        ))}
-                      </select>
-                      <ChevronDown className={`absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 ${isLight ? 'text-gray-400' : 'text-gray-500'} pointer-events-none`} />
-                    </div>
-                  </div>
-                )}
-                
-                {/* City/Area Dropdown — appears when state selected and has cities */}
-                {selectedState && cityOptions.length > 0 && (
-                  <div>
-                    <label className={`block text-xs uppercase tracking-wider font-medium mb-1.5 ${labelClass}`}>City / Area</label>
-                    <div className="relative">
-                      <Navigation className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-emerald-400 pointer-events-none z-10" />
-                      <select
-                        value={selectedCity}
-                        onChange={(e) => handleCityChange(e.target.value)}
-                        className={`w-full pl-10 pr-10 py-3 ${dropdownBg} border ${dropdownBorder} rounded-xl ${dropdownText} text-sm focus:outline-none ${isLight ? 'focus:border-emerald-500 focus:ring-emerald-200/30' : 'focus:border-emerald-500/50 focus:ring-emerald-500/20'} focus:ring-1 transition-all appearance-none cursor-pointer`}
-                        data-testid="city-dropdown"
-                      >
-                        <option value="">Select city / area...</option>
-                        {cityOptions.map(name => (
-                          <option key={name} value={name}>{name}</option>
-                        ))}
-                      </select>
-                      <ChevronDown className={`absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 ${isLight ? 'text-gray-400' : 'text-gray-500'} pointer-events-none`} />
-                    </div>
-                  </div>
-                )}
-              </div>
-              
-              {/* Spot Name Search — appears once a country is selected */}
-              {selectedCountry && (
-                <div className="relative">
-                  <Search className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${isLight ? 'text-gray-400' : 'text-gray-500'}`} />
-                  <input
-                    type="text"
-                    placeholder="Search spots by name..."
-                    value={spotSearchQuery}
-                    onChange={(e) => setSpotSearchQuery(e.target.value)}
-                    className={`w-full pl-10 pr-10 py-3 ${dropdownBg} border ${dropdownBorder} rounded-xl ${dropdownText} ${isLight ? 'placeholder-gray-400' : 'placeholder-gray-500'} text-sm focus:outline-none ${dropdownFocus} focus:ring-1 transition-all`}
-                    data-testid="spot-search-input"
-                  />
-                  {spotSearchQuery && (
-                    <button onClick={() => setSpotSearchQuery('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300">
-                      <X className="w-4 h-4" />
-                    </button>
-                  )}
-                </div>
-              )}
-              
-              {/* Popular Destinations — show only when no country selected */}
-              {!selectedCountry && (
-                <div>
-                  <p className={`text-xs uppercase tracking-wider font-medium mb-2 ${labelClass}`}>Popular Destinations</p>
-                  <div className="flex flex-wrap gap-2">
-                    {popularLocations.map((loc, i) => (
-                      <button
-                        key={i}
-                        onClick={() => jumpToLocation(loc)}
-                        className={`px-3 py-1.5 border rounded-full text-xs transition-all ${chipBg}`}
-                        data-testid={`quick-loc-${i}`}
-                      >
-                        {loc.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-              
-              {/* Selection breadcrumb summary + Clear button */}
-              {selectedCountry && (
-                <div className="flex items-center gap-1.5 text-sm flex-wrap">
-                  <span className="text-lg">{getCountryFlag(selectedCountry)}</span>
-                  <span className={`${breadcrumbText} font-medium`}>{selectedCountry}</span>
-                  {selectedState && (
-                    <>
-                      <ChevronRight className="w-3.5 h-3.5 text-gray-600" />
-                      <span className={isLight ? 'text-blue-600' : 'text-blue-400'}>{selectedState}</span>
-                    </>
-                  )}
-                  {selectedCity && (
-                    <>
-                      <ChevronRight className="w-3.5 h-3.5 text-gray-600" />
-                      <span className={isLight ? 'text-emerald-600' : 'text-emerald-400'}>{selectedCity}</span>
-                    </>
-                  )}
-                  <button
-                    onClick={() => { setSelectedCountry(''); setSelectedState(''); setSelectedCity(''); setSurfSpots([]); setSpotSearchQuery(''); }}
-                    className={`ml-auto text-xs flex items-center gap-1 px-2 py-1 rounded-md transition-colors ${isLight ? 'text-gray-500 hover:text-gray-700 hover:bg-gray-100' : 'text-gray-500 hover:text-gray-300 hover:bg-zinc-800'}`}
-                  >
-                    <X className="w-3 h-3" /> Clear
-                  </button>
-                </div>
-              )}
-              
-              {/* Loading State */}
-              {surfSpotsLoading && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {[1, 2, 3, 4].map((i) => (
-                    <div key={i} className="bg-card/80 border border-border rounded-xl overflow-hidden animate-pulse">
-                      <div className="h-32 bg-muted" />
-                      <div className="px-3 py-2 border-b border-border flex items-center gap-3">
-                        <div className="h-5 w-12 bg-zinc-700 rounded" />
-                        <div className="h-4 w-16 bg-zinc-700 rounded" />
-                      </div>
-                      <div className="px-3 py-2 flex gap-2">
-                        <div className="flex-1 h-9 bg-zinc-700 rounded-lg" />
-                        <div className="h-9 w-16 bg-muted rounded-lg" />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-              
-              {/* Spot Cards */}
-              {!surfSpotsLoading && surfSpots.length > 0 && (
-                <>
-                  <div className="p-3 bg-gradient-to-r from-cyan-500/10 to-blue-500/10 border border-cyan-500/20 rounded-lg">
-                    <div className="flex items-center gap-2 text-xs text-cyan-400">
-                      <Waves className="w-4 h-4" />
-                      <span>
-                        <strong>Today</strong> = Current Conditions • <strong>Forecast:</strong> 3 days free, 7 paid, 10 premium
-                      </span>
-                    </div>
-                  </div>
-                  
-                  <Badge className="bg-cyan-500/20 text-cyan-400 text-xs">
-                    {surfSpots.filter(s => !spotSearchQuery || s.name?.toLowerCase().includes(spotSearchQuery.toLowerCase())).length} spots
-                    {selectedCity ? ` in ${selectedCity}` : selectedState ? ` in ${selectedState}` : ` in ${selectedCountry}`}
-                  </Badge>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {surfSpots
-                      .filter(s => !spotSearchQuery || s.name?.toLowerCase().includes(spotSearchQuery.toLowerCase()))
-                      .map((spot) => (
-                      <ExploreSpotCard 
-                        key={spot.id} 
-                        spot={spot} 
-                        userSubscriptionTier={user?.subscription_tier || 'free'}
-                      />
-                    ))}
-                  </div>
-                </>
-              )}
-              
-              {/* Empty State */}
-              {selectedCountry && !surfSpotsLoading && surfSpots.length === 0 && (selectedCity || (stateOptions.length === 0) || (selectedState && cityOptions.length === 0)) && (
-                <div className="text-center py-12 text-muted-foreground">
-                  <Navigation className="w-12 h-12 mx-auto mb-3 opacity-30" />
-                  <p className="font-medium mb-1">No spots found</p>
-                  <p className="text-sm text-gray-500">Try selecting a different area</p>
-                </div>
-              )}
-            </>
+            <BrowseMode
+              selectedCountry={selectedCountry}
+              selectedState={selectedState}
+              selectedCity={selectedCity}
+              countryOptions={countryOptions}
+              stateOptions={stateOptions}
+              cityOptions={cityOptions}
+              handleCountryChange={handleCountryChange}
+              handleStateChange={handleStateChange}
+              handleCityChange={handleCityChange}
+              jumpToLocation={jumpToLocation}
+              spotSearchQuery={spotSearchQuery}
+              setSpotSearchQuery={setSpotSearchQuery}
+              surfSpots={surfSpots}
+              surfSpotsLoading={surfSpotsLoading}
+              popularLocations={popularLocations}
+              user={user}
+              isLight={isLight}
+              dropdownBg={dropdownBg}
+              dropdownBorder={dropdownBorder}
+              dropdownText={dropdownText}
+              dropdownFocus={dropdownFocus}
+              labelClass={labelClass}
+              chipBg={chipBg}
+              breadcrumbText={breadcrumbText}
+              setSurfSpots={setSurfSpots}
+              setSelectedCountry={setSelectedCountry}
+              setSelectedState={setSelectedState}
+              setSelectedCity={setSelectedCity}
+            />
           )}
           
-          {/* ============ NEARBY MODE ============ */}
+          {/* ============ NEARBY MODE (extracted ? explore/NearbyMode.js) ============ */}
           {discoveryMode === 'nearby' && (
-            <>
-              {/* GPS Status */}
-              {userLocation && (
-                <div className="flex items-center gap-2 p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl">
-                  <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                  <span className="text-xs text-emerald-400">
-                    Located: {userLocation.lat.toFixed(4)}, {userLocation.lng.toFixed(4)}
-                  </span>
-                  <button
-                    onClick={() => fetchNearbySpots(userLocation.lat, userLocation.lng)}
-                    className="ml-auto text-xs text-emerald-400 hover:text-emerald-300 underline"
-                  >
-                    Refresh
-                  </button>
-                </div>
-              )}
-              
-              {/* Tiered Forecast Info Banner */}
-              <div className="p-3 bg-gradient-to-r from-cyan-500/10 to-blue-500/10 border border-cyan-500/20 rounded-lg">
-                <div className="flex items-center gap-2 text-xs text-cyan-400">
-                  <Waves className="w-4 h-4" />
-                  <span>
-                    <strong>Today</strong> = Current Conditions • <strong>Forecast:</strong> 3 days free, 7 paid, 10 premium
-                  </span>
-                </div>
-              </div>
-              
-              {/* Nearby Spots Results */}
-              {nearbyLoading ? (
-                <div className="flex flex-col items-center justify-center py-16 gap-3">
-                  <div className="relative">
-                    <Compass className="w-10 h-10 text-emerald-400 animate-spin" />
-                    <div className="absolute inset-0 w-10 h-10 rounded-full border-2 border-emerald-400/20 animate-ping" />
-                  </div>
-                  <p className="text-sm text-gray-400">Finding spots near you...</p>
-                </div>
-              ) : nearbySpots.length === 0 && userLocation ? (
-                <div className="text-center py-16 text-muted-foreground">
-                  <MapPin className="w-16 h-16 mx-auto mb-4 opacity-30" />
-                  <p className="font-medium mb-1">No spots found nearby</p>
-                  <p className="text-sm text-gray-500 mb-4">Try browsing by location instead</p>
-                  <button
-                    onClick={() => setDiscoveryMode('browse')}
-                    className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 rounded-lg text-sm text-gray-300 transition-colors"
-                  >
-                    <Globe className="w-4 h-4 inline mr-2" />
-                    Browse All Locations
-                  </button>
-                </div>
-              ) : nearbySpots.length > 0 ? (
-                <>
-                  <Badge className="bg-emerald-500/20 text-emerald-400 text-xs">
-                    {nearbySpots.filter(s => !spotSearchQuery || s.name?.toLowerCase().includes(spotSearchQuery.toLowerCase())).length} spots near you
-                  </Badge>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {nearbySpots
-                      .filter(s => !spotSearchQuery || s.name?.toLowerCase().includes(spotSearchQuery.toLowerCase()))
-                      .map((spot) => (
-                      <ExploreSpotCard 
-                        key={spot.id} 
-                        spot={spot} 
-                        userSubscriptionTier={user?.subscription_tier || 'free'}
-                      />
-                    ))}
-                  </div>
-                </>
-              ) : !userLocation ? (
-                <div className="text-center py-16 text-muted-foreground">
-                  <Compass className="w-16 h-16 mx-auto mb-4 opacity-30" />
-                  <p className="font-medium mb-1">Enable Location Access</p>
-                  <p className="text-sm text-gray-500 mb-4">Allow location access to find surf spots near you</p>
-                  <button
-                    onClick={activateNearbyMode}
-                    className="px-5 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 rounded-xl text-white text-sm font-medium transition-all shadow-lg shadow-emerald-500/20"
-                  >
-                    <Compass className="w-4 h-4 inline mr-2" />
-                    Use My Location
-                  </button>
-                </div>
-              ) : null}
-            </>
+            <NearbyMode
+              userLocation={userLocation}
+              nearbySpots={nearbySpots}
+              nearbyLoading={nearbyLoading}
+              spotSearchQuery={spotSearchQuery}
+              user={user}
+              fetchNearbySpots={fetchNearbySpots}
+              setDiscoveryMode={setDiscoveryMode}
+              activateNearbyMode={activateNearbyMode}
+            />
           )}
           
-          {/* Map View CTA — always visible */}
+          {/* Map View CTA */}
           <div className="mt-6">
-            <button
+            <button aria-label="Location"
               onClick={() => navigate('/map')}
               className="w-full flex items-center justify-center gap-2 py-3 bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 rounded-xl text-white font-medium transition-all shadow-lg shadow-cyan-500/10"
               data-testid="view-all-on-map"
@@ -2046,1085 +929,95 @@ export const Explore = () => {
         </div>
       )}
 
-      {/* Waves Tab - Reels-Style Vertical Scroll Feed */}
+      {/* Waves Tab - Reels-Style Vertical Scroll Feed (extracted) */}
       {activeTab === 'waves' && (
-        <div className="space-y-0" data-testid="waves-tab">
-          {/* Header */}
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2">
-              <Play className="w-5 h-5 text-cyan-400" />
-              <h2 className="font-bold text-foreground">Waves</h2>
-            </div>
-            <button
-              onClick={() => navigate('/feed?tab=waves')}
-              className="text-sm text-cyan-400 hover:text-cyan-300 flex items-center gap-1"
-            >
-              View All
-              <ChevronRight className="w-4 h-4" />
-            </button>
-          </div>
-          
-          {/* Loading / Empty / Feed */}
-          {wavesLoading ? (
-            <div className="flex justify-center py-10">
-              <Loader2 className="w-8 h-8 animate-spin text-cyan-400" />
-            </div>
-          ) : trendingWaves.length === 0 && recentWaves.length === 0 ? (
-            <div className="text-center py-10 text-muted-foreground">
-              <Play className="w-16 h-16 mx-auto mb-4 opacity-50" />
-              <h3 className="text-lg font-semibold text-foreground mb-2">No Waves Yet</h3>
-              <p className="mb-4">Be the first to share a short-form video!</p>
-              <button
-                onClick={() => navigate('/feed?tab=waves')}
-                className="px-4 py-2 bg-gradient-to-r from-cyan-500 to-blue-500 text-white rounded-full text-sm font-medium hover:from-cyan-600 hover:to-blue-600 transition-all"
-              >
-                Create a Wave
-              </button>
-            </div>
-          ) : (
-            /* Reels-style vertical snap-scroll feed */
-            <div
-              className="explore-waves-feed"
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '12px',
-                maxWidth: '420px',
-                margin: '0 auto',
-              }}
-            >
-              {/* Merge trending + recent, deduplicated */}
-              {[...trendingWaves, ...recentWaves].map((wave) => (
-                <div
-                  key={wave.id}
-                  onClick={() => handleWaveClick(wave)}
-                  className="group cursor-pointer"
-                  data-testid={`wave-card-${wave.id}`}
-                  style={{
-                    position: 'relative',
-                    aspectRatio: '9 / 16',
-                    borderRadius: '16px',
-                    overflow: 'hidden',
-                    background: '#000',
-                    boxShadow: '0 4px 24px rgba(0,0,0,0.3)',
-                  }}
-                >
-                  {/* Video/Thumbnail */}
-                  <PostMediaPreview post={wave} isHoverScale={false} />
-                  
-                  {/* Play button overlay (center) */}
-                  <div
-                    className="absolute inset-0 flex items-center justify-center z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
-                    style={{ pointerEvents: 'none' }}
-                  >
-                    <div style={{
-                      width: '56px',
-                      height: '56px',
-                      borderRadius: '50%',
-                      background: 'rgba(0,0,0,0.5)',
-                      backdropFilter: 'blur(8px)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                    }}>
-                      <Play className="w-6 h-6 text-white" fill="white" />
-                    </div>
-                  </div>
-                  
-                  {/* Bottom gradient overlay */}
-                  <div
-                    className="absolute inset-0 z-10"
-                    style={{
-                      background: 'linear-gradient(to top, rgba(0,0,0,0.75) 0%, rgba(0,0,0,0.3) 25%, transparent 50%)',
-                      pointerEvents: 'none',
-                    }}
-                  />
-                  
-                  {/* Right-side action buttons (Reels-style) */}
-                  <div
-                    className="absolute right-3 z-20"
-                    style={{
-                      bottom: '80px',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'center',
-                      gap: '16px',
-                      pointerEvents: 'none',
-                    }}
-                  >
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
-                      <div style={{
-                        width: '40px', height: '40px', borderRadius: '50%',
-                        background: 'rgba(255,255,255,0.15)', backdropFilter: 'blur(8px)',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      }}>
-                        <Heart className="w-5 h-5 text-white" />
-                      </div>
-                      <span style={{ color: 'white', fontSize: '11px', fontWeight: '600' }}>
-                        {wave.likes_count || 0}
-                      </span>
-                    </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
-                      <div style={{
-                        width: '40px', height: '40px', borderRadius: '50%',
-                        background: 'rgba(255,255,255,0.15)', backdropFilter: 'blur(8px)',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      }}>
-                        <Play className="w-5 h-5 text-white" />
-                      </div>
-                      <span style={{ color: 'white', fontSize: '11px', fontWeight: '600' }}>
-                        {wave.view_count || 0}
-                      </span>
-                    </div>
-                  </div>
-                  
-                  {/* Bottom info bar (author + caption) */}
-                  <div
-                    className="absolute bottom-0 left-0 right-0 z-20 p-4"
-                    style={{ pointerEvents: 'none' }}
-                  >
-                    {/* Author row */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
-                      {wave.author_avatar ? (
-                        <img
-                          src={wave.author_avatar}
-                          alt={wave.author_name}
-                          style={{
-                            width: '32px', height: '32px', borderRadius: '50%',
-                            border: '2px solid rgba(255,255,255,0.6)',
-                            objectFit: 'cover',
-                          }}
-                        />
-                      ) : (
-                        <div style={{
-                          width: '32px', height: '32px', borderRadius: '50%',
-                          background: 'rgba(255,255,255,0.2)',
-                          display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          fontSize: '14px', fontWeight: '600', color: 'white',
-                        }}>
-                          {(wave.author_name || '?')[0]}
-                        </div>
-                      )}
-                      <span style={{
-                        color: 'white', fontWeight: '600', fontSize: '14px',
-                        textShadow: '0 1px 3px rgba(0,0,0,0.5)',
-                      }}>
-                        @{wave.author_username || wave.author_name?.split(' ')[0]?.toLowerCase()}
-                      </span>
-                    </div>
-                    
-                    {/* Caption */}
-                    {wave.caption && (
-                      <p style={{
-                        color: 'rgba(255,255,255,0.9)', fontSize: '13px',
-                        lineHeight: '1.4', maxHeight: '40px', overflow: 'hidden',
-                        textShadow: '0 1px 3px rgba(0,0,0,0.5)',
-                      }}>
-                        {wave.caption.length > 80 ? wave.caption.slice(0, 80) + '...' : wave.caption}
-                      </p>
-                    )}
-                  </div>
-                </div>
-              ))}
-              
-              {/* Load more / View all CTA */}
-              <button
-                onClick={() => navigate('/feed?tab=waves')}
-                style={{
-                  width: '100%',
-                  padding: '14px',
-                  borderRadius: '12px',
-                  background: 'linear-gradient(135deg, rgba(6,182,212,0.15), rgba(59,130,246,0.15))',
-                  border: '1px solid rgba(6,182,212,0.25)',
-                  color: 'rgb(6,182,212)',
-                  fontWeight: '600',
-                  fontSize: '14px',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '8px',
-                  transition: 'all 0.2s',
-                  marginTop: '8px',
-                }}
-                className="hover:bg-cyan-500/20"
-              >
-                <Play className="w-4 h-4" />
-                View All Waves
-                <ChevronRight className="w-4 h-4" />
-              </button>
-            </div>
-          )}
-        </div>
+        <ExploreWavesTab
+          trendingWaves={trendingWaves}
+          recentWaves={recentWaves}
+          wavesLoading={wavesLoading}
+          navigate={navigate}
+          handleWaveClick={handleWaveClick}
+        />
       )}
 
-      {/* Posts Tab - Browse Photos & Videos */}
+      {/* Posts Tab (extracted to explore/ExplorePostsTab.js) */}
       {activeTab === 'posts' && (
-        <div className="space-y-4" data-testid="posts-tab">
-          {/* Header */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Image className="w-5 h-5 text-purple-400" />
-              <h2 className="font-bold text-foreground">Explore Posts</h2>
-            </div>
-            <button
-              onClick={() => navigate('/feed')}
-              className="text-sm text-purple-400 hover:text-purple-300 flex items-center gap-1"
-            >
-              View Feed
-              <ChevronRight className="w-4 h-4" />
-            </button>
-          </div>
-          
-          {/* Posts Grid */}
-          {postsLoading ? (
-            <div className="flex justify-center py-10">
-              <Loader2 className="w-8 h-8 animate-spin text-purple-400" />
-            </div>
-          ) : explorePosts.length === 0 ? (
-            <div className="text-center py-10 text-muted-foreground">
-              <Image className="w-16 h-16 mx-auto mb-4 opacity-50" />
-              <h3 className="text-lg font-semibold text-foreground mb-2">No Posts Yet</h3>
-              <p className="mb-4">Be the first to share a photo or video!</p>
-              <button
-                onClick={() => navigate('/create')}
-                className="px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-full text-sm font-medium hover:from-purple-600 hover:to-pink-600 transition-all"
-              >
-                Create a Post
-              </button>
-            </div>
-          ) : (
-            <div className="grid grid-cols-3 gap-1">
-              {explorePosts.map((post) => (
-                <div
-                  key={post.id}
-                  onClick={() => handlePostClick(post)}
-                  className="aspect-square bg-zinc-800 overflow-hidden cursor-pointer group relative"
-                  data-testid={`explore-post-${post.id}`}
-                >
-                  <PostMediaPreview post={post} />
-                  
-                  {/* Overlay on hover */}
-                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-4 text-white z-20 pointer-events-none">
-                    <span className="flex items-center gap-1 text-sm">
-                      <Heart className="w-4 h-4" />
-                      {post.likes_count || 0}
-                    </span>
-                    <span className="flex items-center gap-1 text-sm">
-                      <MessageCircle className="w-4 h-4" />
-                      {post.comments_count || 0}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+        <ExplorePostsTab
+          explorePosts={explorePosts}
+          postsLoading={postsLoading}
+          handlePostClick={handlePostClick}
+        />
       )}
 
-      {/* Trending Hashtags Tab */}
+
+      {/* Trending Hashtags Tab (extracted ? explore/HashtagsTab.js) */}
       {activeTab === 'trending' && (
-        <div className="space-y-4" data-testid="trending-hashtags-tab">
-          {/* Header */}
-          <div className="flex items-center gap-2">
-            <Hash className="w-5 h-5 text-yellow-400" />
-            <h2 className="font-bold text-foreground">Trending Hashtags</h2>
-          </div>
-          
-          {/* Selected Hashtag View */}
-          {selectedHashtag ? (
-            <div>
-              {/* Hashtag Header */}
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => {
-                      setSelectedHashtag(null);
-                      setHashtagPosts([]);
-                    }}
-                    className="p-1.5 hover:bg-muted rounded-full transition-colors"
-                  >
-                    <X className="w-5 h-5 text-muted-foreground" />
-                  </button>
-                  <span className="text-xl font-bold text-yellow-400">#{selectedHashtag}</span>
-                </div>
-                <Badge className="bg-yellow-400/20 text-yellow-400">
-                  {hashtagPosts.length} posts
-                </Badge>
-              </div>
-              
-              {/* Posts Grid */}
-              {hashtagLoading ? (
-                <div className="flex justify-center py-10">
-                  <Loader2 className="w-8 h-8 animate-spin text-yellow-400" />
-                </div>
-              ) : hashtagPosts.length === 0 ? (
-                <div className="text-center py-10 text-muted-foreground">
-                  <Hash className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                  <p>No posts with #{selectedHashtag} yet</p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-3 gap-1">
-                  {hashtagPosts.map((post) => (
-                    <div
-                      key={post.id}
-                      onClick={() => navigate(`/post/${post.id}`)}
-                      className="aspect-square bg-muted overflow-hidden cursor-pointer group relative"
-                      data-testid={`hashtag-post-${post.id}`}
-                    >
-                      <PostMediaPreview post={post} isHoverScale={false} />
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          ) : (
-            /* Trending Hashtags List */
-            <div className="space-y-4">
-              {/* Quick Hashtag Pills */}
-              {trendingHashtags.length > 0 && (
-                <div className="flex flex-wrap gap-2">
-                  {trendingHashtags.slice(0, 10).map((tag, index) => (
-                    <button
-                      key={tag.tag}
-                      onClick={() => handleHashtagClick(tag.tag)}
-                      className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
-                        index < 3 
-                          ? 'bg-yellow-400/20 text-yellow-400 hover:bg-yellow-400/30' 
-                          : 'bg-muted text-gray-300 hover:bg-zinc-700'
-                      }`}
-                      data-testid={`trending-hashtag-${tag.tag}`}
-                    >
-                      #{tag.tag}
-                      <span className="ml-1 text-xs opacity-70">{tag.post_count}</span>
-                    </button>
-                  ))}
-                </div>
-              )}
-              
-              {/* Full List */}
-              <div className="space-y-2">
-                {trendingHashtags.map((tag, index) => (
-                  <button
-                    key={tag.tag}
-                    onClick={() => handleHashtagClick(tag.tag)}
-                    className="w-full flex items-center gap-3 p-3 bg-card rounded-xl hover:bg-muted transition-colors"
-                    data-testid={`hashtag-item-${tag.tag}`}
-                  >
-                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                      index < 3 ? 'bg-yellow-400/20' : 'bg-muted'
-                    }`}>
-                      <span className={`text-lg font-bold ${
-                        index < 3 ? 'text-yellow-400' : 'text-muted-foreground'
-                      }`}>
-                        {index + 1}
-                      </span>
-                    </div>
-                    <div className="flex-1 text-left">
-                      <p className="font-medium text-foreground">#{tag.tag}</p>
-                      <p className="text-xs text-muted-foreground">{tag.post_count} posts</p>
-                    </div>
-                    <ChevronRight className="w-5 h-5 text-muted-foreground" />
-                  </button>
-                ))}
-                
-                {trendingHashtags.length === 0 && (
-                  <div className="text-center py-10 text-muted-foreground">
-                    <Hash className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                    <p>No trending hashtags yet</p>
-                    <p className="text-sm mt-1">Start posting with #hashtags to see trends!</p>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-        </div>
+        <HashtagsTab
+          trendingHashtags={trendingHashtags}
+          selectedHashtag={selectedHashtag}
+          hashtagPosts={hashtagPosts}
+          hashtagLoading={hashtagLoading}
+          handleHashtagClick={handleHashtagClick}
+          setSelectedHashtag={setSelectedHashtag}
+          setHashtagPosts={setHashtagPosts}
+          navigate={navigate}
+        />
       )}
 
-      {/* Conditions/Reports Tab - 3-tab layout: Today / Yesterday / Archives */}
+      {/* Conditions/Reports Tab (extracted to explore/ExploreConditionsTab.js) */}
       {activeTab === 'conditions' && (
-        <div className="space-y-4" data-testid="conditions-explorer-tab">
-          {/* Sub-tab navigation pills */}
-          <div className="flex items-center gap-1 bg-muted/50 rounded-xl p-1">
-            {[
-              { id: 'today', label: 'Today', icon: Radio },
-              { id: 'yesterday', label: 'Yesterday', icon: Clock },
-              { id: 'archives', label: 'Archives', icon: Archive },
-            ].map(({ id, label, icon: Icon }) => (
-              <button
-                key={id}
-                onClick={() => handleConditionsSubTabChange(id)}
-                className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-lg text-sm font-medium transition-all ${
-                  conditionsSubTab === id
-                    ? 'bg-cyan-500/20 text-cyan-400 shadow-sm'
-                    : 'text-gray-400 hover:text-gray-200 hover:bg-zinc-700/50'
-                }`}
-                data-testid={`conditions-subtab-${id}`}
-              >
-                <Icon className="w-3.5 h-3.5" />
-                {label}
-                {id === 'today' && conditionsSubTab === 'today' && conditionReports.some(r => r.is_photographer_live) && (
-                  <span className="ml-0.5 w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-                )}
-              </button>
-            ))}
-          </div>
-
-          {/* ============ SHARED LOCATION PICKER (all sub-tabs) ============ */}
-          
-          {/* Header row with title + report count */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Waves className="w-5 h-5 text-cyan-400" />
-              <h2 className="font-bold text-foreground">
-                {conditionsSubTab === 'today' ? "Today's Reports" 
-                  : conditionsSubTab === 'yesterday' ? "Yesterday's Reports" 
-                  : "Session Archives"}
-              </h2>
-              {conditionsSubTab !== 'archives' && (
-                <Badge className="bg-cyan-500/20 text-cyan-400 text-xs">
-                  {conditionReports.length} reports
-                </Badge>
-              )}
-            </div>
-          </div>
-          
-          {/* Browse / Nearby Toggle */}
-          <div className="flex gap-2 p-1 bg-zinc-900 rounded-xl border border-zinc-800">
-            <button
-              onClick={() => { setConditionsLocMode('browse'); setUserLocation(null); }}
-              className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-medium transition-all ${
-                conditionsLocMode === 'browse'
-                  ? 'bg-gradient-to-r from-cyan-500 to-blue-500 text-white shadow-lg shadow-cyan-500/20'
-                  : 'text-gray-400 hover:text-gray-200 hover:bg-zinc-800'
-              }`}
-              data-testid="conditions-browse-btn"
-            >
-              <Globe className="w-4 h-4" />
-              Browse
-            </button>
-            <button
-              onClick={getReportsNearby}
-              className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-medium transition-all ${
-                conditionsLocMode === 'nearby'
-                  ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-lg shadow-emerald-500/20'
-                  : 'text-gray-400 hover:text-gray-200 hover:bg-zinc-800'
-              }`}
-              data-testid="conditions-nearby-btn"
-            >
-              <Compass className="w-4 h-4" />
-              Nearby
-              {userLocation && conditionsLocMode === 'nearby' && <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />}
-            </button>
-          </div>
-          
-          {/* Hierarchical Location Dropdowns (Browse mode) */}
-          {conditionsLocMode === 'browse' && (
-            <div className="space-y-3">
-              {/* Country Dropdown */}
-              <div>
-                <label className={`block text-xs uppercase tracking-wider font-medium mb-1.5 ${labelClass}`}>Country</label>
-                <div className="relative">
-                  <Globe className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-cyan-400 pointer-events-none z-10" />
-                  <select
-                    value={conditionsCountry}
-                    onChange={(e) => handleConditionsCountryChange(e.target.value)}
-                    className={`w-full pl-10 pr-10 py-3 ${dropdownBg} border ${dropdownBorder} rounded-xl ${dropdownText} text-sm focus:outline-none ${dropdownFocus} focus:ring-1 transition-all appearance-none cursor-pointer`}
-                    data-testid="conditions-country-dropdown"
-                  >
-                    <option value="">All Countries</option>
-                    {conditionsCountryOptions.map(name => (
-                      <option key={name} value={name}>{getCountryFlag(name)} {name}</option>
-                    ))}
-                  </select>
-                  <ChevronDown className={`absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 ${isLight ? 'text-gray-400' : 'text-gray-500'} pointer-events-none`} />
-                </div>
-              </div>
-              
-              {/* State/Province Dropdown */}
-              {conditionsCountry && conditionsStateOptions.length > 0 && (
-                <div>
-                  <label className={`block text-xs uppercase tracking-wider font-medium mb-1.5 ${labelClass}`}>State / Province</label>
-                  <div className="relative">
-                    <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-blue-400 pointer-events-none z-10" />
-                    <select
-                      value={conditionsState}
-                      onChange={(e) => handleConditionsStateChange(e.target.value)}
-                      className={`w-full pl-10 pr-10 py-3 ${dropdownBg} border ${dropdownBorder} rounded-xl ${dropdownText} text-sm focus:outline-none ${isLight ? 'focus:border-blue-500 focus:ring-blue-200/30' : 'focus:border-blue-500/50 focus:ring-blue-500/20'} focus:ring-1 transition-all appearance-none cursor-pointer`}
-                      data-testid="conditions-state-dropdown"
-                    >
-                      <option value="">All States</option>
-                      {conditionsStateOptions.map(name => (
-                        <option key={name} value={name}>{name}</option>
-                      ))}
-                    </select>
-                    <ChevronDown className={`absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 ${isLight ? 'text-gray-400' : 'text-gray-500'} pointer-events-none`} />
-                  </div>
-                </div>
-              )}
-              
-              {/* City/Area Dropdown */}
-              {conditionsState && conditionsCityOptions.length > 0 && (
-                <div>
-                  <label className={`block text-xs uppercase tracking-wider font-medium mb-1.5 ${labelClass}`}>City / Area</label>
-                  <div className="relative">
-                    <Navigation className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-emerald-400 pointer-events-none z-10" />
-                    <select
-                      value={conditionsCity}
-                      onChange={(e) => handleConditionsCityChange(e.target.value)}
-                      className={`w-full pl-10 pr-10 py-3 ${dropdownBg} border ${dropdownBorder} rounded-xl ${dropdownText} text-sm focus:outline-none ${isLight ? 'focus:border-emerald-500 focus:ring-emerald-200/30' : 'focus:border-emerald-500/50 focus:ring-emerald-500/20'} focus:ring-1 transition-all appearance-none cursor-pointer`}
-                      data-testid="conditions-city-dropdown"
-                    >
-                      <option value="">All Cities</option>
-                      {conditionsCityOptions.map(name => (
-                        <option key={name} value={name}>{name}</option>
-                      ))}
-                    </select>
-                    <ChevronDown className={`absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 ${isLight ? 'text-gray-400' : 'text-gray-500'} pointer-events-none`} />
-                  </div>
-                </div>
-              )}
-              
-              {/* Popular Destinations — show when no country selected */}
-              {!conditionsCountry && (
-                <div>
-                  <p className={`text-xs uppercase tracking-wider font-medium mb-2 ${labelClass}`}>Popular Destinations</p>
-                  <div className="flex flex-wrap gap-2">
-                    {popularLocations.map((loc, i) => (
-                      <button
-                        key={i}
-                        onClick={() => jumpToConditionsLocation(loc)}
-                        className={`px-3 py-1.5 border rounded-full text-xs transition-all ${chipBg}`}
-                        data-testid={`conditions-quick-loc-${i}`}
-                      >
-                        {loc.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-              
-              {/* Selection breadcrumb + Clear */}
-              {conditionsCountry && (
-                <div className="flex items-center gap-1.5 text-sm flex-wrap">
-                  <span className="text-lg">{getCountryFlag(conditionsCountry)}</span>
-                  <span className={`${breadcrumbText} font-medium`}>{conditionsCountry}</span>
-                  {conditionsState && (
-                    <>
-                      <ChevronRight className="w-3.5 h-3.5 text-gray-600" />
-                      <span className={isLight ? 'text-blue-600' : 'text-blue-400'}>{conditionsState}</span>
-                    </>
-                  )}
-                  {conditionsCity && (
-                    <>
-                      <ChevronRight className="w-3.5 h-3.5 text-gray-600" />
-                      <span className={isLight ? 'text-emerald-600' : 'text-emerald-400'}>{conditionsCity}</span>
-                    </>
-                  )}
-                  <button
-                    onClick={clearConditionsLocation}
-                    className={`ml-auto text-xs flex items-center gap-1 px-2 py-1 rounded-md transition-colors ${isLight ? 'text-gray-500 hover:text-gray-700 hover:bg-gray-100' : 'text-gray-500 hover:text-gray-300 hover:bg-zinc-800'}`}
-                  >
-                    <X className="w-3 h-3" /> Clear
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
-          
-          {/* Nearby Mode Indicator */}
-          {conditionsLocMode === 'nearby' && userLocation && (
-            <div className="flex items-center gap-2 px-3 py-2 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
-              <Compass className="w-4 h-4 text-emerald-400 animate-pulse" />
-              <span className="text-xs text-emerald-300">Showing reports sorted by distance from you</span>
-              <button
-                onClick={clearConditionsLocation}
-                className="ml-auto text-xs text-emerald-400 hover:text-emerald-300 flex items-center gap-1"
-              >
-                <X className="w-3 h-3" /> Clear
-              </button>
-            </div>
-          )}
-
-          {/* Archives: Date Carousel + Gallery Cards */}
-          {conditionsSubTab === 'archives' && (
-            <div className="space-y-4">
-              
-              {/* Scrollable date chips */}
-              {archiveDates.length > 0 ? (
-                <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
-                  {archiveDates.map((d) => {
-                    const dateObj = new Date(d.date + 'T12:00:00Z');
-                    const isSelected = archiveDate === d.date;
-                    return (
-                      <button
-                        key={d.date}
-                        onClick={() => handleArchiveDateSelect(d.date)}
-                        className={`flex-shrink-0 flex flex-col items-center px-3 py-2 rounded-xl text-xs font-medium transition-all ${
-                          isSelected
-                            ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/40'
-                            : 'bg-muted text-gray-400 hover:bg-zinc-700 border border-transparent'
-                        }`}
-                      >
-                        <span className="text-[10px] uppercase opacity-70">
-                          {dateObj.toLocaleDateString('en-US', { weekday: 'short' })}
-                        </span>
-                        <span className="text-sm font-bold">
-                          {dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                        </span>
-                        <span className="text-[10px] mt-0.5 opacity-60">
-                          {d.report_count} {d.report_count === 1 ? 'report' : 'reports'}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              ) : (
-                <div className="text-center py-6 text-muted-foreground">
-                  <Archive className="w-10 h-10 mx-auto mb-2 opacity-40" />
-                  <p className="text-sm">No archived reports found</p>
-                </div>
-              )}
-
-              {/* Archive Gallery Cards */}
-              {archiveDate && (
-                <>
-                  {archiveGalleriesLoading ? (
-                    <div className="flex justify-center py-6">
-                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-cyan-400"></div>
-                    </div>
-                  ) : archiveGalleries.length > 0 ? (
-                    <div className="space-y-3">
-                      <h3 className="text-sm font-semibold text-gray-400 flex items-center gap-1.5">
-                        <FolderOpen className="w-4 h-4" />
-                        Session Galleries
-                      </h3>
-                      {archiveGalleries.map((gallery) => (
-                        <div
-                          key={gallery.id}
-                          onClick={() => navigate(`/photographer/${gallery.photographer_id}/gallery?gallery=${gallery.id}`)}
-                          className="flex items-center gap-3 p-3 bg-muted/50 hover:bg-zinc-700/50 rounded-xl cursor-pointer transition-all group"
-                          data-testid={`archive-gallery-${gallery.id}`}
-                        >
-                          {/* Cover thumbnail */}
-                          <div className="relative w-16 h-16 rounded-lg overflow-hidden flex-shrink-0 bg-zinc-700">
-                            {gallery.cover_image_url ? (
-                              <img 
-                                src={gallery.cover_image_url} 
-                                alt={gallery.title} 
-                                className="w-full h-full object-cover group-hover:scale-105 transition-transform"
-                              />
-                            ) : (
-                              <div className="w-full h-full flex items-center justify-center">
-                                <Camera className="w-6 h-6 text-zinc-600" />
-                              </div>
-                            )}
-                            <div className="absolute bottom-0.5 right-0.5 bg-black/70 rounded px-1 py-0.5">
-                              <span className="text-[9px] font-bold text-white">{gallery.item_count} 📸</span>
-                            </div>
-                          </div>
-                          {/* Info */}
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-1.5">
-                              <h4 className="font-medium text-foreground text-sm truncate">{gallery.title}</h4>
-                              {gallery.session_type && (
-                                <span className={`flex-shrink-0 text-[9px] font-semibold px-1.5 py-0.5 rounded-full ${
-                                  gallery.session_type === 'live' ? 'bg-green-500/20 text-green-400' :
-                                  gallery.session_type === 'on_demand' ? 'bg-yellow-500/20 text-yellow-400' :
-                                  gallery.session_type === 'booking' ? 'bg-purple-500/20 text-purple-400' :
-                                  'bg-zinc-500/20 text-zinc-400'
-                                }`}>
-                                  {gallery.session_type === 'live' ? 'LIVE' :
-                                   gallery.session_type === 'on_demand' ? 'ON-DEMAND' :
-                                   gallery.session_type === 'booking' ? 'BOOKING' : 'MANUAL'}
-                                </span>
-                              )}
-                            </div>
-                            <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-0.5">
-                              {gallery.photographer_avatar ? (
-                                <img src={gallery.photographer_avatar} alt="" className="w-3.5 h-3.5 rounded-full object-cover" />
-                              ) : (
-                                <Camera className="w-3.5 h-3.5 text-yellow-400" />
-                              )}
-                              <span className="truncate">{gallery.photographer_name || 'Photographer'}</span>
-                            </div>
-                            {gallery.conditions && (
-                              <div className="flex items-center gap-1.5 mt-1">
-                                {gallery.conditions.wave_height_ft && (
-                                  <Badge className="bg-blue-500/20 text-blue-400 text-[10px] py-0 px-1.5">
-                                    {gallery.conditions.wave_height_ft}ft
-                                  </Badge>
-                                )}
-                                {gallery.conditions.conditions_label && (
-                                  <Badge className="bg-teal-500/20 text-teal-400 text-[10px] py-0 px-1.5">
-                                    {gallery.conditions.conditions_label}
-                                  </Badge>
-                                )}
-                              </div>
-                            )}
-                          </div>
-                          <ChevronRight className="w-4 h-4 text-gray-600 group-hover:text-cyan-400 transition-colors flex-shrink-0" />
-                        </div>
-                      ))}
-                    </div>
-                  ) : null}
-                </>
-              )}
-            </div>
-          )}
-
-          {/* Report List (shared between today/yesterday/archive-date) */}
-          {conditionsLoading ? (
-            <div className="flex justify-center py-10">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-cyan-400"></div>
-            </div>
-          ) : conditionReports.length === 0 && conditionsSubTab !== 'archives' ? (
-            /* Empty State */
-            <div className="text-center py-12 text-muted-foreground">
-              <Waves className="w-12 h-12 mx-auto mb-3 opacity-50" />
-              <p className="font-medium mb-1">
-                {conditionsSubTab === 'yesterday' ? "No reports from yesterday" : "No reports from today yet"}
-              </p>
-              <p className="text-sm text-gray-500">
-                {conditionsSubTab === 'yesterday' ? "Check the Archives for older reports" : "Check back when photographers go live!"}
-              </p>
-            </div>
-          ) : conditionReports.length === 0 && conditionsSubTab === 'archives' && archiveDate ? (
-            <div className="text-center py-8 text-muted-foreground">
-              <Waves className="w-10 h-10 mx-auto mb-2 opacity-40" />
-              <p className="text-sm">No reports for this date</p>
-            </div>
-          ) : conditionReports.length > 0 ? (
-            /* Conditions Reports List */
-            <div className="space-y-3">
-              {conditionsSubTab === 'archives' && archiveDate && (
-                <h3 className="text-sm font-semibold text-gray-400 flex items-center gap-1.5">
-                  <Waves className="w-4 h-4" />
-                  Condition Reports
-                </h3>
-              )}
-              {conditionReports.map((report) => {
-                const hasGallery = report.gallery_id && report.gallery_item_count > 0;
-                return (
-                <div
-                  key={report.id}
-                  className={`bg-muted/50 rounded-xl overflow-hidden transition-colors ${isLight ? 'hover:bg-gray-100' : 'hover:bg-zinc-700/50'}`}
-                  data-testid={`condition-report-${report.id}`}
-                >
-                  {/* Main card body — clicks to SpotHub */}
-                  <div
-                    onClick={() => {
-                      if (report.spot_id) {
-                        navigate(`/spot-hub/${report.spot_id}`);
-                      } else {
-                        navigate(`/profile/${report.photographer_id}`);
-                      }
-                    }}
-                    className="flex items-center gap-4 p-4 cursor-pointer group"
-                  >
-                    {/* Thumbnail */}
-                    <div className="relative w-20 h-20 rounded-lg overflow-hidden flex-shrink-0 bg-zinc-700">
-                      {(report.thumbnail_url || report.media_url) ? (
-                        <img 
-                          src={report.thumbnail_url || report.media_url} 
-                          alt={report.spot_name || 'Conditions'} 
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform"
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center">
-                          <Waves className="w-8 h-8 text-zinc-600" />
-                        </div>
-                      )}
-                      {/* Wave Height Badge */}
-                      {report.wave_height_ft && (
-                        <div className="absolute bottom-1 left-1 flex items-center gap-0.5 bg-blue-500/90 backdrop-blur-sm rounded-full px-1.5 py-0.5">
-                          <Waves className="w-2.5 h-2.5 text-foreground" />
-                          <span className="text-[10px] font-bold text-foreground">{report.wave_height_ft}ft</span>
-                        </div>
-                      )}
-                      {/* Live Shooting Indicator */}
-                      {report.is_photographer_live && (
-                        <div className="absolute top-1 right-1 w-2.5 h-2.5 bg-green-500 rounded-full animate-pulse" />
-                      )}
-                      {/* Gallery link badge */}
-                      {hasGallery && (
-                        <div className="absolute top-1 left-1 bg-black/70 backdrop-blur-sm rounded px-1 py-0.5">
-                          <span className="text-[9px] font-bold text-cyan-400">📸 {report.gallery_item_count}</span>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Content */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <h4 className="font-medium text-foreground truncate">{report.spot_name || 'Unknown Spot'}</h4>
-                        {report.conditions_label && (
-                          <Badge className="bg-blue-500/20 text-blue-400 text-xs">
-                            {report.conditions_label}
-                          </Badge>
-                        )}
-                      </div>
-                      
-                      {/* Photographer Info */}
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <div className="flex items-center gap-1.5">
-                          {report.photographer_avatar ? (
-                            <img 
-                              src={report.photographer_avatar} 
-                              alt={report.photographer_name} 
-                              className="w-4 h-4 rounded-full object-cover"
-                            />
-                          ) : (
-                            <Camera className="w-4 h-4 text-yellow-400" />
-                          )}
-                          <span className="truncate">{report.photographer_name || 'Photographer'}</span>
-                        </div>
-                        <span className="text-gray-600">•</span>
-                        <span className="flex items-center gap-1">
-                          <Clock className="w-3 h-3" />
-                          {report.time_ago}
-                        </span>
-                      </div>
-                      
-                      {/* Caption Preview */}
-                      {report.caption && (
-                        <p className="text-xs text-gray-500 truncate mt-1">{report.caption}</p>
-                      )}
-                    </div>
-
-                    {/* Arrow */}
-                    <ChevronRight className="w-5 h-5 text-gray-600 group-hover:text-cyan-400 transition-colors flex-shrink-0" />
-                  </div>
-
-                  {/* Action buttons row — View Spot always, View Gallery when gallery linked */}
-                  <div className={`flex gap-2 px-4 pb-3 pt-0`}>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (report.spot_id) {
-                          navigate(`/spot-hub/${report.spot_id}`);
-                        } else {
-                          navigate(`/profile/${report.photographer_id}`);
-                        }
-                      }}
-                      className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-medium transition-all ${
-                        isLight
-                          ? 'bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-200'
-                          : 'bg-zinc-800 hover:bg-zinc-700 text-gray-300 border border-zinc-700'
-                      }`}
-                    >
-                      <Waves className="w-3.5 h-3.5" />
-                      View Spot
-                    </button>
-                    {hasGallery && (
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          navigate(`/photographer/${report.photographer_id}/gallery?gallery=${report.gallery_id}`);
-                        }}
-                        className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-medium transition-all bg-gradient-to-r from-cyan-500/20 to-blue-500/20 hover:from-cyan-500/30 hover:to-blue-500/30 text-cyan-400 border border-cyan-500/30 hover:border-cyan-500/50"
-                        data-testid={`view-gallery-${report.id}`}
-                      >
-                        <Camera className="w-3.5 h-3.5" />
-                        View Gallery
-                        <span className="bg-cyan-500/30 rounded-full px-1.5 py-0 text-[10px] font-bold">{report.gallery_item_count}</span>
-                      </button>
-                    )}
-                  </div>
-                </div>
-                );
-              })}
-            </div>
-          ) : null}
-        </div>
+        <ExploreConditionsTab
+          conditionsSubTab={conditionsSubTab}
+          handleConditionsSubTabChange={handleConditionsSubTabChange}
+          conditionReports={conditionReports}
+          conditionsLoading={conditionsLoading}
+          conditionsLocMode={conditionsLocMode}
+          setConditionsLocMode={setConditionsLocMode}
+          userLocation={userLocation}
+          setUserLocation={setUserLocation}
+          conditionsCountry={conditionsCountry}
+          conditionsState={conditionsState}
+          conditionsCity={conditionsCity}
+          conditionsCountryOptions={conditionsCountryOptions}
+          conditionsStateOptions={conditionsStateOptions}
+          conditionsCityOptions={conditionsCityOptions}
+          handleConditionsCountryChange={handleConditionsCountryChange}
+          handleConditionsStateChange={handleConditionsStateChange}
+          handleConditionsCityChange={handleConditionsCityChange}
+          clearConditionsLocation={clearConditionsLocation}
+          jumpToConditionsLocation={jumpToConditionsLocation}
+          getReportsNearby={getReportsNearby}
+          archiveDates={archiveDates}
+          archiveDate={archiveDate}
+          archiveGalleries={archiveGalleries}
+          archiveGalleriesLoading={archiveGalleriesLoading}
+          handleArchiveDateSelect={handleArchiveDateSelect}
+          popularLocations={popularLocations}
+          isLight={isLight}
+          dropdownBg={dropdownBg}
+          dropdownBorder={dropdownBorder}
+          dropdownText={dropdownText}
+          dropdownFocus={dropdownFocus}
+          labelClass={labelClass}
+          chipBg={chipBg}
+          breadcrumbText={breadcrumbText}
+        />
       )}
 
-      {/* Top Sponsors Tab - Beach Mode styling */}
+      {/* Top Sponsors Tab (extracted to explore/ExploreSponsorsTab.js) */}
       {activeTab === 'sponsors' && (
-        <div className="space-y-4" data-testid="top-sponsors-tab">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-foreground font-bold text-lg flex items-center gap-2">
-              <Trophy className="w-5 h-5 text-amber-400" />
-              Top Sponsors This Month
-            </h2>
-          </div>
-
-          {leaderboardLoading ? (
-            <div className="flex justify-center py-10">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-amber-400"></div>
-            </div>
-          ) : leaderboard.length === 0 ? (
-            <div className="text-center py-10 text-muted-foreground">
-              <Heart className="w-12 h-12 mx-auto mb-3 opacity-50" />
-              <p>No sponsors yet this month</p>
-              <p className="text-sm mt-1">Be the first to support a Grom!</p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {leaderboard.map((sponsor, index) => (
-                <div
-                  key={sponsor.photographer_id}
-                  onClick={() => openSponsorCard(sponsor)}
-                  className="bg-black border-2 border-white rounded-lg p-4 cursor-pointer hover:bg-card transition-all"
-                  data-testid={`sponsor-card-${index}`}
-                >
-                  <div className="flex items-center gap-4">
-                    {/* Rank */}
-                    <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-lg ${
-                      sponsor.rank === 1 ? 'bg-amber-500 text-black' :
-                      sponsor.rank === 2 ? 'bg-gray-300 text-black' :
-                      sponsor.rank === 3 ? 'bg-amber-700 text-foreground' :
-                      'bg-muted text-foreground'
-                    }`}>
-                      {sponsor.rank}
-                    </div>
-
-                    {/* Avatar */}
-                    <Avatar className="w-12 h-12">
-                      <AvatarImage src={getFullUrl(sponsor.avatar_url)} />
-                      <AvatarFallback className="bg-zinc-700 text-foreground">
-                        {sponsor.full_name?.[0] || '?'}
-                      </AvatarFallback>
-                    </Avatar>
-
-                    {/* Info */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="text-foreground font-semibold truncate">{sponsor.full_name}</span>
-                        {sponsor.is_grom_guardian && (
-                          <Badge className="bg-amber-500/20 text-amber-400 text-xs px-1.5 py-0.5">
-                            Grom Guardian
-                          </Badge>
-                        )}
-                      </div>
-                      <p className="text-zinc-500 text-sm">{sponsor.role}</p>
-                    </div>
-
-                    {/* Stats */}
-                    <div className="text-right">
-                      <p className="text-amber-400 font-bold text-lg">
-                        {sponsor.monthly_total?.toFixed(0) || 0}
-                      </p>
-                      <p className="text-zinc-600 text-xs">credits given</p>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+        <ExploreSponsorsTab
+          leaderboard={leaderboard}
+          leaderboardLoading={leaderboardLoading}
+          openSponsorCard={openSponsorCard}
+          selectedSponsor={selectedSponsor}
+          sponsorDetails={sponsorDetails}
+          closeSponsorCard={closeSponsorCard}
+        />
       )}
 
       </div>{/* end exploreContentRef */}
       </div>{/* end swipe container */}
-
-
-      {/* Sponsor Quick Card (Bottom Sheet) */}
-      {selectedSponsor && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center">
-          {/* Backdrop */}
-          <div 
-            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-            onClick={closeSponsorCard}
-          />
-          
-          {/* Sheet */}
-          <div className="relative bg-card border-t-2 border-white rounded-t-2xl w-full max-w-lg animate-slide-up">
-            {/* Handle */}
-            <div className="flex justify-center pt-2 pb-4">
-              <div className="w-10 h-1 bg-zinc-700 rounded-full" />
-            </div>
-
-            <div className="px-6 pb-8">
-              {/* Profile Header */}
-              <div className="flex items-center gap-4 mb-6">
-                <Avatar className="w-16 h-16">
-                  <AvatarImage src={getFullUrl(selectedSponsor.avatar_url)} />
-                  <AvatarFallback className="bg-zinc-700 text-foreground text-xl">
-                    {selectedSponsor.full_name?.[0] || '?'}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="flex-1">
-                  <div className="flex items-center gap-2">
-                    <h3 className="text-foreground font-bold text-lg">{selectedSponsor.full_name}</h3>
-                    {selectedSponsor.is_grom_guardian && (
-                      <Badge className="bg-amber-500 text-black text-xs">
-                        Grom Guardian
-                      </Badge>
-                    )}
-                  </div>
-                  <p className="text-zinc-400 text-sm">{selectedSponsor.role}</p>
-                </div>
-                <div className="text-right">
-                  <p className="text-3xl font-bold text-amber-400">#{selectedSponsor.rank}</p>
-                </div>
-              </div>
-
-              {/* Impact Stats */}
-              <div className="grid grid-cols-3 gap-4 mb-6">
-                <div className="bg-muted border border-zinc-700 rounded-lg p-3 text-center">
-                  <p className="text-amber-400 font-bold text-xl">
-                    {sponsorDetails?.monthly_total?.toFixed(0) || selectedSponsor.monthly_total?.toFixed(0) || 0}
-                  </p>
-                  <p className="text-zinc-500 text-xs">This Month</p>
-                </div>
-                <div className="bg-muted border border-zinc-700 rounded-lg p-3 text-center">
-                  <p className="text-cyan-400 font-bold text-xl">
-                    {sponsorDetails?.lifetime_total?.toFixed(0) || selectedSponsor.lifetime_total?.toFixed(0) || 0}
-                  </p>
-                  <p className="text-zinc-500 text-xs">Lifetime</p>
-                </div>
-                <div className="bg-muted border border-zinc-700 rounded-lg p-3 text-center">
-                  <p className="text-green-400 font-bold text-xl">
-                    {sponsorDetails?.total_groms_supported || selectedSponsor.groms_supported || 0}
-                  </p>
-                  <p className="text-zinc-500 text-xs">Groms</p>
-                </div>
-              </div>
-
-              {/* Athletes Supported */}
-              {sponsorDetails?.supported_athletes?.length > 0 && (
-                <div className="mb-6">
-                  <h4 className="text-foreground font-semibold mb-3">Athletes Supported</h4>
-                  <div className="flex flex-wrap gap-2">
-                    {sponsorDetails.supported_athletes.map(athlete => (
-                      <div 
-                        key={athlete.id}
-                        className="flex items-center gap-2 bg-muted rounded-full px-3 py-1.5"
-                      >
-                        <Avatar className="w-6 h-6">
-                          <AvatarImage src={getFullUrl(athlete.avatar_url)} />
-                          <AvatarFallback className="bg-amber-900 text-amber-400 text-xs">
-                            {athlete.full_name?.[0]}
-                          </AvatarFallback>
-                        </Avatar>
-                        <span className="text-foreground text-sm">{athlete.full_name}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Actions */}
-              <div className="flex gap-3">
-                <button
-                  onClick={() => navigate(`/profile/${selectedSponsor.photographer_id}`)}
-                  className="flex-1 bg-white text-black font-semibold py-3 rounded-lg hover:bg-zinc-200 transition-all"
-                >
-                  View Profile
-                </button>
-                <button
-                  onClick={() => navigate(`/messages?to=${selectedSponsor.photographer_id}`)}
-                  className="flex-1 bg-muted text-foreground font-semibold py-3 rounded-lg hover:bg-zinc-700 transition-all flex items-center justify-center gap-2"
-                >
-                  <MessageCircle className="w-5 h-5" />
-                  Message
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

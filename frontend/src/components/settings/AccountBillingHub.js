@@ -3,7 +3,7 @@
  * Location: Settings > Account & Billing
  * 
  * Features:
- * - Surfer Status Toggle (Regular ↔ Competitive for 18+)
+ * - Surfer Status Toggle (Regular ? Competitive for 18+)
  * - Plan Management (Tier 1/2/3 with Stripe)
  * - Grom Management for Parents
  * - Parent-Surfer Hybrid toggle
@@ -302,7 +302,7 @@ export const AccountBillingHub = () => {
 
             {/* Apply for Pro - Only for Competitive Surfers not yet approved */}
             {isCompetitive && !accountData.is_approved_pro && !accountData.is_pending_pro && (
-              <Button
+              <Button aria-label="Loader2"
                 onClick={handleApplyForPro}
                 disabled={toggling}
                 className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white"
@@ -433,8 +433,8 @@ export const AccountBillingHub = () => {
                         </div>
                         <p className="text-[11px] text-muted-foreground truncate">
                           {plan.storage_gb === -1 ? 'Unlimited' : plan.storage_gb ? `${plan.storage_gb}GB` : '5GB'}
-                          {plan.commission_rate && ` • ${Math.round(plan.commission_rate * 100)}%`}
-                          {plan.gold_pass && ' • Gold'}
+                          {plan.commission_rate && ` - ${Math.round(plan.commission_rate * 100)}%`}
+                          {plan.gold_pass && ' - Gold'}
                         </p>
                       </div>
                     </div>
@@ -453,7 +453,7 @@ export const AccountBillingHub = () => {
                   {/* Payment Options - only for non-current paid tiers */}
                   {!isCurrentTier && plan.price > 0 && (
                     <div className="mt-2 pt-2 border-t border-border flex gap-2 w-full">
-                      <Button
+                      <Button aria-label="Loader2"
                         onClick={() => handleTierUpgrade(plan.tier_id, false)}
                         disabled={upgrading === plan.tier_id}
                         className="flex-1 bg-cyan-500 hover:bg-cyan-600 text-black text-xs px-2"
@@ -488,7 +488,7 @@ export const AccountBillingHub = () => {
                   {/* Free tier - instant switch */}
                   {!isCurrentTier && plan.price === 0 && (
                     <div className="mt-2 pt-2 border-t border-border">
-                      <Button
+                      <Button aria-label="Loader2"
                         onClick={() => handleTierUpgrade(plan.tier_id, false)}
                         disabled={upgrading === plan.tier_id}
                         className="w-full bg-green-500 hover:bg-green-600 text-white text-xs"
@@ -543,7 +543,7 @@ export const AccountBillingHub = () => {
                 <p className="text-xs text-muted-foreground">${(user?.credit_balance || 0).toFixed(2)} value</p>
               </div>
             </div>
-            <Button
+            <Button aria-label="Add"
               variant="outline"
               size="sm"
               className="w-full mt-2 border-yellow-500/50 text-yellow-400 hover:bg-yellow-500/10"
@@ -582,7 +582,7 @@ export const AccountBillingHub = () => {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     {grom.avatar_url ? (
-                      <img 
+                      <img loading="lazy" decoding="async" 
                         src={getFullUrl(grom.avatar_url)} 
                         alt={grom.full_name}
                         className="w-10 h-10 rounded-full object-cover"
@@ -706,7 +706,7 @@ export const AccountBillingHub = () => {
 
             {/* Apply for Vetted Pro - Only for Working Photographers */}
             {accountData.role === ROLES.PHOTOGRAPHER && !accountData.is_approved_pro && (
-              <Button
+              <Button aria-label="Loader2"
                 onClick={handleApplyForPro}
                 disabled={toggling}
                 className="w-full bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white"

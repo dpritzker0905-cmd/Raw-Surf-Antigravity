@@ -2,8 +2,8 @@
  * ReviewModal - Post-session review modal with double-blind pattern
  * 
  * Supports:
- * - Single review (surfer → photographer)
- * - Multi-review Uber-style (photographer → multiple surfers at once)
+ * - Single review (surfer ? photographer)
+ * - Multi-review Uber-style (photographer ? multiple surfers at once)
  * - All 3 session types: live, on-demand, scheduled
  * - Star rating (1-5) with tap/hover animation
  * - Category ratings: Photo Quality, Communication, Punctuality
@@ -43,7 +43,7 @@ const StarRating = ({ value, onChange, size = 'md', disabled = false, theme }) =
   const starSize = sizeClasses[size] || sizeClasses.md;
   
   return (
-    <div className="flex items-center gap-1">
+    <div data-testid="review-modal-page" className="flex items-center gap-1">
       {[1, 2, 3, 4, 5].map((star) => {
         const filled = star <= (hoverValue || value);
         return (
@@ -131,7 +131,7 @@ const PersonReviewCard = ({ person, review, onUpdate, index, theme }) => {
       
       {/* Comment */}
       {review.rating > 0 && (
-        <textarea
+        <textarea aria-label="Add a comment (optional)..."
           value={review.comment || ''}
           onChange={(e) => onUpdate(index, 'comment', e.target.value)}
           placeholder="Add a comment (optional)..."
@@ -154,9 +154,9 @@ export const ReviewModal = ({
   reviewerId,
   sessionId,         // live_session_id, booking_id, or dispatch_id
   sessionType = 'live', // 'live', 'on_demand', 'scheduled'
-  // For single review (surfer → photographer)
+  // For single review (surfer ? photographer)
   reviewee = null,   // { id, full_name, avatar_url }
-  // For multi review (photographer → multiple surfers)
+  // For multi review (photographer ? multiple surfers)
   participants = [], // [{ counterpart_id, counterpart_name, counterpart_avatar }]
   // Callbacks
   onReviewSubmitted,
@@ -209,7 +209,7 @@ export const ReviewModal = ({
     return payload;
   }, [sessionId, sessionType]);
   
-  // Submit single review (surfer → photographer)
+  // Submit single review (surfer ? photographer)
   const handleSubmitSingle = useCallback(async () => {
     if (rating === 0) {
       toast.error('Please select a star rating');
@@ -231,7 +231,7 @@ export const ReviewModal = ({
       });
       
       setSubmitted(true);
-      toast.success('Review submitted! +10 XP 🎉');
+      toast.success('Review submitted! +10 XP ' + String.fromCodePoint(0x1F929));
       onReviewSubmitted?.();
       
       // Auto-close after brief delay
@@ -299,7 +299,7 @@ export const ReviewModal = ({
     }
     
     if (successCount > 0) {
-      toast.success(`${successCount} review${successCount > 1 ? 's' : ''} submitted! +${successCount * 10} XP 🎉`);
+      toast.success(`${successCount} review${successCount > 1 ? 's' : ''} submitted! +${successCount * 10} XP ` + String.fromCodePoint(0x1F929));
       onReviewSubmitted?.();
     }
     
@@ -329,11 +329,11 @@ export const ReviewModal = ({
           <div className={`flex items-start gap-2 p-3 rounded-lg ${isLight ? 'bg-blue-50 border border-blue-200' : isBeach ? 'bg-blue-950/30 border border-blue-800/30' : 'bg-blue-950/30 border border-blue-900/30'}`}>
             <AlertCircle className="w-4 h-4 text-blue-400 mt-0.5 shrink-0" />
             <p className={`text-xs ${isLight ? 'text-blue-700' : 'text-blue-300'}`}>
-              Reviews are private until both parties submit, or after 14 days — encouraging honest feedback.
+              Reviews are private until both parties submit, or after 14 days - encouraging honest feedback.
             </p>
           </div>
           
-          {/* ===== SINGLE REVIEW MODE (Surfer → Photographer) ===== */}
+          {/* ===== SINGLE REVIEW MODE (Surfer ? Photographer) ===== */}
           {!isMultiReview && reviewee && !submitted && (
             <>
               {/* Reviewee header */}
@@ -400,7 +400,7 @@ export const ReviewModal = ({
                 >
                   Skip
                 </Button>
-                <Button
+                <Button aria-label="Loader2"
                   className="flex-1 bg-gradient-to-r from-yellow-500 to-amber-500 hover:from-yellow-600 hover:to-amber-600 text-black font-semibold"
                   onClick={handleSubmitSingle}
                   disabled={rating === 0 || submitting}
@@ -416,7 +416,7 @@ export const ReviewModal = ({
             </>
           )}
           
-          {/* ===== MULTI REVIEW MODE (Photographer → Surfers, Uber-style) ===== */}
+          {/* ===== MULTI REVIEW MODE (Photographer ? Surfers, Uber-style) ===== */}
           {isMultiReview && !submitted && (
             <>
               <p className={`text-sm ${textSecondary}`}>
@@ -445,7 +445,7 @@ export const ReviewModal = ({
                 >
                   Skip All
                 </Button>
-                <Button
+                <Button aria-label="Loader2"
                   className="flex-1 bg-gradient-to-r from-yellow-500 to-amber-500 hover:from-yellow-600 hover:to-amber-600 text-black font-semibold"
                   onClick={handleSubmitMulti}
                   disabled={multiReviews.every(r => r.rating === 0) || multiSubmitting}
@@ -473,7 +473,7 @@ export const ReviewModal = ({
                 <Star className="w-8 h-8 text-black fill-black" />
               </div>
               <h3 className={`text-lg font-bold ${textPrimary}`}>Review Submitted!</h3>
-              <p className={`text-sm ${textSecondary}`}>+10 XP earned. Thanks for your feedback! 🤙</p>
+              <p className={`text-sm ${textSecondary}`}>+10 XP earned. Thanks for your feedback! {String.fromCodePoint(0x1F64F)}</p>
             </div>
           )}
         </div>

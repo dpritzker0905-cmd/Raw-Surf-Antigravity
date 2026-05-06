@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { usePersona } from '../contexts/PersonaContext';
@@ -395,28 +395,28 @@ export const EarningsDashboard = () => {
     
     switch (update.type) {
       case 'new_sale':
-        toast.success(`?? New sale: +$${amount}`, { 
+        toast.success(`💰 New sale: +$${amount}`, { 
           description: details.item_title ? `"${details.item_title}" purchased by ${details.buyer_name}` : undefined,
           duration: 5000 
         });
         setLoading(true);
         break;
       case 'booking_paid':
-        toast.success(`?? Booking payment: +$${amount}`, {
+        toast.success(`💰 Booking payment: +$${amount}`, {
           description: `${details.buyer_name} joined your session at ${details.booking_location}`,
           duration: 5000
         });
         setLoading(true);
         break;
       case 'tip_received':
-        toast.success(`?? Tip received: +$${amount}`, {
+        toast.success(`💝 Tip received: +$${amount}`, {
           description: `From ${details.donor_name}`,
           duration: 5000
         });
         setLoading(true);
         break;
       case 'payout_complete':
-        toast.success(`?? Payout complete: $${amount} transferred`, { duration: 4000 });
+        toast.success(`✅ Payout complete: $${amount} transferred`, { duration: 4000 });
         setLoading(true);
         break;
       default:
@@ -586,7 +586,7 @@ export const EarningsDashboard = () => {
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className={`text-3xl font-bold ${textPrimaryClass}`} style={{ fontFamily: 'Oswald' }}>
+            <h1 className={`text-3xl font-bold ${textPrimaryClass} font-oswald`} >
               {isPro ? 'Earnings Dashboard' : 'Impact Dashboard'}
             </h1>
             <p className={`${textSecondaryClass} flex items-center gap-2`}>
@@ -669,7 +669,7 @@ export const EarningsDashboard = () => {
                     <Wallet className="w-5 h-5 text-cyan-400" />
                     Split-Pocket Settings
                   </CardTitle>
-                  <Button
+                  <Button aria-label="Settings"
                     variant="outline"
                     size="sm"
                     onClick={() => setShowSplitPocketModal(true)}
@@ -782,11 +782,11 @@ export const EarningsDashboard = () => {
                     <Plane className={`w-5 h-5 mx-auto mb-1 ${textSecondaryClass}`} />
                     <p className={`text-xs ${textSecondaryClass}`}>Travel</p>
                   </button>
-                  <button className={`p-3 rounded-xl ${isLight ? 'bg-gray-100 hover:bg-gray-200' : 'bg-zinc-800 hover:bg-zinc-700'} transition-colors`}>
+                  <button className={`p-3 rounded-xl ${isLight ? 'bg-gray-100 hover:bg-gray-200' : 'bg-zinc-800 hover:bg-zinc-700'} transition-colors`} aria-label="Camera">
                     <Camera className={`w-5 h-5 mx-auto mb-1 ${textSecondaryClass}`} />
                     <p className={`text-xs ${textSecondaryClass}`}>Sessions</p>
                   </button>
-                  <button className={`p-3 rounded-xl ${isLight ? 'bg-gray-100 hover:bg-gray-200' : 'bg-zinc-800 hover:bg-zinc-700'} transition-colors`}>
+                  <button className={`p-3 rounded-xl ${isLight ? 'bg-gray-100 hover:bg-gray-200' : 'bg-zinc-800 hover:bg-zinc-700'} transition-colors`} aria-label="Like">
                     <Heart className={`w-5 h-5 mx-auto mb-1 ${textSecondaryClass}`} />
                     <p className={`text-xs ${textSecondaryClass}`}>Sponsor Grom</p>
                   </button>
@@ -837,7 +837,7 @@ export const EarningsDashboard = () => {
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => setShowHistoryChart(!showHistoryChart)}
+                    aria-expanded={showHistoryChart} onClick={() => setShowHistoryChart(!showHistoryChart)}
                     className={textSecondaryClass}
                   >
                     {showHistoryChart ? 'Hide' : 'Show'}

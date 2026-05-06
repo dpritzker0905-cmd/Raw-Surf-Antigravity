@@ -173,7 +173,7 @@ async def create_booking_with_stripe(
     db: AsyncSession = Depends(get_db)
 ):
     """Create a booking with Stripe payment for remaining balance after credits"""
-    from routes.push import notify_booking
+    from routes.notifications.push import notify_booking
     
     # Verify user
     user_result = await db.execute(select(Profile).where(Profile.id == user_id))
@@ -361,7 +361,7 @@ async def booking_payment_success(
     db: AsyncSession = Depends(get_db)
 ):
     """Handle successful Stripe payment for booking - converts to credits"""
-    from routes.push import notify_booking
+    from routes.notifications.push import notify_booking
     
     try:
         checkout_session = stripe.checkout.Session.retrieve(session_id)
@@ -1178,7 +1178,7 @@ async def captain_pay_hold(
             break
     
     # Notify crew members via OneSignal push + in-app notification
-    from routes.push import notify_crew_payment_request
+    from routes.notifications.push import notify_crew_payment_request
     
     for p in booking.participants or []:
         if p.participant_id != captain_id:
@@ -1580,7 +1580,7 @@ async def crew_member_pay(
     Crew member pays their share of the booking
     Deducts from credits and updates payment status
     """
-    from routes.push import notify_crew_payment_received
+    from routes.notifications.push import notify_crew_payment_received
     
     # Get booking with participants
     result = await db.execute(

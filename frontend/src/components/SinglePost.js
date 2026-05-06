@@ -14,6 +14,8 @@ import PostMenu, { SharePostModal } from './PostMenu';
 import { toast } from 'sonner';
 import logger from '../utils/logger';
 import { REACTION_EMOJIS } from '../constants/emojis';
+import { FeedPostSkeleton } from './ui/SkeletonVariants';
+import { getFullUrl } from '../utils/media';
 
 
 const SinglePost = () => {
@@ -79,6 +81,57 @@ const SinglePost = () => {
     }
   }, [post?.id]);
 
+  // Dynamic Open Graph meta tags for social sharing / link previews
+  useEffect(() => {
+    if (!post) return;
+    const ogTags = [];
+    const setMeta = (property, content) => {
+      if (!content) return;
+      let tag = document.querySelector(`meta[property="${property}"]`);
+      if (!tag) {
+        tag = document.createElement('meta');
+        tag.setAttribute('property', property);
+        document.head.appendChild(tag);
+        ogTags.push(tag);
+      }
+      tag.setAttribute('content', content);
+    };
+    const setName = (name, content) => {
+      if (!content) return;
+      let tag = document.querySelector(`meta[name="${name}"]`);
+      if (!tag) {
+        tag = document.createElement('meta');
+        tag.setAttribute('name', name);
+        document.head.appendChild(tag);
+        ogTags.push(tag);
+      }
+      tag.setAttribute('content', content);
+    };
+
+    const authorName = post.author_full_name || post.author_username || 'Someone';
+    const snippet = post.content ? post.content.substring(0, 120) : 'Check out this post on Raw Surf';
+    const title = `${authorName} on Raw Surf`;
+    const image = post.media_url ? getFullUrl(post.media_url) : null;
+    const url = `${window.location.origin}/post/${post.id}`;
+
+    document.title = title;
+    setMeta('og:title', title);
+    setMeta('og:description', snippet);
+    setMeta('og:image', image);
+    setMeta('og:url', url);
+    setMeta('og:type', 'article');
+    setMeta('og:site_name', 'Raw Surf');
+    setName('twitter:card', image ? 'summary_large_image' : 'summary');
+    setName('twitter:title', title);
+    setName('twitter:description', snippet);
+    setName('twitter:image', image);
+
+    return () => {
+      document.title = 'Raw Surf';
+      ogTags.forEach(tag => tag.remove());
+    };
+  }, [post]);
+
   const fetchPost = async () => {
     try {
       setLoading(true);
@@ -112,6 +165,7 @@ const SinglePost = () => {
   const pressTimerRef = React.useRef(null);
   const isPressingRef = React.useRef(false);
   const pickerShownRef = React.useRef(false);
+  const inFlightRef = React.useRef(false); // Concurrency guard
   
   const VALID_REACTIONS = REACTION_EMOJIS;
   
@@ -172,56 +226,67 @@ const SinglePost = () => {
       return;
     }
     
+    // Concurrency guard
+    if (inFlightRef.current) return;
+    inFlightRef.current = true;
+    
     setShowReactionPicker(false);
     
     try {
-      const response = await apiClient.post(`/posts/${postId}/reactions`, 
-        { emoji },
-        { }
-      );
+      // ALWAYS use /reactions endpoint for ALL emojis (including shaka)
+      const response = await apiClient.post(`/posts/${postId}/reactions`, { emoji });
       
       const action = response.data.action;
       
-      if (action === 'added') {
-        // New reaction added - increment count
-        setPost(prev => {
-          const newReactions = [...(prev.reactions || []), { user_id: user.id, emoji }];
-          return {
-            ...prev,
-            liked: true,
-            reactions: newReactions,
-            likes_count: (prev.likes_count || 0) + 1
-          };
-        });
-        toast.success(`Reacted with ${emoji}`);
-      } else if (action === 'changed') {
-        // Changed emoji - update reaction but don't change count
-        setPost(prev => {
-          const filteredReactions = (prev.reactions || []).filter(r => r.user_id !== user.id);
-          const newReactions = [...filteredReactions, { user_id: user.id, emoji }];
-          return {
-            ...prev,
-            liked: true,
-            reactions: newReactions
-            // Don't change likes_count - just swapped emoji
-          };
-        });
-        toast.success(`Changed to ${emoji}`);
-      } else if (action === 'removed') {
-        // Reaction removed - decrement count
-        setPost(prev => {
-          const filteredReactions = (prev.reactions || []).filter(r => r.user_id !== user.id);
-          return {
-            ...prev,
-            liked: false,
-            reactions: filteredReactions,
-            likes_count: Math.max(0, (prev.likes_count || 1) - 1)
-          };
-        });
-      }
+      // Sync server state
+      setPost(prev => {
+        const serverCount = response.data.likes_count;
+        const newState = { ...prev };
+        
+        if (serverCount !== undefined) {
+          newState.likes_count = serverCount;
+        }
+        
+        if (action === 'added' || action === 'changed') {
+          newState.liked = true;
+          const filtered = (prev.reactions || []).filter(r => r.user_id !== user.id);
+          newState.reactions = [...filtered, { user_id: user.id, emoji }];
+        } else if (action === 'removed') {
+          newState.liked = false;
+          newState.reactions = (prev.reactions || []).filter(r => r.user_id !== user.id);
+        }
+        
+        return newState;
+      });
     } catch (err) {
       toast.error('Failed to add reaction');
+    } finally {
+      inFlightRef.current = false;
     }
+  };
+
+  // Double-tap to like handler for PostCard — toggles shaka on/off
+  const handleDoubleTapLike = async (postId) => {
+    if (!user?.id || inFlightRef.current) return;
+    inFlightRef.current = true;
+    try {
+      const response = await apiClient.post(`/posts/${postId}/reactions`, { emoji: '\u{1F919}' });
+      setPost(prev => {
+        const newState = { ...prev };
+        if (response.data?.likes_count !== undefined) newState.likes_count = response.data.likes_count;
+        const action = response.data?.action;
+        if (action === 'added' || action === 'changed') {
+          newState.liked = true;
+          const filtered = (prev.reactions || []).filter(r => r.user_id !== user.id);
+          newState.reactions = [...filtered, { user_id: user.id, emoji: '\u{1F919}' }];
+        } else if (action === 'removed') {
+          newState.liked = false;
+          newState.reactions = (prev.reactions || []).filter(r => r.user_id !== user.id);
+        }
+        return newState;
+      });
+    } catch { /* silent */ }
+    finally { inFlightRef.current = false; }
   };
 
   // Save post
@@ -233,13 +298,11 @@ const SinglePost = () => {
     
     try {
       if (isSaved) {
-        await apiClient.delete(`/posts/${postId}/save`, {
-        });
+        await apiClient.delete(`/posts/${postId}/save?user_id=${user.id}`);
         setPost(prev => ({ ...prev, saved: false }));
         toast.success('Removed from saved');
       } else {
-        await apiClient.post(`/posts/${postId}/save`, null, {
-        });
+        await apiClient.post(`/posts/${postId}/save?user_id=${user.id}`);
         setPost(prev => ({ ...prev, saved: true }));
         toast.success('Saved!');
       }
@@ -367,8 +430,8 @@ const SinglePost = () => {
 
   if (loading) {
     return (
-      <div className={`min-h-screen ${bgClass} flex items-center justify-center`}>
-        <Loader2 className={`w-8 h-8 animate-spin ${textSecondaryClass}`} />
+      <div className={`min-h-screen ${bgClass} p-4 max-w-2xl mx-auto`}>
+        <FeedPostSkeleton />
       </div>
     );
   }
@@ -377,7 +440,7 @@ const SinglePost = () => {
     return (
       <div className={`min-h-screen ${bgClass} flex flex-col items-center justify-center gap-4`}>
         <p className={textPrimaryClass}>{error || 'Post not found'}</p>
-        <Button onClick={() => navigate('/feed')} variant="outline">
+        <Button aria-label="Go back" onClick={() => navigate('/feed')} variant="outline">
           <ArrowLeft className="w-4 h-4 mr-2" />
           Back to Feed
         </Button>
@@ -387,7 +450,27 @@ const SinglePost = () => {
 
   return (
     <div className={`min-h-screen ${bgClass}`}>
-      {/* Header — sticky on mobile for easy back navigation, static on desktop (Instagram pattern) */}
+      {/* JSON-LD Structured Data for SEO */}
+      {post && (
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({
+          '@context': 'https://schema.org',
+          '@type': 'Article',
+          headline: post.content ? post.content.substring(0, 110) : 'Post on Raw Surf',
+          image: post.media_url ? getFullUrl(post.media_url) : undefined,
+          datePublished: post.created_at,
+          author: {
+            '@type': 'Person',
+            name: post.author_full_name || post.author_username || 'Raw Surf User',
+          },
+          publisher: {
+            '@type': 'Organization',
+            name: 'Raw Surf',
+            url: window.location.origin,
+          },
+          mainEntityOfPage: `${window.location.origin}/post/${post.id}`,
+        }) }} />
+      )}
+      {/* Header - sticky on mobile for easy back navigation, static on desktop (Instagram pattern) */}
       <div className={`sticky md:relative top-0 z-20 ${isLight ? 'bg-white/95 backdrop-blur-sm' : 'bg-zinc-900/95 backdrop-blur-sm'} border-b ${borderClass}`}>
         <div className="max-w-2xl mx-auto flex items-center gap-3 px-4 py-3">
           <Button 
@@ -395,6 +478,7 @@ const SinglePost = () => {
             size="sm" 
             onClick={handleBack}
             className={textPrimaryClass}
+            aria-label="Go back"
           >
             <ArrowLeft className="w-5 h-5" />
           </Button>
@@ -435,6 +519,7 @@ const SinglePost = () => {
           onIWasThere={handleIWasThere}
           onViewCollaborators={handleViewCollaborators}
           onFollowFromFeed={handleFollowFromFeed}
+          onDoubleTapLike={handleDoubleTapLike}
         />
       </div>
 
@@ -488,6 +573,7 @@ const SinglePost = () => {
             <button 
               onClick={() => setShowReactionPicker(false)}
               className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-white border-l border-zinc-600 ml-1 hover:bg-zinc-700/50 rounded-full touch-manipulation"
+              aria-label="Close reaction picker"
             >
               <X className="w-4 h-4" />
             </button>

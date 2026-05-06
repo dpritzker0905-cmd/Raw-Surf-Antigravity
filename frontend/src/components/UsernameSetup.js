@@ -180,7 +180,7 @@ const UsernameSetup = ({ onComplete, skipAllowed = false }) => {
               <span className={`absolute left-3 top-1/2 -translate-y-1/2 ${textSecondary} font-medium`}>
                 @
               </span>
-              <Input
+              <Input aria-label="username"
                 type="text"
                 value={username}
                 onChange={handleUsernameChange}
@@ -256,16 +256,16 @@ const UsernameSetup = ({ onComplete, skipAllowed = false }) => {
           <div className={`p-3 rounded-lg ${isLight ? 'bg-blue-50' : 'bg-blue-500/10'}`}>
             <p className={`text-xs ${isLight ? 'text-blue-800' : 'text-blue-300'}`}>
               <strong>Username rules:</strong>
-              <br />• 3-30 characters
-              <br />• Must start with a letter
-              <br />• Only letters, numbers, and underscores
-              <br />• Can be changed once every 60 days
+              <br />- 3-30 characters
+              <br />- Must start with a letter
+              <br />- Only letters, numbers, and underscores
+              <br />- Can be changed once every 60 days
             </p>
           </div>
         </CardContent>
         
         <CardFooter className="flex flex-col gap-3">
-          <Button
+          <Button aria-label="Loader2"
             onClick={handleSubmit}
             disabled={!availability?.available || submitting}
             className="w-full h-12 bg-cyan-500 hover:bg-cyan-600 text-white font-medium"

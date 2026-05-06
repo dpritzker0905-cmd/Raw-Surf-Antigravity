@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
@@ -108,7 +108,7 @@ export const StokeSponsorDashboard = () => {
     >
       {/* Header */}
       <div className="text-center">
-        <h1 className={`text-3xl font-bold ${textPrimary} flex items-center justify-center gap-2`} style={{ fontFamily: 'Oswald' }}>
+        <h1 className={`text-3xl font-bold ${textPrimary} flex items-center justify-center gap-2 font-oswald`} >
           <Heart className="w-8 h-8 text-pink-400" />
           Stoke Sponsor
         </h1>
@@ -145,7 +145,7 @@ export const StokeSponsorDashboard = () => {
             {/* Search */}
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <Input
+              <Input aria-label="Search surfers by name or home break..."
                 placeholder="Search surfers by name or home break..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -163,7 +163,7 @@ export const StokeSponsorDashboard = () => {
               >
                 All
               </Button>
-              <Button
+              <Button aria-label="Baby"
                 variant={tierFilter === 'grom_rising' ? 'default' : 'outline'}
                 size="sm"
                 onClick={() => setTierFilter('grom_rising')}
@@ -171,7 +171,7 @@ export const StokeSponsorDashboard = () => {
               >
                 <Baby className="w-3 h-3 mr-1" /> Groms
               </Button>
-              <Button
+              <Button aria-label="Trophy"
                 variant={tierFilter === 'competitive' ? 'default' : 'outline'}
                 size="sm"
                 onClick={() => setTierFilter('competitive')}
@@ -179,7 +179,7 @@ export const StokeSponsorDashboard = () => {
               >
                 <Trophy className="w-3 h-3 mr-1" /> Competitive
               </Button>
-              <Button
+              <Button aria-label="Medal"
                 variant={tierFilter === 'pro_elite' ? 'default' : 'outline'}
                 size="sm"
                 onClick={() => setTierFilter('pro_elite')}
@@ -225,7 +225,7 @@ export const StokeSponsorDashboard = () => {
                     )}
                   </div>
                 </div>
-                <Button
+                <Button aria-label="Gift"
                   size="sm"
                   onClick={() => {
                     setSelectedSurfer(surfer);
@@ -400,7 +400,7 @@ const ContributeModal = ({ isOpen, onClose, surfer, photographerId, userCredits,
           {/* Custom Amount */}
           <div className="relative">
             <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <Input
+            <Input aria-label="Custom amount"
               type="number"
               placeholder="Custom amount"
               value={amount}
@@ -410,7 +410,7 @@ const ContributeModal = ({ isOpen, onClose, surfer, photographerId, userCredits,
           </div>
 
           {/* Message */}
-          <Input
+          <Input aria-label="Add a message (optional)"
             placeholder="Add a message (optional)"
             value={message}
             onChange={(e) => setMessage(e.target.value)}
@@ -432,7 +432,7 @@ const ContributeModal = ({ isOpen, onClose, surfer, photographerId, userCredits,
           <Button variant="outline" onClick={onClose} className="border-zinc-700">
             Cancel
           </Button>
-          <Button 
+          <Button aria-label="Loader2" 
             onClick={handleSubmit} 
             disabled={loading || !amount || parseFloat(amount) <= 0}
             className="bg-pink-500 text-white hover:bg-pink-400"

@@ -58,7 +58,7 @@ const REGIONS = [
   { id: 'all', label: 'All Regions' },
   { id: 'ny', label: 'New York', flag: '🗽' },
   { id: 'fl', label: 'Florida', flag: '🌴' },
-  { id: 'ca', label: 'California', flag: '☀️' },
+  { id: 'ca', label: 'California', flag: '🌊' },
   { id: 'hi', label: 'Hawaii', flag: '🌺' },
   { id: 'cr', label: 'Costa Rica', flag: '🇨🇷' },
   { id: 'pr', label: 'Puerto Rico', flag: '🇵🇷' },
@@ -84,7 +84,7 @@ const PhotographerCard = ({ photographer, onSelect, isLight }) => {
       onClick={() => onSelect(photographer)}
     >
       <CardContent className="p-4">
-        <div className="flex items-start gap-4">
+        <div data-testid="photographer-directory" className="flex items-start gap-4">
           {/* Avatar */}
           <div className="relative">
             <Avatar className="w-16 h-16 border-2 border-zinc-700">
@@ -223,7 +223,7 @@ const FilterSheet = ({ isOpen, onClose, filters, onFiltersChange, isLight }) => 
               {GEAR_TYPES.map((gear) => {
                 const Icon = gear.icon;
                 return (
-                  <Button
+                  <Button aria-label="Icon"
                     key={gear.id}
                     variant={filters.gearType === gear.id ? 'default' : 'outline'}
                     size="sm"
@@ -316,7 +316,7 @@ export const PhotographerDirectory = ({ isOpen, onClose, onSelectPhotographer })
       const tid = setTimeout(() => fetchPhotographers(), searchQuery.length > 0 ? 350 : 0);
       return () => clearTimeout(tid);
     }
-    // intentionally omitting fetchPhotographers from deps — it reads filters/searchQuery from closure
+    // intentionally omitting fetchPhotographers from deps - it reads filters/searchQuery from closure
   }, [isOpen, filters, searchQuery]); // eslint-disable-line
   
   const fetchPhotographers = async () => {
@@ -333,7 +333,7 @@ export const PhotographerDirectory = ({ isOpen, onClose, onSelectPhotographer })
       setPhotographers(response.data || []);
     } catch (error) {
       logger.error('Failed to fetch photographers:', error);
-      setPhotographers([]);  // Show empty state — never show fake mock data to users
+      setPhotographers([]);  // Show empty state - never show fake mock data to users
     } finally {
       setLoading(false);
     }
@@ -421,7 +421,7 @@ export const PhotographerDirectory = ({ isOpen, onClose, onSelectPhotographer })
           {/* Search Bar */}
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
-            <Input
+            <Input aria-label="Search by name or location..."
               placeholder="Search by name or location..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
@@ -431,7 +431,7 @@ export const PhotographerDirectory = ({ isOpen, onClose, onSelectPhotographer })
           
           {/* Filters & View Toggle Row */}
           <div className="flex items-center justify-between">
-            <Button
+            <Button aria-label="Filter"
               variant="outline"
               size="sm"
               onClick={() => setShowFilters(true)}
@@ -446,7 +446,7 @@ export const PhotographerDirectory = ({ isOpen, onClose, onSelectPhotographer })
               )}
             </Button>
             
-            <Button
+            <Button aria-label="Map"
               variant="outline"
               size="sm"
               onClick={handleViewOnMap}

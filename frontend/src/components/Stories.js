@@ -76,7 +76,7 @@ export const StoriesBar = ({ onCreateStory, onTierChange, selectedTier }) => {
   // Supabase Realtime subscription for new stories
   // NOTE: Kept as postgres_changes because stories table is low-volume (a few writes/hour)
   // and instant notifications are important for the social experience.
-  // The real egress savings come from the N+1 query fix in explore.py (30+ queries → 1).
+  // The real egress savings come from the N+1 query fix in explore.py (30+ queries ? 1).
   useEffect(() => {
     if (!user?.id) return;
 
@@ -100,7 +100,7 @@ export const StoriesBar = ({ onCreateStory, onTierChange, selectedTier }) => {
 
           // Show notification toast for new stories
           const isPhotographer = ['Photographer', 'Approved Pro', 'Hobbyist'].includes(payload.new.author_role);
-          const icon = isPhotographer ? '📸' : '🏄';
+          const icon = isPhotographer ? String.fromCodePoint(0x1F4F8) : String.fromCodePoint(0x1F3C4);
           
           setNewStoryNotification(payload.new);
           toast(`${icon} New story!`, {
@@ -109,7 +109,7 @@ export const StoriesBar = ({ onCreateStory, onTierChange, selectedTier }) => {
               label: 'View',
               onClick: async () => {
                 setNewStoryNotification(null);
-                // Check if the author is currently live — deep-link straight into the viewer
+                // Check if the author is currently live - deep-link straight into the viewer
                 try {
                   const streamsRes = await apiClient.get('/livekit/active-streams');
                   const liveStream = streamsRes.data.streams?.find(
@@ -121,12 +121,13 @@ export const StoriesBar = ({ onCreateStory, onTierChange, selectedTier }) => {
                       room_name: liveStream.room_name,
                       broadcaster_id: liveStream.broadcaster_id,
                       broadcaster_name: liveStream.broadcaster_name || payload.new.author_name,
+                      broadcaster_username: liveStream.broadcaster_username,
                       broadcaster_avatar: liveStream.broadcaster_avatar,
                       viewer_count: liveStream.viewer_count,
                       title: liveStream.title
                     });
                     setShowLiveViewer(true);
-                    return; // Skip generic refresh — we're opening the viewer
+                    return; // Skip generic refresh - we're opening the viewer
                   }
                 } catch {
                   // Fall through to normal refresh if stream lookup fails
@@ -244,6 +245,7 @@ export const StoriesBar = ({ onCreateStory, onTierChange, selectedTier }) => {
             room_name: liveStream.room_name,
             broadcaster_id: liveStream.broadcaster_id,
             broadcaster_name: liveStream.broadcaster_name || authorGroup.author_name,
+            broadcaster_username: liveStream.broadcaster_username || authorGroup.author_username,
             broadcaster_avatar: liveStream.broadcaster_avatar || authorGroup.author_avatar,
             viewer_count: liveStream.viewer_count,
             title: liveStream.title
@@ -279,7 +281,7 @@ export const StoriesBar = ({ onCreateStory, onTierChange, selectedTier }) => {
         {/* New Story Notification Badge */}
         {newStoryNotification && (
           <div className="absolute top-2 right-4 z-20 animate-in slide-in-from-top-2 duration-300">
-            <button
+            <button aria-label="Notifications"
               onClick={() => {
                 fetchStories();
                 setNewStoryNotification(null);
@@ -302,7 +304,7 @@ export const StoriesBar = ({ onCreateStory, onTierChange, selectedTier }) => {
           >
             All
           </button>
-          <button
+          <button aria-label="Camera"
             onClick={() => handleTabChange('photographers')}
             className={`px-3 py-1 rounded-full text-xs font-medium transition-colors flex items-center gap-1 ${
               activeTab === 'photographers' 
@@ -316,7 +318,7 @@ export const StoriesBar = ({ onCreateStory, onTierChange, selectedTier }) => {
               <span className="ml-1 bg-black/20 px-1.5 rounded-full">{stories.photographer_count}</span>
             )}
           </button>
-          <button
+          <button aria-label="Waves"
             onClick={() => handleTabChange('surfers')}
             className={`px-3 py-1 rounded-full text-xs font-medium transition-colors flex items-center gap-1 ${
               activeTab === 'surfers' 
@@ -337,13 +339,13 @@ export const StoriesBar = ({ onCreateStory, onTierChange, selectedTier }) => {
           {/* Scroll Buttons */}
           {displayStories.length > 5 && (
             <>
-              <button
+              <button aria-label="Previous"
                 onClick={() => scroll('left')}
                 className="absolute left-0 top-1/2 -translate-y-1/2 z-10 bg-black/80 p-1 rounded-full hover:bg-black"
               >
                 <ChevronLeft className="w-4 h-4 text-white" />
               </button>
-              <button
+              <button aria-label="Next"
                 onClick={() => scroll('right')}
                 className="absolute right-0 top-1/2 -translate-y-1/2 z-10 bg-black/80 p-1 rounded-full hover:bg-black"
               >
@@ -358,7 +360,7 @@ export const StoriesBar = ({ onCreateStory, onTierChange, selectedTier }) => {
           >
             {/* Create Story Button */}
             <div className="flex-shrink-0 flex flex-col items-center w-16">
-              <button
+              <button aria-label="Add"
                 onClick={onCreateStory}
                 className="relative w-16 h-16 rounded-full bg-zinc-800 border-2 border-dashed border-zinc-600 flex items-center justify-center hover:border-yellow-400 transition-colors"
                 data-testid="create-story-btn"
@@ -436,7 +438,7 @@ const StoryCircle = ({ authorGroup, onClick, isConnecting = false }) => {
   const connectingClass = isConnecting ? 'animate-[pulse_0.4s_ease-in-out_infinite] scale-105' : '';
 
   return (
-    <button
+    <button aria-label="div"
       onClick={onClick}
       disabled={isConnecting}
       className={`flex-shrink-0 flex flex-col items-center w-16 group relative ${connectingClass}`}
@@ -447,7 +449,7 @@ const StoryCircle = ({ authorGroup, onClick, isConnecting = false }) => {
         <div className="p-[2px] rounded-full bg-black">
           <div className="w-14 h-14 rounded-full overflow-hidden bg-zinc-800">
             {authorGroup.author_avatar ? (
-              <img
+              <img loading="lazy" decoding="async"
                 src={getFullUrl(authorGroup.author_avatar)}
                 alt={authorGroup.author_name}
                 className="w-full h-full object-cover"
@@ -576,21 +578,20 @@ const StoryViewer = ({ authorGroup, viewerId, _viewerLocation, onClose, onNaviga
   return (
     <div className="fixed inset-0 z-50 bg-black flex items-center justify-center">
       {/* Close Button */}
-      <button
+      <button aria-label="Close"
         onClick={onClose}
         className="absolute top-4 right-4 z-50 p-2 bg-black/50 rounded-full hover:bg-black/80"
-      >
-        <X className="w-6 h-6 text-white" />
+      ><X className="w-6 h-6 text-white" />
       </button>
 
       {/* Navigation Arrows */}
-      <button
+      <button aria-label="Previous"
         onClick={() => onNavigate('prev')}
         className="absolute left-4 top-1/2 -translate-y-1/2 z-50 p-2 bg-black/50 rounded-full hover:bg-black/80"
       >
         <ChevronLeft className="w-6 h-6 text-white" />
       </button>
-      <button
+      <button aria-label="Next"
         onClick={() => onNavigate('next')}
         className="absolute right-4 top-1/2 -translate-y-1/2 z-50 p-2 bg-black/50 rounded-full hover:bg-black/80"
       >
@@ -622,7 +623,7 @@ const StoryViewer = ({ authorGroup, viewerId, _viewerLocation, onClose, onNaviga
           <div className={`p-[2px] rounded-full ${getStoryRingColor(authorGroup)}`}>
             <div className="w-10 h-10 rounded-full overflow-hidden bg-black">
               {authorGroup.author_avatar ? (
-                <img src={getFullUrl(authorGroup.author_avatar)} alt="" className="w-full h-full object-cover" />
+                <img loading="lazy" decoding="async" src={getFullUrl(authorGroup.author_avatar)} alt="" className="w-full h-full object-cover" />
               ) : (
                 <div className="w-full h-full flex items-center justify-center text-white font-bold">
                   {authorGroup.author_name?.[0]}
@@ -656,7 +657,7 @@ const StoryViewer = ({ authorGroup, viewerId, _viewerLocation, onClose, onNaviga
           </div>
 
           {/* Pause/Play */}
-          <button
+          <button aria-label="Play"
             onClick={(e) => { e.stopPropagation(); setPaused(!paused); }}
             className="p-2 bg-black/50 rounded-full"
           >
@@ -676,7 +677,7 @@ const StoryViewer = ({ authorGroup, viewerId, _viewerLocation, onClose, onNaviga
               playsInline
             />
           ) : (
-            <img
+            <img loading="lazy" decoding="async"
               src={getFullUrl(currentStory.media_url)}
               alt=""
               className="max-w-full max-h-full object-contain"
@@ -784,7 +785,7 @@ export const CreateStoryModal = ({ isOpen, onClose, onCreated }) => {
         caption: caption || null
       });
       
-      toast.success('Story posted! 🌊');
+      toast.success('Story posted! ' + String.fromCodePoint(0x1F919));
       onCreated?.();
       handleClose();
     } catch (error) {
@@ -821,7 +822,7 @@ export const CreateStoryModal = ({ isOpen, onClose, onCreated }) => {
         <div className="space-y-4 pt-4">
           {/* Upload Mode Toggle */}
           <div className="flex gap-2 p-1 bg-zinc-800 rounded-lg">
-            <button
+            <button aria-label="Add"
               onClick={() => setUploadMode('file')}
               className={`flex-1 py-2 rounded-md flex items-center justify-center gap-2 text-sm font-medium transition-colors ${
                 uploadMode === 'file' ? 'bg-yellow-400 text-black' : 'text-gray-400 hover:text-white'
@@ -843,7 +844,7 @@ export const CreateStoryModal = ({ isOpen, onClose, onCreated }) => {
           {/* File Upload Mode */}
           {uploadMode === 'file' && (
             <div>
-              <input
+              <input aria-label="Upload file"
                 ref={fileInputRef}
                 type="file"
                 accept="image/*,video/*"
@@ -852,7 +853,7 @@ export const CreateStoryModal = ({ isOpen, onClose, onCreated }) => {
               />
               
               {!selectedFile ? (
-                <button
+                <button aria-label="div"
                   onClick={() => fileInputRef.current?.click()}
                   className="w-full aspect-video rounded-lg border-2 border-dashed border-zinc-600 flex flex-col items-center justify-center gap-3 hover:border-yellow-400 transition-colors bg-zinc-800/50"
                 >
@@ -870,7 +871,7 @@ export const CreateStoryModal = ({ isOpen, onClose, onCreated }) => {
                     {mediaType === 'video' ? (
                       <video src={previewUrl} className="w-full h-full object-cover" controls />
                     ) : (
-                      <img src={previewUrl} alt="Preview" className="w-full h-full object-cover" />
+                      <img loading="lazy" decoding="async" src={previewUrl} alt="Preview" className="w-full h-full object-cover" />
                     )}
                   </div>
                   <button
@@ -898,7 +899,7 @@ export const CreateStoryModal = ({ isOpen, onClose, onCreated }) => {
             <>
               {/* Media Type Toggle */}
               <div className="flex gap-2">
-                <button
+                <button aria-label="Image"
                   onClick={() => setMediaType('image')}
                   className={`flex-1 py-2 rounded-lg flex items-center justify-center gap-2 ${
                     mediaType === 'image' ? 'bg-yellow-400 text-black' : 'bg-zinc-800 text-gray-400'
@@ -907,7 +908,7 @@ export const CreateStoryModal = ({ isOpen, onClose, onCreated }) => {
                   <Image className="w-4 h-4" />
                   Photo
                 </button>
-                <button
+                <button aria-label="Video"
                   onClick={() => setMediaType('video')}
                   className={`flex-1 py-2 rounded-lg flex items-center justify-center gap-2 ${
                     mediaType === 'video' ? 'bg-yellow-400 text-black' : 'bg-zinc-800 text-gray-400'
@@ -936,7 +937,7 @@ export const CreateStoryModal = ({ isOpen, onClose, onCreated }) => {
                   {mediaType === 'video' ? (
                     <video src={mediaUrl} className="w-full h-full object-cover" controls />
                   ) : (
-                    <img src={mediaUrl} alt="Preview" className="w-full h-full object-cover" />
+                    <img loading="lazy" decoding="async" src={mediaUrl} alt="Preview" className="w-full h-full object-cover" />
                   )}
                 </div>
               )}
@@ -968,7 +969,7 @@ export const CreateStoryModal = ({ isOpen, onClose, onCreated }) => {
             </div>
           )}
 
-          <Button
+          <Button aria-label="Loader2"
             onClick={handleCreate}
             disabled={loading || (uploadMode === 'file' ? !selectedFile : !mediaUrl.trim())}
             className="w-full h-12 bg-gradient-to-r from-yellow-400 to-orange-400 hover:from-yellow-500 hover:to-orange-500 text-black font-bold"

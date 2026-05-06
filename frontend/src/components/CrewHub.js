@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -277,7 +277,7 @@ export const CrewHub = ({
             </Badge>
           </div>
           {booking?.id && (
-            <Button
+            <Button aria-label="Message"
               variant="outline"
               size="sm"
               onClick={() => navigate(`/bookings/${booking.id}/chat`)}
@@ -362,7 +362,7 @@ export const CrewHub = ({
 
         {/* Quick Actions */}
         <div className="flex gap-2">
-          <Button
+          <Button aria-label="Calculator"
             size="sm"
             variant="outline"
             onClick={handleDistributeEvenly}
@@ -372,7 +372,7 @@ export const CrewHub = ({
             Even Split
           </Button>
           {pendingCount > 0 && (
-            <Button
+            <Button aria-label="Loader2"
               size="sm"
               variant="outline"
               onClick={handleNudgeAll}
@@ -446,7 +446,7 @@ export const CrewHub = ({
                             <Clock className="w-3 h-3 mr-1" />
                             Pending
                           </Badge>
-                          <Button
+                          <Button aria-label="Loader2"
                             size="sm"
                             variant="ghost"
                             onClick={() => handleNudge(memberId)}
@@ -492,7 +492,7 @@ export const CrewHub = ({
                         <span className={`text-sm ${isLight ? 'text-gray-500' : 'text-gray-400'}`}>Or set amount:</span>
                         <div className="flex items-center gap-1 flex-1">
                           <DollarSign className="w-4 h-4 text-gray-400" />
-                          <Input
+                          <Input aria-label="Numeric input"
                             type="number"
                             step="0.01"
                             min="0"
@@ -531,7 +531,7 @@ export const CrewHub = ({
         <div className="flex flex-col gap-2 pt-2">
           {/* Save Splits */}
           {booking?.id && (
-            <Button
+            <Button aria-label="Loader2"
               onClick={handleSaveSplits}
               disabled={savingSplits}
               className="w-full bg-cyan-500 hover:bg-cyan-400 text-black"
@@ -543,7 +543,7 @@ export const CrewHub = ({
           
           {/* Cover Remaining (only if there's remaining balance) */}
           {remainingBalance > 0 && booking?.id && (
-            <Button
+            <Button aria-label="Loader2"
               onClick={handleCoverRemaining}
               disabled={loading}
               variant="outline"
@@ -556,7 +556,7 @@ export const CrewHub = ({
           
           {/* Proceed to Payment (checkout mode) */}
           {isCheckoutMode && onPaymentComplete && (
-            <Button
+            <Button aria-label="Next"
               onClick={() => onPaymentComplete({ crewMembers, captainShare })}
               className="w-full bg-gradient-to-r from-yellow-400 to-orange-400 hover:from-yellow-500 hover:to-orange-500 text-black font-bold"
             >

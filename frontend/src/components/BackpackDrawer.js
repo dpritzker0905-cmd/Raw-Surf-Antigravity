@@ -103,11 +103,10 @@ export const BackpackDrawer = ({ isOpen, onClose, onReopen }) => {
                   <p className="text-xs text-muted-foreground">Your surf essentials</p>
                 </div>
               </div>
-              <button 
+              <button aria-label="Close" 
                 onClick={onClose}
                 className="text-muted-foreground hover:text-foreground p-2"
-              >
-                <X className="w-5 h-5" />
+              ><X className="w-5 h-5" />
               </button>
             </div>
           </SheetHeader>

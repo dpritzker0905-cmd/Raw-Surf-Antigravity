@@ -205,11 +205,10 @@ export const VoiceRecorder = ({
   return (
     <div className="flex items-center gap-3 p-3 bg-zinc-800 rounded-lg">
       {/* Cancel Button */}
-      <button
+      <button aria-label="Close"
         onClick={handleCancel}
         className="p-2 text-gray-400 hover:text-white rounded-full hover:bg-zinc-700 transition-colors"
-      >
-        <X className="w-5 h-5" />
+      ><X className="w-5 h-5" />
       </button>
 
       {/* Waveform / Recording Indicator */}
@@ -247,7 +246,7 @@ export const VoiceRecorder = ({
       {/* Action Buttons */}
       {!audioBlob ? (
         // Recording controls
-        <button
+        <button aria-label="Square"
           onClick={isRecording ? stopRecording : startRecording}
           className={`p-3 rounded-full transition-all ${
             isRecording 
@@ -264,7 +263,7 @@ export const VoiceRecorder = ({
       ) : (
         // Playback and send controls
         <div className="flex items-center gap-2">
-          <button
+          <button aria-label="Pause"
             onClick={togglePlayback}
             className="p-2 bg-zinc-700 hover:bg-zinc-600 rounded-full transition-colors"
           >
@@ -275,7 +274,7 @@ export const VoiceRecorder = ({
             )}
           </button>
           
-          <button
+          <button aria-label="Loader2"
             onClick={handleSend}
             disabled={uploading}
             className="p-3 bg-gradient-to-r from-cyan-400 to-blue-500 hover:from-cyan-300 hover:to-blue-400 rounded-full transition-all"

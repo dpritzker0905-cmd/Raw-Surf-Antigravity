@@ -78,7 +78,7 @@ const BookingPaymentSuccess = () => {
     switch (status) {
       case 'checking':
         return (
-          <div className="text-center">
+          <div data-testid="booking-payment-success" className="text-center">
             <Loader2 className="w-16 h-16 text-yellow-400 animate-spin mx-auto mb-4" />
             <h2 className="text-2xl font-bold text-white mb-2">Confirming Your Booking...</h2>
             <p className="text-gray-400">Please wait while we process your payment</p>

@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import apiClient, { BACKEND_URL } from '../../lib/apiClient';
@@ -467,7 +467,7 @@ export const AdminP2Dashboard = () => {
             <div className="space-y-3">
               <div className="flex justify-between items-center">
                 <h3 className={`font-medium ${textClass}`}>Promo Codes</h3>
-                <Button size="sm" onClick={() => setShowCreatePromo(true)} className="bg-green-500 hover:bg-green-600">
+                <Button size="sm" onClick={() => setShowCreatePromo(true)} className="bg-green-500 hover:bg-green-600" aria-label="Add">
                   <Plus className="w-4 h-4 mr-1" /> Create Code
                 </Button>
               </div>
@@ -493,7 +493,7 @@ export const AdminP2Dashboard = () => {
                               <code className="text-lg font-bold text-foreground bg-muted px-2 py-0.5 rounded">
                                 {promo.code}
                               </code>
-                              <Button 
+                              <Button aria-label="Copy" 
                                 size="sm" 
                                 variant="ghost" 
                                 className="h-6 w-6 p-0"
@@ -506,7 +506,7 @@ export const AdminP2Dashboard = () => {
                               {promo.code_type === 'percentage' ? `${promo.discount_value}% off` :
                                promo.code_type === 'fixed_amount' ? `$${promo.discount_value} off` :
                                `${promo.discount_value} free credits`}
-                              {promo.campaign_name && ` • ${promo.campaign_name}`}
+                              {promo.campaign_name && ` ? ${promo.campaign_name}`}
                             </p>
                           </div>
                         </div>
@@ -514,7 +514,7 @@ export const AdminP2Dashboard = () => {
                         <div className="flex items-center gap-4">
                           <div className="text-right">
                             <p className="text-sm text-foreground">
-                              {promo.current_uses} / {promo.max_uses || '∞'} uses
+                              {promo.current_uses} / {promo.max_uses || '8'} uses
                             </p>
                             {promo.valid_until && (
                               <p className="text-xs text-gray-500">
@@ -540,7 +540,7 @@ export const AdminP2Dashboard = () => {
             <div className="space-y-3">
               <div className="flex justify-between items-center">
                 <h3 className={`font-medium ${textClass}`}>Feature Flags</h3>
-                <Button size="sm" onClick={() => setShowCreateFlag(true)} className="bg-blue-500 hover:bg-blue-600">
+                <Button size="sm" onClick={() => setShowCreateFlag(true)} className="bg-blue-500 hover:bg-blue-600" aria-label="Add">
                   <Plus className="w-4 h-4 mr-1" /> Create Flag
                 </Button>
               </div>
@@ -579,7 +579,7 @@ export const AdminP2Dashboard = () => {
                           {/* Rollout slider */}
                           <div className="flex items-center gap-2">
                             <span className="text-xs text-gray-500">Rollout:</span>
-                            <input
+                            <input aria-label="Range slider"
                               type="range"
                               min="0"
                               max="100"
@@ -608,7 +608,7 @@ export const AdminP2Dashboard = () => {
             <div className="space-y-3">
               <div className="flex justify-between items-center">
                 <h3 className={`font-medium ${textClass}`}>Push Notification Campaigns</h3>
-                <Button size="sm" onClick={() => setShowCreateCampaign(true)} className="bg-purple-500 hover:bg-purple-600">
+                <Button size="sm" onClick={() => setShowCreateCampaign(true)} className="bg-purple-500 hover:bg-purple-600" aria-label="Add">
                   <Plus className="w-4 h-4 mr-1" /> Create Campaign
                 </Button>
               </div>
@@ -666,7 +666,7 @@ export const AdminP2Dashboard = () => {
                              formatDate(campaign.created_at)}
                           </p>
                           {campaign.status === 'draft' && (
-                            <Button
+                            <Button aria-label="Send"
                               size="sm"
                               onClick={() => handleSendCampaign(campaign.id)}
                               disabled={actionLoading}
@@ -750,7 +750,7 @@ export const AdminP2Dashboard = () => {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowCreatePromo(false)}>Cancel</Button>
-            <Button onClick={handleCreatePromo} disabled={actionLoading} className="bg-green-500 hover:bg-green-600">
+            <Button aria-label="Loader2" onClick={handleCreatePromo} disabled={actionLoading} className="bg-green-500 hover:bg-green-600">
               {actionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Create'}
             </Button>
           </DialogFooter>
@@ -805,7 +805,7 @@ export const AdminP2Dashboard = () => {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowCreateFlag(false)}>Cancel</Button>
-            <Button onClick={handleCreateFlag} disabled={actionLoading} className="bg-blue-500 hover:bg-blue-600">
+            <Button aria-label="Loader2" onClick={handleCreateFlag} disabled={actionLoading} className="bg-blue-500 hover:bg-blue-600">
               {actionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Create'}
             </Button>
           </DialogFooter>
@@ -833,7 +833,7 @@ export const AdminP2Dashboard = () => {
               <Input
                 value={newCampaign.title}
                 onChange={(e) => setNewCampaign({ ...newCampaign, title: e.target.value })}
-                placeholder="🏄 Don't miss out!"
+                placeholder="🔥 Don't miss out!"
                 className="bg-muted border-border mt-1"
               />
             </div>
@@ -856,7 +856,7 @@ export const AdminP2Dashboard = () => {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowCreateCampaign(false)}>Cancel</Button>
-            <Button onClick={handleCreateCampaign} disabled={actionLoading} className="bg-purple-500 hover:bg-purple-600">
+            <Button aria-label="Loader2" onClick={handleCreateCampaign} disabled={actionLoading} className="bg-purple-500 hover:bg-purple-600">
               {actionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Create'}
             </Button>
           </DialogFooter>

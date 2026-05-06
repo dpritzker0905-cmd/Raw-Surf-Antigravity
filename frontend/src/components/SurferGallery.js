@@ -18,7 +18,7 @@ import {
   Image as ImageIcon, Video, Sparkles, Filter, Crown, Gift, Heart,
   Search, Grid, List, Share2, Calendar, SortDesc, Camera, MapPin, History, X,
   MoreHorizontal, MessageSquare, Check,
-  ChevronLeft, ChevronRight, Loader2, ScanFace
+  ChevronLeft, ChevronRight, Loader2, ScanFace,
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
@@ -45,7 +45,8 @@ import { VisibilityOnboarding } from './gallery/DownloadVisibility';
 import { GalleryLightbox } from './gallery/GalleryLightbox';
 import logger from '../utils/logger';
 import { getFullUrl } from '../utils/media';
-import { isGrom } from '../lib/roles';
+import { isGrom } from '../constants/roles';
+import useSurferGalleryActions from '../hooks/useSurferGalleryActions';
 
 /**
  * Gallery Item Card Component - Enhanced with favorites and sharing
@@ -72,7 +73,7 @@ const GalleryItemCard = ({
   if (viewMode === 'list') {
     return (
       <div 
-        className={`flex items-center gap-4 p-3 rounded-lg border transition-all ${
+        data-testid="surfer-gallery-page" className={`flex items-center gap-4 p-3 rounded-lg border transition-all ${
           isSelected 
             ? 'bg-cyan-500/10 border-cyan-500/50' 
             : 'bg-card border-border hover:bg-muted/50'
@@ -80,7 +81,7 @@ const GalleryItemCard = ({
         data-testid={`gallery-item-${item.id}`}
       >
         {/* Selection checkbox */}
-        <button
+        <button aria-label="Confirm"
           onClick={() => onSelect?.(item.id)}
           className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${
             isSelected ? 'bg-cyan-500 border-cyan-500' : 'border-zinc-600 hover:border-cyan-400'
@@ -91,7 +92,7 @@ const GalleryItemCard = ({
         
         {/* Thumbnail */}
         <div className="relative w-16 h-16 rounded-lg overflow-hidden flex-shrink-0">
-          <img 
+          <img loading="lazy" decoding="async" 
             src={item.thumbnail_url || item.url} 
             alt=""
             className="w-full h-full object-cover"
@@ -149,7 +150,7 @@ const GalleryItemCard = ({
           >
             <Heart className={`w-4 h-4 ${isFavorite ? 'fill-current' : ''}`} />
           </Button>
-          <Button
+          <Button aria-label="Download"
             size="sm"
             variant="ghost"
             onClick={() => onDownload?.(item)}
@@ -160,7 +161,7 @@ const GalleryItemCard = ({
           </Button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button size="sm" variant="ghost" className="text-muted-foreground">
+              <Button size="sm" variant="ghost" className="text-muted-foreground" aria-label="More options">
                 <MoreHorizontal className="w-4 h-4" />
               </Button>
             </DropdownMenuTrigger>
@@ -195,7 +196,7 @@ const GalleryItemCard = ({
       data-testid={`gallery-item-${item.id}`}
     >
       {/* Selection checkbox */}
-      <button
+      <button aria-label="Confirm"
         onClick={() => onSelect?.(item.id)}
         className={`absolute top-2 left-2 z-10 w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${
           isSelected 
@@ -220,7 +221,7 @@ const GalleryItemCard = ({
       
       {/* Image */}
       <div className="aspect-square bg-muted cursor-pointer" onClick={() => onImageClick?.(item)}>
-        <img 
+        <img loading="lazy" decoding="async" 
           src={item.thumbnail_url || item.url} 
           alt=""
           className={`w-full h-full object-cover transition-all ${
@@ -267,7 +268,7 @@ const GalleryItemCard = ({
           <div className="flex items-center gap-1">
             {/* Quick Message to Photographer */}
             {item.photographer_id && (
-              <Button
+              <Button aria-label="Message Square"
                 size="sm"
                 variant="ghost"
                 onClick={() => onMessage?.(item.photographer_id, item.photographer_name)}
@@ -277,7 +278,7 @@ const GalleryItemCard = ({
                 <MessageSquare className="w-4 h-4" />
               </Button>
             )}
-            <Button
+            <Button aria-label="Share"
               size="sm"
               variant="ghost"
               onClick={() => onShare?.(item)}
@@ -285,7 +286,7 @@ const GalleryItemCard = ({
             >
               <Share2 className="w-4 h-4" />
             </Button>
-            <Button
+            <Button aria-label="Download"
               size="sm"
               variant="ghost"
               onClick={() => onDownload?.(item)}
@@ -300,7 +301,7 @@ const GalleryItemCard = ({
       
       {/* Visibility indicator */}
       <div className="absolute bottom-2 left-2 opacity-0 group-hover:opacity-100 transition-opacity">
-        <button
+        <button aria-label="View"
           onClick={() => onVisibilityToggle?.(item.id, !item.is_public)}
           className={`p-1.5 rounded-full ${
             item.is_public ? 'bg-green-500/80' : 'bg-zinc-700/80'
@@ -320,7 +321,7 @@ const ClaimQueueItem = ({ item, onAction }) => (
   <div className="p-3 bg-muted rounded-xl border border-purple-500/20">
     <div className="flex gap-3">
       <div className="w-20 h-20 rounded-lg overflow-hidden flex-shrink-0">
-        <img 
+        <img loading="lazy" decoding="async" 
           src={item.thumbnail_url || item.url} 
           alt=""
           className="w-full h-full object-cover"
@@ -340,7 +341,7 @@ const ClaimQueueItem = ({ item, onAction }) => (
           {item.spot_name && ` at ${item.spot_name}`}
         </p>
         <div className="flex gap-2 mt-2">
-          <Button
+          <Button aria-label="Check Circle"
             size="sm"
             onClick={() => onAction(item.id, 'claim')}
             className="bg-green-500 hover:bg-green-600 text-foreground h-7 text-xs"
@@ -348,7 +349,7 @@ const ClaimQueueItem = ({ item, onAction }) => (
             <CheckCircle className="w-3 h-3 mr-1" />
             That's me!
           </Button>
-          <Button
+          <Button aria-label="Cancel"
             size="sm"
             variant="outline"
             onClick={() => onAction(item.id, 'reject')}
@@ -478,17 +479,17 @@ const ShareModal = ({ item, isOpen, onClose }) => {
         <div className="space-y-4">
           {/* Preview */}
           <div className="aspect-video rounded-lg overflow-hidden bg-muted">
-            <img src={item.thumbnail_url || item.url} alt="" className="w-full h-full object-cover" />
+            <img loading="lazy" decoding="async" src={item.thumbnail_url || item.url} alt="" className="w-full h-full object-cover" />
           </div>
           
           {/* Copy link */}
           <div className="flex gap-2">
-            <Input 
+            <Input aria-label="Share URL"
               value={shareUrl} 
               readOnly 
               className="bg-muted border-zinc-700 text-sm"
             />
-            <Button onClick={handleCopy} className="bg-cyan-500 hover:bg-cyan-600">
+            <Button onClick={handleCopy} className="bg-cyan-500 hover:bg-cyan-600" aria-label="Confirm">
               {copied ? <Check className="w-4 h-4" /> : 'Copy'}
             </Button>
           </div>
@@ -500,7 +501,7 @@ const ShareModal = ({ item, isOpen, onClose }) => {
               onClick={() => handleSocialShare('twitter')}
               className="flex-1 border-zinc-700"
             >
-              𝕏 Twitter
+              {String.fromCodePoint(0x1D54F)} Twitter
             </Button>
             <Button
               variant="outline"
@@ -563,7 +564,7 @@ const RequestEditModal = ({ item, isOpen, onClose, onSubmit }) => {
           <p className="text-sm text-muted-foreground">
             Send a message to <span className="text-foreground">{item.photographer_name}</span> requesting edits to this photo.
           </p>
-          <textarea
+          <textarea aria-label="E.g., Could you crop tighter on the wave? Or add a slight color boost?"
             value={message}
             onChange={(e) => setMessage(e.target.value)}
             placeholder="E.g., Could you crop tighter on the wave? Or add a slight color boost?"
@@ -575,7 +576,7 @@ const RequestEditModal = ({ item, isOpen, onClose, onSubmit }) => {
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Cancel</Button>
-          <Button onClick={handleSubmit} disabled={loading} className="bg-cyan-500 hover:bg-cyan-600">
+          <Button aria-label="Loader2" onClick={handleSubmit} disabled={loading} className="bg-cyan-500 hover:bg-cyan-600">
             {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Send Request'}
           </Button>
         </DialogFooter>
@@ -633,7 +634,7 @@ const PurchaseHistoryModal = ({ isOpen, onClose, userId }) => {
                 <div key={purchase.id} className="p-3 bg-muted rounded-lg border border-zinc-700">
                   <div className="flex gap-3">
                     <div className="w-16 h-16 rounded overflow-hidden flex-shrink-0">
-                      <img src={getFullUrl(purchase.thumbnail_url)} alt="" className="w-full h-full object-cover" />
+                      <img loading="lazy" decoding="async" src={getFullUrl(purchase.thumbnail_url)} alt="" className="w-full h-full object-cover" />
                     </div>
                     <div className="flex-1">
                       <div className="flex justify-between">
@@ -703,223 +704,6 @@ export const SurferGallery = () => {
   const textPrimaryClass = isLight ? 'text-gray-900' : 'text-foreground';
   const textSecondaryClass = isLight ? 'text-gray-600' : 'text-muted-foreground';
   
-  // Fetch gallery data
-  useEffect(() => {
-    if (user?.id) {
-      fetchGallery();
-      fetchClaimQueue();
-      checkPendingSelections();
-      fetchAiSessions();
-    }
-  }, [user?.id]);
-  
-  const fetchGallery = async () => {
-    setLoading(true);
-    try {
-      const response = await apiClient.get(`/surfer-gallery?surfer_id=${user.id}`);
-      setGalleryItems(response.data.items || []);
-      setStats(response.data.stats || {});
-    } catch (error) {
-      logger.error('Failed to fetch gallery:', error);
-      toast.error('Failed to load gallery');
-    } finally {
-      setLoading(false);
-    }
-  };
-  
-  const fetchClaimQueue = async () => {
-    try {
-      const response = await apiClient.get(`/surfer-gallery/claim-queue?surfer_id=${user.id}`);
-      setClaimQueue(response.data.items || []);
-    } catch (error) {
-      logger.error('Failed to fetch claim queue:', error);
-    }
-  };
-  
-  const fetchAiSessions = async () => {
-    try {
-      const response = await apiClient.get(`/surfer-gallery-review/ai-sessions?surfer_id=${user.id}`);
-      setAiSessions(response.data.sessions || []);
-    } catch (error) {
-      logger.debug('AI sessions not available:', error);
-    }
-  };
-  
-  const checkPendingSelections = async () => {
-    try {
-      const response = await apiClient.get(`/surfer-gallery/pending-selections?surfer_id=${user.id}`);
-      setPendingSelections(response.data.count || 0);
-    } catch (error) {
-      logger.error('Failed to check pending selections:', error);
-    }
-  };
-  
-  // Handlers
-  const handleVisibilityToggle = async (itemId, isPublic) => {
-    try {
-      await apiClient.put(`/surfer-gallery/${itemId}/visibility`, {
-        surfer_id: user.id,
-        is_public: isPublic
-      });
-      setGalleryItems(prev => prev.map(item => 
-        item.id === itemId ? { ...item, is_public: isPublic } : item
-      ));
-      toast.success(`Photo is now ${isPublic ? 'public' : 'private'}`);
-    } catch (error) {
-      toast.error('Failed to update visibility');
-    }
-  };
-  
-  const handleFavoriteToggle = async (itemId) => {
-    try {
-      const item = galleryItems.find(i => i.id === itemId);
-      await apiClient.put(`/surfer-gallery/${itemId}/favorite`, {
-        surfer_id: user.id,
-        is_favorite: !item.is_favorite
-      });
-      setGalleryItems(prev => prev.map(i => 
-        i.id === itemId ? { ...i, is_favorite: !i.is_favorite } : i
-      ));
-    } catch (error) {
-      toast.error('Failed to update favorite');
-    }
-  };
-  
-  const handleClaimAction = async (queueItemId, action) => {
-    try {
-      await apiClient.post(`/surfer-gallery/claim-queue/${queueItemId}/action`, { action });
-      setClaimQueue(prev => prev.filter(item => item.id !== queueItemId));
-      if (action === 'claim') {
-        toast.success('Added to your gallery!');
-        fetchGallery();
-      } else {
-        toast.success('Removed from suggestions');
-      }
-    } catch (error) {
-      toast.error('Failed to process');
-    }
-  };
-  
-  const handleDownload = async (itemId, quality) => {
-    try {
-      const response = await apiClient.get(`/surfer-gallery/download/${itemId}`, {
-        params: { surfer_id: user.id, quality_tier: quality }
-      });
-      window.open(response.data.download_url, '_blank');
-      toast.success(`Downloading ${quality} quality`);
-      setDownloadModal({ isOpen: false, item: null });
-    } catch (error) {
-      toast.error(error.response?.data?.detail || 'Download failed');
-    }
-  };
-  
-  const handleBulkDownload = async () => {
-    if (selectedItems.size === 0) return;
-    toast.info(`Preparing ${selectedItems.size} files for download...`);
-    // In a real implementation, this would call an API to create a zip
-    for (const itemId of selectedItems) {
-      await handleDownload(itemId, 'standard');
-    }
-    setSelectedItems(new Set());
-  };
-  
-  const handleSinglePurchase = async (itemId, quality) => {
-    setDownloadModal({ isOpen: false, item: null });
-    // Convert to a singular bulk-purchase call targeting the backend Stripe logic
-    try {
-      const response = await apiClient.post(`/gallery/bulk-purchase`, {
-        item_ids: [itemId],
-        quality_tiers: { [itemId]: quality },
-        buyer_id: user.id
-      });
-      
-      if (response.data.stripe_checkout_url) {
-        window.location.href = response.data.stripe_checkout_url;
-      } else {
-        toast.success(`Successfully unlocked item!`);
-        fetchGallery(); // Refetch locker state
-      }
-    } catch (error) {
-      toast.error(error.response?.data?.detail || 'Checkout failed');
-    }
-  };
-  
-  const handleRequestEdit = async (itemId, message) => {
-    await apiClient.post(`/surfer-gallery/${itemId}/request-edit`, {
-      surfer_id: user.id,
-      message
-    });
-  };
-
-  // Quick Message to Photographer
-  const handleMessagePhotographer = async (photographerId, _photographerName) => {
-    try {
-      // Start or get existing conversation
-      const response = await apiClient.post(`/messages/start-conversation`, {
-        sender_id: user.id,
-        recipient_id: photographerId,
-        initial_message: null // Just open the conversation
-      });
-      
-      // Navigate to messages with this conversation
-      const conversationId = response.data.conversation_id;
-      window.location.href = `/messages?conversation=${conversationId}`;
-    } catch (error) {
-      // If conversation already exists, get it
-      try {
-        const checkResponse = await apiClient.get(`/messages/check-thread/${user.id}/${photographerId}`);
-        if (checkResponse.data.conversation_id) {
-          window.location.href = `/messages?conversation=${checkResponse.data.conversation_id}`;
-        }
-      } catch {
-        toast.error('Failed to start conversation');
-      }
-    }
-  };
-  
-  const handleSelectItem = (itemId) => {
-    // Only allow selection in multi-select mode
-    if (!multiSelectMode) return;
-    
-    setSelectedItems(prev => {
-      const next = new Set(prev);
-      if (next.has(itemId)) next.delete(itemId);
-      else next.add(itemId);
-      return next;
-    });
-  };
-  
-  const handleSelectAll = () => {
-    if (selectedItems.size === filteredItems.length) {
-      setSelectedItems(new Set());
-    } else {
-      setSelectedItems(new Set(filteredItems.map(i => i.id)));
-    }
-  };
-  
-  // Toggle multi-select mode
-  const handleToggleMultiSelect = () => {
-    if (multiSelectMode) {
-      // Exiting multi-select, clear selections
-      setSelectedItems(new Set());
-    }
-    setMultiSelectMode(!multiSelectMode);
-  };
-  
-  // Handle bulk purchase completion
-  const handleBulkPurchaseComplete = (result) => {
-    setMultiSelectMode(false);
-    setSelectedItems(new Set());
-    fetchGallery(); // Refresh to show purchased items
-    toast.success(`Successfully purchased ${result.purchase_count} items!`);
-  };
-  
-  // Dismiss visibility onboarding
-  const handleDismissVisibilityOnboarding = () => {
-    localStorage.setItem('surfer_gallery_visibility_seen', 'true');
-    setShowVisibilityOnboarding(false);
-  };
-  
   // Get selected items data for bulk purchase
   const selectedItemsData = useMemo(() => {
     return galleryItems.filter(item => selectedItems.has(item.id));
@@ -980,6 +764,53 @@ export const SurferGallery = () => {
     return items;
   }, [galleryItems, searchQuery, filter, sortBy]);
 
+  // ============ HANDLERS EXTRACTED TO hooks/useSurferGalleryActions.js ============
+  const {
+    fetchGallery,
+    fetchClaimQueue,
+    fetchAiSessions,
+    checkPendingSelections,
+    handleVisibilityToggle,
+    handleFavoriteToggle,
+    handleClaimAction,
+    handleDownload,
+    handleBulkDownload,
+    handleSinglePurchase,
+    handleRequestEdit,
+    handleMessagePhotographer,
+    handleSelectItem,
+    handleSelectAll,
+    handleToggleMultiSelect,
+    handleBulkPurchaseComplete,
+    handleDismissVisibilityOnboarding,
+  } = useSurferGalleryActions({
+    user,
+    galleryItems,
+    selectedItems,
+    multiSelectMode,
+    filteredItems,
+    setLoading,
+    setGalleryItems,
+    setClaimQueue,
+    setStats,
+    setPendingSelections,
+    setAiSessions,
+    setDownloadModal,
+    setSelectedItems,
+    setMultiSelectMode,
+    setShowVisibilityOnboarding,
+  });
+
+  // Fetch gallery data
+  useEffect(() => {
+    if (user?.id) {
+      fetchGallery();
+      fetchClaimQueue();
+      checkPendingSelections();
+      fetchAiSessions();
+    }
+  }, [user?.id]);
+
   // Phase 2: Keyboard navigation for lightbox
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -1019,13 +850,13 @@ export const SurferGallery = () => {
               My Gallery
             </h1>
             <p className={`text-sm ${textSecondaryClass} mt-1`}>
-              Your private media locker • {stats.total || 0} items
+              Your private media locker ï¿½ {stats.total || 0} items
             </p>
           </div>
           
           {/* Quick actions */}
           <div className="flex items-center gap-2">
-            <Button
+            <Button aria-label="Scan Face"
               variant="outline"
               size="sm"
               onClick={() => setScanModal(true)}
@@ -1034,7 +865,7 @@ export const SurferGallery = () => {
               <ScanFace className="w-4 h-4 mr-1" />
               <span className="hidden sm:inline">Find Me</span>
             </Button>
-            <Button
+            <Button aria-label="History"
               variant="outline"
               size="sm"
               onClick={() => setShowPurchaseHistory(true)}
@@ -1082,7 +913,7 @@ export const SurferGallery = () => {
         
         {/* Pending Selections Banner */}
         {pendingSelections > 0 && (
-          <button
+          <button aria-label="div"
             data-testid="pending-selections-banner"
             onClick={() => setShowSelectionQueue(true)}
             className="w-full mb-6 p-4 rounded-xl bg-gradient-to-r from-green-500/20 to-emerald-500/20 
@@ -1109,7 +940,7 @@ export const SurferGallery = () => {
         
         {/* AI Match Queue Banner - TICKET-007 */}
         {claimQueue.length > 0 && activeTab !== 'claims' && (
-          <button
+          <button aria-label="div"
             data-testid="ai-match-banner"
             onClick={() => setActiveTab('claims')}
             className="w-full mb-6 p-4 rounded-xl bg-gradient-to-r from-purple-500/20 to-cyan-500/20 
@@ -1173,7 +1004,7 @@ export const SurferGallery = () => {
               {/* Search */}
               <div className="relative flex-1 max-w-md">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input
+                <Input aria-label="Search by photographer, spot, or title..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Search by photographer, spot, or title..."
@@ -1222,13 +1053,13 @@ export const SurferGallery = () => {
                 
                 {/* View mode toggle */}
                 <div className="flex border border-zinc-700 rounded-lg overflow-hidden">
-                  <button
+                  <button aria-label="Grid view"
                     onClick={() => setViewMode('grid')}
                     className={`p-2 ${viewMode === 'grid' ? 'bg-cyan-500 text-foreground' : 'bg-muted text-muted-foreground'}`}
                   >
                     <Grid className="w-4 h-4" />
                   </button>
-                  <button
+                  <button aria-label="List"
                     onClick={() => setViewMode('list')}
                     className={`p-2 ${viewMode === 'list' ? 'bg-cyan-500 text-foreground' : 'bg-muted text-muted-foreground'}`}
                   >
@@ -1259,7 +1090,7 @@ export const SurferGallery = () => {
                 <span className="text-cyan-400 font-medium">
                   {selectedItems.size} selected
                 </span>
-                <Button size="sm" onClick={handleBulkDownload} className="bg-cyan-500 hover:bg-cyan-600">
+                <Button aria-label="Download" size="sm" onClick={handleBulkDownload} className="bg-cyan-500 hover:bg-cyan-600">
                   <Download className="w-4 h-4 mr-1" />
                   Download All
                 </Button>
@@ -1388,7 +1219,7 @@ export const SurferGallery = () => {
                         {/* Session thumbnail */}
                         <div className="w-20 h-20 rounded-lg overflow-hidden bg-muted flex-shrink-0">
                           {session.thumbnail_url ? (
-                            <img 
+                            <img loading="lazy" decoding="async" 
                               src={getFullUrl(session.thumbnail_url)} 
                               alt="" 
                               className="w-full h-full object-cover"
@@ -1518,9 +1349,9 @@ export const SurferGallery = () => {
         />
       )}
       
-      {/* Find Me FAB — one-tap selfie scanner access */}
+      {/* Find Me FAB ï¿½ one-tap selfie scanner access */}
       {!multiSelectMode && !lightboxItem && (
-        <button
+        <button aria-label="Scan Face"
           onClick={() => setScanModal(true)}
           className="fixed bottom-24 right-4 z-40 w-14 h-14 rounded-full bg-gradient-to-r from-cyan-500 to-blue-500 text-white shadow-lg shadow-cyan-500/40 flex items-center justify-center hover:scale-110 active:scale-95 transition-transform md:hidden"
           title="Find My Photos"

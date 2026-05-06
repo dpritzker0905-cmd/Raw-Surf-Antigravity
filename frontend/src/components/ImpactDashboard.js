@@ -21,9 +21,9 @@ const IMPACT_LEVELS = {
   Legend: { emoji: '🏆', color: 'from-yellow-400 to-amber-600' },
   Champion: { emoji: '🥇', color: 'from-amber-400 to-orange-500' },
   Hero: { emoji: '🦸', color: 'from-purple-400 to-indigo-500' },
-  Patron: { emoji: '🌟', color: 'from-blue-400 to-cyan-500' },
-  Supporter: { emoji: '💪', color: 'from-green-400 to-emerald-500' },
-  Contributor: { emoji: '🤝', color: 'from-teal-400 to-cyan-500' },
+  Patron: { emoji: '💎', color: 'from-blue-400 to-cyan-500' },
+  Supporter: { emoji: '🌊', color: 'from-green-400 to-emerald-500' },
+  Contributor: { emoji: '🤙', color: 'from-teal-400 to-cyan-500' },
   Starter: { emoji: '🌱', color: 'from-gray-400 to-zinc-500' }
 };
 
@@ -292,7 +292,7 @@ export const ImpactDashboard = () => {
                 <p className="text-sm text-muted-foreground text-center">
                   You helped Groms earn <span className="text-pink-500 dark:text-pink-400 font-bold">${dashboard?.impact_score?.total_credits_given?.toFixed(0) || 0}</span> in gear credits this month
                 </p>
-                <Button 
+                <Button aria-label="Like" 
                   variant="outline"
                   className="w-full mt-4 border-pink-500/50 text-pink-600 dark:text-pink-400 hover:bg-pink-500/10"
                   onClick={() => window.location.href = '/career/stoke-sponsor'}
@@ -415,7 +415,7 @@ export const ImpactDashboard = () => {
                           {CAUSE_CATEGORIES[cause.category]?.label || cause.category}
                         </Badge>
                         {cause.website_url && (
-                          <button
+                          <button aria-label="External Link"
                             onClick={(e) => {
                               e.stopPropagation();
                               window.open(cause.website_url, '_blank');
@@ -441,7 +441,7 @@ export const ImpactDashboard = () => {
           <div className="space-y-4">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-              <Input
+              <Input aria-label="Search for a Grom to support..."
                 type="text"
                 placeholder="Search for a Grom to support..."
                 value={searchQuery}
@@ -591,7 +591,7 @@ export const ImpactDashboard = () => {
                 </div>
               )}
 
-              <Button
+              <Button aria-label="Loader2"
                 onClick={saveSettings}
                 disabled={saving || !selectedDestination}
                 className="w-full bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white"

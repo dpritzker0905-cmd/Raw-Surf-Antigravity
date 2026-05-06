@@ -301,7 +301,7 @@ export const AdminSpotEditor = () => {
         html: `
           <div class="relative group">
             <div class="w-6 h-6 rounded-full ${spot.community_verified ? 'bg-emerald-500' : spot.is_verified_peak ? 'bg-cyan-500' : 'bg-yellow-500'} border-2 border-white shadow-lg flex items-center justify-center cursor-pointer">
-              ${spot.community_verified ? '✓' : spot.flagged_for_review ? '!' : ''}
+              ${spot.community_verified ? '?' : spot.flagged_for_review ? '!' : ''}
             </div>
           </div>
         `,
@@ -520,7 +520,7 @@ export const AdminSpotEditor = () => {
         </Button>
 
         {/* Satellite Toggle */}
-        <Button
+        <Button aria-label="View"
           variant="outline"
           onClick={() => setSatelliteView(!satelliteView)}
           className="border-input"
@@ -533,7 +533,7 @@ export const AdminSpotEditor = () => {
         <div className="flex-1 max-w-xs">
           <div className="relative">
             <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-            <Input
+            <Input aria-label="Search spots..."
               placeholder="Search spots..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
@@ -543,7 +543,7 @@ export const AdminSpotEditor = () => {
         </div>
 
         {/* Refresh */}
-        <Button variant="outline" onClick={fetchSpots} className="border-input">
+        <Button variant="outline" onClick={fetchSpots} className="border-input" aria-label="Refresh">
           <RefreshCw className="w-4 h-4" />
         </Button>
 
@@ -561,9 +561,9 @@ export const AdminSpotEditor = () => {
             Edit Mode Active
           </p>
           <ul className="text-muted-foreground text-xs mt-2 space-y-1">
-            <li>• <strong>Drag</strong> any pin to relocate it</li>
-            <li>• <strong>Double-click</strong> on the map to create a new spot</li>
-            <li>• <strong>Click</strong> a pin to select it, then use Edit/Delete buttons</li>
+            <li>- <strong>Drag</strong> any pin to relocate it</li>
+            <li>- <strong>Double-click</strong> on the map to create a new spot</li>
+            <li>- <strong>Click</strong> a pin to select it, then use Edit/Delete buttons</li>
           </ul>
         </div>
       )}
@@ -626,7 +626,7 @@ export const AdminSpotEditor = () => {
           <div>
             <h4 className="text-foreground font-bold">{selectedSpot.name || 'Unknown Spot'}</h4>
             <p className="text-muted-foreground text-sm">
-              {selectedSpot.region || 'No region'} • ({(selectedSpot.latitude || 0).toFixed(4)}, {(selectedSpot.longitude || 0).toFixed(4)})
+              {selectedSpot.region || 'No region'} - ({(selectedSpot.latitude || 0).toFixed(4)}, {(selectedSpot.longitude || 0).toFixed(4)})
             </p>
             <div className="flex items-center gap-2 mt-1">
               {selectedSpot.community_verified && (
@@ -636,7 +636,7 @@ export const AdminSpotEditor = () => {
                 <Badge className="bg-orange-500 text-white text-xs">Needs Review</Badge>
               )}
               <Badge className="bg-muted text-xs">
-                Votes: {selectedSpot.verification_votes_yes || 0}✓ / {selectedSpot.verification_votes_no || 0}✗
+                Votes: {selectedSpot.verification_votes_yes || 0}? / {selectedSpot.verification_votes_no || 0}?
               </Badge>
             </div>
           </div>
@@ -662,7 +662,7 @@ export const AdminSpotEditor = () => {
               <Edit2 className="w-4 h-4 mr-1" />
               Edit
             </Button>
-            <Button
+            <Button aria-label="Delete"
               variant="outline"
               onClick={() => setShowDeleteConfirm(true)}
               className="border-red-500 text-red-400"
@@ -690,14 +690,14 @@ export const AdminSpotEditor = () => {
               Coordinates: ({pendingCoords?.lat.toFixed(6)}, {pendingCoords?.lng.toFixed(6)})
             </p>
             
-            <Input
+            <Input aria-label="Spot Name *"
               placeholder="Spot Name *"
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               className="bg-muted border-border"
             />
             
-            <Input
+            <Input aria-label="Region (e.g., Central Florida)"
               placeholder="Region (e.g., Central Florida)"
               value={formData.region}
               onChange={(e) => setFormData({ ...formData, region: e.target.value })}
@@ -705,13 +705,13 @@ export const AdminSpotEditor = () => {
             />
             
             <div className="grid grid-cols-2 gap-4">
-              <Input
+              <Input aria-label="Secondary City (e.g., Cocoa Beach)"
                 placeholder="Secondary City (e.g., Cocoa Beach)"
                 value={formData.secondary_city}
                 onChange={(e) => setFormData({ ...formData, secondary_city: e.target.value })}
                 className="bg-muted border-border"
               />
-              <Input
+              <Input aria-label="Secondary Area (e.g., Space Coast)"
                 placeholder="Secondary Area (e.g., Space Coast)"
                 value={formData.secondary_area}
                 onChange={(e) => setFormData({ ...formData, secondary_area: e.target.value })}
@@ -766,7 +766,7 @@ export const AdminSpotEditor = () => {
           
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowCreateModal(false)}>Cancel</Button>
-            <Button
+            <Button aria-label="Loader2"
               onClick={() => handleCreateSpot(false)}
               disabled={saving || !formData.name}
               className="bg-cyan-500 hover:bg-cyan-600"
@@ -788,14 +788,14 @@ export const AdminSpotEditor = () => {
           </DialogHeader>
           
           <div className="space-y-4">
-            <Input
+            <Input aria-label="Spot Name"
               placeholder="Spot Name"
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               className="bg-muted border-border"
             />
             
-            <Input
+            <Input aria-label="Region"
               placeholder="Region"
               value={formData.region}
               onChange={(e) => setFormData({ ...formData, region: e.target.value })}
@@ -803,13 +803,13 @@ export const AdminSpotEditor = () => {
             />
             
             <div className="grid grid-cols-2 gap-4">
-              <Input
+              <Input aria-label="Secondary City (e.g., Cocoa Beach)"
                 placeholder="Secondary City (e.g., Cocoa Beach)"
                 value={formData.secondary_city}
                 onChange={(e) => setFormData({ ...formData, secondary_city: e.target.value })}
                 className="bg-muted border-border"
               />
-              <Input
+              <Input aria-label="Secondary Area (e.g., Space Coast)"
                 placeholder="Secondary Area (e.g., Space Coast)"
                 value={formData.secondary_area}
                 onChange={(e) => setFormData({ ...formData, secondary_area: e.target.value })}
@@ -864,7 +864,7 @@ export const AdminSpotEditor = () => {
           
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowEditModal(false)}>Cancel</Button>
-            <Button
+            <Button aria-label="Loader2"
               onClick={handleUpdateSpot}
               disabled={saving}
               className="bg-cyan-500 hover:bg-cyan-600"
@@ -892,7 +892,7 @@ export const AdminSpotEditor = () => {
           
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowDeleteConfirm(false)}>Cancel</Button>
-            <Button
+            <Button aria-label="Loader2"
               onClick={handleDeleteSpot}
               disabled={saving}
               className="bg-red-500 hover:bg-red-600"
@@ -922,7 +922,7 @@ export const AdminSpotEditor = () => {
           
           <DialogFooter>
             <Button variant="outline" onClick={() => setLandWarning(null)}>Cancel</Button>
-            <Button
+            <Button aria-label="Loader2"
               onClick={handleConfirmLandWarning}
               disabled={saving}
               className="bg-orange-500 hover:bg-orange-600"

@@ -22,42 +22,48 @@ import VoiceRecorder from './VoiceRecorder';
 import WebcamCaptureModal from './WebcamCaptureModal';
 import { supabase } from '../lib/supabase';
 import logger from '../utils/logger';
+import useMessagesActions from '../hooks/useMessagesActions';
 import { getFullUrl, cacheBustUrl } from '../utils/media';
 import GifPicker from './messages/GifPicker';
 import EmojiPicker from './messages/EmojiPicker';
 import EphemeralCountdown from './messages/EphemeralCountdown';
 import ComposeModal from './messages/ComposeModal';
 import ConversationItem from './messages/ConversationItem';
+import usePullToRefresh from '../hooks/usePullToRefresh';
+import PullToRefreshIndicator from './ui/PullToRefreshIndicator';
 import MessageBubble from './messages/MessageBubble';
+import StoryBubble from './messages/StoryBubble';
+import CreateNoteModal from './messages/CreateNoteModal';
+import ViewNoteModal from './messages/ViewNoteModal';
 import { ROLES } from '../constants/roles';
 import usePresence from '../hooks/usePresence';
 
 // Role-based icon helper - uses expanded PersonaContext
 const getRoleIcon = (role, isAdmin = false) => {
   const _roleInfo = getExpandedRoleInfo(role, isAdmin);
-  if (isAdmin) return { icon: Shield, color: 'text-red-500', label: 'God Mode', emoji: '🔴' };
+  if (isAdmin) return { icon: Shield, color: 'text-red-500', label: 'God Mode', emoji: '\u{1F6E1}\u{FE0F}' };
   
   // Map to lucide icons for non-emoji contexts
   switch (role) {
     case 'Pro':
         case 'Comp Surfer':
-      return { icon: Star, color: 'text-amber-400', label: 'Pro', emoji: '⭐' };
+      return { icon: Star, color: 'text-amber-400', label: 'Pro', emoji: '\u{2B50}' };
     case 'Approved Pro':
-      return { icon: Camera, color: 'text-blue-400', label: 'Pro Photographer', emoji: '📸' };
+      return { icon: Camera, color: 'text-blue-400', label: 'Pro Photographer', emoji: '\u{1F4F8}' };
     case 'Photographer':
-      return { icon: Camera, color: 'text-purple-400', label: 'Photographer', emoji: '📷' };
+      return { icon: Camera, color: 'text-purple-400', label: 'Photographer', emoji: '\u{1F4F7}' };
     case 'Hobbyist':
-      return { icon: Search, color: 'text-indigo-400', label: 'Hobbyist', emoji: '🔍' };
+      return { icon: Search, color: 'text-indigo-400', label: 'Hobbyist', emoji: '\u{1F3C4}' };
     case 'Shop':
-      return { icon: Store, color: 'text-pink-400', label: 'Surf Shop', emoji: '🛍️' };
+      return { icon: Store, color: 'text-pink-400', label: 'Surf Shop', emoji: '\u{1F6CD}\u{FE0F}' };
     case 'Surf School':
-      return { icon: Users, color: 'text-teal-400', label: 'Surf School', emoji: '🌬️' };
+      return { icon: Users, color: 'text-teal-400', label: 'Surf School', emoji: '\u{1F3EB}' };
     case 'Shaper':
-      return { icon: Briefcase, color: 'text-orange-400', label: 'Shaper', emoji: '🛠️' };
+      return { icon: Briefcase, color: 'text-orange-400', label: 'Shaper', emoji: '\u{1FA93}' };
     case 'Resort':
-      return { icon: Store, color: 'text-emerald-400', label: 'Resort', emoji: '🌴' };
+      return { icon: Store, color: 'text-emerald-400', label: 'Resort', emoji: '\u{1F3D6}\u{FE0F}' };
     default:
-      return { icon: null, color: 'text-cyan-400', label: 'Surfer', emoji: '🏄' };
+      return { icon: null, color: 'text-cyan-400', label: 'Surfer', emoji: '\u{1F30A}' };
   }
 };
 
@@ -89,7 +95,7 @@ const getFolders = (userRole, _isAdmin = false, effectiveRole = null, _isMasked 
     icon: Users, 
     color: 'text-cyan-400', 
     description: isGrom ? 'Chat with other Groms' : 'Friends & surfers',
-    emoji: '🏄'
+    emoji: '\u{1F4AC}'
   });
   
   // FAMILY CHAT - Grom Parents chat with their linked Groms
@@ -100,7 +106,7 @@ const getFolders = (userRole, _isAdmin = false, effectiveRole = null, _isMasked 
       icon: Users, 
       color: 'text-cyan-400', 
       description: 'Chat with your linked Groms',
-      emoji: '👨‍👧',
+      emoji: '\u{1F46A}',
       isFamilyOnly: true
     });
   }
@@ -113,7 +119,7 @@ const getFolders = (userRole, _isAdmin = false, effectiveRole = null, _isMasked 
       icon: Users, 
       color: 'text-emerald-400', 
       description: 'Chat with your parent',
-      emoji: '👨‍👧',
+      emoji: '\u{1F46A}',
       isFamilyOnly: true
     });
   }
@@ -126,7 +132,7 @@ const getFolders = (userRole, _isAdmin = false, effectiveRole = null, _isMasked 
       icon: Star, 
       color: 'text-amber-400', 
       description: 'Private athlete ecosystem',
-      emoji: '⭐'
+      emoji: '\u{1F451}'
     });
   }
   
@@ -138,7 +144,7 @@ const getFolders = (userRole, _isAdmin = false, effectiveRole = null, _isMasked 
       icon: Briefcase, 
       color: 'text-purple-400', 
       description: 'Business & photographer hub',
-      emoji: '📷'
+      emoji: '\u{1F4BC}'
     });
   }
   
@@ -149,7 +155,7 @@ const getFolders = (userRole, _isAdmin = false, effectiveRole = null, _isMasked 
     icon: Smile, 
     color: 'text-orange-400', 
     description: 'Message requests',
-    emoji: '📩'
+    emoji: '\u{1F4E9}'
   });
   
   // Hidden
@@ -159,7 +165,7 @@ const getFolders = (userRole, _isAdmin = false, effectiveRole = null, _isMasked 
     icon: EyeOff, 
     color: 'text-gray-500', 
     description: 'Muted conversations',
-    emoji: '🔇'
+    emoji: '\u{1F648}'
   });
   
   return folders;
@@ -178,289 +184,21 @@ const ShakaIcon = ({ className = "w-16 h-16" }) => (
   </svg>
 );
 
-// Compose Modal Component - Instagram-style new message search
-// ComposeModal extracted → ./messages/ComposeModal.js
-
-// Story Bubble Component - Enhanced with Notes support
-const StoryBubble = ({ story, onClick, isOwnNote = false, _showCreateOption = false }) => {
-  const hasUnread = story.hasUnread;
-  const hasNote = story.noteContent && story.noteContent.length > 0;
-  const ringColor = hasNote 
-    ? 'from-green-400 via-emerald-500 to-teal-500'
-    : story.type === 'photographer' 
-      ? 'from-amber-400 via-orange-500 to-pink-500' 
-      : 'from-cyan-400 via-blue-500 to-purple-500';
-  
-  return (
-    <button 
-      onClick={() => onClick?.(story)}
-      className="flex flex-col items-center gap-1 min-w-[72px] relative group pt-3"
-      data-testid={`note-bubble-${story.id || 'create'}`}
-    >
-      {/* Avatar ring with Note bubble ON top-left (Instagram-style) */}
-      <div className="relative">
-        {/* Note bubble - positioned ON avatar, overlapping top edge */}
-        {hasNote && (
-          <div className="absolute -top-2.5 left-1/2 -translate-x-1/2 z-10 animate-in fade-in zoom-in duration-200">
-            <div className="bg-card/95 dark:bg-zinc-900/95 backdrop-blur-sm border border-emerald-400 rounded-full px-2 py-0.5 max-w-[80px] shadow-lg whitespace-nowrap">
-              <p className="text-[10px] text-foreground truncate text-center font-medium">{story.noteContent}</p>
-            </div>
-          </div>
-        )}
-        
-        {/* Add note button - positioned ON avatar top when no note */}
-        {isOwnNote && !hasNote && (
-          <div className="absolute -top-2 left-1/2 -translate-x-1/2 z-10">
-            <div className="bg-muted/90 border border-dashed border-muted-foreground rounded-full w-5 h-5 flex items-center justify-center hover:border-emerald-400 transition-colors">
-              <span className="text-muted-foreground text-xs leading-none">+</span>
-            </div>
-          </div>
-        )}
-        
-        <div className={`p-0.5 rounded-full ${hasUnread || hasNote ? `bg-gradient-to-br ${ringColor}` : 'bg-muted'}`}>
-          <div className="p-0.5 bg-background rounded-full">
-            <div className="w-14 h-14 rounded-full overflow-hidden bg-muted relative">
-              {story.avatar ? (
-                <img 
-                  src={story.avatar} 
-                  alt="" 
-                  className="w-full h-full object-cover" 
-                  onError={(e) => { 
-                    e.target.style.display = 'none'; 
-                    e.target.nextSibling && (e.target.nextSibling.style.display = 'flex');
-                  }}
-                />
-              ) : null}
-              <div 
-                className="w-full h-full flex items-center justify-center text-muted-foreground text-lg absolute inset-0"
-                style={{ display: story.avatar ? 'none' : 'flex' }}
-              >
-                {story.name?.charAt(0) || '?'}
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-      
-      <span className="text-[11px] text-muted-foreground truncate max-w-[64px]">{story.name}</span>
-      {story.timeRemaining && hasNote && (
-        <span className="text-[10px] text-emerald-500 dark:text-emerald-400 truncate max-w-[64px] -mt-0.5">{story.timeRemaining}</span>
-      )}
-    </button>
-  );
-};
-
-// Create Note Modal Component with Emoji Picker
-const CreateNoteModal = ({ isOpen, onClose, onSubmit }) => {
-  const [noteText, setNoteText] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const inputRef = useRef(null);
-  
-  // Surf-themed emojis
-  const SURF_EMOJIS = ['🤙', '🌊', '🏄', '🔥', '💯', '😎', '🌅', '🐚', '🦈', '☀️', '🌴', '✨'];
-  
-  useEffect(() => {
-    if (isOpen && inputRef.current) {
-      inputRef.current.focus();
-    }
-  }, [isOpen]);
-  
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!noteText.trim() || isSubmitting) return;
-    
-    setIsSubmitting(true);
-    try {
-      await onSubmit(noteText.trim());
-      setNoteText('');
-      onClose();
-    } catch (error) {
-      toast.error('Failed to create note');
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-  
-  const addEmoji = (emoji) => {
-    setNoteText(prev => (prev + emoji).slice(0, 60));
-  };
-  
-  if (!isOpen) return null;
-  
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm" onClick={onClose}>
-      <div 
-        className="bg-card border border-border rounded-2xl p-6 w-full max-w-sm mx-4"
-        onClick={e => e.stopPropagation()}
-      >
-        <h3 className="text-lg font-semibold text-foreground mb-2 text-center">Share a note</h3>
-        <p className="text-sm text-muted-foreground mb-1 text-center">Shared with followers you follow back</p>
-        <p className="text-xs text-emerald-500 dark:text-emerald-400 mb-4 text-center">Notes disappear after 24 hours</p>
-        
-        <form onSubmit={handleSubmit}>
-          <Input
-            ref={inputRef}
-            value={noteText}
-            onChange={(e) => setNoteText(e.target.value.slice(0, 60))}
-            placeholder="What's on your mind? 🤙"
-            className="bg-muted border-border text-foreground text-lg text-center h-14 mb-2"
-            maxLength={60}
-            data-testid="note-input"
-          />
-          
-          {/* Emoji Picker */}
-          <div className="flex justify-center flex-wrap gap-2 mb-3" data-testid="note-emoji-picker">
-            {SURF_EMOJIS.map((emoji) => (
-              <button
-                key={emoji}
-                type="button"
-                onClick={() => addEmoji(emoji)}
-                className="text-xl hover:scale-125 transition-transform p-1"
-              >
-                {emoji}
-              </button>
-            ))}
-          </div>
-          
-          <div className="flex justify-between text-xs text-muted-foreground mb-4">
-            <span>{noteText.length}/60</span>
-            <span>Mutual followers only</span>
-          </div>
-          
-          <div className="flex gap-3">
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={onClose}
-              className="flex-1 text-muted-foreground"
-            >
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              disabled={!noteText.trim() || isSubmitting}
-              className="flex-1 bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 text-white"
-              data-testid="submit-note-btn"
-            >
-              {isSubmitting ? 'Sharing...' : 'Share'}
-            </Button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-};
-
-// View Note Modal Component
-const ViewNoteModal = ({ isOpen, onClose, note, currentUserId, onReply }) => {
-  const [replyText, setReplyText] = useState('');
-  const [isReplying, setIsReplying] = useState(false);
-  
-  const handleReply = async () => {
-    if (!replyText.trim() || isReplying) return;
-    
-    setIsReplying(true);
-    try {
-      await onReply(note.id, replyText.trim());
-      setReplyText('');
-      onClose();
-      toast.success('Reply sent as message');
-    } catch (error) {
-      toast.error('Failed to send reply');
-    } finally {
-      setIsReplying(false);
-    }
-  };
-  
-  if (!isOpen || !note) return null;
-  
-  const resolvedNoteAvatar = note.user_avatar ? getFullUrl(note.user_avatar) : null;
-  const avatarWithCacheBust = cacheBustUrl(resolvedNoteAvatar);
-  
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm" onClick={onClose}>
-      <div 
-        className="bg-card border border-border rounded-2xl p-6 w-full max-w-sm mx-4"
-        onClick={e => e.stopPropagation()}
-      >
-        {/* User info */}
-        <div className="flex items-center gap-3 mb-4">
-          <div className="w-12 h-12 rounded-full overflow-hidden bg-muted relative">
-            {avatarWithCacheBust ? (
-              <img 
-                src={avatarWithCacheBust} 
-                alt="" 
-                className="w-full h-full object-cover"
-                onError={(e) => {
-                  e.target.style.display = 'none';
-                  if (e.target.nextSibling) e.target.nextSibling.style.display = 'flex';
-                }}
-              />
-            ) : null}
-            <div 
-              className="w-full h-full flex items-center justify-center text-muted-foreground absolute inset-0"
-              style={{ display: avatarWithCacheBust ? 'none' : 'flex' }}
-            >
-              {note.user_name?.charAt(0)}
-            </div>
-          </div>
-          <div>
-            <p className="font-medium text-foreground">{note.user_name}</p>
-            <p className="text-xs text-emerald-500 dark:text-emerald-400">{note.time_remaining} left</p>
-          </div>
-          <button onClick={onClose} className="ml-auto text-muted-foreground hover:text-foreground">
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-        
-        {/* Note content */}
-        <div className="bg-muted rounded-xl p-4 mb-4">
-          <p className="text-foreground text-center text-lg">{note.content}</p>
-        </div>
-        
-        {/* Reply section - only show if not own note */}
-        {note.user_id !== currentUserId && (
-          <div className="flex gap-2">
-            <Input
-              value={replyText}
-              onChange={(e) => setReplyText(e.target.value)}
-              placeholder="Reply to note..."
-              className="bg-muted border-border text-foreground flex-1"
-              onKeyDown={(e) => e.key === 'Enter' && handleReply()}
-              data-testid="note-reply-input"
-            />
-            <Button
-              onClick={handleReply}
-              disabled={!replyText.trim() || isReplying}
-              className="bg-gradient-to-r from-cyan-500 to-blue-600 text-white"
-              data-testid="send-note-reply-btn"
-            >
-              <Send className="w-4 h-4" />
-            </Button>
-          </div>
-        )}
-        
-        {/* Stats */}
-        <div className="flex justify-center gap-4 mt-4 text-xs text-muted-foreground">
-          <span>{note.view_count} views</span>
-          <span>{note.reply_count} replies</span>
-        </div>
-      </div>
-    </div>
-  );
-};
+// StoryBubble extracted ? ./messages/StoryBubble.js
+// CreateNoteModal extracted ? ./messages/CreateNoteModal.js
+// ViewNoteModal extracted ? ./messages/ViewNoteModal.js
 
 // Conversation List Item Component
-// ConversationItem extracted → ./messages/ConversationItem.js
+// ConversationItem extracted ? ./messages/ConversationItem.js
 
 // Emoji Picker Component
-// EmojiPicker extracted → ./messages/EmojiPicker.js
+// EmojiPicker extracted ? ./messages/EmojiPicker.js
 // EphemeralCountdown - Live ticking countdown badge for 24hr ephemeral videos
 // Uses setInterval to update every minute so the display actually ticks down
-// EphemeralCountdown extracted → ./messages/EphemeralCountdown.js
+// EphemeralCountdown extracted ? ./messages/EphemeralCountdown.js
 
 // Message Bubble Component
-// MessageBubble extracted → ./messages/MessageBubble.js
+// MessageBubble extracted ? ./messages/MessageBubble.js
 
 // Helper functions
 // formatTime was consolidated into ../utils/formatTime.js (formatClockTime)
@@ -521,11 +259,17 @@ export const MessagesPage = () => {
   const fileInputRef = useRef(null);
   const typingTimeoutRef = useRef(null);
 
-  // Ref to track current activeFolder — prevents stale-closure bugs in polling
+  // Ref to track current activeFolder - prevents stale-closure bugs in polling
   // intervals that capture an old fetchConversations and overwrite channel/pro-lounge
   // conversations with primary ones.
   const activeFolderRef = useRef(activeFolder);
   useEffect(() => { activeFolderRef.current = activeFolder; }, [activeFolder]);
+
+  // Pull-to-refresh for mobile - triggers conversation list refresh on swipe-down
+  const { pullRef: msgPullRef, isPulling: msgPulling, pullProgress: msgPullProgress, isRefreshing: msgPtrRefreshing } = usePullToRefresh(
+    async () => { await fetchConversations(); },
+    { threshold: 60, enabled: !loading && !selectedConversation }
+  );
 
   // Handle direct conversation routing
   useEffect(() => {
@@ -573,7 +317,7 @@ export const MessagesPage = () => {
 
     const prev = prevPersonaRef.current;
 
-    // On first run after mount, just record the current values — don't reset folder
+    // On first run after mount, just record the current values - don't reset folder
     if (!prev.initialized) {
       prevPersonaRef.current = { effectiveRole, isGodMode, activePersona, initialized: true };
       return;
@@ -587,7 +331,7 @@ export const MessagesPage = () => {
 
     if (!personaChanged) return;
 
-    // Genuine persona switch — update ref
+    // Genuine persona switch - update ref
     prevPersonaRef.current = { effectiveRole, isGodMode, activePersona, initialized: true };
 
     // Reset to appropriate default folder based on effective role
@@ -609,6 +353,13 @@ export const MessagesPage = () => {
       fetchConversations();
       fetchStories();
     }
+
+    // Cleanup: abort in-flight fetch if the folder changes before it completes
+    return () => {
+      if (fetchAbortRef.current) {
+        fetchAbortRef.current.abort();
+      }
+    };
   }, [user?.id, activeFolder]);
 
   // Fetch conversation detail when selected
@@ -645,7 +396,7 @@ export const MessagesPage = () => {
       }, (payload) => {
         const msg = payload.new;
         if (msg.sender_id !== user.id) {
-          // Append the incoming message directly to local state — no API refetch
+          // Append the incoming message directly to local state - no API refetch
           setConversationDetail(prev => {
             if (!prev?.messages) return prev;
             // Deduplicate: don't add if already present (e.g., from optimistic insert)
@@ -711,8 +462,19 @@ export const MessagesPage = () => {
     return () => clearInterval(interval);
   }, [selectedConversation?.id, user?.id]);
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  // Track whether initial scroll has happened for this conversation
+  const initialScrollDoneRef = useRef(false);
+  
+  // Reset initial scroll flag when conversation changes
+  useEffect(() => {
+    initialScrollDoneRef.current = false;
+  }, [selectedConvId]);
+
+  const scrollToBottom = (instant = false) => {
+    messagesEndRef.current?.scrollIntoView({ 
+      behavior: instant || !initialScrollDoneRef.current ? 'auto' : 'smooth' 
+    });
+    initialScrollDoneRef.current = true;
   };
 
   const loadConversationById = async (convId) => {
@@ -722,7 +484,7 @@ export const MessagesPage = () => {
     }
     try {
       logger.debug('[Messages] Fetching conversation:', convId);
-      const response = await apiClient.get(`/messages/conversation/${convId}`);
+      const response = await apiClient.get(`/messages/conversation/${convId}?user_id=${user.id}`);
       setSelectedConversation({
         id: convId,
         other_user_id: response.data.other_user_id,
@@ -771,12 +533,20 @@ export const MessagesPage = () => {
     }
   };
 
+  // AbortController ref - cancels in-flight conversation fetches when the user
+  // switches folders. This prevents stale responses from overwriting fresh data.
+  const fetchAbortRef = useRef(null);
+
   const fetchConversations = async () => {
+    // Abort any in-flight fetch first
+    if (fetchAbortRef.current) {
+      fetchAbortRef.current.abort();
+    }
+    const abortController = new AbortController();
+    fetchAbortRef.current = abortController;
+
     try {
       // CRITICAL: Read from ref to avoid stale-closure bugs.
-      // The polling interval (10s) captures this function once; without the ref,
-      // switching to The Channel would be overwritten by a stale poll still
-      // fetching 'primary' conversations.
       const currentFolder = activeFolderRef.current;
       const isGromZone = currentFolder === 'grom_zone';
       const isFamily = currentFolder === 'family';
@@ -791,14 +561,19 @@ export const MessagesPage = () => {
         path = `/messages/conversations/${user.id}?inbox_type=${currentFolder}`;
       }
       
-      // Fetch conversations + unread counts in parallel (2 requests max, not 8)
-      // /messages/unread-counts returns primary, requests, grom_zone totals in ONE call
+      // Fetch conversations + unread counts in parallel
       const [response, countsResp, familyCountResp] = await Promise.all([
-        apiClient.get(path),
-        apiClient.get(`/messages/unread-counts/${user.id}`).catch(() => ({ data: { primary: 0, requests: 0, grom_zone: 0 } })),
-        apiClient.get(`/messages/conversations/${user.id}/family`).catch(() => ({ data: [] }))
+        apiClient.get(path, { signal: abortController.signal }),
+        apiClient.get(`/messages/unread-counts/${user.id}`, { signal: abortController.signal }).catch(() => ({ data: { primary: 0, requests: 0, grom_zone: 0 } })),
+        apiClient.get(`/messages/conversations/${user.id}/family`, { signal: abortController.signal }).catch(() => ({ data: [] }))
       ]);
       
+      // RACE CONDITION GUARD: Only apply results if the user hasn't switched
+      // folders while this request was in-flight.
+      if (activeFolderRef.current !== currentFolder) {
+        return; // Stale response - user switched tabs, discard
+      }
+
       setConversations(response.data);
       
       // Build folder counts from the single unread-counts response
@@ -817,6 +592,10 @@ export const MessagesPage = () => {
         hidden: 0
       });
     } catch (error) {
+      // Aborted requests are expected - don't log them
+      if (error?.name === 'AbortError' || error?.name === 'CanceledError' || error?.code === 'ERR_CANCELED') {
+        return;
+      }
       logger.error('Failed to fetch conversations:', error);
     } finally {
       setLoading(false);
@@ -825,7 +604,7 @@ export const MessagesPage = () => {
 
   const fetchConversationDetail = async (convId) => {
     try {
-      const response = await apiClient.get(`/messages/conversation/${convId}`);
+      const response = await apiClient.get(`/messages/conversation/${convId}?user_id=${user.id}`);
       setConversationDetail(response.data);
     } catch (error) {
       logger.error('Failed to fetch conversation:', error);
@@ -1025,7 +804,7 @@ export const MessagesPage = () => {
     const messageContent = newMessage.trim();
     const tempId = `temp_${Date.now()}_${Math.random().toString(36).slice(2)}`;
     
-    // ── Optimistic insert: show message instantly ──
+    // -- Optimistic insert: show message instantly --
     setConversationDetail(prev => {
       if (!prev?.messages) return prev;
       return {
@@ -1149,7 +928,7 @@ export const MessagesPage = () => {
 
   const handleReaction = async (messageId, emoji) => {
     try {
-      await apiClient.post(`/messages/react/${messageId}`, { emoji });
+      await apiClient.post(`/messages/react/${messageId}?user_id=${user.id}`, { emoji });
       fetchConversationDetail(selectedConversation.id);
     } catch (error) {
       toast.error('Failed to add reaction');
@@ -1169,7 +948,7 @@ export const MessagesPage = () => {
 
   const handleDeclineRequest = async () => {
     try {
-      await apiClient.delete(`/messages/conversation/${selectedConversation.id}`);
+      await apiClient.delete(`/messages/conversation/${selectedConversation.id}?user_id=${user.id}`);
       toast.success('Request declined');
       setSelectedConversation(null);
       setConversationDetail(null);
@@ -1185,7 +964,7 @@ export const MessagesPage = () => {
     if (!selectedConversation?.id) return;
     try {
       const response = await apiClient.post(
-        `/messages/conversation/${selectedConversation.id}/pin`
+        `/messages/conversation/${selectedConversation.id}/pin?user_id=${user.id}`
       );
       toast.success(response.data.message);
       fetchConversations();
@@ -1201,7 +980,7 @@ export const MessagesPage = () => {
     if (!selectedConversation?.id) return;
     try {
       const response = await apiClient.post(
-        `/messages/conversation/${selectedConversation.id}/mute`
+        `/messages/conversation/${selectedConversation.id}/mute?user_id=${user.id}`
       );
       toast.success(response.data.message);
       fetchConversations();
@@ -1217,7 +996,7 @@ export const MessagesPage = () => {
     if (!selectedConversation?.id) return;
     try {
       const response = await apiClient.post(
-        `/messages/conversation/${selectedConversation.id}/mark-unread`
+        `/messages/conversation/${selectedConversation.id}/mark-unread?user_id=${user.id}`
       );
       toast.success(response.data.message);
       fetchConversations();
@@ -1233,7 +1012,7 @@ export const MessagesPage = () => {
     if (!selectedConversation?.id) return;
     if (!window.confirm('Delete this conversation? It will be hidden from your inbox.')) return;
     try {
-      await apiClient.delete(`/messages/conversation/${selectedConversation.id}`);
+      await apiClient.delete(`/messages/conversation/${selectedConversation.id}?user_id=${user.id}`);
       toast.success('Conversation deleted');
       setSelectedConversation(null);
       setConversationDetail(null);
@@ -1365,32 +1144,54 @@ export const MessagesPage = () => {
     }
   };
 
-  // Filter conversations by search
-  const filteredConversations = conversations
-    .filter(c => (c.other_user_name || '').toLowerCase().includes(searchQuery.toLowerCase()))
-    .sort((a, b) => {
-      // Pinned conversations first
-      if (a.is_pinned && !b.is_pinned) return -1;
-      if (!a.is_pinned && b.is_pinned) return 1;
-      // Then by last message time
-      const bTime = new Date(b.last_message_at || 0).getTime();
-      const aTime = new Date(a.last_message_at || 0).getTime();
-      return (isNaN(bTime) ? 0 : bTime) - (isNaN(aTime) ? 0 : aTime);
-    });
+  // Filter conversations by search AND by active folder.
+  // The folder filter is CRITICAL: it prevents conversations from the previous
+  // tab from flashing in the new tab during the React render cycle. Without this,
+  // switching from Channel (7 items) to Requests (0 items) shows Channel items
+  // for one frame because state updates (useEffect) run AFTER the render.
+  let filteredConversations = [];
+  try {
+    filteredConversations = conversations
+      .filter(c => {
+        // Folder guard: only show conversations that belong to the active folder.
+        // The backend already returns folder-filtered data, but during tab
+        // transitions, stale data from the previous folder may still be in state.
+        if (c.folder && c.folder !== activeFolder) return false;
+        // Search filter
+        return (c?.other_user_name || '').toLowerCase().includes((searchQuery || '').toLowerCase());
+      })
+      .sort((a, b) => {
+        // Pinned conversations first
+        if (a.is_pinned && !b.is_pinned) return -1;
+        if (!a.is_pinned && b.is_pinned) return 1;
+        // Then by last message time
+        const bTime = new Date(b.last_message_at || 0).getTime();
+        const aTime = new Date(a.last_message_at || 0).getTime();
+        return (isNaN(bTime) ? 0 : bTime) - (isNaN(aTime) ? 0 : aTime);
+      });
+  } catch (err) {
+    logger.error('Error filtering conversations:', err);
+  }
 
   // Render conversation list (shared between mobile and desktop)
-  const renderConversationList = () => (
-    <div className="flex flex-col h-full bg-background">
+  const renderConversationList = () => {
+    try {
+      return (
+    <div ref={msgPullRef} className="flex flex-col h-full bg-background">
+      <PullToRefreshIndicator isPulling={msgPulling} progress={msgPullProgress} isRefreshing={msgPtrRefreshing} />
       {/* Mobile Header */}
       <div className="md:hidden flex items-center justify-between px-4 py-3 border-b border-border">
-        <button 
-          onClick={() => setShowMobileTools(!showMobileTools)}
+        <button aria-label="Filter" 
+          aria-expanded={showMobileTools} onClick={() => setShowMobileTools(!showMobileTools)}
           className="p-2 text-muted-foreground hover:text-foreground"
         >
           <Filter className="w-5 h-5" />
         </button>
-        <h1 className="text-lg font-bold text-foreground" style={{ fontFamily: 'Oswald' }}>Messages</h1>
-        <button 
+        <h1 className="text-lg font-bold text-foreground font-oswald flex items-center gap-2">
+          Messages
+          <span className={`w-2 h-2 rounded-full ${isOnline ? 'bg-emerald-400' : 'bg-amber-400 animate-pulse'}`} title={isOnline ? 'Connected' : 'Reconnecting...'} />
+        </h1>
+        <button aria-label="Edit3" 
           onClick={handleComposeNew}
           className="p-2 text-muted-foreground hover:text-foreground"
         >
@@ -1402,11 +1203,11 @@ export const MessagesPage = () => {
       <div className="px-4 py-2">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <input
+          <input aria-label="Search conversations"
             type="text"
             placeholder="Search conversations"
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full bg-muted border border-border rounded-lg pl-10 pr-4 py-2.5 text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-ring"
           />
         </div>
@@ -1480,7 +1281,7 @@ export const MessagesPage = () => {
           ) : (
             <div className="space-y-1">
               {crewChats.map((chat) => (
-                <button
+                <button aria-label="div"
                   key={chat.id}
                   onClick={() => navigate(`/bookings/${chat.id}/chat`)}
                   className="w-full flex items-center gap-3 px-4 py-3 hover:bg-muted/50 transition-colors border-b border-border/50"
@@ -1503,7 +1304,7 @@ export const MessagesPage = () => {
                     </div>
                     <div className="flex items-center gap-2 text-xs text-gray-500">
                       <span>{chat.chatInfo?.participants?.length || 0} participants</span>
-                      <span>•</span>
+                      <span>-</span>
                       <span>{chat.status}</span>
                     </div>
                     {(() => {
@@ -1541,7 +1342,7 @@ export const MessagesPage = () => {
                   <span className="text-sm text-gray-400">
                     {filteredConversations.length} pending request{filteredConversations.length > 1 ? 's' : ''}
                   </span>
-                  <Button
+                  <Button aria-label="Confirm"
                     onClick={handleAcceptAllRequests}
                     size="sm"
                     className="bg-gradient-to-r from-cyan-500 to-blue-600 text-white text-xs font-bold px-3 py-1 h-7"
@@ -1569,7 +1370,12 @@ export const MessagesPage = () => {
         )}
       </div>
     </div>
-  );
+      );
+    } catch (err) {
+      logger.error('Error in renderConversationList:', err);
+      return <div className="p-4 text-red-500">List Error: {err.toString()}</div>;
+    }
+  };
 
   // Render chat view
   const renderChatView = () => {
@@ -1582,7 +1388,7 @@ export const MessagesPage = () => {
     <div className="flex flex-col h-full bg-background messages-chat-view">
       {/* Chat Header */}
       <div className="flex items-center gap-3 px-4 py-3 border-b border-border bg-background/80 backdrop-blur-sm">
-        <button
+        <button aria-label="Previous"
           onClick={handleBackNavigation}
           className="text-muted-foreground hover:text-foreground"
           data-testid="back-button"
@@ -1595,7 +1401,7 @@ export const MessagesPage = () => {
           title="View profile"
         >
           {chatAvatarWithCacheBust ? (
-            <img 
+            <img loading="lazy" decoding="async" 
               src={chatAvatarWithCacheBust} 
               className="w-full h-full object-cover" 
               alt=""
@@ -1639,7 +1445,7 @@ export const MessagesPage = () => {
           </div>
         </div>
         
-        {/* Call Buttons — Audio & Video */}
+        {/* Call Buttons - Audio & Video */}
         {!selectedConversation?.is_new_chat && !selectedConversation?.is_request && (
           <div className="flex items-center gap-1">
             <button
@@ -1684,7 +1490,7 @@ export const MessagesPage = () => {
         {/* Conversation Controls Dropdown */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <button 
+            <button aria-label="More options" 
               className="text-muted-foreground hover:text-foreground p-2 rounded-lg hover:bg-muted transition-colors"
               data-testid="conversation-menu-btn"
             >
@@ -1754,7 +1560,7 @@ export const MessagesPage = () => {
           <div className="flex flex-col items-center justify-center h-full text-center">
             <div className="w-20 h-20 rounded-full bg-muted overflow-hidden mb-4">
               {selectedConversation.other_user_avatar ? (
-                <img src={selectedConversation.other_user_avatar} className="w-full h-full object-cover" alt="" />
+                <img loading="lazy" decoding="async" src={selectedConversation.other_user_avatar} className="w-full h-full object-cover" alt="" />
               ) : (
                 <span className="w-full h-full flex items-center justify-center text-3xl text-muted-foreground">
                   {selectedConversation.other_user_name?.charAt(0)}
@@ -1783,7 +1589,7 @@ export const MessagesPage = () => {
         <div className="px-4 py-2 bg-muted border-t border-border flex items-center gap-2">
           <Reply className="w-4 h-4 text-cyan-400" />
           <span className="flex-1 text-sm text-muted-foreground truncate">Replying to: {replyingTo.content}</span>
-          <button onClick={() => setReplyingTo(null)} className="text-muted-foreground hover:text-foreground">
+          <button onClick={() => setReplyingTo(null)} className="text-muted-foreground hover:text-foreground" aria-label="Close">
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -1823,7 +1629,7 @@ export const MessagesPage = () => {
               <button type="button" onClick={() => fileInputRef.current?.click()} className="p-2 text-muted-foreground hover:text-cyan-400 transition-colors">
                 <Image className="w-5 h-5" />
               </button>
-              <input ref={fileInputRef} type="file" accept="image/*,video/*" onChange={handleMediaUpload} className="hidden" />
+              <input aria-label="Upload file" ref={fileInputRef} type="file" accept="image/*,video/*" onChange={handleMediaUpload} className="hidden" />
               
               {/* GIF button */}
               <button 
@@ -1840,16 +1646,16 @@ export const MessagesPage = () => {
               </button>
               
               <div className="flex-1 relative">
-                <input
+                <input aria-label="Message..."
                   type="text"
                   value={newMessage}
                   onChange={handleInputChange}
                   placeholder="Message..."
                   className="w-full bg-muted rounded-full px-4 py-2.5 text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:ring-1 focus:ring-cyan-500"
                 />
-                <button
+                <button aria-label="Emoji"
                   type="button"
-                  onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                  aria-expanded={showEmojiPicker} onClick={() => setShowEmojiPicker(!showEmojiPicker)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white"
                 >
                   <Smile className="w-5 h-5" />
@@ -1862,7 +1668,7 @@ export const MessagesPage = () => {
               </div>
 
               {newMessage.trim() ? (
-                <button
+                <button aria-label="Send"
                   type="submit"
                   disabled={sendingMessage}
                   className="p-2.5 bg-gradient-to-r from-cyan-500 to-blue-600 rounded-full text-white disabled:opacity-50"
@@ -1874,7 +1680,7 @@ export const MessagesPage = () => {
                   <button type="button" onClick={() => setShowVideoCapture(true)} className="p-2 text-muted-foreground hover:text-cyan-400 transition-colors">
                     <Video className="w-5 h-5" />
                   </button>
-                  <button type="button" onClick={() => setShowVoiceRecorder(true)} className="p-2 text-muted-foreground hover:text-cyan-400 transition-colors">
+                  <button type="button" onClick={() => setShowVoiceRecorder(true)} className="p-2 text-muted-foreground hover:text-cyan-400 transition-colors" aria-label="Microphone">
                     <Mic className="w-5 h-5" />
                   </button>
                 </div>

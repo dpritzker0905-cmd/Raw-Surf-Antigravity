@@ -1,4 +1,4 @@
-﻿/**
+/**
  * PhotographerAvailability - Availability status and notification subscription
  * Shows: Live Active Shooting, On-Demand, Booking availability
  * "Notify Me" feature for unavailable services using OneSignal
@@ -146,7 +146,7 @@ const AvailabilityRow = ({
         {/* Action Button */}
         <div className="shrink-0">
           {isAvailable ? (
-            <Button
+            <Button aria-label="Next"
               size="sm"
               onClick={() => onAction(type)}
               className="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white"

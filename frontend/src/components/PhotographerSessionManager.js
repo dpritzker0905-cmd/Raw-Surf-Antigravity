@@ -1,4 +1,4 @@
-﻿/**
+/**
  * PhotographerSessionManager - Photographer's Command Center for Session Management
  * 
  * This is the photographer's counterpart to the surfer's LineupManagerDrawer.
@@ -136,7 +136,7 @@ const ParticipantCard = ({
             statusInfo.color === 'blue' ? 'ring-blue-400' : 'ring-gray-400'
           }`}>
             {participant.avatar_url ? (
-              <img src={getFullUrl(participant.avatar_url)} alt={participant.name} className="w-full h-full object-cover" />
+              <img loading="lazy" decoding="async" src={getFullUrl(participant.avatar_url)} alt={participant.name} className="w-full h-full object-cover" />
             ) : (
               <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-cyan-400 to-blue-500 text-white font-bold">
                 {participant.name?.[0]?.toUpperCase() || '?'}
@@ -146,7 +146,7 @@ const ParticipantCard = ({
           
           {/* Selfie indicator badge */}
           {hasSelfie && (
-            <button
+            <button aria-label="Camera"
               onClick={() => setShowSelfie(true)}
               className="absolute -bottom-1 -right-1 z-20 w-5 h-5 bg-cyan-500 rounded-full flex items-center justify-center shadow-lg hover:bg-cyan-400 transition-colors"
               title="View ID selfie"
@@ -176,7 +176,7 @@ const ParticipantCard = ({
         
         {/* Selfie View Button (if available) */}
         {hasSelfie && (
-          <button
+          <button aria-label="User Circle"
             onClick={() => setShowSelfie(true)}
             className={`p-1.5 rounded-lg text-cyan-400 hover:bg-cyan-500/10 transition-colors ${
               isLight ? 'hover:bg-cyan-100' : ''
@@ -197,7 +197,7 @@ const ParticipantCard = ({
         
         {/* Remove Button */}
         {canRemove && (
-          <button
+          <button aria-label="Loader2"
             onClick={() => onRemove(participant.participant_id || participant.id, participant.name)}
             disabled={loading}
             className="p-2 rounded-full text-red-400 hover:bg-red-500/10 opacity-0 group-hover:opacity-100 transition-all"
@@ -221,7 +221,7 @@ const ParticipantCard = ({
             <div className="p-4 border-b border-zinc-800 flex items-center justify-between">
               <div className="flex items-center gap-3">
                 {participant.avatar_url ? (
-                  <img src={getFullUrl(participant.avatar_url)} alt="" className="w-10 h-10 rounded-full object-cover" />
+                  <img loading="lazy" decoding="async" src={getFullUrl(participant.avatar_url)} alt="" className="w-10 h-10 rounded-full object-cover" />
                 ) : (
                   <div className="w-10 h-10 rounded-full bg-gradient-to-br from-cyan-400 to-blue-500 flex items-center justify-center text-white font-bold">
                     {participant.name?.[0]?.toUpperCase() || '?'}
@@ -240,7 +240,7 @@ const ParticipantCard = ({
               </button>
             </div>
             <div className="relative aspect-[3/4] bg-black">
-              <img 
+              <img loading="lazy" decoding="async" 
                 src={participant.selfie_url || participant.media_url} 
                 alt={`${participant.name}'s ID selfie`}
                 className="w-full h-full object-contain"
@@ -427,7 +427,7 @@ const SessionStatusControl = ({
               ))}
               {/* Custom input */}
               <div className="flex items-center gap-1">
-                <input
+                <input aria-label="Custom"
                   type="number"
                   min="1"
                   max="168"
@@ -502,7 +502,7 @@ const SessionStatusControl = ({
       {/* Action Buttons */}
       <div className="grid grid-cols-2 gap-2">
         {!isLocked && isOpen && (
-          <Button
+          <Button aria-label="Loader2"
             onClick={onLockSession}
             disabled={loading}
             className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white"
@@ -513,7 +513,7 @@ const SessionStatusControl = ({
           </Button>
         )}
         
-        <Button
+        <Button aria-label="Loader2"
           onClick={onCancelSession}
           disabled={loading}
           variant="outline"
@@ -825,7 +825,7 @@ export const PhotographerSessionManager = ({
           </div>
           <DialogDescription className={`${textSecondary} flex items-center gap-2`}>
             <MapPin className="w-4 h-4" />
-            {booking.location} · {new Date(booking.session_date).toLocaleDateString()}
+            {booking.location} ? {new Date(booking.session_date).toLocaleDateString()}
           </DialogDescription>
         </DialogHeader>
 
@@ -858,7 +858,7 @@ export const PhotographerSessionManager = ({
 
         {/* Tab Switcher */}
         <div className="flex border-b border-zinc-700">
-          <button
+          <button aria-label="Users"
             onClick={() => setActiveTab('participants')}
             className={`flex-1 py-2 text-sm font-medium flex items-center justify-center gap-2 transition-colors ${
               activeTab === 'participants' 
@@ -869,7 +869,7 @@ export const PhotographerSessionManager = ({
             <Users className="w-4 h-4" />
             Surfers ({participants.length})
           </button>
-          <button
+          <button aria-label="User Plus"
             onClick={() => setActiveTab('invite')}
             className={`flex-1 py-2 text-sm font-medium flex items-center justify-center gap-2 transition-colors ${
               activeTab === 'invite' 
@@ -880,7 +880,7 @@ export const PhotographerSessionManager = ({
             <UserPlus className="w-4 h-4" />
             Invite
           </button>
-          <button
+          <button aria-label="Settings"
             onClick={() => setActiveTab('settings')}
             className={`flex-1 py-2 text-sm font-medium flex items-center justify-center gap-2 transition-colors ${
               activeTab === 'settings' 
@@ -937,7 +937,7 @@ export const PhotographerSessionManager = ({
                     <span className={`font-mono text-2xl font-bold tracking-widest ${textPrimary}`}>
                       {booking.invite_code}
                     </span>
-                    <Button variant="ghost" size="sm" onClick={copyInviteCode} className="text-pink-400">
+                    <Button variant="ghost" size="sm" onClick={copyInviteCode} className="text-pink-400" aria-label="Copy">
                       <Copy className="w-5 h-5" />
                     </Button>
                   </div>
@@ -972,7 +972,7 @@ export const PhotographerSessionManager = ({
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-full overflow-hidden bg-zinc-700">
                           {result.avatar_url ? (
-                            <img src={getFullUrl(result.avatar_url)} alt="" className="w-full h-full object-cover" />
+                            <img loading="lazy" decoding="async" src={getFullUrl(result.avatar_url)} alt="" className="w-full h-full object-cover" />
                           ) : (
                             <div className="w-full h-full flex items-center justify-center text-gray-400">
                               {result.full_name?.[0] || '?'}
@@ -984,7 +984,7 @@ export const PhotographerSessionManager = ({
                           <p className={`text-xs ${textSecondary}`}>{result.role || 'Surfer'}</p>
                         </div>
                       </div>
-                      <Button
+                      <Button aria-label="Loader2"
                         size="sm"
                         onClick={() => handleInviteSurfer(result)}
                         disabled={inviting === result.user_id}
