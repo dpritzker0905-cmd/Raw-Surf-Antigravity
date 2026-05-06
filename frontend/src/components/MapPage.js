@@ -574,11 +574,11 @@ const MapPageContent = () => {
   // Initialize map once when component mounts and loading is complete
   useEffect(() => {
     if (!loading) {
-      // Delay to ensure DOM is ready
-      const timer = setTimeout(() => {
+      // Use rAF to init map on next paint frame (faster than arbitrary 200ms delay)
+      const frameId = requestAnimationFrame(() => {
         initMap();
-      }, 200);
-      return () => clearTimeout(timer);
+      });
+      return () => cancelAnimationFrame(frameId);
     }
   }, [loading]);
 

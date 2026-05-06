@@ -61,8 +61,10 @@ export const TILE_LAYER_CONFIG = {
     subdomains: 'abcd',
     maxZoom: 19,
     updateWhenIdle: false,
-    updateWhenZooming: true,
-    keepBuffer: 4,
+    updateWhenZooming: false,   // wait for zoom to settle → smoother animation
+    keepBuffer: 2,              // default; 4 was too RAM-heavy on mobile
+    updateInterval: 150,        // throttle tile requests during fast panning (ms)
+    edgeBufferTiles: 2,         // pre-fetch 2 extra rows beyond viewport (requires EdgeBuffer plugin)
     crossOrigin: 'anonymous',
     detectRetina: true
   }
