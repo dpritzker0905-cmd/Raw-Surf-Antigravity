@@ -11,7 +11,7 @@ import { CommentInputWithEmoji } from './EmojiPicker';
 import WhoReactedModal from './WhoReactedModal';
 import SessionJoinCard from './SessionJoinCard';
 import { RichText, CommentText } from './RichText';
-import { MapPin, MessageCircle, Send, Bookmark, MoreHorizontal, Loader2, Play, Radio, Heart, ShoppingBag, ChevronRight, RefreshCw, Volume2, Volume1, VolumeX, Pause } from 'lucide-react';
+import { MapPin, MessageCircle, Send, Bookmark, MoreHorizontal, Loader2, Play, Radio, Heart, ShoppingBag, ChevronLeft, ChevronRight, RefreshCw, Volume2, Volume1, VolumeX, Pause } from 'lucide-react';
 import { toast } from 'sonner';
 import { getFullUrl } from '../utils/media';
 import ReplyItem from './social/ReplyItem';
@@ -547,6 +547,12 @@ const PostCard = ({
   const touchStartRef = useRef({ x: 0, y: 0 });
   const SCROLL_THRESHOLD = 10; // pixels
 
+  // Carousel state
+  const [activeSlide, setActiveSlide] = useState(0);
+  const carouselTouchStartRef = useRef({ x: 0, y: 0 });
+  const isCarousel = post?.is_carousel && post?.carousel_media?.length > 0;
+  const carouselItems = isCarousel ? post.carousel_media : [];
+
   const handleMediaTap = useCallback((e) => {
     // Skip if touch already handled this interaction (prevents touch→click double-fire)
     if (touchHandledRef.current) {
@@ -859,13 +865,13 @@ const PostCard = ({
         </div>
       )}
 
-      {/* Post Image/Video - click to open modal, double-tap to like */}
+      {/* Post Image/Video/Carousel - click to open modal, double-tap to like */}
       <div 
-        className={`aspect-[4/5] ${isLight ? 'bg-gray-100' : 'bg-zinc-800'} relative select-none cursor-pointer`}
-        onClick={handleMediaTap}
-        onDoubleClick={handleNativeDoubleClick}
-        onTouchStart={handleTouchStart}
-        onTouchEnd={handleTouchEnd}
+        className={`aspect-[4/5] ${isLight ? 'bg-gray-100' : 'bg-zinc-800'} relative select-none cursor-pointer overflow-hidden`}
+        onClick={!isCarousel ? handleMediaTap : undefined}
+        onDoubleClick={!isCarousel ? handleNativeDoubleClick : undefined}
+        onTouchStart={!isCarousel ? handleTouchStart : undefined}
+        onTouchEnd={!isCarousel ? handleTouchEnd : undefined}
         data-testid={`post-image-container-${post.id}`}
       >
         {/* Double-tap shaka animation */}
@@ -880,7 +886,105 @@ const PostCard = ({
             />
           </div>
         )}
-        {isVideoItem ? (
+
+        {/* ============ CAROUSEL RENDERING ============ */}
+        {isCarousel ? (
+          <div className="relative w-full h-full"
+            onTouchStart={(e) => {
+              if (e.touches?.length === 1) {
+                carouselTouchStartRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+              }
+            }}
+            onTouchEnd={(e) => {
+              if (e.changedTouches?.length !== 1) return;
+              const dx = e.changedTouches[0].clientX - carouselTouchStartRef.current.x;
+              const dy = Math.abs(e.changedTouches[0].clientY - carouselTouchStartRef.current.y);
+              // Only horizontal swipes (not vertical scrolls)
+              if (Math.abs(dx) > 50 && dy < 80) {
+                if (dx < 0 && activeSlide < carouselItems.length - 1) {
+                  setActiveSlide(prev => prev + 1);
+                } else if (dx > 0 && activeSlide > 0) {
+                  setActiveSlide(prev => prev - 1);
+                }
+              }
+            }}
+            onClick={handleMediaTap}
+            onDoubleClick={handleNativeDoubleClick}
+          >
+            {/* Carousel slides container */}
+            <div 
+              className="flex h-full transition-transform duration-300 ease-out"
+              style={{ transform: `translateX(-${activeSlide * 100}%)` }}
+            >
+              {carouselItems.map((item, idx) => (
+                <div key={idx} className="w-full h-full flex-shrink-0">
+                  {item.type === 'video' ? (
+                    <video
+                      className="w-full h-full object-cover"
+                      playsInline
+                      muted
+                      loop
+                      autoPlay={idx === activeSlide}
+                      poster={item.thumbnail ? getFullUrl(item.thumbnail) : undefined}
+                    >
+                      <source src={getFullUrl(item.url)} type="video/mp4" />
+                    </video>
+                  ) : (
+                    <img
+                      loading="lazy"
+                      decoding="async"
+                      src={getFullUrl(item.url)}
+                      alt={`Slide ${idx + 1}`}
+                      className="w-full h-full object-cover"
+                      draggable={false}
+                      onError={(e) => { e.target.style.display = 'none'; }}
+                    />
+                  )}
+                </div>
+              ))}
+            </div>
+
+            {/* Carousel navigation arrows (desktop) */}
+            {activeSlide > 0 && (
+              <button
+                onClick={(e) => { e.stopPropagation(); setActiveSlide(prev => prev - 1); }}
+                className="absolute left-2 top-1/2 -translate-y-1/2 z-10 w-8 h-8 rounded-full bg-black/50 backdrop-blur-sm flex items-center justify-center text-white hover:bg-black/70 transition-colors"
+                aria-label="Previous slide"
+              >
+                <ChevronLeft className="w-5 h-5" />
+              </button>
+            )}
+            {activeSlide < carouselItems.length - 1 && (
+              <button
+                onClick={(e) => { e.stopPropagation(); setActiveSlide(prev => prev + 1); }}
+                className="absolute right-2 top-1/2 -translate-y-1/2 z-10 w-8 h-8 rounded-full bg-black/50 backdrop-blur-sm flex items-center justify-center text-white hover:bg-black/70 transition-colors"
+                aria-label="Next slide"
+              >
+                <ChevronRight className="w-5 h-5" />
+              </button>
+            )}
+
+            {/* Carousel dot indicators */}
+            <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-10 flex items-center gap-1.5">
+              {carouselItems.map((_, idx) => (
+                <button
+                  key={idx}
+                  onClick={(e) => { e.stopPropagation(); setActiveSlide(idx); }}
+                  className={`rounded-full transition-all duration-200 ${idx === activeSlide 
+                    ? 'w-2 h-2 bg-white shadow-lg' 
+                    : 'w-1.5 h-1.5 bg-white/50 hover:bg-white/70'
+                  }`}
+                  aria-label={`Go to slide ${idx + 1}`}
+                />
+              ))}
+            </div>
+
+            {/* Slide counter badge */}
+            <div className="absolute top-3 right-3 z-10 bg-black/60 backdrop-blur-sm px-2.5 py-1 rounded-full text-xs text-white font-medium">
+              {activeSlide + 1} / {carouselItems.length}
+            </div>
+          </div>
+        ) : isVideoItem ? (
           // If video source errored (404 / network failure), show fallback
           (isDeadLocalVideo || videoError) ? (
             <div className="relative w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-zinc-800 to-zinc-900">
@@ -918,9 +1022,7 @@ const PostCard = ({
               </div>
             </div>
           ) : (
-          /* TikTok/Instagram pattern: video plays as muted preview in feed.
-             NO native controls - tapping opens PostModal for social interaction.
-             Mute toggle is a separate button that stops propagation. */
+          /* TikTok/Instagram pattern: video plays as muted preview in feed. */
           <>
           <video
             ref={videoRef}
@@ -945,9 +1047,9 @@ const PostCard = ({
             <source src={videoSrc} type={videoMimeType} onError={() => setVideoError(true)} />
             {videoMimeType !== 'video/mp4' && <source src={videoSrc} type="video/mp4" onError={() => setVideoError(true)} />}
           </video>
-          {/* Transparent click overlay - ensures tap opens PostModal, not native player */}
+          {/* Transparent click overlay */}
           <div className="absolute inset-0 z-[1]" />
-          {/* Centered play icon - shows when paused (tap to open modal, not to play) */}
+          {/* Centered play icon - shows when paused */}
           {!isPlaying && (
             <div className="absolute inset-0 z-[2] flex items-center justify-center pointer-events-none">
               <div className="w-16 h-16 rounded-full bg-black/50 backdrop-blur-sm flex items-center justify-center">
@@ -955,7 +1057,7 @@ const PostCard = ({
               </div>
             </div>
           )}
-          {/* Volume control - bottom-right, progressive disclosure (stops propagation so it doesn't open modal) */}
+          {/* Volume control */}
           <div
             className="absolute bottom-3 right-3 z-[3] flex items-center gap-1"
             onClick={(e) => e.stopPropagation()}
@@ -967,7 +1069,7 @@ const PostCard = ({
               volTimerRef.current = setTimeout(() => setShowVolSlider(false), 1200);
             }}
           >
-            {/* Horizontal slider - appears to the left of the icon */}
+            {/* Horizontal slider */}
             <div
               className="overflow-hidden transition-all duration-300 ease-out flex items-center"
               style={{
@@ -1039,7 +1141,7 @@ loading="lazy" decoding="async"
             onError={(e) => { e.target.style.display = 'none'; }}
           />
         )}
-        {isVideoItem && !(isDeadLocalVideo || videoError) && (
+        {isVideoItem && !(isDeadLocalVideo || videoError) && !isCarousel && (
           <div className="absolute top-2 right-2 z-[2] bg-black/60 px-2 py-1 rounded text-xs text-white flex items-center gap-1 pointer-events-none">
             <Play className="w-3 h-3" />
             {post.video_duration ? `${Math.round(post.video_duration)}s` : 'Video'}

@@ -532,6 +532,14 @@ const SharePostModal = ({ post, open, onClose, isLight }) => {
   const [directShareLoading, setDirectShareLoading] = useState(null);
   const [checkingMeta, setCheckingMeta] = useState(true);
   
+  // DM Sharing state
+  const [showDmPicker, setShowDmPicker] = useState(false);
+  const [dmSearch, setDmSearch] = useState('');
+  const [dmConversations, setDmConversations] = useState([]);
+  const [dmLoading, setDmLoading] = useState(false);
+  const [dmSending, setDmSending] = useState(null); // user_id currently sending to
+  const [dmSent, setDmSent] = useState(new Set()); // user_ids already sent to
+  
   // Emoji constants — using String.fromCodePoint to avoid encoding corruption
   const SHARE_ICONS = {
     wave: String.fromCodePoint(0x1F30A),
@@ -571,6 +579,67 @@ const SharePostModal = ({ post, open, onClose, isLight }) => {
       checkMetaStatus();
     }
   }, [open, user?.id]);
+
+  // Fetch recent conversations for DM sharing
+  const fetchDmConversations = async () => {
+    if (!user?.id) return;
+    setDmLoading(true);
+    try {
+      const response = await apiClient.get(`/messages/conversations/${user.id}`, {
+        params: { inbox_type: 'all' }
+      });
+      setDmConversations(response.data || []);
+    } catch (err) {
+      logger.error('Failed to load conversations for DM share:', err);
+    } finally {
+      setDmLoading(false);
+    }
+  };
+
+  // Load conversations when DM picker opens
+  useEffect(() => {
+    if (showDmPicker && user?.id) {
+      fetchDmConversations();
+    }
+  }, [showDmPicker, user?.id]); // fetchDmConversations is stable
+
+  // Reset DM state when modal closes
+  useEffect(() => {
+    if (!open) {
+      setShowDmPicker(false);
+      setDmSearch('');
+      setDmSent(new Set());
+      setDmSending(null);
+    }
+  }, [open]);
+
+  // Send post as DM
+  const handleSendDm = async (recipientId, recipientName) => {
+    if (!user?.id || !post?.id || dmSending) return;
+    
+    setDmSending(recipientId);
+    try {
+      const postUrl = `${window.location.origin}/post/${post.id}`;
+      const shareText = `Check out this post on Raw Surf! ${SHARE_ICONS.wave}\n${postUrl}`;
+      
+      await apiClient.post('/messages/send', {
+        recipient_id: recipientId,
+        content: shareText,
+        message_type: 'post_share',
+        media_url: post.media_url || null
+      }, {
+        params: { sender_id: user.id }
+      });
+      
+      setDmSent(prev => new Set([...prev, recipientId]));
+      toast.success(`Sent to ${recipientName}`);
+    } catch (err) {
+      const errorMsg = err.response?.data?.detail || 'Failed to send';
+      toast.error(errorMsg);
+    } finally {
+      setDmSending(null);
+    }
+  };
 
   const handleCopyLink = async () => {
     try {
@@ -852,6 +921,107 @@ const SharePostModal = ({ post, open, onClose, isLight }) => {
               <span className="text-xs mt-1">WhatsApp</span>
             </Button>
           </div>
+
+          {/* ============ SEND VIA DM ============ */}
+          {user && (
+            <div className={`rounded-lg border ${isLight ? 'border-gray-200 bg-gray-50' : 'border-zinc-700 bg-zinc-800/50'}`}>
+              <button
+                onClick={() => setShowDmPicker(!showDmPicker)}
+                className={`w-full flex items-center justify-between p-3 text-sm font-medium transition-colors
+                  ${isLight ? 'text-gray-800 hover:bg-gray-100' : 'text-white hover:bg-zinc-700/50'}`}
+                data-testid="dm-share-toggle"
+              >
+                <span className="flex items-center gap-2">
+                  <MessageSquareOff className="w-4 h-4" style={{ transform: 'scaleX(-1)' }} />
+                  Send via DM
+                </span>
+                <ChevronDown className={`w-4 h-4 transition-transform ${showDmPicker ? 'rotate-180' : ''}`} />
+              </button>
+              
+              {showDmPicker && (
+                <div className="px-3 pb-3 space-y-2">
+                  {/* Search conversations */}
+                  <Input
+                    aria-label="Search conversations"
+                    placeholder="Search by name..."
+                    value={dmSearch}
+                    onChange={(e) => setDmSearch(e.target.value)}
+                    className={`text-sm ${isLight ? 'bg-white' : 'bg-zinc-900'}`}
+                    data-testid="dm-share-search"
+                  />
+                  
+                  {/* Conversation list */}
+                  <div className="max-h-48 overflow-y-auto space-y-1">
+                    {dmLoading ? (
+                      <div className="flex justify-center py-4">
+                        <Loader2 className="w-5 h-5 animate-spin text-blue-400" />
+                      </div>
+                    ) : dmConversations
+                        .filter(c => !dmSearch || c.other_user_name?.toLowerCase().includes(dmSearch.toLowerCase()))
+                        .length === 0 ? (
+                      <p className={`text-xs text-center py-3 ${isLight ? 'text-gray-400' : 'text-gray-500'}`}>
+                        {dmSearch ? 'No conversations found' : 'No recent conversations'}
+                      </p>
+                    ) : (
+                      dmConversations
+                        .filter(c => !dmSearch || c.other_user_name?.toLowerCase().includes(dmSearch.toLowerCase()))
+                        .slice(0, 15)
+                        .map(conv => {
+                          const isSent = dmSent.has(conv.other_user_id);
+                          const isSending = dmSending === conv.other_user_id;
+                          
+                          return (
+                            <div
+                              key={conv.id}
+                              className={`flex items-center justify-between p-2 rounded-lg transition-colors
+                                ${isLight ? 'hover:bg-gray-100' : 'hover:bg-zinc-700/50'}`}
+                            >
+                              <div className="flex items-center gap-2 min-w-0 flex-1">
+                                {conv.other_user_avatar ? (
+                                  <img
+                                    src={conv.other_user_avatar}
+                                    alt=""
+                                    className="w-8 h-8 rounded-full object-cover flex-shrink-0"
+                                  />
+                                ) : (
+                                  <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0
+                                    ${isLight ? 'bg-gray-200' : 'bg-zinc-700'}`}>
+                                    <UserCircle className="w-5 h-5 text-gray-400" />
+                                  </div>
+                                )}
+                                <span className={`text-sm truncate ${isLight ? 'text-gray-800' : 'text-white'}`}>
+                                  {conv.other_user_name || 'Unknown'}
+                                </span>
+                              </div>
+                              
+                              <Button
+                                size="sm"
+                                variant={isSent ? 'ghost' : 'default'}
+                                disabled={isSending || isSent}
+                                onClick={() => handleSendDm(conv.other_user_id, conv.other_user_name)}
+                                className={`flex-shrink-0 text-xs px-3 ${isSent
+                                  ? 'text-green-500'
+                                  : 'bg-blue-500 hover:bg-blue-600 text-white'
+                                }`}
+                                data-testid={`dm-send-${conv.other_user_id}`}
+                              >
+                                {isSending ? (
+                                  <Loader2 className="w-3 h-3 animate-spin" />
+                                ) : isSent ? (
+                                  <><Check className="w-3 h-3 mr-1" /> Sent</>
+                                ) : (
+                                  'Send'
+                                )}
+                              </Button>
+                            </div>
+                          );
+                        })
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
           
           {/* Native Share (Mobile) */}
           {typeof navigator !== 'undefined' && navigator.share && (

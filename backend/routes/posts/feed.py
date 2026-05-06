@@ -42,6 +42,9 @@ async def create_post(author_id: str, data: PostCreate, db: AsyncSession = Depen
         video_height=data.video_height,
         video_duration=data.video_duration,
         was_transcoded=data.was_transcoded or False,
+        # Carousel support
+        is_carousel=data.is_carousel or False,
+        carousel_media=data.carousel_media or [],
         # Session metadata
         session_date=data.session_date,
         session_start_time=data.session_start_time,
@@ -118,9 +121,20 @@ async def create_post(author_id: str, data: PostCreate, db: AsyncSession = Depen
     )
 
 @router.get("/posts")
-async def get_feed(limit: int = 50, user_id: Optional[str] = Depends(get_optional_user_id_from_jwt_or_query), db: AsyncSession = Depends(get_db)):
+async def get_feed(
+    limit: int = 20,
+    cursor: Optional[str] = Query(None, description="ISO timestamp cursor for pagination (created_at of last post)"),
+    user_id: Optional[str] = Depends(get_optional_user_id_from_jwt_or_query),
+    db: AsyncSession = Depends(get_db)
+):
     """
-    Get feed posts with privacy enforcement.
+    Get feed posts with privacy enforcement and cursor-based pagination.
+    
+    Pagination:
+    - First request: no cursor, returns newest `limit` posts
+    - Subsequent requests: pass `cursor` (ISO timestamp of last post's created_at)
+      to fetch the next page of older posts
+    - Response includes `next_cursor` and `has_more` for client-side infinite scroll
     
     Privacy Rules:
     - Public accounts (is_private=False): Posts visible to everyone
@@ -146,9 +160,21 @@ async def get_feed(limit: int = 50, user_id: Optional[str] = Depends(get_optiona
             else:
                 viewer_friend_ids.add(row.requester_id)
     
+    # Build query with optional cursor for pagination
+    query = select(Post).where(Post.media_url.isnot(None))
+    
+    # If cursor provided, only fetch posts older than the cursor timestamp
+    if cursor:
+        try:
+            from dateutil.parser import isoparse
+            cursor_dt = isoparse(cursor)
+        except Exception:
+            # Fallback: try basic datetime parse
+            cursor_dt = datetime.fromisoformat(cursor.replace('Z', '+00:00'))
+        query = query.where(Post.created_at < cursor_dt)
+    
     result = await db.execute(
-        select(Post)
-        .where(Post.media_url.isnot(None))  # Only fetch posts with media
+        query
         .options(
             selectinload(Post.author), 
             selectinload(Post.comments).selectinload(Comment.author),
@@ -318,10 +344,25 @@ async def get_feed(limit: int = 50, user_id: Optional[str] = Depends(get_optiona
             booking_id=p.booking_id,
             # Post settings
             hide_like_count=p.hide_like_count or False,
-            comments_disabled=p.comments_disabled or False
+            comments_disabled=p.comments_disabled or False,
+            # Carousel support
+            is_carousel=p.is_carousel or False,
+            carousel_media=p.carousel_media or []
         ))
     
-    return response
+    # Cursor-based pagination: determine next_cursor and has_more
+    next_cursor = None
+    has_more = False
+    if len(response) >= limit:
+        has_more = True
+        last_post = response[-1]
+        next_cursor = last_post.created_at.isoformat()
+    
+    return {
+        "posts": response,
+        "next_cursor": next_cursor,
+        "has_more": has_more
+    }
 
 
 @router.get("/posts/spot/{spot_id}")

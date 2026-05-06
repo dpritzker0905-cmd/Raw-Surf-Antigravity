@@ -314,6 +314,9 @@ export const Feed = () => {
     handlePostDeleted,
     handleJoinLive,
     fetchPosts,
+    loadMorePosts,
+    feedHasMoreRef,
+    loadingMoreRef,
     fetchStreak,
     fetchSpots,
     fetchLocationHierarchy,
@@ -398,6 +401,26 @@ export const Feed = () => {
       latestPostIdRef.current = posts[0]?.id ?? null;
     }
   }, [posts]);
+
+  // ============ INFINITE SCROLL OBSERVER ============
+  const loadMoreSentinelRef = useRef(null);
+  
+  useEffect(() => {
+    const sentinel = loadMoreSentinelRef.current;
+    if (!sentinel) return;
+    
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && feedHasMoreRef.current && !loadingMoreRef.current) {
+          loadMorePosts();
+        }
+      },
+      { rootMargin: '400px' } // Start loading 400px before the sentinel is visible
+    );
+    
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [loadMorePosts, feedHasMoreRef, loadingMoreRef, posts.length]); // Re-attach when posts change
 
   // Load new posts when user taps the chip
 
@@ -774,6 +797,20 @@ export const Feed = () => {
           ))
         )}
           </div>
+
+          {/* ============ INFINITE SCROLL SENTINEL ============ */}
+          {posts.length > 0 && (
+            <div ref={loadMoreSentinelRef} className="flex justify-center py-6" id="feed-load-more-sentinel">
+              {loadingMoreRef.current ? (
+                <div className="flex items-center gap-2">
+                  <div className="w-5 h-5 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
+                  <span className={`text-xs ${textSecondaryClass}`}>Loading more...</span>
+                </div>
+              ) : !feedHasMoreRef.current ? (
+                <p className={`text-xs ${textSecondaryClass} opacity-60`}>{'\uD83C\uDFC4'} You've seen all the posts!</p>
+              ) : null}
+            </div>
+          )}
 
           {/* Global Reaction Picker Overlay - renders on top of everything */}
           <ReactionOverlay 

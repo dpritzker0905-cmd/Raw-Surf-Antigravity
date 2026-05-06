@@ -70,6 +70,11 @@ const useFeedActions = ({
   // In-flight guard: prevents concurrent like/reaction API calls for same post
   const likingInFlight = useRef(new Set());
 
+  // Infinite scroll pagination state (refs to avoid re-render on every update)
+  const feedCursorRef = useRef(null);
+  const feedHasMoreRef = useRef(true);
+  const loadingMoreRef = useRef(false);
+
 
   const handleFeedRefresh = useCallback(async (e) => {
     const silent = e?.detail?.silent === true;
@@ -78,12 +83,20 @@ const useFeedActions = ({
       const response = await apiClient.get('/posts', {
         params: { limit: 10 }
       });
-      const incoming = response.data || [];
+      // New paginated response format: { posts, next_cursor, has_more }
+      const data = response.data;
+      const incoming = data?.posts || data || [];
       if (incoming.length === 0) { setIsRefreshing(false); return; }
+
+      // Update cursor state from paginated response
+      if (data?.next_cursor !== undefined) {
+        feedCursorRef.current = data.next_cursor;
+        feedHasMoreRef.current = data.has_more;
+      }
 
       // Snap to new posts immediately on manual tap (non-silent)
       if (!silent) {
-        setPosts(incoming.map(post => ({ ...post, localLiked: false })));
+        setPosts(incoming.map(post => ({ ...post, liked: post.is_liked_by_user })));
         setNewPostsChip(0);
         latestPostIdRef.current = incoming[0]?.id ?? null;
       } else {
@@ -304,9 +317,22 @@ const useFeedActions = ({
       const response = await apiClient.get(`/posts`, {
         params: { limit: 20 }
       });
-      if (response.data && response.data.length > 0) {
+      // New paginated response format: { posts, next_cursor, has_more }
+      const data = response.data;
+      const postsArray = data?.posts || (Array.isArray(data) ? data : []);
+      
+      // Store pagination cursor for infinite scroll
+      if (data?.next_cursor !== undefined) {
+        feedCursorRef.current = data.next_cursor;
+        feedHasMoreRef.current = data.has_more;
+      } else {
+        feedCursorRef.current = null;
+        feedHasMoreRef.current = false;
+      }
+      
+      if (postsArray.length > 0) {
         // Map is_liked_by_user to liked for frontend state
-        const mappedPosts = response.data.map(post => ({
+        const mappedPosts = postsArray.map(post => ({
           ...post,
           liked: post.is_liked_by_user
         }));
@@ -391,6 +417,53 @@ const useFeedActions = ({
       }
     } finally {
       setLoading(false);
+    }
+  };
+
+  /**
+   * loadMorePosts — Infinite scroll: fetches the next page of posts using cursor-based pagination.
+   * Appends new posts to the existing list without replacing. Deduplicates by post ID.
+   */
+  const loadMorePosts = async () => {
+    // Guard: don't load if already loading, no more pages, or no cursor
+    if (loadingMoreRef.current || !feedHasMoreRef.current || !feedCursorRef.current) {
+      return;
+    }
+    
+    loadingMoreRef.current = true;
+    try {
+      const response = await apiClient.get('/posts', {
+        params: {
+          limit: 20,
+          cursor: feedCursorRef.current
+        }
+      });
+      
+      const data = response.data;
+      const newPosts = data?.posts || (Array.isArray(data) ? data : []);
+      
+      // Update pagination cursor
+      feedCursorRef.current = data?.next_cursor || null;
+      feedHasMoreRef.current = data?.has_more || false;
+      
+      if (newPosts.length > 0) {
+        const mappedNew = newPosts.map(post => ({
+          ...post,
+          liked: post.is_liked_by_user
+        }));
+        
+        // Append to existing posts, deduplicating by ID
+        setPosts(prev => {
+          const existingIds = new Set(prev.map(p => p.id));
+          const uniqueNew = mappedNew.filter(p => !existingIds.has(p.id));
+          return [...prev, ...uniqueNew];
+        });
+      }
+    } catch (error) {
+      logger.error('Error loading more posts:', error);
+      // Don't show error toast — silently fail, user can scroll down again
+    } finally {
+      loadingMoreRef.current = false;
     }
   };
 
@@ -1082,6 +1155,9 @@ const useFeedActions = ({
     handlePostDeleted,
     handleJoinLive,
     fetchPosts,
+    loadMorePosts,
+    feedHasMoreRef,
+    loadingMoreRef,
     fetchStreak,
     fetchSpots,
     fetchLocationHierarchy,
