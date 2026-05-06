@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { usePersona, getExpandedRoleInfo } from '../contexts/PersonaContext';
@@ -535,7 +535,7 @@ export const Profile = () => {
                 title={profile.is_logo_avatar ? 'Switch to Photo mode' : 'Switch to Logo mode'}
               >
                 <span className="text-[10px] font-bold text-zinc-300 group-hover/logo:text-cyan-400">
-                  {profile.is_logo_avatar ? 'ðŸ¤™' : '???'}
+                  {profile.is_logo_avatar ? '\u{1F4F7}' : '\u{1F919}'}
                 </span>
               </button>
             )}
