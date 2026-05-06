@@ -193,6 +193,12 @@ export function useWebRTCCall(userId, userInfo = {}) {
     // Don't reconnect if already open
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) return;
     
+    // Force-close stale connections stuck in CONNECTING state
+    if (wsRef.current && wsRef.current.readyState === WebSocket.CONNECTING) {
+      try { wsRef.current.close(); } catch (e) { /* ignore */ }
+      wsRef.current = null;
+    }
+    
     // Build WS URL from backend URL
     // NOTE: WebSocket routes are under /api prefix (api_router in __init__.py)
     const wsProtocol = BACKEND_URL.startsWith('https') ? 'wss' : 'ws';
@@ -222,6 +228,14 @@ export function useWebRTCCall(userId, userInfo = {}) {
           }
         }, 20000);
       };
+
+      // Connection timeout — if WS hasn't opened in 8s, force close to trigger reconnect
+      const connectTimeout = setTimeout(() => {
+        if (ws.readyState === WebSocket.CONNECTING) {
+          console.warn('[WebRTC] Signaling WS connection timeout (8s) — forcing close');
+          try { ws.close(); } catch (e) { /* ignore */ }
+        }
+      }, 8000);
 
       ws.onmessage = (event) => {
         try {
@@ -390,7 +404,7 @@ export function useWebRTCCall(userId, userInfo = {}) {
       case 'call_target_offline': {
         // Target user's WS is not connected — auto-retry the offer
         const retryCount = callRetryCountRef.current || 0;
-        const MAX_RETRIES = 5;
+        const MAX_RETRIES = 12;
         if (retryCount < MAX_RETRIES && callStateRef.current === CALL_STATE.OUTGOING && pendingOfferRef.current) {
           console.debug(`[WebRTC] Target offline, retrying offer (${retryCount + 1}/${MAX_RETRIES})...`);
           callRetryCountRef.current = retryCount + 1;
@@ -548,6 +562,29 @@ export function useWebRTCCall(userId, userInfo = {}) {
     }
 
     try {
+      // ── Pre-check: ensure signaling WebSocket is connected ──
+      // On mobile (Samsung S23 FE), the WS can silently drop while the app
+      // is backgrounded. Without this check, the call_offer goes nowhere.
+      const ws = wsRef.current;
+      if (!ws || ws.readyState !== WebSocket.OPEN) {
+        logger.warn('[WebRTC] Signaling WS not connected, reconnecting before call...');
+        connectSignaling();
+        // Give the WS up to 3s to connect
+        await new Promise((resolve) => {
+          let elapsed = 0;
+          const check = setInterval(() => {
+            elapsed += 200;
+            if (wsRef.current?.readyState === WebSocket.OPEN || elapsed >= 3000) {
+              clearInterval(check);
+              resolve();
+            }
+          }, 200);
+        });
+        if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
+          toast.error('Connection issue — please try again');
+          return;
+        }
+      }
       // Pre-warm iOS audio pipeline during user gesture
       unlockAudioNow();
 
