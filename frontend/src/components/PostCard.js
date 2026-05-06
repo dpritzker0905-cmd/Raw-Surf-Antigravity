@@ -550,6 +550,8 @@ const PostCard = ({
   // Carousel state
   const [activeSlide, setActiveSlide] = useState(0);
   const carouselTouchStartRef = useRef({ x: 0, y: 0 });
+  const carouselDragging = useRef(false);
+  const carouselDragStartX = useRef(0);
   const isCarousel = post?.is_carousel && post?.carousel_media?.length > 0;
   const carouselItems = isCarousel ? post.carousel_media : [];
 
@@ -890,6 +892,7 @@ const PostCard = ({
         {/* ============ CAROUSEL RENDERING ============ */}
         {isCarousel ? (
           <div className="relative w-full h-full"
+            style={{ touchAction: 'pan-y', cursor: 'grab' }}
             onTouchStart={(e) => {
               if (e.touches?.length === 1) {
                 carouselTouchStartRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
@@ -900,7 +903,7 @@ const PostCard = ({
               const dx = e.changedTouches[0].clientX - carouselTouchStartRef.current.x;
               const dy = Math.abs(e.changedTouches[0].clientY - carouselTouchStartRef.current.y);
               // Only horizontal swipes (not vertical scrolls)
-              if (Math.abs(dx) > 50 && dy < 80) {
+              if (Math.abs(dx) > 40 && dy < 80) {
                 if (dx < 0 && activeSlide < carouselItems.length - 1) {
                   setActiveSlide(prev => prev + 1);
                 } else if (dx > 0 && activeSlide > 0) {
@@ -908,7 +911,38 @@ const PostCard = ({
                 }
               }
             }}
-            onClick={handleMediaTap}
+            onMouseDown={(e) => {
+              carouselDragging.current = true;
+              carouselDragStartX.current = e.clientX;
+              e.currentTarget.style.cursor = 'grabbing';
+            }}
+            onMouseMove={(e) => {
+              if (!carouselDragging.current) return;
+              e.preventDefault();
+            }}
+            onMouseUp={(e) => {
+              if (!carouselDragging.current) return;
+              carouselDragging.current = false;
+              e.currentTarget.style.cursor = 'grab';
+              const dx = e.clientX - carouselDragStartX.current;
+              if (Math.abs(dx) > 40) {
+                if (dx < 0 && activeSlide < carouselItems.length - 1) {
+                  setActiveSlide(prev => prev + 1);
+                } else if (dx > 0 && activeSlide > 0) {
+                  setActiveSlide(prev => prev - 1);
+                }
+              }
+            }}
+            onMouseLeave={() => {
+              if (carouselDragging.current) {
+                carouselDragging.current = false;
+              }
+            }}
+            onClick={(e) => {
+              // Don't fire click if this was a drag
+              if (Math.abs(e.clientX - carouselDragStartX.current) > 10) return;
+              handleMediaTap(e);
+            }}
             onDoubleClick={handleNativeDoubleClick}
           >
             {/* Carousel slides container */}

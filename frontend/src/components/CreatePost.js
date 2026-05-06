@@ -431,11 +431,50 @@ export const CreatePost = () => {
                   playsInline
                 />
               ) : (
-                <div className="relative">
+                <div className="relative"
+                  onTouchStart={(e) => {
+                    if (e.touches?.length === 1) {
+                      e.currentTarget._touchStart = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+                    }
+                  }}
+                  onTouchEnd={(e) => {
+                    if (e.changedTouches?.length !== 1) return;
+                    const start = e.currentTarget._touchStart;
+                    if (!start) return;
+                    const dx = e.changedTouches[0].clientX - start.x;
+                    const dy = Math.abs(e.changedTouches[0].clientY - start.y);
+                    if (Math.abs(dx) > 40 && dy < 80 && previewUrls.length > 1) {
+                      if (dx < 0 && currentPreviewIndex < previewUrls.length - 1) {
+                        setCurrentPreviewIndex(prev => prev + 1);
+                      } else if (dx > 0 && currentPreviewIndex > 0) {
+                        setCurrentPreviewIndex(prev => prev - 1);
+                      }
+                    }
+                  }}
+                  onMouseDown={(e) => {
+                    e.currentTarget._dragStart = e.clientX;
+                    e.currentTarget._dragging = true;
+                  }}
+                  onMouseUp={(e) => {
+                    if (!e.currentTarget._dragging) return;
+                    e.currentTarget._dragging = false;
+                    const dx = e.clientX - (e.currentTarget._dragStart || 0);
+                    if (Math.abs(dx) > 40 && previewUrls.length > 1) {
+                      if (dx < 0 && currentPreviewIndex < previewUrls.length - 1) {
+                        setCurrentPreviewIndex(prev => prev + 1);
+                      } else if (dx > 0 && currentPreviewIndex > 0) {
+                        setCurrentPreviewIndex(prev => prev - 1);
+                      }
+                    }
+                  }}
+                  onMouseLeave={(e) => { e.currentTarget._dragging = false; }}
+                  style={{ touchAction: 'pan-y', cursor: previewUrls.length > 1 ? 'grab' : 'default' }}
+                >
                   <img loading="lazy" decoding="async"
                     src={previewUrls[currentPreviewIndex]}
                     alt={`Preview ${currentPreviewIndex + 1}`}
                     className="w-full aspect-square object-cover"
+                    draggable={false}
                   />
                   {/* Carousel Navigation */}
                   {previewUrls.length > 1 && (
