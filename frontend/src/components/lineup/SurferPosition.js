@@ -1,10 +1,22 @@
 import React, { useState, useEffect } from 'react';
-import { Crown, Shield, Star, Trash2, Volume2, VolumeX, Loader2 } from 'lucide-react';
+import { Crown, Shield, Star, Trash2, Volume2, VolumeX, Loader2, X, Timer } from 'lucide-react';
+import { getFullUrl } from '../../utils/media';
 import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger
 } from '../ui/dropdown-menu';
+
+// Surfboard colors for each position
+const SURFBOARD_COLORS = [
+  { fill: '#FCD34D', stroke: '#F59E0B' }, // Yellow (captain)
+  { fill: '#22D3EE', stroke: '#0891B2' }, // Cyan
+  { fill: '#F472B6', stroke: '#DB2777' }, // Pink
+  { fill: '#A78BFA', stroke: '#7C3AED' }, // Purple
+  { fill: '#34D399', stroke: '#059669' }, // Green
+  { fill: '#FB923C', stroke: '#EA580C' }, // Orange
+  { fill: '#60A5FA', stroke: '#2563EB' }, // Blue
+];
 
 const SurferPosition = ({ 
   member, 

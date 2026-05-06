@@ -8,6 +8,7 @@ import React, { useState, useEffect } from 'react';
 import { Star, Award, ChevronLeft, ChevronRight, Sparkles } from 'lucide-react';
 import { Badge } from '../ui/badge';
 import { motion, AnimatePresence } from 'framer-motion';
+import { getFullUrl } from '../../utils/media';
 const SpotOfTheDayBadge = ({ spotOfTheDay, onClick }) => {
   if (!spotOfTheDay || !spotOfTheDay.has_spot_of_the_day) return null;
   

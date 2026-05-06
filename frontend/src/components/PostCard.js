@@ -13,6 +13,7 @@ import { RichText } from './RichText';
 import { MapPin, MessageCircle, Send, Bookmark, MoreHorizontal, Loader2, Play, Radio, Heart, ShoppingBag, ChevronLeft, ChevronRight, RefreshCw, Volume2, Volume1, VolumeX, Pause } from 'lucide-react';
 import { toast } from 'sonner';
 import { getFullUrl } from '../utils/media';
+import { formatTimeAgo } from '../utils/formatTime';
 
 
 
