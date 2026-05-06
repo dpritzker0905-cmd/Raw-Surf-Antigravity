@@ -24,6 +24,26 @@
   --safe-bottom: calc(var(--bottomnav-h) + var(--create-protrude) + env(safe-area-inset-bottom, 0px));
 }
 
+/* ── Prevent accidental text selection on UI chrome ──
+   Buttons, headers, labels, nav items are not selectable.
+   Inputs, textareas, and code blocks remain selectable for copy/paste. */
+*,
+*::before,
+*::after {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+input,
+textarea,
+[contenteditable="true"],
+pre,
+code,
+.selectable {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
 @media (min-width: 768px) {
   :root {
     --bottomnav-h: 0px;
