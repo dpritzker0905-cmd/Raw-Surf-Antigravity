@@ -22,6 +22,12 @@ logger = logging.getLogger(__name__)
 
 @router.post("/posts", response_model=PostResponse)
 async def create_post(author_id: str, data: PostCreate, db: AsyncSession = Depends(get_db)):
+    # Debug: Log carousel data received from frontend
+    logger.info(f"CREATE_POST: author={author_id}, is_carousel={data.is_carousel}, "
+                f"carousel_media_count={len(data.carousel_media) if data.carousel_media else 0}, "
+                f"media_url={data.media_url[:60] if data.media_url else 'None'}, "
+                f"caption={data.caption[:50] if data.caption else 'None'}")
+    
     result = await db.execute(select(Profile).where(Profile.id == author_id))
     profile = result.scalar_one_or_none()
     if not profile:

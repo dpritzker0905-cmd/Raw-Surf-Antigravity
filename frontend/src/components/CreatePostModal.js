@@ -310,6 +310,13 @@ const CreatePostModal = ({ isOpen, onClose, onCreated }) => {
       }
 
       // Create post
+      console.log('[CreatePost] Submitting:', {
+        selectedFiles: selectedFiles.length,
+        isCarousel,
+        uploadedMedia: uploadedMedia.length,
+        carousel_media: postData.carousel_media?.length,
+        is_carousel: postData.is_carousel
+      });
       await apiClient.post(`/posts?author_id=${user.id}`, postData);
 
       if (isCarousel) {

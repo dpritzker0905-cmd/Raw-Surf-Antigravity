@@ -457,16 +457,32 @@ const useCreatePostActions = ({
             return; // Exit early - don't try to create post without media
           }
         } else {
-          // Images: compress and store as base64 directly in DB (no ephemeral disk)
-          const base64 = await compressImageToBase64(file);
-          setUploadProgress(Math.round(((i + 1) / selectedFiles.length) * 100));
-          uploadedMedia.push({
-            url: base64,
-            type: 'image',
-            thumbnail_url: null,
-            width: null,
-            height: null
-          });
+          // Images: upload to Supabase storage (same as CreatePostModal)
+          const formData = new FormData();
+          formData.append('file', file);
+          formData.append('user_id', user.id);
+          try {
+            const uploadResponse = await apiClient.post(`/upload/feed`, formData, {
+              headers: { 'Content-Type': 'multipart/form-data' },
+              timeout: 120000, // 2 minute timeout for image uploads
+              onUploadProgress: (progressEvent) => {
+                const fileProgress = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+                const overallProgress = Math.round(((i + fileProgress / 100) / selectedFiles.length) * 100);
+                setUploadProgress(overallProgress);
+              }
+            });
+            uploadedMedia.push({
+              url: uploadResponse.data.media_url,
+              type: uploadResponse.data.media_type || 'image',
+              thumbnail_url: uploadResponse.data.thumbnail_url,
+              width: uploadResponse.data.final_width,
+              height: uploadResponse.data.final_height
+            });
+          } catch (uploadErr) {
+            logger.error('Image upload failed:', uploadErr);
+            toast.error('Image upload failed. Please try again.');
+            return; // Exit early
+          }
         }
       }
 
@@ -480,6 +496,9 @@ const useCreatePostActions = ({
         location: location || null,
         video_width: uploadedMedia[0].width || null,
         video_height: uploadedMedia[0].height || null,
+        // Carousel support
+        is_carousel: isCarousel,
+        carousel_media: isCarousel ? uploadedMedia : [],
         // Send mentions so backend can create notifications
         mentions: mentions.length > 0 ? mentions.map(m => ({
           user_id: m.user_id,
