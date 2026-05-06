@@ -82,6 +82,11 @@ async def create_post(author_id: str, data: PostCreate, db: AsyncSession = Depen
                 )
                 db.add(notification)
     
+    # Process hashtags in caption (extract, store in Hashtag table, link via PostHashtag)
+    if data.caption:
+        from routes.explore_discover.search import process_post_hashtags
+        await process_post_hashtags(db, post.id, data.caption)
+    
     await db.commit()
     await db.refresh(post)
     
