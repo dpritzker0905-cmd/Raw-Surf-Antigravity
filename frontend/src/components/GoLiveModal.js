@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import {
-  Radio, Clock, Mic, MicOff, Camera, CameraOff, Loader2,
-  RefreshCw, X, Sparkles, Share2, Eye,
-  Film, Power, Play, ArrowLeft, ChevronRight,
+  Radio, Clock, Mic, MicOff, Camera, CameraOff, Loader2, AlertTriangle,
+  RefreshCw, MessageCircle, Heart, X, Sparkles,
+  Share2, Eye, Film, Power, Play, ArrowLeft, ChevronRight,
   Info, TrendingUp, Award, Star, Scissors
 } from 'lucide-react';
 import { Button } from './ui/button';
