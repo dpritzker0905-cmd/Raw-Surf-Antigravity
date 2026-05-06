@@ -955,7 +955,7 @@ export const PostMenu = ({
     }
     try {
       logger.debug('Updating post:', activePost.id, 'with user:', user.id, 'updates:', updates);
-      await apiClient.patch(`/posts/${activePost.id}`, updates);
+      await apiClient.patch(`/posts/${activePost.id}?user_id=${user.id}`, updates);
       toast.success('Post updated');
       onPostUpdated?.({ ...activePost, ...updates });
     } catch (error) {
@@ -987,7 +987,7 @@ export const PostMenu = ({
     if (!activePost?.id || !user?.id) return;
     setActionLoading('like-count');
     try {
-      await apiClient.patch(`/posts/${activePost.id}/settings`, {
+      await apiClient.patch(`/posts/${activePost.id}/settings?user_id=${user.id}`, {
         hide_like_count: !activePost.hide_like_count
       });
       toast.success(activePost.hide_like_count ? 'Like count shown' : 'Like count hidden');
@@ -1005,7 +1005,7 @@ export const PostMenu = ({
     if (!activePost?.id || !user?.id) return;
     setActionLoading('commenting');
     try {
-      await apiClient.patch(`/posts/${activePost.id}/settings`, {
+      await apiClient.patch(`/posts/${activePost.id}/settings?user_id=${user.id}`, {
         comments_disabled: !activePost.comments_disabled
       });
       toast.success(activePost.comments_disabled ? 'Comments enabled' : 'Comments disabled');
