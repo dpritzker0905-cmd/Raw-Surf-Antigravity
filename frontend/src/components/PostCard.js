@@ -925,7 +925,7 @@ const PostCard = ({
                       muted
                       loop
                       autoPlay={idx === activeSlide}
-                      poster={item.thumbnail ? getFullUrl(item.thumbnail) : undefined}
+                      poster={item.thumbnail_url ? getFullUrl(item.thumbnail_url) : undefined}
                     >
                       <source src={getFullUrl(item.url)} type="video/mp4" />
                     </video>

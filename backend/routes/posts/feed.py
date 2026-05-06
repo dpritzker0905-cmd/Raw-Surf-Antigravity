@@ -117,7 +117,10 @@ async def create_post(author_id: str, data: PostCreate, db: AsyncSession = Depen
         wind_direction=post.wind_direction,
         tide_status=post.tide_status,
         tide_height_ft=post.tide_height_ft,
-        conditions_source=post.conditions_source
+        conditions_source=post.conditions_source,
+        # Carousel support
+        is_carousel=post.is_carousel or False,
+        carousel_media=post.carousel_media or []
     )
 
 @router.get("/posts")
@@ -606,7 +609,10 @@ async def get_single_post(
         comments_disabled=post.comments_disabled or False,
         # Single post view fields
         liked=is_liked,
-        saved=is_saved
+        saved=is_saved,
+        # Carousel support
+        is_carousel=post.is_carousel or False,
+        carousel_media=post.carousel_media or []
     )
     
     return response
