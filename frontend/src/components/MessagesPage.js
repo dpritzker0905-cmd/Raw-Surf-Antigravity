@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 // Build trigger: 2026-04-30
-import apiClient, { BACKEND_URL } from '../lib/apiClient';
+import apiClient from '../lib/apiClient';
 import { useAuth } from '../contexts/AuthContext';
 import { usePersona, getExpandedRoleInfo, isProLevelRole, isBusinessRole as isBusinessRoleCheck } from '../contexts/PersonaContext';
 import { useSearchParams, useNavigate, useParams, useLocation } from 'react-router-dom';
@@ -477,303 +477,46 @@ export const MessagesPage = () => {
     initialScrollDoneRef.current = true;
   };
 
-  const loadConversationById = async (convId) => {
-    if (!user?.id) {
-      logger.error('[Messages] Cannot load conversation - user not authenticated');
-      return;
-    }
-    try {
-      logger.debug('[Messages] Fetching conversation:', convId);
-      const response = await apiClient.get(`/messages/conversation/${convId}?user_id=${user.id}`);
-      setSelectedConversation({
-        id: convId,
-        other_user_id: response.data.other_user_id,
-        other_user_name: response.data.other_user_name,
-        other_user_avatar: response.data.other_user_avatar,
-        is_request: response.data.is_request
-      });
-      setConversationDetail(response.data);
-      logger.debug('[Messages] Conversation loaded successfully');
-    } catch (error) {
-      logger.error('[Messages] Failed to load conversation:', error.response?.data || error.message);
-      toast.error('Conversation not found');
-      navigate('/messages');
-    }
-  };
-
-  const startNewConversation = async (targetRecipientId) => {
-    try {
-      const response = await apiClient.post(`/messages/start-conversation?sender_id=${user.id}&recipient_id=${targetRecipientId}`);
-      setSearchParams({});
-      await fetchConversations();
-      
-      setSelectedConversation({
-        id: response.data.conversation_id,
-        other_user_id: response.data.recipient_id,
-        other_user_name: response.data.recipient_name,
-        other_user_avatar: response.data.recipient_avatar
-      });
-      setNewChatRecipient(null);
-    } catch (error) {
-      toast.error('Failed to start conversation');
-      setSearchParams({});
-    }
-  };
-
-  const handleBackNavigation = () => {
-    if (fromProfileId) {
-      navigate(`/profile/${fromProfileId}`);
-    } else if (selectedConversation?.is_new_chat) {
-      navigate(`/profile/${selectedConversation.other_user_id}`);
-    } else {
-      setSelectedConversation(null);
-      setConversationDetail(null);
-      setNewChatRecipient(null);
-      navigate('/messages');
-    }
-  };
-
   // AbortController ref - cancels in-flight conversation fetches when the user
   // switches folders. This prevents stale responses from overwriting fresh data.
   const fetchAbortRef = useRef(null);
 
-  const fetchConversations = async () => {
-    // Abort any in-flight fetch first
-    if (fetchAbortRef.current) {
-      fetchAbortRef.current.abort();
-    }
-    const abortController = new AbortController();
-    fetchAbortRef.current = abortController;
-
-    try {
-      // CRITICAL: Read from ref to avoid stale-closure bugs.
-      const currentFolder = activeFolderRef.current;
-      const isGromZone = currentFolder === 'grom_zone';
-      const isFamily = currentFolder === 'family';
-      
-      // Fetch conversations for active folder
-      let path;
-      if (isGromZone) {
-        path = `/messages/conversations/${user.id}?inbox_type=primary&grom_zone=true`;
-      } else if (isFamily) {
-        path = `/messages/conversations/${user.id}/family`;
-      } else {
-        path = `/messages/conversations/${user.id}?inbox_type=${currentFolder}`;
-      }
-      
-      // Fetch conversations + unread counts in parallel
-      const [response, countsResp, familyCountResp] = await Promise.all([
-        apiClient.get(path, { signal: abortController.signal }),
-        apiClient.get(`/messages/unread-counts/${user.id}`, { signal: abortController.signal }).catch(() => ({ data: { primary: 0, requests: 0, grom_zone: 0 } })),
-        apiClient.get(`/messages/conversations/${user.id}/family`, { signal: abortController.signal }).catch(() => ({ data: [] }))
-      ]);
-      
-      // RACE CONDITION GUARD: Only apply results if the user hasn't switched
-      // folders while this request was in-flight.
-      if (activeFolderRef.current !== currentFolder) {
-        return; // Stale response - user switched tabs, discard
-      }
-
-      setConversations(response.data);
-      
-      // Build folder counts from the single unread-counts response
-      const unreadData = countsResp.data;
-      const familyUnread = (familyCountResp.data || []).filter(c => c.unread_count > 0).length;
-      
-      setFolderCounts({
-        primary: unreadData.primary || 0,
-        requests: unreadData.requests || 0,
-        grom_zone: unreadData.grom_zone || 0,
-        family: familyUnread,
-        // Channel/Pro Lounge/Hidden don't have dedicated count endpoints;
-        // derive from current conversation list when viewing those folders
-        pro_lounge: currentFolder === 'pro_lounge' ? (response.data || []).filter(c => c.unread_count > 0).length : 0,
-        channel: currentFolder === 'channel' ? (response.data || []).filter(c => c.unread_count > 0).length : 0,
-        hidden: 0
-      });
-    } catch (error) {
-      // Aborted requests are expected - don't log them
-      if (error?.name === 'AbortError' || error?.name === 'CanceledError' || error?.code === 'ERR_CANCELED') {
-        return;
-      }
-      logger.error('Failed to fetch conversations:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchConversationDetail = async (convId) => {
-    try {
-      const response = await apiClient.get(`/messages/conversation/${convId}?user_id=${user.id}`);
-      setConversationDetail(response.data);
-    } catch (error) {
-      logger.error('Failed to fetch conversation:', error);
-    }
-  };
-
-  const fetchStories = async () => {
-    // Fetch notes from API (Instagram-style Notes feature)
-    try {
-      const response = await apiClient.get(`/notes/feed`);
-      const { own_note, feed } = response.data;
-      
-      // CRITICAL: Fetch fresh profile data to get current avatar_url
-      // The user context may have stale data from login
-      let freshAvatarUrl = user?.avatar_url ? getFullUrl(user.avatar_url) : null;
-      try {
-        const profileResp = await apiClient.get(`/profiles/${user.id}`);
-        freshAvatarUrl = profileResp.data.avatar_url ? getFullUrl(profileResp.data.avatar_url) : null;
-      } catch (e) {
-        logger.debug('Could not fetch fresh profile, using context avatar');
-      }
-      
-      // Cache-busting with current timestamp ensures browser fetches fresh image
-      const avatarWithCacheBust = cacheBustUrl(freshAvatarUrl);
-      
-      // Set my note state
-      setMyNote(own_note);
-      setNotesFeed(feed || []);
-      
-      // Build stories array for UI
-      const storiesArray = [];
-      
-      // Always add own note bubble first (even if no note exists - shows "Add a note")
-      storiesArray.push({
-        id: 'own',
-        name: 'Your note',
-        avatar: avatarWithCacheBust,
-        type: 'note',
-        hasUnread: false,
-        isOwnNote: true,
-        noteContent: own_note?.content || '',
-        timeRemaining: own_note?.time_remaining || '',
-        noteData: own_note
-      });
-      
-      // Add notes from followed users
-      for (const note of (feed || [])) {
-        const resolvedNoteAvatar = note.user_avatar ? getFullUrl(note.user_avatar) : null;
-        const noteAvatar = cacheBustUrl(resolvedNoteAvatar);
-        
-        storiesArray.push({
-          id: note.id,
-          name: note.user_name?.split(' ')[0] || 'User', // First name only
-          avatar: noteAvatar,
-          type: 'note',
-          hasUnread: true, // Notes from others are "unread"
-          isOwnNote: false,
-          noteContent: note.content,
-          timeRemaining: note.time_remaining,
-          noteData: note
-        });
-      }
-      
-      setStories(storiesArray);
-    } catch (error) {
-      logger.error('Failed to fetch notes:', error);
-      // Fallback to basic own note bubble - try to fetch fresh avatar
-      let fallbackAvatar = user?.avatar_url ? getFullUrl(user.avatar_url) : null;
-      try {
-        const profileResp = await apiClient.get(`/profiles/${user.id}`);
-        fallbackAvatar = profileResp.data.avatar_url ? getFullUrl(profileResp.data.avatar_url) : null;
-      } catch (e) { /* fallback avatar fetch failed - use cached value */ }
-      
-      const avatarWithCacheBust = cacheBustUrl(fallbackAvatar);
-      setStories([{
-        id: 'own',
-        name: 'Your note',
-        avatar: avatarWithCacheBust,
-        type: 'note',
-        hasUnread: false,
-        isOwnNote: true,
-        noteContent: '',
-        timeRemaining: ''
-      }]);
-    }
-  };
-  
-  // Create a new note
-  const createNote = async (content) => {
-    try {
-      await apiClient.post(`/notes/create`, { content });
-      toast.success('Note shared!');
-      fetchStories(); // Refresh notes
-    } catch (error) {
-      logger.error('Failed to create note:', error);
-      throw error;
-    }
-  };
-  
-  // Reply to a note
-  const replyToNote = async (noteId, replyText) => {
-    try {
-      const response = await apiClient.post(`/notes/${noteId}/reply`, {
-        reply_text: replyText
-      });
-      // Navigate to the conversation created by the reply
-      if (response.data.conversation_id) {
-        navigate(`/messages/${response.data.conversation_id}`);
-      }
-    } catch (error) {
-      logger.error('Failed to reply to note:', error);
-      throw error;
-    }
-  };
-  
-  // Handle clicking on a note bubble
-  const handleNoteClick = (story) => {
-    if (story.isOwnNote) {
-      // Own note - show create/edit modal
-      setShowCreateNoteModal(true);
-    } else if (story.noteData) {
-      // Other user's note - show view modal
-      setSelectedNote(story.noteData);
-      setShowViewNoteModal(true);
-    }
-  };
-
-  // Fetch crew chats (bookings with chat enabled)
-  const fetchCrewChats = async () => {
-    if (!user?.id) return;
-    setCrewChatsLoading(true);
-    try {
-      // Get user's bookings
-      const response = await apiClient.get(`/bookings/user/${user.id}`);
-      const bookings = response.data || [];
-      
-      // Filter to only active/confirmed bookings and get chat info for each
-      const activeBookings = bookings.filter(b => 
-        b.status === 'Confirmed' || b.status === 'Pending' || b.status === 'In Progress'
-      );
-      
-      // Get chat info for each booking
-      const chatsWithInfo = await Promise.all(
-        activeBookings.map(async (booking) => {
-          try {
-            const chatInfo = await apiClient.get(`/crew-chat/${booking.id}/info`);
-            return {
-              ...booking,
-              chatInfo: chatInfo.data,
-              unread_count: chatInfo.data.unread_count || 0
-            };
-          } catch (e) {
-            return { ...booking, chatInfo: null, unread_count: 0 };
-          }
-        })
-      );
-      
-      setCrewChats(chatsWithInfo.filter(c => c.chatInfo !== null));
-      
-      // Update folder count
-      const unreadCount = chatsWithInfo.reduce((acc, c) => acc + (c.unread_count || 0), 0);
-      setFolderCounts(prev => ({ ...prev, crew_chats: unreadCount > 0 ? 1 : 0 }));
-    } catch (error) {
-      logger.error('Failed to fetch crew chats:', error);
-      setCrewChats([]);
-    } finally {
-      setCrewChatsLoading(false);
-    }
-  };
+  // ============ HANDLERS EXTRACTED TO hooks/useMessagesActions.js ============
+  const {
+    loadConversationById,
+    startNewConversation,
+    handleBackNavigation,
+    fetchConversations,
+    fetchConversationDetail,
+    fetchStories,
+    createNote,
+    replyToNote,
+    handleNoteClick,
+    fetchCrewChats,
+    handleReaction,
+    handleAcceptRequest,
+    handleDeclineRequest,
+    handleTogglePin,
+    handleToggleMute,
+    handleMarkUnread,
+    handleDeleteConversation,
+    handleAcceptAllRequests,
+    handleMediaUpload,
+    handleEphemeralMediaUpload,
+    handleVoiceNoteSent,
+    handleComposeNew,
+    handleComposeSelectUser,
+  } = useMessagesActions({
+    user, navigate, selectedConversation, conversationDetail, conversations,
+    replyingTo, fromProfileId, activeFolderRef, fetchAbortRef,
+    setLoading, setConversations, setFolderCounts,
+    setSelectedConversation, setConversationDetail, setNewMessage,
+    setSendingMessage, setReplyingTo, setNewChatRecipient,
+    setStories, setMyNote, setNotesFeed, setActiveFolder,
+    setShowCreateNoteModal, setShowViewNoteModal, setSelectedNote,
+    setCrewChats, setCrewChatsLoading, setShowVoiceRecorder,
+    setIsComposeModalOpen, setSearchParams,
+  });
 
   // Fetch crew chats when folder changes to crew_chats
   useEffect(() => {
@@ -923,224 +666,6 @@ export const MessagesPage = () => {
       toast.error(error.response?.data?.detail || 'Failed to send GIF');
     } finally {
       setSendingMessage(false);
-    }
-  };
-
-  const handleReaction = async (messageId, emoji) => {
-    try {
-      await apiClient.post(`/messages/react/${messageId}?user_id=${user.id}`, { emoji });
-      fetchConversationDetail(selectedConversation.id);
-    } catch (error) {
-      toast.error('Failed to add reaction');
-    }
-  };
-
-  const handleAcceptRequest = async () => {
-    try {
-      await apiClient.post(`/messages/accept/${selectedConversation.id}`);
-      toast.success('Moved to Primary inbox');
-      fetchConversations();
-      fetchConversationDetail(selectedConversation.id);
-    } catch (error) {
-      toast.error('Failed to accept request');
-    }
-  };
-
-  const handleDeclineRequest = async () => {
-    try {
-      await apiClient.delete(`/messages/conversation/${selectedConversation.id}?user_id=${user.id}`);
-      toast.success('Request declined');
-      setSelectedConversation(null);
-      setConversationDetail(null);
-      navigate('/messages');
-      fetchConversations();
-    } catch (error) {
-      toast.error('Failed to decline request');
-    }
-  };
-
-  // Conversation Controls
-  const handleTogglePin = async () => {
-    if (!selectedConversation?.id) return;
-    try {
-      const response = await apiClient.post(
-        `/messages/conversation/${selectedConversation.id}/pin?user_id=${user.id}`
-      );
-      toast.success(response.data.message);
-      fetchConversations();
-      if (conversationDetail) {
-        setConversationDetail(prev => ({...prev, is_pinned: response.data.is_pinned}));
-      }
-    } catch (error) {
-      toast.error('Failed to update pin status');
-    }
-  };
-
-  const handleToggleMute = async () => {
-    if (!selectedConversation?.id) return;
-    try {
-      const response = await apiClient.post(
-        `/messages/conversation/${selectedConversation.id}/mute?user_id=${user.id}`
-      );
-      toast.success(response.data.message);
-      fetchConversations();
-      if (conversationDetail) {
-        setConversationDetail(prev => ({...prev, is_muted: response.data.is_muted}));
-      }
-    } catch (error) {
-      toast.error('Failed to update mute status');
-    }
-  };
-
-  const handleMarkUnread = async () => {
-    if (!selectedConversation?.id) return;
-    try {
-      const response = await apiClient.post(
-        `/messages/conversation/${selectedConversation.id}/mark-unread?user_id=${user.id}`
-      );
-      toast.success(response.data.message);
-      fetchConversations();
-      if (conversationDetail) {
-        setConversationDetail(prev => ({...prev, is_manually_unread: response.data.is_unread}));
-      }
-    } catch (error) {
-      toast.error('Failed to mark as unread');
-    }
-  };
-
-  const handleDeleteConversation = async () => {
-    if (!selectedConversation?.id) return;
-    if (!window.confirm('Delete this conversation? It will be hidden from your inbox.')) return;
-    try {
-      await apiClient.delete(`/messages/conversation/${selectedConversation.id}?user_id=${user.id}`);
-      toast.success('Conversation deleted');
-      setSelectedConversation(null);
-      setConversationDetail(null);
-      navigate('/messages');
-      fetchConversations();
-    } catch (error) {
-      toast.error('Failed to delete conversation');
-    }
-  };
-
-  // Quick Accept All Requests
-  const handleAcceptAllRequests = async () => {
-    const requestConversations = conversations.filter(c => 
-      c.folder === 'requests' || c.is_request
-    );
-    
-    if (requestConversations.length === 0) {
-      toast.info('No requests to accept');
-      return;
-    }
-
-    try {
-      // Accept all requests in parallel
-      await Promise.all(
-        requestConversations.map(conv => 
-          apiClient.post(`/messages/accept/${conv.id}`)
-        )
-      );
-      
-      toast.success(`Accepted ${requestConversations.length} request${requestConversations.length > 1 ? 's' : ''}`);
-      fetchConversations();
-      setActiveFolder('primary'); // Switch to primary to see the accepted conversations
-    } catch (error) {
-      logger.error('Failed to accept all requests:', error);
-      toast.error('Failed to accept some requests');
-      fetchConversations(); // Refresh anyway to show partial results
-    }
-  };
-
-  const handleMediaUpload = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file || !selectedConversation) return;
-
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('conversation_id', selectedConversation.id || '');
-    formData.append('sender_id', user.id);
-    formData.append('recipient_id', selectedConversation.other_user_id);
-    
-    // Automatically force ALL video uploads inside DM's to map to ephemeral securely
-    if (file.type.startsWith('video/')) {
-      formData.append('message_type_override', 'ephemeral_video');
-    }
-
-    try {
-      await apiClient.post(`/messages/media`, formData, { headers: { 'Content-Type': 'multipart/form-data' } });
-      toast.success(file.type.startsWith('video/') ? 'Disappearing video sent!' : 'Media sent!');
-      if (selectedConversation.id) fetchConversationDetail(selectedConversation.id);
-      fetchConversations();
-    } catch (error) {
-      toast.error('Failed to upload media');
-    }
-  };
-
-  const handleEphemeralMediaUpload = async (files) => {
-    const file = files?.[0];
-    if (!file || !selectedConversation) return;
-
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('conversation_id', selectedConversation.id || '');
-    formData.append('sender_id', user.id);
-    formData.append('recipient_id', selectedConversation.other_user_id);
-    formData.append('message_type_override', 'ephemeral_video');
-
-    try {
-      await apiClient.post(`/messages/media`, formData, { headers: { 'Content-Type': 'multipart/form-data' } });
-      toast.success('Disappearing video sent!');
-      if (selectedConversation.id) fetchConversationDetail(selectedConversation.id);
-      fetchConversations();
-    } catch (error) {
-      toast.error('Failed to send video');
-    }
-  };
-
-  const handleVoiceNoteSent = () => {
-    setShowVoiceRecorder(false);
-    if (selectedConversation?.id) fetchConversationDetail(selectedConversation.id);
-    fetchConversations();
-  };
-
-  const handleComposeNew = () => {
-    setIsComposeModalOpen(true);
-  };
-
-  // Handle user selection from compose modal
-  const handleComposeSelectUser = async (selectedUser) => {
-    try {
-      // Check for existing conversation
-      const response = await apiClient.get(`/messages/check-thread/${user.id}/${selectedUser.id}`);
-      
-      if (response.data.exists) {
-        // Navigate to existing conversation
-        navigate(`/messages/${response.data.conversation_id}`);
-        setSelectedConversation({
-          id: response.data.conversation_id,
-          other_user_id: selectedUser.id,
-          other_user_name: selectedUser.name,
-          other_user_avatar: selectedUser.avatar
-        });
-      } else {
-        // Navigate to new chat
-        setSelectedConversation({
-          id: null,
-          other_user_id: selectedUser.id,
-          other_user_name: selectedUser.name,
-          other_user_avatar: selectedUser.avatar,
-          is_new_chat: true
-        });
-        navigate(`/messages/new/${selectedUser.id}`, {
-          state: {
-            recipientName: selectedUser.name,
-            recipientAvatar: selectedUser.avatar
-          }
-        });
-      }
-    } catch (error) {
-      toast.error('Failed to start conversation');
     }
   };
 
