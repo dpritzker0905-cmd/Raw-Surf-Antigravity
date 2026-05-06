@@ -542,6 +542,10 @@ const PostCard = ({
   // Without this guard, the click handler sees the touch's timestamp and
   // falsely detects a "double tap" from a single finger tap.
   const touchHandledRef = useRef(false);
+  // Track touch start position to distinguish scrolls from taps.
+  // If finger moves >10px between touchstart and touchend, it's a scroll, not a tap.
+  const touchStartRef = useRef({ x: 0, y: 0 });
+  const SCROLL_THRESHOLD = 10; // pixels
 
   const handleMediaTap = useCallback((e) => {
     // Skip if touch already handled this interaction (prevents touch→click double-fire)
@@ -595,10 +599,24 @@ const PostCard = ({
     lastTapRef.current = 0;
   }, [user?.id, post?.id, post?.liked, onDoubleTapLike]);
 
+  // Record touch start position to detect scrolls vs taps
+  const handleTouchStart = useCallback((e) => {
+    if (e.touches?.length === 1) {
+      touchStartRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    }
+  }, []);
+
   // Touch-based double-tap for mobile (bypasses 300ms click delay)
   const handleTouchEnd = useCallback((e) => {
     // Only handle single-finger taps
     if (e.changedTouches?.length !== 1) return;
+
+    // ── Scroll detection: if finger moved >10px, this is a scroll, not a tap ──
+    const touch = e.changedTouches[0];
+    const dx = Math.abs(touch.clientX - touchStartRef.current.x);
+    const dy = Math.abs(touch.clientY - touchStartRef.current.y);
+    if (dx > SCROLL_THRESHOLD || dy > SCROLL_THRESHOLD) return;
+
     // Mark that touch handled this interaction so the synthesized click skips
     touchHandledRef.current = true;
     const now = Date.now();
@@ -846,6 +864,7 @@ const PostCard = ({
         className={`aspect-[4/5] ${isLight ? 'bg-gray-100' : 'bg-zinc-800'} relative select-none cursor-pointer`}
         onClick={handleMediaTap}
         onDoubleClick={handleNativeDoubleClick}
+        onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
         data-testid={`post-image-container-${post.id}`}
       >
