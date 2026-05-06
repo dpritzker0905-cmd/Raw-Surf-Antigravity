@@ -17,7 +17,6 @@ import { toast } from 'sonner';
 
 /**
  * GPSSettingsGuide - Modal to help users enable precise GPS location
- * Shows device-specific instructions for iOS and Android
  * Also offers manual location selection as fallback
  */
 export const GPSSettingsGuide = ({ 
@@ -32,7 +31,7 @@ export const GPSSettingsGuide = ({
   const [deviceType, setDeviceType] = useState(() => {
     // Auto-detect device type
     const ua = navigator.userAgent || navigator.vendor || window.opera;
-    if (/iPad|iPhone|iPod/.test(ua)) return 'ios';
+    if (/ipad|iphone|ipod/i.test(ua)) return 'ios';
     if (/android/i.test(ua)) return 'android';
     return 'android'; // Default to Android for unknown
   });
@@ -189,14 +188,14 @@ export const GPSSettingsGuide = ({
                 onClick={() => setDeviceType('ios')}
                 className={`flex-1 ${deviceType === 'ios' ? 'bg-cyan-600 hover:bg-cyan-700' : 'border-zinc-600'}`}
               >
-                ?? iPhone
+                {String.fromCodePoint(0x1F4F1)} iPhone
               </Button>
               <Button
                 variant={deviceType === 'android' ? 'default' : 'outline'}
                 onClick={() => setDeviceType('android')}
                 className={`flex-1 ${deviceType === 'android' ? 'bg-cyan-600 hover:bg-cyan-700' : 'border-zinc-600'}`}
               >
-                ?? Android
+                {String.fromCodePoint(0x1F4F1)} Android
               </Button>
             </div>
           </div>

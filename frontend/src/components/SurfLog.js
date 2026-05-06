@@ -92,7 +92,7 @@ const EntryCard = ({ entry, isLight, onEdit, onDelete }) => {
         {entry.wind_direction && <Badge className="bg-teal-500/20 text-teal-400 border-teal-500/30 text-[10px]"><Wind className="w-2.5 h-2.5 mr-0.5" />{entry.wind_direction}</Badge>}
         {entry.crowd_level && <Badge className="bg-orange-500/20 text-orange-400 border-orange-500/30 text-[10px]"><Users className="w-2.5 h-2.5 mr-0.5" />{entry.crowd_level}</Badge>}
         {entry.water_temp && <Badge className="bg-cyan-500/20 text-cyan-400 border-cyan-500/30 text-[10px]"><Thermometer className="w-2.5 h-2.5 mr-0.5" />{entry.water_temp}</Badge>}
-        {entry.board_model && <Badge className="bg-yellow-500/20 text-yellow-400 border-yellow-500/30 text-[10px]">?? {entry.board_model}</Badge>}
+        {entry.board_model && <Badge className="bg-yellow-500/20 text-yellow-400 border-yellow-500/30 text-[10px]">{String.fromCodePoint(0x1F3C4)} {entry.board_model}</Badge>}
       </div>
 
       {entry.personal_rating && (
@@ -223,7 +223,7 @@ const EntryModal = ({ isOpen, onClose, entry, userId, onSaved }) => {
 
           {/* Gear */}
           <div className={`p-3 rounded-xl ${isLight ? 'bg-yellow-50' : 'bg-yellow-500/10'} space-y-3`}>
-            <p className={`text-xs font-semibold ${isLight ? 'text-yellow-700' : 'text-yellow-300'}`}>?? Gear</p>
+              <p className={`text-xs font-semibold ${isLight ? 'text-yellow-700' : 'text-yellow-300'}`}>{String.fromCodePoint(0x1F3C4)} Gear</p>
             <div className="grid grid-cols-2 gap-3">
               <div><label className={`text-xs ${isLight ? 'text-gray-600' : 'text-gray-400'}`}>Board</label><input type="text" value={form.board_model} onChange={e => set('board_model', e.target.value)} placeholder="6'2 shortboard" className={inputCls} /></div>
               <div><label className={`text-xs ${isLight ? 'text-gray-600' : 'text-gray-400'}`}>Wetsuit</label><input type="text" value={form.wetsuit} onChange={e => set('wetsuit', e.target.value)} placeholder="3/2mm" className={inputCls} /></div>

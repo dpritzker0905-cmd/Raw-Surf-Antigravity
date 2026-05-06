@@ -1099,7 +1099,7 @@ export const Feed = () => {
                       <SelectItem value="Clean" className="text-white hover:bg-zinc-700">? Clean</SelectItem>
                       <SelectItem value="Choppy" className="text-white hover:bg-zinc-700">?? Choppy</SelectItem>
                       <SelectItem value="Messy" className="text-white hover:bg-zinc-700">?? Messy</SelectItem>
-                      <SelectItem value="Blown Out" className="text-white hover:bg-zinc-700">?? Blown Out</SelectItem>
+                  <SelectItem value="Blown Out" className="text-white hover:bg-zinc-700">{String.fromCodePoint(0x1F4A5)} Blown Out</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

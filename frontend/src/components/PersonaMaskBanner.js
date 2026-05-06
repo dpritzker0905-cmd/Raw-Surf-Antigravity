@@ -109,7 +109,7 @@ const PersonaMaskBanner = () => {
           isSelected ? 'bg-zinc-800 border-l-2 border-cyan-400' : ''
         }`}
       >
-        <span className="text-xl">{roleInfo.icon}</span>
+          <span className="text-xl">{String.fromCodePoint(0x1F3AD)}</span>
         <div className="flex-1 text-left">
           <span className="text-white font-medium">{persona.label}</span>
           <p className="text-gray-500 text-xs">{persona.description}</p>

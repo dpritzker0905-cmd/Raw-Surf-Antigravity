@@ -950,7 +950,7 @@ export const LineupManagerDrawer = ({
                 
                 {/* "Shore" Label */}
                 <div className="absolute bottom-2 left-1/2 -translate-x-1/2 text-xs text-yellow-600 font-medium flex items-center gap-1">
-                  <span>???</span>
+                <span>{String.fromCodePoint(0x1F3C4)}</span>
                   SHORE
                 </div>
               </div>

@@ -622,11 +622,11 @@ const LiveCommentsFeed = ({ streamId, colors, onSendComment, onLikeComment, isEx
  */
 const QuickReactions = ({ onReact, colors }) => {
   const reactions = [
-    { emoji: 'ðŸ¤™', label: 'shaka' },
+    { emoji: String.fromCodePoint(0x1F919), label: 'shaka' },
     { emoji: 'ðŸŒŠ', label: 'wave' },
     { emoji: 'ðŸ”¥', label: 'fire' },
     { emoji: 'â¤ï¸', label: 'love' },
-    { emoji: 'ðŸ„', label: 'surf' },
+    { emoji: String.fromCodePoint(0x1F3C4), label: 'surf' },
     { emoji: 'ðŸ˜®', label: 'wow' },
   ];
 

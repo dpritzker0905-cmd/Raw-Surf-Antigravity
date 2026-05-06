@@ -100,7 +100,7 @@ export const StoriesBar = ({ onCreateStory, onTierChange, selectedTier }) => {
 
           // Show notification toast for new stories
           const isPhotographer = ['Photographer', 'Approved Pro', 'Hobbyist'].includes(payload.new.author_role);
-          const icon = isPhotographer ? 'ðŸ“¸' : 'ðŸ„';
+          const icon = isPhotographer ? String.fromCodePoint(0x1F4F8) : String.fromCodePoint(0x1F3C4);
           
           setNewStoryNotification(payload.new);
           toast(`${icon} New story!`, {
@@ -783,7 +783,7 @@ export const CreateStoryModal = ({ isOpen, onClose, onCreated }) => {
         caption: caption || null
       });
       
-      toast.success('Story posted! ðŸ¤™');
+      toast.success('Story posted! ' + String.fromCodePoint(0x1F919));
       onCreated?.();
       handleClose();
     } catch (error) {

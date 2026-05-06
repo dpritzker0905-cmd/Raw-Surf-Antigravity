@@ -226,7 +226,7 @@ export const JumpInSessionModal = ({ photographer, onClose, onSuccess }) => {
                 <div className="p-4 bg-gradient-to-r from-cyan-500/20 to-blue-500/20 border-2 border-cyan-500/40 rounded-xl">
                   <div className="flex items-center gap-4">
                     <div className="w-14 h-14 rounded-full bg-cyan-500/30 flex items-center justify-center shrink-0">
-                      <span className="text-3xl">??</span>
+              <span className="text-3xl">{String.fromCodePoint(0x1F3C4)}</span>
                     </div>
                     <div>
                       <p className="text-cyan-300 font-bold text-lg">Hold your surfboard up!</p>
@@ -289,7 +289,7 @@ export const JumpInSessionModal = ({ photographer, onClose, onSuccess }) => {
 
                 {/* Surfboard instruction - smaller version */}
                 <div className="p-3 bg-gradient-to-r from-cyan-500/20 to-blue-500/20 border border-cyan-500/30 rounded-xl flex items-center gap-3">
-                  <span className="text-2xl">??</span>
+              <span className="text-2xl">{String.fromCodePoint(0x1F3C4)}</span>
                   <div>
                     <p className="text-cyan-300 font-bold text-sm">Hold your board up!</p>
                     <p className="text-cyan-400/70 text-xs">So they can spot you in the water</p>

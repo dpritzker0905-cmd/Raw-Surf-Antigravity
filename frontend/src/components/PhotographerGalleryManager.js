@@ -247,7 +247,7 @@ export const PhotographerGalleryManager = () => {
                 </Badge>
               )}
               {gallery.session_type === 'manual' && (
-                <Badge variant="outline" className="border-zinc-600 text-zinc-500 text-[10px]">?? Manual</Badge>
+              <Badge variant="outline" className="border-zinc-600 text-zinc-500 text-[10px]">{String.fromCodePoint(0x270B)} Manual</Badge>
               )}
               {gallery.surf_spot_name && (
                 <span className={`text-sm ${textSecondaryClass} flex items-center gap-1`}>
@@ -671,7 +671,7 @@ export const PhotographerGalleryManager = () => {
                   {/* Live Session Pricing */}
                   <PricingTierRow
                     label="Live Session"
-                    emoji="??"
+                    emoji={String.fromCodePoint(0x1F4F8)}
                     color="emerald"
                     photosIncluded={gallery.photographer_pricing.live_session?.photos_included}
                     videosIncluded={gallery.photographer_pricing.live_session?.videos_included}
@@ -685,7 +685,7 @@ export const PhotographerGalleryManager = () => {
                   {/* Booking Pricing */}
                   <PricingTierRow
                     label="Booking"
-                    emoji="??"
+                    emoji={String.fromCodePoint(0x1F4C5)}
                     color="blue"
                     photosIncluded={gallery.photographer_pricing.booking?.photos_included}
                     videosIncluded={gallery.photographer_pricing.booking?.videos_included}
@@ -700,7 +700,7 @@ export const PhotographerGalleryManager = () => {
                   {/* On-Demand Pricing */}
                   <PricingTierRow
                     label="On-Demand"
-                    emoji="?"
+                    emoji={String.fromCodePoint(0x26A1)}
                     color="amber"
                     photosIncluded={gallery.photographer_pricing.on_demand?.photos_included}
                     videosIncluded={gallery.photographer_pricing.on_demand?.videos_included}
@@ -795,7 +795,7 @@ export const PhotographerGalleryManager = () => {
               <SelectItem value="untagged">Untagged</SelectItem>
               <SelectItem value="distributed">? Distributed</SelectItem>
               <SelectItem value="undistributed">? Undistributed</SelectItem>
-              <SelectItem value="ai_pending">?? AI Pending</SelectItem>
+                <SelectItem value="ai_pending">{String.fromCodePoint(0x1F916)} AI Pending</SelectItem>
             </SelectContent>
           </Select>
           
@@ -1796,8 +1796,8 @@ const PricingTierRow = ({
           {buyinPrice > 0 && (
             <span className={textSecondaryClass}>${buyinPrice}{buyinLabel || ' buy-in'}</span>
           )}
-          <span style={{ color: '#06b6d4' }}>?? {photosIncluded || 0} incl</span>
-          <span style={{ color: '#8b5cf6' }}>?? {videosIncluded || 0} incl</span>
+          <span style={{ color: '#06b6d4' }}>{String.fromCodePoint(0x1F4F7)} {photosIncluded || 0} incl</span>
+          <span style={{ color: '#8b5cf6' }}>{String.fromCodePoint(0x1F3AC)} {videosIncluded || 0} incl</span>
         </div>
       </div>
       <div className="flex flex-wrap gap-x-4 gap-y-1 text-[10px]">

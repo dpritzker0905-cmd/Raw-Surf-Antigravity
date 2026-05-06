@@ -501,7 +501,7 @@ const ShareModal = ({ item, isOpen, onClose }) => {
               onClick={() => handleSocialShare('twitter')}
               className="flex-1 border-zinc-700"
             >
-              ?? Twitter
+              {String.fromCodePoint(0x1D54F)} Twitter
             </Button>
             <Button
               variant="outline"

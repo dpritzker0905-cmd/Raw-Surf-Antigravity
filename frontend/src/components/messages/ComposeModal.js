@@ -10,16 +10,16 @@ const isProRole = isProLevelRole;
 
 // Role icon helper (inline since it uses MessagesPage internal logic)
 const getRoleIcon = (role, isAdmin = false) => {
-  if (isAdmin) return { icon: Shield, color: 'text-red-500', label: 'God Mode', emoji: 'ðŸ”´' };
+  if (isAdmin) return { icon: Shield, color: 'text-red-500', label: 'God Mode', emoji: String.fromCodePoint(0x1F534) };
   switch (role) {
-    case 'Pro': case 'Comp Surfer': return { icon: Star, color: 'text-amber-400', label: 'Pro', emoji: 'â­' };
-    case 'Approved Pro': return { icon: Camera, color: 'text-blue-400', label: 'Pro Photographer', emoji: 'ðŸ“¸' };
-    case 'Photographer': return { icon: Camera, color: 'text-purple-400', label: 'Photographer', emoji: 'ðŸ“·' };
-    case 'Shop': return { icon: Store, color: 'text-pink-400', label: 'Surf Shop', emoji: 'ðŸ›ï¸' };
-    case 'Surf School': return { icon: Users, color: 'text-teal-400', label: 'Surf School', emoji: 'ðŸŒ¬ï¸' };
-    case 'Shaper': return { icon: Briefcase, color: 'text-orange-400', label: 'Shaper', emoji: 'ðŸ› ï¸' };
-    case 'Resort': return { icon: Store, color: 'text-emerald-400', label: 'Resort', emoji: 'ðŸŒ´' };
-    default: return { icon: null, color: 'text-cyan-400', label: 'Surfer', emoji: 'ðŸ„' };
+    case 'Pro': case 'Comp Surfer': return { icon: Star, color: 'text-amber-400', label: 'Pro', emoji: String.fromCodePoint(0x2B50) };
+    case 'Approved Pro': return { icon: Camera, color: 'text-blue-400', label: 'Pro Photographer', emoji: String.fromCodePoint(0x1F4F8) };
+    case 'Photographer': return { icon: Camera, color: 'text-purple-400', label: 'Photographer', emoji: String.fromCodePoint(0x1F4F7) };
+    case 'Shop': return { icon: Store, color: 'text-pink-400', label: 'Surf Shop', emoji: String.fromCodePoint(0x1F3EA) };
+    case 'Surf School': return { icon: Users, color: 'text-teal-400', label: 'Surf School', emoji: String.fromCodePoint(0x1F32C) };
+    case 'Shaper': return { icon: Briefcase, color: 'text-orange-400', label: 'Shaper', emoji: String.fromCodePoint(0x1F528) };
+    case 'Resort': return { icon: Store, color: 'text-emerald-400', label: 'Resort', emoji: String.fromCodePoint(0x1F334) };
+    default: return { icon: null, color: 'text-cyan-400', label: 'Surfer', emoji: String.fromCodePoint(0x1F3C4) };
   }
 };
 
@@ -227,7 +227,7 @@ const ComposeModal = ({ isOpen, onClose, onSelectUser, currentUserId }) => {
                     {RoleIcon ? (
                       <RoleIcon className={`w-4 h-4 ${roleInfo.color}`} />
                     ) : (
-                      <span className="text-sm">ðŸ„</span>
+                      <span className="text-sm">{String.fromCodePoint(0x1F3C4)}</span>
                     )}
                   </div>
                   <div className="flex items-center gap-1">

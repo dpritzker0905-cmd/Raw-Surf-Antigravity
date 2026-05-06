@@ -318,7 +318,7 @@ export const GalleryLightbox = ({
                 {purchasing ? (
                   <Loader2 className="w-5 h-5 animate-spin" />
                 ) : isGromUser ? (
-                  <>ðŸ„ Ask Parent to Approve</>
+                  <>{String.fromCodePoint(0x1F3C4)} Ask Parent to Approve</>
                 ) : (
                   <>
                     <ShoppingCart className="w-4 h-4 mr-2" />

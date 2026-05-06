@@ -231,7 +231,7 @@ export const ReviewModal = ({
       });
       
       setSubmitted(true);
-      toast.success('Review submitted! +10 XP ??');
+      toast.success('Review submitted! +10 XP ' + String.fromCodePoint(0x1F929));
       onReviewSubmitted?.();
       
       // Auto-close after brief delay
@@ -299,7 +299,7 @@ export const ReviewModal = ({
     }
     
     if (successCount > 0) {
-      toast.success(`${successCount} review${successCount > 1 ? 's' : ''} submitted! +${successCount * 10} XP ??`);
+      toast.success(`${successCount} review${successCount > 1 ? 's' : ''} submitted! +${successCount * 10} XP ` + String.fromCodePoint(0x1F929));
       onReviewSubmitted?.();
     }
     
@@ -473,7 +473,7 @@ export const ReviewModal = ({
                 <Star className="w-8 h-8 text-black fill-black" />
               </div>
               <h3 className={`text-lg font-bold ${textPrimary}`}>Review Submitted!</h3>
-              <p className={`text-sm ${textSecondary}`}>+10 XP earned. Thanks for your feedback! ??</p>
+              <p className={`text-sm ${textSecondary}`}>+10 XP earned. Thanks for your feedback! {String.fromCodePoint(0x1F64F)}</p>
             </div>
           )}
         </div>

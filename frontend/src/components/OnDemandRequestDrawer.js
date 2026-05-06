@@ -441,11 +441,11 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
                     />
                     <p className={`text-xs ${textSecondary} mt-1`}>
                       {geocodingAddress
-                        ? 'ðŸ“ Finding location...'
+                        ? String.fromCodePoint(0x1F4CD) + ' Finding location...'
                         : customLocationCoords
                           ? '? Address found - photographer will be directed here'
                           : customLocationAddress && customLocationAddress.trim().length >= 5
-                            ? 'ðŸ“ Could not find address - photographer will use your GPS'
+                            ? String.fromCodePoint(0x1F4CD) + ' Could not find address - photographer will use your GPS'
                             : 'Optional: add a street address for more precise directions'}
                     </p>
                   </div>
@@ -612,7 +612,7 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
               >
                 <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-2xl flex-shrink-0 ${
                   !splitEnabled ? 'bg-amber-500' : isLight ? 'bg-gray-200' : 'bg-zinc-700'
-                }`}>ðŸ“¸</div>
+                }`}>{String.fromCodePoint(0x1F4F8)}</div>
                 <div className="flex-1">
                   <p className={`font-bold text-base ${textPrimary}`}>Just Me</p>
                   <p className={`text-sm ${textSecondary}`}>Solo session - I'll pay the full rate</p>
@@ -636,7 +636,7 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
               >
                 <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-2xl flex-shrink-0 ${
                   splitEnabled ? 'bg-cyan-500' : isLight ? 'bg-gray-200' : 'bg-zinc-700'
-                }`}>ðŸ“¸</div>
+                }`}>{String.fromCodePoint(0x1F4F8)}</div>
                 <div className="flex-1">
                   <p className={`font-bold text-base ${textPrimary}`}>Split with Crew</p>
                   <p className={`text-sm ${textSecondary}`}>Share the session cost with friends</p>
@@ -961,7 +961,7 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
                 </div>
                 {crewMembers.some(m => !m.covered_by_captain) && (
                   <p className={`text-xs ${textSecondary} mt-3 pt-3 border-t border-purple-400/20`}>
-                    ?? Your crew has been notified to complete payment. The photographer will see your request once all payments are confirmed.
+              {String.fromCodePoint(0x1F4E2)} Your crew has been notified to complete payment. The photographer will see your request once all
                   </p>
                 )}
               </div>
@@ -1119,7 +1119,7 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
               }}
               className="w-full py-5 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-foreground font-bold rounded-xl"
             >
-              Got it, Let's Surf! ??
+              Got it, Let's Surf! {String.fromCodePoint(0x1F3C4)}
             </Button>
             <p className={`text-xs ${textSecondary} text-center`}>
               Chat with your photographer, track their arrival, or manage your session

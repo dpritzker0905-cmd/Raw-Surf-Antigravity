@@ -126,7 +126,7 @@ export const SpotVerificationNudge = ({ spot, userLocation, _onClose }) => {
           {/* Verification Prompt */}
           <div className="flex items-start gap-2">
             <div className="w-8 h-8 rounded-full bg-yellow-500/20 flex items-center justify-center flex-shrink-0">
-              ??
+              <MapPin className="w-4 h-4 text-yellow-400" />
             </div>
             <div>
               <p className="text-yellow-400 font-medium text-sm">Verify this pin's location</p>

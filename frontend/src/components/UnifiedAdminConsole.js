@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 
 import { useNavigate } from 'react-router-dom';
 
@@ -623,7 +623,7 @@ const UnifiedAdminConsole = () => {
                         </Button>
                       </div>
                       <p className="text-yellow-400 text-xs mt-2">
-                        ?? Changing the code will require ALL users to re-enter the new code
+                        {String.fromCodePoint(0x26A0, 0xFE0F)} Changing the code will require ALL users to re-enter the new code
                       </p>
                     </div>
                   )}
@@ -638,8 +638,8 @@ const UnifiedAdminConsole = () => {
                       siteSettings.access_code_enabled ? 'text-yellow-400' : 'text-green-400'
                     }`}>
                       {siteSettings.access_code_enabled 
-                        ? `?? Site is protected - Current code: ${siteSettings.access_code || 'Not set'}` 
-                        : '?? Site is public - Anyone can access'}
+                        ? `${String.fromCodePoint(0x1F512)} Site is protected - Current code: ${siteSettings.access_code || 'Not set'}` 
+                        : `${String.fromCodePoint(0x1F513)} Site is public - Anyone can access`}
                     </p>
                   </div>
                 </div>

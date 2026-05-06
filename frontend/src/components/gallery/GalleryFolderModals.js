@@ -70,7 +70,7 @@ export const GalleryFolderModals = ({
               </h4>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <p className="text-[10px] font-semibold text-muted-foreground uppercase">ðŸ“· Photos</p>
+                  <p className="text-[10px] font-semibold text-muted-foreground uppercase">{String.fromCodePoint(0x1F4F7)} Photos</p>
                   {[
                     { label: 'Web (800px)', field: 'photo_price_web' },
                     { label: 'Standard (1920px)', field: 'photo_price_standard' },
@@ -105,7 +105,7 @@ export const GalleryFolderModals = ({
               </h4>
               <div className="grid grid-cols-2 gap-4 mb-3">
                 <div className="space-y-2">
-                  <p className="text-[10px] font-semibold text-muted-foreground uppercase">ðŸ“· Photos</p>
+                  <p className="text-[10px] font-semibold text-muted-foreground uppercase">{String.fromCodePoint(0x1F4F7)} Photos</p>
                   {[
                     { label: 'Web (800px)', field: 'live_price_web' },
                     { label: 'Standard (1920px)', field: 'live_price_standard' },
@@ -154,7 +154,7 @@ export const GalleryFolderModals = ({
               </div>
               <div className="grid grid-cols-2 gap-4 mb-3">
                 <div className="space-y-2">
-                  <p className="text-[10px] font-semibold text-muted-foreground uppercase">ðŸ“· Photos</p>
+                  <p className="text-[10px] font-semibold text-muted-foreground uppercase">{String.fromCodePoint(0x1F4F7)} Photos</p>
                   {[
                     { label: 'Web (800px)', field: 'on_demand_price_web' },
                     { label: 'Standard (1920px)', field: 'on_demand_price_standard' },
@@ -203,7 +203,7 @@ export const GalleryFolderModals = ({
               </div>
               <div className="grid grid-cols-2 gap-4 mb-3">
                 <div className="space-y-2">
-                  <p className="text-[10px] font-semibold text-muted-foreground uppercase">ðŸ“· Photos</p>
+                  <p className="text-[10px] font-semibold text-muted-foreground uppercase">{String.fromCodePoint(0x1F4F7)} Photos</p>
                   {[
                     { label: 'Web (800px)', field: 'booking_price_web' },
                     { label: 'Standard (1920px)', field: 'booking_price_standard' },

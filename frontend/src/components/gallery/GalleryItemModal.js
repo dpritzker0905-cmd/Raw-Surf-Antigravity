@@ -627,7 +627,7 @@ export const GalleryItemModal = ({ item, onClose, onPurchased, galleryId, onSetA
                   onClick={handlePurchase}
                   className="flex-1 font-bold bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white"
                 >
-                  ðŸ„ Ask Parent to Approve
+                  ' + String.fromCodePoint(0x1F3C4) + ' Ask Parent to Approve
                 </Button>
                 <Button
                   variant="outline"

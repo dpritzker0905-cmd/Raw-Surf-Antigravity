@@ -12,6 +12,26 @@ import { useTheme } from '../contexts/ThemeContext';
 import logger from '../utils/logger';
 import { getThemeTokens } from '../utils/themeTokens';
 
+// Emoji constants — using String.fromCodePoint to prevent encoding corruption
+const E = {
+  glassy: String.fromCodePoint(0x1F924),    // mirror/glassy
+  clean: String.fromCodePoint(0x2728),       // sparkles
+  fair: String.fromCodePoint(0x1F44C),       // ok hand
+  choppy: String.fromCodePoint(0x1F32A),     // tornado/wind
+  messy: String.fromCodePoint(0x1F4A8),      // dash
+  blownOut: String.fromCodePoint(0x1F4A5),   // explosion
+  offshore: String.fromCodePoint(0x2B05),    // left arrow
+  lightOnshore: String.fromCodePoint(0x27A1, 0xFE0F),
+  onshore: String.fromCodePoint(0x27A1),     // right arrow
+  crossShore: String.fromCodePoint(0x2194),  // left-right arrow
+  noWind: String.fromCodePoint(0x1F32C),     // wind face
+  empty: String.fromCodePoint(0x1F3D6),      // beach
+  light: String.fromCodePoint(0x1F3C4),      // surfer
+  moderate: String.fromCodePoint(0x1F3C4, 0x1F3C4),
+  crowded: String.fromCodePoint(0x1F3C4, 0x1F3C4, 0x1F3C4, 0x1F3C4),
+  packed: String.fromCodePoint(0x1F3C4, 0x1F3C4, 0x1F3C4, 0x1F3C4, 0x1F3C4),
+};
+
 
 // Get subscription tier for forecast access
 const getForecastDays = (subscriptionTier) => {
@@ -505,12 +525,12 @@ export const SpotConditions = ({ spotId, spotName, compact = false }) => {
                   <SelectValue placeholder="How's it looking?" />
                 </SelectTrigger>
                 <SelectContent className="bg-zinc-800 border-zinc-700">
-                  <SelectItem value="Glassy" className="text-white">?? Glassy</SelectItem>
-                  <SelectItem value="Clean" className="text-white">? Clean</SelectItem>
-                  <SelectItem value="Fair" className="text-white">?? Fair</SelectItem>
-                  <SelectItem value="Choppy" className="text-white">?? Choppy</SelectItem>
-                  <SelectItem value="Messy" className="text-white">?? Messy</SelectItem>
-                  <SelectItem value="Blown Out" className="text-white">?? Blown Out</SelectItem>
+                  <SelectItem value="Glassy" className="text-white">{E.glassy} Glassy</SelectItem>
+                  <SelectItem value="Clean" className="text-white">{E.clean} Clean</SelectItem>
+                  <SelectItem value="Fair" className="text-white">{E.fair} Fair</SelectItem>
+                  <SelectItem value="Choppy" className="text-white">{E.choppy} Choppy</SelectItem>
+                  <SelectItem value="Messy" className="text-white">{E.messy} Messy</SelectItem>
+                  <SelectItem value="Blown Out" className="text-white">{E.blownOut} Blown Out</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -523,11 +543,11 @@ export const SpotConditions = ({ spotId, spotName, compact = false }) => {
                   <SelectValue placeholder="Wind direction" />
                 </SelectTrigger>
                 <SelectContent className="bg-zinc-800 border-zinc-700">
-                  <SelectItem value="Offshore" className="text-white">?? Offshore (Good)</SelectItem>
-                  <SelectItem value="Light Onshore" className="text-white">??? Light Onshore</SelectItem>
-                  <SelectItem value="Onshore" className="text-white">?? Onshore</SelectItem>
-                  <SelectItem value="Cross-shore" className="text-white">?? Cross-shore</SelectItem>
-                  <SelectItem value="No Wind" className="text-white">?? No Wind</SelectItem>
+                  <SelectItem value="Offshore" className="text-white">{E.offshore} Offshore (Good)</SelectItem>
+                  <SelectItem value="Light Onshore" className="text-white">{E.lightOnshore} Light Onshore</SelectItem>
+                  <SelectItem value="Onshore" className="text-white">{E.onshore} Onshore</SelectItem>
+                  <SelectItem value="Cross-shore" className="text-white">{E.crossShore} Cross-shore</SelectItem>
+                  <SelectItem value="No Wind" className="text-white">{E.noWind} No Wind</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -540,11 +560,11 @@ export const SpotConditions = ({ spotId, spotName, compact = false }) => {
                   <SelectValue placeholder="How crowded?" />
                 </SelectTrigger>
                 <SelectContent className="bg-zinc-800 border-zinc-700">
-                  <SelectItem value="Empty" className="text-white">??? Empty</SelectItem>
-                  <SelectItem value="Light" className="text-white">?? Light</SelectItem>
-                  <SelectItem value="Moderate" className="text-white">?? Moderate</SelectItem>
-                  <SelectItem value="Crowded" className="text-white">??????🏄 Crowded</SelectItem>
-                  <SelectItem value="Packed" className="text-white">???????🏄 Packed</SelectItem>
+                  <SelectItem value="Empty" className="text-white">{E.empty} Empty</SelectItem>
+                  <SelectItem value="Light" className="text-white">{E.light} Light</SelectItem>
+                  <SelectItem value="Moderate" className="text-white">{E.moderate} Moderate</SelectItem>
+                  <SelectItem value="Crowded" className="text-white">{E.crowded} Crowded</SelectItem>
+                  <SelectItem value="Packed" className="text-white">{E.packed} Packed</SelectItem>
                 </SelectContent>
               </Select>
             </div>

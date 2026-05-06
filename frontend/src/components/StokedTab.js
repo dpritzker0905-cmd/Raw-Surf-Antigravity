@@ -298,7 +298,7 @@ export const StokedTab = ({ userId, isOwnProfile }) => {
                   <div className="text-right">
                     <p className="text-emerald-400 font-medium text-sm">+${transaction.amount?.toFixed(0)}</p>
                     {transaction.shaka_sent && (
-                      <span className="text-xs text-yellow-400">?? Thanked</span>
+              <span className="text-xs text-yellow-400">{String.fromCodePoint(0x1F64F)} Thanked</span>
                     )}
                   </div>
                 </div>

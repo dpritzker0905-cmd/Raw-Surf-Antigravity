@@ -1341,7 +1341,6 @@ export const PhotographerBookingsManager = () => {
                   {!bookingPricing.home_latitude && (
                     <div className={`mt-2 p-2 rounded-lg ${isLight ? 'bg-amber-50' : 'bg-amber-500/10'} border border-amber-500/30`}>
                       <p className={`text-xs ${isLight ? 'text-amber-700' : 'text-amber-400'}`}>
-                        ?? Set your location so surfers can see if you're in their area and calculate travel fees.
                       </p>
                     </div>
                   )}

@@ -712,7 +712,7 @@ const ActiveSessionCard = React.memo(({
                 </span>
               )}
               {session.requester_board_description && (
-                <span className={`text-xs font-medium ${textPrimary}`}>ðŸ„ {session.requester_board_description}</span>
+                <span className={`text-xs font-medium ${textPrimary}`}>{String.fromCodePoint(0x1F3C4)} {session.requester_board_description}</span>
               )}
             </div>
           </div>
@@ -824,7 +824,7 @@ const ActiveSessionCard = React.memo(({
               }`}>
                 {chatLatestMessage.message_type === 'voice_note'
                   ? 'ðŸŽ™ï¸ Voice note'
-                  : (chatLatestMessage.content || 'ðŸ“· Media')}
+                  : (chatLatestMessage.content || String.fromCodePoint(0x1F4F7) + ' Media')}
               </p>
             </div>
           </button>

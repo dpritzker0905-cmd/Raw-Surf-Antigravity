@@ -479,7 +479,6 @@ export const PhotographerSessionDashboard = ({ onClose }) => {
       {/* Tip */}
       <div className="p-4 bg-zinc-800/50 border-t border-zinc-800">
         <p className="text-xs text-gray-500 text-center">
-          ?? Surfers take selfies when joining so you can identify them in the water
         </p>
       </div>
     </div>

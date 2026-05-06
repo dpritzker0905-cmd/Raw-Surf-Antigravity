@@ -553,10 +553,9 @@ export const OnDemandSettingsPage = () => {
                 />
               )}
 
-              {/* Photo Download Prices */}
               <div className={`mt-4 p-4 rounded-xl border ${isLight ? 'bg-blue-50 border-blue-200' : 'bg-blue-500/10 border-blue-500/20'}`}>
                 <p className={`text-sm font-semibold mb-3 flex items-center gap-2 ${textPrimary}`}>
-                  ?? Photo Download Prices
+                  {String.fromCodePoint(0x1F4F7)} Photo Download Prices
                   <span className={`text-xs font-normal ${textSecondary}`}>(per resolution - independent from Gallery)</span>
                 </p>
                 <div className="grid grid-cols-1 gap-3">
@@ -593,10 +592,9 @@ export const OnDemandSettingsPage = () => {
                 </div>
               </div>
 
-              {/* Video Download Prices */}
               <div className={`mt-4 p-4 rounded-xl border ${isLight ? 'bg-purple-50 border-purple-200' : 'bg-purple-500/10 border-purple-500/20'}`}>
                 <p className={`text-sm font-semibold mb-3 flex items-center gap-2 ${textPrimary}`}>
-                  ?? Video Download Prices
+                  {String.fromCodePoint(0x1F3AC)} Video Download Prices
                   <span className={`text-xs font-normal ${textSecondary}`}>(per resolution - independent from Gallery)</span>
                 </p>
                 <div className="grid grid-cols-1 gap-3">

@@ -273,7 +273,7 @@ const PhotographerRequestModal = ({ isOpen, onClose, spot, spotId, onSuccess }) 
   const urgencyOptions = [
     { id: 'now', label: 'Right Now', emoji: 'âš¡', description: 'ASAP (expires in 2 hours)' },
     { id: 'today', label: 'Today', emoji: 'â˜€ï¸', description: 'Within the day (expires in 12 hours)' },
-    { id: 'flexible', label: 'Flexible', emoji: 'ðŸ¤™', description: 'Anytime works (expires in 3 days)' }
+    { id: 'flexible', label: 'Flexible', emoji: String.fromCodePoint(0x1F919), description: 'Anytime works (expires in 3 days)' }
   ];
   
   const timeOptions = ['Dawn Patrol', 'Morning', 'Midday', 'Afternoon', 'Sunset', 'Flexible'];

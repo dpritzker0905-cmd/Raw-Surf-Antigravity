@@ -537,7 +537,7 @@ export const OnDemandSessionManager = () => {
                         <div>
                           <p className={`font-semibold ${textPrimary}`}>{exc.requester_name}</p>
                           <p className={`text-xs ${textSecondary}`}>
-                            {exc.category === 'emergency' ? 'ðŸš¨ Emergency' : exc.category === 'weather' ? 'â›ˆï¸ Weather' : exc.category === 'injury' ? '?? Injury' : '?? Other'}
+                            {exc.category === 'emergency' ? `${String.fromCodePoint(0x1F6A8)} Emergency` : exc.category === 'weather' ? `${String.fromCodePoint(0x26C8, 0xFE0F)} Weather` : exc.category === 'injury' ? `${String.fromCodePoint(0x1FA79)} Injury` : `${String.fromCodePoint(0x1F4DD)} Other`}
                           </p>
                         </div>
                         <p className="text-amber-400 font-bold">${exc.fee_amount?.toFixed(2)}</p>
@@ -744,10 +744,9 @@ export const OnDemandSessionManager = () => {
                       />
                     )}
 
-                    {/* Photo Download Prices */}
                     <div className={`mt-4 p-4 rounded-xl border ${isLight ? 'bg-blue-50 border-blue-200' : 'bg-blue-500/10 border-blue-500/20'}`}>
                       <p className={`text-sm font-semibold mb-3 flex items-center gap-2 ${textPrimary}`}>
-                        ?? Photo Download Prices
+                        {String.fromCodePoint(0x1F4F7)} Photo Download Prices
                         <span className={`text-xs font-normal ${textSecondary}`}>(per resolution - independent from Gallery)</span>
                       </p>
                       <div className="grid grid-cols-1 gap-3">
@@ -757,10 +756,9 @@ export const OnDemandSessionManager = () => {
                       </div>
                     </div>
 
-                    {/* Video Download Prices */}
                     <div className={`mt-4 p-4 rounded-xl border ${isLight ? 'bg-purple-50 border-purple-200' : 'bg-purple-500/10 border-purple-500/20'}`}>
                       <p className={`text-sm font-semibold mb-3 flex items-center gap-2 ${textPrimary}`}>
-                        ?? Video Download Prices
+                        {String.fromCodePoint(0x1F3AC)} Video Download Prices
                         <span className={`text-xs font-normal ${textSecondary}`}>(per resolution - independent from Gallery)</span>
                       </p>
                       <div className="grid grid-cols-1 gap-3">
@@ -770,10 +768,9 @@ export const OnDemandSessionManager = () => {
                       </div>
                     </div>
 
-                    {/* Cancellation Fee */}
                     <div className={`mt-4 p-4 rounded-xl border ${isLight ? 'bg-red-50 border-red-200' : 'bg-red-500/10 border-red-500/20'}`}>
                       <p className={`text-sm font-semibold mb-1 flex items-center gap-2 ${textPrimary}`}>
-                        ??? Cancellation Fee
+                        {String.fromCodePoint(0x26A0, 0xFE0F)} Cancellation Fee
                       </p>
                       <p className={`text-xs ${textSecondary} mb-3`}>
                         Percentage of payment kept when a surfer cancels after you accept. 0% = fully refundable.

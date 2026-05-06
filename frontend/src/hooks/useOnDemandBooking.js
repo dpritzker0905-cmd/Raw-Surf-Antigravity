@@ -675,7 +675,7 @@ const useOnDemandBooking = ({ photographer, isOpen, onClose, onSuccess, userLoca
           haptic('success');
           toast.success(`${data.photographer?.name || 'A photographer'} is on their way! ETA: ~${data.gps?.eta_minutes || estimatedResponse} min`, {
             duration: 5000,
-            icon: 'ðŸ“¸'
+            icon: String.fromCodePoint(0x1F4F8)
           });
           
           setTimeout(() => {

@@ -16,8 +16,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 // Category definitions
 const CATEGORIES = [
-  { id: 'male', label: 'Male', icon: 'ðŸ„â€â™‚ï¸' },
-  { id: 'female', label: 'Female', icon: 'ðŸ„â€â™€ï¸' },
+  { id: 'male', label: 'Male', icon: String.fromCodePoint(0x1F3C4, 0x200D, 0x2642, 0xFE0F) },
+  { id: 'female', label: 'Female', icon: String.fromCodePoint(0x1F3C4, 0x200D, 0x2640, 0xFE0F) },
 ];
 
 /**

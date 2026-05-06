@@ -63,7 +63,7 @@ export const MetaConnectionsCard = ({ userId, textPrimaryClass, textSecondaryCla
                 <span className="px-2 py-0.5 bg-green-500/20 text-green-400 text-xs rounded-full">Connected</span>
               </div>
               {metaStatus.facebook_connected && (<div className={`flex items-center gap-2 py-1.5 ${textSecondaryClass} text-sm`}><span className="text-blue-500 text-lg">f</span><span>Facebook Page: {metaStatus.facebook_name || 'Connected'}</span></div>)}
-              {metaStatus.instagram_connected && (<div className={`flex items-center gap-2 py-1.5 ${textSecondaryClass} text-sm`}><span className="text-pink-500 text-lg">??</span><span>Instagram: @{metaStatus.instagram_username || 'Connected'}</span></div>)}
+              {metaStatus.instagram_connected && (<div className={`flex items-center gap-2 py-1.5 ${textSecondaryClass} text-sm`}><span className="text-pink-500 text-lg">{String.fromCodePoint(0x1F4F7)}</span><span>Instagram: @{metaStatus.instagram_username || 'Connected'}</span></div>)}
             </div>
             <p className={`text-xs ${textSecondaryClass}`}>You can now share surf sessions directly to your Facebook Page and Instagram feed from any post's share menu.</p>
             <Button aria-label="Loader2" onClick={handleDisconnect} disabled={disconnecting} variant="outline" className={`w-full ${borderClass} text-red-400 hover:bg-red-500/10`} data-testid="disconnect-meta-btn">
@@ -73,7 +73,7 @@ export const MetaConnectionsCard = ({ userId, textPrimaryClass, textSecondaryCla
         ) : (
           <>
             <div className="text-center py-4">
-              <div className="flex items-center justify-center gap-4 mb-3"><span className="text-3xl text-blue-500">f</span><span className={`text-lg ${textSecondaryClass}`}>+</span><span className="text-3xl">??</span></div>
+              <div className="flex items-center justify-center gap-4 mb-3"><span className="text-3xl text-blue-500">f</span><span className={`text-lg ${textSecondaryClass}`}>+</span><span className="text-3xl">{String.fromCodePoint(0x1F4F7)}</span></div>
               <p className={`text-sm ${textPrimaryClass} font-medium mb-1`}>Connect Facebook & Instagram</p>
               <p className={`text-xs ${textSecondaryClass} mb-4`}>Share your surf sessions directly to your social feeds</p>
             </div>

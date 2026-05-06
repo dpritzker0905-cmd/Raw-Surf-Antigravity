@@ -437,7 +437,7 @@ export const PhotoToolsDrawer = ({ isOpen, onClose }) => {
                   <div className="mt-3 pt-3 border-t border-amber-500/30">
                     <div className="flex items-center gap-2 text-orange-400 animate-pulse">
                       <Flame className="w-4 h-4" />
-                      <span className="text-sm font-medium">?? Hot Streak! 2x XP Active (3+ this month)</span>
+                <span className="text-sm font-medium">{String.fromCodePoint(0x1F525)} Hot Streak! 2x XP Active (3+ this week)</span>
                     </div>
                   </div>
                 )}

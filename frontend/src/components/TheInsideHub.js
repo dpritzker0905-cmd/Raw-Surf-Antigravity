@@ -120,7 +120,6 @@ export const TheInsideHub = () => {
         </h1>
         <p className={`${textSecondary} mt-1`}>Your Grom Career Journey</p>
         <Badge className="mt-2 bg-cyan-500/20 text-cyan-400 border-cyan-500/30">
-          ?? Grom Rising
         </Badge>
       </div>
 
@@ -226,7 +225,7 @@ export const TheInsideHub = () => {
           <div className="mb-4">
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
-                <span className="text-xl">??</span>
+              <span className="text-xl">{String.fromCodePoint(0x1F3C4)}</span>
                 <div>
                   <div className={`font-medium ${textPrimary}`}>New Shortboard</div>
                   <div className={`text-xs ${textSecondary}`}>Target: $450</div>

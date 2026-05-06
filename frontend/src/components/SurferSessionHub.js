@@ -506,7 +506,7 @@ const MobileSessionHub = ({
             {/* GPS Status - Header aligned right */}
             {gpsStatus && !spotsLoaded && (
               <div className="flex items-center gap-1.5 text-xs text-cyan-400 animate-pulse">
-                <span>???</span>
+                <span>{String.fromCodePoint(0x1F3C4)}</span>
                 <span>{gpsStatus}</span>
               </div>
             )}
@@ -606,7 +606,7 @@ const DesktopSessionHub = ({
           {/* GPS Status - Header aligned right */}
           {gpsStatus && !spotsLoaded && (
             <div className="flex items-center gap-1.5 text-xs text-cyan-400 animate-pulse">
-              <span>???</span>
+                <span>{String.fromCodePoint(0x1F3C4)}</span>
               <span>{gpsStatus}</span>
             </div>
           )}

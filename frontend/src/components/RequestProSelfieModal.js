@@ -166,7 +166,6 @@ export const RequestProSelfieModal = ({ dispatchId, isOpen, onClose, onSuccess }
             {/* Pro Tip - Surfboard Identification */}
             <div className="px-4 py-3 bg-cyan-500/10 border border-cyan-500/30 rounded-lg text-center">
               <p className="text-cyan-400 text-sm font-medium">
-                ?? Hold your surfboard in the frame so your Pro can find you in the lineup!
               </p>
             </div>
             

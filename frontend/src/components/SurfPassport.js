@@ -13,13 +13,14 @@ import logger from '../utils/logger';
 
 // Badge definitions with icons and descriptions
 const BADGE_INFO = {
-  first_checkin: { icon: 'ðŸŒŠ', name: 'First Wave', description: 'Your first check-in!' },
-  explorer_10: { icon: 'ðŸ§­', name: 'Explorer', description: 'Visited 10 unique spots' },
-  globetrotter_5: { icon: 'ðŸŒ', name: 'Globetrotter', description: 'Surfed in 5 countries' },
-  streak_7: { icon: 'ðŸ”¥', name: 'On Fire', description: '7-day check-in streak' },
-  dawn_patrol: { icon: 'ðŸŒ…', name: 'Dawn Patrol', description: 'Check-in before 7am' },
-  storm_chaser: { icon: 'â›ˆï¸', name: 'Storm Chaser', description: 'Surfed during large swell' },
+  first_checkin: { icon: String.fromCodePoint(0x1F30A), name: 'First Wave', description: 'Your first check-in!' },
+  explorer_10: { icon: String.fromCodePoint(0x1F9ED), name: 'Explorer', description: 'Visited 10 unique spots' },
+  globetrotter_5: { icon: String.fromCodePoint(0x1F30D), name: 'Globetrotter', description: 'Surfed in 5 countries' },
+  streak_7: { icon: String.fromCodePoint(0x1F525), name: 'On Fire', description: '7-day check-in streak' },
+  dawn_patrol: { icon: String.fromCodePoint(0x1F305), name: 'Dawn Patrol', description: 'Check-in before 7am' },
+  storm_chaser: { icon: String.fromCodePoint(0x26C8, 0xFE0F), name: 'Storm Chaser', description: 'Surfed during large swell' },
 };
+
 
 // Level names
 const LEVEL_NAMES = [
@@ -387,7 +388,7 @@ export const SurfPassport = ({ isOpen, onClose }) => {
                         className={`${cardBgClass} px-3 py-2 rounded-lg flex items-center gap-2`}
                         title={BADGE_INFO[badge]?.description}
                       >
-                        <span className="text-xl">{BADGE_INFO[badge]?.icon || 'ðŸ¤™'}</span>
+                        <span className="text-xl">{BADGE_INFO[badge]?.icon || String.fromCodePoint(0x1F919)}</span>
                         <span className={`text-sm ${textClass}`}>{BADGE_INFO[badge]?.name || badge}</span>
                       </div>
                     ))}
@@ -413,7 +414,7 @@ export const SurfPassport = ({ isOpen, onClose }) => {
                         }}
                       >
                         <div className="w-12 h-12 rounded-full bg-gradient-to-br from-emerald-400/30 to-yellow-400/30 flex items-center justify-center flex-shrink-0">
-                          <span className="text-2xl">??</span>
+                          <span className="text-2xl">{String.fromCodePoint(0x1F3D6)}</span>
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className={`text-sm font-medium ${textClass} truncate`}>{spot.spot_name}</p>

@@ -124,7 +124,7 @@ const useMapActions = ({
         html: `
           <div class="relative">
             <div class="w-10 h-10 rounded-full bg-gradient-to-r from-yellow-400 to-orange-500 flex items-center justify-center shadow-lg ring-4 ring-yellow-400/30">
-              <span class="text-xl">??</span>
+          <span class="text-xl">${String.fromCodePoint(0x1F30A)}</span>
             </div>
             <div class="absolute -bottom-3 left-1/2 -translate-x-1/2 px-2 py-0.5 bg-yellow-500 rounded-full text-[10px] text-black font-bold">
               YOU
