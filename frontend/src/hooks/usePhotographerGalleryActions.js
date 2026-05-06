@@ -546,6 +546,7 @@ const usePhotographerGalleryActions = ({
     handleBulkDelete,
     handleSetCustomPrice,
     openItemPricing,
+    filteredItems,
   };
 };
 

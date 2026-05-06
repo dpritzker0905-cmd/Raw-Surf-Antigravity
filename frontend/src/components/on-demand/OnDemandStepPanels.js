@@ -1,23 +1,47 @@
-﻿/**
+/**
  * OnDemandStepPanels.js — Extracted from OnDemandRequestDrawer.js
  * Crew and Crew Payment step panels (~466 lines).
  */
 import React from 'react';
-import { Users, UserPlus, Search, ChevronDown, ChevronUp, X, Loader2, Check, AlertCircle, CreditCard, Coins, DollarSign, Crown, ArrowRight, Mail, Phone, Percent, Gift } from 'lucide-react';
-import { Button } from './ui/button';
-import { Input } from './ui/input';
-import { getFullUrl } from '../utils/media';
-import { formatDuration } from '../utils/formatTime';
+import { Users, UserPlus, Search, ChevronDown, ChevronUp, X, Loader2, Check, AlertCircle, CreditCard, Coins, DollarSign, Crown, ArrowRight, Mail, Phone, Percent, Gift, MapPin, Plus, ChevronRight, Award, Wallet, Calculator } from 'lucide-react';
+import { Button } from '../ui/button';
+import { Input } from '../ui/input';
+import { Badge } from '../ui/badge';
+import { getFullUrl } from '../../utils/media';
+import { formatDuration } from '../../utils/formatTime';
+import SurfboardAvatar from './SurfboardAvatar';
+import { QualityTierBadge } from '../gallery/PriceSourceBadge';
 
-export const CrewStepPanel = ({
-  crewMembers, maxCrew, showCrewHelp, isKeyboardOpen,
-  crewSearchQuery, crewSearchResults, crewSearchLoading,
-  showManualEntry, manualCrewName, manualCrewEmail, manualCrewPhone,
-  handleRemoveCrewMember, handleCrewSearch, handleAddCrewMember,
-  addManualCrewMember, setShowCrewHelp, setShowManualEntry,
-  setCrewSearchQuery, setManualCrewName, setManualCrewEmail, setManualCrewPhone,
-  getFullUrl: getFullUrlFn,
-}) => {
+// Surfboard colors for crew visualization
+const SURFBOARD_COLORS = [
+  { fill: '#06b6d4', stroke: '#0891b2' },
+  { fill: '#f97316', stroke: '#ea580c' },
+  { fill: '#a855f7', stroke: '#9333ea' },
+  { fill: '#22c55e', stroke: '#16a34a' },
+  { fill: '#f43f5e', stroke: '#e11d48' },
+  { fill: '#eab308', stroke: '#ca8a04' },
+  { fill: '#3b82f6', stroke: '#2563eb' },
+];
+
+// EmptySeat placeholder for unfilled crew slots
+const EmptySeat = ({ onClick, isLight }) => (
+  <button onClick={onClick} className='relative flex flex-col items-center opacity-50 hover:opacity-80 transition-opacity' aria-label="Add crew member">
+    <div className='w-10 h-20 rounded-full border-2 border-dashed border-border/40 flex items-center justify-center'>
+      <Plus className='w-4 h-4 text-muted-foreground' />
+    </div>
+    <span className='text-[10px] text-muted-foreground mt-1'>Invite</span>
+  </button>
+);
+
+export const CrewStepPanel = ({ booking, crewMembers, handleRemoveCrewMember, handleAddCrewMember, getFullUrl: getFullUrlFn }) => {
+  const {
+    step, setStep, isLight, textPrimary, textSecondary,
+    user, recentBuddies, following, showAddCrewInput, setShowAddCrewInput,
+    newCrewInput, setNewCrewInput, friendSearchResults, setFriendSearchResults,
+    searchingFriends, handleSelectFriend, maxCrew,
+    totalParticipants, requestDuration, baseSessionPrice, crewAdditionalCost,
+    totalPrice, perSurferFee, perPersonSplit,
+  } = booking || {};
   return (
     <>
         {step === 'crew' && (
@@ -263,12 +287,13 @@ export const CrewStepPanel = ({
   );
 };
 
-export const CrewPaymentStepPanel = ({
-  crewMembers, splitConfig, crewPriceBreakdown,
-  handleCrewPaymentToggle, handleSplitRatioChange,
-  handleSplitPercentageChange, handleCoverForCrewMember,
-  getFullUrl: getFullUrlFn,
-}) => {
+export const CrewPaymentStepPanel = ({ booking, crewMembers, getFullUrl: getFullUrlFn }) => {
+  const {
+    step, setStep, isLight, textPrimary, textSecondary,
+    totalPrice, captainPayAmount, crewCoversAmount, totalParticipants, perPersonSplit,
+    handleDistributeEvenly, handleCoverAllCrew, handleCrewPercentageChange, handleToggleCoverMember,
+    localCredits, paymentMethod, setPaymentMethod,
+  } = booking || {};
   return (
     <>
         {step === 'crew_payment' && crewMembers.length > 0 && (

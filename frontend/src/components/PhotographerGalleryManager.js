@@ -75,7 +75,7 @@ export const PhotographerGalleryManager = () => {
   const [filterType, setFilterType] = useState('all');
   const [sortBy, setSortBy] = useState('newest');
   const [selectedItems, setSelectedItems] = useState(new Set());
-  const [setBulkMode] = useState(false);
+  const [bulkMode, setBulkMode] = useState(false);
   const [itemCustomPrice, setItemCustomPrice] = useState('');
   const [lightboxItem, setLightboxItem] = useState(null); // Phase 2: Lightbox
   
@@ -170,6 +170,7 @@ export const PhotographerGalleryManager = () => {
     handleBulkDelete,
     handleSetCustomPrice,
     openItemPricing,
+    filteredItems,
   } = usePhotographerGalleryActions({
     user, gallery, selectedItems, editData, navigate, galleryId, setAiTagSuggestions,
     setAnalyzingPhoto,

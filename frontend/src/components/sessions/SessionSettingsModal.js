@@ -19,7 +19,7 @@ const SessionSettingsModal = ({
   borderClass, inputBgClass
 }) => {
   return (
-      <Dialog open={showSettingsModal} onOpenChange={setShowSettingsModal}>
+      <Dialog open={isOpen} onOpenChange={(open) => { if (!open) onClose(); }}>
         <DialogContent className={`${isLight ? 'bg-white' : 'bg-zinc-900'} border ${borderClass}`}>
           <DialogHeader className="border-b border-inherit">
             <DialogTitle className={`${textPrimaryClass} flex items-center gap-2`}>
@@ -615,7 +615,7 @@ const SessionSettingsModal = ({
             </div>
           </div>
           <DialogFooter className="flex gap-2">
-            <Button variant="outline" onClick={() => setShowSettingsModal(false)}>
+            <Button variant="outline" onClick={onClose}>
               Cancel
             </Button>
             <Button aria-label="Confirm"

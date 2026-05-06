@@ -18,7 +18,7 @@ import { formatDuration } from '../../utils/formatTime';
 const getImageUrl = (url) => {
   if (!url) return null;
   if (url.startsWith('/api')) {
-    return ```;
+    return url;
   }
   return url;
 };

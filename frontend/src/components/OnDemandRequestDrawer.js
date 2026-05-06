@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { useAuth } from '../contexts/AuthContext';
@@ -28,6 +28,7 @@ import { getFullUrl } from '../utils/media';
 import { ROLES } from '../constants/roles';
 import useHapticFeedback from '../hooks/useHapticFeedback';
 import SurfboardAvatar from './on-demand/SurfboardAvatar';
+import { CrewStepPanel, CrewPaymentStepPanel } from './on-demand/OnDemandStepPanels';
 
 // EmptySeat - placeholder for unfilled crew slots
 const EmptySeat = ({ index }) => (
@@ -65,7 +66,7 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
     selectedSpot, setSelectedSpot, customLocationName, setCustomLocationName,
     customLocationAddress, setCustomLocationAddress, nearbySpots, loadingSpots,
     spotSearchQuery, setSpotSearchQuery, useCustomLocation, setUseCustomLocation,
-    recentSpots, customLocationCoords, geocodingAddress,
+    recentSpots, customLocationCoords, setCustomLocationCoords, geocodingAddress,
     scrollContainerRef, keyboardOpen,
     isLight, textPrimary, textSecondary, bgCard,
     hourlyRate, photosIncluded, perSurferFee,
@@ -77,7 +78,14 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
     handleAddCrewMember, handleSelectFriend, handleRemoveCrewMember,
     handleCrewPercentageChange, handleToggleCoverMember,
     handleDistributeEvenly, handleCoverAllCrew,
-    handleSubmitRequest, saveRecentSpot,
+    handleSubmitRequest, saveRecentSpot, setCrewMembers,
+    setFriendSearchResults,
+    maxCrew, showCrewHelp, isKeyboardOpen, crewSearchQuery, crewSearchResults,
+    crewSearchLoading, showManualEntry, manualCrewName, manualCrewEmail, manualCrewPhone,
+    handleCrewSearch, addManualCrewMember, setShowCrewHelp, setShowManualEntry,
+    setCrewSearchQuery, setManualCrewName, setManualCrewEmail, setManualCrewPhone,
+    splitConfig, crewPriceBreakdown, handleCrewPaymentToggle, handleSplitRatioChange,
+    handleSplitPercentageChange, handleCoverForCrewMember,
     user, navigate,
   } = booking;
 
@@ -670,37 +678,15 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
         
         {/* ============ STEP 2: CREW SELECTION ============ */}
               <CrewStepPanel
+                booking={booking}
                 crewMembers={crewMembers}
-                maxCrew={maxCrew}
-                showCrewHelp={showCrewHelp}
-                isKeyboardOpen={isKeyboardOpen}
-                crewSearchQuery={crewSearchQuery}
-                crewSearchResults={crewSearchResults}
-                crewSearchLoading={crewSearchLoading}
-                showManualEntry={showManualEntry}
-                manualCrewName={manualCrewName}
-                manualCrewEmail={manualCrewEmail}
-                manualCrewPhone={manualCrewPhone}
                 handleRemoveCrewMember={handleRemoveCrewMember}
-                handleCrewSearch={handleCrewSearch}
                 handleAddCrewMember={handleAddCrewMember}
-                addManualCrewMember={addManualCrewMember}
-                setShowCrewHelp={setShowCrewHelp}
-                setShowManualEntry={setShowManualEntry}
-                setCrewSearchQuery={setCrewSearchQuery}
-                setManualCrewName={setManualCrewName}
-                setManualCrewEmail={setManualCrewEmail}
-                setManualCrewPhone={setManualCrewPhone}
                 getFullUrl={getFullUrl}
               />
               <CrewPaymentStepPanel
+                booking={booking}
                 crewMembers={crewMembers}
-                splitConfig={splitConfig}
-                crewPriceBreakdown={crewPriceBreakdown}
-                handleCrewPaymentToggle={handleCrewPaymentToggle}
-                handleSplitRatioChange={handleSplitRatioChange}
-                handleSplitPercentageChange={handleSplitPercentageChange}
-                handleCoverForCrewMember={handleCoverForCrewMember}
                 getFullUrl={getFullUrl}
               />
         {step === 'confirm' && (

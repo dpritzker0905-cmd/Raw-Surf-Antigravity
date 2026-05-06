@@ -17,7 +17,7 @@ const GoLiveLocationModal = ({
   isLight, textPrimaryClass, textSecondaryClass, borderClass, inputBgClass
 }) => {
   return (
-      <Dialog open={showGoLiveModal} onOpenChange={setShowGoLiveModal}>
+      <Dialog open={isOpen} onOpenChange={(open) => { if (!open) onClose(); }}>
         <DialogContent className={`${isLight ? 'bg-white' : 'bg-zinc-900'} border ${borderClass}`}>
           <DialogHeader className="border-b border-inherit">
             <DialogTitle className={`${textPrimaryClass} flex items-center gap-2`}>
@@ -414,7 +414,7 @@ const GoLiveLocationModal = ({
             </div>
           </div>
           <DialogFooter className="flex gap-2">
-            <Button variant="outline" onClick={() => setShowGoLiveModal(false)}>
+            <Button variant="outline" onClick={onClose}>
               Cancel
             </Button>
             <Button aria-label="Play"

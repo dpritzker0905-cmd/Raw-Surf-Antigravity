@@ -10,7 +10,7 @@ export const SessionPricingModal = ({
   isLight, textPrimaryClass, textSecondaryClass, borderClass, inputBgClass
 }) => {
   return (
-      <Dialog open={showPricingModal} onOpenChange={setShowPricingModal}>
+      <Dialog open={isOpen} onOpenChange={(open) => { if (!open) onClose(); }}>
         <DialogContent className={`${isLight ? 'bg-white' : 'bg-zinc-900'} border ${borderClass}`}>
           <DialogHeader>
             <DialogTitle className={textPrimaryClass}>Live Session Pricing</DialogTitle>
@@ -63,7 +63,7 @@ export const SessionPricingModal = ({
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowPricingModal(false)}>
+            <Button variant="outline" onClick={onClose}>
               Cancel
             </Button>
             <Button
@@ -83,7 +83,7 @@ export const GalleryCreatedModal = ({
   isLight, textPrimaryClass, textSecondaryClass, borderClass
 }) => {
   return (
-      <Dialog open={showGalleryCreatedModal} onOpenChange={setShowGalleryCreatedModal}>
+      <Dialog open={isOpen} onOpenChange={(open) => { if (!open) onClose(); }}>
         <DialogContent className={`${isLight ? 'bg-white' : 'bg-zinc-900'} border ${borderClass}`}>
           <DialogHeader>
             <DialogTitle className={`${textPrimaryClass} flex items-center gap-2`}>
@@ -124,12 +124,12 @@ export const GalleryCreatedModal = ({
             </p>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowGalleryCreatedModal(false)}>
+            <Button variant="outline" onClick={onClose}>
               Close
             </Button>
             <Button aria-label="Image Icon"
               onClick={() => {
-                setShowGalleryCreatedModal(false);
+                onClose();
                 navigate(`/photographer/galleries/${lastCreatedGallery?.id}`);
               }}
               className="bg-gradient-to-r from-cyan-400 to-blue-500 text-black"
