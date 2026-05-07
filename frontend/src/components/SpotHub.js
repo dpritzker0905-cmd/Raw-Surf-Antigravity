@@ -5,10 +5,14 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { 
 
   MapPin, Waves, Camera, Clock, Users, X, TrendingUp, Loader2, Radio, Calendar, MessageCircle, Compass,
-  Sun, Lock, Crown, Eye, Heart, ChevronLeft, Flag,
-  Navigation, AlertCircle, Zap, ChevronRight,
-  Bell, Star, Wind, CloudRain, Brain, Timer, BookOpen, ArrowRight
+  Sun, Lock, Crown, ChevronLeft,
+  Navigation, AlertCircle, Zap,
+  Bell
 } from 'lucide-react';
+
+import SpotHubConditionsTab from './spot-hub/SpotHubConditionsTab';
+import SpotHubIntelTab from './spot-hub/SpotHubIntelTab';
+import SpotHubMediaTab from './spot-hub/SpotHubMediaTab';
 import { Button } from './ui/button';
 
 import { Badge } from './ui/badge';
@@ -81,33 +85,7 @@ const ForecastDayCard = ({ day, _dayIndex, isLocked = false }) => {
   );
 };
 
-// Media grid item
-const MediaItem = ({ item, onClick }) => (
-  <div 
-    onClick={onClick}
-    className="relative aspect-square bg-zinc-800 rounded-lg overflow-hidden cursor-pointer group"
-  >
-    <img loading="lazy" decoding="async" 
-      src={getFullUrl(item.thumbnail_url || item.media_url || item.image_url)} 
-      alt="" 
-      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-      onError={(e) => {
-        // Replace broken images with a gradient placeholder
-        e.target.style.display = 'none';
-        e.target.parentElement.classList.add('bg-gradient-to-br', 'from-zinc-700', 'to-zinc-900');
-      }}
-    />
-    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-      <Eye className="w-5 h-5 text-white" />
-    </div>
-    {item.likes_count > 0 && (
-      <div className="absolute bottom-1 left-1 flex items-center gap-0.5 text-white text-[10px] bg-black/50 px-1 py-0.5 rounded">
-        <Heart className="w-2.5 h-2.5 fill-current" />
-        {item.likes_count}
-      </div>
-    )}
-  </div>
-);
+// MediaItem moved to spot-hub/SpotHubMediaTab.js
 
 import BookingTypeModal from './spot-hub/BookingTypeModal';
 import PhotographerRequestModal from './spot-hub/PhotographerRequestModal';
@@ -729,377 +707,38 @@ const SpotHub = () => {
       <div className="px-4 py-3">
         {/* Condition Reports Tab */}
         {activeTab === 'conditions' && (
-          <div className="space-y-3">
-            {/* Photographer Condition Reports (with media) */}
-            {conditionReports.length > 0 && (
-              <div className="space-y-2">
-                <p className={`text-[10px] font-medium ${textSecondary} uppercase tracking-wider flex items-center gap-1`}>
-                  <Camera className="w-3 h-3 text-cyan-400" />
-                  Live Condition Reports
-                </p>
-                {conditionReports.map((report) => (
-                  <div key={report.id} className={`p-2.5 rounded-lg border ${isLight ? 'bg-gray-50 border-gray-200' : 'bg-zinc-900/50 border-zinc-800'}`}>
-                    <div className="flex items-center gap-2">
-                      <Avatar className="w-8 h-8 ring-2 ring-cyan-500">
-                        <AvatarImage src={getFullUrl(report.photographer_avatar)} />
-                        <AvatarFallback className="text-xs">{report.photographer_name?.[0]}</AvatarFallback>
-                      </Avatar>
-                      <div className="flex-1 min-w-0">
-                        <p className={`text-sm font-medium truncate ${textPrimary}`}>{report.photographer_name}</p>
-                        <p className={`text-[10px] ${textSecondary}`}>{report.time_ago}</p>
-                      </div>
-                      {report.conditions_label && (
-                        <Badge className={`text-[10px] ${conditionColors[report.conditions_label]?.bg || 'bg-gray-500'}`}>
-                          {report.conditions_label}
-                        </Badge>
-                      )}
-                      <button aria-label="Report"
-                        onClick={(e) => { e.stopPropagation(); handleReportConditionReport(report.id); }}
-                        className={`p-1.5 rounded-full transition-colors ${isLight ? 'hover:bg-red-50 text-gray-400 hover:text-red-500' : 'hover:bg-red-500/10 text-gray-600 hover:text-red-400'}`}
-                        title="Report this content"
-                        data-testid={`report-cr-${report.id}`}
-                      >
-                        <Flag className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                    {/* Captured timestamp - exact time the media was shot */}
-                    <p className={`text-xs mt-1.5 ${textSecondary}`}>
-                      Captured {new Date(report.created_at).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })} at {new Date(report.created_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true })} - {report.spot_name || spot?.name || 'Unknown Spot'}
-                    </p>
-                    <div className="flex items-center gap-3 mt-1.5">
-                      {report.wave_height_ft && (
-                        <span className="text-xs flex items-center gap-1">
-                          <Waves className="w-3 h-3 text-cyan-400" />
-                          <span className={textPrimary}>{report.wave_height_ft}ft</span>
-                        </span>
-                      )}
-                      {report.wind_conditions && (
-                        <span className="text-xs flex items-center gap-1">
-                          <Wind className="w-3 h-3 text-emerald-400" />
-                          <span className={textPrimary}>{report.wind_conditions}</span>
-                        </span>
-                      )}
-                      {report.crowd_level && (
-                        <span className="text-xs flex items-center gap-1">
-                          <Users className="w-3 h-3 text-purple-400" />
-                          <span className={textPrimary}>{report.crowd_level}</span>
-                        </span>
-                      )}
-                    </div>
-                    {(() => {
-                      // Get the best available image URL, filtering out broken local paths
-                      // For condition reports (free content), prefer media_url (unwatermarked original)
-                      // over thumbnail_url (which may be a watermarked preview)
-                      const candidateUrls = [
-                        report.media_url,
-                        report.thumbnail_url
-                      ].filter(url => url && url.trim() && !url.startsWith('/api/uploads/'));
-                      const primaryUrl = candidateUrls[0];
-                      const fallbackUrl = candidateUrls[1];
-                      
-                      if (!primaryUrl) return null;
-                      
-                      return (
-                        <img loading="lazy" decoding="async" 
-                          src={getFullUrl(primaryUrl)} 
-                          alt="" 
-                          className="mt-2 w-full h-56 object-cover rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
-                          onClick={() => setLightboxUrl(getFullUrl(primaryUrl))}
-                          onError={(e) => {
-                            // Try fallback URL before hiding
-                            if (fallbackUrl && e.target.src !== getFullUrl(fallbackUrl)) {
-                              e.target.src = getFullUrl(fallbackUrl);
-                            } else {
-                              e.target.style.display = 'none';
-                            }
-                          }}
-                        />
-                      );
-                    })()}
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* Surf Reports (user-submitted wave data from spot-details) */}
-            {surfReports.length > 0 && (
-              <div className="space-y-2">
-                <p className={`text-[10px] font-medium ${textSecondary} uppercase tracking-wider flex items-center gap-1`}>
-                  <CloudRain className="w-3 h-3 text-emerald-400" />
-                  Community Surf Reports
-                </p>
-                {surfReports.map((report) => (
-                  <div key={report.id} className={`p-2.5 rounded-lg border ${isLight ? 'bg-gray-50 border-gray-200' : 'bg-zinc-900/50 border-zinc-800'}`}>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        {report.conditions && (
-                          <Badge className={`text-[10px] ${conditionColors[report.conditions]?.bg || 'bg-emerald-500'}`}>
-                            {report.conditions}
-                          </Badge>
-                        )}
-                        {report.wave_height && (
-                          <Badge variant="outline" className="text-[10px] text-cyan-400 border-cyan-400/30">
-                            <Waves className="w-2.5 h-2.5 mr-0.5" />
-                            {report.wave_height}
-                          </Badge>
-                        )}
-                        {report.crowd_level && (
-                          <Badge variant="outline" className="text-[10px] text-purple-400 border-purple-400/30">
-                            <Users className="w-2.5 h-2.5 mr-0.5" />
-                            {report.crowd_level}
-                          </Badge>
-                        )}
-                        {report.wind_direction && (
-                          <Badge variant="outline" className="text-[10px] text-emerald-400 border-emerald-400/30">
-                            <Wind className="w-2.5 h-2.5 mr-0.5" />
-                            {report.wind_direction}
-                          </Badge>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-1">
-                        {report.rating && (
-                          <div className="flex items-center gap-0.5 text-yellow-400">
-                            <Star className="w-3 h-3 fill-current" />
-                            <span className="text-xs font-bold">{report.rating}</span>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                    {report.notes && (
-                      <p className={`text-xs mt-1.5 ${textSecondary}`}>{report.notes}</p>
-                    )}
-                    {report.created_at && (
-                      <p className={`text-[10px] mt-1 ${textSecondary}`}>
-                        {new Date(report.created_at).toLocaleDateString('en-US', { 
-                          month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' 
-                        })}
-                      </p>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* Empty state - only show if BOTH are empty */}
-            {conditionReports.length === 0 && surfReports.length === 0 && (
-              <div className="text-center py-8 text-gray-400">
-                <MessageCircle className="w-10 h-10 mx-auto mb-2 opacity-30" />
-                <p className="text-sm">No condition reports yet</p>
-                <p className="text-xs">Photographers will post when they start shooting</p>
-              </div>
-            )}
-          </div>
+          <SpotHubConditionsTab
+            conditionReports={conditionReports}
+            surfReports={surfReports}
+            spot={spot}
+            isLight={isLight}
+            textPrimary={textPrimary}
+            textSecondary={textSecondary}
+            onReportConditionReport={handleReportConditionReport}
+            onLightboxOpen={(url) => setLightboxUrl(url)}
+          />
         )}
 
         {/* Photographer Tagged Posts Tab */}
         {activeTab === 'pro' && (
-          <div>
-            {photographerPosts.length > 0 ? (
-              <>
-                <p className="text-[10px] text-gray-500 mb-2">
-                  Photos/videos tagged to this spot by photographers
-                </p>
-                <div className="grid grid-cols-3 gap-1.5">
-                  {photographerPosts.map((post) => (
-                    <MediaItem 
-                      key={post.id} 
-                      item={post}
-                      onClick={() => navigate(`/post/${post.id}`)}
-                    />
-                  ))}
-                </div>
-              </>
-            ) : (
-              <div className="text-center py-8 text-gray-400">
-                <Camera className="w-10 h-10 mx-auto mb-2 opacity-30" />
-                <p className="text-sm">No pro photos tagged here</p>
-                <p className="text-xs">Photographers can tag their photos to this spot</p>
-              </div>
-            )}
-          </div>
+          <SpotHubMediaTab type="pro" posts={photographerPosts} navigate={navigate} />
         )}
 
         {/* User Tagged Posts Tab */}
         {activeTab === 'community' && (
-          <div>
-            {userPosts.length > 0 ? (
-              <>
-                <p className="text-[10px] text-gray-500 mb-2">
-                  Photos/videos tagged to this spot by surfers
-                </p>
-                <div className="grid grid-cols-3 gap-1.5">
-                  {userPosts.map((post) => (
-                    <MediaItem 
-                      key={post.id} 
-                      item={post}
-                      onClick={() => navigate(`/post/${post.id}`)}
-                    />
-                  ))}
-                </div>
-              </>
-            ) : (
-              <div className="text-center py-8 text-gray-400">
-                <Users className="w-10 h-10 mx-auto mb-2 opacity-30" />
-                <p className="text-sm">No community posts tagged here</p>
-                <p className="text-xs">Tag your photos to this spot to appear here</p>
-              </div>
-            )}
-          </div>
+          <SpotHubMediaTab type="community" posts={userPosts} navigate={navigate} />
         )}
 
-        {/* Intelligence Tab - Crowd Prediction + Optimal Time */}
+        {/* Intelligence Tab */}
         {activeTab === 'intel' && (
-          <div className="space-y-4">
-            {intelLoading ? (
-              <div className="flex items-center justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-cyan-400" /></div>
-            ) : (
-              <>
-                {/* Optimal Surf Time */}
-                {optimalTime && optimalTime.has_data && optimalTime.optimal && (
-                  <div className={`p-4 rounded-xl border ${isLight ? 'bg-gradient-to-br from-green-50 to-emerald-50 border-green-200' : 'bg-gradient-to-br from-green-500/10 to-emerald-500/10 border-green-500/30'}`}>
-                    <div className="flex items-center gap-2 mb-3">
-                      <Timer className="w-4 h-4 text-green-400" />
-                      <span className={`text-sm font-bold ${isLight ? 'text-gray-900' : 'text-white'}`}>Best Time to Surf</span>
-                      {optimalTime.confidence && (
-                        <Badge className={`text-[9px] px-1.5 py-0 ${optimalTime.confidence === 'high' ? 'bg-green-500/20 text-green-400' : optimalTime.confidence === 'moderate' ? 'bg-yellow-500/20 text-yellow-400' : 'bg-gray-500/20 text-gray-400'}`}>
-                          {optimalTime.confidence} confidence
-                        </Badge>
-                      )}
-                    </div>
-                    <div className="space-y-2">
-                      {optimalTime.optimal.best_day && (
-                        <div className="flex items-center gap-2">
-                          <Calendar className="w-3.5 h-3.5 text-green-400" />
-                          <span className={`text-sm ${isLight ? 'text-gray-700' : 'text-gray-300'}`}>Best day:</span>
-                          <span className={`text-sm font-bold ${isLight ? 'text-green-700' : 'text-green-400'}`}>{optimalTime.optimal.best_day}</span>
-                          {optimalTime.optimal.best_day_avg_score && (
-                            <span className="text-[10px] text-gray-500">({optimalTime.optimal.best_day_avg_score}/10)</span>
-                          )}
-                        </div>
-                      )}
-                      {optimalTime.optimal.best_time_window && (
-                        <div className="flex items-center gap-2">
-                          <Clock className="w-3.5 h-3.5 text-green-400" />
-                          <span className={`text-sm ${isLight ? 'text-gray-700' : 'text-gray-300'}`}>Best window:</span>
-                          <span className={`text-sm font-bold ${isLight ? 'text-green-700' : 'text-green-400'} capitalize`}>{optimalTime.optimal.best_time_window.replace('_', ' ')}</span>
-                          {optimalTime.optimal.best_window_avg_score && (
-                            <span className="text-[10px] text-gray-500">({optimalTime.optimal.best_window_avg_score}/10)</span>
-                          )}
-                        </div>
-                      )}
-                      {optimalTime.optimal.preferred_tide && (
-                        <div className="flex items-center gap-2">
-                          <Waves className="w-3.5 h-3.5 text-blue-400" />
-                          <span className={`text-sm ${isLight ? 'text-gray-700' : 'text-gray-300'}`}>Preferred tide:</span>
-                          <span className={`text-sm font-medium ${isLight ? 'text-blue-700' : 'text-blue-400'}`}>{optimalTime.optimal.preferred_tide}</span>
-                        </div>
-                      )}
-                      {optimalTime.optimal.preferred_wind && (
-                        <div className="flex items-center gap-2">
-                          <Wind className="w-3.5 h-3.5 text-cyan-400" />
-                          <span className={`text-sm ${isLight ? 'text-gray-700' : 'text-gray-300'}`}>Preferred wind:</span>
-                          <span className={`text-sm font-medium ${isLight ? 'text-cyan-700' : 'text-cyan-400'}`}>{optimalTime.optimal.preferred_wind}</span>
-                        </div>
-                      )}
-                    </div>
-                    <p className={`text-[10px] mt-3 ${isLight ? 'text-gray-400' : 'text-gray-500'}`}>Based on {optimalTime.data_points} logged sessions</p>
-                  </div>
-                )}
-
-                {/* Optimal Time - No Data State */}
-                {optimalTime && !optimalTime.has_data && (
-                  <div className={`p-4 rounded-xl border ${isLight ? 'bg-gray-50 border-gray-200' : 'bg-zinc-800/40 border-zinc-700'}`}>
-                    <div className="flex items-center gap-2 mb-2">
-                      <Timer className="w-4 h-4 text-gray-400" />
-                      <span className={`text-sm font-bold ${isLight ? 'text-gray-900' : 'text-white'}`}>Best Time to Surf</span>
-                    </div>
-                    <p className={`text-xs ${isLight ? 'text-gray-500' : 'text-gray-400'}`}>{optimalTime.message || 'Not enough data yet. Log sessions at this spot to unlock insights.'}</p>
-                  </div>
-                )}
-
-                {/* Crowd Prediction - Current Level */}
-                {crowdPrediction && crowdPrediction.current_prediction && (
-                  <div className={`p-4 rounded-xl border ${isLight ? 'bg-white border-gray-200' : 'bg-zinc-800/60 border-zinc-700'}`}>
-                    <div className="flex items-center gap-2 mb-3">
-                      <Users className="w-4 h-4 text-orange-400" />
-                      <span className={`text-sm font-bold ${isLight ? 'text-gray-900' : 'text-white'}`}>Crowd Forecast</span>
-                    </div>
-                    {/* Current level */}
-                    <div className="flex items-center gap-3 mb-3">
-                      <span className={`text-xs ${isLight ? 'text-gray-600' : 'text-gray-400'}`}>Right now:</span>
-                      <span className={`text-sm font-bold capitalize ${
-                        {'low':'text-green-400','moderate':'text-yellow-400','high':'text-orange-400','packed':'text-red-400'}[crowdPrediction.current_prediction.level] || 'text-gray-400'
-                      }`}>{crowdPrediction.current_prediction.level}</span>
-                    </div>
-                    {/* Today summary */}
-                    {crowdPrediction.today_summary && (
-                      <div className="space-y-1.5">
-                        {crowdPrediction.today_summary.peak_hour != null && (
-                          <div className="flex items-center gap-2">
-                            <TrendingUp className="w-3 h-3 text-red-400" />
-                            <span className={`text-xs ${isLight ? 'text-gray-600' : 'text-gray-400'}`}>Peak:</span>
-                            <span className={`text-xs font-medium ${isLight ? 'text-gray-900' : 'text-white'}`}>
-                              {crowdPrediction.today_summary.peak_hour > 12 ? `${crowdPrediction.today_summary.peak_hour - 12}pm` : crowdPrediction.today_summary.peak_hour === 0 ? '12am' : `${crowdPrediction.today_summary.peak_hour}am`}
-                            </span>
-                            <span className={`text-[10px] capitalize ${isLight ? 'text-gray-500' : 'text-gray-500'}`}>({crowdPrediction.today_summary.peak_level})</span>
-                          </div>
-                        )}
-                        {crowdPrediction.today_summary.quiet_hour != null && (
-                          <div className="flex items-center gap-2">
-                            <Compass className="w-3 h-3 text-green-400" />
-                            <span className={`text-xs ${isLight ? 'text-gray-600' : 'text-gray-400'}`}>Quietest:</span>
-                            <span className={`text-xs font-medium ${isLight ? 'text-gray-900' : 'text-white'}`}>
-                              {crowdPrediction.today_summary.quiet_hour > 12 ? `${crowdPrediction.today_summary.quiet_hour - 12}pm` : crowdPrediction.today_summary.quiet_hour === 0 ? '12am' : `${crowdPrediction.today_summary.quiet_hour}am`}
-                            </span>
-                            <span className={`text-[10px] capitalize ${isLight ? 'text-gray-500' : 'text-gray-500'}`}>({crowdPrediction.today_summary.quiet_level})</span>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                    <p className={`text-[10px] mt-3 ${isLight ? 'text-gray-400' : 'text-gray-500'}`}>Based on {crowdPrediction.data_points || 0} historical data points</p>
-                  </div>
-                )}
-
-                {/* No intel data at all */}
-                {!crowdPrediction && !optimalTime && (
-                  <div className="text-center py-8 text-gray-400">
-                    <Brain className="w-10 h-10 mx-auto mb-2 opacity-30" />
-                    <p className="text-sm">Intelligence data unavailable</p>
-                    <p className="text-xs">Check back when more data is available for this spot</p>
-                  </div>
-                )}
-
-                {/* Surf Log CTA - Help build accurate intel */}
-                <div 
-                  className={`p-3.5 rounded-xl border cursor-pointer group transition-all ${
-                    isLight 
-                      ? 'bg-gradient-to-r from-cyan-50 to-blue-50 border-cyan-200 hover:border-cyan-400' 
-                      : 'bg-gradient-to-r from-cyan-500/5 to-blue-500/5 border-cyan-500/20 hover:border-cyan-500/40'
-                  }`}
-                  onClick={() => navigate('/surf-log')}
-                >
-                  <div className="flex items-center gap-3">
-                    <div className={`w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 ${
-                      isLight ? 'bg-cyan-100' : 'bg-cyan-500/15'
-                    }`}>
-                      <BookOpen className="w-4.5 h-4.5 text-cyan-500" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className={`text-sm font-semibold ${isLight ? 'text-gray-900' : 'text-white'}`}>
-                        Help improve this data
-                      </p>
-                      <p className={`text-[11px] leading-tight ${isLight ? 'text-gray-500' : 'text-gray-400'}`}>
-                        Log your sessions at {spot?.name || 'this spot'} to make crowd & conditions intel more accurate
-                      </p>
-                    </div>
-                    <ArrowRight className={`w-4 h-4 flex-shrink-0 transition-transform group-hover:translate-x-0.5 ${
-                      isLight ? 'text-cyan-500' : 'text-cyan-400'
-                    }`} />
-                  </div>
-                </div>
-              </>
-            )}
-          </div>
+          <SpotHubIntelTab
+            intelLoading={intelLoading}
+            crowdPrediction={crowdPrediction}
+            optimalTime={optimalTime}
+            spot={spot}
+            isLight={isLight}
+            navigate={navigate}
+          />
         )}
       </div>
 

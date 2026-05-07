@@ -1,4 +1,9 @@
 /**
+ * @deprecated v70 — ALL functions here are dead code.
+ * Superseded by: markerManager.js, onDemandMarkers.js, friendMarkers.js.
+ * Safe to delete in v71+.
+ *
+ * Original: Marker Icon Factory
  * Marker Icon Factory
  * Creates Leaflet DivIcon markers for the map
  * Extracted from MapPage.js for better organization
