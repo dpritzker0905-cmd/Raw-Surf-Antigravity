@@ -1,73 +1,36 @@
 import React, { useState, useEffect } from 'react';
-
 import { useAuth } from '../../contexts/AuthContext';
-
 import { useTheme } from '../../contexts/ThemeContext';
-
 import apiClient from '../../lib/apiClient';
-
-import { MessageSquare, FileText,
-
-  Loader2, RefreshCw, Flag, Scale, Wallet,
-  Send
-} from 'lucide-react';
+import { MessageSquare, FileText, Loader2, RefreshCw, Flag, Scale, Wallet, Send } from 'lucide-react';
 import { Card, CardContent } from '../ui/card';
-
 import { Button } from '../ui/button';
-
 import { Input } from '../ui/input';
-
 import { Textarea } from '../ui/textarea';
-
 import { Badge } from '../ui/badge';
-
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
-
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../ui/dialog';
-
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
-
 import { toast } from 'sonner';
 import { getFullUrl } from '../../utils/media';
 
-
-
-// Status badge component
-const StatusBadge = ({ status }) => {
-  const statusStyles = {
-    // Disputes
-    open: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
-    under_review: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
-    awaiting_response: 'bg-orange-500/20 text-orange-400 border-orange-500/30',
-    resolved_refund: 'bg-green-500/20 text-green-400 border-green-500/30',
-    resolved_no_action: 'bg-gray-500/20 text-muted-foreground border-gray-500/30',
-    resolved_partial: 'bg-teal-500/20 text-teal-400 border-teal-500/30',
-    escalated: 'bg-red-500/20 text-red-400 border-red-500/30',
-    closed: 'bg-zinc-500/20 text-zinc-400 border-zinc-500/30',
-    // Reports
-    pending: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
-    action_taken: 'bg-green-500/20 text-green-400 border-green-500/30',
-    no_violation: 'bg-gray-500/20 text-muted-foreground border-gray-500/30',
-    dismissed: 'bg-zinc-500/20 text-zinc-400 border-zinc-500/30',
-  };
-
-  return (
-    <Badge className={`text-xs ${statusStyles[status] || 'bg-zinc-500/20 text-zinc-400'}`}>
-      {status?.replace(/_/g, ' ')}
-    </Badge>
-  );
+const STATUS_STYLES = {
+  open: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
+  under_review: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
+  awaiting_response: 'bg-orange-500/20 text-orange-400 border-orange-500/30',
+  resolved_refund: 'bg-green-500/20 text-green-400 border-green-500/30',
+  resolved_no_action: 'bg-gray-500/20 text-muted-foreground border-gray-500/30',
+  resolved_partial: 'bg-teal-500/20 text-teal-400 border-teal-500/30',
+  escalated: 'bg-red-500/20 text-red-400 border-red-500/30',
+  closed: 'bg-zinc-500/20 text-zinc-400 border-zinc-500/30',
+  pending: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
+  action_taken: 'bg-green-500/20 text-green-400 border-green-500/30',
+  no_violation: 'bg-gray-500/20 text-muted-foreground border-gray-500/30',
+  dismissed: 'bg-zinc-500/20 text-zinc-400 border-zinc-500/30',
 };
-
-// Priority badge
-const PriorityBadge = ({ priority }) => {
-  const styles = {
-    low: 'bg-gray-500/20 text-muted-foreground',
-    normal: 'bg-blue-500/20 text-blue-400',
-    high: 'bg-orange-500/20 text-orange-400',
-    urgent: 'bg-red-500/20 text-red-400 animate-pulse',
-  };
-  return <Badge className={`text-xs ${styles[priority] || styles.normal}`}>{priority}</Badge>;
-};
+const PRIORITY_STYLES = { low: 'bg-gray-500/20 text-muted-foreground', normal: 'bg-blue-500/20 text-blue-400', high: 'bg-orange-500/20 text-orange-400', urgent: 'bg-red-500/20 text-red-400 animate-pulse' };
+const StatusBadge = ({ status }) => <Badge className={`text-xs ${STATUS_STYLES[status] || 'bg-zinc-500/20 text-zinc-400'}`}>{status?.replace(/_/g, ' ')}</Badge>;
+const PriorityBadge = ({ priority }) => <Badge className={`text-xs ${PRIORITY_STYLES[priority] || PRIORITY_STYLES.normal}`}>{priority}</Badge>;
 
 export const AdminModerationDashboard = () => {
   const { user } = useAuth();
@@ -75,30 +38,25 @@ export const AdminModerationDashboard = () => {
   const [activeSubTab, setActiveSubTab] = useState('disputes');
   const [loading, setLoading] = useState(true);
   
-  // Disputes state
   const [disputes, setDisputes] = useState([]);
   const [disputesTotal, setDisputesTotal] = useState(0);
   const [selectedDispute, setSelectedDispute] = useState(null);
   const [showDisputeDetail, setShowDisputeDetail] = useState(false);
   const [disputeFilter, setDisputeFilter] = useState({ status: '', type: '' });
   
-  // Reports state
   const [reports, setReports] = useState([]);
   const [pendingReportsCount, setPendingReportsCount] = useState(0);
   const [selectedReport, setSelectedReport] = useState(null);
   const [showReportReview, setShowReportReview] = useState(false);
   const [reportFilter, setReportFilter] = useState({ status: '', reason: '' });
   
-  // Payout Holds state
   const [payoutHolds, setPayoutHolds] = useState([]);
   const [totalHeldAmount, setTotalHeldAmount] = useState(0);
-  const [_showCreateHold, setShowCreateHold] = useState(false);
+  const [showCreateHold, setShowCreateHold] = useState(false);
   
-  // Audit Logs state
   const [auditLogs, setAuditLogs] = useState([]);
   const [auditFilter, setAuditFilter] = useState({ category: '' });
   
-  // Form states
   const [newMessage, setNewMessage] = useState('');
   const [reviewAction, setReviewAction] = useState('');
   const [adminNotes, setAdminNotes] = useState('');
@@ -110,7 +68,6 @@ export const AdminModerationDashboard = () => {
   const textClass = isLight ? 'text-gray-900' : 'text-foreground';
   const textSecondary = isLight ? 'text-gray-600' : 'text-muted-foreground';
 
-  // Fetch data based on active tab
   useEffect(() => {
     if (user?.id) {
       if (activeSubTab === 'disputes') fetchDisputes();
@@ -158,13 +115,8 @@ export const AdminModerationDashboard = () => {
     setLoading(true);
     try {
       const response = await apiClient.get(`/admin/payout-holds`);
-      setPayoutHolds(response.data.holds || []);
-      setTotalHeldAmount(response.data.total_held_amount || 0);
-    } catch (error) {
-      toast.error('Failed to load payout holds');
-    } finally {
-      setLoading(false);
-    }
+      setPayoutHolds(response.data.holds || []); setTotalHeldAmount(response.data.total_held_amount || 0);
+    } catch (error) { toast.error('Failed to load payout holds'); } finally { setLoading(false); }
   };
 
   const fetchAuditLogs = async () => {
@@ -185,11 +137,8 @@ export const AdminModerationDashboard = () => {
   const fetchDisputeDetail = async (disputeId) => {
     try {
       const response = await apiClient.get(`/admin/disputes/${disputeId}`);
-      setSelectedDispute(response.data);
-      setShowDisputeDetail(true);
-    } catch (error) {
-      toast.error('Failed to load dispute details');
-    }
+      setSelectedDispute(response.data); setShowDisputeDetail(true);
+    } catch (error) { toast.error('Failed to load dispute details'); }
   };
 
   const handleUpdateDispute = async (disputeId, updates) => {
@@ -253,31 +202,18 @@ export const AdminModerationDashboard = () => {
   const handleReleaseHold = async (holdId) => {
     setActionLoading(true);
     try {
-      await apiClient.post(`/admin/payout-holds/${holdId}/release`, {
-        release_notes: 'Admin released hold'
-      });
-      toast.success('Hold released');
-      fetchPayoutHolds();
-    } catch (error) {
-      toast.error('Failed to release hold');
-    } finally {
-      setActionLoading(false);
-    }
+      await apiClient.post(`/admin/payout-holds/${holdId}/release`, { release_notes: 'Admin released hold' });
+      toast.success('Hold released'); fetchPayoutHolds();
+    } catch (error) { toast.error('Failed to release hold'); } finally { setActionLoading(false); }
   };
 
   const formatDate = (dateStr) => {
     if (!dateStr) return '-';
-    return new Date(dateStr).toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
+    return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
   };
 
   return (
     <div className="space-y-4" data-testid="admin-moderation-dashboard">
-      {/* Sub-tabs */}
       <div className="flex gap-2 overflow-x-auto pb-2">
         {[
           { id: 'disputes', label: 'Disputes', icon: Scale, count: disputesTotal },
@@ -308,22 +244,15 @@ export const AdminModerationDashboard = () => {
         </div>
       ) : (
         <>
-          {/* DISPUTES TAB */}
           {activeSubTab === 'disputes' && (
             <div className="space-y-3">
-              {/* Filters */}
               <div className="flex gap-2 flex-wrap">
                 <Select value={disputeFilter.status || "all"} onValueChange={(v) => setDisputeFilter(f => ({ ...f, status: v === "all" ? "" : v }))}>
                   <SelectTrigger className="w-40 bg-muted border-border">
                     <SelectValue placeholder="Status" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All Status</SelectItem>
-                    <SelectItem value="open">Open</SelectItem>
-                    <SelectItem value="under_review">Under Review</SelectItem>
-                    <SelectItem value="escalated">Escalated</SelectItem>
-                    <SelectItem value="resolved_refund">Resolved (Refund)</SelectItem>
-                    <SelectItem value="closed">Closed</SelectItem>
+                    {[['all','All Status'],['open','Open'],['under_review','Under Review'],['escalated','Escalated'],['resolved_refund','Resolved (Refund)'],['closed','Closed']].map(([v,l]) => <SelectItem key={v} value={v}>{l}</SelectItem>)}
                   </SelectContent>
                 </Select>
                 <Select value={disputeFilter.type || "all"} onValueChange={(v) => setDisputeFilter(f => ({ ...f, type: v === "all" ? "" : v }))}>
@@ -331,12 +260,7 @@ export const AdminModerationDashboard = () => {
                     <SelectValue placeholder="Type" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All Types</SelectItem>
-                    <SelectItem value="payment">Payment</SelectItem>
-                    <SelectItem value="service_quality">Service Quality</SelectItem>
-                    <SelectItem value="no_show">No Show</SelectItem>
-                    <SelectItem value="harassment">Harassment</SelectItem>
-                    <SelectItem value="fraud">Fraud</SelectItem>
+                    {[['all','All Types'],['payment','Payment'],['service_quality','Service Quality'],['no_show','No Show'],['harassment','Harassment'],['fraud','Fraud']].map(([v,l]) => <SelectItem key={v} value={v}>{l}</SelectItem>)}
                   </SelectContent>
                 </Select>
                 <Button variant="outline" size="sm" onClick={fetchDisputes} aria-label="Refresh">
@@ -344,7 +268,6 @@ export const AdminModerationDashboard = () => {
                 </Button>
               </div>
 
-              {/* Disputes List */}
               {disputes.length === 0 ? (
                 <Card className={cardBgClass}>
                   <CardContent className="py-12 text-center">
@@ -403,21 +326,15 @@ export const AdminModerationDashboard = () => {
             </div>
           )}
 
-          {/* REPORTS TAB */}
           {activeSubTab === 'reports' && (
             <div className="space-y-3">
-              {/* Filters */}
               <div className="flex gap-2 flex-wrap">
                 <Select value={reportFilter.status || "all"} onValueChange={(v) => setReportFilter(f => ({ ...f, status: v === "all" ? "" : v }))}>
                   <SelectTrigger className="w-40 bg-muted border-border">
                     <SelectValue placeholder="Status" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All Status</SelectItem>
-                    <SelectItem value="pending">Pending</SelectItem>
-                    <SelectItem value="under_review">Under Review</SelectItem>
-                    <SelectItem value="action_taken">Action Taken</SelectItem>
-                    <SelectItem value="no_violation">No Violation</SelectItem>
+                    {[['all','All Status'],['pending','Pending'],['under_review','Under Review'],['action_taken','Action Taken'],['no_violation','No Violation']].map(([v,l]) => <SelectItem key={v} value={v}>{l}</SelectItem>)}
                   </SelectContent>
                 </Select>
                 <Select value={reportFilter.reason || "all"} onValueChange={(v) => setReportFilter(f => ({ ...f, reason: v === "all" ? "" : v }))}>
@@ -425,17 +342,11 @@ export const AdminModerationDashboard = () => {
                     <SelectValue placeholder="Reason" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All Reasons</SelectItem>
-                    <SelectItem value="spam">Spam</SelectItem>
-                    <SelectItem value="inappropriate_content">Inappropriate</SelectItem>
-                    <SelectItem value="harassment">Harassment</SelectItem>
-                    <SelectItem value="fraud">Fraud</SelectItem>
-                    <SelectItem value="fake_profile">Fake Profile</SelectItem>
+                    {[['all','All Reasons'],['spam','Spam'],['inappropriate_content','Inappropriate'],['harassment','Harassment'],['fraud','Fraud'],['fake_profile','Fake Profile']].map(([v,l]) => <SelectItem key={v} value={v}>{l}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
 
-              {/* Reports List */}
               {reports.length === 0 ? (
                 <Card className={cardBgClass}>
                   <CardContent className="py-12 text-center">
@@ -519,10 +430,8 @@ export const AdminModerationDashboard = () => {
             </div>
           )}
 
-          {/* PAYOUT HOLDS TAB */}
           {activeSubTab === 'holds' && (
             <div className="space-y-3">
-              {/* Summary Card */}
               <Card className={`${cardBgClass} border-orange-500/30`}>
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between">
@@ -542,7 +451,6 @@ export const AdminModerationDashboard = () => {
                 </CardContent>
               </Card>
 
-              {/* Holds List */}
               {payoutHolds.length === 0 ? (
                 <Card className={cardBgClass}>
                   <CardContent className="py-12 text-center">
@@ -602,24 +510,15 @@ export const AdminModerationDashboard = () => {
             </div>
           )}
 
-          {/* AUDIT LOGS TAB */}
           {activeSubTab === 'audit' && (
             <div className="space-y-3">
-              {/* Filters */}
               <div className="flex gap-2">
                 <Select value={auditFilter.category || "all"} onValueChange={(v) => setAuditFilter(f => ({ ...f, category: v === "all" ? "" : v }))}>
                   <SelectTrigger className="w-40 bg-muted border-border">
                     <SelectValue placeholder="Category" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All Categories</SelectItem>
-                    <SelectItem value="auth">Auth</SelectItem>
-                    <SelectItem value="user_mgmt">User Management</SelectItem>
-                    <SelectItem value="financial">Financial</SelectItem>
-                    <SelectItem value="content">Content</SelectItem>
-                    <SelectItem value="dispute">Dispute</SelectItem>
-                    <SelectItem value="report">Report</SelectItem>
-                    <SelectItem value="admin">Admin</SelectItem>
+                    {[['all','All Categories'],['auth','Auth'],['user_mgmt','User Management'],['financial','Financial'],['content','Content'],['dispute','Dispute'],['report','Report'],['admin','Admin']].map(([v,l]) => <SelectItem key={v} value={v}>{l}</SelectItem>)}
                   </SelectContent>
                 </Select>
                 <Button variant="outline" size="sm" onClick={fetchAuditLogs} aria-label="Refresh">
@@ -627,7 +526,6 @@ export const AdminModerationDashboard = () => {
                 </Button>
               </div>
 
-              {/* Logs List */}
               {auditLogs.length === 0 ? (
                 <Card className={cardBgClass}>
                   <CardContent className="py-12 text-center">
@@ -683,7 +581,6 @@ export const AdminModerationDashboard = () => {
         </>
       )}
 
-      {/* Dispute Detail Modal */}
       <Dialog open={showDisputeDetail} onOpenChange={setShowDisputeDetail}>
         <DialogContent className="bg-card border-border text-foreground max-w-2xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
@@ -695,7 +592,6 @@ export const AdminModerationDashboard = () => {
           
           {selectedDispute && (
             <div className="space-y-4">
-              {/* Status & Actions */}
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <StatusBadge status={selectedDispute.status} />
@@ -710,55 +606,35 @@ export const AdminModerationDashboard = () => {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="open">Open</SelectItem>
-                      <SelectItem value="under_review">Under Review</SelectItem>
-                      <SelectItem value="awaiting_response">Awaiting Response</SelectItem>
-                      <SelectItem value="escalated">Escalate</SelectItem>
-                      <SelectItem value="resolved_refund">Resolve (Refund)</SelectItem>
-                      <SelectItem value="resolved_no_action">Resolve (No Action)</SelectItem>
-                      <SelectItem value="closed">Close</SelectItem>
+                    {[['open','Open'],['under_review','Under Review'],['awaiting_response','Awaiting Response'],['escalated','Escalate'],['resolved_refund','Resolve (Refund)'],['resolved_no_action','Resolve (No Action)'],['closed','Close']].map(([v,l]) => <SelectItem key={v} value={v}>{l}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
               </div>
 
-              {/* Subject & Description */}
               <div>
                 <h3 className="font-semibold text-lg">{selectedDispute.subject}</h3>
                 <p className="text-muted-foreground mt-1">{selectedDispute.description}</p>
               </div>
 
-              {/* Parties */}
               <div className="grid grid-cols-2 gap-4">
-                <div className="p-3 bg-muted rounded-lg">
-                  <p className="text-xs text-gray-500 mb-2">Complainant</p>
-                  <div className="flex items-center gap-2">
-                    <Avatar>
-                      <AvatarImage src={getFullUrl(selectedDispute.complainant?.avatar_url)} />
-                      <AvatarFallback>{selectedDispute.complainant?.full_name?.[0]}</AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <p className="font-medium">{selectedDispute.complainant?.full_name}</p>
-                      <p className="text-xs text-muted-foreground">{selectedDispute.complainant?.email}</p>
+                {[['Complainant', selectedDispute.complainant], ['Respondent', selectedDispute.respondent]].map(([label, person]) => (
+                  <div key={label} className="p-3 bg-muted rounded-lg">
+                    <p className="text-xs text-gray-500 mb-2">{label}</p>
+                    <div className="flex items-center gap-2">
+                      <Avatar>
+                        <AvatarImage src={getFullUrl(person?.avatar_url)} />
+                        <AvatarFallback>{person?.full_name?.[0]}</AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <p className="font-medium">{person?.full_name}</p>
+                        <p className="text-xs text-muted-foreground">{person?.email}</p>
+                      </div>
                     </div>
                   </div>
-                </div>
-                <div className="p-3 bg-muted rounded-lg">
-                  <p className="text-xs text-gray-500 mb-2">Respondent</p>
-                  <div className="flex items-center gap-2">
-                    <Avatar>
-                      <AvatarImage src={getFullUrl(selectedDispute.respondent?.avatar_url)} />
-                      <AvatarFallback>{selectedDispute.respondent?.full_name?.[0]}</AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <p className="font-medium">{selectedDispute.respondent?.full_name}</p>
-                      <p className="text-xs text-muted-foreground">{selectedDispute.respondent?.email}</p>
-                    </div>
-                  </div>
-                </div>
+                ))}
               </div>
 
-              {/* Amount */}
               {selectedDispute.amount_disputed && (
                 <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-lg">
                   <div className="flex items-center justify-between">
@@ -774,7 +650,6 @@ export const AdminModerationDashboard = () => {
                 </div>
               )}
 
-              {/* Refund Input */}
               {['open', 'under_review', 'escalated'].includes(selectedDispute.status) && selectedDispute.amount_disputed && (
                 <div className="flex items-center gap-2">
                   <Input aria-label="Refund amount"
@@ -797,7 +672,6 @@ export const AdminModerationDashboard = () => {
                 </div>
               )}
 
-              {/* Messages Thread */}
               <div>
                 <h4 className="font-medium mb-2 flex items-center gap-2">
                   <MessageSquare className="w-4 h-4" />
@@ -823,7 +697,6 @@ export const AdminModerationDashboard = () => {
                   ))}
                 </div>
                 
-                {/* New Message */}
                 <div className="flex gap-2 mt-3">
                   <Input aria-label="Type a message..."
                     placeholder="Type a message..."
@@ -846,7 +719,6 @@ export const AdminModerationDashboard = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Report Review Modal */}
       <Dialog open={showReportReview} onOpenChange={setShowReportReview}>
         <DialogContent className="bg-card border-border text-foreground">
           <DialogHeader>
@@ -884,12 +756,7 @@ export const AdminModerationDashboard = () => {
                     <SelectValue placeholder="Select action..." />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="no_action">No Action Needed</SelectItem>
-                    <SelectItem value="warning_sent">Send Warning</SelectItem>
-                    <SelectItem value="content_removed">Remove Content</SelectItem>
-                    <SelectItem value="user_suspended">Suspend User</SelectItem>
-                    <SelectItem value="user_banned">Ban User</SelectItem>
-                    <SelectItem value="escalate">Escalate to Dispute</SelectItem>
+                    {[['no_action','No Action Needed'],['warning_sent','Send Warning'],['content_removed','Remove Content'],['user_suspended','Suspend User'],['user_banned','Ban User'],['escalate','Escalate to Dispute']].map(([v,l]) => <SelectItem key={v} value={v}>{l}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>

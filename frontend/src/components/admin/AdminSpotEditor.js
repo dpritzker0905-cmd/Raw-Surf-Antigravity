@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+﻿import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { MapPin, Plus, Trash2, AlertTriangle, Search, RefreshCw, Loader2, Eye, X, Edit2 } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
@@ -10,8 +10,6 @@ import apiClient, { BACKEND_URL } from '../../lib/apiClient';
 import { toast } from 'sonner';
 import logger from '../../utils/logger';
 
-
-// NOAA Buoy stations - comprehensive list for all supported regions
 const NOAA_BUOYS = [
   // Florida
   { id: '41009', name: 'Canaveral 20NM', region: 'FL', lat: 28.519, lon: -80.166 },
@@ -58,7 +56,6 @@ const NOAA_BUOYS = [
   { id: '32012', name: 'West Colombia Basin', region: 'Pacific SA', lat: 8.075, lon: -84.046 }
 ];
 
-// Group buoys by region for easier selection
 const NOAA_BUOY_REGIONS = {
   'Florida': NOAA_BUOYS.filter(b => b.region === 'FL'),
   'New York/NJ': NOAA_BUOYS.filter(b => b.region === 'NY' || b.region === 'NJ'),
@@ -69,17 +66,6 @@ const NOAA_BUOY_REGIONS = {
   'Pacific': NOAA_BUOYS.filter(b => ['Pacific', 'American Samoa', 'Pacific SA', 'Costa Rica'].includes(b.region)),
 };
 
-/**
- * AdminSpotEditor - Precision Map-Editor for Admin Dashboard
- * 
- * Features:
- * - Click-and-drag to move existing pins
- * - Double-click to create new pins
- * - Right-click or delete button to remove pins
- * - "Water Check" warning when pin is on land
- * - NOAA Buoy assignment for each spot
- * - Satellite imagery toggle
- */
 export const AdminSpotEditor = () => {
   const { user } = useAuth();
   const mapContainerRef = useRef(null);
@@ -87,7 +73,6 @@ export const AdminSpotEditor = () => {
   const markersRef = useRef({});
   const [mapContainerReady, setMapContainerReady] = useState(false);
   
-  // Callback ref to detect when map container is in the DOM
   const setMapRef = useCallback((node) => {
     mapContainerRef.current = node;
     if (node) {
@@ -95,7 +80,6 @@ export const AdminSpotEditor = () => {
     }
   }, []);
   
-  // State
   const [spots, setSpots] = useState([]);
   const [loading, setLoading] = useState(true);
   const [editMode, setEditMode] = useState(false);
@@ -123,14 +107,12 @@ export const AdminSpotEditor = () => {
     
     if (checkLeaflet()) return;
     
-    // Poll for Leaflet availability
     const interval = setInterval(() => {
       if (checkLeaflet()) {
         clearInterval(interval);
       }
     }, 100);
     
-    // Timeout after 5 seconds
     const timeout = setTimeout(() => {
       clearInterval(interval);
       if (!window.L) {
@@ -145,7 +127,6 @@ export const AdminSpotEditor = () => {
     };
   }, []);
   
-  // Form state for create/edit
   const [formData, setFormData] = useState({
     name: '',
     region: '',
@@ -157,7 +138,6 @@ export const AdminSpotEditor = () => {
     noaa_buoy_id: ''
   });
 
-  // Fetch spots - no limit to get all spots
   const fetchSpots = useCallback(async () => {
     try {
       const response = await apiClient.get(`/admin/spots/list`, {
@@ -196,13 +176,11 @@ export const AdminSpotEditor = () => {
 
     logger.debug('[AdminMap] Map created, adding tile layers...');
 
-    // Satellite layer (ESRI)
     const satelliteLayer = window.L.tileLayer(
       'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
       { attribution: 'ESRI', maxZoom: 19 }
     );
 
-    // Street layer (ESRI)
     const streetLayer = window.L.tileLayer(
       'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}',
       { attribution: 'ESRI', maxZoom: 19 }
@@ -216,7 +194,6 @@ export const AdminSpotEditor = () => {
 
     mapInstanceRef.current = map;
 
-    // Force map to refresh its size after initialization
     setTimeout(() => {
       if (map) {
         map.invalidateSize();
@@ -290,7 +267,6 @@ export const AdminSpotEditor = () => {
 
     // Add markers for each spot
     spots.forEach(spot => {
-      // Validate coordinates before creating marker
       if (!spot.latitude || !spot.longitude || 
           isNaN(spot.latitude) || isNaN(spot.longitude)) {
         return;
@@ -373,7 +349,6 @@ export const AdminSpotEditor = () => {
     });
   }, [editMode]);
 
-  // Create new spot
   const handleCreateSpot = async (overrideLandWarning = false) => {
     if (!pendingCoords || !formData.name) {
       toast.error('Please fill in spot name');
@@ -412,7 +387,6 @@ export const AdminSpotEditor = () => {
     }
   };
 
-  // Update spot
   const handleUpdateSpot = async () => {
     if (!selectedSpot) return;
 
@@ -432,7 +406,6 @@ export const AdminSpotEditor = () => {
     }
   };
 
-  // Delete spot
   const handleDeleteSpot = async () => {
     if (!selectedSpot) return;
 
@@ -450,12 +423,10 @@ export const AdminSpotEditor = () => {
     }
   };
 
-  // Confirm land warning override
   const handleConfirmLandWarning = async () => {
     if (landWarning?.isCreate) {
       await handleCreateSpot(true);
     } else if (landWarning?.spotId) {
-      // Move with override
       try {
         setSaving(true);
         await apiClient.put(
@@ -473,13 +444,11 @@ export const AdminSpotEditor = () => {
     setLandWarning(null);
   };
 
-  // Search spots
   const filteredSpots = spots.filter(s =>
     s.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     s.region?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  // Center map on spot
   const centerOnSpot = (spot) => {
     if (mapInstanceRef.current && spot?.latitude && spot?.longitude &&
         !isNaN(spot.latitude) && !isNaN(spot.longitude)) {
@@ -487,6 +456,47 @@ export const AdminSpotEditor = () => {
       setSelectedSpot(spot);
     }
   };
+
+  const renderSpotFormFields = () => (
+    <div className="space-y-4">
+      <Input aria-label="Spot Name *" placeholder="Spot Name *" value={formData.name}
+        onChange={(e) => setFormData({ ...formData, name: e.target.value })} className="bg-muted border-border" />
+      <Input aria-label="Region" placeholder="Region (e.g., Central Florida)" value={formData.region}
+        onChange={(e) => setFormData({ ...formData, region: e.target.value })} className="bg-muted border-border" />
+      <div className="grid grid-cols-2 gap-4">
+        <Input aria-label="Secondary City" placeholder="Secondary City (e.g., Cocoa Beach)" value={formData.secondary_city}
+          onChange={(e) => setFormData({ ...formData, secondary_city: e.target.value })} className="bg-muted border-border" />
+        <Input aria-label="Secondary Area" placeholder="Secondary Area (e.g., Space Coast)" value={formData.secondary_area}
+          onChange={(e) => setFormData({ ...formData, secondary_area: e.target.value })} className="bg-muted border-border" />
+      </div>
+      <div className="grid grid-cols-2 gap-4">
+        <Select value={formData.difficulty} onValueChange={(v) => setFormData({ ...formData, difficulty: v })}>
+          <SelectTrigger className="bg-muted border-border"><SelectValue placeholder="Difficulty" /></SelectTrigger>
+          <SelectContent>
+            {['Beginner', 'Intermediate', 'Advanced'].map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <Select value={formData.wave_type} onValueChange={(v) => setFormData({ ...formData, wave_type: v })}>
+          <SelectTrigger className="bg-muted border-border"><SelectValue placeholder="Wave Type" /></SelectTrigger>
+          <SelectContent>
+            {['Beach Break', 'Point Break', 'Reef Break', 'River Mouth'].map(w => <SelectItem key={w} value={w}>{w}</SelectItem>)}
+          </SelectContent>
+        </Select>
+      </div>
+      <Select value={formData.noaa_buoy_id || 'none'} onValueChange={(v) => setFormData({ ...formData, noaa_buoy_id: v === 'none' ? '' : v })}>
+        <SelectTrigger className="bg-muted border-border"><SelectValue placeholder="NOAA Buoy (optional)" /></SelectTrigger>
+        <SelectContent className="max-h-[300px]">
+          <SelectItem value="none">None</SelectItem>
+          {Object.entries(NOAA_BUOY_REGIONS).map(([region, buoys]) => (
+            <SelectGroup key={region}>
+              <SelectLabel className="text-cyan-400 font-semibold">{region}</SelectLabel>
+              {buoys.map(buoy => <SelectItem key={buoy.id} value={buoy.id}>{buoy.name} ({buoy.id})</SelectItem>)}
+            </SelectGroup>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
+  );
 
   if (loading) {
     return (
@@ -498,9 +508,7 @@ export const AdminSpotEditor = () => {
 
   return (
     <div className="space-y-4">
-      {/* Header Controls */}
       <div className="flex flex-wrap items-center gap-3">
-        {/* Edit Mode Toggle */}
         <Button
           onClick={() => setEditMode(!editMode)}
           className={editMode ? 'bg-red-500 hover:bg-red-600' : 'bg-cyan-500 hover:bg-cyan-600'}
@@ -519,7 +527,6 @@ export const AdminSpotEditor = () => {
           )}
         </Button>
 
-        {/* Satellite Toggle */}
         <Button aria-label="View"
           variant="outline"
           onClick={() => setSatelliteView(!satelliteView)}
@@ -529,7 +536,6 @@ export const AdminSpotEditor = () => {
           {satelliteView ? 'Street View' : 'Satellite'}
         </Button>
 
-        {/* Search */}
         <div className="flex-1 max-w-xs">
           <div className="relative">
             <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
@@ -542,18 +548,15 @@ export const AdminSpotEditor = () => {
           </div>
         </div>
 
-        {/* Refresh */}
         <Button variant="outline" onClick={fetchSpots} className="border-input" aria-label="Refresh">
           <RefreshCw className="w-4 h-4" />
         </Button>
 
-        {/* Stats */}
         <Badge className="bg-input text-foreground">
           {spots.length} spots
         </Badge>
       </div>
 
-      {/* Edit Mode Instructions */}
       {editMode && (
         <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-lg">
           <p className="text-red-400 text-sm font-medium flex items-center gap-2">
@@ -568,9 +571,7 @@ export const AdminSpotEditor = () => {
         </div>
       )}
 
-      {/* Map Container */}
       <div className="flex gap-4">
-        {/* Map */}
         <div className="flex-1 relative z-0">
           {!leafletReady && (
             <div className="absolute inset-0 bg-card rounded-xl flex items-center justify-center z-10">
@@ -588,7 +589,6 @@ export const AdminSpotEditor = () => {
           />
         </div>
 
-        {/* Spot List Sidebar */}
         <div className="w-72 bg-muted rounded-xl p-4 max-h-[500px] overflow-y-auto">
           <h3 className="text-foreground font-bold mb-3 flex items-center gap-2">
             <MapPin className="w-4 h-4 text-cyan-400" />
@@ -620,7 +620,6 @@ export const AdminSpotEditor = () => {
         </div>
       </div>
 
-      {/* Selected Spot Actions */}
       {selectedSpot && (
         <div className="p-4 bg-muted rounded-xl flex items-center justify-between">
           <div>
@@ -675,7 +674,6 @@ export const AdminSpotEditor = () => {
         </div>
       )}
 
-      {/* Create Spot Modal - z-[1000] to appear above Leaflet map */}
       <Dialog open={showCreateModal} onOpenChange={setShowCreateModal}>
         <DialogContent className="bg-card border-border z-[1000]">
           <DialogHeader>
@@ -685,84 +683,10 @@ export const AdminSpotEditor = () => {
             </DialogTitle>
           </DialogHeader>
           
-          <div className="space-y-4">
             <p className="text-muted-foreground text-sm">
               Coordinates: ({pendingCoords?.lat.toFixed(6)}, {pendingCoords?.lng.toFixed(6)})
             </p>
-            
-            <Input aria-label="Spot Name *"
-              placeholder="Spot Name *"
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              className="bg-muted border-border"
-            />
-            
-            <Input aria-label="Region (e.g., Central Florida)"
-              placeholder="Region (e.g., Central Florida)"
-              value={formData.region}
-              onChange={(e) => setFormData({ ...formData, region: e.target.value })}
-              className="bg-muted border-border"
-            />
-            
-            <div className="grid grid-cols-2 gap-4">
-              <Input aria-label="Secondary City (e.g., Cocoa Beach)"
-                placeholder="Secondary City (e.g., Cocoa Beach)"
-                value={formData.secondary_city}
-                onChange={(e) => setFormData({ ...formData, secondary_city: e.target.value })}
-                className="bg-muted border-border"
-              />
-              <Input aria-label="Secondary Area (e.g., Space Coast)"
-                placeholder="Secondary Area (e.g., Space Coast)"
-                value={formData.secondary_area}
-                onChange={(e) => setFormData({ ...formData, secondary_area: e.target.value })}
-                className="bg-muted border-border"
-              />
-            </div>
-            
-            <div className="grid grid-cols-2 gap-4">
-              <Select value={formData.difficulty} onValueChange={(v) => setFormData({ ...formData, difficulty: v })}>
-                <SelectTrigger className="bg-muted border-border">
-                  <SelectValue placeholder="Difficulty" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Beginner">Beginner</SelectItem>
-                  <SelectItem value="Intermediate">Intermediate</SelectItem>
-                  <SelectItem value="Advanced">Advanced</SelectItem>
-                </SelectContent>
-              </Select>
-              
-              <Select value={formData.wave_type} onValueChange={(v) => setFormData({ ...formData, wave_type: v })}>
-                <SelectTrigger className="bg-muted border-border">
-                  <SelectValue placeholder="Wave Type" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Beach Break">Beach Break</SelectItem>
-                  <SelectItem value="Point Break">Point Break</SelectItem>
-                  <SelectItem value="Reef Break">Reef Break</SelectItem>
-                  <SelectItem value="River Mouth">River Mouth</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            
-            <Select value={formData.noaa_buoy_id || 'none'} onValueChange={(v) => setFormData({ ...formData, noaa_buoy_id: v === 'none' ? '' : v })}>
-              <SelectTrigger className="bg-muted border-border">
-                <SelectValue placeholder="NOAA Buoy (optional)" />
-              </SelectTrigger>
-              <SelectContent className="max-h-[300px]">
-                <SelectItem value="none">None</SelectItem>
-                {Object.entries(NOAA_BUOY_REGIONS).map(([region, buoys]) => (
-                  <SelectGroup key={region}>
-                    <SelectLabel className="text-cyan-400 font-semibold">{region}</SelectLabel>
-                    {buoys.map(buoy => (
-                      <SelectItem key={buoy.id} value={buoy.id}>
-                        {buoy.name} ({buoy.id})
-                      </SelectItem>
-                    ))}
-                  </SelectGroup>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+            {renderSpotFormFields()}
           
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowCreateModal(false)}>Cancel</Button>
@@ -777,7 +701,6 @@ export const AdminSpotEditor = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Edit Spot Modal - z-[1000] to appear above Leaflet map */}
       <Dialog open={showEditModal} onOpenChange={setShowEditModal}>
         <DialogContent className="bg-card border-border z-[1000]">
           <DialogHeader>
@@ -787,80 +710,7 @@ export const AdminSpotEditor = () => {
             </DialogTitle>
           </DialogHeader>
           
-          <div className="space-y-4">
-            <Input aria-label="Spot Name"
-              placeholder="Spot Name"
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              className="bg-muted border-border"
-            />
-            
-            <Input aria-label="Region"
-              placeholder="Region"
-              value={formData.region}
-              onChange={(e) => setFormData({ ...formData, region: e.target.value })}
-              className="bg-muted border-border"
-            />
-            
-            <div className="grid grid-cols-2 gap-4">
-              <Input aria-label="Secondary City (e.g., Cocoa Beach)"
-                placeholder="Secondary City (e.g., Cocoa Beach)"
-                value={formData.secondary_city}
-                onChange={(e) => setFormData({ ...formData, secondary_city: e.target.value })}
-                className="bg-muted border-border"
-              />
-              <Input aria-label="Secondary Area (e.g., Space Coast)"
-                placeholder="Secondary Area (e.g., Space Coast)"
-                value={formData.secondary_area}
-                onChange={(e) => setFormData({ ...formData, secondary_area: e.target.value })}
-                className="bg-muted border-border"
-              />
-            </div>
-            
-            <div className="grid grid-cols-2 gap-4">
-              <Select value={formData.difficulty} onValueChange={(v) => setFormData({ ...formData, difficulty: v })}>
-                <SelectTrigger className="bg-muted border-border">
-                  <SelectValue placeholder="Difficulty" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Beginner">Beginner</SelectItem>
-                  <SelectItem value="Intermediate">Intermediate</SelectItem>
-                  <SelectItem value="Advanced">Advanced</SelectItem>
-                </SelectContent>
-              </Select>
-              
-              <Select value={formData.wave_type} onValueChange={(v) => setFormData({ ...formData, wave_type: v })}>
-                <SelectTrigger className="bg-muted border-border">
-                  <SelectValue placeholder="Wave Type" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Beach Break">Beach Break</SelectItem>
-                  <SelectItem value="Point Break">Point Break</SelectItem>
-                  <SelectItem value="Reef Break">Reef Break</SelectItem>
-                  <SelectItem value="River Mouth">River Mouth</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            
-            <Select value={formData.noaa_buoy_id || 'none'} onValueChange={(v) => setFormData({ ...formData, noaa_buoy_id: v === 'none' ? '' : v })}>
-              <SelectTrigger className="bg-muted border-border">
-                <SelectValue placeholder="NOAA Buoy" />
-              </SelectTrigger>
-              <SelectContent className="max-h-[300px]">
-                <SelectItem value="none">None</SelectItem>
-                {Object.entries(NOAA_BUOY_REGIONS).map(([region, buoys]) => (
-                  <SelectGroup key={region}>
-                    <SelectLabel className="text-cyan-400 font-semibold">{region}</SelectLabel>
-                    {buoys.map(buoy => (
-                      <SelectItem key={buoy.id} value={buoy.id}>
-                        {buoy.name} ({buoy.id})
-                      </SelectItem>
-                    ))}
-                  </SelectGroup>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+            {renderSpotFormFields()}
           
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowEditModal(false)}>Cancel</Button>
@@ -875,7 +725,6 @@ export const AdminSpotEditor = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Delete Confirmation Modal - z-[1000] to appear above Leaflet map */}
       <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
         <DialogContent className="bg-card border-border z-[1000]">
           <DialogHeader>
@@ -903,7 +752,6 @@ export const AdminSpotEditor = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Land Warning Modal - z-[1000] to appear above Leaflet map */}
       <Dialog open={!!landWarning} onOpenChange={() => setLandWarning(null)}>
         <DialogContent className="bg-card border-border z-[1000]">
           <DialogHeader>

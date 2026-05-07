@@ -1,104 +1,43 @@
 import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
-
 import apiClient from '../lib/apiClient';
-
 import { useAuth } from '../contexts/AuthContext';
-
 import { usePersona } from '../contexts/PersonaContext';
-
 import { useTheme } from '../contexts/ThemeContext';
-
-import {
-  MapPin,
-  Camera,
-  Users,
-  X,
-  MessageCircle,
-  Navigation,
-  Loader2,
-  Check
-} from 'lucide-react';
-
+import { MapPin, Camera, Users, X, MessageCircle, Navigation, Loader2, Check } from 'lucide-react';
 import { PermissionNudgeDrawer } from './PermissionNudgeDrawer';
-
 import { Button } from './ui/button';
-
-
 import { toast } from 'sonner';
 import useMapActions from '../hooks/useMapActions';
-
 import { JumpInSessionModal } from './JumpInSessionModal';
-
 import { supabase } from '../lib/supabase';
-
 import UnifiedSpotDrawer from './UnifiedSpotDrawer';
-
 import { RequestProSelfieModal } from './RequestProSelfieModal';
-
 import { RequestProModal } from './map/RequestProModal';
-
 import { MapLiveFloatingIsland } from './MapLiveIndicator';
-
 import DispatchTrackingPanel from './map/DispatchTrackingPanel';
 import FeaturedPhotographersPanel from './map/FeaturedPhotographersPanel';
 import PhotographerBottomSheet from './map/PhotographerBottomSheet';
-
 import EndSessionModal from './EndSessionModal';
-
 import ConditionsModal from './ConditionsModal';
-
 import WaveLoader from './WaveLoader';
-
 import { GPSSettingsGuide } from './GPSSettingsGuide';
-
 import { LocationPicker } from './LocationPicker';
-
-
-// Extracted map components and utilities
 import { MapFilterTabs } from './map/MapFilterTabs';
-
 import { MapHeader } from './map/MapHeader';
-
 import MapErrorBoundary from './map/MapErrorBoundary';
-
-import { 
-
-  API, 
-  ELECTRIC_CYAN, 
-  FLORIDA_CENTER, 
-  getErrorMessage, 
-  debounce, 
-  truncateCoord, 
-  isValidLatLng,
-  TILE_LAYER_CONFIG,
-  MAPBOX_TILES,
-  DEFAULT_MAP_OPTIONS,
-  SPOT_CLUSTER_OPTIONS,
-  PHOTOGRAPHER_CLUSTER_OPTIONS
+import {
+  API, ELECTRIC_CYAN, FLORIDA_CENTER, getErrorMessage, debounce, truncateCoord, isValidLatLng,
+  TILE_LAYER_CONFIG, MAPBOX_TILES, DEFAULT_MAP_OPTIONS, SPOT_CLUSTER_OPTIONS, PHOTOGRAPHER_CLUSTER_OPTIONS
 } from './map/mapUtils';
-
-
-
-// Custom hooks for cleaner code organization
 import { useMapData } from '../hooks/useMapData';
-
 import { useUserLocation } from '../hooks/useUserLocation';
-
 import { useGoLiveFlow } from '../hooks/useGoLiveFlow';
-
 import { useIPGeolocation } from '../hooks/useIPGeolocation';
-
 import { useMarkerClustering } from '../hooks/useMarkerClustering';
-
 import { useMapState } from '../hooks/useMapState';
-
 import { useFriendsOnMap } from '../hooks/useFriendsOnMap';
-
 import logger from '../utils/logger';
 import { getFullUrl } from '../utils/media';
-
-// Note: useOnDemandRequests and useRequestPro hooks exist but use different API paths
-// The inline code uses the correct /dispatch/ endpoints - keeping inline for now
 
 const MapPageContent = () => {
   const { user } = useAuth();
@@ -111,9 +50,7 @@ const MapPageContent = () => {
   const mapInstanceRef = useRef(null);
   const markersRef = useRef([]);
   const userMarkerRef = useRef(null);
-  const userAccuracyCircleRef = useRef(null);  // Reference to accuracy circle
-  
-  // Cluster group refs for performance optimization
+  const userAccuracyCircleRef = useRef(null);
   const spotClusterRef = useRef(null);
   const photographerClusterRef = useRef(null);
   
@@ -130,8 +67,6 @@ const MapPageContent = () => {
     stopWatchingLocation,
   } = useUserLocation();
 
-  // ============ CUSTOM HOOKS ============
-  // Map data hook - handles fetching surf spots with Privacy Shield geofencing
   const {
     surfSpots,
     livePhotographers,
@@ -141,7 +76,6 @@ const MapPageContent = () => {
     _fetchSurfSpots,
   } = useMapData(user?.id, userLocation);
 
-  // Go live flow hook - handles photographer go-live workflow
   const {
     goLiveSpotId,
     goLiveLoading,
@@ -169,8 +103,7 @@ const MapPageContent = () => {
     }
   });
 
-  // IP Geolocation fallback when GPS is denied (with Coastal Snap support)
-  const { 
+  const {
     ipLocation, 
     _ipLoading, 
     _coastalSnapped,
@@ -178,22 +111,11 @@ const MapPageContent = () => {
     _forceRecalibrate 
   } = useIPGeolocation();
 
-  // Map viewport state for clustering
   const [mapBounds, _setMapBounds] = useState(null);
   const [mapZoom, _setMapZoom] = useState(10);
-
-  // Memoize clustering options to prevent infinite re-render loop
-  const clusteringOptions = useMemo(() => ({
-    radius: 60,
-    maxZoom: 14
-  }), []);
-
-  // Use marker clustering for performance (supercluster-based, optional)
-  // Note: Primary clustering is handled by Leaflet markerClusterGroup
+  const clusteringOptions = useMemo(() => ({ radius: 60, maxZoom: 14 }), []);
   const { _clusters } = useMarkerClustering(surfSpots, mapBounds, mapZoom, clusteringOptions);
 
-  // Effective location (GPS or IP fallback)
-  // CRITICAL: Validates all coordinates before returning
   const effectiveLocation = useMemo(() => {
     // Check GPS location first
     if (userLocation?.lat && userLocation?.lng && 
@@ -201,7 +123,6 @@ const MapPageContent = () => {
         isFinite(userLocation.lat) && isFinite(userLocation.lng)) {
       return { ...userLocation, source: 'gps' };
     }
-    // Fall back to IP location
     if (ipLocation?.lat && ipLocation?.lng &&
         !isNaN(ipLocation.lat) && !isNaN(ipLocation.lng) &&
         isFinite(ipLocation.lat) && isFinite(ipLocation.lng)) {
@@ -209,9 +130,7 @@ const MapPageContent = () => {
     }
     return null;
   }, [userLocation, ipLocation]);
-  
-  // ============ LOCAL STATE ============
-  // Use extracted hook for UI state management
+
   const {
     selectedSpot,
     setSelectedSpot,
@@ -244,8 +163,7 @@ const MapPageContent = () => {
     userLocation ? findNearestSpot(surfSpots) : null,
     [userLocation, surfSpots, findNearestSpot]
   );
-  
-  // Request a Pro state (kept local as it's tightly coupled with map actions)
+
   const [showRequestProModal, setShowRequestProModal] = useState(false);
   const [requestProLoading, setRequestProLoading] = useState(false);
   const [estimatedDuration, setEstimatedDuration] = useState(1);
@@ -254,11 +172,9 @@ const MapPageContent = () => {
   const [requestProLocationLoading, setRequestProLocationLoading] = useState(false);
   const [showRequestProSelfieModal, setShowRequestProSelfieModal] = useState(false);
   const [activeDispatchId, setActiveDispatchId] = useState(null);
-  const [boostHours, setBoostHours] = useState(0); // 0=none, 1/2/4=hours
-  
-  // On-demand photographer availability (Uber-style)
+  const [boostHours, setBoostHours] = useState(0);
   const [onDemandPhotographers, setOnDemandPhotographers] = useState([]);
-  const [requestProSelectedPro, setRequestProSelectedPro] = useState(null); // null = auto-match
+  const [requestProSelectedPro, setRequestProSelectedPro] = useState(null);
   const [onDemandLoading, setOnDemandLoading] = useState(false);
   
   // Friend invite state for split sessions
@@ -267,8 +183,7 @@ const MapPageContent = () => {
   const [friendsLoading, setFriendsLoading] = useState(false);
   const [_showFriendPicker, setShowFriendPicker] = useState(false);
   const [friendSearchQuery, setFriendSearchQuery] = useState('');
-  
-  // Friends on Map - use extracted hook
+
   const {
     friendsOnMap,
     showFriendsOnMap,
@@ -278,34 +193,22 @@ const MapPageContent = () => {
     _clearFriendMarkers,
   } = useFriendsOnMap({ user, mapInstanceRef });
   
-  // Active On-Demand requests on map (kept local as marker logic is in updateMapMarkers)
   const [activeOnDemandRequests, setActiveOnDemandRequests] = useState([]);
   const onDemandMarkersRef = useRef([]);
-  
-  // Locked shooter count for persistent display
   const [_lockedShooterCount, setLockedShooterCount] = useState(null);
   
-  // Active dispatch tracking for real-time GPS
   const [activeDispatch, setActiveDispatch] = useState(null);
   const [trackingMarkersRef] = useState({ surfer: null, photographer: null, routeLine: null });
   const trackingIntervalRef = useRef(null);
-
-  // Permission Nudge Drawer state
   const [showPermissionNudge, setShowPermissionNudge] = useState(false);
-  const [permissionNudgeAction, setPermissionNudgeAction] = useState('booking'); // 'booking' or 'go_live'
+  const [permissionNudgeAction, setPermissionNudgeAction] = useState('booking');
 
-  // Get effective role (respects God Mode persona masking)
   const effectiveRole = getEffectiveRole(user?.role);
-  
-  // Check if user is a photographer - memoized to prevent re-renders
-  // Only Hobbyist, Photographer, and Approved Pro can "Go Live" / "Start Shooting"
-  const isPhotographer = useMemo(() => 
+  const isPhotographer = useMemo(() =>
     ['Hobbyist', 'Photographer', 'Approved Pro'].includes(effectiveRole),
     [effectiveRole]
   );
-  
-  // Check if user can access Photo Tools (includes Grom Parent for viewing)
-  const _canAccessPhotoTools = useMemo(() => 
+  const _canAccessPhotoTools = useMemo(() =>
     ['Grom Parent', 'Hobbyist', 'Photographer', 'Approved Pro'].includes(effectiveRole),
     [effectiveRole]
   );
@@ -350,17 +253,14 @@ const MapPageContent = () => {
     logger.debug(`[PERMISSION DEBUG ${timestamp}] Step: ${step}, Status: ${status}${details ? `, Details: ${details}` : ''}`);
   }, []);
 
-  // Auto-trigger Request a Pro modal once location is resolved
   useEffect(() => {
     if (pendingRequestPro && userLocation) {
-      // Location is now available, open the modal
       setShowRequestProModal(true);
       setPendingRequestPro(false);
       setRequestProLocationLoading(false);
     }
   }, [userLocation, pendingRequestPro]);
 
-  // Static Open Graph meta tags for Map page social sharing
   useEffect(() => {
     const ogTags = [];
     const setMeta = (property, content) => {
@@ -386,14 +286,9 @@ const MapPageContent = () => {
     };
   }, []);
 
-  // Fetch on-demand photographers when modal opens (Uber-style)
   useEffect(() => {
-  // ============ HANDLERS EXTRACTED TO hooks/useMapActions.js ============
-    
     fetchOnDemandPros();
   }, [showRequestProModal, userLocation]);
-
-  // Fetch friends when invite friends is toggled on
 
   const {
     fetchOnDemandPros,
@@ -427,12 +322,8 @@ const MapPageContent = () => {
     setUnifiedDrawerOpen,
   });
 
-  useEffect(() => {
-    
-    fetchFriends();
-  }, [inviteFriends, user?.id]);
+  useEffect(() => { fetchFriends(); }, [inviteFriends, user?.id]);
 
-  // Check for active dispatch on mount and poll for updates
   useEffect(() => {
     const checkActiveDispatch = async () => {
       if (!user?.id) return;
@@ -441,37 +332,24 @@ const MapPageContent = () => {
         if (response.data && response.data.status === 'en_route') {
           setActiveDispatch(response.data);
         }
-      } catch (error) {
-        // No active dispatch or error - that's fine
-      }
+      } catch (e) {}
     };
     
     checkActiveDispatch();
   }, [user?.id]);
 
-  // Fetch active on-demand requests for green breathing markers (photographers only)
   useEffect(() => {
     if (!isPhotographer) return;
-    
-    
     fetchActiveRequests();
-    
-    // Poll every 30 seconds for new requests
     const interval = setInterval(fetchActiveRequests, 30000);
     return () => clearInterval(interval);
   }, [isPhotographer]);
 
-  // Real-time GPS tracking for active dispatch
   useEffect(() => {
     if (!activeDispatch || activeDispatch.status !== 'en_route') {
-      // Clear tracking interval and markers
-      if (trackingIntervalRef.current) {
-        clearInterval(trackingIntervalRef.current);
-      }
+      if (trackingIntervalRef.current) clearInterval(trackingIntervalRef.current);
       return;
     }
-    
-    // Poll for location updates every 5 seconds
     const pollLocations = async () => {
       try {
         const response = await apiClient.get(`/dispatch/${activeDispatch.id}/tracking`);
@@ -483,15 +361,11 @@ const MapPageContent = () => {
           requester_lng: response.data.requester_location?.lng,
           estimated_arrival_minutes: response.data.estimated_arrival_minutes
         }));
-        
-        // Update tracking markers on map
         updateTrackingMarkers(response.data);
       } catch (error) {
         logger.error('Error polling dispatch locations:', error);
       }
     };
-    
-    // Also send our location updates
     const sendLocationUpdate = async () => {
       if (!navigator.geolocation) return;
       
@@ -506,30 +380,18 @@ const MapPageContent = () => {
         }
       });
     };
-    
-    // Initial poll
     pollLocations();
     sendLocationUpdate();
-    
-    // Set up polling interval
     trackingIntervalRef.current = setInterval(() => {
       pollLocations();
       sendLocationUpdate();
     }, 5000);
     
     return () => {
-      if (trackingIntervalRef.current) {
-        clearInterval(trackingIntervalRef.current);
-      }
+      if (trackingIntervalRef.current) clearInterval(trackingIntervalRef.current);
     };
   }, [activeDispatch?.id, activeDispatch?.status, user?.id]);
 
-  // Update tracking markers on map for active dispatch
-
-  // Supabase Realtime subscription for "Jump In" events
-  // NOTE: Kept as postgres_changes because live_session_participants is very low-volume
-  // and instant updates are critical for the live shooting experience.
-  // The real egress savings come from the N+1 query fix in explore.py (30+ queries ? 1).
   useEffect(() => {
     const channel = supabase
       .channel('live-session-participants')
@@ -541,13 +403,9 @@ const MapPageContent = () => {
           table: 'live_session_participants'
         },
         (payload) => {
-          logger.debug('New jump in detected:', payload);
-          
-          // Get the photographer ID from the payload
           const photographerId = payload.new?.photographer_id;
           
           if (photographerId) {
-            // Add to pulsing set
             setPulsingMarkers(prev => new Set([...prev, photographerId]));
             
             // Remove pulse after 3 seconds
@@ -558,14 +416,8 @@ const MapPageContent = () => {
                 return newSet;
               });
             }, 3000);
-            
-            // Refresh live photographers to get updated count
             fetchLivePhotographers();
-            
-            // Show toast notification
-            toast.success('🏄 A surfer just jumped in!', {
-              description: 'Someone joined a live session'
-            });
+            toast.success('\u{1F3C4} A surfer just jumped in!', { description: 'Someone joined a live session' });
           }
         }
       )
@@ -576,46 +428,27 @@ const MapPageContent = () => {
     };
   }, []);
 
-  // Initialize map once when component mounts and loading is complete
   useEffect(() => {
     if (!loading) {
-      // Use rAF to init map on next paint frame (faster than arbitrary 200ms delay)
-      const frameId = requestAnimationFrame(() => {
-        initMap();
-      });
+      const frameId = requestAnimationFrame(() => initMap());
       return () => cancelAnimationFrame(frameId);
     }
   }, [loading]);
 
-  // Dynamically update map tiles when user switches themes without unmounting the map instance
   useEffect(() => {
     if (mapInstanceRef.current && mapInstanceRef.current._tileLayer) {
       mapInstanceRef.current._tileLayer.setUrl(mapTilesUrl);
     }
   }, [isLight, mapTilesUrl]);
 
-  // Start watching location for continuous accuracy improvements
-  // This helps Samsung devices improve GPS accuracy over time
   useEffect(() => {
-    // Start watching when map is ready
-    if (mapInstanceRef.current && !locationDenied) {
-      startWatchingLocation();
-    }
-    
-    // Cleanup: stop watching when component unmounts
-    return () => {
-      stopWatchingLocation();
-    };
+    if (mapInstanceRef.current && !locationDenied) startWatchingLocation();
+    return () => stopWatchingLocation();
   }, [startWatchingLocation, stopWatchingLocation, locationDenied]);
 
-  // Auto-center map on user's home/pinned location or GPS location when it becomes available
-  // Priority: 1) User's saved home location (zoomed in tight) 2) GPS location 3) IP location
   const hasAutocenteredRef = useRef(false);
   useEffect(() => {
-    // Only auto-center once when map is ready
     if (mapInstanceRef.current && !hasAutocenteredRef.current) {
-      
-      // Priority 1: User's saved home location (from profile)
       if (user?.home_latitude && user?.home_longitude &&
           typeof user.home_latitude === 'number' && typeof user.home_longitude === 'number' &&
           !Number.isNaN(user.home_latitude) && !Number.isNaN(user.home_longitude) &&
@@ -663,21 +496,18 @@ const MapPageContent = () => {
     }
   }, [effectiveLocation, user?.home_latitude, user?.home_longitude]);
 
-  // Update markers when data changes (without reinitializing map)
   useEffect(() => {
     if (!loading && mapInstanceRef.current) {
       updateMapMarkers();
     }
   }, [surfSpots, livePhotographers, filter, pulsingMarkers, loading]);
   
-  // Isolate user location updates so GPS polling doesn't destroy Map Clusters
   useEffect(() => {
     if (!loading && mapInstanceRef.current) {
       updateUserLocationMarker();
     }
   }, [userLocation, effectiveLocation, loading]);
 
-  // Keep selectedSpot in sync with latest surfSpots data (for active_photographers_count updates)
   useEffect(() => {
     if (selectedSpot && surfSpots.length > 0) {
       const updatedSpot = surfSpots.find(s => s.id === selectedSpot.id);
@@ -687,12 +517,9 @@ const MapPageContent = () => {
     }
   }, [surfSpots, selectedSpot]);
 
-  // Resize map when bottom sheet toggles
   useEffect(() => {
     if (mapInstanceRef.current) {
-      setTimeout(() => {
-        mapInstanceRef.current.invalidateSize();
-      }, 300); // Wait for animation
+      setTimeout(() => mapInstanceRef.current.invalidateSize(), 300);
     }
   }, [bottomSheetOpen]);
 
@@ -706,19 +533,11 @@ const MapPageContent = () => {
     }
   }, [ipLocation, userLocation, showIpBanner]);
 
-  // Note: Friends fetching is handled by useFriendsOnMap hook (polls every 30s)
-
-  // Update friend markers on map
   useEffect(() => {
     if (!mapInstanceRef.current || !window.L) return;
-    
-    // Clear existing friend markers
     friendMarkersRef.current.forEach(m => m.remove());
     friendMarkersRef.current = [];
-    
     if (!showFriendsOnMap || friendsOnMap.length === 0) return;
-    
-    // Add friend markers
     friendsOnMap.forEach(friend => {
       if (!friend.latitude || !friend.longitude) return;
       
@@ -758,23 +577,14 @@ const MapPageContent = () => {
     });
   }, [friendsOnMap, showFriendsOnMap]);
 
-  // Update on-demand request markers (green breathing markers for photographers)
-  // Includes Surfer Priority Badge: Pro (gold) > Comp (purple) > Regular (cyan) + Boosted (orange)
   useEffect(() => {
     if (!mapInstanceRef.current || !isPhotographer) return;
-    
-    // Clear existing on-demand markers
     onDemandMarkersRef.current.forEach(m => m.remove());
     onDemandMarkersRef.current = [];
     
     if (!activeOnDemandRequests || activeOnDemandRequests.length === 0) return;
-    
-    // Priority color mapping
     const getPriorityColors = (badge, isBoosted) => {
-      // Boosted requests get special orange styling
-      if (isBoosted) {
-        return { gradient: 'from-orange-400 to-red-600', shadow: 'orange', bg: 'orange', ring: 'ring-orange-400' };
-      }
+      if (isBoosted) return { gradient: 'from-orange-400 to-red-600', shadow: 'orange', bg: 'orange', ring: 'ring-orange-400' };
       
       if (!badge) return { gradient: 'from-emerald-400 to-green-600', shadow: 'emerald', bg: 'emerald' };
       
@@ -789,8 +599,6 @@ const MapPageContent = () => {
           return { gradient: 'from-cyan-400 to-blue-600', shadow: 'cyan', bg: 'cyan', ring: 'ring-cyan-400' };
       }
     };
-    
-    // Add breathing markers for each active request with priority badges
     activeOnDemandRequests.forEach((request, index) => {
       if (!request.latitude || !request.longitude) return;
       
@@ -798,31 +606,24 @@ const MapPageContent = () => {
       const badge = request.priority_badge || { level: 'regular', label: 'Surfer', color: 'cyan' };
       const colors = getPriorityColors(badge, isBoosted);
       const queuePosition = index + 1;
-      
-      // Badge icons based on priority
       const badgeIcon = isBoosted
-        ? `<svg class="w-3 h-3 text-orange-400" fill="currentColor" viewBox="0 0 24 24"><path d="M19 9l-7 7-7-7"/><path d="M12 2v14"/></svg>` // Rocket/Boost
-        : badge.level === 'pro' 
-        ? `<svg class="w-3 h-3 text-${colors.bg}-400" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2L14.09 8.26L21 9.27L16 14.14L17.18 21.02L12 17.77L6.82 21.02L8 14.14L3 9.27L9.91 8.26L12 2Z"/></svg>` // Star
+        ? `<svg class="w-3 h-3 text-orange-400" fill="currentColor" viewBox="0 0 24 24"><path d="M19 9l-7 7-7-7"/><path d="M12 2v14"/></svg>`
+        : badge.level === 'pro'
+        ? `<svg class="w-3 h-3 text-${colors.bg}-400" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2L14.09 8.26L21 9.27L16 14.14L17.18 21.02L12 17.77L6.82 21.02L8 14.14L3 9.27L9.91 8.26L12 2Z"/></svg>`
         : badge.level === 'comp'
-        ? `<svg class="w-3 h-3 text-${colors.bg}-400" fill="currentColor" viewBox="0 0 24 24"><path d="M17 10.43V3H7v7.43c0 .35.18.68.49.86l4.18 2.51-.99 2.34-3.41.29 2.59 2.24L9.07 22 12 20.23 14.93 22l-.79-3.33 2.59-2.24-3.41-.29-.99-2.34 4.18-2.51c.3-.18.49-.51.49-.86z"/></svg>` // Trophy
-        : `<svg class="w-3 h-3 text-${colors.bg}-400" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>`; // Check
+        ? `<svg class="w-3 h-3 text-${colors.bg}-400" fill="currentColor" viewBox="0 0 24 24"><path d="M17 10.43V3H7v7.43c0 .35.18.68.49.86l4.18 2.51-.99 2.34-3.41.29 2.59 2.24L9.07 22 12 20.23 14.93 22l-.79-3.33 2.59-2.24-3.41-.29-.99-2.34 4.18-2.51c.3-.18.49-.51.49-.86z"/></svg>`
+        : `<svg class="w-3 h-3 text-${colors.bg}-400" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>`;
       
       const onDemandIcon = window.L.divIcon({
         className: 'custom-marker on-demand-marker',
         html: `
           <div class="relative">
-            <!-- Breathing animation with priority color -->
             <div class="absolute inset-0 w-14 h-14 -top-1 -left-1 rounded-full bg-${colors.bg}-400 animate-ping opacity-40"></div>
             <div class="absolute inset-0 w-12 h-12 rounded-full bg-${colors.bg}-500 animate-pulse opacity-30"></div>
-            
-            <!-- Priority/Boosted badge (top right) -->
             <div class="absolute -top-2 -right-2 z-10 flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-${colors.bg}-500/90 text-white text-[8px] font-bold shadow-md ${isBoosted || badge.level === 'pro' ? 'animate-pulse' : ''}">
               ${badgeIcon}
               ${isBoosted ? '🚀' : badge.level === 'pro' ? 'PRO' : badge.level === 'comp' ? 'COMP' : ''}
             </div>
-            
-            ${/* Boost timer badge (top left for boosted) */ ''}
             ${isBoosted ? `
               <div class="absolute -top-2 -left-2 z-10 px-1.5 py-0.5 rounded-full bg-orange-500 text-white text-[8px] font-bold shadow-md animate-pulse">
                 ${request.boost_time_remaining_minutes || 0}m
@@ -832,8 +633,6 @@ const MapPageContent = () => {
                 ${queuePosition}
               </div>
             ` : ''}
-            
-            <!-- Marker body -->
             <div class="relative w-12 h-12 rounded-full bg-gradient-to-br ${colors.gradient} p-[3px] shadow-lg shadow-${colors.shadow}-500/50">
               <div class="w-full h-full rounded-full bg-black flex items-center justify-center overflow-hidden">
                 ${request.requester_avatar 
@@ -842,8 +641,6 @@ const MapPageContent = () => {
                 }
               </div>
             </div>
-            
-            <!-- Label with priority color -->
             <div class="absolute -bottom-1 left-1/2 -translate-x-1/2 px-2 py-0.5 bg-${colors.bg}-500 rounded text-[9px] text-white font-bold whitespace-nowrap animate-pulse">
               ${isBoosted ? 'BOOSTED 🚀' : 'NEEDS PRO'}
             </div>
@@ -860,7 +657,6 @@ const MapPageContent = () => {
         .addTo(mapInstanceRef.current)
         .bindPopup(`
           <div class="text-center p-2 min-w-[150px]">
-            <!-- Priority badge in popup -->
             <div class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full mb-2" style="background: ${popupBgColor}">
               <span class="text-[10px] font-bold text-white">${isBoosted ? 'BOOSTED 🚀' : badge.label.toUpperCase()}</span>
             </div>
@@ -891,39 +687,25 @@ const MapPageContent = () => {
         return;
       }
       
-      // NUCLEAR OPTION: Destroy and recreate the entire map at the new location
-      // This avoids all tile loading issues with setView/panTo
       if (mapInstanceRef.current) {
-        logger.debug('[MAP] Destroying map for GPS relocate');
         mapInstanceRef.current.remove();
         mapInstanceRef.current = null;
       }
       
-      // Small delay then reinitialize at GPS location
       setTimeout(() => {
         if (mapRef.current && window.L) {
-          logger.debug('[MAP] Recreating map at GPS location');
-          
           const map = window.L.map(mapRef.current, {
-            center: [location.lat, location.lng],
-            zoom: 12,
-            ...DEFAULT_MAP_OPTIONS  // includes tap: false for Android foldable fix
+            center: [location.lat, location.lng], zoom: 12,
+            ...DEFAULT_MAP_OPTIONS
           });
-          
-          // Add tile layer
           window.L.tileLayer(mapTilesUrl, TILE_LAYER_CONFIG.options).addTo(map);
-          
-          // Add zoom control
           window.L.control.zoom({ position: 'bottomright' }).addTo(map);
           
-          // Initialize cluster groups
           spotClusterRef.current = window.L.markerClusterGroup(SPOT_CLUSTER_OPTIONS);
           map.addLayer(spotClusterRef.current);
-          
           photographerClusterRef.current = window.L.markerClusterGroup(PHOTOGRAPHER_CLUSTER_OPTIONS);
           map.addLayer(photographerClusterRef.current);
 
-          // ANDROID FOLDABLE FIX: Re-attach visualViewport listener on map recreation
           if (window.visualViewport) {
             const onVvResize = debounce(() => {
               if (mapInstanceRef.current) {
@@ -965,48 +747,22 @@ const MapPageContent = () => {
     }
     
     try {
-      // Force container resize to prevent black map
       mapRef.current.style.height = '100%';
       mapRef.current.style.minHeight = '50vh';
-    
-    // Guard against missing container dimensions
     const rect = mapRef.current.getBoundingClientRect();
     if (!rect.width || !rect.height) {
-      logger.warn('[MAP] Container has no dimensions, delaying init');
       setTimeout(initMap, 100);
       return;
     }
-    
-    // Skip if map already initialized
-    if (mapInstanceRef.current) {
-      logger.debug('[MAP] Map already initialized, skipping');
-      return;
-    }
-    
-    logger.debug('[MAP] Initializing Leaflet map with clustering...');
-    
-    // L_DISABLE_3D is set in index.html BEFORE Leaflet loads
-    
-    // Initialize Leaflet map with dark theme
+    if (mapInstanceRef.current) return;
     const map = window.L.map(mapRef.current, {
       center: [FLORIDA_CENTER.lat, FLORIDA_CENTER.lng],
       zoom: 7,
       ...DEFAULT_MAP_OPTIONS
     });
-    
-    // Force invalidateSize after initialization
-    setTimeout(() => {
-      if (map && map.invalidateSize) {
-        map.invalidateSize();
-        logger.debug('[MAP] Invalidate size called');
-      }
-    }, 100);
-    
-    // Add dark map tiles
+    setTimeout(() => { if (map?.invalidateSize) map.invalidateSize(); }, 100);
     const tileLayer = window.L.tileLayer(mapTilesUrl, TILE_LAYER_CONFIG.options).addTo(map);
     map._tileLayer = tileLayer;
-    
-    // Add zoom control to bottom right
     window.L.control.zoom({ position: 'bottomright' }).addTo(map);
     
     // Initialize marker cluster groups with custom icons
@@ -1031,8 +787,6 @@ const MapPageContent = () => {
         });
       }
     });
-    
-    // Photographer cluster with custom icon
     photographerClusterRef.current = window.L.markerClusterGroup({
       ...PHOTOGRAPHER_CLUSTER_OPTIONS,
       maxClusterRadius: 80,
@@ -1060,82 +814,39 @@ const MapPageContent = () => {
       }
     });
     
-    // Add cluster groups to map
     map.addLayer(spotClusterRef.current);
     map.addLayer(photographerClusterRef.current);
-    
-    // Debounced moveend handler for performance (250ms delay)
-    const debouncedMoveEnd = debounce(() => {
-      logger.debug('[MAP] Move ended - refreshing visible markers');
-      // You could add viewport-based filtering here if needed
-    }, 250);
-    
+    const debouncedMoveEnd = debounce(() => {}, 250);
     map.on('moveend', debouncedMoveEnd);
 
-    // --- ANDROID FOLDABLE FIX: visualViewport resize listener ----------------
-    // Samsung Galaxy Z Fold 7 (and other foldable / large-screen Android devices)
-    // report a visual viewport that can shift vertically relative to the layout
-    // viewport whenever the screen folds/unfolds, the soft keyboard appears, or
-    // the browser chrome (address bar) hides/shows. Leaflet caches the map
-    // container's bounding rect for touch-point calculations. When that rect
-    // becomes stale, pinch-zoom drags the map away from the pinch center
-    // (southward, because the container is offset downward by the nav chrome).
-    //
-    // Solution: re-call invalidateSize() the moment the visual viewport changes
-    // so Leaflet always has fresh container geometry for touch events.
     if (window.visualViewport) {
       const onVisualViewportResize = debounce(() => {
-        if (mapInstanceRef.current) {
-          logger.debug('[MAP] visualViewport resized - correcting Leaflet container geometry');
-          mapInstanceRef.current.invalidateSize({ pan: false });
-        }
+        if (mapInstanceRef.current) mapInstanceRef.current.invalidateSize({ pan: false });
       }, 100);
-      
       window.visualViewport.addEventListener('resize', onVisualViewportResize);
       window.visualViewport.addEventListener('scroll', onVisualViewportResize);
-      
-      // Clean up when the map is removed
       map.on('remove', () => {
         window.visualViewport.removeEventListener('resize', onVisualViewportResize);
         window.visualViewport.removeEventListener('scroll', onVisualViewportResize);
       });
     }
-    // -------------------------------------------------------------------------
-    
     mapInstanceRef.current = map;
-    logger.debug('[MAP] Map initialized with clustering successfully');
-    
-    // Initial marker update
     updateMapMarkers();
     updateUserLocationMarker();
     } catch (error) {
       logger.error('[MAP] Error initializing map:', error);
-      // Show user-friendly error
-      toast.error('Map failed to load', {
-        description: 'Please refresh the page'
-      });
+      toast.error('Map failed to load', { description: 'Please refresh the page' });
     }
   };
-
-  // Separate function to update markers without reinitializing map
-  // PERFORMANCE OPTIMIZED: Uses cluster groups and truncated coordinates
 
   const updateMapMarkers = () => {
     const map = mapInstanceRef.current;
     if (!map) return;
-
     try {
-      // Clear existing markers from markersRef (non-clustered markers like user location)
       markersRef.current.forEach(m => m.remove());
       markersRef.current = [];
-    
-    // Clear cluster groups
-    if (spotClusterRef.current) {
-      spotClusterRef.current.clearLayers();
-    }
-    if (photographerClusterRef.current) {
-      photographerClusterRef.current.clearLayers();
-    }
+    if (spotClusterRef.current) spotClusterRef.current.clearLayers();
+    if (photographerClusterRef.current) photographerClusterRef.current.clearLayers();
     
 
     
@@ -1198,30 +909,17 @@ const MapPageContent = () => {
         
         spotMarkers.push(marker);
       });
-      
-      // Bulk add markers to cluster group for better performance
       spotClusterRef.current.addLayers(spotMarkers);
     }
-    
-    // Add live photographer markers to CLUSTER GROUP with pulsing animation
     if ((filter === 'all' || filter === 'photographers') && photographerClusterRef.current) {
       const photographerMarkers = [];
-      
       livePhotographers.forEach(photographer => {
-        // Validate coordinates before creating marker
         if (!isValidLatLng(photographer.latitude, photographer.longitude)) return;
-        
         const isPulsing = pulsingMarkers.has(photographer.id);
-        // Check if photographer is at an official spot or GPS/roaming
         const isAtOfficialSpot = photographer.current_spot_id || photographer.spot_id;
-        
-        // Different visual treatment for GPS/roaming photographers vs official spot photographers
-        // STATUS COLORS: Red = Shooting Live, Green = On-Demand, Purple = Both
         const isShootingLive = photographer.is_streaming || photographer.is_live;
         const isOnDemand = photographer.on_demand_available || photographer.is_available_on_demand;
         const isBoth = isShootingLive && isOnDemand;
-        
-        // Determine status color and label
         let statusClass, ringClass, labelClass, statusLabel;
         if (isBoth) {
           statusClass = 'status-both';
@@ -1239,20 +937,14 @@ const MapPageContent = () => {
           labelClass = 'status-on-demand-label';
           statusLabel = 'ON-DEMAND';
         } else {
-          // Fallback for photographers without clear status (ROAMING)
-          statusClass = '';
-          ringClass = '';
-          labelClass = '';
-          statusLabel = 'ROAMING';
+          statusClass = ''; ringClass = ''; labelClass = ''; statusLabel = 'ROAMING';
         }
         
         const photographerIcon = window.L.divIcon({
           className: 'custom-marker photographer-marker',
-          html: isAtOfficialSpot 
+          html: isAtOfficialSpot
             ? `
-              <!-- OFFICIAL SPOT PHOTOGRAPHER: Status-based styling -->
               <div class="photographer-pin-container">
-                <!-- Breathing pulse animation based on status -->
                 ${isBoth ? `
                   <div class="photographer-pin-pulse ${statusClass}" style="background: rgba(168, 85, 247, 0.4);"></div>
                   <div class="absolute inset-0 w-14 h-14 -top-1 -left-1 rounded-full ${statusClass}" style="background: rgba(124, 58, 237, 0.3);"></div>
@@ -1268,8 +960,6 @@ const MapPageContent = () => {
                 ` : `
                   <div class="absolute inset-0 w-12 h-12 rounded-full bg-cyan-400 animate-ping opacity-40"></div>
                 `}
-                
-                <!-- Avatar with status ring -->
                 <div class="photographer-pin-avatar p-[3px] rounded-full ${ringClass || ''}" style="${!ringClass ? `background: ${isPulsing ? `linear-gradient(135deg, ${ELECTRIC_CYAN}, #0099CC)` : 'linear-gradient(to right, rgb(34 211 238), rgb(59 130 246))'}` : ''}">
                   <div class="w-full h-full rounded-full bg-black flex items-center justify-center overflow-hidden">
                     ${photographer.avatar_url 
@@ -1278,15 +968,12 @@ const MapPageContent = () => {
                     }
                   </div>
                 </div>
-                
-                <!-- Status label (contained within bounding box) -->
                 <div class="photographer-pin-status-label ${labelClass || ''}" style="${!labelClass ? `background-color: ${isPulsing ? ELECTRIC_CYAN : 'rgb(16 185 129)'}` : ''}">
                   ${isPulsing ? 'NEW!' : statusLabel}
                 </div>
               </div>
             `
             : `
-              <!-- GPS/ROAMING PHOTOGRAPHER: Different visual (orange/gold ring, GPS indicator) -->
               <div class="relative">
                 <div class="absolute inset-0 w-12 h-12 rounded-full bg-orange-400 animate-ping opacity-40"></div>
                 <div class="relative w-12 h-12 rounded-full p-[3px]" style="background: linear-gradient(135deg, #f97316, #eab308);">
@@ -1319,52 +1006,29 @@ const MapPageContent = () => {
         
         photographerMarkers.push(marker);
       });
-      
-      // Bulk add markers to cluster group for better performance
       photographerClusterRef.current.addLayers(photographerMarkers);
     }
     } catch (error) {
       logger.error('[MAP] Error updating markers:', error);
-      // Don't crash the app - just log the error
     }
   };
 
-
-  // Fetch photographers currently shooting at a specific spot
-
-  // Handle closing the unified drawer
-
-  // Handle starting to shoot at a spot (from unified drawer)
-
-  // Handle switching location while already live
-
-
-  // Wrapper for startGoLiveFlow from hook - closes drawers before starting
-  // INCLUDES: Permission Nudge check for GPS-denied users
   const handleStartGoLiveFlow = useCallback((spotId, sessionSettings = {}) => {
-    // Check if user has GPS location or only IP fallback
     if (!userLocation && locationDenied) {
-      // Show permission nudge drawer
       setPermissionNudgeAction('go_live');
       setShowPermissionNudge(true);
       return;
     }
-    
-    // IMPORTANT: Close the drawer FIRST to prevent z-index collision
     setUnifiedDrawerOpen(false);
     setBottomSheetOpen(false);
     startGoLiveFlow(spotId, sessionSettings);
   }, [startGoLiveFlow, userLocation, locationDenied]);
 
-  // Wrapper for hook's handleConditionsConfirm - passes surfSpots for currentLiveSpot lookup
   const handleConditionsConfirm = useCallback((data) => {
     hookHandleConditionsConfirm(data, surfSpots);
   }, [hookHandleConditionsConfirm, surfSpots]);
 
-  // Check if current user is shooting
   const currentUserShooting = livePhotographers.find(p => p.id === user?.id);
-
-  // Wrapper for hook's handleStopLive - passes current session data
   const handleStopLiveWrapper = useCallback(() => {
     handleStopLive(currentUserShooting);
   }, [handleStopLive, currentUserShooting]);
@@ -1404,17 +1068,14 @@ const MapPageContent = () => {
         className="absolute inset-0 z-0" 
         data-testid="map-container"
       />
-      
-      {/* TOP RAIL - Header + Live Floating Island + Filters */}
+
+      {/* TOP RAIL */}
       <div 
         className="absolute top-0 left-0 right-0 md:left-[200px] z-[1000] pointer-events-none" 
         style={{ paddingTop: '16px' }}
       >
         <div className="px-4">
-          {/* Header Row - Using extracted component */}
           <MapHeader livePhotographerCount={livePhotographers.length} />
-          
-          {/* Live Floating Island - Nestled below header (Only for active photographers) */}
           {currentUserShooting && (
             <div className="mb-3 pointer-events-auto">
               <MapLiveFloatingIsland 
@@ -1428,15 +1089,12 @@ const MapPageContent = () => {
               />
             </div>
           )}
-        
-          {/* Filter Tabs - Using extracted component */}
           <MapFilterTabs 
             filter={filter}
             onFilterChange={handleFilterChange}
             locationDenied={locationDenied}
             surfSpots={surfSpots}
             onSpotSelect={(spot) => {
-              // Pan map to the selected spot and open drawer
               if (mapRef.current && isValidLatLng(spot.latitude, spot.longitude)) {
                 mapRef.current.flyTo([spot.latitude, spot.longitude], 14, { duration: 1 });
               }
@@ -1444,8 +1102,6 @@ const MapPageContent = () => {
               setUnifiedDrawerOpen(true);
             }}
           />
-          
-          {/* City Migration / IP Location Banner - Auto-dismisses after 5 seconds */}
           {showIpBanner && (cityChanged || (locationDenied && ipLocation)) && (
             <div 
               className={`mt-2 px-3 py-2 rounded-lg backdrop-blur-sm pointer-events-auto flex items-center justify-between gap-2 text-sm ${
@@ -1483,19 +1139,15 @@ const MapPageContent = () => {
               </div>
             </div>
           )}
-          
-          {/* Request a Pro Button - Inline for placement control */}
           <div className="mt-2 pointer-events-auto">
             <button
               onClick={() => {
                 if (!userLocation) {
-                  // Set pending flag and start location loading
                   setPendingRequestPro(true);
                   setRequestProLocationLoading(true);
                   setLocationDenied(false);
                   getUserLocation();
                 } else {
-                  // Location available, open modal directly
                   setShowRequestProModal(true);
                 }
               }}
@@ -1515,24 +1167,17 @@ const MapPageContent = () => {
               ) : (
                 'Request a 📸'
               )}
-            </button>
-            
-            {/* REMOVED: Global Go Live button - now merged into map pin drawers */}
+          </button>
           </div>
         </div>
       </div>
-      
-      {/* Active Dispatch Tracking Panel - Extracted to map/DispatchTrackingPanel.js */}
-      <DispatchTrackingPanel activeDispatch={activeDispatch} onDismiss={() => setActiveDispatch(null)} />
-      
-      {/* REMOVED: BLUE LIVE BAR - Now integrated into UnifiedSpotDrawer */}
 
-      {/* GPS & Control Buttons - Right Side */}
+      <DispatchTrackingPanel activeDispatch={activeDispatch} onDismiss={() => setActiveDispatch(null)} />
+
       <div 
         className="absolute right-4 z-[1000] flex flex-col gap-2" 
         style={{ top: currentUserShooting ? 'calc(130px + env(safe-area-inset-top))' : 'calc(max(96px, env(safe-area-inset-top) + 80px))' }}
       >
-        {/* Location Accuracy Warning Banner */}
         {userLocation?.accuracy && userLocation.accuracy > 1000 && (
           <button
             onClick={() => setShowLocationPicker(true)}
@@ -1543,8 +1188,6 @@ const MapPageContent = () => {
             <span>Fix Location</span>
           </button>
         )}
-        
-        {/* GPS Location Button Group */}
         <div className="relative">
           <Button
             onClick={getUserLocation}
@@ -1563,8 +1206,6 @@ const MapPageContent = () => {
               <Navigation className={`w-5 h-5 ${userLocation && userLocation.accuracy <= 100 ? 'text-blue-400' : ''}`} />
             )}
           </Button>
-          
-          {/* GPS Help Button - Shows when location accuracy is poor or denied */}
           {(locationDenied || (userLocation?.accuracy && userLocation.accuracy > 200)) && (
             <button
               onClick={() => setShowGPSGuide(true)}
@@ -1576,8 +1217,6 @@ const MapPageContent = () => {
             </button>
           )}
         </div>
-        
-        {/* Featured Photographers Button */}
         <Button
           aria-expanded={showFeaturedPanel} onClick={() => setShowFeaturedPanel(!showFeaturedPanel)}
           className={`bg-zinc-800/90 backdrop-blur-sm hover:bg-zinc-700 text-white rounded-full w-12 h-12 p-0 ${showFeaturedPanel ? 'ring-2 ring-yellow-400' : ''}`}
@@ -1585,8 +1224,6 @@ const MapPageContent = () => {
         >
           <Camera className={`w-5 h-5 ${showFeaturedPanel ? 'text-yellow-400' : ''}`} />
         </Button>
-        
-        {/* Friends on Map Toggle */}
         <Button
           aria-expanded={showFriendsOnMap} onClick={() => setShowFriendsOnMap(!showFriendsOnMap)}
           className={`bg-zinc-800/90 backdrop-blur-sm hover:bg-zinc-700 text-white rounded-full w-12 h-12 p-0 ${showFriendsOnMap ? 'ring-2 ring-yellow-400' : ''}`}
@@ -1594,8 +1231,6 @@ const MapPageContent = () => {
         >
           <Users className={`w-5 h-5 ${showFriendsOnMap ? 'text-yellow-400' : ''}`} />
         </Button>
-        
-        {/* Friends count badge */}
         {showFriendsOnMap && friendsOnMap.length > 0 && (
           <div className="absolute -top-1 -right-1 w-5 h-5 bg-yellow-400 rounded-full flex items-center justify-center text-xs text-black font-bold">
             {friendsOnMap.length}
@@ -1603,7 +1238,6 @@ const MapPageContent = () => {
         )}
       </div>
 
-      {/* Featured Photographers Panel - Extracted to map/FeaturedPhotographersPanel.js */}
       {showFeaturedPanel && (
         <FeaturedPhotographersPanel
           featuredPhotographers={featuredPhotographers}
@@ -1616,7 +1250,6 @@ const MapPageContent = () => {
         />
       )}
 
-      {/* Nearest Spot Card - Positioned to avoid collision with banners */}
       {nearestSpot && userLocation && (
         <div className="absolute bottom-24 right-4 z-[1000] pointer-events-auto">
           <div 
@@ -1636,8 +1269,6 @@ const MapPageContent = () => {
         </div>
       )}
 
-      {/* Bottom Sheet - Only for Photographer Details now (spot details in UnifiedSpotDrawer) */}
-      {/* Photographer Bottom Sheet - Extracted to map/PhotographerBottomSheet.js */}
       {bottomSheetOpen && selectedPhotographer && !showJumpInModal && (
         <PhotographerBottomSheet
           selectedPhotographer={selectedPhotographer}
@@ -1650,37 +1281,15 @@ const MapPageContent = () => {
         />
       )}
 
-      {/* Leaflet CSS injection */}
       <style>{`
-        .custom-marker {
-          background: transparent !important;
-          border: none !important;
-        }
-        .custom-cluster-marker {
-          background: transparent !important;
-          border: none !important;
-        }
-        .photographer-marker .animate-ping {
-          animation: ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite;
-        }
-        @keyframes ping {
-          75%, 100% {
-            transform: scale(1.5);
-            opacity: 0;
-          }
-        }
-        /* Override default Leaflet cluster styles */
-        .marker-cluster-small,
-        .marker-cluster-medium,
-        .marker-cluster-large {
-          background: transparent !important;
-        }
-        .marker-cluster div {
-          background: transparent !important;
-        }
+        .custom-marker { background: transparent !important; border: none !important; }
+        .custom-cluster-marker { background: transparent !important; border: none !important; }
+        .photographer-marker .animate-ping { animation: ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite; }
+        @keyframes ping { 75%, 100% { transform: scale(1.5); opacity: 0; } }
+        .marker-cluster-small, .marker-cluster-medium, .marker-cluster-large { background: transparent !important; }
+        .marker-cluster div { background: transparent !important; }
       `}</style>
 
-      {/* Unified Spot Drawer - Opens when map pin is clicked */}
       <UnifiedSpotDrawer
         spot={selectedSpot}
         isOpen={unifiedDrawerOpen}
@@ -1695,7 +1304,6 @@ const MapPageContent = () => {
         userId={user?.id}
       />
 
-      {/* Jump In Session Modal */}
       {showJumpInModal && selectedPhotographer && (
         <JumpInSessionModal
           photographer={selectedPhotographer}
@@ -1708,7 +1316,6 @@ const MapPageContent = () => {
         />
       )}
 
-      {/* -- Request a Pro Modal - unified component ------------------- */}
       <RequestProModal
         isOpen={showRequestProModal}
         onClose={() => {
@@ -1732,7 +1339,6 @@ const MapPageContent = () => {
         }}
       />
 
-      {/* Request a Pro - Selfie Modal (after Pro accepts) */}
       <RequestProSelfieModal
         dispatchId={activeDispatchId}
         isOpen={showRequestProSelfieModal}
@@ -1742,7 +1348,6 @@ const MapPageContent = () => {
         }}
       />
 
-      {/* End Session Modal - Kill Switch Confirmation */}
       <EndSessionModal
         isOpen={showEndSessionModal}
         onClose={closeEndSessionModal}
@@ -1751,7 +1356,6 @@ const MapPageContent = () => {
         isLoading={endSessionLoading}
       />
 
-      {/* Conditions Modal - Mandatory media capture before Go Live */}
       <ConditionsModal
         isOpen={showConditionsModal}
         onClose={closeConditionsModal}
@@ -1760,7 +1364,6 @@ const MapPageContent = () => {
         isLoading={goLiveLoading}
       />
 
-      {/* Permission Nudge Drawer - GPS instructions for Book/Go Live */}
       <PermissionNudgeDrawer
         isOpen={showPermissionNudge}
         onClose={() => setShowPermissionNudge(false)}
@@ -1768,7 +1371,6 @@ const MapPageContent = () => {
         action={permissionNudgeAction}
       />
       
-      {/* GPS Settings Guide Modal */}
       <GPSSettingsGuide
         isOpen={showGPSGuide}
         onClose={() => setShowGPSGuide(false)}
@@ -1778,7 +1380,6 @@ const MapPageContent = () => {
         isLoading={gpsLoading}
       />
       
-      {/* Manual Location Picker Modal */}
       <LocationPicker
         isOpen={showLocationPicker}
         onClose={() => setShowLocationPicker(false)}
@@ -1801,7 +1402,6 @@ const MapPageContent = () => {
   );
 };
 
-// Export with Error Boundary wrapper
 export const MapPage = () => (
   <MapErrorBoundary>
     <MapPageContent />

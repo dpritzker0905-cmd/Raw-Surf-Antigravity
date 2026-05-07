@@ -1,21 +1,16 @@
-/**
- * ScheduledBookingHelpers.js
- * Extracted helper components for ScheduledBookingDrawer.
- * Includes: AccountCreditSection, SchedSurfboardAvatar, SchedEmptySeat,
- *           CrewSplitSection, CrossSellSuggestion, BookingConfirmation
- */
+
 import React, { useState, useEffect } from 'react';
 import {
   Camera, MapPin, Clock, DollarSign, Zap, ChevronRight,
-  Check, AlertTriangle, Star, Wallet, Target, Sparkles, Bell, Gift,
-  Navigation, X, Loader2, CheckCircle2, Radio, CreditCard, Users,
-  UserPlus, Search, Crown, Percent, Anchor, Award, Plus
+  Check, AlertTriangle, Sparkles, Bell, Gift,
+  X, Loader2, CheckCircle2, Radio, Users,
+  UserPlus, Search, Crown, Percent, Award, Plus
 } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
-import { Slider } from '../ui/slider';
+
 import { Switch } from '../ui/switch';
 import { toast } from 'sonner';
 import apiClient from '../../lib/apiClient';
@@ -23,7 +18,6 @@ import { SavedCrewSelector } from '../SavedCrewSelector';
 import logger from '../../utils/logger';
 import { getFullUrl } from '../../utils/media';
 
-// Duration prices multiplier
 const DURATION_PRICES = {
   60: 1,
   120: 1.8,
@@ -32,143 +26,9 @@ const DURATION_PRICES = {
   480: 5
 };
 
-/**
- * Impact Zone Location Picker - Select meetup coordinates with range validation
- * Features:
- * - GPS-based nearest spots dropdown
- * - Validates if photographer is within range
- * - Shows travel surcharge if applicable
- */
-// ImpactZonePicker extracted to ./booking/ImpactZonePicker.js
-
-/**
- * Account Credit Application Component
- */
-const _AccountCreditSection = ({
-  userCredits,
-  totalPrice,
-  appliedCredits,
-  onAppliedCreditsChange,
-  isLight
-}) => {
-  const textPrimary = isLight ? 'text-gray-900' : 'text-white';
-  const textSecondary = isLight ? 'text-gray-600' : 'text-gray-400';
-  
-  const maxApplicable = Math.min(userCredits, totalPrice);
-  const remainingToPay = Math.max(0, totalPrice - appliedCredits);
-  
-  if (userCredits <= 0) return null;
-  
-  return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Wallet className="w-5 h-5 text-yellow-400" />
-          <Label className={`font-medium ${textPrimary}`}>Account Credit</Label>
-        </div>
-        <Badge className="bg-yellow-500/20 text-yellow-400">
-          ${userCredits.toFixed(2)} available
-        </Badge>
-      </div>
-      
-      {/* Slider for partial credit application */}
-      <div className="space-y-3">
-        <div className="flex items-center justify-between text-sm">
-          <span className={textSecondary}>Apply credits:</span>
-          <span className="font-bold text-yellow-400">${appliedCredits.toFixed(2)}</span>
-        </div>
-        
-        <Slider
-          value={[appliedCredits]}
-          onValueChange={([value]) => onAppliedCreditsChange(value)}
-          max={maxApplicable}
-          min={0}
-          step={0.5}
-          className="w-full"
-        />
-        
-        <div className="flex justify-between text-xs">
-          <span className={textSecondary}>$0</span>
-          <span className={textSecondary}>${maxApplicable.toFixed(2)}</span>
-        </div>
-      </div>
-      
-      {/* Quick buttons */}
-      <div className="flex gap-2">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => onAppliedCreditsChange(0)}
-          className={`flex-1 ${appliedCredits === 0 ? 'border-yellow-500' : 'border-zinc-700'}`}
-        >
-          None
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => onAppliedCreditsChange(maxApplicable / 2)}
-          className="flex-1 border-zinc-700"
-        >
-          Half
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => onAppliedCreditsChange(maxApplicable)}
-          className={`flex-1 ${appliedCredits === maxApplicable ? 'border-yellow-500 bg-yellow-500/10' : 'border-zinc-700'}`}
-        >
-          Max
-        </Button>
-      </div>
-      
-      {/* Payment Summary */}
-      <div className={`p-3 rounded-lg ${isLight ? 'bg-gray-100' : 'bg-zinc-800'}`}>
-        <div className="flex justify-between mb-1">
-          <span className={textSecondary}>Session Total</span>
-          <span className={textPrimary}>${totalPrice.toFixed(2)}</span>
-        </div>
-        {appliedCredits > 0 && (
-          <div className="flex justify-between mb-1 text-yellow-400">
-            <span>Credit Applied</span>
-            <span>-${appliedCredits.toFixed(2)}</span>
-          </div>
-        )}
-        <div className={`flex justify-between pt-2 border-t ${isLight ? 'border-gray-200' : 'border-zinc-700'}`}>
-          <span className={`font-bold ${textPrimary}`}>Pay with Card</span>
-          <span className="font-bold text-green-400">${remainingToPay.toFixed(2)}</span>
-        </div>
-      </div>
-      
-      {/* Refund & Protection Policy Notice */}
-      <div className="space-y-2">
-        <div className={`flex items-start gap-2 p-3 rounded-lg ${isLight ? 'bg-green-50' : 'bg-green-500/10'} border ${isLight ? 'border-green-200' : 'border-green-500/30'}`}>
-          <Check className="w-4 h-4 text-green-400 flex-shrink-0 mt-0.5" />
-          <p className={`text-xs ${isLight ? 'text-green-700' : 'text-green-300'}`}>
-            <strong>Payment Protected:</strong> Your payment is held securely until the session is completed and your content is delivered through our gallery system.
-          </p>
-        </div>
-        
-        <div className={`flex items-start gap-2 p-3 rounded-lg ${isLight ? 'bg-amber-50' : 'bg-amber-500/10'} border ${isLight ? 'border-amber-200' : 'border-amber-500/30'}`}>
-          <AlertTriangle className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" />
-          <div className={`text-xs ${isLight ? 'text-amber-700' : 'text-amber-300'}`}>
-            <strong>Cancellation Policy:</strong>
-            <ul className="mt-1 ml-2 space-y-0.5">
-              <li>- More than 48hrs before: 90% refund</li>
-              <li>- 24-48hrs before: 50% refund</li>
-              <li>- Less than 24hrs: No refund</li>
-            </ul>
-            <p className="mt-1">Refunds go to your Account Credit balance.</p>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
 
 
-// ====================================================================
 // SHARED SURFBOARD VISUALIZATION (mirrored from OnDemandRequestDrawer)
-// ====================================================================
 const SCHED_BOARD_COLORS = [
   { fill: '#FCD34D', stroke: '#F59E0B' }, // Yellow - captain
   { fill: '#22D3EE', stroke: '#0891B2' }, // Cyan
@@ -246,9 +106,6 @@ const SchedEmptySeat = ({ onClick, isLight }) => (
   </div>
 );
 
-/**
- * Crew Split Section - Select crew members to split the cost
- */
 const CrewSplitSection = ({
   user,
   enabled,
@@ -267,7 +124,7 @@ const CrewSplitSection = ({
   const [searching, setSearching] = useState(false);
   const [recentBuddies, setRecentBuddies] = useState([]);
   const [following, setFollowing] = useState([]);
-  const [_loadingRecent, setLoadingRecent] = useState(false);
+  const [loadingRecent, setLoadingRecent] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
 
   // Load recent buddies and following when crew split is enabled
@@ -323,24 +180,20 @@ const CrewSplitSection = ({
     onCrewChange(crewMembers.filter(m => m.user_id !== userId));
   };
 
-  // Update captain coverage % for a specific member
   const updateCoverPercent = (userId, percent) => {
     onCrewChange(crewMembers.map(m =>
       m.user_id === userId ? { ...m, captain_cover_percent: percent } : m
     ));
   };
 
-  // Pricing
   const totalCrew = crewMembers.length + 1; // +1 captain
   const pricePerPerson = totalPrice / totalCrew;
 
-  // Captain's actual payment = their share + whatever they cover for crew members
   const captainCovers = crewMembers.reduce((sum, m) =>
     sum + (pricePerPerson * ((m.captain_cover_percent || 0) / 100)), 0
   );
   const captainActualPay = pricePerPerson + captainCovers;
 
-  // Suggestions (recent buddies + following, deduped)
   const suggestions = [...recentBuddies, ...following].filter((item, idx, self) =>
     idx === self.findIndex(t => t.id === item.id) &&
     item.id !== user.id &&
@@ -349,7 +202,6 @@ const CrewSplitSection = ({
 
   return (
     <div className="space-y-4">
-      {/* -- Split Toggle -- */}
       <div className={`flex items-center justify-between p-4 rounded-xl border transition-all ${
         enabled
           ? isLight ? 'bg-cyan-50 border-cyan-200' : 'bg-cyan-500/10 border-cyan-500/30'
@@ -372,13 +224,11 @@ const CrewSplitSection = ({
       {enabled && (
         <div className="space-y-4">
 
-          {/* -- Ocean / Surfboard Viz -- */}
           <div className={`relative p-4 rounded-2xl overflow-visible ${
             isLight
               ? 'bg-gradient-to-b from-cyan-100 via-blue-50 to-white'
               : 'bg-gradient-to-b from-cyan-900/30 via-blue-900/20 to-zinc-900'
           }`}>
-            {/* Wave pattern */}
             <div className="absolute inset-0 opacity-20 overflow-hidden rounded-2xl">
               <svg viewBox="0 0 400 200" className="w-full h-full" preserveAspectRatio="none">
                 <path d="M0,100 Q50,80 100,100 T200,100 T300,100 T400,100 V200 H0 Z" fill="currentColor" className="text-cyan-500" opacity="0.3" />
@@ -386,22 +236,18 @@ const CrewSplitSection = ({
               </svg>
             </div>
 
-            {/* Label */}
             <div className="absolute top-2 left-1/2 -translate-x-1/2 text-xs text-cyan-400 font-medium flex items-center gap-1">
               <MapPin className="w-3 h-3" />
               THE LINEUP
             </div>
 
-            {/* Boards row */}
             <div className="relative pt-6 flex justify-center items-end gap-4 flex-wrap">
-              {/* Captain */}
               <SchedSurfboardAvatar
                 member={{ name: user?.full_name || 'You', avatar_url: user?.avatar_url }}
                 index={0}
                 isCaptain={true}
                 isLight={isLight}
               />
-              {/* Crew members */}
               {crewMembers.map((m, idx) => (
                 <SchedSurfboardAvatar
                   key={m.user_id}
@@ -412,19 +258,16 @@ const CrewSplitSection = ({
                   isLight={isLight}
                 />
               ))}
-              {/* Empty seat */}
               {crewMembers.length < 6 && (
                 <SchedEmptySeat onClick={() => setShowSearch(true)} isLight={isLight} />
               )}
             </div>
           </div>
 
-          {/* -- Per-Member Coverage Sliders -- */}
           {crewMembers.length > 0 && (
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <h4 className={`text-sm font-medium ${textSecondary}`}>Coverage per crew member</h4>
-                {/* Quick actions */}
                 <div className="flex gap-2">
                   <button
                     onClick={() => onCrewChange(crewMembers.map(m => ({ ...m, captain_cover_percent: Math.round(100 / totalCrew) })))}
@@ -463,7 +306,6 @@ const CrewSplitSection = ({
                   <div key={member.user_id} className={`p-4 rounded-xl ${
                     isLight ? 'bg-gray-50 border border-gray-100' : 'bg-muted/50 border border-zinc-700/50'
                   }`}>
-                    {/* Member header */}
                     <div className="flex items-center justify-between mb-3">
                       <div className="flex items-center gap-2">
                         <div
@@ -487,7 +329,6 @@ const CrewSplitSection = ({
                       </div>
                     </div>
 
-                    {/* % Slider - how much captain covers of this member's share */}
                     <div>
                       <div className="flex items-center justify-between mb-1">
                         <span className={`text-xs ${textSecondary}`}>
@@ -522,7 +363,6 @@ const CrewSplitSection = ({
             </div>
           )}
 
-          {/* -- Search / Add Crew -- */}
           <div className="space-y-2">
             {!showSearch ? (
               <button aria-label="User Plus"
@@ -559,7 +399,6 @@ const CrewSplitSection = ({
                   </button>
                 </div>
 
-                {/* Search results dropdown */}
                 {searchResults.length > 0 && (
                   <div className={`rounded-xl border ${
                     isLight ? 'border-gray-200 bg-white' : 'border-zinc-700 bg-zinc-900'
@@ -592,7 +431,6 @@ const CrewSplitSection = ({
             )}
           </div>
 
-          {/* -- Quick Add Pills (Recent / Following) -- */}
           {suggestions.length > 0 && searchQuery.length < 2 && (
             <div className="space-y-2">
               <Label className={textSecondary}>Quick Add</Label>
@@ -618,7 +456,6 @@ const CrewSplitSection = ({
             </div>
           )}
 
-          {/* -- Saved Crews -- */}
           <SavedCrewSelector
             onSelect={(members) => {
               onCrewChange(members.map(m => ({
@@ -636,7 +473,6 @@ const CrewSplitSection = ({
             compact={true}
           />
 
-          {/* -- Split Summary -- */}
           <div className={`p-4 rounded-xl ${
             isLight
               ? 'bg-gradient-to-r from-cyan-50 to-blue-50'
@@ -705,9 +541,6 @@ const CrewSplitSection = ({
   );
 };
 
-/**
- * Cross-Sell Suggestion Component
- */
 const CrossSellSuggestion = ({ type, _photographerName, onAction, isLight }) => {
   const textPrimary = isLight ? 'text-gray-900' : 'text-white';
   const textSecondary = isLight ? 'text-gray-600' : 'text-gray-400';
@@ -739,9 +572,6 @@ const CrossSellSuggestion = ({ type, _photographerName, onAction, isLight }) => 
   return null;
 };
 
-/**
- * Success Confirmation Modal
- */
 const BookingConfirmation = ({ 
   booking, 
   photographer, 
@@ -755,7 +585,6 @@ const BookingConfirmation = ({
   
   return (
     <div className="text-center py-6 space-y-6">
-      {/* JSON-LD Event schema for booked session */}
       {booking && (
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({
           '@context': 'https://schema.org',
@@ -780,7 +609,6 @@ const BookingConfirmation = ({
           eventAttendanceMode: 'https://schema.org/OfflineEventAttendanceMode',
         }) }} />
       )}
-      {/* Success Animation */}
       <div className="relative">
         <div className="w-24 h-24 mx-auto rounded-full bg-gradient-to-r from-green-500 to-emerald-500 flex items-center justify-center animate-pulse">
           <CheckCircle2 className="w-12 h-12 text-white" />
@@ -797,7 +625,6 @@ const BookingConfirmation = ({
         </p>
       </div>
       
-      {/* Booking Details */}
       <div className={`p-4 rounded-xl ${isLight ? 'bg-gray-100' : 'bg-zinc-800'} text-left space-y-3`}>
         <div className="flex items-center gap-3">
           <Clock className="w-5 h-5 text-yellow-400" />
@@ -832,7 +659,6 @@ const BookingConfirmation = ({
         </div>
       </div>
       
-      {/* Push Notification Notice */}
       <div className={`flex items-center gap-2 p-3 rounded-lg ${isLight ? 'bg-blue-50' : 'bg-blue-500/10'} border ${isLight ? 'border-blue-200' : 'border-blue-500/30'}`}>
         <Bell className="w-5 h-5 text-blue-400" />
         <p className={`text-sm ${isLight ? 'text-blue-700' : 'text-blue-300'}`}>
@@ -840,14 +666,12 @@ const BookingConfirmation = ({
         </p>
       </div>
       
-      {/* Gamification - XP Earned */}
       <div className={`flex items-center justify-center gap-2 p-3 rounded-lg bg-gradient-to-r from-purple-500/10 to-pink-500/10 border border-purple-500/30`}>
         <Gift className="w-5 h-5 text-purple-400" />
         <span className={`font-medium ${textPrimary}`}>+50 XP earned!</span>
         <Badge className="bg-purple-500/20 text-purple-400 text-xs">Passport</Badge>
       </div>
       
-      {/* Escrow Protection Notice */}
       <div className={`flex items-center gap-2 p-3 rounded-lg ${isLight ? 'bg-green-50' : 'bg-green-500/10'} border ${isLight ? 'border-green-200' : 'border-green-500/30'}`}>
         <Check className="w-5 h-5 text-green-400" />
         <p className={`text-sm ${isLight ? 'text-green-700' : 'text-green-300'}`}>
@@ -855,7 +679,6 @@ const BookingConfirmation = ({
         </p>
       </div>
       
-      {/* Actions */}
       <div className="flex flex-col gap-3">
         <Button aria-label="Location"
           onClick={onAddAnotherSpot}

@@ -1,10 +1,7 @@
-/**
- * CreatePostModal - Extracted from Feed.js for better maintainability
- * Handles media upload (photo/video), session metadata, and post creation
- */
+
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import apiClient, { BACKEND_URL } from '../lib/apiClient';
+import apiClient from '../lib/apiClient';
 import { useAuth } from '../contexts/AuthContext';
 import { MapPin, Loader2, Navigation, Image, Video, Upload, Camera, Megaphone, Waves, ChevronDown, Wind, ArrowUpDown, X, Check } from 'lucide-react';
 import { toast } from 'sonner';
@@ -15,31 +12,31 @@ import { Textarea } from './ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { CreateAdModal } from './CreateAdModal';
 import logger from '../utils/logger';
-
-
+const DIRECTIONS = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
+const DirSelect = ({ value, onChange, placeholder = 'Dir' }) => (
+  <Select value={value} onValueChange={onChange}>
+    <SelectTrigger className="bg-zinc-800 border-zinc-700 text-white text-sm"><SelectValue placeholder={placeholder} /></SelectTrigger>
+    <SelectContent className="bg-zinc-800 border-zinc-700">
+      {DIRECTIONS.map(d => <SelectItem key={d} value={d} className="text-white hover:bg-zinc-700">{d}</SelectItem>)}
+    </SelectContent>
+  </Select>
+);
 const CreatePostModal = ({ isOpen, onClose, onCreated }) => {
   const { user } = useAuth();
   const navigate = useNavigate();
   
-  // Multi-file support for carousel posts
-  const [selectedFiles, setSelectedFiles] = useState([]);  // Array of files
-  const [previewUrls, setPreviewUrls] = useState([]);      // Array of preview URLs
+  const [selectedFiles, setSelectedFiles] = useState([]);
+  const [previewUrls, setPreviewUrls] = useState([]);
   const [currentPreviewIndex, setCurrentPreviewIndex] = useState(0);
-  
   const [mediaType, setMediaType] = useState('image');
-  const [caption, setCaption] = useState('');
-  const [location, setLocation] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(0);
-  const [processingStatus, setProcessingStatus] = useState('');
-  const [showCreateAdModal, setShowCreateAdModal] = useState(false);
+  const [caption, setCaption] = useState(''); const [location, setLocation] = useState('');
+  const [loading, setLoading] = useState(false); const [uploadProgress, setUploadProgress] = useState(0);
+  const [processingStatus, setProcessingStatus] = useState(''); const [showCreateAdModal, setShowCreateAdModal] = useState(false);
   const photoInputRef = useRef(null);
   const videoInputRef = useRef(null);
   const cameraInputRef = useRef(null);
 
-  // Session metadata state
   const [showSessionData, setShowSessionData] = useState(false);
-  // Helper: get today's date in local time (avoids UTC day-shift - e.g. 11 PM EDT = next day UTC)
   const todayLocal = () => {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -62,48 +59,26 @@ const CreatePostModal = ({ isOpen, onClose, onCreated }) => {
   const [recentLocations, setRecentLocations] = useState([]);
   const [showRecentLocations, setShowRecentLocations] = useState(false);
 
-  // Fetch known spots on mount
   useEffect(() => {
-    const fetchSpots = async () => {
-      try {
-        const response = await apiClient.get(`/surf-conditions/known-spots`);
-        setKnownSpots(response.data.spots || []);
-      } catch (e) {
-        // Silent fail
-      }
-    };
-    if (isOpen) fetchSpots();
+    if (isOpen) apiClient.get(`/surf-conditions/known-spots`).then(r => setKnownSpots(r.data.spots || [])).catch(() => {});
   }, [isOpen]);
-
-  // Fetch user's recent locations on mount
   useEffect(() => {
-    const fetchRecentLocations = async () => {
-      if (!user?.id) return;
-      try {
-        const response = await apiClient.get(`/posts/user/${user.id}/recent-locations`);
-        setRecentLocations(response.data || []);
-        if (response.data && response.data.length > 0) {
-          setShowRecentLocations(true);
-        }
-      } catch (e) {
-        // Silent fail - recent locations are optional
-      }
-    };
-    if (isOpen && user?.id) fetchRecentLocations();
+    if (!isOpen || !user?.id) return;
+    apiClient.get(`/posts/user/${user.id}/recent-locations`).then(r => {
+      setRecentLocations(r.data || []);
+      if (r.data?.length > 0) setShowRecentLocations(true);
+    }).catch(() => {});
   }, [isOpen, user?.id]);
 
-  // Handle selecting a recent location
   const handleRecentLocationSelect = async (recentLoc) => {
     setLocation(recentLoc.location);
     setShowRecentLocations(false);
     
-    // Auto-fetch conditions if we have coordinates
     if (recentLoc.latitude && recentLoc.longitude) {
       await fetchConditions(recentLoc.latitude, recentLoc.longitude, recentLoc.location);
     }
   };
 
-  // Auto-fetch conditions when spot is selected
   const handleSpotSelect = async (spotKey) => {
     setSelectedSpot(spotKey);
     const spot = knownSpots.find(s => s.key === spotKey);
@@ -113,54 +88,32 @@ const CreatePostModal = ({ isOpen, onClose, onCreated }) => {
     }
   };
 
-  // Fetch surf conditions
   const fetchConditions = async (lat, lon, spotName) => {
     setConditionsLoading(true);
     try {
-      const response = await apiClient.get(`/surf-conditions`, {
-        params: { latitude: lat, longitude: lon, spot_name: spotName }
-      });
-      
-      if (response.data.wave_height_ft) setWaveHeightFt(response.data.wave_height_ft.toString());
-      if (response.data.wave_period_sec) setWavePeriodSec(response.data.wave_period_sec.toString());
-      if (response.data.wave_direction) setWaveDirection(response.data.wave_direction);
-      if (response.data.wave_direction_degrees) setWaveDirectionDegrees(response.data.wave_direction_degrees);
-      if (response.data.wind_speed_mph) setWindSpeedMph(response.data.wind_speed_mph.toString());
-      if (response.data.wind_direction) setWindDirection(response.data.wind_direction);
-      if (response.data.tide_status) setTideStatus(response.data.tide_status);
-      if (response.data.tide_height_ft) setTideHeightFt(response.data.tide_height_ft.toString());
-      setConditionsSource('auto');
-      setShowSessionData(true);
+      const { data: d } = await apiClient.get(`/surf-conditions`, { params: { latitude: lat, longitude: lon, spot_name: spotName } });
+      if (d.wave_height_ft) setWaveHeightFt(d.wave_height_ft.toString());
+      if (d.wave_period_sec) setWavePeriodSec(d.wave_period_sec.toString());
+      if (d.wave_direction) setWaveDirection(d.wave_direction);
+      if (d.wave_direction_degrees) setWaveDirectionDegrees(d.wave_direction_degrees);
+      if (d.wind_speed_mph) setWindSpeedMph(d.wind_speed_mph.toString());
+      if (d.wind_direction) setWindDirection(d.wind_direction);
+      if (d.tide_status) setTideStatus(d.tide_status);
+      if (d.tide_height_ft) setTideHeightFt(d.tide_height_ft.toString());
+      setConditionsSource('auto'); setShowSessionData(true);
       toast.success('Conditions auto-filled! Feel free to adjust.');
-    } catch (e) {
-      toast.error('Could not fetch conditions. Enter manually.');
-    } finally {
-      setConditionsLoading(false);
-    }
+    } catch (e) { toast.error('Could not fetch conditions. Enter manually.'); } finally { setConditionsLoading(false); }
   };
 
-  // Fetch conditions by current location
   const fetchConditionsByLocation = async () => {
-    if (!navigator.geolocation) {
-      toast.error('Geolocation not supported');
-      return;
-    }
-
+    if (!navigator.geolocation) { toast.error('Geolocation not supported'); return; }
     setConditionsLoading(true);
     try {
       const position = await new Promise((resolve, reject) => {
-        navigator.geolocation.getCurrentPosition(resolve, reject, {
-          enableHighAccuracy: true,
-          timeout: 10000
-        });
+        navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 10000 });
       });
-
       await fetchConditions(position.coords.latitude, position.coords.longitude, location || 'Current Location');
-    } catch (e) {
-      toast.error('Could not get location. Select a spot instead.');
-    } finally {
-      setConditionsLoading(false);
-    }
+    } catch (e) { toast.error('Could not get location. Select a spot instead.'); } finally { setConditionsLoading(false); }
   };
 
   const handleFileSelect = (e) => {
@@ -176,7 +129,6 @@ const CreatePostModal = ({ isOpen, onClose, onCreated }) => {
       return;
     }
 
-    // Video: only single file allowed
     if (isVideo) {
       const maxSize = 100 * 1024 * 1024;
       if (firstFile.size > maxSize) {
@@ -192,7 +144,6 @@ const CreatePostModal = ({ isOpen, onClose, onCreated }) => {
       return;
     }
 
-    // Images: allow up to 10
     const imageFiles = files.filter(f => f.type.startsWith('image/'));
     const maxImages = 10;
     const totalImages = selectedFiles.length + imageFiles.length;
@@ -202,7 +153,6 @@ const CreatePostModal = ({ isOpen, onClose, onCreated }) => {
       return;
     }
 
-    // Check each image file size (50MB max)
     const maxSize = 50 * 1024 * 1024;
     const validFiles = [];
     const newPreviews = [];
@@ -220,7 +170,6 @@ const CreatePostModal = ({ isOpen, onClose, onCreated }) => {
       setSelectedFiles(prev => [...prev, ...validFiles]);
       setPreviewUrls(prev => [...prev, ...newPreviews]);
       setMediaType('image');
-      // Show the first newly added image
       setCurrentPreviewIndex(selectedFiles.length);
     }
   };
@@ -244,7 +193,6 @@ const CreatePostModal = ({ isOpen, onClose, onCreated }) => {
       const uploadedMedia = [];
       const isCarousel = selectedFiles.length > 1;
       
-      // Upload each file
       for (let i = 0; i < selectedFiles.length; i++) {
         const file = selectedFiles[i];
         const formData = new FormData();
@@ -277,7 +225,6 @@ const CreatePostModal = ({ isOpen, onClose, onCreated }) => {
 
       setProcessingStatus('Creating post...');
 
-      // Build post data with session metadata
       const postData = {
         media_url: uploadedMedia[0].url,
         media_type: uploadedMedia[0].type,
@@ -290,12 +237,8 @@ const CreatePostModal = ({ isOpen, onClose, onCreated }) => {
         carousel_media: isCarousel ? uploadedMedia : []
       };
 
-      // Add session metadata if enabled
       if (showSessionData) {
-        if (sessionDate) {
-          // Send as noon UTC for the selected date - avoids timezone boundary issues on the backend
-          postData.session_date = sessionDate + 'T12:00:00.000Z';
-        }
+        if (sessionDate) postData.session_date = sessionDate + 'T12:00:00.000Z';
         if (sessionStartTime) postData.session_start_time = sessionStartTime;
         if (sessionEndTime) postData.session_end_time = sessionEndTime;
         if (waveHeightFt) postData.wave_height_ft = parseFloat(waveHeightFt);
@@ -309,14 +252,7 @@ const CreatePostModal = ({ isOpen, onClose, onCreated }) => {
         postData.conditions_source = conditionsSource;
       }
 
-      // Create post
-      console.log('[CreatePost] Submitting:', {
-        selectedFiles: selectedFiles.length,
-        isCarousel,
-        uploadedMedia: uploadedMedia.length,
-        carousel_media: postData.carousel_media?.length,
-        is_carousel: postData.is_carousel
-      });
+
       await apiClient.post(`/posts?author_id=${user.id}`, postData);
 
       if (isCarousel) {
@@ -338,30 +274,15 @@ const CreatePostModal = ({ isOpen, onClose, onCreated }) => {
   };
 
   const handleClose = () => {
-    // Clean up preview URLs
     previewUrls.forEach(url => URL.revokeObjectURL(url));
-    setSelectedFiles([]);
-    setPreviewUrls([]);
-    setCurrentPreviewIndex(0);
-    setMediaType('image');
-    setCaption('');
-    setLocation('');
-    // Reset session metadata
-    setShowSessionData(false);
-    setSessionDate(todayLocal());
-    setSessionStartTime('');
-    setSessionEndTime('');
-    setWaveHeightFt('');
-    setWavePeriodSec('');
-    setWaveDirection('');
-    setWaveDirectionDegrees(null);
-    setWindSpeedMph('');
-    setWindDirection('');
-    setTideStatus('');
-    setTideHeightFt('');
-    setConditionsSource('manual');
-    setSelectedSpot('');
-    onClose();
+    setSelectedFiles([]); setPreviewUrls([]); setCurrentPreviewIndex(0);
+    setMediaType('image'); setCaption(''); setLocation('');
+    setShowSessionData(false); setSessionDate(todayLocal());
+    setSessionStartTime(''); setSessionEndTime('');
+    setWaveHeightFt(''); setWavePeriodSec(''); setWaveDirection('');
+    setWaveDirectionDegrees(null); setWindSpeedMph(''); setWindDirection('');
+    setTideStatus(''); setTideHeightFt(''); setConditionsSource('manual');
+    setSelectedSpot(''); onClose();
   };
 
   return (
@@ -381,7 +302,6 @@ const CreatePostModal = ({ isOpen, onClose, onCreated }) => {
         </DialogHeader>
 
         <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4 space-y-4">
-          {/* Hidden File Inputs - Separate for Photo, Video, and Camera */}
           <input aria-label="Upload file"
             ref={photoInputRef}
             type="file"
@@ -410,50 +330,30 @@ const CreatePostModal = ({ isOpen, onClose, onCreated }) => {
             <div className="w-full aspect-video rounded-lg border-2 border-dashed border-zinc-600 flex flex-col items-center justify-center gap-4 bg-zinc-800/50 p-6">
               <p className="text-white font-medium">Select media to post</p>
               
-              {/* Media Selection Buttons */}
               <div className="flex gap-4">
-                {/* Photo Button */}
-                <button aria-label="Image"
-                  onClick={() => photoInputRef.current?.click()}
-                  className="flex flex-col items-center gap-2 p-4 rounded-xl bg-zinc-700/50 hover:bg-zinc-700 border border-zinc-600 hover:border-blue-500 transition-all"
-                  data-testid="post-photo-select"
-                >
-                  <Image className="w-8 h-8 text-blue-400" />
-                  <span className="text-sm text-white font-medium">Photos</span>
-                  <span className="text-xs text-gray-500">Up to 10</span>
-                </button>
-
-                {/* Video Button */}
-                <button aria-label="Video"
-                  onClick={() => videoInputRef.current?.click()}
-                  className="flex flex-col items-center gap-2 p-4 rounded-xl bg-zinc-700/50 hover:bg-zinc-700 border border-zinc-600 hover:border-purple-500 transition-all"
-                  data-testid="post-video-select"
-                >
-                  <Video className="w-8 h-8 text-purple-400" />
-                  <span className="text-sm text-white font-medium">Video</span>
-                  <span className="text-xs text-gray-500">MP4, MOV</span>
-                </button>
-
-                {/* Camera Button - Mobile only shows camera app */}
-                <button aria-label="Camera"
-                  onClick={() => cameraInputRef.current?.click()}
-                  className="flex flex-col items-center gap-2 p-4 rounded-xl bg-zinc-700/50 hover:bg-zinc-700 border border-zinc-600 hover:border-yellow-500 transition-all"
-                  data-testid="post-camera-capture"
-                >
-                  <Camera className="w-8 h-8 text-yellow-400" />
-                  <span className="text-sm text-white font-medium">Camera</span>
-                  <span className="text-xs text-gray-500">Take photo</span>
-                </button>
+                {[
+                  { ref: photoInputRef, icon: Image, label: 'Photos', sub: 'Up to 10', color: 'blue', testId: 'post-photo-select' },
+                  { ref: videoInputRef, icon: Video, label: 'Video', sub: 'MP4, MOV', color: 'purple', testId: 'post-video-select' },
+                  { ref: cameraInputRef, icon: Camera, label: 'Camera', sub: 'Take photo', color: 'yellow', testId: 'post-camera-capture' },
+                ].map(({ ref, icon: Icon, label, sub, color, testId }) => (
+                  <button key={label} aria-label={label}
+                    onClick={() => ref.current?.click()}
+                    className={`flex flex-col items-center gap-2 p-4 rounded-xl bg-zinc-700/50 hover:bg-zinc-700 border border-zinc-600 hover:border-${color}-500 transition-all`}
+                    data-testid={testId}
+                  >
+                    <Icon className={`w-8 h-8 text-${color}-400`} />
+                    <span className="text-sm text-white font-medium">{label}</span>
+                    <span className="text-xs text-gray-500">{sub}</span>
+                  </button>
+                ))}
               </div>
 
               <p className="text-xs text-gray-500 mt-2">
                 Select up to 10 photos for a carousel post
               </p>
 
-              {/* Divider */}
               <div className="w-full h-px bg-zinc-700 my-2" />
 
-              {/* Create Ad Button */}
               <button aria-label="Megaphone"
                 onClick={() => setShowCreateAdModal(true)}
                 className="flex items-center justify-center gap-3 w-full p-3 rounded-xl bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/30 hover:border-purple-500 transition-all"
@@ -465,7 +365,6 @@ const CreatePostModal = ({ isOpen, onClose, onCreated }) => {
             </div>
           ) : (
             <div className="space-y-3">
-              {/* Main Preview */}
               <div className="relative">
                 {mediaType === 'video' ? (
                   <video
@@ -520,7 +419,6 @@ const CreatePostModal = ({ isOpen, onClose, onCreated }) => {
                     draggable={false}
                   />
                 
-                {/* Navigation arrows for carousel */}
                 {previewUrls.length > 1 && (
                   <>
                     <button aria-label="svg"
@@ -539,7 +437,6 @@ const CreatePostModal = ({ isOpen, onClose, onCreated }) => {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                       </svg>
                     </button>
-                    {/* Dots indicator */}
                     <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1">
                       {previewUrls.map((_, idx) => (
                         <button
@@ -554,7 +451,6 @@ const CreatePostModal = ({ isOpen, onClose, onCreated }) => {
                   </>
                 )}
                 
-                {/* Image count badge */}
                 {previewUrls.length > 1 && (
                   <div className="absolute top-2 right-2 bg-black/70 px-2 py-1 rounded text-xs text-white">
                     {currentPreviewIndex + 1} / {previewUrls.length}
@@ -564,7 +460,6 @@ const CreatePostModal = ({ isOpen, onClose, onCreated }) => {
               )}
               </div>
               
-              {/* Thumbnail strip for carousel */}
               {previewUrls.length > 1 && (
                 <div className="flex gap-2 overflow-x-auto pb-2">
                   {previewUrls.map((url, idx) => (
@@ -585,7 +480,6 @@ const CreatePostModal = ({ isOpen, onClose, onCreated }) => {
                       </button>
                     </div>
                   ))}
-                  {/* Add more photos button */}
                   {previewUrls.length < 10 && mediaType === 'image' && (
                     <button aria-label="svg"
                       onClick={() => photoInputRef.current?.click()}
@@ -599,7 +493,6 @@ const CreatePostModal = ({ isOpen, onClose, onCreated }) => {
                 </div>
               )}
               
-              {/* Single image remove button */}
               {previewUrls.length === 1 && (
                 <div className="flex justify-between items-center">
                   <button
@@ -631,7 +524,6 @@ const CreatePostModal = ({ isOpen, onClose, onCreated }) => {
             </div>
           )}
 
-          {/* Caption */}
           <div>
             <label className="text-sm text-gray-400 mb-2 block">Caption (optional)</label>
             <Textarea aria-label="What's happening?"
@@ -643,7 +535,6 @@ const CreatePostModal = ({ isOpen, onClose, onCreated }) => {
             />
           </div>
 
-          {/* Recent Locations Quick Select */}
           {recentLocations.length > 0 && (
             <div className="space-y-2" data-testid="recent-locations-section">
               <div className="flex items-center justify-between">
@@ -681,7 +572,6 @@ const CreatePostModal = ({ isOpen, onClose, onCreated }) => {
             </div>
           )}
 
-          {/* Location */}
           <div>
             <label className="text-sm text-gray-400 mb-2 block">Location (optional)</label>
             <Input aria-label="e.g., Sebastian Inlet, FL"
@@ -692,7 +582,6 @@ const CreatePostModal = ({ isOpen, onClose, onCreated }) => {
             />
           </div>
 
-          {/* Session Data Toggle */}
           <div className="border border-zinc-700 rounded-lg overflow-hidden">
             <button aria-label="Waves"
               type="button"
@@ -712,7 +601,6 @@ const CreatePostModal = ({ isOpen, onClose, onCreated }) => {
 
             {showSessionData && (
               <div className="p-4 space-y-4 bg-zinc-800/30">
-                {/* Spot Selector & Auto-fetch */}
                 <div className="flex gap-2">
                   <Select value={selectedSpot} onValueChange={handleSpotSelect}>
                     <SelectTrigger className="flex-1 bg-zinc-800 border-zinc-700 text-white">
@@ -739,7 +627,6 @@ const CreatePostModal = ({ isOpen, onClose, onCreated }) => {
                   </Button>
                 </div>
 
-                {/* Session Date & Time */}
                 <div className="grid grid-cols-3 gap-2">
                   <div>
                     <label className="text-xs text-gray-400 mb-1 block">Date</label>
@@ -771,7 +658,6 @@ const CreatePostModal = ({ isOpen, onClose, onCreated }) => {
                   </div>
                 </div>
 
-                {/* Wave Conditions */}
                 <div className="grid grid-cols-3 gap-2">
                   <div>
                     <label className="text-xs text-gray-400 mb-1 block flex items-center gap-1">
@@ -798,20 +684,10 @@ const CreatePostModal = ({ isOpen, onClose, onCreated }) => {
                   </div>
                   <div>
                     <label className="text-xs text-gray-400 mb-1 block">Wave Dir</label>
-                    <Select value={waveDirection} onValueChange={(v) => { setWaveDirection(v); setConditionsSource('manual'); }}>
-                      <SelectTrigger className="bg-zinc-800 border-zinc-700 text-white text-sm">
-                        <SelectValue placeholder="Dir" />
-                      </SelectTrigger>
-                      <SelectContent className="bg-zinc-800 border-zinc-700">
-                        {['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'].map((dir) => (
-                          <SelectItem key={dir} value={dir} className="text-white hover:bg-zinc-700">{dir}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <DirSelect value={waveDirection} onChange={(v) => { setWaveDirection(v); setConditionsSource('manual'); }} />
                   </div>
                 </div>
 
-                {/* Wind Conditions */}
                 <div className="grid grid-cols-2 gap-2">
                   <div>
                     <label className="text-xs text-gray-400 mb-1 block flex items-center gap-1">
@@ -828,20 +704,10 @@ const CreatePostModal = ({ isOpen, onClose, onCreated }) => {
                   </div>
                   <div>
                     <label className="text-xs text-gray-400 mb-1 block">Direction</label>
-                    <Select value={windDirection} onValueChange={(v) => { setWindDirection(v); setConditionsSource('manual'); }}>
-                      <SelectTrigger className="bg-zinc-800 border-zinc-700 text-white text-sm">
-                        <SelectValue placeholder="Select..." />
-                      </SelectTrigger>
-                      <SelectContent className="bg-zinc-800 border-zinc-700">
-                        {['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'].map((dir) => (
-                          <SelectItem key={dir} value={dir} className="text-white hover:bg-zinc-700">{dir}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <DirSelect value={windDirection} onChange={(v) => { setWindDirection(v); setConditionsSource('manual'); }} placeholder="Select..." />
                   </div>
                 </div>
 
-                {/* Tide */}
                 <div className="grid grid-cols-2 gap-2">
                   <div>
                     <label className="text-xs text-gray-400 mb-1 block flex items-center gap-1">
@@ -886,7 +752,6 @@ const CreatePostModal = ({ isOpen, onClose, onCreated }) => {
             )}
           </div>
 
-          {/* Progress */}
           {loading && (
             <div className="space-y-2">
               <div className="h-2 bg-zinc-800 rounded-full overflow-hidden">
@@ -900,7 +765,6 @@ const CreatePostModal = ({ isOpen, onClose, onCreated }) => {
           )}
         </div>
 
-        {/* Fixed Footer with Submit Button */}
         <div className="shrink-0 px-4 sm:px-6 py-4 border-t border-zinc-800" style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom, 0px))' }}>
           <Button aria-label="Loader2"
             onClick={handleUpload}
@@ -919,7 +783,6 @@ const CreatePostModal = ({ isOpen, onClose, onCreated }) => {
         </div>
       </DialogContent>
 
-      {/* Create Ad Modal */}
       <CreateAdModal
         isOpen={showCreateAdModal}
         onClose={() => setShowCreateAdModal(false)}

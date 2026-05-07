@@ -1,12 +1,3 @@
-/**
- * PhotographerAvailabilityCalendar - Visual calendar showing booking slots
- * Features:
- * - Monthly/Weekly view toggle
- * - Booked slots displayed on calendar
- * - Set availability windows
- * - Block specific dates
- * - Drag-and-drop rescheduling of bookings
- */
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
@@ -19,60 +10,28 @@ import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { Label } from './ui/label';
 import { toast } from 'sonner';
-import apiClient, { BACKEND_URL } from '../lib/apiClient';
+import apiClient from '../lib/apiClient';
 import logger from '../utils/logger';
 
-
-// Days of week
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const FULL_DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
-// Time slots for availability
 const TIME_SLOTS = [
   '05:00', '06:00', '07:00', '08:00', '09:00', '10:00', '11:00', '12:00',
   '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00'
 ];
 
-/**
- * Get days in a month
- */
 const getDaysInMonth = (year, month) => {
   return new Date(year, month + 1, 0).getDate();
 };
 
-/**
- * Get first day of month (0 = Sunday)
- */
 const getFirstDayOfMonth = (year, month) => {
   return new Date(year, month, 1).getDay();
 };
 
-/**
- * Format date for display
- */
-const _formatDate = (date) => {
-  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-};
 
-/**
- * Day Cell Component with Drag-and-Drop support
- */
-const DayCell = ({ 
-  date, 
-  isCurrentMonth, 
-  isToday,
-  bookings,
-  blockedDates,
-  availabilityWindows,
-  onClick,
-  isLight,
-  // Drag-and-drop props
-  isDragEnabled,
-  onDragStart,
-  onDragEnd,
-  onDrop,
-  draggedBooking,
-  isDropTarget
+const DayCell = ({ date, isCurrentMonth, isToday, bookings, blockedDates, availabilityWindows,
+  onClick, isLight, isDragEnabled, onDragStart, onDragEnd, onDrop, draggedBooking, isDropTarget
 }) => {
   const dayNum = date.getDate();
   const dateStr = date.toISOString().split('T')[0];
@@ -80,7 +39,6 @@ const DayCell = ({
   const isBlocked = blockedDates.includes(dateStr);
   const hasAvailability = availabilityWindows.some(w => w.day === date.getDay() && w.enabled);
   
-  // Check if this cell is a valid drop target
   const isValidDropTarget = isDragEnabled && draggedBooking && !isBlocked && hasAvailability;
   const isActiveDropTarget = isValidDropTarget && isDropTarget;
   
@@ -92,19 +50,8 @@ const DayCell = ({
     ? (isCurrentMonth ? 'text-gray-900' : 'text-gray-400')
     : (isCurrentMonth ? 'text-white' : 'text-gray-600');
   
-  const handleDragOver = (e) => {
-    if (isValidDropTarget) {
-      e.preventDefault();
-      e.dataTransfer.dropEffect = 'move';
-    }
-  };
-  
-  const handleDrop = (e) => {
-    e.preventDefault();
-    if (onDrop && isValidDropTarget) {
-      onDrop(date);
-    }
-  };
+  const handleDragOver = (e) => { if (isValidDropTarget) { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; } };
+  const handleDrop = (e) => { e.preventDefault(); if (onDrop && isValidDropTarget) onDrop(date); };
   
   return (
     <div
@@ -120,26 +67,22 @@ const DayCell = ({
         {dayNum}
       </div>
       
-      {/* Blocked indicator */}
       {isBlocked && (
         <div className="absolute inset-0 bg-red-500/10 flex items-center justify-center pointer-events-none">
           <X className="w-6 h-6 text-red-400" />
         </div>
       )}
       
-      {/* Availability indicator */}
       {!isBlocked && hasAvailability && (
         <div className="absolute top-1 right-1 w-2 h-2 rounded-full bg-green-400" />
       )}
       
-      {/* Drop zone indicator when dragging */}
       {isValidDropTarget && draggedBooking && (
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
           <Move className="w-4 h-4 text-cyan-400 opacity-50" />
         </div>
       )}
       
-      {/* Bookings - now draggable */}
       <div className="mt-1 space-y-1">
         {dayBookings.slice(0, 2).map((booking, idx) => (
           <div 
@@ -182,9 +125,6 @@ const DayCell = ({
   );
 };
 
-/**
- * Availability Window Editor
- */
 const AvailabilityWindowEditor = ({ 
   windows, 
   onUpdate, 
@@ -266,9 +206,6 @@ const AvailabilityWindowEditor = ({
   );
 };
 
-/**
- * Main Calendar Component
- */
 export const PhotographerAvailabilityCalendar = ({ photographerId }) => {
   const { user } = useAuth();
   const { theme } = useTheme();
@@ -289,7 +226,6 @@ export const PhotographerAvailabilityCalendar = ({ photographerId }) => {
   const [selectedDate, setSelectedDate] = useState(null);
   const [showAvailabilityModal, setShowAvailabilityModal] = useState(false);
   
-  // Drag-and-drop state
   const [isDragEnabled, setIsDragEnabled] = useState(false);
   const [draggedBooking, setDraggedBooking] = useState(null);
   const [dropTargetDate, setDropTargetDate] = useState(null);
@@ -304,18 +240,15 @@ export const PhotographerAvailabilityCalendar = ({ photographerId }) => {
   
   const targetId = photographerId || user?.id;
   
-  // Calendar calculations
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
   const daysInMonth = getDaysInMonth(year, month);
   const firstDay = getFirstDayOfMonth(year, month);
   const today = new Date();
   
-  // Generate calendar days
   const calendarDays = useMemo(() => {
     const days = [];
     
-    // Previous month padding
     const prevMonth = month === 0 ? 11 : month - 1;
     const prevYear = month === 0 ? year - 1 : year;
     const daysInPrevMonth = getDaysInMonth(prevYear, prevMonth);
@@ -327,7 +260,6 @@ export const PhotographerAvailabilityCalendar = ({ photographerId }) => {
       });
     }
     
-    // Current month
     for (let i = 1; i <= daysInMonth; i++) {
       const date = new Date(year, month, i);
       days.push({
@@ -337,7 +269,6 @@ export const PhotographerAvailabilityCalendar = ({ photographerId }) => {
       });
     }
     
-    // Next month padding
     const remaining = 42 - days.length; // 6 rows ? 7 days
     for (let i = 1; i <= remaining; i++) {
       const nextMonth = month === 11 ? 0 : month + 1;
@@ -358,7 +289,6 @@ export const PhotographerAvailabilityCalendar = ({ photographerId }) => {
       
       setLoading(true);
       try {
-        // Fetch photographer's bookings for current month
         const startDate = new Date(year, month, 1).toISOString();
         const endDate = new Date(year, month + 1, 0).toISOString();
         
@@ -366,7 +296,6 @@ export const PhotographerAvailabilityCalendar = ({ photographerId }) => {
           `/photographer/${targetId}/bookings-calendar?start=${startDate}&end=${endDate}`
         );
         
-        // Transform bookings for calendar display
         const transformed = (res.data.bookings || []).map(b => ({
           id: b.id,
           date: b.session_date?.split('T')[0],
@@ -397,7 +326,6 @@ export const PhotographerAvailabilityCalendar = ({ photographerId }) => {
     fetchData();
   }, [targetId, year, month]);
   
-  // Navigation
   const goToPrevMonth = () => {
     setCurrentDate(new Date(year, month - 1, 1));
   };
@@ -410,22 +338,18 @@ export const PhotographerAvailabilityCalendar = ({ photographerId }) => {
     setCurrentDate(new Date());
   };
   
-  // Day click handler
   const handleDayClick = (date) => {
     setSelectedDate(date);
     setShowDayModal(true);
   };
   
-  // Block/Unblock date
   const toggleBlockDate = async (dateStr) => {
     try {
       if (blockedDates.includes(dateStr)) {
-        // Unblock
         setBlockedDates(prev => prev.filter(d => d !== dateStr));
         await apiClient.post(`/photographer/${targetId}/unblock-date`, { date: dateStr });
         toast.success('Date unblocked');
       } else {
-        // Block
         setBlockedDates(prev => [...prev, dateStr]);
         await apiClient.post(`/photographer/${targetId}/block-date`, { date: dateStr });
         toast.success('Date blocked - surfers cannot book this day');
@@ -435,7 +359,6 @@ export const PhotographerAvailabilityCalendar = ({ photographerId }) => {
     }
   };
   
-  // Save availability windows
   const saveAvailabilityWindows = async () => {
     try {
       await apiClient.put(`/photographer/${targetId}/availability-windows`, {
@@ -448,17 +371,10 @@ export const PhotographerAvailabilityCalendar = ({ photographerId }) => {
     }
   };
   
-  // Drag-and-drop handlers
   const handleDragStart = useCallback((booking, e) => {
-    setDraggedBooking(booking);
-    e.dataTransfer.setData('text/plain', booking.id);
-    e.dataTransfer.effectAllowed = 'move';
+    setDraggedBooking(booking); e.dataTransfer.setData('text/plain', booking.id); e.dataTransfer.effectAllowed = 'move';
   }, []);
-  
-  const handleDragEnd = useCallback(() => {
-    setDraggedBooking(null);
-    setDropTargetDate(null);
-  }, []);
+  const handleDragEnd = useCallback(() => { setDraggedBooking(null); setDropTargetDate(null); }, []);
   
   const handleDrop = useCallback((targetDate) => {
     if (!draggedBooking) return;
@@ -466,13 +382,11 @@ export const PhotographerAvailabilityCalendar = ({ photographerId }) => {
     const targetDateStr = targetDate.toISOString().split('T')[0];
     const originalDateStr = draggedBooking.date;
     
-    // Don't allow drop on same day
     if (targetDateStr === originalDateStr) {
       setDraggedBooking(null);
       return;
     }
     
-    // Check if target date is in the past
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     if (targetDate < today) {
@@ -481,7 +395,6 @@ export const PhotographerAvailabilityCalendar = ({ photographerId }) => {
       return;
     }
     
-    // Show confirmation modal with time picker
     setRescheduleData({
       booking: draggedBooking,
       originalDate: originalDateStr,
@@ -492,13 +405,11 @@ export const PhotographerAvailabilityCalendar = ({ photographerId }) => {
     setDraggedBooking(null);
   }, [draggedBooking]);
   
-  // Reschedule booking
   const handleRescheduleConfirm = async () => {
     if (!rescheduleData) return;
     
     setRescheduling(true);
     try {
-      // Parse the new time and date
       const [hours, minutes] = rescheduleData.newTime.split(':').map(Number);
       const newDateTime = new Date(rescheduleData.newDate);
       newDateTime.setHours(hours, minutes, 0, 0);
@@ -509,7 +420,6 @@ export const PhotographerAvailabilityCalendar = ({ photographerId }) => {
       
       toast.success('Booking rescheduled successfully!');
       
-      // Update local state
       setBookings(prev => prev.map(b => 
         b.id === rescheduleData.booking.id 
           ? {
@@ -533,7 +443,6 @@ export const PhotographerAvailabilityCalendar = ({ photographerId }) => {
     }
   };
   
-  // Get bookings for selected date
   const selectedDateBookings = selectedDate 
     ? bookings.filter(b => b.date === selectedDate.toISOString().split('T')[0])
     : [];
@@ -543,7 +452,6 @@ export const PhotographerAvailabilityCalendar = ({ photographerId }) => {
   
   return (
     <div className={`${bgCard} rounded-xl p-4`}>
-      {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-3">
           <Calendar className="w-5 h-5 text-yellow-400" />
@@ -551,7 +459,6 @@ export const PhotographerAvailabilityCalendar = ({ photographerId }) => {
         </div>
         
         <div className="flex items-center gap-2">
-          {/* Drag Mode Toggle */}
           <Button aria-label="Move"
             variant={isDragEnabled ? 'default' : 'outline'}
             size="sm"
@@ -576,7 +483,6 @@ export const PhotographerAvailabilityCalendar = ({ photographerId }) => {
         </div>
       </div>
       
-      {/* Month Navigation */}
       <div className="flex items-center justify-between mb-4">
         <Button variant="ghost" size="sm" onClick={goToPrevMonth} aria-label="Previous">
           <ChevronLeft className="w-4 h-4" />
@@ -596,20 +502,13 @@ export const PhotographerAvailabilityCalendar = ({ photographerId }) => {
         </Button>
       </div>
       
-      {/* Legend */}
       <div className="flex flex-wrap items-center gap-4 mb-4 text-xs">
-        <div className="flex items-center gap-1">
-          <div className="w-3 h-3 rounded-full bg-green-400" />
-          <span className={textSecondary}>Available</span>
-        </div>
-        <div className="flex items-center gap-1">
-          <div className="w-3 h-3 rounded bg-green-500/20" />
-          <span className={textSecondary}>Confirmed</span>
-        </div>
-        <div className="flex items-center gap-1">
-          <div className="w-3 h-3 rounded bg-yellow-500/20" />
-          <span className={textSecondary}>Pending</span>
-        </div>
+        {[['bg-green-400', 'Available'], ['bg-green-500/20', 'Confirmed'], ['bg-yellow-500/20', 'Pending']].map(([bg, label]) => (
+          <div key={label} className="flex items-center gap-1">
+            <div className={`w-3 h-3 ${bg.includes('/') ? 'rounded' : 'rounded-full'} ${bg}`} />
+            <span className={textSecondary}>{label}</span>
+          </div>
+        ))}
         <div className="flex items-center gap-1">
           <X className="w-3 h-3 text-red-400" />
           <span className={textSecondary}>Blocked</span>
@@ -622,14 +521,12 @@ export const PhotographerAvailabilityCalendar = ({ photographerId }) => {
         )}
       </div>
       
-      {/* Calendar Grid */}
       {loading ? (
         <div className="flex items-center justify-center h-64">
           <Loader2 className="w-8 h-8 animate-spin text-yellow-400" />
         </div>
       ) : (
         <div className="grid grid-cols-7 gap-0">
-          {/* Day headers */}
           {DAYS.map(day => (
             <div 
               key={day} 
@@ -639,23 +536,15 @@ export const PhotographerAvailabilityCalendar = ({ photographerId }) => {
             </div>
           ))}
           
-          {/* Day cells */}
           {calendarDays.map((day, idx) => (
             <DayCell
               key={idx}
-              date={day.date}
-              isCurrentMonth={day.isCurrentMonth}
-              isToday={day.isToday}
-              bookings={bookings}
-              blockedDates={blockedDates}
+              date={day.date} isCurrentMonth={day.isCurrentMonth} isToday={day.isToday}
+              bookings={bookings} blockedDates={blockedDates}
               availabilityWindows={availabilityWindows}
-              onClick={handleDayClick}
-              isLight={isLight}
-              // Drag-and-drop props
-              isDragEnabled={isDragEnabled}
-              onDragStart={handleDragStart}
-              onDragEnd={handleDragEnd}
-              onDrop={handleDrop}
+              onClick={handleDayClick} isLight={isLight}
+              isDragEnabled={isDragEnabled} onDragStart={handleDragStart}
+              onDragEnd={handleDragEnd} onDrop={handleDrop}
               draggedBooking={draggedBooking}
               isDropTarget={dropTargetDate === day.date.toISOString().split('T')[0]}
             />
@@ -663,7 +552,6 @@ export const PhotographerAvailabilityCalendar = ({ photographerId }) => {
         </div>
       )}
       
-      {/* Day Detail Modal */}
       <Dialog open={showDayModal} onOpenChange={setShowDayModal}>
         <DialogContent className={`${bgCard} border-zinc-800 max-w-md`}>
           <DialogHeader>
@@ -677,7 +565,6 @@ export const PhotographerAvailabilityCalendar = ({ photographerId }) => {
           </DialogHeader>
           
           <div className="space-y-4 py-4">
-            {/* Block/Unblock Toggle */}
             <div className="flex items-center justify-between">
               <span className={textPrimary}>Block this date</span>
               <Button aria-label="Hide"
@@ -699,7 +586,6 @@ export const PhotographerAvailabilityCalendar = ({ photographerId }) => {
               </Button>
             </div>
             
-            {/* Bookings for this day */}
             <div>
               <Label className={textPrimary}>Bookings ({selectedDateBookings.length})</Label>
               
@@ -754,7 +640,6 @@ export const PhotographerAvailabilityCalendar = ({ photographerId }) => {
         </DialogContent>
       </Dialog>
       
-      {/* Availability Windows Modal */}
       <Dialog open={showAvailabilityModal} onOpenChange={setShowAvailabilityModal}>
         <DialogContent className={`${bgCard} border-zinc-800 max-w-lg max-h-[80vh] overflow-y-auto`}>
           <DialogHeader>
@@ -783,7 +668,6 @@ export const PhotographerAvailabilityCalendar = ({ photographerId }) => {
         </DialogContent>
       </Dialog>
       
-      {/* Reschedule Confirmation Modal */}
       <Dialog open={showRescheduleModal} onOpenChange={(open) => {
         if (!open) {
           setShowRescheduleModal(false);
@@ -800,7 +684,6 @@ export const PhotographerAvailabilityCalendar = ({ photographerId }) => {
           
           {rescheduleData && (
             <div className="space-y-4 py-4">
-              {/* Booking Info */}
               <div className={`p-3 rounded-lg ${isLight ? 'bg-gray-100' : 'bg-zinc-800'}`}>
                 <div className="flex items-center gap-2 mb-2">
                   <Users className="w-4 h-4 text-gray-400" />
@@ -816,7 +699,6 @@ export const PhotographerAvailabilityCalendar = ({ photographerId }) => {
                 </div>
               </div>
               
-              {/* Date Change Info */}
               <div className="flex items-center justify-between gap-2">
                 <div className="flex-1 text-center">
                   <p className={`text-xs ${textSecondary} mb-1`}>From</p>
@@ -845,7 +727,6 @@ export const PhotographerAvailabilityCalendar = ({ photographerId }) => {
                 </div>
               </div>
               
-              {/* Time Picker */}
               <div>
                 <Label className={textPrimary}>Session Time</Label>
                 <select
@@ -868,7 +749,6 @@ export const PhotographerAvailabilityCalendar = ({ photographerId }) => {
                 </select>
               </div>
               
-              {/* Warning */}
               <div className={`flex items-start gap-2 p-3 rounded-lg ${isLight ? 'bg-yellow-50' : 'bg-yellow-500/10'}`}>
                 <AlertTriangle className="w-4 h-4 text-yellow-400 flex-shrink-0 mt-0.5" />
                 <p className={`text-xs ${textSecondary}`}>

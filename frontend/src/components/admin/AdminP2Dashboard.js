@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
-import apiClient, { BACKEND_URL } from '../../lib/apiClient';
+import apiClient from '../../lib/apiClient';
 import {
   DollarSign, TrendingUp, Percent, Gift, Flag as FlagIcon, Bell, BarChart3,
   Loader2, Plus, Check, Copy, Send,
@@ -18,19 +18,16 @@ import { Switch } from '../ui/switch';
 import { toast } from 'sonner';
 import logger from '../../utils/logger';
 
-
 export const AdminP2Dashboard = () => {
   const { user } = useAuth();
   const { theme } = useTheme();
   const [activeSubTab, setActiveSubTab] = useState('revenue');
   const [loading, setLoading] = useState(true);
   
-  // Revenue state
   const [revenueData, setRevenueData] = useState(null);
   const [cohortData, setCohortData] = useState(null);
   const [funnelData, setFunnelData] = useState(null);
   
-  // Promo Codes state
   const [promoCodes, setPromoCodes] = useState([]);
   const [showCreatePromo, setShowCreatePromo] = useState(false);
   const [newPromo, setNewPromo] = useState({
@@ -41,7 +38,6 @@ export const AdminP2Dashboard = () => {
     campaign_name: ''
   });
   
-  // Feature Flags state
   const [featureFlags, setFeatureFlags] = useState([]);
   const [showCreateFlag, setShowCreateFlag] = useState(false);
   const [newFlag, setNewFlag] = useState({
@@ -52,7 +48,6 @@ export const AdminP2Dashboard = () => {
     category: 'general'
   });
   
-  // Notification Campaigns state
   const [campaigns, setCampaigns] = useState([]);
   const [showCreateCampaign, setShowCreateCampaign] = useState(false);
   const [newCampaign, setNewCampaign] = useState({
@@ -88,68 +83,31 @@ export const AdminP2Dashboard = () => {
 
   const fetchRevenueData = async () => {
     setLoading(true);
-    try {
-      const response = await apiClient.get(`/admin/revenue/overview?days=30`);
-      setRevenueData(response.data);
-    } catch (error) {
-      logger.error('Failed to load revenue data:', error);
-    } finally {
-      setLoading(false);
-    }
+    try { const r = await apiClient.get(`/admin/revenue/overview?days=30`); setRevenueData(r.data); }
+    catch (e) { logger.error('Failed to load revenue data:', e); } finally { setLoading(false); }
   };
-
   const fetchCohortData = async () => {
-    try {
-      const response = await apiClient.get(`/admin/revenue/cohort?months=6`);
-      setCohortData(response.data);
-    } catch (error) {
-      logger.error('Failed to load cohort data:', error);
-    }
+    try { const r = await apiClient.get(`/admin/revenue/cohort?months=6`); setCohortData(r.data); }
+    catch (e) { logger.error('Failed to load cohort data:', e); }
   };
-
   const fetchFunnelData = async () => {
-    try {
-      const response = await apiClient.get(`/admin/funnel/detailed?days=30`);
-      setFunnelData(response.data);
-    } catch (error) {
-      logger.error('Failed to load funnel data:', error);
-    }
+    try { const r = await apiClient.get(`/admin/funnel/detailed?days=30`); setFunnelData(r.data); }
+    catch (e) { logger.error('Failed to load funnel data:', e); }
   };
-
   const fetchPromoCodes = async () => {
     setLoading(true);
-    try {
-      const response = await apiClient.get(`/admin/promo-codes`);
-      setPromoCodes(response.data.promo_codes || []);
-    } catch (error) {
-      toast.error('Failed to load promo codes');
-    } finally {
-      setLoading(false);
-    }
+    try { const r = await apiClient.get(`/admin/promo-codes`); setPromoCodes(r.data.promo_codes || []); }
+    catch (e) { toast.error('Failed to load promo codes'); } finally { setLoading(false); }
   };
-
   const fetchFeatureFlags = async () => {
     setLoading(true);
-    try {
-      const response = await apiClient.get(`/admin/feature-flags`);
-      setFeatureFlags(response.data.feature_flags || []);
-    } catch (error) {
-      toast.error('Failed to load feature flags');
-    } finally {
-      setLoading(false);
-    }
+    try { const r = await apiClient.get(`/admin/feature-flags`); setFeatureFlags(r.data.feature_flags || []); }
+    catch (e) { toast.error('Failed to load feature flags'); } finally { setLoading(false); }
   };
-
   const fetchCampaigns = async () => {
     setLoading(true);
-    try {
-      const response = await apiClient.get(`/admin/notification-campaigns`);
-      setCampaigns(response.data.campaigns || []);
-    } catch (error) {
-      toast.error('Failed to load campaigns');
-    } finally {
-      setLoading(false);
-    }
+    try { const r = await apiClient.get(`/admin/notification-campaigns`); setCampaigns(r.data.campaigns || []); }
+    catch (e) { toast.error('Failed to load campaigns'); } finally { setLoading(false); }
   };
 
   const handleCreatePromo = async () => {
@@ -172,13 +130,8 @@ export const AdminP2Dashboard = () => {
   };
 
   const handleTogglePromo = async (codeId) => {
-    try {
-      await apiClient.put(`/admin/promo-codes/${codeId}/toggle`);
-      toast.success('Promo code updated');
-      fetchPromoCodes();
-    } catch (error) {
-      toast.error('Failed to toggle promo code');
-    }
+    try { await apiClient.put(`/admin/promo-codes/${codeId}/toggle`); toast.success('Promo code updated'); fetchPromoCodes(); }
+    catch (e) { toast.error('Failed to toggle promo code'); }
   };
 
   const handleCreateFlag = async () => {
@@ -201,23 +154,12 @@ export const AdminP2Dashboard = () => {
   };
 
   const handleToggleFlag = async (flagId, currentState) => {
-    try {
-      await apiClient.put(`/admin/feature-flags/${flagId}?is_enabled=${!currentState}`);
-      toast.success('Feature flag updated');
-      fetchFeatureFlags();
-    } catch (error) {
-      toast.error('Failed to toggle feature flag');
-    }
+    try { await apiClient.put(`/admin/feature-flags/${flagId}?is_enabled=${!currentState}`); toast.success('Feature flag updated'); fetchFeatureFlags(); }
+    catch (e) { toast.error('Failed to toggle feature flag'); }
   };
-
   const handleUpdateRollout = async (flagId, percentage) => {
-    try {
-      await apiClient.put(`/admin/feature-flags/${flagId}?rollout_percentage=${percentage}`);
-      toast.success('Rollout updated');
-      fetchFeatureFlags();
-    } catch (error) {
-      toast.error('Failed to update rollout');
-    }
+    try { await apiClient.put(`/admin/feature-flags/${flagId}?rollout_percentage=${percentage}`); toast.success('Rollout updated'); fetchFeatureFlags(); }
+    catch (e) { toast.error('Failed to update rollout'); }
   };
 
   const handleCreateCampaign = async () => {
@@ -253,20 +195,11 @@ export const AdminP2Dashboard = () => {
     }
   };
 
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount);
-  };
-
-  const formatDate = (dateStr) => {
-    if (!dateStr) return '-';
-    return new Date(dateStr).toLocaleDateString('en-US', {
-      month: 'short', day: 'numeric', year: 'numeric'
-    });
-  };
+  const formatCurrency = (amount) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount);
+  const formatDate = (dateStr) => !dateStr ? '-' : new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 
   return (
     <div className="space-y-4" data-testid="admin-p2-dashboard">
-      {/* Sub-tabs */}
       <div className="flex gap-2 overflow-x-auto pb-2">
         {[
           { id: 'revenue', label: 'Revenue & Cohorts', icon: DollarSign },
@@ -294,10 +227,8 @@ export const AdminP2Dashboard = () => {
         </div>
       ) : (
         <>
-          {/* REVENUE TAB */}
           {activeSubTab === 'revenue' && revenueData && (
             <div className="space-y-4">
-              {/* Key Metrics */}
               <div className="grid grid-cols-4 gap-3">
                 <Card className={`${cardBgClass} border-green-500/30`}>
                   <CardContent className="p-4">
@@ -364,7 +295,6 @@ export const AdminP2Dashboard = () => {
                 </Card>
               </div>
 
-              {/* Revenue by Type */}
               <Card className={cardBgClass}>
                 <CardHeader className="pb-2">
                   <CardTitle className={`text-sm ${textClass}`}>Revenue by Type</CardTitle>
@@ -382,7 +312,6 @@ export const AdminP2Dashboard = () => {
                 </CardContent>
               </Card>
 
-              {/* Funnel */}
               {funnelData && (
                 <Card className={cardBgClass}>
                   <CardHeader className="pb-2">
@@ -412,7 +341,6 @@ export const AdminP2Dashboard = () => {
                 </Card>
               )}
 
-              {/* Cohort Analysis */}
               {cohortData?.cohorts && cohortData.cohorts.length > 0 && (
                 <Card className={cardBgClass}>
                   <CardHeader className="pb-2">
@@ -462,7 +390,6 @@ export const AdminP2Dashboard = () => {
             </div>
           )}
 
-          {/* PROMO CODES TAB */}
           {activeSubTab === 'promo' && (
             <div className="space-y-3">
               <div className="flex justify-between items-center">
@@ -535,7 +462,6 @@ export const AdminP2Dashboard = () => {
             </div>
           )}
 
-          {/* FEATURE FLAGS TAB */}
           {activeSubTab === 'flags' && (
             <div className="space-y-3">
               <div className="flex justify-between items-center">
@@ -576,7 +502,6 @@ export const AdminP2Dashboard = () => {
                         </div>
                         
                         <div className="flex items-center gap-4">
-                          {/* Rollout slider */}
                           <div className="flex items-center gap-2">
                             <span className="text-xs text-gray-500">Rollout:</span>
                             <input aria-label="Range slider"
@@ -603,7 +528,6 @@ export const AdminP2Dashboard = () => {
             </div>
           )}
 
-          {/* PUSH CAMPAIGNS TAB */}
           {activeSubTab === 'campaigns' && (
             <div className="space-y-3">
               <div className="flex justify-between items-center">
@@ -686,7 +610,6 @@ export const AdminP2Dashboard = () => {
         </>
       )}
 
-      {/* Create Promo Code Modal */}
       <Dialog open={showCreatePromo} onOpenChange={setShowCreatePromo}>
         <DialogContent className="bg-card border-border text-foreground">
           <DialogHeader>
@@ -757,7 +680,6 @@ export const AdminP2Dashboard = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Create Feature Flag Modal */}
       <Dialog open={showCreateFlag} onOpenChange={setShowCreateFlag}>
         <DialogContent className="bg-card border-border text-foreground">
           <DialogHeader>
@@ -812,7 +734,6 @@ export const AdminP2Dashboard = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Create Campaign Modal */}
       <Dialog open={showCreateCampaign} onOpenChange={setShowCreateCampaign}>
         <DialogContent className="bg-card border-border text-foreground">
           <DialogHeader>
@@ -833,7 +754,7 @@ export const AdminP2Dashboard = () => {
               <Input
                 value={newCampaign.title}
                 onChange={(e) => setNewCampaign({ ...newCampaign, title: e.target.value })}
-                placeholder="🔥 Don't miss out!"
+                placeholder="ðŸ”¥ Don't miss out!"
                 className="bg-muted border-border mt-1"
               />
             </div>
