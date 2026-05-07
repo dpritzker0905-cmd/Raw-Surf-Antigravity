@@ -1,4 +1,4 @@
-﻿/**
+/**
  * CheckInModal.js - Extracted from Feed.js (v60)
  * Self-contained GPS-based surf spot check-in modal with gamification rewards.
  */
@@ -20,7 +20,7 @@ const CheckInModal = ({
   calculateDistance, getGpsLocation, submitCheckIn,
 }) => {
   return (
-        <Dialog open={showCheckInModal} onOpenChange={closeCheckInModal}>
+        <Dialog open={open} onOpenChange={onClose}>
           <DialogContent className="bg-zinc-900 border border-zinc-700 text-white max-w-md w-full max-h-[90vh] flex flex-col p-0 overflow-hidden" aria-describedby="checkin-modal-description">
             {/* Fixed header */}
             <DialogHeader className="px-6 pt-6 pb-4 shrink-0 border-b border-zinc-800">
@@ -75,7 +75,7 @@ const CheckInModal = ({
                 )}
   
                 <Button
-                  onClick={closeCheckInModal}
+                  onClick={onClose}
                   className="w-full bg-gradient-to-r from-yellow-400 to-orange-400 hover:from-yellow-500 hover:to-orange-500 text-black font-bold h-12"
                 >
                   Awesome! ??
