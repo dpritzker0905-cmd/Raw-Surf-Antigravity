@@ -29,7 +29,8 @@ export const LockerSelfieModal = ({ isOpen, onClose, user, fetchClaimQueue, spot
           setTimeout(() => fetchClaimQueue(), 12000);
       }
     } catch (err) {
-      toast.error("Failed to start scan");
+      const detail = err?.response?.data?.detail || err.message || "Unknown error";
+      toast.error(`Failed to start scan: ${detail}`);
     } finally {
       setScanning(false);
       onClose();

@@ -10,7 +10,7 @@ from typing import List, Optional
 import json
 from models import GalleryItem, Notification, Profile, SurfSpot
 
-from .schemas import ScanLockerRequest
+from .schemas import ScanLockerRequest, async_global_scan
 from fastapi import BackgroundTasks
 from models import GalleryTierEnum
 router = APIRouter()

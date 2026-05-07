@@ -3,25 +3,20 @@
 Surfer Gallery Routes - "My Gallery" / "The Locker"
 Service-to-Gallery logic enforces tier-based access and resolution limits
 """
-from fastapi import APIRouter, Depends, HTTPException, Query, BackgroundTasks
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, and_, or_, func
-from sqlalchemy.orm import selectinload
-from database import get_db
+from sqlalchemy import select, and_
+from database import SessionLocal
 from models import (
-    Profile, GalleryItem, SurferGalleryItem, SurferGalleryClaimQueue,
-    GalleryTierEnum, Booking, BookingParticipant, LiveSession,
-    LiveSessionParticipant, PhotoTag, GalleryPurchase, SurferSelectionQuota,
-    SurfSpot
+    Profile, GalleryItem, SurferGalleryClaimQueue,
+    GalleryTierEnum, Gallery
 )
 from pydantic import BaseModel
 from typing import Optional, List
 from datetime import datetime, timezone, timedelta
 import logging
 import json
-from models import Gallery
 
-router = APIRouter(prefix="/surfer-gallery", tags=["surfer-gallery"])
+
 logger = logging.getLogger(__name__)
 
 class ScanLockerRequest(BaseModel):
@@ -35,8 +30,6 @@ async def async_global_scan(surfer_id: str, selfie_url: str, spot_id: Optional[s
     Binds positive facial matches back into the SurferGalleryClaimQueue organically.
     Uses async database scoping.
     """
-    from database import SessionLocal
-    from models import Profile, GalleryItem, SurferGalleryClaimQueue
     import random
     
     async with SessionLocal() as db:
@@ -49,7 +42,6 @@ async def async_global_scan(surfer_id: str, selfie_url: str, spot_id: Optional[s
         # Real-world usage: We just utilize this selfie_url in AI match memory.
 
         # 2. Grab recent gallery items to avoid burning AI vision tokens on old data
-        from models import Gallery
         
         if spot_id or photographer_id:
             time_window = datetime.now(timezone.utc) - timedelta(days=30)
@@ -103,25 +95,7 @@ async def async_global_scan(surfer_id: str, selfie_url: str, spot_id: Optional[s
         await db.commit()
 
 
-@router.post("/scan-locker")
-async def scan_locker(
-    data: ScanLockerRequest,
-    background_tasks: BackgroundTasks,
-    surfer_id: str = Query(...),
-    db: AsyncSession = Depends(get_db)
-):
-    """
-    Triggered by the Locker "Scan Photos" button.
-    Receives current selfie, passes to background worker to prevent UI freezing,
-    Returns success boolean so UI can start polling the ClaimQueue.
-    """
-    surfer_result = await db.execute(select(Profile).where(Profile.id == surfer_id))
-    if not surfer_result.scalar_one_or_none():
-        raise HTTPException(status_code=404, detail="Surfer not found")
-        
-    background_tasks.add_task(async_global_scan, surfer_id, data.selfie_url, data.spot_id, data.photographer_id)
-    
-    return {"success": True, "message": "Neural scan initiated. Processing recent galleries..."}
+
 
 # ============ PYDANTIC MODELS ============
 
