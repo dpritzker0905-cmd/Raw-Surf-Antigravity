@@ -187,13 +187,24 @@ async def upload_feed_media(
         del content
         gc.collect()
 
-        media_url = f"/api/uploads/feed/{filename}"
+        # Prefer Supabase Storage (permanent) over ephemeral disk URL
+        remote_key = f"feed/{filename}"
+        supabase_image_url = await asyncio.to_thread(
+            upload_to_supabase_storage, file_path, 'feed', remote_key,
+            content_type=file.content_type or 'image/jpeg'
+        )
+        media_url = supabase_image_url or f"/api/uploads/feed/{filename}"
+        if supabase_image_url:
+            logger.info(f"Feed image persisted to Supabase: {supabase_image_url}")
+        else:
+            logger.warning(f"Feed image saved to ephemeral disk only: {media_url}")
 
         return {
             "media_url": media_url,
             "media_type": "image",
             "filename": filename,
-            "size": content_size
+            "size": content_size,
+            "persistent": bool(supabase_image_url)
         }
 
 
@@ -488,13 +499,21 @@ async def upload_user_gallery_media(
         with open(file_path, "wb") as f:
             f.write(content)
         
-        media_url = f"/api/uploads/user-gallery/{user_id}/{filename}"
+        # Persist to Supabase Storage (Render disk is ephemeral)
+        local_url = f"/api/uploads/user-gallery/{user_id}/{filename}"
+        supabase_url = upload_to_supabase_storage(
+            file_path, 'user-gallery',
+            f"{user_id}/{filename}",
+            content_type=file.content_type or 'image/jpeg'
+        )
+        media_url = supabase_url or local_url
         
         return {
             "media_url": media_url,
             "media_type": "image",
             "filename": filename,
-            "size": len(content)
+            "size": len(content),
+            "persistent": bool(supabase_url)
         }
 
 

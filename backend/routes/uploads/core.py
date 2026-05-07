@@ -313,18 +313,26 @@ async def upload_general_file(
     
     file_path = general_dir / filename
     
-    # Save file
+    # Save file locally first
+    content_size = len(content)
     with open(file_path, "wb") as f:
         f.write(content)
     
-    # Generate URL
-    file_url = f"/api/uploads/general/{filename}"
+    # Persist to Supabase Storage (Render disk is ephemeral)
+    local_url = f"/api/uploads/general/{filename}"
+    supabase_url = upload_to_supabase_storage(
+        file_path, 'general',
+        filename,
+        content_type=actual_content_type or 'image/jpeg'
+    )
+    file_url = supabase_url or local_url
     
     return {
         "url": file_url,
         "filename": filename,
-        "size": len(content),
-        "content_type": actual_content_type
+        "size": content_size,
+        "content_type": actual_content_type,
+        "persistent": bool(supabase_url)
     }
 
 
@@ -369,18 +377,26 @@ async def upload_story_media(
     
     file_path = stories_dir / filename
     
-    # Save file
+    # Save file locally first
+    content_size = len(content)
     with open(file_path, "wb") as f:
         f.write(content)
     
-    # Generate URL
-    media_url = f"/api/uploads/stories/{filename}"
+    # Persist to Supabase Storage (Render disk is ephemeral)
+    local_url = f"/api/uploads/stories/{filename}"
+    supabase_url = upload_to_supabase_storage(
+        file_path, 'stories',
+        f"{user_id}/{filename}",
+        content_type=file.content_type or ('video/mp4' if media_type == 'video' else 'image/jpeg')
+    )
+    media_url = supabase_url or local_url
     
     return {
         "media_url": media_url,
         "media_type": media_type,
         "filename": filename,
-        "size": len(content)
+        "size": content_size,
+        "persistent": bool(supabase_url)
     }
 
 @router.post("/upload/conditions")
@@ -559,9 +575,19 @@ async def upload_avatar(
         with open(file_path, "wb") as f:
             f.write(content)
     
+    # Persist to Supabase Storage (Render disk is ephemeral)
+    local_url = f"/api/uploads/avatars/{filename}"
+    supabase_url = upload_to_supabase_storage(
+        file_path, 'avatars',
+        filename,
+        content_type='image/jpeg'
+    )
+    avatar_url = supabase_url or local_url
+    
     return {
-        "avatar_url": f"/api/uploads/avatars/{filename}",
-        "filename": filename
+        "avatar_url": avatar_url,
+        "filename": filename,
+        "persistent": bool(supabase_url)
     }
 
 @router.get("/uploads/stories/{filename}")
