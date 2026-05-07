@@ -1,8 +1,4 @@
-/**
- * useGalleryActions.js - Extracted from GalleryPage.js
- * Custom hook containing all gallery data-fetching and action handlers.
- * ~730 lines extracted to reduce GalleryPage from 121KB.
- */
+
 import { useCallback } from 'react';
 import apiClient from '../lib/apiClient';
 import { toast } from 'sonner';
@@ -89,7 +85,6 @@ const useGalleryActions = ({
     }
   };
 
-  // Fetch Grom Highlights (Grom Parents only)
   const fetchGromHighlights = async () => {
     try {
       const response = await apiClient.get(`/gallery/grom-highlights/${user.id}`);
@@ -100,7 +95,6 @@ const useGalleryActions = ({
     }
   };
 
-  // Tag a Grom in a photo
   const handleTagGrom = async (galleryItemId, gromId) => {
     try {
       await apiClient.post(`/gallery/tag-grom?parent_id=${user.id}`, {
@@ -116,7 +110,6 @@ const useGalleryActions = ({
     }
   };
 
-  // Remove Grom tag from photo
   const handleUntagGrom = async (galleryItemId, gromId) => {
     try {
       await apiClient.delete(`/gallery/untag-grom/${galleryItemId}/${gromId}?parent_id=${user.id}`);
@@ -137,7 +130,6 @@ const useGalleryActions = ({
     }
   };
 
-  // Fetch items for a specific gallery
   const fetchGalleryItems = async (galleryId) => {
     setGalleryItemsLoading(true);
     try {
@@ -151,7 +143,6 @@ const useGalleryActions = ({
     }
   };
 
-  // Delete item from gallery
   const handleDeleteFromGallery = async (itemId) => {
     if (!selectedGallery) return;
     setDeleteConfirm({ type: 'single', itemId });
@@ -180,7 +171,6 @@ const useGalleryActions = ({
     }
   };
 
-  // Add existing photo to gallery
   const handleAddToGallery = async (itemId) => {
     if (!selectedGallery) return;
     
@@ -197,7 +187,6 @@ const useGalleryActions = ({
     }
   };
 
-  // Open gallery detail view
   const openGalleryDetail = (gal) => {
     setSelectedGallery(gal);
     fetchGalleryItems(gal.id);
@@ -209,16 +198,12 @@ const useGalleryActions = ({
     }
   };
 
-  // Close gallery detail view
   const closeGalleryDetail = () => {
     setSelectedGallery(null);
     setGalleryItems([]);
     setConditionsStatus(null);
   };
 
-  // ============ PUSH TO SPOT HUB HANDLERS ============
-  
-  // Fetch current conditions report status for a gallery
   const fetchConditionsStatus = async (galleryId) => {
     try {
       const response = await apiClient.get(
@@ -231,7 +216,6 @@ const useGalleryActions = ({
     }
   };
 
-  // Push conditions report to spot hub
   const handlePushToSpotHub = async () => {
     if (!selectedGallery?.surf_spot_id) {
       toast.error('This gallery has no linked surf spot');
@@ -244,7 +228,7 @@ const useGalleryActions = ({
         {}
       );
       const data = response.data;
-      toast.success(`📡 ${data.message}`);
+      toast.success(`ðŸ“¡ ${data.message}`);
       // Refresh status
       await fetchConditionsStatus(selectedGallery.id);
     } catch (error) {
@@ -279,7 +263,6 @@ const useGalleryActions = ({
     }
   };
 
-  // Handle quick price update from thumbnail
   const handleQuickPriceUpdate = async (itemId, newPrice) => {
     const result = await setItemCustomPrice(itemId, newPrice);
     if (result.success) {
@@ -290,7 +273,6 @@ const useGalleryActions = ({
     }
   };
 
-  // Handle clearing custom price
   const handleClearCustomPrice = async (itemId) => {
     const result = await clearItemCustomPrice(itemId);
     if (result.success) {
@@ -301,7 +283,6 @@ const useGalleryActions = ({
     }
   };
 
-  // NEW: Create folder/gallery
   const handleCreateFolder = async () => {
     if (!newFolderName.trim()) {
       toast.error('Please enter a folder name');
@@ -324,7 +305,6 @@ const useGalleryActions = ({
     }
   };
 
-  // NEW: Rename folder/gallery
   const handleRenameFolder = async () => {
     if (!folderToRename || !newFolderName.trim()) {
       toast.error('Please enter a folder name');
@@ -347,13 +327,11 @@ const useGalleryActions = ({
     }
   };
 
-  // NEW: Delete folder/gallery - opens confirmation modal
   const handleDeleteFolder = (folderId, folderName) => {
     setFolderToDelete({ id: folderId, name: folderName });
     setShowDeleteFolderModal(true);
   };
 
-  // Confirm delete folder action
   const confirmDeleteFolder = async () => {
     if (!folderToDelete) return;
     setFolderActionLoading(true);
@@ -373,7 +351,6 @@ const useGalleryActions = ({
     }
   };
 
-  // NEW: Toggle item selection for bulk actions
   const toggleItemSelection = (itemId) => {
     setSelectedItems(prev => {
       const newSet = new Set(prev);
@@ -386,19 +363,16 @@ const useGalleryActions = ({
     });
   };
 
-  // NEW: Select all items
   const selectAllItems = () => {
     const items = selectedGallery ? galleryItems : gallery;
     setSelectedItems(new Set(items.map(item => item.id)));
   };
 
-  // NEW: Clear selection
   const clearSelection = () => {
     setSelectedItems(new Set());
     setBulkSelectMode(false);
   };
 
-  // NEW: Move selected items to folder
   const handleMoveToFolder = async (targetFolderId) => {
     if (selectedItems.size === 0) {
       toast.error('No items selected');
@@ -427,7 +401,6 @@ const useGalleryActions = ({
     }
   };
 
-  // NEW: Copy selected items to folder (keeps original in main gallery)
   const handleCopyToFolder = async (targetFolderId) => {
     if (selectedItems.size === 0) {
       toast.error('No items selected');
@@ -455,9 +428,6 @@ const useGalleryActions = ({
     }
   };
 
-  // ============ TAG & ASSIGN HANDLERS ============
-  
-  // Open Tag & Assign modal and fetch participants
   const handleOpenTagAssign = async () => {
     if (!selectedGallery) {
       toast.error('Please select a gallery folder first');
@@ -469,7 +439,6 @@ const useGalleryActions = ({
     await fetchParticipants(selectedGallery.id);
   };
 
-  // Fetch session participants for the gallery
   const fetchParticipants = async (galleryId) => {
     setParticipantsLoading(true);
     try {
@@ -487,12 +456,10 @@ const useGalleryActions = ({
     }
   };
 
-  // Distribute ALL gallery items to a specific surfer (respects payment tiers)
   const handleDistributeToSurfer = async (surferId, surferName) => {
     if (!selectedGallery) return;
     setDistributeLoading(prev => ({ ...prev, [surferId]: true }));
     try {
-      // Find participant to check credits
       const participant = participants.find(p => p.surfer_id === surferId);
       const hasCredits = participant && participant.photos_credit_remaining > 0;
       const accessType = hasCredits ? 'included' : 'pending_selection';
@@ -508,7 +475,7 @@ const useGalleryActions = ({
         const tierMsg = hasCredits 
           ? `${Math.min(count, participant.photos_credit_remaining)} included (full-res)` 
           : 'as previews';
-        toast.success(`✅ Pushed ${count} items to ${surferName}'s Locker ${tierMsg}!`);
+        toast.success(`âœ… Pushed ${count} items to ${surferName}'s Locker ${tierMsg}!`);
       } else if (skipped > 0) {
         toast.info(`All items already in ${surferName}'s Locker`);
       } else {
@@ -524,13 +491,11 @@ const useGalleryActions = ({
     }
   };
 
-  // Distribute ALL items to ALL session participants at once
   const handleDistributeAll = async () => {
     if (!selectedGallery || participants.length === 0) return;
     setDistributeAllLoading(true);
     
     try {
-      // Track progress by distributing items individually
       const galleryItemsResponse = await apiClient.get(`/galleries/${selectedGallery.id}/items?viewer_id=${user.id}`);
       const allItems = galleryItemsResponse.data || [];
       const totalItems = allItems.length * participants.length;
@@ -541,7 +506,7 @@ const useGalleryActions = ({
       );
       const total = response.data.total_distributed || 0;
       setDistributeProgress({ current: totalItems, total: totalItems });
-      toast.success(`✅ Distributed ${total} locker items to all participants!`);
+      toast.success(`âœ… Distributed ${total} locker items to all participants!`);
       
       // Refresh to update counts
       await fetchParticipants(selectedGallery.id);
@@ -553,7 +518,6 @@ const useGalleryActions = ({
     }
   };
 
-  // Trigger AI auto-tagging for gallery items
   const handleAiAutoTag = async () => {
     if (!selectedGallery) return;
     setAiAutoTagLoading(true);
@@ -568,9 +532,9 @@ const useGalleryActions = ({
       const matched = response.data.matches_found || 0;
       const processed = response.data.items_processed || 0;
       if (matched > 0) {
-        toast.success(`🤖 AI matched ${matched} items to surfers! (${processed} processed)`);
+        toast.success(`ðŸ¤– AI matched ${matched} items to surfers! (${processed} processed)`);
       } else {
-        toast.info(`🤖 AI processed ${processed} items — no confident matches found. Try manual tagging.`);
+        toast.info(`ðŸ¤– AI processed ${processed} items â€” no confident matches found. Try manual tagging.`);
       }
       // Refresh gallery to show updated AI status
       if (selectedGallery) {
@@ -584,7 +548,6 @@ const useGalleryActions = ({
     }
   };
 
-  // Batch tag selected items to a specific surfer
   const handleBatchTagToSurfer = async (surferId, surferName) => {
     const itemsToTag = selectedItems.size > 0 ? selectedItems : new Set(galleryItems.map(i => i.id));
     if (!selectedGallery || itemsToTag.size === 0) return;
@@ -609,19 +572,17 @@ const useGalleryActions = ({
             tagged++;
           }
         } catch (_err) {
-          // Continue with remaining items
         }
       }
-      // Build descriptive result message
       const parts = [];
       if (tagged > 0) parts.push(`${tagged} tagged`);
       if (alreadyDelivered > 0) parts.push(`${alreadyDelivered} already delivered`);
       if (alreadyTagged > 0) parts.push(`${alreadyTagged} already pending`);
       
       if (tagged > 0) {
-        toast.success(`✅ ${parts.join(' • ')} → ${surferName}`);
+        toast.success(`âœ… ${parts.join(' â€¢ ')} â†’ ${surferName}`);
       } else {
-        toast.info(`${parts.join(' • ')} for ${surferName}`);
+        toast.info(`${parts.join(' â€¢ ')} for ${surferName}`);
       }
       // Refresh
       await fetchGalleryItems(selectedGallery.id);
@@ -648,7 +609,6 @@ const useGalleryActions = ({
     searchTimeout = setTimeout(async () => {
       try {
         const response = await apiClient.get(`/profiles/search?q=${encodeURIComponent(query)}&limit=10`);
-        // Filter out current user
         const results = (response.data || []).filter(p => p.id !== user.id);
         setSearchResults(results);
       } catch (error) {
@@ -660,7 +620,6 @@ const useGalleryActions = ({
     }, 400);
   };
 
-  // NEW: Bulk delete selected items
   const handleBulkDelete = async () => {
     if (selectedItems.size === 0) {
       toast.error('No items selected');
@@ -669,30 +628,6 @@ const useGalleryActions = ({
     setDeleteConfirm({ type: 'bulk', count: selectedItems.size });
   };
 
-  const executeBulkDelete = async () => {
-    setFolderActionLoading(true);
-    try {
-      const itemIds = Array.from(selectedItems);
-      await Promise.all(itemIds.map(itemId => 
-        apiClient.delete(`/gallery/item/${itemId}?photographer_id=${user.id}`)
-      ));
-      toast.success(`Deleted ${itemIds.length} items`);
-      clearSelection();
-      fetchGallery();
-      if (selectedGallery) {
-        fetchGalleryItems(selectedGallery.id);
-        fetchGalleries();
-      }
-    } catch (error) {
-      toast.error(getErrorMessage(error, 'Failed to delete items'));
-    } finally {
-      setFolderActionLoading(false);
-    }
-  };
-
-  // ============ THUMBNAIL PICKER HANDLERS ============
-  
-  // Open thumbnail picker for a gallery
   const handleOpenThumbnailPicker = async (gal) => {
     setThumbnailPickerGallery(gal);
     setShowThumbnailPicker(true);
@@ -708,7 +643,6 @@ const useGalleryActions = ({
     }
   };
 
-  // Set a specific item as the gallery cover
   const handleSetThumbnail = async (itemId) => {
     if (!thumbnailPickerGallery) return;
     setSettingThumbnail(true);
@@ -717,7 +651,7 @@ const useGalleryActions = ({
         `/galleries/${thumbnailPickerGallery.id}/set-thumbnail?photographer_id=${user.id}`,
         { item_id: itemId }
       );
-      toast.success('📸 Folder thumbnail updated!');
+      toast.success('ðŸ“¸ Folder thumbnail updated!');
       setShowThumbnailPicker(false);
       setThumbnailPickerGallery(null);
       // Clear broken cover cache for this gallery
@@ -735,13 +669,12 @@ const useGalleryActions = ({
     }
   };
 
-  // Clear gallery thumbnail (revert to auto-select)
   const handleClearThumbnail = async (galleryId) => {
     try {
       await apiClient.patch(
         `/galleries/${galleryId}/clear-thumbnail?photographer_id=${user.id}`
       );
-      toast.success('Thumbnail reset — will auto-select on next load');
+      toast.success('Thumbnail reset â€” will auto-select on next load');
       setShowThumbnailPicker(false);
       setThumbnailPickerGallery(null);
       fetchGalleries();
@@ -750,7 +683,6 @@ const useGalleryActions = ({
     }
   };
 
-  // Set cover directly from gallery detail view (Set as Cover action)
   const handleSetAsCover = async (itemId) => {
     if (!selectedGallery) return;
     try {
@@ -758,7 +690,7 @@ const useGalleryActions = ({
         `/galleries/${selectedGallery.id}/set-thumbnail?photographer_id=${user.id}`,
         { item_id: itemId }
       );
-      toast.success('📸 Set as folder cover!');
+      toast.success('ðŸ“¸ Set as folder cover!');
       setBrokenCoverImages(prev => {
         const newSet = new Set(prev);
         newSet.delete(selectedGallery.id);
@@ -771,9 +703,6 @@ const useGalleryActions = ({
     }
   };
 
-  // ============ LINK SESSION HANDLERS ============
-  
-  // Open link session modal and fetch recent sessions
   const handleOpenLinkSession = async (gal) => {
     setLinkSessionGallery(gal);
     setShowLinkSessionModal(true);
@@ -789,12 +718,10 @@ const useGalleryActions = ({
     }
   };
 
-  // Link gallery to a session (live, booking, or dispatch)
   const handleLinkSession = async (session) => {
     if (!linkSessionGallery) return;
     setLinkingSession(true);
     try {
-      // Build the correct payload based on session type
       const linkPayload = { [session.link_key]: session.id };
       
       await apiClient.post(
@@ -803,7 +730,7 @@ const useGalleryActions = ({
       );
       const typeLabel = session.session_type === 'live' ? 'Live Session' :
         session.session_type === 'booking' ? 'Booking' : 'On-Demand';
-      toast.success(`✅ Folder linked to ${typeLabel}! Participants and distribution are now available.`);
+      toast.success(`âœ… Folder linked to ${typeLabel}! Participants and distribution are now available.`);
       setShowLinkSessionModal(false);
       setLinkSessionGallery(null);
       fetchGalleries();

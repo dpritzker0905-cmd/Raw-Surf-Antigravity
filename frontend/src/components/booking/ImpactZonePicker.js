@@ -1,10 +1,6 @@
-/**
- * ImpactZonePicker.js - Extracted from ScheduledBookingDrawer.js.
- * A map-based impact zone selector for booking location targeting.
- * 819 lines extracted.
- */
-import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { MapPin, Navigation, Loader2, X, ChevronDown, Search, Check, Info, Waves, Target, Crosshair, AlertTriangle, Plus, Minus } from 'lucide-react';
+
+import React, { useState, useEffect, useCallback } from 'react';
+import { MapPin, Navigation, Loader2, Check, Target, AlertTriangle } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { Input } from '../ui/input';
@@ -19,8 +15,7 @@ const ImpactZonePicker = ({
 }) => {
   const textPrimary = isLight ? 'text-gray-900' : 'text-white';
   const textSecondary = isLight ? 'text-gray-600' : 'text-gray-400';
-  const _cardBg = isLight ? 'bg-gray-100' : 'bg-zinc-800';
-  
+
   const [gpsLoading, setGpsLoading] = useState(false);
   const [manualInput, setManualInput] = useState(location?.description || '');
   const [userCoords, setUserCoords] = useState(null);
@@ -305,31 +300,15 @@ const ImpactZonePicker = ({
     }
   };
   
-  // Handle photographer's home break selection
   const handleHomeBreakSelect = () => {
-    if (photographerCoords.lat && photographerCoords.lng) {
-      const coords = {
-        latitude: photographerCoords.lat,
-        longitude: photographerCoords.lng,
-        description: photographerHomeBreak || "Photographer's Home Break",
-        type: 'home_break'
-      };
-      setRangeError(null);
-      setTravelSurcharge(0);
-      onLocationChange(coords);
-      onRangeValidation?.(true, 0);
-    } else {
-      onLocationChange({
-        latitude: null,
-        longitude: null,
-        description: photographerHomeBreak || "Photographer's Home Break",
-        type: 'preset',
-        preset_id: 'home'
-      });
-      setRangeError(null);
-      setTravelSurcharge(0);
-      onRangeValidation?.(true, 0);
-    }
+    const desc = photographerHomeBreak || "Photographer's Home Break";
+    onLocationChange(photographerCoords.lat && photographerCoords.lng
+      ? { latitude: photographerCoords.lat, longitude: photographerCoords.lng, description: desc, type: 'home_break' }
+      : { latitude: null, longitude: null, description: desc, type: 'preset', preset_id: 'home' }
+    );
+    setRangeError(null);
+    setTravelSurcharge(0);
+    onRangeValidation?.(true, 0);
   };
   
   // Handle nearest pier selection
@@ -378,7 +357,7 @@ const ImpactZonePicker = ({
   
   // Get fee badge for a spot
   const getFeeBadge = (spot) => {
-    const { surcharge, _label } = getTravelSurchargeForDistance(spot.distanceFromPhotographer);
+    const { surcharge } = getTravelSurchargeForDistance(spot.distanceFromPhotographer);
     if (surcharge === -1) return { text: 'Out of Range', color: 'text-red-400 bg-red-500/20' };
     if (surcharge === 0) return { text: 'No fee', color: 'text-green-400 bg-green-500/20' };
     return { text: `+$${surcharge}`, color: 'text-yellow-400 bg-yellow-500/20' };
@@ -658,40 +637,18 @@ const ImpactZonePicker = ({
             </span>
           </div>
           
-          {/* Tier Filter Tabs */}
           <div className="flex items-center gap-1 overflow-x-auto pb-1">
-            <button
-              onClick={() => setSelectedTier('all')}
-              className={`px-2.5 py-1 rounded-full text-[10px] font-medium whitespace-nowrap transition-all ${
-                selectedTier === 'all' 
-                  ? 'bg-cyan-500 text-black' 
-                  : 'bg-zinc-700 text-gray-300 hover:bg-zinc-600'
-              }`}
-            >
-              All ({nearbySpots.length})
-            </button>
-            <button
-              onClick={() => setSelectedTier('local')}
-              className={`px-2.5 py-1 rounded-full text-[10px] font-medium whitespace-nowrap transition-all ${
-                selectedTier === 'local' 
-                  ? 'bg-green-500 text-black' 
-                  : 'bg-zinc-700 text-gray-300 hover:bg-zinc-600'
-              }`}
-            >
-              No Fee ({localSpots.length})
-            </button>
-            {extendedSpots.length > 0 && (
-              <button
-                onClick={() => setSelectedTier('extended')}
+            {[
+              { key: 'all', label: `All (${nearbySpots.length})`, color: 'bg-cyan-500', show: true },
+              { key: 'local', label: `No Fee (${localSpots.length})`, color: 'bg-green-500', show: true },
+              { key: 'extended', label: `+Fee (${extendedSpots.length})`, color: 'bg-yellow-500', show: extendedSpots.length > 0 },
+            ].filter(t => t.show).map(t => (
+              <button key={t.key} onClick={() => setSelectedTier(t.key)}
                 className={`px-2.5 py-1 rounded-full text-[10px] font-medium whitespace-nowrap transition-all ${
-                  selectedTier === 'extended' 
-                    ? 'bg-yellow-500 text-black' 
-                    : 'bg-zinc-700 text-gray-300 hover:bg-zinc-600'
+                  selectedTier === t.key ? `${t.color} text-black` : 'bg-zinc-700 text-gray-300 hover:bg-zinc-600'
                 }`}
-              >
-                +Fee ({extendedSpots.length})
-              </button>
-            )}
+              >{t.label}</button>
+            ))}
           </div>
           
           {/* Search within spots */}

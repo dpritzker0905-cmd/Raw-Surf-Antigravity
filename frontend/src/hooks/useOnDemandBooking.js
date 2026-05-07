@@ -1,8 +1,4 @@
-/**
- * useOnDemandBooking.js
- * Extracted business logic hook from OnDemandRequestDrawer.js
- * Contains: 32 useState declarations, all effects, handlers, derived values
- */
+﻿
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -85,21 +81,17 @@ const useOnDemandBooking = ({ photographer, isOpen, onClose, onSuccess, userLoca
     }
   }, [isOpen]);
   
-  // ============ START TIME OPTIONS ============
   const [startTimeOption, setStartTimeOption] = useState(30); // 30, 60, or 90 minutes from now
   
-  // ============ DURATION STATE (Photographer settings) ============
   const minDuration = photographer?.min_session_hours || 0.5;
   const maxDuration = photographer?.max_session_hours || 7;
   const [requestDuration, setRequestDuration] = useState(minDuration);
   
-  // ============ CREW / SPLIT STATE ============
   const [splitEnabled, setSplitEnabled] = useState(false);
   const [crewMembers, setCrewMembers] = useState([]);
   const [newCrewInput, setNewCrewInput] = useState('');
   const [showAddCrewInput, setShowAddCrewInput] = useState(false);
 
-  // ============ LOCATION STATE ============
   const [selectedSpot, setSelectedSpot] = useState(null);
   const [customLocationName, setCustomLocationName] = useState('');
   const [customLocationAddress, setCustomLocationAddress] = useState('');
@@ -249,7 +241,6 @@ const useOnDemandBooking = ({ photographer, isOpen, onClose, onSuccess, userLoca
     fetchNearbySpots();
   }, [step, userLocation?.latitude, userLocation?.longitude, photographer?.on_demand_latitude, photographer?.on_demand_longitude, user?.id]);
   
-  // ============ FRIEND AUTOCOMPLETE STATE ============
   const [friendSearchResults, setFriendSearchResults] = useState([]);
   const [searchingFriends, setSearchingFriends] = useState(false);
   
@@ -290,11 +281,6 @@ const useOnDemandBooking = ({ photographer, isOpen, onClose, onSuccess, userLoca
     return () => clearTimeout(timeoutId);
   }, [newCrewInput, user?.id, crewMembers]);
   
-  // ============ MOBILE KEYBOARD: TRACK OPEN STATE ============
-  // We no longer manipulate --keyboard-offset (that was pushing the dialog
-  // bottom up and crushing the footer into the content). Instead, we simply
-  // track whether the keyboard is open so we can hide the spots list and
-  // give the custom-location inputs breathing room.
   const scrollContainerRef = useRef(null);
   const [keyboardOpen, setKeyboardOpen] = useState(false);
   
@@ -322,7 +308,6 @@ const useOnDemandBooking = ({ photographer, isOpen, onClose, onSuccess, userLoca
   const textSecondary = isLight ? 'text-gray-500' : 'text-muted-foreground';
   const bgCard = isLight ? 'bg-white' : 'bg-card';
   
-  // ============ PRICING ============
   const hourlyRate = photographer?.on_demand_hourly_rate || 75;
   const photosIncluded = Math.ceil((photographer?.on_demand_photos_included || 3) * requestDuration);
   const perSurferFee = photographer?.price_per_additional_surfer || 15;
@@ -369,7 +354,6 @@ const useOnDemandBooking = ({ photographer, isOpen, onClose, onSuccess, userLoca
     return `${h}h ${m}m`;
   };
   
-  // ============ CREW FUNCTIONS ============
   const handleAddCrewMember = () => {
     if (!newCrewInput.trim()) return;
     const isEmail = newCrewInput.includes('@') && !newCrewInput.startsWith('@');
@@ -438,10 +422,6 @@ const useOnDemandBooking = ({ photographer, isOpen, onClose, onSuccess, userLoca
       setCrewMembers([]);
     }
   };
-  
-  // ============ CREW PAYMENT SPLIT FUNCTIONS ============
-  // Poker-table logic: total pot = 100%. Captain gets the remainder.
-  // Each crew member's slider can only go as high as (100% - sum of OTHER members' %).
   
   const handleCrewPercentageChange = (memberId, requestedPercentage) => {
     setCrewMembers(prev => {
@@ -725,17 +705,8 @@ const useOnDemandBooking = ({ photographer, isOpen, onClose, onSuccess, userLoca
     };
   }, [step, requestId, photographer, estimatedResponse, onSuccess, onClose]);
   
-  // Countdown timer (visual feedback)
-  useEffect(() => {
-    if (step === 'waiting' && countdown > 0) {
-      const timer = setTimeout(() => setCountdown(countdown - 1), 1000);
-      return () => clearTimeout(timer);
-    }
-  }, [step, countdown]);
-  
   const isPro = photographer?.role === ROLES.APPROVED_PRO || photographer?.role === ROLES.PRO;
   
-
   return {
     // Flow state
     step, setStep,
