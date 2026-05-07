@@ -312,3 +312,298 @@ export const SplitChoiceStep = ({ booking, photographer }) => {
     </div>
   );
 };
+
+
+// ============ STEP 0.5: LOCATION SELECTION ============
+export const LocationStep = ({ booking, photographer }) => {
+  const {
+    step, setStep, isLight, textPrimary, textSecondary,
+    startTimeOption, keyboardOpen, useCustomLocation,
+    spotSearchQuery, setSpotSearchQuery, loadingSpots,
+    nearbySpots, selectedSpot, setSelectedSpot,
+    setUseCustomLocation, setCustomLocationName,
+    setCustomLocationAddress, customLocationName,
+    customLocationAddress, customLocationCoords,
+    setCustomLocationCoords, recentSpots, geocodingAddress,
+  } = booking;
+  if (step !== 'location') return null;
+
+  return (
+            <div className="p-4 sm:p-6 space-y-5">
+              {/* Header */}
+              <div className="flex items-center gap-3 mb-2">
+                <button onClick={() => setStep('timing')} className={`p-2 rounded-lg ${isLight ? 'hover:bg-gray-100' : 'hover:bg-muted'}`} aria-label="Next">
+                  <ChevronRight className={`w-5 h-5 ${textSecondary} rotate-180`} />
+                </button>
+                <div>
+                  <h2 className={`text-xl font-bold ${textPrimary}`}>Where do you want to surf?</h2>
+                  <p className={`text-xs ${textSecondary}`}>
+                    Starting in {startTimeOption} min - {photographer?.full_name}
+                  </p>
+                </div>
+              </div>
+  
+              {/* Search / Filter - hidden when typing custom location on mobile */}
+              {!(keyboardOpen && useCustomLocation) && (
+              <div className="relative">
+                <Search className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${textSecondary}`} />
+                <Input aria-label="Search surf spots..."
+                  value={spotSearchQuery}
+                  onChange={(e) => setSpotSearchQuery(e.target.value)}
+                  placeholder="Search surf spots..."
+                  className={`pl-9 ${isLight ? 'bg-gray-50' : 'bg-muted/50'}`}
+                  data-testid="spot-search-input"
+                />
+              </div>
+              )}
+  
+              {/* Spots List */}
+              {loadingSpots ? (
+                <div className="flex flex-col items-center justify-center py-8 gap-3">
+                  <Loader2 className="w-6 h-6 animate-spin text-cyan-400" />
+                  <p className={`text-sm ${textSecondary}`}>Finding spots near you...</p>
+                </div>
+              ) : (
+                <div className="space-y-2 max-h-[40vh] sm:max-h-[320px] overflow-y-auto pr-1 scroll-touch">
+                  {/* Use Current Location - hidden when typing custom location */}
+                  {!(keyboardOpen && useCustomLocation) && (
+                  <button
+                    onClick={() => {
+                      setSelectedSpot(null);
+                      setUseCustomLocation(false);
+                      setCustomLocationName('');
+                      setCustomLocationAddress('');
+                      setCustomLocationCoords(null);
+                    }}
+                    className={`w-full p-3 rounded-xl border-2 flex items-center gap-3 transition-all text-left ${
+                      !selectedSpot && !useCustomLocation
+                        ? 'border-cyan-400 bg-cyan-500/10'
+                        : `${isLight ? 'border-gray-200 bg-gray-50' : 'border-zinc-700 bg-muted/30'} hover:border-cyan-400/50`
+                    }`}
+                    data-testid="spot-current-location"
+                  >
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${
+                      !selectedSpot && !useCustomLocation ? 'bg-cyan-500' : isLight ? 'bg-gray-200' : 'bg-zinc-700'
+                    }`}>
+                      <Navigation className="w-5 h-5 text-white" />
+                    </div>
+                    <div className="flex-1">
+                      <p className={`font-medium text-sm ${textPrimary}`}>Use Current Location</p>
+                      <p className={`text-xs ${textSecondary}`}>Photographer meets you where you are</p>
+                    </div>
+                    <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
+                      !selectedSpot && !useCustomLocation ? 'border-cyan-400 bg-cyan-400' : isLight ? 'border-gray-300' : 'border-zinc-600'
+                    }`}>
+                      {!selectedSpot && !useCustomLocation && <Check className="w-3 h-3 text-black" />}
+                    </div>
+                  </button>
+                  )}
+  
+                  {/* Recently Visited Spots - hidden when typing custom location */}
+                  {!(keyboardOpen && useCustomLocation) && recentSpots.length > 0 && !spotSearchQuery && (
+                    <>
+                      <div className={`flex items-center gap-2 mt-3 mb-1 px-1`}>
+                        <History className={`w-3.5 h-3.5 ${textSecondary}`} />
+                        <span className={`text-xs font-semibold uppercase tracking-wider ${textSecondary}`}>Recently Visited</span>
+                      </div>
+                      {recentSpots.map((spot, idx) => (
+                        <button
+                          key={`recent-${spot.id || spot.name}-${idx}`}
+                          onClick={() => {
+                            if (spot.is_custom) {
+                              setUseCustomLocation(true);
+                              setCustomLocationName(spot.name);
+                              setSelectedSpot(null);
+                              // Restore geocoded coords from recent spot if available
+                              if (spot.latitude && spot.longitude) {
+                                setCustomLocationCoords({ latitude: spot.latitude, longitude: spot.longitude });
+                              } else {
+                                setCustomLocationCoords(null);
+                              }
+                            } else {
+                              setSelectedSpot(spot);
+                              setUseCustomLocation(false);
+                              setCustomLocationName('');
+                              setCustomLocationCoords(null);
+                            }
+                          }}
+                          className={`w-full p-3 rounded-xl border-2 flex items-center gap-3 transition-all text-left ${
+                            (spot.is_custom && useCustomLocation && customLocationName === spot.name) ||
+                            (!spot.is_custom && selectedSpot?.id === spot.id)
+                              ? 'border-teal-400 bg-teal-500/10'
+                              : `${isLight ? 'border-gray-200 bg-gray-50' : 'border-zinc-700 bg-muted/30'} hover:border-teal-400/50`
+                          }`}
+                          data-testid={`spot-recent-${idx}`}
+                        >
+                          <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${
+                            (spot.is_custom && useCustomLocation && customLocationName === spot.name) ||
+                            (!spot.is_custom && selectedSpot?.id === spot.id)
+                              ? 'bg-teal-500' : isLight ? 'bg-gray-200' : 'bg-zinc-700'
+                          }`}>
+                            <History className={`w-4 h-4 ${
+                              (spot.is_custom && useCustomLocation && customLocationName === spot.name) ||
+                              (!spot.is_custom && selectedSpot?.id === spot.id)
+                                ? 'text-white' : textSecondary
+                            }`} />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className={`font-medium text-sm truncate ${textPrimary}`}>{spot.name}</p>
+                            <p className={`text-xs ${textSecondary} truncate`}>
+                              {spot.is_custom ? 'Custom spot' : (spot.region || 'Mapped spot')}
+                            </p>
+                          </div>
+                          <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
+                            (spot.is_custom && useCustomLocation && customLocationName === spot.name) ||
+                            (!spot.is_custom && selectedSpot?.id === spot.id)
+                              ? 'border-teal-400 bg-teal-400' : isLight ? 'border-gray-300' : 'border-zinc-600'
+                          }`}>
+                            {((spot.is_custom && useCustomLocation && customLocationName === spot.name) ||
+                              (!spot.is_custom && selectedSpot?.id === spot.id)) && <Check className="w-3 h-3 text-black" />}
+                          </div>
+                        </button>
+                      ))}
+                      <div className={`flex items-center gap-2 mt-3 mb-1 px-1`}>
+                        <MapPin className={`w-3.5 h-3.5 ${textSecondary}`} />
+                        <span className={`text-xs font-semibold uppercase tracking-wider ${textSecondary}`}>Nearby Spots</span>
+                      </div>
+                    </>
+                  )}
+  
+                  {/* Nearby Mapped Spots - hidden when typing custom location */}
+                  {!(keyboardOpen && useCustomLocation) && nearbySpots
+                    .filter(s => !spotSearchQuery || s.name?.toLowerCase().includes(spotSearchQuery.toLowerCase()) || s.region?.toLowerCase().includes(spotSearchQuery.toLowerCase()))
+                    .slice(0, 20)
+                    .map((spot) => (
+                      <button
+                        key={spot.id}
+                        onClick={() => {
+                          setSelectedSpot(spot);
+                          setUseCustomLocation(false);
+                          setCustomLocationName('');
+                          setCustomLocationCoords(null);
+                        }}
+                        className={`w-full p-3 rounded-xl border-2 flex items-center gap-3 transition-all text-left ${
+                          selectedSpot?.id === spot.id
+                            ? 'border-amber-400 bg-amber-500/10'
+                            : `${isLight ? 'border-gray-200 bg-gray-50' : 'border-zinc-700 bg-muted/30'} hover:border-amber-400/50`
+                        }`}
+                        data-testid={`spot-option-${spot.id}`}
+                      >
+                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 overflow-hidden ${
+                          selectedSpot?.id === spot.id ? 'bg-amber-500' : isLight ? 'bg-gray-200' : 'bg-zinc-700'
+                        }`}>
+                          {spot.image_url ? (
+                            <img loading="lazy" decoding="async" src={getFullUrl(spot.image_url)} alt="" className="w-full h-full object-cover" />
+                          ) : (
+                            <MapPin className={`w-5 h-5 ${selectedSpot?.id === spot.id ? 'text-black' : textSecondary}`} />
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className={`font-medium text-sm truncate ${textPrimary}`}>{spot.name}</p>
+                          <div className="flex items-center gap-2">
+                            {spot.region && (
+                              <p className={`text-xs ${textSecondary} truncate`}>{spot.region}</p>
+                            )}
+                            {spot.distance_miles != null && (
+                              <span className={`text-xs ${textSecondary} flex-shrink-0`}>
+                                {spot.distance_miles < 1 ? `${(spot.distance_miles * 5280).toFixed(0)} ft` : `${spot.distance_miles.toFixed(1)} mi`}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
+                          selectedSpot?.id === spot.id ? 'border-amber-400 bg-amber-400' : isLight ? 'border-gray-300' : 'border-zinc-600'
+                        }`}>
+                          {selectedSpot?.id === spot.id && <Check className="w-3 h-3 text-black" />}
+                        </div>
+                      </button>
+                    ))}
+  
+                  {/* Custom Location */}
+                  <button
+                    onClick={() => {
+                      setUseCustomLocation(true);
+                      setSelectedSpot(null);
+                      setCustomLocationCoords(null);
+                    }}
+                    className={`w-full p-3 rounded-xl border-2 flex items-center gap-3 transition-all text-left ${
+                      useCustomLocation
+                        ? 'border-purple-400 bg-purple-500/10'
+                        : `${isLight ? 'border-gray-200 bg-gray-50' : 'border-zinc-700 bg-muted/30'} hover:border-purple-400/50`
+                    }`}
+                    data-testid="spot-custom-location"
+                  >
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${
+                      useCustomLocation ? 'bg-purple-500' : isLight ? 'bg-gray-200' : 'bg-zinc-700'
+                    }`}>
+                      <Plus className={`w-5 h-5 ${useCustomLocation ? 'text-white' : textSecondary}`} />
+                    </div>
+                    <div className="flex-1">
+                      <p className={`font-medium text-sm ${textPrimary}`}>Custom Location</p>
+                      <p className={`text-xs ${textSecondary}`}>Spot not listed? Type it in</p>
+                    </div>
+                    <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
+                      useCustomLocation ? 'border-purple-400 bg-purple-400' : isLight ? 'border-gray-300' : 'border-zinc-600'
+                    }`}>
+                      {useCustomLocation && <Check className="w-3 h-3 text-black" />}
+                    </div>
+                  </button>
+  
+                  {/* Custom Location Text Input */}
+                  {useCustomLocation && (
+                    <div className="mt-2 pl-2 space-y-2">
+                      <Input aria-label="Spot name (e.g. North side of pier)"
+                        value={customLocationName}
+                        onChange={(e) => setCustomLocationName(e.target.value)}
+                        placeholder="Spot name (e.g. North side of pier)"
+                        className={`${isLight ? 'bg-white' : 'bg-card/80'}`}
+                        autoFocus
+                        data-testid="custom-location-input"
+                      />
+                      <Input aria-label="Street address (e.g. 401 Meade Ave, Cocoa Beach, FL)"
+                        value={customLocationAddress}
+                        onChange={(e) => setCustomLocationAddress(e.target.value)}
+                        placeholder="Street address (e.g. 401 Meade Ave, Cocoa Beach, FL)"
+                        className={`${isLight ? 'bg-white' : 'bg-card/80'}`}
+                        data-testid="custom-location-address"
+                      />
+                      <p className={`text-xs ${textSecondary} mt-1`}>
+                        {geocodingAddress
+                          ? String.fromCodePoint(0x1F4CD) + ' Finding location...'
+                          : customLocationCoords
+                            ? '? Address found - photographer will be directed here'
+                            : customLocationAddress && customLocationAddress.trim().length >= 5
+                              ? String.fromCodePoint(0x1F4CD) + ' Could not find address - photographer will use your GPS'
+                              : 'Optional: add a street address for more precise directions'}
+                      </p>
+                    </div>
+                  )}
+  
+                  {/* No spots message */}
+                  {nearbySpots.length === 0 && !loadingSpots && (
+                    <div className={`py-6 text-center`}>
+                      <MapPin className={`w-8 h-8 mx-auto mb-2 ${textSecondary}`} />
+                      <p className={`text-sm ${textSecondary}`}>No mapped spots found nearby.</p>
+                      <p className={`text-xs ${textSecondary} mt-1`}>Use "Custom Location" or "Current Location" instead.</p>
+                    </div>
+                  )}
+                </div>
+              )}
+  
+              {/* Selected spot summary - hidden when keyboard is up */}
+              {!keyboardOpen && (selectedSpot || useCustomLocation) && (
+                <div className={`flex items-center gap-3 p-3 rounded-xl ${isLight ? 'bg-green-50' : 'bg-green-500/10'} border border-green-400/30`}>
+                  <MapPin className="w-4 h-4 text-green-400 flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className={`text-sm ${textPrimary} truncate`}>
+                      {selectedSpot ? selectedSpot.name : (customLocationName || 'Custom Location (GPS)')}
+                    </p>
+                    {useCustomLocation && customLocationAddress && (
+                      <p className={`text-xs ${textSecondary} truncate`}>{customLocationAddress}</p>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+  );
+};
