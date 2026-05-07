@@ -5,10 +5,10 @@ import { usePersona, getExpandedRoleInfo } from '../contexts/PersonaContext';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 
 import { 
-  Camera, Settings, DollarSign, MapPin, Flame, 
+  Camera, DollarSign, MapPin, Flame, 
   Grid3X3, Bookmark, UserSquare2, Play, Waves, ExternalLink,
-  Instagram, Globe, Check, Loader2, UserPlus, UserMinus, ArrowLeft, Heart,
-  Users, Radio, Image, Shield, Trophy, MoreHorizontal, Ban, Flag,
+  Instagram, Globe, Check, Loader2, ArrowLeft,
+  Users, Image, Shield, Trophy, Ban,
   Star, Zap, Award
 } from 'lucide-react';
 

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * RequestProModal - Unified "Request a Pro Photographer" flow
  *
  * Features:
@@ -17,7 +17,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Camera, MapPin, Clock, Loader2, Target, Check,
-  X, Zap, ChevronDown, ChevronUp, Plus, Award, Calculator,
+  X, Zap, ChevronDown, ChevronUp, Plus, Award,
   Wallet, Users, CreditCard, ChevronLeft,
 } from 'lucide-react';
 import { Button } from '../ui/button';

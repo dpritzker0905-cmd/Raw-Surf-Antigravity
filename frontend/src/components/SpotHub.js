@@ -3,11 +3,9 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 
 import { 
-
-  MapPin, Waves, Camera, Clock, Users, X, TrendingUp, Loader2, Radio, Calendar, MessageCircle, Compass,
+  MapPin, Waves, Camera, Clock, Users, X, TrendingUp, Loader2, Calendar, MessageCircle, Compass,
   Sun, Lock, Crown, ChevronLeft,
-  Navigation, AlertCircle, Zap,
-  Bell
+  Navigation, AlertCircle, Bell
 } from 'lucide-react';
 
 import SpotHubConditionsTab from './spot-hub/SpotHubConditionsTab';
@@ -19,7 +17,7 @@ import { Button } from './ui/button';
 
 import { Badge } from './ui/badge';
 
-import { Avatar, AvatarImage, AvatarFallback } from './ui/avatar';
+
 
 
 
@@ -34,7 +32,7 @@ import { toast } from 'sonner';
 import { ScheduledBookingDrawer } from './ScheduledBookingDrawer';
 
 import logger from '../utils/logger';
-import { getFullUrl } from '../utils/media';
+
 import useSpotHubActions from '../hooks/useSpotHubActions';
 import { getThemeTokens } from '../utils/themeTokens';
 import { ROLES } from '../constants/roles';
