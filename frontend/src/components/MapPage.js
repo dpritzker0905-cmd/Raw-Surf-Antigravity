@@ -7,7 +7,6 @@ import apiClient from '../lib/apiClient';
 import { useAuth } from '../contexts/AuthContext';
 import { usePersona } from '../contexts/PersonaContext';
 import { useTheme } from '../contexts/ThemeContext';
-import { MapPin, Camera, Users, X, MessageCircle, Navigation, Loader2, Check } from 'lucide-react';
 import { PermissionNudgeDrawer } from './PermissionNudgeDrawer';
 import { Button } from './ui/button';
 import { toast } from 'sonner';
@@ -29,7 +28,10 @@ import { LocationPicker } from './LocationPicker';
 import { MapFilterTabs } from './map/MapFilterTabs';
 import { MapHeader } from './map/MapHeader';
 import MapErrorBoundary from './map/MapErrorBoundary';
-import { isValidLatLng, truncateCoord, TILE_LAYER_CONFIG, MAPBOX_TILES } from './map/mapUtils';
+import { IPLocationBanner } from './map/IPLocationBanner';
+import { MapRightControls } from './map/MapRightControls';
+import { NearestSpotCard } from './map/NearestSpotCard';
+import { isValidLatLng, truncateCoord, TILE_LAYER_CONFIG, MAPBOX_TILES, FLORIDA_CENTER } from './map/mapUtils';
 import { useMapData } from '../hooks/useMapData';
 import { useUserLocation } from '../hooks/useUserLocation';
 import { useGoLiveFlow } from '../hooks/useGoLiveFlow';
@@ -666,43 +668,15 @@ const MapPageContent = () => {
               setUnifiedDrawerOpen(true);
             }}
           />
-          {showIpBanner && (cityChanged || (locationDenied && ipLocation)) && (
-            <div 
-              className={`mt-2 px-3 py-2 rounded-lg backdrop-blur-sm pointer-events-auto flex items-center justify-between gap-2 text-sm ${
-                cityChanged 
-                  ? 'bg-gradient-to-r from-yellow-900/80 to-orange-900/80 border border-yellow-500/30' 
-                  : 'bg-zinc-800/90 border border-zinc-700'
-              }`}
-              data-testid="ip-location-banner"
-            >
-              <div className="flex items-center gap-2 min-w-0">
-                <MapPin className="w-4 h-4 flex-shrink-0 text-gray-400" />
-                <span className="text-gray-300 truncate">
-                  {cityChanged ? 'Updated: ' : ''}
-                  <span className="font-medium text-white">{ipLocation?.city}</span>
-                  <span className="text-gray-500 text-xs ml-1">(approx)</span>
-                </span>
-              </div>
-              <div className="flex items-center gap-1 flex-shrink-0">
-                {!userLocation && (
-                  <button
-                    onClick={getUserLocation}
-                    className="px-2 py-0.5 text-xs bg-cyan-600 hover:bg-cyan-500 rounded text-white"
-                    data-testid="grant-gps-link"
-                  >
-                    GPS
-                  </button>
-                )}
-                <button
-                  onClick={() => setShowIpBanner(false)}
-                  className="p-1 hover:bg-white/10 rounded text-gray-500 hover:text-gray-300"
-                  title="Dismiss"
-                >
-                  <X className="w-3 h-3" />
-                </button>
-              </div>
-            </div>
-          )}
+          <IPLocationBanner
+            showIpBanner={showIpBanner}
+            cityChanged={cityChanged}
+            locationDenied={locationDenied}
+            ipLocation={ipLocation}
+            userLocation={userLocation}
+            onRequestGPS={getUserLocation}
+            onDismiss={() => setShowIpBanner(false)}
+          />
           <div className="mt-2 pointer-events-auto">
             <button
               onClick={() => {
@@ -738,69 +712,20 @@ const MapPageContent = () => {
 
       <DispatchTrackingPanel activeDispatch={activeDispatch} onDismiss={() => setActiveDispatch(null)} />
 
-      <div 
-        className="absolute right-4 z-[1000] flex flex-col gap-2" 
-        style={{ top: currentUserShooting ? 'calc(130px + env(safe-area-inset-top))' : 'calc(max(96px, env(safe-area-inset-top) + 80px))' }}
-      >
-        {userLocation?.accuracy && userLocation.accuracy > 1000 && (
-          <button
-            onClick={() => setShowLocationPicker(true)}
-            className="flex items-center gap-2 px-3 py-2 bg-red-500/90 hover:bg-red-600 text-white rounded-full text-sm font-medium shadow-lg animate-pulse"
-            data-testid="location-fix-btn"
-          >
-            <MapPin className="w-4 h-4" />
-            <span>Fix Location</span>
-          </button>
-        )}
-        <div className="relative">
-          <Button
-            onClick={getUserLocation}
-            disabled={gpsLoading}
-            className={`backdrop-blur-sm hover:bg-zinc-700 text-white rounded-full w-12 h-12 p-0 ${
-              userLocation?.accuracy && userLocation.accuracy > 500 
-                ? 'bg-orange-600/90' 
-                : 'bg-zinc-800/90'
-            }`}
-            data-testid="gps-location-btn"
-            title={userLocation?.accuracy ? `Accuracy: ${Math.round(userLocation.accuracy)}m` : 'Get location'}
-          >
-            {gpsLoading ? (
-              <Loader2 className="w-5 h-5 animate-spin" />
-            ) : (
-              <Navigation className={`w-5 h-5 ${userLocation && userLocation.accuracy <= 100 ? 'text-blue-400' : ''}`} />
-            )}
-          </Button>
-          {(locationDenied || (userLocation?.accuracy && userLocation.accuracy > 200)) && (
-            <button
-              onClick={() => setShowGPSGuide(true)}
-              className="absolute -bottom-1 -right-1 w-5 h-5 bg-yellow-500 hover:bg-yellow-400 rounded-full flex items-center justify-center text-black text-xs font-bold shadow-lg"
-              title="GPS Help"
-              data-testid="gps-help-btn"
-            >
-              ?
-            </button>
-          )}
-        </div>
-        <Button
-          aria-expanded={showFeaturedPanel} onClick={() => setShowFeaturedPanel(!showFeaturedPanel)}
-          className={`bg-zinc-800/90 backdrop-blur-sm hover:bg-zinc-700 text-white rounded-full w-12 h-12 p-0 ${showFeaturedPanel ? 'ring-2 ring-yellow-400' : ''}`}
-          data-testid="featured-photographers-btn"
-        >
-          <Camera className={`w-5 h-5 ${showFeaturedPanel ? 'text-yellow-400' : ''}`} />
-        </Button>
-        <Button
-          aria-expanded={showFriendsOnMap} onClick={() => setShowFriendsOnMap(!showFriendsOnMap)}
-          className={`bg-zinc-800/90 backdrop-blur-sm hover:bg-zinc-700 text-white rounded-full w-12 h-12 p-0 ${showFriendsOnMap ? 'ring-2 ring-yellow-400' : ''}`}
-          data-testid="friends-on-map-btn"
-        >
-          <Users className={`w-5 h-5 ${showFriendsOnMap ? 'text-yellow-400' : ''}`} />
-        </Button>
-        {showFriendsOnMap && friendsOnMap.length > 0 && (
-          <div className="absolute -top-1 -right-1 w-5 h-5 bg-yellow-400 rounded-full flex items-center justify-center text-xs text-black font-bold">
-            {friendsOnMap.length}
-          </div>
-        )}
-      </div>
+      <MapRightControls
+        userLocation={userLocation}
+        gpsLoading={gpsLoading}
+        locationDenied={locationDenied}
+        currentUserShooting={currentUserShooting}
+        showFeaturedPanel={showFeaturedPanel}
+        showFriendsOnMap={showFriendsOnMap}
+        friendsOnMap={friendsOnMap}
+        onGetLocation={getUserLocation}
+        onShowLocationPicker={() => setShowLocationPicker(true)}
+        onToggleFeatured={() => setShowFeaturedPanel(!showFeaturedPanel)}
+        onToggleFriends={() => setShowFriendsOnMap(!showFriendsOnMap)}
+        onShowGPSGuide={() => setShowGPSGuide(true)}
+      />
 
       {showFeaturedPanel && (
         <FeaturedPhotographersPanel
@@ -814,24 +739,17 @@ const MapPageContent = () => {
         />
       )}
 
-      {nearestSpot && userLocation && (
-        <div className="absolute bottom-24 right-4 z-[1000] pointer-events-auto">
-          <div 
-            className="bg-zinc-800/95 backdrop-blur-sm rounded-lg p-3 max-w-[180px] shadow-lg border border-zinc-700/50 cursor-pointer hover:bg-zinc-700/95 transition-colors"
-            onClick={() => {
-              if (mapInstanceRef.current && nearestSpot.latitude && nearestSpot.longitude) {
-                mapInstanceRef.current.setView([nearestSpot.latitude, nearestSpot.longitude], 14);
-              }
-              setSelectedSpot(nearestSpot);
-              setUnifiedDrawerOpen(true);
-            }}
-          >
-            <p className="text-[10px] text-gray-500 uppercase tracking-wide mb-0.5">Nearest spot</p>
-            <p className="text-sm font-semibold text-white truncate">{nearestSpot.name}</p>
-            <p className="text-xs text-cyan-400 font-medium">{nearestSpot.distance?.toFixed(1)} km away</p>
-          </div>
-        </div>
-      )}
+      <NearestSpotCard
+        nearestSpot={nearestSpot}
+        userLocation={userLocation}
+        onSpotSelect={(spot) => {
+          if (mapInstanceRef.current && spot.latitude && spot.longitude) {
+            mapInstanceRef.current.setView([spot.latitude, spot.longitude], 14);
+          }
+          setSelectedSpot(spot);
+          setUnifiedDrawerOpen(true);
+        }}
+      />
 
       {bottomSheetOpen && selectedPhotographer && !showJumpInModal && (
         <PhotographerBottomSheet
